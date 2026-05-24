@@ -55,8 +55,12 @@ type UploadReport = {
   tier: UploadTier;
   label: string;
   description: string;
+  required: boolean;
+  omitted: boolean;
   data: ParsedFile | null;
-  onFile: (file: File) => void;
+  onFile: (file: File) => void | Promise<void>;
+  onRemove: () => void;
+  onOmitChange: (omitted: boolean) => void;
 };
 
 type APKpis = {
@@ -67,6 +71,8 @@ type APKpis = {
   days61To90: number;
   days90Plus: number;
 };
+
+type AgingKpis = APKpis;
 
 type InventoryItem = {
   name: string;
@@ -84,18 +90,26 @@ type InventoryKpis = {
 type FixedAssetMatch = {
   metric: string;
   label: string;
-  value: number;
+  value: number | null;
 };
 
 type FixedAssetKpis = {
   totalFixedAssets: number;
   accumulatedDepreciation: number;
   netBookValue: number;
-  depreciationExpense: number;
+  depreciationExpense: number | null;
   fixedAssetsToTotalAssets: number;
   depreciationToFixedAssets: number;
   netBookValueToTotalAssets: number;
   matches: FixedAssetMatch[];
+};
+
+type FixedAssetChangeRow = {
+  metric: string;
+  current: number;
+  prior: number;
+  change: number;
+  interpretation: string;
 };
 
 type FluxAccount = {
@@ -128,6 +142,7 @@ const PACKAGE_LABELS: Record<PackageTier, string> = {
   professional: "Professional",
   virtualCfo: "Virtual CFO",
 };
+const PREVIEW_COLUMN_LIMIT = 10;
 
 function isProfessionalOrHigher(tier: PackageTier) {
   return tier === "professional" || tier === "virtualCfo";
@@ -137,12 +152,40 @@ function isVirtualCfo(tier: PackageTier) {
   return tier === "virtualCfo";
 }
 
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+function formatCurrency(value: number | null | undefined) {
+  if (value === null || value === undefined) return "";
+
+  const amount = Math.round(value);
+  const formatted = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 0,
-  }).format(value || 0);
+  }).format(Math.abs(amount));
+
+  return amount < 0 ? `($${formatted})` : `$${formatted}`;
+}
+
+function formatMoney(value: number | null | undefined) {
+  return formatCurrency(value ?? 0);
+}
+
+function formatOptionalCurrency(value: number | null | undefined, fallback = "Not found") {
+  return value === null || value === undefined ? fallback : formatCurrency(value);
+}
+
+function formatNumber(value: number | null | undefined) {
+  if (value === null || value === undefined) return "";
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatPercent(value: number | null | undefined) {
+  if (value === null || value === undefined) return "";
+  const percentValue = Math.abs(value) <= 1 ? value * 100 : value;
+  const formatted = `${Math.abs(percentValue).toFixed(1)}%`;
+  return percentValue < 0 ? `(${formatted})` : formatted;
+}
+
+function formatRate(value: number | null | undefined) {
+  if (value === null || value === undefined) return "";
+  return value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function parseNumber(value: unknown): number | null {
@@ -154,22 +197,42 @@ function parseNumber(value: unknown): number | null {
     .replace(/\((.*?)\)/g, "-$1")
     .replace(/^=/, "")
     .trim();
+  const numericText = text.replace(/[^0-9.-]/g, "");
 
-  const number = Number(text.replace(/[^0-9.-]/g, ""));
+  if (!/\d/.test(numericText)) return null;
+
+  const number = Number(numericText);
   return Number.isFinite(number) ? number : null;
+}
+
+function getLastNumericValue(row: unknown[]) {
+  for (let index = row.length - 1; index >= 1; index--) {
+    const value = parseNumber(row[index]);
+    if (value !== null) return value;
+  }
+
+  return null;
 }
 
 function calculateKPIs(plData: ParsedFile | null, bsData: ParsedFile | null): KPIs {
   const matches: MatchedLine[] = [];
 
   const findExact = (rows: unknown[][], metric: string, labels: string[]) => {
-    for (const row of rows) {
-      const label = String(row[0] || "").trim().toLowerCase();
+    const normalizedLabels = labels.map((label) => normalizeStatementLabel(label));
 
-      if (labels.map((x) => x.toLowerCase()).includes(label)) {
-        const value = parseNumber(row[1]) || 0;
-        matches.push({ metric, label: String(row[0]), value });
-        return value;
+    for (const targetLabel of normalizedLabels) {
+      for (const row of rows) {
+        const rawLabel = String(row[0] || "").trim();
+        const label = normalizeStatementLabel(rawLabel);
+
+        if (label === targetLabel) {
+          const value = getLastNumericValue(row);
+
+          if (value !== null) {
+            matches.push({ metric, label: rawLabel, value });
+            return value;
+          }
+        }
       }
     }
 
@@ -180,11 +243,21 @@ function calculateKPIs(plData: ParsedFile | null, bsData: ParsedFile | null): KP
   const revenue = findExact(plData?.rows || [], "Revenue", ["Total Income"]);
   const cogs = findExact(plData?.rows || [], "COGS", ["Total Cost of Goods Sold"]);
   const grossProfit = findExact(plData?.rows || [], "Gross Profit", ["Gross Profit"]);
-  const expenses = findExact(plData?.rows || [], "Expenses", ["Total Expenses"]);
+  const expenses = findExact(plData?.rows || [], "Expenses", [
+    "Total Operating Expenses",
+    "Total Expenses",
+    "Total Expense",
+    "Total Operating Expense",
+    "Operating Expenses",
+  ]);
   const netIncome = findExact(plData?.rows || [], "Net Income", ["Net Income"]);
   const cash = findExact(bsData?.rows || [], "Cash", ["Total Bank Accounts"]);
   const accountsReceivable = findExact(bsData?.rows || [], "Accounts Receivable", [
     "Total Accounts Receivable",
+    "Accounts Receivable",
+    "Accounts Receivable (A/R)",
+    "A/R",
+    "Trade Accounts Receivable",
   ]);
   const totalAssets = findExact(bsData?.rows || [], "Total Assets", ["TOTAL ASSETS"]);
   const totalEquity = findExact(bsData?.rows || [], "Total Equity", ["Total Equity"]);
@@ -203,10 +276,20 @@ function calculateKPIs(plData: ParsedFile | null, bsData: ParsedFile | null): KP
   };
 }
 
-function buildExecutiveSummary(kpis: KPIs, netMargin: number) {
+function buildExecutiveSummary(kpis: KPIs, netMargin: number, fixedAssetKpis?: FixedAssetKpis | null) {
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
   const expenseRatio = kpis.revenue ? (kpis.expenses / kpis.revenue) * 100 : 0;
   const cashToAssets = kpis.totalAssets ? (kpis.cash / kpis.totalAssets) * 100 : 0;
+  const hasFixedAssets = Boolean(fixedAssetKpis && fixedAssetKpis.totalFixedAssets);
+  const fixedAssetSummary = hasFixedAssets
+    ? ` Fixed asset detail shows ${formatCurrency(
+        fixedAssetKpis?.totalFixedAssets,
+      )} in original fixed assets, ${formatCurrency(
+        fixedAssetKpis?.accumulatedDepreciation,
+      )} in accumulated depreciation, and ${formatCurrency(
+        fixedAssetKpis?.netBookValue,
+      )} in net book value.`
+    : "";
 
   return {
     paragraph: `The business generated ${formatMoney(kpis.revenue)} in revenue with ${formatMoney(
@@ -219,12 +302,15 @@ function buildExecutiveSummary(kpis: KPIs, netMargin: number) {
       kpis.accountsReceivable,
     )} in accounts receivable, and ${formatMoney(
       kpis.totalAssets,
-    )} in total assets, providing a snapshot of liquidity and overall financial position.`,
+    )} in total assets, providing a snapshot of liquidity and overall financial position.${fixedAssetSummary}`,
     highlights: [
       `Revenue totaled ${formatMoney(kpis.revenue)} for the uploaded period.`,
       `Gross profit was ${formatMoney(kpis.grossProfit)}, representing a gross margin of ${grossMargin.toFixed(1)}%.`,
       `Net income was ${formatMoney(kpis.netIncome)}, with a net margin of ${netMargin.toFixed(1)}%.`,
       `Cash on hand was ${formatMoney(kpis.cash)}, equal to ${cashToAssets.toFixed(1)}% of total assets.`,
+      ...(hasFixedAssets
+        ? [`Net book value of fixed assets was ${formatCurrency(fixedAssetKpis?.netBookValue)}.`]
+        : []),
     ],
     watchItems: [
       `Expenses totaled ${formatMoney(kpis.expenses)}, or ${expenseRatio.toFixed(1)}% of revenue.`,
@@ -309,13 +395,18 @@ function findHeaderIndex(row: unknown[], patterns: string[]) {
   });
 }
 
+function findExactHeaderIndex(row: unknown[], labels: string[]) {
+  const normalizedLabels = labels.map((label) => normalizeHeader(label));
+  return row.findIndex((cell) => normalizedLabels.includes(normalizeHeader(cell)));
+}
+
 function sumColumn(rows: unknown[][], columnIndex: number) {
   if (columnIndex < 0) return 0;
   return rows.reduce((total, row) => total + (parseNumber(row[columnIndex]) || 0), 0);
 }
 
-function calculateAPKpis(apData: ParsedFile | null): APKpis {
-  if (!apData) {
+function calculateAgingKpis(data: ParsedFile | null): AgingKpis {
+  if (!data) {
     return {
       total: 0,
       current: 0,
@@ -326,11 +417,11 @@ function calculateAPKpis(apData: ParsedFile | null): APKpis {
     };
   }
 
-  const headerIndex = apData.rows.findIndex((row) =>
+  const headerIndex = data.rows.findIndex((row) =>
     row.some((cell) => normalizeHeader(cell).includes("current")),
   );
-  const headers = apData.rows[headerIndex] || [];
-  const dataRows = headerIndex >= 0 ? apData.rows.slice(headerIndex + 1) : apData.rows;
+  const headers = data.rows[headerIndex] || [];
+  const dataRows = headerIndex >= 0 ? data.rows.slice(headerIndex + 1) : data.rows;
   const totalRow = dataRows.find((row) => normalizeHeader(row[0]) === "total");
 
   const currentIndex = findHeaderIndex(headers, ["current"]);
@@ -352,6 +443,10 @@ function calculateAPKpis(apData: ParsedFile | null): APKpis {
     valueFromTotalRow(totalIndex) || current + days1To30 + days31To60 + days61To90 + days90Plus;
 
   return { total, current, days1To30, days31To60, days61To90, days90Plus };
+}
+
+function calculateAPKpis(apData: ParsedFile | null): APKpis {
+  return calculateAgingKpis(apData);
 }
 
 function calculateInventoryKpis(inventoryData: ParsedFile | null): InventoryKpis {
@@ -402,7 +497,118 @@ function calculateInventoryKpis(inventoryData: ParsedFile | null): InventoryKpis
 function calculateFixedAssetKpis(
   fixedAssetData: ParsedFile | null,
   totalAssets: number,
+  plData: ParsedFile | null,
 ): FixedAssetKpis {
+  const depreciationExpenseFromPl = findStatementMatch(plData, [
+    "Depreciation Expense",
+    "Depreciation",
+    "Amortization Expense",
+    "Depreciation & Amortization",
+    "Depreciation and Amortization",
+  ]);
+  const emptyKpis = {
+    totalFixedAssets: 0,
+    accumulatedDepreciation: 0,
+    netBookValue: 0,
+    depreciationExpense: depreciationExpenseFromPl?.amount ?? null,
+    fixedAssetsToTotalAssets: 0,
+    depreciationToFixedAssets: 0,
+    netBookValueToTotalAssets: 0,
+    matches: [] as FixedAssetMatch[],
+  };
+
+  if (!fixedAssetData) return emptyKpis;
+
+  const headerIndex = fixedAssetData.rows.findIndex((row) => {
+    const hasAssetColumn = findExactHeaderIndex(row, ["Asset", "Asset Name", "Description"]) >= 0;
+    const hasValueColumn =
+      findExactHeaderIndex(row, ["Original Cost", "Cost", "Net Book Value", "Book Value"]) >= 0;
+
+    return hasAssetColumn && hasValueColumn;
+  });
+
+  if (headerIndex >= 0) {
+    const headers = fixedAssetData.rows[headerIndex] || [];
+    const dataRows = fixedAssetData.rows.slice(headerIndex + 1);
+    const originalCostIndex = findExactHeaderIndex(headers, ["Original Cost", "Cost"]);
+    const accumulatedDepreciationIndex = findExactHeaderIndex(headers, [
+      "Accumulated Depreciation",
+    ]);
+    const depreciationExpenseIndex = findExactHeaderIndex(headers, [
+      "Depreciation Expense",
+      "Depreciation",
+    ]);
+    const netBookValueIndex = findExactHeaderIndex(headers, ["Net Book Value", "Book Value"]);
+
+    if (
+      originalCostIndex >= 0 ||
+      accumulatedDepreciationIndex >= 0 ||
+      depreciationExpenseIndex >= 0 ||
+      netBookValueIndex >= 0
+    ) {
+      const totalFixedAssets = sumColumn(dataRows, originalCostIndex);
+      const accumulatedDepreciation = sumColumn(dataRows, accumulatedDepreciationIndex);
+      const depreciationExpenseFromFixedAssetDetail =
+        depreciationExpenseIndex >= 0 ? sumColumn(dataRows, depreciationExpenseIndex) : null;
+      const depreciationExpense =
+        depreciationExpenseFromPl?.amount ?? depreciationExpenseFromFixedAssetDetail;
+      const netBookValue =
+        netBookValueIndex >= 0
+          ? sumColumn(dataRows, netBookValueIndex)
+          : accumulatedDepreciation > 0
+            ? totalFixedAssets - accumulatedDepreciation
+            : totalFixedAssets + accumulatedDepreciation;
+      const matches: FixedAssetMatch[] = [
+        {
+          metric: "Total Fixed Assets",
+          label:
+            originalCostIndex >= 0
+              ? `Calculated from ${String(headers[originalCostIndex])} column`
+              : "Not found",
+          value: totalFixedAssets,
+        },
+        {
+          metric: "Accumulated Depreciation",
+          label:
+            accumulatedDepreciationIndex >= 0
+              ? `Calculated from ${String(headers[accumulatedDepreciationIndex])} column`
+              : "Not found",
+          value: accumulatedDepreciation,
+        },
+        {
+          metric: "Depreciation Expense",
+          label: depreciationExpenseFromPl
+            ? `Matched P&L row: ${depreciationExpenseFromPl.label}`
+            : depreciationExpenseIndex >= 0
+              ? `Calculated from ${String(headers[depreciationExpenseIndex])} column`
+              : "Depreciation expense not provided in uploaded reports.",
+          value: depreciationExpense,
+        },
+        {
+          metric: "Net Book Value",
+          label:
+            netBookValueIndex >= 0
+              ? `Calculated from ${String(headers[netBookValueIndex])} column`
+              : "Calculated from Original Cost and Accumulated Depreciation columns",
+          value: netBookValue,
+        },
+      ];
+
+      return {
+        totalFixedAssets,
+        accumulatedDepreciation,
+        netBookValue,
+        depreciationExpense,
+        fixedAssetsToTotalAssets: totalAssets ? (totalFixedAssets / totalAssets) * 100 : 0,
+        depreciationToFixedAssets: totalFixedAssets
+          ? (Math.abs(accumulatedDepreciation) / totalFixedAssets) * 100
+          : 0,
+        netBookValueToTotalAssets: totalAssets ? (netBookValue / totalAssets) * 100 : 0,
+        matches,
+      };
+    }
+  }
+
   const rows = getStatementRows(fixedAssetData);
   const matches: FixedAssetMatch[] = [];
 
@@ -434,12 +640,20 @@ function calculateFixedAssetKpis(
     assetCategoryTotal;
   const accumulatedDepreciation = findByLabels("Accumulated Depreciation", [
     "accumulated depreciation",
-    "depreciation",
   ]);
-  const depreciationExpense = findByLabels("Depreciation Expense", ["depreciation expense"]);
+  const depreciationExpense = depreciationExpenseFromPl?.amount ?? null;
+  matches.push({
+    metric: "Depreciation Expense",
+    label: depreciationExpenseFromPl
+      ? `Matched P&L row: ${depreciationExpenseFromPl.label}`
+      : "Depreciation expense not provided in uploaded reports.",
+    value: depreciationExpense,
+  });
   const netBookValue =
     findByLabels("Net Book Value", ["net book value", "book value"]) ||
-    totalFixedAssets + accumulatedDepreciation;
+    (accumulatedDepreciation > 0
+      ? totalFixedAssets - accumulatedDepreciation
+      : totalFixedAssets + accumulatedDepreciation);
 
   return {
     totalFixedAssets,
@@ -455,20 +669,228 @@ function calculateFixedAssetKpis(
   };
 }
 
+function getFixedAssetChangeRows(
+  current: FixedAssetKpis,
+  prior: FixedAssetKpis,
+): FixedAssetChangeRow[] {
+  const buildRow = (
+    metric: string,
+    priorValue: number,
+    currentValue: number,
+    positiveInterpretation: string,
+    negativeInterpretation: string,
+    flatInterpretation: string,
+  ) => {
+    const change = currentValue - priorValue;
+
+    return {
+      metric,
+      current: currentValue,
+      prior: priorValue,
+      change,
+      interpretation:
+        change > 0 ? positiveInterpretation : change < 0 ? negativeInterpretation : flatInterpretation,
+    };
+  };
+  const fixedAssetCostChange = current.totalFixedAssets - prior.totalFixedAssets;
+
+  return [
+    buildRow(
+      "Total fixed asset cost change",
+      prior.totalFixedAssets,
+      current.totalFixedAssets,
+      `Fixed assets increased by ${formatCurrency(fixedAssetCostChange)}, indicating net additions during the period.`,
+      `Fixed assets decreased by ${formatCurrency(Math.abs(fixedAssetCostChange))}, indicating possible disposals or reclassification.`,
+      "No net fixed asset additions or disposals were identified.",
+    ),
+    buildRow(
+      "Fixed asset additions",
+      prior.totalFixedAssets,
+      current.totalFixedAssets,
+      `Fixed assets increased by ${formatCurrency(fixedAssetCostChange)}, indicating net additions during the period.`,
+      `Fixed assets decreased by ${formatCurrency(Math.abs(fixedAssetCostChange))}, indicating possible disposals or reclassification.`,
+      "No net additions were identified from the uploaded reports.",
+    ),
+    buildRow(
+      "Fixed asset disposals",
+      prior.totalFixedAssets,
+      current.totalFixedAssets,
+      `Fixed assets increased by ${formatCurrency(fixedAssetCostChange)}, indicating net additions during the period.`,
+      `Fixed assets decreased by ${formatCurrency(Math.abs(fixedAssetCostChange))}, indicating possible disposals or reclassification.`,
+      "No net disposals were identified from the uploaded reports.",
+    ),
+    buildRow(
+      "Accumulated depreciation change",
+      prior.accumulatedDepreciation,
+      current.accumulatedDepreciation,
+      `Accumulated depreciation increased by ${formatCurrency(
+        Math.abs(Math.abs(current.accumulatedDepreciation) - Math.abs(prior.accumulatedDepreciation)),
+      )}, meaning the depreciation reserve increased.`,
+      `Accumulated depreciation decreased by ${formatCurrency(
+        Math.abs(Math.abs(current.accumulatedDepreciation) - Math.abs(prior.accumulatedDepreciation)),
+      )}, which may indicate disposals or reclassification.`,
+      "Accumulated depreciation was unchanged.",
+    ),
+    buildRow(
+      "Net book value change",
+      prior.netBookValue,
+      current.netBookValue,
+      `Net book value increased by ${formatCurrency(
+        current.netBookValue - prior.netBookValue,
+      )}, suggesting additions exceeded depreciation and disposals.`,
+      `Net book value decreased by ${formatCurrency(
+        Math.abs(current.netBookValue - prior.netBookValue),
+      )}, suggesting depreciation or disposals exceeded additions.`,
+      "Net book value was unchanged.",
+    ),
+  ];
+}
+
 function getStatementRows(data: ParsedFile | null): StatementRow[] {
   if (!data) return [];
 
   return data.rows
     .map((row) => ({
       label: String(row[0] || "").trim(),
-      amount: parseNumber(row[1]),
+      amount: getLastNumericValue(row),
     }))
     .filter((row) => row.label && row.amount !== null);
 }
 
 function findStatementAmount(rows: StatementRow[], labels: string[]) {
-  const normalizedLabels = labels.map((label) => label.toLowerCase());
-  return rows.find((row) => normalizedLabels.includes(row.label.toLowerCase()))?.amount || 0;
+  const normalizedLabels = labels.map((label) => normalizeStatementLabel(label));
+  return (
+    rows.find((row) => normalizedLabels.includes(normalizeStatementLabel(row.label)))?.amount || 0
+  );
+}
+
+function findStatementMatch(data: ParsedFile | null, labels: string[]) {
+  const normalizedLabels = labels.map((label) => normalizeStatementLabel(label));
+
+  for (const row of data?.rows || []) {
+    const value = getLastNumericValue(row);
+
+    if (value === null) continue;
+
+    for (const cell of row) {
+      const label = normalizeStatementLabel(String(cell || ""));
+
+      if (normalizedLabels.includes(label)) {
+        return { label: String(cell || "").trim(), amount: value };
+      }
+    }
+  }
+
+  return null;
+}
+
+function getBalanceSheetSection(label: string) {
+  const normalized = normalizeStatementLabel(label);
+
+  if (["liabilities & equity", "liabilities and equity"].includes(normalized)) return null;
+
+  if (
+    [
+      "bank accounts",
+      "cash",
+      "checking",
+      "savings",
+      "accounts receivable",
+      "total accounts receivable",
+      "inventory asset",
+      "prepaid insurance",
+      "other current assets",
+      "total current assets",
+      "total bank accounts",
+    ].some((pattern) => normalized.includes(pattern))
+  ) {
+    return "Current Assets";
+  }
+
+  if (
+    [
+      "fixed assets",
+      "accumulated depreciation",
+      "net book value",
+      "net fixed assets",
+      "equipment",
+      "vehicles",
+      "leasehold improvements",
+      "machinery",
+      "furniture",
+    ].some((pattern) => normalized.includes(pattern))
+  ) {
+    return "Fixed Assets";
+  }
+
+  if (
+    [
+      "accounts payable",
+      "credit cards",
+      "line of credit",
+      "current portion",
+      "payroll liabilities",
+      "sales tax payable",
+      "other current liabilities",
+      "total current liabilities",
+      "current liability",
+      "due within one year",
+    ].some((pattern) => normalized.includes(pattern))
+  ) {
+    return "Current Liabilities";
+  }
+
+  if (
+    normalized.includes("long-term") ||
+    normalized.includes("long term") ||
+    normalized.includes("notes payable") ||
+    normalized.includes("loan payable")
+  ) {
+    return "Long-Term Liabilities";
+  }
+
+  if (
+    normalized === "equity" ||
+    normalized.includes("total equity") ||
+    normalized.includes("retained earnings") ||
+    normalized.includes("owner's equity") ||
+    normalized.includes("owners equity")
+  ) {
+    return "Equity";
+  }
+  return null;
+}
+
+function getCurrentAssetTotal(rows: StatementRow[]) {
+  const explicitTotal = findStatementAmount(rows, ["Total Current Assets"]);
+  if (explicitTotal) return explicitTotal;
+
+  return rows.reduce((total, row) => {
+    const normalized = normalizeStatementLabel(row.label);
+    const allowedTotalRows = [
+      "total bank accounts",
+      "total accounts receivable",
+      "total other current assets",
+    ];
+    if (normalized.startsWith("total") && !allowedTotalRows.includes(normalized)) return total;
+    return getBalanceSheetSection(row.label) === "Current Assets" ? total + (row.amount || 0) : total;
+  }, 0);
+}
+
+function getCurrentLiabilityTotal(rows: StatementRow[]) {
+  const explicitTotal = findStatementAmount(rows, ["Total Current Liabilities"]);
+  if (explicitTotal) return explicitTotal;
+
+  return rows.reduce((total, row) => {
+    const normalized = normalizeStatementLabel(row.label);
+    const allowedTotalRows = [
+      "total accounts payable",
+      "total credit cards",
+      "total other current liabilities",
+    ];
+    if (normalized.startsWith("total") && !allowedTotalRows.includes(normalized)) return total;
+    return getBalanceSheetSection(row.label) === "Current Liabilities" ? total + (row.amount || 0) : total;
+  }, 0);
 }
 
 function normalizeStatementLabel(label: string) {
@@ -490,9 +912,12 @@ function getStatementRowType(label: string) {
   const sectionLabels = [
     "income",
     "cost of goods sold",
+    "operating expenses",
     "expenses",
     "assets",
     "liabilities",
+    "liabilities & equity",
+    "liabilities and equity",
     "equity",
   ];
   const majorTotalLabels = [
@@ -501,15 +926,726 @@ function getStatementRowType(label: string) {
     "gross profit",
     "total expenses",
     "net income",
+  ];
+  const calculatedValueLabels = ["net book value", "net fixed assets"];
+  const grandTotalLabels = [
     "total assets",
     "total liabilities",
     "total equity",
+    "total liabilities & equity",
+    "total liabilities and equity",
   ];
 
   if (sectionLabels.includes(normalized)) return "section";
+  if (calculatedValueLabels.includes(normalized)) return "calculated-value";
+  if (grandTotalLabels.includes(normalized)) return "grand-total";
   if (majorTotalLabels.includes(normalized)) return "major-total";
   if (normalized.startsWith("total")) return "subtotal";
   return "detail";
+}
+
+function getBalanceSheetRowsWithNetBookValue(data: ParsedFile) {
+  const previewRows = data.rows.slice(0, 25).map((row) => [...row]);
+  const comparisonHeader = previewRows.find((row) => isComparisonHeaderRow(row));
+  const isComparisonBalanceSheet = Boolean(comparisonHeader);
+
+  if (isComparisonBalanceSheet) {
+    return addBalanceSheetPreviewSections(getBalanceSheetComparisonRowsWithNetBookValue(previewRows));
+  }
+
+  const statementRows = getStatementRows(data);
+  const netBookValueRow = statementRows.find((row) =>
+    ["net book value", "net fixed assets"].includes(normalizeStatementLabel(row.label)),
+  );
+  const existingNetBookPreviewIndex = previewRows.findIndex((row) =>
+    ["net book value", "net fixed assets"].includes(normalizeStatementLabel(String(row[0] || ""))),
+  );
+  const fixedAssets = findStatementAmount(statementRows, [
+    "Total Fixed Assets",
+    "Fixed Assets",
+    "Original Cost",
+  ]);
+  const accumulatedDepreciation = findStatementAmount(statementRows, [
+    "Accumulated Depreciation",
+    "Total Accumulated Depreciation",
+  ]);
+
+  if (!fixedAssets && !accumulatedDepreciation && !netBookValueRow) {
+    return addBalanceSheetPreviewSections(previewRows);
+  }
+
+  const netBookValue = netBookValueRow?.amount ?? fixedAssets - Math.abs(accumulatedDepreciation);
+  const netBookValuePreviewRow = ["Net Book Value", netBookValue];
+  const rowsWithoutExistingNetBookValue =
+    existingNetBookPreviewIndex >= 0
+      ? previewRows.filter((_, index) => index !== existingNetBookPreviewIndex)
+      : previewRows;
+  const accumulatedDepreciationPreviewIndex = rowsWithoutExistingNetBookValue.findIndex((row) =>
+    normalizeStatementLabel(String(row[0] || "")).includes("accumulated depreciation"),
+  );
+  const insertionIndex =
+    accumulatedDepreciationPreviewIndex >= 0
+      ? Math.min(accumulatedDepreciationPreviewIndex + 1, rowsWithoutExistingNetBookValue.length)
+      : rowsWithoutExistingNetBookValue.length;
+
+  rowsWithoutExistingNetBookValue.splice(insertionIndex, 0, netBookValuePreviewRow);
+  return addBalanceSheetPreviewSections(rowsWithoutExistingNetBookValue);
+}
+
+function getBalanceSheetComparisonRowsWithNetBookValue(rows: unknown[][]) {
+  const existingNetBookValueIndex = rows.findIndex((row) =>
+    ["net book value", "net fixed assets"].includes(normalizeStatementLabel(String(row[0] || ""))),
+  );
+  const fixedAssetRow = rows.find((row) => normalizeStatementLabel(String(row[0] || "")) === "fixed assets");
+  const accumulatedDepreciationRow = rows.find((row) =>
+    normalizeStatementLabel(String(row[0] || "")).includes("accumulated depreciation"),
+  );
+
+  if (!fixedAssetRow || !accumulatedDepreciationRow) return rows;
+
+  const rowsWithoutExistingNetBookValue =
+    existingNetBookValueIndex >= 0 ? rows.filter((_, index) => index !== existingNetBookValueIndex) : rows;
+  const accumulatedDepreciationIndex = rowsWithoutExistingNetBookValue.findIndex((row) =>
+    normalizeStatementLabel(String(row[0] || "")).includes("accumulated depreciation"),
+  );
+  const headerRow = rowsWithoutExistingNetBookValue.find((row) => isComparisonHeaderRow(row)) || [];
+  const netBookValueRow = fixedAssetRow.map((cell, index) => {
+    if (index === 0) return "Net Book Value";
+
+    const fixedAssetValue = parseNumber(cell);
+    const accumulatedDepreciationValue = parseNumber(accumulatedDepreciationRow[index]);
+    const columnHeader = normalizeHeader(headerRow[index]);
+
+    if (fixedAssetValue === null && accumulatedDepreciationValue === null) return "";
+    if (columnHeader.includes("%")) return "";
+
+    return (fixedAssetValue || 0) + (accumulatedDepreciationValue || 0);
+  });
+  const currentNetBookValue = parseNumber(netBookValueRow[1]);
+  const priorNetBookValue = parseNumber(netBookValueRow[2]);
+  const priorYearNetBookValue = parseNumber(netBookValueRow[5]);
+
+  if (currentNetBookValue !== null && priorNetBookValue !== null) {
+    netBookValueRow[3] = currentNetBookValue - priorNetBookValue;
+    netBookValueRow[4] = priorNetBookValue ? ((currentNetBookValue - priorNetBookValue) / Math.abs(priorNetBookValue)) * 100 : "";
+  }
+
+  if (currentNetBookValue !== null && priorYearNetBookValue !== null) {
+    netBookValueRow[6] = currentNetBookValue - priorYearNetBookValue;
+    netBookValueRow[7] = priorYearNetBookValue
+      ? ((currentNetBookValue - priorYearNetBookValue) / Math.abs(priorYearNetBookValue)) * 100
+      : "";
+  }
+
+  rowsWithoutExistingNetBookValue.splice(
+    accumulatedDepreciationIndex >= 0 ? accumulatedDepreciationIndex + 1 : rowsWithoutExistingNetBookValue.length,
+    0,
+    netBookValueRow,
+  );
+
+  return recalculateBalanceSheetComparisonLiabilityEquityTotals(rowsWithoutExistingNetBookValue);
+}
+
+function buildComparisonTotalRow(label: string, values: number[]) {
+  const current = values[1] || 0;
+  const priorMonth = values[2] || 0;
+  const priorYear = values[5] || 0;
+
+  return [
+    label,
+    current,
+    priorMonth,
+    current - priorMonth,
+    priorMonth ? ((current - priorMonth) / Math.abs(priorMonth)) * 100 : 0,
+    priorYear,
+    current - priorYear,
+    priorYear ? ((current - priorYear) / Math.abs(priorYear)) * 100 : 0,
+  ];
+}
+
+function addComparisonDetailRowToTotals(totals: number[], row: unknown[]) {
+  [1, 2, 5].forEach((index) => {
+    totals[index] += parseNumber(row[index]) || 0;
+  });
+}
+
+function recalculateBalanceSheetComparisonLiabilityEquityTotals(rows: unknown[][]) {
+  const totals = {
+    liabilities: Array(8).fill(0) as number[],
+    equity: Array(8).fill(0) as number[],
+  };
+  const detailCounts = {
+    liabilities: 0,
+    equity: 0,
+  };
+  const sourceTotalEquityRow = rows.find(
+    (row) => normalizeStatementLabel(String(row[0] || "")) === "total equity",
+  );
+  let activeSection: "assets" | "liabilities" | "equity" | null = null;
+
+  rows.forEach((row) => {
+    const normalized = normalizeStatementLabel(String(row[0] || ""));
+    const label = String(row[0] || "");
+
+    if (normalized === "assets") {
+      activeSection = "assets";
+      return;
+    }
+
+    if (
+      normalized === "liabilities & equity" ||
+      normalized === "liabilities and equity" ||
+      normalized === "liabilities" ||
+      normalized === "current liabilities" ||
+      normalized === "long-term liabilities" ||
+      normalized === "long term liabilities"
+    ) {
+      activeSection = "liabilities";
+      return;
+    }
+
+    if (normalized === "equity") {
+      activeSection = "equity";
+      return;
+    }
+
+    if (
+      !activeSection ||
+      activeSection === "assets" ||
+      normalized.startsWith("total") ||
+      getPreviewMetaRowType(row, 0) !== null ||
+      isComparisonHeaderRow(row)
+    ) {
+      return;
+    }
+
+    addComparisonDetailRowToTotals(totals[activeSection], row);
+    detailCounts[activeSection] += 1;
+  });
+
+  const totalLiabilitiesRow = buildComparisonTotalRow("Total Liabilities", totals.liabilities);
+  const sourceEquityTotals = Array(8).fill(0) as number[];
+  if (sourceTotalEquityRow) {
+    [1, 2, 5].forEach((index) => {
+      sourceEquityTotals[index] = parseNumber(sourceTotalEquityRow[index]) || 0;
+    });
+  }
+  const totalEquityRow = buildComparisonTotalRow(
+    "Total Equity",
+    detailCounts.equity > 0 ? totals.equity : sourceEquityTotals,
+  );
+  const totalLiabilitiesAndEquity = buildComparisonTotalRow(
+    "TOTAL LIABILITIES & EQUITY",
+    totalLiabilitiesRow.map((value, index) => (parseNumber(value) || 0) + (parseNumber(totalEquityRow[index]) || 0)),
+  );
+
+  return rows.map((row) => {
+    const normalized = normalizeStatementLabel(String(row[0] || ""));
+
+    if (normalized === "total liabilities") return totalLiabilitiesRow;
+    if (normalized === "total equity") return totalEquityRow;
+    if (normalized === "total liabilities & equity" || normalized === "total liabilities and equity") {
+      return totalLiabilitiesAndEquity;
+    }
+
+    return row;
+  });
+}
+
+function addBalanceSheetPreviewSections(rows: unknown[][]) {
+  const sectionOrder = [
+    "Current Assets",
+    "Fixed Assets",
+    "Current Liabilities",
+    "Long-Term Liabilities",
+    "Equity",
+  ];
+  const seen = new Set<string>();
+  const enhancedRows: unknown[][] = [];
+
+  rows.forEach((row) => {
+    const label = String(row[0] || "");
+    const normalized = normalizeStatementLabel(label);
+    const section = getBalanceSheetSection(label);
+    const isExplicitSection = sectionOrder.some((item) => normalizeStatementLabel(item) === normalized);
+
+    if (section && !seen.has(section) && !isExplicitSection) {
+      enhancedRows.push([section]);
+      seen.add(section);
+    }
+
+    if (isExplicitSection) seen.add(section || label);
+    enhancedRows.push(row);
+  });
+
+  return enhancedRows;
+}
+
+function getBalanceSheetStatementRowsWithNetBookValue(data: ParsedFile | null) {
+  const rows = getStatementRows(data).map((row) => ({ ...row }));
+  const existingNetBookValueRow = rows.find((row) =>
+    ["net book value", "net fixed assets"].includes(normalizeStatementLabel(row.label)),
+  );
+  const fixedAssets = findStatementAmount(rows, ["Total Fixed Assets", "Fixed Assets", "Original Cost"]);
+  const accumulatedDepreciation = findStatementAmount(rows, [
+    "Accumulated Depreciation",
+    "Total Accumulated Depreciation",
+  ]);
+
+  if (!fixedAssets && !accumulatedDepreciation && !existingNetBookValueRow) {
+    return addBalanceSheetStatementSections(rows);
+  }
+
+  const rowsWithoutExistingNetBookValue = rows
+    .filter(
+      (row) =>
+        !["net book value", "net fixed assets"].includes(normalizeStatementLabel(row.label)),
+    )
+    .map((row) =>
+      normalizeStatementLabel(row.label).includes("accumulated depreciation")
+        ? { ...row, amount: -Math.abs(row.amount || 0) }
+        : row,
+    );
+  const accumulatedDepreciationIndex = rowsWithoutExistingNetBookValue.findIndex((row) =>
+    normalizeStatementLabel(row.label).includes("accumulated depreciation"),
+  );
+  const insertionIndex =
+    accumulatedDepreciationIndex >= 0
+      ? Math.min(accumulatedDepreciationIndex + 1, rowsWithoutExistingNetBookValue.length)
+      : rowsWithoutExistingNetBookValue.length;
+  const netBookValue =
+    existingNetBookValueRow?.amount ?? fixedAssets - Math.abs(accumulatedDepreciation);
+
+  rowsWithoutExistingNetBookValue.splice(insertionIndex, 0, {
+    label: "Net Book Value",
+    amount: netBookValue,
+  });
+
+  return addBalanceSheetStatementSections(rowsWithoutExistingNetBookValue);
+}
+
+function addBalanceSheetStatementSections(rows: StatementRow[]) {
+  const sectionOrder = [
+    "Current Assets",
+    "Fixed Assets",
+    "Current Liabilities",
+    "Long-Term Liabilities",
+    "Equity",
+  ];
+  const seen = new Set<string>();
+  const enhancedRows: StatementRow[] = [];
+
+  rows.forEach((row) => {
+    const normalized = normalizeStatementLabel(row.label);
+    const section = getBalanceSheetSection(row.label);
+    const isExplicitSection = sectionOrder.some((item) => normalizeStatementLabel(item) === normalized);
+
+    if (section && !seen.has(section) && !isExplicitSection) {
+      enhancedRows.push({ label: section, amount: null });
+      seen.add(section);
+    }
+
+    if (isExplicitSection) seen.add(section || row.label);
+    enhancedRows.push(row);
+  });
+
+  return enhancedRows;
+}
+
+function getPreviewRows(title: string, data: ParsedFile) {
+  const rows = title.toLowerCase().includes("balance sheet")
+    ? getBalanceSheetRowsWithNetBookValue(data)
+    : data.rows.slice(0, 25);
+  const normalizedTitle = title.toLowerCase();
+  const isComparisonPreview =
+    normalizedTitle.includes("comparison") || rows.some((row) => isComparisonHeaderRow(row));
+  const isStatementPreview =
+    !isComparisonPreview &&
+    (normalizedTitle.includes("profit") ||
+      normalizedTitle.includes("loss") ||
+      normalizedTitle.includes("balance sheet"));
+  const hasAmountHeader = rows.some(
+    (row) => normalizeHeader(row[0]).includes("line item") && normalizeHeader(row[1]).includes("amount"),
+  );
+
+  if (isStatementPreview && !hasAmountHeader) {
+    const firstSectionIndex = rows.findIndex((row) => getStatementRowType(String(row[0] || "")) === "section");
+    const insertionIndex = firstSectionIndex >= 0 ? firstSectionIndex : Math.min(3, rows.length);
+    const withHeader = [...rows];
+    withHeader.splice(insertionIndex, 0, ["Line Item", "Amount"]);
+    return withHeader;
+  }
+
+  return rows;
+}
+
+function getPreviewRowType(row: unknown[]) {
+  if (row.length === 1 && getBalanceSheetSection(String(row[0] || ""))) return "section";
+  return getStatementRowType(String(row[0] || ""));
+}
+
+function isComparisonHeaderRow(row: unknown[]) {
+  const normalizedCells = row.map((cell) => normalizeHeader(cell));
+  return normalizedCells.some((cell) => cell.includes("% change") || cell.includes("yoy % change"));
+}
+
+function getPreviewMetaRowType(row: unknown[], rowIndex: number) {
+  const filledCells = row.map((cell) => String(cell || "").trim()).filter(Boolean);
+  if (rowIndex > 2 || filledCells.length !== 1) return null;
+  if (rowIndex === 0) return "company";
+  if (rowIndex === 1) return "report";
+  return "period";
+}
+
+function isDateOrPeriodLabel(value: unknown) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  return (
+    /^\d{4}$/.test(text) ||
+    /^(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}$/i.test(text) ||
+    /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(text) ||
+    /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/.test(text) ||
+    /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\b/i.test(text)
+  );
+}
+
+function isAgingBucketLabel(value: unknown) {
+  const text = normalizeHeader(value).replace(/\s+/g, "");
+  return ["current", "1-30", "31-60", "61-90", "90+", "91andover", ">90", "total"].includes(text);
+}
+
+function isHeaderRow(row: unknown[]) {
+  const cells = row.map((cell) => String(cell || "").trim()).filter(Boolean);
+  if (cells.length === 0) return true;
+
+  const normalizedCells = cells.map((cell) => normalizeHeader(cell));
+  const hasGlHeader =
+    normalizedCells.includes("date") &&
+    normalizedCells.includes("account") &&
+    normalizedCells.includes("memo") &&
+    (normalizedCells.includes("debit") || normalizedCells.includes("credit"));
+  if (hasGlHeader) return true;
+
+  const headerTerms = [
+    "customer",
+    "vendor",
+    "account",
+    "line item",
+    "item",
+    "memo",
+    "date",
+    "type",
+    "num",
+    "name",
+    "1-30",
+    "31-60",
+    "61-90",
+    "90+",
+    "total",
+    "amount",
+    "balance",
+    "asset",
+    "acquired",
+    "part number",
+    "description",
+    "quantity",
+    "qty",
+    "value",
+    "cost",
+    "average cost",
+    "original cost",
+    "actual",
+    "budget",
+    "variance",
+    "% variance",
+    "change",
+    "$ change",
+    "% change",
+    "yoy",
+    "yoy $ change",
+    "yoy % change",
+    "percent",
+    "interest rate",
+    "rate",
+    "sales",
+    "depreciation",
+    "net book value",
+  ];
+  const headerMatches = normalizedCells.filter((cell) =>
+    headerTerms.some((term) => cell === term || cell.includes(term)),
+  ).length;
+
+  return headerMatches >= Math.min(2, cells.length) || normalizedCells.every(isAgingBucketLabel);
+}
+
+function isPercentCell(row: unknown[], cellIndex: number, value: unknown) {
+  const text = String(value || "").trim();
+  if (!text.includes("%")) return false;
+  return !isHeaderRow(row) && cellIndex > 0 && parseNumber(value) !== null;
+}
+
+function getColumnLabel(headers: unknown[], cellIndex: number) {
+  const directHeader = normalizeHeader(headers[cellIndex]);
+  if (directHeader) return directHeader;
+
+  const priorHeader = normalizeHeader(headers[cellIndex - 1]);
+  if (priorHeader.includes("part number") && priorHeader.includes("description")) {
+    return "description";
+  }
+
+  return "";
+}
+
+function isCurrencyColumn(columnLabel: string) {
+  const normalized = normalizeHeader(columnLabel);
+  if (!normalized) return false;
+
+  const compact = normalized.replace(/\s+/g, "");
+  const currencyColumns = [
+    "amount",
+    "value",
+    "inventory value",
+    "average cost",
+    "original cost",
+    "cost",
+    "accumulated depreciation",
+    "net book value",
+    "book value",
+    "actual",
+    "budget",
+    "over/(under) budget",
+    "over/under budget",
+    "current",
+    "1-30",
+    "1 - 30",
+    "31-60",
+    "31 - 60",
+    "61-90",
+    "61 - 90",
+    "90+",
+    "91 and over",
+    "total",
+    "debit",
+    "credit",
+    "balance",
+  ];
+
+  return currencyColumns.some((label) => {
+    const compactLabel = label.replace(/\s+/g, "");
+    return (
+      normalized === label ||
+      normalized.includes(label) ||
+      compact === compactLabel ||
+      compact.includes(compactLabel)
+    );
+  });
+}
+
+function isNumberColumn(columnLabel: string) {
+  const normalized = normalizeHeader(columnLabel);
+  return ["qty", "quantity", "quantity on hand", "on hand"].some(
+    (label) => normalized === label || normalized.includes(label),
+  );
+}
+
+function isPercentColumn(columnLabel: string) {
+  const normalized = normalizeHeader(columnLabel);
+  return ["% variance", "variance %", "percent", "margin %", "% change", "yoy % change"].some(
+    (label) => normalized === label || normalized.includes(label),
+  );
+}
+
+function isRateColumn(columnLabel: string) {
+  const normalized = normalizeHeader(columnLabel);
+  return ["interest rate", "rate"].some((label) => normalized === label || normalized.includes(label));
+}
+
+function isTextColumn(columnLabel: string) {
+  const normalized = normalizeHeader(columnLabel);
+  return [
+    "customer",
+    "vendor",
+    "account",
+    "account name",
+    "memo",
+    "date",
+    "type",
+    "num",
+    "name",
+    "asset",
+    "asset name",
+    "acquired",
+    "description",
+    "item",
+    "product",
+    "part",
+    "part number",
+  ].some((label) => normalized === label || normalized.includes(label));
+}
+
+function isStatementAmountCell(row: unknown[], cellIndex: number, value: unknown) {
+  if (cellIndex === 0) return false;
+  if (parseNumber(value) === null) return false;
+  const rowLabel = String(row[0] || "").trim();
+
+  return Boolean(rowLabel) && !isDateOrPeriodLabel(rowLabel) && !isHeaderRow(row);
+}
+
+function isNumericFinancialCell(
+  row: unknown[],
+  cellIndex: number,
+  value: unknown,
+  headers: unknown[] = [],
+) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  if (cellIndex === 0) return false;
+  if (isHeaderRow(row)) return false;
+  if (isDateOrPeriodLabel(value) || isAgingBucketLabel(value)) return false;
+  if (text.includes("%")) return false;
+
+  const parsedValue = parseNumber(value);
+  if (parsedValue === null) return false;
+
+  const columnLabel = getColumnLabel(headers, cellIndex);
+  if (
+    isTextColumn(columnLabel) ||
+    isPercentColumn(columnLabel) ||
+    isRateColumn(columnLabel) ||
+    isNumberColumn(columnLabel)
+  ) {
+    return false;
+  }
+  if (isCurrencyColumn(columnLabel)) return true;
+
+  return isStatementAmountCell(row, cellIndex, value);
+}
+
+function formatTableCell(value: unknown, columnName: unknown, row: unknown[], rowIndex: number) {
+  const text = String(value || "");
+  if (!text) return "";
+  const rowLabel = String(row[0] || "");
+  const columnLabel = normalizeHeader(columnName);
+  const parsedValue = parseNumber(value);
+
+  if (rowIndex >= 0 && isHeaderRow(row)) return text;
+  if (isDateOrPeriodLabel(value) || isAgingBucketLabel(value)) return text;
+  if (parsedValue === null) return text;
+
+  if (isPercentColumn(columnLabel) || String(value).includes("%")) {
+    return formatPercent(parsedValue);
+  }
+
+  if (isRateColumn(columnLabel)) {
+    return formatRate(parsedValue);
+  }
+
+  if (isNumberColumn(columnLabel)) {
+    return formatNumber(parsedValue);
+  }
+
+  if (isCurrencyColumn(columnLabel)) {
+    const displayValue = normalizeStatementLabel(rowLabel).includes("accumulated depreciation")
+      ? -Math.abs(parsedValue)
+      : parsedValue;
+    return formatCurrency(displayValue);
+  }
+
+  return text;
+}
+
+function formatPreviewCell(
+  row: unknown[],
+  cell: unknown,
+  cellIndex: number,
+  headers: unknown[] = [],
+  rowIndex = -1,
+  previewTitle = "",
+) {
+  const parsedValue = parseNumber(cell);
+  const normalizedPreviewTitle = previewTitle.toLowerCase();
+  const isAgingPreview = normalizedPreviewTitle.includes("aging");
+  const isInventoryPreview = normalizedPreviewTitle.includes("inventory");
+  const isFinancialStatementPreview =
+    normalizedPreviewTitle.includes("profit") ||
+    normalizedPreviewTitle.includes("loss") ||
+    normalizedPreviewTitle.includes("balance sheet");
+  const headerColumnName = headers[cellIndex] || "";
+  const columnLabel = getColumnLabel(headers, cellIndex);
+  const headerIsPercent = isPercentColumn(columnLabel);
+  const headerIsRate = isRateColumn(columnLabel);
+  const headerIsQuantity = isNumberColumn(columnLabel);
+  const headerIsText = isTextColumn(columnLabel);
+
+  if (
+    cellIndex > 0 &&
+    parsedValue !== null &&
+    !isHeaderRow(row) &&
+    headerIsPercent
+  ) {
+    return formatPercent(parsedValue);
+  }
+
+  if (cellIndex > 0 && parsedValue !== null && !isHeaderRow(row) && headerIsRate) {
+    return formatRate(parsedValue);
+  }
+
+  if (isInventoryPreview && !isHeaderRow(row)) {
+    if (cellIndex === 0 || cellIndex === 1) return String(cell || "");
+    if (parsedValue === null) return String(cell || "");
+    if (cellIndex === 2) return formatNumber(parsedValue);
+    if (cellIndex >= 3) return formatCurrency(parsedValue);
+  }
+
+  if (
+    isAgingPreview &&
+    cellIndex > 0 &&
+    parsedValue !== null &&
+    !isHeaderRow(row) &&
+    !isAgingBucketLabel(cell)
+  ) {
+    return formatCurrency(parsedValue);
+  }
+
+  if (
+    isFinancialStatementPreview &&
+    cellIndex > 0 &&
+    parsedValue !== null &&
+    !isHeaderRow(row) &&
+    !isAgingBucketLabel(cell)
+  ) {
+    const rowLabel = String(row[0] || "");
+    const displayValue = normalizeStatementLabel(rowLabel).includes("accumulated depreciation")
+      ? -Math.abs(parsedValue)
+      : parsedValue;
+    return formatCurrency(displayValue);
+  }
+
+  if (
+    cellIndex > 0 &&
+    parsedValue !== null &&
+    !isHeaderRow(row) &&
+    !isAgingBucketLabel(cell) &&
+    !headerIsText &&
+    !headerIsQuantity &&
+    !headerIsPercent &&
+    !headerIsRate
+  ) {
+    const rowLabel = String(row[0] || "");
+    const displayValue = normalizeStatementLabel(rowLabel).includes("accumulated depreciation")
+      ? -Math.abs(parsedValue)
+      : parsedValue;
+    return formatCurrency(displayValue);
+  }
+
+  const shouldUseStatementAmount =
+    isStatementAmountCell(row, cellIndex, cell) &&
+    !headerIsPercent &&
+    !headerIsRate &&
+    !headerIsQuantity;
+  const columnName = shouldUseStatementAmount ? "Amount" : headerColumnName;
+
+  return formatTableCell(cell, columnName, row, rowIndex);
 }
 
 function getTopExpenseRows(plData: ParsedFile | null) {
@@ -542,27 +1678,112 @@ function getTopExpenseRows(plData: ParsedFile | null) {
     .slice(0, 5);
 }
 
+function interpretNetMargin(value: number) {
+  if (value > 20) return "Strong profitability. The company is converting revenue into profit at a healthy rate.";
+  if (value >= 10) return "Moderate profitability. Margins are positive, but expense control should be monitored.";
+  return "Low profitability. Review pricing, labor costs, and operating expenses.";
+}
+
+function interpretGrossMargin(value: number) {
+  if (value > 50) return "Strong gross margin. Direct costs are being managed well.";
+  if (value >= 30) return "Acceptable gross margin. Monitor labor, materials, and job costing.";
+  return "Low gross margin. Review pricing, COGS, and production efficiency.";
+}
+
+function interpretExpenseRatio(value: number) {
+  if (value < 25) return "Operating expenses are well controlled relative to revenue.";
+  if (value <= 40) return "Operating expenses are moderate. Continue monitoring overhead.";
+  return "Operating expenses are high. Review administrative costs, subscriptions, insurance, payroll, and discretionary spend.";
+}
+
+function interpretCurrentRatio(value: number | null) {
+  if (value === null) return "Current assets and current liabilities are needed for a precise calculation.";
+  if (value > 2) return "Strong short-term liquidity.";
+  if (value >= 1.2) return "Adequate liquidity.";
+  return "Potential liquidity risk.";
+}
+
+function interpretQuickRatio(value: number | null) {
+  if (value === null) return "Current liabilities are needed for a precise calculation.";
+  if (value > 1.5) return "Strong near-term liquidity without relying on inventory.";
+  if (value >= 1) return "Acceptable liquidity, but cash and receivables should be monitored.";
+  return "Potential short-term cash pressure.";
+}
+
+function interpretCashToAssets(value: number) {
+  if (value > 25) return "Strong cash position relative to total assets.";
+  if (value >= 10) return "Moderate cash position.";
+  return "Low cash cushion.";
+}
+
+function interpretArToAssets(value: number) {
+  if (value > 25) return "High AR concentration. Collections should be reviewed closely.";
+  if (value >= 10) return "AR is a meaningful part of assets. Monitor aging and collection timing.";
+  return "Low AR concentration.";
+}
+
+function interpretApToRevenue(value: number) {
+  if (value > 15) return "Vendor obligations are elevated relative to revenue. Monitor cash flow and payment timing.";
+  if (value >= 5) return "AP is manageable relative to revenue.";
+  return "Low vendor obligation burden.";
+}
+
+function interpretInventoryToAssets(value: number) {
+  if (value > 30) return "Inventory represents a large share of assets. Monitor turnover, obsolete inventory, and purchasing discipline.";
+  if (value >= 10) return "Inventory investment appears reasonable.";
+  return "Inventory is a smaller portion of the asset base.";
+}
+
+function interpretWorkingCapital(value: number | null, revenue: number) {
+  if (value === null) return "Current assets and current liabilities are needed for a precise calculation.";
+  const tightThreshold = Math.max(Math.abs(revenue) * 0.02, 1000);
+
+  if (value < 0) return "Potential liquidity concern.";
+  if (value <= tightThreshold) return "Working capital is tight.";
+  return "Positive working capital supports operating flexibility.";
+}
+
+function interpretDso(value: number | null) {
+  if (value === null) return "DSO requires revenue, accounts receivable, and reporting period days.";
+  if (value < 30) return "Collections are strong.";
+  if (value <= 60) return "Collections are acceptable but should be monitored.";
+  return "Collections may be slow. Review aging buckets and follow-up procedures.";
+}
+
+function calculatePeriodDays(startDate: string, endDate: string) {
+  if (!startDate || !endDate) return null;
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const millisecondsPerDay = 1000 * 60 * 60 * 24;
+  const days = Math.floor((end.getTime() - start.getTime()) / millisecondsPerDay) + 1;
+
+  return Number.isFinite(days) && days > 0 ? days : null;
+}
+
+function calculateDso(kpis: KPIs, periodDays: number | null) {
+  if (!kpis.revenue || !kpis.accountsReceivable || !periodDays) return null;
+
+  const averageDailySales = kpis.revenue / periodDays;
+  return averageDailySales ? kpis.accountsReceivable / averageDailySales : null;
+}
+
 function buildRatioRows(
   kpis: KPIs,
   netMargin: number,
   bsRows: StatementRow[],
   apKpis: APKpis,
   inventoryKpis: InventoryKpis,
+  periodDays: number | null,
 ) {
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
   const expenseRatio = kpis.revenue ? (kpis.expenses / kpis.revenue) * 100 : 0;
-  const currentAssets = findStatementAmount(bsRows, [
-    "Total Current Assets",
-    "Total Other Current Assets",
-  ]);
-  const currentLiabilities = findStatementAmount(bsRows, [
-    "Total Current Liabilities",
-    "Total Liabilities",
-  ]);
-  const currentRatio = currentAssets && currentLiabilities ? currentAssets / currentLiabilities : 0;
+  const currentAssets = getCurrentAssetTotal(bsRows);
+  const currentLiabilities = getCurrentLiabilityTotal(bsRows);
+  const currentRatio = currentAssets && currentLiabilities ? currentAssets / currentLiabilities : null;
   const quickRatio = currentLiabilities
     ? (kpis.cash + kpis.accountsReceivable) / currentLiabilities
-    : 0;
+    : null;
   const cashToAssets = kpis.totalAssets ? (kpis.cash / kpis.totalAssets) * 100 : 0;
   const arToAssets = kpis.totalAssets ? (kpis.accountsReceivable / kpis.totalAssets) * 100 : 0;
   const apToRevenue = kpis.revenue ? (apKpis.total / kpis.revenue) * 100 : 0;
@@ -571,84 +1792,74 @@ function buildRatioRows(
     : 0;
   const workingCapital =
     currentAssets && currentLiabilities ? currentAssets - currentLiabilities : null;
+  const dso = calculateDso(kpis, periodDays);
 
   return [
     {
       name: "Net Margin",
       formula: "Net Income / Revenue",
       value: `${netMargin.toFixed(1)}%`,
-      interpretation:
-        netMargin >= 10
-          ? "The business is converting revenue into profit at a healthy level."
-          : "Profitability is modest and should be monitored closely.",
+      interpretation: interpretNetMargin(netMargin),
     },
     {
       name: "Gross Margin",
       formula: "Gross Profit / Revenue",
       value: `${grossMargin.toFixed(1)}%`,
-      interpretation: "Shows how much revenue remains after direct costs.",
+      interpretation: interpretGrossMargin(grossMargin),
     },
     {
       name: "Expense Ratio",
       formula: "Total Expenses / Revenue",
       value: `${expenseRatio.toFixed(1)}%`,
-      interpretation: "Shows how much revenue is consumed by operating expenses.",
+      interpretation: interpretExpenseRatio(expenseRatio),
     },
     {
       name: "Current Ratio",
       formula: "Current Assets / Current Liabilities",
-      value: currentRatio ? currentRatio.toFixed(2) : "N/A",
-      interpretation: currentRatio
-        ? "Shows the company's ability to cover short-term obligations with current assets."
-        : "Current assets and current liabilities are needed for a precise calculation.",
+      value: currentRatio !== null ? currentRatio.toFixed(2) : "N/A",
+      interpretation: interpretCurrentRatio(currentRatio),
     },
     {
       name: "Quick Ratio",
       formula: "(Cash + Accounts Receivable) / Current Liabilities",
-      value: quickRatio ? quickRatio.toFixed(2) : "N/A",
-      interpretation: quickRatio
-        ? "Shows short-term liquidity using cash and receivables."
-        : "Current liabilities are needed for a precise calculation.",
+      value: quickRatio !== null ? quickRatio.toFixed(2) : "N/A",
+      interpretation: interpretQuickRatio(quickRatio),
     },
     {
       name: "Cash to Assets",
       formula: "Cash / Total Assets",
       value: `${cashToAssets.toFixed(1)}%`,
-      interpretation: "Shows how much of the asset base is held in cash.",
+      interpretation: interpretCashToAssets(cashToAssets),
     },
     {
       name: "Accounts Receivable to Assets",
       formula: "Accounts Receivable / Total Assets",
       value: `${arToAssets.toFixed(1)}%`,
-      interpretation: "Shows how much of the asset base is tied up in receivables.",
+      interpretation: interpretArToAssets(arToAssets),
     },
     {
       name: "AP to Revenue",
       formula: "Accounts Payable / Revenue",
       value: `${apToRevenue.toFixed(1)}%`,
-      interpretation: "Shows unpaid vendor obligations compared with revenue.",
+      interpretation: interpretApToRevenue(apToRevenue),
     },
     {
       name: "Inventory to Total Assets",
       formula: "Inventory / Total Assets",
       value: `${inventoryToAssets.toFixed(1)}%`,
-      interpretation: "Shows how much of the asset base is invested in inventory.",
+      interpretation: interpretInventoryToAssets(inventoryToAssets),
     },
     {
       name: "Working Capital Estimate",
       formula: "Current Assets - Current Liabilities",
       value: workingCapital !== null ? formatMoney(workingCapital) : "N/A",
-      interpretation:
-        workingCapital !== null
-          ? "Estimates short-term operating liquidity."
-          : "Current assets and current liabilities are needed for a precise calculation.",
+      interpretation: interpretWorkingCapital(workingCapital, kpis.revenue),
     },
     {
       name: "DSO",
-      formula: "Accounts Receivable / Average Daily Sales",
-      value: "N/A",
-      interpretation:
-        "AR aging or sales by period detail is needed for a more precise DSO calculation.",
+      formula: "Accounts Receivable / (Revenue / Period Days)",
+      value: dso !== null ? `${dso.toFixed(1)} days` : "N/A",
+      interpretation: interpretDso(dso),
     },
   ];
 }
@@ -762,6 +1973,11 @@ export default function UploadPage() {
   const [isPackageExported, setIsPackageExported] = useState(false);
   const [kpisConfirmed, setKpisConfirmed] = useState(false);
   const [reviewerNotes, setReviewerNotes] = useState("");
+  const [reportingPeriodStart, setReportingPeriodStart] = useState("");
+  const [reportingPeriodEnd, setReportingPeriodEnd] = useState("");
+  const [manualPeriodDays, setManualPeriodDays] = useState("");
+  const [reportsChangedAfterConfirmation, setReportsChangedAfterConfirmation] = useState(false);
+  const [omittedReportIds, setOmittedReportIds] = useState<string[]>([]);
   const [plData, setPlData] = useState<ParsedFile | null>(null);
   const [bsData, setBsData] = useState<ParsedFile | null>(null);
   const [arData, setArData] = useState<ParsedFile | null>(null);
@@ -770,6 +1986,7 @@ export default function UploadPage() {
   const [customerSalesData, setCustomerSalesData] = useState<ParsedFile | null>(null);
   const [vendorExpenseData, setVendorExpenseData] = useState<ParsedFile | null>(null);
   const [fixedAssetData, setFixedAssetData] = useState<ParsedFile | null>(null);
+  const [priorFixedAssetData, setPriorFixedAssetData] = useState<ParsedFile | null>(null);
   const [budgetVsActualData, setBudgetVsActualData] = useState<ParsedFile | null>(null);
   const [priorPeriodPlData, setPriorPeriodPlData] = useState<ParsedFile | null>(null);
   const [priorPeriodBsData, setPriorPeriodBsData] = useState<ParsedFile | null>(null);
@@ -788,17 +2005,38 @@ export default function UploadPage() {
     includeZeroActivity: true,
   });
 
-  const parseFile = async (file: File, setData: (data: ParsedFile) => void) => {
+  const resetGeneratedState = () => {
     setIsPackageGenerated(false);
     setIsPackageExported(false);
+    if (kpisConfirmed) setReportsChangedAfterConfirmation(true);
     setKpisConfirmed(false);
+  };
+  const isReportOmitted = (reportId: string) => omittedReportIds.includes(reportId);
+  const setReportOmitted = (reportId: string, omitted: boolean) => {
+    resetGeneratedState();
+    setOmittedReportIds((current) =>
+      omitted ? [...new Set([...current, reportId])] : current.filter((id) => id !== reportId),
+    );
+  };
+  const removeReport = (setData: (data: ParsedFile | null) => void, reportId: string) => {
+    resetGeneratedState();
+    setData(null);
+    setOmittedReportIds((current) => current.filter((id) => id !== reportId));
+  };
+
+  const parseFile = async (file: File, setData: (data: ParsedFile) => void) => {
+    resetGeneratedState();
     const extension = file.name.split(".").pop()?.toLowerCase();
 
     if (extension === "csv") {
-      Papa.parse(file, {
-        complete: (result) => {
-          setData({ name: file.name, rows: result.data as unknown[][] });
-        },
+      await new Promise<void>((resolve, reject) => {
+        Papa.parse(file, {
+          complete: (result) => {
+            setData({ name: file.name, rows: result.data as unknown[][] });
+            resolve();
+          },
+          error: reject,
+        });
       });
     } else if (extension === "xlsx" || extension === "xls") {
       const buffer = await file.arrayBuffer();
@@ -819,8 +2057,12 @@ export default function UploadPage() {
       label: "Profit and Loss",
       description:
         "Export the QuickBooks Profit and Loss report. Used to calculate revenue, COGS, gross profit, expenses, and net income.",
+      required: true,
+      omitted: isReportOmitted("pl"),
       data: plData,
       onFile: (file) => parseFile(file, setPlData),
+      onRemove: () => removeReport(setPlData, "pl"),
+      onOmitChange: (omitted) => setReportOmitted("pl", omitted),
     },
     {
       id: "bs",
@@ -828,8 +2070,12 @@ export default function UploadPage() {
       label: "Balance Sheet",
       description:
         "Export the QuickBooks Balance Sheet report. Used to calculate cash, receivables, assets, equity, and liquidity metrics.",
+      required: true,
+      omitted: isReportOmitted("bs"),
       data: bsData,
       onFile: (file) => parseFile(file, setBsData),
+      onRemove: () => removeReport(setBsData, "bs"),
+      onOmitChange: (omitted) => setReportOmitted("bs", omitted),
     },
     {
       id: "ar",
@@ -837,8 +2083,12 @@ export default function UploadPage() {
       label: "Accounts Receivable Aging Summary",
       description:
         "Export the QuickBooks Accounts Receivable Aging Summary report. Supports receivables review, collections, and DSO commentary.",
+      required: false,
+      omitted: isReportOmitted("ar"),
       data: arData,
       onFile: (file) => parseFile(file, setArData),
+      onRemove: () => removeReport(setArData, "ar"),
+      onOmitChange: (omitted) => setReportOmitted("ar", omitted),
     },
     {
       id: "ap",
@@ -846,8 +2096,12 @@ export default function UploadPage() {
       label: "Accounts Payable Aging Summary",
       description:
         "Export the QuickBooks Accounts Payable Aging Summary report. Supports payables review, vendor obligations, and working capital analysis.",
+      required: false,
+      omitted: isReportOmitted("ap"),
       data: apData,
       onFile: (file) => parseFile(file, setApData),
+      onRemove: () => removeReport(setApData, "ap"),
+      onOmitChange: (omitted) => setReportOmitted("ap", omitted),
     },
     {
       id: "inventory",
@@ -855,8 +2109,12 @@ export default function UploadPage() {
       label: "Inventory Valuation Summary",
       description:
         "Export the QuickBooks Inventory Valuation Summary report. Adds inventory value, quantity on hand, and top item analytics.",
+      required: false,
+      omitted: isReportOmitted("inventory"),
       data: inventoryData,
       onFile: (file) => parseFile(file, setInventoryData),
+      onRemove: () => removeReport(setInventoryData, "inventory"),
+      onOmitChange: (omitted) => setReportOmitted("inventory", omitted),
     },
     {
       id: "customers",
@@ -864,8 +2122,12 @@ export default function UploadPage() {
       label: "Sales by Customer Summary",
       description:
         "Export the QuickBooks Sales by Customer Summary report. Adds top customer visibility and customer concentration commentary.",
+      required: false,
+      omitted: isReportOmitted("customers"),
       data: customerSalesData,
       onFile: (file) => parseFile(file, setCustomerSalesData),
+      onRemove: () => removeReport(setCustomerSalesData, "customers"),
+      onOmitChange: (omitted) => setReportOmitted("customers", omitted),
     },
     {
       id: "vendors",
@@ -873,8 +2135,12 @@ export default function UploadPage() {
       label: "Expenses by Vendor Summary",
       description:
         "Export the QuickBooks Expenses by Vendor Summary report. Adds vendor concentration and expense category analysis.",
+      required: false,
+      omitted: isReportOmitted("vendors"),
       data: vendorExpenseData,
       onFile: (file) => parseFile(file, setVendorExpenseData),
+      onRemove: () => removeReport(setVendorExpenseData, "vendors"),
+      onOmitChange: (omitted) => setReportOmitted("vendors", omitted),
     },
     {
       id: "fixed-assets",
@@ -882,8 +2148,25 @@ export default function UploadPage() {
       label: "Fixed Asset Detail / Fixed Asset Register",
       description:
         "Export the QuickBooks Fixed Asset Detail or Fixed Asset Register report. Adds fixed asset, depreciation, and net book value analysis.",
+      required: false,
+      omitted: isReportOmitted("fixed-assets"),
       data: fixedAssetData,
       onFile: (file) => parseFile(file, setFixedAssetData),
+      onRemove: () => removeReport(setFixedAssetData, "fixed-assets"),
+      onOmitChange: (omitted) => setReportOmitted("fixed-assets", omitted),
+    },
+    {
+      id: "prior-fixed-assets",
+      tier: "virtualCfo",
+      label: "Prior Period Fixed Asset Report",
+      description:
+        "Export the prior period QuickBooks Fixed Asset Detail or Fixed Asset Register report. Used to calculate additions, disposals, depreciation change, and net book value movement.",
+      required: false,
+      omitted: isReportOmitted("prior-fixed-assets"),
+      data: priorFixedAssetData,
+      onFile: (file) => parseFile(file, setPriorFixedAssetData),
+      onRemove: () => removeReport(setPriorFixedAssetData, "prior-fixed-assets"),
+      onOmitChange: (omitted) => setReportOmitted("prior-fixed-assets", omitted),
     },
     {
       id: "budget",
@@ -891,8 +2174,12 @@ export default function UploadPage() {
       label: "Budget vs. Actuals",
       description:
         "Export the QuickBooks Budget vs. Actuals report. Supports variance analysis and budget performance review.",
+      required: false,
+      omitted: isReportOmitted("budget"),
       data: budgetVsActualData,
       onFile: (file) => parseFile(file, setBudgetVsActualData),
+      onRemove: () => removeReport(setBudgetVsActualData, "budget"),
+      onOmitChange: (omitted) => setReportOmitted("budget", omitted),
     },
     {
       id: "prior-pl",
@@ -900,8 +2187,12 @@ export default function UploadPage() {
       label: "Profit and Loss Comparison",
       description:
         "Export the QuickBooks Profit and Loss Comparison report. Supports trend, variance, and period-over-period comparison.",
+      required: false,
+      omitted: isReportOmitted("prior-pl"),
       data: priorPeriodPlData,
       onFile: (file) => parseFile(file, setPriorPeriodPlData),
+      onRemove: () => removeReport(setPriorPeriodPlData, "prior-pl"),
+      onOmitChange: (omitted) => setReportOmitted("prior-pl", omitted),
     },
     {
       id: "prior-bs",
@@ -909,8 +2200,12 @@ export default function UploadPage() {
       label: "Balance Sheet Comparison",
       description:
         "Export the QuickBooks Balance Sheet Comparison report. Supports balance sheet movement and working capital comparison.",
+      required: false,
+      omitted: isReportOmitted("prior-bs"),
       data: priorPeriodBsData,
       onFile: (file) => parseFile(file, setPriorPeriodBsData),
+      onRemove: () => removeReport(setPriorPeriodBsData, "prior-bs"),
+      onOmitChange: (omitted) => setReportOmitted("prior-bs", omitted),
     },
     {
       id: "cash-flow",
@@ -918,8 +2213,12 @@ export default function UploadPage() {
       label: "Statement of Cash Flows",
       description:
         "Export the QuickBooks Statement of Cash Flows report. Supports cash flow review and CFO-level liquidity commentary.",
+      required: false,
+      omitted: isReportOmitted("cash-flow"),
       data: cashFlowData,
       onFile: (file) => parseFile(file, setCashFlowData),
+      onRemove: () => removeReport(setCashFlowData, "cash-flow"),
+      onOmitChange: (omitted) => setReportOmitted("cash-flow", omitted),
     },
     {
       id: "debt",
@@ -927,8 +2226,12 @@ export default function UploadPage() {
       label: "Debt Schedule / Loan Detail",
       description:
         "Export a QuickBooks loan detail report or your debt schedule. Supports debt analysis, risk indicators, and leverage commentary.",
+      required: false,
+      omitted: isReportOmitted("debt"),
       data: debtScheduleData,
       onFile: (file) => parseFile(file, setDebtScheduleData),
+      onRemove: () => removeReport(setDebtScheduleData, "debt"),
+      onOmitChange: (omitted) => setReportOmitted("debt", omitted),
     },
     {
       id: "current-month-gl",
@@ -936,8 +2239,12 @@ export default function UploadPage() {
       label: "General Ledger - Current Month",
       description:
         "Export the QuickBooks General Ledger for the current month. Used for month-over-month flux analysis.",
+      required: false,
+      omitted: isReportOmitted("current-month-gl"),
       data: currentMonthGlData,
       onFile: (file) => parseFile(file, setCurrentMonthGlData),
+      onRemove: () => removeReport(setCurrentMonthGlData, "current-month-gl"),
+      onOmitChange: (omitted) => setReportOmitted("current-month-gl", omitted),
     },
     {
       id: "prior-month-gl",
@@ -945,8 +2252,12 @@ export default function UploadPage() {
       label: "General Ledger - Prior Month",
       description:
         "Export the QuickBooks General Ledger for the prior month. Used as the comparison period for monthly flux analysis.",
+      required: false,
+      omitted: isReportOmitted("prior-month-gl"),
       data: priorMonthGlData,
       onFile: (file) => parseFile(file, setPriorMonthGlData),
+      onRemove: () => removeReport(setPriorMonthGlData, "prior-month-gl"),
+      onOmitChange: (omitted) => setReportOmitted("prior-month-gl", omitted),
     },
     {
       id: "current-quarter-gl",
@@ -954,8 +2265,12 @@ export default function UploadPage() {
       label: "General Ledger - Current Quarter",
       description:
         "Export the QuickBooks General Ledger for the current quarter. Used for quarter-over-quarter flux analysis.",
+      required: false,
+      omitted: isReportOmitted("current-quarter-gl"),
       data: currentQuarterGlData,
       onFile: (file) => parseFile(file, setCurrentQuarterGlData),
+      onRemove: () => removeReport(setCurrentQuarterGlData, "current-quarter-gl"),
+      onOmitChange: (omitted) => setReportOmitted("current-quarter-gl", omitted),
     },
     {
       id: "prior-quarter-gl",
@@ -963,8 +2278,12 @@ export default function UploadPage() {
       label: "General Ledger - Prior Quarter",
       description:
         "Export the QuickBooks General Ledger for the prior quarter. Used as the comparison period for quarterly flux analysis.",
+      required: false,
+      omitted: isReportOmitted("prior-quarter-gl"),
       data: priorQuarterGlData,
       onFile: (file) => parseFile(file, setPriorQuarterGlData),
+      onRemove: () => removeReport(setPriorQuarterGlData, "prior-quarter-gl"),
+      onOmitChange: (omitted) => setReportOmitted("prior-quarter-gl", omitted),
     },
     {
       id: "current-year-gl",
@@ -972,8 +2291,12 @@ export default function UploadPage() {
       label: "General Ledger - Current Year",
       description:
         "Export the QuickBooks General Ledger for the current year. Used for year-over-year flux analysis.",
+      required: false,
+      omitted: isReportOmitted("current-year-gl"),
       data: currentYearGlData,
       onFile: (file) => parseFile(file, setCurrentYearGlData),
+      onRemove: () => removeReport(setCurrentYearGlData, "current-year-gl"),
+      onOmitChange: (omitted) => setReportOmitted("current-year-gl", omitted),
     },
     {
       id: "prior-year-gl",
@@ -981,38 +2304,88 @@ export default function UploadPage() {
       label: "General Ledger - Prior Year",
       description:
         "Export the QuickBooks General Ledger for the prior year. Used as the comparison period for annual flux analysis.",
+      required: false,
+      omitted: isReportOmitted("prior-year-gl"),
       data: priorYearGlData,
       onFile: (file) => parseFile(file, setPriorYearGlData),
+      onRemove: () => removeReport(setPriorYearGlData, "prior-year-gl"),
+      onOmitChange: (omitted) => setReportOmitted("prior-year-gl", omitted),
     },
   ];
   const selectedReports = uploadReports.filter((report) =>
     isReportAvailable(report.tier, packageTier),
   );
-  const uploadedReportsCount = selectedReports.filter((report) => report.data).length;
-  const missingReports = selectedReports.filter((report) => !report.data);
+  const uploadedReportsCount = selectedReports.filter(
+    (report) => report.required && report.data && !report.omitted,
+  ).length;
+  const missingReports = selectedReports.filter(
+    (report) => report.required && !report.omitted && !report.data,
+  );
   const requiredUploadsComplete = hasSelectedPackage && selectedReports.length > 0 && missingReports.length === 0;
   const kpisAvailable = requiredUploadsComplete;
   const canReviewKpis = requiredUploadsComplete;
   const canGeneratePackage = canReviewKpis && kpisAvailable && kpisConfirmed;
   const canPreviewPackage = isPackageGenerated;
 
-  const kpis = calculateKPIs(plData, bsData);
+  const activePlData = isReportOmitted("pl") ? null : plData;
+  const activeBsData = isReportOmitted("bs") ? null : bsData;
+  const activeArData = isReportOmitted("ar") ? null : arData;
+  const activeApData = isReportOmitted("ap") ? null : apData;
+  const activeInventoryData = isReportOmitted("inventory") ? null : inventoryData;
+  const activeCustomerSalesData = isReportOmitted("customers") ? null : customerSalesData;
+  const activeVendorExpenseData = isReportOmitted("vendors") ? null : vendorExpenseData;
+  const activeFixedAssetData = isReportOmitted("fixed-assets") ? null : fixedAssetData;
+  const activePriorFixedAssetData = isReportOmitted("prior-fixed-assets") ? null : priorFixedAssetData;
+  const activeBudgetVsActualData = isReportOmitted("budget") ? null : budgetVsActualData;
+  const activePriorPeriodPlData = isReportOmitted("prior-pl") ? null : priorPeriodPlData;
+  const activePriorPeriodBsData = isReportOmitted("prior-bs") ? null : priorPeriodBsData;
+  const activeCashFlowData = isReportOmitted("cash-flow") ? null : cashFlowData;
+  const activeDebtScheduleData = isReportOmitted("debt") ? null : debtScheduleData;
+  const activeCurrentMonthGlData = isReportOmitted("current-month-gl") ? null : currentMonthGlData;
+  const activePriorMonthGlData = isReportOmitted("prior-month-gl") ? null : priorMonthGlData;
+  const activeCurrentQuarterGlData = isReportOmitted("current-quarter-gl") ? null : currentQuarterGlData;
+  const activePriorQuarterGlData = isReportOmitted("prior-quarter-gl") ? null : priorQuarterGlData;
+  const activeCurrentYearGlData = isReportOmitted("current-year-gl") ? null : currentYearGlData;
+  const activePriorYearGlData = isReportOmitted("prior-year-gl") ? null : priorYearGlData;
+
+  const kpis = calculateKPIs(activePlData, activeBsData);
   const netMargin = kpis.revenue ? (kpis.netIncome / kpis.revenue) * 100 : 0;
-  const executiveSummary = buildExecutiveSummary(kpis, netMargin);
-  const apKpis = calculateAPKpis(apData);
-  const inventoryKpis = calculateInventoryKpis(inventoryData);
-  const fixedAssetKpis = calculateFixedAssetKpis(fixedAssetData, kpis.totalAssets);
+  const autoPeriodDays = calculatePeriodDays(reportingPeriodStart, reportingPeriodEnd);
+  const manualPeriodDaysValue = parseNumber(manualPeriodDays);
+  const reportingPeriodDays =
+    manualPeriodDaysValue && manualPeriodDaysValue > 0 ? manualPeriodDaysValue : autoPeriodDays;
+  const dso = calculateDso(kpis, reportingPeriodDays);
+  const arKpis = calculateAgingKpis(activeArData);
+  const apKpis = calculateAPKpis(activeApData);
+  const inventoryKpis = calculateInventoryKpis(activeInventoryData);
+  const fixedAssetKpis = calculateFixedAssetKpis(activeFixedAssetData, kpis.totalAssets, activePlData);
+  const priorFixedAssetKpis = calculateFixedAssetKpis(activePriorFixedAssetData, kpis.totalAssets, null);
+  const fixedAssetChangeRows = getFixedAssetChangeRows(fixedAssetKpis, priorFixedAssetKpis);
+  const executiveSummary = buildExecutiveSummary(
+    kpis,
+    netMargin,
+    activeFixedAssetData ? fixedAssetKpis : null,
+  );
   const reportPeriod = "Current Reporting Period";
   const companyName = "Client Company Name";
-  const monthFluxRows = getFluxRows(currentMonthGlData, priorMonthGlData, fluxSettings);
-  const quarterFluxRows = getFluxRows(currentQuarterGlData, priorQuarterGlData, fluxSettings);
-  const yearFluxRows = getFluxRows(currentYearGlData, priorYearGlData, fluxSettings);
+  const monthFluxRows = getFluxRows(activeCurrentMonthGlData, activePriorMonthGlData, fluxSettings);
+  const quarterFluxRows = getFluxRows(activeCurrentQuarterGlData, activePriorQuarterGlData, fluxSettings);
+  const yearFluxRows = getFluxRows(activeCurrentYearGlData, activePriorYearGlData, fluxSettings);
+  const ratioRows = buildRatioRows(
+    kpis,
+    netMargin,
+    getStatementRows(activeBsData),
+    apKpis,
+    inventoryKpis,
+    reportingPeriodDays,
+  );
   const handlePackageTierChange = (tier: PackageTier) => {
     setPackageTier(tier);
     setHasSelectedPackage(true);
     setIsPackageGenerated(false);
     setIsPackageExported(false);
     setKpisConfirmed(false);
+    setReportsChangedAfterConfirmation(false);
   };
   const handleGeneratePackage = () => {
     if (!canGeneratePackage) return;
@@ -1227,6 +2600,13 @@ export default function UploadPage() {
             font-weight: 600;
           }
 
+          .print-statement-calculated-value td {
+            border-top: 1px solid #9ca3af;
+            border-bottom: 1px solid #d1d5db;
+            background: #f8fafc;
+            font-weight: 700;
+          }
+
           .print-statement-major-total td {
             padding-top: 10px;
             padding-bottom: 10px;
@@ -1234,6 +2614,17 @@ export default function UploadPage() {
             border-bottom: 1px solid #6b7280;
             background: #eef2ff;
             font-weight: 800;
+          }
+
+          .print-statement-grand-total td {
+            padding-top: 11px;
+            padding-bottom: 11px;
+            border-top: 3px solid #111827;
+            border-bottom: 2px solid #111827;
+            background: #e5e7eb;
+            font-size: 13.5px;
+            font-weight: 900;
+            text-transform: uppercase;
           }
         }
       `}</style>
@@ -1249,6 +2640,7 @@ export default function UploadPage() {
             missingReports={missingReports}
             requiredUploadsComplete={requiredUploadsComplete}
             kpisConfirmed={kpisConfirmed}
+            reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
             canGeneratePackage={canGeneratePackage}
             isPackageGenerated={isPackageGenerated}
             isPackageExported={isPackageExported}
@@ -1273,21 +2665,45 @@ export default function UploadPage() {
                   <KpiCard label="Accounts Receivable" value={kpis.accountsReceivable} />
                   <KpiCard label="Total Assets" value={kpis.totalAssets} />
                   <KpiCard label="Net Margin" value={netMargin} percent />
-                  <KpiCard label="AP Aging Total" value={apKpis.total} />
-                  {isProfessionalOrHigher(packageTier) && (
+                  {activeApData && <KpiCard label="AP Aging Total" value={apKpis.total} />}
+                  {isProfessionalOrHigher(packageTier) && activeInventoryData && (
                     <>
                       <KpiCard label="Inventory Value" value={inventoryKpis.totalValue} />
                       <KpiCard label="Inventory Quantity" value={inventoryKpis.totalQuantity} plain />
                     </>
                   )}
-                  {isVirtualCfo(packageTier) && (
+                  {isVirtualCfo(packageTier) && activeFixedAssetData && (
                     <>
                       <KpiCard label="Total Fixed Assets" value={fixedAssetKpis.totalFixedAssets} />
+                      <KpiCard
+                        label="Accumulated Depreciation"
+                        value={fixedAssetKpis.accumulatedDepreciation}
+                      />
                       <KpiCard label="Net Book Value" value={fixedAssetKpis.netBookValue} />
                     </>
                   )}
                 </div>
               </section>
+
+              <DsoSettingsPanel
+                startDate={reportingPeriodStart}
+                endDate={reportingPeriodEnd}
+                manualDays={manualPeriodDays}
+                autoDays={autoPeriodDays}
+                effectiveDays={reportingPeriodDays}
+                onStartDateChange={(value) => {
+                  resetGeneratedState();
+                  setReportingPeriodStart(value);
+                }}
+                onEndDateChange={(value) => {
+                  resetGeneratedState();
+                  setReportingPeriodEnd(value);
+                }}
+                onManualDaysChange={(value) => {
+                  resetGeneratedState();
+                  setManualPeriodDays(value);
+                }}
+              />
 
               <KpiConfirmationPanel
                 packageTier={packageTier}
@@ -1296,10 +2712,16 @@ export default function UploadPage() {
                 inventoryKpis={inventoryKpis}
                 fixedAssetKpis={fixedAssetKpis}
                 netMargin={netMargin}
+                includeAp={Boolean(activeApData)}
+                includeInventory={Boolean(activeInventoryData)}
+                includeFixedAssets={Boolean(activeFixedAssetData)}
+                dso={dso}
                 kpisConfirmed={kpisConfirmed}
                 reviewerNotes={reviewerNotes}
+                reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
                 onKpisConfirmedChange={(confirmed) => {
                   setKpisConfirmed(confirmed);
+                  if (confirmed) setReportsChangedAfterConfirmation(false);
                   if (!confirmed) {
                     setIsPackageGenerated(false);
                     setIsPackageExported(false);
@@ -1309,6 +2731,7 @@ export default function UploadPage() {
               />
 
               <ExecutiveSummarySection executiveSummary={executiveSummary} />
+              <RatioAnalysisSection ratioRows={ratioRows} />
             </>
           )}
 
@@ -1344,18 +2767,30 @@ export default function UploadPage() {
                   <ReportMetricCard label="Gross Profit" value={formatMoney(kpis.grossProfit)} />
                   <ReportMetricCard label="Net Income" value={formatMoney(kpis.netIncome)} />
                   <ReportMetricCard label="Cash" value={formatMoney(kpis.cash)} />
-                  <ReportMetricCard label="AP Aging Total" value={formatMoney(apKpis.total)} />
-                  {isProfessionalOrHigher(packageTier) && (
+                  {activeApData && (
+                    <ReportMetricCard label="AP Aging Total" value={formatMoney(apKpis.total)} />
+                  )}
+                  {isProfessionalOrHigher(packageTier) && activeInventoryData && (
                     <ReportMetricCard
                       label="Inventory Value"
                       value={formatMoney(inventoryKpis.totalValue)}
                     />
                   )}
-                  {isVirtualCfo(packageTier) && (
-                    <ReportMetricCard
-                      label="Fixed Assets"
-                      value={formatMoney(fixedAssetKpis.totalFixedAssets)}
-                    />
+                  {isVirtualCfo(packageTier) && activeFixedAssetData && (
+                    <>
+                      <ReportMetricCard
+                        label="Fixed Assets"
+                        value={formatCurrency(fixedAssetKpis.totalFixedAssets)}
+                      />
+                      <ReportMetricCard
+                        label="Accumulated Depreciation"
+                        value={formatCurrency(fixedAssetKpis.accumulatedDepreciation)}
+                      />
+                      <ReportMetricCard
+                        label="Net Book Value"
+                        value={formatCurrency(fixedAssetKpis.netBookValue)}
+                      />
+                    </>
                   )}
                 </div>
               </div>
@@ -1366,14 +2801,20 @@ export default function UploadPage() {
 
           {canReviewKpis && isProfessionalOrHigher(packageTier) && (
             <>
-              <InventoryAnalysisSection inventoryKpis={inventoryKpis} />
+              {activeInventoryData && <InventoryAnalysisSection inventoryKpis={inventoryKpis} />}
               <ProfessionalPlaceholderSection />
             </>
           )}
 
           {canReviewKpis && isVirtualCfo(packageTier) && (
             <>
-              <FixedAssetAnalysisSection fixedAssetKpis={fixedAssetKpis} />
+              {activeFixedAssetData && (
+                <FixedAssetAnalysisSection
+                  fixedAssetKpis={fixedAssetKpis}
+                  priorFixedAssetData={activePriorFixedAssetData}
+                  changeRows={fixedAssetChangeRows}
+                />
+              )}
               <VirtualCfoPlaceholderSection />
               <FluxAnalysisPanel
                 settings={fluxSettings}
@@ -1411,31 +2852,32 @@ export default function UploadPage() {
                 </div>
               </section>
 
-              <Preview title="Profit & Loss Preview" data={plData} />
-              <Preview title="Balance Sheet Preview" data={bsData} />
-              <Preview title="AR Aging Preview" data={arData} />
-              <Preview title="AP Aging Preview" data={apData} />
+              <Preview title="Profit & Loss Preview" data={activePlData} />
+              <Preview title="Balance Sheet Preview" data={activeBsData} />
+              <Preview title="AR Aging Preview" data={activeArData} />
+              <Preview title="AP Aging Preview" data={activeApData} />
               {isProfessionalOrHigher(packageTier) && (
                 <>
-                  <Preview title="Inventory Valuation Preview" data={inventoryData} />
-                  <Preview title="Customer Sales Detail Preview" data={customerSalesData} />
-                  <Preview title="Vendor Expense Detail Preview" data={vendorExpenseData} />
+                  <Preview title="Inventory Valuation Preview" data={activeInventoryData} />
+                  <Preview title="Customer Sales Detail Preview" data={activeCustomerSalesData} />
+                  <Preview title="Vendor Expense Detail Preview" data={activeVendorExpenseData} />
                 </>
               )}
               {isVirtualCfo(packageTier) && (
                 <>
-                  <Preview title="Fixed Asset Preview" data={fixedAssetData} />
-                  <Preview title="Budget vs Actual Preview" data={budgetVsActualData} />
-                  <Preview title="Prior Period P&L Preview" data={priorPeriodPlData} />
-                  <Preview title="Prior Period Balance Sheet Preview" data={priorPeriodBsData} />
-                  <Preview title="Cash Flow Statement Preview" data={cashFlowData} />
-                  <Preview title="Debt Schedule Preview" data={debtScheduleData} />
-                  <Preview title="Current Month GL Preview" data={currentMonthGlData} />
-                  <Preview title="Prior Month GL Preview" data={priorMonthGlData} />
-                  <Preview title="Current Quarter GL Preview" data={currentQuarterGlData} />
-                  <Preview title="Prior Quarter GL Preview" data={priorQuarterGlData} />
-                  <Preview title="Current Year GL Preview" data={currentYearGlData} />
-                  <Preview title="Prior Year GL Preview" data={priorYearGlData} />
+                  <Preview title="Fixed Asset Preview" data={activeFixedAssetData} />
+                  <Preview title="Prior Period Fixed Asset Preview" data={activePriorFixedAssetData} />
+                  <Preview title="Budget vs Actual Preview" data={activeBudgetVsActualData} />
+                  <Preview title="Prior Period P&L Preview" data={activePriorPeriodPlData} />
+                  <Preview title="Prior Period Balance Sheet Preview" data={activePriorPeriodBsData} />
+                  <Preview title="Cash Flow Statement Preview" data={activeCashFlowData} />
+                  <Preview title="Debt Schedule Preview" data={activeDebtScheduleData} />
+                  <Preview title="Current Month GL Preview" data={activeCurrentMonthGlData} />
+                  <Preview title="Prior Month GL Preview" data={activePriorMonthGlData} />
+                  <Preview title="Current Quarter GL Preview" data={activeCurrentQuarterGlData} />
+                  <Preview title="Prior Quarter GL Preview" data={activePriorQuarterGlData} />
+                  <Preview title="Current Year GL Preview" data={activeCurrentYearGlData} />
+                  <Preview title="Prior Year GL Preview" data={activePriorYearGlData} />
                 </>
               )}
             </>
@@ -1448,19 +2890,22 @@ export default function UploadPage() {
         companyName={companyName}
         reportPeriod={reportPeriod}
         kpis={kpis}
+        arKpis={arKpis}
         apKpis={apKpis}
         inventoryKpis={inventoryKpis}
         fixedAssetKpis={fixedAssetKpis}
         netMargin={netMargin}
         executiveSummary={executiveSummary}
-        plData={plData}
-        bsData={bsData}
-        arData={arData}
-        apData={apData}
-        inventoryData={inventoryData}
-        fixedAssetData={fixedAssetData}
-        topExpenseRows={getTopExpenseRows(plData)}
-        ratioRows={buildRatioRows(kpis, netMargin, getStatementRows(bsData), apKpis, inventoryKpis)}
+        plData={activePlData}
+        bsData={activeBsData}
+        arData={activeArData}
+        apData={activeApData}
+        inventoryData={activeInventoryData}
+        fixedAssetData={activeFixedAssetData}
+        priorFixedAssetData={activePriorFixedAssetData}
+        topExpenseRows={getTopExpenseRows(activePlData)}
+        ratioRows={ratioRows}
+        fixedAssetChangeRows={fixedAssetChangeRows}
         monthFluxRows={monthFluxRows}
         quarterFluxRows={quarterFluxRows}
         yearFluxRows={yearFluxRows}
@@ -1484,6 +2929,7 @@ function ImportWorkflow({
   missingReports,
   requiredUploadsComplete,
   kpisConfirmed,
+  reportsChangedAfterConfirmation,
   canGeneratePackage,
   isPackageGenerated,
   isPackageExported,
@@ -1498,14 +2944,15 @@ function ImportWorkflow({
   missingReports: UploadReport[];
   requiredUploadsComplete: boolean;
   kpisConfirmed: boolean;
+  reportsChangedAfterConfirmation: boolean;
   canGeneratePackage: boolean;
   isPackageGenerated: boolean;
   isPackageExported: boolean;
   onGeneratePackage: () => void;
   onExportPackage: () => void;
 }) {
-  const selectedReportsCount = reports.filter((report) =>
-    isReportAvailable(report.tier, packageTier),
+  const selectedReportsCount = reports.filter(
+    (report) => isReportAvailable(report.tier, packageTier) && report.required,
   ).length;
 
   return (
@@ -1580,6 +3027,7 @@ function ImportWorkflow({
             missingReports={missingReports}
             canGeneratePackage={canGeneratePackage}
             kpisConfirmed={kpisConfirmed}
+            reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
             isPackageGenerated={isPackageGenerated}
             onGeneratePackage={onGeneratePackage}
             onExportPackage={onExportPackage}
@@ -1758,7 +3206,7 @@ function UploadGroup({
           <p className="mt-2 text-sm leading-6 text-[#94A3B8]">{subtitle}</p>
         </div>
         <p className="rounded-full bg-[#172033] px-3 py-1 text-xs font-semibold text-[#94A3B8]">
-          {reports.filter((report) => isReportAvailable(report.tier, packageTier) && report.data).length}
+          {reports.filter((report) => isReportAvailable(report.tier, packageTier) && report.data && !report.omitted).length}
           /{reports.filter((report) => isReportAvailable(report.tier, packageTier)).length} uploaded
         </p>
       </div>
@@ -1777,41 +3225,68 @@ function UploadGroup({
 }
 
 function PremiumUploadCard({ report }: { report: UploadReport }) {
+  const [fileInputKey, setFileInputKey] = useState(0);
   const uploaded = Boolean(report.data);
+  const status = report.omitted
+    ? "Omitted"
+    : uploaded
+      ? "Uploaded"
+      : report.required
+        ? "Missing"
+        : "Optional";
+  const statusClass = report.omitted
+    ? "bg-slate-500/15 text-slate-300"
+    : uploaded
+      ? "bg-emerald-500/15 text-emerald-300"
+      : report.required
+        ? "bg-amber-500/15 text-amber-300"
+        : "bg-[#111827] text-[#94A3B8]";
 
   return (
-    <div className="rounded-2xl border border-[#243041] bg-[#172033] p-5 shadow-lg shadow-black/10">
+    <div
+      className={`rounded-2xl border p-5 shadow-lg shadow-black/10 ${
+        report.omitted ? "border-slate-700 bg-[#111827] opacity-80" : "border-[#243041] bg-[#172033]"
+      }`}
+    >
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <h3 className="text-lg font-semibold text-[#F9FAFB]">{report.label}</h3>
             <PackageBadge tier={report.tier} />
+            <span className="rounded-full bg-[#0B1020] px-3 py-1 text-xs font-semibold text-[#94A3B8]">
+              {report.required ? "Required" : "Optional"}
+            </span>
           </div>
           <p className="text-sm leading-6 text-[#94A3B8]">{report.description}</p>
         </div>
 
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            uploaded ? "bg-emerald-500/15 text-emerald-300" : "bg-[#111827] text-[#94A3B8]"
-          }`}
-        >
-          {uploaded ? "Uploaded" : "Needed"}
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClass}`}>
+          {status}
         </span>
       </div>
 
-      <label className="block cursor-pointer rounded-2xl border border-dashed border-[#5B8CFF]/40 bg-[#111827] p-5 transition hover:border-[#5B8CFF]">
+      <label
+        className={`block rounded-2xl border border-dashed bg-[#111827] p-5 transition ${
+          report.omitted
+            ? "cursor-not-allowed border-[#243041]"
+            : "cursor-pointer border-[#5B8CFF]/40 hover:border-[#5B8CFF]"
+        }`}
+      >
         <input
+          key={fileInputKey}
           type="file"
           accept=".csv,.xlsx,.xls"
-          onChange={(event) => {
+          disabled={report.omitted}
+          onChange={async (event) => {
             const file = event.target.files?.[0];
-            if (file) report.onFile(file);
+            if (!file) return;
+            await report.onFile(file);
           }}
           className="sr-only"
         />
 
         <span className="block text-sm font-semibold text-[#F9FAFB]">
-          {uploaded ? "Replace uploaded file" : "Upload report"}
+          {report.omitted ? "Report omitted from package" : uploaded ? "Replace uploaded file" : "Upload report"}
         </span>
         <span className="mt-2 block text-xs text-[#94A3B8]">
           Accepted file types: CSV, XLS, XLSX
@@ -1822,6 +3297,39 @@ function PremiumUploadCard({ report }: { report: UploadReport }) {
           </span>
         )}
       </label>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex items-start gap-3 text-sm text-[#94A3B8]">
+          <input
+            type="checkbox"
+            checked={report.omitted}
+            disabled={report.required}
+            onChange={(event) => report.onOmitChange(event.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-[#5B8CFF]"
+          />
+          <span>
+            <span className="block text-[#F9FAFB]">Omit this report from package</span>
+            {report.required && (
+              <span className="mt-1 block text-xs text-[#94A3B8]">
+                Required reports cannot be omitted.
+              </span>
+            )}
+          </span>
+        </label>
+
+        {uploaded && (
+          <button
+            type="button"
+            onClick={() => {
+              report.onRemove();
+              setFileInputKey((current) => current + 1);
+            }}
+            className="rounded-xl border border-[#243041] px-4 py-2 text-sm font-semibold text-[#F9FAFB] transition hover:border-red-400/60 hover:text-red-300"
+          >
+            Remove file
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1853,6 +3361,123 @@ function PackageBadge({ tier }: { tier: UploadTier }) {
   );
 }
 
+function DsoSettingsPanel({
+  startDate,
+  endDate,
+  manualDays,
+  autoDays,
+  effectiveDays,
+  onStartDateChange,
+  onEndDateChange,
+  onManualDaysChange,
+}: {
+  startDate: string;
+  endDate: string;
+  manualDays: string;
+  autoDays: number | null;
+  effectiveDays: number | null;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
+  onManualDaysChange: (value: string) => void;
+}) {
+  return (
+    <section className="mt-6 rounded-3xl border border-[#243041] bg-[#111827] p-6 shadow-xl shadow-black/10">
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
+            DSO Settings
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Reporting Period</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+            Enter the reporting period so FinSight can calculate average daily sales and days sales
+            outstanding from revenue and accounts receivable.
+          </p>
+        </div>
+        <span className="rounded-full bg-[#172033] px-4 py-2 text-xs font-semibold text-[#94A3B8]">
+          Period days: {effectiveDays ?? "Not set"}
+        </span>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <label className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
+          <span className="text-sm font-semibold text-[#F9FAFB]">Start date</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(event) => onStartDateChange(event.target.value)}
+            className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
+          />
+        </label>
+
+        <label className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
+          <span className="text-sm font-semibold text-[#F9FAFB]">End date</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(event) => onEndDateChange(event.target.value)}
+            className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
+          />
+          <span className="mt-2 block text-xs text-[#94A3B8]">
+            Auto-calculated days: {autoDays ?? "Enter dates"}
+          </span>
+        </label>
+
+        <label className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
+          <span className="text-sm font-semibold text-[#F9FAFB]">Manual day override</span>
+          <input
+            type="number"
+            min="1"
+            value={manualDays}
+            onChange={(event) => onManualDaysChange(event.target.value)}
+            placeholder="Optional"
+            className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+          />
+          <span className="mt-2 block text-xs text-[#94A3B8]">
+            Overrides the date-based period days when entered.
+          </span>
+        </label>
+      </div>
+    </section>
+  );
+}
+
+function RatioAnalysisSection({
+  ratioRows,
+}: {
+  ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
+}) {
+  return (
+    <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8 shadow-lg">
+      <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
+        Ratio Analysis
+      </p>
+      <h2 className="mb-6 text-3xl font-bold">Advisory Ratios</h2>
+      <div className="overflow-x-auto rounded-xl border border-slate-700">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-800">
+            <tr>
+              <th className="px-4 py-3">Ratio</th>
+              <th className="px-4 py-3">Formula</th>
+              <th className="px-4 py-3">Value</th>
+              <th className="px-4 py-3">Interpretation</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ratioRows.map((ratio) => (
+              <tr key={ratio.name} className="border-b border-slate-800">
+                <td className="px-4 py-3 font-semibold text-slate-100">{ratio.name}</td>
+                <td className="px-4 py-3 text-slate-300">{ratio.formula}</td>
+                <td className="px-4 py-3 font-semibold text-slate-100">{ratio.value}</td>
+                <td className="px-4 py-3 text-slate-300">{ratio.interpretation}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function KpiConfirmationPanel({
   packageTier,
   kpis,
@@ -1860,8 +3485,13 @@ function KpiConfirmationPanel({
   inventoryKpis,
   fixedAssetKpis,
   netMargin,
+  includeAp,
+  includeInventory,
+  includeFixedAssets,
+  dso,
   kpisConfirmed,
   reviewerNotes,
+  reportsChangedAfterConfirmation,
   onKpisConfirmedChange,
   onReviewerNotesChange,
 }: {
@@ -1871,8 +3501,13 @@ function KpiConfirmationPanel({
   inventoryKpis: InventoryKpis;
   fixedAssetKpis: FixedAssetKpis;
   netMargin: number;
+  includeAp: boolean;
+  includeInventory: boolean;
+  includeFixedAssets: boolean;
+  dso: number | null;
   kpisConfirmed: boolean;
   reviewerNotes: string;
+  reportsChangedAfterConfirmation: boolean;
   onKpisConfirmedChange: (confirmed: boolean) => void;
   onReviewerNotesChange: (notes: string) => void;
 }) {
@@ -1883,13 +3518,14 @@ function KpiConfirmationPanel({
     { label: "Net Income", value: formatMoney(kpis.netIncome) },
     { label: "Cash", value: formatMoney(kpis.cash) },
     { label: "Accounts Receivable", value: formatMoney(kpis.accountsReceivable) },
-    { label: "AP Aging Total", value: formatMoney(apKpis.total) },
-    ...(isProfessionalOrHigher(packageTier)
+    ...(includeAp ? [{ label: "AP Aging Total", value: formatMoney(apKpis.total) }] : []),
+    ...(isProfessionalOrHigher(packageTier) && includeInventory
       ? [{ label: "Inventory Value", value: formatMoney(inventoryKpis.totalValue) }]
       : []),
-    ...(isVirtualCfo(packageTier)
+    ...(isVirtualCfo(packageTier) && includeFixedAssets
       ? [{ label: "Fixed Assets", value: formatMoney(fixedAssetKpis.totalFixedAssets) }]
       : []),
+    ...(dso !== null ? [{ label: "DSO", value: `${dso.toFixed(1)} days` }] : []),
     { label: "Net Margin", value: `${netMargin.toFixed(1)}%` },
   ];
 
@@ -1923,6 +3559,12 @@ function KpiConfirmationPanel({
           {kpisConfirmed ? "KPIs Confirmed" : "Pending Review"}
         </span>
       </div>
+
+      {reportsChangedAfterConfirmation && (
+        <div className="mb-5 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200">
+          Reports changed. Please review and confirm KPIs again.
+        </div>
+      )}
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
         {confirmationRows.map((row) => (
@@ -1975,6 +3617,7 @@ function GeneratePackagePanel({
   missingReports,
   canGeneratePackage,
   kpisConfirmed,
+  reportsChangedAfterConfirmation,
   isPackageGenerated,
   onGeneratePackage,
   onExportPackage,
@@ -1985,6 +3628,7 @@ function GeneratePackagePanel({
   missingReports: UploadReport[];
   canGeneratePackage: boolean;
   kpisConfirmed: boolean;
+  reportsChangedAfterConfirmation: boolean;
   isPackageGenerated: boolean;
   onGeneratePackage: () => void;
   onExportPackage: () => void;
@@ -2009,13 +3653,19 @@ function GeneratePackagePanel({
             {PACKAGE_LABELS[packageTier]} Financial Package
           </h2>
           <p className="mt-2 text-sm text-[#94A3B8]">
-            {uploadedReportsCount} of {totalReportsCount} selected-package reports uploaded.
+            {uploadedReportsCount} of {totalReportsCount} required reports uploaded. Optional reports
+            can be uploaded for deeper analysis or omitted from the package.
           </p>
           {!canGeneratePackage && (
             <p className="mt-2 text-sm text-[#94A3B8]">
               {missingReports.length > 0
                 ? "Upload all required reports to generate this package."
                 : "Review and confirm KPIs before generating the financial package."}
+            </p>
+          )}
+          {reportsChangedAfterConfirmation && (
+            <p className="mt-3 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200">
+              Reports changed. Please review and confirm KPIs again.
             </p>
           )}
 
@@ -2028,12 +3678,12 @@ function GeneratePackagePanel({
               complete={missingReports.length === 0}
               text={
                 missingReports.length === 0
-                  ? "No selected-package reports missing"
+                  ? "No required reports missing"
                   : `Missing: ${missingReports.map((report) => report.label).join(", ")}`
               }
             />
             <ReadinessChecklistItem
-              complete={isPackageGenerated}
+              complete={kpisConfirmed}
               text={
                 kpisConfirmed
                   ? "KPIs reviewed and confirmed"
@@ -2094,18 +3744,33 @@ function KpiCard({
   value,
   percent = false,
   plain = false,
+  helperText,
 }: {
   label: string;
-  value: number;
+  value: number | string | null;
   percent?: boolean;
   plain?: boolean;
+  helperText?: string;
 }) {
+  const displayValue =
+    typeof value === "string"
+      ? value
+      : value === null
+        ? "Not provided"
+        : plain
+          ? formatNumber(value)
+          : percent
+            ? `${value.toFixed(1)}%`
+            : formatMoney(value);
+  const valueIsText = typeof value === "string";
+
   return (
     <div className="flex h-full flex-col justify-between rounded-2xl border border-[#243041] bg-[#172033] p-5 shadow-lg shadow-black/10">
-      <p className="text-sm text-slate-400">{label}</p>
-      <h3 className="mt-2 text-3xl font-bold">
-        {plain ? value.toLocaleString() : percent ? `${value.toFixed(1)}%` : formatMoney(value)}
+      <p className="text-sm font-bold uppercase tracking-[0.08em] text-slate-200">{label}</p>
+      <h3 className={`mt-2 font-bold ${valueIsText ? "text-base leading-6" : "text-3xl"}`}>
+        {displayValue}
       </h3>
+      {helperText && <p className="mt-2 text-xs leading-5 text-slate-500">{helperText}</p>}
     </div>
   );
 }
@@ -2279,7 +3944,7 @@ function ChartCard({
 }) {
   return (
     <div className="chart-card rounded-2xl border border-slate-800 bg-slate-950 p-6">
-      <p className="text-sm text-slate-400">{title}</p>
+      <p className="text-sm font-bold uppercase tracking-[0.08em] text-slate-200">{title}</p>
       <p className="mt-3 text-2xl font-bold">{value}</p>
       <div className="mt-5 h-[260px]">{children}</div>
     </div>
@@ -2337,25 +4002,25 @@ function InventoryScreenTable({ title, items }: { title: string; items: Inventor
     <div className="rounded-2xl border border-slate-700 bg-slate-950 p-6">
       <h3 className="mb-4 text-xl font-bold">{title}</h3>
       <table className="w-full text-left text-sm">
-        <thead className="text-slate-400">
+        <thead className="bg-slate-800/60 text-slate-100">
           <tr>
-            <th className="py-2">Item</th>
-            <th className="py-2">Qty</th>
-            <th className="py-2">Value</th>
+            <th className="px-4 py-2 font-bold">Item</th>
+            <th className="px-4 py-2 text-right font-bold">Qty</th>
+            <th className="px-4 py-2 text-right font-bold">Value</th>
           </tr>
         </thead>
         <tbody>
           {items.length > 0 ? (
             items.map((item, index) => (
               <tr key={`${item.name}-${index}`} className="border-t border-slate-800">
-                <td className="py-2 text-slate-300">{item.name}</td>
-                <td className="py-2">{item.quantity.toLocaleString()}</td>
-                <td className="py-2">{formatMoney(item.value)}</td>
+                <td className="px-4 py-2 text-slate-300">{item.name}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{formatNumber(item.quantity)}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{formatMoney(item.value)}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td className="py-2 text-slate-400" colSpan={3}>
+              <td className="px-4 py-2 text-slate-400" colSpan={3}>
                 Inventory valuation report required.
               </td>
             </tr>
@@ -2418,7 +4083,15 @@ function VirtualCfoPlaceholderSection() {
   );
 }
 
-function FixedAssetAnalysisSection({ fixedAssetKpis }: { fixedAssetKpis: FixedAssetKpis }) {
+function FixedAssetAnalysisSection({
+  fixedAssetKpis,
+  priorFixedAssetData,
+  changeRows,
+}: {
+  fixedAssetKpis: FixedAssetKpis;
+  priorFixedAssetData: ParsedFile | null;
+  changeRows: FixedAssetChangeRow[];
+}) {
   return (
     <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8 shadow-lg">
       <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
@@ -2430,7 +4103,15 @@ function FixedAssetAnalysisSection({ fixedAssetKpis }: { fixedAssetKpis: FixedAs
         <KpiCard label="Total Fixed Assets" value={fixedAssetKpis.totalFixedAssets} />
         <KpiCard label="Accumulated Depreciation" value={fixedAssetKpis.accumulatedDepreciation} />
         <KpiCard label="Net Book Value" value={fixedAssetKpis.netBookValue} />
-        <KpiCard label="Depreciation Expense" value={fixedAssetKpis.depreciationExpense} />
+        <KpiCard
+          label="Depreciation Expense"
+          value={fixedAssetKpis.depreciationExpense === null ? "N/A" : fixedAssetKpis.depreciationExpense}
+          helperText={
+            fixedAssetKpis.depreciationExpense === null
+              ? "Depreciation expense not provided in uploaded reports."
+              : undefined
+          }
+        />
         <KpiCard label="Fixed Assets % of Assets" value={fixedAssetKpis.fixedAssetsToTotalAssets} percent />
         <KpiCard label="Depreciation % of Fixed Assets" value={fixedAssetKpis.depreciationToFixedAssets} percent />
         <KpiCard label="NBV % of Assets" value={fixedAssetKpis.netBookValueToTotalAssets} percent />
@@ -2445,15 +4126,13 @@ function FixedAssetAnalysisSection({ fixedAssetKpis }: { fixedAssetKpis: FixedAs
 
       <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-950 p-6">
         <h3 className="mb-4 text-xl font-bold">Significant Changes</h3>
-        <p className="text-slate-300">
-          Prior period fixed asset report required to identify significant changes.
-        </p>
-        <ul className="mt-4 list-disc space-y-2 pl-5 text-slate-400">
-          <li>Additions</li>
-          <li>Disposals</li>
-          <li>Depreciation change</li>
-          <li>Net book value change</li>
-        </ul>
+        {priorFixedAssetData ? (
+          <FixedAssetChangeTable rows={changeRows} />
+        ) : (
+          <p className="text-slate-300">
+            Upload prior period fixed asset report to calculate significant changes.
+          </p>
+        )}
       </div>
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-slate-700">
@@ -2470,13 +4149,47 @@ function FixedAssetAnalysisSection({ fixedAssetKpis }: { fixedAssetKpis: FixedAs
               <tr key={`${match.metric}-${index}`} className="border-b border-slate-800">
                 <td className="px-4 py-3 text-slate-300">{match.metric}</td>
                 <td className="px-4 py-3 text-slate-300">{match.label}</td>
-                <td className="px-4 py-3 font-semibold">{formatMoney(match.value)}</td>
+                <td className="px-4 py-3 font-semibold">
+                  {formatOptionalCurrency(
+                    match.value,
+                    "N/A",
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
     </section>
+  );
+}
+
+function FixedAssetChangeTable({ rows }: { rows: FixedAssetChangeRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-700">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-slate-800">
+          <tr>
+            <th className="px-4 py-3">Metric</th>
+            <th className="px-4 py-3">Prior Period</th>
+            <th className="px-4 py-3">Current Period</th>
+            <th className="px-4 py-3">Change</th>
+            <th className="px-4 py-3">Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.metric} className="border-b border-slate-800">
+              <td className="px-4 py-3 text-slate-300">{row.metric}</td>
+              <td className="px-4 py-3 font-semibold">{formatCurrency(row.prior)}</td>
+              <td className="px-4 py-3 font-semibold">{formatCurrency(row.current)}</td>
+              <td className="px-4 py-3 font-semibold">{formatCurrency(row.change)}</td>
+              <td className="px-4 py-3 text-slate-300">{row.interpretation}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -2502,7 +4215,9 @@ function FluxAnalysisPanel({
 
       <div className="grid gap-4 md:grid-cols-4">
         <label className="rounded-2xl bg-slate-950 p-5">
-          <span className="text-sm text-slate-400">Dollar Threshold</span>
+          <span className="text-sm font-bold uppercase tracking-[0.08em] text-slate-200">
+            Dollar Threshold
+          </span>
           <input
             type="number"
             value={settings.dollarThreshold}
@@ -2514,7 +4229,9 @@ function FluxAnalysisPanel({
         </label>
 
         <label className="rounded-2xl bg-slate-950 p-5">
-          <span className="text-sm text-slate-400">Percentage Threshold</span>
+          <span className="text-sm font-bold uppercase tracking-[0.08em] text-slate-200">
+            Percentage Threshold
+          </span>
           <input
             type="number"
             value={settings.percentThreshold}
@@ -2526,7 +4243,9 @@ function FluxAnalysisPanel({
         </label>
 
         <label className="rounded-2xl bg-slate-950 p-5">
-          <span className="text-sm text-slate-400">Threshold Logic</span>
+          <span className="text-sm font-bold uppercase tracking-[0.08em] text-slate-200">
+            Threshold Logic
+          </span>
           <select
             value={settings.logic}
             onChange={(e) =>
@@ -2547,7 +4266,9 @@ function FluxAnalysisPanel({
               onSettingsChange({ ...settings, includeZeroActivity: e.target.checked })
             }
           />
-          <span className="text-sm text-slate-300">Include zero-to-activity changes</span>
+          <span className="text-sm font-bold uppercase tracking-[0.08em] text-slate-200">
+            Include zero-to-activity changes
+          </span>
         </label>
       </div>
 
@@ -2685,6 +4406,7 @@ function PrintableFinancialPackage({
   companyName,
   reportPeriod,
   kpis,
+  arKpis,
   apKpis,
   inventoryKpis,
   fixedAssetKpis,
@@ -2696,8 +4418,10 @@ function PrintableFinancialPackage({
   apData,
   inventoryData,
   fixedAssetData,
+  priorFixedAssetData,
   topExpenseRows,
   ratioRows,
+  fixedAssetChangeRows,
   monthFluxRows,
   quarterFluxRows,
   yearFluxRows,
@@ -2706,6 +4430,7 @@ function PrintableFinancialPackage({
   companyName: string;
   reportPeriod: string;
   kpis: KPIs;
+  arKpis: AgingKpis;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
   fixedAssetKpis: FixedAssetKpis;
@@ -2717,14 +4442,16 @@ function PrintableFinancialPackage({
   apData: ParsedFile | null;
   inventoryData: ParsedFile | null;
   fixedAssetData: ParsedFile | null;
+  priorFixedAssetData: ParsedFile | null;
   topExpenseRows: StatementRow[];
   ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
+  fixedAssetChangeRows: FixedAssetChangeRow[];
   monthFluxRows: FluxRow[];
   quarterFluxRows: FluxRow[];
   yearFluxRows: FluxRow[];
 }) {
   const plRows = getStatementRows(plData);
-  const bsRows = getStatementRows(bsData);
+  const bsRows = getBalanceSheetStatementRowsWithNetBookValue(bsData);
 
   return (
     <div className="print-package hidden">
@@ -2769,7 +4496,17 @@ function PrintableFinancialPackage({
             <PrintKpiCard label="Net Income" value={formatMoney(kpis.netIncome)} />
             <PrintKpiCard label="Cash" value={formatMoney(kpis.cash)} />
             <PrintKpiCard label="Accounts Receivable" value={formatMoney(kpis.accountsReceivable)} />
-            <PrintKpiCard label="AP Aging Total" value={formatMoney(apKpis.total)} />
+            {apData && <PrintKpiCard label="AP Aging Total" value={formatMoney(apKpis.total)} />}
+            {fixedAssetData && (
+              <>
+                <PrintKpiCard label="Fixed Assets" value={formatCurrency(fixedAssetKpis.totalFixedAssets)} />
+                <PrintKpiCard
+                  label="Accumulated Depreciation"
+                  value={formatCurrency(fixedAssetKpis.accumulatedDepreciation)}
+                />
+                <PrintKpiCard label="Net Book Value" value={formatCurrency(fixedAssetKpis.netBookValue)} />
+              </>
+            )}
             <PrintKpiCard label="Net Margin" value={`${netMargin.toFixed(1)}%`} />
           </div>
         </div>
@@ -2796,37 +4533,20 @@ function PrintableFinancialPackage({
       </section>
 
       <section className="print-page">
-        <h1>AR and AP Aging</h1>
-        <p>{arData ? "AR Aging report uploaded." : "AR Aging report required."}</p>
-        <p>{apData ? "AP Aging report uploaded." : "AP Aging report required."}</p>
-        <table className="print-table">
-          <tbody>
-            <tr>
-              <td>Accounts Payable Total</td>
-              <td>{formatMoney(apKpis.total)}</td>
-            </tr>
-            <tr>
-              <td>Current AP</td>
-              <td>{formatMoney(apKpis.current)}</td>
-            </tr>
-            <tr>
-              <td>1-30 Days</td>
-              <td>{formatMoney(apKpis.days1To30)}</td>
-            </tr>
-            <tr>
-              <td>31-60 Days</td>
-              <td>{formatMoney(apKpis.days31To60)}</td>
-            </tr>
-            <tr>
-              <td>61-90 Days</td>
-              <td>{formatMoney(apKpis.days61To90)}</td>
-            </tr>
-            <tr>
-              <td>90+ Days</td>
-              <td>{formatMoney(apKpis.days90Plus)}</td>
-            </tr>
-          </tbody>
-        </table>
+        <h1>Aging Analysis</h1>
+        <h2>Accounts Receivable Aging</h2>
+        {arData ? (
+          <AgingPrintTable kpis={arKpis} totalLabel="Accounts Receivable Total" currentLabel="Current AR" />
+        ) : (
+          <p>AR Aging report not uploaded</p>
+        )}
+
+        <h2>Accounts Payable Aging</h2>
+        {apData ? (
+          <AgingPrintTable kpis={apKpis} totalLabel="Accounts Payable Total" currentLabel="Current AP" />
+        ) : (
+          <p>AP Aging report not uploaded</p>
+        )}
       </section>
 
       <section className="print-page">
@@ -2858,13 +4578,10 @@ function PrintableFinancialPackage({
 
       {isProfessionalOrHigher(packageTier) && (
         <>
+          {inventoryData && (
           <section className="print-page">
             <h1>Inventory Summary</h1>
-            <p>
-              {inventoryData
-                ? "Inventory valuation detail from the uploaded Inventory Valuation report."
-                : "Inventory Valuation report required."}
-            </p>
+            <p>Inventory valuation detail from the uploaded Inventory Valuation report.</p>
             <table className="print-table">
               <tbody>
                 <tr>
@@ -2873,7 +4590,7 @@ function PrintableFinancialPackage({
                 </tr>
                 <tr>
                   <td>Total Quantity on Hand</td>
-                  <td>{inventoryKpis.totalQuantity.toLocaleString()}</td>
+                  <td>{formatNumber(inventoryKpis.totalQuantity)}</td>
                 </tr>
               </tbody>
             </table>
@@ -2882,6 +4599,7 @@ function PrintableFinancialPackage({
             <h2>Top 5 Inventory Items by Quantity</h2>
             <InventoryPrintTable items={inventoryKpis.topByQuantity} />
           </section>
+          )}
 
           <section className="print-page">
             <h1>Ratio Analysis</h1>
@@ -2911,13 +4629,10 @@ function PrintableFinancialPackage({
 
       {isVirtualCfo(packageTier) && (
         <>
+          {fixedAssetData && (
           <section className="print-page">
             <h1>Fixed Asset Analysis</h1>
-            <p>
-              {fixedAssetData
-                ? "Fixed asset detail from the uploaded Fixed Asset report."
-                : "Fixed Asset report required."}
-            </p>
+            <p>Fixed asset detail from the uploaded Fixed Asset report.</p>
             <table className="print-table">
               <tbody>
                 <tr>
@@ -2934,16 +4649,36 @@ function PrintableFinancialPackage({
                 </tr>
                 <tr>
                   <td>Depreciation Expense</td>
-                  <td>{formatMoney(fixedAssetKpis.depreciationExpense)}</td>
+                  <td>
+                    {formatOptionalCurrency(
+                      fixedAssetKpis.depreciationExpense,
+                      "N/A",
+                    )}
+                  </td>
                 </tr>
               </tbody>
             </table>
+            <h2>Significant Changes</h2>
+            {priorFixedAssetData ? (
+              <FixedAssetChangePrintTable rows={fixedAssetChangeRows} />
+            ) : (
+              <p>Upload prior period fixed asset report to calculate significant changes.</p>
+            )}
           </section>
+          )}
 
-          <PrintFluxSection title="Flux Analysis Executive Summary" rows={monthFluxRows} />
-          <PrintFluxSection title="Month-over-Month Flux Analysis" rows={monthFluxRows} />
-          <PrintFluxSection title="Quarter-over-Quarter Flux Analysis" rows={quarterFluxRows} />
-          <PrintFluxSection title="Year-over-Year Flux Analysis" rows={yearFluxRows} />
+          {monthFluxRows.length > 0 && (
+            <>
+              <PrintFluxSection title="Flux Analysis Executive Summary" rows={monthFluxRows} />
+              <PrintFluxSection title="Month-over-Month Flux Analysis" rows={monthFluxRows} />
+            </>
+          )}
+          {quarterFluxRows.length > 0 && (
+            <PrintFluxSection title="Quarter-over-Quarter Flux Analysis" rows={quarterFluxRows} />
+          )}
+          {yearFluxRows.length > 0 && (
+            <PrintFluxSection title="Year-over-Year Flux Analysis" rows={yearFluxRows} />
+          )}
 
           <section className="print-page">
             <h1>Key Variance Highlights</h1>
@@ -2973,12 +4708,12 @@ function FinancialStatementTable({ rows }: { rows: StatementRow[] }) {
       </thead>
       <tbody>
         {dedupedRows.map((row, index) => {
-          const rowType = getStatementRowType(row.label);
+          const rowType = row.amount === null ? "section" : getStatementRowType(row.label);
 
           return (
             <tr key={`${row.label}-${index}`} className={`print-statement-${rowType}`}>
               <td>{row.label}</td>
-              <td>{formatMoney(row.amount || 0)}</td>
+              <td>{row.amount === null ? "" : formatMoney(row.amount)}</td>
             </tr>
           );
         })}
@@ -2993,6 +4728,74 @@ function PrintKpiCard({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+function AgingPrintTable({
+  kpis,
+  totalLabel,
+  currentLabel,
+}: {
+  kpis: AgingKpis;
+  totalLabel: string;
+  currentLabel: string;
+}) {
+  return (
+    <table className="print-table">
+      <tbody>
+        <tr>
+          <td>{totalLabel}</td>
+          <td>{formatMoney(kpis.total)}</td>
+        </tr>
+        <tr>
+          <td>{currentLabel}</td>
+          <td>{formatMoney(kpis.current)}</td>
+        </tr>
+        <tr>
+          <td>1-30 Days</td>
+          <td>{formatMoney(kpis.days1To30)}</td>
+        </tr>
+        <tr>
+          <td>31-60 Days</td>
+          <td>{formatMoney(kpis.days31To60)}</td>
+        </tr>
+        <tr>
+          <td>61-90 Days</td>
+          <td>{formatMoney(kpis.days61To90)}</td>
+        </tr>
+        <tr>
+          <td>90+ Days</td>
+          <td>{formatMoney(kpis.days90Plus)}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function FixedAssetChangePrintTable({ rows }: { rows: FixedAssetChangeRow[] }) {
+  return (
+    <table className="print-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Prior Period</th>
+          <th>Current Period</th>
+          <th>Change</th>
+          <th>Interpretation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.metric}>
+            <td>{row.metric}</td>
+            <td>{formatCurrency(row.prior)}</td>
+            <td>{formatCurrency(row.current)}</td>
+            <td>{formatCurrency(row.change)}</td>
+            <td>{row.interpretation}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -3011,7 +4814,7 @@ function InventoryPrintTable({ items }: { items: InventoryItem[] }) {
           items.map((item, index) => (
             <tr key={`${item.name}-${index}`}>
               <td>{item.name}</td>
-              <td>{item.quantity.toLocaleString()}</td>
+              <td>{formatNumber(item.quantity)}</td>
               <td>{formatMoney(item.value)}</td>
             </tr>
           ))
@@ -3073,6 +4876,64 @@ function PrintFluxSection({ title, rows }: { title: string; rows: FluxRow[] }) {
 function Preview({ title, data }: { title: string; data: ParsedFile | null }) {
   if (!data) return null;
 
+  const previewRows = getPreviewRows(title, data);
+  const normalizedPreviewTitle = title.toLowerCase();
+  const isAgingPreview = normalizedPreviewTitle.includes("aging");
+  const isGlPreview =
+    normalizedPreviewTitle.includes("gl preview") ||
+    normalizedPreviewTitle.includes("general ledger");
+  const isComparisonPreview = previewRows.some((row) => isComparisonHeaderRow(row));
+  const getHeadersForRow = (rowIndex: number) => {
+    for (let index = rowIndex - 1; index >= 0; index--) {
+      const candidate = previewRows[index];
+      const filledCells = candidate?.filter((cell) => String(cell || "").trim()).length || 0;
+
+      if (candidate && isHeaderRow(candidate) && filledCells > 1) return candidate;
+    }
+
+    return [];
+  };
+  const renderPreviewCell = (row: unknown[], cell: unknown, cellIndex: number, headers: unknown[], rowIndex: number) => {
+    const value = parseNumber(cell);
+    const isBudgetPreview = normalizedPreviewTitle.includes("budget");
+    const lastNonEmptyCellIndex = row.reduce(
+      (latestIndex, currentCell, currentIndex) =>
+        String(currentCell || "").trim() ? currentIndex : latestIndex,
+      -1,
+    );
+    const headerText = String(headers[cellIndex] || "").toLowerCase();
+    const percentColumnIndexes = headers.reduce<number[]>((indexes, header, headerIndex) => {
+      if (String(header || "").includes("%")) return [...indexes, headerIndex];
+      return indexes;
+    }, []);
+
+    if (isGlPreview && cellIndex <= 2) {
+      return String(cell || "");
+    }
+
+    if (
+      isAgingPreview &&
+      cellIndex > 0 &&
+      value !== null &&
+      !isAgingBucketLabel(cell)
+    ) {
+      return formatCurrency(value);
+    }
+
+    if (
+      value !== null &&
+      cellIndex > 0 &&
+      !isHeaderRow(row) &&
+      ((isBudgetPreview && cellIndex === lastNonEmptyCellIndex) ||
+        (isComparisonPreview &&
+          (headerText.includes("%") || percentColumnIndexes.includes(cellIndex))))
+    ) {
+      return formatPercent(value);
+    }
+
+    return formatPreviewCell(row, cell, cellIndex, headers, rowIndex, title);
+  };
+
   return (
     <div className="mt-10 rounded-3xl bg-slate-900 p-8">
       <h2 className="mb-2 text-2xl font-bold">{title}</h2>
@@ -3082,15 +4943,60 @@ function Preview({ title, data }: { title: string; data: ParsedFile | null }) {
       <div className="overflow-x-auto rounded-xl border border-slate-700">
         <table className="w-full text-left text-sm">
           <tbody>
-            {data.rows.slice(0, 25).map((row, rowIndex) => (
-              <tr key={rowIndex} className="border-b border-slate-800">
-                {row.slice(0, 8).map((cell, cellIndex) => (
-                  <td key={cellIndex} className="px-4 py-2 text-slate-300">
-                    {String(cell || "")}
+            {previewRows.map((row, rowIndex) => {
+              const rowType = getPreviewRowType(row);
+              const metaRowType = getPreviewMetaRowType(row, rowIndex);
+              const headers = getHeadersForRow(rowIndex);
+              const subtotalRow = rowType === "subtotal";
+              const calculatedValueRow = rowType === "calculated-value";
+              const grandTotalRow = rowType === "grand-total";
+              const majorTotalRow = rowType === "major-total";
+              const headerRow = isHeaderRow(row) && row.length > 1;
+
+              return (
+              <tr
+                key={rowIndex}
+                className={`border-b border-slate-800 ${
+                  metaRowType === "company"
+                    ? "bg-[#172033] text-base font-extrabold text-[#F9FAFB]"
+                    : metaRowType === "report"
+                      ? "bg-[#172033]/80 font-bold text-blue-200"
+                      : metaRowType === "period"
+                        ? "bg-[#172033]/60 font-semibold text-slate-200"
+                  : headerRow
+                    ? "bg-slate-800/60 font-bold text-slate-100"
+                    : rowType === "section"
+                    ? "bg-slate-800/50 font-bold text-slate-100"
+                    : grandTotalRow
+                      ? "grandTotalRow border-t-[3px] border-t-slate-300 bg-slate-700/70 text-base font-black uppercase text-white"
+                      : calculatedValueRow
+                        ? "calculatedValueRow border-t border-t-slate-500 bg-slate-800/30 font-bold text-slate-100"
+                        : majorTotalRow
+                          ? "border-t-2 border-t-slate-500 bg-slate-800/40 font-extrabold text-white"
+                          : subtotalRow
+                            ? "border-t border-t-slate-600 bg-slate-800/20 font-semibold text-slate-100"
+                            : "text-slate-300"
+                } ${subtotalRow ? "subtotalRow" : ""}`}
+              >
+                {metaRowType ? (
+                  <td colSpan={PREVIEW_COLUMN_LIMIT} className="px-4 py-3">
+                    {String(row.find((cell) => String(cell || "").trim()) || "")}
                   </td>
-                ))}
+                ) : (
+                  row.slice(0, PREVIEW_COLUMN_LIMIT).map((cell, cellIndex) => (
+                    <td
+                      key={cellIndex}
+                      className={`px-4 py-2 ${
+                        cellIndex === 0 && rowType === "detail" && !headerRow ? "pl-8" : ""
+                      } ${cellIndex > 0 ? "text-right tabular-nums" : ""}`}
+                    >
+                      {renderPreviewCell(row, cell, cellIndex, headers, rowIndex)}
+                    </td>
+                  ))
+                )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
