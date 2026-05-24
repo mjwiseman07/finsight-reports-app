@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import {
@@ -112,10 +112,112 @@ type FixedAssetChangeRow = {
   interpretation: string;
 };
 
+type PayrollDepartmentRow = {
+  department: string;
+  currentHours: number;
+  currentFte: number;
+  priorHours: number;
+  priorFte: number;
+  fteChange: number;
+  currentGrossWages: number;
+  priorGrossWages: number;
+  wageChange: number;
+  currentPayrollTaxes: number;
+  priorPayrollTaxes: number;
+  payrollTaxChange: number;
+  currentPayrollCost: number;
+  priorPayrollCost: number;
+  payrollCostChange: number;
+  payrollCostPerFte: number;
+};
+
+type PayrollAnalysis = {
+  rows: PayrollDepartmentRow[];
+  totalCurrentFte: number;
+  totalPriorFte: number;
+  totalFteChange: number;
+  totalCurrentPayrollCost: number;
+  totalPriorPayrollCost: number;
+  totalPayrollCostChange: number;
+  highestFteIncreaseDepartment: string;
+  highestPayrollCostIncreaseDepartment: string;
+  commentary: string[];
+};
+
+type BudgetMetrics = {
+  revenueActual: number | null;
+  revenueBudget: number | null;
+  revenueVariance: number | null;
+  netIncomeActual: number | null;
+  netIncomeBudget: number | null;
+  netIncomeVariance: number | null;
+  largestUnfavorableVarianceLabel: string;
+  largestUnfavorableVariance: number | null;
+};
+
+type DebtMetrics = {
+  totalDebt: number;
+  currentPortion: number;
+  longTermPortion: number;
+  debtToAssets: number | null;
+  debtToEquity: number | null;
+};
+
+type ExecutiveSummarySectionItem = {
+  title: string;
+  body: string;
+};
+
+type BoardPackageSection = {
+  page: number;
+  title: string;
+  status: "Included" | "Missing" | "Omitted" | "Locked";
+  note: string;
+};
+
+type FolderImportResult = {
+  matchedFiles: Array<{ reportLabel: string; fileName: string }>;
+  unmatchedFiles: string[];
+  duplicateMatches: Array<{ reportLabel: string; fileNames: string[] }>;
+  missingRequiredReports: string[];
+};
+
+type PowerPointSlideData = {
+  title: string;
+  subtitle: string;
+  bullets: string[];
+  chartData: Array<Record<string, string | number>>;
+  sectionType: string;
+};
+
 type FluxAccount = {
   accountNumber: string;
   accountName: string;
   amount: number;
+};
+
+type GlActivityRow = {
+  date: string;
+  accountNumber: string;
+  accountName: string;
+  className: string;
+  name: string;
+  customer: string;
+  vendor: string;
+  payee: string;
+  memo: string;
+  description: string;
+  debit: number;
+  credit: number;
+  amount: number;
+  balance: number;
+};
+
+type FluxDriver = {
+  name: string;
+  current: number;
+  prior: number;
+  change: number;
 };
 
 type FluxRow = {
@@ -128,6 +230,18 @@ type FluxRow = {
   direction: string;
   severity: FluxSeverity;
   flagReason: string;
+  topDriver: string;
+  driverChange: number | null;
+  commentary: string;
+  topDrivers: FluxDriver[];
+};
+
+type FluxDebugInfo = {
+  currentRowsParsed: number;
+  priorRowsParsed: number;
+  accountsGrouped: number;
+  variancesCalculated: number;
+  variancesPassingThreshold: number;
 };
 
 type FluxSettings = {
@@ -143,6 +257,61 @@ const PACKAGE_LABELS: Record<PackageTier, string> = {
   virtualCfo: "Virtual CFO",
 };
 const PREVIEW_COLUMN_LIMIT = 10;
+const REPORT_FILENAME_KEYWORDS: Record<string, string[]> = {
+  pl: ["profit and loss", "profitandloss", "profit loss", "p&l", "pnl", "income statement"],
+  bs: ["balance sheet"],
+  ar: ["accounts receivable aging", "ar aging", "ar aging summary", "araging", "araging summary", "receivable aging", "a/r aging"],
+  ap: ["accounts payable aging", "ap aging", "ap aging summary", "apaging", "apaging summary", "payable aging", "a/p aging"],
+  inventory: ["inventory valuation", "inventory valuation summary", "inventoryvaluation", "inventory summary", "inventory value"],
+  customers: ["sales by customer", "salesbycustomer", "customer sales", "sales customer"],
+  vendors: ["expenses by vendor", "expensesbyvendor", "expense by vendor", "vendor expense", "vendor expenses"],
+  "fixed-assets": ["fixed asset detail", "fixed asset register", "fixed assets", "fixedassets", "asset register"],
+  "prior-fixed-assets": ["prior fixed asset", "prior period fixed asset", "priorperiod fixed assets", "priorperiod fixedassets", "previous fixed asset"],
+  budget: ["budget vs actual", "budget vs actuals", "budgetvsactual", "budgetvsactuals", "budget actual", "budget variance"],
+  "current-payroll": [
+    "current month payroll summary",
+    "payroll summary current month",
+    "payrollsummary by department current",
+    "payroll summary by department current",
+    "current payroll summary",
+    "payroll summary by department dec2025",
+    "payrollsummary bydepartment dec2025",
+  ],
+  "prior-payroll": [
+    "prior month payroll summary",
+    "payroll summary prior month",
+    "payrollsummary by department prior",
+    "payroll summary by department prior",
+    "previous month payroll summary",
+    "prior payroll summary",
+    "payroll summary by department nov2025",
+    "payrollsummary bydepartment nov2025",
+  ],
+  "current-payroll-detail": [
+    "payroll gl detail current month",
+    "payrollgldetail currentmonth",
+    "payroll detail current month",
+    "payroll gl detail dec2025",
+    "payrollgldetail dec2025",
+  ],
+  "prior-payroll-detail": [
+    "payroll gl detail prior month",
+    "payrollgldetail priormonth",
+    "payroll detail prior month",
+    "payroll gl detail nov2025",
+    "payrollgldetail nov2025",
+  ],
+  "prior-pl": ["profit and loss comparison", "profitandlosscomparison", "p&l comparison", "pnl comparison", "profit loss comparison"],
+  "prior-bs": ["balance sheet comparison"],
+  "cash-flow": ["statement of cash flows", "cash flow statement", "cashflowstatement", "cash flow", "cash flows"],
+  debt: ["debt schedule", "debtschedule", "loan detail", "loandetail", "loan schedule"],
+  "current-month-gl": ["current month general ledger", "general ledger current month", "current month gl", "gl current month", "gl currentmonth", "glcurrentmonth"],
+  "prior-month-gl": ["prior month general ledger", "general ledger prior month", "prior month gl", "gl prior month", "gl priormonth", "glpriormonth"],
+  "current-quarter-gl": ["current quarter general ledger", "general ledger current quarter", "current quarter gl", "gl current quarter", "gl currentquarter", "glcurrentquarter"],
+  "prior-quarter-gl": ["prior quarter general ledger", "general ledger prior quarter", "prior quarter gl", "gl prior quarter", "gl priorquarter", "glpriorquarter"],
+  "current-year-gl": ["current year general ledger", "general ledger current year", "current year gl", "gl current year", "gl currentyear", "glcurrentyear"],
+  "prior-year-gl": ["prior year general ledger", "general ledger prior year", "prior year gl", "gl prior year", "gl prioryear", "glprioryear"],
+};
 
 function isProfessionalOrHigher(tier: PackageTier) {
   return tier === "professional" || tier === "virtualCfo";
@@ -150,6 +319,89 @@ function isProfessionalOrHigher(tier: PackageTier) {
 
 function isVirtualCfo(tier: PackageTier) {
   return tier === "virtualCfo";
+}
+
+function normalizeFileNameForMatch(fileName: string) {
+  return fileName
+    .replace(/\.[^.]+$/, "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\bapaging\b/g, "ap aging")
+    .replace(/\baraging\b/g, "ar aging")
+    .replace(/\bgl\b/g, "general ledger")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function compactFileNameForMatch(fileName: string) {
+  return normalizeFileNameForMatch(fileName).replace(/[^a-z0-9]/g, "");
+}
+
+function isSupportedImportFile(file: File) {
+  return /\.(csv|xls|xlsx)$/i.test(file.name);
+}
+
+function getReportFileMatchScore(reportId: string, fileName: string) {
+  const normalizedFileName = normalizeFileNameForMatch(fileName);
+  const compactFileName = compactFileNameForMatch(fileName);
+  const keywords = REPORT_FILENAME_KEYWORDS[reportId] || [];
+
+  const keywordScore = keywords.reduce((score, keyword) => {
+    const normalizedKeyword = normalizeFileNameForMatch(keyword);
+    const compactKeyword = compactFileNameForMatch(keyword);
+    const spacedMatch = normalizedFileName.includes(normalizedKeyword);
+    const compactMatch = compactKeyword.length > 2 && compactFileName.includes(compactKeyword);
+    return spacedMatch || compactMatch ? score + compactKeyword.length : score;
+  }, 0);
+
+  const isPayrollSummaryFile =
+    compactFileName.includes("payrollsummarybydepartment") ||
+    (compactFileName.includes("payrollsummary") && compactFileName.includes("department"));
+  const isPayrollDetailFile =
+    compactFileName.includes("payrollgldetail") ||
+    (compactFileName.includes("payrolldetail") && !compactFileName.includes("summary"));
+  const isCurrentPeriod =
+    compactFileName.includes("currentmonth") ||
+    compactFileName.includes("current") ||
+    compactFileName.includes("dec2025");
+  const isPriorPeriod =
+    compactFileName.includes("priormonth") ||
+    compactFileName.includes("prior") ||
+    compactFileName.includes("previous") ||
+    compactFileName.includes("nov2025");
+  const isCurrentPayrollSummary =
+    reportId === "current-payroll" &&
+    isPayrollSummaryFile &&
+    isCurrentPeriod;
+  const isPriorPayrollSummary =
+    reportId === "prior-payroll" &&
+    isPayrollSummaryFile &&
+    isPriorPeriod;
+  const isCurrentPayrollDetail =
+    reportId === "current-payroll-detail" &&
+    isPayrollDetailFile &&
+    isCurrentPeriod;
+  const isPriorPayrollDetail =
+    reportId === "prior-payroll-detail" &&
+    isPayrollDetailFile &&
+    isPriorPeriod;
+
+  if (isCurrentPayrollSummary || isPriorPayrollSummary || isCurrentPayrollDetail || isPriorPayrollDetail) {
+    return keywordScore + 80;
+  }
+
+  return keywordScore;
+}
+
+function getBestReportMatch(file: File, reports: UploadReport[]) {
+  const scoredReports = reports
+    .map((report) => ({ report, score: getReportFileMatchScore(report.id, file.name) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scoredReports[0]?.report || null;
 }
 
 function formatCurrency(value: number | null | undefined) {
@@ -174,6 +426,11 @@ function formatOptionalCurrency(value: number | null | undefined, fallback = "No
 function formatNumber(value: number | null | undefined) {
   if (value === null || value === undefined) return "";
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatFte(value: number | null | undefined) {
+  if (value === null || value === undefined) return "";
+  return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 }
 
 function formatPercent(value: number | null | undefined) {
@@ -276,45 +533,245 @@ function calculateKPIs(plData: ParsedFile | null, bsData: ParsedFile | null): KP
   };
 }
 
-function buildExecutiveSummary(kpis: KPIs, netMargin: number, fixedAssetKpis?: FixedAssetKpis | null) {
+function buildExecutiveSummary({
+  kpis,
+  netMargin,
+  bsRows,
+  arKpis,
+  apKpis,
+  inventoryKpis,
+  fixedAssetKpis,
+  fixedAssetChangeRows,
+  payrollAnalysis,
+  monthFluxRows,
+  quarterFluxRows,
+  yearFluxRows,
+  budgetMetrics,
+  debtMetrics,
+  dso,
+  includeAr,
+  includeAp,
+  includeInventory,
+  includeFixedAssets,
+  includePayroll,
+  includeBudget,
+  includeDebt,
+}: {
+  kpis: KPIs;
+  netMargin: number;
+  bsRows: StatementRow[];
+  arKpis: AgingKpis;
+  apKpis: APKpis;
+  inventoryKpis: InventoryKpis;
+  fixedAssetKpis: FixedAssetKpis;
+  fixedAssetChangeRows: FixedAssetChangeRow[];
+  payrollAnalysis: PayrollAnalysis;
+  monthFluxRows: FluxRow[];
+  quarterFluxRows: FluxRow[];
+  yearFluxRows: FluxRow[];
+  budgetMetrics: BudgetMetrics;
+  debtMetrics: DebtMetrics;
+  dso: number | null;
+  includeAr: boolean;
+  includeAp: boolean;
+  includeInventory: boolean;
+  includeFixedAssets: boolean;
+  includePayroll: boolean;
+  includeBudget: boolean;
+  includeDebt: boolean;
+}) {
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
   const expenseRatio = kpis.revenue ? (kpis.expenses / kpis.revenue) * 100 : 0;
   const cashToAssets = kpis.totalAssets ? (kpis.cash / kpis.totalAssets) * 100 : 0;
-  const hasFixedAssets = Boolean(fixedAssetKpis && fixedAssetKpis.totalFixedAssets);
-  const fixedAssetSummary = hasFixedAssets
-    ? ` Fixed asset detail shows ${formatCurrency(
-        fixedAssetKpis?.totalFixedAssets,
-      )} in original fixed assets, ${formatCurrency(
-        fixedAssetKpis?.accumulatedDepreciation,
-      )} in accumulated depreciation, and ${formatCurrency(
-        fixedAssetKpis?.netBookValue,
-      )} in net book value.`
-    : "";
+  const currentAssets = getCurrentAssetTotal(bsRows);
+  const currentLiabilities = getCurrentLiabilityTotal(bsRows);
+  const workingCapital =
+    currentAssets && currentLiabilities ? currentAssets - currentLiabilities : null;
+  const currentRatio = currentAssets && currentLiabilities ? currentAssets / currentLiabilities : null;
+  const quickRatio = currentLiabilities
+    ? (kpis.cash + kpis.accountsReceivable) / currentLiabilities
+    : null;
+  const inventoryToAssets = kpis.totalAssets ? (inventoryKpis.totalValue / kpis.totalAssets) * 100 : 0;
+  const topInventoryItem = inventoryKpis.topByValue[0];
+  const topInventoryConcentration =
+    topInventoryItem && inventoryKpis.totalValue ? (topInventoryItem.value / inventoryKpis.totalValue) * 100 : 0;
+  const largestMonthVariance = monthFluxRows[0];
+  const largestQuarterVariance = quarterFluxRows[0];
+  const largestYearVariance = yearFluxRows[0];
+  const highestSeverityFlux = [...monthFluxRows, ...quarterFluxRows, ...yearFluxRows].find(
+    (row) => row.severity === "High",
+  );
+  const payrollCostPerFte = payrollAnalysis.totalCurrentFte
+    ? payrollAnalysis.totalCurrentPayrollCost / payrollAnalysis.totalCurrentFte
+    : 0;
+  const sections: ExecutiveSummarySectionItem[] = [
+    {
+      title: "Financial Performance Summary",
+      body: `Revenue was ${formatMoney(kpis.revenue)} with gross profit of ${formatMoney(
+        kpis.grossProfit,
+      )}, net income of ${formatMoney(kpis.netIncome)}, and net margin of ${netMargin.toFixed(
+        1,
+      )}%. Expenses represented ${expenseRatio.toFixed(
+        1,
+      )}% of revenue, making expense control and margin trend review key areas for management attention.`,
+    },
+    {
+      title: "Liquidity and Working Capital Summary",
+      body: `Cash was ${formatMoney(kpis.cash)} and accounts receivable was ${formatMoney(
+        kpis.accountsReceivable,
+      )}${includeAp ? `, compared with accounts payable of ${formatMoney(apKpis.total)}` : ""}. ${
+        workingCapital !== null
+          ? `Working capital was ${formatMoney(workingCapital)}, with a current ratio of ${
+              currentRatio?.toFixed(2) || "N/A"
+            } and quick ratio of ${quickRatio?.toFixed(2) || "N/A"}.`
+          : "Current asset and current liability detail should be reviewed as additional balance sheet support becomes available."
+      }${dso !== null ? ` DSO was ${dso.toFixed(1)} days.` : ""}`,
+    },
+    {
+      title: "Operating Efficiency Summary",
+      body: [
+        includeAr
+          ? `AR aging totaled ${formatMoney(arKpis.total)}, including ${formatMoney(
+              arKpis.days61To90 + arKpis.days90Plus,
+            )} over 60 days and ${formatMoney(arKpis.days90Plus)} over 90 days.`
+          : "",
+        includeAp
+          ? `AP aging totaled ${formatMoney(apKpis.total)}, including ${formatMoney(
+              apKpis.days61To90 + apKpis.days90Plus,
+            )} over 60 days and ${formatMoney(apKpis.days90Plus)} over 90 days.`
+          : "",
+        includeInventory
+          ? `Inventory was ${formatMoney(inventoryKpis.totalValue)}, equal to ${inventoryToAssets.toFixed(
+              1,
+            )}% of total assets${
+              topInventoryItem
+                ? `; ${topInventoryItem.name} represented ${topInventoryConcentration.toFixed(1)}% of inventory value`
+                : ""
+            }.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ") || "Operating efficiency should continue to be reviewed against margin, collections, vendor obligations, and production trends.",
+    },
+    {
+      title: "Payroll and FTE Summary",
+      body: includePayroll
+        ? `Current FTE was ${formatFte(payrollAnalysis.totalCurrentFte)} compared with ${formatFte(
+            payrollAnalysis.totalPriorFte,
+          )} in the prior month, a change of ${formatFte(payrollAnalysis.totalFteChange)} FTE. Payroll cost was ${formatMoney(
+            payrollAnalysis.totalCurrentPayrollCost,
+          )}, with a month-over-month change of ${formatMoney(
+            payrollAnalysis.totalPayrollCostChange,
+          )} and payroll cost per FTE of ${formatMoney(payrollCostPerFte)}; the largest FTE and payroll cost increases were in ${
+            payrollAnalysis.highestFteIncreaseDepartment
+          } and ${payrollAnalysis.highestPayrollCostIncreaseDepartment}.`
+        : "Payroll and FTE trends were not included in this package.",
+    },
+    {
+      title: "Fixed Asset and Capital Investment Summary",
+      body: includeFixedAssets
+        ? `Fixed assets totaled ${formatMoney(
+            fixedAssetKpis.totalFixedAssets,
+          )}, accumulated depreciation was ${formatMoney(
+            fixedAssetKpis.accumulatedDepreciation,
+          )}, and net book value was ${formatMoney(fixedAssetKpis.netBookValue)}.${
+            fixedAssetKpis.depreciationExpense !== null
+              ? ` Depreciation expense was ${formatMoney(fixedAssetKpis.depreciationExpense)}.`
+              : ""
+          }${
+            fixedAssetChangeRows.length
+              ? ` Prior-period comparison shows net book value changed by ${formatMoney(
+                  fixedAssetChangeRows.find((row) => row.metric === "Net book value change")?.change || 0,
+                )}.`
+              : ""
+          }`
+        : "Capital investment analysis was not included in this package.",
+    },
+    {
+      title: "Risk and Watch Items",
+      body: [
+        largestMonthVariance
+          ? `The largest month-over-month flux variance was ${largestMonthVariance.accountName} at ${formatMoney(
+              largestMonthVariance.dollarVariance,
+            )}.`
+          : "",
+        largestQuarterVariance
+          ? `The largest quarter-over-quarter variance was ${largestQuarterVariance.accountName} at ${formatMoney(
+              largestQuarterVariance.dollarVariance,
+            )}.`
+          : "",
+        largestYearVariance
+          ? `The largest year-over-year variance was ${largestYearVariance.accountName} at ${formatMoney(
+              largestYearVariance.dollarVariance,
+            )}.`
+          : "",
+        highestSeverityFlux ? `High-severity flux activity was flagged in ${highestSeverityFlux.accountName}.` : "",
+        includeBudget && budgetMetrics.largestUnfavorableVariance !== null
+          ? `The largest unfavorable budget variance was ${budgetMetrics.largestUnfavorableVarianceLabel} at ${formatMoney(
+              budgetMetrics.largestUnfavorableVariance,
+            )}.`
+          : "",
+        includeDebt && debtMetrics.totalDebt
+          ? `Debt totaled ${formatMoney(debtMetrics.totalDebt)}, with debt-to-assets of ${
+              debtMetrics.debtToAssets !== null ? `${debtMetrics.debtToAssets.toFixed(1)}%` : "N/A"
+            }.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ") || "No elevated Virtual CFO risk indicators were identified from the uploaded package data.",
+    },
+    {
+      title: "Recommended Follow-Up Items",
+      body: buildRecommendedFollowUps({
+        netMargin,
+        expenseRatio,
+        dso,
+        arKpis,
+        apKpis,
+        payrollAnalysis,
+        includeAr,
+        includeAp,
+        includePayroll,
+        includeBudget,
+        budgetMetrics,
+      }).join(" "),
+    },
+  ].filter((section) => section.title !== "Payroll and FTE Summary" || includePayroll)
+    .filter((section) => section.title !== "Fixed Asset and Capital Investment Summary" || includeFixedAssets);
+  const followUpItems = buildRecommendedFollowUps({
+    netMargin,
+    expenseRatio,
+    dso,
+    arKpis,
+    apKpis,
+    payrollAnalysis,
+    includeAr,
+    includeAp,
+    includePayroll,
+    includeBudget,
+    budgetMetrics,
+  });
 
   return {
-    paragraph: `The business generated ${formatMoney(kpis.revenue)} in revenue with ${formatMoney(
-      kpis.grossProfit,
-    )} in gross profit and ${formatMoney(kpis.netIncome)} in net income. Operating expenses totaled ${formatMoney(
-      kpis.expenses,
-    )}, resulting in a net margin of ${netMargin.toFixed(
-      1,
-    )}%. The balance sheet shows ${formatMoney(kpis.cash)} in cash, ${formatMoney(
-      kpis.accountsReceivable,
-    )} in accounts receivable, and ${formatMoney(
-      kpis.totalAssets,
-    )} in total assets, providing a snapshot of liquidity and overall financial position.${fixedAssetSummary}`,
+    paragraph: sections.map((section) => section.body).join(" "),
+    sections,
+    followUpItems,
     highlights: [
       `Revenue totaled ${formatMoney(kpis.revenue)} for the uploaded period.`,
       `Gross profit was ${formatMoney(kpis.grossProfit)}, representing a gross margin of ${grossMargin.toFixed(1)}%.`,
       `Net income was ${formatMoney(kpis.netIncome)}, with a net margin of ${netMargin.toFixed(1)}%.`,
       `Cash on hand was ${formatMoney(kpis.cash)}, equal to ${cashToAssets.toFixed(1)}% of total assets.`,
-      ...(hasFixedAssets
-        ? [`Net book value of fixed assets was ${formatCurrency(fixedAssetKpis?.netBookValue)}.`]
+      ...(includePayroll ? [`Payroll cost was ${formatMoney(payrollAnalysis.totalCurrentPayrollCost)} across ${formatFte(payrollAnalysis.totalCurrentFte)} FTE.`] : []),
+      ...(includeFixedAssets
+        ? [`Net book value of fixed assets was ${formatCurrency(fixedAssetKpis.netBookValue)}.`]
         : []),
     ],
     watchItems: [
       `Expenses totaled ${formatMoney(kpis.expenses)}, or ${expenseRatio.toFixed(1)}% of revenue.`,
       `Accounts receivable was ${formatMoney(kpis.accountsReceivable)}, which should be monitored for collection timing.`,
+      ...(includePayroll
+        ? [`Payroll cost per FTE was ${formatMoney(payrollCostPerFte)}, which should be reviewed with revenue per FTE and gross margin trends.`]
+        : []),
       netMargin < 10
         ? "Net margin is below 10%, suggesting profitability may need closer review."
         : "Net margin is positive, but should still be tracked against monthly targets.",
@@ -323,6 +780,53 @@ function buildExecutiveSummary(kpis: KPIs, netMargin: number, fixedAssetKpis?: F
         : "Cash exceeds accounts receivable, supporting a stronger liquidity position.",
     ],
   };
+}
+
+function buildRecommendedFollowUps({
+  netMargin,
+  expenseRatio,
+  dso,
+  arKpis,
+  apKpis,
+  payrollAnalysis,
+  includeAr,
+  includeAp,
+  includePayroll,
+  includeBudget,
+  budgetMetrics,
+}: {
+  netMargin: number;
+  expenseRatio: number;
+  dso: number | null;
+  arKpis: AgingKpis;
+  apKpis: APKpis;
+  payrollAnalysis: PayrollAnalysis;
+  includeAr: boolean;
+  includeAp: boolean;
+  includePayroll: boolean;
+  includeBudget: boolean;
+  budgetMetrics: BudgetMetrics;
+}) {
+  const items = [
+    netMargin < 10
+      ? "Review pricing, direct costs, and operating expenses to improve net margin."
+      : "Compare margin performance against monthly targets and prior periods.",
+    expenseRatio > 40 ? "Review overhead categories for cost reduction or reclassification opportunities." : "",
+    dso !== null && dso > 60 ? "Prioritize AR collections and aging follow-up for balances over 60 days." : "",
+    includeAr && arKpis.days90Plus > 0 ? "Investigate AR balances over 90 days and assign collection ownership." : "",
+    includeAp && apKpis.days90Plus > 0 ? "Review AP balances over 90 days for vendor risk and payment timing." : "",
+    includePayroll && Math.abs(payrollAnalysis.totalFteChange) > 0.5
+      ? "Validate staffing changes by department against revenue volume and project demand."
+      : "",
+    includePayroll && payrollAnalysis.totalPayrollCostChange > 0
+      ? "Monitor payroll cost growth against gross margin and revenue growth."
+      : "",
+    includeBudget && budgetMetrics.largestUnfavorableVariance !== null
+      ? "Review unfavorable budget variances and document management action plans."
+      : "",
+  ].filter(Boolean);
+
+  return items.length ? items : ["Continue monthly review of profitability, liquidity, and operating trend indicators."];
 }
 
 function evaluateFormula(formula: string, cellMap: Record<string, unknown>): number {
@@ -385,7 +889,7 @@ function extractRowsFromWorksheet(sheet: XLSX.WorkSheet): unknown[][] {
 }
 
 function normalizeHeader(value: unknown) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function findHeaderIndex(row: unknown[], patterns: string[]) {
@@ -395,14 +899,125 @@ function findHeaderIndex(row: unknown[], patterns: string[]) {
   });
 }
 
+function findHeaderIndexes(row: unknown[], patterns: string[]) {
+  return row
+    .map((cell, index) => {
+      const text = normalizeHeader(cell);
+      return patterns.some((pattern) => text.includes(pattern)) ? index : -1;
+    })
+    .filter((index) => index >= 0);
+}
+
 function findExactHeaderIndex(row: unknown[], labels: string[]) {
   const normalizedLabels = labels.map((label) => normalizeHeader(label));
   return row.findIndex((cell) => normalizedLabels.includes(normalizeHeader(cell)));
 }
 
+function findAccountNameHeaderIndex(headers: unknown[]) {
+  const explicitAccountNameIndex = findHeaderIndex(headers, ["account name"]);
+  if (explicitAccountNameIndex >= 0) return explicitAccountNameIndex;
+
+  return headers.findIndex((header) => {
+    const normalized = normalizeHeader(header);
+    return normalized === "account" || normalized === "account title";
+  });
+}
+
 function sumColumn(rows: unknown[][], columnIndex: number) {
   if (columnIndex < 0) return 0;
   return rows.reduce((total, row) => total + (parseNumber(row[columnIndex]) || 0), 0);
+}
+
+function calculateBudgetMetrics(data: ParsedFile | null): BudgetMetrics {
+  const emptyMetrics = {
+    revenueActual: null,
+    revenueBudget: null,
+    revenueVariance: null,
+    netIncomeActual: null,
+    netIncomeBudget: null,
+    netIncomeVariance: null,
+    largestUnfavorableVarianceLabel: "N/A",
+    largestUnfavorableVariance: null,
+  };
+  if (!data) return emptyMetrics;
+
+  const headerIndex = data.rows.findIndex((row) =>
+    row.some((cell) => {
+      const text = normalizeHeader(cell);
+      return text.includes("actual") || text.includes("budget") || text.includes("variance");
+    }),
+  );
+  const headers = data.rows[headerIndex] || [];
+  const dataRows = headerIndex >= 0 ? data.rows.slice(headerIndex + 1) : data.rows;
+  const actualIndex = findHeaderIndex(headers, ["actual"]);
+  const budgetIndex = findHeaderIndex(headers, ["budget"]);
+  const varianceIndex = findHeaderIndex(headers, ["variance", "over/(under)", "over/under"]);
+  const getBudgetRow = (labels: string[]) => {
+    const normalizedLabels = labels.map((label) => normalizeStatementLabel(label));
+    return dataRows.find((row) => normalizedLabels.includes(normalizeStatementLabel(String(row[0] || ""))));
+  };
+  const revenueRow = getBudgetRow(["Total Income", "Total Revenue", "Income", "Revenue", "Sales"]);
+  const netIncomeRow = getBudgetRow(["Net Income", "Net Ordinary Income", "Net Profit"]);
+  const getActual = (row: unknown[] | undefined) =>
+    row ? parseNumber(row[actualIndex]) ?? getLastNumericValue(row) : null;
+  const getBudget = (row: unknown[] | undefined) =>
+    row ? parseNumber(row[budgetIndex]) ?? null : null;
+  const getVariance = (row: unknown[] | undefined) => {
+    if (!row) return null;
+    const explicitVariance = parseNumber(row[varianceIndex]);
+    if (explicitVariance !== null) return explicitVariance;
+    const actual = getActual(row);
+    const budget = getBudget(row);
+    return actual !== null && budget !== null ? actual - budget : null;
+  };
+  const unfavorableRows = dataRows
+    .map((row) => ({
+      label: String(row[0] || "").trim(),
+      variance: getVariance(row),
+    }))
+    .filter((row) => row.label && row.variance !== null && row.variance < 0)
+    .sort((a, b) => (a.variance || 0) - (b.variance || 0));
+  const largestUnfavorable = unfavorableRows[0];
+
+  return {
+    revenueActual: getActual(revenueRow),
+    revenueBudget: getBudget(revenueRow),
+    revenueVariance: getVariance(revenueRow),
+    netIncomeActual: getActual(netIncomeRow),
+    netIncomeBudget: getBudget(netIncomeRow),
+    netIncomeVariance: getVariance(netIncomeRow),
+    largestUnfavorableVarianceLabel: largestUnfavorable?.label || "N/A",
+    largestUnfavorableVariance: largestUnfavorable?.variance ?? null,
+  };
+}
+
+function calculateDebtMetrics(data: ParsedFile | null, kpis: KPIs): DebtMetrics {
+  if (!data) {
+    return { totalDebt: 0, currentPortion: 0, longTermPortion: 0, debtToAssets: null, debtToEquity: null };
+  }
+
+  const headerIndex = data.rows.findIndex((row) =>
+    row.some((cell) => {
+      const text = normalizeHeader(cell);
+      return text.includes("current portion") || text.includes("long-term") || text.includes("loan") || text.includes("balance");
+    }),
+  );
+  const headers = data.rows[headerIndex] || [];
+  const dataRows = headerIndex >= 0 ? data.rows.slice(headerIndex + 1) : data.rows;
+  const currentPortionIndex = findHeaderIndex(headers, ["current portion", "current debt", "short-term"]);
+  const longTermPortionIndex = findHeaderIndex(headers, ["long-term portion", "long term portion", "long-term", "long term"]);
+  const balanceIndex = findHeaderIndex(headers, ["balance", "principal", "loan amount", "amount"]);
+  const currentPortion = sumColumn(dataRows, currentPortionIndex);
+  const longTermPortion = sumColumn(dataRows, longTermPortionIndex);
+  const totalDebt = currentPortion + longTermPortion || sumColumn(dataRows, balanceIndex);
+
+  return {
+    totalDebt,
+    currentPortion,
+    longTermPortion,
+    debtToAssets: kpis.totalAssets ? (totalDebt / kpis.totalAssets) * 100 : null,
+    debtToEquity: kpis.totalEquity ? (totalDebt / kpis.totalEquity) * 100 : null,
+  };
 }
 
 function calculateAgingKpis(data: ParsedFile | null): AgingKpis {
@@ -492,6 +1107,391 @@ function calculateInventoryKpis(inventoryData: ParsedFile | null): InventoryKpis
     topByValue: [...items].sort((a, b) => b.value - a.value).slice(0, 5),
     topByQuantity: [...items].sort((a, b) => b.quantity - a.quantity).slice(0, 5),
   };
+}
+
+function sumRowColumns(row: unknown[], indexes: number[]) {
+  return indexes.reduce((total, index) => total + (parseNumber(row[index]) || 0), 0);
+}
+
+function findPayrollHeaderIndex(data: ParsedFile | null) {
+  if (!data) return -1;
+
+  return data.rows.findIndex((row) => {
+    const hasDepartment = findHeaderIndex(row, ["department", "class", "location", "cost center", "division"]) >= 0;
+    const hasPayrollMetric =
+      findHeaderIndex(row, ["hours", "gross pay", "gross wages", "payroll cost", "total cost"]) >= 0;
+
+    return hasDepartment && hasPayrollMetric;
+  });
+}
+
+function getPayrollDepartmentTotals(data: ParsedFile | null) {
+  if (!data) return new Map<string, { hours: number; wages: number; taxes: number; benefits: number; cost: number }>();
+
+  const headerIndex = findPayrollHeaderIndex(data);
+  const headers = data.rows[headerIndex] || [];
+  const dataRows = headerIndex >= 0 ? data.rows.slice(headerIndex + 1) : data.rows;
+  const departmentIndex = findHeaderIndex(headers, ["department", "class", "location", "cost center", "division"]);
+  const hoursIndexes = findHeaderIndexes(headers, [
+    "hours",
+    "total hours",
+    "regular hours",
+    "overtime hours",
+    "paid hours",
+  ]);
+  const wageIndexes = findHeaderIndexes(headers, [
+    "gross pay",
+    "gross wages",
+    "payroll wages",
+    "wages",
+    "total wages",
+  ]);
+  const taxIndexes = findHeaderIndexes(headers, [
+    "employer payroll taxes",
+    "payroll taxes",
+    "employer taxes",
+    "fica",
+    "medicare",
+    "futa",
+    "suta",
+  ]);
+  const benefitIndexes = findHeaderIndexes(headers, [
+    "benefits",
+    "employer benefits",
+    "health insurance",
+    "retirement match",
+  ]);
+  const totalCostIndexes = findHeaderIndexes(headers, ["total payroll cost", "total cost", "payroll cost"]);
+  const totals = new Map<string, { hours: number; wages: number; taxes: number; benefits: number; cost: number }>();
+
+  dataRows.forEach((row) => {
+    const department = String(row[departmentIndex >= 0 ? departmentIndex : 0] || "").trim();
+    const normalizedDepartment = normalizeHeader(department);
+    if (!department || normalizedDepartment === "total" || normalizedDepartment.startsWith("total ")) return;
+
+    const hours = sumRowColumns(row, hoursIndexes);
+    const wages = sumRowColumns(row, wageIndexes);
+    const taxes = sumRowColumns(row, taxIndexes);
+    const benefits = sumRowColumns(row, benefitIndexes);
+    const providedCost = sumRowColumns(row, totalCostIndexes);
+    const cost = providedCost || wages + taxes + benefits;
+
+    if (!hours && !wages && !taxes && !benefits && !cost) return;
+
+    const current = totals.get(department) || { hours: 0, wages: 0, taxes: 0, benefits: 0, cost: 0 };
+    totals.set(department, {
+      hours: current.hours + hours,
+      wages: current.wages + wages,
+      taxes: current.taxes + taxes,
+      benefits: current.benefits + benefits,
+      cost: current.cost + cost,
+    });
+  });
+
+  return totals;
+}
+
+function buildPayrollCommentary(rows: PayrollDepartmentRow[], analysis: Omit<PayrollAnalysis, "commentary">) {
+  if (!rows.length) return [];
+
+  const commentary: string[] = [];
+  const totalDirection = analysis.totalPayrollCostChange >= 0 ? "increased" : "decreased";
+  commentary.push(
+    `Total FTE moved from ${formatFte(analysis.totalPriorFte)} to ${formatFte(
+      analysis.totalCurrentFte,
+    )}, a change of ${formatFte(analysis.totalFteChange)} FTE month-over-month.`,
+  );
+  commentary.push(
+    `Total payroll cost ${totalDirection} by ${formatCurrency(Math.abs(analysis.totalPayrollCostChange))} compared with the prior month.`,
+  );
+
+  rows
+    .filter((row) => Math.abs(row.fteChange) >= 0.01 || Math.abs(row.payrollCostChange) > 0)
+    .sort((a, b) => Math.abs(b.fteChange) - Math.abs(a.fteChange))
+    .slice(0, 3)
+    .forEach((row) => {
+      const fteDirection = row.fteChange > 0 ? "increased" : row.fteChange < 0 ? "decreased" : "remained stable";
+      const costDirection =
+        row.payrollCostChange > 0 ? "higher payroll cost" : row.payrollCostChange < 0 ? "lower payroll cost" : "stable payroll cost";
+      commentary.push(
+        `${row.department} ${fteDirection} by ${formatFte(
+          Math.abs(row.fteChange),
+        )} FTE month-over-month, with ${costDirection} of ${formatCurrency(Math.abs(row.payrollCostChange))}.`,
+      );
+    });
+
+  commentary.push("Payroll cost per FTE should be monitored against revenue and gross margin trends.");
+  return commentary;
+}
+
+function calculatePayrollAnalysis(
+  currentPayrollData: ParsedFile | null,
+  priorPayrollData: ParsedFile | null,
+  fteDivisor: number,
+): PayrollAnalysis {
+  const divisor = fteDivisor > 0 ? fteDivisor : 173.33;
+  const currentTotals = getPayrollDepartmentTotals(currentPayrollData);
+  const priorTotals = getPayrollDepartmentTotals(priorPayrollData);
+  const departments = new Set([...currentTotals.keys(), ...priorTotals.keys()]);
+  const rows = [...departments]
+    .map((department) => {
+      const current = currentTotals.get(department) || { hours: 0, wages: 0, taxes: 0, benefits: 0, cost: 0 };
+      const prior = priorTotals.get(department) || { hours: 0, wages: 0, taxes: 0, benefits: 0, cost: 0 };
+      const currentFte = current.hours / divisor;
+      const priorFte = prior.hours / divisor;
+
+      return {
+        department,
+        currentHours: current.hours,
+        currentFte,
+        priorHours: prior.hours,
+        priorFte,
+        fteChange: currentFte - priorFte,
+        currentGrossWages: current.wages,
+        priorGrossWages: prior.wages,
+        wageChange: current.wages - prior.wages,
+        currentPayrollTaxes: current.taxes,
+        priorPayrollTaxes: prior.taxes,
+        payrollTaxChange: current.taxes - prior.taxes,
+        currentPayrollCost: current.cost,
+        priorPayrollCost: prior.cost,
+        payrollCostChange: current.cost - prior.cost,
+        payrollCostPerFte: currentFte ? current.cost / currentFte : 0,
+      };
+    })
+    .sort((a, b) => Math.abs(b.payrollCostChange) - Math.abs(a.payrollCostChange));
+
+  const totalCurrentFte = rows.reduce((total, row) => total + row.currentFte, 0);
+  const totalPriorFte = rows.reduce((total, row) => total + row.priorFte, 0);
+  const totalCurrentPayrollCost = rows.reduce((total, row) => total + row.currentPayrollCost, 0);
+  const totalPriorPayrollCost = rows.reduce((total, row) => total + row.priorPayrollCost, 0);
+  const highestFteIncreaseDepartment =
+    [...rows].sort((a, b) => b.fteChange - a.fteChange)[0]?.department || "N/A";
+  const highestPayrollCostIncreaseDepartment =
+    [...rows].sort((a, b) => b.payrollCostChange - a.payrollCostChange)[0]?.department || "N/A";
+  const analysis = {
+    rows,
+    totalCurrentFte,
+    totalPriorFte,
+    totalFteChange: totalCurrentFte - totalPriorFte,
+    totalCurrentPayrollCost,
+    totalPriorPayrollCost,
+    totalPayrollCostChange: totalCurrentPayrollCost - totalPriorPayrollCost,
+    highestFteIncreaseDepartment,
+    highestPayrollCostIncreaseDepartment,
+  };
+
+  return { ...analysis, commentary: buildPayrollCommentary(rows, analysis) };
+}
+
+function buildBoardPackageSections({
+  packageTier,
+  reports,
+  hasExecutiveSummary,
+  hasFinancialSnapshot,
+  hasRatios,
+  hasFollowUps,
+  hasAnyFlux,
+}: {
+  packageTier: PackageTier;
+  reports: UploadReport[];
+  hasExecutiveSummary: boolean;
+  hasFinancialSnapshot: boolean;
+  hasRatios: boolean;
+  hasFollowUps: boolean;
+  hasAnyFlux: boolean;
+}) {
+  const reportMap = new Map(reports.map((report) => [report.id, report]));
+  const statusFromReports = (ids: string[], minimumTier: PackageTier = "essential"): BoardPackageSection["status"] => {
+    if (!isReportAvailable(minimumTier, packageTier)) return "Locked";
+    const matchingReports = ids.map((id) => reportMap.get(id)).filter(Boolean) as UploadReport[];
+    if (matchingReports.some((report) => report.omitted)) return "Omitted";
+    if (matchingReports.some((report) => report.data)) return "Included";
+    return "Missing";
+  };
+  const statusFromFlag = (flag: boolean, minimumTier: PackageTier = "essential"): BoardPackageSection["status"] => {
+    if (!isReportAvailable(minimumTier, packageTier)) return "Locked";
+    return flag ? "Included" : "Missing";
+  };
+
+  return [
+    { page: 1, title: "Executive Summary", status: statusFromFlag(hasExecutiveSummary), note: "CFO narrative package overview" },
+    { page: 2, title: "Financial Performance Snapshot", status: statusFromFlag(hasFinancialSnapshot), note: "Core KPI cards and charts" },
+    { page: 3, title: "Income Statement", status: statusFromReports(["pl"]), note: "Profit and Loss detail" },
+    { page: 4, title: "Balance Sheet", status: statusFromReports(["bs"]), note: "Assets, liabilities, and equity" },
+    { page: 5, title: "AR and AP Aging", status: statusFromReports(["ar", "ap"]), note: "Receivables and payables aging" },
+    { page: 6, title: "Inventory Summary", status: statusFromReports(["inventory"], "professional"), note: "Inventory value and concentration" },
+    { page: 7, title: "Fixed Asset Analysis", status: statusFromReports(["fixed-assets"], "virtualCfo"), note: "Capital assets, depreciation, and NBV" },
+    { page: 8, title: "Payroll and FTE Analysis", status: statusFromReports(["current-payroll", "prior-payroll"], "virtualCfo"), note: "Payroll cost and staffing trends" },
+    { page: 9, title: "Ratio Analysis", status: statusFromFlag(hasRatios, "professional"), note: "Financial and payroll ratios" },
+    { page: 10, title: "Budget vs Actual", status: statusFromReports(["budget"], "virtualCfo"), note: "Budget performance and unfavorable variances" },
+    { page: 11, title: "Debt Schedule / Loan Detail", status: statusFromReports(["debt"], "virtualCfo"), note: "Debt obligations and leverage" },
+    { page: 12, title: "Flux Analysis Executive Summary", status: statusFromFlag(hasAnyFlux, "virtualCfo"), note: "Highest variance summary" },
+    { page: 13, title: "Month-over-Month Flux Analysis", status: statusFromReports(["current-month-gl", "prior-month-gl"], "virtualCfo"), note: "Monthly GL variance detail" },
+    { page: 14, title: "Quarter-over-Quarter Flux Analysis", status: statusFromReports(["current-quarter-gl", "prior-quarter-gl"], "virtualCfo"), note: "Quarterly GL variance detail" },
+    { page: 15, title: "Year-over-Year Flux Analysis", status: statusFromReports(["current-year-gl", "prior-year-gl"], "virtualCfo"), note: "Annual GL variance detail" },
+    { page: 16, title: "Recommended Follow-Up Items", status: statusFromFlag(hasFollowUps), note: "Management action items" },
+  ];
+}
+
+function createPowerPointSlidesData({
+  companyName,
+  reportPeriod,
+  kpis,
+  executiveSummary,
+  arKpis,
+  apKpis,
+  inventoryKpis,
+  fixedAssetKpis,
+  payrollAnalysis,
+  ratioRows,
+  monthFluxRows,
+  quarterFluxRows,
+  yearFluxRows,
+  includeInventory,
+  includePayroll,
+  includeFixedAssets,
+}: {
+  companyName: string;
+  reportPeriod: string;
+  kpis: KPIs;
+  executiveSummary: ReturnType<typeof buildExecutiveSummary>;
+  arKpis: AgingKpis;
+  apKpis: APKpis;
+  inventoryKpis: InventoryKpis;
+  fixedAssetKpis: FixedAssetKpis;
+  payrollAnalysis: PayrollAnalysis;
+  ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
+  monthFluxRows: FluxRow[];
+  quarterFluxRows: FluxRow[];
+  yearFluxRows: FluxRow[];
+  includeInventory: boolean;
+  includePayroll: boolean;
+  includeFixedAssets: boolean;
+}): PowerPointSlideData[] {
+  const allFluxRows = [...monthFluxRows, ...quarterFluxRows, ...yearFluxRows]
+    .sort((a, b) => Math.abs(b.dollarVariance) - Math.abs(a.dollarVariance))
+    .slice(0, 5);
+  const slides: PowerPointSlideData[] = [
+    {
+      title: companyName,
+      subtitle: `${reportPeriod} Board / Owner Presentation`,
+      bullets: ["Prepared by FinSight Reports", "Financial package presentation draft"],
+      chartData: [],
+      sectionType: "title",
+    },
+    {
+      title: "Executive Summary",
+      subtitle: "CFO-level package overview",
+      bullets: executiveSummary.sections.slice(0, 4).map((section) => `${section.title}: ${section.body}`),
+      chartData: [],
+      sectionType: "executive-summary",
+    },
+    {
+      title: "KPI Snapshot",
+      subtitle: "Core financial metrics",
+      bullets: [
+        `Revenue: ${formatCurrency(kpis.revenue)}`,
+        `Gross Profit: ${formatCurrency(kpis.grossProfit)}`,
+        `Net Income: ${formatCurrency(kpis.netIncome)}`,
+        `Cash: ${formatCurrency(kpis.cash)}`,
+      ],
+      chartData: [
+        { name: "Revenue", value: kpis.revenue },
+        { name: "Gross Profit", value: kpis.grossProfit },
+        { name: "Net Income", value: kpis.netIncome },
+      ],
+      sectionType: "kpi-snapshot",
+    },
+    {
+      title: "Revenue and Profitability",
+      subtitle: "Income statement performance",
+      bullets: [`Expenses: ${formatCurrency(kpis.expenses)}`, `COGS: ${formatCurrency(kpis.cogs)}`],
+      chartData: [
+        { name: "Revenue", value: kpis.revenue },
+        { name: "COGS", value: kpis.cogs },
+        { name: "Expenses", value: kpis.expenses },
+        { name: "Net Income", value: kpis.netIncome },
+      ],
+      sectionType: "profitability",
+    },
+    {
+      title: "Cash, AR, and AP",
+      subtitle: "Liquidity position",
+      bullets: [`AR Aging Total: ${formatCurrency(arKpis.total)}`, `AP Aging Total: ${formatCurrency(apKpis.total)}`],
+      chartData: [
+        { name: "Cash", value: kpis.cash },
+        { name: "AR", value: arKpis.total || kpis.accountsReceivable },
+        { name: "AP", value: apKpis.total },
+      ],
+      sectionType: "liquidity",
+    },
+    ...(includeInventory
+      ? [
+          {
+            title: "Inventory Summary",
+            subtitle: "Top inventory items by value",
+            bullets: [`Inventory Value: ${formatCurrency(inventoryKpis.totalValue)}`],
+            chartData: inventoryKpis.topByValue.map((item) => ({ name: item.name, value: item.value })),
+            sectionType: "inventory",
+          },
+        ]
+      : []),
+    ...(includePayroll
+      ? [
+          {
+            title: "Payroll and FTE Analysis",
+            subtitle: "Department staffing and payroll cost",
+            bullets: payrollAnalysis.commentary,
+            chartData: payrollAnalysis.rows.map((row) => ({
+              name: row.department,
+              currentFte: row.currentFte,
+              priorFte: row.priorFte,
+              payrollCost: row.currentPayrollCost,
+            })),
+            sectionType: "payroll",
+          },
+        ]
+      : []),
+    ...(includeFixedAssets
+      ? [
+          {
+            title: "Fixed Asset Analysis",
+            subtitle: "Capital asset breakdown",
+            bullets: [`Net Book Value: ${formatCurrency(fixedAssetKpis.netBookValue)}`],
+            chartData: [
+              { name: "Fixed Assets", value: fixedAssetKpis.totalFixedAssets },
+              { name: "Accumulated Depreciation", value: Math.abs(fixedAssetKpis.accumulatedDepreciation) },
+              { name: "Net Book Value", value: fixedAssetKpis.netBookValue },
+            ],
+            sectionType: "fixed-assets",
+          },
+        ]
+      : []),
+    {
+      title: "Ratio Analysis",
+      subtitle: "Financial ratio highlights",
+      bullets: ratioRows.slice(0, 6).map((row) => `${row.name}: ${row.value}`),
+      chartData: [],
+      sectionType: "ratios",
+    },
+    {
+      title: "Flux Analysis Highlights",
+      subtitle: "Largest flagged variances",
+      bullets: allFluxRows.map((row) => `${row.accountName}: ${formatCurrency(row.dollarVariance)}`),
+      chartData: allFluxRows.map((row) => ({ name: row.accountName, value: row.dollarVariance })),
+      sectionType: "flux",
+    },
+    {
+      title: "Recommended Follow-Up Items",
+      subtitle: "Management action items",
+      bullets: executiveSummary.followUpItems,
+      chartData: [],
+      sectionType: "follow-up",
+    },
+  ];
+
+  return slides;
 }
 
 function calculateFixedAssetKpis(
@@ -1378,6 +2378,23 @@ function isHeaderRow(row: unknown[]) {
   return headerMatches >= Math.min(2, cells.length) || normalizedCells.every(isAgingBucketLabel);
 }
 
+function isPayrollDetailHeaderRow(row: unknown[]) {
+  const normalizedCells = row.map((cell) => normalizeHeader(cell));
+  const hasDate = normalizedCells.some((cell) => cell === "date");
+  const hasTransactionType = normalizedCells.some(
+    (cell) => cell === "type" || cell === "transaction type" || cell.includes("transaction type"),
+  );
+  const hasAmountColumn = normalizedCells.some((cell) =>
+    ["amount", "balance", "debit", "credit"].some((label) => cell === label || cell.includes(label)),
+  );
+
+  return (
+    hasDate &&
+    hasTransactionType &&
+    hasAmountColumn
+  );
+}
+
 function isPercentCell(row: unknown[], cellIndex: number, value: unknown) {
   const text = String(value || "").trim();
   if (!text.includes("%")) return false;
@@ -1750,6 +2767,39 @@ function interpretDso(value: number | null) {
   return "Collections may be slow. Review aging buckets and follow-up procedures.";
 }
 
+function interpretPayrollCostToRevenue(value: number | null) {
+  if (value === null) return "Payroll cost requires payroll and revenue data.";
+  if (value < 20) return `Payroll cost represents ${value.toFixed(1)}% of revenue, which appears efficient for the current period. Monitor whether staffing levels remain aligned with revenue volume.`;
+  if (value <= 35) return `Payroll cost represents ${value.toFixed(1)}% of revenue, which appears manageable. Continue monitoring staffing mix and gross margin trends.`;
+  return `Payroll cost represents ${value.toFixed(1)}% of revenue, which is elevated and should be reviewed against pricing, utilization, and department staffing levels.`;
+}
+
+function interpretRevenuePerFte(value: number | null) {
+  if (value === null) return "Revenue per FTE requires revenue and current FTE data.";
+  return `Revenue per FTE is ${formatCurrency(value)}, indicating ${value >= 100000 ? "strong" : "an area to monitor for"} productivity for the current payroll base.`;
+}
+
+function interpretPayrollCostPerFte(value: number | null) {
+  if (value === null) return "Payroll cost per FTE requires current payroll cost and FTE data.";
+  return `Payroll cost per FTE is ${formatCurrency(value)}. Monitor this against revenue per FTE, gross margin, and department-level productivity.`;
+}
+
+function interpretFteChange(value: number | null) {
+  if (value === null) return "FTE change requires current and prior payroll reports.";
+  if (Math.abs(value) < 5) return "FTE levels were relatively stable month-over-month.";
+  return value > 0
+    ? "FTE increased meaningfully. Confirm staffing growth is aligned with revenue volume and project demand."
+    : "FTE decreased meaningfully. Confirm service capacity and delivery expectations remain covered.";
+}
+
+function interpretPayrollCostChange(value: number | null) {
+  if (value === null) return "Payroll cost change requires current and prior payroll reports.";
+  if (Math.abs(value) < 5) return "Payroll cost was relatively stable month-over-month.";
+  return value > 0
+    ? "Payroll cost increased. Review department-level changes and compare against revenue and margin growth."
+    : "Payroll cost decreased. Confirm the change reflects planned staffing or cost structure improvements.";
+}
+
 function calculatePeriodDays(startDate: string, endDate: string) {
   if (!startDate || !endDate) return null;
 
@@ -1775,6 +2825,8 @@ function buildRatioRows(
   apKpis: APKpis,
   inventoryKpis: InventoryKpis,
   periodDays: number | null,
+  payrollAnalysis: PayrollAnalysis,
+  includePayroll: boolean,
 ) {
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
   const expenseRatio = kpis.revenue ? (kpis.expenses / kpis.revenue) * 100 : 0;
@@ -1793,6 +2845,28 @@ function buildRatioRows(
   const workingCapital =
     currentAssets && currentLiabilities ? currentAssets - currentLiabilities : null;
   const dso = calculateDso(kpis, periodDays);
+  const payrollCostToRevenue =
+    includePayroll && kpis.revenue ? (payrollAnalysis.totalCurrentPayrollCost / kpis.revenue) * 100 : null;
+  const grossWages = payrollAnalysis.rows.reduce((total, row) => total + row.currentGrossWages, 0);
+  const payrollTaxes = payrollAnalysis.rows.reduce((total, row) => total + row.currentPayrollTaxes, 0);
+  const grossWagesToRevenue = includePayroll && kpis.revenue ? (grossWages / kpis.revenue) * 100 : null;
+  const payrollTaxesToGrossWages = includePayroll && grossWages ? (payrollTaxes / grossWages) * 100 : null;
+  const payrollCostPerFte =
+    includePayroll && payrollAnalysis.totalCurrentFte
+      ? payrollAnalysis.totalCurrentPayrollCost / payrollAnalysis.totalCurrentFte
+      : null;
+  const revenuePerFte =
+    includePayroll && payrollAnalysis.totalCurrentFte ? kpis.revenue / payrollAnalysis.totalCurrentFte : null;
+  const grossProfitPerFte =
+    includePayroll && payrollAnalysis.totalCurrentFte ? kpis.grossProfit / payrollAnalysis.totalCurrentFte : null;
+  const fteChangePercent =
+    includePayroll && payrollAnalysis.totalPriorFte
+      ? (payrollAnalysis.totalFteChange / payrollAnalysis.totalPriorFte) * 100
+      : null;
+  const payrollCostChangePercent =
+    includePayroll && payrollAnalysis.totalPriorPayrollCost
+      ? (payrollAnalysis.totalPayrollCostChange / payrollAnalysis.totalPriorPayrollCost) * 100
+      : null;
 
   return [
     {
@@ -1861,6 +2935,58 @@ function buildRatioRows(
       value: dso !== null ? `${dso.toFixed(1)} days` : "N/A",
       interpretation: interpretDso(dso),
     },
+    ...(includePayroll
+      ? [
+          {
+            name: "Payroll Cost as % of Revenue",
+            formula: "Total Payroll Cost / Revenue",
+            value: payrollCostToRevenue !== null ? `${payrollCostToRevenue.toFixed(1)}%` : "N/A",
+            interpretation: interpretPayrollCostToRevenue(payrollCostToRevenue),
+          },
+          {
+            name: "Gross Wages as % of Revenue",
+            formula: "Gross Wages / Revenue",
+            value: grossWagesToRevenue !== null ? `${grossWagesToRevenue.toFixed(1)}%` : "N/A",
+            interpretation: "Shows how much revenue is consumed by gross wages before employer taxes and benefits.",
+          },
+          {
+            name: "Payroll Taxes as % of Gross Wages",
+            formula: "Employer Payroll Taxes / Gross Wages",
+            value: payrollTaxesToGrossWages !== null ? `${payrollTaxesToGrossWages.toFixed(1)}%` : "N/A",
+            interpretation: "Use this to monitor employer tax burden relative to wage base.",
+          },
+          {
+            name: "Payroll Cost per FTE",
+            formula: "Total Payroll Cost / Total FTE",
+            value: payrollCostPerFte !== null ? formatCurrency(payrollCostPerFte) : "N/A",
+            interpretation: interpretPayrollCostPerFte(payrollCostPerFte),
+          },
+          {
+            name: "Revenue per FTE",
+            formula: "Revenue / Total FTE",
+            value: revenuePerFte !== null ? formatCurrency(revenuePerFte) : "N/A",
+            interpretation: interpretRevenuePerFte(revenuePerFte),
+          },
+          {
+            name: "Gross Profit per FTE",
+            formula: "Gross Profit / Total FTE",
+            value: grossProfitPerFte !== null ? formatCurrency(grossProfitPerFte) : "N/A",
+            interpretation: "Gross profit per FTE connects staffing levels to direct profitability.",
+          },
+          {
+            name: "FTE Change %",
+            formula: "(Current FTE - Prior FTE) / Prior FTE",
+            value: fteChangePercent !== null ? `${fteChangePercent.toFixed(1)}%` : "N/A",
+            interpretation: interpretFteChange(fteChangePercent),
+          },
+          {
+            name: "Payroll Cost Change %",
+            formula: "(Current Payroll Cost - Prior Payroll Cost) / Prior Payroll Cost",
+            value: payrollCostChangePercent !== null ? `${payrollCostChangePercent.toFixed(1)}%` : "N/A",
+            interpretation: interpretPayrollCostChange(payrollCostChangePercent),
+          },
+        ]
+      : []),
   ];
 }
 
@@ -1875,30 +3001,38 @@ function getGlAccounts(data: ParsedFile | null): FluxAccount[] {
   );
   const headers = data.rows[headerIndex] || [];
   const dataRows = headerIndex >= 0 ? data.rows.slice(headerIndex + 1) : data.rows;
-  const accountNumberIndex = findHeaderIndex(headers, ["account number", "account #", "num"]);
-  const accountNameIndex = findHeaderIndex(headers, ["account name", "account"]);
-  const amountIndex = findHeaderIndex(headers, ["amount", "balance", "total"]);
+  const accountNumberIndex = findHeaderIndex(headers, ["account number", "account #"]);
+  const accountNameIndex = findAccountNameHeaderIndex(headers);
+  const amountIndex = findHeaderIndex(headers, ["amount", "total"]);
+  const debitIndex = findHeaderIndex(headers, ["debit", "debits", "dr"]);
+  const creditIndex = findHeaderIndex(headers, ["credit", "credits", "cr"]);
+  const hasDebitCredit = debitIndex >= 0 || creditIndex >= 0;
 
   const accounts = new Map<string, FluxAccount>();
 
   dataRows.forEach((row) => {
     const fallbackLabel = String(row[0] || "").trim();
     const accountNumber =
-      String(row[accountNumberIndex] || "").trim() || fallbackLabel.match(/^\d+/)?.[0] || "N/A";
+      accountNumberIndex >= 0 ? String(row[accountNumberIndex] || "").trim() || "N/A" : "N/A";
     const accountName =
       String(row[accountNameIndex >= 0 ? accountNameIndex : 0] || "").trim() || fallbackLabel;
-    const amount =
-      amountIndex >= 0
-        ? parseNumber(row[amountIndex]) || 0
-        : row.reduce((latest, cell) => parseNumber(cell) ?? latest, 0);
+    const debit = parseNumber(row[debitIndex]) || 0;
+    const credit = parseNumber(row[creditIndex]) || 0;
+    const accountType = getAccountType(accountName);
+    const activityAmount =
+      accountType === "revenue" || accountType === "liability"
+        ? credit - debit
+        : debit - credit;
+    const amount = hasDebitCredit ? activityAmount : amountIndex >= 0 ? parseNumber(row[amountIndex]) || 0 : activityAmount;
 
     if (!accountName || accountName.toLowerCase() === "total") return;
+    if (!amount) return;
 
-    const key = `${accountNumber}-${accountName}`;
+    const key = normalizeStatementLabel(accountName);
     const existing = accounts.get(key);
 
     accounts.set(key, {
-      accountNumber,
+      accountNumber: existing?.accountNumber && existing.accountNumber !== "N/A" ? existing.accountNumber : accountNumber,
       accountName,
       amount: (existing?.amount || 0) + amount,
     });
@@ -1907,21 +3041,273 @@ function getGlAccounts(data: ParsedFile | null): FluxAccount[] {
   return [...accounts.values()];
 }
 
+function getAccountType(accountName: string) {
+  const normalized = normalizeStatementLabel(accountName);
+
+  if (normalized.includes("revenue") || normalized.includes("income") || normalized.includes("sales")) {
+    return "revenue";
+  }
+  if (normalized.includes("accounts receivable") || normalized === "ar" || normalized.includes("receivable")) {
+    return "ar";
+  }
+  if (
+    normalized.includes("accounts payable") ||
+    normalized.includes("payable") ||
+    normalized.includes("liabil") ||
+    normalized.includes("credit card") ||
+    normalized.includes("loan")
+  ) {
+    return "liability";
+  }
+  if (normalized.includes("equity") || normalized.includes("retained earnings") || normalized.includes("capital")) {
+    return "equity";
+  }
+  if (
+    normalized.includes("expense") ||
+    normalized.includes("cost of goods sold") ||
+    normalized.includes("cogs") ||
+    normalized.includes("rent") ||
+    normalized.includes("labor") ||
+    normalized.includes("wage") ||
+    normalized.includes("salary") ||
+    normalized.includes("benefit") ||
+    normalized.includes("payroll") ||
+    normalized.includes("materials") ||
+    normalized.includes("supplies") ||
+    normalized.includes("utilities") ||
+    normalized.includes("insurance")
+  ) {
+    return "expense";
+  }
+  if (normalized.includes("asset") || normalized.includes("cash") || normalized.includes("bank")) {
+    return "asset";
+  }
+
+  return "unknown";
+}
+
+function isPayrollRelatedAccount(accountName: string) {
+  const normalized = normalizeStatementLabel(accountName);
+  return ["payroll", "wage", "wages", "labor", "salary", "salaries", "fica", "medicare", "futa", "suta"].some(
+    (term) => normalized.includes(term),
+  );
+}
+
+function getActivityAmount(row: GlActivityRow, accountType: string) {
+  if (accountType === "revenue" || accountType === "liability" || accountType === "equity") return row.credit - row.debit;
+  if (accountType === "expense" || accountType === "asset" || accountType === "ar") return row.debit - row.credit;
+  if (row.debit || row.credit) return row.debit - row.credit;
+  return row.amount;
+}
+
+function getAccountActivity(glData: ParsedFile | null, accountName: string): GlActivityRow[] {
+  if (!glData) return [];
+
+  const headerIndex = glData.rows.findIndex((row) =>
+    row.some((cell) => {
+      const text = normalizeHeader(cell);
+      return text.includes("account") || text.includes("debit") || text.includes("credit") || text.includes("amount");
+    }),
+  );
+  const headers = glData.rows[headerIndex] || [];
+  const dataRows = headerIndex >= 0 ? glData.rows.slice(headerIndex + 1) : glData.rows;
+  const dateIndex = findHeaderIndex(headers, ["date"]);
+  const accountNumberIndex = findHeaderIndex(headers, ["account number", "account #"]);
+  const accountNameIndex = findAccountNameHeaderIndex(headers);
+  const nameIndex = findExactHeaderIndex(headers, ["Name"]);
+  const employeeIndex = findHeaderIndex(headers, ["employee", "employee name"]);
+  const customerIndex = findHeaderIndex(headers, ["customer"]);
+  const vendorIndex = findHeaderIndex(headers, ["vendor"]);
+  const payeeIndex = findHeaderIndex(headers, ["payee"]);
+  const classIndex = findHeaderIndex(headers, ["class", "department", "division", "cost center", "location"]);
+  const memoIndex = findHeaderIndex(headers, ["memo"]);
+  const descriptionIndex = findHeaderIndex(headers, ["description"]);
+  const debitIndex = findHeaderIndex(headers, ["debit", "debits", "dr"]);
+  const creditIndex = findHeaderIndex(headers, ["credit", "credits", "cr"]);
+  const amountIndex = findHeaderIndex(headers, ["amount"]);
+  const targetAccount = normalizeStatementLabel(accountName);
+
+  return dataRows
+    .map((row) => {
+      const fallbackLabel = String(row[0] || "").trim();
+      const currentAccountName =
+        String(row[accountNameIndex >= 0 ? accountNameIndex : 0] || "").trim() || fallbackLabel;
+
+      return {
+        date: String(row[dateIndex] || "").trim(),
+        accountNumber: accountNumberIndex >= 0 ? String(row[accountNumberIndex] || "").trim() || "N/A" : "N/A",
+        accountName: currentAccountName,
+        className: String(row[classIndex] || "").trim(),
+        name: String(row[employeeIndex >= 0 ? employeeIndex : nameIndex] || "").trim(),
+        customer: String(row[customerIndex] || "").trim(),
+        vendor: String(row[vendorIndex] || "").trim(),
+        payee: String(row[payeeIndex] || "").trim(),
+        memo: String(row[memoIndex] || "").trim(),
+        description: String(row[descriptionIndex] || "").trim(),
+        debit: parseNumber(row[debitIndex]) || 0,
+        credit: parseNumber(row[creditIndex]) || 0,
+        amount: parseNumber(row[amountIndex]) || 0,
+        balance: 0,
+      };
+    })
+    .filter((row) => normalizeStatementLabel(row.accountName) === targetAccount);
+}
+
+function getActivityDriver(row: GlActivityRow, accountType: string) {
+  if (accountType === "revenue" || accountType === "ar") {
+    return row.customer || row.name || row.payee || row.memo || row.description || "Unspecified activity";
+  }
+  if (accountType === "expense" || accountType === "liability") {
+    return row.vendor || row.payee || row.name || row.memo || row.description || "Unspecified activity";
+  }
+  return row.name || row.payee || row.vendor || row.customer || row.memo || row.description || "Unspecified activity";
+}
+
+function groupActivityByDriver(rows: GlActivityRow[], accountType: string) {
+  const totals = new Map<string, number>();
+
+  rows.forEach((row) => {
+    const driver = getActivityDriver(row, accountType);
+    totals.set(driver, (totals.get(driver) || 0) + getActivityAmount(row, accountType));
+  });
+
+  return totals;
+}
+
+function calculateDriverVariance(currentRows: GlActivityRow[], priorRows: GlActivityRow[], accountType: string) {
+  const currentTotals = groupActivityByDriver(currentRows, accountType);
+  const priorTotals = groupActivityByDriver(priorRows, accountType);
+  const drivers = new Set([...currentTotals.keys(), ...priorTotals.keys()]);
+
+  return [...drivers]
+    .map((name) => {
+      const current = currentTotals.get(name) || 0;
+      const prior = priorTotals.get(name) || 0;
+      return { name, current, prior, change: current - prior };
+    })
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+    .slice(0, 3);
+}
+
+function getPayrollFluxDepartment(currentRows: GlActivityRow[], priorRows: GlActivityRow[]) {
+  const departmentTotals = new Map<string, number>();
+
+  [...currentRows, ...priorRows].forEach((row) => {
+    const department = row.className || row.description || row.memo;
+    if (!department) return;
+    departmentTotals.set(department, (departmentTotals.get(department) || 0) + Math.abs(getActivityAmount(row, "expense")));
+  });
+
+  return [...departmentTotals.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+}
+
+function getPayrollFteCommentary(
+  accountName: string,
+  currentRows: GlActivityRow[],
+  priorRows: GlActivityRow[],
+  payrollAnalysis?: PayrollAnalysis,
+) {
+  if (!payrollAnalysis || !isPayrollRelatedAccount(accountName)) return "";
+
+  const department = getPayrollFluxDepartment(currentRows, priorRows);
+  if (!department) return "";
+
+  const normalizedDepartment = normalizeStatementLabel(department);
+  const matchingDepartment = payrollAnalysis.rows.find((row) => {
+    const normalizedRowDepartment = normalizeStatementLabel(row.department);
+    return (
+      normalizedRowDepartment === normalizedDepartment ||
+      normalizedRowDepartment.includes(normalizedDepartment) ||
+      normalizedDepartment.includes(normalizedRowDepartment)
+    );
+  });
+
+  if (!matchingDepartment) return "";
+
+  return ` Payroll/FTE analysis shows ${matchingDepartment.department} moved from ${formatFte(
+    matchingDepartment.priorFte,
+  )} to ${formatFte(matchingDepartment.currentFte)}, a change of ${formatFte(
+    matchingDepartment.fteChange,
+  )} FTE. Payroll cost changed by ${formatCurrency(
+    matchingDepartment.payrollCostChange,
+  )}, which appears to be a primary driver of the labor/payroll variance when aligned with the GL activity.`;
+}
+
+function generateFluxCommentary(
+  accountName: string,
+  currentAmount: number,
+  priorAmount: number,
+  variance: number,
+  percentVariance: number | null,
+  topDrivers: FluxDriver[],
+  currentRows: GlActivityRow[] = [],
+  priorRows: GlActivityRow[] = [],
+  payrollAnalysis?: PayrollAnalysis,
+) {
+  const direction = variance > 0 ? "increased" : variance < 0 ? "decreased" : "was unchanged";
+  const comparisonText = percentVariance === null ? "" : ` (${formatPercent(percentVariance)})`;
+
+  if (!topDrivers.length || topDrivers.every((driver) => driver.name === "Unspecified activity")) {
+    return `${accountName} ${direction} by ${formatCurrency(
+      Math.abs(variance),
+    )}${comparisonText}. Variance exceeded threshold, but vendor/customer detail was not available in the uploaded GL. Review account activity detail for support.${getPayrollFteCommentary(
+      accountName,
+      currentRows,
+      priorRows,
+      payrollAnalysis,
+    )}`;
+  }
+
+  const [primary, secondary, tertiary] = topDrivers;
+  const driverPhrases = [
+    `${primary.name}, which ${primary.change >= 0 ? "increased" : "decreased"} by ${formatCurrency(
+      Math.abs(primary.change),
+    )}`,
+    secondary
+      ? `${secondary.name}, ${secondary.change >= 0 ? "up" : "down"} ${formatCurrency(Math.abs(secondary.change))}`
+      : "",
+    tertiary
+      ? `${tertiary.name}, ${tertiary.change >= 0 ? "up" : "down"} ${formatCurrency(Math.abs(tertiary.change))}`
+      : "",
+  ].filter(Boolean);
+  const accountType = getAccountType(accountName);
+  const advisory =
+    accountType === "revenue"
+      ? "Review customer activity and project timing."
+      : accountType === "ar"
+        ? "Review collection timing and aging status."
+        : accountType === "expense"
+          ? "Review job costing, purchasing activity, and recurring spend."
+          : accountType === "liability"
+            ? "Review vendor obligations, payment timing, and supporting detail."
+            : "Review account activity detail for support.";
+
+  return `${accountName} ${direction} by ${formatCurrency(
+    Math.abs(variance),
+  )}${comparisonText}. The largest driver was ${driverPhrases.join(", followed by ")}. ${advisory}${getPayrollFteCommentary(
+    accountName,
+    currentRows,
+    priorRows,
+    payrollAnalysis,
+  )}`;
+}
+
 function getFluxRows(
   currentData: ParsedFile | null,
   priorData: ParsedFile | null,
   settings: FluxSettings,
+  payrollAnalysis?: PayrollAnalysis,
 ): FluxRow[] {
   const currentAccounts = getGlAccounts(currentData);
   const priorAccounts = getGlAccounts(priorData);
   const accountMap = new Map<string, { current?: FluxAccount; prior?: FluxAccount }>();
 
   currentAccounts.forEach((account) => {
-    accountMap.set(`${account.accountNumber}-${account.accountName}`, { current: account });
+    accountMap.set(normalizeStatementLabel(account.accountName), { current: account });
   });
 
   priorAccounts.forEach((account) => {
-    const key = `${account.accountNumber}-${account.accountName}`;
+    const key = normalizeStatementLabel(account.accountName);
     accountMap.set(key, { ...accountMap.get(key), prior: account });
   });
 
@@ -1946,10 +3332,17 @@ function getFluxRows(
       let severity: FluxSeverity = "Low";
       if (absolutePercentVariance >= 25 && absoluteDollarVariance >= 10000) severity = "High";
       else if (absolutePercentVariance >= 10 && absoluteDollarVariance >= 5000) severity = "Moderate";
+      const accountName = current?.accountName || prior?.accountName || "Unknown Account";
+      const accountType = getAccountType(accountName);
+      const currentActivity = getAccountActivity(currentData, accountName);
+      const priorActivity = getAccountActivity(priorData, accountName);
+      const topDrivers = calculateDriverVariance(currentActivity, priorActivity, accountType);
+      const topDriver = topDrivers[0]?.name || "N/A";
+      const driverChange = topDrivers[0]?.change ?? null;
 
       return {
         accountNumber: current?.accountNumber || prior?.accountNumber || "N/A",
-        accountName: current?.accountName || prior?.accountName || "Unknown Account",
+        accountName,
         currentAmount,
         priorAmount,
         dollarVariance,
@@ -1957,6 +3350,20 @@ function getFluxRows(
         direction: dollarVariance > 0 ? "Increase" : dollarVariance < 0 ? "Decrease" : "No change",
         severity,
         flagReason,
+        topDriver,
+        driverChange,
+        commentary: generateFluxCommentary(
+          accountName,
+          currentAmount,
+          priorAmount,
+          dollarVariance,
+          percentVariance,
+          topDrivers,
+          currentActivity,
+          priorActivity,
+          payrollAnalysis,
+        ),
+        topDrivers,
         passes,
         isZeroActivity,
       };
@@ -1964,6 +3371,56 @@ function getFluxRows(
     .filter((row) => row.passes && (settings.includeZeroActivity || !row.isZeroActivity))
     .sort((a, b) => Math.abs(b.dollarVariance) - Math.abs(a.dollarVariance))
     .map(({ passes, isZeroActivity, ...row }) => row);
+}
+
+function getGlDataRows(data: ParsedFile | null) {
+  if (!data) return [];
+
+  const headerIndex = data.rows.findIndex((row) =>
+    row.some((cell) => {
+      const text = normalizeHeader(cell);
+      return text.includes("account") || text.includes("debit") || text.includes("credit") || text.includes("amount");
+    }),
+  );
+
+  return headerIndex >= 0 ? data.rows.slice(headerIndex + 1) : data.rows;
+}
+
+function buildFluxDebugInfo(
+  currentData: ParsedFile | null,
+  priorData: ParsedFile | null,
+  rows: FluxRow[],
+  settings: FluxSettings,
+) {
+  const currentAccounts = getGlAccounts(currentData);
+  const priorAccounts = getGlAccounts(priorData);
+  const accountKeys = new Set([
+    ...currentAccounts.map((account) => normalizeStatementLabel(account.accountName)),
+    ...priorAccounts.map((account) => normalizeStatementLabel(account.accountName)),
+  ]);
+  const variancesCalculated = accountKeys.size;
+  const variancesPassingThreshold = [...accountKeys].filter((key) => {
+    const current = currentAccounts.find((account) => normalizeStatementLabel(account.accountName) === key);
+    const prior = priorAccounts.find((account) => normalizeStatementLabel(account.accountName) === key);
+    const currentAmount = current?.amount || 0;
+    const priorAmount = prior?.amount || 0;
+    const dollarVariance = currentAmount - priorAmount;
+    const percentVariance = priorAmount ? (dollarVariance / Math.abs(priorAmount)) * 100 : null;
+    const dollarPass = Math.abs(dollarVariance) >= settings.dollarThreshold;
+    const percentPass = Math.abs(percentVariance || 0) >= settings.percentThreshold;
+    const passes = settings.logic === "both" ? dollarPass && percentPass : dollarPass || percentPass;
+    const isZeroActivity =
+      (priorAmount === 0 && currentAmount > 0) || (currentAmount === 0 && priorAmount > 0);
+    return passes && (settings.includeZeroActivity || !isZeroActivity);
+  }).length;
+
+  return {
+    currentRowsParsed: getGlDataRows(currentData).length,
+    priorRowsParsed: getGlDataRows(priorData).length,
+    accountsGrouped: accountKeys.size,
+    variancesCalculated,
+    variancesPassingThreshold: Math.max(variancesPassingThreshold, rows.length),
+  };
 }
 
 export default function UploadPage() {
@@ -1998,10 +3455,19 @@ export default function UploadPage() {
   const [priorQuarterGlData, setPriorQuarterGlData] = useState<ParsedFile | null>(null);
   const [currentYearGlData, setCurrentYearGlData] = useState<ParsedFile | null>(null);
   const [priorYearGlData, setPriorYearGlData] = useState<ParsedFile | null>(null);
+  const [currentPayrollData, setCurrentPayrollData] = useState<ParsedFile | null>(null);
+  const [priorPayrollData, setPriorPayrollData] = useState<ParsedFile | null>(null);
+  const [currentPayrollDetailData, setCurrentPayrollDetailData] = useState<ParsedFile | null>(null);
+  const [priorPayrollDetailData, setPriorPayrollDetailData] = useState<ParsedFile | null>(null);
+  const [fteDivisor, setFteDivisor] = useState(173.33);
+  const [folderImportResult, setFolderImportResult] = useState<FolderImportResult | null>(null);
+  const [isFolderImporting, setIsFolderImporting] = useState(false);
+  const [showPowerPointDraft, setShowPowerPointDraft] = useState(false);
+  const [powerPointPromptSkipped, setPowerPointPromptSkipped] = useState(false);
   const [fluxSettings, setFluxSettings] = useState<FluxSettings>({
     dollarThreshold: 5000,
     percentThreshold: 10,
-    logic: "both",
+    logic: "either",
     includeZeroActivity: true,
   });
 
@@ -2182,6 +3648,58 @@ export default function UploadPage() {
       onOmitChange: (omitted) => setReportOmitted("budget", omitted),
     },
     {
+      id: "current-payroll",
+      tier: "virtualCfo",
+      label: "Current Month Payroll Summary by Department",
+      description:
+        "Export the current month QuickBooks payroll summary by Department, Class, Location, Cost Center, or Division. Used to calculate FTE and payroll cost trends.",
+      required: false,
+      omitted: isReportOmitted("current-payroll"),
+      data: currentPayrollData,
+      onFile: (file) => parseFile(file, setCurrentPayrollData),
+      onRemove: () => removeReport(setCurrentPayrollData, "current-payroll"),
+      onOmitChange: (omitted) => setReportOmitted("current-payroll", omitted),
+    },
+    {
+      id: "prior-payroll",
+      tier: "virtualCfo",
+      label: "Prior Month Payroll Summary by Department",
+      description:
+        "Export the prior month QuickBooks payroll summary by Department, Class, Location, Cost Center, or Division. Used as the comparison period for payroll FTE analysis.",
+      required: false,
+      omitted: isReportOmitted("prior-payroll"),
+      data: priorPayrollData,
+      onFile: (file) => parseFile(file, setPriorPayrollData),
+      onRemove: () => removeReport(setPriorPayrollData, "prior-payroll"),
+      onOmitChange: (omitted) => setReportOmitted("prior-payroll", omitted),
+    },
+    {
+      id: "current-payroll-detail",
+      tier: "virtualCfo",
+      label: "Current Month Payroll Detail",
+      description:
+        "Export the current month QuickBooks payroll GL detail or payroll detail report. Used as supporting detail for payroll review.",
+      required: false,
+      omitted: isReportOmitted("current-payroll-detail"),
+      data: currentPayrollDetailData,
+      onFile: (file) => parseFile(file, setCurrentPayrollDetailData),
+      onRemove: () => removeReport(setCurrentPayrollDetailData, "current-payroll-detail"),
+      onOmitChange: (omitted) => setReportOmitted("current-payroll-detail", omitted),
+    },
+    {
+      id: "prior-payroll-detail",
+      tier: "virtualCfo",
+      label: "Prior Month Payroll Detail",
+      description:
+        "Export the prior month QuickBooks payroll GL detail or payroll detail report. Used as supporting comparison detail for payroll review.",
+      required: false,
+      omitted: isReportOmitted("prior-payroll-detail"),
+      data: priorPayrollDetailData,
+      onFile: (file) => parseFile(file, setPriorPayrollDetailData),
+      onRemove: () => removeReport(setPriorPayrollDetailData, "prior-payroll-detail"),
+      onOmitChange: (omitted) => setReportOmitted("prior-payroll-detail", omitted),
+    },
+    {
       id: "prior-pl",
       tier: "virtualCfo",
       label: "Profit and Loss Comparison",
@@ -2316,6 +3834,9 @@ export default function UploadPage() {
     isReportAvailable(report.tier, packageTier),
   );
   const uploadedReportsCount = selectedReports.filter(
+    (report) => report.data && !report.omitted,
+  ).length;
+  const requiredUploadedReportsCount = selectedReports.filter(
     (report) => report.required && report.data && !report.omitted,
   ).length;
   const missingReports = selectedReports.filter(
@@ -2347,6 +3868,10 @@ export default function UploadPage() {
   const activePriorQuarterGlData = isReportOmitted("prior-quarter-gl") ? null : priorQuarterGlData;
   const activeCurrentYearGlData = isReportOmitted("current-year-gl") ? null : currentYearGlData;
   const activePriorYearGlData = isReportOmitted("prior-year-gl") ? null : priorYearGlData;
+  const activeCurrentPayrollData = isReportOmitted("current-payroll") ? null : currentPayrollData;
+  const activePriorPayrollData = isReportOmitted("prior-payroll") ? null : priorPayrollData;
+  const activeCurrentPayrollDetailData = isReportOmitted("current-payroll-detail") ? null : currentPayrollDetailData;
+  const activePriorPayrollDetailData = isReportOmitted("prior-payroll-detail") ? null : priorPayrollDetailData;
 
   const kpis = calculateKPIs(activePlData, activeBsData);
   const netMargin = kpis.revenue ? (kpis.netIncome / kpis.revenue) * 100 : 0;
@@ -2361,24 +3886,79 @@ export default function UploadPage() {
   const fixedAssetKpis = calculateFixedAssetKpis(activeFixedAssetData, kpis.totalAssets, activePlData);
   const priorFixedAssetKpis = calculateFixedAssetKpis(activePriorFixedAssetData, kpis.totalAssets, null);
   const fixedAssetChangeRows = getFixedAssetChangeRows(fixedAssetKpis, priorFixedAssetKpis);
-  const executiveSummary = buildExecutiveSummary(
-    kpis,
-    netMargin,
-    activeFixedAssetData ? fixedAssetKpis : null,
-  );
+  const bsStatementRows = getStatementRows(activeBsData);
   const reportPeriod = "Current Reporting Period";
   const companyName = "Client Company Name";
-  const monthFluxRows = getFluxRows(activeCurrentMonthGlData, activePriorMonthGlData, fluxSettings);
-  const quarterFluxRows = getFluxRows(activeCurrentQuarterGlData, activePriorQuarterGlData, fluxSettings);
-  const yearFluxRows = getFluxRows(activeCurrentYearGlData, activePriorYearGlData, fluxSettings);
+  const payrollAnalysis = calculatePayrollAnalysis(activeCurrentPayrollData, activePriorPayrollData, fteDivisor);
+  const monthFluxRows = getFluxRows(activeCurrentMonthGlData, activePriorMonthGlData, fluxSettings, payrollAnalysis);
+  const quarterFluxRows = getFluxRows(activeCurrentQuarterGlData, activePriorQuarterGlData, fluxSettings, payrollAnalysis);
+  const yearFluxRows = getFluxRows(activeCurrentYearGlData, activePriorYearGlData, fluxSettings, payrollAnalysis);
+  const monthFluxDebug = buildFluxDebugInfo(activeCurrentMonthGlData, activePriorMonthGlData, monthFluxRows, fluxSettings);
+  const quarterFluxDebug = buildFluxDebugInfo(activeCurrentQuarterGlData, activePriorQuarterGlData, quarterFluxRows, fluxSettings);
+  const yearFluxDebug = buildFluxDebugInfo(activeCurrentYearGlData, activePriorYearGlData, yearFluxRows, fluxSettings);
+  const budgetMetrics = calculateBudgetMetrics(activeBudgetVsActualData);
+  const debtMetrics = calculateDebtMetrics(activeDebtScheduleData, kpis);
   const ratioRows = buildRatioRows(
     kpis,
     netMargin,
-    getStatementRows(activeBsData),
+    bsStatementRows,
     apKpis,
     inventoryKpis,
     reportingPeriodDays,
+    payrollAnalysis,
+    Boolean(activeCurrentPayrollData),
   );
+  const executiveSummary = buildExecutiveSummary({
+    kpis,
+    netMargin,
+    bsRows: bsStatementRows,
+    arKpis,
+    apKpis,
+    inventoryKpis,
+    fixedAssetKpis,
+    fixedAssetChangeRows,
+    payrollAnalysis,
+    monthFluxRows,
+    quarterFluxRows,
+    yearFluxRows,
+    budgetMetrics,
+    debtMetrics,
+    dso,
+    includeAr: Boolean(activeArData),
+    includeAp: Boolean(activeApData),
+    includeInventory: Boolean(activeInventoryData),
+    includeFixedAssets: Boolean(activeFixedAssetData),
+    includePayroll: Boolean(activeCurrentPayrollData),
+    includeBudget: Boolean(activeBudgetVsActualData),
+    includeDebt: Boolean(activeDebtScheduleData),
+  });
+  const boardPackageSections = buildBoardPackageSections({
+    packageTier,
+    reports: uploadReports,
+    hasExecutiveSummary: Boolean(executiveSummary.sections.length),
+    hasFinancialSnapshot: Boolean(activePlData || activeBsData),
+    hasRatios: ratioRows.length > 0,
+    hasFollowUps: executiveSummary.followUpItems.length > 0,
+    hasAnyFlux: monthFluxRows.length > 0 || quarterFluxRows.length > 0 || yearFluxRows.length > 0,
+  });
+  const powerPointSlides = createPowerPointSlidesData({
+    companyName,
+    reportPeriod,
+    kpis,
+    executiveSummary,
+    arKpis,
+    apKpis,
+    inventoryKpis,
+    fixedAssetKpis,
+    payrollAnalysis,
+    ratioRows,
+    monthFluxRows,
+    quarterFluxRows,
+    yearFluxRows,
+    includeInventory: Boolean(activeInventoryData),
+    includePayroll: Boolean(activeCurrentPayrollData),
+    includeFixedAssets: Boolean(activeFixedAssetData),
+  });
   const handlePackageTierChange = (tier: PackageTier) => {
     setPackageTier(tier);
     setHasSelectedPackage(true);
@@ -2387,14 +3967,116 @@ export default function UploadPage() {
     setKpisConfirmed(false);
     setReportsChangedAfterConfirmation(false);
   };
+  const handleFteDivisorChange = (value: number) => {
+    resetGeneratedState();
+    setFteDivisor(value);
+  };
   const handleGeneratePackage = () => {
     if (!canGeneratePackage) return;
     setIsPackageGenerated(true);
     setIsPackageExported(false);
+    setPowerPointPromptSkipped(false);
+    setShowPowerPointDraft(false);
   };
   const handleExportPackage = () => {
     setIsPackageExported(true);
     window.print();
+  };
+  const importFolderFiles = async (files: File[]) => {
+    const availableReports = selectedReports.filter((report) => !report.omitted);
+    const supportedFiles = files.filter(isSupportedImportFile);
+    const unsupportedFiles = files.filter((file) => !isSupportedImportFile(file)).map((file) => file.name);
+    const matchesByReport = new Map<string, { report: UploadReport; files: File[] }>();
+    const unmatchedFiles = [...unsupportedFiles];
+
+    supportedFiles.forEach((file) => {
+      const matchedReport = getBestReportMatch(file, availableReports);
+      if (!matchedReport) {
+        unmatchedFiles.push(file.name);
+        return;
+      }
+
+      const currentMatch = matchesByReport.get(matchedReport.id) || { report: matchedReport, files: [] };
+      currentMatch.files.push(file);
+      matchesByReport.set(matchedReport.id, currentMatch);
+    });
+
+    const matchedFiles: FolderImportResult["matchedFiles"] = [];
+    const duplicateMatches: FolderImportResult["duplicateMatches"] = [];
+    const loadedReportIds = new Set<string>();
+
+    for (const { report, files: matchedReportFiles } of matchesByReport.values()) {
+      const [fileToLoad, ...duplicates] = matchedReportFiles;
+      if (!fileToLoad) continue;
+
+      await report.onFile(fileToLoad);
+      loadedReportIds.add(report.id);
+      matchedFiles.push({ reportLabel: report.label, fileName: fileToLoad.name });
+
+      if (duplicates.length) {
+        duplicateMatches.push({
+          reportLabel: report.label,
+          fileNames: matchedReportFiles.map((file) => file.name),
+        });
+      }
+    }
+
+    const missingRequiredReports = selectedReports
+      .filter((report) => report.required && !report.omitted && !report.data && !loadedReportIds.has(report.id))
+      .map((report) => report.label);
+
+    setFolderImportResult({
+      matchedFiles,
+      unmatchedFiles,
+      duplicateMatches,
+      missingRequiredReports,
+    });
+  };
+  const handleFallbackFolderFiles = async (files: File[]) => {
+    setIsFolderImporting(true);
+    try {
+      await importFolderFiles(files);
+    } finally {
+      setIsFolderImporting(false);
+    }
+  };
+  const handleImportFromFolder = async () => {
+    const picker = (window as typeof window & {
+      showDirectoryPicker?: () => Promise<{
+        entries: () => AsyncIterable<[string, { kind: string; getFile?: () => Promise<File> }]>;
+      }>;
+    }).showDirectoryPicker;
+
+    if (!picker) return false;
+
+    setIsFolderImporting(true);
+    try {
+      const directoryHandle = await picker();
+      const files: File[] = [];
+
+      for await (const [, entry] of directoryHandle.entries()) {
+        if (entry.kind === "file" && entry.getFile) {
+          files.push(await entry.getFile());
+        }
+      }
+
+      await importFolderFiles(files);
+      return true;
+    } catch (error) {
+      if ((error as { name?: string }).name !== "AbortError") {
+        setFolderImportResult({
+          matchedFiles: [],
+          unmatchedFiles: [],
+          duplicateMatches: [],
+          missingRequiredReports: selectedReports
+            .filter((report) => report.required && !report.omitted && !report.data)
+            .map((report) => report.label),
+        });
+      }
+      return true;
+    } finally {
+      setIsFolderImporting(false);
+    }
   };
 
   return (
@@ -2637,6 +4319,7 @@ export default function UploadPage() {
             onPackageTierChange={handlePackageTierChange}
             reports={uploadReports}
             uploadedReportsCount={uploadedReportsCount}
+            requiredUploadedReportsCount={requiredUploadedReportsCount}
             missingReports={missingReports}
             requiredUploadsComplete={requiredUploadsComplete}
             kpisConfirmed={kpisConfirmed}
@@ -2644,6 +4327,10 @@ export default function UploadPage() {
             canGeneratePackage={canGeneratePackage}
             isPackageGenerated={isPackageGenerated}
             isPackageExported={isPackageExported}
+            folderImportResult={folderImportResult}
+            isFolderImporting={isFolderImporting}
+            onImportFromFolder={handleImportFromFolder}
+            onImportFolderFallbackFiles={handleFallbackFolderFiles}
             onGeneratePackage={handleGeneratePackage}
             onExportPackage={handleExportPackage}
           />
@@ -2708,14 +4395,19 @@ export default function UploadPage() {
               <KpiConfirmationPanel
                 packageTier={packageTier}
                 kpis={kpis}
+                arKpis={arKpis}
                 apKpis={apKpis}
                 inventoryKpis={inventoryKpis}
                 fixedAssetKpis={fixedAssetKpis}
+                payrollAnalysis={payrollAnalysis}
                 netMargin={netMargin}
+                includeAr={Boolean(activeArData)}
                 includeAp={Boolean(activeApData)}
                 includeInventory={Boolean(activeInventoryData)}
                 includeFixedAssets={Boolean(activeFixedAssetData)}
+                includePayroll={Boolean(activeCurrentPayrollData)}
                 dso={dso}
+                ratioRows={ratioRows}
                 kpisConfirmed={kpisConfirmed}
                 reviewerNotes={reviewerNotes}
                 reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
@@ -2736,68 +4428,51 @@ export default function UploadPage() {
           )}
 
           {canPreviewPackage && (
-            <section className="mt-10 rounded-[2rem] border border-[#243041] bg-[#F9FAFB] p-2 text-[#111827] shadow-2xl shadow-black/20">
-              <div className="rounded-[1.75rem] bg-white p-8">
-                <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-6 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
-                      Step 5 - Generated Package Preview
-                    </p>
-                    <h2 className="text-4xl font-bold tracking-tight">{companyName}</h2>
-                    <p className="mt-2 text-base text-slate-600">
-                      {reportPeriod} | {PACKAGE_LABELS[packageTier]} Package
-                    </p>
-                  </div>
-
-                  <p className="text-sm font-semibold text-slate-600">
-                    Prepared by FinSight Reports
-                  </p>
-                </div>
-
-                <div className="mb-8">
-                  <h3 className="text-2xl font-bold">Executive Board Package Preview</h3>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    This preview summarizes the client-ready financial packet generated from the
-                    uploaded QuickBooks reports. Export the PDF package when the review is complete.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-                  <ReportMetricCard label="Revenue" value={formatMoney(kpis.revenue)} />
-                  <ReportMetricCard label="Gross Profit" value={formatMoney(kpis.grossProfit)} />
-                  <ReportMetricCard label="Net Income" value={formatMoney(kpis.netIncome)} />
-                  <ReportMetricCard label="Cash" value={formatMoney(kpis.cash)} />
-                  {activeApData && (
-                    <ReportMetricCard label="AP Aging Total" value={formatMoney(apKpis.total)} />
-                  )}
-                  {isProfessionalOrHigher(packageTier) && activeInventoryData && (
-                    <ReportMetricCard
-                      label="Inventory Value"
-                      value={formatMoney(inventoryKpis.totalValue)}
-                    />
-                  )}
-                  {isVirtualCfo(packageTier) && activeFixedAssetData && (
-                    <>
-                      <ReportMetricCard
-                        label="Fixed Assets"
-                        value={formatCurrency(fixedAssetKpis.totalFixedAssets)}
-                      />
-                      <ReportMetricCard
-                        label="Accumulated Depreciation"
-                        value={formatCurrency(fixedAssetKpis.accumulatedDepreciation)}
-                      />
-                      <ReportMetricCard
-                        label="Net Book Value"
-                        value={formatCurrency(fixedAssetKpis.netBookValue)}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-            </section>
+            <BoardPackagePreview
+              companyName={companyName}
+              reportPeriod={reportPeriod}
+              packageTier={packageTier}
+              sections={boardPackageSections}
+              kpis={kpis}
+              apKpis={apKpis}
+              inventoryKpis={inventoryKpis}
+              fixedAssetKpis={fixedAssetKpis}
+              payrollAnalysis={payrollAnalysis}
+              includeAp={Boolean(activeApData)}
+              includeInventory={Boolean(activeInventoryData)}
+              includeFixedAssets={Boolean(activeFixedAssetData)}
+              includePayroll={Boolean(activeCurrentPayrollData)}
+            />
           )}
 
-          {canReviewKpis && <BasicChartsSection kpis={kpis} />}
+          {canPreviewPackage && kpisConfirmed && !powerPointPromptSkipped && (
+            <PowerPointPrompt
+              showDraft={showPowerPointDraft}
+              slides={powerPointSlides}
+              onCreate={() => setShowPowerPointDraft(true)}
+              onSkip={() => {
+                setPowerPointPromptSkipped(true);
+                setShowPowerPointDraft(false);
+              }}
+            />
+          )}
+
+          {canReviewKpis && (
+            <BasicChartsSection
+              kpis={kpis}
+              arKpis={arKpis}
+              apKpis={apKpis}
+              inventoryKpis={inventoryKpis}
+              fixedAssetKpis={fixedAssetKpis}
+              payrollAnalysis={payrollAnalysis}
+              fluxRows={[...monthFluxRows, ...quarterFluxRows, ...yearFluxRows]}
+              includeAr={Boolean(activeArData)}
+              includeAp={Boolean(activeApData)}
+              includeInventory={Boolean(activeInventoryData)}
+              includeFixedAssets={Boolean(activeFixedAssetData)}
+              includePayroll={Boolean(activeCurrentPayrollData)}
+            />
+          )}
 
           {canReviewKpis && isProfessionalOrHigher(packageTier) && (
             <>
@@ -2816,12 +4491,22 @@ export default function UploadPage() {
                 />
               )}
               <VirtualCfoPlaceholderSection />
+              <PayrollAnalysisSection
+                analysis={payrollAnalysis}
+                currentPayrollData={activeCurrentPayrollData}
+                priorPayrollData={activePriorPayrollData}
+                fteDivisor={fteDivisor}
+                onFteDivisorChange={handleFteDivisorChange}
+              />
               <FluxAnalysisPanel
                 settings={fluxSettings}
                 onSettingsChange={setFluxSettings}
                 monthRows={monthFluxRows}
                 quarterRows={quarterFluxRows}
                 yearRows={yearFluxRows}
+                monthDebug={monthFluxDebug}
+                quarterDebug={quarterFluxDebug}
+                yearDebug={yearFluxDebug}
               />
             </>
           )}
@@ -2878,6 +4563,10 @@ export default function UploadPage() {
                   <Preview title="Prior Quarter GL Preview" data={activePriorQuarterGlData} />
                   <Preview title="Current Year GL Preview" data={activeCurrentYearGlData} />
                   <Preview title="Prior Year GL Preview" data={activePriorYearGlData} />
+                  <Preview title="Current Month Payroll Preview" data={activeCurrentPayrollData} />
+                  <Preview title="Prior Month Payroll Preview" data={activePriorPayrollData} />
+                  <Preview title="Current Month Payroll Detail Preview" data={activeCurrentPayrollDetailData} />
+                  <Preview title="Prior Month Payroll Detail Preview" data={activePriorPayrollDetailData} />
                 </>
               )}
             </>
@@ -2906,6 +4595,12 @@ export default function UploadPage() {
         topExpenseRows={getTopExpenseRows(activePlData)}
         ratioRows={ratioRows}
         fixedAssetChangeRows={fixedAssetChangeRows}
+        payrollAnalysis={payrollAnalysis}
+        currentPayrollData={activeCurrentPayrollData}
+        priorPayrollData={activePriorPayrollData}
+        boardPackageSections={boardPackageSections}
+        budgetMetrics={budgetMetrics}
+        debtMetrics={debtMetrics}
         monthFluxRows={monthFluxRows}
         quarterFluxRows={quarterFluxRows}
         yearFluxRows={yearFluxRows}
@@ -2926,6 +4621,7 @@ function ImportWorkflow({
   onPackageTierChange,
   reports,
   uploadedReportsCount,
+  requiredUploadedReportsCount,
   missingReports,
   requiredUploadsComplete,
   kpisConfirmed,
@@ -2933,6 +4629,10 @@ function ImportWorkflow({
   canGeneratePackage,
   isPackageGenerated,
   isPackageExported,
+  folderImportResult,
+  isFolderImporting,
+  onImportFromFolder,
+  onImportFolderFallbackFiles,
   onGeneratePackage,
   onExportPackage,
 }: {
@@ -2941,6 +4641,7 @@ function ImportWorkflow({
   onPackageTierChange: (tier: PackageTier) => void;
   reports: UploadReport[];
   uploadedReportsCount: number;
+  requiredUploadedReportsCount: number;
   missingReports: UploadReport[];
   requiredUploadsComplete: boolean;
   kpisConfirmed: boolean;
@@ -2948,12 +4649,21 @@ function ImportWorkflow({
   canGeneratePackage: boolean;
   isPackageGenerated: boolean;
   isPackageExported: boolean;
+  folderImportResult: FolderImportResult | null;
+  isFolderImporting: boolean;
+  onImportFromFolder: () => Promise<boolean>;
+  onImportFolderFallbackFiles: (files: File[]) => Promise<void>;
   onGeneratePackage: () => void;
   onExportPackage: () => void;
 }) {
   const selectedReportsCount = reports.filter(
     (report) => isReportAvailable(report.tier, packageTier) && report.required,
   ).length;
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const handleImportFromFolderClick = async () => {
+    const usedNativePicker = await onImportFromFolder();
+    if (!usedNativePicker) folderInputRef.current?.click();
+  };
 
   return (
     <div className="rounded-[2rem] border border-[#243041] bg-[#0B1020] p-8 shadow-2xl shadow-black/20">
@@ -2998,6 +4708,14 @@ function ImportWorkflow({
               </p>
             </div>
 
+            <FolderImportPanel
+              inputRef={folderInputRef}
+              result={folderImportResult}
+              isImporting={isFolderImporting}
+              onImportClick={handleImportFromFolderClick}
+              onFallbackFiles={onImportFolderFallbackFiles}
+            />
+
             <UploadGroup
               title="Essential Imports"
               subtitle="Core reports required for monthly financial package preparation."
@@ -3023,6 +4741,7 @@ function ImportWorkflow({
           <GeneratePackagePanel
             packageTier={packageTier}
             uploadedReportsCount={uploadedReportsCount}
+            requiredUploadedReportsCount={requiredUploadedReportsCount}
             totalReportsCount={selectedReportsCount}
             missingReports={missingReports}
             canGeneratePackage={canGeneratePackage}
@@ -3126,7 +4845,7 @@ function PremiumPackageSelector({
       tier: "virtualCfo" as PackageTier,
       name: "Virtual CFO",
       description: "Board-style CFO package with advanced variance and risk analysis.",
-      included: ["Flux analysis", "Fixed assets", "Budget placeholders", "Risk indicators"],
+      included: ["Flux analysis", "Payroll/FTE", "Fixed assets", "Risk indicators"],
     },
   ];
 
@@ -3184,6 +4903,123 @@ function PremiumPackageSelector({
         })}
       </div>
     </section>
+  );
+}
+
+function FolderImportPanel({
+  inputRef,
+  result,
+  isImporting,
+  onImportClick,
+  onFallbackFiles,
+}: {
+  inputRef: RefObject<HTMLInputElement>;
+  result: FolderImportResult | null;
+  isImporting: boolean;
+  onImportClick: () => void;
+  onFallbackFiles: (files: File[]) => Promise<void>;
+}) {
+  return (
+    <section className="rounded-3xl border border-[#243041] bg-[#111827] p-6 shadow-xl shadow-black/10">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
+            Folder Import
+          </p>
+          <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Import From Folder</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+            Select a local folder and FinSight will scan CSV/XLS/XLSX files, match filenames to
+            report slots, and load matches through the same parser used by manual uploads.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onImportClick}
+          disabled={isImporting}
+          className="rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isImporting ? "Importing..." : "Import From Folder"}
+        </button>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept=".csv,.xlsx,.xls"
+        className="sr-only"
+        {...{ webkitdirectory: "", directory: "" }}
+        onChange={async (event) => {
+          const files = Array.from(event.target.files || []);
+          if (files.length) await onFallbackFiles(files);
+          event.target.value = "";
+        }}
+      />
+
+      {result && <FolderImportResults result={result} />}
+    </section>
+  );
+}
+
+function FolderImportResults({ result }: { result: FolderImportResult }) {
+  const resultGroups = [
+    {
+      title: "Matched Files",
+      items: result.matchedFiles.map((item) => `${item.reportLabel}: ${item.fileName}`),
+      emptyText: "No files matched report slots.",
+      tone: "emerald",
+    },
+    {
+      title: "Unmatched Files",
+      items: result.unmatchedFiles,
+      emptyText: "No unmatched files.",
+      tone: "slate",
+    },
+    {
+      title: "Duplicate Matches",
+      items: result.duplicateMatches.map((item) => `${item.reportLabel}: ${item.fileNames.join(", ")}`),
+      emptyText: "No duplicate matches.",
+      tone: "amber",
+    },
+    {
+      title: "Missing Required Reports",
+      items: result.missingRequiredReports,
+      emptyText: "No missing required reports.",
+      tone: "blue",
+    },
+  ];
+
+  return (
+    <div className="mt-5 grid gap-4 lg:grid-cols-4">
+      {resultGroups.map((group) => (
+        <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#0B1020] p-4">
+          <p
+            className={`text-xs font-bold uppercase tracking-[0.12em] ${
+              group.tone === "emerald"
+                ? "text-emerald-300"
+                : group.tone === "amber"
+                  ? "text-amber-300"
+                  : group.tone === "blue"
+                    ? "text-blue-300"
+                    : "text-[#94A3B8]"
+            }`}
+          >
+            {group.title}
+          </p>
+          <div className="mt-3 space-y-2 text-sm text-[#F9FAFB]">
+            {group.items.length > 0 ? (
+              group.items.map((item) => (
+                <p key={item} className="rounded-xl bg-[#111827] px-3 py-2">
+                  {item}
+                </p>
+              ))
+            ) : (
+              <p className="text-[#94A3B8]">{group.emptyText}</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -3481,14 +5317,19 @@ function RatioAnalysisSection({
 function KpiConfirmationPanel({
   packageTier,
   kpis,
+  arKpis,
   apKpis,
   inventoryKpis,
   fixedAssetKpis,
+  payrollAnalysis,
   netMargin,
+  includeAr,
   includeAp,
   includeInventory,
   includeFixedAssets,
+  includePayroll,
   dso,
+  ratioRows,
   kpisConfirmed,
   reviewerNotes,
   reportsChangedAfterConfirmation,
@@ -3497,14 +5338,19 @@ function KpiConfirmationPanel({
 }: {
   packageTier: PackageTier;
   kpis: KPIs;
+  arKpis: AgingKpis;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
   fixedAssetKpis: FixedAssetKpis;
+  payrollAnalysis: PayrollAnalysis;
   netMargin: number;
+  includeAr: boolean;
   includeAp: boolean;
   includeInventory: boolean;
   includeFixedAssets: boolean;
+  includePayroll: boolean;
   dso: number | null;
+  ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
   kpisConfirmed: boolean;
   reviewerNotes: string;
   reportsChangedAfterConfirmation: boolean;
@@ -3518,14 +5364,32 @@ function KpiConfirmationPanel({
     { label: "Net Income", value: formatMoney(kpis.netIncome) },
     { label: "Cash", value: formatMoney(kpis.cash) },
     { label: "Accounts Receivable", value: formatMoney(kpis.accountsReceivable) },
+    { label: "Total Assets", value: formatMoney(kpis.totalAssets) },
+    ...ratioRows
+      .filter((row) => ["Current Ratio", "Quick Ratio", "Working Capital Estimate"].includes(row.name))
+      .map((row) => ({ label: row.name, value: row.value })),
+    ...(includeAr ? [{ label: "AR Aging Total", value: formatMoney(arKpis.total) }] : []),
     ...(includeAp ? [{ label: "AP Aging Total", value: formatMoney(apKpis.total) }] : []),
+    ...(dso !== null ? [{ label: "DSO", value: `${dso.toFixed(1)} days` }] : []),
     ...(isProfessionalOrHigher(packageTier) && includeInventory
-      ? [{ label: "Inventory Value", value: formatMoney(inventoryKpis.totalValue) }]
+      ? [
+          { label: "Inventory Value", value: formatMoney(inventoryKpis.totalValue) },
+          { label: "Inventory Quantity", value: formatNumber(inventoryKpis.totalQuantity) },
+        ]
       : []),
     ...(isVirtualCfo(packageTier) && includeFixedAssets
-      ? [{ label: "Fixed Assets", value: formatMoney(fixedAssetKpis.totalFixedAssets) }]
+      ? [
+          { label: "Fixed Assets", value: formatMoney(fixedAssetKpis.totalFixedAssets) },
+          { label: "Net Book Value", value: formatMoney(fixedAssetKpis.netBookValue) },
+        ]
       : []),
-    ...(dso !== null ? [{ label: "DSO", value: `${dso.toFixed(1)} days` }] : []),
+    ...(isVirtualCfo(packageTier) && includePayroll
+      ? [
+          { label: "Current FTE", value: formatFte(payrollAnalysis.totalCurrentFte) },
+          { label: "Payroll Cost", value: formatMoney(payrollAnalysis.totalCurrentPayrollCost) },
+          { label: "Payroll Cost Change", value: formatMoney(payrollAnalysis.totalPayrollCostChange) },
+        ]
+      : []),
     { label: "Net Margin", value: `${netMargin.toFixed(1)}%` },
   ];
 
@@ -3587,11 +5451,11 @@ function KpiConfirmationPanel({
           />
           <span>
             <span className="block font-semibold text-[#F9FAFB]">
-              I have reviewed these KPIs and confirm they are accurate.
+              I have reviewed the financial metrics and confirm they are reasonable for this package.
             </span>
             <span className="mt-1 block text-sm leading-6 text-[#94A3B8]">
               This approval unlocks package generation and confirms the reviewer has checked the
-              detected financial snapshot.
+              financial snapshot, liquidity indicators, and available advisory metrics.
             </span>
           </span>
         </label>
@@ -3613,6 +5477,7 @@ function KpiConfirmationPanel({
 function GeneratePackagePanel({
   packageTier,
   uploadedReportsCount,
+  requiredUploadedReportsCount,
   totalReportsCount,
   missingReports,
   canGeneratePackage,
@@ -3624,6 +5489,7 @@ function GeneratePackagePanel({
 }: {
   packageTier: PackageTier;
   uploadedReportsCount: number;
+  requiredUploadedReportsCount: number;
   totalReportsCount: number;
   missingReports: UploadReport[];
   canGeneratePackage: boolean;
@@ -3633,7 +5499,7 @@ function GeneratePackagePanel({
   onGeneratePackage: () => void;
   onExportPackage: () => void;
 }) {
-  const uploadedReportNames = totalReportsCount - missingReports.length;
+  const uploadedReportNames = requiredUploadedReportsCount;
   const panelLabel = isPackageGenerated
     ? "Package Generated"
     : canGeneratePackage
@@ -3653,8 +5519,8 @@ function GeneratePackagePanel({
             {PACKAGE_LABELS[packageTier]} Financial Package
           </h2>
           <p className="mt-2 text-sm text-[#94A3B8]">
-            {uploadedReportsCount} of {totalReportsCount} required reports uploaded. Optional reports
-            can be uploaded for deeper analysis or omitted from the package.
+            {uploadedReportsCount} reports uploaded. {requiredUploadedReportsCount} of{" "}
+            {totalReportsCount} required reports uploaded.
           </p>
           {!canGeneratePackage && (
             <p className="mt-2 text-sm text-[#94A3B8]">
@@ -3672,7 +5538,7 @@ function GeneratePackagePanel({
           <div className="mt-5 grid gap-2">
             <ReadinessChecklistItem
               complete={uploadedReportNames > 0}
-              text={`${uploadedReportNames} reports uploaded`}
+              text={`${uploadedReportsCount} reports uploaded`}
             />
             <ReadinessChecklistItem
               complete={missingReports.length === 0}
@@ -3784,6 +5650,204 @@ function ReportMetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+function BoardPackagePreview({
+  companyName,
+  reportPeriod,
+  packageTier,
+  sections,
+  kpis,
+  apKpis,
+  inventoryKpis,
+  fixedAssetKpis,
+  payrollAnalysis,
+  includeAp,
+  includeInventory,
+  includeFixedAssets,
+  includePayroll,
+}: {
+  companyName: string;
+  reportPeriod: string;
+  packageTier: PackageTier;
+  sections: BoardPackageSection[];
+  kpis: KPIs;
+  apKpis: APKpis;
+  inventoryKpis: InventoryKpis;
+  fixedAssetKpis: FixedAssetKpis;
+  payrollAnalysis: PayrollAnalysis;
+  includeAp: boolean;
+  includeInventory: boolean;
+  includeFixedAssets: boolean;
+  includePayroll: boolean;
+}) {
+  const includedCount = sections.filter((section) => section.status === "Included").length;
+  const completenessScore = Math.round((includedCount / sections.length) * 100);
+
+  return (
+    <section className="mt-10 rounded-[2rem] border border-[#243041] bg-[#F9FAFB] p-2 text-[#111827] shadow-2xl shadow-black/20">
+      <div className="rounded-[1.75rem] bg-white p-8">
+        <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-6 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
+              Step 5 - Generated Package Preview
+            </p>
+            <h2 className="text-4xl font-bold tracking-tight">{companyName}</h2>
+            <p className="mt-2 text-base text-slate-600">
+              {reportPeriod} | {PACKAGE_LABELS[packageTier]} Package
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-semibold text-slate-600">Prepared by FinSight Reports</p>
+            <p className="mt-2 text-3xl font-bold text-[#111827]">{completenessScore}%</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Package completeness</p>
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold">Executive Board Package Preview</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            This table of contents reflects the sections included in the generated board package and
+            highlights missing, omitted, or locked sections before export.
+          </p>
+        </div>
+
+        <div className="mb-8 grid gap-3 lg:grid-cols-2">
+          {sections.map((section) => (
+            <div key={section.title} className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                  Page {section.page}
+                </p>
+                <p className="mt-1 font-bold text-slate-950">{section.title}</p>
+                <p className="mt-1 text-sm text-slate-600">{section.note}</p>
+              </div>
+              <BoardStatusBadge status={section.status} />
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+          <ReportMetricCard label="Revenue" value={formatMoney(kpis.revenue)} />
+          <ReportMetricCard label="Gross Profit" value={formatMoney(kpis.grossProfit)} />
+          <ReportMetricCard label="Net Income" value={formatMoney(kpis.netIncome)} />
+          <ReportMetricCard label="Cash" value={formatMoney(kpis.cash)} />
+          {includeAp && <ReportMetricCard label="AP Aging Total" value={formatMoney(apKpis.total)} />}
+          {includeInventory && (
+            <ReportMetricCard label="Inventory Value" value={formatMoney(inventoryKpis.totalValue)} />
+          )}
+          {includeFixedAssets && (
+            <>
+              <ReportMetricCard label="Fixed Assets" value={formatCurrency(fixedAssetKpis.totalFixedAssets)} />
+              <ReportMetricCard label="Net Book Value" value={formatCurrency(fixedAssetKpis.netBookValue)} />
+            </>
+          )}
+          {includePayroll && (
+            <>
+              <ReportMetricCard label="Current FTE" value={formatFte(payrollAnalysis.totalCurrentFte)} />
+              <ReportMetricCard label="Payroll Cost" value={formatCurrency(payrollAnalysis.totalCurrentPayrollCost)} />
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BoardStatusBadge({ status }: { status: BoardPackageSection["status"] }) {
+  const className =
+    status === "Included"
+      ? "bg-emerald-100 text-emerald-700"
+      : status === "Missing"
+        ? "bg-amber-100 text-amber-700"
+        : status === "Omitted"
+          ? "bg-slate-200 text-slate-700"
+          : "bg-blue-100 text-blue-700";
+
+  return <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${className}`}>{status}</span>;
+}
+
+function PowerPointPrompt({
+  showDraft,
+  slides,
+  onCreate,
+  onSkip,
+}: {
+  showDraft: boolean;
+  slides: PowerPointSlideData[];
+  onCreate: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8 shadow-xl shadow-black/10">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
+            Board Presentation
+          </p>
+          <h2 className="text-3xl font-bold">Would you like to create a PowerPoint presentation for the owners or board?</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+            FinSight can prepare a board-style presentation draft from the generated financial package.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onCreate}
+            className="rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+          >
+            Create PowerPoint Presentation
+          </button>
+          <button
+            type="button"
+            onClick={onSkip}
+            className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+          >
+            Skip for now
+          </button>
+        </div>
+      </div>
+
+      {showDraft && (
+        <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-950 p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h3 className="text-2xl font-bold">PowerPoint presentation draft</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                These slides are structured for a future PowerPoint export integration.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => alert("PowerPoint export will be available in the next release.")}
+              className="rounded-2xl bg-slate-800 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-700"
+            >
+              Generate PowerPoint
+            </button>
+          </div>
+          <p className="mt-4 rounded-xl border border-blue-900/50 bg-blue-950/30 p-4 text-sm text-blue-100">
+            PowerPoint export will be available in the next release.
+          </p>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {slides.map((slide, index) => (
+              <div key={`${slide.sectionType}-${index}`} className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-300">
+                  Slide {index + 1} - {slide.sectionType}
+                </p>
+                <h4 className="mt-2 text-lg font-bold text-white">{slide.title}</h4>
+                <p className="mt-1 text-sm text-slate-400">{slide.subtitle}</p>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-300">
+                  {slide.bullets.slice(0, 4).map((bullet) => (
+                    <li key={bullet}>{bullet}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ExecutiveSummarySection({
   executiveSummary,
 }: {
@@ -3795,7 +5859,14 @@ function ExecutiveSummarySection({
         Client-Ready Executive Summary
       </p>
       <h2 className="mb-4 text-3xl font-bold">Executive Summary</h2>
-      <p className="max-w-4xl text-lg leading-8 text-slate-300">{executiveSummary.paragraph}</p>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {executiveSummary.sections.map((section) => (
+          <div key={section.title} className="rounded-2xl border border-slate-700 bg-slate-950 p-5">
+            <h3 className="text-lg font-bold text-white">{section.title}</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-300">{section.body}</p>
+          </div>
+        ))}
+      </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl bg-blue-950 p-6">
@@ -3816,120 +5887,242 @@ function ExecutiveSummarySection({
           </ul>
         </div>
       </div>
+
+      <div className="mt-6 rounded-2xl border border-blue-900/60 bg-blue-950/40 p-6">
+        <h3 className="mb-4 text-xl font-bold">Recommended Follow-Up Items</h3>
+        <ul className="list-disc space-y-3 pl-5 text-slate-300">
+          {executiveSummary.followUpItems.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }
 
-function BasicChartsSection({ kpis }: { kpis: KPIs }) {
-  const hasRevenueExpenseData = kpis.revenue > 0 || kpis.expenses > 0;
-  const hasGrossProfitData = kpis.revenue > 0 || kpis.cogs > 0 || kpis.grossProfit > 0;
-  const hasCashArData = kpis.cash > 0 || kpis.accountsReceivable > 0;
-
-  const revenueExpenseData = [
-    { name: "Revenue", value: kpis.revenue },
-    { name: "Expenses", value: kpis.expenses },
+function BasicChartsSection({
+  kpis,
+  arKpis,
+  apKpis,
+  inventoryKpis,
+  fixedAssetKpis,
+  payrollAnalysis,
+  fluxRows,
+  includeAr,
+  includeAp,
+  includeInventory,
+  includeFixedAssets,
+  includePayroll,
+}: {
+  kpis: KPIs;
+  arKpis: AgingKpis;
+  apKpis: APKpis;
+  inventoryKpis: InventoryKpis;
+  fixedAssetKpis: FixedAssetKpis;
+  payrollAnalysis: PayrollAnalysis;
+  fluxRows: FluxRow[];
+  includeAr: boolean;
+  includeAp: boolean;
+  includeInventory: boolean;
+  includeFixedAssets: boolean;
+  includePayroll: boolean;
+}) {
+  const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
+  const netMargin = kpis.revenue ? (kpis.netIncome / kpis.revenue) * 100 : 0;
+  const incomeStatementData = [
+    { name: "Revenue", value: kpis.revenue, color: "#5B8CFF" },
+    { name: "COGS", value: kpis.cogs, color: "#7BA7D9" },
+    { name: "Expenses", value: kpis.expenses, color: "#C0845A" },
+    { name: "Net Income", value: kpis.netIncome, color: "#4FAE8A" },
   ];
-
-  const grossProfitData = [
-    { name: "COGS", value: Math.max(kpis.cogs, 0), color: "#38bdf8" },
-    { name: "Gross Profit", value: Math.max(kpis.grossProfit, 0), color: "#22c55e" },
-  ].filter((item) => item.value > 0);
-
-  const cashArData = [
-    { name: "Cash", value: kpis.cash },
-    { name: "Accounts Receivable", value: kpis.accountsReceivable },
+  const marginData = [
+    { name: "Gross Margin", value: grossMargin, color: "#4FAE8A" },
+    { name: "Net Margin", value: netMargin, color: "#5B8CFF" },
   ];
+  const liquidityData = [
+    { name: "Cash", value: kpis.cash, color: "#4FAE8A" },
+    { name: "AR", value: includeAr ? arKpis.total : kpis.accountsReceivable, color: "#5B8CFF" },
+    { name: "AP", value: includeAp ? apKpis.total : 0, color: "#C0845A" },
+  ];
+  const agingBuckets = (aging: AgingKpis) => [
+    { name: "Current", value: aging.current, color: "#4FAE8A" },
+    { name: "1-30", value: aging.days1To30, color: "#7BA7D9" },
+    { name: "31-60", value: aging.days31To60, color: "#D8B56D" },
+    { name: "61-90", value: aging.days61To90, color: "#C0845A" },
+    { name: "90+", value: aging.days90Plus, color: "#B85C5C" },
+  ];
+  const inventoryData = inventoryKpis.topByValue.map((item) => ({
+    name: item.name,
+    value: item.value,
+    color: "#5B8CFF",
+  }));
+  const payrollCostData = payrollAnalysis.rows.slice(0, 8).map((row) => ({
+    name: row.department,
+    value: row.currentPayrollCost,
+    color: "#5B8CFF",
+  }));
+  const fteData = payrollAnalysis.rows.slice(0, 8);
+  const fixedAssetData = [
+    { name: "Fixed Assets", value: fixedAssetKpis.totalFixedAssets, color: "#5B8CFF" },
+    { name: "Accum. Dep.", value: Math.abs(fixedAssetKpis.accumulatedDepreciation), color: "#C0845A" },
+    { name: "NBV", value: fixedAssetKpis.netBookValue, color: "#4FAE8A" },
+  ];
+  const fluxData = [...fluxRows]
+    .sort((a, b) => Math.abs(b.dollarVariance) - Math.abs(a.dollarVariance))
+    .slice(0, 5)
+    .map((row) => ({ name: row.accountName, value: row.dollarVariance, color: row.dollarVariance >= 0 ? "#5B8CFF" : "#C0845A" }));
 
   return (
     <section className="mt-10 rounded-3xl border border-slate-700 bg-slate-900 p-8">
       <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
-        Basic Charts
+        Financial Intelligence Dashboard
       </p>
       <h2 className="mb-6 text-3xl font-bold">Financial Snapshot</h2>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <ChartCard
-          title="Revenue vs Expenses"
-          value={`${formatMoney(kpis.revenue)} / ${formatMoney(kpis.expenses)}`}
-        >
-          {hasRevenueExpenseData ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={revenueExpenseData}>
-                <XAxis
-                  dataKey="name"
-                  tick={{ fill: "#cbd5e1", fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<DarkChartTooltip />} />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]} animationDuration={700}>
-                  <Cell fill="#3b82f6" />
-                  <Cell fill="#f97316" />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <NoChartData />
-          )}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
+        <ChartCard title="Revenue, COGS, Expenses, Net Income" value={formatMoney(kpis.revenue)}>
+          <VerticalBarChart data={incomeStatementData} />
         </ChartCard>
-
-        <ChartCard title="Gross Profit" value={formatMoney(kpis.grossProfit)}>
-          {hasGrossProfitData && grossProfitData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={grossProfitData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={4}
-                  animationDuration={700}
-                >
-                  {grossProfitData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<DarkChartTooltip />} />
-                <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <NoChartData />
-          )}
-          <p className="mt-2 text-center text-xs text-slate-400">
-            Revenue: {formatMoney(kpis.revenue)}
-          </p>
+        <ChartCard title="Gross Margin and Net Margin" value={`${grossMargin.toFixed(1)}% / ${netMargin.toFixed(1)}%`}>
+          <VerticalBarChart data={marginData} percent />
         </ChartCard>
-
-        <ChartCard
-          title="Cash and AR"
-          value={`${formatMoney(kpis.cash)} / ${formatMoney(kpis.accountsReceivable)}`}
-        >
-          {hasCashArData ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={cashArData}>
-                <XAxis
-                  dataKey="name"
-                  tick={{ fill: "#cbd5e1", fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<DarkChartTooltip />} />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]} animationDuration={700}>
-                  <Cell fill="#22c55e" />
-                  <Cell fill="#06b6d4" />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <NoChartData />
-          )}
+        <ChartCard title="Cash, AR, AP" value={`${formatMoney(kpis.cash)} / ${formatMoney(kpis.accountsReceivable)}`}>
+          <VerticalBarChart data={liquidityData} />
+        </ChartCard>
+        <ChartCard title="AR Aging" value={includeAr ? formatMoney(arKpis.total) : "No data"}>
+          {includeAr ? <VerticalBarChart data={agingBuckets(arKpis)} /> : <NoChartData />}
+        </ChartCard>
+        <ChartCard title="AP Aging" value={includeAp ? formatMoney(apKpis.total) : "No data"}>
+          {includeAp ? <VerticalBarChart data={agingBuckets(apKpis)} /> : <NoChartData />}
+        </ChartCard>
+        <ChartCard title="Inventory Top 5 by Value" value={includeInventory ? formatMoney(inventoryKpis.totalValue) : "No data"}>
+          {includeInventory && inventoryData.length ? <HorizontalBarChart data={inventoryData} /> : <NoChartData />}
+        </ChartCard>
+        <ChartCard title="Payroll Cost by Department" value={includePayroll ? formatMoney(payrollAnalysis.totalCurrentPayrollCost) : "No data"}>
+          {includePayroll && payrollCostData.length ? <HorizontalBarChart data={payrollCostData} /> : <NoChartData />}
+        </ChartCard>
+        <ChartCard title="FTE by Department" value={includePayroll ? formatFte(payrollAnalysis.totalCurrentFte) : "No data"}>
+          {includePayroll && fteData.length ? <FteDepartmentChart data={fteData} /> : <NoChartData />}
+        </ChartCard>
+        <ChartCard title="Fixed Assets Breakdown" value={includeFixedAssets ? formatMoney(fixedAssetKpis.netBookValue) : "No data"}>
+          {includeFixedAssets ? <DonutChart data={fixedAssetData} /> : <NoChartData />}
+        </ChartCard>
+        <ChartCard title="Flux Variance Highlights" value={fluxData.length ? `${fluxData.length} flagged` : "No data"}>
+          {fluxData.length ? <HorizontalBarChart data={fluxData} /> : <NoChartData />}
         </ChartCard>
       </div>
     </section>
+  );
+}
+
+function aggregateChartData(data: Array<{ name: string; value: number; color: string }>) {
+  const totals = new Map<string, { name: string; value: number; color: string }>();
+
+  data.forEach((item) => {
+    const existing = totals.get(item.name);
+    totals.set(item.name, {
+      name: item.name,
+      value: (existing?.value || 0) + item.value,
+      color: existing?.color || item.color,
+    });
+  });
+
+  return [...totals.values()];
+}
+
+function VerticalBarChart({
+  data,
+  percent = false,
+}: {
+  data: Array<{ name: string; value: number; color: string }>;
+  percent?: boolean;
+}) {
+  const hasData = data.some((item) => item.value !== 0);
+  if (!hasData) return <NoChartData />;
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={aggregateChartData(data)}>
+        <XAxis dataKey="name" tick={{ fill: "#cbd5e1", fontSize: 11 }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+        <Tooltip content={<DarkChartTooltip percent={percent} />} />
+        <Bar dataKey="value" radius={[8, 8, 0, 0]} animationDuration={700}>
+          {aggregateChartData(data).map((entry, index) => (
+            <Cell key={`${entry.name}-${index}`} fill={entry.color} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function HorizontalBarChart({ data }: { data: Array<{ name: string; value: number; color: string }> }) {
+  const chartData = aggregateChartData(data);
+  const hasData = chartData.some((item) => item.value !== 0);
+  if (!hasData) return <NoChartData />;
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <BarChart data={chartData} layout="vertical" margin={{ left: 12, right: 18 }}>
+        <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+        <YAxis
+          type="category"
+          dataKey="name"
+          width={110}
+          tick={{ fill: "#cbd5e1", fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <Tooltip content={<DarkChartTooltip />} />
+        <Bar dataKey="value" radius={[0, 8, 8, 0]} animationDuration={700}>
+          {chartData.map((entry, index) => (
+            <Cell key={`${entry.name}-${index}`} fill={entry.color} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function FteDepartmentChart({ data }: { data: PayrollDepartmentRow[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <BarChart data={data.slice(0, 8)}>
+        <XAxis dataKey="department" tick={{ fill: "#cbd5e1", fontSize: 10 }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+        <Tooltip content={<DarkChartTooltip plain />} />
+        <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: 12 }} />
+        <Bar dataKey="currentFte" name="Current FTE" fill="#5B8CFF" radius={[8, 8, 0, 0]} />
+        <Bar dataKey="priorFte" name="Prior FTE" fill="#7BA7D9" radius={[8, 8, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function DonutChart({ data }: { data: Array<{ name: string; value: number; color: string }> }) {
+  const filteredData = data.filter((item) => item.value > 0);
+  if (!filteredData.length) return <NoChartData />;
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <PieChart>
+        <Pie
+          data={filteredData}
+          dataKey="value"
+          nameKey="name"
+          innerRadius={55}
+          outerRadius={88}
+          paddingAngle={4}
+          animationDuration={700}
+        >
+          {filteredData.map((entry, index) => (
+            <Cell key={`${entry.name}-${index}`} fill={entry.color} />
+          ))}
+        </Pie>
+        <Tooltip content={<DarkChartTooltip />} />
+        <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: 12 }} />
+      </PieChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -3963,17 +6156,28 @@ function DarkChartTooltip({
   active,
   payload,
   label,
+  percent = false,
+  plain = false,
 }: {
   active?: boolean;
   payload?: Array<{ name?: string; value?: number; payload?: { name?: string } }>;
   label?: string;
+  percent?: boolean;
+  plain?: boolean;
 }) {
   if (!active || !payload?.length) return null;
+  const formatTooltipValue = (value: number) =>
+    percent ? `${value.toFixed(1)}%` : plain ? formatFte(value) : formatMoney(value);
 
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm shadow-xl">
       <p className="font-semibold text-white">{label || payload[0]?.payload?.name}</p>
-      <p className="text-blue-300">{formatMoney(Number(payload[0]?.value || 0))}</p>
+      {payload.map((item) => (
+        <p key={item.name || "value"} className="text-blue-300">
+          {item.name ? `${item.name}: ` : ""}
+          {formatTooltipValue(Number(item.value || 0))}
+        </p>
+      ))}
     </div>
   );
 }
@@ -4193,18 +6397,188 @@ function FixedAssetChangeTable({ rows }: { rows: FixedAssetChangeRow[] }) {
   );
 }
 
+function PayrollAnalysisSection({
+  analysis,
+  currentPayrollData,
+  priorPayrollData,
+  fteDivisor,
+  onFteDivisorChange,
+}: {
+  analysis: PayrollAnalysis;
+  currentPayrollData: ParsedFile | null;
+  priorPayrollData: ParsedFile | null;
+  fteDivisor: number;
+  onFteDivisorChange: (value: number) => void;
+}) {
+  const hasPayrollData = Boolean(currentPayrollData || priorPayrollData);
+
+  return (
+    <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8 shadow-lg">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
+            Virtual CFO Payroll Analytics
+          </p>
+          <h2 className="text-3xl font-bold">Payroll and FTE Analysis</h2>
+          <p className="mt-3 max-w-3xl text-slate-300">
+            Analyze department-level FTE movement, payroll cost changes, and payroll cost per FTE.
+          </p>
+        </div>
+        <label className="rounded-2xl border border-slate-700 bg-slate-950 p-5">
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-slate-300">
+            Monthly FTE Hours Divisor
+          </span>
+          <input
+            type="number"
+            step="0.01"
+            value={fteDivisor}
+            onChange={(e) => onFteDivisorChange(Number(e.target.value) || 173.33)}
+            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-white"
+          />
+          <p className="mt-2 text-xs text-slate-500">Default is 173.33 hours per monthly FTE.</p>
+        </label>
+      </div>
+
+      {!hasPayrollData ? (
+        <p className="rounded-2xl border border-slate-700 bg-slate-950 p-5 text-slate-300">
+          Upload current and prior payroll summary by department reports to calculate FTE and payroll cost trends.
+        </p>
+      ) : (
+        <>
+          {!priorPayrollData && (
+            <p className="mb-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100">
+              Prior month payroll report required to calculate FTE change.
+            </p>
+          )}
+
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+            <PayrollMetricCard label="Current FTE" value={formatFte(analysis.totalCurrentFte)} />
+            <PayrollMetricCard label="Prior FTE" value={priorPayrollData ? formatFte(analysis.totalPriorFte) : "N/A"} />
+            <PayrollMetricCard label="FTE Change" value={priorPayrollData ? formatFte(analysis.totalFteChange) : "N/A"} />
+            <PayrollMetricCard label="Payroll Cost Change" value={priorPayrollData ? formatCurrency(analysis.totalPayrollCostChange) : "N/A"} />
+          </div>
+
+          <PayrollSummaryCallout analysis={analysis} includePrior={Boolean(priorPayrollData)} />
+          <PayrollTable title="FTE by Department" rows={analysis.rows} includePrior={Boolean(priorPayrollData)} />
+          <PayrollTable title="Payroll Cost by Department" rows={analysis.rows} includePrior={Boolean(priorPayrollData)} />
+        </>
+      )}
+    </section>
+  );
+}
+
+function PayrollMetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-h-28 flex-col justify-between rounded-2xl border border-slate-700 bg-slate-950 p-5 shadow-sm">
+      <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-400">{label}</p>
+      <p className="mt-4 text-2xl font-bold text-white">{value}</p>
+    </div>
+  );
+}
+
+function PayrollSummaryCallout({
+  analysis,
+  includePrior,
+}: {
+  analysis: PayrollAnalysis;
+  includePrior: boolean;
+}) {
+  return (
+    <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-950 p-6">
+      <h3 className="mb-4 text-xl font-bold">AI-Ready Payroll Commentary</h3>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-300">Highest FTE Increase</p>
+          <p className="mt-3 text-lg font-bold text-white">{includePrior ? analysis.highestFteIncreaseDepartment : "N/A"}</p>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-300">Highest Payroll Cost Increase</p>
+          <p className="mt-3 text-lg font-bold text-white">{includePrior ? analysis.highestPayrollCostIncreaseDepartment : "N/A"}</p>
+        </div>
+      </div>
+      <ul className="mt-5 space-y-3 text-slate-300">
+        {(includePrior ? analysis.commentary : ["Current month FTE is available. Prior month payroll report required to calculate FTE change."]).map(
+          (comment) => (
+            <li key={comment} className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+              {comment}
+            </li>
+          ),
+        )}
+      </ul>
+    </div>
+  );
+}
+
+function PayrollTable({
+  title,
+  rows,
+  includePrior,
+}: {
+  title: string;
+  rows: PayrollDepartmentRow[];
+  includePrior: boolean;
+}) {
+  return (
+    <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-700 bg-slate-950 p-6">
+      <h3 className="mb-4 text-xl font-bold">{title}</h3>
+      <table className="w-full text-left text-sm">
+        <thead className="bg-slate-800">
+          <tr>
+            <th className="px-4 py-3">Department</th>
+            <th className="px-4 py-3">Current FTE</th>
+            <th className="px-4 py-3">Prior FTE</th>
+            <th className="px-4 py-3">FTE Change</th>
+            <th className="px-4 py-3">Current Payroll Cost</th>
+            <th className="px-4 py-3">Prior Payroll Cost</th>
+            <th className="px-4 py-3">Payroll Cost Change</th>
+            <th className="px-4 py-3">Payroll Cost per FTE</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length > 0 ? (
+            rows.map((row) => (
+              <tr key={row.department} className="border-b border-slate-800">
+                <td className="px-4 py-3 font-semibold text-slate-200">{row.department}</td>
+                <td className="px-4 py-3">{formatFte(row.currentFte)}</td>
+                <td className="px-4 py-3">{includePrior ? formatFte(row.priorFte) : "N/A"}</td>
+                <td className="px-4 py-3">{includePrior ? formatFte(row.fteChange) : "N/A"}</td>
+                <td className="px-4 py-3">{formatCurrency(row.currentPayrollCost)}</td>
+                <td className="px-4 py-3">{includePrior ? formatCurrency(row.priorPayrollCost) : "N/A"}</td>
+                <td className="px-4 py-3">{includePrior ? formatCurrency(row.payrollCostChange) : "N/A"}</td>
+                <td className="px-4 py-3">{formatCurrency(row.payrollCostPerFte)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td className="px-4 py-3 text-slate-400" colSpan={8}>
+                Payroll summary by department report required.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function FluxAnalysisPanel({
   settings,
   onSettingsChange,
   monthRows,
   quarterRows,
   yearRows,
+  monthDebug,
+  quarterDebug,
+  yearDebug,
 }: {
   settings: FluxSettings;
   onSettingsChange: (settings: FluxSettings) => void;
   monthRows: FluxRow[];
   quarterRows: FluxRow[];
   yearRows: FluxRow[];
+  monthDebug: FluxDebugInfo;
+  quarterDebug: FluxDebugInfo;
+  yearDebug: FluxDebugInfo;
 }) {
   return (
     <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8">
@@ -4272,10 +6646,54 @@ function FluxAnalysisPanel({
         </label>
       </div>
 
+      <FluxDebugPanel
+        monthDebug={monthDebug}
+        quarterDebug={quarterDebug}
+        yearDebug={yearDebug}
+      />
+
       <FluxTable title="Current Month vs Prior Month" rows={monthRows} />
       <FluxTable title="Current Quarter vs Prior Quarter" rows={quarterRows} />
       <FluxTable title="Current Year vs Prior Year" rows={yearRows} />
     </section>
+  );
+}
+
+function FluxDebugPanel({
+  monthDebug,
+  quarterDebug,
+  yearDebug,
+}: {
+  monthDebug: FluxDebugInfo;
+  quarterDebug: FluxDebugInfo;
+  yearDebug: FluxDebugInfo;
+}) {
+  const debugRows = [
+    { label: "Month", debug: monthDebug },
+    { label: "Quarter", debug: quarterDebug },
+    { label: "Year", debug: yearDebug },
+  ];
+
+  return (
+    <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-950 p-5">
+      <p className="mb-4 text-sm font-bold uppercase tracking-[0.08em] text-slate-200">
+        Flux Debug Counts
+      </p>
+      <div className="grid gap-3 lg:grid-cols-3">
+        {debugRows.map(({ label, debug }) => (
+          <div key={label} className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+            <p className="font-bold text-white">{label}</p>
+            <div className="mt-3 grid gap-2 text-sm text-slate-300">
+              <p>Current GL rows parsed: {formatNumber(debug.currentRowsParsed)}</p>
+              <p>Prior GL rows parsed: {formatNumber(debug.priorRowsParsed)}</p>
+              <p>Accounts grouped: {formatNumber(debug.accountsGrouped)}</p>
+              <p>Variances calculated: {formatNumber(debug.variancesCalculated)}</p>
+              <p>Variances passing threshold: {formatNumber(debug.variancesPassingThreshold)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -4336,7 +6754,9 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
               <th className="px-4 py-3">%</th>
               <th className="px-4 py-3">Severity</th>
               <th className="px-4 py-3">Reason</th>
-              <th className="px-4 py-3">AI Commentary</th>
+              <th className="px-4 py-3">Top Driver</th>
+              <th className="px-4 py-3">Driver Change</th>
+              <th className="px-4 py-3">Commentary</th>
             </tr>
           </thead>
           <tbody>
@@ -4357,8 +6777,7 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
                       </button>
                       {expandedRows[key] && (
                         <p className="mt-2 text-xs text-slate-500">
-                          AI explanation placeholder: management should review the account activity,
-                          timing, and supporting detail for this variance.
+                          {row.commentary}
                         </p>
                       )}
                     </td>
@@ -4372,13 +6791,17 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
                       <SeverityBadge severity={row.severity} />
                     </td>
                     <td className="px-4 py-3 text-slate-300">{row.flagReason}</td>
-                    <td className="px-4 py-3 text-slate-400">AI commentary placeholder</td>
+                    <td className="px-4 py-3 text-slate-300">{row.topDriver}</td>
+                    <td className="px-4 py-3 font-semibold">
+                      {row.driverChange === null ? "N/A" : formatCurrency(row.driverChange)}
+                    </td>
+                    <td className="max-w-md px-4 py-3 text-slate-400">{row.commentary}</td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td className="px-4 py-3 text-slate-400" colSpan={9}>
+                <td className="px-4 py-3 text-slate-400" colSpan={11}>
                   Upload matching GL detail reports to generate flux analysis.
                 </td>
               </tr>
@@ -4422,6 +6845,12 @@ function PrintableFinancialPackage({
   topExpenseRows,
   ratioRows,
   fixedAssetChangeRows,
+  payrollAnalysis,
+  currentPayrollData,
+  priorPayrollData,
+  boardPackageSections,
+  budgetMetrics,
+  debtMetrics,
   monthFluxRows,
   quarterFluxRows,
   yearFluxRows,
@@ -4446,6 +6875,12 @@ function PrintableFinancialPackage({
   topExpenseRows: StatementRow[];
   ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
   fixedAssetChangeRows: FixedAssetChangeRow[];
+  payrollAnalysis: PayrollAnalysis;
+  currentPayrollData: ParsedFile | null;
+  priorPayrollData: ParsedFile | null;
+  boardPackageSections: BoardPackageSection[];
+  budgetMetrics: BudgetMetrics;
+  debtMetrics: DebtMetrics;
   monthFluxRows: FluxRow[];
   quarterFluxRows: FluxRow[];
   yearFluxRows: FluxRow[];
@@ -4465,14 +6900,50 @@ function PrintableFinancialPackage({
         </div>
 
         <div className="print-section-block">
+          <h2>Table of Contents</h2>
+          <table className="print-table">
+            <thead>
+              <tr>
+                <th>Page</th>
+                <th>Section</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {boardPackageSections.map((section) => (
+                <tr key={section.title}>
+                  <td>{section.page}</td>
+                  <td>{section.title}</td>
+                  <td>{section.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="print-section-block">
           <h2>Executive Summary</h2>
-          <p>{executiveSummary.paragraph}</p>
+          {executiveSummary.sections.map((section) => (
+            <div key={section.title}>
+              <h3>{section.title}</h3>
+              <p>{section.body}</p>
+            </div>
+          ))}
         </div>
 
         <div className="print-section-block">
           <h3>Key Highlights</h3>
           <ul>
             {executiveSummary.highlights.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="print-section-block">
+          <h3>Recommended Follow-Up Items</h3>
+          <ul>
+            {executiveSummary.followUpItems.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
@@ -4667,6 +7138,14 @@ function PrintableFinancialPackage({
           </section>
           )}
 
+          {(currentPayrollData || priorPayrollData) && (
+            <PayrollPrintSection
+              analysis={payrollAnalysis}
+              currentPayrollData={currentPayrollData}
+              priorPayrollData={priorPayrollData}
+            />
+          )}
+
           {monthFluxRows.length > 0 && (
             <>
               <PrintFluxSection title="Flux Analysis Executive Summary" rows={monthFluxRows} />
@@ -4680,14 +7159,17 @@ function PrintableFinancialPackage({
             <PrintFluxSection title="Year-over-Year Flux Analysis" rows={yearFluxRows} />
           )}
 
+          {budgetMetrics.revenueActual !== null && (
+            <BudgetPrintSection metrics={budgetMetrics} />
+          )}
+          {debtMetrics.totalDebt > 0 && <DebtPrintSection metrics={debtMetrics} />}
           <section className="print-page">
-            <h1>Key Variance Highlights</h1>
-            <p>Management commentary placeholder.</p>
-            <p>
-              Budget vs Actual, EBITDA, debt analysis, benchmarking, risk indicators, multi-period
-              reporting, and board-style formatting placeholders are included for Virtual CFO
-              package expansion.
-            </p>
+            <h1>Recommended Follow-Up Items</h1>
+            <ul>
+              {executiveSummary.followUpItems.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           </section>
         </>
       )}
@@ -4828,6 +7310,174 @@ function InventoryPrintTable({ items }: { items: InventoryItem[] }) {
   );
 }
 
+function BudgetPrintSection({ metrics }: { metrics: BudgetMetrics }) {
+  return (
+    <section className="print-page">
+      <h1>Budget vs Actual</h1>
+      <table className="print-table">
+        <tbody>
+          <tr>
+            <td>Revenue Actual</td>
+            <td>{formatOptionalCurrency(metrics.revenueActual, "N/A")}</td>
+          </tr>
+          <tr>
+            <td>Revenue Budget</td>
+            <td>{formatOptionalCurrency(metrics.revenueBudget, "N/A")}</td>
+          </tr>
+          <tr>
+            <td>Revenue Variance</td>
+            <td>{formatOptionalCurrency(metrics.revenueVariance, "N/A")}</td>
+          </tr>
+          <tr>
+            <td>Net Income Actual</td>
+            <td>{formatOptionalCurrency(metrics.netIncomeActual, "N/A")}</td>
+          </tr>
+          <tr>
+            <td>Net Income Budget</td>
+            <td>{formatOptionalCurrency(metrics.netIncomeBudget, "N/A")}</td>
+          </tr>
+          <tr>
+            <td>Net Income Variance</td>
+            <td>{formatOptionalCurrency(metrics.netIncomeVariance, "N/A")}</td>
+          </tr>
+          <tr>
+            <td>Largest Unfavorable Budget Variance</td>
+            <td>
+              {metrics.largestUnfavorableVarianceLabel}:{" "}
+              {formatOptionalCurrency(metrics.largestUnfavorableVariance, "N/A")}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function DebtPrintSection({ metrics }: { metrics: DebtMetrics }) {
+  return (
+    <section className="print-page">
+      <h1>Debt Schedule / Loan Detail</h1>
+      <table className="print-table">
+        <tbody>
+          <tr>
+            <td>Total Debt</td>
+            <td>{formatCurrency(metrics.totalDebt)}</td>
+          </tr>
+          <tr>
+            <td>Current Portion</td>
+            <td>{formatCurrency(metrics.currentPortion)}</td>
+          </tr>
+          <tr>
+            <td>Long-Term Portion</td>
+            <td>{formatCurrency(metrics.longTermPortion)}</td>
+          </tr>
+          <tr>
+            <td>Debt-to-Assets</td>
+            <td>{metrics.debtToAssets === null ? "N/A" : `${metrics.debtToAssets.toFixed(1)}%`}</td>
+          </tr>
+          <tr>
+            <td>Debt-to-Equity</td>
+            <td>{metrics.debtToEquity === null ? "N/A" : `${metrics.debtToEquity.toFixed(1)}%`}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function PayrollPrintSection({
+  analysis,
+  currentPayrollData,
+  priorPayrollData,
+}: {
+  analysis: PayrollAnalysis;
+  currentPayrollData: ParsedFile | null;
+  priorPayrollData: ParsedFile | null;
+}) {
+  const hasPayrollData = Boolean(currentPayrollData || priorPayrollData);
+
+  return (
+    <section className="print-page">
+      <h1>Payroll and FTE Analysis</h1>
+      {!hasPayrollData ? (
+        <p>Upload current and prior payroll summary by department reports to calculate FTE and payroll cost trends.</p>
+      ) : (
+        <>
+          {!priorPayrollData && <p>Prior month payroll report required to calculate FTE change.</p>}
+          <div className="print-grid">
+            <PrintKpiCard label="Current FTE" value={formatFte(analysis.totalCurrentFte)} />
+            <PrintKpiCard label="Prior FTE" value={priorPayrollData ? formatFte(analysis.totalPriorFte) : "N/A"} />
+            <PrintKpiCard label="FTE Change" value={priorPayrollData ? formatFte(analysis.totalFteChange) : "N/A"} />
+            <PrintKpiCard
+              label="Payroll Cost Change"
+              value={priorPayrollData ? formatCurrency(analysis.totalPayrollCostChange) : "N/A"}
+            />
+          </div>
+          <h2>FTE by Department</h2>
+          <PayrollPrintTable rows={analysis.rows} includePrior={Boolean(priorPayrollData)} />
+          <h2>Payroll Cost by Department</h2>
+          <PayrollPrintTable rows={analysis.rows} includePrior={Boolean(priorPayrollData)} />
+          <h2>Payroll Commentary</h2>
+          <ul>
+            {(priorPayrollData
+              ? analysis.commentary
+              : ["Current month FTE is available. Prior month payroll report required to calculate FTE change."]).map(
+              (comment) => (
+                <li key={comment}>{comment}</li>
+              ),
+            )}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
+function PayrollPrintTable({
+  rows,
+  includePrior,
+}: {
+  rows: PayrollDepartmentRow[];
+  includePrior: boolean;
+}) {
+  return (
+    <table className="print-table">
+      <thead>
+        <tr>
+          <th>Department</th>
+          <th>Current FTE</th>
+          <th>Prior FTE</th>
+          <th>FTE Change</th>
+          <th>Current Payroll Cost</th>
+          <th>Prior Payroll Cost</th>
+          <th>Payroll Cost Change</th>
+          <th>Payroll Cost per FTE</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length > 0 ? (
+          rows.map((row) => (
+            <tr key={row.department}>
+              <td>{row.department}</td>
+              <td>{formatFte(row.currentFte)}</td>
+              <td>{includePrior ? formatFte(row.priorFte) : "N/A"}</td>
+              <td>{includePrior ? formatFte(row.fteChange) : "N/A"}</td>
+              <td>{formatCurrency(row.currentPayrollCost)}</td>
+              <td>{includePrior ? formatCurrency(row.priorPayrollCost) : "N/A"}</td>
+              <td>{includePrior ? formatCurrency(row.payrollCostChange) : "N/A"}</td>
+              <td>{formatCurrency(row.payrollCostPerFte)}</td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan={8}>Payroll summary by department report required.</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  );
+}
+
 function PrintFluxSection({ title, rows }: { title: string; rows: FluxRow[] }) {
   return (
     <section className="print-page">
@@ -4844,6 +7494,8 @@ function PrintFluxSection({ title, rows }: { title: string; rows: FluxRow[] }) {
             <th>%</th>
             <th>Severity</th>
             <th>Reason</th>
+            <th>Top Driver</th>
+            <th>Driver Change</th>
             <th>Commentary</th>
           </tr>
         </thead>
@@ -4859,12 +7511,14 @@ function PrintFluxSection({ title, rows }: { title: string; rows: FluxRow[] }) {
                 <td>{row.percentVariance === null ? "N/A" : `${row.percentVariance.toFixed(1)}%`}</td>
                 <td>{row.severity}</td>
                 <td>{row.flagReason}</td>
-                <td>AI explanation placeholder</td>
+                <td>{row.topDriver}</td>
+                <td>{row.driverChange === null ? "N/A" : formatCurrency(row.driverChange)}</td>
+                <td>{row.commentary}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={9}>Upload matching GL detail reports to generate flux analysis.</td>
+              <td colSpan={11}>Upload matching GL detail reports to generate flux analysis.</td>
             </tr>
           )}
         </tbody>
@@ -4879,6 +7533,7 @@ function Preview({ title, data }: { title: string; data: ParsedFile | null }) {
   const previewRows = getPreviewRows(title, data);
   const normalizedPreviewTitle = title.toLowerCase();
   const isAgingPreview = normalizedPreviewTitle.includes("aging");
+  const isPayrollDetailPreview = normalizedPreviewTitle.includes("payroll detail");
   const isGlPreview =
     normalizedPreviewTitle.includes("gl preview") ||
     normalizedPreviewTitle.includes("general ledger");
@@ -4888,7 +7543,13 @@ function Preview({ title, data }: { title: string; data: ParsedFile | null }) {
       const candidate = previewRows[index];
       const filledCells = candidate?.filter((cell) => String(cell || "").trim()).length || 0;
 
-      if (candidate && isHeaderRow(candidate) && filledCells > 1) return candidate;
+      if (
+        candidate &&
+        (isPayrollDetailPreview ? isPayrollDetailHeaderRow(candidate) : isHeaderRow(candidate)) &&
+        filledCells > 1
+      ) {
+        return candidate;
+      }
     }
 
     return [];
@@ -4908,6 +7569,28 @@ function Preview({ title, data }: { title: string; data: ParsedFile | null }) {
     }, []);
 
     if (isGlPreview && cellIndex <= 2) {
+      return String(cell || "");
+    }
+
+    if (isPayrollDetailPreview) {
+      const columnLabel = getColumnLabel(headers, cellIndex);
+      const directHeader = normalizeHeader(headers[cellIndex]);
+      const isHeader = isPayrollDetailHeaderRow(row);
+      if (isHeader) return String(cell || "");
+      if (isTextColumn(columnLabel) || ((columnLabel.includes("date") || cellIndex === 0) && isDateOrPeriodLabel(cell))) {
+        return String(cell || "");
+      }
+      if (
+        value !== null &&
+        (isCurrencyColumn(columnLabel) ||
+          ["amount", "balance", "debit", "credit"].some(
+            (label) => columnLabel.includes(label) || directHeader.includes(label),
+          ) ||
+          cellIndex >= Math.max(lastNonEmptyCellIndex - 2, 0))
+      ) {
+        return formatCurrency(value);
+      }
+      if (value !== null && cellIndex > 0) return formatNumber(value);
       return String(cell || "");
     }
 
@@ -4951,7 +7634,7 @@ function Preview({ title, data }: { title: string; data: ParsedFile | null }) {
               const calculatedValueRow = rowType === "calculated-value";
               const grandTotalRow = rowType === "grand-total";
               const majorTotalRow = rowType === "major-total";
-              const headerRow = isHeaderRow(row) && row.length > 1;
+              const headerRow = (isPayrollDetailPreview ? isPayrollDetailHeaderRow(row) : isHeaderRow(row)) && row.length > 1;
 
               return (
               <tr
