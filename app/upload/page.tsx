@@ -182,6 +182,75 @@ type FolderImportResult = {
   missingRequiredReports: string[];
 };
 
+type PackageRequirement = {
+  id: string;
+  label: string;
+  reportIds: string[];
+};
+
+type PackageRequirementStatus = PackageRequirement & {
+  resolved: boolean;
+  uploaded: boolean;
+  omitted: boolean;
+};
+
+type PackageSectionId =
+  | "executive-summary"
+  | "kpi-snapshot"
+  | "income-statement"
+  | "balance-sheet"
+  | "ar-aging"
+  | "ap-aging"
+  | "customer-sales"
+  | "vendor-expenses"
+  | "inventory-summary"
+  | "fixed-asset-analysis"
+  | "payroll-fte"
+  | "ratio-analysis"
+  | "budget-vs-actual"
+  | "debt-schedule"
+  | "flux-summary"
+  | "month-flux"
+  | "quarter-flux"
+  | "year-flux"
+  | "recommended-follow-up";
+
+type RatioId =
+  | "Net Margin"
+  | "Gross Margin"
+  | "Expense Ratio"
+  | "Current Ratio"
+  | "Quick Ratio"
+  | "Cash to Assets"
+  | "Accounts Receivable to Assets"
+  | "AP to Revenue"
+  | "Inventory to Total Assets"
+  | "Working Capital Estimate"
+  | "DSO"
+  | "Payroll Cost as % of Revenue"
+  | "Gross Wages as % of Revenue"
+  | "Payroll Taxes as % of Gross Wages"
+  | "Payroll Cost per FTE"
+  | "Revenue per FTE"
+  | "Gross Profit per FTE"
+  | "Debt to Equity"
+  | "Debt to Assets";
+
+type FluxAnalysisId = "month" | "quarter" | "year";
+
+type ClientPackageSettings = {
+  packageTier: PackageTier;
+  pdfSections: PackageSectionId[];
+  powerpointSections: PackageSectionId[];
+  selectedRatios: RatioId[];
+  selectedFluxAnalyses: FluxAnalysisId[];
+  fluxSettings: FluxSettings;
+  includeHighSeverityOnly?: boolean;
+  includeModerateSeverity?: boolean;
+  maxFluxRows?: number;
+  useSamePowerPointSelections: boolean;
+};
+
 type PowerPointSlideData = {
   title: string;
   subtitle: string;
@@ -257,6 +326,131 @@ const PACKAGE_LABELS: Record<PackageTier, string> = {
   virtualCfo: "Virtual CFO",
 };
 const PREVIEW_COLUMN_LIMIT = 10;
+const essentialPackageRequirements: PackageRequirement[] = [
+  { id: "pl", label: "Profit and Loss", reportIds: ["pl"] },
+  { id: "bs", label: "Balance Sheet", reportIds: ["bs"] },
+  { id: "prior-pl-or-gl", label: "Prior Month P&L or GL", reportIds: ["prior-pl", "prior-month-gl"] },
+  { id: "prior-bs-or-gl", label: "Prior Month Balance Sheet or GL", reportIds: ["prior-bs", "prior-month-gl"] },
+];
+const professionalPackageRequirements: PackageRequirement[] = [
+  ...essentialPackageRequirements,
+  { id: "ar", label: "AR Aging", reportIds: ["ar"] },
+  { id: "ap", label: "AP Aging", reportIds: ["ap"] },
+  { id: "inventory", label: "Inventory Valuation", reportIds: ["inventory"] },
+  { id: "budget", label: "Budget vs Actual", reportIds: ["budget"] },
+  { id: "customers", label: "Sales by Customer", reportIds: ["customers"] },
+  { id: "vendors", label: "Expenses by Vendor", reportIds: ["vendors"] },
+  { id: "payroll-summary", label: "Payroll Summary / Payroll by Department", reportIds: ["current-payroll", "prior-payroll"] },
+];
+const packageRequirements: Record<PackageTier, PackageRequirement[]> = {
+  essential: essentialPackageRequirements,
+  professional: professionalPackageRequirements,
+  virtualCfo: [
+    ...professionalPackageRequirements,
+    { id: "current-month-gl", label: "Current Month GL", reportIds: ["current-month-gl"] },
+    { id: "prior-month-gl", label: "Prior Month GL", reportIds: ["prior-month-gl"] },
+    { id: "current-quarter-gl", label: "Current Quarter GL", reportIds: ["current-quarter-gl"] },
+    { id: "prior-quarter-gl", label: "Prior Quarter GL", reportIds: ["prior-quarter-gl"] },
+    { id: "current-year-gl", label: "Current Year GL", reportIds: ["current-year-gl"] },
+    { id: "prior-year-gl", label: "Prior Year GL", reportIds: ["prior-year-gl"] },
+    { id: "fixed-assets", label: "Fixed Assets", reportIds: ["fixed-assets"] },
+    { id: "prior-fixed-assets", label: "Prior Period Fixed Assets", reportIds: ["prior-fixed-assets"] },
+    { id: "debt", label: "Debt Schedule", reportIds: ["debt"] },
+    { id: "cash-flow", label: "Statement of Cash Flows", reportIds: ["cash-flow"] },
+  ],
+};
+const packageSectionOptions: Array<{
+  id: PackageSectionId;
+  label: string;
+  minimumTier: PackageTier;
+  requiredReportIds?: string[];
+}> = [
+  { id: "executive-summary", label: "Executive Summary", minimumTier: "essential" },
+  { id: "kpi-snapshot", label: "KPI Snapshot", minimumTier: "essential" },
+  { id: "income-statement", label: "Income Statement", minimumTier: "essential", requiredReportIds: ["pl"] },
+  { id: "balance-sheet", label: "Balance Sheet", minimumTier: "essential", requiredReportIds: ["bs"] },
+  { id: "ar-aging", label: "AR Aging", minimumTier: "essential", requiredReportIds: ["ar"] },
+  { id: "ap-aging", label: "AP Aging", minimumTier: "essential", requiredReportIds: ["ap"] },
+  { id: "customer-sales", label: "Customer Sales Analysis", minimumTier: "professional", requiredReportIds: ["customers"] },
+  { id: "vendor-expenses", label: "Vendor Expense Analysis", minimumTier: "professional", requiredReportIds: ["vendors"] },
+  { id: "inventory-summary", label: "Inventory Summary", minimumTier: "professional", requiredReportIds: ["inventory"] },
+  { id: "fixed-asset-analysis", label: "Fixed Asset Analysis", minimumTier: "virtualCfo", requiredReportIds: ["fixed-assets"] },
+  { id: "payroll-fte", label: "Payroll and FTE Analysis", minimumTier: "virtualCfo", requiredReportIds: ["current-payroll", "prior-payroll"] },
+  { id: "ratio-analysis", label: "Ratio Analysis", minimumTier: "essential" },
+  { id: "budget-vs-actual", label: "Budget vs Actual", minimumTier: "professional", requiredReportIds: ["budget"] },
+  { id: "debt-schedule", label: "Debt Schedule", minimumTier: "virtualCfo", requiredReportIds: ["debt"] },
+  { id: "flux-summary", label: "Flux Analysis Executive Summary", minimumTier: "virtualCfo", requiredReportIds: ["current-month-gl", "prior-month-gl"] },
+  { id: "month-flux", label: "Month-over-Month Flux", minimumTier: "virtualCfo", requiredReportIds: ["current-month-gl", "prior-month-gl"] },
+  { id: "quarter-flux", label: "Quarter-over-Quarter Flux", minimumTier: "virtualCfo", requiredReportIds: ["current-quarter-gl", "prior-quarter-gl"] },
+  { id: "year-flux", label: "Year-over-Year Flux", minimumTier: "virtualCfo", requiredReportIds: ["current-year-gl", "prior-year-gl"] },
+  { id: "recommended-follow-up", label: "Recommended Follow-Up Items", minimumTier: "virtualCfo" },
+];
+const ratioOptions: RatioId[] = [
+  "Net Margin",
+  "Gross Margin",
+  "Expense Ratio",
+  "Current Ratio",
+  "Quick Ratio",
+  "Cash to Assets",
+  "Accounts Receivable to Assets",
+  "AP to Revenue",
+  "Inventory to Total Assets",
+  "Working Capital Estimate",
+  "DSO",
+  "Payroll Cost as % of Revenue",
+  "Gross Wages as % of Revenue",
+  "Payroll Taxes as % of Gross Wages",
+  "Payroll Cost per FTE",
+  "Revenue per FTE",
+  "Gross Profit per FTE",
+  "Debt to Equity",
+  "Debt to Assets",
+];
+const packageDefaultSections: Record<PackageTier, PackageSectionId[]> = {
+  essential: [
+    "executive-summary",
+    "kpi-snapshot",
+    "income-statement",
+    "balance-sheet",
+    "ar-aging",
+    "ap-aging",
+    "ratio-analysis",
+  ],
+  professional: [
+    "executive-summary",
+    "kpi-snapshot",
+    "income-statement",
+    "balance-sheet",
+    "ar-aging",
+    "ap-aging",
+    "ratio-analysis",
+    "customer-sales",
+    "vendor-expenses",
+    "inventory-summary",
+    "budget-vs-actual",
+  ],
+  virtualCfo: [
+    "executive-summary",
+    "kpi-snapshot",
+    "income-statement",
+    "balance-sheet",
+    "ar-aging",
+    "ap-aging",
+    "ratio-analysis",
+    "customer-sales",
+    "vendor-expenses",
+    "inventory-summary",
+    "budget-vs-actual",
+    "fixed-asset-analysis",
+    "payroll-fte",
+    "debt-schedule",
+    "flux-summary",
+    "month-flux",
+    "quarter-flux",
+    "year-flux",
+    "recommended-follow-up",
+  ],
+};
 const REPORT_FILENAME_KEYWORDS: Record<string, string[]> = {
   pl: ["profit and loss", "profitandloss", "profit loss", "p&l", "pnl", "income statement"],
   bs: ["balance sheet"],
@@ -319,6 +513,90 @@ function isProfessionalOrHigher(tier: PackageTier) {
 
 function isVirtualCfo(tier: PackageTier) {
   return tier === "virtualCfo";
+}
+
+function getDefaultRatiosForPackage(tier: PackageTier): RatioId[] {
+  if (tier === "essential") {
+    return [
+      "Net Margin",
+      "Gross Margin",
+      "Expense Ratio",
+      "Current Ratio",
+      "Quick Ratio",
+      "Cash to Assets",
+      "Accounts Receivable to Assets",
+      "AP to Revenue",
+      "Working Capital Estimate",
+      "DSO",
+    ];
+  }
+  if (tier === "professional") {
+    return [...getDefaultRatiosForPackage("essential"), "Inventory to Total Assets"];
+  }
+  return [
+    ...getDefaultRatiosForPackage("professional"),
+    "Payroll Cost as % of Revenue",
+    "Gross Wages as % of Revenue",
+    "Payroll Taxes as % of Gross Wages",
+    "Payroll Cost per FTE",
+    "Revenue per FTE",
+    "Gross Profit per FTE",
+    "Debt to Equity",
+    "Debt to Assets",
+  ];
+}
+
+function getClientSettingsKey(clientName: string) {
+  return `finsight_client_package_settings_${clientName.trim().toLowerCase().replace(/\s+/g, "_")}`;
+}
+
+function filterSelectedFluxRows(rows: FluxRow[], includeHighOnly: boolean, includeModerate: boolean, maxRows: number) {
+  return rows
+    .filter((row) => {
+      if (includeHighOnly) return row.severity === "High";
+      if (!includeModerate) return row.severity !== "Moderate";
+      return true;
+    })
+    .slice(0, Math.max(maxRows || 0, 1));
+}
+
+function isReportRequiredForPackage(reportId: string, packageTier: PackageTier) {
+  return packageRequirements[packageTier].some((requirement) => requirement.reportIds.includes(reportId));
+}
+
+function isReportRequiredForOpenRequirement(
+  reportId: string,
+  packageTier: PackageTier,
+  reports: UploadReport[],
+) {
+  return packageRequirements[packageTier].some((requirement) => {
+    if (!requirement.reportIds.includes(reportId)) return false;
+
+    return !requirement.reportIds.some((requirementReportId) => {
+      const matchingReport = reports.find((report) => report.id === requirementReportId);
+      return Boolean(matchingReport?.data || matchingReport?.omitted);
+    });
+  });
+}
+
+function getPackageRequirementStatuses(
+  packageTier: PackageTier,
+  reports: UploadReport[],
+): PackageRequirementStatus[] {
+  return packageRequirements[packageTier].map((requirement) => {
+    const matchingReports = requirement.reportIds
+      .map((reportId) => reports.find((report) => report.id === reportId))
+      .filter(Boolean) as UploadReport[];
+    const uploaded = matchingReports.some((report) => Boolean(report.data));
+    const omitted = matchingReports.some((report) => report.omitted);
+
+    return {
+      ...requirement,
+      uploaded,
+      omitted,
+      resolved: uploaded || omitted,
+    };
+  });
 }
 
 function normalizeFileNameForMatch(fileName: string) {
@@ -2818,6 +3096,40 @@ function calculateDso(kpis: KPIs, periodDays: number | null) {
   return averageDailySales ? kpis.accountsReceivable / averageDailySales : null;
 }
 
+function calculateDsoFromAverageDailySales(kpis: KPIs, averageDailySales: number | null) {
+  if (!kpis.accountsReceivable || !averageDailySales) return null;
+
+  return kpis.accountsReceivable / averageDailySales;
+}
+
+function calculateSalesDetailRevenue(data: ParsedFile | null) {
+  if (!data) return null;
+
+  const headerIndex = findHeaderIndex(data.rows, [
+    "amount",
+    "sales",
+    "total",
+    "invoice amount",
+    "net sales",
+  ]);
+  if (headerIndex === -1) return null;
+
+  const headers = data.rows[headerIndex];
+  const amountIndex = headers.findIndex((header) => {
+    const normalized = normalizeHeader(header);
+    return ["amount", "sales", "total", "invoice amount", "net sales"].some((label) =>
+      normalized.includes(label),
+    );
+  });
+  if (amountIndex === -1) return null;
+
+  const total = data.rows
+    .slice(headerIndex + 1)
+    .reduce((sum, row) => sum + (parseNumber(row[amountIndex]) || 0), 0);
+
+  return total || null;
+}
+
 function buildRatioRows(
   kpis: KPIs,
   netMargin: number,
@@ -2827,6 +3139,8 @@ function buildRatioRows(
   periodDays: number | null,
   payrollAnalysis: PayrollAnalysis,
   includePayroll: boolean,
+  debtMetrics: DebtMetrics,
+  dsoOverride: number | null = null,
 ) {
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
   const expenseRatio = kpis.revenue ? (kpis.expenses / kpis.revenue) * 100 : 0;
@@ -2844,7 +3158,7 @@ function buildRatioRows(
     : 0;
   const workingCapital =
     currentAssets && currentLiabilities ? currentAssets - currentLiabilities : null;
-  const dso = calculateDso(kpis, periodDays);
+  const dso = dsoOverride ?? calculateDso(kpis, periodDays);
   const payrollCostToRevenue =
     includePayroll && kpis.revenue ? (payrollAnalysis.totalCurrentPayrollCost / kpis.revenue) * 100 : null;
   const grossWages = payrollAnalysis.rows.reduce((total, row) => total + row.currentGrossWages, 0);
@@ -2931,9 +3245,27 @@ function buildRatioRows(
     },
     {
       name: "DSO",
-      formula: "Accounts Receivable / (Revenue / Period Days)",
+      formula: dsoOverride !== null ? "Accounts Receivable / Average Daily Sales" : "Accounts Receivable / (Revenue / Period Days)",
       value: dso !== null ? `${dso.toFixed(1)} days` : "N/A",
       interpretation: interpretDso(dso),
+    },
+    {
+      name: "Debt to Equity",
+      formula: "Total Debt / Total Equity",
+      value: debtMetrics.debtToEquity !== null ? `${debtMetrics.debtToEquity.toFixed(1)}%` : "N/A",
+      interpretation:
+        debtMetrics.debtToEquity !== null && debtMetrics.debtToEquity > 100
+          ? "Leverage is elevated relative to equity. Review debt capacity, covenant risk, and repayment plans."
+          : "Leverage appears manageable based on available equity data.",
+    },
+    {
+      name: "Debt to Assets",
+      formula: "Total Debt / Total Assets",
+      value: debtMetrics.debtToAssets !== null ? `${debtMetrics.debtToAssets.toFixed(1)}%` : "N/A",
+      interpretation:
+        debtMetrics.debtToAssets !== null && debtMetrics.debtToAssets > 50
+          ? "Debt funds a meaningful share of the asset base. Monitor liquidity and refinancing risk."
+          : "Debt appears reasonable relative to total assets based on uploaded data.",
     },
     ...(includePayroll
       ? [
@@ -3426,13 +3758,37 @@ function buildFluxDebugInfo(
 export default function UploadPage() {
   const [packageTier, setPackageTier] = useState<PackageTier>("essential");
   const [hasSelectedPackage, setHasSelectedPackage] = useState(false);
+  const [showImportReports, setShowImportReports] = useState(false);
+  const [showCustomizePackage, setShowCustomizePackage] = useState(false);
   const [isPackageGenerated, setIsPackageGenerated] = useState(false);
   const [isPackageExported, setIsPackageExported] = useState(false);
+  const [pdfReviewed, setPdfReviewed] = useState(false);
   const [kpisConfirmed, setKpisConfirmed] = useState(false);
+  const [kpiReviewVisible, setKpiReviewVisible] = useState(false);
+  const [showPdfGeneration, setShowPdfGeneration] = useState(false);
   const [reviewerNotes, setReviewerNotes] = useState("");
+  const [clientName, setClientName] = useState("Client Company Name");
+  const [clientReportingPeriod, setClientReportingPeriod] = useState("Current Reporting Period");
+  const [preparedBy, setPreparedBy] = useState("FinSight Reports");
+  const [saveSettingsForClient, setSaveSettingsForClient] = useState(false);
+  const [selectedPdfSections, setSelectedPdfSections] = useState<PackageSectionId[]>(packageDefaultSections.essential);
+  const [useSamePowerPointSelections, setUseSamePowerPointSelections] = useState(true);
+  const [selectedPowerPointSections, setSelectedPowerPointSections] = useState<PackageSectionId[]>(packageDefaultSections.essential);
+  const [selectedRatios, setSelectedRatios] = useState<RatioId[]>(getDefaultRatiosForPackage("essential"));
+  const [selectedFluxAnalyses, setSelectedFluxAnalyses] = useState<FluxAnalysisId[]>(["month", "quarter", "year"]);
+  const [includeHighSeverityOnly, setIncludeHighSeverityOnly] = useState(false);
+  const [includeModerateSeverity, setIncludeModerateSeverity] = useState(true);
+  const [maxFluxRows, setMaxFluxRows] = useState(10);
   const [reportingPeriodStart, setReportingPeriodStart] = useState("");
   const [reportingPeriodEnd, setReportingPeriodEnd] = useState("");
   const [manualPeriodDays, setManualPeriodDays] = useState("");
+  const [dsoMonthlyRevenue, setDsoMonthlyRevenue] = useState("");
+  const [dsoPeriodDays, setDsoPeriodDays] = useState("");
+  const [dsoAccountsReceivable, setDsoAccountsReceivable] = useState("");
+  const [dsoAverageDailySales, setDsoAverageDailySales] = useState("");
+  const [dsoConfirmed, setDsoConfirmed] = useState(false);
+  const [dsoInputsChangedAfterConfirmation, setDsoInputsChangedAfterConfirmation] = useState(false);
+  const [dsoInputOmitted, setDsoInputOmitted] = useState(false);
   const [reportsChangedAfterConfirmation, setReportsChangedAfterConfirmation] = useState(false);
   const [omittedReportIds, setOmittedReportIds] = useState<string[]>([]);
   const [plData, setPlData] = useState<ParsedFile | null>(null);
@@ -3459,11 +3815,14 @@ export default function UploadPage() {
   const [priorPayrollData, setPriorPayrollData] = useState<ParsedFile | null>(null);
   const [currentPayrollDetailData, setCurrentPayrollDetailData] = useState<ParsedFile | null>(null);
   const [priorPayrollDetailData, setPriorPayrollDetailData] = useState<ParsedFile | null>(null);
+  const [salesDetailData, setSalesDetailData] = useState<ParsedFile | null>(null);
   const [fteDivisor, setFteDivisor] = useState(173.33);
   const [folderImportResult, setFolderImportResult] = useState<FolderImportResult | null>(null);
   const [isFolderImporting, setIsFolderImporting] = useState(false);
   const [showPowerPointDraft, setShowPowerPointDraft] = useState(false);
-  const [powerPointPromptSkipped, setPowerPointPromptSkipped] = useState(false);
+  const [powerpointOmitted, setPowerpointOmitted] = useState(false);
+  const [powerpointCreated, setPowerpointCreated] = useState(false);
+  const [packageComplete, setPackageComplete] = useState(false);
   const [fluxSettings, setFluxSettings] = useState<FluxSettings>({
     dollarThreshold: 5000,
     percentThreshold: 10,
@@ -3474,6 +3833,13 @@ export default function UploadPage() {
   const resetGeneratedState = () => {
     setIsPackageGenerated(false);
     setIsPackageExported(false);
+    setPdfReviewed(false);
+    setPowerpointOmitted(false);
+    setPowerpointCreated(false);
+    setPackageComplete(false);
+    setShowPowerPointDraft(false);
+    setShowPdfGeneration(false);
+    setKpiReviewVisible(false);
     if (kpisConfirmed) setReportsChangedAfterConfirmation(true);
     setKpisConfirmed(false);
   };
@@ -3829,23 +4195,24 @@ export default function UploadPage() {
       onRemove: () => removeReport(setPriorYearGlData, "prior-year-gl"),
       onOmitChange: (omitted) => setReportOmitted("prior-year-gl", omitted),
     },
-  ];
+  ].map((report, _index, reports) => ({
+    ...report,
+    required: isReportRequiredForOpenRequirement(report.id, packageTier, reports),
+  }));
   const selectedReports = uploadReports.filter((report) =>
-    isReportAvailable(report.tier, packageTier),
+    isReportAvailable(report.tier, packageTier) || isReportRequiredForPackage(report.id, packageTier),
   );
   const uploadedReportsCount = selectedReports.filter(
     (report) => report.data && !report.omitted,
   ).length;
-  const requiredUploadedReportsCount = selectedReports.filter(
-    (report) => report.required && report.data && !report.omitted,
+  const packageRequirementStatuses = getPackageRequirementStatuses(packageTier, uploadReports);
+  const requiredUploadedReportsCount = packageRequirementStatuses.filter(
+    (requirement) => requirement.resolved,
   ).length;
-  const missingReports = selectedReports.filter(
-    (report) => report.required && !report.omitted && !report.data,
-  );
-  const requiredUploadsComplete = hasSelectedPackage && selectedReports.length > 0 && missingReports.length === 0;
+  const missingReports = packageRequirementStatuses.filter((requirement) => !requirement.resolved);
+  const requiredUploadsComplete =
+    hasSelectedPackage && packageRequirementStatuses.length > 0 && missingReports.length === 0;
   const kpisAvailable = requiredUploadsComplete;
-  const canReviewKpis = requiredUploadsComplete;
-  const canGeneratePackage = canReviewKpis && kpisAvailable && kpisConfirmed;
   const canPreviewPackage = isPackageGenerated;
 
   const activePlData = isReportOmitted("pl") ? null : plData;
@@ -3879,7 +4246,58 @@ export default function UploadPage() {
   const manualPeriodDaysValue = parseNumber(manualPeriodDays);
   const reportingPeriodDays =
     manualPeriodDaysValue && manualPeriodDaysValue > 0 ? manualPeriodDaysValue : autoPeriodDays;
-  const dso = calculateDso(kpis, reportingPeriodDays);
+  const automaticDso = calculateDso(kpis, reportingPeriodDays);
+  const dsoAccountsReceivableValue = parseNumber(dsoAccountsReceivable);
+  const dsoMonthlyRevenueValue = parseNumber(dsoMonthlyRevenue);
+  const dsoPeriodDaysValue = parseNumber(dsoPeriodDays);
+  const dsoAverageDailySalesValue = parseNumber(dsoAverageDailySales);
+  const salesDetailRevenue = calculateSalesDetailRevenue(salesDetailData);
+  const dsoRevenueForOptionOne = dsoMonthlyRevenueValue || kpis.revenue || null;
+  const dsoAccountsReceivableUsed = dsoAccountsReceivableValue || kpis.accountsReceivable || 0;
+  const averageDailySalesFromOptionOne =
+    dsoRevenueForOptionOne && dsoPeriodDaysValue ? dsoRevenueForOptionOne / dsoPeriodDaysValue : null;
+  const averageDailySalesFromReportingPeriod =
+    dsoRevenueForOptionOne && reportingPeriodDays ? dsoRevenueForOptionOne / reportingPeriodDays : null;
+  const averageDailySalesFromSalesDetail =
+    salesDetailRevenue && reportingPeriodDays ? salesDetailRevenue / reportingPeriodDays : null;
+  const resolvedAverageDailySales =
+    averageDailySalesFromOptionOne ||
+    dsoAverageDailySalesValue ||
+    averageDailySalesFromSalesDetail ||
+    averageDailySalesFromReportingPeriod;
+  const dsoPreview =
+    automaticDso ??
+    calculateDsoFromAverageDailySales(
+      { ...kpis, accountsReceivable: dsoAccountsReceivableUsed },
+      resolvedAverageDailySales,
+    );
+  const dsoRatioSelected = selectedRatios.includes("DSO");
+  const dsoInputNeeded = requiredUploadsComplete && dsoRatioSelected && kpis.accountsReceivable > 0;
+  const dsoInputResolved = !dsoInputNeeded || dsoConfirmed || dsoInputOmitted;
+  const missingInputsRemaining = dsoInputResolved ? 0 : 1;
+  const resolvedInputsCount = dsoInputNeeded && dsoInputResolved ? 1 : 0;
+  const missingInputsResolved = requiredUploadsComplete && missingInputsRemaining === 0;
+  const canReviewKpis = showCustomizePackage && missingInputsResolved;
+  const showKpiReview = canReviewKpis && kpiReviewVisible;
+  const canGeneratePackage = canReviewKpis && kpisAvailable && kpisConfirmed;
+  const dso = dsoConfirmed && !dsoInputOmitted ? dsoPreview : null;
+  const activeWorkflowStep = !hasSelectedPackage || !showImportReports
+    ? 1
+    : !showCustomizePackage
+      ? 2
+      : !kpiReviewVisible
+        ? 3
+        : !kpisConfirmed
+          ? 4
+          : !showPdfGeneration
+            ? 4
+            : !isPackageGenerated || !pdfReviewed
+              ? 5
+              : !powerpointCreated && !powerpointOmitted
+                ? 6
+                : !packageComplete
+                  ? 7
+                  : 0;
   const arKpis = calculateAgingKpis(activeArData);
   const apKpis = calculateAPKpis(activeApData);
   const inventoryKpis = calculateInventoryKpis(activeInventoryData);
@@ -3887,12 +4305,21 @@ export default function UploadPage() {
   const priorFixedAssetKpis = calculateFixedAssetKpis(activePriorFixedAssetData, kpis.totalAssets, null);
   const fixedAssetChangeRows = getFixedAssetChangeRows(fixedAssetKpis, priorFixedAssetKpis);
   const bsStatementRows = getStatementRows(activeBsData);
-  const reportPeriod = "Current Reporting Period";
-  const companyName = "Client Company Name";
+  const reportPeriod = clientReportingPeriod || "Current Reporting Period";
+  const companyName = clientName || "Client Company Name";
   const payrollAnalysis = calculatePayrollAnalysis(activeCurrentPayrollData, activePriorPayrollData, fteDivisor);
-  const monthFluxRows = getFluxRows(activeCurrentMonthGlData, activePriorMonthGlData, fluxSettings, payrollAnalysis);
-  const quarterFluxRows = getFluxRows(activeCurrentQuarterGlData, activePriorQuarterGlData, fluxSettings, payrollAnalysis);
-  const yearFluxRows = getFluxRows(activeCurrentYearGlData, activePriorYearGlData, fluxSettings, payrollAnalysis);
+  const rawMonthFluxRows = getFluxRows(activeCurrentMonthGlData, activePriorMonthGlData, fluxSettings, payrollAnalysis);
+  const rawQuarterFluxRows = getFluxRows(activeCurrentQuarterGlData, activePriorQuarterGlData, fluxSettings, payrollAnalysis);
+  const rawYearFluxRows = getFluxRows(activeCurrentYearGlData, activePriorYearGlData, fluxSettings, payrollAnalysis);
+  const monthFluxRows = selectedFluxAnalyses.includes("month")
+    ? filterSelectedFluxRows(rawMonthFluxRows, includeHighSeverityOnly, includeModerateSeverity, maxFluxRows)
+    : [];
+  const quarterFluxRows = selectedFluxAnalyses.includes("quarter")
+    ? filterSelectedFluxRows(rawQuarterFluxRows, includeHighSeverityOnly, includeModerateSeverity, maxFluxRows)
+    : [];
+  const yearFluxRows = selectedFluxAnalyses.includes("year")
+    ? filterSelectedFluxRows(rawYearFluxRows, includeHighSeverityOnly, includeModerateSeverity, maxFluxRows)
+    : [];
   const monthFluxDebug = buildFluxDebugInfo(activeCurrentMonthGlData, activePriorMonthGlData, monthFluxRows, fluxSettings);
   const quarterFluxDebug = buildFluxDebugInfo(activeCurrentQuarterGlData, activePriorQuarterGlData, quarterFluxRows, fluxSettings);
   const yearFluxDebug = buildFluxDebugInfo(activeCurrentYearGlData, activePriorYearGlData, yearFluxRows, fluxSettings);
@@ -3907,7 +4334,9 @@ export default function UploadPage() {
     reportingPeriodDays,
     payrollAnalysis,
     Boolean(activeCurrentPayrollData),
-  );
+    debtMetrics,
+    dso,
+  ).filter((ratio) => selectedRatios.includes(ratio.name as RatioId));
   const executiveSummary = buildExecutiveSummary({
     kpis,
     netMargin,
@@ -3940,7 +4369,29 @@ export default function UploadPage() {
     hasRatios: ratioRows.length > 0,
     hasFollowUps: executiveSummary.followUpItems.length > 0,
     hasAnyFlux: monthFluxRows.length > 0 || quarterFluxRows.length > 0 || yearFluxRows.length > 0,
+  }).filter((section) => {
+    const matchingOption = packageSectionOptions.find((option) => option.label === section.title);
+    if (!matchingOption && section.title === "Financial Performance Snapshot") {
+      return selectedPdfSections.includes("kpi-snapshot");
+    }
+    if (!matchingOption && section.title === "AR and AP Aging") {
+      return selectedPdfSections.includes("ar-aging") || selectedPdfSections.includes("ap-aging");
+    }
+    if (!matchingOption && section.title === "Debt Schedule / Loan Detail") {
+      return selectedPdfSections.includes("debt-schedule");
+    }
+    if (!matchingOption && section.title === "Month-over-Month Flux Analysis") {
+      return selectedPdfSections.includes("month-flux");
+    }
+    if (!matchingOption && section.title === "Quarter-over-Quarter Flux Analysis") {
+      return selectedPdfSections.includes("quarter-flux");
+    }
+    if (!matchingOption && section.title === "Year-over-Year Flux Analysis") {
+      return selectedPdfSections.includes("year-flux");
+    }
+    return matchingOption ? selectedPdfSections.includes(matchingOption.id) : true;
   });
+  const effectivePowerPointSections = useSamePowerPointSelections ? selectedPdfSections : selectedPowerPointSections;
   const powerPointSlides = createPowerPointSlidesData({
     companyName,
     reportPeriod,
@@ -3958,14 +4409,138 @@ export default function UploadPage() {
     includeInventory: Boolean(activeInventoryData),
     includePayroll: Boolean(activeCurrentPayrollData),
     includeFixedAssets: Boolean(activeFixedAssetData),
+  }).filter((slide) => {
+    const slideSection = slide.sectionType;
+    if (slideSection === "title") return true;
+    if (slideSection === "summary") return effectivePowerPointSections.includes("executive-summary");
+    if (slideSection === "kpi") return effectivePowerPointSections.includes("kpi-snapshot");
+    if (slideSection === "liquidity") return effectivePowerPointSections.includes("ar-aging") || effectivePowerPointSections.includes("ap-aging");
+    if (slideSection === "inventory") return effectivePowerPointSections.includes("inventory-summary");
+    if (slideSection === "fixed-assets") return effectivePowerPointSections.includes("fixed-asset-analysis");
+    if (slideSection === "payroll") return effectivePowerPointSections.includes("payroll-fte");
+    if (slideSection === "ratios") return effectivePowerPointSections.includes("ratio-analysis");
+    if (slideSection === "flux") return effectivePowerPointSections.includes("flux-summary");
+    return true;
   });
   const handlePackageTierChange = (tier: PackageTier) => {
     setPackageTier(tier);
     setHasSelectedPackage(true);
+    setShowImportReports(false);
+    setShowCustomizePackage(false);
+    setSelectedPdfSections(packageDefaultSections[tier]);
+    setSelectedPowerPointSections(packageDefaultSections[tier]);
+    setSelectedRatios(getDefaultRatiosForPackage(tier));
+    setSelectedFluxAnalyses(["month", "quarter", "year"]);
     setIsPackageGenerated(false);
     setIsPackageExported(false);
+    setPdfReviewed(false);
+    setPowerpointOmitted(false);
+    setPowerpointCreated(false);
+    setPackageComplete(false);
+    setShowPowerPointDraft(false);
     setKpisConfirmed(false);
+    setKpiReviewVisible(false);
     setReportsChangedAfterConfirmation(false);
+  };
+  const handleSaveClientSettings = () => {
+    if (!clientName.trim()) {
+      alert("Enter a client name before saving settings.");
+      return;
+    }
+    const settings: ClientPackageSettings = {
+      packageTier,
+      pdfSections: selectedPdfSections,
+      powerpointSections: selectedPowerPointSections,
+      selectedRatios,
+      selectedFluxAnalyses,
+      fluxSettings,
+      includeHighSeverityOnly,
+      includeModerateSeverity,
+      maxFluxRows,
+      useSamePowerPointSelections,
+    };
+    window.localStorage.setItem(getClientSettingsKey(clientName), JSON.stringify(settings));
+    setSaveSettingsForClient(true);
+  };
+  const handleLoadClientSettings = () => {
+    if (!clientName.trim()) {
+      alert("Enter a client name before loading settings.");
+      return;
+    }
+    const rawSettings = window.localStorage.getItem(getClientSettingsKey(clientName));
+    if (!rawSettings) {
+      alert("No saved settings found for this client.");
+      return;
+    }
+    const settings = JSON.parse(rawSettings) as ClientPackageSettings;
+    setPackageTier(settings.packageTier || packageTier);
+    setSelectedPdfSections(settings.pdfSections || packageDefaultSections[settings.packageTier || packageTier]);
+    setSelectedPowerPointSections(settings.powerpointSections || settings.pdfSections || packageDefaultSections[settings.packageTier || packageTier]);
+    setSelectedRatios(settings.selectedRatios || getDefaultRatiosForPackage(settings.packageTier || packageTier));
+    setSelectedFluxAnalyses(settings.selectedFluxAnalyses || ["month", "quarter", "year"]);
+    setFluxSettings(settings.fluxSettings || fluxSettings);
+    setIncludeHighSeverityOnly(settings.includeHighSeverityOnly ?? false);
+    setIncludeModerateSeverity(settings.includeModerateSeverity ?? true);
+    setMaxFluxRows(settings.maxFluxRows || 10);
+    setUseSamePowerPointSelections(settings.useSamePowerPointSelections ?? true);
+    setHasSelectedPackage(true);
+    resetGeneratedState();
+  };
+  const handleResetPackageDefaults = () => {
+    setSelectedPdfSections(packageDefaultSections[packageTier]);
+    setSelectedPowerPointSections(packageDefaultSections[packageTier]);
+    setSelectedRatios(getDefaultRatiosForPackage(packageTier));
+    setSelectedFluxAnalyses(["month", "quarter", "year"]);
+    setIncludeHighSeverityOnly(false);
+    setIncludeModerateSeverity(true);
+    setMaxFluxRows(10);
+    resetGeneratedState();
+  };
+  const handleDsoInputChanged = () => {
+    resetGeneratedState();
+    if (dsoConfirmed) setDsoInputsChangedAfterConfirmation(true);
+    setDsoConfirmed(false);
+    setDsoInputOmitted(false);
+  };
+  const handleConfirmDso = () => {
+    if (dsoPreview === null) return;
+    setDsoConfirmed(true);
+    setDsoInputOmitted(false);
+    setDsoInputsChangedAfterConfirmation(false);
+    setKpiReviewVisible(false);
+    window.setTimeout(() => scrollToWorkflowSection("missing-inputs"), 50);
+  };
+  const handleEditDsoInputs = () => {
+    if (dsoConfirmed) setDsoInputsChangedAfterConfirmation(true);
+    setDsoConfirmed(false);
+  };
+  const handleOmitDso = () => {
+    resetGeneratedState();
+    setDsoInputOmitted(true);
+    setDsoConfirmed(false);
+    setDsoInputsChangedAfterConfirmation(false);
+    setKpiReviewVisible(false);
+    setSelectedRatios((current) => current.filter((ratio) => ratio !== "DSO"));
+    window.setTimeout(() => scrollToWorkflowSection("missing-inputs"), 50);
+  };
+  const handleContinueToKpiReview = () => {
+    if (!canReviewKpis) return;
+    setKpiReviewVisible(true);
+    window.setTimeout(() => scrollToWorkflowSection("kpi-review"), 50);
+  };
+  const handleContinueToPdfGeneration = () => {
+    if (!kpisConfirmed) return;
+    setShowPdfGeneration(true);
+    window.setTimeout(() => scrollToWorkflowSection("pdf-review"), 50);
+  };
+  const handleContinueToUploadReports = () => {
+    setShowImportReports(true);
+    window.setTimeout(() => scrollToWorkflowSection("upload-reports"), 50);
+  };
+  const handleContinueToCustomizePackage = () => {
+    if (!requiredUploadsComplete) return;
+    setShowCustomizePackage(true);
+    window.setTimeout(() => scrollToWorkflowSection("missing-inputs"), 50);
   };
   const handleFteDivisorChange = (value: number) => {
     resetGeneratedState();
@@ -3975,12 +4550,86 @@ export default function UploadPage() {
     if (!canGeneratePackage) return;
     setIsPackageGenerated(true);
     setIsPackageExported(false);
-    setPowerPointPromptSkipped(false);
+    setPdfReviewed(false);
+    setPowerpointOmitted(false);
+    setPowerpointCreated(false);
+    setPackageComplete(false);
     setShowPowerPointDraft(false);
   };
   const handleExportPackage = () => {
     setIsPackageExported(true);
     window.print();
+  };
+  const handlePdfReviewedChange = (reviewed: boolean) => {
+    if (reviewed && !isPackageGenerated) return;
+    setPdfReviewed(reviewed);
+    if (!reviewed) {
+      setIsPackageExported(false);
+      setPowerpointOmitted(false);
+      setPowerpointCreated(false);
+      setPackageComplete(false);
+      setShowPowerPointDraft(false);
+    }
+  };
+  const handleCreatePowerPoint = () => {
+    if (!pdfReviewed) return;
+    setShowPowerPointDraft(true);
+    setPowerpointCreated(true);
+    setPowerpointOmitted(false);
+  };
+  const handleOmitPowerPoint = () => {
+    if (!pdfReviewed) return;
+    setPowerpointOmitted(true);
+    setPowerpointCreated(false);
+    setShowPowerPointDraft(false);
+  };
+  const handleResetPowerPointChoice = () => {
+    setPowerpointOmitted(false);
+    setPowerpointCreated(false);
+    setPackageComplete(false);
+    setShowPowerPointDraft(false);
+  };
+  const handleCompletePackage = () => {
+    if (!pdfReviewed || (!powerpointCreated && !powerpointOmitted)) return;
+    setPackageComplete(true);
+  };
+  const handleBackWorkflowStep = () => {
+    if (activeWorkflowStep === 7) {
+      setPackageComplete(false);
+      window.setTimeout(() => scrollToWorkflowSection("powerpoint-section"), 50);
+      return;
+    }
+    if (activeWorkflowStep === 6) {
+      setPdfReviewed(false);
+      setIsPackageExported(false);
+      setPowerpointCreated(false);
+      setPowerpointOmitted(false);
+      setShowPowerPointDraft(false);
+      window.setTimeout(() => scrollToWorkflowSection("pdf-review"), 50);
+      return;
+    }
+    if (activeWorkflowStep === 5) {
+      setShowPdfGeneration(false);
+      setIsPackageGenerated(false);
+      setIsPackageExported(false);
+      setPdfReviewed(false);
+      window.setTimeout(() => scrollToWorkflowSection("kpi-review"), 50);
+      return;
+    }
+    if (activeWorkflowStep === 4) {
+      setKpiReviewVisible(false);
+      window.setTimeout(() => scrollToWorkflowSection("missing-inputs"), 50);
+      return;
+    }
+    if (activeWorkflowStep === 3) {
+      setShowCustomizePackage(false);
+      window.setTimeout(() => scrollToWorkflowSection("upload-reports"), 50);
+      return;
+    }
+    if (activeWorkflowStep === 2) {
+      setShowImportReports(false);
+      window.setTimeout(() => scrollToWorkflowSection("package-selection"), 50);
+    }
   };
   const importFolderFiles = async (files: File[]) => {
     const availableReports = selectedReports.filter((report) => !report.omitted);
@@ -4021,9 +4670,12 @@ export default function UploadPage() {
       }
     }
 
-    const missingRequiredReports = selectedReports
-      .filter((report) => report.required && !report.omitted && !report.data && !loadedReportIds.has(report.id))
-      .map((report) => report.label);
+    const postImportReports = selectedReports.map((report) =>
+      loadedReportIds.has(report.id) ? { ...report, data: report.data || { name: "Imported", rows: [] } } : report,
+    );
+    const missingRequiredReports = getPackageRequirementStatuses(packageTier, postImportReports)
+      .filter((requirement) => !requirement.resolved)
+      .map((requirement) => requirement.label);
 
     setFolderImportResult({
       matchedFiles,
@@ -4069,8 +4721,11 @@ export default function UploadPage() {
           unmatchedFiles: [],
           duplicateMatches: [],
           missingRequiredReports: selectedReports
-            .filter((report) => report.required && !report.omitted && !report.data)
-            .map((report) => report.label),
+            .length
+            ? getPackageRequirementStatuses(packageTier, selectedReports)
+                .filter((requirement) => !requirement.resolved)
+                .map((requirement) => requirement.label)
+            : [],
         });
       }
       return true;
@@ -4095,6 +4750,22 @@ export default function UploadPage() {
             opacity: 1;
             transform: translateY(0);
           }
+        }
+
+        #package-selection,
+        #import-action-bar,
+        #upload-reports,
+        #manual-upload-reports,
+        #missing-inputs,
+        #kpi-review,
+        #pdf-generation,
+        #pdf-review,
+        #powerpoint-section {
+          scroll-margin-top: 200px;
+        }
+
+        .workflow-section {
+          scroll-margin-top: 240px;
         }
 
         @media print {
@@ -4316,30 +4987,203 @@ export default function UploadPage() {
           <ImportWorkflow
             packageTier={packageTier}
             hasSelectedPackage={hasSelectedPackage}
+            showImportReports={showImportReports}
+            showCustomizePackage={showCustomizePackage}
+            activeWorkflowStep={activeWorkflowStep}
             onPackageTierChange={handlePackageTierChange}
             reports={uploadReports}
             uploadedReportsCount={uploadedReportsCount}
             requiredUploadedReportsCount={requiredUploadedReportsCount}
+            totalRequiredReportsCount={packageRequirementStatuses.length}
             missingReports={missingReports}
             requiredUploadsComplete={requiredUploadsComplete}
+            missingInputsResolved={missingInputsResolved}
+            missingInputsRemaining={missingInputsRemaining}
+            resolvedInputsCount={resolvedInputsCount}
             kpisConfirmed={kpisConfirmed}
+            kpiReviewVisible={kpiReviewVisible}
+            showPdfGeneration={showPdfGeneration}
+            reviewerNotes={reviewerNotes}
             reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
             canGeneratePackage={canGeneratePackage}
             isPackageGenerated={isPackageGenerated}
             isPackageExported={isPackageExported}
+            pdfReviewed={pdfReviewed}
+            powerpointOmitted={powerpointOmitted}
+            powerpointCreated={powerpointCreated}
+            packageComplete={packageComplete}
             folderImportResult={folderImportResult}
             isFolderImporting={isFolderImporting}
             onImportFromFolder={handleImportFromFolder}
             onImportFolderFallbackFiles={handleFallbackFolderFiles}
             onGeneratePackage={handleGeneratePackage}
+            onContinueToUploadReports={handleContinueToUploadReports}
+            onContinueToCustomizePackage={handleContinueToCustomizePackage}
+            onContinueToKpiReview={handleContinueToKpiReview}
+            onContinueToPdfGeneration={handleContinueToPdfGeneration}
+            onKpisConfirmedChange={(confirmed) => {
+              setKpisConfirmed(confirmed);
+              if (confirmed) setReportsChangedAfterConfirmation(false);
+              if (!confirmed) {
+                setShowPdfGeneration(false);
+                setIsPackageGenerated(false);
+                setIsPackageExported(false);
+                setPdfReviewed(false);
+                setPowerpointOmitted(false);
+                setPowerpointCreated(false);
+                setPackageComplete(false);
+                setShowPowerPointDraft(false);
+              }
+            }}
+            onReviewerNotesChange={setReviewerNotes}
             onExportPackage={handleExportPackage}
-          />
+            onPdfReviewedChange={handlePdfReviewedChange}
+            onCreatePowerPoint={handleCreatePowerPoint}
+            onOmitPowerPoint={handleOmitPowerPoint}
+            onResetPowerPointChoice={handleResetPowerPointChoice}
+            onCompletePackage={handleCompletePackage}
+            onBackWorkflowStep={handleBackWorkflowStep}
+          >
 
-          {canReviewKpis && (
+          {activeWorkflowStep === 3 && showCustomizePackage && (
+            <PackageCustomizationPanel
+              packageTier={packageTier}
+              reports={uploadReports}
+              clientName={clientName}
+              reportingPeriod={clientReportingPeriod}
+              preparedBy={preparedBy}
+              saveSettingsForClient={saveSettingsForClient}
+              selectedPdfSections={selectedPdfSections}
+              useSamePowerPointSelections={useSamePowerPointSelections}
+              selectedPowerPointSections={selectedPowerPointSections}
+              selectedRatios={selectedRatios}
+              selectedFluxAnalyses={selectedFluxAnalyses}
+              fluxSettings={fluxSettings}
+              includeHighSeverityOnly={includeHighSeverityOnly}
+              includeModerateSeverity={includeModerateSeverity}
+              maxFluxRows={maxFluxRows}
+              onClientNameChange={(value) => {
+                resetGeneratedState();
+                setClientName(value);
+              }}
+              onReportingPeriodChange={(value) => {
+                resetGeneratedState();
+                setClientReportingPeriod(value);
+              }}
+              onPreparedByChange={(value) => {
+                resetGeneratedState();
+                setPreparedBy(value);
+              }}
+              onSaveSettingsForClientChange={setSaveSettingsForClient}
+              onSelectedPdfSectionsChange={(sections) => {
+                resetGeneratedState();
+                setSelectedPdfSections(sections);
+                if (useSamePowerPointSelections) setSelectedPowerPointSections(sections);
+              }}
+              onUseSamePowerPointSelectionsChange={(value) => {
+                resetGeneratedState();
+                setUseSamePowerPointSelections(value);
+                if (value) setSelectedPowerPointSections(selectedPdfSections);
+              }}
+              onSelectedPowerPointSectionsChange={(sections) => {
+                resetGeneratedState();
+                setSelectedPowerPointSections(sections);
+              }}
+              onSelectedRatiosChange={(ratios) => {
+                resetGeneratedState();
+                if (ratios.includes("DSO") && !selectedRatios.includes("DSO")) {
+                  setDsoInputOmitted(false);
+                  setDsoConfirmed(false);
+                }
+                setSelectedRatios(ratios);
+              }}
+              onSelectedFluxAnalysesChange={(analyses) => {
+                resetGeneratedState();
+                setSelectedFluxAnalyses(analyses);
+              }}
+              onFluxSettingsChange={(settings) => {
+                resetGeneratedState();
+                setFluxSettings(settings);
+              }}
+              onIncludeHighSeverityOnlyChange={(value) => {
+                resetGeneratedState();
+                setIncludeHighSeverityOnly(value);
+              }}
+              onIncludeModerateSeverityChange={(value) => {
+                resetGeneratedState();
+                setIncludeModerateSeverity(value);
+              }}
+              onMaxFluxRowsChange={(value) => {
+                resetGeneratedState();
+                setMaxFluxRows(value);
+              }}
+              onSaveClientSettings={handleSaveClientSettings}
+              onLoadClientSettings={handleLoadClientSettings}
+              onResetDefaults={handleResetPackageDefaults}
+              dsoInputNeeded={dsoInputNeeded}
+              dsoInputResolved={dsoInputResolved}
+              dsoInputOmitted={dsoInputOmitted}
+              dsoConfirmed={dsoConfirmed}
+              dsoInputsChangedAfterConfirmation={dsoInputsChangedAfterConfirmation}
+              dso={dsoPreview}
+              accountsReceivable={kpis.accountsReceivable}
+              accountsReceivableOverride={dsoAccountsReceivable}
+              accountsReceivableUsed={dsoAccountsReceivableUsed}
+              detectedRevenue={kpis.revenue}
+              revenueUsed={dsoRevenueForOptionOne}
+              averageDailySalesUsed={resolvedAverageDailySales}
+              startDate={reportingPeriodStart}
+              endDate={reportingPeriodEnd}
+              manualDays={manualPeriodDays}
+              autoDays={autoPeriodDays}
+              effectiveDays={reportingPeriodDays}
+              monthlyRevenue={dsoMonthlyRevenue}
+              dsoPeriodDays={dsoPeriodDays}
+              averageDailySales={dsoAverageDailySales}
+              salesDetailData={salesDetailData}
+              salesDetailRevenue={salesDetailRevenue}
+              onStartDateChange={(value) => {
+                handleDsoInputChanged();
+                setReportingPeriodStart(value);
+              }}
+              onEndDateChange={(value) => {
+                handleDsoInputChanged();
+                setReportingPeriodEnd(value);
+              }}
+              onManualDaysChange={(value) => {
+                handleDsoInputChanged();
+                setManualPeriodDays(value);
+              }}
+              onAccountsReceivableOverrideChange={(value) => {
+                handleDsoInputChanged();
+                setDsoAccountsReceivable(value);
+              }}
+              onMonthlyRevenueChange={(value) => {
+                handleDsoInputChanged();
+                setDsoMonthlyRevenue(value);
+              }}
+              onDsoPeriodDaysChange={(value) => {
+                handleDsoInputChanged();
+                setDsoPeriodDays(value);
+              }}
+              onAverageDailySalesChange={(value) => {
+                handleDsoInputChanged();
+                setDsoAverageDailySales(value);
+              }}
+              onSalesDetailFile={async (file) => {
+                handleDsoInputChanged();
+                await parseFile(file, setSalesDetailData);
+              }}
+              onConfirmDso={handleConfirmDso}
+              onEditDsoInputs={handleEditDsoInputs}
+              onOmitDsoInput={handleOmitDso}
+            />
+          )}
+          {activeWorkflowStep === 4 && showKpiReview && (
             <>
-              <section className="mt-10 rounded-3xl border border-[#243041] bg-[#111827] p-8 shadow-xl shadow-black/10">
+              <section id="kpi-review" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#111827] p-8 shadow-xl shadow-black/10">
                 <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
-                  Step 3 - Review & Confirm KPIs
+                  Step 4 - Review KPIs
                 </p>
                 <h2 className="mb-6 text-3xl font-bold">Detected Financial KPIs</h2>
                 <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
@@ -4372,26 +5216,6 @@ export default function UploadPage() {
                 </div>
               </section>
 
-              <DsoSettingsPanel
-                startDate={reportingPeriodStart}
-                endDate={reportingPeriodEnd}
-                manualDays={manualPeriodDays}
-                autoDays={autoPeriodDays}
-                effectiveDays={reportingPeriodDays}
-                onStartDateChange={(value) => {
-                  resetGeneratedState();
-                  setReportingPeriodStart(value);
-                }}
-                onEndDateChange={(value) => {
-                  resetGeneratedState();
-                  setReportingPeriodEnd(value);
-                }}
-                onManualDaysChange={(value) => {
-                  resetGeneratedState();
-                  setManualPeriodDays(value);
-                }}
-              />
-
               <KpiConfirmationPanel
                 packageTier={packageTier}
                 kpis={kpis}
@@ -4408,18 +5232,7 @@ export default function UploadPage() {
                 includePayroll={Boolean(activeCurrentPayrollData)}
                 dso={dso}
                 ratioRows={ratioRows}
-                kpisConfirmed={kpisConfirmed}
-                reviewerNotes={reviewerNotes}
                 reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
-                onKpisConfirmedChange={(confirmed) => {
-                  setKpisConfirmed(confirmed);
-                  if (confirmed) setReportsChangedAfterConfirmation(false);
-                  if (!confirmed) {
-                    setIsPackageGenerated(false);
-                    setIsPackageExported(false);
-                  }
-                }}
-                onReviewerNotesChange={setReviewerNotes}
               />
 
               <ExecutiveSummarySection executiveSummary={executiveSummary} />
@@ -4427,11 +5240,14 @@ export default function UploadPage() {
             </>
           )}
 
-          {canPreviewPackage && (
+          {activeWorkflowStep === 5 && (
             <BoardPackagePreview
               companyName={companyName}
               reportPeriod={reportPeriod}
+              preparedBy={preparedBy || "FinSight Reports"}
               packageTier={packageTier}
+              stepLabel="Step 5 - Generate & Review PDF Package"
+              introText="Review the package preview below. If the content and section selections look right, use Generate PDF Package in the action panel. After generation, check PDF looks correct to reveal Export PDF."
               sections={boardPackageSections}
               kpis={kpis}
               apKpis={apKpis}
@@ -4445,19 +5261,16 @@ export default function UploadPage() {
             />
           )}
 
-          {canPreviewPackage && kpisConfirmed && !powerPointPromptSkipped && (
+          {activeWorkflowStep === 6 && canPreviewPackage && kpisConfirmed && (
             <PowerPointPrompt
               showDraft={showPowerPointDraft}
               slides={powerPointSlides}
-              onCreate={() => setShowPowerPointDraft(true)}
-              onSkip={() => {
-                setPowerPointPromptSkipped(true);
-                setShowPowerPointDraft(false);
-              }}
+              onCreate={handleCreatePowerPoint}
+              onSkip={handleOmitPowerPoint}
             />
           )}
 
-          {canReviewKpis && (
+          {activeWorkflowStep === 4 && showKpiReview && (
             <BasicChartsSection
               kpis={kpis}
               arKpis={arKpis}
@@ -4474,14 +5287,14 @@ export default function UploadPage() {
             />
           )}
 
-          {canReviewKpis && isProfessionalOrHigher(packageTier) && (
+          {activeWorkflowStep === 4 && showKpiReview && isProfessionalOrHigher(packageTier) && (
             <>
               {activeInventoryData && <InventoryAnalysisSection inventoryKpis={inventoryKpis} />}
               <ProfessionalPlaceholderSection />
             </>
           )}
 
-          {canReviewKpis && isVirtualCfo(packageTier) && (
+          {activeWorkflowStep === 4 && showKpiReview && isVirtualCfo(packageTier) && (
             <>
               {activeFixedAssetData && (
                 <FixedAssetAnalysisSection
@@ -4511,7 +5324,7 @@ export default function UploadPage() {
             </>
           )}
 
-          {canReviewKpis && (
+          {activeWorkflowStep === 4 && showKpiReview && (
             <>
               <section className="mt-10 rounded-3xl bg-slate-900 p-8">
                 <h2 className="mb-4 text-2xl font-bold">Matched QuickBooks Rows</h2>
@@ -4557,12 +5370,6 @@ export default function UploadPage() {
                   <Preview title="Prior Period Balance Sheet Preview" data={activePriorPeriodBsData} />
                   <Preview title="Cash Flow Statement Preview" data={activeCashFlowData} />
                   <Preview title="Debt Schedule Preview" data={activeDebtScheduleData} />
-                  <Preview title="Current Month GL Preview" data={activeCurrentMonthGlData} />
-                  <Preview title="Prior Month GL Preview" data={activePriorMonthGlData} />
-                  <Preview title="Current Quarter GL Preview" data={activeCurrentQuarterGlData} />
-                  <Preview title="Prior Quarter GL Preview" data={activePriorQuarterGlData} />
-                  <Preview title="Current Year GL Preview" data={activeCurrentYearGlData} />
-                  <Preview title="Prior Year GL Preview" data={activePriorYearGlData} />
                   <Preview title="Current Month Payroll Preview" data={activeCurrentPayrollData} />
                   <Preview title="Prior Month Payroll Preview" data={activePriorPayrollData} />
                   <Preview title="Current Month Payroll Detail Preview" data={activeCurrentPayrollDetailData} />
@@ -4571,6 +5378,7 @@ export default function UploadPage() {
               )}
             </>
           )}
+          </ImportWorkflow>
         </div>
       </main>
 
@@ -4578,6 +5386,8 @@ export default function UploadPage() {
         packageTier={packageTier}
         companyName={companyName}
         reportPeriod={reportPeriod}
+        preparedBy={preparedBy || "FinSight Reports"}
+        selectedSections={selectedPdfSections}
         kpis={kpis}
         arKpis={arKpis}
         apKpis={apKpis}
@@ -4615,50 +5425,122 @@ function isReportAvailable(reportTier: UploadTier, packageTier: PackageTier) {
   return isVirtualCfo(packageTier);
 }
 
+function scrollToWorkflowSection(target: string | HTMLElement | RefObject<HTMLElement | null>) {
+  if (typeof window === "undefined") return;
+
+  const element =
+    typeof target === "string"
+      ? document.getElementById(target)
+      : target instanceof HTMLElement
+        ? target
+        : target.current;
+  if (!element) return;
+
+  const toolbar = document.querySelector(".workflow-action-panel");
+  const toolbarHeight = toolbar?.getBoundingClientRect().height || 180;
+  const extraPadding = 24;
+  const elementTop = element.getBoundingClientRect().top + window.scrollY;
+  window.scrollTo({
+    top: elementTop - toolbarHeight - extraPadding,
+    behavior: "smooth",
+  });
+}
+
 function ImportWorkflow({
   packageTier,
   hasSelectedPackage,
+  showImportReports,
+  showCustomizePackage,
+  activeWorkflowStep,
   onPackageTierChange,
   reports,
   uploadedReportsCount,
   requiredUploadedReportsCount,
+  totalRequiredReportsCount,
   missingReports,
   requiredUploadsComplete,
+  missingInputsResolved,
+  missingInputsRemaining,
+  resolvedInputsCount,
   kpisConfirmed,
+  kpiReviewVisible,
+  showPdfGeneration,
+  reviewerNotes,
   reportsChangedAfterConfirmation,
   canGeneratePackage,
   isPackageGenerated,
   isPackageExported,
+  pdfReviewed,
+  powerpointOmitted,
+  powerpointCreated,
+  packageComplete,
   folderImportResult,
   isFolderImporting,
   onImportFromFolder,
   onImportFolderFallbackFiles,
   onGeneratePackage,
+  onContinueToUploadReports,
+  onContinueToCustomizePackage,
+  onContinueToKpiReview,
+  onContinueToPdfGeneration,
+  onKpisConfirmedChange,
+  onReviewerNotesChange,
   onExportPackage,
+  onPdfReviewedChange,
+  onCreatePowerPoint,
+  onOmitPowerPoint,
+  onResetPowerPointChoice,
+  onCompletePackage,
+  onBackWorkflowStep,
+  children,
 }: {
   packageTier: PackageTier;
   hasSelectedPackage: boolean;
+  showImportReports: boolean;
+  showCustomizePackage: boolean;
+  activeWorkflowStep: number;
   onPackageTierChange: (tier: PackageTier) => void;
   reports: UploadReport[];
   uploadedReportsCount: number;
   requiredUploadedReportsCount: number;
-  missingReports: UploadReport[];
+  totalRequiredReportsCount: number;
+  missingReports: PackageRequirementStatus[];
   requiredUploadsComplete: boolean;
+  missingInputsResolved: boolean;
+  missingInputsRemaining: number;
+  resolvedInputsCount: number;
   kpisConfirmed: boolean;
+  kpiReviewVisible: boolean;
+  showPdfGeneration: boolean;
+  reviewerNotes: string;
   reportsChangedAfterConfirmation: boolean;
   canGeneratePackage: boolean;
   isPackageGenerated: boolean;
   isPackageExported: boolean;
+  pdfReviewed: boolean;
+  powerpointOmitted: boolean;
+  powerpointCreated: boolean;
+  packageComplete: boolean;
   folderImportResult: FolderImportResult | null;
   isFolderImporting: boolean;
   onImportFromFolder: () => Promise<boolean>;
   onImportFolderFallbackFiles: (files: File[]) => Promise<void>;
   onGeneratePackage: () => void;
+  onContinueToUploadReports: () => void;
+  onContinueToCustomizePackage: () => void;
+  onContinueToKpiReview: () => void;
+  onContinueToPdfGeneration: () => void;
+  onKpisConfirmedChange: (confirmed: boolean) => void;
+  onReviewerNotesChange: (notes: string) => void;
   onExportPackage: () => void;
+  onPdfReviewedChange: (reviewed: boolean) => void;
+  onCreatePowerPoint: () => void;
+  onOmitPowerPoint: () => void;
+  onResetPowerPointChoice: () => void;
+  onCompletePackage: () => void;
+  onBackWorkflowStep: () => void;
+  children?: ReactNode;
 }) {
-  const selectedReportsCount = reports.filter(
-    (report) => isReportAvailable(report.tier, packageTier) && report.required,
-  ).length;
   const folderInputRef = useRef<HTMLInputElement>(null);
   const handleImportFromFolderClick = async () => {
     const usedNativePicker = await onImportFromFolder();
@@ -4683,21 +5565,83 @@ function ImportWorkflow({
       <WorkflowSteps
         hasSelectedPackage={hasSelectedPackage}
         requiredUploadsComplete={requiredUploadsComplete}
+        showCustomizePackage={showCustomizePackage}
+        missingInputsResolved={missingInputsResolved}
+        missingInputsRemaining={missingInputsRemaining}
+        resolvedInputsCount={resolvedInputsCount}
         kpisConfirmed={kpisConfirmed}
+        showPdfGeneration={showPdfGeneration}
         isPackageGenerated={isPackageGenerated}
-        isPackageExported={isPackageExported}
+        pdfReviewed={pdfReviewed}
+        powerpointOmitted={powerpointOmitted}
+        powerpointCreated={powerpointCreated}
+        packageComplete={packageComplete}
       />
 
-      <PremiumPackageSelector
+      <WorkflowActionPanel
         packageTier={packageTier}
         hasSelectedPackage={hasSelectedPackage}
-        onPackageTierChange={onPackageTierChange}
+        showImportReports={showImportReports}
+        showCustomizePackage={showCustomizePackage}
+        activeStep={activeWorkflowStep}
+        uploadedReportsCount={uploadedReportsCount}
+        requiredUploadedReportsCount={requiredUploadedReportsCount}
+        totalReportsCount={totalRequiredReportsCount}
+        missingReports={missingReports}
+        requiredUploadsComplete={requiredUploadsComplete}
+        missingInputsResolved={missingInputsResolved}
+        missingInputsRemaining={missingInputsRemaining}
+        resolvedInputsCount={resolvedInputsCount}
+        kpisConfirmed={kpisConfirmed}
+        kpiReviewVisible={kpiReviewVisible}
+        showPdfGeneration={showPdfGeneration}
+        reviewerNotes={reviewerNotes}
+        canGeneratePackage={canGeneratePackage}
+        isPackageGenerated={isPackageGenerated}
+        isPackageExported={isPackageExported}
+        pdfReviewed={pdfReviewed}
+        powerpointOmitted={powerpointOmitted}
+        powerpointCreated={powerpointCreated}
+        packageComplete={packageComplete}
+        onGeneratePackage={onGeneratePackage}
+        onExportPackage={onExportPackage}
+        onPdfReviewedChange={onPdfReviewedChange}
+        onCreatePowerPoint={onCreatePowerPoint}
+        onOmitPowerPoint={onOmitPowerPoint}
+        onResetPowerPointChoice={onResetPowerPointChoice}
+        onCompletePackage={onCompletePackage}
+        onBackWorkflowStep={onBackWorkflowStep}
+        onContinueToUploadReports={onContinueToUploadReports}
+        onContinueToCustomizePackage={onContinueToCustomizePackage}
+        onContinueToKpiReview={onContinueToKpiReview}
+        onContinueToPdfGeneration={onContinueToPdfGeneration}
+        onKpisConfirmedChange={onKpisConfirmedChange}
+        onReviewerNotesChange={onReviewerNotesChange}
       />
 
-      {hasSelectedPackage && (
+      {activeWorkflowStep === 2 && showImportReports && !requiredUploadsComplete && (
+        <ImportActionBar
+          missingReports={missingReports}
+          requiredUploadedReportsCount={requiredUploadedReportsCount}
+          totalReportsCount={totalRequiredReportsCount}
+          isFolderImporting={isFolderImporting}
+          onImportClick={handleImportFromFolderClick}
+          onManualUploadsClick={() => scrollToWorkflowSection("upload-reports")}
+        />
+      )}
+
+      {activeWorkflowStep === 1 && (
+        <PremiumPackageSelector
+          packageTier={packageTier}
+          hasSelectedPackage={hasSelectedPackage}
+          onPackageTierChange={onPackageTierChange}
+        />
+      )}
+
+      {activeWorkflowStep === 2 && showImportReports && (
         <>
           <div className="mt-10 grid gap-8">
-            <div>
+            <div id="upload-reports" className="workflow-section">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
                 Step 2
               </p>
@@ -4708,6 +5652,12 @@ function ImportWorkflow({
               </p>
             </div>
 
+            <ImportMethodSelector
+              isImporting={isFolderImporting}
+              onImportFromFolder={handleImportFromFolderClick}
+              onManualUpload={() => scrollToWorkflowSection("manual-upload-reports")}
+            />
+
             <FolderImportPanel
               inputRef={folderInputRef}
               result={folderImportResult}
@@ -4716,12 +5666,14 @@ function ImportWorkflow({
               onFallbackFiles={onImportFolderFallbackFiles}
             />
 
-            <UploadGroup
-              title="Essential Imports"
-              subtitle="Core reports required for monthly financial package preparation."
-              reports={reports.filter((report) => report.tier === "essential")}
-              packageTier={packageTier}
-            />
+            <div id="manual-upload-reports">
+              <UploadGroup
+                title="Essential Imports"
+                subtitle="Core reports required for monthly financial package preparation."
+                reports={reports.filter((report) => report.tier === "essential")}
+                packageTier={packageTier}
+              />
+            </div>
 
             <UploadGroup
               title="Professional Imports"
@@ -4737,22 +5689,14 @@ function ImportWorkflow({
               packageTier={packageTier}
             />
           </div>
-
-          <GeneratePackagePanel
-            packageTier={packageTier}
-            uploadedReportsCount={uploadedReportsCount}
-            requiredUploadedReportsCount={requiredUploadedReportsCount}
-            totalReportsCount={selectedReportsCount}
-            missingReports={missingReports}
-            canGeneratePackage={canGeneratePackage}
-            kpisConfirmed={kpisConfirmed}
-            reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
-            isPackageGenerated={isPackageGenerated}
-            onGeneratePackage={onGeneratePackage}
-            onExportPackage={onExportPackage}
-          />
+          {reportsChangedAfterConfirmation && (
+            <p className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200">
+              Reports changed. Please review and confirm KPIs again before generating the package.
+            </p>
+          )}
         </>
       )}
+      {children}
     </div>
   );
 }
@@ -4760,62 +5704,784 @@ function ImportWorkflow({
 function WorkflowSteps({
   hasSelectedPackage,
   requiredUploadsComplete,
+  showCustomizePackage,
+  missingInputsResolved,
+  missingInputsRemaining,
+  resolvedInputsCount,
   kpisConfirmed,
+  showPdfGeneration,
   isPackageGenerated,
-  isPackageExported,
+  pdfReviewed,
+  powerpointOmitted,
+  powerpointCreated,
+  packageComplete,
 }: {
   hasSelectedPackage: boolean;
   requiredUploadsComplete: boolean;
+  showCustomizePackage: boolean;
+  missingInputsResolved: boolean;
+  missingInputsRemaining: number;
+  resolvedInputsCount: number;
   kpisConfirmed: boolean;
+  showPdfGeneration: boolean;
   isPackageGenerated: boolean;
-  isPackageExported: boolean;
+  pdfReviewed: boolean;
+  powerpointOmitted: boolean;
+  powerpointCreated: boolean;
+  packageComplete: boolean;
 }) {
-  const steps = [
-    "Select Package",
-    "Upload Reports",
-    "Review & Confirm KPIs",
-    "Generate Package",
-    "Export PDF",
+  const steps: Array<{
+    label: string;
+    status: "Not Started" | "In Progress" | "Complete" | "Omitted" | "Locked";
+    detail?: string;
+  }> = [
+    { label: "Select Package", status: hasSelectedPackage ? "Complete" : "In Progress" },
+    {
+      label: "Import Reports",
+      status: !hasSelectedPackage ? "Locked" : requiredUploadsComplete ? "Complete" : "In Progress",
+    },
+    {
+      label: "Customize Package",
+      status: !requiredUploadsComplete
+        ? "Locked"
+        : !showCustomizePackage
+          ? "Not Started"
+          : missingInputsResolved
+            ? "Complete"
+            : "In Progress",
+      detail: !requiredUploadsComplete
+        ? undefined
+        : !showCustomizePackage
+          ? "Proceed when uploads are complete"
+          : missingInputsResolved
+          ? "Ready"
+          : `${missingInputsRemaining} item${missingInputsRemaining === 1 ? "" : "s"} needs attention`,
+    },
+    {
+      label: "Review KPIs",
+      status: !showCustomizePackage || !missingInputsResolved ? "Locked" : kpisConfirmed ? "Complete" : "In Progress",
+    },
+    {
+      label: "Generate & Review PDF",
+      status: !kpisConfirmed
+        ? "Locked"
+        : !showPdfGeneration
+          ? "Not Started"
+          : pdfReviewed
+            ? "Complete"
+            : "In Progress",
+      detail: !kpisConfirmed
+        ? undefined
+        : !showPdfGeneration
+          ? "Proceed after KPI approval"
+          : !isPackageGenerated
+          ? "Generate PDF after preview"
+          : pdfReviewed
+            ? "Ready to export"
+            : "Confirm PDF looks correct",
+    },
+    {
+      label: "Create PowerPoint",
+      status: !pdfReviewed
+        ? "Locked"
+        : powerpointOmitted
+          ? "Omitted"
+          : powerpointCreated
+            ? "Complete"
+            : "In Progress",
+    },
+    {
+      label: "Complete",
+      status: !pdfReviewed || (!powerpointCreated && !powerpointOmitted)
+        ? "Locked"
+        : packageComplete
+          ? "Complete"
+          : "In Progress",
+    },
   ];
-  const activeStep = !hasSelectedPackage
-    ? 0
-    : isPackageExported
-      ? 4
-      : isPackageGenerated
-        ? 4
-        : kpisConfirmed
-          ? 3
-          : requiredUploadsComplete
-            ? 2
-            : 1;
 
   return (
     <div className="mb-10 rounded-3xl border border-[#243041] bg-[#111827] p-5">
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="grid gap-3 md:grid-cols-7">
         {steps.map((step, index) => {
-          const current = index === activeStep;
-          const complete = index < activeStep;
+          const current = step.status === "In Progress";
+          const complete = step.status === "Complete";
+          const omitted = step.status === "Omitted";
+          const locked = step.status === "Locked";
 
           return (
             <div
-              key={step}
+              key={step.label}
               className={`rounded-2xl border p-4 ${
                 current
                   ? "border-[#5B8CFF] bg-[#172033]"
                   : complete
-                    ? "border-[#243041] bg-[#0B1020]"
-                    : "border-[#243041] bg-[#111827]"
+                    ? "border-emerald-500/30 bg-emerald-950/20"
+                    : omitted
+                      ? "border-slate-600 bg-slate-900/60"
+                      : locked
+                        ? "border-[#243041] bg-[#0B1020] opacity-70"
+                        : "border-[#243041] bg-[#111827]"
               }`}
             >
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5B8CFF]">
                 Step {index + 1}
               </p>
-              <p className="mt-2 text-sm font-semibold text-[#F9FAFB]">{step}</p>
+              <p className="mt-2 text-sm font-semibold text-[#F9FAFB]">{step.label}</p>
+              <p
+                className={`mt-2 text-xs font-semibold ${
+                  complete
+                    ? "text-emerald-300"
+                    : omitted
+                      ? "text-slate-300"
+                      : locked
+                        ? "text-slate-500"
+                        : "text-blue-300"
+                }`}
+              >
+                {step.status}
+              </p>
+              {step.detail && <p className="mt-2 text-[11px] leading-4 text-[#94A3B8]">{step.detail}</p>}
             </div>
           );
         })}
       </div>
     </div>
+  );
+}
+
+function WorkflowActionPanel({
+  packageTier,
+  hasSelectedPackage,
+  showImportReports,
+  showCustomizePackage,
+  activeStep,
+  uploadedReportsCount,
+  requiredUploadedReportsCount,
+  totalReportsCount,
+  missingReports,
+  requiredUploadsComplete,
+  missingInputsResolved,
+  missingInputsRemaining,
+  resolvedInputsCount,
+  kpisConfirmed,
+  kpiReviewVisible,
+  showPdfGeneration,
+  reviewerNotes,
+  canGeneratePackage,
+  isPackageGenerated,
+  isPackageExported,
+  pdfReviewed,
+  powerpointOmitted,
+  powerpointCreated,
+  packageComplete,
+  onGeneratePackage,
+  onContinueToUploadReports,
+  onContinueToCustomizePackage,
+  onContinueToKpiReview,
+  onContinueToPdfGeneration,
+  onKpisConfirmedChange,
+  onReviewerNotesChange,
+  onExportPackage,
+  onPdfReviewedChange,
+  onCreatePowerPoint,
+  onOmitPowerPoint,
+  onResetPowerPointChoice,
+  onCompletePackage,
+  onBackWorkflowStep,
+}: {
+  packageTier: PackageTier;
+  hasSelectedPackage: boolean;
+  showImportReports: boolean;
+  showCustomizePackage: boolean;
+  activeStep: number;
+  uploadedReportsCount: number;
+  requiredUploadedReportsCount: number;
+  totalReportsCount: number;
+  missingReports: PackageRequirementStatus[];
+  requiredUploadsComplete: boolean;
+  missingInputsResolved: boolean;
+  missingInputsRemaining: number;
+  resolvedInputsCount: number;
+  kpisConfirmed: boolean;
+  kpiReviewVisible: boolean;
+  showPdfGeneration: boolean;
+  reviewerNotes: string;
+  canGeneratePackage: boolean;
+  isPackageGenerated: boolean;
+  isPackageExported: boolean;
+  pdfReviewed: boolean;
+  powerpointOmitted: boolean;
+  powerpointCreated: boolean;
+  packageComplete: boolean;
+  onGeneratePackage: () => void;
+  onContinueToUploadReports: () => void;
+  onContinueToCustomizePackage: () => void;
+  onContinueToKpiReview: () => void;
+  onContinueToPdfGeneration: () => void;
+  onKpisConfirmedChange: (confirmed: boolean) => void;
+  onReviewerNotesChange: (notes: string) => void;
+  onExportPackage: () => void;
+  onPdfReviewedChange: (reviewed: boolean) => void;
+  onCreatePowerPoint: () => void;
+  onOmitPowerPoint: () => void;
+  onResetPowerPointChoice: () => void;
+  onCompletePackage: () => void;
+  onBackWorkflowStep: () => void;
+}) {
+  const buttonBase =
+    "rounded-2xl px-5 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60";
+  const primaryButton = `${buttonBase} bg-[#5B8CFF] text-white hover:bg-blue-500`;
+  const secondaryButton = `${buttonBase} border border-slate-700 bg-slate-950 text-slate-200 hover:border-slate-500`;
+  const compactReviewPanel = activeStep === 4 || activeStep === 5;
+  const nextAction = !hasSelectedPackage
+    ? {
+        label: "Proceed to Step 1 - Select Package",
+        helper: "Choose a package level to begin the guided workflow.",
+        onClick: () => scrollToWorkflowSection("package-selection"),
+        disabled: false,
+      }
+    : !showImportReports || !requiredUploadsComplete
+      ? {
+          label: "Proceed to Step 2 - Import Reports",
+          helper: missingReports.length
+            ? `Missing required reports: ${missingReports.map((report) => report.label).join(", ")}.`
+            : "Continue importing optional reports for this package.",
+          onClick: onContinueToUploadReports,
+          disabled: false,
+        }
+      : !showCustomizePackage || !missingInputsResolved
+        ? {
+            label: "Proceed to Step 3 - Customize Package",
+            helper: !showCustomizePackage
+              ? "Review package outputs, ratios, flux settings, and required calculation inputs."
+              : `Customize package before KPI review. ${missingInputsRemaining} item${missingInputsRemaining === 1 ? "" : "s"} needs attention.`,
+            onClick: onContinueToCustomizePackage,
+            disabled: false,
+          }
+      : !kpisConfirmed
+        ? kpiReviewVisible
+          ? {
+              label: "KPIs Awaiting Approval",
+              helper: "KPIs under review. Approve KPI review in the toolbar to continue.",
+              onClick: () => undefined,
+              disabled: true,
+            }
+          : {
+              label: "Proceed to Step 4 - Review KPIs",
+              helper: "KPI review pending.",
+              onClick: onContinueToKpiReview,
+              disabled: false,
+            }
+        : !showPdfGeneration
+          ? {
+              label: "Proceed to Step 5 - Generate & Review PDF",
+              helper: "KPIs approved. Continue when you are ready to review and generate the PDF.",
+              onClick: onContinueToPdfGeneration,
+              disabled: false,
+            }
+        : !isPackageGenerated
+          ? {
+              label: "Generate PDF Package",
+              helper: "Review the package preview below. Generate the PDF when you agree with it.",
+              onClick: () => {
+                onGeneratePackage();
+                window.setTimeout(() => scrollToWorkflowSection("pdf-review"), 150);
+              },
+              disabled: !canGeneratePackage,
+            }
+          : !pdfReviewed
+            ? {
+                label: "PDF Awaiting Approval",
+                helper: "Check PDF is correct below, then Export PDF will appear.",
+                onClick: () => undefined,
+                disabled: true,
+              }
+            : !powerpointCreated && !powerpointOmitted
+              ? {
+                  label: "Proceed to Step 6 - Create PowerPoint",
+                  helper: "PowerPoint is optional. Create it now or omit it for this package.",
+                  onClick: () => {
+                    onCreatePowerPoint();
+                    window.setTimeout(() => scrollToWorkflowSection("powerpoint-section"), 150);
+                  },
+                  disabled: false,
+                }
+              : !packageComplete
+                ? {
+                    label: "Proceed to Step 7 - Complete",
+                    helper: powerpointOmitted
+                      ? "PowerPoint omitted. You can complete the package."
+                      : "PowerPoint created. You can complete the package.",
+                    onClick: onCompletePackage,
+                    disabled: false,
+                  }
+                : {
+                    label: "Package Complete",
+                    helper: "This package workflow is complete.",
+                    onClick: () => undefined,
+                    disabled: true,
+                  };
+  return (
+    <section
+      id="pdf-generation"
+      className={`workflow-action-panel workflow-section sticky top-4 z-20 mb-10 border border-[#5B8CFF]/40 bg-[#172033]/95 shadow-2xl shadow-black/30 backdrop-blur ${
+        compactReviewPanel ? "rounded-2xl p-3" : "rounded-3xl p-5"
+      }`}
+    >
+      <div className={`grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center ${compactReviewPanel ? "gap-3" : "gap-5"}`}>
+        <div>
+          <p className={`${compactReviewPanel ? "text-[10px]" : "text-sm"} font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]`}>
+            Workflow Action Panel
+          </p>
+          <h2 className={`${compactReviewPanel ? "mt-1 text-lg" : "mt-2 text-2xl"} font-bold text-[#F9FAFB]`}>
+            {hasSelectedPackage ? PACKAGE_LABELS[packageTier] : "No package selected"}
+          </h2>
+          <p className={`${compactReviewPanel ? "mt-1 text-xs leading-5" : "mt-2 text-sm leading-6"} text-[#94A3B8]`}>
+            {nextAction.helper}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          {activeStep > 1 && (
+            <button type="button" onClick={onBackWorkflowStep} className={secondaryButton}>
+              Back
+            </button>
+          )}
+          <button type="button" onClick={nextAction.onClick} disabled={nextAction.disabled} className={primaryButton}>
+            {nextAction.label}
+          </button>
+          {isPackageGenerated && pdfReviewed && (
+            <button type="button" onClick={onExportPackage} className={secondaryButton}>
+              {isPackageExported ? "Re-export PDF" : "Export PDF"}
+            </button>
+          )}
+          {pdfReviewed && !powerpointCreated && !powerpointOmitted && (
+            <button type="button" onClick={onOmitPowerPoint} className={secondaryButton}>
+              Omit PowerPoint
+            </button>
+          )}
+          {pdfReviewed && (powerpointCreated || powerpointOmitted) && !packageComplete && (
+            <button type="button" onClick={onResetPowerPointChoice} className={secondaryButton}>
+              Reset PowerPoint Choice
+            </button>
+          )}
+        </div>
+      </div>
+
+      {compactReviewPanel ? (
+        <div className="mt-3 max-w-xl">
+          {activeStep === 4 && (
+            <KpiApprovalStatusCard
+              step="Step 4"
+              kpiReviewVisible={kpiReviewVisible}
+              kpisConfirmed={kpisConfirmed}
+              reviewerNotes={reviewerNotes}
+              canReviewKpis={missingInputsResolved}
+              active
+              compact
+              onReviewKpis={onContinueToKpiReview}
+              onKpisConfirmedChange={onKpisConfirmedChange}
+              onReviewerNotesChange={onReviewerNotesChange}
+            />
+          )}
+          {activeStep === 5 && (
+            <PdfReviewStatusCard
+              step="Step 5"
+              isPackageGenerated={isPackageGenerated}
+              pdfReviewed={pdfReviewed}
+              active
+              compact
+              onPdfReviewedChange={onPdfReviewedChange}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-3 md:grid-cols-6">
+          <WorkflowStatusPill
+            step="Step 2"
+            label="Import Reports"
+            description="Upload or omit required QuickBooks reports."
+            value={`${requiredUploadedReportsCount}/${totalReportsCount} required`}
+            complete={requiredUploadsComplete}
+            active={activeStep === 2}
+          />
+          <WorkflowStatusPill
+            step="Step 3"
+            label="Customize Package"
+            description="Choose outputs, ratios, flux settings, and DSO options."
+            value={
+              !requiredUploadsComplete
+                ? "Not started"
+                : missingInputsResolved
+                  ? "Ready"
+                  : `${missingInputsRemaining} item${missingInputsRemaining === 1 ? "" : "s"} needs attention`
+            }
+            complete={missingInputsResolved}
+            active={activeStep === 3}
+          />
+          <KpiApprovalStatusCard
+            step="Step 4"
+            kpiReviewVisible={kpiReviewVisible}
+            kpisConfirmed={kpisConfirmed}
+            reviewerNotes={reviewerNotes}
+            canReviewKpis={missingInputsResolved}
+            active={activeStep === 4}
+            onReviewKpis={onContinueToKpiReview}
+            onKpisConfirmedChange={onKpisConfirmedChange}
+            onReviewerNotesChange={onReviewerNotesChange}
+          />
+          <WorkflowStatusPill
+            step="Step 5"
+            label="Generate & Review PDF"
+            description="Generate the PDF, confirm it is correct, then export."
+            value={pdfReviewed ? "PDF approved" : isPackageGenerated ? "Awaiting approval" : "Not created"}
+            complete={pdfReviewed}
+            active={activeStep === 5}
+          />
+          <WorkflowStatusPill
+            step="Step 6"
+            label="PowerPoint"
+            description="Create or omit the board presentation."
+            value={powerpointOmitted ? "Omitted" : powerpointCreated ? "Created" : pdfReviewed ? "Optional" : "Locked"}
+            complete={powerpointCreated || powerpointOmitted}
+            omitted={powerpointOmitted}
+            active={activeStep === 6}
+          />
+          <WorkflowStatusPill
+            step="Step 7"
+            label="Complete"
+            description="Finalize the package workflow."
+            value={packageComplete ? "Complete" : "In progress"}
+            complete={packageComplete}
+            active={activeStep === 7}
+          />
+        </div>
+      )}
+      {uploadedReportsCount > 0 && (
+        <p className="mt-3 text-xs font-medium text-[#94A3B8]">
+          Required reports for selected package. {uploadedReportsCount} total reports uploaded.
+        </p>
+      )}
+      {uploadedReportsCount === 0 && (
+        <p className="mt-3 text-xs font-medium text-[#94A3B8]">
+          Required reports for selected package.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function WorkflowStatusPill({
+  step,
+  label,
+  description,
+  value,
+  complete,
+  active = false,
+  omitted = false,
+  compact = false,
+}: {
+  step: string;
+  label: string;
+  description: string;
+  value: string;
+  complete: boolean;
+  active?: boolean;
+  omitted?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border transition ${compact ? "p-3" : "p-4"} ${
+        active
+          ? "border-[#5B8CFF] bg-[#172033] shadow-lg shadow-[#5B8CFF]/10"
+          : "border-[#243041] bg-[#0B1020]"
+      }`}
+    >
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#5B8CFF]">{step}</p>
+      <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+      {!compact && <p className="mt-2 min-h-8 text-[11px] leading-4 text-slate-400">{description}</p>}
+      <p className={`mt-2 text-sm font-bold ${complete ? (omitted ? "text-slate-300" : "text-emerald-300") : "text-[#F9FAFB]"}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function PdfReviewStatusCard({
+  step,
+  isPackageGenerated,
+  pdfReviewed,
+  active = false,
+  compact = false,
+  onPdfReviewedChange,
+}: {
+  step: string;
+  isPackageGenerated: boolean;
+  pdfReviewed: boolean;
+  active?: boolean;
+  compact?: boolean;
+  onPdfReviewedChange: (reviewed: boolean) => void;
+}) {
+  const status = pdfReviewed
+    ? "PDF approved"
+    : isPackageGenerated
+      ? "Awaiting approval"
+      : "Ready to generate";
+
+  return (
+    <div
+      className={`rounded-2xl border transition ${compact ? "p-3" : "p-4"} ${
+        active
+          ? "border-[#5B8CFF] bg-[#172033] shadow-lg shadow-[#5B8CFF]/10"
+          : "border-[#243041] bg-[#0B1020]"
+      }`}
+    >
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#5B8CFF]">{step}</p>
+      <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#94A3B8]">
+        Generate & Review PDF
+      </p>
+      {!compact && (
+        <p className="mt-2 min-h-8 text-[11px] leading-4 text-slate-400">
+          Generate the PDF, confirm it looks correct, then export.
+        </p>
+      )}
+      <p className={`mt-2 text-sm font-bold ${pdfReviewed ? "text-emerald-300" : "text-[#F9FAFB]"}`}>
+        {status}
+      </p>
+      {isPackageGenerated && (
+        <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#F9FAFB]">
+          <input
+            type="checkbox"
+            checked={pdfReviewed}
+            onChange={(event) => onPdfReviewedChange(event.target.checked)}
+            className="h-4 w-4 rounded border-[#5B8CFF]"
+          />
+          <span>PDF looks correct</span>
+        </label>
+      )}
+      {!isPackageGenerated && (
+        <p className="mt-2 text-xs leading-5 text-[#94A3B8]">
+          Review the package preview below, then generate the PDF from the action panel.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function KpiApprovalStatusCard({
+  step,
+  kpiReviewVisible,
+  kpisConfirmed,
+  reviewerNotes,
+  canReviewKpis,
+  active = false,
+  compact = false,
+  onReviewKpis,
+  onKpisConfirmedChange,
+  onReviewerNotesChange,
+}: {
+  step: string;
+  kpiReviewVisible: boolean;
+  kpisConfirmed: boolean;
+  reviewerNotes: string;
+  canReviewKpis: boolean;
+  active?: boolean;
+  compact?: boolean;
+  onReviewKpis: () => void;
+  onKpisConfirmedChange: (confirmed: boolean) => void;
+  onReviewerNotesChange: (notes: string) => void;
+}) {
+  const [notesOpen, setNotesOpen] = useState(false);
+  const status = kpisConfirmed
+    ? "Approved ✓"
+    : kpiReviewVisible
+      ? "Awaiting Approval"
+      : "Review Required";
+
+  return (
+    <div
+      className={`rounded-2xl border transition ${compact ? "p-3" : "p-4"} ${
+        active
+          ? "border-[#5B8CFF] bg-[#172033] shadow-lg shadow-[#5B8CFF]/10"
+          : "border-[#243041] bg-[#0B1020]"
+      }`}
+    >
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#5B8CFF]">{step}</p>
+      <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#94A3B8]">Review KPIs</p>
+      <p className={`${compact ? "sr-only" : "mt-2 min-h-8"} text-[11px] leading-4 text-slate-400`}>
+        Review KPI outputs and approve reasonableness.
+      </p>
+      <p className={`mt-2 text-sm font-bold ${kpisConfirmed ? "text-emerald-300" : "text-[#F9FAFB]"}`}>
+        {status}
+      </p>
+
+      {!kpiReviewVisible && !kpisConfirmed && (
+        <button
+          type="button"
+          onClick={onReviewKpis}
+          disabled={!canReviewKpis}
+          className="mt-3 rounded-xl bg-[#5B8CFF] px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Review KPIs
+        </button>
+      )}
+
+      {kpiReviewVisible && !kpisConfirmed && (
+        <label className="mt-3 flex items-start gap-2 text-sm font-semibold text-[#F9FAFB]">
+          <input
+            type="checkbox"
+            checked={kpisConfirmed}
+            onChange={(event) => onKpisConfirmedChange(event.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-[#5B8CFF]"
+          />
+          <span>
+            KPIs Reviewed
+            <span className={`${compact ? "sr-only" : "mt-2 block"} text-xs font-normal leading-5 text-[#94A3B8]`}>
+              Confirms that KPI outputs, ratios, flux analysis, and advisory metrics were reviewed for reasonableness.
+            </span>
+          </span>
+        </label>
+      )}
+
+      {kpisConfirmed && <p className="mt-2 text-xs font-semibold text-emerald-200">Ready for PDF</p>}
+
+      {(kpiReviewVisible || kpisConfirmed) && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setNotesOpen((open) => !open)}
+            className="text-xs font-bold text-blue-300 hover:text-blue-200"
+          >
+            {notesOpen ? "Hide Notes" : reviewerNotes ? "Edit Notes" : "Add Notes"}
+          </button>
+          {notesOpen && (
+            <label className="mt-3 block">
+              <span className="text-xs font-semibold text-[#F9FAFB]">Reviewer Notes (optional)</span>
+              <textarea
+                value={reviewerNotes}
+                onChange={(event) => onReviewerNotesChange(event.target.value)}
+                placeholder="Add package review notes, adjustments, or internal context."
+                className="mt-2 min-h-20 w-full rounded-xl border border-[#243041] bg-[#111827] p-3 text-xs text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+              />
+            </label>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ImportActionBar({
+  missingReports,
+  requiredUploadedReportsCount,
+  totalReportsCount,
+  isFolderImporting,
+  onImportClick,
+  onManualUploadsClick,
+}: {
+  missingReports: PackageRequirementStatus[];
+  requiredUploadedReportsCount: number;
+  totalReportsCount: number;
+  isFolderImporting: boolean;
+  onImportClick: () => void;
+  onManualUploadsClick: () => void;
+}) {
+  const missingCount = missingReports.length;
+
+  return (
+    <section
+      id="import-action-bar"
+      className="mb-10 rounded-3xl border border-[#5B8CFF]/30 bg-[#111827] p-5 shadow-xl shadow-black/20"
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#5B8CFF]">
+            Import Reports
+          </p>
+          <h3 className="mt-2 text-xl font-bold text-[#F9FAFB]">
+            {missingCount} missing required {missingCount === 1 ? "report" : "reports"}
+          </h3>
+          <p className="mt-2 text-sm text-[#94A3B8]">
+            Select a folder containing your QuickBooks exports.
+          </p>
+          <p className="mt-1 text-xs font-medium text-slate-500">
+            {requiredUploadedReportsCount}/{totalReportsCount} required resolved
+            {missingCount > 0 ? ` | Missing: ${missingReports.map((report) => report.label).join(", ")}` : ""}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onImportClick}
+            disabled={isFolderImporting}
+            className="rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isFolderImporting ? "Importing..." : "Import From Folder"}
+          </button>
+          <button
+            type="button"
+            onClick={onManualUploadsClick}
+            className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+          >
+            Manual Uploads
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ImportMethodSelector({
+  isImporting,
+  onImportFromFolder,
+  onManualUpload,
+}: {
+  isImporting: boolean;
+  onImportFromFolder: () => void;
+  onManualUpload: () => void;
+}) {
+  return (
+    <section className="rounded-3xl border border-[#243041] bg-[#111827] p-6 shadow-xl shadow-black/10">
+      <div className="mb-5">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
+          Choose Import Method
+        </p>
+        <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">How would you like to add reports?</h3>
+        <p className="mt-2 text-sm leading-6 text-[#94A3B8]">
+          Import a full folder of QuickBooks exports for auto-matching, or manually upload each report below.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <button
+          type="button"
+          onClick={onImportFromFolder}
+          disabled={isImporting}
+          className="rounded-2xl border border-[#5B8CFF]/40 bg-[#172033] p-5 text-left transition hover:border-[#5B8CFF] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span className="block text-lg font-bold text-[#F9FAFB]">
+            {isImporting ? "Importing..." : "Import From Folder"}
+          </span>
+          <span className="mt-2 block text-sm leading-6 text-[#94A3B8]">
+            Select one local folder and let FinSight auto-match supported CSV, XLS, and XLSX exports.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onManualUpload}
+          className="rounded-2xl border border-[#243041] bg-[#0B1020] p-5 text-left transition hover:border-[#5B8CFF]/70"
+        >
+          <span className="block text-lg font-bold text-[#F9FAFB]">Manual Upload Reports</span>
+          <span className="mt-2 block text-sm leading-6 text-[#94A3B8]">
+            Skip folder matching and upload or replace reports one card at a time.
+          </span>
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -4850,7 +6516,7 @@ function PremiumPackageSelector({
   ];
 
   return (
-    <section>
+    <section id="package-selection" className="workflow-section">
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
@@ -5042,14 +6708,14 @@ function UploadGroup({
           <p className="mt-2 text-sm leading-6 text-[#94A3B8]">{subtitle}</p>
         </div>
         <p className="rounded-full bg-[#172033] px-3 py-1 text-xs font-semibold text-[#94A3B8]">
-          {reports.filter((report) => isReportAvailable(report.tier, packageTier) && report.data && !report.omitted).length}
-          /{reports.filter((report) => isReportAvailable(report.tier, packageTier)).length} uploaded
+          {reports.filter((report) => (isReportAvailable(report.tier, packageTier) || isReportRequiredForPackage(report.id, packageTier)) && report.data && !report.omitted).length}
+          /{reports.filter((report) => isReportAvailable(report.tier, packageTier) || isReportRequiredForPackage(report.id, packageTier)).length} uploaded
         </p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {reports.map((report) =>
-          isReportAvailable(report.tier, packageTier) ? (
+          isReportAvailable(report.tier, packageTier) || isReportRequiredForPackage(report.id, packageTier) ? (
             <PremiumUploadCard key={report.id} report={report} />
           ) : (
             <LockedUploadCard key={report.id} report={report} />
@@ -5139,7 +6805,6 @@ function PremiumUploadCard({ report }: { report: UploadReport }) {
           <input
             type="checkbox"
             checked={report.omitted}
-            disabled={report.required}
             onChange={(event) => report.onOmitChange(event.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-[#5B8CFF]"
           />
@@ -5147,7 +6812,7 @@ function PremiumUploadCard({ report }: { report: UploadReport }) {
             <span className="block text-[#F9FAFB]">Omit this report from package</span>
             {report.required && (
               <span className="mt-1 block text-xs text-[#94A3B8]">
-                Required reports cannot be omitted.
+                Omitted required reports count as resolved for workflow progress.
               </span>
             )}
           </span>
@@ -5197,83 +6862,596 @@ function PackageBadge({ tier }: { tier: UploadTier }) {
   );
 }
 
-function DsoSettingsPanel({
+function PackageCustomizationPanel({
+  packageTier,
+  reports,
+  clientName,
+  reportingPeriod,
+  preparedBy,
+  saveSettingsForClient,
+  selectedPdfSections,
+  useSamePowerPointSelections,
+  selectedPowerPointSections,
+  selectedRatios,
+  selectedFluxAnalyses,
+  fluxSettings,
+  includeHighSeverityOnly,
+  includeModerateSeverity,
+  maxFluxRows,
+  onClientNameChange,
+  onReportingPeriodChange,
+  onPreparedByChange,
+  onSaveSettingsForClientChange,
+  onSelectedPdfSectionsChange,
+  onUseSamePowerPointSelectionsChange,
+  onSelectedPowerPointSectionsChange,
+  onSelectedRatiosChange,
+  onSelectedFluxAnalysesChange,
+  onFluxSettingsChange,
+  onIncludeHighSeverityOnlyChange,
+  onIncludeModerateSeverityChange,
+  onMaxFluxRowsChange,
+  onSaveClientSettings,
+  onLoadClientSettings,
+  onResetDefaults,
+  dsoInputNeeded,
+  dsoInputResolved,
+  dsoInputOmitted,
+  dsoConfirmed,
+  dsoInputsChangedAfterConfirmation,
+  dso,
+  accountsReceivable,
+  accountsReceivableOverride,
+  accountsReceivableUsed,
+  detectedRevenue,
+  revenueUsed,
+  averageDailySalesUsed,
   startDate,
   endDate,
   manualDays,
   autoDays,
   effectiveDays,
+  monthlyRevenue,
+  dsoPeriodDays,
+  averageDailySales,
+  salesDetailData,
+  salesDetailRevenue,
   onStartDateChange,
   onEndDateChange,
   onManualDaysChange,
+  onAccountsReceivableOverrideChange,
+  onMonthlyRevenueChange,
+  onDsoPeriodDaysChange,
+  onAverageDailySalesChange,
+  onSalesDetailFile,
+  onConfirmDso,
+  onEditDsoInputs,
+  onOmitDsoInput,
 }: {
+  packageTier: PackageTier;
+  reports: UploadReport[];
+  clientName: string;
+  reportingPeriod: string;
+  preparedBy: string;
+  saveSettingsForClient: boolean;
+  selectedPdfSections: PackageSectionId[];
+  useSamePowerPointSelections: boolean;
+  selectedPowerPointSections: PackageSectionId[];
+  selectedRatios: RatioId[];
+  selectedFluxAnalyses: FluxAnalysisId[];
+  fluxSettings: FluxSettings;
+  includeHighSeverityOnly: boolean;
+  includeModerateSeverity: boolean;
+  maxFluxRows: number;
+  onClientNameChange: (value: string) => void;
+  onReportingPeriodChange: (value: string) => void;
+  onPreparedByChange: (value: string) => void;
+  onSaveSettingsForClientChange: (value: boolean) => void;
+  onSelectedPdfSectionsChange: (sections: PackageSectionId[]) => void;
+  onUseSamePowerPointSelectionsChange: (value: boolean) => void;
+  onSelectedPowerPointSectionsChange: (sections: PackageSectionId[]) => void;
+  onSelectedRatiosChange: (ratios: RatioId[]) => void;
+  onSelectedFluxAnalysesChange: (analyses: FluxAnalysisId[]) => void;
+  onFluxSettingsChange: (settings: FluxSettings) => void;
+  onIncludeHighSeverityOnlyChange: (value: boolean) => void;
+  onIncludeModerateSeverityChange: (value: boolean) => void;
+  onMaxFluxRowsChange: (value: number) => void;
+  onSaveClientSettings: () => void;
+  onLoadClientSettings: () => void;
+  onResetDefaults: () => void;
+  dsoInputNeeded: boolean;
+  dsoInputResolved: boolean;
+  dsoInputOmitted: boolean;
+  dsoConfirmed: boolean;
+  dsoInputsChangedAfterConfirmation: boolean;
+  dso: number | null;
+  accountsReceivable: number;
+  accountsReceivableOverride: string;
+  accountsReceivableUsed: number;
+  detectedRevenue: number;
+  revenueUsed: number | null;
+  averageDailySalesUsed: number | null;
   startDate: string;
   endDate: string;
   manualDays: string;
   autoDays: number | null;
   effectiveDays: number | null;
+  monthlyRevenue: string;
+  dsoPeriodDays: string;
+  averageDailySales: string;
+  salesDetailData: ParsedFile | null;
+  salesDetailRevenue: number | null;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onManualDaysChange: (value: string) => void;
+  onAccountsReceivableOverrideChange: (value: string) => void;
+  onMonthlyRevenueChange: (value: string) => void;
+  onDsoPeriodDaysChange: (value: string) => void;
+  onAverageDailySalesChange: (value: string) => void;
+  onSalesDetailFile: (file: File) => Promise<void>;
+  onConfirmDso: () => void;
+  onEditDsoInputs: () => void;
+  onOmitDsoInput: () => void;
 }) {
+  const [salesDetailInputKey, setSalesDetailInputKey] = useState(0);
+  const missingCount = dsoInputResolved ? 0 : 1;
+  const resolvedCount = dsoInputNeeded && dsoInputResolved ? 1 : 0;
+  const showDsoSetup =
+    dsoInputNeeded ||
+    dsoConfirmed ||
+    dsoInputOmitted ||
+    dsoInputsChangedAfterConfirmation ||
+    dso !== null;
+  const availableSectionOptions = packageSectionOptions.filter((option) =>
+    isReportAvailable(option.minimumTier, packageTier),
+  );
+  const reportMap = new Map(reports.map((report) => [report.id, report]));
+  const isSectionMissingData = (option: (typeof packageSectionOptions)[number]) =>
+    Boolean(
+      option.requiredReportIds?.length &&
+        !option.requiredReportIds.some((id) => {
+          const report = reportMap.get(id);
+          return report?.data || report?.omitted;
+        }),
+    );
+  const togglePdfSection = (sectionId: PackageSectionId) => {
+    onSelectedPdfSectionsChange(
+      selectedPdfSections.includes(sectionId)
+        ? selectedPdfSections.filter((id) => id !== sectionId)
+        : [...selectedPdfSections, sectionId],
+    );
+  };
+  const togglePowerPointSection = (sectionId: PackageSectionId) => {
+    onSelectedPowerPointSectionsChange(
+      selectedPowerPointSections.includes(sectionId)
+        ? selectedPowerPointSections.filter((id) => id !== sectionId)
+        : [...selectedPowerPointSections, sectionId],
+    );
+  };
+  const toggleRatio = (ratioId: RatioId) => {
+    onSelectedRatiosChange(
+      selectedRatios.includes(ratioId)
+        ? selectedRatios.filter((id) => id !== ratioId)
+        : [...selectedRatios, ratioId],
+    );
+  };
+  const toggleFluxAnalysis = (analysisId: FluxAnalysisId) => {
+    onSelectedFluxAnalysesChange(
+      selectedFluxAnalyses.includes(analysisId)
+        ? selectedFluxAnalyses.filter((id) => id !== analysisId)
+        : [...selectedFluxAnalyses, analysisId],
+    );
+  };
+
   return (
-    <section className="mt-6 rounded-3xl border border-[#243041] bg-[#111827] p-6 shadow-xl shadow-black/10">
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <section id="missing-inputs" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#111827] p-8 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
-            DSO Settings
+            Step 3
           </p>
-          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Reporting Period</h2>
+          <h2 className="mt-2 text-3xl font-bold text-[#F9FAFB]">Customize Package</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
-            Enter the reporting period so FinSight can calculate average daily sales and days sales
-            outstanding from revenue and accounts receivable.
+            Choose client details, package outputs, ratios, and flux settings before reviewing finalized KPIs.
           </p>
         </div>
-        <span className="rounded-full bg-[#172033] px-4 py-2 text-xs font-semibold text-[#94A3B8]">
-          Period days: {effectiveDays ?? "Not set"}
-        </span>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full bg-amber-500/15 px-4 py-2 text-xs font-bold text-amber-200">
+            Missing Inputs: {missingCount} remaining
+          </span>
+          <span className="rounded-full bg-emerald-500/15 px-4 py-2 text-xs font-bold text-emerald-200">
+            Resolved Inputs: {resolvedCount} complete
+          </span>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <label className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
-          <span className="text-sm font-semibold text-[#F9FAFB]">Start date</span>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(event) => onStartDateChange(event.target.value)}
-            className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
-          />
-        </label>
+      <div className="grid gap-6">
+        <div className="rounded-3xl border border-[#243041] bg-[#172033] p-6">
+          <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
+                Client Profile
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Package Identity</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={onSaveClientSettings} className="rounded-xl bg-[#5B8CFF] px-4 py-2 text-sm font-bold text-white">
+                Save Client Settings
+              </button>
+              <button type="button" onClick={onLoadClientSettings} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200">
+                Load Client Settings
+              </button>
+              <button type="button" onClick={onResetDefaults} className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-bold text-slate-200">
+                Reset to Package Defaults
+              </button>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <span className="text-sm font-semibold text-[#F9FAFB]">Client name</span>
+              <input value={clientName} onChange={(event) => onClientNameChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
+            </label>
+            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <span className="text-sm font-semibold text-[#F9FAFB]">Reporting period</span>
+              <input value={reportingPeriod} onChange={(event) => onReportingPeriodChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
+            </label>
+            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <span className="text-sm font-semibold text-[#F9FAFB]">Prepared by</span>
+              <input value={preparedBy} onChange={(event) => onPreparedByChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
+            </label>
+            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <span className="text-sm font-semibold text-[#F9FAFB]">Package level</span>
+              <p className="mt-3 rounded-xl bg-[#0B1020] px-3 py-2 text-sm font-bold text-[#F9FAFB]">{PACKAGE_LABELS[packageTier]}</p>
+              <label className="mt-3 flex items-center gap-2 text-xs text-[#94A3B8]">
+                <input type="checkbox" checked={saveSettingsForClient} onChange={(event) => onSaveSettingsForClientChange(event.target.checked)} />
+                Save settings for this client
+              </label>
+            </div>
+          </div>
+        </div>
 
-        <label className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
-          <span className="text-sm font-semibold text-[#F9FAFB]">End date</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(event) => onEndDateChange(event.target.value)}
-            className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
-          />
-          <span className="mt-2 block text-xs text-[#94A3B8]">
-            Auto-calculated days: {autoDays ?? "Enter dates"}
-          </span>
-        </label>
+        <div className="rounded-3xl border border-[#243041] bg-[#172033] p-6">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Output Selection</p>
+          <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">PDF Package Sections</h3>
+          <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {availableSectionOptions.map((option) => {
+              const selected = selectedPdfSections.includes(option.id);
+              const missingData = selected && isSectionMissingData(option);
+              return (
+                <label key={option.id} className="flex items-start gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                  <input type="checkbox" checked={selected} onChange={() => togglePdfSection(option.id)} className="mt-1" />
+                  <span>
+                    <span className="font-semibold text-[#F9FAFB]">{option.label}</span>
+                    {missingData && <span className="ml-2 rounded-full bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-300">Missing Data</span>}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
 
-        <label className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
-          <span className="text-sm font-semibold text-[#F9FAFB]">Manual day override</span>
-          <input
-            type="number"
-            min="1"
-            value={manualDays}
-            onChange={(event) => onManualDaysChange(event.target.value)}
-            placeholder="Optional"
-            className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
-          />
-          <span className="mt-2 block text-xs text-[#94A3B8]">
-            Overrides the date-based period days when entered.
-          </span>
-        </label>
+          <label className="mt-5 flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4 text-sm font-semibold text-[#F9FAFB]">
+            <input type="checkbox" checked={useSamePowerPointSelections} onChange={(event) => onUseSamePowerPointSelectionsChange(event.target.checked)} />
+            Use same selections for PowerPoint
+          </label>
+
+          {!useSamePowerPointSelections && (
+            <div className="mt-5">
+              <h4 className="text-lg font-bold text-[#F9FAFB]">PowerPoint Sections</h4>
+              <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {availableSectionOptions.map((option) => (
+                  <label key={option.id} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                    <input type="checkbox" checked={selectedPowerPointSections.includes(option.id)} onChange={() => togglePowerPointSection(option.id)} />
+                    <span className="font-semibold text-[#F9FAFB]">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-3xl border border-[#243041] bg-[#172033] p-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Ratio Customization</p>
+            <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Ratios to Include</h3>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {ratioOptions.map((ratio) => (
+                <label key={ratio} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                  <input type="checkbox" checked={selectedRatios.includes(ratio)} onChange={() => toggleRatio(ratio)} />
+                  <span className="text-sm font-semibold text-[#F9FAFB]">{ratio}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[#243041] bg-[#172033] p-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Flux Customization</p>
+            <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Flux Analyses and Thresholds</h3>
+            <div className="mt-5 grid gap-3">
+              {[
+                { id: "month" as FluxAnalysisId, label: "Month-over-Month" },
+                { id: "quarter" as FluxAnalysisId, label: "Quarter-over-Quarter" },
+                { id: "year" as FluxAnalysisId, label: "Year-over-Year" },
+              ].map((item) => (
+                <label key={item.id} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                  <input type="checkbox" checked={selectedFluxAnalyses.includes(item.id)} onChange={() => toggleFluxAnalysis(item.id)} />
+                  <span className="font-semibold text-[#F9FAFB]">{item.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                <span className="text-sm font-semibold text-[#F9FAFB]">Dollar threshold</span>
+                <input type="number" value={fluxSettings.dollarThreshold} onChange={(event) => onFluxSettingsChange({ ...fluxSettings, dollarThreshold: Number(event.target.value) })} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
+              </label>
+              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                <span className="text-sm font-semibold text-[#F9FAFB]">Percent threshold</span>
+                <input type="number" value={fluxSettings.percentThreshold} onChange={(event) => onFluxSettingsChange({ ...fluxSettings, percentThreshold: Number(event.target.value) })} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
+              </label>
+              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                <span className="text-sm font-semibold text-[#F9FAFB]">Threshold logic</span>
+                <select value={fluxSettings.logic} onChange={(event) => onFluxSettingsChange({ ...fluxSettings, logic: event.target.value as ThresholdLogic })} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]">
+                  <option value="either">OR - either threshold</option>
+                  <option value="both">AND - both thresholds</option>
+                </select>
+              </label>
+              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                <span className="text-sm font-semibold text-[#F9FAFB]">Maximum rows per section</span>
+                <input type="number" min="1" value={maxFluxRows} onChange={(event) => onMaxFluxRowsChange(Number(event.target.value) || 10)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
+              </label>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4 text-sm font-semibold text-[#F9FAFB]">
+                <input type="checkbox" checked={includeHighSeverityOnly} onChange={(event) => onIncludeHighSeverityOnlyChange(event.target.checked)} />
+                Include high severity only
+              </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4 text-sm font-semibold text-[#F9FAFB]">
+                <input type="checkbox" checked={includeModerateSeverity} onChange={(event) => onIncludeModerateSeverityChange(event.target.checked)} />
+                Include moderate severity
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {!showDsoSetup && (
+        <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-5">
+          <p className="text-sm font-bold uppercase tracking-[0.12em] text-emerald-300">
+            No Additional Inputs Needed
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[#F9FAFB]">
+            FinSight has enough uploaded data and period assumptions to continue to KPI review.
+          </p>
+        </div>
+      )}
+
+      {showDsoSetup && (
+        <div className="rounded-3xl border border-[#5B8CFF]/30 bg-[#172033] p-6">
+          <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
+                DSO Setup
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">
+                Additional Information Needed for DSO
+              </h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+                Accounts receivable was detected at {formatCurrency(accountsReceivable)}, but FinSight
+                needs average daily sales to calculate DSO.
+              </p>
+            </div>
+            <span className={`rounded-full px-4 py-2 text-xs font-bold ${
+              dsoConfirmed
+                ? "bg-emerald-500/15 text-emerald-300"
+                : dsoInputOmitted
+                  ? "bg-slate-500/15 text-slate-300"
+                  : "bg-amber-500/15 text-amber-300"
+            }`}>
+              {dsoConfirmed ? "DSO Confirmed" : dsoInputOmitted ? "DSO Omitted" : "Pending DSO Confirmation"}
+            </span>
+          </div>
+          {dsoInputsChangedAfterConfirmation && (
+            <p className="mb-5 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200">
+              DSO inputs changed. Please review and confirm the updated calculation.
+            </p>
+          )}
+          {dsoConfirmed && !dsoInputsChangedAfterConfirmation && (
+            <p className="mb-5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200">
+              DSO calculation confirmed. Review the remaining package selections, then use the toolbar to continue to KPI Review.
+            </p>
+          )}
+          {dsoInputOmitted && (
+            <p className="mb-5 rounded-2xl border border-slate-500/30 bg-slate-500/10 px-4 py-3 text-sm font-medium text-slate-200">
+              DSO omitted from this package. Use the toolbar to continue to KPI Review when the remaining selections are ready.
+            </p>
+          )}
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <p className="text-sm font-bold text-[#F9FAFB]">Option 1: Monthly Revenue and Days</p>
+              <p className="mt-2 text-xs leading-5 text-[#94A3B8]">
+                Enter monthly revenue and days in period. If revenue is blank, detected revenue
+                ({formatCurrency(detectedRevenue)}) will be used when available.
+              </p>
+              <input
+                type="number"
+                min="0"
+                value={accountsReceivableOverride}
+                onChange={(event) => onAccountsReceivableOverrideChange(event.target.value)}
+                placeholder="Accounts receivable source value"
+                className="mt-4 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+              />
+              <input
+                type="number"
+                min="0"
+                value={monthlyRevenue}
+                onChange={(event) => onMonthlyRevenueChange(event.target.value)}
+                placeholder="Monthly revenue amount"
+                className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+              />
+              <input
+                type="number"
+                min="1"
+                value={dsoPeriodDays}
+                onChange={(event) => onDsoPeriodDaysChange(event.target.value)}
+                placeholder="Days in period"
+                className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+              />
+            </div>
+
+            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <p className="text-sm font-bold text-[#F9FAFB]">Option 2: Average Daily Sales</p>
+              <p className="mt-2 text-xs leading-5 text-[#94A3B8]">
+                Enter average daily sales directly if management already knows the daily sales run rate.
+              </p>
+              <input
+                type="number"
+                min="0"
+                value={averageDailySales}
+                onChange={(event) => onAverageDailySalesChange(event.target.value)}
+                placeholder="Average daily sales"
+                className="mt-4 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+              />
+            </div>
+
+            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <p className="text-sm font-bold text-[#F9FAFB]">Option 3: Upload Sales Detail</p>
+              <p className="mt-2 text-xs leading-5 text-[#94A3B8]">
+                Upload invoice or sales detail with an amount, sales, total, invoice amount, or net sales column.
+              </p>
+              <label className="mt-4 block cursor-pointer rounded-xl border border-dashed border-[#5B8CFF]/40 bg-[#0B1020] px-3 py-3 text-sm font-semibold text-[#F9FAFB] hover:border-[#5B8CFF]">
+                <input
+                  key={salesDetailInputKey}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  className="sr-only"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    await onSalesDetailFile(file);
+                    setSalesDetailInputKey((current) => current + 1);
+                  }}
+                />
+                {salesDetailData ? "Replace sales detail report" : "Upload invoice/sales detail report"}
+              </label>
+              {salesDetailData && (
+                <p className="mt-3 truncate rounded-xl bg-[#0B1020] px-3 py-2 text-xs text-[#94A3B8]">
+                  {salesDetailData.name}
+                  {salesDetailRevenue ? ` | Sales detected: ${formatCurrency(salesDetailRevenue)}` : ""}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div className="grid gap-4 md:grid-cols-3">
+              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                <span className="text-sm font-semibold text-[#F9FAFB]">Report start date</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => onStartDateChange(event.target.value)}
+                  className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
+                />
+              </label>
+              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                <span className="text-sm font-semibold text-[#F9FAFB]">Report end date</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => onEndDateChange(event.target.value)}
+                  className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
+                />
+                <span className="mt-2 block text-xs text-[#94A3B8]">Auto days: {autoDays ?? "Enter dates"}</span>
+              </label>
+              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                <span className="text-sm font-semibold text-[#F9FAFB]">Manual period days</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={manualDays}
+                  onChange={(event) => onManualDaysChange(event.target.value)}
+                  placeholder="Optional"
+                  className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+                />
+                <span className="mt-2 block text-xs text-[#94A3B8]">Effective days: {effectiveDays ?? "Not set"}</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-[#243041] bg-[#0B1020] p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#94A3B8]">
+                  DSO Preview
+                </p>
+                <h4 className="mt-2 text-xl font-bold text-[#F9FAFB]">
+                  Review the DSO calculation before continuing
+                </h4>
+              </div>
+              <span className={`rounded-full px-4 py-2 text-xs font-bold ${
+                dsoConfirmed
+                  ? "bg-emerald-500/15 text-emerald-300"
+                  : dsoInputOmitted
+                    ? "bg-slate-500/15 text-slate-300"
+                    : "bg-amber-500/15 text-amber-300"
+              }`}>
+                {dsoConfirmed ? "DSO Confirmed" : dsoInputOmitted ? "DSO Omitted" : "Needs Review"}
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+              <PrintLikeMetric label="Accounts Receivable" value={formatCurrency(accountsReceivableUsed)} />
+              <PrintLikeMetric label="Revenue Used" value={revenueUsed ? formatCurrency(revenueUsed) : "N/A"} />
+              <PrintLikeMetric label="Period Days" value={dsoPeriodDays || effectiveDays ? String(dsoPeriodDays || effectiveDays) : "N/A"} />
+              <PrintLikeMetric label="Average Daily Sales" value={averageDailySalesUsed ? formatCurrency(averageDailySalesUsed) : "N/A"} />
+              <PrintLikeMetric label="Calculated DSO" value={dso !== null ? `${dso.toFixed(1)} days` : "Pending"} />
+            </div>
+
+            <p className="mt-4 text-sm leading-6 text-[#94A3B8]">
+              {dsoInputOmitted
+                ? "DSO will be omitted from ratios, PDF package, and PowerPoint outputs."
+                : dso !== null
+                  ? interpretDso(dso)
+                  : "Provide Accounts Receivable and either revenue with period days or an average daily sales override to preview DSO."}
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={onConfirmDso}
+                disabled={dso === null || dsoInputOmitted}
+                className="rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Confirm DSO Calculation
+              </button>
+              <button
+                type="button"
+                onClick={onEditDsoInputs}
+                className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+              >
+                Edit Inputs
+              </button>
+              <button
+                type="button"
+                onClick={onOmitDsoInput}
+                className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+              >
+                Omit DSO from Package
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
+  );
+}
+
+function PrintLikeMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+      <p className="mt-2 text-lg font-bold text-[#F9FAFB]">{value}</p>
+    </div>
   );
 }
 
@@ -5330,11 +7508,7 @@ function KpiConfirmationPanel({
   includePayroll,
   dso,
   ratioRows,
-  kpisConfirmed,
-  reviewerNotes,
   reportsChangedAfterConfirmation,
-  onKpisConfirmedChange,
-  onReviewerNotesChange,
 }: {
   packageTier: PackageTier;
   kpis: KPIs;
@@ -5351,11 +7525,7 @@ function KpiConfirmationPanel({
   includePayroll: boolean;
   dso: number | null;
   ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
-  kpisConfirmed: boolean;
-  reviewerNotes: string;
   reportsChangedAfterConfirmation: boolean;
-  onKpisConfirmedChange: (confirmed: boolean) => void;
-  onReviewerNotesChange: (notes: string) => void;
 }) {
   const confirmationRows = [
     { label: "Revenue", value: formatMoney(kpis.revenue) },
@@ -5394,39 +7564,23 @@ function KpiConfirmationPanel({
   ];
 
   return (
-    <section
-      className={`mt-6 rounded-3xl border p-6 shadow-xl shadow-black/10 ${
-        kpisConfirmed
-          ? "border-emerald-500/40 bg-emerald-950/20"
-          : "border-[#243041] bg-[#172033]"
-      }`}
-    >
+    <section className="mt-6 rounded-3xl border border-[#243041] bg-[#172033] p-6 shadow-xl shadow-black/10">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
-            KPI Approval Checkpoint
+            KPI Review Summary
           </p>
-          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Review & Confirm KPIs</h2>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Review KPI Outputs</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
-            Confirm the detected metrics before FinSight generates the client-ready financial
-            package. Reuploading any report resets this approval.
+            Review detected metrics, selected ratios, and advisory outputs. Use the KPI approval
+            control in the Workflow Action Panel when complete.
           </p>
         </div>
-
-        <span
-          className={`rounded-full px-4 py-2 text-xs font-semibold ${
-            kpisConfirmed
-              ? "bg-emerald-500/15 text-emerald-300"
-              : "bg-[#0B1020] text-[#94A3B8]"
-          }`}
-        >
-          {kpisConfirmed ? "KPIs Confirmed" : "Pending Review"}
-        </span>
       </div>
 
       {reportsChangedAfterConfirmation && (
         <div className="mb-5 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200">
-          Reports changed. Please review and confirm KPIs again.
+          Reports changed. Review the updated KPI outputs before approving the package.
         </div>
       )}
 
@@ -5441,35 +7595,6 @@ function KpiConfirmationPanel({
         ))}
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)]">
-        <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-[#243041] bg-[#111827] p-5">
-          <input
-            type="checkbox"
-            checked={kpisConfirmed}
-            onChange={(event) => onKpisConfirmedChange(event.target.checked)}
-            className="mt-1 h-5 w-5 rounded border-[#5B8CFF]"
-          />
-          <span>
-            <span className="block font-semibold text-[#F9FAFB]">
-              I have reviewed the financial metrics and confirm they are reasonable for this package.
-            </span>
-            <span className="mt-1 block text-sm leading-6 text-[#94A3B8]">
-              This approval unlocks package generation and confirms the reviewer has checked the
-              financial snapshot, liquidity indicators, and available advisory metrics.
-            </span>
-          </span>
-        </label>
-
-        <label className="rounded-2xl border border-[#243041] bg-[#111827] p-5">
-          <span className="text-sm font-semibold text-[#F9FAFB]">Reviewer Notes</span>
-          <textarea
-            value={reviewerNotes}
-            onChange={(event) => onReviewerNotesChange(event.target.value)}
-            placeholder="Add optional review notes, adjustments, or context for this package."
-            className="mt-3 min-h-28 w-full rounded-xl border border-[#243041] bg-[#0B1020] p-3 text-sm text-[#F9FAFB] outline-none transition placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
-          />
-        </label>
-      </div>
     </section>
   );
 }
@@ -5491,7 +7616,7 @@ function GeneratePackagePanel({
   uploadedReportsCount: number;
   requiredUploadedReportsCount: number;
   totalReportsCount: number;
-  missingReports: UploadReport[];
+  missingReports: PackageRequirementStatus[];
   canGeneratePackage: boolean;
   kpisConfirmed: boolean;
   reportsChangedAfterConfirmation: boolean;
@@ -5653,7 +7778,10 @@ function ReportMetricCard({ label, value }: { label: string; value: string }) {
 function BoardPackagePreview({
   companyName,
   reportPeriod,
+  preparedBy,
   packageTier,
+  stepLabel,
+  introText,
   sections,
   kpis,
   apKpis,
@@ -5667,7 +7795,10 @@ function BoardPackagePreview({
 }: {
   companyName: string;
   reportPeriod: string;
+  preparedBy: string;
   packageTier: PackageTier;
+  stepLabel: string;
+  introText: string;
   sections: BoardPackageSection[];
   kpis: KPIs;
   apKpis: APKpis;
@@ -5683,12 +7814,12 @@ function BoardPackagePreview({
   const completenessScore = Math.round((includedCount / sections.length) * 100);
 
   return (
-    <section className="mt-10 rounded-[2rem] border border-[#243041] bg-[#F9FAFB] p-2 text-[#111827] shadow-2xl shadow-black/20">
+    <section id="pdf-review" className="workflow-section mt-10 rounded-[2rem] border border-[#243041] bg-[#F9FAFB] p-2 text-[#111827] shadow-2xl shadow-black/20">
       <div className="rounded-[1.75rem] bg-white p-8">
         <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
-              Step 5 - Generated Package Preview
+              {stepLabel}
             </p>
             <h2 className="text-4xl font-bold tracking-tight">{companyName}</h2>
             <p className="mt-2 text-base text-slate-600">
@@ -5696,7 +7827,7 @@ function BoardPackagePreview({
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-semibold text-slate-600">Prepared by FinSight Reports</p>
+            <p className="text-sm font-semibold text-slate-600">Prepared by {preparedBy}</p>
             <p className="mt-2 text-3xl font-bold text-[#111827]">{completenessScore}%</p>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Package completeness</p>
           </div>
@@ -5705,9 +7836,16 @@ function BoardPackagePreview({
         <div className="mb-8">
           <h3 className="text-2xl font-bold">Executive Board Package Preview</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            This table of contents reflects the sections included in the generated board package and
-            highlights missing, omitted, or locked sections before export.
+            {introText}
           </p>
+          <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold">
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
+              Included = this page will be in the PDF package
+            </span>
+            <span className="rounded-full bg-red-100 px-3 py-1 text-red-700">
+              Not Included = this page will be left out of the PDF package
+            </span>
+          </div>
         </div>
 
         <div className="mb-8 grid gap-3 lg:grid-cols-2">
@@ -5753,16 +7891,11 @@ function BoardPackagePreview({
 }
 
 function BoardStatusBadge({ status }: { status: BoardPackageSection["status"] }) {
-  const className =
-    status === "Included"
-      ? "bg-emerald-100 text-emerald-700"
-      : status === "Missing"
-        ? "bg-amber-100 text-amber-700"
-        : status === "Omitted"
-          ? "bg-slate-200 text-slate-700"
-          : "bg-blue-100 text-blue-700";
+  const included = status === "Included";
+  const className = included ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700";
+  const label = included ? "Included" : "Not Included";
 
-  return <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${className}`}>{status}</span>;
+  return <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${className}`}>{label}</span>;
 }
 
 function PowerPointPrompt({
@@ -5777,7 +7910,7 @@ function PowerPointPrompt({
   onSkip: () => void;
 }) {
   return (
-    <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8 shadow-xl shadow-black/10">
+    <section id="powerpoint-section" className="workflow-section mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8 shadow-xl shadow-black/10">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
@@ -6828,6 +8961,8 @@ function PrintableFinancialPackage({
   packageTier,
   companyName,
   reportPeriod,
+  preparedBy,
+  selectedSections,
   kpis,
   arKpis,
   apKpis,
@@ -6858,6 +8993,8 @@ function PrintableFinancialPackage({
   packageTier: PackageTier;
   companyName: string;
   reportPeriod: string;
+  preparedBy: string;
+  selectedSections: PackageSectionId[];
   kpis: KPIs;
   arKpis: AgingKpis;
   apKpis: APKpis;
@@ -6887,6 +9024,7 @@ function PrintableFinancialPackage({
 }) {
   const plRows = getStatementRows(plData);
   const bsRows = getBalanceSheetStatementRowsWithNetBookValue(bsData);
+  const includeSection = (sectionId: PackageSectionId) => selectedSections.includes(sectionId);
 
   return (
     <div className="print-package hidden">
@@ -6896,7 +9034,7 @@ function PrintableFinancialPackage({
           <p>
             {reportPeriod} | {PACKAGE_LABELS[packageTier]} Package
           </p>
-          <p>Prepared by FinSight Reports</p>
+          <p>Prepared by {preparedBy}</p>
         </div>
 
         <div className="print-section-block">
@@ -6921,7 +9059,7 @@ function PrintableFinancialPackage({
           </table>
         </div>
 
-        <div className="print-section-block">
+        {includeSection("executive-summary") && <div className="print-section-block">
           <h2>Executive Summary</h2>
           {executiveSummary.sections.map((section) => (
             <div key={section.title}>
@@ -6929,36 +9067,36 @@ function PrintableFinancialPackage({
               <p>{section.body}</p>
             </div>
           ))}
-        </div>
+        </div>}
 
-        <div className="print-section-block">
+        {includeSection("executive-summary") && <div className="print-section-block">
           <h3>Key Highlights</h3>
           <ul>
             {executiveSummary.highlights.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
-        </div>
+        </div>}
 
-        <div className="print-section-block">
+        {includeSection("recommended-follow-up") && <div className="print-section-block">
           <h3>Recommended Follow-Up Items</h3>
           <ul>
             {executiveSummary.followUpItems.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
-        </div>
+        </div>}
 
-        <div className="print-section-block">
+        {includeSection("executive-summary") && <div className="print-section-block">
           <h3>Watch Items</h3>
           <ul>
             {executiveSummary.watchItems.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
-        </div>
+        </div>}
 
-        <div className="print-section-block">
+        {includeSection("kpi-snapshot") && <div className="print-section-block">
           <h3>KPI Snapshot</h3>
           <div className="print-grid">
             <PrintKpiCard label="Revenue" value={formatMoney(kpis.revenue)} />
@@ -6980,10 +9118,10 @@ function PrintableFinancialPackage({
             )}
             <PrintKpiCard label="Net Margin" value={`${netMargin.toFixed(1)}%`} />
           </div>
-        </div>
+        </div>}
       </section>
 
-      <section className="print-page">
+      {includeSection("income-statement") && <section className="print-page">
         <div className="statement-section">
           <div className="statement-header">
             <h1>Income Statement</h1>
@@ -6991,9 +9129,9 @@ function PrintableFinancialPackage({
           </div>
           <FinancialStatementTable rows={plRows} />
         </div>
-      </section>
+      </section>}
 
-      <section className="print-page">
+      {includeSection("balance-sheet") && <section className="print-page">
         <div className="statement-section">
           <div className="statement-header">
             <h1>Balance Sheet</h1>
@@ -7001,26 +9139,26 @@ function PrintableFinancialPackage({
           </div>
           <FinancialStatementTable rows={bsRows} />
         </div>
-      </section>
+      </section>}
 
-      <section className="print-page">
+      {(includeSection("ar-aging") || includeSection("ap-aging")) && <section className="print-page">
         <h1>Aging Analysis</h1>
-        <h2>Accounts Receivable Aging</h2>
+        {includeSection("ar-aging") && <><h2>Accounts Receivable Aging</h2>
         {arData ? (
           <AgingPrintTable kpis={arKpis} totalLabel="Accounts Receivable Total" currentLabel="Current AR" />
         ) : (
           <p>AR Aging report not uploaded</p>
-        )}
+        )}</>}
 
-        <h2>Accounts Payable Aging</h2>
+        {includeSection("ap-aging") && <><h2>Accounts Payable Aging</h2>
         {apData ? (
           <AgingPrintTable kpis={apKpis} totalLabel="Accounts Payable Total" currentLabel="Current AP" />
         ) : (
           <p>AP Aging report not uploaded</p>
-        )}
-      </section>
+        )}</>}
+      </section>}
 
-      <section className="print-page">
+      {(includeSection("customer-sales") || includeSection("vendor-expenses")) && <section className="print-page">
         <h1>Customer and Expense Analysis</h1>
         <h2>Top Expense Categories</h2>
         <table className="print-table">
@@ -7045,62 +9183,64 @@ function PrintableFinancialPackage({
             )}
           </tbody>
         </table>
-      </section>
+      </section>}
 
       {isProfessionalOrHigher(packageTier) && (
         <>
-          {inventoryData && (
-          <section className="print-page">
-            <h1>Inventory Summary</h1>
-            <p>Inventory valuation detail from the uploaded Inventory Valuation report.</p>
-            <table className="print-table">
-              <tbody>
-                <tr>
-                  <td>Total Inventory Value</td>
-                  <td>{formatMoney(inventoryKpis.totalValue)}</td>
-                </tr>
-                <tr>
-                  <td>Total Quantity on Hand</td>
-                  <td>{formatNumber(inventoryKpis.totalQuantity)}</td>
-                </tr>
-              </tbody>
-            </table>
-            <h2>Top 5 Inventory Items by Value</h2>
-            <InventoryPrintTable items={inventoryKpis.topByValue} />
-            <h2>Top 5 Inventory Items by Quantity</h2>
-            <InventoryPrintTable items={inventoryKpis.topByQuantity} />
-          </section>
+          {includeSection("inventory-summary") && inventoryData && (
+            <section className="print-page">
+              <h1>Inventory Summary</h1>
+              <p>Inventory valuation detail from the uploaded Inventory Valuation report.</p>
+              <table className="print-table">
+                <tbody>
+                  <tr>
+                    <td>Total Inventory Value</td>
+                    <td>{formatMoney(inventoryKpis.totalValue)}</td>
+                  </tr>
+                  <tr>
+                    <td>Total Quantity on Hand</td>
+                    <td>{formatNumber(inventoryKpis.totalQuantity)}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <h2>Top 5 Inventory Items by Value</h2>
+              <InventoryPrintTable items={inventoryKpis.topByValue} />
+              <h2>Top 5 Inventory Items by Quantity</h2>
+              <InventoryPrintTable items={inventoryKpis.topByQuantity} />
+            </section>
           )}
 
-          <section className="print-page">
-            <h1>Ratio Analysis</h1>
-            <table className="print-table">
-              <thead>
-                <tr>
-                  <th>Ratio</th>
-                  <th>Formula</th>
-                  <th>Value</th>
-                  <th>Interpretation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ratioRows.map((ratio) => (
-                  <tr key={ratio.name}>
-                    <td>{ratio.name}</td>
-                    <td>{ratio.formula}</td>
-                    <td>{ratio.value}</td>
-                    <td>{ratio.interpretation}</td>
+          {includeSection("ratio-analysis") && (
+            <section className="print-page">
+              <h1>Ratio Analysis</h1>
+              <table className="print-table">
+                <thead>
+                  <tr>
+                    <th>Ratio</th>
+                    <th>Formula</th>
+                    <th>Value</th>
+                    <th>Interpretation</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {ratioRows.map((ratio) => (
+                    <tr key={ratio.name}>
+                      <td>{ratio.name}</td>
+                      <td>{ratio.formula}</td>
+                      <td>{ratio.value}</td>
+                      <td>{ratio.interpretation}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
         </>
       )}
 
       {isVirtualCfo(packageTier) && (
         <>
-          {fixedAssetData && (
+          {includeSection("fixed-asset-analysis") && fixedAssetData && (
           <section className="print-page">
             <h1>Fixed Asset Analysis</h1>
             <p>Fixed asset detail from the uploaded Fixed Asset report.</p>
@@ -7138,7 +9278,7 @@ function PrintableFinancialPackage({
           </section>
           )}
 
-          {(currentPayrollData || priorPayrollData) && (
+          {includeSection("payroll-fte") && (currentPayrollData || priorPayrollData) && (
             <PayrollPrintSection
               analysis={payrollAnalysis}
               currentPayrollData={currentPayrollData}
@@ -7146,31 +9286,33 @@ function PrintableFinancialPackage({
             />
           )}
 
-          {monthFluxRows.length > 0 && (
+          {includeSection("flux-summary") && monthFluxRows.length > 0 && (
             <>
               <PrintFluxSection title="Flux Analysis Executive Summary" rows={monthFluxRows} />
-              <PrintFluxSection title="Month-over-Month Flux Analysis" rows={monthFluxRows} />
             </>
           )}
-          {quarterFluxRows.length > 0 && (
+          {includeSection("month-flux") && monthFluxRows.length > 0 && (
+            <PrintFluxSection title="Month-over-Month Flux Analysis" rows={monthFluxRows} />
+          )}
+          {includeSection("quarter-flux") && quarterFluxRows.length > 0 && (
             <PrintFluxSection title="Quarter-over-Quarter Flux Analysis" rows={quarterFluxRows} />
           )}
-          {yearFluxRows.length > 0 && (
+          {includeSection("year-flux") && yearFluxRows.length > 0 && (
             <PrintFluxSection title="Year-over-Year Flux Analysis" rows={yearFluxRows} />
           )}
 
-          {budgetMetrics.revenueActual !== null && (
+          {includeSection("budget-vs-actual") && budgetMetrics.revenueActual !== null && (
             <BudgetPrintSection metrics={budgetMetrics} />
           )}
-          {debtMetrics.totalDebt > 0 && <DebtPrintSection metrics={debtMetrics} />}
-          <section className="print-page">
+          {includeSection("debt-schedule") && debtMetrics.totalDebt > 0 && <DebtPrintSection metrics={debtMetrics} />}
+          {includeSection("recommended-follow-up") && <section className="print-page">
             <h1>Recommended Follow-Up Items</h1>
             <ul>
               {executiveSummary.followUpItems.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
-          </section>
+          </section>}
         </>
       )}
     </div>
