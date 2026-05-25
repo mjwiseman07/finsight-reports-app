@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import {
@@ -36,6 +36,7 @@ type KPIs = {
   cash: number;
   accountsReceivable: number;
   totalAssets: number;
+  totalLiabilities: number;
   totalEquity: number;
   matches: MatchedLine[];
 };
@@ -49,6 +50,10 @@ type PackageTier = "essential" | "professional" | "virtualCfo";
 type UploadTier = PackageTier;
 type ThresholdLogic = "both" | "either";
 type FluxSeverity = "High" | "Moderate" | "Low";
+type UploadAccess =
+  | { status: "checking"; token: string; plan: PackageTier | null; reason: string | null }
+  | { status: "allowed"; token: string; plan: PackageTier | null; reason: "trial" | "subscriber" }
+  | { status: "blocked"; token: string; plan: PackageTier | null; reason: string };
 
 type UploadReport = {
   id: string;
@@ -61,6 +66,13 @@ type UploadReport = {
   onFile: (file: File) => void | Promise<void>;
   onRemove: () => void;
   onOmitChange: (omitted: boolean) => void;
+};
+type QuickBooksReportHelp = {
+  title: string;
+  qbo: string;
+  desktop: string;
+  export: string;
+  note?: string;
 };
 
 type APKpis = {
@@ -233,36 +245,82 @@ type RatioId =
   | "Payroll Cost per FTE"
   | "Revenue per FTE"
   | "Gross Profit per FTE"
+  | "Operating Margin"
+  | "EBITDA Margin"
+  | "Inventory Turnover"
+  | "AR Turnover"
+  | "AP Turnover"
+  | "Cash Conversion Cycle"
   | "Debt to Equity"
   | "Debt to Assets";
 
 type FluxAnalysisId = "month" | "quarter" | "year";
+type FluxAccountType =
+  | "asset"
+  | "liability"
+  | "equity"
+  | "revenue"
+  | "cogs"
+  | "expense"
+  | "other-income"
+  | "other-expense"
+  | "unknown";
+type FluxBasis = "Ending Balance" | "Period Activity";
+type ChartSelectionId =
+  | "revenue-trend"
+  | "gross-margin-trend"
+  | "ebitda-trend"
+  | "cash-trend"
+  | "ar-aging-mix"
+  | "ap-aging-mix"
+  | "payroll-trend"
+  | "revenue-per-fte"
+  | "expense-breakdown"
+  | "budget-vs-actual"
+  | "net-income-trend"
+  | "working-capital-trend";
 
 type ClientPackageSettings = {
   packageTier: PackageTier;
   pdfSections: PackageSectionId[];
   powerpointSections: PackageSectionId[];
   selectedRatios: RatioId[];
+  selectedCharts?: ChartSelectionId[];
   selectedFluxAnalyses: FluxAnalysisId[];
   fluxSettings: FluxSettings;
   includeHighSeverityOnly?: boolean;
   includeModerateSeverity?: boolean;
   maxFluxRows?: number;
   useSamePowerPointSelections: boolean;
+  clientIndustry?: string;
+  companyTagline?: string;
+  preparedFor?: string;
+  firmLogoPath?: string;
+  firmLogoDataUrl?: string;
+  firmLogoFileName?: string;
+  confidentialWatermark?: boolean;
 };
+
+type PowerPointSectionType = PackageSectionId | "title";
 
 type PowerPointSlideData = {
   title: string;
   subtitle: string;
   bullets: string[];
   chartData: Array<Record<string, string | number>>;
-  sectionType: string;
+  sectionType: PowerPointSectionType;
 };
 
 type FluxAccount = {
   accountNumber: string;
   accountName: string;
   amount: number;
+  accountType: FluxAccountType;
+  basis: FluxBasis;
+  periodActivity: number;
+  endingBalance: number | null;
+  hasBalanceColumn: boolean;
+  warnings: string[];
 };
 
 type GlActivityRow = {
@@ -292,6 +350,8 @@ type FluxDriver = {
 type FluxRow = {
   accountNumber: string;
   accountName: string;
+  accountType: FluxAccountType;
+  basis: FluxBasis;
   currentAmount: number;
   priorAmount: number;
   dollarVariance: number;
@@ -303,6 +363,7 @@ type FluxRow = {
   driverChange: number | null;
   commentary: string;
   topDrivers: FluxDriver[];
+  warnings: string[];
 };
 
 type FluxDebugInfo = {
@@ -325,6 +386,21 @@ const PACKAGE_LABELS: Record<PackageTier, string> = {
   professional: "Professional",
   virtualCfo: "Virtual CFO",
 };
+const STRIPE_PRICE_TO_PACKAGE_TIER: Record<string, PackageTier> = {
+  price_1Tanv2CYGplhrQTJhQ1riXCe: "essential",
+  price_1TanxOCYGplhrQTJSv3ynV3Y: "professional",
+  price_1TanyYCYGplhrQTJG82yVpJC: "virtualCfo",
+};
+const entitlementRatios: Record<PackageTier, RatioId[]> = {
+  essential: ["Net Margin", "Gross Margin", "Operating Margin", "Expense Ratio", "Current Ratio", "Quick Ratio"],
+  professional: getDefaultRatiosForPackage("professional"),
+  virtualCfo: getDefaultRatiosForPackage("virtualCfo"),
+};
+const entitlementFluxAnalyses: Record<PackageTier, FluxAnalysisId[]> = {
+  essential: ["month"],
+  professional: ["month", "quarter", "year"],
+  virtualCfo: ["month", "quarter", "year"],
+};
 const PREVIEW_COLUMN_LIMIT = 10;
 const essentialPackageRequirements: PackageRequirement[] = [
   { id: "pl", label: "Profit and Loss", reportIds: ["pl"] },
@@ -337,22 +413,26 @@ const professionalPackageRequirements: PackageRequirement[] = [
   { id: "ar", label: "AR Aging", reportIds: ["ar"] },
   { id: "ap", label: "AP Aging", reportIds: ["ap"] },
   { id: "inventory", label: "Inventory Valuation", reportIds: ["inventory"] },
-  { id: "budget", label: "Budget vs Actual", reportIds: ["budget"] },
   { id: "customers", label: "Sales by Customer", reportIds: ["customers"] },
   { id: "vendors", label: "Expenses by Vendor", reportIds: ["vendors"] },
   { id: "payroll-summary", label: "Payroll Summary / Payroll by Department", reportIds: ["current-payroll", "prior-payroll"] },
+  { id: "current-month-gl", label: "Current Month GL", reportIds: ["current-month-gl"] },
+  { id: "prior-month-gl", label: "Prior Month GL", reportIds: ["prior-month-gl"] },
+  { id: "current-quarter-gl", label: "Current Quarter GL", reportIds: ["current-quarter-gl"] },
+  { id: "prior-quarter-gl", label: "Prior Quarter GL", reportIds: ["prior-quarter-gl"] },
+  { id: "current-year-gl", label: "Current Year GL", reportIds: ["current-year-gl"] },
+  { id: "prior-year-gl", label: "Prior Year GL", reportIds: ["prior-year-gl"] },
 ];
 const packageRequirements: Record<PackageTier, PackageRequirement[]> = {
-  essential: essentialPackageRequirements,
+  essential: [
+    ...essentialPackageRequirements,
+    { id: "current-month-gl", label: "Current Month GL", reportIds: ["current-month-gl"] },
+    { id: "prior-month-gl", label: "Prior Month GL", reportIds: ["prior-month-gl"] },
+  ],
   professional: professionalPackageRequirements,
   virtualCfo: [
     ...professionalPackageRequirements,
-    { id: "current-month-gl", label: "Current Month GL", reportIds: ["current-month-gl"] },
-    { id: "prior-month-gl", label: "Prior Month GL", reportIds: ["prior-month-gl"] },
-    { id: "current-quarter-gl", label: "Current Quarter GL", reportIds: ["current-quarter-gl"] },
-    { id: "prior-quarter-gl", label: "Prior Quarter GL", reportIds: ["prior-quarter-gl"] },
-    { id: "current-year-gl", label: "Current Year GL", reportIds: ["current-year-gl"] },
-    { id: "prior-year-gl", label: "Prior Year GL", reportIds: ["prior-year-gl"] },
+    { id: "budget", label: "Budget vs Actual", reportIds: ["budget"] },
     { id: "fixed-assets", label: "Fixed Assets", reportIds: ["fixed-assets"] },
     { id: "prior-fixed-assets", label: "Prior Period Fixed Assets", reportIds: ["prior-fixed-assets"] },
     { id: "debt", label: "Debt Schedule", reportIds: ["debt"] },
@@ -375,19 +455,21 @@ const packageSectionOptions: Array<{
   { id: "vendor-expenses", label: "Vendor Expense Analysis", minimumTier: "professional", requiredReportIds: ["vendors"] },
   { id: "inventory-summary", label: "Inventory Summary", minimumTier: "professional", requiredReportIds: ["inventory"] },
   { id: "fixed-asset-analysis", label: "Fixed Asset Analysis", minimumTier: "virtualCfo", requiredReportIds: ["fixed-assets"] },
-  { id: "payroll-fte", label: "Payroll and FTE Analysis", minimumTier: "virtualCfo", requiredReportIds: ["current-payroll", "prior-payroll"] },
+  { id: "payroll-fte", label: "Payroll and FTE Analysis", minimumTier: "professional", requiredReportIds: ["current-payroll", "prior-payroll"] },
   { id: "ratio-analysis", label: "Ratio Analysis", minimumTier: "essential" },
-  { id: "budget-vs-actual", label: "Budget vs Actual", minimumTier: "professional", requiredReportIds: ["budget"] },
+  { id: "budget-vs-actual", label: "Budget vs Actual", minimumTier: "virtualCfo", requiredReportIds: ["budget"] },
   { id: "debt-schedule", label: "Debt Schedule", minimumTier: "virtualCfo", requiredReportIds: ["debt"] },
-  { id: "flux-summary", label: "Flux Analysis Executive Summary", minimumTier: "virtualCfo", requiredReportIds: ["current-month-gl", "prior-month-gl"] },
-  { id: "month-flux", label: "Month-over-Month Flux", minimumTier: "virtualCfo", requiredReportIds: ["current-month-gl", "prior-month-gl"] },
-  { id: "quarter-flux", label: "Quarter-over-Quarter Flux", minimumTier: "virtualCfo", requiredReportIds: ["current-quarter-gl", "prior-quarter-gl"] },
-  { id: "year-flux", label: "Year-over-Year Flux", minimumTier: "virtualCfo", requiredReportIds: ["current-year-gl", "prior-year-gl"] },
+  { id: "flux-summary", label: "Flux Analysis Executive Summary", minimumTier: "essential", requiredReportIds: ["current-month-gl", "prior-month-gl"] },
+  { id: "month-flux", label: "Month-over-Month Flux", minimumTier: "essential", requiredReportIds: ["current-month-gl", "prior-month-gl"] },
+  { id: "quarter-flux", label: "Quarter-over-Quarter Flux", minimumTier: "professional", requiredReportIds: ["current-quarter-gl", "prior-quarter-gl"] },
+  { id: "year-flux", label: "Year-over-Year Flux", minimumTier: "professional", requiredReportIds: ["current-year-gl", "prior-year-gl"] },
   { id: "recommended-follow-up", label: "Recommended Follow-Up Items", minimumTier: "virtualCfo" },
 ];
 const ratioOptions: RatioId[] = [
   "Net Margin",
   "Gross Margin",
+  "Operating Margin",
+  "EBITDA Margin",
   "Expense Ratio",
   "Current Ratio",
   "Quick Ratio",
@@ -403,18 +485,51 @@ const ratioOptions: RatioId[] = [
   "Payroll Cost per FTE",
   "Revenue per FTE",
   "Gross Profit per FTE",
+  "Inventory Turnover",
+  "AR Turnover",
+  "AP Turnover",
+  "Cash Conversion Cycle",
   "Debt to Equity",
   "Debt to Assets",
 ];
+const chartOptions: Array<{ id: ChartSelectionId; label: string; minimumTier: PackageTier }> = [
+  { id: "revenue-trend", label: "Revenue Trend", minimumTier: "essential" },
+  { id: "gross-margin-trend", label: "Gross Margin Trend", minimumTier: "essential" },
+  { id: "ebitda-trend", label: "EBITDA Trend", minimumTier: "professional" },
+  { id: "cash-trend", label: "Cash Trend", minimumTier: "essential" },
+  { id: "ar-aging-mix", label: "AR Aging Mix", minimumTier: "professional" },
+  { id: "ap-aging-mix", label: "AP Aging Mix", minimumTier: "professional" },
+  { id: "payroll-trend", label: "Payroll Trend", minimumTier: "professional" },
+  { id: "revenue-per-fte", label: "Revenue per FTE", minimumTier: "professional" },
+  { id: "expense-breakdown", label: "Expense Breakdown", minimumTier: "essential" },
+  { id: "budget-vs-actual", label: "Budget vs Actual", minimumTier: "virtualCfo" },
+  { id: "net-income-trend", label: "Net Income Trend", minimumTier: "essential" },
+  { id: "working-capital-trend", label: "Working Capital Trend", minimumTier: "professional" },
+];
+const packageDefaultCharts: Record<PackageTier, ChartSelectionId[]> = {
+  essential: ["revenue-trend", "gross-margin-trend", "cash-trend", "expense-breakdown", "net-income-trend"],
+  professional: [
+    "revenue-trend",
+    "gross-margin-trend",
+    "ebitda-trend",
+    "cash-trend",
+    "ar-aging-mix",
+    "ap-aging-mix",
+    "expense-breakdown",
+    "budget-vs-actual",
+    "net-income-trend",
+    "working-capital-trend",
+  ],
+  virtualCfo: chartOptions.map((option) => option.id),
+};
 const packageDefaultSections: Record<PackageTier, PackageSectionId[]> = {
   essential: [
     "executive-summary",
     "kpi-snapshot",
     "income-statement",
     "balance-sheet",
-    "ar-aging",
-    "ap-aging",
     "ratio-analysis",
+    "month-flux",
   ],
   professional: [
     "executive-summary",
@@ -427,7 +542,11 @@ const packageDefaultSections: Record<PackageTier, PackageSectionId[]> = {
     "customer-sales",
     "vendor-expenses",
     "inventory-summary",
-    "budget-vs-actual",
+    "payroll-fte",
+    "flux-summary",
+    "month-flux",
+    "quarter-flux",
+    "year-flux",
   ],
   virtualCfo: [
     "executive-summary",
@@ -450,6 +569,157 @@ const packageDefaultSections: Record<PackageTier, PackageSectionId[]> = {
     "year-flux",
     "recommended-follow-up",
   ],
+};
+const QUICKBOOKS_REPORT_HELP: Record<string, QuickBooksReportHelp> = {
+  pl: {
+    title: "Profit & Loss",
+    qbo: "Reports -> Standard -> Business Overview -> Profit and Loss",
+    desktop: "Reports -> Company & Financial -> Profit & Loss Standard",
+    export: "Click Export -> Export to Excel",
+  },
+  "prior-pl": {
+    title: "Profit & Loss Comparison",
+    qbo: "Reports -> Standard -> Business Overview -> Profit and Loss Comparison",
+    desktop: "Reports -> Company & Financial -> Profit & Loss Previous Year Comparison",
+    export: "Click Export -> Export to Excel",
+  },
+  bs: {
+    title: "Balance Sheet",
+    qbo: "Reports -> Standard -> Business Overview -> Balance Sheet",
+    desktop: "Reports -> Company & Financial -> Balance Sheet Standard",
+    export: "Click Export -> Export to Excel",
+  },
+  "prior-bs": {
+    title: "Balance Sheet Comparison",
+    qbo: "Reports -> Standard -> Business Overview -> Balance Sheet Comparison",
+    desktop: "Reports -> Company & Financial -> Balance Sheet Previous Year Comparison",
+    export: "Click Export -> Export to Excel",
+  },
+  "cash-flow": {
+    title: "Cash Flow Statement",
+    qbo: "Reports -> Standard -> Business Overview -> Statement of Cash Flows",
+    desktop: "Reports -> Company & Financial -> Statement of Cash Flows",
+    export: "Click Export -> Export to Excel",
+  },
+  "current-month-gl": {
+    title: "General Ledger",
+    qbo: "Reports -> Standard -> For My Accountant -> General Ledger -> set date range accordingly",
+    desktop: "Reports -> Accountant & Taxes -> General Ledger -> set date range",
+    export: "Click Export -> Export to Excel",
+  },
+  "prior-month-gl": {
+    title: "General Ledger",
+    qbo: "Reports -> Standard -> For My Accountant -> General Ledger -> set date range accordingly",
+    desktop: "Reports -> Accountant & Taxes -> General Ledger -> set date range",
+    export: "Click Export -> Export to Excel",
+  },
+  "current-quarter-gl": {
+    title: "General Ledger",
+    qbo: "Reports -> Standard -> For My Accountant -> General Ledger -> set date range accordingly",
+    desktop: "Reports -> Accountant & Taxes -> General Ledger -> set date range",
+    export: "Click Export -> Export to Excel",
+  },
+  "prior-quarter-gl": {
+    title: "General Ledger",
+    qbo: "Reports -> Standard -> For My Accountant -> General Ledger -> set date range accordingly",
+    desktop: "Reports -> Accountant & Taxes -> General Ledger -> set date range",
+    export: "Click Export -> Export to Excel",
+  },
+  "current-year-gl": {
+    title: "General Ledger",
+    qbo: "Reports -> Standard -> For My Accountant -> General Ledger -> set date range accordingly",
+    desktop: "Reports -> Accountant & Taxes -> General Ledger -> set date range",
+    export: "Click Export -> Export to Excel",
+  },
+  "prior-year-gl": {
+    title: "General Ledger",
+    qbo: "Reports -> Standard -> For My Accountant -> General Ledger -> set date range accordingly",
+    desktop: "Reports -> Accountant & Taxes -> General Ledger -> set date range",
+    export: "Click Export -> Export to Excel",
+  },
+  ar: {
+    title: "AR Aging Summary",
+    qbo: "Reports -> Standard -> Who Owes You -> Accounts Receivable Aging Summary",
+    desktop: "Reports -> Customers & Receivables -> A/R Aging Summary",
+    export: "Click Export -> Export to Excel",
+  },
+  ap: {
+    title: "AP Aging Summary",
+    qbo: "Reports -> Standard -> What You Owe -> Accounts Payable Aging Summary",
+    desktop: "Reports -> Vendors & Payables -> A/P Aging Summary",
+    export: "Click Export -> Export to Excel",
+  },
+  budget: {
+    title: "Budget vs Actuals",
+    qbo: "Reports -> Standard -> Business Overview -> Budget vs. Actuals",
+    desktop: "Reports -> Budgets & Forecasts -> Budget vs. Actual",
+    export: "Click Export -> Export to Excel",
+  },
+  "current-payroll": {
+    title: "Payroll Summary by Department",
+    qbo: "Reports -> Standard -> Payroll -> Payroll Summary by Employee -> Group by Class/Department",
+    desktop: "Reports -> Employees & Payroll -> Payroll Summary -> Filter by Class",
+    export: "Click Export -> Export to Excel",
+    note: "Must have Class Tracking enabled for department breakdown. Go to Settings -> Payroll Settings -> enable Class Tracking.",
+  },
+  "prior-payroll": {
+    title: "Payroll Summary by Department",
+    qbo: "Reports -> Standard -> Payroll -> Payroll Summary by Employee -> Group by Class/Department",
+    desktop: "Reports -> Employees & Payroll -> Payroll Summary -> Filter by Class",
+    export: "Click Export -> Export to Excel",
+    note: "Must have Class Tracking enabled for department breakdown. Go to Settings -> Payroll Settings -> enable Class Tracking.",
+  },
+  "current-payroll-detail": {
+    title: "Payroll GL Detail",
+    qbo: "Reports -> Standard -> For My Accountant -> General Ledger -> filter by payroll accounts only",
+    desktop: "Reports -> Employees & Payroll -> Payroll Detail Review",
+    export: "Click Export -> Export to Excel",
+  },
+  "prior-payroll-detail": {
+    title: "Payroll GL Detail",
+    qbo: "Reports -> Standard -> For My Accountant -> General Ledger -> filter by payroll accounts only",
+    desktop: "Reports -> Employees & Payroll -> Payroll Detail Review",
+    export: "Click Export -> Export to Excel",
+  },
+  "fixed-assets": {
+    title: "Fixed Assets",
+    qbo: "Reports -> Standard -> For My Accountant -> Fixed Asset List",
+    desktop: "Reports -> Fixed Assets -> Fixed Asset Listing",
+    export: "Click Export -> Export to Excel",
+    note: "Full depreciation schedule requires QuickBooks Fixed Asset Manager add-on.",
+  },
+  "prior-fixed-assets": {
+    title: "Fixed Assets",
+    qbo: "Reports -> Standard -> For My Accountant -> Fixed Asset List",
+    desktop: "Reports -> Fixed Assets -> Fixed Asset Listing",
+    export: "Click Export -> Export to Excel",
+    note: "Full depreciation schedule requires QuickBooks Fixed Asset Manager add-on.",
+  },
+  debt: {
+    title: "Debt Schedule / Loan Detail",
+    qbo: "Reports -> Standard -> What You Owe -> Loan List, or run Balance Sheet and drill down into long-term liability accounts",
+    desktop: "Reports -> Company & Financial -> Balance Sheet -> drill into loan accounts",
+    export: "Click Export -> Export to Excel",
+    note: "QuickBooks does not have a native debt schedule report. This data is typically exported from loan liability accounts in the General Ledger.",
+  },
+  customers: {
+    title: "Sales by Customer",
+    qbo: "Reports -> Standard -> Sales and Customers -> Sales by Customer Summary",
+    desktop: "Reports -> Sales -> Sales by Customer Summary",
+    export: "Click Export -> Export to Excel",
+  },
+  vendors: {
+    title: "Expenses by Vendor",
+    qbo: "Reports -> Standard -> Expenses and Vendors -> Expenses by Vendor Summary",
+    desktop: "Reports -> Company & Financial -> Expenses by Vendor Summary",
+    export: "Click Export -> Export to Excel",
+  },
+  inventory: {
+    title: "Inventory Valuation",
+    qbo: "Reports -> Standard -> Sales and Customers -> Inventory Valuation Summary",
+    desktop: "Reports -> Inventory -> Inventory Valuation Summary",
+    export: "Click Export -> Export to Excel",
+  },
 };
 const REPORT_FILENAME_KEYWORDS: Record<string, string[]> = {
   pl: ["profit and loss", "profitandloss", "profit loss", "p&l", "pnl", "income statement"],
@@ -520,6 +790,8 @@ function getDefaultRatiosForPackage(tier: PackageTier): RatioId[] {
     return [
       "Net Margin",
       "Gross Margin",
+      "Operating Margin",
+      "EBITDA Margin",
       "Expense Ratio",
       "Current Ratio",
       "Quick Ratio",
@@ -531,7 +803,14 @@ function getDefaultRatiosForPackage(tier: PackageTier): RatioId[] {
     ];
   }
   if (tier === "professional") {
-    return [...getDefaultRatiosForPackage("essential"), "Inventory to Total Assets"];
+    return [
+      ...getDefaultRatiosForPackage("essential"),
+      "Inventory to Total Assets",
+      "Inventory Turnover",
+      "AR Turnover",
+      "AP Turnover",
+      "Cash Conversion Cycle",
+    ];
   }
   return [
     ...getDefaultRatiosForPackage("professional"),
@@ -697,6 +976,18 @@ function formatMoney(value: number | null | undefined) {
   return formatCurrency(value ?? 0);
 }
 
+function formatPeriodEnding(value: string) {
+  const trimmed = value.trim();
+  const parsed = new Date(trimmed);
+  if (!trimmed || Number.isNaN(parsed.getTime())) return trimmed || "For the Current Reporting Period";
+
+  return `For the Period Ending ${parsed.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })}`;
+}
+
 function formatOptionalCurrency(value: number | null | undefined, fallback = "Not found") {
   return value === null || value === undefined ? fallback : formatCurrency(value);
 }
@@ -721,6 +1012,864 @@ function formatPercent(value: number | null | undefined) {
 function formatRate(value: number | null | undefined) {
   if (value === null || value === undefined) return "";
   return value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function escapeXml(value: string | number | null | undefined) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+    .slice(0, 900)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function sanitizeFilename(value: string) {
+  return value.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim() || "FinSight Presentation";
+}
+
+function createCrc32Table() {
+  const table: number[] = [];
+  for (let i = 0; i < 256; i += 1) {
+    let crc = i;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+    }
+    table[i] = crc >>> 0;
+  }
+  return table;
+}
+
+const CRC32_TABLE = createCrc32Table();
+
+function crc32(bytes: Uint8Array) {
+  let crc = 0xffffffff;
+  bytes.forEach((byte) => {
+    crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  });
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function writeUint16(bytes: Uint8Array, offset: number, value: number) {
+  bytes[offset] = value & 0xff;
+  bytes[offset + 1] = (value >>> 8) & 0xff;
+}
+
+function writeUint32(bytes: Uint8Array, offset: number, value: number) {
+  bytes[offset] = value & 0xff;
+  bytes[offset + 1] = (value >>> 8) & 0xff;
+  bytes[offset + 2] = (value >>> 16) & 0xff;
+  bytes[offset + 3] = (value >>> 24) & 0xff;
+}
+
+function concatBytes(chunks: Uint8Array[]) {
+  const totalLength = chunks.reduce((total, chunk) => total + chunk.length, 0);
+  const output = new Uint8Array(totalLength);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    output.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return output;
+}
+
+function createZipBlob(files: Array<{ path: string; content: string }>, mimeType: string) {
+  const encoder = new TextEncoder();
+  const localChunks: Uint8Array[] = [];
+  const centralChunks: Uint8Array[] = [];
+  let offset = 0;
+
+  files.forEach((file) => {
+    const nameBytes = encoder.encode(file.path);
+    const data = encoder.encode(file.content);
+    const crc = crc32(data);
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    writeUint32(localHeader, 0, 0x04034b50);
+    writeUint16(localHeader, 4, 20);
+    writeUint16(localHeader, 6, 0);
+    writeUint16(localHeader, 8, 0);
+    writeUint16(localHeader, 10, 0);
+    writeUint16(localHeader, 12, 0);
+    writeUint32(localHeader, 14, crc);
+    writeUint32(localHeader, 18, data.length);
+    writeUint32(localHeader, 22, data.length);
+    writeUint16(localHeader, 26, nameBytes.length);
+    writeUint16(localHeader, 28, 0);
+    localHeader.set(nameBytes, 30);
+    localChunks.push(localHeader, data);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    writeUint32(centralHeader, 0, 0x02014b50);
+    writeUint16(centralHeader, 4, 20);
+    writeUint16(centralHeader, 6, 20);
+    writeUint16(centralHeader, 8, 0);
+    writeUint16(centralHeader, 10, 0);
+    writeUint16(centralHeader, 12, 0);
+    writeUint16(centralHeader, 14, 0);
+    writeUint32(centralHeader, 16, crc);
+    writeUint32(centralHeader, 20, data.length);
+    writeUint32(centralHeader, 24, data.length);
+    writeUint16(centralHeader, 28, nameBytes.length);
+    writeUint16(centralHeader, 30, 0);
+    writeUint16(centralHeader, 32, 0);
+    writeUint16(centralHeader, 34, 0);
+    writeUint16(centralHeader, 36, 0);
+    writeUint32(centralHeader, 38, 0);
+    writeUint32(centralHeader, 42, offset);
+    centralHeader.set(nameBytes, 46);
+    centralChunks.push(centralHeader);
+    offset += localHeader.length + data.length;
+  });
+
+  const centralDirectory = concatBytes(centralChunks);
+  const endRecord = new Uint8Array(22);
+  writeUint32(endRecord, 0, 0x06054b50);
+  writeUint16(endRecord, 4, 0);
+  writeUint16(endRecord, 6, 0);
+  writeUint16(endRecord, 8, files.length);
+  writeUint16(endRecord, 10, files.length);
+  writeUint32(endRecord, 12, centralDirectory.length);
+  writeUint32(endRecord, 16, offset);
+  writeUint16(endRecord, 20, 0);
+
+  return new Blob([concatBytes([...localChunks, centralDirectory, endRecord])], { type: mimeType });
+}
+
+function pptParagraph(text: string, size: number, color = "E2E8F0", bold = false) {
+  return `<a:p><a:r><a:rPr lang="en-US" sz="${size}"${bold ? ' b="1"' : ""}><a:solidFill><a:srgbClr val="${color}"/></a:solidFill></a:rPr><a:t>${escapeXml(text)}</a:t></a:r></a:p>`;
+}
+
+function pptShape({
+  id,
+  name,
+  x,
+  y,
+  cx,
+  cy,
+  fill,
+  paragraphs,
+}: {
+  id: number;
+  name: string;
+  x: number;
+  y: number;
+  cx: number;
+  cy: number;
+  fill?: string;
+  paragraphs: string;
+}) {
+  const hasText = Boolean(paragraphs);
+  return `
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="${id}" name="${escapeXml(name)}"/><p:cNvSpPr${hasText ? ' txBox="1"' : ""}/><p:nvPr/></p:nvSpPr>
+      <p:spPr>
+        <a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
+        <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+        ${fill ? `<a:solidFill><a:srgbClr val="${fill}"/></a:solidFill>` : "<a:noFill/>"}
+        <a:ln><a:noFill/></a:ln>
+      </p:spPr>
+      ${hasText ? `<p:txBody><a:bodyPr wrap="square" anchor="t"/><a:lstStyle/>${paragraphs}</p:txBody>` : ""}
+    </p:sp>
+  `;
+}
+
+function buildSlideXml(slide: PowerPointSlideData, index: number, slideCount: number, preparedBy: string) {
+  let shapeId = 2;
+  const nextId = () => shapeId++;
+  const maxChartValue = Math.max(
+    1,
+    ...slide.chartData.slice(0, 6).map((item) => Math.abs(Number(item.value || 0))),
+  );
+  const bulletParagraphs = (slide.bullets.length ? slide.bullets : ["No data available for this section."])
+    .slice(0, 6)
+    .map((bullet) => pptParagraph(`- ${bullet}`, 1600, "E2E8F0"))
+    .join("");
+  const chartShapes = slide.chartData
+    .slice(0, 6)
+    .map((item, chartIndex) => {
+      const value = Number(item.value || 0);
+      const y = 2670000 + chartIndex * 440000;
+      const barWidth = Math.max(170000, Math.round((Math.abs(value) / maxChartValue) * 2650000));
+      return [
+        pptShape({
+          id: nextId(),
+          name: `Chart Label ${chartIndex + 1}`,
+          x: 6920000,
+          y,
+          cx: 1750000,
+          cy: 260000,
+          paragraphs: pptParagraph(String(item.name || "Metric"), 1150, "CBD5E1", true),
+        }),
+        pptShape({
+          id: nextId(),
+          name: `Chart Value ${chartIndex + 1}`,
+          x: 8720000,
+          y,
+          cx: 980000,
+          cy: 260000,
+          paragraphs: pptParagraph(formatCurrency(value), 1150, "BFDBFE", true),
+        }),
+        pptShape({
+          id: nextId(),
+          name: `Chart Bar ${chartIndex + 1}`,
+          x: 9850000,
+          y: y + 65000,
+          cx: barWidth,
+          cy: 120000,
+          fill: value < 0 ? "C0845A" : "5B8CFF",
+          paragraphs: "",
+        }),
+      ].join("");
+    })
+    .join("");
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+      <p:cSld>
+        <p:bg><p:bgPr><a:solidFill><a:srgbClr val="0B1020"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>
+        <p:spTree>
+          <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+          <p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
+          ${pptShape({
+            id: nextId(),
+            name: "Kicker",
+            x: 610000,
+            y: 430000,
+            cx: 7200000,
+            cy: 300000,
+            paragraphs: pptParagraph(`SLIDE ${index + 1} / ${slideCount} • ${slide.sectionType}`, 1050, "93C5FD", true),
+          })}
+          ${pptShape({
+            id: nextId(),
+            name: "Title",
+            x: 610000,
+            y: 820000,
+            cx: 10400000,
+            cy: 780000,
+            paragraphs: pptParagraph(slide.title, 3000, "F8FAFC", true),
+          })}
+          ${pptShape({
+            id: nextId(),
+            name: "Subtitle",
+            x: 610000,
+            y: 1570000,
+            cx: 9900000,
+            cy: 420000,
+            paragraphs: pptParagraph(slide.subtitle, 1450, "CBD5E1"),
+          })}
+          ${pptShape({
+            id: nextId(),
+            name: "Narrative Card",
+            x: 610000,
+            y: 2300000,
+            cx: slide.chartData.length ? 5600000 : 11100000,
+            cy: 3500000,
+            fill: "111827",
+            paragraphs: bulletParagraphs,
+          })}
+          ${
+            slide.chartData.length
+              ? pptShape({
+                  id: nextId(),
+                  name: "Chart Card",
+                  x: 6610000,
+                  y: 2300000,
+                  cx: 5650000,
+                  cy: 3500000,
+                  fill: "172033",
+                  paragraphs: pptParagraph("Chart Data", 1400, "F8FAFC", true),
+                })
+              : ""
+          }
+          ${chartShapes}
+          ${pptShape({
+            id: nextId(),
+            name: "Footer",
+            x: 610000,
+            y: 6350000,
+            cx: 9000000,
+            cy: 230000,
+            paragraphs: pptParagraph(`Prepared by ${preparedBy || "FinSight Reports"}`, 900, "94A3B8"),
+          })}
+        </p:spTree>
+      </p:cSld>
+      <p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>
+    </p:sld>`;
+}
+
+function buildPptxBlob(slides: PowerPointSlideData[], preparedBy: string) {
+  const slideOverrides = slides
+    .map((_, index) => `<Override PartName="/ppt/slides/slide${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`)
+    .join("");
+  const slideRelationships = slides
+    .map((_, index) => `<Relationship Id="rId${index + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${index + 1}.xml"/>`)
+    .join("");
+  const slideIds = slides
+    .map((_, index) => `<p:sldId id="${256 + index}" r:id="rId${index + 2}"/>`)
+    .join("");
+  const files = [
+    {
+      path: "[Content_Types].xml",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>${slideOverrides}</Types>`,
+    },
+    {
+      path: "_rels/.rels",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`,
+    },
+    {
+      path: "docProps/core.xml",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>FinSight Board Presentation</dc:title><dc:creator>${escapeXml(preparedBy || "FinSight Reports")}</dc:creator><cp:lastModifiedBy>${escapeXml(preparedBy || "FinSight Reports")}</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:modified></cp:coreProperties>`,
+    },
+    {
+      path: "docProps/app.xml",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>FinSight Reports</Application><PresentationFormat>On-screen Show (16:9)</PresentationFormat><Slides>${slides.length}</Slides></Properties>`,
+    },
+    {
+      path: "ppt/presentation.xml",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>${slideIds}</p:sldIdLst><p:sldSz cx="12192000" cy="6858000" type="wide"/><p:notesSz cx="6858000" cy="9144000"/><p:defaultTextStyle><a:defPPr><a:defRPr lang="en-US"/></a:defPPr></p:defaultTextStyle></p:presentation>`,
+    },
+    {
+      path: "ppt/_rels/presentation.xml.rels",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>${slideRelationships}</Relationships>`,
+    },
+    {
+      path: "ppt/slideMasters/slideMaster1.xml",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle><a:lvl1pPr algn="l"><a:defRPr sz="3000" lang="en-US"/></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr marL="342900" indent="-342900"><a:defRPr sz="1800" lang="en-US"/></a:lvl1pPr><a:lvl2pPr marL="742950" indent="-285750"><a:defRPr sz="1600" lang="en-US"/></a:lvl2pPr></p:bodyStyle><p:otherStyle><a:lvl1pPr><a:defRPr sz="1600" lang="en-US"/></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>`,
+    },
+    {
+      path: "ppt/slideMasters/_rels/slideMaster1.xml.rels",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>`,
+    },
+    {
+      path: "ppt/slideLayouts/slideLayout1.xml",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank"><p:cSld name="Blank"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>`,
+    },
+    {
+      path: "ppt/slideLayouts/_rels/slideLayout1.xml.rels",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>`,
+    },
+    {
+      path: "ppt/theme/theme1.xml",
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="FinSight"><a:themeElements><a:clrScheme name="FinSight"><a:dk1><a:srgbClr val="0B1020"/></a:dk1><a:lt1><a:srgbClr val="F8FAFC"/></a:lt1><a:dk2><a:srgbClr val="172033"/></a:dk2><a:lt2><a:srgbClr val="E2E8F0"/></a:lt2><a:accent1><a:srgbClr val="5B8CFF"/></a:accent1><a:accent2><a:srgbClr val="4FAE8A"/></a:accent2><a:accent3><a:srgbClr val="C0845A"/></a:accent3><a:accent4><a:srgbClr val="D8B56D"/></a:accent4><a:accent5><a:srgbClr val="7BA7D9"/></a:accent5><a:accent6><a:srgbClr val="94A3B8"/></a:accent6><a:hlink><a:srgbClr val="5B8CFF"/></a:hlink><a:folHlink><a:srgbClr val="7BA7D9"/></a:folHlink></a:clrScheme><a:fontScheme name="FinSight"><a:majorFont><a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="FinSight"><a:fillStyleLst><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="accent1"><a:lumMod val="110000"/><a:satMod val="105000"/></a:schemeClr></a:gs><a:gs pos="100000"><a:schemeClr val="accent1"><a:lumMod val="75000"/><a:satMod val="105000"/></a:schemeClr></a:gs></a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill><a:solidFill><a:schemeClr val="accent2"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="12700" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="19050" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:prstDash val="solid"/></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="dk1"/></a:solidFill><a:solidFill><a:schemeClr val="dk2"/></a:solidFill><a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="dk1"/></a:gs><a:gs pos="100000"><a:schemeClr val="dk2"/></a:gs></a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>`,
+    },
+    ...slides.flatMap((slide, index) => [
+      {
+        path: `ppt/slides/slide${index + 1}.xml`,
+        content: buildSlideXml(slide, index, slides.length, preparedBy),
+      },
+      {
+        path: `ppt/slides/_rels/slide${index + 1}.xml.rels`,
+        content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>`,
+      },
+    ]),
+  ];
+
+  return createZipBlob(files, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+}
+
+type PptxBrowserSlide = {
+  background: { color: string };
+  addText: (text: string, options: Record<string, unknown>) => void;
+  addShape: (shapeType: string, options: Record<string, unknown>) => void;
+  addImage: (options: Record<string, unknown>) => void;
+};
+
+type PptxBrowserPresentation = {
+  layout: string;
+  author: string;
+  subject: string;
+  title: string;
+  company: string;
+  theme: unknown;
+  addSlide: () => PptxBrowserSlide;
+  writeFile: (options: { fileName: string }) => Promise<void>;
+};
+
+type PptxBrowserConstructor = new () => PptxBrowserPresentation;
+
+declare global {
+  interface Window {
+    pptxgen?: PptxBrowserConstructor;
+    PptxGenJS?: PptxBrowserConstructor;
+    __finsightPptxGenPromise?: Promise<PptxBrowserConstructor>;
+  }
+}
+
+function loadPowerPointLibrary() {
+  if (window.pptxgen || window.PptxGenJS) {
+    return Promise.resolve((window.pptxgen || window.PptxGenJS) as PptxBrowserConstructor);
+  }
+  if (window.__finsightPptxGenPromise) return window.__finsightPptxGenPromise;
+
+  window.__finsightPptxGenPromise = new Promise<PptxBrowserConstructor>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/pptxgenjs/dist/pptxgen.bundle.js";
+    script.async = true;
+    script.onload = () => {
+      const library = window.pptxgen || window.PptxGenJS;
+      if (library) resolve(library);
+      else reject(new Error("PowerPoint library did not expose a browser global."));
+    };
+    script.onerror = () => reject(new Error("PowerPoint library script failed to load."));
+    document.head.appendChild(script);
+  });
+
+  return window.__finsightPptxGenPromise;
+}
+
+function getExecutiveSummaryCardBullets(slide: PowerPointSlideData, label: string, fallback: string[]) {
+  const normalizedLabel = label.toLowerCase();
+  const matchingBullet = slide.bullets.find((bullet) => {
+    const normalizedBullet = bullet.toLowerCase();
+    if (normalizedLabel.includes("financial")) return normalizedBullet.includes("financial performance");
+    if (normalizedLabel.includes("liquidity")) return normalizedBullet.includes("liquidity");
+    if (normalizedLabel.includes("payroll")) return normalizedBullet.includes("payroll");
+    return normalizedBullet.includes("risk") || normalizedBullet.includes("watch");
+  });
+  const body = matchingBullet?.includes(":") ? matchingBullet.split(":").slice(1).join(":") : matchingBullet;
+  const bullets = (body || "")
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim().replace(/[.!?]$/, ""))
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((item) => (item.length > 115 ? `${item.slice(0, 112).trim()}...` : item));
+
+  return bullets.length ? bullets : fallback;
+}
+
+function getRatioCardTone(interpretation: string) {
+  const normalized = interpretation.toLowerCase();
+  return normalized.includes("strong") ||
+    normalized.includes("healthy") ||
+    normalized.includes("positive") ||
+    normalized.includes("well") ||
+    normalized.includes("acceptable")
+    ? "4FAE8A"
+    : "D8B56D";
+}
+
+function hasBudgetComparisonData(budgetMetrics: BudgetMetrics) {
+  return [
+    budgetMetrics.revenueActual,
+    budgetMetrics.revenueBudget,
+    budgetMetrics.revenueVariance,
+    budgetMetrics.netIncomeActual,
+    budgetMetrics.netIncomeBudget,
+    budgetMetrics.netIncomeVariance,
+    budgetMetrics.largestUnfavorableVariance,
+  ].some((value) => value !== null && value !== undefined);
+}
+
+async function downloadPowerPointDeck(
+  slides: PowerPointSlideData[],
+  companyName: string,
+  reportPeriod: string,
+  preparedBy: string,
+  firmLogoPath: string,
+  firmLogoDataUrl: string,
+) {
+  if (!slides.length) return;
+  const filename = `${sanitizeFilename(`${companyName} ${reportPeriod} Board Presentation`)}.pptx`;
+
+  try {
+    const PptxGenJS = await loadPowerPointLibrary();
+    const pptx = new PptxGenJS();
+    pptx.layout = "LAYOUT_WIDE";
+    pptx.author = preparedBy || "FinSight Reports";
+    pptx.company = "FinSight Reports";
+    pptx.subject = "Board / Owner Presentation";
+    pptx.title = `${companyName} Board Presentation`;
+    pptx.theme = {
+      headFontFace: "Arial",
+      bodyFontFace: "Arial",
+      lang: "en-US",
+    };
+
+    slides.forEach((slide, index) => {
+      const pptSlide = pptx.addSlide();
+      pptSlide.background = { color: "0B1020" };
+      pptSlide.addShape("rect", {
+        x: 0,
+        y: 0,
+        w: 13.333,
+        h: 7.5,
+        fill: { color: "0B1020" },
+        line: { color: "0B1020", transparency: 100 },
+      });
+      pptSlide.addShape("rect", {
+        x: 0,
+        y: 0,
+        w: 13.333,
+        h: 7.5,
+        fill: { color: "172033", transparency: 12 },
+        line: { color: "172033", transparency: 100 },
+      });
+
+      if (slide.sectionType === "title") {
+        const preparedDate = new Date().toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+        const uploadedLogo = firmLogoDataUrl.trim();
+        const trimmedLogoPath = firmLogoPath.trim();
+        const logoSource = uploadedLogo || trimmedLogoPath;
+        if (logoSource) {
+          pptSlide.addImage({
+            ...(logoSource.startsWith("data:") ? { data: logoSource } : { path: logoSource }),
+            x: 10.35,
+            y: 0.58,
+            w: 2.15,
+            h: 0.72,
+            sizingCrop: true,
+          });
+        } else {
+          pptSlide.addShape("rect", {
+            x: 10.35,
+            y: 0.58,
+            w: 2.15,
+            h: 0.72,
+            fill: { color: "111827", transparency: 6 },
+            line: { color: "334155", transparency: 10 },
+          });
+          pptSlide.addText("FIRM LOGO", {
+            x: 10.35,
+            y: 0.83,
+            w: 2.15,
+            h: 0.18,
+            fontFace: "Arial",
+            fontSize: 9,
+            bold: true,
+            color: "94A3B8",
+            align: "center",
+            margin: 0,
+          });
+        }
+        pptSlide.addText(companyName, {
+          x: 0.75,
+          y: 2.05,
+          w: 10.8,
+          h: 0.72,
+          fontFace: "Arial",
+          fontSize: 34,
+          bold: true,
+          color: "F8FAFC",
+          margin: 0,
+          fit: "shrink",
+        });
+        pptSlide.addShape("rect", {
+          x: 0.75,
+          y: 2.95,
+          w: 2.35,
+          h: 0.03,
+          fill: { color: "5B8CFF" },
+          line: { color: "5B8CFF", transparency: 100 },
+        });
+        pptSlide.addText(reportPeriod, {
+          x: 0.75,
+          y: 3.18,
+          w: 9.6,
+          h: 0.36,
+          fontFace: "Arial",
+          fontSize: 16,
+          color: "CBD5E1",
+          margin: 0,
+          fit: "shrink",
+        });
+        pptSlide.addText(`${preparedBy || "FinSight Reports"}\nPrepared ${preparedDate}`, {
+          x: 0.75,
+          y: 6.25,
+          w: 4.2,
+          h: 0.45,
+          fontFace: "Arial",
+          fontSize: 10,
+          color: "94A3B8",
+          margin: 0,
+          breakLine: false,
+          fit: "shrink",
+        });
+        return;
+      }
+
+      pptSlide.addText(slide.title, {
+        x: 0.55,
+        y: 0.75,
+        w: 11.4,
+        h: 0.65,
+        fontFace: "Arial",
+        fontSize: 25,
+        bold: true,
+        color: "F8FAFC",
+        margin: 0,
+        fit: "shrink",
+      });
+      pptSlide.addText(slide.subtitle, {
+        x: 0.55,
+        y: 1.45,
+        w: 10.8,
+        h: 0.32,
+        fontFace: "Arial",
+        fontSize: 12,
+        color: "CBD5E1",
+        margin: 0,
+        fit: "shrink",
+      });
+
+      if (slide.sectionType === "executive-summary") {
+        const cards = [
+          {
+            label: "Financial Performance",
+            bullets: getExecutiveSummaryCardBullets(slide, "Financial Performance", [
+              "Revenue, gross profit, and net income reviewed",
+              "Margin trends should be monitored",
+            ]),
+          },
+          {
+            label: "Liquidity",
+            bullets: getExecutiveSummaryCardBullets(slide, "Liquidity", [
+              "Cash, AR, and AP position reviewed",
+              "Working capital timing should be monitored",
+            ]),
+          },
+          {
+            label: "Payroll Summary",
+            bullets: getExecutiveSummaryCardBullets(slide, "Payroll Summary", [
+              "Payroll/FTE detail was not included",
+              "Review staffing cost against revenue trends",
+            ]),
+          },
+          {
+            label: "Risk Watch Items",
+            bullets: getExecutiveSummaryCardBullets(slide, "Risk Watch Items", [
+              "Review flux, collections, and margin watch items",
+              "Assign follow-up ownership where needed",
+            ]),
+          },
+        ];
+        cards.forEach((card, cardIndex) => {
+          const column = cardIndex % 2;
+          const row = Math.floor(cardIndex / 2);
+          const x = 0.75 + column * 6.1;
+          const y = 2.1 + row * 2.25;
+          pptSlide.addShape("roundRect", {
+            x,
+            y,
+            w: 5.55,
+            h: 1.85,
+            rectRadius: 0.12,
+            fill: { color: "111827", transparency: 4 },
+            line: { color: "334155", transparency: 15 },
+          });
+          pptSlide.addText(card.label, {
+            x: x + 0.25,
+            y: y + 0.22,
+            w: 4.85,
+            h: 0.22,
+            fontFace: "Arial",
+            fontSize: 10,
+            bold: true,
+            color: "93C5FD",
+            margin: 0,
+          });
+          pptSlide.addText(card.bullets.slice(0, 3).map((bullet) => `- ${bullet}`).join("\n"), {
+            x: x + 0.3,
+            y: y + 0.62,
+            w: 4.95,
+            h: 0.95,
+            fontFace: "Arial",
+            fontSize: 9.2,
+            color: "E2E8F0",
+            breakLine: false,
+            fit: "shrink",
+            margin: 0,
+            valign: "top",
+          });
+        });
+        pptSlide.addText(`Prepared by ${preparedBy || "FinSight Reports"}`, {
+          x: 0.55,
+          y: 6.95,
+          w: 6.5,
+          h: 0.2,
+          fontFace: "Arial",
+          fontSize: 8,
+          color: "94A3B8",
+          margin: 0,
+        });
+        return;
+      }
+
+      if (slide.sectionType === "ratio-analysis") {
+        const ratioCards = slide.bullets.slice(0, 9).map((bullet) => {
+          const [name = "Ratio", value = "N/A", interpretation = "Review trend and benchmark context."] = bullet.split("|");
+          return { name, value, interpretation };
+        });
+        ratioCards.forEach((ratio, ratioIndex) => {
+          const column = ratioIndex % 3;
+          const row = Math.floor(ratioIndex / 3);
+          const x = 0.75 + column * 4.08;
+          const y = 2.03 + row * 1.48;
+          const valueColor = getRatioCardTone(ratio.interpretation);
+          pptSlide.addShape("roundRect", {
+            x,
+            y,
+            w: 3.55,
+            h: 1.18,
+            rectRadius: 0.1,
+            fill: { color: "111827", transparency: 4 },
+            line: { color: "334155", transparency: 15 },
+          });
+          pptSlide.addText(ratio.name, {
+            x: x + 0.18,
+            y: y + 0.15,
+            w: 3.12,
+            h: 0.18,
+            fontFace: "Arial",
+            fontSize: 7.8,
+            bold: true,
+            color: "CBD5E1",
+            margin: 0,
+            fit: "shrink",
+          });
+          pptSlide.addText(ratio.value, {
+            x: x + 0.18,
+            y: y + 0.42,
+            w: 3.12,
+            h: 0.34,
+            fontFace: "Arial",
+            fontSize: 17,
+            bold: true,
+            color: valueColor,
+            margin: 0,
+            fit: "shrink",
+          });
+          pptSlide.addText(ratio.interpretation, {
+            x: x + 0.18,
+            y: y + 0.82,
+            w: 3.12,
+            h: 0.22,
+            fontFace: "Arial",
+            fontSize: 6.8,
+            color: "94A3B8",
+            margin: 0,
+            fit: "shrink",
+          });
+        });
+        pptSlide.addText(`Prepared by ${preparedBy || "FinSight Reports"}`, {
+          x: 0.55,
+          y: 6.95,
+          w: 6.5,
+          h: 0.2,
+          fontFace: "Arial",
+          fontSize: 8,
+          color: "94A3B8",
+          margin: 0,
+        });
+        return;
+      }
+
+      const hasChart = slide.chartData.length > 0;
+      const bulletWidth = hasChart ? 5.8 : 11.6;
+      pptSlide.addShape("roundRect", {
+        x: 0.55,
+        y: 2.08,
+        w: bulletWidth,
+        h: 4.35,
+        rectRadius: 0.12,
+        fill: { color: "111827", transparency: 4 },
+        line: { color: "334155", transparency: 20 },
+      });
+      pptSlide.addText((slide.bullets.length ? slide.bullets : ["No data available for this section."]).slice(0, 6).map((bullet) => `- ${bullet}`).join("\n"), {
+        x: 0.85,
+        y: 2.38,
+        w: bulletWidth - 0.55,
+        h: 3.8,
+        fontFace: "Arial",
+        fontSize: 12,
+        color: "E2E8F0",
+        breakLine: false,
+        fit: "shrink",
+        valign: "top",
+      });
+
+      if (hasChart) {
+        const chartRows = slide.chartData.slice(0, 6);
+        const maxChartValue = Math.max(1, ...chartRows.map((item) => Math.abs(Number(item.value || 0))));
+        pptSlide.addShape("roundRect", {
+          x: 6.65,
+          y: 2.08,
+          w: 5.75,
+          h: 4.35,
+          rectRadius: 0.12,
+          fill: { color: "172033", transparency: 4 },
+          line: { color: "334155", transparency: 20 },
+        });
+        pptSlide.addText("Chart Data", {
+          x: 6.95,
+          y: 2.32,
+          w: 4.9,
+          h: 0.3,
+          fontFace: "Arial",
+          fontSize: 12,
+          bold: true,
+          color: "F8FAFC",
+          margin: 0,
+        });
+        chartRows.forEach((item, chartIndex) => {
+          const value = Number(item.value || 0);
+          const y = 2.85 + chartIndex * 0.5;
+          const barWidth = Math.max(0.2, (Math.abs(value) / maxChartValue) * 2.35);
+          pptSlide.addText(String(item.name || "Metric"), {
+            x: 6.95,
+            y,
+            w: 1.65,
+            h: 0.18,
+            fontFace: "Arial",
+            fontSize: 7.8,
+            bold: true,
+            color: "CBD5E1",
+            margin: 0,
+            fit: "shrink",
+          });
+          pptSlide.addText(formatCurrency(value), {
+            x: 8.55,
+            y,
+            w: 1.0,
+            h: 0.18,
+            fontFace: "Arial",
+            fontSize: 7.8,
+            bold: true,
+            color: "BFDBFE",
+            margin: 0,
+            align: "right",
+          });
+          pptSlide.addShape("rect", {
+            x: 9.75,
+            y: y + 0.03,
+            w: barWidth,
+            h: 0.09,
+            fill: { color: value < 0 ? "C0845A" : "5B8CFF" },
+            line: { color: value < 0 ? "C0845A" : "5B8CFF" },
+          });
+        });
+      }
+
+      pptSlide.addText(`Prepared by ${preparedBy || "FinSight Reports"}`, {
+        x: 0.55,
+        y: 6.95,
+        w: 6.5,
+        h: 0.2,
+        fontFace: "Arial",
+        fontSize: 8,
+        color: "94A3B8",
+        margin: 0,
+      });
+    });
+
+    await pptx.writeFile({ fileName: filename });
+  } catch {
+    alert("PowerPoint generation could not load. Please check your internet connection and try again.");
+  }
 }
 
 function parseNumber(value: unknown): number | null {
@@ -795,7 +1944,14 @@ function calculateKPIs(plData: ParsedFile | null, bsData: ParsedFile | null): KP
     "Trade Accounts Receivable",
   ]);
   const totalAssets = findExact(bsData?.rows || [], "Total Assets", ["TOTAL ASSETS"]);
-  const totalEquity = findExact(bsData?.rows || [], "Total Equity", ["Total Equity"]);
+  const bsRows = getStatementRows(bsData);
+  const totalLiabilities =
+    findExact(bsData?.rows || [], "Total Liabilities", [
+      "Total Liabilities",
+      "TOTAL LIABILITIES",
+      "Total Current Liabilities",
+    ]) || getTotalLiabilities(bsRows);
+  const totalEquity = findExact(bsData?.rows || [], "Total Equity", ["Total Equity", "TOTAL EQUITY"]) || getTotalEquity(bsRows);
 
   return {
     revenue,
@@ -806,6 +1962,7 @@ function calculateKPIs(plData: ParsedFile | null, bsData: ParsedFile | null): KP
     cash,
     accountsReceivable,
     totalAssets,
+    totalLiabilities,
     totalEquity,
     matches,
   };
@@ -1269,9 +2426,21 @@ function calculateBudgetMetrics(data: ParsedFile | null): BudgetMetrics {
   };
 }
 
-function calculateDebtMetrics(data: ParsedFile | null, kpis: KPIs): DebtMetrics {
+function calculateDebtMetrics(data: ParsedFile | null, kpis: KPIs, bsRows: StatementRow[] = []): DebtMetrics {
+  const balanceSheetDebt = getDebtLikeBalance(bsRows);
+  const totalLiabilities = kpis.totalLiabilities || getTotalLiabilities(bsRows);
+  const fallbackDebt = balanceSheetDebt || totalLiabilities;
+  const fallbackCurrentPortion = getCurrentLiabilityTotal(bsRows);
+  const fallbackLongTermPortion = Math.max(fallbackDebt - fallbackCurrentPortion, 0);
+
   if (!data) {
-    return { totalDebt: 0, currentPortion: 0, longTermPortion: 0, debtToAssets: null, debtToEquity: null };
+    return {
+      totalDebt: fallbackDebt,
+      currentPortion: fallbackCurrentPortion,
+      longTermPortion: fallbackLongTermPortion,
+      debtToAssets: kpis.totalAssets && fallbackDebt ? (fallbackDebt / kpis.totalAssets) * 100 : null,
+      debtToEquity: kpis.totalEquity && fallbackDebt ? (fallbackDebt / kpis.totalEquity) * 100 : null,
+    };
   }
 
   const headerIndex = data.rows.findIndex((row) =>
@@ -1287,12 +2456,13 @@ function calculateDebtMetrics(data: ParsedFile | null, kpis: KPIs): DebtMetrics 
   const balanceIndex = findHeaderIndex(headers, ["balance", "principal", "loan amount", "amount"]);
   const currentPortion = sumColumn(dataRows, currentPortionIndex);
   const longTermPortion = sumColumn(dataRows, longTermPortionIndex);
-  const totalDebt = currentPortion + longTermPortion || sumColumn(dataRows, balanceIndex);
+  const scheduledDebt = currentPortion + longTermPortion || sumColumn(dataRows, balanceIndex);
+  const totalDebt = scheduledDebt || fallbackDebt;
 
   return {
     totalDebt,
-    currentPortion,
-    longTermPortion,
+    currentPortion: currentPortion || fallbackCurrentPortion,
+    longTermPortion: longTermPortion || fallbackLongTermPortion,
     debtToAssets: kpis.totalAssets ? (totalDebt / kpis.totalAssets) * 100 : null,
     debtToEquity: kpis.totalEquity ? (totalDebt / kpis.totalEquity) * 100 : null,
   };
@@ -1615,6 +2785,7 @@ function buildBoardPackageSections({
 function createPowerPointSlidesData({
   companyName,
   reportPeriod,
+  preparedBy,
   kpis,
   executiveSummary,
   arKpis,
@@ -1623,6 +2794,10 @@ function createPowerPointSlidesData({
   fixedAssetKpis,
   payrollAnalysis,
   ratioRows,
+  topRevenueRows,
+  topExpenseRows,
+  budgetMetrics,
+  debtMetrics,
   monthFluxRows,
   quarterFluxRows,
   yearFluxRows,
@@ -1632,6 +2807,7 @@ function createPowerPointSlidesData({
 }: {
   companyName: string;
   reportPeriod: string;
+  preparedBy: string;
   kpis: KPIs;
   executiveSummary: ReturnType<typeof buildExecutiveSummary>;
   arKpis: AgingKpis;
@@ -1640,6 +2816,10 @@ function createPowerPointSlidesData({
   fixedAssetKpis: FixedAssetKpis;
   payrollAnalysis: PayrollAnalysis;
   ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
+  topRevenueRows: StatementRow[];
+  topExpenseRows: StatementRow[];
+  budgetMetrics: BudgetMetrics;
+  debtMetrics: DebtMetrics;
   monthFluxRows: FluxRow[];
   quarterFluxRows: FluxRow[];
   yearFluxRows: FluxRow[];
@@ -1647,6 +2827,25 @@ function createPowerPointSlidesData({
   includePayroll: boolean;
   includeFixedAssets: boolean;
 }): PowerPointSlideData[] {
+  const statementChartData = (rows: StatementRow[]) =>
+    rows.slice(0, 6).map((row) => ({ name: row.label, value: row.amount || 0 }));
+  const fluxSlide = (
+    sectionType: Extract<PackageSectionId, "month-flux" | "quarter-flux" | "year-flux">,
+    title: string,
+    subtitle: string,
+    rows: FluxRow[],
+  ): PowerPointSlideData => {
+    const topRows = [...rows].sort((a, b) => Math.abs(b.dollarVariance) - Math.abs(a.dollarVariance)).slice(0, 6);
+    return {
+      title,
+      subtitle,
+      bullets: topRows.length
+        ? topRows.map((row) => `${row.accountName}: ${formatCurrency(row.dollarVariance)} variance (${row.severity})`)
+        : ["No flagged variance rows met the selected thresholds."],
+      chartData: topRows.map((row) => ({ name: row.accountName, value: row.dollarVariance })),
+      sectionType,
+    };
+  };
   const allFluxRows = [...monthFluxRows, ...quarterFluxRows, ...yearFluxRows]
     .sort((a, b) => Math.abs(b.dollarVariance) - Math.abs(a.dollarVariance))
     .slice(0, 5);
@@ -1654,7 +2853,7 @@ function createPowerPointSlidesData({
     {
       title: companyName,
       subtitle: `${reportPeriod} Board / Owner Presentation`,
-      bullets: ["Prepared by FinSight Reports", "Financial package presentation draft"],
+      bullets: [`Prepared by ${preparedBy || "FinSight Reports"}`, "Generated from the approved PDF package selections."],
       chartData: [],
       sectionType: "title",
     },
@@ -1682,27 +2881,94 @@ function createPowerPointSlidesData({
       sectionType: "kpi-snapshot",
     },
     {
-      title: "Revenue and Profitability",
-      subtitle: "Income statement performance",
-      bullets: [`Expenses: ${formatCurrency(kpis.expenses)}`, `COGS: ${formatCurrency(kpis.cogs)}`],
+      title: "Income Statement",
+      subtitle: "Revenue, cost, expense, and earnings profile",
+      bullets: [
+        `Revenue: ${formatCurrency(kpis.revenue)}`,
+        `COGS: ${formatCurrency(kpis.cogs)}`,
+        `Operating Expenses: ${formatCurrency(kpis.expenses)}`,
+        `Net Income: ${formatCurrency(kpis.netIncome)}`,
+      ],
       chartData: [
         { name: "Revenue", value: kpis.revenue },
         { name: "COGS", value: kpis.cogs },
         { name: "Expenses", value: kpis.expenses },
         { name: "Net Income", value: kpis.netIncome },
       ],
-      sectionType: "profitability",
+      sectionType: "income-statement",
     },
     {
-      title: "Cash, AR, and AP",
-      subtitle: "Liquidity position",
-      bullets: [`AR Aging Total: ${formatCurrency(arKpis.total)}`, `AP Aging Total: ${formatCurrency(apKpis.total)}`],
+      title: "Balance Sheet",
+      subtitle: "Capital structure and balance sheet position",
+      bullets: [
+        `Cash: ${formatCurrency(kpis.cash)}`,
+        `Accounts Receivable: ${formatCurrency(kpis.accountsReceivable)}`,
+        `Total Assets: ${formatCurrency(kpis.totalAssets)}`,
+        `Total Liabilities: ${formatCurrency(kpis.totalLiabilities)}`,
+        `Total Equity: ${formatCurrency(kpis.totalEquity)}`,
+      ],
       chartData: [
         { name: "Cash", value: kpis.cash },
-        { name: "AR", value: arKpis.total || kpis.accountsReceivable },
-        { name: "AP", value: apKpis.total },
+        { name: "AR", value: kpis.accountsReceivable },
+        { name: "Assets", value: kpis.totalAssets },
+        { name: "Liabilities", value: kpis.totalLiabilities },
+        { name: "Equity", value: kpis.totalEquity },
       ],
-      sectionType: "liquidity",
+      sectionType: "balance-sheet",
+    },
+    {
+      title: "AR Aging",
+      subtitle: "Receivables risk and collection focus",
+      bullets: [
+        `AR Aging Total: ${formatCurrency(arKpis.total)}`,
+        `Current: ${formatCurrency(arKpis.current)}`,
+        `61-90 Days: ${formatCurrency(arKpis.days61To90)}`,
+        `90+ Days: ${formatCurrency(arKpis.days90Plus)}`,
+      ],
+      chartData: [
+        { name: "Current", value: arKpis.current },
+        { name: "1-30", value: arKpis.days1To30 },
+        { name: "31-60", value: arKpis.days31To60 },
+        { name: "61-90", value: arKpis.days61To90 },
+        { name: "90+", value: arKpis.days90Plus },
+      ],
+      sectionType: "ar-aging",
+    },
+    {
+      title: "AP Aging",
+      subtitle: "Payables mix and vendor cash requirements",
+      bullets: [
+        `AP Aging Total: ${formatCurrency(apKpis.total)}`,
+        `Current: ${formatCurrency(apKpis.current)}`,
+        `61-90 Days: ${formatCurrency(apKpis.days61To90)}`,
+        `90+ Days: ${formatCurrency(apKpis.days90Plus)}`,
+      ],
+      chartData: [
+        { name: "Current", value: apKpis.current },
+        { name: "1-30", value: apKpis.days1To30 },
+        { name: "31-60", value: apKpis.days31To60 },
+        { name: "61-90", value: apKpis.days61To90 },
+        { name: "90+", value: apKpis.days90Plus },
+      ],
+      sectionType: "ap-aging",
+    },
+    {
+      title: "Customer Sales Analysis",
+      subtitle: "Top revenue sources from the selected PDF package",
+      bullets: topRevenueRows.length
+        ? topRevenueRows.map((row) => `${row.label}: ${formatCurrency(row.amount)}`)
+        : ["Customer sales detail was not available. Showing top revenue lines from the income statement where possible."],
+      chartData: statementChartData(topRevenueRows),
+      sectionType: "customer-sales",
+    },
+    {
+      title: "Vendor Expense Analysis",
+      subtitle: "Top expense categories from the selected PDF package",
+      bullets: topExpenseRows.length
+        ? topExpenseRows.map((row) => `${row.label}: ${formatCurrency(row.amount)}`)
+        : ["Vendor expense detail was not available. Showing top operating expense lines from the income statement where possible."],
+      chartData: statementChartData(topExpenseRows),
+      sectionType: "vendor-expenses",
     },
     ...(includeInventory
       ? [
@@ -1711,7 +2977,29 @@ function createPowerPointSlidesData({
             subtitle: "Top inventory items by value",
             bullets: [`Inventory Value: ${formatCurrency(inventoryKpis.totalValue)}`],
             chartData: inventoryKpis.topByValue.map((item) => ({ name: item.name, value: item.value })),
-            sectionType: "inventory",
+            sectionType: "inventory-summary" as const,
+          },
+        ]
+      : []),
+    ...(hasBudgetComparisonData(budgetMetrics)
+      ? [
+          {
+            title: "Budget vs Actual",
+            subtitle: "Budget performance and unfavorable variance focus",
+            bullets: [
+              `Revenue Actual: ${formatOptionalCurrency(budgetMetrics.revenueActual)}`,
+              `Revenue Budget: ${formatOptionalCurrency(budgetMetrics.revenueBudget)}`,
+              `Revenue Variance: ${formatOptionalCurrency(budgetMetrics.revenueVariance)}`,
+              `Net Income Variance: ${formatOptionalCurrency(budgetMetrics.netIncomeVariance)}`,
+              `Largest Unfavorable Variance: ${budgetMetrics.largestUnfavorableVarianceLabel}`,
+            ],
+            chartData: [
+              { name: "Revenue Actual", value: budgetMetrics.revenueActual || 0 },
+              { name: "Revenue Budget", value: budgetMetrics.revenueBudget || 0 },
+              { name: "Net Income Actual", value: budgetMetrics.netIncomeActual || 0 },
+              { name: "Net Income Budget", value: budgetMetrics.netIncomeBudget || 0 },
+            ],
+            sectionType: "budget-vs-actual" as const,
           },
         ]
       : []),
@@ -1723,11 +3011,12 @@ function createPowerPointSlidesData({
             bullets: payrollAnalysis.commentary,
             chartData: payrollAnalysis.rows.map((row) => ({
               name: row.department,
+              value: row.currentPayrollCost,
               currentFte: row.currentFte,
               priorFte: row.priorFte,
               payrollCost: row.currentPayrollCost,
             })),
-            sectionType: "payroll",
+            sectionType: "payroll-fte" as const,
           },
         ]
       : []),
@@ -1742,30 +3031,49 @@ function createPowerPointSlidesData({
               { name: "Accumulated Depreciation", value: Math.abs(fixedAssetKpis.accumulatedDepreciation) },
               { name: "Net Book Value", value: fixedAssetKpis.netBookValue },
             ],
-            sectionType: "fixed-assets",
+            sectionType: "fixed-asset-analysis" as const,
           },
         ]
       : []),
     {
+      title: "Debt Schedule",
+      subtitle: "Debt exposure and leverage ratios",
+      bullets: [
+        `Total Debt: ${formatCurrency(debtMetrics.totalDebt)}`,
+        `Current Portion: ${formatCurrency(debtMetrics.currentPortion)}`,
+        `Long-Term Portion: ${formatCurrency(debtMetrics.longTermPortion)}`,
+        `Debt to Assets: ${formatPercent(debtMetrics.debtToAssets)}`,
+        `Debt to Equity: ${formatPercent(debtMetrics.debtToEquity)}`,
+      ],
+      chartData: [
+        { name: "Current Debt", value: debtMetrics.currentPortion },
+        { name: "Long-Term Debt", value: debtMetrics.longTermPortion },
+      ],
+      sectionType: "debt-schedule",
+    },
+    {
       title: "Ratio Analysis",
       subtitle: "Financial ratio highlights",
-      bullets: ratioRows.slice(0, 6).map((row) => `${row.name}: ${row.value}`),
+      bullets: ratioRows.slice(0, 9).map((row) => `${row.name}|${row.value}|${row.interpretation}`),
       chartData: [],
-      sectionType: "ratios",
+      sectionType: "ratio-analysis",
     },
     {
       title: "Flux Analysis Highlights",
       subtitle: "Largest flagged variances",
       bullets: allFluxRows.map((row) => `${row.accountName}: ${formatCurrency(row.dollarVariance)}`),
       chartData: allFluxRows.map((row) => ({ name: row.accountName, value: row.dollarVariance })),
-      sectionType: "flux",
+      sectionType: "flux-summary",
     },
+    fluxSlide("month-flux", "Month-over-Month Flux", "Largest month-over-month account movements", monthFluxRows),
+    fluxSlide("quarter-flux", "Quarter-over-Quarter Flux", "Largest quarter-over-quarter account movements", quarterFluxRows),
+    fluxSlide("year-flux", "Year-over-Year Flux", "Largest year-over-year account movements", yearFluxRows),
     {
       title: "Recommended Follow-Up Items",
       subtitle: "Management action items",
       bullets: executiveSummary.followUpItems,
       chartData: [],
-      sectionType: "follow-up",
+      sectionType: "recommended-follow-up",
     },
   ];
 
@@ -2168,6 +3476,53 @@ function getCurrentLiabilityTotal(rows: StatementRow[]) {
     ];
     if (normalized.startsWith("total") && !allowedTotalRows.includes(normalized)) return total;
     return getBalanceSheetSection(row.label) === "Current Liabilities" ? total + (row.amount || 0) : total;
+  }, 0);
+}
+
+function getTotalLiabilities(rows: StatementRow[]) {
+  const explicitTotal = findStatementAmount(rows, ["Total Liabilities"]);
+  if (explicitTotal) return Math.abs(explicitTotal);
+
+  const currentLiabilities = getCurrentLiabilityTotal(rows);
+  const longTermLiabilities = rows.reduce((total, row) => {
+    const normalized = normalizeStatementLabel(row.label);
+    if (normalized.startsWith("total liabilities") || normalized.includes("liabilities and equity")) return total;
+    return getBalanceSheetSection(row.label) === "Long-Term Liabilities" ? total + Math.abs(row.amount || 0) : total;
+  }, 0);
+
+  return currentLiabilities + longTermLiabilities;
+}
+
+function getTotalEquity(rows: StatementRow[]) {
+  const explicitTotal = findStatementAmount(rows, ["Total Equity", "Total Stockholders' Equity", "Total Owners Equity"]);
+  if (explicitTotal) return Math.abs(explicitTotal);
+
+  return rows.reduce((total, row) => {
+    const normalized = normalizeStatementLabel(row.label);
+    if (normalized.startsWith("total") && !normalized.includes("total equity")) return total;
+    return getBalanceSheetSection(row.label) === "Equity" ? total + Math.abs(row.amount || 0) : total;
+  }, 0);
+}
+
+function getDebtLikeBalance(rows: StatementRow[]) {
+  const debtPatterns = [
+    "loan",
+    "line of credit",
+    "note payable",
+    "notes payable",
+    "long-term debt",
+    "long term debt",
+    "current portion",
+    "equipment financing",
+    "vehicle loan",
+    "credit card",
+  ];
+
+  return rows.reduce((total, row) => {
+    const normalized = normalizeStatementLabel(row.label);
+    if (normalized.startsWith("total liabilities") || normalized.includes("liabilities and equity")) return total;
+    if (!debtPatterns.some((pattern) => normalized.includes(pattern))) return total;
+    return total + Math.abs(row.amount || 0);
   }, 0);
 }
 
@@ -2973,6 +4328,68 @@ function getTopExpenseRows(plData: ParsedFile | null) {
     .slice(0, 5);
 }
 
+function getTopRevenueRows(plData: ParsedFile | null) {
+  const rows = getStatementRows(plData);
+  const incomeStart = rows.findIndex((row) => ["income", "revenue"].includes(row.label.toLowerCase()));
+  const incomeEnd = rows.findIndex((row) => normalizeStatementLabel(row.label) === "total income");
+  const revenueRows =
+    incomeStart >= 0 && incomeEnd > incomeStart
+      ? rows.slice(incomeStart + 1, incomeEnd)
+      : rows.filter((row) => {
+          const label = normalizeStatementLabel(row.label);
+          return (
+            row.amount !== null &&
+            row.amount > 0 &&
+            !label.includes("total") &&
+            !label.includes("gross profit") &&
+            !label.includes("net income") &&
+            (label.includes("income") ||
+              label.includes("revenue") ||
+              label.includes("sales") ||
+              label.includes("service") ||
+              label.includes("product"))
+          );
+        });
+
+  return revenueRows
+    .filter((row) => row.amount !== null && row.amount > 0 && !normalizeStatementLabel(row.label).includes("total"))
+    .sort((a, b) => (b.amount || 0) - (a.amount || 0))
+    .slice(0, 5);
+}
+
+function getTopOperatingExpenseRows(plData: ParsedFile | null) {
+  const expenseKeywords = [
+    "payroll",
+    "wages",
+    "labor",
+    "rent",
+    "software",
+    "utilities",
+    "insurance",
+    "fuel",
+    "repairs",
+    "marketing",
+    "advertising",
+    "admin",
+    "office",
+    "professional fees",
+    "operating expense",
+  ];
+
+  return getTopExpenseRows(plData)
+    .filter((row) => {
+      const label = normalizeStatementLabel(row.label);
+      return !label.includes("income") && !label.includes("revenue") && !label.includes("sales");
+    })
+    .sort((a, b) => {
+      const aMatch = expenseKeywords.some((keyword) => normalizeStatementLabel(a.label).includes(keyword));
+      const bMatch = expenseKeywords.some((keyword) => normalizeStatementLabel(b.label).includes(keyword));
+      if (aMatch === bMatch) return (b.amount || 0) - (a.amount || 0);
+      return aMatch ? -1 : 1;
+    })
+    .slice(0, 5);
+}
+
 function interpretNetMargin(value: number) {
   if (value > 20) return "Strong profitability. The company is converting revenue into profit at a healthy rate.";
   if (value >= 10) return "Moderate profitability. Margins are positive, but expense control should be monitored.";
@@ -3144,6 +4561,10 @@ function buildRatioRows(
 ) {
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
   const expenseRatio = kpis.revenue ? (kpis.expenses / kpis.revenue) * 100 : 0;
+  const operatingIncome = kpis.grossProfit - kpis.expenses;
+  const operatingMargin = kpis.revenue ? (operatingIncome / kpis.revenue) * 100 : 0;
+  const ebitda = operatingIncome;
+  const ebitdaMargin = kpis.revenue ? (ebitda / kpis.revenue) * 100 : 0;
   const currentAssets = getCurrentAssetTotal(bsRows);
   const currentLiabilities = getCurrentLiabilityTotal(bsRows);
   const currentRatio = currentAssets && currentLiabilities ? currentAssets / currentLiabilities : null;
@@ -3159,6 +4580,12 @@ function buildRatioRows(
   const workingCapital =
     currentAssets && currentLiabilities ? currentAssets - currentLiabilities : null;
   const dso = dsoOverride ?? calculateDso(kpis, periodDays);
+  const inventoryTurnover = inventoryKpis.totalValue ? kpis.cogs / inventoryKpis.totalValue : null;
+  const arTurnover = kpis.accountsReceivable ? kpis.revenue / kpis.accountsReceivable : null;
+  const apTurnover = apKpis.total ? kpis.cogs / apKpis.total : null;
+  const dio = inventoryTurnover && inventoryTurnover > 0 ? 365 / inventoryTurnover : null;
+  const dpo = apTurnover && apTurnover > 0 ? 365 / apTurnover : null;
+  const cashConversionCycle = dso !== null && dio !== null && dpo !== null ? dso + dio - dpo : null;
   const payrollCostToRevenue =
     includePayroll && kpis.revenue ? (payrollAnalysis.totalCurrentPayrollCost / kpis.revenue) * 100 : null;
   const grossWages = payrollAnalysis.rows.reduce((total, row) => total + row.currentGrossWages, 0);
@@ -3200,6 +4627,28 @@ function buildRatioRows(
       formula: "Total Expenses / Revenue",
       value: `${expenseRatio.toFixed(1)}%`,
       interpretation: interpretExpenseRatio(expenseRatio),
+    },
+    {
+      name: "Operating Margin",
+      formula: "Operating Income / Revenue",
+      value: `${operatingMargin.toFixed(1)}%`,
+      interpretation:
+        operatingMargin >= 15
+          ? "Operating profitability is strong after overhead."
+          : operatingMargin >= 5
+            ? "Operating profitability is positive but should be monitored."
+            : "Operating margin is thin. Review pricing, labor efficiency, and overhead structure.",
+    },
+    {
+      name: "EBITDA Margin",
+      formula: "Estimated EBITDA / Revenue",
+      value: `${ebitdaMargin.toFixed(1)}%`,
+      interpretation:
+        ebitdaMargin >= 15
+          ? "Estimated EBITDA margin supports reinvestment, debt service, and owner distributions."
+          : ebitdaMargin >= 5
+            ? "Estimated EBITDA margin is positive but leaves limited room for execution misses."
+            : "Estimated EBITDA margin indicates earnings pressure before financing and tax impacts.",
     },
     {
       name: "Current Ratio",
@@ -3248,6 +4697,42 @@ function buildRatioRows(
       formula: dsoOverride !== null ? "Accounts Receivable / Average Daily Sales" : "Accounts Receivable / (Revenue / Period Days)",
       value: dso !== null ? `${dso.toFixed(1)} days` : "N/A",
       interpretation: interpretDso(dso),
+    },
+    {
+      name: "Inventory Turnover",
+      formula: "COGS / Inventory",
+      value: inventoryTurnover !== null ? `${inventoryTurnover.toFixed(2)}x` : "N/A",
+      interpretation:
+        inventoryTurnover !== null
+          ? "Inventory turnover connects purchasing discipline to revenue activity and working capital velocity."
+          : "Inventory data is needed to calculate turnover.",
+    },
+    {
+      name: "AR Turnover",
+      formula: "Revenue / Accounts Receivable",
+      value: arTurnover !== null ? `${arTurnover.toFixed(2)}x` : "N/A",
+      interpretation:
+        arTurnover !== null
+          ? "AR turnover indicates how efficiently revenue is converting into collections."
+          : "Accounts receivable data is needed to calculate AR turnover.",
+    },
+    {
+      name: "AP Turnover",
+      formula: "COGS / Accounts Payable",
+      value: apTurnover !== null ? `${apTurnover.toFixed(2)}x` : "N/A",
+      interpretation:
+        apTurnover !== null
+          ? "AP turnover helps assess vendor payment cadence relative to direct cost activity."
+          : "AP aging data is needed to calculate AP turnover.",
+    },
+    {
+      name: "Cash Conversion Cycle",
+      formula: "DSO + DIO - DPO",
+      value: cashConversionCycle !== null ? `${cashConversionCycle.toFixed(1)} days` : "N/A",
+      interpretation:
+        cashConversionCycle !== null
+          ? "Cash conversion cycle summarizes the time required to convert operating investment back into cash."
+          : "DSO, inventory turnover, and AP turnover are needed for cash conversion cycle.",
     },
     {
       name: "Debt to Equity",
@@ -3338,7 +4823,9 @@ function getGlAccounts(data: ParsedFile | null): FluxAccount[] {
   const amountIndex = findHeaderIndex(headers, ["amount", "total"]);
   const debitIndex = findHeaderIndex(headers, ["debit", "debits", "dr"]);
   const creditIndex = findHeaderIndex(headers, ["credit", "credits", "cr"]);
+  const balanceIndex = findHeaderIndex(headers, ["balance", "ending balance"]);
   const hasDebitCredit = debitIndex >= 0 || creditIndex >= 0;
+  const hasBalanceColumn = balanceIndex >= 0;
 
   const accounts = new Map<string, FluxAccount>();
 
@@ -3351,36 +4838,91 @@ function getGlAccounts(data: ParsedFile | null): FluxAccount[] {
     const debit = parseNumber(row[debitIndex]) || 0;
     const credit = parseNumber(row[creditIndex]) || 0;
     const accountType = getAccountType(accountName);
-    const activityAmount =
-      accountType === "revenue" || accountType === "liability"
-        ? credit - debit
-        : debit - credit;
+    const balance = hasBalanceColumn ? parseNumber(row[balanceIndex]) : null;
+    const activityAmount = getActivityAmount(
+      {
+        date: "",
+        accountNumber,
+        accountName,
+        className: "",
+        name: "",
+        customer: "",
+        vendor: "",
+        payee: "",
+        memo: "",
+        description: "",
+        debit,
+        credit,
+        amount: amountIndex >= 0 ? parseNumber(row[amountIndex]) || 0 : 0,
+        balance: balance || 0,
+      },
+      accountType,
+    );
+    const basis = isBalanceSheetFluxAccount(accountType) ? "Ending Balance" : "Period Activity";
     const amount = hasDebitCredit ? activityAmount : amountIndex >= 0 ? parseNumber(row[amountIndex]) || 0 : activityAmount;
 
     if (!accountName || accountName.toLowerCase() === "total") return;
-    if (!amount) return;
+    if (!amount && balance === null) return;
 
     const key = normalizeStatementLabel(accountName);
     const existing = accounts.get(key);
+    const warnings = existing?.warnings || [];
+    if (accountType === "unknown" && !warnings.includes("Account type could not be identified.")) {
+      warnings.push("Account type could not be identified.");
+    }
 
     accounts.set(key, {
       accountNumber: existing?.accountNumber && existing.accountNumber !== "N/A" ? existing.accountNumber : accountNumber,
       accountName,
       amount: (existing?.amount || 0) + amount,
+      accountType,
+      basis,
+      periodActivity: (existing?.periodActivity || 0) + activityAmount,
+      endingBalance: balance !== null ? balance : existing?.endingBalance ?? null,
+      hasBalanceColumn: Boolean(existing?.hasBalanceColumn || hasBalanceColumn),
+      warnings,
     });
   });
 
   return [...accounts.values()];
 }
 
-function getAccountType(accountName: string) {
+function getAccountType(accountName: string): FluxAccountType {
   const normalized = normalizeStatementLabel(accountName);
 
+  if (normalized.includes("other income") || normalized.includes("interest income") || normalized.includes("gain on")) {
+    return "other-income";
+  }
+  if (normalized.includes("other expense") || normalized.includes("interest expense") || normalized.includes("loss on")) {
+    return "other-expense";
+  }
   if (normalized.includes("revenue") || normalized.includes("income") || normalized.includes("sales")) {
     return "revenue";
   }
-  if (normalized.includes("accounts receivable") || normalized === "ar" || normalized.includes("receivable")) {
-    return "ar";
+  if (
+    normalized.includes("cost of goods sold") ||
+    normalized.includes("cogs") ||
+    normalized.includes("cost of sales") ||
+    normalized.includes("direct cost")
+  ) {
+    return "cogs";
+  }
+  if (
+    normalized.includes("accounts receivable") ||
+    normalized === "ar" ||
+    normalized.includes("receivable") ||
+    normalized.includes("cash") ||
+    normalized.includes("bank") ||
+    normalized.includes("checking") ||
+    normalized.includes("savings") ||
+    normalized.includes("inventory") ||
+    normalized.includes("prepaid") ||
+    normalized.includes("fixed asset") ||
+    normalized.includes("equipment") ||
+    normalized.includes("vehicle") ||
+    normalized.includes("asset")
+  ) {
+    return "asset";
   }
   if (
     normalized.includes("accounts payable") ||
@@ -3396,8 +4938,6 @@ function getAccountType(accountName: string) {
   }
   if (
     normalized.includes("expense") ||
-    normalized.includes("cost of goods sold") ||
-    normalized.includes("cogs") ||
     normalized.includes("rent") ||
     normalized.includes("labor") ||
     normalized.includes("wage") ||
@@ -3411,11 +4951,22 @@ function getAccountType(accountName: string) {
   ) {
     return "expense";
   }
-  if (normalized.includes("asset") || normalized.includes("cash") || normalized.includes("bank")) {
-    return "asset";
-  }
 
   return "unknown";
+}
+
+function isBalanceSheetFluxAccount(accountType: FluxAccountType) {
+  return accountType === "asset" || accountType === "liability" || accountType === "equity";
+}
+
+function isIncomeStatementFluxAccount(accountType: FluxAccountType) {
+  return (
+    accountType === "revenue" ||
+    accountType === "cogs" ||
+    accountType === "expense" ||
+    accountType === "other-income" ||
+    accountType === "other-expense"
+  );
 }
 
 function isPayrollRelatedAccount(accountName: string) {
@@ -3426,8 +4977,17 @@ function isPayrollRelatedAccount(accountName: string) {
 }
 
 function getActivityAmount(row: GlActivityRow, accountType: string) {
-  if (accountType === "revenue" || accountType === "liability" || accountType === "equity") return row.credit - row.debit;
-  if (accountType === "expense" || accountType === "asset" || accountType === "ar") return row.debit - row.credit;
+  if (
+    accountType === "revenue" ||
+    accountType === "other-income" ||
+    accountType === "liability" ||
+    accountType === "equity"
+  ) {
+    return row.credit - row.debit;
+  }
+  if (accountType === "expense" || accountType === "cogs" || accountType === "other-expense" || accountType === "asset") {
+    return row.debit - row.credit;
+  }
   if (row.debit || row.credit) return row.debit - row.credit;
   return row.amount;
 }
@@ -3457,7 +5017,9 @@ function getAccountActivity(glData: ParsedFile | null, accountName: string): GlA
   const debitIndex = findHeaderIndex(headers, ["debit", "debits", "dr"]);
   const creditIndex = findHeaderIndex(headers, ["credit", "credits", "cr"]);
   const amountIndex = findHeaderIndex(headers, ["amount"]);
+  const balanceIndex = findHeaderIndex(headers, ["balance", "ending balance"]);
   const targetAccount = normalizeStatementLabel(accountName);
+  const includeAllAccounts = targetAccount === "__all__";
 
   return dataRows
     .map((row) => {
@@ -3479,17 +5041,22 @@ function getAccountActivity(glData: ParsedFile | null, accountName: string): GlA
         debit: parseNumber(row[debitIndex]) || 0,
         credit: parseNumber(row[creditIndex]) || 0,
         amount: parseNumber(row[amountIndex]) || 0,
-        balance: 0,
+        balance: parseNumber(row[balanceIndex]) || 0,
       };
     })
-    .filter((row) => normalizeStatementLabel(row.accountName) === targetAccount);
+    .filter((row) => includeAllAccounts || normalizeStatementLabel(row.accountName) === targetAccount);
 }
 
 function getActivityDriver(row: GlActivityRow, accountType: string) {
-  if (accountType === "revenue" || accountType === "ar") {
+  if (accountType === "revenue" || accountType === "other-income" || accountType === "asset") {
     return row.customer || row.name || row.payee || row.memo || row.description || "Unspecified activity";
   }
-  if (accountType === "expense" || accountType === "liability") {
+  if (
+    accountType === "expense" ||
+    accountType === "cogs" ||
+    accountType === "other-expense" ||
+    accountType === "liability"
+  ) {
     return row.vendor || row.payee || row.name || row.memo || row.description || "Unspecified activity";
   }
   return row.name || row.payee || row.vendor || row.customer || row.memo || row.description || "Unspecified activity";
@@ -3519,6 +5086,79 @@ function calculateDriverVariance(currentRows: GlActivityRow[], priorRows: GlActi
     })
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
     .slice(0, 3);
+}
+
+function findComparableStatementAmount(data: ParsedFile | null, accountName: string) {
+  const rows = getStatementRows(data);
+  const target = normalizeStatementLabel(accountName);
+  if (!target) return null;
+
+  const exact = rows.find((row) => normalizeStatementLabel(row.label) === target);
+  if (exact?.amount !== null && exact?.amount !== undefined) return exact.amount;
+
+  const nonTotalTarget = target.replace(/^total\s+/, "");
+  const loose = rows.find((row) => {
+    const label = normalizeStatementLabel(row.label).replace(/^total\s+/, "");
+    if (label.startsWith("total liabilities") || label.includes("liabilities and equity")) return false;
+    return label === nonTotalTarget || label.includes(nonTotalTarget) || nonTotalTarget.includes(label);
+  });
+
+  return loose?.amount ?? null;
+}
+
+function resolveFluxAmount({
+  account,
+  comparisonData,
+  fallbackBeginningData,
+}: {
+  account: FluxAccount | undefined;
+  comparisonData?: ParsedFile | null;
+  fallbackBeginningData?: ParsedFile | null;
+}) {
+  if (!account) return { amount: 0, warnings: [] as string[] };
+  const warnings = [...account.warnings];
+
+  if (isIncomeStatementFluxAccount(account.accountType)) {
+    return { amount: account.periodActivity, warnings };
+  }
+
+  if (account.endingBalance !== null) {
+    return { amount: account.endingBalance, warnings };
+  }
+
+  const comparisonBalance = findComparableStatementAmount(comparisonData || null, account.accountName);
+  if (comparisonBalance !== null) {
+    return { amount: comparisonBalance, warnings };
+  }
+
+  const beginningBalance = findComparableStatementAmount(fallbackBeginningData || null, account.accountName);
+  if (beginningBalance !== null) {
+    warnings.push("Balance Sheet flux is estimated from beginning balance plus GL net activity.");
+    return { amount: beginningBalance + account.periodActivity, warnings };
+  }
+
+  warnings.push("Beginning balance is missing; Balance Sheet flux falls back to GL period activity.");
+  if (!account.hasBalanceColumn) warnings.push("Balance column is missing and no Balance Sheet comparison amount was found.");
+  return { amount: account.periodActivity, warnings };
+}
+
+function getGlDateSpanDays(data: ParsedFile | null) {
+  const rows = getAccountActivity(data, "__all__");
+  const dates = rows
+    .map((row) => new Date(row.date))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .map((date) => date.getTime());
+  if (dates.length < 2) return null;
+  return Math.round((Math.max(...dates) - Math.min(...dates)) / (1000 * 60 * 60 * 24));
+}
+
+function getPeriodMismatchWarning(currentData: ParsedFile | null, priorData: ParsedFile | null) {
+  const currentSpan = getGlDateSpanDays(currentData);
+  const priorSpan = getGlDateSpanDays(priorData);
+  if (currentSpan === null || priorSpan === null) return null;
+  return Math.abs(currentSpan - priorSpan) > 10
+    ? "Comparison periods may not match; verify month, quarter, or year GL files use the same basis."
+    : null;
 }
 
 function getPayrollFluxDepartment(currentRows: GlActivityRow[], priorRows: GlActivityRow[]) {
@@ -3567,6 +5207,7 @@ function getPayrollFteCommentary(
 
 function generateFluxCommentary(
   accountName: string,
+  basis: FluxBasis,
   currentAmount: number,
   priorAmount: number,
   variance: number,
@@ -3578,9 +5219,10 @@ function generateFluxCommentary(
 ) {
   const direction = variance > 0 ? "increased" : variance < 0 ? "decreased" : "was unchanged";
   const comparisonText = percentVariance === null ? "" : ` (${formatPercent(percentVariance)})`;
+  const measureText = basis === "Ending Balance" ? "ending balance" : "period activity";
 
   if (!topDrivers.length || topDrivers.every((driver) => driver.name === "Unspecified activity")) {
-    return `${accountName} ${direction} by ${formatCurrency(
+    return `${accountName} ${measureText} ${direction} by ${formatCurrency(
       Math.abs(variance),
     )}${comparisonText}. Variance exceeded threshold, but vendor/customer detail was not available in the uploaded GL. Review account activity detail for support.${getPayrollFteCommentary(
       accountName,
@@ -3614,7 +5256,7 @@ function generateFluxCommentary(
             ? "Review vendor obligations, payment timing, and supporting detail."
             : "Review account activity detail for support.";
 
-  return `${accountName} ${direction} by ${formatCurrency(
+  return `${accountName} ${measureText} ${direction} by ${formatCurrency(
     Math.abs(variance),
   )}${comparisonText}. The largest driver was ${driverPhrases.join(", followed by ")}. ${advisory}${getPayrollFteCommentary(
     accountName,
@@ -3629,9 +5271,12 @@ function getFluxRows(
   priorData: ParsedFile | null,
   settings: FluxSettings,
   payrollAnalysis?: PayrollAnalysis,
+  currentBalanceData?: ParsedFile | null,
+  priorBalanceData?: ParsedFile | null,
 ): FluxRow[] {
   const currentAccounts = getGlAccounts(currentData);
   const priorAccounts = getGlAccounts(priorData);
+  const periodMismatchWarning = getPeriodMismatchWarning(currentData, priorData);
   const accountMap = new Map<string, { current?: FluxAccount; prior?: FluxAccount }>();
 
   currentAccounts.forEach((account) => {
@@ -3645,8 +5290,20 @@ function getFluxRows(
 
   return [...accountMap.values()]
     .map(({ current, prior }) => {
-      const currentAmount = current?.amount || 0;
-      const priorAmount = prior?.amount || 0;
+      const accountName = current?.accountName || prior?.accountName || "Unknown Account";
+      const accountType = current?.accountType || prior?.accountType || getAccountType(accountName);
+      const basis: FluxBasis = isBalanceSheetFluxAccount(accountType) ? "Ending Balance" : "Period Activity";
+      const currentResolved = resolveFluxAmount({
+        account: current,
+        comparisonData: currentBalanceData,
+        fallbackBeginningData: priorBalanceData,
+      });
+      const priorResolved = resolveFluxAmount({
+        account: prior,
+        comparisonData: priorBalanceData,
+      });
+      const currentAmount = currentResolved.amount;
+      const priorAmount = priorResolved.amount;
       const dollarVariance = currentAmount - priorAmount;
       const percentVariance = priorAmount ? (dollarVariance / Math.abs(priorAmount)) * 100 : null;
       const absoluteDollarVariance = Math.abs(dollarVariance);
@@ -3664,10 +5321,13 @@ function getFluxRows(
       let severity: FluxSeverity = "Low";
       if (absolutePercentVariance >= 25 && absoluteDollarVariance >= 10000) severity = "High";
       else if (absolutePercentVariance >= 10 && absoluteDollarVariance >= 5000) severity = "Moderate";
-      const accountName = current?.accountName || prior?.accountName || "Unknown Account";
-      const accountType = getAccountType(accountName);
       const currentActivity = getAccountActivity(currentData, accountName);
       const priorActivity = getAccountActivity(priorData, accountName);
+      const warnings = [...currentResolved.warnings, ...priorResolved.warnings];
+      if (periodMismatchWarning) warnings.push(periodMismatchWarning);
+      if (current && prior && current.basis !== prior.basis) {
+        warnings.push("Income statement activity and balance sheet ending balance bases appear mixed for this account.");
+      }
       const topDrivers = calculateDriverVariance(currentActivity, priorActivity, accountType);
       const topDriver = topDrivers[0]?.name || "N/A";
       const driverChange = topDrivers[0]?.change ?? null;
@@ -3675,6 +5335,8 @@ function getFluxRows(
       return {
         accountNumber: current?.accountNumber || prior?.accountNumber || "N/A",
         accountName,
+        accountType,
+        basis,
         currentAmount,
         priorAmount,
         dollarVariance,
@@ -3686,6 +5348,7 @@ function getFluxRows(
         driverChange,
         commentary: generateFluxCommentary(
           accountName,
+          basis,
           currentAmount,
           priorAmount,
           dollarVariance,
@@ -3696,6 +5359,7 @@ function getFluxRows(
           payrollAnalysis,
         ),
         topDrivers,
+        warnings,
         passes,
         isZeroActivity,
       };
@@ -3766,15 +5430,24 @@ export default function UploadPage() {
   const [kpisConfirmed, setKpisConfirmed] = useState(false);
   const [kpiReviewVisible, setKpiReviewVisible] = useState(false);
   const [showPdfGeneration, setShowPdfGeneration] = useState(false);
+  const [showPowerPointStep, setShowPowerPointStep] = useState(false);
   const [reviewerNotes, setReviewerNotes] = useState("");
   const [clientName, setClientName] = useState("Client Company Name");
   const [clientReportingPeriod, setClientReportingPeriod] = useState("Current Reporting Period");
+  const [clientIndustry, setClientIndustry] = useState("Industry not specified");
+  const [companyTagline, setCompanyTagline] = useState("Board-ready financial package");
+  const [preparedFor, setPreparedFor] = useState("Management / Ownership / Board Review");
+  const [firmLogoPath, setFirmLogoPath] = useState("");
+  const [firmLogoDataUrl, setFirmLogoDataUrl] = useState("");
+  const [firmLogoFileName, setFirmLogoFileName] = useState("");
+  const [confidentialWatermark, setConfidentialWatermark] = useState(true);
   const [preparedBy, setPreparedBy] = useState("FinSight Reports");
   const [saveSettingsForClient, setSaveSettingsForClient] = useState(false);
   const [selectedPdfSections, setSelectedPdfSections] = useState<PackageSectionId[]>(packageDefaultSections.essential);
   const [useSamePowerPointSelections, setUseSamePowerPointSelections] = useState(true);
   const [selectedPowerPointSections, setSelectedPowerPointSections] = useState<PackageSectionId[]>(packageDefaultSections.essential);
   const [selectedRatios, setSelectedRatios] = useState<RatioId[]>(getDefaultRatiosForPackage("essential"));
+  const [selectedCharts, setSelectedCharts] = useState<ChartSelectionId[]>(packageDefaultCharts.essential);
   const [selectedFluxAnalyses, setSelectedFluxAnalyses] = useState<FluxAnalysisId[]>(["month", "quarter", "year"]);
   const [includeHighSeverityOnly, setIncludeHighSeverityOnly] = useState(false);
   const [includeModerateSeverity, setIncludeModerateSeverity] = useState(true);
@@ -3829,6 +5502,12 @@ export default function UploadPage() {
     logic: "either",
     includeZeroActivity: true,
   });
+  const [uploadAccess, setUploadAccess] = useState<UploadAccess>({
+    status: "checking",
+    token: "",
+    plan: null,
+    reason: null,
+  });
 
   const resetGeneratedState = () => {
     setIsPackageGenerated(false);
@@ -3839,10 +5518,91 @@ export default function UploadPage() {
     setPackageComplete(false);
     setShowPowerPointDraft(false);
     setShowPdfGeneration(false);
+    setShowPowerPointStep(false);
     setKpiReviewVisible(false);
     if (kpisConfirmed) setReportsChangedAfterConfirmation(true);
     setKpisConfirmed(false);
   };
+  const applyPackageEntitlement = (tier: PackageTier) => {
+    setPackageTier(tier);
+    setHasSelectedPackage(true);
+    setSelectedPdfSections(packageDefaultSections[tier]);
+    setSelectedPowerPointSections(tier === "essential" ? [] : packageDefaultSections[tier]);
+    setSelectedRatios(entitlementRatios[tier]);
+    setSelectedCharts(packageDefaultCharts[tier]);
+    setSelectedFluxAnalyses(entitlementFluxAnalyses[tier]);
+    setUseSamePowerPointSelections(tier !== "essential");
+    if (tier === "essential") {
+      setShowPowerPointStep(false);
+      setPowerpointCreated(false);
+      setPowerpointOmitted(true);
+      setShowPowerPointDraft(false);
+    }
+  };
+
+  useEffect(() => {
+    const devBypassEnabled =
+      process.env.NODE_ENV === "development" && new URLSearchParams(window.location.search).get("dev") === "true";
+
+    if (devBypassEnabled) {
+      applyPackageEntitlement("virtualCfo");
+      setUploadAccess({ status: "allowed", token: "development-bypass", plan: "virtualCfo", reason: "trial" });
+      return;
+    }
+
+    const token = window.localStorage.getItem("supabase_access_token");
+
+    if (!token) {
+      window.location.href = "/signin";
+      return;
+    }
+
+    async function verifyAccess() {
+      try {
+        const response = await fetch("/api/check-trial", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const result = await response.json();
+
+        if (response.status === 401) {
+          window.localStorage.removeItem("supabase_access_token");
+          window.location.href = "/signin";
+          return;
+        }
+
+        if (!response.ok) {
+          setUploadAccess({ status: "blocked", token, plan: null, reason: result.error || "access_error" });
+          return;
+        }
+
+        if (result.allowed === false && result.reason === "trial_expired") {
+          window.location.href = "/dashboard";
+          return;
+        }
+
+        if (result.allowed !== true) {
+          setUploadAccess({ status: "blocked", token, plan: null, reason: result.reason || "not_allowed" });
+          return;
+        }
+
+        const plan =
+          result.reason === "subscriber"
+            ? result.subscription_plan || STRIPE_PRICE_TO_PACKAGE_TIER[result.subscription_price_id as string] || "essential"
+            : "virtualCfo";
+        applyPackageEntitlement(plan);
+        setUploadAccess({ status: "allowed", token, plan, reason: result.reason });
+      } catch {
+        setUploadAccess({ status: "blocked", token, plan: null, reason: "access_check_failed" });
+      }
+    }
+
+    verifyAccess();
+    // Entitlement should be checked once when entering the upload workflow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const isReportOmitted = (reportId: string) => omittedReportIds.includes(reportId);
   const setReportOmitted = (reportId: string, omitted: boolean) => {
     resetGeneratedState();
@@ -4015,7 +5775,7 @@ export default function UploadPage() {
     },
     {
       id: "current-payroll",
-      tier: "virtualCfo",
+      tier: "professional",
       label: "Current Month Payroll Summary by Department",
       description:
         "Export the current month QuickBooks payroll summary by Department, Class, Location, Cost Center, or Division. Used to calculate FTE and payroll cost trends.",
@@ -4028,7 +5788,7 @@ export default function UploadPage() {
     },
     {
       id: "prior-payroll",
-      tier: "virtualCfo",
+      tier: "professional",
       label: "Prior Month Payroll Summary by Department",
       description:
         "Export the prior month QuickBooks payroll summary by Department, Class, Location, Cost Center, or Division. Used as the comparison period for payroll FTE analysis.",
@@ -4041,7 +5801,7 @@ export default function UploadPage() {
     },
     {
       id: "current-payroll-detail",
-      tier: "virtualCfo",
+      tier: "professional",
       label: "Current Month Payroll Detail",
       description:
         "Export the current month QuickBooks payroll GL detail or payroll detail report. Used as supporting detail for payroll review.",
@@ -4054,7 +5814,7 @@ export default function UploadPage() {
     },
     {
       id: "prior-payroll-detail",
-      tier: "virtualCfo",
+      tier: "professional",
       label: "Prior Month Payroll Detail",
       description:
         "Export the prior month QuickBooks payroll GL detail or payroll detail report. Used as supporting comparison detail for payroll review.",
@@ -4119,7 +5879,7 @@ export default function UploadPage() {
     },
     {
       id: "current-month-gl",
-      tier: "virtualCfo",
+      tier: "essential",
       label: "General Ledger - Current Month",
       description:
         "Export the QuickBooks General Ledger for the current month. Used for month-over-month flux analysis.",
@@ -4132,7 +5892,7 @@ export default function UploadPage() {
     },
     {
       id: "prior-month-gl",
-      tier: "virtualCfo",
+      tier: "essential",
       label: "General Ledger - Prior Month",
       description:
         "Export the QuickBooks General Ledger for the prior month. Used as the comparison period for monthly flux analysis.",
@@ -4145,7 +5905,7 @@ export default function UploadPage() {
     },
     {
       id: "current-quarter-gl",
-      tier: "virtualCfo",
+      tier: "professional",
       label: "General Ledger - Current Quarter",
       description:
         "Export the QuickBooks General Ledger for the current quarter. Used for quarter-over-quarter flux analysis.",
@@ -4158,7 +5918,7 @@ export default function UploadPage() {
     },
     {
       id: "prior-quarter-gl",
-      tier: "virtualCfo",
+      tier: "professional",
       label: "General Ledger - Prior Quarter",
       description:
         "Export the QuickBooks General Ledger for the prior quarter. Used as the comparison period for quarterly flux analysis.",
@@ -4171,7 +5931,7 @@ export default function UploadPage() {
     },
     {
       id: "current-year-gl",
-      tier: "virtualCfo",
+      tier: "professional",
       label: "General Ledger - Current Year",
       description:
         "Export the QuickBooks General Ledger for the current year. Used for year-over-year flux analysis.",
@@ -4184,7 +5944,7 @@ export default function UploadPage() {
     },
     {
       id: "prior-year-gl",
-      tier: "virtualCfo",
+      tier: "professional",
       label: "General Ledger - Prior Year",
       description:
         "Export the QuickBooks General Ledger for the prior year. Used as the comparison period for annual flux analysis.",
@@ -4279,7 +6039,7 @@ export default function UploadPage() {
   const missingInputsResolved = requiredUploadsComplete && missingInputsRemaining === 0;
   const canReviewKpis = showCustomizePackage && missingInputsResolved;
   const showKpiReview = canReviewKpis && kpiReviewVisible;
-  const canGeneratePackage = canReviewKpis && kpisAvailable && kpisConfirmed;
+  const canGeneratePackage = uploadAccess.status === "allowed" && canReviewKpis && kpisAvailable && kpisConfirmed;
   const dso = dsoConfirmed && !dsoInputOmitted ? dsoPreview : null;
   const activeWorkflowStep = !hasSelectedPackage || !showImportReports
     ? 1
@@ -4291,7 +6051,7 @@ export default function UploadPage() {
           ? 4
           : !showPdfGeneration
             ? 4
-            : !isPackageGenerated || !pdfReviewed
+            : !isPackageGenerated || !pdfReviewed || (packageTier !== "essential" && !showPowerPointStep)
               ? 5
               : !powerpointCreated && !powerpointOmitted
                 ? 6
@@ -4308,9 +6068,30 @@ export default function UploadPage() {
   const reportPeriod = clientReportingPeriod || "Current Reporting Period";
   const companyName = clientName || "Client Company Name";
   const payrollAnalysis = calculatePayrollAnalysis(activeCurrentPayrollData, activePriorPayrollData, fteDivisor);
-  const rawMonthFluxRows = getFluxRows(activeCurrentMonthGlData, activePriorMonthGlData, fluxSettings, payrollAnalysis);
-  const rawQuarterFluxRows = getFluxRows(activeCurrentQuarterGlData, activePriorQuarterGlData, fluxSettings, payrollAnalysis);
-  const rawYearFluxRows = getFluxRows(activeCurrentYearGlData, activePriorYearGlData, fluxSettings, payrollAnalysis);
+  const rawMonthFluxRows = getFluxRows(
+    activeCurrentMonthGlData,
+    activePriorMonthGlData,
+    fluxSettings,
+    payrollAnalysis,
+    activeBsData,
+    activePriorPeriodBsData,
+  );
+  const rawQuarterFluxRows = getFluxRows(
+    activeCurrentQuarterGlData,
+    activePriorQuarterGlData,
+    fluxSettings,
+    payrollAnalysis,
+    activeBsData,
+    activePriorPeriodBsData,
+  );
+  const rawYearFluxRows = getFluxRows(
+    activeCurrentYearGlData,
+    activePriorYearGlData,
+    fluxSettings,
+    payrollAnalysis,
+    activeBsData,
+    activePriorPeriodBsData,
+  );
   const monthFluxRows = selectedFluxAnalyses.includes("month")
     ? filterSelectedFluxRows(rawMonthFluxRows, includeHighSeverityOnly, includeModerateSeverity, maxFluxRows)
     : [];
@@ -4324,7 +6105,7 @@ export default function UploadPage() {
   const quarterFluxDebug = buildFluxDebugInfo(activeCurrentQuarterGlData, activePriorQuarterGlData, quarterFluxRows, fluxSettings);
   const yearFluxDebug = buildFluxDebugInfo(activeCurrentYearGlData, activePriorYearGlData, yearFluxRows, fluxSettings);
   const budgetMetrics = calculateBudgetMetrics(activeBudgetVsActualData);
-  const debtMetrics = calculateDebtMetrics(activeDebtScheduleData, kpis);
+  const debtMetrics = calculateDebtMetrics(activeDebtScheduleData, kpis, bsStatementRows);
   const ratioRows = buildRatioRows(
     kpis,
     netMargin,
@@ -4391,10 +6172,11 @@ export default function UploadPage() {
     }
     return matchingOption ? selectedPdfSections.includes(matchingOption.id) : true;
   });
-  const effectivePowerPointSections = useSamePowerPointSelections ? selectedPdfSections : selectedPowerPointSections;
+  const effectivePowerPointSections = selectedPdfSections;
   const powerPointSlides = createPowerPointSlidesData({
     companyName,
     reportPeriod,
+    preparedBy: preparedBy || "FinSight Reports",
     kpis,
     executiveSummary,
     arKpis,
@@ -4403,6 +6185,10 @@ export default function UploadPage() {
     fixedAssetKpis,
     payrollAnalysis,
     ratioRows,
+    topRevenueRows: getTopRevenueRows(activePlData),
+    topExpenseRows: getTopOperatingExpenseRows(activePlData),
+    budgetMetrics,
+    debtMetrics,
     monthFluxRows,
     quarterFluxRows,
     yearFluxRows,
@@ -4412,25 +6198,17 @@ export default function UploadPage() {
   }).filter((slide) => {
     const slideSection = slide.sectionType;
     if (slideSection === "title") return true;
-    if (slideSection === "summary") return effectivePowerPointSections.includes("executive-summary");
-    if (slideSection === "kpi") return effectivePowerPointSections.includes("kpi-snapshot");
-    if (slideSection === "liquidity") return effectivePowerPointSections.includes("ar-aging") || effectivePowerPointSections.includes("ap-aging");
-    if (slideSection === "inventory") return effectivePowerPointSections.includes("inventory-summary");
-    if (slideSection === "fixed-assets") return effectivePowerPointSections.includes("fixed-asset-analysis");
-    if (slideSection === "payroll") return effectivePowerPointSections.includes("payroll-fte");
-    if (slideSection === "ratios") return effectivePowerPointSections.includes("ratio-analysis");
-    if (slideSection === "flux") return effectivePowerPointSections.includes("flux-summary");
-    return true;
+    return effectivePowerPointSections.includes(slideSection);
   });
   const handlePackageTierChange = (tier: PackageTier) => {
-    setPackageTier(tier);
-    setHasSelectedPackage(true);
+    if (uploadAccess.reason === "subscriber" && uploadAccess.plan && tier !== uploadAccess.plan) {
+      alert(`Your subscription includes the ${PACKAGE_LABELS[uploadAccess.plan]} package.`);
+      applyPackageEntitlement(uploadAccess.plan);
+      return;
+    }
+    applyPackageEntitlement(tier);
     setShowImportReports(false);
     setShowCustomizePackage(false);
-    setSelectedPdfSections(packageDefaultSections[tier]);
-    setSelectedPowerPointSections(packageDefaultSections[tier]);
-    setSelectedRatios(getDefaultRatiosForPackage(tier));
-    setSelectedFluxAnalyses(["month", "quarter", "year"]);
     setIsPackageGenerated(false);
     setIsPackageExported(false);
     setPdfReviewed(false);
@@ -4452,12 +6230,20 @@ export default function UploadPage() {
       pdfSections: selectedPdfSections,
       powerpointSections: selectedPowerPointSections,
       selectedRatios,
+      selectedCharts,
       selectedFluxAnalyses,
       fluxSettings,
       includeHighSeverityOnly,
       includeModerateSeverity,
       maxFluxRows,
       useSamePowerPointSelections,
+      clientIndustry,
+      companyTagline,
+      preparedFor,
+      firmLogoPath,
+      firmLogoDataUrl,
+      firmLogoFileName,
+      confidentialWatermark,
     };
     window.localStorage.setItem(getClientSettingsKey(clientName), JSON.stringify(settings));
     setSaveSettingsForClient(true);
@@ -4473,28 +6259,76 @@ export default function UploadPage() {
       return;
     }
     const settings = JSON.parse(rawSettings) as ClientPackageSettings;
-    setPackageTier(settings.packageTier || packageTier);
-    setSelectedPdfSections(settings.pdfSections || packageDefaultSections[settings.packageTier || packageTier]);
-    setSelectedPowerPointSections(settings.powerpointSections || settings.pdfSections || packageDefaultSections[settings.packageTier || packageTier]);
-    setSelectedRatios(settings.selectedRatios || getDefaultRatiosForPackage(settings.packageTier || packageTier));
-    setSelectedFluxAnalyses(settings.selectedFluxAnalyses || ["month", "quarter", "year"]);
+    const settingsTier = settings.packageTier || packageTier;
+    const allowedTier = uploadAccess.reason === "subscriber" && uploadAccess.plan ? uploadAccess.plan : settingsTier;
+    const allowedSections = new Set(packageDefaultSections[allowedTier]);
+    setPackageTier(allowedTier);
+    setSelectedPdfSections((settings.pdfSections || packageDefaultSections[allowedTier]).filter((section) => allowedSections.has(section)));
+    setSelectedPowerPointSections(
+      allowedTier === "essential"
+        ? []
+        : (settings.powerpointSections || settings.pdfSections || packageDefaultSections[allowedTier]).filter((section) =>
+            allowedSections.has(section),
+          ),
+    );
+    setSelectedRatios(
+      (settings.selectedRatios || entitlementRatios[allowedTier]).filter((ratio) =>
+        entitlementRatios[allowedTier].includes(ratio),
+      ),
+    );
+    setSelectedCharts(settings.selectedCharts || packageDefaultCharts[allowedTier]);
+    setSelectedFluxAnalyses(
+      (settings.selectedFluxAnalyses || entitlementFluxAnalyses[allowedTier]).filter((flux) =>
+        entitlementFluxAnalyses[allowedTier].includes(flux),
+      ),
+    );
     setFluxSettings(settings.fluxSettings || fluxSettings);
     setIncludeHighSeverityOnly(settings.includeHighSeverityOnly ?? false);
     setIncludeModerateSeverity(settings.includeModerateSeverity ?? true);
     setMaxFluxRows(settings.maxFluxRows || 10);
     setUseSamePowerPointSelections(settings.useSamePowerPointSelections ?? true);
+    setClientIndustry(settings.clientIndustry || "Industry not specified");
+    setCompanyTagline(settings.companyTagline || "Board-ready financial package");
+    setPreparedFor(settings.preparedFor || "Management / Ownership / Board Review");
+    setFirmLogoPath(allowedTier === "virtualCfo" ? settings.firmLogoPath || "" : "");
+    setFirmLogoDataUrl(allowedTier === "virtualCfo" ? settings.firmLogoDataUrl || "" : "");
+    setFirmLogoFileName(allowedTier === "virtualCfo" ? settings.firmLogoFileName || "" : "");
+    setConfidentialWatermark(settings.confidentialWatermark ?? true);
     setHasSelectedPackage(true);
     resetGeneratedState();
   };
   const handleResetPackageDefaults = () => {
     setSelectedPdfSections(packageDefaultSections[packageTier]);
-    setSelectedPowerPointSections(packageDefaultSections[packageTier]);
-    setSelectedRatios(getDefaultRatiosForPackage(packageTier));
-    setSelectedFluxAnalyses(["month", "quarter", "year"]);
+    setSelectedPowerPointSections(packageTier === "essential" ? [] : packageDefaultSections[packageTier]);
+    setSelectedRatios(entitlementRatios[packageTier]);
+    setSelectedCharts(packageDefaultCharts[packageTier]);
+    setSelectedFluxAnalyses(entitlementFluxAnalyses[packageTier]);
     setIncludeHighSeverityOnly(false);
     setIncludeModerateSeverity(true);
     setMaxFluxRows(10);
+    setClientIndustry("Industry not specified");
+    setCompanyTagline("Board-ready financial package");
+    setPreparedFor("Management / Ownership / Board Review");
+    setFirmLogoPath("");
+    setFirmLogoDataUrl("");
+    setFirmLogoFileName("");
+    setConfidentialWatermark(true);
     resetGeneratedState();
+  };
+  const handleFirmLogoFileChange = (file: File | null) => {
+    resetGeneratedState();
+    if (!file) {
+      setFirmLogoDataUrl("");
+      setFirmLogoFileName("");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFirmLogoDataUrl(typeof reader.result === "string" ? reader.result : "");
+      setFirmLogoFileName(file.name);
+    };
+    reader.readAsDataURL(file);
   };
   const handleDsoInputChanged = () => {
     resetGeneratedState();
@@ -4533,6 +6367,11 @@ export default function UploadPage() {
     setShowPdfGeneration(true);
     window.setTimeout(() => scrollToWorkflowSection("pdf-review"), 50);
   };
+  const handleContinueToPowerPoint = () => {
+    if (!pdfReviewed) return;
+    setShowPowerPointStep(true);
+    window.setTimeout(() => scrollToWorkflowSection("powerpoint-section"), 50);
+  };
   const handleContinueToUploadReports = () => {
     setShowImportReports(true);
     window.setTimeout(() => scrollToWorkflowSection("upload-reports"), 50);
@@ -4546,7 +6385,7 @@ export default function UploadPage() {
     resetGeneratedState();
     setFteDivisor(value);
   };
-  const handleGeneratePackage = () => {
+  const handleGeneratePackage = async () => {
     if (!canGeneratePackage) return;
     setIsPackageGenerated(true);
     setIsPackageExported(false);
@@ -4555,6 +6394,22 @@ export default function UploadPage() {
     setPowerpointCreated(false);
     setPackageComplete(false);
     setShowPowerPointDraft(false);
+    setShowPowerPointStep(false);
+    if (uploadAccess.reason === "trial") {
+      try {
+        const response = await fetch("/api/mark-trial-used", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${uploadAccess.token}`,
+          },
+        });
+        if (!response.ok) {
+          alert("Your report was generated, but the trial could not be locked. Please sign in again before creating another report.");
+        }
+      } catch {
+        alert("Your report was generated, but the trial could not be locked. Please sign in again before creating another report.");
+      }
+    }
   };
   const handleExportPackage = () => {
     setIsPackageExported(true);
@@ -4563,8 +6418,16 @@ export default function UploadPage() {
   const handlePdfReviewedChange = (reviewed: boolean) => {
     if (reviewed && !isPackageGenerated) return;
     setPdfReviewed(reviewed);
+    if (reviewed && packageTier === "essential") {
+      setShowPowerPointStep(false);
+      setPowerpointOmitted(true);
+      setPowerpointCreated(false);
+      setShowPowerPointDraft(false);
+      return;
+    }
     if (!reviewed) {
       setIsPackageExported(false);
+      setShowPowerPointStep(false);
       setPowerpointOmitted(false);
       setPowerpointCreated(false);
       setPackageComplete(false);
@@ -4573,6 +6436,18 @@ export default function UploadPage() {
   };
   const handleCreatePowerPoint = () => {
     if (!pdfReviewed) return;
+    if (uploadAccess.plan === "essential") {
+      alert("PowerPoint export is available on Professional and Virtual CFO plans.");
+      return;
+    }
+    downloadPowerPointDeck(
+      powerPointSlides,
+      companyName,
+      reportPeriod,
+      preparedBy || "FinSight Reports",
+      packageTier === "virtualCfo" ? firmLogoPath : "",
+      packageTier === "virtualCfo" ? firmLogoDataUrl : "",
+    );
     setShowPowerPointDraft(true);
     setPowerpointCreated(true);
     setPowerpointOmitted(false);
@@ -4593,6 +6468,91 @@ export default function UploadPage() {
     if (!pdfReviewed || (!powerpointCreated && !powerpointOmitted)) return;
     setPackageComplete(true);
   };
+  const handleStartNewClient = () => {
+    const startingTier = uploadAccess.reason === "subscriber" && uploadAccess.plan ? uploadAccess.plan : "essential";
+    setPackageTier(startingTier);
+    setHasSelectedPackage(false);
+    setShowImportReports(false);
+    setShowCustomizePackage(false);
+    setIsPackageGenerated(false);
+    setIsPackageExported(false);
+    setPdfReviewed(false);
+    setKpisConfirmed(false);
+    setKpiReviewVisible(false);
+    setShowPdfGeneration(false);
+    setShowPowerPointStep(false);
+    setReviewerNotes("");
+    setClientName("Client Company Name");
+    setClientReportingPeriod("Current Reporting Period");
+    setClientIndustry("Industry not specified");
+    setCompanyTagline("Board-ready financial package");
+    setPreparedFor("Management / Ownership / Board Review");
+    setFirmLogoPath("");
+    setFirmLogoDataUrl("");
+    setFirmLogoFileName("");
+    setConfidentialWatermark(true);
+    setPreparedBy("FinSight Reports");
+    setSaveSettingsForClient(false);
+    setSelectedPdfSections(packageDefaultSections[startingTier]);
+    setSelectedPowerPointSections(startingTier === "essential" ? [] : packageDefaultSections[startingTier]);
+    setUseSamePowerPointSelections(startingTier !== "essential");
+    setSelectedRatios(entitlementRatios[startingTier]);
+    setSelectedCharts(packageDefaultCharts[startingTier]);
+    setSelectedFluxAnalyses(entitlementFluxAnalyses[startingTier]);
+    setIncludeHighSeverityOnly(false);
+    setIncludeModerateSeverity(true);
+    setMaxFluxRows(10);
+    setReportingPeriodStart("");
+    setReportingPeriodEnd("");
+    setManualPeriodDays("");
+    setDsoMonthlyRevenue("");
+    setDsoPeriodDays("");
+    setDsoAccountsReceivable("");
+    setDsoAverageDailySales("");
+    setDsoConfirmed(false);
+    setDsoInputsChangedAfterConfirmation(false);
+    setDsoInputOmitted(false);
+    setReportsChangedAfterConfirmation(false);
+    setOmittedReportIds([]);
+    setPlData(null);
+    setBsData(null);
+    setArData(null);
+    setApData(null);
+    setInventoryData(null);
+    setCustomerSalesData(null);
+    setVendorExpenseData(null);
+    setFixedAssetData(null);
+    setPriorFixedAssetData(null);
+    setBudgetVsActualData(null);
+    setPriorPeriodPlData(null);
+    setPriorPeriodBsData(null);
+    setCashFlowData(null);
+    setDebtScheduleData(null);
+    setCurrentMonthGlData(null);
+    setPriorMonthGlData(null);
+    setCurrentQuarterGlData(null);
+    setPriorQuarterGlData(null);
+    setCurrentYearGlData(null);
+    setPriorYearGlData(null);
+    setCurrentPayrollData(null);
+    setPriorPayrollData(null);
+    setCurrentPayrollDetailData(null);
+    setPriorPayrollDetailData(null);
+    setSalesDetailData(null);
+    setFolderImportResult(null);
+    setIsFolderImporting(false);
+    setShowPowerPointDraft(false);
+    setPowerpointOmitted(false);
+    setPowerpointCreated(false);
+    setPackageComplete(false);
+    setFluxSettings({
+      dollarThreshold: 5000,
+      percentThreshold: 10,
+      logic: "either",
+      includeZeroActivity: true,
+    });
+    window.setTimeout(() => scrollToWorkflowSection("package-selection"), 50);
+  };
   const handleBackWorkflowStep = () => {
     if (activeWorkflowStep === 7) {
       setPackageComplete(false);
@@ -4600,8 +6560,7 @@ export default function UploadPage() {
       return;
     }
     if (activeWorkflowStep === 6) {
-      setPdfReviewed(false);
-      setIsPackageExported(false);
+      setShowPowerPointStep(false);
       setPowerpointCreated(false);
       setPowerpointOmitted(false);
       setShowPowerPointDraft(false);
@@ -4734,6 +6693,40 @@ export default function UploadPage() {
     }
   };
 
+  if (uploadAccess.status === "checking") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#0B1020] px-6 text-white">
+        <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-8 text-center shadow-2xl shadow-black/30">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Checking Access</p>
+          <h1 className="mt-3 text-2xl font-bold">Verifying your FinSight session</h1>
+          <p className="mt-2 text-sm text-slate-400">You will be redirected if sign-in or subscription action is needed.</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (uploadAccess.status === "blocked") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#0B1020] px-6 text-white">
+        <div className="max-w-lg rounded-3xl border border-red-500/30 bg-slate-950/80 p-8 text-center shadow-2xl shadow-black/30">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-red-300">Access Blocked</p>
+          <h1 className="mt-3 text-2xl font-bold">We could not verify report access</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            Please sign in again or choose a plan from your dashboard. Reason: {uploadAccess.reason}
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <a href="/signin" className="rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white">
+              Sign In
+            </a>
+            <a href="/dashboard" className="rounded-2xl border border-slate-700 px-5 py-3 text-sm font-bold text-slate-200">
+              Dashboard
+            </a>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <>
       <style jsx global>{`
@@ -4789,6 +6782,8 @@ export default function UploadPage() {
             padding: 48px;
             page-break-after: always;
             break-after: page;
+            page-break-before: auto;
+            break-before: auto;
           }
 
           .print-page:last-child {
@@ -4825,12 +6820,204 @@ export default function UploadPage() {
 
           .print-report-meta,
           .print-grid,
+          .print-executive-card-grid,
+          .print-cover-hero,
+          .print-cover-topline,
+          .print-narrative-card,
+          .print-commentary-grid,
+          .print-two-column,
           .print-kpi-card,
           .print-table,
           .print-section-block,
           .print-table tr {
             break-inside: avoid;
             page-break-inside: avoid;
+          }
+
+          .print-page h1,
+          .print-page h2,
+          .print-page h3,
+          .statement-header {
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+
+          .print-cover-page {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f172a 0%, #172033 48%, #eef2ff 48%, #ffffff 100%) !important;
+          }
+
+          .print-confidential-watermark {
+            position: absolute;
+            top: 44%;
+            left: 8%;
+            transform: rotate(-18deg);
+            color: rgba(91, 140, 255, 0.08);
+            font-size: 76px;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+          }
+
+          .print-cover-topline {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 46px;
+          }
+
+          .print-logo-box,
+          .print-client-logo-box {
+            min-width: 148px;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+
+          .print-client-logo-box {
+            background: #ffffff;
+            color: #334155;
+            border-color: #cbd5e1;
+          }
+
+          .print-cover-hero {
+            margin-bottom: 30px;
+            color: #ffffff;
+          }
+
+          .print-eyebrow {
+            color: #bfdbfe !important;
+            font-size: 11px !important;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+          }
+
+          .print-cover-hero h1 {
+            max-width: 560px;
+            margin: 8px 0;
+            color: #ffffff;
+            font-size: 44px;
+            line-height: 1.05;
+          }
+
+          .print-cover-subtitle,
+          .print-cover-period {
+            color: #dbeafe !important;
+            font-size: 15px !important;
+          }
+
+          .print-cover-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            max-width: 680px;
+            margin-top: 22px;
+          }
+
+          .print-cover-meta-grid span {
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
+            padding: 8px 12px;
+            background: rgba(15, 23, 42, 0.44);
+            color: #eff6ff;
+            font-size: 11px;
+            font-weight: 700;
+          }
+
+          .print-executive-card-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin: 34px 0;
+          }
+
+          .print-executive-summary-grid,
+          .print-commentary-grid,
+          .print-two-column {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+          }
+
+          .print-narrative-card {
+            margin-top: 14px;
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            padding: 14px;
+            background: #f8fafc;
+          }
+
+          .print-dashboard-card {
+            border: 1px solid #1e293b;
+            border-radius: 16px;
+            padding: 16px;
+            background: #0f172a;
+            color: #ffffff;
+          }
+
+          .print-dashboard-card p {
+            color: #cbd5e1 !important;
+          }
+
+          .print-dashboard-card strong {
+            display: block;
+            margin: 8px 0 12px;
+            color: #ffffff;
+            font-size: 22px;
+          }
+
+          .print-dashboard-label {
+            font-size: 10px !important;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+          }
+
+          .print-section-intro,
+          .print-commentary {
+            margin: 8px 0 14px;
+            color: #475569 !important;
+          }
+
+          .print-compact-table {
+            font-size: 11px;
+          }
+
+          .print-aging-bar-track {
+            width: 100%;
+            height: 8px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #e2e8f0;
+          }
+
+          .print-aging-bar {
+            display: block;
+            height: 100%;
+            border-radius: 999px;
+          }
+
+          .print-aging-good {
+            background: #10b981;
+          }
+
+          .print-aging-watch {
+            background: #f59e0b;
+          }
+
+          .print-aging-risk {
+            background: #f97316;
+          }
+
+          .print-aging-critical {
+            background: #ef4444;
           }
 
           .print-report-meta {
@@ -5003,6 +7190,7 @@ export default function UploadPage() {
             kpisConfirmed={kpisConfirmed}
             kpiReviewVisible={kpiReviewVisible}
             showPdfGeneration={showPdfGeneration}
+            showPowerPointStep={showPowerPointStep}
             reviewerNotes={reviewerNotes}
             reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
             canGeneratePackage={canGeneratePackage}
@@ -5021,11 +7209,13 @@ export default function UploadPage() {
             onContinueToCustomizePackage={handleContinueToCustomizePackage}
             onContinueToKpiReview={handleContinueToKpiReview}
             onContinueToPdfGeneration={handleContinueToPdfGeneration}
+            onContinueToPowerPoint={handleContinueToPowerPoint}
             onKpisConfirmedChange={(confirmed) => {
               setKpisConfirmed(confirmed);
               if (confirmed) setReportsChangedAfterConfirmation(false);
               if (!confirmed) {
                 setShowPdfGeneration(false);
+                setShowPowerPointStep(false);
                 setIsPackageGenerated(false);
                 setIsPackageExported(false);
                 setPdfReviewed(false);
@@ -5042,6 +7232,7 @@ export default function UploadPage() {
             onOmitPowerPoint={handleOmitPowerPoint}
             onResetPowerPointChoice={handleResetPowerPointChoice}
             onCompletePackage={handleCompletePackage}
+            onStartNewClient={handleStartNewClient}
             onBackWorkflowStep={handleBackWorkflowStep}
           >
 
@@ -5051,12 +7242,20 @@ export default function UploadPage() {
               reports={uploadReports}
               clientName={clientName}
               reportingPeriod={clientReportingPeriod}
+              clientIndustry={clientIndustry}
+              companyTagline={companyTagline}
+              preparedFor={preparedFor}
+              firmLogoPath={firmLogoPath}
+              firmLogoDataUrl={firmLogoDataUrl}
+              firmLogoFileName={firmLogoFileName}
+              confidentialWatermark={confidentialWatermark}
               preparedBy={preparedBy}
               saveSettingsForClient={saveSettingsForClient}
               selectedPdfSections={selectedPdfSections}
               useSamePowerPointSelections={useSamePowerPointSelections}
               selectedPowerPointSections={selectedPowerPointSections}
               selectedRatios={selectedRatios}
+              selectedCharts={selectedCharts}
               selectedFluxAnalyses={selectedFluxAnalyses}
               fluxSettings={fluxSettings}
               includeHighSeverityOnly={includeHighSeverityOnly}
@@ -5070,6 +7269,29 @@ export default function UploadPage() {
                 resetGeneratedState();
                 setClientReportingPeriod(value);
               }}
+              onClientIndustryChange={(value) => {
+                resetGeneratedState();
+                setClientIndustry(value);
+              }}
+              onCompanyTaglineChange={(value) => {
+                resetGeneratedState();
+                setCompanyTagline(value);
+              }}
+              onPreparedForChange={(value) => {
+                resetGeneratedState();
+                setPreparedFor(value);
+              }}
+              onFirmLogoPathChange={(value) => {
+                resetGeneratedState();
+                if (packageTier === "virtualCfo") setFirmLogoPath(value);
+              }}
+              onFirmLogoFileChange={(file) => {
+                if (packageTier === "virtualCfo") handleFirmLogoFileChange(file);
+              }}
+              onClearFirmLogo={() => {
+                if (packageTier === "virtualCfo") handleFirmLogoFileChange(null);
+              }}
+              onConfidentialWatermarkChange={setConfidentialWatermark}
               onPreparedByChange={(value) => {
                 resetGeneratedState();
                 setPreparedBy(value);
@@ -5077,17 +7299,24 @@ export default function UploadPage() {
               onSaveSettingsForClientChange={setSaveSettingsForClient}
               onSelectedPdfSectionsChange={(sections) => {
                 resetGeneratedState();
-                setSelectedPdfSections(sections);
-                if (useSamePowerPointSelections) setSelectedPowerPointSections(sections);
+                const allowedSections = sections.filter((section) => packageDefaultSections[packageTier].includes(section));
+                setSelectedPdfSections(allowedSections);
+                if (useSamePowerPointSelections) {
+                  setSelectedPowerPointSections(packageTier === "essential" ? [] : allowedSections);
+                }
               }}
               onUseSamePowerPointSelectionsChange={(value) => {
                 resetGeneratedState();
-                setUseSamePowerPointSelections(value);
-                if (value) setSelectedPowerPointSections(selectedPdfSections);
+                setUseSamePowerPointSelections(packageTier === "essential" ? false : value);
+                if (value && packageTier !== "essential") setSelectedPowerPointSections(selectedPdfSections);
               }}
               onSelectedPowerPointSectionsChange={(sections) => {
                 resetGeneratedState();
-                setSelectedPowerPointSections(sections);
+                setSelectedPowerPointSections(
+                  packageTier === "essential"
+                    ? []
+                    : sections.filter((section) => packageDefaultSections[packageTier].includes(section)),
+                );
               }}
               onSelectedRatiosChange={(ratios) => {
                 resetGeneratedState();
@@ -5095,11 +7324,15 @@ export default function UploadPage() {
                   setDsoInputOmitted(false);
                   setDsoConfirmed(false);
                 }
-                setSelectedRatios(ratios);
+                setSelectedRatios(ratios.filter((ratio) => entitlementRatios[packageTier].includes(ratio)));
+              }}
+              onSelectedChartsChange={(charts) => {
+                resetGeneratedState();
+                setSelectedCharts(charts.filter((chart) => packageDefaultCharts[packageTier].includes(chart)));
               }}
               onSelectedFluxAnalysesChange={(analyses) => {
                 resetGeneratedState();
-                setSelectedFluxAnalyses(analyses);
+                setSelectedFluxAnalyses(analyses.filter((analysis) => entitlementFluxAnalyses[packageTier].includes(analysis)));
               }}
               onFluxSettingsChange={(settings) => {
                 resetGeneratedState();
@@ -5386,6 +7619,10 @@ export default function UploadPage() {
         packageTier={packageTier}
         companyName={companyName}
         reportPeriod={reportPeriod}
+        clientIndustry={clientIndustry}
+        companyTagline={companyTagline}
+        preparedFor={preparedFor}
+        confidentialWatermark={confidentialWatermark}
         preparedBy={preparedBy || "FinSight Reports"}
         selectedSections={selectedPdfSections}
         kpis={kpis}
@@ -5402,7 +7639,9 @@ export default function UploadPage() {
         inventoryData={activeInventoryData}
         fixedAssetData={activeFixedAssetData}
         priorFixedAssetData={activePriorFixedAssetData}
-        topExpenseRows={getTopExpenseRows(activePlData)}
+        topRevenueRows={getTopRevenueRows(activePlData)}
+        topExpenseRows={getTopOperatingExpenseRows(activePlData)}
+        selectedCharts={selectedCharts}
         ratioRows={ratioRows}
         fixedAssetChangeRows={fixedAssetChangeRows}
         payrollAnalysis={payrollAnalysis}
@@ -5438,7 +7677,7 @@ function scrollToWorkflowSection(target: string | HTMLElement | RefObject<HTMLEl
 
   const toolbar = document.querySelector(".workflow-action-panel");
   const toolbarHeight = toolbar?.getBoundingClientRect().height || 180;
-  const extraPadding = 24;
+  const extraPadding = 44;
   const elementTop = element.getBoundingClientRect().top + window.scrollY;
   window.scrollTo({
     top: elementTop - toolbarHeight - extraPadding,
@@ -5465,6 +7704,7 @@ function ImportWorkflow({
   kpisConfirmed,
   kpiReviewVisible,
   showPdfGeneration,
+  showPowerPointStep,
   reviewerNotes,
   reportsChangedAfterConfirmation,
   canGeneratePackage,
@@ -5483,6 +7723,7 @@ function ImportWorkflow({
   onContinueToCustomizePackage,
   onContinueToKpiReview,
   onContinueToPdfGeneration,
+  onContinueToPowerPoint,
   onKpisConfirmedChange,
   onReviewerNotesChange,
   onExportPackage,
@@ -5491,6 +7732,7 @@ function ImportWorkflow({
   onOmitPowerPoint,
   onResetPowerPointChoice,
   onCompletePackage,
+  onStartNewClient,
   onBackWorkflowStep,
   children,
 }: {
@@ -5512,6 +7754,7 @@ function ImportWorkflow({
   kpisConfirmed: boolean;
   kpiReviewVisible: boolean;
   showPdfGeneration: boolean;
+  showPowerPointStep: boolean;
   reviewerNotes: string;
   reportsChangedAfterConfirmation: boolean;
   canGeneratePackage: boolean;
@@ -5530,6 +7773,7 @@ function ImportWorkflow({
   onContinueToCustomizePackage: () => void;
   onContinueToKpiReview: () => void;
   onContinueToPdfGeneration: () => void;
+  onContinueToPowerPoint: () => void;
   onKpisConfirmedChange: (confirmed: boolean) => void;
   onReviewerNotesChange: (notes: string) => void;
   onExportPackage: () => void;
@@ -5538,6 +7782,7 @@ function ImportWorkflow({
   onOmitPowerPoint: () => void;
   onResetPowerPointChoice: () => void;
   onCompletePackage: () => void;
+  onStartNewClient: () => void;
   onBackWorkflowStep: () => void;
   children?: ReactNode;
 }) {
@@ -5571,6 +7816,7 @@ function ImportWorkflow({
         resolvedInputsCount={resolvedInputsCount}
         kpisConfirmed={kpisConfirmed}
         showPdfGeneration={showPdfGeneration}
+        showPowerPointStep={showPowerPointStep}
         isPackageGenerated={isPackageGenerated}
         pdfReviewed={pdfReviewed}
         powerpointOmitted={powerpointOmitted}
@@ -5595,6 +7841,7 @@ function ImportWorkflow({
         kpisConfirmed={kpisConfirmed}
         kpiReviewVisible={kpiReviewVisible}
         showPdfGeneration={showPdfGeneration}
+        showPowerPointStep={showPowerPointStep}
         reviewerNotes={reviewerNotes}
         canGeneratePackage={canGeneratePackage}
         isPackageGenerated={isPackageGenerated}
@@ -5610,11 +7857,13 @@ function ImportWorkflow({
         onOmitPowerPoint={onOmitPowerPoint}
         onResetPowerPointChoice={onResetPowerPointChoice}
         onCompletePackage={onCompletePackage}
+        onStartNewClient={onStartNewClient}
         onBackWorkflowStep={onBackWorkflowStep}
         onContinueToUploadReports={onContinueToUploadReports}
         onContinueToCustomizePackage={onContinueToCustomizePackage}
         onContinueToKpiReview={onContinueToKpiReview}
         onContinueToPdfGeneration={onContinueToPdfGeneration}
+        onContinueToPowerPoint={onContinueToPowerPoint}
         onKpisConfirmedChange={onKpisConfirmedChange}
         onReviewerNotesChange={onReviewerNotesChange}
       />
@@ -5710,6 +7959,7 @@ function WorkflowSteps({
   resolvedInputsCount,
   kpisConfirmed,
   showPdfGeneration,
+  showPowerPointStep,
   isPackageGenerated,
   pdfReviewed,
   powerpointOmitted,
@@ -5724,6 +7974,7 @@ function WorkflowSteps({
   resolvedInputsCount: number;
   kpisConfirmed: boolean;
   showPdfGeneration: boolean;
+  showPowerPointStep: boolean;
   isPackageGenerated: boolean;
   pdfReviewed: boolean;
   powerpointOmitted: boolean;
@@ -5784,11 +8035,13 @@ function WorkflowSteps({
       label: "Create PowerPoint",
       status: !pdfReviewed
         ? "Locked"
-        : powerpointOmitted
-          ? "Omitted"
-          : powerpointCreated
-            ? "Complete"
-            : "In Progress",
+        : !showPowerPointStep
+          ? "Not Started"
+          : powerpointOmitted
+            ? "Omitted"
+            : powerpointCreated
+              ? "Complete"
+              : "In Progress",
     },
     {
       label: "Complete",
@@ -5867,6 +8120,7 @@ function WorkflowActionPanel({
   kpisConfirmed,
   kpiReviewVisible,
   showPdfGeneration,
+  showPowerPointStep,
   reviewerNotes,
   canGeneratePackage,
   isPackageGenerated,
@@ -5880,6 +8134,7 @@ function WorkflowActionPanel({
   onContinueToCustomizePackage,
   onContinueToKpiReview,
   onContinueToPdfGeneration,
+  onContinueToPowerPoint,
   onKpisConfirmedChange,
   onReviewerNotesChange,
   onExportPackage,
@@ -5888,6 +8143,7 @@ function WorkflowActionPanel({
   onOmitPowerPoint,
   onResetPowerPointChoice,
   onCompletePackage,
+  onStartNewClient,
   onBackWorkflowStep,
 }: {
   packageTier: PackageTier;
@@ -5906,6 +8162,7 @@ function WorkflowActionPanel({
   kpisConfirmed: boolean;
   kpiReviewVisible: boolean;
   showPdfGeneration: boolean;
+  showPowerPointStep: boolean;
   reviewerNotes: string;
   canGeneratePackage: boolean;
   isPackageGenerated: boolean;
@@ -5919,6 +8176,7 @@ function WorkflowActionPanel({
   onContinueToCustomizePackage: () => void;
   onContinueToKpiReview: () => void;
   onContinueToPdfGeneration: () => void;
+  onContinueToPowerPoint: () => void;
   onKpisConfirmedChange: (confirmed: boolean) => void;
   onReviewerNotesChange: (notes: string) => void;
   onExportPackage: () => void;
@@ -5927,6 +8185,7 @@ function WorkflowActionPanel({
   onOmitPowerPoint: () => void;
   onResetPowerPointChoice: () => void;
   onCompletePackage: () => void;
+  onStartNewClient: () => void;
   onBackWorkflowStep: () => void;
 }) {
   const buttonBase =
@@ -5955,7 +8214,9 @@ function WorkflowActionPanel({
             label: "Proceed to Step 3 - Customize Package",
             helper: !showCustomizePackage
               ? "Review package outputs, ratios, flux settings, and required calculation inputs."
-              : `Customize package before KPI review. ${missingInputsRemaining} item${missingInputsRemaining === 1 ? "" : "s"} needs attention.`,
+              : missingInputsRemaining
+                ? `Customize Package has ${missingInputsRemaining} item${missingInputsRemaining === 1 ? "" : "s"} needing attention.`
+                : "Customize Package is ready for KPI review.",
             onClick: onContinueToCustomizePackage,
             disabled: false,
           }
@@ -5976,7 +8237,7 @@ function WorkflowActionPanel({
         : !showPdfGeneration
           ? {
               label: "Proceed to Step 5 - Generate & Review PDF",
-              helper: "KPIs approved. Continue when you are ready to review and generate the PDF.",
+              helper: "Package ready for generation. Continue when you are ready to review and generate the PDF.",
               onClick: onContinueToPdfGeneration,
               disabled: false,
             }
@@ -5993,10 +8254,24 @@ function WorkflowActionPanel({
           : !pdfReviewed
             ? {
                 label: "PDF Awaiting Approval",
-                helper: "Check PDF is correct below, then Export PDF will appear.",
+                helper: "Export and review the PDF. Check PDF looks correct when you approve it.",
                 onClick: () => undefined,
                 disabled: true,
               }
+            : packageTier === "essential"
+              ? {
+                  label: "Proceed to Step 7 - Complete",
+                  helper: "Essential includes PDF output only. PowerPoint export is available on Professional and Virtual CFO plans.",
+                  onClick: onCompletePackage,
+                  disabled: false,
+                }
+            : !showPowerPointStep
+              ? {
+                  label: "Proceed to Step 6 - Create PowerPoint",
+                  helper: "PDF approved. Continue when you are ready to decide on the Board / Owner presentation.",
+                  onClick: onContinueToPowerPoint,
+                  disabled: false,
+                }
             : !powerpointCreated && !powerpointOmitted
               ? {
                   label: "Proceed to Step 6 - Create PowerPoint",
@@ -6051,19 +8326,24 @@ function WorkflowActionPanel({
           <button type="button" onClick={nextAction.onClick} disabled={nextAction.disabled} className={primaryButton}>
             {nextAction.label}
           </button>
-          {isPackageGenerated && pdfReviewed && (
+          {isPackageGenerated && activeStep === 5 && (
             <button type="button" onClick={onExportPackage} className={secondaryButton}>
               {isPackageExported ? "Re-export PDF" : "Export PDF"}
             </button>
           )}
-          {pdfReviewed && !powerpointCreated && !powerpointOmitted && (
+          {showPowerPointStep && pdfReviewed && !powerpointCreated && !powerpointOmitted && (
             <button type="button" onClick={onOmitPowerPoint} className={secondaryButton}>
               Omit PowerPoint
             </button>
           )}
-          {pdfReviewed && (powerpointCreated || powerpointOmitted) && !packageComplete && (
+          {showPowerPointStep && pdfReviewed && (powerpointCreated || powerpointOmitted) && !packageComplete && (
             <button type="button" onClick={onResetPowerPointChoice} className={secondaryButton}>
               Reset PowerPoint Choice
+            </button>
+          )}
+          {packageComplete && (
+            <button type="button" onClick={onStartNewClient} className={secondaryButton}>
+              Start New Client
             </button>
           )}
         </div>
@@ -6729,6 +9009,7 @@ function UploadGroup({
 function PremiumUploadCard({ report }: { report: UploadReport }) {
   const [fileInputKey, setFileInputKey] = useState(0);
   const uploaded = Boolean(report.data);
+  const quickBooksHelp = QUICKBOOKS_REPORT_HELP[report.id];
   const status = report.omitted
     ? "Omitted"
     : uploaded
@@ -6754,6 +9035,7 @@ function PremiumUploadCard({ report }: { report: UploadReport }) {
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <h3 className="text-lg font-semibold text-[#F9FAFB]">{report.label}</h3>
+            {quickBooksHelp && <QuickBooksHelpTrigger help={quickBooksHelp} />}
             <PackageBadge tier={report.tier} />
             <span className="rounded-full bg-[#0B1020] px-3 py-1 text-xs font-semibold text-[#94A3B8]">
               {report.required ? "Required" : "Optional"}
@@ -6836,10 +9118,15 @@ function PremiumUploadCard({ report }: { report: UploadReport }) {
 }
 
 function LockedUploadCard({ report }: { report: UploadReport }) {
+  const quickBooksHelp = QUICKBOOKS_REPORT_HELP[report.id];
+
   return (
     <div className="rounded-2xl border border-[#243041] bg-[#111827] p-5 opacity-80 shadow-lg shadow-black/10">
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h3 className="text-lg font-semibold text-[#F9FAFB]">{report.label}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-lg font-semibold text-[#F9FAFB]">{report.label}</h3>
+          {quickBooksHelp && <QuickBooksHelpTrigger help={quickBooksHelp} />}
+        </div>
         <span className="rounded-full bg-[#172033] px-3 py-1 text-xs font-semibold text-[#94A3B8]">
           Locked
         </span>
@@ -6851,6 +9138,66 @@ function LockedUploadCard({ report }: { report: UploadReport }) {
         {report.tier === "professional" ? "Available in Professional" : "Available in Virtual CFO"}
       </div>
     </div>
+  );
+}
+
+function QuickBooksHelpTrigger({ help }: { help: QuickBooksReportHelp }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="inline-flex items-center gap-1 text-xs font-bold text-[#7BA3FF] underline decoration-[#7BA3FF]/50 underline-offset-4 transition hover:text-blue-200"
+        aria-expanded={open}
+      >
+        <span className="flex h-5 w-5 items-center justify-center rounded-full border border-[#5B8CFF]/60 bg-[#0B1020] text-[11px] no-underline">
+          ?
+        </span>
+        Where do I find this in QuickBooks?
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-8 z-30 w-[min(22rem,calc(100vw-3rem))] rounded-2xl border border-[#5B8CFF]/30 bg-[#0B1020] p-4 text-left shadow-2xl shadow-black/40">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7BA3FF]">QuickBooks Location</p>
+              <h4 className="mt-1 text-sm font-bold text-[#F9FAFB]">{help.title}</h4>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-full border border-slate-700 px-2 py-0.5 text-xs font-bold text-slate-300 hover:border-slate-500"
+              aria-label="Close QuickBooks help"
+            >
+              x
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-3 text-xs leading-5 text-[#CBD5E1]">
+            <div>
+              <p className="font-bold text-[#F9FAFB]">QuickBooks Online</p>
+              <p className="mt-1 text-[#94A3B8]">{help.qbo}</p>
+            </div>
+            <div>
+              <p className="font-bold text-[#F9FAFB]">QuickBooks Desktop / Enterprise</p>
+              <p className="mt-1 text-[#94A3B8]">{help.desktop}</p>
+            </div>
+            {help.note && (
+              <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-amber-100">
+                <span className="font-bold">Note: </span>
+                {help.note}
+              </div>
+            )}
+            <div className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+              <p className="font-bold text-[#F9FAFB]">Export</p>
+              <p className="mt-1 text-[#94A3B8]">{help.export}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </span>
   );
 }
 
@@ -6867,12 +9214,20 @@ function PackageCustomizationPanel({
   reports,
   clientName,
   reportingPeriod,
+  clientIndustry,
+  companyTagline,
+  preparedFor,
+  firmLogoPath,
+  firmLogoDataUrl,
+  firmLogoFileName,
+  confidentialWatermark,
   preparedBy,
   saveSettingsForClient,
   selectedPdfSections,
   useSamePowerPointSelections,
   selectedPowerPointSections,
   selectedRatios,
+  selectedCharts,
   selectedFluxAnalyses,
   fluxSettings,
   includeHighSeverityOnly,
@@ -6880,12 +9235,20 @@ function PackageCustomizationPanel({
   maxFluxRows,
   onClientNameChange,
   onReportingPeriodChange,
+  onClientIndustryChange,
+  onCompanyTaglineChange,
+  onPreparedForChange,
+  onFirmLogoPathChange,
+  onFirmLogoFileChange,
+  onClearFirmLogo,
+  onConfidentialWatermarkChange,
   onPreparedByChange,
   onSaveSettingsForClientChange,
   onSelectedPdfSectionsChange,
   onUseSamePowerPointSelectionsChange,
   onSelectedPowerPointSectionsChange,
   onSelectedRatiosChange,
+  onSelectedChartsChange,
   onSelectedFluxAnalysesChange,
   onFluxSettingsChange,
   onIncludeHighSeverityOnlyChange,
@@ -6932,12 +9295,20 @@ function PackageCustomizationPanel({
   reports: UploadReport[];
   clientName: string;
   reportingPeriod: string;
+  clientIndustry: string;
+  companyTagline: string;
+  preparedFor: string;
+  firmLogoPath: string;
+  firmLogoDataUrl: string;
+  firmLogoFileName: string;
+  confidentialWatermark: boolean;
   preparedBy: string;
   saveSettingsForClient: boolean;
   selectedPdfSections: PackageSectionId[];
   useSamePowerPointSelections: boolean;
   selectedPowerPointSections: PackageSectionId[];
   selectedRatios: RatioId[];
+  selectedCharts: ChartSelectionId[];
   selectedFluxAnalyses: FluxAnalysisId[];
   fluxSettings: FluxSettings;
   includeHighSeverityOnly: boolean;
@@ -6945,12 +9316,20 @@ function PackageCustomizationPanel({
   maxFluxRows: number;
   onClientNameChange: (value: string) => void;
   onReportingPeriodChange: (value: string) => void;
+  onClientIndustryChange: (value: string) => void;
+  onCompanyTaglineChange: (value: string) => void;
+  onPreparedForChange: (value: string) => void;
+  onFirmLogoPathChange: (value: string) => void;
+  onFirmLogoFileChange: (file: File | null) => void;
+  onClearFirmLogo: () => void;
+  onConfidentialWatermarkChange: (value: boolean) => void;
   onPreparedByChange: (value: string) => void;
   onSaveSettingsForClientChange: (value: boolean) => void;
   onSelectedPdfSectionsChange: (sections: PackageSectionId[]) => void;
   onUseSamePowerPointSelectionsChange: (value: boolean) => void;
   onSelectedPowerPointSectionsChange: (sections: PackageSectionId[]) => void;
   onSelectedRatiosChange: (ratios: RatioId[]) => void;
+  onSelectedChartsChange: (charts: ChartSelectionId[]) => void;
   onSelectedFluxAnalysesChange: (analyses: FluxAnalysisId[]) => void;
   onFluxSettingsChange: (settings: FluxSettings) => void;
   onIncludeHighSeverityOnlyChange: (value: boolean) => void;
@@ -7005,6 +9384,7 @@ function PackageCustomizationPanel({
   const availableSectionOptions = packageSectionOptions.filter((option) =>
     isReportAvailable(option.minimumTier, packageTier),
   );
+  const packageCompletenessScore = Math.round((selectedPdfSections.length / Math.max(availableSectionOptions.length, 1)) * 100);
   const reportMap = new Map(reports.map((report) => [report.id, report]));
   const isSectionMissingData = (option: (typeof packageSectionOptions)[number]) =>
     Boolean(
@@ -7035,6 +9415,13 @@ function PackageCustomizationPanel({
         : [...selectedRatios, ratioId],
     );
   };
+  const toggleChart = (chartId: ChartSelectionId) => {
+    onSelectedChartsChange(
+      selectedCharts.includes(chartId)
+        ? selectedCharts.filter((id) => id !== chartId)
+        : [...selectedCharts, chartId],
+    );
+  };
   const toggleFluxAnalysis = (analysisId: FluxAnalysisId) => {
     onSelectedFluxAnalysesChange(
       selectedFluxAnalyses.includes(analysisId)
@@ -7056,6 +9443,9 @@ function PackageCustomizationPanel({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <span className="rounded-full bg-blue-500/15 px-4 py-2 text-xs font-bold text-blue-200">
+            Package completeness: {packageCompletenessScore}%
+          </span>
           <span className="rounded-full bg-amber-500/15 px-4 py-2 text-xs font-bold text-amber-200">
             Missing Inputs: {missingCount} remaining
           </span>
@@ -7096,15 +9486,62 @@ function PackageCustomizationPanel({
               <input value={reportingPeriod} onChange={(event) => onReportingPeriodChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
             </label>
             <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <span className="text-sm font-semibold text-[#F9FAFB]">Client industry</span>
+              <input value={clientIndustry} onChange={(event) => onClientIndustryChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
+            </label>
+            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <span className="text-sm font-semibold text-[#F9FAFB]">Company tagline / subtitle</span>
+              <input value={companyTagline} onChange={(event) => onCompanyTaglineChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
+            </label>
+            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <span className="text-sm font-semibold text-[#F9FAFB]">Prepared for</span>
+              <input value={preparedFor} onChange={(event) => onPreparedForChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
+            </label>
+            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Prepared by</span>
               <input value={preparedBy} onChange={(event) => onPreparedByChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
             </label>
+            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <span className="text-sm font-semibold text-[#F9FAFB]">Firm logo</span>
+              <input
+                value={firmLogoPath}
+                onChange={(event) => onFirmLogoPathChange(event.target.value)}
+                placeholder="Logo URL or image path"
+                className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]"
+              />
+              <label className="mt-3 block">
+                <span className="mb-2 block text-xs font-semibold text-[#94A3B8]">Or upload from this computer</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                  onChange={(event) => onFirmLogoFileChange(event.target.files?.[0] || null)}
+                  className="block w-full text-xs text-[#94A3B8] file:mr-3 file:rounded-lg file:border-0 file:bg-[#5B8CFF] file:px-3 file:py-2 file:text-xs file:font-bold file:text-white"
+                />
+              </label>
+              {firmLogoDataUrl && (
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-700 bg-[#0B1020] p-3">
+                  <span className="truncate text-xs font-semibold text-emerald-300">
+                    Uploaded: {firmLogoFileName || "firm logo"}
+                  </span>
+                  <button type="button" onClick={onClearFirmLogo} className="text-xs font-bold text-slate-300 hover:text-white">
+                    Remove
+                  </button>
+                </div>
+              )}
+              <span className="mt-2 block text-xs leading-5 text-[#94A3B8]">
+                Uploaded logos take priority. Leave both options blank to show the FIRM LOGO placeholder.
+              </span>
+            </div>
             <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Package level</span>
               <p className="mt-3 rounded-xl bg-[#0B1020] px-3 py-2 text-sm font-bold text-[#F9FAFB]">{PACKAGE_LABELS[packageTier]}</p>
               <label className="mt-3 flex items-center gap-2 text-xs text-[#94A3B8]">
                 <input type="checkbox" checked={saveSettingsForClient} onChange={(event) => onSaveSettingsForClientChange(event.target.checked)} />
                 Save settings for this client
+              </label>
+              <label className="mt-3 flex items-center gap-2 text-xs text-[#94A3B8]">
+                <input type="checkbox" checked={confidentialWatermark} onChange={(event) => onConfidentialWatermarkChange(event.target.checked)} />
+                Confidential watermark
               </label>
             </div>
           </div>
@@ -7129,24 +9566,13 @@ function PackageCustomizationPanel({
             })}
           </div>
 
-          <label className="mt-5 flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4 text-sm font-semibold text-[#F9FAFB]">
-            <input type="checkbox" checked={useSamePowerPointSelections} onChange={(event) => onUseSamePowerPointSelectionsChange(event.target.checked)} />
-            Use same selections for PowerPoint
-          </label>
-
-          {!useSamePowerPointSelections && (
-            <div className="mt-5">
-              <h4 className="text-lg font-bold text-[#F9FAFB]">PowerPoint Sections</h4>
-              <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {availableSectionOptions.map((option) => (
-                  <label key={option.id} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
-                    <input type="checkbox" checked={selectedPowerPointSections.includes(option.id)} onChange={() => togglePowerPointSection(option.id)} />
-                    <span className="font-semibold text-[#F9FAFB]">{option.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+          <div className="mt-5 rounded-2xl border border-blue-900/50 bg-blue-950/30 p-4">
+            <p className="text-sm font-bold text-blue-100">PowerPoint mirrors PDF selections</p>
+            <p className="mt-2 text-sm leading-6 text-blue-100/80">
+              Step 6 will create slides for the sections included above in the PDF package, so the board presentation
+              stays aligned with the reviewed PDF.
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
@@ -7160,6 +9586,24 @@ function PackageCustomizationPanel({
                   <span className="text-sm font-semibold text-[#F9FAFB]">{ratio}</span>
                 </label>
               ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[#243041] bg-[#172033] p-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Dashboard Customization</p>
+            <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Charts to Include</h3>
+            <p className="mt-2 text-sm leading-6 text-[#94A3B8]">
+              Selected charts flow into the PDF dashboard and Board / Owner presentation.
+            </p>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {chartOptions
+                .filter((chart) => isReportAvailable(chart.minimumTier, packageTier))
+                .map((chart) => (
+                  <label key={chart.id} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                    <input type="checkbox" checked={selectedCharts.includes(chart.id)} onChange={() => toggleChart(chart.id)} />
+                    <span className="text-sm font-semibold text-[#F9FAFB]">{chart.label}</span>
+                  </label>
+                ))}
             </div>
           </div>
 
@@ -7916,9 +10360,10 @@ function PowerPointPrompt({
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
             Board Presentation
           </p>
-          <h2 className="text-3xl font-bold">Would you like to create a PowerPoint presentation for the owners or board?</h2>
+          <h2 className="text-3xl font-bold">Would you like to generate a Board / Owner presentation?</h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-            FinSight can prepare a board-style presentation draft from the generated financial package.
+            FinSight will generate a PowerPoint file from the approved PDF package sections, ratios, charts, and
+            flux analysis settings. Slides are created only for sections included in the PDF package.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -7927,7 +10372,7 @@ function PowerPointPrompt({
             onClick={onCreate}
             className="rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
           >
-            Create PowerPoint Presentation
+            Generate PowerPoint Presentation
           </button>
           <button
             type="button"
@@ -7945,19 +10390,19 @@ function PowerPointPrompt({
             <div>
               <h3 className="text-2xl font-bold">PowerPoint presentation draft</h3>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                These slides are structured for a future PowerPoint export integration.
+                The PowerPoint file has been generated from the sections selected for the PDF package.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => alert("PowerPoint export will be available in the next release.")}
+              onClick={onCreate}
               className="rounded-2xl bg-slate-800 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-700"
             >
-              Generate PowerPoint
+              Download PowerPoint Again
             </button>
           </div>
           <p className="mt-4 rounded-xl border border-blue-900/50 bg-blue-950/30 p-4 text-sm text-blue-100">
-            PowerPoint export will be available in the next release.
+            Generated {slides.length} slide{slides.length === 1 ? "" : "s"} from the included PDF sections.
           </p>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {slides.map((slide, index) => (
@@ -8834,6 +11279,8 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<keyof FluxRow>("dollarVariance");
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [editingRows, setEditingRows] = useState<Record<string, boolean>>({});
+  const [commentaryOverrides, setCommentaryOverrides] = useState<Record<string, string>>({});
 
   const visibleRows = useMemo(() => {
     return rows
@@ -8869,19 +11316,20 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
             <tr>
               <th className="px-4 py-3">Account #</th>
               <th className="px-4 py-3">Account Name</th>
+              <th className="px-4 py-3">Basis</th>
               <th className="px-4 py-3">
                 <button type="button" onClick={() => setSortKey("currentAmount")}>
-                  Current
+                  Current Amount
                 </button>
               </th>
               <th className="px-4 py-3">
                 <button type="button" onClick={() => setSortKey("priorAmount")}>
-                  Prior
+                  Prior Amount
                 </button>
               </th>
               <th className="px-4 py-3">
                 <button type="button" onClick={() => setSortKey("dollarVariance")}>
-                  Variance
+                  Change
                 </button>
               </th>
               <th className="px-4 py-3">%</th>
@@ -8889,52 +11337,111 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
               <th className="px-4 py-3">Reason</th>
               <th className="px-4 py-3">Top Driver</th>
               <th className="px-4 py-3">Driver Change</th>
-              <th className="px-4 py-3">Commentary</th>
+              <th className="px-4 py-3">Review</th>
             </tr>
           </thead>
           <tbody>
             {visibleRows.length > 0 ? (
               visibleRows.map((row, index) => {
                 const key = `${row.accountNumber}-${row.accountName}-${index}`;
+                const commentaryText = commentaryOverrides[key] ?? row.commentary;
 
                 return (
-                  <tr key={key} className="border-b border-slate-800">
-                    <td className="px-4 py-3 text-slate-300">{row.accountNumber}</td>
-                    <td className="px-4 py-3 text-slate-300">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedRows({ ...expandedRows, [key]: !expandedRows[key] })}
-                        className="text-left"
-                      >
-                        {row.accountName}
-                      </button>
-                      {expandedRows[key] && (
-                        <p className="mt-2 text-xs text-slate-500">
-                          {row.commentary}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{formatMoney(row.currentAmount)}</td>
-                    <td className="px-4 py-3">{formatMoney(row.priorAmount)}</td>
-                    <td className="px-4 py-3">{formatMoney(row.dollarVariance)}</td>
-                    <td className="px-4 py-3">
-                      {row.percentVariance === null ? "N/A" : `${row.percentVariance.toFixed(1)}%`}
-                    </td>
-                    <td className="px-4 py-3">
-                      <SeverityBadge severity={row.severity} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-300">{row.flagReason}</td>
-                    <td className="px-4 py-3 text-slate-300">{row.topDriver}</td>
-                    <td className="px-4 py-3 font-semibold">
-                      {row.driverChange === null ? "N/A" : formatCurrency(row.driverChange)}
-                    </td>
-                    <td className="max-w-md px-4 py-3 text-slate-400">{row.commentary}</td>
-                  </tr>
+                  <Fragment key={key}>
+                    <tr key={key} className="border-b border-slate-800">
+                      <td className="px-4 py-3 text-slate-300">{row.accountNumber}</td>
+                      <td className="min-w-56 px-4 py-3 font-semibold text-slate-200">{row.accountName}</td>
+                      <td className="px-4 py-3 text-slate-300">{row.basis}</td>
+                      <td className="px-4 py-3">{formatMoney(row.currentAmount)}</td>
+                      <td className="px-4 py-3">{formatMoney(row.priorAmount)}</td>
+                      <td className="px-4 py-3">{formatMoney(row.dollarVariance)}</td>
+                      <td className="px-4 py-3">
+                        {row.percentVariance === null ? "N/A" : `${row.percentVariance.toFixed(1)}%`}
+                      </td>
+                      <td className="px-4 py-3">
+                        <SeverityBadge severity={row.severity} />
+                      </td>
+                      <td className="px-4 py-3 text-slate-300">{row.flagReason}</td>
+                      <td className="px-4 py-3 text-slate-300">{row.topDriver}</td>
+                      <td className="px-4 py-3 font-semibold">
+                        {row.driverChange === null ? "N/A" : formatCurrency(row.driverChange)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedRows({ ...expandedRows, [key]: !expandedRows[key] })}
+                          className="rounded-xl border border-blue-500/40 px-3 py-2 text-xs font-bold text-blue-200 hover:bg-blue-500/10"
+                        >
+                          {expandedRows[key] ? "Hide" : "Review"}
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedRows[key] && (
+                      <tr key={`${key}-details`} className="border-b border-slate-800 bg-slate-900/70">
+                        <td colSpan={12} className="px-4 py-5">
+                          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.8fr)]">
+                            <div className="rounded-2xl border border-slate-700 bg-slate-950 p-5">
+                              <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-300">
+                                Commentary
+                              </p>
+                              {editingRows[key] ? (
+                                <textarea
+                                  value={commentaryText}
+                                  onChange={(event) =>
+                                    setCommentaryOverrides({
+                                      ...commentaryOverrides,
+                                      [key]: event.target.value,
+                                    })
+                                  }
+                                  className="mt-3 min-h-32 w-full rounded-xl border border-slate-700 bg-slate-900 p-4 text-sm leading-7 text-slate-100 outline-none focus:border-blue-400"
+                                />
+                              ) : (
+                                <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-200">{commentaryText}</p>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setEditingRows({ ...editingRows, [key]: !editingRows[key] })}
+                                className="mt-4 rounded-xl border border-blue-500/40 px-3 py-2 text-xs font-bold text-blue-200 hover:bg-blue-500/10"
+                              >
+                                {editingRows[key] ? "Done Editing" : "Edit"}
+                              </button>
+                              {row.warnings.length > 0 && (
+                                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm leading-6 text-amber-100">
+                                  <span className="font-bold">Warnings: </span>
+                                  {row.warnings.join(" ")}
+                                </div>
+                              )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-700 bg-slate-950 p-5">
+                              <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-300">
+                                Top Drivers
+                              </p>
+                              <div className="mt-3 grid gap-2">
+                                {row.topDrivers.length > 0 ? (
+                                  row.topDrivers.slice(0, 3).map((driver) => (
+                                    <div key={driver.name} className="rounded-xl border border-slate-800 bg-slate-900 p-3">
+                                      <p className="font-semibold text-slate-100">{driver.name}</p>
+                                      <p className="mt-1 text-xs text-slate-400">
+                                        Current {formatCurrency(driver.current)} | Prior {formatCurrency(driver.prior)} | Change{" "}
+                                        {formatCurrency(driver.change)}
+                                      </p>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-slate-400">No driver detail available.</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })
             ) : (
               <tr>
-                <td className="px-4 py-3 text-slate-400" colSpan={11}>
+                <td className="px-4 py-3 text-slate-400" colSpan={12}>
                   Upload matching GL detail reports to generate flux analysis.
                 </td>
               </tr>
@@ -8961,6 +11468,10 @@ function PrintableFinancialPackage({
   packageTier,
   companyName,
   reportPeriod,
+  clientIndustry,
+  companyTagline,
+  preparedFor,
+  confidentialWatermark,
   preparedBy,
   selectedSections,
   kpis,
@@ -8977,7 +11488,9 @@ function PrintableFinancialPackage({
   inventoryData,
   fixedAssetData,
   priorFixedAssetData,
+  topRevenueRows,
   topExpenseRows,
+  selectedCharts,
   ratioRows,
   fixedAssetChangeRows,
   payrollAnalysis,
@@ -8993,6 +11506,10 @@ function PrintableFinancialPackage({
   packageTier: PackageTier;
   companyName: string;
   reportPeriod: string;
+  clientIndustry: string;
+  companyTagline: string;
+  preparedFor: string;
+  confidentialWatermark: boolean;
   preparedBy: string;
   selectedSections: PackageSectionId[];
   kpis: KPIs;
@@ -9009,7 +11526,9 @@ function PrintableFinancialPackage({
   inventoryData: ParsedFile | null;
   fixedAssetData: ParsedFile | null;
   priorFixedAssetData: ParsedFile | null;
+  topRevenueRows: StatementRow[];
   topExpenseRows: StatementRow[];
+  selectedCharts: ChartSelectionId[];
   ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
   fixedAssetChangeRows: FixedAssetChangeRow[];
   payrollAnalysis: PayrollAnalysis;
@@ -9025,26 +11544,57 @@ function PrintableFinancialPackage({
   const plRows = getStatementRows(plData);
   const bsRows = getBalanceSheetStatementRowsWithNetBookValue(bsData);
   const includeSection = (sectionId: PackageSectionId) => selectedSections.includes(sectionId);
+  const ratioValue = (name: RatioId) => ratioRows.find((ratio) => ratio.name === name)?.value || "N/A";
+  const ebitda = kpis.grossProfit - kpis.expenses;
+  const periodLabel = formatPeriodEnding(reportPeriod);
+  const packageCompleteness = Math.round(
+    (boardPackageSections.filter((section) => section.status === "Included").length /
+      Math.max(boardPackageSections.length, 1)) *
+      100,
+  );
 
   return (
     <div className="print-package hidden">
-      <section className="print-page">
-        <div className="print-report-meta">
+      <section className="print-page print-cover-page">
+        {confidentialWatermark && <div className="print-confidential-watermark">Confidential</div>}
+        <div className="print-cover-topline">
+          <div className="print-logo-box">FinSight</div>
+          <div className="print-client-logo-box">Client Logo</div>
+        </div>
+
+        <div className="print-cover-hero">
+          <p className="print-eyebrow">Prepared for {preparedFor}</p>
           <h1>{companyName}</h1>
-          <p>
-            {reportPeriod} | {PACKAGE_LABELS[packageTier]} Package
-          </p>
-          <p>Prepared by {preparedBy}</p>
+          <p className="print-cover-subtitle">{companyTagline || `${PACKAGE_LABELS[packageTier]} CFO Board Package`}</p>
+          <p className="print-cover-period">{periodLabel}</p>
+          <div className="print-cover-meta-grid">
+            <span>Industry: {clientIndustry}</span>
+            <span>Prepared by {preparedBy}</span>
+            <span>Package completeness: {packageCompleteness}%</span>
+            <span>Confidential advisory work product</span>
+          </div>
+        </div>
+
+        <div className="print-executive-card-grid">
+          <PrintKpiCard label="Revenue" value={formatMoney(kpis.revenue)} />
+          <PrintKpiCard label="EBITDA" value={formatMoney(ebitda)} />
+          <PrintKpiCard label="Cash" value={formatMoney(kpis.cash)} />
+          <PrintKpiCard label="AR" value={formatMoney(kpis.accountsReceivable)} />
+          <PrintKpiCard label="Net Income" value={formatMoney(kpis.netIncome)} />
+          <PrintKpiCard label="Current Ratio" value={ratioValue("Current Ratio")} />
+          <PrintKpiCard label="DSO" value={ratioValue("DSO")} />
+          <PrintKpiCard label="FTE Count" value={formatFte(payrollAnalysis.totalCurrentFte)} />
         </div>
 
         <div className="print-section-block">
-          <h2>Table of Contents</h2>
-          <table className="print-table">
+          <h2>Board Package Contents</h2>
+          <table className="print-table print-compact-table">
             <thead>
               <tr>
                 <th>Page</th>
                 <th>Section</th>
                 <th>Status</th>
+                <th>Purpose</th>
               </tr>
             </thead>
             <tbody>
@@ -9052,73 +11602,24 @@ function PrintableFinancialPackage({
                 <tr key={section.title}>
                   <td>{section.page}</td>
                   <td>{section.title}</td>
-                  <td>{section.status}</td>
+                  <td>{section.status === "Included" ? "Included" : "Not Included"}</td>
+                  <td>{section.note}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {includeSection("executive-summary") && <div className="print-section-block">
-          <h2>Executive Summary</h2>
-          {executiveSummary.sections.map((section) => (
-            <div key={section.title}>
-              <h3>{section.title}</h3>
-              <p>{section.body}</p>
-            </div>
-          ))}
-        </div>}
-
-        {includeSection("executive-summary") && <div className="print-section-block">
-          <h3>Key Highlights</h3>
-          <ul>
-            {executiveSummary.highlights.map((item) => (
-              <li key={item}>{item}</li>
+        {includeSection("executive-summary") && (
+          <div className="print-section-block print-executive-summary-grid">
+            {executiveSummary.sections.slice(0, 4).map((section) => (
+              <div key={section.title} className="print-narrative-card">
+                <h3>{section.title}</h3>
+                <p>{section.body}</p>
+              </div>
             ))}
-          </ul>
-        </div>}
-
-        {includeSection("recommended-follow-up") && <div className="print-section-block">
-          <h3>Recommended Follow-Up Items</h3>
-          <ul>
-            {executiveSummary.followUpItems.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>}
-
-        {includeSection("executive-summary") && <div className="print-section-block">
-          <h3>Watch Items</h3>
-          <ul>
-            {executiveSummary.watchItems.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>}
-
-        {includeSection("kpi-snapshot") && <div className="print-section-block">
-          <h3>KPI Snapshot</h3>
-          <div className="print-grid">
-            <PrintKpiCard label="Revenue" value={formatMoney(kpis.revenue)} />
-            <PrintKpiCard label="Gross Profit" value={formatMoney(kpis.grossProfit)} />
-            <PrintKpiCard label="Expenses" value={formatMoney(kpis.expenses)} />
-            <PrintKpiCard label="Net Income" value={formatMoney(kpis.netIncome)} />
-            <PrintKpiCard label="Cash" value={formatMoney(kpis.cash)} />
-            <PrintKpiCard label="Accounts Receivable" value={formatMoney(kpis.accountsReceivable)} />
-            {apData && <PrintKpiCard label="AP Aging Total" value={formatMoney(apKpis.total)} />}
-            {fixedAssetData && (
-              <>
-                <PrintKpiCard label="Fixed Assets" value={formatCurrency(fixedAssetKpis.totalFixedAssets)} />
-                <PrintKpiCard
-                  label="Accumulated Depreciation"
-                  value={formatCurrency(fixedAssetKpis.accumulatedDepreciation)}
-                />
-                <PrintKpiCard label="Net Book Value" value={formatCurrency(fixedAssetKpis.netBookValue)} />
-              </>
-            )}
-            <PrintKpiCard label="Net Margin" value={`${netMargin.toFixed(1)}%`} />
           </div>
-        </div>}
+        )}
       </section>
 
       {includeSection("income-statement") && <section className="print-page">
@@ -9141,6 +11642,29 @@ function PrintableFinancialPackage({
         </div>
       </section>}
 
+      {includeSection("kpi-snapshot") && (
+        <section className="print-page">
+          <h1>Executive Dashboard</h1>
+          <p className="print-section-intro">
+            Selected dashboard views use a consistent CFO color palette and emphasize quick board-level interpretation.
+          </p>
+          <div className="print-commentary-grid">
+            {selectedCharts.map((chartId) => (
+              <PrintDashboardCard
+                key={chartId}
+                chartId={chartId}
+                kpis={kpis}
+                arKpis={arKpis}
+                apKpis={apKpis}
+                payrollAnalysis={payrollAnalysis}
+                budgetMetrics={budgetMetrics}
+                netMargin={netMargin}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {(includeSection("ar-aging") || includeSection("ap-aging")) && <section className="print-page">
         <h1>Aging Analysis</h1>
         {includeSection("ar-aging") && <><h2>Accounts Receivable Aging</h2>
@@ -9159,31 +11683,64 @@ function PrintableFinancialPackage({
       </section>}
 
       {(includeSection("customer-sales") || includeSection("vendor-expenses")) && <section className="print-page">
-        <h1>Customer and Expense Analysis</h1>
-        <h2>Top Expense Categories</h2>
-        <table className="print-table">
-          <thead>
-            <tr>
-              <th>Expense Category</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {topExpenseRows.length > 0 ? (
-              topExpenseRows.map((row, index) => (
-                <tr key={`${row.label}-${index}`}>
-                  <td>{row.label}</td>
-                  <td>{formatMoney(row.amount || 0)}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={2}>Expense detail unavailable from uploaded Profit and Loss report.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <h1>Revenue and Expense Driver Analysis</h1>
+        <p className="print-section-intro">
+          Revenue and expense drivers are separated to avoid mixing income accounts with operating costs.
+          Variance and trend indicators highlight where management should focus review time.
+        </p>
+        <div className="print-two-column">
+          <DriverPrintTable title="Top Revenue Sources" rows={topRevenueRows} total={kpis.revenue} type="revenue" />
+          <DriverPrintTable title="Top Expense Categories" rows={topExpenseRows} total={kpis.expenses} type="expense" />
+        </div>
+        <div className="print-narrative-card">
+          <h3>Top Driver Commentary</h3>
+          <p>
+            {topRevenueRows[0]
+              ? `${topRevenueRows[0].label} is the largest identified revenue source at ${formatMoney(
+                  topRevenueRows[0].amount || 0,
+                )}, representing ${kpis.revenue ? (((topRevenueRows[0].amount || 0) / kpis.revenue) * 100).toFixed(1) : "0.0"}% of revenue.`
+              : "Revenue source detail was not available in the uploaded Profit and Loss structure."}
+            {" "}
+            {topExpenseRows[0]
+              ? `${topExpenseRows[0].label} is the largest operating expense category at ${formatMoney(
+                  topExpenseRows[0].amount || 0,
+                )}, representing ${kpis.expenses ? (((topExpenseRows[0].amount || 0) / kpis.expenses) * 100).toFixed(1) : "0.0"}% of expenses.`
+              : "Expense category detail was not available in the uploaded Profit and Loss structure."}
+          </p>
+        </div>
       </section>}
+
+      {includeSection("ratio-analysis") && (
+        <section className="print-page">
+          <div className="print-section-block">
+            <h1>Ratio Analysis</h1>
+            <p className="print-section-intro">
+              Ratios are dynamically calculated from uploaded Profit and Loss, Balance Sheet, Aging, Inventory, Debt,
+              and Payroll reports where available.
+            </p>
+            <table className="print-table">
+              <thead>
+                <tr>
+                  <th>Ratio</th>
+                  <th>Formula</th>
+                  <th>Value</th>
+                  <th>Interpretation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ratioRows.map((ratio) => (
+                  <tr key={ratio.name}>
+                    <td>{ratio.name}</td>
+                    <td>{ratio.formula}</td>
+                    <td>{ratio.value}</td>
+                    <td>{ratio.interpretation}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {isProfessionalOrHigher(packageTier) && (
         <>
@@ -9210,31 +11767,6 @@ function PrintableFinancialPackage({
             </section>
           )}
 
-          {includeSection("ratio-analysis") && (
-            <section className="print-page">
-              <h1>Ratio Analysis</h1>
-              <table className="print-table">
-                <thead>
-                  <tr>
-                    <th>Ratio</th>
-                    <th>Formula</th>
-                    <th>Value</th>
-                    <th>Interpretation</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ratioRows.map((ratio) => (
-                    <tr key={ratio.name}>
-                      <td>{ratio.name}</td>
-                      <td>{ratio.formula}</td>
-                      <td>{ratio.value}</td>
-                      <td>{ratio.interpretation}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          )}
         </>
       )}
 
@@ -9271,7 +11803,22 @@ function PrintableFinancialPackage({
             </table>
             <h2>Significant Changes</h2>
             {priorFixedAssetData ? (
-              <FixedAssetChangePrintTable rows={fixedAssetChangeRows} />
+              <>
+                <FixedAssetChangePrintTable rows={fixedAssetChangeRows} />
+                <div className="print-narrative-card">
+                  <h3>CapEx and Depreciation Commentary</h3>
+                  <p>
+                    {fixedAssetChangeRows.find((row) => row.metric === "Total Fixed Assets" && row.change > 0)
+                      ? `Fixed assets increased by ${formatCurrency(
+                          fixedAssetChangeRows.find((row) => row.metric === "Total Fixed Assets")?.change || 0,
+                        )}, indicating additions or capitalized asset activity during the period.`
+                      : "No material gross fixed asset additions were identified from the uploaded current and prior fixed asset reports."}
+                    {" "}
+                    Ending net book value is {formatCurrency(fixedAssetKpis.netBookValue)} after accumulated depreciation of{" "}
+                    {formatCurrency(fixedAssetKpis.accumulatedDepreciation)}.
+                  </p>
+                </div>
+              </>
             ) : (
               <p>Upload prior period fixed asset report to calculate significant changes.</p>
             )}
@@ -9283,6 +11830,7 @@ function PrintableFinancialPackage({
               analysis={payrollAnalysis}
               currentPayrollData={currentPayrollData}
               priorPayrollData={priorPayrollData}
+              revenue={kpis.revenue}
             />
           )}
 
@@ -9355,6 +11903,145 @@ function PrintKpiCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+function DriverPrintTable({
+  title,
+  rows,
+  total,
+  type,
+}: {
+  title: string;
+  rows: StatementRow[];
+  total: number;
+  type: "revenue" | "expense";
+}) {
+  return (
+    <div className="print-section-block">
+      <h2>{title}</h2>
+      <table className="print-table print-compact-table">
+        <thead>
+          <tr>
+            <th>Account / Category</th>
+            <th>Amount</th>
+            <th>% of Total</th>
+            <th>Trend</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length > 0 ? (
+            rows.map((row, index) => {
+              const share = total ? (((row.amount || 0) / total) * 100).toFixed(1) : "0.0";
+              return (
+                <tr key={`${type}-${row.label}-${index}`}>
+                  <td>{row.label}</td>
+                  <td>{formatMoney(row.amount || 0)}</td>
+                  <td>{share}%</td>
+                  <td>{index === 0 ? "Top driver" : "Monitor"}</td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td colSpan={4}>{type === "revenue" ? "Revenue" : "Expense"} detail unavailable.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PrintDashboardCard({
+  chartId,
+  kpis,
+  arKpis,
+  apKpis,
+  payrollAnalysis,
+  budgetMetrics,
+  netMargin,
+}: {
+  chartId: ChartSelectionId;
+  kpis: KPIs;
+  arKpis: AgingKpis;
+  apKpis: APKpis;
+  payrollAnalysis: PayrollAnalysis;
+  budgetMetrics: BudgetMetrics;
+  netMargin: number;
+}) {
+  const chartLabels: Record<ChartSelectionId, string> = {
+    "revenue-trend": "Revenue Trend",
+    "gross-margin-trend": "Gross Margin Trend",
+    "ebitda-trend": "EBITDA Trend",
+    "cash-trend": "Cash Trend",
+    "ar-aging-mix": "AR Aging Mix",
+    "ap-aging-mix": "AP Aging Mix",
+    "payroll-trend": "Payroll Trend",
+    "revenue-per-fte": "Revenue per FTE",
+    "expense-breakdown": "Expense Breakdown",
+    "budget-vs-actual": "Budget vs Actual",
+    "net-income-trend": "Net Income Trend",
+    "working-capital-trend": "Working Capital Trend",
+  };
+  const primaryValue: Record<ChartSelectionId, string> = {
+    "revenue-trend": formatCurrency(kpis.revenue),
+    "gross-margin-trend": `${kpis.revenue ? ((kpis.grossProfit / kpis.revenue) * 100).toFixed(1) : "0.0"}%`,
+    "ebitda-trend": formatCurrency(kpis.grossProfit - kpis.expenses),
+    "cash-trend": formatCurrency(kpis.cash),
+    "ar-aging-mix": formatCurrency(arKpis.total),
+    "ap-aging-mix": formatCurrency(apKpis.total),
+    "payroll-trend": formatCurrency(payrollAnalysis.totalCurrentPayrollCost),
+    "revenue-per-fte": payrollAnalysis.totalCurrentFte ? formatCurrency(kpis.revenue / payrollAnalysis.totalCurrentFte) : "N/A",
+    "expense-breakdown": formatCurrency(kpis.expenses),
+    "budget-vs-actual": formatOptionalCurrency(budgetMetrics.netIncomeVariance, "N/A"),
+    "net-income-trend": formatCurrency(kpis.netIncome),
+    "working-capital-trend": formatCurrency(kpis.cash + kpis.accountsReceivable - apKpis.total),
+  };
+  const percent = Math.min(
+    Math.max(
+      chartId === "gross-margin-trend"
+        ? Math.abs(netMargin)
+        : kpis.revenue
+          ? (Math.abs(parseNumber(primaryValue[chartId]) || 0) / Math.max(Math.abs(kpis.revenue), 1)) * 100
+          : 35,
+      8,
+    ),
+    100,
+  );
+
+  return (
+    <div className="print-dashboard-card">
+      <p className="print-dashboard-label">{chartLabels[chartId]}</p>
+      <strong>{primaryValue[chartId]}</strong>
+      <div className="print-aging-bar-track">
+        <span className="print-aging-bar print-aging-good" style={{ width: `${percent}%` }} />
+      </div>
+      <p>Trend visualization placeholder for board package export and PowerPoint alignment.</p>
+    </div>
+  );
+}
+
+function isExpenseLikeFluxRow(row: FluxRow) {
+  const normalized = normalizeStatementLabel(row.accountName);
+  return (
+    row.accountType === "expense" ||
+    row.accountType === "cogs" ||
+    row.accountType === "other-expense" ||
+    normalized.includes("expense") ||
+    normalized.includes("maintenance") ||
+    normalized.includes("rental") ||
+    normalized.includes("rent") ||
+    normalized.includes("marketing") ||
+    normalized.includes("software") ||
+    normalized.includes("subscription") ||
+    normalized.includes("payroll") ||
+    normalized.includes("wage") ||
+    normalized.includes("labor") ||
+    normalized.includes("materials") ||
+    normalized.includes("supplies") ||
+    normalized.includes("fuel") ||
+    normalized.includes("travel")
+  );
+}
+
 function AgingPrintTable({
   kpis,
   totalLabel,
@@ -9364,35 +12051,59 @@ function AgingPrintTable({
   totalLabel: string;
   currentLabel: string;
 }) {
+  const buckets = [
+    { label: currentLabel, value: kpis.current, tone: "good" },
+    { label: "1-30 Days", value: kpis.days1To30, tone: "watch" },
+    { label: "31-60 Days", value: kpis.days31To60, tone: "watch" },
+    { label: "61-90 Days", value: kpis.days61To90, tone: "risk" },
+    { label: "90+ Days", value: kpis.days90Plus, tone: "critical" },
+  ];
+  const currentPercent = kpis.total ? (kpis.current / kpis.total) * 100 : 0;
+  const overduePercent = kpis.total
+    ? ((kpis.days31To60 + kpis.days61To90 + kpis.days90Plus) / kpis.total) * 100
+    : 0;
+
   return (
-    <table className="print-table">
-      <tbody>
-        <tr>
-          <td>{totalLabel}</td>
-          <td>{formatMoney(kpis.total)}</td>
-        </tr>
-        <tr>
-          <td>{currentLabel}</td>
-          <td>{formatMoney(kpis.current)}</td>
-        </tr>
-        <tr>
-          <td>1-30 Days</td>
-          <td>{formatMoney(kpis.days1To30)}</td>
-        </tr>
-        <tr>
-          <td>31-60 Days</td>
-          <td>{formatMoney(kpis.days31To60)}</td>
-        </tr>
-        <tr>
-          <td>61-90 Days</td>
-          <td>{formatMoney(kpis.days61To90)}</td>
-        </tr>
-        <tr>
-          <td>90+ Days</td>
-          <td>{formatMoney(kpis.days90Plus)}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div className="print-section-block">
+      <div className="print-grid">
+        <PrintKpiCard label={totalLabel} value={formatMoney(kpis.total)} />
+        <PrintKpiCard label="Current %" value={`${currentPercent.toFixed(1)}%`} />
+        <PrintKpiCard label="Over 30 Days" value={`${overduePercent.toFixed(1)}%`} />
+        <PrintKpiCard label="90+ Exposure" value={formatMoney(kpis.days90Plus)} />
+      </div>
+      <table className="print-table print-compact-table">
+        <thead>
+          <tr>
+            <th>Bucket</th>
+            <th>Amount</th>
+            <th>% of Total</th>
+            <th>Visual Mix</th>
+          </tr>
+        </thead>
+        <tbody>
+          {buckets.map((bucket) => {
+            const percent = kpis.total ? (bucket.value / kpis.total) * 100 : 0;
+            return (
+              <tr key={bucket.label}>
+                <td>{bucket.label}</td>
+                <td>{formatMoney(bucket.value)}</td>
+                <td>{percent.toFixed(1)}%</td>
+                <td>
+                  <div className="print-aging-bar-track">
+                    <span className={`print-aging-bar print-aging-${bucket.tone}`} style={{ width: `${Math.min(percent, 100)}%` }} />
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="print-commentary">
+        {currentPercent >= 75
+          ? `${currentPercent.toFixed(1)}% remains current, indicating strong collection or payment timing performance.`
+          : `Only ${currentPercent.toFixed(1)}% remains current; management should review overdue concentration and collection/payment timing.`}
+      </p>
+    </div>
   );
 }
 
@@ -9453,44 +12164,70 @@ function InventoryPrintTable({ items }: { items: InventoryItem[] }) {
 }
 
 function BudgetPrintSection({ metrics }: { metrics: BudgetMetrics }) {
+  const revenueVariancePercent =
+    metrics.revenueBudget && metrics.revenueVariance !== null
+      ? (metrics.revenueVariance / metrics.revenueBudget) * 100
+      : null;
+  const netIncomeVariancePercent =
+    metrics.netIncomeBudget && metrics.netIncomeVariance !== null
+      ? (metrics.netIncomeVariance / Math.abs(metrics.netIncomeBudget || 1)) * 100
+      : null;
+
   return (
     <section className="print-page">
       <h1>Budget vs Actual</h1>
-      <table className="print-table">
+      <div className="print-grid">
+        <PrintKpiCard label="Revenue Actual" value={formatOptionalCurrency(metrics.revenueActual, "N/A")} />
+        <PrintKpiCard label="Revenue Budget" value={formatOptionalCurrency(metrics.revenueBudget, "N/A")} />
+        <PrintKpiCard label="Revenue Variance" value={formatOptionalCurrency(metrics.revenueVariance, "N/A")} />
+        <PrintKpiCard label="Revenue Variance %" value={revenueVariancePercent === null ? "N/A" : `${revenueVariancePercent.toFixed(1)}%`} />
+        <PrintKpiCard label="Net Income Variance" value={formatOptionalCurrency(metrics.netIncomeVariance, "N/A")} />
+        <PrintKpiCard label="Net Income Variance %" value={netIncomeVariancePercent === null ? "N/A" : `${netIncomeVariancePercent.toFixed(1)}%`} />
+      </div>
+      <table className="print-table print-compact-table">
+        <thead>
+          <tr>
+            <th>Variance Area</th>
+            <th>Actual</th>
+            <th>Budget</th>
+            <th>Variance</th>
+            <th>Signal</th>
+          </tr>
+        </thead>
         <tbody>
           <tr>
-            <td>Revenue Actual</td>
+            <td>Revenue</td>
             <td>{formatOptionalCurrency(metrics.revenueActual, "N/A")}</td>
-          </tr>
-          <tr>
-            <td>Revenue Budget</td>
             <td>{formatOptionalCurrency(metrics.revenueBudget, "N/A")}</td>
-          </tr>
-          <tr>
-            <td>Revenue Variance</td>
             <td>{formatOptionalCurrency(metrics.revenueVariance, "N/A")}</td>
+            <td>{(metrics.revenueVariance || 0) >= 0 ? "Favorable" : "Unfavorable"}</td>
           </tr>
           <tr>
-            <td>Net Income Actual</td>
+            <td>Net Income</td>
             <td>{formatOptionalCurrency(metrics.netIncomeActual, "N/A")}</td>
-          </tr>
-          <tr>
-            <td>Net Income Budget</td>
             <td>{formatOptionalCurrency(metrics.netIncomeBudget, "N/A")}</td>
-          </tr>
-          <tr>
-            <td>Net Income Variance</td>
             <td>{formatOptionalCurrency(metrics.netIncomeVariance, "N/A")}</td>
+            <td>{(metrics.netIncomeVariance || 0) >= 0 ? "Favorable" : "Unfavorable"}</td>
           </tr>
           <tr>
-            <td>Largest Unfavorable Budget Variance</td>
-            <td>
+            <td>Largest Budget Miss</td>
+            <td colSpan={4}>
               {metrics.largestUnfavorableVarianceLabel}:{" "}
               {formatOptionalCurrency(metrics.largestUnfavorableVariance, "N/A")}
             </td>
           </tr>
         </tbody>
       </table>
+      <div className="print-narrative-card">
+        <h3>Budget Commentary</h3>
+        <p>
+          {metrics.largestUnfavorableVariance
+            ? `${metrics.largestUnfavorableVarianceLabel} is the largest unfavorable budget variance at ${formatCurrency(
+                Math.abs(metrics.largestUnfavorableVariance),
+              )}. Review timing, staffing, vendor spend, and campaign or project deferrals behind this variance.`
+            : "No unfavorable budget variance was identified from the uploaded budget report."}
+        </p>
+      </div>
     </section>
   );
 }
@@ -9531,10 +12268,12 @@ function PayrollPrintSection({
   analysis,
   currentPayrollData,
   priorPayrollData,
+  revenue,
 }: {
   analysis: PayrollAnalysis;
   currentPayrollData: ParsedFile | null;
   priorPayrollData: ParsedFile | null;
+  revenue: number;
 }) {
   const hasPayrollData = Boolean(currentPayrollData || priorPayrollData);
 
@@ -9550,25 +12289,42 @@ function PayrollPrintSection({
             <PrintKpiCard label="Current FTE" value={formatFte(analysis.totalCurrentFte)} />
             <PrintKpiCard label="Prior FTE" value={priorPayrollData ? formatFte(analysis.totalPriorFte) : "N/A"} />
             <PrintKpiCard label="FTE Change" value={priorPayrollData ? formatFte(analysis.totalFteChange) : "N/A"} />
+            <PrintKpiCard label="Current Payroll" value={formatCurrency(analysis.totalCurrentPayrollCost)} />
+            <PrintKpiCard label="Prior Payroll" value={priorPayrollData ? formatCurrency(analysis.totalPriorPayrollCost) : "N/A"} />
             <PrintKpiCard
               label="Payroll Cost Change"
               value={priorPayrollData ? formatCurrency(analysis.totalPayrollCostChange) : "N/A"}
             />
+            <PrintKpiCard
+              label="Payroll Taxes"
+              value={formatCurrency(analysis.rows.reduce((total, row) => total + row.currentPayrollTaxes, 0))}
+            />
+            <PrintKpiCard
+              label="Payroll % of Revenue"
+              value={revenue ? `${((analysis.totalCurrentPayrollCost / revenue) * 100).toFixed(1)}%` : "N/A"}
+            />
+            <PrintKpiCard
+              label="Revenue per FTE"
+              value={analysis.totalCurrentFte ? formatCurrency(revenue / analysis.totalCurrentFte) : "N/A"}
+            />
+            <PrintKpiCard label="Benefits / Overtime" value="Review GL Detail" />
           </div>
           <h2>FTE by Department</h2>
           <PayrollPrintTable rows={analysis.rows} includePrior={Boolean(priorPayrollData)} />
           <h2>Payroll Cost by Department</h2>
           <PayrollPrintTable rows={analysis.rows} includePrior={Boolean(priorPayrollData)} />
           <h2>Payroll Commentary</h2>
-          <ul>
+          <div className="print-commentary-grid">
             {(priorPayrollData
               ? analysis.commentary
               : ["Current month FTE is available. Prior month payroll report required to calculate FTE change."]).map(
               (comment) => (
-                <li key={comment}>{comment}</li>
+                <div key={comment} className="print-narrative-card">
+                  <p>{comment}</p>
+                </div>
               ),
             )}
-          </ul>
+          </div>
         </>
       )}
     </section>
@@ -9621,50 +12377,68 @@ function PayrollPrintTable({
 }
 
 function PrintFluxSection({ title, rows }: { title: string; rows: FluxRow[] }) {
+  const formatPrintFluxMoney = (row: FluxRow, value: number) =>
+    isExpenseLikeFluxRow(row) ? formatMoney(Math.abs(value)) : formatMoney(value);
+  const formatPrintFluxPercent = (row: FluxRow) => {
+    if (row.percentVariance === null) return "N/A";
+    const value = isExpenseLikeFluxRow(row) ? Math.abs(row.percentVariance) : row.percentVariance;
+    return `${value.toFixed(1)}%`;
+  };
+
   return (
     <section className="print-page">
       <h1>{title}</h1>
-      <p>Accounts exceeding selected Virtual CFO flux thresholds.</p>
-      <table className="print-table">
+      <p className="print-section-intro">Accounts exceeding selected Virtual CFO flux thresholds, separated into an executive variance table and readable commentary cards.</p>
+      <table className="print-table print-compact-table">
         <thead>
           <tr>
-            <th>Account #</th>
-            <th>Account Name</th>
-            <th>Current</th>
-            <th>Prior</th>
-            <th>Variance</th>
-            <th>%</th>
+            <th>Account</th>
+            <th>Basis</th>
+            <th>Current Amount</th>
+            <th>Prior Amount</th>
+            <th>Change $</th>
+            <th>Change %</th>
             <th>Severity</th>
-            <th>Reason</th>
             <th>Top Driver</th>
-            <th>Driver Change</th>
-            <th>Commentary</th>
           </tr>
         </thead>
         <tbody>
           {rows.length > 0 ? (
             rows.map((row, index) => (
               <tr key={`${row.accountNumber}-${row.accountName}-${index}`}>
-                <td>{row.accountNumber}</td>
                 <td>{row.accountName}</td>
-                <td>{formatMoney(row.currentAmount)}</td>
-                <td>{formatMoney(row.priorAmount)}</td>
-                <td>{formatMoney(row.dollarVariance)}</td>
-                <td>{row.percentVariance === null ? "N/A" : `${row.percentVariance.toFixed(1)}%`}</td>
+                <td>{row.basis}</td>
+                <td>{formatPrintFluxMoney(row, row.currentAmount)}</td>
+                <td>{formatPrintFluxMoney(row, row.priorAmount)}</td>
+                <td>{formatPrintFluxMoney(row, row.dollarVariance)}</td>
+                <td>{formatPrintFluxPercent(row)}</td>
                 <td>{row.severity}</td>
-                <td>{row.flagReason}</td>
                 <td>{row.topDriver}</td>
-                <td>{row.driverChange === null ? "N/A" : formatCurrency(row.driverChange)}</td>
-                <td>{row.commentary}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={11}>Upload matching GL detail reports to generate flux analysis.</td>
+              <td colSpan={8}>Upload matching GL detail reports to generate flux analysis.</td>
             </tr>
           )}
         </tbody>
       </table>
+      {rows.length > 0 && (
+        <div className="print-commentary-grid">
+          {rows.slice(0, 6).map((row, index) => (
+            <div key={`${row.accountName}-commentary-${index}`} className="print-narrative-card">
+              <h3>{row.accountName}</h3>
+              <p>
+                {row.commentary ||
+                  `${row.accountName} changed by ${formatMoney(row.dollarVariance)}${
+                    row.percentVariance === null ? "" : ` (${row.percentVariance.toFixed(1)}%)`
+                  }. Primary driver: ${row.topDriver || "GL activity review recommended"}.`}
+              </p>
+              {row.warnings.length > 0 && <p className="print-commentary">Warnings: {row.warnings.join(" ")}</p>}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
