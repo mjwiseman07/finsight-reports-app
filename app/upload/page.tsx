@@ -92,11 +92,36 @@ type InventoryItem = {
   value: number;
 };
 
+type SlowMovingInventoryItem = InventoryItem & {
+  daysSinceMovement: number;
+};
+
 type InventoryKpis = {
   totalValue: number;
   totalQuantity: number;
+  items: InventoryItem[];
   topByValue: InventoryItem[];
   topByQuantity: InventoryItem[];
+};
+
+type InventoryIntelligence = {
+  turns: number | null;
+  daysPerCycle: number | null;
+  beginningInventory: number;
+  endingInventory: number;
+  averageInventory: number;
+  concentrationPercent: number;
+  topItemExposurePercent: number;
+  slowMovingPercent: number;
+  carryingCostEstimate: number;
+  turnsCommentary: string;
+  slowMovingItems: SlowMovingInventoryItem[];
+  slowMovingValue: number;
+  slowMovingCommentary: string;
+  eoReserveBalance: number | null;
+  eoReservePercent: number | null;
+  eoReserveWarning: string | null;
+  eoReserveCommentary: string;
 };
 
 type FixedAssetMatch = {
@@ -301,12 +326,13 @@ type ClientPackageSettings = {
   confidentialWatermark?: boolean;
 };
 
-type PowerPointSectionType = PackageSectionId | "title";
+type PowerPointSectionType = PackageSectionId | "title" | "management-focus" | "board-discussion";
 
 type PowerPointSlideData = {
   title: string;
   subtitle: string;
   bullets: string[];
+  takeaways?: string[];
   chartData: Array<Record<string, string | number>>;
   sectionType: PowerPointSectionType;
 };
@@ -433,6 +459,7 @@ const packageRequirements: Record<PackageTier, PackageRequirement[]> = {
   virtualCfo: [
     ...professionalPackageRequirements,
     { id: "budget", label: "Budget vs Actual", reportIds: ["budget"] },
+    { id: "prior-inventory", label: "Prior Period Inventory Valuation", reportIds: ["prior-inventory"] },
     { id: "fixed-assets", label: "Fixed Assets", reportIds: ["fixed-assets"] },
     { id: "prior-fixed-assets", label: "Prior Period Fixed Assets", reportIds: ["prior-fixed-assets"] },
     { id: "debt", label: "Debt Schedule", reportIds: ["debt"] },
@@ -695,6 +722,12 @@ const QUICKBOOKS_REPORT_HELP: Record<string, QuickBooksReportHelp> = {
     export: "Click Export -> Export to Excel",
     note: "Full depreciation schedule requires QuickBooks Fixed Asset Manager add-on.",
   },
+  "prior-inventory": {
+    title: "Inventory Valuation",
+    qbo: "Reports -> Standard -> Sales and Customers -> Inventory Valuation Summary",
+    desktop: "Reports -> Inventory -> Inventory Valuation Summary",
+    export: "Click Export -> Export to Excel",
+  },
   debt: {
     title: "Debt Schedule / Loan Detail",
     qbo: "Reports -> Standard -> What You Owe -> Loan List, or run Balance Sheet and drill down into long-term liability accounts",
@@ -721,6 +754,24 @@ const QUICKBOOKS_REPORT_HELP: Record<string, QuickBooksReportHelp> = {
     export: "Click Export -> Export to Excel",
   },
 };
+const QUICKBOOKS_REPORT_GUIDE_ROWS = [
+  ["Profit & Loss", "Reports -> Business Overview -> Profit and Loss", "Reports -> Company & Financial -> Profit & Loss Standard"],
+  ["Profit & Loss Comparison", "Reports -> Business Overview -> Profit and Loss Comparison", "Reports -> Company & Financial -> P&L Previous Year Comparison"],
+  ["Balance Sheet", "Reports -> Business Overview -> Balance Sheet", "Reports -> Company & Financial -> Balance Sheet Standard"],
+  ["Balance Sheet Comparison", "Reports -> Business Overview -> Balance Sheet Comparison", "Reports -> Company & Financial -> Balance Sheet Prev. Year Comparison"],
+  ["Cash Flow Statement", "Reports -> Business Overview -> Statement of Cash Flows", "Reports -> Company & Financial -> Statement of Cash Flows"],
+  ["General Ledger", "Reports -> For My Accountant -> General Ledger", "Reports -> Accountant & Taxes -> General Ledger"],
+  ["AR Aging Summary", "Reports -> Who Owes You -> AR Aging Summary", "Reports -> Customers & Receivables -> A/R Aging Summary"],
+  ["AP Aging Summary", "Reports -> What You Owe -> AP Aging Summary", "Reports -> Vendors & Payables -> A/P Aging Summary"],
+  ["Budget vs Actuals", "Reports -> Business Overview -> Budget vs. Actuals", "Reports -> Budgets & Forecasts -> Budget vs. Actual"],
+  ["Payroll Summary by Department", "Reports -> Payroll -> Payroll Summary -> Group by Class", "Reports -> Employees & Payroll -> Payroll Summary -> Filter by Class"],
+  ["Payroll GL Detail", "Reports -> For My Accountant -> General Ledger -> filter payroll accounts", "Reports -> Employees & Payroll -> Payroll Detail Review"],
+  ["Fixed Assets", "Reports -> For My Accountant -> Fixed Asset List", "Reports -> Fixed Assets -> Fixed Asset Listing"],
+  ["Debt Schedule / Loan Detail", "Balance Sheet -> drill into loan liability accounts", "Reports -> Company & Financial -> Balance Sheet -> drill into loans"],
+  ["Sales by Customer", "Reports -> Sales and Customers -> Sales by Customer Summary", "Reports -> Sales -> Sales by Customer Summary"],
+  ["Expenses by Vendor", "Reports -> Expenses and Vendors -> Expenses by Vendor Summary", "Reports -> Company & Financial -> Expenses by Vendor Summary"],
+  ["Inventory Valuation", "Reports -> Sales and Customers -> Inventory Valuation Summary", "Reports -> Inventory -> Inventory Valuation Summary"],
+] as const;
 const REPORT_FILENAME_KEYWORDS: Record<string, string[]> = {
   pl: ["profit and loss", "profitandloss", "profit loss", "p&l", "pnl", "income statement"],
   bs: ["balance sheet"],
@@ -732,6 +783,7 @@ const REPORT_FILENAME_KEYWORDS: Record<string, string[]> = {
   "fixed-assets": ["fixed asset detail", "fixed asset register", "fixed assets", "fixedassets", "asset register"],
   "prior-fixed-assets": ["prior fixed asset", "prior period fixed asset", "priorperiod fixed assets", "priorperiod fixedassets", "previous fixed asset"],
   budget: ["budget vs actual", "budget vs actuals", "budgetvsactual", "budgetvsactuals", "budget actual", "budget variance"],
+  "prior-inventory": ["prior inventory valuation", "prior period inventory valuation", "previous inventory valuation", "inventory valuation prior", "inventory valuation comparison"],
   "current-payroll": [
     "current month payroll summary",
     "payroll summary current month",
@@ -928,6 +980,21 @@ function getReportFileMatchScore(reportId: string, fileName: string) {
     compactFileName.includes("prior") ||
     compactFileName.includes("previous") ||
     compactFileName.includes("nov2025");
+  const isInventoryValuationFile =
+    compactFileName.includes("inventoryvaluation") ||
+    (compactFileName.includes("inventory") && compactFileName.includes("valuation"));
+  const isPriorInventory =
+    reportId === "prior-inventory" &&
+    isInventoryValuationFile &&
+    (compactFileName.includes("priorperiod") || compactFileName.includes("prior") || compactFileName.includes("previous"));
+
+  if (reportId === "inventory" && isInventoryValuationFile && (compactFileName.includes("prior") || compactFileName.includes("previous"))) {
+    return 0;
+  }
+
+  if (isPriorInventory) {
+    return keywordScore + 100;
+  }
   const isCurrentPayrollSummary =
     reportId === "current-payroll" &&
     isPayrollSummaryFile &&
@@ -1007,6 +1074,21 @@ function formatPercent(value: number | null | undefined) {
   const percentValue = Math.abs(value) <= 1 ? value * 100 : value;
   const formatted = `${Math.abs(percentValue).toFixed(1)}%`;
   return percentValue < 0 ? `(${formatted})` : formatted;
+}
+
+function formatNotMeaningfulPercent(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "N/M";
+  return `${value.toFixed(1)}%`;
+}
+
+function formatFluxPercentLabel(row: FluxRow) {
+  if (row.percentVariance === null) {
+    if (row.priorAmount === 0 && row.currentAmount !== 0) return "New Activity";
+    if (row.priorAmount === 0) return "No Prior Balance";
+    return "Not Meaningful";
+  }
+  const value = isExpenseLikeFluxRow(row) ? Math.abs(row.percentVariance) : row.percentVariance;
+  return formatNotMeaningfulPercent(value);
 }
 
 function formatRate(value: number | null | undefined) {
@@ -1449,6 +1531,16 @@ function getRatioCardTone(interpretation: string) {
     : "D8B56D";
 }
 
+function getSlideKeyTakeaways(slide: PowerPointSlideData) {
+  if (slide.takeaways?.length) return slide.takeaways.slice(0, 3);
+  const conciseBullets = slide.bullets
+    .map((bullet) => bullet.split("|").filter(Boolean).slice(-1)[0] || bullet)
+    .map((bullet) => bullet.replace(/^[-•]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  return conciseBullets.length ? conciseBullets : ["Review trend, risk, and management action items."];
+}
+
 function hasBudgetComparisonData(budgetMetrics: BudgetMetrics) {
   return [
     budgetMetrics.revenueActual,
@@ -1616,6 +1708,30 @@ async function downloadPowerPointDeck(
         fit: "shrink",
       });
 
+      const keyTakeaways = getSlideKeyTakeaways(slide);
+      pptSlide.addText("Key Takeaways", {
+        x: 0.75,
+        y: 6.28,
+        w: 2.0,
+        h: 0.18,
+        fontFace: "Arial",
+        fontSize: 7.6,
+        bold: true,
+        color: "93C5FD",
+        margin: 0,
+      });
+      pptSlide.addText(keyTakeaways.map((takeaway) => `- ${takeaway}`).join("  "), {
+        x: 2.05,
+        y: 6.28,
+        w: 10.0,
+        h: 0.26,
+        fontFace: "Arial",
+        fontSize: 7.2,
+        color: "CBD5E1",
+        margin: 0,
+        fit: "shrink",
+      });
+
       if (slide.sectionType === "executive-summary") {
         const cards = [
           {
@@ -1755,6 +1871,143 @@ async function downloadPowerPointDeck(
             fit: "shrink",
           });
         });
+        pptSlide.addText(`Prepared by ${preparedBy || "FinSight Reports"}`, {
+          x: 0.55,
+          y: 6.95,
+          w: 6.5,
+          h: 0.2,
+          fontFace: "Arial",
+          fontSize: 8,
+          color: "94A3B8",
+          margin: 0,
+        });
+        return;
+      }
+
+      if (slide.sectionType === "inventory-summary") {
+        const cards = slide.bullets.slice(0, 3).map((bullet) => {
+          const [label = "Metric", value = "N/A", detail = "Review inventory trend."] = bullet.split("|");
+          return { label, value, detail };
+        });
+        cards.forEach((card, cardIndex) => {
+          const x = 0.75 + cardIndex * 4.12;
+          pptSlide.addShape("roundRect", {
+            x,
+            y: 2.05,
+            w: 3.55,
+            h: 1.35,
+            rectRadius: 0.1,
+            fill: { color: cardIndex === 2 ? "2A1F19" : "111827", transparency: 4 },
+            line: { color: cardIndex === 2 ? "C0845A" : "334155", transparency: 15 },
+          });
+          pptSlide.addText(card.label, {
+            x: x + 0.18,
+            y: 2.22,
+            w: 3.1,
+            h: 0.18,
+            fontFace: "Arial",
+            fontSize: 8,
+            bold: true,
+            color: "CBD5E1",
+            margin: 0,
+          });
+          pptSlide.addText(card.value, {
+            x: x + 0.18,
+            y: 2.52,
+            w: 3.1,
+            h: 0.38,
+            fontFace: "Arial",
+            fontSize: 18,
+            bold: true,
+            color: cardIndex === 2 ? "FBBF24" : "5B8CFF",
+            margin: 0,
+            fit: "shrink",
+          });
+          pptSlide.addText(card.detail, {
+            x: x + 0.18,
+            y: 2.96,
+            w: 3.1,
+            h: 0.25,
+            fontFace: "Arial",
+            fontSize: 7,
+            color: "94A3B8",
+            margin: 0,
+            fit: "shrink",
+          });
+        });
+
+        pptSlide.addShape("roundRect", {
+          x: 0.75,
+          y: 3.8,
+          w: 11.5,
+          h: 2.2,
+          rectRadius: 0.1,
+          fill: { color: "172033", transparency: 4 },
+          line: { color: "334155", transparency: 20 },
+        });
+        pptSlide.addText("Slow Moving Inventory", {
+          x: 1.05,
+          y: 4.05,
+          w: 4.5,
+          h: 0.24,
+          fontFace: "Arial",
+          fontSize: 12,
+          bold: true,
+          color: "F8FAFC",
+          margin: 0,
+        });
+        const chartRows = slide.chartData.slice(0, 5);
+        const maxChartValue = Math.max(1, ...chartRows.map((item) => Math.abs(Number(item.value || 0))));
+        if (chartRows.length) {
+          chartRows.forEach((item, chartIndex) => {
+            const value = Number(item.value || 0);
+            const y = 4.48 + chartIndex * 0.28;
+            const barWidth = Math.max(0.18, (Math.abs(value) / maxChartValue) * 4.2);
+            pptSlide.addText(String(item.name || "Item"), {
+              x: 1.05,
+              y,
+              w: 2.3,
+              h: 0.16,
+              fontFace: "Arial",
+              fontSize: 7.2,
+              bold: true,
+              color: "CBD5E1",
+              margin: 0,
+              fit: "shrink",
+            });
+            pptSlide.addShape("rect", {
+              x: 3.55,
+              y: y + 0.03,
+              w: barWidth,
+              h: 0.08,
+              fill: { color: "C0845A" },
+              line: { color: "C0845A" },
+            });
+            pptSlide.addText(formatCurrency(value), {
+              x: 8.0,
+              y,
+              w: 1.2,
+              h: 0.16,
+              fontFace: "Arial",
+              fontSize: 7.2,
+              bold: true,
+              color: "FBBF24",
+              margin: 0,
+              align: "right",
+            });
+          });
+        } else {
+          pptSlide.addText("No slow moving inventory identified from the prior period comparison.", {
+            x: 1.05,
+            y: 4.55,
+            w: 8.5,
+            h: 0.35,
+            fontFace: "Arial",
+            fontSize: 10,
+            color: "CBD5E1",
+            margin: 0,
+          });
+        }
         pptSlide.addText(`Prepared by ${preparedBy || "FinSight Reports"}`, {
           x: 0.55,
           y: 6.95,
@@ -1975,6 +2228,7 @@ function buildExecutiveSummary({
   arKpis,
   apKpis,
   inventoryKpis,
+  inventoryIntelligence,
   fixedAssetKpis,
   fixedAssetChangeRows,
   payrollAnalysis,
@@ -1998,6 +2252,7 @@ function buildExecutiveSummary({
   arKpis: AgingKpis;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
+  inventoryIntelligence: InventoryIntelligence;
   fixedAssetKpis: FixedAssetKpis;
   fixedAssetChangeRows: FixedAssetChangeRow[];
   payrollAnalysis: PayrollAnalysis;
@@ -2081,6 +2336,12 @@ function buildExecutiveSummary({
             )}% of total assets${
               topInventoryItem
                 ? `; ${topInventoryItem.name} represented ${topInventoryConcentration.toFixed(1)}% of inventory value`
+                : ""
+            }${
+              inventoryIntelligence.turns !== null
+                ? ` Inventory turns were ${inventoryIntelligence.turns.toFixed(1)}x, or every ${Math.round(
+                    inventoryIntelligence.daysPerCycle || 0,
+                  )} days.`
                 : ""
             }.`
           : "",
@@ -2186,11 +2447,51 @@ function buildExecutiveSummary({
     includeBudget,
     budgetMetrics,
   });
+  const managementFocusAreas = [
+    inventoryIntelligence.turns !== null && inventoryIntelligence.turns < 3
+      ? "Improve inventory turnover and review slow-moving stock for pricing, purchasing, and reserve actions."
+      : includeInventory
+        ? "Maintain inventory discipline by monitoring turnover, item concentration, and reserve coverage."
+        : "",
+    includePayroll && payrollAnalysis.totalPayrollCostChange > 0
+      ? "Monitor payroll growth against revenue, gross margin, and revenue per FTE trends."
+      : includePayroll
+        ? "Maintain payroll efficiency and continue reviewing staffing levels against revenue capacity."
+        : "",
+    dso !== null && dso > 45
+      ? "Tighten AR collection cadence and assign ownership for older balances."
+      : includeAr
+        ? "Maintain AR collection performance and watch for aging migration into older buckets."
+        : "",
+    includeDebt && debtMetrics.debtToAssets !== null && debtMetrics.debtToAssets > 40
+      ? "Review debt leverage, debt service capacity, and covenant-sensitive liquidity metrics."
+      : includeDebt
+        ? "Review debt capacity in the context of cash flow, growth plans, and capital needs."
+        : "",
+    includeFixedAssets
+      ? "Review fixed asset additions, depreciation trend, and whether capital spending is producing operating capacity."
+      : "",
+    netMargin < 10
+      ? "Prioritize margin improvement through pricing, direct cost control, and operating expense review."
+      : "Sustain profitability by tracking gross margin and operating expense leverage against targets.",
+  ].filter(Boolean).slice(0, 5);
+  const boardDiscussionTopics = [
+    includeInventory
+      ? `Inventory reserve strategy, including ${formatCurrency(inventoryIntelligence.slowMovingValue)} of identified slow-moving inventory and ${inventoryIntelligence.eoReserveBalance === null ? "no identified E&O reserve" : `${formatCurrency(inventoryIntelligence.eoReserveBalance)} of reserve coverage`}.`
+      : "",
+    "Revenue concentration risk and quality of recurring revenue streams.",
+    includePayroll ? "Staffing growth sustainability and whether payroll cost is scaling with revenue capacity." : "",
+    includeFixedAssets ? "Capital spending strategy, asset utilization, and depreciation trend implications." : "",
+    includeDebt ? "Debt capacity review, leverage tolerance, and cash flow available for debt service." : "",
+    "Margin trend sustainability and management actions needed to protect profitability.",
+  ].filter(Boolean).slice(0, 6);
 
   return {
     paragraph: sections.map((section) => section.body).join(" "),
     sections,
     followUpItems,
+    managementFocusAreas,
+    boardDiscussionTopics,
     highlights: [
       `Revenue totaled ${formatMoney(kpis.revenue)} for the uploaded period.`,
       `Gross profit was ${formatMoney(kpis.grossProfit)}, representing a gross margin of ${grossMargin.toFixed(1)}%.`,
@@ -2517,6 +2818,7 @@ function calculateInventoryKpis(inventoryData: ParsedFile | null): InventoryKpis
     return {
       totalValue: 0,
       totalQuantity: 0,
+      items: [],
       topByValue: [],
       topByQuantity: [],
     };
@@ -2552,8 +2854,125 @@ function calculateInventoryKpis(inventoryData: ParsedFile | null): InventoryKpis
   return {
     totalValue: items.reduce((total, item) => total + item.value, 0),
     totalQuantity: items.reduce((total, item) => total + item.quantity, 0),
+    items,
     topByValue: [...items].sort((a, b) => b.value - a.value).slice(0, 5),
     topByQuantity: [...items].sort((a, b) => b.quantity - a.quantity).slice(0, 5),
+  };
+}
+
+function getInventoryBalanceFromStatement(rows: StatementRow[]) {
+  const inventoryRows = rows.filter((row) => {
+    const label = normalizeStatementLabel(row.label);
+    return label.includes("inventory") && !label.includes("reserve") && !label.includes("obsolescence");
+  });
+
+  return inventoryRows.reduce((total, row) => total + (row.amount || 0), 0);
+}
+
+function findEoReserveBalance(rows: StatementRow[]) {
+  const reserveRow = rows.find((row) => {
+    const label = normalizeStatementLabel(row.label);
+    return (
+      label.includes("reserve") ||
+      label.includes("obsolescence") ||
+      label.includes("e&o") ||
+      label.includes("e & o") ||
+      label.includes("allowance for inventory")
+    );
+  });
+
+  return reserveRow?.amount !== undefined ? Math.abs(reserveRow.amount || 0) : null;
+}
+
+function getInventoryTurnsCommentary(turns: number | null) {
+  if (turns === null) return "Inventory turns cannot be calculated until COGS and beginning inventory are available.";
+  if (turns >= 6) return "Inventory turns appear healthy, suggesting inventory is converting to sales at a strong pace.";
+  if (turns >= 3) return "Inventory turns are moderate. Continue monitoring purchasing discipline and item-level movement.";
+  return "Inventory turns are slow and may indicate excess stock, obsolete items, or working capital tied up in inventory.";
+}
+
+function getSlowMovingCommentary(value: number) {
+  if (value <= 0) return "No slow moving inventory was identified from the current and prior valuation comparison.";
+  return `Slow moving inventory ties up working capital and can create margin risk. Review ${formatCurrency(
+    value,
+  )} of flagged items for discounting, bundling, return-to-vendor options, or reserve adjustments.`;
+}
+
+function calculateInventoryIntelligence({
+  inventoryKpis,
+  priorInventoryKpis,
+  cogs,
+  currentBsRows,
+  priorBsRows,
+  periodDays,
+}: {
+  inventoryKpis: InventoryKpis;
+  priorInventoryKpis: InventoryKpis;
+  cogs: number;
+  currentBsRows: StatementRow[];
+  priorBsRows: StatementRow[];
+  periodDays: number | null;
+}): InventoryIntelligence {
+  const endingInventory = inventoryKpis.totalValue;
+  const beginningInventory =
+    priorInventoryKpis.totalValue || getInventoryBalanceFromStatement(priorBsRows) || getInventoryBalanceFromStatement(currentBsRows);
+  const averageInventory = beginningInventory && endingInventory ? (beginningInventory + endingInventory) / 2 : 0;
+  const turns = averageInventory > 0 && cogs > 0 ? cogs / averageInventory : null;
+  const daysPerCycle = turns && turns > 0 ? 365 / turns : null;
+  const priorItemsByName = new Map(
+    priorInventoryKpis.items.map((item) => [normalizeStatementLabel(item.name), item]),
+  );
+  const estimatedDays = Math.max(Math.round(periodDays || 365), 1);
+  const slowMovingItems = inventoryKpis.items
+    .map((item) => {
+      const priorItem = priorItemsByName.get(normalizeStatementLabel(item.name));
+      if (!priorItem) return null;
+      if (item.quantity !== priorItem.quantity) return null;
+      return { ...item, daysSinceMovement: estimatedDays };
+    })
+    .filter(Boolean) as SlowMovingInventoryItem[];
+  const slowMovingValue = slowMovingItems.reduce((total, item) => total + item.value, 0);
+  const topItemValue = inventoryKpis.topByValue[0]?.value || 0;
+  const concentrationPercent = endingInventory > 0
+    ? (inventoryKpis.topByValue.reduce((total, item) => total + item.value, 0) / endingInventory) * 100
+    : 0;
+  const topItemExposurePercent = endingInventory > 0 ? (topItemValue / endingInventory) * 100 : 0;
+  const slowMovingPercent = endingInventory > 0 ? (slowMovingValue / endingInventory) * 100 : 0;
+  const carryingCostEstimate = slowMovingValue * 0.2;
+  const eoReserveBalance = findEoReserveBalance(currentBsRows);
+  const eoReservePercent = eoReserveBalance !== null && endingInventory > 0 ? (eoReserveBalance / endingInventory) * 100 : null;
+  const reserveShortfall = eoReserveBalance !== null ? slowMovingValue - eoReserveBalance : 0;
+  const eoReserveWarning =
+    eoReserveBalance !== null && reserveShortfall > 0
+      ? `Slow moving inventory of ${formatCurrency(slowMovingValue)} exceeds current E&O reserve of ${formatCurrency(
+          eoReserveBalance,
+        )} - consider increasing reserve by ${formatCurrency(reserveShortfall)}`
+      : null;
+  const eoReserveCommentary =
+    eoReserveBalance === null && slowMovingValue > 0
+      ? `No E&O reserve identified. Based on slow moving inventory of ${formatCurrency(
+          slowMovingValue,
+        )}, consider establishing a reserve of 25% to 50% of that value.`
+      : eoReserveWarning || "E&O reserve coverage appears aligned with the currently identified slow moving inventory risk.";
+
+  return {
+    turns,
+    daysPerCycle,
+    beginningInventory,
+    endingInventory,
+    averageInventory,
+    concentrationPercent,
+    topItemExposurePercent,
+    slowMovingPercent,
+    carryingCostEstimate,
+    turnsCommentary: getInventoryTurnsCommentary(turns),
+    slowMovingItems,
+    slowMovingValue,
+    slowMovingCommentary: getSlowMovingCommentary(slowMovingValue),
+    eoReserveBalance,
+    eoReservePercent,
+    eoReserveWarning,
+    eoReserveCommentary,
   };
 }
 
@@ -2764,21 +3183,23 @@ function buildBoardPackageSections({
 
   return [
     { page: 1, title: "Executive Summary", status: statusFromFlag(hasExecutiveSummary), note: "CFO narrative package overview" },
-    { page: 2, title: "Financial Performance Snapshot", status: statusFromFlag(hasFinancialSnapshot), note: "Core KPI cards and charts" },
-    { page: 3, title: "Income Statement", status: statusFromReports(["pl"]), note: "Profit and Loss detail" },
-    { page: 4, title: "Balance Sheet", status: statusFromReports(["bs"]), note: "Assets, liabilities, and equity" },
-    { page: 5, title: "AR and AP Aging", status: statusFromReports(["ar", "ap"]), note: "Receivables and payables aging" },
-    { page: 6, title: "Inventory Summary", status: statusFromReports(["inventory"], "professional"), note: "Inventory value and concentration" },
-    { page: 7, title: "Fixed Asset Analysis", status: statusFromReports(["fixed-assets"], "virtualCfo"), note: "Capital assets, depreciation, and NBV" },
-    { page: 8, title: "Payroll and FTE Analysis", status: statusFromReports(["current-payroll", "prior-payroll"], "virtualCfo"), note: "Payroll cost and staffing trends" },
-    { page: 9, title: "Ratio Analysis", status: statusFromFlag(hasRatios, "professional"), note: "Financial and payroll ratios" },
-    { page: 10, title: "Budget vs Actual", status: statusFromReports(["budget"], "virtualCfo"), note: "Budget performance and unfavorable variances" },
-    { page: 11, title: "Debt Schedule / Loan Detail", status: statusFromReports(["debt"], "virtualCfo"), note: "Debt obligations and leverage" },
-    { page: 12, title: "Flux Analysis Executive Summary", status: statusFromFlag(hasAnyFlux, "virtualCfo"), note: "Highest variance summary" },
-    { page: 13, title: "Month-over-Month Flux Analysis", status: statusFromReports(["current-month-gl", "prior-month-gl"], "virtualCfo"), note: "Monthly GL variance detail" },
-    { page: 14, title: "Quarter-over-Quarter Flux Analysis", status: statusFromReports(["current-quarter-gl", "prior-quarter-gl"], "virtualCfo"), note: "Quarterly GL variance detail" },
-    { page: 15, title: "Year-over-Year Flux Analysis", status: statusFromReports(["current-year-gl", "prior-year-gl"], "virtualCfo"), note: "Annual GL variance detail" },
-    { page: 16, title: "Recommended Follow-Up Items", status: statusFromFlag(hasFollowUps), note: "Management action items" },
+    { page: 2, title: "Management Focus Areas", status: statusFromFlag(hasExecutiveSummary), note: "Prioritized CFO action areas" },
+    { page: 3, title: "Board Discussion Topics", status: statusFromFlag(hasExecutiveSummary), note: "Strategic board/advisory topics" },
+    { page: 4, title: "Financial Performance Snapshot", status: statusFromFlag(hasFinancialSnapshot), note: "Core KPI cards and charts" },
+    { page: 5, title: "Income Statement", status: statusFromReports(["pl"]), note: "Profit and Loss detail" },
+    { page: 6, title: "Balance Sheet", status: statusFromReports(["bs"]), note: "Assets, liabilities, and equity" },
+    { page: 7, title: "AR and AP Aging", status: statusFromReports(["ar", "ap"]), note: "Receivables and payables aging" },
+    { page: 8, title: "Inventory Summary", status: statusFromReports(["inventory"], "professional"), note: "Inventory value and concentration" },
+    { page: 9, title: "Fixed Asset Analysis", status: statusFromReports(["fixed-assets"], "virtualCfo"), note: "Capital assets, depreciation, and NBV" },
+    { page: 10, title: "Payroll and FTE Analysis", status: statusFromReports(["current-payroll", "prior-payroll"], "virtualCfo"), note: "Payroll cost and staffing trends" },
+    { page: 11, title: "Ratio Analysis", status: statusFromFlag(hasRatios, "professional"), note: "Financial and payroll ratios" },
+    { page: 12, title: "Budget vs Actual", status: statusFromReports(["budget"], "virtualCfo"), note: "Budget performance and unfavorable variances" },
+    { page: 13, title: "Debt Schedule / Loan Detail", status: statusFromReports(["debt"], "virtualCfo"), note: "Debt obligations and leverage" },
+    { page: 14, title: "Flux Analysis Executive Summary", status: statusFromFlag(hasAnyFlux, "virtualCfo"), note: "Highest variance summary" },
+    { page: 15, title: "Month-over-Month Flux Analysis", status: statusFromReports(["current-month-gl", "prior-month-gl"], "virtualCfo"), note: "Monthly GL variance detail" },
+    { page: 16, title: "Quarter-over-Quarter Flux Analysis", status: statusFromReports(["current-quarter-gl", "prior-quarter-gl"], "virtualCfo"), note: "Quarterly GL variance detail" },
+    { page: 17, title: "Year-over-Year Flux Analysis", status: statusFromReports(["current-year-gl", "prior-year-gl"], "virtualCfo"), note: "Annual GL variance detail" },
+    { page: 18, title: "Recommended Follow-Up Items", status: statusFromFlag(hasFollowUps), note: "Management action items" },
   ];
 }
 
@@ -2790,7 +3211,7 @@ function createPowerPointSlidesData({
   executiveSummary,
   arKpis,
   apKpis,
-  inventoryKpis,
+  inventoryIntelligence,
   fixedAssetKpis,
   payrollAnalysis,
   ratioRows,
@@ -2812,7 +3233,7 @@ function createPowerPointSlidesData({
   executiveSummary: ReturnType<typeof buildExecutiveSummary>;
   arKpis: AgingKpis;
   apKpis: APKpis;
-  inventoryKpis: InventoryKpis;
+  inventoryIntelligence: InventoryIntelligence;
   fixedAssetKpis: FixedAssetKpis;
   payrollAnalysis: PayrollAnalysis;
   ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
@@ -2861,8 +3282,25 @@ function createPowerPointSlidesData({
       title: "Executive Summary",
       subtitle: "CFO-level package overview",
       bullets: executiveSummary.sections.slice(0, 4).map((section) => `${section.title}: ${section.body}`),
+      takeaways: executiveSummary.managementFocusAreas.slice(0, 3),
       chartData: [],
       sectionType: "executive-summary",
+    },
+    {
+      title: "Management Focus Areas",
+      subtitle: "Priority advisory actions for management",
+      bullets: executiveSummary.managementFocusAreas,
+      takeaways: executiveSummary.managementFocusAreas.slice(0, 3),
+      chartData: [],
+      sectionType: "management-focus",
+    },
+    {
+      title: "Board Discussion Topics",
+      subtitle: "Strategic questions for ownership and board review",
+      bullets: executiveSummary.boardDiscussionTopics,
+      takeaways: executiveSummary.boardDiscussionTopics.slice(0, 3),
+      chartData: [],
+      sectionType: "board-discussion",
     },
     {
       title: "KPI Snapshot",
@@ -2974,9 +3412,19 @@ function createPowerPointSlidesData({
       ? [
           {
             title: "Inventory Summary",
-            subtitle: "Top inventory items by value",
-            bullets: [`Inventory Value: ${formatCurrency(inventoryKpis.totalValue)}`],
-            chartData: inventoryKpis.topByValue.map((item) => ({ name: item.name, value: item.value })),
+            subtitle: "Virtual CFO inventory intelligence",
+            bullets: [
+              `Inventory Turns|${inventoryIntelligence.turns !== null ? `${inventoryIntelligence.turns.toFixed(1)}x` : "N/A"}|${
+                inventoryIntelligence.daysPerCycle !== null
+                  ? `Inventory cycles every ${Math.round(inventoryIntelligence.daysPerCycle)} days`
+                  : "Average inventory required"
+              }`,
+              `Slow Moving Inventory|${formatCurrency(inventoryIntelligence.slowMovingValue)}|${inventoryIntelligence.slowMovingCommentary}`,
+              `E&O Reserve|${
+                inventoryIntelligence.eoReserveBalance !== null ? formatCurrency(inventoryIntelligence.eoReserveBalance) : "Not identified"
+              }|${inventoryIntelligence.eoReserveWarning || inventoryIntelligence.eoReserveCommentary}`,
+            ],
+            chartData: inventoryIntelligence.slowMovingItems.slice(0, 5).map((item) => ({ name: item.name, value: item.value })),
             sectionType: "inventory-summary" as const,
           },
         ]
@@ -4867,8 +5315,8 @@ function getGlAccounts(data: ParsedFile | null): FluxAccount[] {
     const key = normalizeStatementLabel(accountName);
     const existing = accounts.get(key);
     const warnings = existing?.warnings || [];
-    if (accountType === "unknown" && !warnings.includes("Account type could not be identified.")) {
-      warnings.push("Account type could not be identified.");
+    if (accountType === "unknown" && !warnings.includes("Account classification unavailable for internal review.")) {
+      warnings.push("Account classification unavailable for internal review.");
     }
 
     accounts.set(key, {
@@ -5133,12 +5581,11 @@ function resolveFluxAmount({
 
   const beginningBalance = findComparableStatementAmount(fallbackBeginningData || null, account.accountName);
   if (beginningBalance !== null) {
-    warnings.push("Balance Sheet flux is estimated from beginning balance plus GL net activity.");
     return { amount: beginningBalance + account.periodActivity, warnings };
   }
 
-  warnings.push("Beginning balance is missing; Balance Sheet flux falls back to GL period activity.");
-  if (!account.hasBalanceColumn) warnings.push("Balance column is missing and no Balance Sheet comparison amount was found.");
+  warnings.push("Balance sheet beginning balance unavailable for internal flux support.");
+  if (!account.hasBalanceColumn) warnings.push("Balance column unavailable for internal flux support.");
   return { amount: account.periodActivity, warnings };
 }
 
@@ -5156,9 +5603,7 @@ function getPeriodMismatchWarning(currentData: ParsedFile | null, priorData: Par
   const currentSpan = getGlDateSpanDays(currentData);
   const priorSpan = getGlDateSpanDays(priorData);
   if (currentSpan === null || priorSpan === null) return null;
-  return Math.abs(currentSpan - priorSpan) > 10
-    ? "Comparison periods may not match; verify month, quarter, or year GL files use the same basis."
-    : null;
+  return Math.abs(currentSpan - priorSpan) > 10 ? "Comparison period length variance noted internally." : null;
 }
 
 function getPayrollFluxDepartment(currentRows: GlActivityRow[], priorRows: GlActivityRow[]) {
@@ -5305,7 +5750,7 @@ function getFluxRows(
       const currentAmount = currentResolved.amount;
       const priorAmount = priorResolved.amount;
       const dollarVariance = currentAmount - priorAmount;
-      const percentVariance = priorAmount ? (dollarVariance / Math.abs(priorAmount)) * 100 : null;
+      const percentVariance = priorAmount !== 0 ? (dollarVariance / Math.abs(priorAmount)) * 100 : null;
       const absoluteDollarVariance = Math.abs(dollarVariance);
       const absolutePercentVariance = Math.abs(percentVariance || 0);
       const dollarPass = absoluteDollarVariance >= settings.dollarThreshold;
@@ -5314,9 +5759,9 @@ function getFluxRows(
       const isZeroActivity =
         (priorAmount === 0 && currentAmount > 0) || (currentAmount === 0 && priorAmount > 0);
 
-      let flagReason = "Threshold exceeded";
-      if (priorAmount === 0 && currentAmount > 0) flagReason = "New activity";
-      if (currentAmount === 0 && priorAmount > 0) flagReason = "Activity stopped";
+      let flagReason = "Material variance";
+      if (priorAmount === 0 && currentAmount > 0) flagReason = basis === "Ending Balance" ? "New balance" : "New activity";
+      if (currentAmount === 0 && priorAmount > 0) flagReason = basis === "Ending Balance" ? "Balance cleared" : "Activity stopped";
 
       let severity: FluxSeverity = "Low";
       if (absolutePercentVariance >= 25 && absoluteDollarVariance >= 10000) severity = "High";
@@ -5326,10 +5771,10 @@ function getFluxRows(
       const warnings = [...currentResolved.warnings, ...priorResolved.warnings];
       if (periodMismatchWarning) warnings.push(periodMismatchWarning);
       if (current && prior && current.basis !== prior.basis) {
-        warnings.push("Income statement activity and balance sheet ending balance bases appear mixed for this account.");
+        warnings.push("Mixed flux basis noted internally.");
       }
       const topDrivers = calculateDriverVariance(currentActivity, priorActivity, accountType);
-      const topDriver = topDrivers[0]?.name || "N/A";
+      const topDriver = topDrivers[0]?.name || "Activity review recommended";
       const driverChange = topDrivers[0]?.change ?? null;
 
       return {
@@ -5469,6 +5914,7 @@ export default function UploadPage() {
   const [arData, setArData] = useState<ParsedFile | null>(null);
   const [apData, setApData] = useState<ParsedFile | null>(null);
   const [inventoryData, setInventoryData] = useState<ParsedFile | null>(null);
+  const [priorInventoryData, setPriorInventoryData] = useState<ParsedFile | null>(null);
   const [customerSalesData, setCustomerSalesData] = useState<ParsedFile | null>(null);
   const [vendorExpenseData, setVendorExpenseData] = useState<ParsedFile | null>(null);
   const [fixedAssetData, setFixedAssetData] = useState<ParsedFile | null>(null);
@@ -5546,7 +5992,7 @@ export default function UploadPage() {
 
     if (devBypassEnabled) {
       applyPackageEntitlement("virtualCfo");
-      setUploadAccess({ status: "allowed", token: "development-bypass", plan: "virtualCfo", reason: "trial" });
+      setUploadAccess({ status: "allowed", token: "development-bypass", plan: "virtualCfo", reason: "subscriber" });
       return;
     }
 
@@ -5707,6 +6153,19 @@ export default function UploadPage() {
       onFile: (file) => parseFile(file, setInventoryData),
       onRemove: () => removeReport(setInventoryData, "inventory"),
       onOmitChange: (omitted) => setReportOmitted("inventory", omitted),
+    },
+    {
+      id: "prior-inventory",
+      tier: "virtualCfo",
+      label: "Prior Period Inventory Valuation",
+      description:
+        "Export the prior period QuickBooks Inventory Valuation Summary report. Used to identify slow moving inventory and calculate average inventory.",
+      required: false,
+      omitted: isReportOmitted("prior-inventory"),
+      data: priorInventoryData,
+      onFile: (file) => parseFile(file, setPriorInventoryData),
+      onRemove: () => removeReport(setPriorInventoryData, "prior-inventory"),
+      onOmitChange: (omitted) => setReportOmitted("prior-inventory", omitted),
     },
     {
       id: "customers",
@@ -5980,6 +6439,7 @@ export default function UploadPage() {
   const activeArData = isReportOmitted("ar") ? null : arData;
   const activeApData = isReportOmitted("ap") ? null : apData;
   const activeInventoryData = isReportOmitted("inventory") ? null : inventoryData;
+  const activePriorInventoryData = isReportOmitted("prior-inventory") ? null : priorInventoryData;
   const activeCustomerSalesData = isReportOmitted("customers") ? null : customerSalesData;
   const activeVendorExpenseData = isReportOmitted("vendors") ? null : vendorExpenseData;
   const activeFixedAssetData = isReportOmitted("fixed-assets") ? null : fixedAssetData;
@@ -6061,10 +6521,20 @@ export default function UploadPage() {
   const arKpis = calculateAgingKpis(activeArData);
   const apKpis = calculateAPKpis(activeApData);
   const inventoryKpis = calculateInventoryKpis(activeInventoryData);
+  const priorInventoryKpis = calculateInventoryKpis(activePriorInventoryData);
+  const bsStatementRows = getStatementRows(activeBsData);
+  const priorBsRowsForInventory = getStatementRows(activePriorPeriodBsData);
+  const inventoryIntelligence = calculateInventoryIntelligence({
+    inventoryKpis,
+    priorInventoryKpis,
+    cogs: kpis.cogs,
+    currentBsRows: bsStatementRows,
+    priorBsRows: priorBsRowsForInventory,
+    periodDays: reportingPeriodDays,
+  });
   const fixedAssetKpis = calculateFixedAssetKpis(activeFixedAssetData, kpis.totalAssets, activePlData);
   const priorFixedAssetKpis = calculateFixedAssetKpis(activePriorFixedAssetData, kpis.totalAssets, null);
   const fixedAssetChangeRows = getFixedAssetChangeRows(fixedAssetKpis, priorFixedAssetKpis);
-  const bsStatementRows = getStatementRows(activeBsData);
   const reportPeriod = clientReportingPeriod || "Current Reporting Period";
   const companyName = clientName || "Client Company Name";
   const payrollAnalysis = calculatePayrollAnalysis(activeCurrentPayrollData, activePriorPayrollData, fteDivisor);
@@ -6125,6 +6595,7 @@ export default function UploadPage() {
     arKpis,
     apKpis,
     inventoryKpis,
+    inventoryIntelligence,
     fixedAssetKpis,
     fixedAssetChangeRows,
     payrollAnalysis,
@@ -6136,7 +6607,7 @@ export default function UploadPage() {
     dso,
     includeAr: Boolean(activeArData),
     includeAp: Boolean(activeApData),
-    includeInventory: Boolean(activeInventoryData),
+    includeInventory: Boolean(activeInventoryData) && isVirtualCfo(packageTier),
     includeFixedAssets: Boolean(activeFixedAssetData),
     includePayroll: Boolean(activeCurrentPayrollData),
     includeBudget: Boolean(activeBudgetVsActualData),
@@ -6181,7 +6652,7 @@ export default function UploadPage() {
     executiveSummary,
     arKpis,
     apKpis,
-    inventoryKpis,
+    inventoryIntelligence,
     fixedAssetKpis,
     payrollAnalysis,
     ratioRows,
@@ -6198,6 +6669,9 @@ export default function UploadPage() {
   }).filter((slide) => {
     const slideSection = slide.sectionType;
     if (slideSection === "title") return true;
+    if (slideSection === "management-focus" || slideSection === "board-discussion") {
+      return effectivePowerPointSections.includes("executive-summary");
+    }
     return effectivePowerPointSections.includes(slideSection);
   });
   const handlePackageTierChange = (tier: PackageTier) => {
@@ -6395,7 +6869,7 @@ export default function UploadPage() {
     setPackageComplete(false);
     setShowPowerPointDraft(false);
     setShowPowerPointStep(false);
-    if (uploadAccess.reason === "trial") {
+    if (uploadAccess.reason === "trial" && uploadAccess.token !== "development-bypass") {
       try {
         const response = await fetch("/api/mark-trial-used", {
           method: "POST",
@@ -6519,6 +6993,7 @@ export default function UploadPage() {
     setArData(null);
     setApData(null);
     setInventoryData(null);
+    setPriorInventoryData(null);
     setCustomerSalesData(null);
     setVendorExpenseData(null);
     setFixedAssetData(null);
@@ -6758,10 +7233,63 @@ export default function UploadPage() {
         }
 
         .workflow-section {
-          scroll-margin-top: 240px;
+          scroll-margin-top: 180px;
         }
 
         @media print {
+          body:has(.quickbooks-guide-modal) * {
+            visibility: hidden;
+          }
+
+          body:has(.quickbooks-guide-modal) .quickbooks-guide-print,
+          body:has(.quickbooks-guide-modal) .quickbooks-guide-print * {
+            visibility: visible;
+          }
+
+          body:has(.quickbooks-guide-modal) .quickbooks-guide-modal {
+            position: static !important;
+            display: block !important;
+            background: white !important;
+          }
+
+          body:has(.quickbooks-guide-modal) .quickbooks-guide-print {
+            position: absolute !important;
+            inset: 0 auto auto 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: white !important;
+            color: #111827 !important;
+            padding: 24px !important;
+          }
+
+          body:has(.quickbooks-guide-modal) .quickbooks-guide-screen-only {
+            display: none !important;
+          }
+
+          body:has(.quickbooks-guide-modal) .quickbooks-guide-print table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 10px !important;
+          }
+
+          body:has(.quickbooks-guide-modal) .quickbooks-guide-print th,
+          body:has(.quickbooks-guide-modal) .quickbooks-guide-print td {
+            border: 1px solid #d1d5db !important;
+            padding: 8px !important;
+            color: #111827 !important;
+            vertical-align: top !important;
+          }
+
+          body:has(.quickbooks-guide-modal) .quickbooks-guide-print th {
+            background: #e5e7eb !important;
+            font-weight: 800 !important;
+          }
+
           body {
             background: white !important;
           }
@@ -6778,7 +7306,6 @@ export default function UploadPage() {
           }
 
           .print-page {
-            min-height: 100vh;
             padding: 48px;
             page-break-after: always;
             break-after: page;
@@ -6794,21 +7321,25 @@ export default function UploadPage() {
           .print-page h1 {
             margin-bottom: 8px;
             font-size: 30px;
-            color: #111827;
+            color: #0B2A5B;
+            font-weight: 900;
+            letter-spacing: -0.02em;
           }
 
           .print-page h2 {
             margin-top: 28px;
             margin-bottom: 12px;
             font-size: 22px;
-            color: #1f2937;
+            color: #0B2A5B;
+            font-weight: 850;
           }
 
           .print-page h3 {
             margin-top: 22px;
             margin-bottom: 10px;
             font-size: 17px;
-            color: #1f2937;
+            color: #0B2A5B;
+            font-weight: 850;
           }
 
           .print-page p,
@@ -6827,11 +7358,15 @@ export default function UploadPage() {
           .print-commentary-grid,
           .print-two-column,
           .print-kpi-card,
-          .print-table,
-          .print-section-block,
           .print-table tr {
             break-inside: avoid;
             page-break-inside: avoid;
+          }
+
+          .print-section-block,
+          .print-table {
+            break-inside: auto;
+            page-break-inside: auto;
           }
 
           .print-page h1,
@@ -6946,6 +7481,15 @@ export default function UploadPage() {
             gap: 14px;
           }
 
+          .print-dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+            break-inside: auto;
+            page-break-inside: auto;
+          }
+
           .print-narrative-card {
             margin-top: 14px;
             border: 1px solid #dbe3ef;
@@ -6955,11 +7499,60 @@ export default function UploadPage() {
           }
 
           .print-dashboard-card {
-            border: 1px solid #1e293b;
+            border: 2px solid #1e293b;
             border-radius: 16px;
             padding: 16px;
             background: #0f172a;
             color: #ffffff;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          .print-dashboard-green {
+            border-color: #059669;
+            background: linear-gradient(135deg, #064e3b 0%, #0f172a 78%);
+          }
+
+          .print-dashboard-yellow {
+            border-color: #d97706;
+            background: linear-gradient(135deg, #78350f 0%, #0f172a 78%);
+          }
+
+          .print-dashboard-red {
+            border-color: #dc2626;
+            background: linear-gradient(135deg, #7f1d1d 0%, #0f172a 78%);
+          }
+
+          .print-status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin: 18px 0;
+          }
+
+          .print-status-card {
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            padding: 12px;
+            background: #f8fafc;
+          }
+
+          .print-status-card strong {
+            display: block;
+            margin-top: 6px;
+            font-size: 15px;
+          }
+
+          .print-status-green strong {
+            color: #047857;
+          }
+
+          .print-status-yellow strong {
+            color: #b45309;
+          }
+
+          .print-status-red strong {
+            color: #b91c1c;
           }
 
           .print-dashboard-card p {
@@ -6973,9 +7566,35 @@ export default function UploadPage() {
             font-size: 22px;
           }
 
+          .print-dashboard-green strong {
+            color: #86efac;
+          }
+
+          .print-dashboard-yellow strong {
+            color: #fde68a;
+          }
+
+          .print-dashboard-red strong {
+            color: #fca5a5;
+          }
+
           .print-dashboard-label {
             font-size: 10px !important;
             font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #ffffff !important;
+          }
+
+          .print-dashboard-status {
+            display: inline-block;
+            margin-bottom: 8px;
+            border-radius: 999px;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.14);
+            color: #ffffff !important;
+            font-size: 8px !important;
+            font-weight: 900;
             letter-spacing: 0.12em;
             text-transform: uppercase;
           }
@@ -7436,6 +8055,23 @@ export default function UploadPage() {
                       <KpiCard label="Inventory Quantity" value={inventoryKpis.totalQuantity} plain />
                     </>
                   )}
+                  {isVirtualCfo(packageTier) && activeInventoryData && (
+                    <>
+                      <KpiCard
+                        label="Inventory Turns"
+                        value={inventoryIntelligence.turns !== null ? `${inventoryIntelligence.turns.toFixed(1)}x` : "N/A"}
+                      />
+                      <KpiCard label="Slow Moving Inventory" value={inventoryIntelligence.slowMovingValue} />
+                      <KpiCard
+                        label="E&O Reserve"
+                        value={
+                          inventoryIntelligence.eoReserveBalance !== null
+                            ? formatMoney(inventoryIntelligence.eoReserveBalance)
+                            : "Not identified"
+                        }
+                      />
+                    </>
+                  )}
                   {isVirtualCfo(packageTier) && activeFixedAssetData && (
                     <>
                       <KpiCard label="Total Fixed Assets" value={fixedAssetKpis.totalFixedAssets} />
@@ -7455,6 +8091,7 @@ export default function UploadPage() {
                 arKpis={arKpis}
                 apKpis={apKpis}
                 inventoryKpis={inventoryKpis}
+                inventoryIntelligence={inventoryIntelligence}
                 fixedAssetKpis={fixedAssetKpis}
                 payrollAnalysis={payrollAnalysis}
                 netMargin={netMargin}
@@ -7520,15 +8157,25 @@ export default function UploadPage() {
             />
           )}
 
+          {activeWorkflowStep === 4 && showKpiReview && activeInventoryData && !isProfessionalOrHigher(packageTier) && (
+            <LockedInventoryIntelligencePlaceholder />
+          )}
+
           {activeWorkflowStep === 4 && showKpiReview && isProfessionalOrHigher(packageTier) && (
             <>
-              {activeInventoryData && <InventoryAnalysisSection inventoryKpis={inventoryKpis} />}
+              {activeInventoryData && !isVirtualCfo(packageTier) && <LockedInventoryIntelligencePlaceholder />}
               <ProfessionalPlaceholderSection />
             </>
           )}
 
           {activeWorkflowStep === 4 && showKpiReview && isVirtualCfo(packageTier) && (
             <>
+              {activeInventoryData && (
+                <InventoryAnalysisSection
+                  inventoryKpis={inventoryKpis}
+                  inventoryIntelligence={inventoryIntelligence}
+                />
+              )}
               {activeFixedAssetData && (
                 <FixedAssetAnalysisSection
                   fixedAssetKpis={fixedAssetKpis}
@@ -7598,6 +8245,7 @@ export default function UploadPage() {
                 <>
                   <Preview title="Fixed Asset Preview" data={activeFixedAssetData} />
                   <Preview title="Prior Period Fixed Asset Preview" data={activePriorFixedAssetData} />
+                  <Preview title="Prior Period Inventory Valuation Preview" data={activePriorInventoryData} />
                   <Preview title="Budget vs Actual Preview" data={activeBudgetVsActualData} />
                   <Preview title="Prior Period P&L Preview" data={activePriorPeriodPlData} />
                   <Preview title="Prior Period Balance Sheet Preview" data={activePriorPeriodBsData} />
@@ -7629,6 +8277,7 @@ export default function UploadPage() {
         arKpis={arKpis}
         apKpis={apKpis}
         inventoryKpis={inventoryKpis}
+        inventoryIntelligence={inventoryIntelligence}
         fixedAssetKpis={fixedAssetKpis}
         netMargin={netMargin}
         executiveSummary={executiveSummary}
@@ -7677,10 +8326,10 @@ function scrollToWorkflowSection(target: string | HTMLElement | RefObject<HTMLEl
 
   const toolbar = document.querySelector(".workflow-action-panel");
   const toolbarHeight = toolbar?.getBoundingClientRect().height || 180;
-  const extraPadding = 44;
+  const extraPadding = 16;
   const elementTop = element.getBoundingClientRect().top + window.scrollY;
   window.scrollTo({
-    top: elementTop - toolbarHeight - extraPadding,
+    top: Math.max(elementTop - toolbarHeight - extraPadding, 0),
     behavior: "smooth",
   });
 }
@@ -7933,7 +8582,7 @@ function ImportWorkflow({
 
             <UploadGroup
               title="Virtual CFO Imports"
-              subtitle="Advanced reports for board-style analysis, forecasting placeholders, and flux review."
+              subtitle="Advanced reports for board-style analysis, budget review, capital planning, and flux review."
               reports={reports.filter((report) => report.tier === "virtualCfo")}
               packageTier={packageTier}
             />
@@ -8188,6 +8837,7 @@ function WorkflowActionPanel({
   onStartNewClient: () => void;
   onBackWorkflowStep: () => void;
 }) {
+  const [quickBooksGuideOpen, setQuickBooksGuideOpen] = useState(false);
   const buttonBase =
     "rounded-2xl px-5 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60";
   const primaryButton = `${buttonBase} bg-[#5B8CFF] text-white hover:bg-blue-500`;
@@ -8318,6 +8968,16 @@ function WorkflowActionPanel({
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => setQuickBooksGuideOpen(true)}
+            className={`${secondaryButton} border-[#5B8CFF]/50 text-blue-200 hover:border-[#5B8CFF]`}
+          >
+            <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#5B8CFF]/70 text-xs">
+              ?
+            </span>
+            QuickBooks Report Guide
+          </button>
           {activeStep > 1 && (
             <button type="button" onClick={onBackWorkflowStep} className={secondaryButton}>
               Back
@@ -8348,6 +9008,7 @@ function WorkflowActionPanel({
           )}
         </div>
       </div>
+      {quickBooksGuideOpen && <QuickBooksReportGuideModal onClose={() => setQuickBooksGuideOpen(false)} />}
 
       {compactReviewPanel ? (
         <div className="mt-3 max-w-xl">
@@ -8485,6 +9146,67 @@ function WorkflowStatusPill({
       <p className={`mt-2 text-sm font-bold ${complete ? (omitted ? "text-slate-300" : "text-emerald-300") : "text-[#F9FAFB]"}`}>
         {value}
       </p>
+    </div>
+  );
+}
+
+function QuickBooksReportGuideModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="quickbooks-guide-modal fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 px-4 py-8 backdrop-blur-sm">
+      <div className="quickbooks-guide-print w-full max-w-6xl rounded-3xl border border-[#5B8CFF]/30 bg-white p-6 text-slate-950 shadow-2xl shadow-black/40">
+        <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#1a6cf6]">QuickBooks Reference</p>
+            <h2 className="mt-2 text-3xl font-black text-slate-950">QuickBooks Report Export Guide</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              Export all reports as Excel (.xlsx). In QuickBooks Online: click Export -&gt; Export to Excel.
+              In QuickBooks Desktop: use File -&gt; Save as Excel.
+            </p>
+          </div>
+          <div className="quickbooks-guide-screen-only flex gap-2">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-2xl bg-[#1a6cf6] px-4 py-2 text-sm font-black text-white transition hover:bg-blue-500"
+            >
+              Print
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-black text-slate-700 transition hover:border-slate-500"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="bg-slate-100 text-xs uppercase tracking-[0.12em] text-slate-600">
+                <th className="border border-slate-200 px-4 py-3">Report Name</th>
+                <th className="border border-slate-200 px-4 py-3">QuickBooks Online Location</th>
+                <th className="border border-slate-200 px-4 py-3">QuickBooks Desktop/Enterprise Location</th>
+              </tr>
+            </thead>
+            <tbody>
+              {QUICKBOOKS_REPORT_GUIDE_ROWS.map(([reportName, qbo, desktop]) => (
+                <tr key={reportName} className="odd:bg-white even:bg-slate-50">
+                  <td className="border border-slate-200 px-4 py-3 font-bold text-slate-950">{reportName}</td>
+                  <td className="border border-slate-200 px-4 py-3 text-slate-700">{qbo}</td>
+                  <td className="border border-slate-200 px-4 py-3 text-slate-700">{desktop}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <p className="mt-5 text-sm italic leading-6 text-slate-600">
+          Payroll by Department requires Class Tracking enabled in QuickBooks. Go to Settings -&gt; Payroll Settings
+          -&gt; enable Class Tracking before running the Payroll Summary report.
+        </p>
+      </div>
     </div>
   );
 }
@@ -9447,10 +10169,10 @@ function PackageCustomizationPanel({
             Package completeness: {packageCompletenessScore}%
           </span>
           <span className="rounded-full bg-amber-500/15 px-4 py-2 text-xs font-bold text-amber-200">
-            Missing Inputs: {missingCount} remaining
+            Customize Package: {missingCount} item{missingCount === 1 ? "" : "s"} remaining
           </span>
           <span className="rounded-full bg-emerald-500/15 px-4 py-2 text-xs font-bold text-emerald-200">
-            Resolved Inputs: {resolvedCount} complete
+            Package Items Resolved: {resolvedCount} complete
           </span>
         </div>
       </div>
@@ -9529,7 +10251,7 @@ function PackageCustomizationPanel({
                 </div>
               )}
               <span className="mt-2 block text-xs leading-5 text-[#94A3B8]">
-                Uploaded logos take priority. Leave both options blank to show the FIRM LOGO placeholder.
+                Uploaded logos take priority. Leave both options blank to show the standard firm logo area.
               </span>
             </div>
             <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
@@ -9660,7 +10382,7 @@ function PackageCustomizationPanel({
       {!showDsoSetup && (
         <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-5">
           <p className="text-sm font-bold uppercase tracking-[0.12em] text-emerald-300">
-            No Additional Inputs Needed
+            Customize Package Complete
           </p>
           <p className="mt-2 text-sm leading-6 text-[#F9FAFB]">
             FinSight has enough uploaded data and period assumptions to continue to KPI review.
@@ -9942,6 +10664,7 @@ function KpiConfirmationPanel({
   arKpis,
   apKpis,
   inventoryKpis,
+  inventoryIntelligence,
   fixedAssetKpis,
   payrollAnalysis,
   netMargin,
@@ -9959,6 +10682,7 @@ function KpiConfirmationPanel({
   arKpis: AgingKpis;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
+  inventoryIntelligence: InventoryIntelligence;
   fixedAssetKpis: FixedAssetKpis;
   payrollAnalysis: PayrollAnalysis;
   netMargin: number;
@@ -9989,6 +10713,17 @@ function KpiConfirmationPanel({
       ? [
           { label: "Inventory Value", value: formatMoney(inventoryKpis.totalValue) },
           { label: "Inventory Quantity", value: formatNumber(inventoryKpis.totalQuantity) },
+          ...(isVirtualCfo(packageTier)
+            ? [
+                {
+                  label: "Inventory Turns",
+                  value:
+                    inventoryIntelligence.turns !== null
+                      ? `${inventoryIntelligence.turns.toFixed(1)}x`
+                      : "N/A",
+                },
+              ]
+            : []),
         ]
       : []),
     ...(isVirtualCfo(packageTier) && includeFixedAssets
@@ -10230,6 +10965,7 @@ function BoardPackagePreview({
   kpis,
   apKpis,
   inventoryKpis,
+  inventoryIntelligence,
   fixedAssetKpis,
   payrollAnalysis,
   includeAp,
@@ -10247,6 +10983,7 @@ function BoardPackagePreview({
   kpis: KPIs;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
+  inventoryIntelligence: InventoryIntelligence;
   fixedAssetKpis: FixedAssetKpis;
   payrollAnalysis: PayrollAnalysis;
   includeAp: boolean;
@@ -10760,21 +11497,140 @@ function DarkChartTooltip({
   );
 }
 
-function InventoryAnalysisSection({ inventoryKpis }: { inventoryKpis: InventoryKpis }) {
+function InventoryAnalysisSection({
+  inventoryKpis,
+  inventoryIntelligence,
+}: {
+  inventoryKpis: InventoryKpis;
+  inventoryIntelligence: InventoryIntelligence;
+}) {
   return (
     <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8">
       <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
         Inventory Analytics
       </p>
       <h2 className="mb-6 text-3xl font-bold">Inventory Summary</h2>
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
         <KpiCard label="Total Inventory Value" value={inventoryKpis.totalValue} />
         <KpiCard label="Total Quantity on Hand" value={inventoryKpis.totalQuantity} plain />
+        <KpiCard
+          label="Inventory Turns"
+          value={inventoryIntelligence.turns !== null ? `${inventoryIntelligence.turns.toFixed(1)}x` : "N/A"}
+        />
+        <KpiCard label="Slow Moving Inventory" value={inventoryIntelligence.slowMovingValue} />
+        <KpiCard
+          label="E&O Reserve"
+          value={
+            inventoryIntelligence.eoReserveBalance !== null
+              ? formatMoney(inventoryIntelligence.eoReserveBalance)
+              : "Not identified"
+          }
+        />
+      </div>
+      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-slate-700 bg-slate-950 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Inventory Cycles</p>
+          <p className="mt-2 text-lg font-bold text-white">
+            {inventoryIntelligence.daysPerCycle !== null
+              ? `Inventory cycles every ${Math.round(inventoryIntelligence.daysPerCycle)} days`
+              : "Average inventory required"}
+          </p>
+          <p className="mt-2 text-sm text-slate-400">{inventoryIntelligence.turnsCommentary}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-700 bg-slate-950 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Slow Moving Risk</p>
+          <p className="mt-2 text-lg font-bold text-white">{formatMoney(inventoryIntelligence.slowMovingValue)}</p>
+          <p className="mt-2 text-sm text-slate-400">
+            {inventoryIntelligence.slowMovingPercent.toFixed(1)}% of inventory value; estimated annual carrying cost is{" "}
+            {formatMoney(inventoryIntelligence.carryingCostEstimate)}.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-amber-200">E&O Reserve Analysis</p>
+          <p className="mt-2 text-sm text-amber-50">{inventoryIntelligence.eoReserveCommentary}</p>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <KpiCard label="Top Item Exposure" value={`${inventoryIntelligence.topItemExposurePercent.toFixed(1)}%`} />
+        <KpiCard label="Top 5 Concentration" value={`${inventoryIntelligence.concentrationPercent.toFixed(1)}%`} />
+        <KpiCard label="Carrying Cost Estimate" value={inventoryIntelligence.carryingCostEstimate} />
+      </div>
+      <div className="mt-6">
+        <SlowMovingInventoryScreenTable items={inventoryIntelligence.slowMovingItems} />
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <InventoryScreenTable title="Top 5 Inventory Items by Value" items={inventoryKpis.topByValue} />
         <InventoryScreenTable title="Top 5 Inventory Items by Quantity" items={inventoryKpis.topByQuantity} />
       </div>
+    </section>
+  );
+}
+
+function SlowMovingInventoryScreenTable({ items }: { items: SlowMovingInventoryItem[] }) {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-slate-950 p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-xl font-bold">Slow Moving Inventory</h3>
+        <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-200">
+          Total {formatMoney(total)}
+        </span>
+      </div>
+      <table className="w-full text-left text-sm">
+        <thead className="bg-slate-800/60 text-slate-100">
+          <tr>
+            <th className="px-4 py-2 font-bold">Item Name</th>
+            <th className="px-4 py-2 text-right font-bold">Qty on Hand</th>
+            <th className="px-4 py-2 text-right font-bold">Value</th>
+            <th className="px-4 py-2 text-right font-bold">Days Since Movement</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length > 0 ? (
+            items.map((item, index) => (
+              <tr key={`${item.name}-${index}`} className="border-t border-slate-800">
+                <td className="px-4 py-2 text-slate-300">{item.name}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{formatNumber(item.quantity)}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{formatMoney(item.value)}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{formatNumber(item.daysSinceMovement)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td className="px-4 py-2 text-slate-400" colSpan={4}>
+                Upload a prior period Inventory Valuation report to identify unchanged SKU quantities.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function LockedInventoryIntelligencePlaceholder() {
+  return (
+    <section className="mt-10 overflow-hidden rounded-3xl border border-slate-700 bg-slate-900 p-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
+            Inventory Intelligence
+          </p>
+          <h2 className="text-3xl font-bold">Available on Virtual CFO plan</h2>
+        </div>
+        <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-200">
+          Locked
+        </span>
+      </div>
+      <div className="mt-6 grid gap-4 blur-[2px] md:grid-cols-3">
+        <KpiCard label="Inventory Turns" value="4.8x" />
+        <KpiCard label="Slow Moving Inventory" value="$42,500" />
+        <KpiCard label="E&O Reserve" value="$15,000" />
+      </div>
+      <p className="mt-5 text-sm font-semibold text-slate-300">
+        Inventory Intelligence available on Virtual CFO plan
+      </p>
     </section>
   );
 }
@@ -10845,14 +11701,13 @@ function VirtualCfoPlaceholderSection() {
       </p>
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          "Forecasting placeholders",
-          "Budget vs Actual placeholders",
+          "Budget performance review",
           "Variance analysis",
           "EBITDA analysis",
           "Debt analysis",
-          "Benchmarking placeholders",
+          "Benchmarking-ready metrics",
           "KPI health scoring",
-          "Multi-period placeholders",
+          "Multi-period trend review",
           "Risk indicators",
           "Executive board-style formatting",
         ].map((item) => (
@@ -11356,7 +12211,7 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
                       <td className="px-4 py-3">{formatMoney(row.priorAmount)}</td>
                       <td className="px-4 py-3">{formatMoney(row.dollarVariance)}</td>
                       <td className="px-4 py-3">
-                        {row.percentVariance === null ? "N/A" : `${row.percentVariance.toFixed(1)}%`}
+                        {formatFluxPercentLabel(row)}
                       </td>
                       <td className="px-4 py-3">
                         <SeverityBadge severity={row.severity} />
@@ -11405,12 +12260,6 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
                               >
                                 {editingRows[key] ? "Done Editing" : "Edit"}
                               </button>
-                              {row.warnings.length > 0 && (
-                                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm leading-6 text-amber-100">
-                                  <span className="font-bold">Warnings: </span>
-                                  {row.warnings.join(" ")}
-                                </div>
-                              )}
                             </div>
                             <div className="rounded-2xl border border-slate-700 bg-slate-950 p-5">
                               <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-300">
@@ -11478,6 +12327,7 @@ function PrintableFinancialPackage({
   arKpis,
   apKpis,
   inventoryKpis,
+  inventoryIntelligence,
   fixedAssetKpis,
   netMargin,
   executiveSummary,
@@ -11516,6 +12366,7 @@ function PrintableFinancialPackage({
   arKpis: AgingKpis;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
+  inventoryIntelligence: InventoryIntelligence;
   fixedAssetKpis: FixedAssetKpis;
   netMargin: number;
   executiveSummary: ReturnType<typeof buildExecutiveSummary>;
@@ -11552,6 +12403,46 @@ function PrintableFinancialPackage({
       Math.max(boardPackageSections.length, 1)) *
       100,
   );
+  const currentRatioValue = Number.parseFloat(ratioValue("Current Ratio"));
+  const payrollToRevenue = kpis.revenue ? (payrollAnalysis.totalCurrentPayrollCost / kpis.revenue) * 100 : null;
+  const executiveStatusCards = [
+    {
+      label: "Liquidity",
+      status: !Number.isFinite(currentRatioValue) ? "Yellow" : currentRatioValue >= 2 ? "Green" : currentRatioValue >= 1 ? "Yellow" : "Red",
+    },
+    {
+      label: "Profitability",
+      status: netMargin >= 15 ? "Green" : netMargin >= 5 ? "Yellow" : "Red",
+    },
+    {
+      label: "Collections",
+      status: !arKpis.total || arKpis.days90Plus / Math.max(arKpis.total, 1) < 0.05 ? "Green" : "Yellow",
+    },
+    {
+      label: "Inventory",
+      status:
+        inventoryIntelligence.turns === null
+          ? "Yellow"
+          : inventoryIntelligence.turns >= 4
+            ? "Green"
+            : inventoryIntelligence.turns >= 2
+              ? "Yellow"
+              : "Red",
+    },
+    {
+      label: "Payroll",
+      status: payrollToRevenue === null || payrollToRevenue < 20 ? "Green" : payrollToRevenue < 35 ? "Yellow" : "Red",
+    },
+    {
+      label: "Debt Leverage",
+      status:
+        debtMetrics.debtToAssets === null || debtMetrics.debtToAssets < 30
+          ? "Green"
+          : debtMetrics.debtToAssets < 50
+            ? "Yellow"
+            : "Red",
+    },
+  ];
 
   return (
     <div className="print-package hidden">
@@ -11584,6 +12475,15 @@ function PrintableFinancialPackage({
           <PrintKpiCard label="Current Ratio" value={ratioValue("Current Ratio")} />
           <PrintKpiCard label="DSO" value={ratioValue("DSO")} />
           <PrintKpiCard label="FTE Count" value={formatFte(payrollAnalysis.totalCurrentFte)} />
+        </div>
+
+        <div className="print-status-grid">
+          {executiveStatusCards.map((card) => (
+            <div key={card.label} className={`print-status-card print-status-${card.status.toLowerCase()}`}>
+              <span>{card.label}</span>
+              <strong>{card.status}</strong>
+            </div>
+          ))}
         </div>
 
         <div className="print-section-block">
@@ -11622,6 +12522,40 @@ function PrintableFinancialPackage({
         )}
       </section>
 
+      {includeSection("executive-summary") && (
+        <section className="print-page">
+          <h1>Management Focus Areas</h1>
+          <p className="print-section-intro">
+            CFO-prioritized operating focus areas based on the uploaded financial package and advisory metrics.
+          </p>
+          <div className="print-two-column">
+            {executiveSummary.managementFocusAreas.map((item, index) => (
+              <div key={`${item}-${index}`} className="print-narrative-card">
+                <h3>Focus Area {index + 1}</h3>
+                <p>{item}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {includeSection("executive-summary") && (
+        <section className="print-page">
+          <h1>Board Discussion Topics</h1>
+          <p className="print-section-intro">
+            Strategic discussion topics for ownership, board, lender, or investor review.
+          </p>
+          <div className="print-two-column">
+            {executiveSummary.boardDiscussionTopics.map((item, index) => (
+              <div key={`${item}-${index}`} className="print-narrative-card">
+                <h3>Discussion Topic {index + 1}</h3>
+                <p>{item}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {includeSection("income-statement") && <section className="print-page">
         <div className="statement-section">
           <div className="statement-header">
@@ -11648,8 +12582,8 @@ function PrintableFinancialPackage({
           <p className="print-section-intro">
             Selected dashboard views use a consistent CFO color palette and emphasize quick board-level interpretation.
           </p>
-          <div className="print-commentary-grid">
-            {selectedCharts.map((chartId) => (
+          <div className="print-dashboard-grid">
+            {(selectedCharts.length ? selectedCharts : packageDefaultCharts[packageTier]).map((chartId) => (
               <PrintDashboardCard
                 key={chartId}
                 chartId={chartId}
@@ -11718,7 +12652,7 @@ function PrintableFinancialPackage({
               Ratios are dynamically calculated from uploaded Profit and Loss, Balance Sheet, Aging, Inventory, Debt,
               and Payroll reports where available.
             </p>
-            <table className="print-table">
+            <table className="print-table print-compact-table">
               <thead>
                 <tr>
                   <th>Ratio</th>
@@ -11758,8 +12692,77 @@ function PrintableFinancialPackage({
                     <td>Total Quantity on Hand</td>
                     <td>{formatNumber(inventoryKpis.totalQuantity)}</td>
                   </tr>
+                  {isVirtualCfo(packageTier) && (
+                    <>
+                      <tr>
+                        <td>Inventory Turns</td>
+                        <td>
+                          {inventoryIntelligence.turns !== null
+                            ? `${inventoryIntelligence.turns.toFixed(1)}x turns per year`
+                            : "N/A"}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>Inventory Cycle</td>
+                        <td>
+                          {inventoryIntelligence.daysPerCycle !== null
+                            ? `Inventory cycles every ${Math.round(inventoryIntelligence.daysPerCycle)} days`
+                            : "N/A"}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>Slow Moving Inventory Value</td>
+                        <td>{formatMoney(inventoryIntelligence.slowMovingValue)}</td>
+                      </tr>
+                      <tr>
+                        <td>Slow Moving % of Inventory</td>
+                        <td>{inventoryIntelligence.slowMovingPercent.toFixed(1)}%</td>
+                      </tr>
+                      <tr>
+                        <td>Top Item Exposure</td>
+                        <td>{inventoryIntelligence.topItemExposurePercent.toFixed(1)}%</td>
+                      </tr>
+                      <tr>
+                        <td>Estimated Annual Carrying Cost</td>
+                        <td>{formatMoney(inventoryIntelligence.carryingCostEstimate)}</td>
+                      </tr>
+                      <tr>
+                        <td>E&O Reserve Balance</td>
+                        <td>
+                          {inventoryIntelligence.eoReserveBalance !== null
+                            ? `${formatMoney(inventoryIntelligence.eoReserveBalance)}${
+                                inventoryIntelligence.eoReservePercent !== null
+                                  ? ` (${inventoryIntelligence.eoReservePercent.toFixed(1)}% of inventory)`
+                                  : ""
+                              }`
+                            : "Not identified"}
+                        </td>
+                      </tr>
+                    </>
+                  )}
                 </tbody>
               </table>
+              {isVirtualCfo(packageTier) && (
+                <>
+                  <div className="print-narrative-card">
+                    <h3>Inventory Turns Commentary</h3>
+                    <p>
+                      Inventory turns are calculated as COGS of {formatCurrency(kpis.cogs)} divided by average inventory of{" "}
+                      {formatCurrency(inventoryIntelligence.averageInventory)}. {inventoryIntelligence.turnsCommentary}
+                    </p>
+                  </div>
+                  <h2>Slow Moving Inventory</h2>
+                  <SlowMovingInventoryPrintTable items={inventoryIntelligence.slowMovingItems} />
+                  <div className="print-narrative-card">
+                    <h3>Slow Moving Inventory Commentary</h3>
+                    <p>{inventoryIntelligence.slowMovingCommentary}</p>
+                  </div>
+                  <div className="print-narrative-card">
+                    <h3>E&O Reserve Analysis</h3>
+                    <p>{inventoryIntelligence.eoReserveCommentary}</p>
+                  </div>
+                </>
+              )}
               <h2>Top 5 Inventory Items by Value</h2>
               <InventoryPrintTable items={inventoryKpis.topByValue} />
               <h2>Top 5 Inventory Items by Quantity</h2>
@@ -11995,6 +12998,33 @@ function PrintDashboardCard({
     "net-income-trend": formatCurrency(kpis.netIncome),
     "working-capital-trend": formatCurrency(kpis.cash + kpis.accountsReceivable - apKpis.total),
   };
+  const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
+  const ebitda = kpis.grossProfit - kpis.expenses;
+  const workingCapital = kpis.cash + kpis.accountsReceivable - apKpis.total;
+  const arOver60Percent = arKpis.total ? ((arKpis.days61To90 + arKpis.days90Plus) / arKpis.total) * 100 : 0;
+  const apOver60Percent = apKpis.total ? ((apKpis.days61To90 + apKpis.days90Plus) / apKpis.total) * 100 : 0;
+  const payrollToRevenue = kpis.revenue ? (payrollAnalysis.totalCurrentPayrollCost / kpis.revenue) * 100 : 0;
+  const expenseRatio = kpis.revenue ? (kpis.expenses / kpis.revenue) * 100 : 0;
+  const revenuePerFte = payrollAnalysis.totalCurrentFte ? kpis.revenue / payrollAnalysis.totalCurrentFte : 0;
+  const statusByChart: Record<ChartSelectionId, "green" | "yellow" | "red"> = {
+    "revenue-trend": kpis.revenue > 0 ? "green" : "yellow",
+    "gross-margin-trend": grossMargin >= 40 ? "green" : grossMargin >= 25 ? "yellow" : "red",
+    "ebitda-trend": ebitda > 0 ? "green" : ebitda === 0 ? "yellow" : "red",
+    "cash-trend": kpis.cash >= apKpis.total ? "green" : kpis.cash >= apKpis.total * 0.5 ? "yellow" : "red",
+    "ar-aging-mix": arOver60Percent <= 10 ? "green" : arOver60Percent <= 25 ? "yellow" : "red",
+    "ap-aging-mix": apOver60Percent <= 10 ? "green" : apOver60Percent <= 25 ? "yellow" : "red",
+    "payroll-trend": payrollToRevenue <= 20 ? "green" : payrollToRevenue <= 35 ? "yellow" : "red",
+    "revenue-per-fte": revenuePerFte >= 150000 ? "green" : revenuePerFte >= 75000 ? "yellow" : "red",
+    "expense-breakdown": expenseRatio <= 25 ? "green" : expenseRatio <= 40 ? "yellow" : "red",
+    "budget-vs-actual": (budgetMetrics.netIncomeVariance || 0) >= 0 ? "green" : Math.abs(budgetMetrics.netIncomeVariance || 0) <= 10000 ? "yellow" : "red",
+    "net-income-trend": kpis.netIncome > 0 ? "green" : kpis.netIncome === 0 ? "yellow" : "red",
+    "working-capital-trend": workingCapital > 0 ? "green" : workingCapital === 0 ? "yellow" : "red",
+  };
+  const statusLabel = {
+    green: "Good",
+    yellow: "Monitor",
+    red: "Attention",
+  }[statusByChart[chartId]];
   const percent = Math.min(
     Math.max(
       chartId === "gross-margin-trend"
@@ -12008,13 +13038,14 @@ function PrintDashboardCard({
   );
 
   return (
-    <div className="print-dashboard-card">
+    <div className={`print-dashboard-card print-dashboard-${statusByChart[chartId]}`}>
+      <p className="print-dashboard-status">{statusLabel}</p>
       <p className="print-dashboard-label">{chartLabels[chartId]}</p>
       <strong>{primaryValue[chartId]}</strong>
       <div className="print-aging-bar-track">
-        <span className="print-aging-bar print-aging-good" style={{ width: `${percent}%` }} />
+        <span className={`print-aging-bar print-aging-${statusByChart[chartId] === "red" ? "critical" : statusByChart[chartId] === "yellow" ? "watch" : "good"}`} style={{ width: `${percent}%` }} />
       </div>
-      <p>Trend visualization placeholder for board package export and PowerPoint alignment.</p>
+      <p>Executive trend signal based on the uploaded reporting package and selected dashboard view.</p>
     </div>
   );
 }
@@ -12156,6 +13187,46 @@ function InventoryPrintTable({ items }: { items: InventoryItem[] }) {
         ) : (
           <tr>
             <td colSpan={3}>Inventory valuation report required.</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  );
+}
+
+function SlowMovingInventoryPrintTable({ items }: { items: SlowMovingInventoryItem[] }) {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+
+  return (
+    <table className="print-table">
+      <thead>
+        <tr>
+          <th>Item Name</th>
+          <th>Quantity on Hand</th>
+          <th>Value</th>
+          <th>Days Since Movement</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.length > 0 ? (
+          <>
+            {items.map((item, index) => (
+              <tr key={`${item.name}-${index}`}>
+                <td>{item.name}</td>
+                <td>{formatNumber(item.quantity)}</td>
+                <td>{formatMoney(item.value)}</td>
+                <td>{formatNumber(item.daysSinceMovement)}</td>
+              </tr>
+            ))}
+            <tr>
+              <td colSpan={2}>Total Slow Moving Inventory</td>
+              <td>{formatMoney(total)}</td>
+              <td />
+            </tr>
+          </>
+        ) : (
+          <tr>
+            <td colSpan={4}>No slow moving inventory identified from the current and prior valuation comparison.</td>
           </tr>
         )}
       </tbody>
@@ -12379,11 +13450,7 @@ function PayrollPrintTable({
 function PrintFluxSection({ title, rows }: { title: string; rows: FluxRow[] }) {
   const formatPrintFluxMoney = (row: FluxRow, value: number) =>
     isExpenseLikeFluxRow(row) ? formatMoney(Math.abs(value)) : formatMoney(value);
-  const formatPrintFluxPercent = (row: FluxRow) => {
-    if (row.percentVariance === null) return "N/A";
-    const value = isExpenseLikeFluxRow(row) ? Math.abs(row.percentVariance) : row.percentVariance;
-    return `${value.toFixed(1)}%`;
-  };
+  const formatPrintFluxPercent = (row: FluxRow) => formatFluxPercentLabel(row);
 
   return (
     <section className="print-page">
@@ -12431,10 +13498,9 @@ function PrintFluxSection({ title, rows }: { title: string; rows: FluxRow[] }) {
               <p>
                 {row.commentary ||
                   `${row.accountName} changed by ${formatMoney(row.dollarVariance)}${
-                    row.percentVariance === null ? "" : ` (${row.percentVariance.toFixed(1)}%)`
+                    row.percentVariance === null ? "" : ` (${formatFluxPercentLabel(row)})`
                   }. Primary driver: ${row.topDriver || "GL activity review recommended"}.`}
               </p>
-              {row.warnings.length > 0 && <p className="print-commentary">Warnings: {row.warnings.join(" ")}</p>}
             </div>
           ))}
         </div>
