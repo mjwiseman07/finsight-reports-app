@@ -31,15 +31,63 @@ const features = [
   },
 ];
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function ComingSoonPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string }>({});
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const validateForm = () => {
+    const nextErrors: { name?: string; email?: string } = {};
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) nextErrors.name = "Name is required.";
+    if (!trimmedEmail) {
+      nextErrors.email = "Email is required.";
+    } else if (!emailPattern.test(trimmedEmail)) {
+      nextErrors.email = "Please enter a valid email address.";
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // TODO: Connect this form to the selected backend/email provider before launch.
-    setSubmitted(true);
+    if (isSubmitting) return;
+
+    setSubmitted(false);
+    setFormError("");
+
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/early-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Early access submission failed.");
+      }
+
+      setSubmitted(true);
+      setName("");
+      setEmail("");
+      setFieldErrors({});
+    } catch {
+      setFormError("Something went wrong. Please try again or email sales@advisacor.com.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -206,36 +254,70 @@ export default function ComingSoonPage() {
               Join our early access list and receive launch updates, product announcements, and early adopter opportunities.
             </p>
           </div>
-          <form onSubmit={handleSubmit} className="enterprise-card rounded-[2rem] p-7">
+          <form onSubmit={handleSubmit} noValidate className="enterprise-card rounded-[2rem] p-7">
             <div className="grid gap-4">
               <label className="grid gap-2">
                 <span className="text-sm font-black text-[#111827]">Name</span>
                 <input
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  required
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-[#FF7A1A]"
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setFieldErrors((current) => ({ ...current, name: undefined }));
+                  }}
+                  aria-invalid={Boolean(fieldErrors.name)}
+                  aria-describedby={fieldErrors.name ? "early-access-name-error" : undefined}
+                  className={`rounded-2xl border bg-white px-4 py-3 outline-none transition focus:border-[#FF7A1A] ${
+                    fieldErrors.name ? "border-red-300 bg-red-50/40" : "border-slate-200"
+                  }`}
                   placeholder="Your name"
                 />
+                {fieldErrors.name && (
+                  <span id="early-access-name-error" className="text-sm font-bold text-red-600">
+                    {fieldErrors.name}
+                  </span>
+                )}
               </label>
               <label className="grid gap-2">
                 <span className="text-sm font-black text-[#111827]">Email</span>
                 <input
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-[#FF7A1A]"
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setFieldErrors((current) => ({ ...current, email: undefined }));
+                  }}
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  aria-describedby={fieldErrors.email ? "early-access-email-error" : undefined}
+                  className={`rounded-2xl border bg-white px-4 py-3 outline-none transition focus:border-[#FF7A1A] ${
+                    fieldErrors.email ? "border-red-300 bg-red-50/40" : "border-slate-200"
+                  }`}
                   placeholder="you@company.com"
                 />
+                {fieldErrors.email && (
+                  <span id="early-access-email-error" className="text-sm font-bold text-red-600">
+                    {fieldErrors.email}
+                  </span>
+                )}
               </label>
             </div>
-            <button type="submit" className="premium-button mt-5 w-full rounded-2xl px-5 py-4 text-sm font-black text-white">
-              Request Early Access
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="premium-button mt-5 w-full rounded-2xl px-5 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? "Submitting..." : "Request Early Access"}
             </button>
             {submitted && (
               <p className="mt-4 rounded-2xl border border-[#3BB273]/20 bg-[#3BB273]/10 px-4 py-3 text-sm font-bold text-[#176B42]">
-                Thank you. You are on the Advisacor early access list.
+                Thank you. Your request has been received. Please check your email for confirmation.
+              </p>
+            )}
+            {formError && (
+              <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                Something went wrong. Please try again or email{" "}
+                <a href="mailto:sales@advisacor.com" className="underline">
+                  sales@advisacor.com
+                </a>.
               </p>
             )}
           </form>
