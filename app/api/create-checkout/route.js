@@ -2,12 +2,25 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAdmin } from "../../../lib/supabase";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const allowedPriceIds = new Set([
-  process.env.STRIPE_PRICE_ESSENTIAL,
-  process.env.STRIPE_PRICE_PROFESSIONAL,
-  process.env.STRIPE_PRICE_VIRTUAL_CFO,
-]);
+function getStripeClient() {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
+
+function getAllowedPriceIds() {
+  return [
+    process.env.STRIPE_PRICE_ESSENTIAL,
+    process.env.STRIPE_PRICE_PROFESSIONAL,
+    process.env.STRIPE_PRICE_VIRTUAL_CFO,
+  ].filter(Boolean);
+}
+
+function stripeUnavailableResponse() {
+  return NextResponse.json(
+    { error: "Stripe is not configured for this deployment." },
+    { status: 503 },
+  );
+}
 
 function getBaseUrl(request) {
   const protocol = request.headers.get("x-forwarded-proto") || "http";
@@ -16,6 +29,20 @@ function getBaseUrl(request) {
 }
 
 export async function POST(request) {
+  const stripe = getStripeClient();
+  const allowedPriceIds = getAllowedPriceIds();
+
+  if (!stripe || allowedPriceIds.length === 0) {
+    return stripeUnavailableResponse();
+  }
+
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      { error: "Supabase is not configured for this deployment." },
+      { status: 503 },
+    );
+  }
+
   const authorization = request.headers.get("authorization") || "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
 
@@ -29,7 +56,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "priceId is required" }, { status: 400 });
   }
 
-  if (!allowedPriceIds.has(priceId)) {
+  if (!allowedPriceIds.includes(priceId)) {
     return NextResponse.json({ error: "Invalid priceId" }, { status: 400 });
   }
 

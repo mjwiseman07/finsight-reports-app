@@ -2,14 +2,41 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAdmin } from "../../../lib/supabase";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const priceIdToPlan = {
-  [process.env.STRIPE_PRICE_ESSENTIAL]: "essential",
-  [process.env.STRIPE_PRICE_PROFESSIONAL]: "professional",
-  [process.env.STRIPE_PRICE_VIRTUAL_CFO]: "virtualCfo",
-};
+function getStripeClient() {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
+
+function getPriceIdToPlan() {
+  return {
+    [process.env.STRIPE_PRICE_ESSENTIAL]: "essential",
+    [process.env.STRIPE_PRICE_PROFESSIONAL]: "professional",
+    [process.env.STRIPE_PRICE_VIRTUAL_CFO]: "virtualCfo",
+  };
+}
+
+function stripeUnavailableResponse() {
+  return NextResponse.json(
+    { error: "Stripe is not configured for this deployment." },
+    { status: 503 },
+  );
+}
 
 export async function POST(request) {
+  const stripe = getStripeClient();
+
+  if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
+    return stripeUnavailableResponse();
+  }
+
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      { error: "Supabase is not configured for this deployment." },
+      { status: 503 },
+    );
+  }
+
+  const priceIdToPlan = getPriceIdToPlan();
   const signature = request.headers.get("stripe-signature");
 
   if (!signature) {

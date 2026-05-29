@@ -2,7 +2,17 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAdmin } from "../../../lib/supabase";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+function getStripeClient() {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
+
+function stripeUnavailableResponse() {
+  return NextResponse.json(
+    { error: "Stripe is not configured for this deployment." },
+    { status: 503 },
+  );
+}
 
 function getBaseUrl(request) {
   const protocol = request.headers.get("x-forwarded-proto") || "http";
@@ -11,6 +21,19 @@ function getBaseUrl(request) {
 }
 
 export async function POST(request) {
+  const stripe = getStripeClient();
+
+  if (!stripe) {
+    return stripeUnavailableResponse();
+  }
+
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      { error: "Supabase is not configured for this deployment." },
+      { status: 503 },
+    );
+  }
+
   const authorization = request.headers.get("authorization") || "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
 
