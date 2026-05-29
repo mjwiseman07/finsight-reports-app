@@ -26,6 +26,17 @@ export async function POST(request) {
     return NextResponse.json({ allowed: true, reason: "subscriber" });
   }
 
+  if (!supabaseAdmin) {
+    return NextResponse.json(
+      {
+        allowed: false,
+        reason: "supabase_not_configured",
+        error: "Supabase is not configured for this deployment.",
+      },
+      { status: 503 },
+    );
+  }
+
   const authorization = request.headers.get("authorization") || "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
 
