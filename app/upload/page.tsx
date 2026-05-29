@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import {
@@ -15,6 +15,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { supabase } from "../../lib/supabase";
+import { AdvisacorLogo } from "../../components/AdvisacorLogo";
+import {
+  automatedDeliveryOutputTypes,
+  packageScopeRules,
+  personaOutputModes,
+} from "../../lib/executive-delivery-architecture";
 
 type ParsedFile = {
   name: string;
@@ -29,6 +36,13 @@ type QuickBooksFetchedReport = {
     Header?: { ReportName?: string; ReportBasis?: string; StartPeriod?: string; EndPeriod?: string; Time?: string };
   };
   error?: string;
+};
+
+type QuickBooksCompanyProfile = {
+  company_name?: string;
+  legal_name?: string;
+  email?: string;
+  country?: string;
 };
 
 type MatchedLine = {
@@ -96,6 +110,108 @@ type APKpis = {
 
 type AgingKpis = APKpis;
 
+type ARReserveBucket = {
+  id: string;
+  label: string;
+  balance: number;
+  reservePercent: number;
+  reserveAmount: number;
+  rationale: string;
+};
+
+type ARReserveIntelligence = {
+  buckets: ARReserveBucket[];
+  totalSuggestedReserve: number;
+  existingReserveBalance: number | null;
+  reserveGap: number | null;
+  badDebtExpense: number | null;
+  writeOffs: number | null;
+  collectionRiskStatus: "Low" | "Moderate" | "Elevated" | "High" | "Insufficient Data";
+  commentary: string[];
+  internalFlags: string[];
+  hasHistoricalOverride: boolean;
+};
+
+type ReserveLifecycleReviewItem = {
+  label: string;
+  amount: number;
+  percent?: number | null;
+  commentary: string;
+};
+
+type ReserveForecastPeriod = {
+  period: string;
+  projectedReserveExposure: number;
+  projectedOlderAr: number;
+  commentary: string;
+};
+
+type ReserveLifecycleIntelligence = {
+  enabled: boolean;
+  tierScope: string;
+  suggestedReserveLow: number;
+  suggestedReserveHigh: number;
+  currentReserveBalance: number | null;
+  priorReserveBalance: number | null;
+  reserveTrendAmount: number | null;
+  reserveTrendPercent: number | null;
+  reserveToArPercent: number | null;
+  priorReserveToArPercent: number | null;
+  olderArBalance: number;
+  olderArPercent: number;
+  concentrationExposure: number;
+  concentrationPercent: number;
+  reserveBurnRate: number | null;
+  reserveVolatility: "Low" | "Moderate" | "Elevated" | "Insufficient Data";
+  adequacyStatus: "Low Exposure" | "Review Needed" | "Elevated Review" | "Insufficient Data";
+  customerConcentrationItems: ReserveLifecycleReviewItem[];
+  writeOffItems: ReserveLifecycleReviewItem[];
+  unappliedCreditItems: ReserveLifecycleReviewItem[];
+  collectionTrendItems: ReserveLifecycleReviewItem[];
+  reserveForecast: ReserveForecastPeriod[];
+  commentary: string[];
+  internalFlags: string[];
+  forecastIntegrationNotes: string[];
+};
+
+type RevenueRecognitionReviewItem = {
+  label: string;
+  amount: number;
+  count: number;
+  commentary: string;
+};
+
+type AnticipatedRecognitionSchedule = {
+  period: string;
+  expectedRecognition: number;
+  remainingDeferredObligation: number;
+  confidence: "Low" | "Moderate" | "High";
+  commentary: string;
+};
+
+type RevenueRecognitionIntelligence = {
+  enabled: boolean;
+  deferredRevenueBalance: number;
+  priorDeferredRevenueBalance: number;
+  deferredRevenueChange: number;
+  deferredRevenueGrowthPercent: number | null;
+  unbilledArBalance: number;
+  priorUnbilledArBalance: number;
+  unbilledArChange: number;
+  unbilledArGrowthPercent: number | null;
+  revenueGrowthPercent: number | null;
+  recognizedRevenueActivity: number;
+  billingActivity: number;
+  deferredRecognitionRate: number | null;
+  anticipatedRecognitionSchedule: AnticipatedRecognitionSchedule[];
+  deferredReviewItems: RevenueRecognitionReviewItem[];
+  unbilledReviewItems: RevenueRecognitionReviewItem[];
+  billingCadenceItems: RevenueRecognitionReviewItem[];
+  commentary: string[];
+  internalFlags: string[];
+  forecastIntegrationNotes: string[];
+};
+
 type InventoryItem = {
   name: string;
   quantity: number;
@@ -112,6 +228,13 @@ type InventoryKpis = {
   items: InventoryItem[];
   topByValue: InventoryItem[];
   topByQuantity: InventoryItem[];
+};
+
+type InventoryReviewItem = {
+  label: string;
+  amount: number;
+  count: number;
+  commentary: string;
 };
 
 type InventoryIntelligence = {
@@ -132,6 +255,49 @@ type InventoryIntelligence = {
   eoReservePercent: number | null;
   eoReserveWarning: string | null;
   eoReserveCommentary: string;
+  largestInventoryAdjustments: InventoryReviewItem[];
+  recurringAdjustmentItems: InventoryReviewItem[];
+  cycleCountVarianceTrends: InventoryReviewItem[];
+  purchasePriceVarianceTrends: InventoryReviewItem[];
+  manufacturingVarianceReview: InventoryReviewItem[];
+  bomVarianceReview: InventoryReviewItem[];
+  billOfLaborVarianceReview: InventoryReviewItem[];
+  jobProfitabilityConcerns: InventoryReviewItem[];
+  inventoryPurchasesWithLimitedMovement: InventoryReviewItem[];
+  operationalInventoryCommentary: string[];
+  internalInventoryFlags: string[];
+};
+
+type ManufacturingCostReviewItem = {
+  label: string;
+  amount: number;
+  count: number;
+  impact: "High" | "Moderate" | "Monitor";
+  commentary: string;
+};
+
+type ManufacturingInventoryIntelligence = {
+  enabled: boolean;
+  tierScope: string;
+  operationalEfficiencyStatus: "Stable" | "Monitor" | "Focused Review" | "Insufficient Data";
+  inventoryGrowthPercent: number | null;
+  adjustmentTrendAmount: number;
+  workingCapitalImpact: number;
+  reserveExposure: number;
+  ppvImpact: number;
+  bomVarianceImpact: number;
+  laborVarianceImpact: number;
+  jobProfitabilityImpact: number;
+  adjustmentItems: ManufacturingCostReviewItem[];
+  cycleCountItems: ManufacturingCostReviewItem[];
+  agingItems: ManufacturingCostReviewItem[];
+  ppvItems: ManufacturingCostReviewItem[];
+  bomVarianceItems: ManufacturingCostReviewItem[];
+  laborVarianceItems: ManufacturingCostReviewItem[];
+  jobProfitabilityItems: ManufacturingCostReviewItem[];
+  manufacturingVarianceItems: ManufacturingCostReviewItem[];
+  operationalCommentary: string[];
+  internalFlags: string[];
 };
 
 type FixedAssetMatch = {
@@ -141,6 +307,7 @@ type FixedAssetMatch = {
 };
 
 type FixedAssetKpis = {
+  grossFixedAssets: number;
   totalFixedAssets: number;
   accumulatedDepreciation: number;
   netBookValue: number;
@@ -158,6 +325,73 @@ type FixedAssetChangeRow = {
   prior: number;
   change: number;
   interpretation: string;
+};
+
+type AssetIntegrityReviewItem = {
+  label: string;
+  amount: number;
+  count: number;
+  status: "Review" | "Monitor" | "Informational";
+  commentary: string;
+};
+
+type FixedAssetRollforwardPeriod = {
+  period: string;
+  beginningGrossFixedAssets: number;
+  additions: number;
+  disposals: number;
+  endingGrossFixedAssets: number;
+  beginningAccumulatedDepreciation: number;
+  depreciationExpense: number;
+  disposalWriteOffs: number;
+  endingAccumulatedDepreciation: number;
+  endingNetBookValue: number;
+  commentary: string;
+};
+
+type FixedAssetIntegrityIntelligence = {
+  enabled: boolean;
+  tierScope: string;
+  integrityStatus: "Low Review" | "Monitor" | "Focused Review" | "Insufficient Data";
+  capexTrendAmount: number;
+  depreciationTrendAmount: number;
+  cipBalance: number;
+  prepaidBalance: number;
+  rollforwards: FixedAssetRollforwardPeriod[];
+  cipItems: AssetIntegrityReviewItem[];
+  depreciationItems: AssetIntegrityReviewItem[];
+  prepaidItems: AssetIntegrityReviewItem[];
+  stagnantAssetItems: AssetIntegrityReviewItem[];
+  balanceSheetIntegrityItems: AssetIntegrityReviewItem[];
+  commentary: string[];
+  internalFlags: string[];
+};
+
+type CloseManagementReviewItem = {
+  label: string;
+  amount: number;
+  count: number;
+  status: "Review" | "Monitor" | "Informational";
+  commentary: string;
+};
+
+type CloseQualityStatus = "Healthy" | "Moderate Review" | "Elevated Review" | "High Review";
+
+type CloseManagementIntelligence = {
+  enabled: boolean;
+  tierScope: string;
+  closeQualityScore: number;
+  closeQualityStatus: CloseQualityStatus;
+  staleLiabilityItems: CloseManagementReviewItem[];
+  staleAssetItems: CloseManagementReviewItem[];
+  prepaidLifecycleItems: CloseManagementReviewItem[];
+  accrualReversalItems: CloseManagementReviewItem[];
+  manualJournalEntryItems: CloseManagementReviewItem[];
+  accountActivityItems: CloseManagementReviewItem[];
+  scoreDrivers: string[];
+  operationalCommentary: string[];
+  futureOperationsRoadmap: string[];
+  internalFlags: string[];
 };
 
 type PayrollDepartmentRow = {
@@ -192,6 +426,34 @@ type PayrollAnalysis = {
   commentary: string[];
 };
 
+type WorkforceReviewItem = {
+  label: string;
+  value: string;
+  commentary: string;
+};
+
+type WorkforceIntelligence = {
+  enabled: boolean;
+  tierScope: string;
+  revenuePerFte: number | null;
+  priorRevenuePerFte: number | null;
+  revenuePerFteChange: number | null;
+  payrollToRevenuePercent: number | null;
+  priorPayrollToRevenuePercent: number | null;
+  payrollGrowthPercent: number | null;
+  fteGrowthPercent: number | null;
+  revenueGrowthPercent: number | null;
+  grossProfitPerFte: number | null;
+  laborBurdenPerFte: number | null;
+  payrollMarginPressure: number | null;
+  departmentScalingItems: WorkforceReviewItem[];
+  productivityItems: WorkforceReviewItem[];
+  operationalCommentary: string[];
+  tierAdvisoryCommentary: string[];
+  internalFlags: string[];
+  forecastIntegrationNotes: string[];
+};
+
 type BudgetMetrics = {
   revenueActual: number | null;
   revenueBudget: number | null;
@@ -211,9 +473,76 @@ type DebtMetrics = {
   debtToEquity: number | null;
 };
 
+type TreasuryReviewItem = {
+  label: string;
+  value: string;
+  commentary: string;
+};
+
+type CashForecastPeriod = {
+  period: string;
+  projectedCash: number;
+  expectedCollections: number;
+  expectedPayments: number;
+  payrollOutflow: number;
+  debtOutflow: number;
+  commentary: string;
+};
+
+type TreasuryLiquidityIntelligence = {
+  enabled: boolean;
+  tierScope: string;
+  cashBalance: number;
+  priorCashBalance: number;
+  cashChange: number;
+  cashGrowthPercent: number | null;
+  currentRatio: number | null;
+  quickRatio: number | null;
+  workingCapital: number | null;
+  priorWorkingCapital: number | null;
+  workingCapitalChange: number | null;
+  bankAccountCount: number;
+  cashConcentrationPercent: number;
+  idleCashEstimate: number;
+  operatingCashMovement: number | null;
+  liquidityRunwayWeeks: number | null;
+  bankAccountItems: TreasuryReviewItem[];
+  cashPositionItems: TreasuryReviewItem[];
+  reconciliationItems: TreasuryReviewItem[];
+  checkSequenceItems: TreasuryReviewItem[];
+  cashForecast: CashForecastPeriod[];
+  commentary: string[];
+  internalFlags: string[];
+  forecastIntegrationNotes: string[];
+};
+
 type ExecutiveSummarySectionItem = {
   title: string;
   body: string;
+};
+
+type ExecutivePriorityLevel = "Top Priority" | "Moderate Priority" | "Monitoring Item";
+
+type ExecutivePriorityItem = {
+  title: string;
+  narrative: string;
+  priority: ExecutivePriorityLevel;
+  score: number;
+  category: string;
+};
+
+type ExecutiveStoryCard = {
+  label: string;
+  value: string;
+  narrative: string;
+  tone: "positive" | "neutral" | "watch";
+};
+
+type ExecutiveRiskNarrative = {
+  title: string;
+  severity: ExecutivePriorityLevel;
+  score: number;
+  narrative: string;
 };
 
 type BoardPackageSection = {
@@ -229,6 +558,32 @@ type FolderImportResult = {
   duplicateMatches: Array<{ reportLabel: string; fileNames: string[] }>;
   missingRequiredReports: string[];
 };
+type QuickBooksHybridImportState = {
+  attempted: boolean;
+  importedReportIds: string[];
+  unavailableReportIds: string[];
+};
+type QuickBooksCapabilities = {
+  qbo_version: string;
+  has_payroll: boolean;
+  has_inventory: boolean;
+  has_classes: boolean;
+  has_budgets: boolean;
+  has_fixed_assets: boolean;
+  available_reports: string[];
+  company_name?: string;
+  company_legal_name?: string;
+  recommended_package: "essential" | "professional" | "virtual_cfo";
+  mismatch_warning?: string;
+  missing_virtual_cfo_features?: string[];
+};
+
+const DEFAULT_CLIENT_NAME = "Client Company Name";
+const DEFAULT_REPORTING_PERIOD = "Current Reporting Period";
+const DEFAULT_CLIENT_INDUSTRY = "Industry not specified";
+const DEFAULT_COMPANY_TAGLINE = "Board-ready financial package";
+const DEFAULT_PREPARED_FOR = "Management / Ownership / Board Review";
+const DEFAULT_PREPARED_BY = "Advisacor";
 
 type PackageRequirement = {
   id: string;
@@ -264,7 +619,9 @@ type PackageSectionId =
   | "recommended-follow-up";
 
 type OutputStyle = "board" | "hybrid" | "detailed";
+type ImportMethod = "quickbooks" | "folder" | "manual" | null;
 type KpiReviewMode = "choose" | "staged" | "print";
+type VirtualCfoKpiMode = "recommended" | "custom";
 type KpiReviewSectionId =
   | "validation"
   | "detected-kpis"
@@ -273,6 +630,7 @@ type KpiReviewSectionId =
   | "ratio-analysis"
   | "financial-snapshot";
 type CopilotRole = "bookkeeper" | "controller" | "cfo" | "owner";
+type PersonaOutputModeId = "bookkeeper" | "controller" | "fractional-cfo" | "business-owner";
 type CopilotCalloutKind = "info" | "warning" | "check" | "tip";
 type CopilotResponseSource = "help" | "ai" | "advanced-ai";
 type CopilotCallout = {
@@ -310,6 +668,7 @@ type CopilotCapabilities = {
   canUseWorkflowHelp: boolean;
   canUseKPIHelp: boolean;
   canUseQuickBooksTroubleshooting: boolean;
+  canUseOperationalExplanations: boolean;
   canUseFinancialQA: boolean;
   canUseStrategicAI: boolean;
   canUseBoardAdvisory: boolean;
@@ -342,6 +701,7 @@ type CopilotBackendPayload = {
   context: {
     workflowStep: number;
     workflowStepLabel: string;
+    importMethod: ImportMethod;
     selectedPackage: PackageTier;
     uploadedReports: Array<{ id: string; label: string; tier: UploadTier; status: "uploaded" | "omitted" | "missing" }>;
     validationResults: Pick<ValidationResults, "status" | "summary" | "financialConfidenceScore" | "KPIConfidenceScore" | "fluxConfidenceScore" | "AICommentaryConfidenceScore"> & {
@@ -350,6 +710,35 @@ type CopilotBackendPayload = {
     kpis: Omit<KPIs, "matches">;
     ratios: Array<{ name: string; formula: string; value: string; interpretation: string }>;
     fluxResults: Array<Pick<FluxRow, "accountName" | "dollarVariance" | "percentVariance" | "severity" | "topDriver" | "commentary">>;
+    packageQaFindings: PackageQaFinding[];
+    apCutoffIntelligence: {
+      recurringAccrualRiskStatus: ApCutoffRiskStatus;
+      reviewWindows: ApCutoffReviewWindow[];
+      recurringVendorProfiles: RecurringVendorAccrualProfile[];
+      commentary: string[];
+    };
+    reserveLifecycleIntelligence: {
+      adequacyStatus: ReserveLifecycleIntelligence["adequacyStatus"];
+      suggestedReserveLow: number;
+      suggestedReserveHigh: number;
+      reserveToArPercent: number | null;
+      olderArBalance: number;
+      olderArPercent: number;
+      concentrationExposure: number;
+      concentrationPercent: number;
+      reserveVolatility: ReserveLifecycleIntelligence["reserveVolatility"];
+      reserveForecast: ReserveForecastPeriod[];
+      commentary: string[];
+      internalFlags: string[];
+    };
+    revenueRecognitionIntelligence: {
+      deferredRevenueBalance: number;
+      unbilledArBalance: number;
+      anticipatedRecognitionSchedule: AnticipatedRecognitionSchedule[];
+      commentary: string[];
+      internalFlags: string[];
+      forecastIntegrationNotes: string[];
+    };
     payrollFteResults: {
       totalCurrentFte: number;
       totalPriorFte: number;
@@ -359,10 +748,56 @@ type CopilotBackendPayload = {
       highestFteIncreaseDepartment: string;
       highestPayrollCostIncreaseDepartment: string;
     };
+    workforceIntelligence: {
+      revenuePerFte: number | null;
+      payrollToRevenuePercent: number | null;
+      productivityItems: WorkforceReviewItem[];
+      departmentScalingItems: WorkforceReviewItem[];
+      internalFlags: string[];
+      forecastIntegrationNotes: string[];
+    };
+    treasuryLiquidityIntelligence: {
+      cashBalance: number;
+      workingCapital: number | null;
+      currentRatio: number | null;
+      quickRatio: number | null;
+      liquidityRunwayWeeks: number | null;
+      bankAccountCount: number;
+      cashForecast: CashForecastPeriod[];
+      commentary: string[];
+      internalFlags: string[];
+    };
+    manufacturingInventoryIntelligence: {
+      operationalEfficiencyStatus: ManufacturingInventoryIntelligence["operationalEfficiencyStatus"];
+      inventoryGrowthPercent: number | null;
+      adjustmentTrendAmount: number;
+      workingCapitalImpact: number;
+      reserveExposure: number;
+      ppvImpact: number;
+      bomVarianceImpact: number;
+      laborVarianceImpact: number;
+      jobProfitabilityImpact: number;
+      operationalCommentary: string[];
+      internalFlags: string[];
+    };
+    closeManagementIntelligence: {
+      closeQualityScore: number;
+      closeQualityStatus: CloseQualityStatus;
+      staleLiabilityItems: CloseManagementReviewItem[];
+      staleAssetItems: CloseManagementReviewItem[];
+      prepaidLifecycleItems: CloseManagementReviewItem[];
+      accrualReversalItems: CloseManagementReviewItem[];
+      manualJournalEntryItems: CloseManagementReviewItem[];
+      accountActivityItems: CloseManagementReviewItem[];
+      scoreDrivers: string[];
+      operationalCommentary: string[];
+      internalFlags: string[];
+    };
     selectedUploadContext: SelectedUploadContext | null;
   };
   userQuestion: string;
   selectedRole: CopilotRole;
+  selectedPersonaOutputMode: PersonaOutputModeId;
   selectedPackage: PackageTier;
 };
 
@@ -384,6 +819,7 @@ function getCopilotCapabilities(packageTier: PackageTier): CopilotCapabilities {
     canUseWorkflowHelp: true,
     canUseKPIHelp: true,
     canUseQuickBooksTroubleshooting: true,
+    canUseOperationalExplanations: true,
     canUseFinancialQA: isProfessionalOrHigher(packageTier),
     canUseStrategicAI: isVirtualCfo(packageTier),
     canUseBoardAdvisory: isVirtualCfo(packageTier),
@@ -392,7 +828,7 @@ function getCopilotCapabilities(packageTier: PackageTier): CopilotCapabilities {
   };
 }
 const defaultUploadHelpPlaybook: UploadHelpPlaybook = {
-  purpose: "FinSight uses this report as supporting detail for KPI calculation, validation, and advisory review.",
+  purpose: "Advisacor uses this report as supporting detail for KPI calculation, validation, and advisory review.",
   purposeBullets: ["KPI calculation", "Validation support", "Advisory review"],
   dateRange: "Use the same reporting period or report date as the related financial statement.",
   expectedColumns: ["Account or line item name", "Amount or balance", "Date/period where applicable"],
@@ -405,7 +841,7 @@ const defaultUploadHelpPlaybook: UploadHelpPlaybook = {
 };
 const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
   pl: {
-    purpose: "FinSight uses the Profit and Loss to calculate revenue, gross profit, expenses, net income, margins, ratios, and executive commentary.",
+    purpose: "Advisacor uses the Profit and Loss to calculate revenue, gross profit, expenses, net income, margins, ratios, and executive commentary.",
     purposeBullets: ["Revenue analysis", "Gross profit", "Net income", "Margin calculations", "Ratio analysis", "Executive commentary"],
     dateRange: "Use the current reporting period, usually month-to-date for the package period.",
     expectedColumns: ["Account or line item", "Current period amount", "Revenue, COGS, expense, and net income totals"],
@@ -413,7 +849,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Confirm P&L Net Income agrees to the Balance Sheet current year earnings when available.",
   },
   bs: {
-    purpose: "FinSight uses the Balance Sheet for liquidity, working capital, debt, equity, control account validation, and ratio analysis.",
+    purpose: "Advisacor uses the Balance Sheet for liquidity, working capital, debt, equity, control account validation, and ratio analysis.",
     purposeBullets: ["Liquidity review", "Working capital", "Debt and equity analysis", "Control account validation", "Ratio analysis"],
     dateRange: "Use the same period-ending date as the package.",
     expectedColumns: ["Balance Sheet line item", "Ending balance", "Assets, liabilities, and equity totals"],
@@ -421,7 +857,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Confirm total assets equal liabilities plus equity and compare control accounts to supporting schedules.",
   },
   ar: {
-    purpose: "FinSight uses AR Aging to review collections risk and reconcile receivables to the Balance Sheet.",
+    purpose: "Advisacor uses AR Aging to review collections risk and reconcile receivables to the Balance Sheet.",
     purposeBullets: ["Collections risk", "Aging mix", "DSO support", "Balance Sheet reconciliation"],
     dateRange: "Use the same as-of date as the Balance Sheet.",
     expectedColumns: ["Customer", "Current", "1-30", "31-60", "61-90", "90+", "Total"],
@@ -429,7 +865,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare AR Aging total to the Balance Sheet Accounts Receivable balance.",
   },
   ap: {
-    purpose: "FinSight uses AP Aging to review vendor obligations, cash pressure, and reconcile payables to the Balance Sheet.",
+    purpose: "Advisacor uses AP Aging to review vendor obligations, cash pressure, and reconcile payables to the Balance Sheet.",
     purposeBullets: ["Vendor obligations", "Cash pressure", "Aging mix", "Balance Sheet reconciliation"],
     dateRange: "Use the same as-of date as the Balance Sheet.",
     expectedColumns: ["Vendor", "Current", "1-30", "31-60", "61-90", "90+", "Total"],
@@ -437,7 +873,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare AP Aging total to the Balance Sheet Accounts Payable balance.",
   },
   inventory: {
-    purpose: "FinSight uses this report to compare inventory value to the Balance Sheet inventory account, calculate concentration, slow-moving inventory, and inventory turnover.",
+    purpose: "Advisacor uses this report to compare inventory value to the Balance Sheet inventory account, calculate concentration, slow-moving inventory, and inventory turnover.",
     purposeBullets: ["Inventory to Balance Sheet validation", "Inventory concentration", "Slow-moving inventory", "Inventory turnover"],
     dateRange: "Use the same report date as the Balance Sheet.",
     expectedColumns: ["Item name or part number", "Quantity on hand", "Average cost", "Inventory asset value"],
@@ -445,7 +881,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare total Inventory Valuation Summary to the Balance Sheet Inventory Asset account before continuing.",
   },
   "prior-inventory": {
-    purpose: "FinSight uses prior inventory to compare movement, identify slow-moving items, and calculate average inventory for turns.",
+    purpose: "Advisacor uses prior inventory to compare movement, identify slow-moving items, and calculate average inventory for turns.",
     purposeBullets: ["Inventory movement", "Slow-moving item detection", "Average inventory", "Inventory turns"],
     dateRange: "Use the prior comparison period ending date.",
     expectedColumns: ["Item name or part number", "Quantity on hand", "Average cost", "Inventory asset value"],
@@ -453,7 +889,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare prior valuation total to the prior Balance Sheet inventory account if available.",
   },
   customers: {
-    purpose: "FinSight uses Sales by Customer to identify revenue concentration and customer-level sales drivers.",
+    purpose: "Advisacor uses Sales by Customer to identify revenue concentration and customer-level sales drivers.",
     purposeBullets: ["Customer concentration", "Sales drivers", "Revenue quality", "Customer-level trend review"],
     dateRange: "Use the same period as the current Profit and Loss.",
     expectedColumns: ["Customer", "Sales amount", "Total sales"],
@@ -461,7 +897,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare total sales by customer to P&L revenue for the same period.",
   },
   vendors: {
-    purpose: "FinSight uses Expenses by Vendor to identify vendor concentration and expense drivers.",
+    purpose: "Advisacor uses Expenses by Vendor to identify vendor concentration and expense drivers.",
     purposeBullets: ["Vendor concentration", "Expense drivers", "Spend review", "Cost control opportunities"],
     dateRange: "Use the same period as the current Profit and Loss.",
     expectedColumns: ["Vendor", "Expense amount", "Total expenses"],
@@ -469,7 +905,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare vendor expense totals to relevant P&L expense categories.",
   },
   "fixed-assets": {
-    purpose: "FinSight uses fixed asset detail to calculate gross assets, accumulated depreciation, net book value, and CapEx/depreciation commentary.",
+    purpose: "Advisacor uses fixed asset detail to calculate gross assets, accumulated depreciation, net book value, and CapEx/depreciation commentary.",
     purposeBullets: ["Gross fixed assets", "Accumulated depreciation", "Net book value", "CapEx/depreciation commentary"],
     dateRange: "Use the current period ending date.",
     expectedColumns: ["Asset name", "Original cost", "Accumulated depreciation", "Net book value", "Depreciation expense if available"],
@@ -477,7 +913,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare net book value to fixed asset balances on the Balance Sheet.",
   },
   "prior-fixed-assets": {
-    purpose: "FinSight uses prior fixed asset detail to build a rollforward of beginning assets, additions, disposals, and ending assets.",
+    purpose: "Advisacor uses prior fixed asset detail to build a rollforward of beginning assets, additions, disposals, and ending assets.",
     purposeBullets: ["Beginning asset balance", "Asset additions", "Disposals", "Fixed asset rollforward"],
     dateRange: "Use the prior comparison period ending date.",
     expectedColumns: ["Asset name", "Original cost", "Accumulated depreciation", "Net book value"],
@@ -485,7 +921,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare prior net book value to prior Balance Sheet fixed asset balances if available.",
   },
   budget: {
-    purpose: "FinSight uses Budget vs Actual to identify budget misses and unfavorable variances.",
+    purpose: "Advisacor uses Budget vs Actual to identify budget misses and unfavorable variances.",
     purposeBullets: ["Budget performance", "Unfavorable variances", "Management accountability", "Forecast discussion"],
     dateRange: "Use the same current period as the P&L.",
     expectedColumns: ["Account", "Actual", "Budget", "Variance"],
@@ -493,7 +929,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Confirm actual revenue and net income align directionally to the P&L.",
   },
   "current-payroll": {
-    purpose: "FinSight uses current payroll by department to calculate payroll cost, FTE, payroll % of revenue, and staffing trends.",
+    purpose: "Advisacor uses current payroll by department to calculate payroll cost, FTE, payroll % of revenue, and staffing trends.",
     purposeBullets: ["Payroll cost", "FTE", "Payroll as % of revenue", "Department staffing trends"],
     dateRange: "Use the current month/reporting period.",
     expectedColumns: ["Department or class", "Hours", "Wages", "Taxes", "Benefits or total payroll cost"],
@@ -501,7 +937,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare total payroll cost to payroll GL detail for the same period.",
   },
   "prior-payroll": {
-    purpose: "FinSight uses prior payroll by department to calculate FTE and payroll cost changes.",
+    purpose: "Advisacor uses prior payroll by department to calculate FTE and payroll cost changes.",
     purposeBullets: ["Prior payroll baseline", "FTE change", "Payroll cost trend", "Department comparison"],
     dateRange: "Use the prior month/comparison period.",
     expectedColumns: ["Department or class", "Hours", "Wages", "Taxes", "Benefits or total payroll cost"],
@@ -509,7 +945,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
     reconcileCheck: "Compare prior payroll total to prior payroll GL activity.",
   },
   debt: {
-    purpose: "FinSight uses debt detail to calculate debt exposure, current/long-term split, and leverage ratios.",
+    purpose: "Advisacor uses debt detail to calculate debt exposure, current/long-term split, and leverage ratios.",
     purposeBullets: ["Debt exposure", "Current and long-term debt", "Leverage ratios", "Debt service review"],
     dateRange: "Use the Balance Sheet period-ending date.",
     expectedColumns: ["Loan/lender", "Principal balance", "Current portion", "Long-term portion", "Interest rate or payment if available"],
@@ -519,7 +955,7 @@ const uploadHelpPlaybooks: Record<string, UploadHelpPlaybook> = {
 };
 ["current-month-gl", "prior-month-gl", "current-quarter-gl", "prior-quarter-gl", "current-year-gl", "prior-year-gl"].forEach((reportId) => {
   uploadHelpPlaybooks[reportId] = {
-    purpose: "FinSight uses General Ledger detail to calculate flux, explain account movement, and support reconciliation review.",
+    purpose: "Advisacor uses General Ledger detail to calculate flux, explain account movement, and support reconciliation review.",
     purposeBullets: ["Flux analysis", "Account movement", "Transaction support", "Reconciliation review"],
     dateRange: reportId.includes("month")
       ? reportId.includes("prior") ? "Use the prior month date range." : "Use the current month date range."
@@ -613,6 +1049,11 @@ function inferCopilotRole(packageTier: PackageTier, workflowStep: number, questi
   }
   return "owner";
 }
+function getCopilotRoleForPersona(personaOutputMode: PersonaOutputModeId): CopilotRole {
+  if (personaOutputMode === "fractional-cfo") return "cfo";
+  if (personaOutputMode === "business-owner") return "owner";
+  return personaOutputMode;
+}
 function getRoleAwareUploadGuidance(role: CopilotRole, context: SelectedUploadContext) {
   if (role === "bookkeeper") {
     return `Focus on workflow accuracy: export the right report, use the correct date range, expand detail rows, and confirm the file uploaded on the ${context.reportName} card.`;
@@ -664,7 +1105,7 @@ function buildStructuredUploadHelpResponse(
     "Expand all account or item detail before exporting.",
     "Use accrual basis unless your firm has instructed otherwise.",
     "Match report dates across related uploads.",
-    "Avoid custom subtotal filters that hide rows FinSight needs.",
+    "Avoid custom subtotal filters that hide rows Advisacor needs.",
   ];
   const baseSections: CopilotStructuredSection[] = [
     {
@@ -678,7 +1119,7 @@ function buildStructuredUploadHelpResponse(
       id: "why-this-matters",
       title: "Why This Matters",
       defaultOpen: true,
-      body: `${context.playbook.purpose} This improves KPI confidence and helps FinSight produce cleaner accounting review and advisory output.`,
+      body: `${context.playbook.purpose} This improves KPI confidence and helps Advisacor produce cleaner accounting review and advisory output.`,
     },
     ...getQuickBooksExportSections(context),
     {
@@ -695,7 +1136,7 @@ function buildStructuredUploadHelpResponse(
     },
     {
       id: "expected-data",
-      title: "FinSight Expects",
+      title: "Advisacor Expects",
       defaultOpen: normalized.includes("columns") || normalized.includes("help me with this upload"),
       bullets: context.playbook.expectedColumns,
     },
@@ -779,7 +1220,7 @@ function getCopilotStructuredResponse(response: CopilotResponse) {
 function getCopilotSourceLabel(source: CopilotResponseSource) {
   if (source === "ai") return "AI analysis based on uploaded data";
   if (source === "advanced-ai") return "Advanced AI review";
-  return "Guidance from FinSight Help";
+  return "Guidance from Advisacor Help";
 }
 
 type RatioId =
@@ -898,6 +1339,51 @@ type GlActivityRow = {
   balance: number;
 };
 
+type ApCutoffRiskStatus = "Low" | "Moderate" | "Elevated" | "High";
+type ApCutoffCandidate = {
+  vendor: string;
+  accountName: string;
+  invoiceDate: string;
+  postingDate: string;
+  daysAfterClose: number;
+  amount: number;
+  source: string;
+  memo: string;
+};
+type ApCutoffReviewWindow = {
+  daysAfterClose: number;
+  candidateCount: number;
+  totalAmount: number;
+  vendorCount: number;
+};
+type RecurringVendorAccrualProfile = {
+  vendor: string;
+  lateInvoiceCount: number;
+  averageLateInvoiceAmount: number;
+  totalLateInvoiceAmount: number;
+  averageDaysAfterClose: number;
+  riskStatus: ApCutoffRiskStatus;
+  commentary: string;
+};
+type AccrualClearingReviewItem = {
+  accountName: string;
+  currentActivity: number;
+  priorActivity: number;
+  change: number;
+  status: ApCutoffRiskStatus;
+  commentary: string;
+};
+type ApCutoffIntelligence = {
+  enabled: boolean;
+  reviewWindows: ApCutoffReviewWindow[];
+  candidates: ApCutoffCandidate[];
+  recurringVendorProfiles: RecurringVendorAccrualProfile[];
+  accrualClearingItems: AccrualClearingReviewItem[];
+  recurringAccrualRiskStatus: ApCutoffRiskStatus;
+  commentary: string[];
+  internalFlags: string[];
+};
+
 type FluxDriver = {
   name: string;
   current: number;
@@ -922,6 +1408,13 @@ type FluxRow = {
   commentary: string;
   topDrivers: FluxDriver[];
   warnings: string[];
+};
+type FluxReviewRowState = {
+  reviewed: boolean;
+  includeInDeliverables: boolean;
+  flagForManagement: boolean;
+  internalNote: string;
+  clientExplanation: string;
 };
 
 type ValidationStatus = "green" | "yellow" | "red" | "gray";
@@ -973,6 +1466,27 @@ type ValidationResults = {
   status: ValidationStatus;
   summary: string;
 };
+type PackageQaFinding = {
+  id: string;
+  severity: ValidationSeverity;
+  category:
+    | "calculation"
+    | "commentary"
+    | "relationship"
+    | "possible-accrual"
+    | "executive-summary"
+    | "ar-reserve"
+    | "reserve-lifecycle"
+    | "ap-cutoff"
+    | "revenue-recognition"
+    | "workforce"
+    | "treasury"
+    | "fixed-asset-integrity"
+    | "manufacturing-inventory"
+    | "close-management";
+  message: string;
+  internalOnly: true;
+};
 
 type ValidationToleranceConfig = {
   financialStatementTotals: number;
@@ -1008,36 +1522,48 @@ const STRIPE_PRICE_TO_PACKAGE_TIER: Record<string, PackageTier> = {
   price_1TanyYCYGplhrQTJG82yVpJC: "virtualCfo",
 };
 const entitlementRatios: Record<PackageTier, RatioId[]> = {
-  essential: ["Net Margin", "Gross Margin", "Operating Margin", "Expense Ratio", "Current Ratio", "Quick Ratio"],
-  professional: getDefaultRatiosForPackage("professional"),
+  essential: [
+    "DSO",
+    "AP to Revenue",
+    "AR Turnover",
+    "AP Turnover",
+    "Payroll Cost as % of Revenue",
+    "Gross Wages as % of Revenue",
+    "Payroll Taxes as % of Gross Wages",
+    "Payroll Cost per FTE",
+    "Revenue per FTE",
+    "Gross Profit per FTE",
+  ],
+  professional: getDefaultRatiosForPackage("professional").filter((ratio) => !["Debt to Equity", "Debt to Assets"].includes(ratio)),
   virtualCfo: getDefaultRatiosForPackage("virtualCfo"),
 };
 const entitlementFluxAnalyses: Record<PackageTier, FluxAnalysisId[]> = {
   essential: ["month"],
-  professional: ["month", "quarter", "year"],
+  professional: ["month", "quarter"],
   virtualCfo: ["month", "quarter", "year"],
 };
 const PREVIEW_COLUMN_LIMIT = 10;
 const essentialPackageRequirements: PackageRequirement[] = [
   { id: "pl", label: "Profit and Loss", reportIds: ["pl"] },
   { id: "bs", label: "Balance Sheet", reportIds: ["bs"] },
+  { id: "ar", label: "AR Aging", reportIds: ["ar"] },
+  { id: "ap", label: "AP Aging", reportIds: ["ap"] },
+  { id: "payroll-summary", label: "Payroll Summary / Payroll by Department", reportIds: ["current-payroll", "prior-payroll"] },
   { id: "prior-pl-or-gl", label: "Prior Month P&L or GL", reportIds: ["prior-pl", "prior-month-gl"] },
   { id: "prior-bs-or-gl", label: "Prior Month Balance Sheet or GL", reportIds: ["prior-bs", "prior-month-gl"] },
 ];
 const professionalPackageRequirements: PackageRequirement[] = [
   ...essentialPackageRequirements,
-  { id: "ar", label: "AR Aging", reportIds: ["ar"] },
-  { id: "ap", label: "AP Aging", reportIds: ["ap"] },
   { id: "inventory", label: "Inventory Valuation", reportIds: ["inventory"] },
   { id: "customers", label: "Sales by Customer", reportIds: ["customers"] },
   { id: "vendors", label: "Expenses by Vendor", reportIds: ["vendors"] },
-  { id: "payroll-summary", label: "Payroll Summary / Payroll by Department", reportIds: ["current-payroll", "prior-payroll"] },
   { id: "current-month-gl", label: "Current Month GL", reportIds: ["current-month-gl"] },
   { id: "prior-month-gl", label: "Prior Month GL", reportIds: ["prior-month-gl"] },
   { id: "current-quarter-gl", label: "Current Quarter GL", reportIds: ["current-quarter-gl"] },
   { id: "prior-quarter-gl", label: "Prior Quarter GL", reportIds: ["prior-quarter-gl"] },
-  { id: "current-year-gl", label: "Current Year GL", reportIds: ["current-year-gl"] },
-  { id: "prior-year-gl", label: "Prior Year GL", reportIds: ["prior-year-gl"] },
+  { id: "fixed-assets", label: "Fixed Assets", reportIds: ["fixed-assets"] },
+  { id: "prior-fixed-assets", label: "Prior Period Fixed Assets", reportIds: ["prior-fixed-assets"] },
+  { id: "debt", label: "Debt Schedule", reportIds: ["debt"] },
 ];
 const packageRequirements: Record<PackageTier, PackageRequirement[]> = {
   essential: [
@@ -1050,10 +1576,9 @@ const packageRequirements: Record<PackageTier, PackageRequirement[]> = {
     ...professionalPackageRequirements,
     { id: "budget", label: "Budget vs Actual", reportIds: ["budget"] },
     { id: "prior-inventory", label: "Prior Period Inventory Valuation", reportIds: ["prior-inventory"] },
-    { id: "fixed-assets", label: "Fixed Assets", reportIds: ["fixed-assets"] },
-    { id: "prior-fixed-assets", label: "Prior Period Fixed Assets", reportIds: ["prior-fixed-assets"] },
-    { id: "debt", label: "Debt Schedule", reportIds: ["debt"] },
     { id: "cash-flow", label: "Statement of Cash Flows", reportIds: ["cash-flow"] },
+    { id: "current-year-gl", label: "Current Year GL", reportIds: ["current-year-gl"] },
+    { id: "prior-year-gl", label: "Prior Year GL", reportIds: ["prior-year-gl"] },
   ],
 };
 const packageSectionOptions: Array<{
@@ -1071,15 +1596,15 @@ const packageSectionOptions: Array<{
   { id: "customer-sales", label: "Customer Sales Analysis", minimumTier: "professional", requiredReportIds: ["customers"] },
   { id: "vendor-expenses", label: "Vendor Expense Analysis", minimumTier: "professional", requiredReportIds: ["vendors"] },
   { id: "inventory-summary", label: "Inventory Summary", minimumTier: "professional", requiredReportIds: ["inventory"] },
-  { id: "fixed-asset-analysis", label: "Fixed Asset Analysis", minimumTier: "virtualCfo", requiredReportIds: ["fixed-assets"] },
-  { id: "payroll-fte", label: "Payroll and FTE Analysis", minimumTier: "professional", requiredReportIds: ["current-payroll", "prior-payroll"] },
+  { id: "fixed-asset-analysis", label: "Fixed Asset Analysis", minimumTier: "professional", requiredReportIds: ["fixed-assets"] },
+  { id: "payroll-fte", label: "Payroll and FTE Analysis", minimumTier: "essential", requiredReportIds: ["current-payroll", "prior-payroll"] },
   { id: "ratio-analysis", label: "Ratio Analysis", minimumTier: "essential" },
   { id: "budget-vs-actual", label: "Budget vs Actual", minimumTier: "virtualCfo", requiredReportIds: ["budget"] },
-  { id: "debt-schedule", label: "Debt Schedule", minimumTier: "virtualCfo", requiredReportIds: ["debt"] },
+  { id: "debt-schedule", label: "Debt Schedule", minimumTier: "professional", requiredReportIds: ["debt"] },
   { id: "flux-summary", label: "Flux Analysis Executive Summary", minimumTier: "essential", requiredReportIds: ["current-month-gl", "prior-month-gl"] },
   { id: "month-flux", label: "Month-over-Month Flux", minimumTier: "essential", requiredReportIds: ["current-month-gl", "prior-month-gl"] },
   { id: "quarter-flux", label: "Quarter-over-Quarter Flux", minimumTier: "professional", requiredReportIds: ["current-quarter-gl", "prior-quarter-gl"] },
-  { id: "year-flux", label: "Year-over-Year Flux", minimumTier: "professional", requiredReportIds: ["current-year-gl", "prior-year-gl"] },
+  { id: "year-flux", label: "Year-over-Year Flux", minimumTier: "virtualCfo", requiredReportIds: ["current-year-gl", "prior-year-gl"] },
   { id: "recommended-follow-up", label: "Recommended Follow-Up Items", minimumTier: "virtualCfo" },
 ];
 const ratioOptions: RatioId[] = [
@@ -1114,17 +1639,17 @@ const chartOptions: Array<{ id: ChartSelectionId; label: string; minimumTier: Pa
   { id: "gross-margin-trend", label: "Gross Margin Trend", minimumTier: "essential" },
   { id: "ebitda-trend", label: "EBITDA Trend", minimumTier: "professional" },
   { id: "cash-trend", label: "Cash Trend", minimumTier: "essential" },
-  { id: "ar-aging-mix", label: "AR Aging Mix", minimumTier: "professional" },
-  { id: "ap-aging-mix", label: "AP Aging Mix", minimumTier: "professional" },
-  { id: "payroll-trend", label: "Payroll Trend", minimumTier: "professional" },
-  { id: "revenue-per-fte", label: "Revenue per FTE", minimumTier: "professional" },
+  { id: "ar-aging-mix", label: "AR Aging Mix", minimumTier: "essential" },
+  { id: "ap-aging-mix", label: "AP Aging Mix", minimumTier: "essential" },
+  { id: "payroll-trend", label: "Payroll Trend", minimumTier: "essential" },
+  { id: "revenue-per-fte", label: "Revenue per FTE", minimumTier: "essential" },
   { id: "expense-breakdown", label: "Expense Breakdown", minimumTier: "essential" },
   { id: "budget-vs-actual", label: "Budget vs Actual", minimumTier: "virtualCfo" },
   { id: "net-income-trend", label: "Net Income Trend", minimumTier: "essential" },
   { id: "working-capital-trend", label: "Working Capital Trend", minimumTier: "professional" },
 ];
 const packageDefaultCharts: Record<PackageTier, ChartSelectionId[]> = {
-  essential: ["revenue-trend", "gross-margin-trend", "cash-trend", "expense-breakdown", "net-income-trend"],
+  essential: ["ar-aging-mix", "ap-aging-mix", "payroll-trend", "revenue-per-fte"],
   professional: [
     "revenue-trend",
     "gross-margin-trend",
@@ -1132,8 +1657,9 @@ const packageDefaultCharts: Record<PackageTier, ChartSelectionId[]> = {
     "cash-trend",
     "ar-aging-mix",
     "ap-aging-mix",
+    "payroll-trend",
+    "revenue-per-fte",
     "expense-breakdown",
-    "budget-vs-actual",
     "net-income-trend",
     "working-capital-trend",
   ],
@@ -1145,7 +1671,11 @@ const packageDefaultSections: Record<PackageTier, PackageSectionId[]> = {
     "kpi-snapshot",
     "income-statement",
     "balance-sheet",
+    "ar-aging",
+    "ap-aging",
+    "payroll-fte",
     "ratio-analysis",
+    "flux-summary",
     "month-flux",
   ],
   professional: [
@@ -1159,11 +1689,12 @@ const packageDefaultSections: Record<PackageTier, PackageSectionId[]> = {
     "customer-sales",
     "vendor-expenses",
     "inventory-summary",
+    "fixed-asset-analysis",
     "payroll-fte",
+    "debt-schedule",
     "flux-summary",
     "month-flux",
     "quarter-flux",
-    "year-flux",
   ],
   virtualCfo: [
     "executive-summary",
@@ -1468,7 +1999,7 @@ function getDefaultRatiosForPackage(tier: PackageTier): RatioId[] {
 }
 
 function getClientSettingsKey(clientName: string) {
-  return `finsight_client_package_settings_${clientName.trim().toLowerCase().replace(/\s+/g, "_")}`;
+  return `advisacor_client_package_settings_${clientName.trim().toLowerCase().replace(/\s+/g, "_")}`;
 }
 
 function filterSelectedFluxRows(rows: FluxRow[], includeHighOnly: boolean, includeModerate: boolean, maxRows: number) {
@@ -1479,6 +2010,10 @@ function filterSelectedFluxRows(rows: FluxRow[], includeHighOnly: boolean, inclu
       return true;
     })
     .slice(0, Math.max(maxRows || 0, 1));
+}
+
+function getFluxRowKey(row: FluxRow, basisLabel: string = row.basis) {
+  return `${basisLabel}:${row.accountNumber || "no-account"}:${row.accountName}`.toLowerCase();
 }
 
 function isReportRequiredForPackage(reportId: string, packageTier: PackageTier) {
@@ -1518,6 +2053,10 @@ function getPackageRequirementStatuses(
       resolved: uploaded || omitted,
     };
   });
+}
+
+function getPackageRequiredReportIds(packageTier: PackageTier) {
+  return Array.from(new Set(packageRequirements[packageTier].flatMap((requirement) => requirement.reportIds)));
 }
 
 function normalizeFileNameForMatch(fileName: string) {
@@ -1645,6 +2184,49 @@ function formatPeriodEnding(value: string) {
   })}`;
 }
 
+function formatReportingPeriodRange(startDate: string, endDate: string) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return formatPeriodEnding(endDate);
+  }
+
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return `${formatter.format(start)} - ${formatter.format(end)}`;
+}
+
+function parseOperationalDate(value: unknown) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatIsoDate(date: Date | null) {
+  return date ? date.toISOString().slice(0, 10) : "";
+}
+
+function daysBetween(start: Date, end: Date) {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) - Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / msPerDay);
+}
+
+function addDays(date: Date, days: number) {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+}
+
+function extractDateFromText(value: string) {
+  const match = value.match(/\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|20\d{2}-\d{1,2}-\d{1,2})\b/);
+  return match ? parseOperationalDate(match[1]) : null;
+}
+
 function getQuickBooksReportColumns(report: QuickBooksFetchedReport["data"]) {
   return (
     report?.Columns?.Column?.map((column) => column.ColTitle || column.ColType || "")
@@ -1760,7 +2342,7 @@ function escapeXml(value: string | number | null | undefined) {
 }
 
 function sanitizeFilename(value: string) {
-  return value.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim() || "FinSight Presentation";
+  return value.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim() || "Advisacor Presentation";
 }
 
 function createCrc32Table() {
@@ -2024,7 +2606,7 @@ function buildSlideXml(slide: PowerPointSlideData, index: number, slideCount: nu
             y: 6350000,
             cx: 9000000,
             cy: 230000,
-            paragraphs: pptParagraph(`Prepared by ${preparedBy || "FinSight Reports"}`, 900, "94A3B8"),
+            paragraphs: pptParagraph(`Prepared by ${preparedBy || "Advisacor"}`, 900, "94A3B8"),
           })}
         </p:spTree>
       </p:cSld>
@@ -2053,11 +2635,11 @@ function buildPptxBlob(slides: PowerPointSlideData[], preparedBy: string) {
     },
     {
       path: "docProps/core.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>FinSight Board Presentation</dc:title><dc:creator>${escapeXml(preparedBy || "FinSight Reports")}</dc:creator><cp:lastModifiedBy>${escapeXml(preparedBy || "FinSight Reports")}</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:modified></cp:coreProperties>`,
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Advisacor Board Presentation</dc:title><dc:creator>${escapeXml(preparedBy || "Advisacor")}</dc:creator><cp:lastModifiedBy>${escapeXml(preparedBy || "Advisacor")}</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:modified></cp:coreProperties>`,
     },
     {
       path: "docProps/app.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>FinSight Reports</Application><PresentationFormat>On-screen Show (16:9)</PresentationFormat><Slides>${slides.length}</Slides></Properties>`,
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Advisacor</Application><PresentationFormat>On-screen Show (16:9)</PresentationFormat><Slides>${slides.length}</Slides></Properties>`,
     },
     {
       path: "ppt/presentation.xml",
@@ -2085,7 +2667,7 @@ function buildPptxBlob(slides: PowerPointSlideData[], preparedBy: string) {
     },
     {
       path: "ppt/theme/theme1.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="FinSight"><a:themeElements><a:clrScheme name="FinSight"><a:dk1><a:srgbClr val="0B1020"/></a:dk1><a:lt1><a:srgbClr val="F8FAFC"/></a:lt1><a:dk2><a:srgbClr val="172033"/></a:dk2><a:lt2><a:srgbClr val="E2E8F0"/></a:lt2><a:accent1><a:srgbClr val="5B8CFF"/></a:accent1><a:accent2><a:srgbClr val="4FAE8A"/></a:accent2><a:accent3><a:srgbClr val="C0845A"/></a:accent3><a:accent4><a:srgbClr val="D8B56D"/></a:accent4><a:accent5><a:srgbClr val="7BA7D9"/></a:accent5><a:accent6><a:srgbClr val="94A3B8"/></a:accent6><a:hlink><a:srgbClr val="5B8CFF"/></a:hlink><a:folHlink><a:srgbClr val="7BA7D9"/></a:folHlink></a:clrScheme><a:fontScheme name="FinSight"><a:majorFont><a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="FinSight"><a:fillStyleLst><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="accent1"><a:lumMod val="110000"/><a:satMod val="105000"/></a:schemeClr></a:gs><a:gs pos="100000"><a:schemeClr val="accent1"><a:lumMod val="75000"/><a:satMod val="105000"/></a:schemeClr></a:gs></a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill><a:solidFill><a:schemeClr val="accent2"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="12700" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="19050" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:prstDash val="solid"/></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="dk1"/></a:solidFill><a:solidFill><a:schemeClr val="dk2"/></a:solidFill><a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="dk1"/></a:gs><a:gs pos="100000"><a:schemeClr val="dk2"/></a:gs></a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>`,
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Advisacor"><a:themeElements><a:clrScheme name="Advisacor"><a:dk1><a:srgbClr val="0B1020"/></a:dk1><a:lt1><a:srgbClr val="F8FAFC"/></a:lt1><a:dk2><a:srgbClr val="172033"/></a:dk2><a:lt2><a:srgbClr val="E2E8F0"/></a:lt2><a:accent1><a:srgbClr val="5B8CFF"/></a:accent1><a:accent2><a:srgbClr val="4FAE8A"/></a:accent2><a:accent3><a:srgbClr val="C0845A"/></a:accent3><a:accent4><a:srgbClr val="D8B56D"/></a:accent4><a:accent5><a:srgbClr val="7BA7D9"/></a:accent5><a:accent6><a:srgbClr val="94A3B8"/></a:accent6><a:hlink><a:srgbClr val="5B8CFF"/></a:hlink><a:folHlink><a:srgbClr val="7BA7D9"/></a:folHlink></a:clrScheme><a:fontScheme name="Advisacor"><a:majorFont><a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Advisacor"><a:fillStyleLst><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="accent1"><a:lumMod val="110000"/><a:satMod val="105000"/></a:schemeClr></a:gs><a:gs pos="100000"><a:schemeClr val="accent1"><a:lumMod val="75000"/><a:satMod val="105000"/></a:schemeClr></a:gs></a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill><a:solidFill><a:schemeClr val="accent2"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="12700" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:prstDash val="solid"/></a:ln><a:ln w="19050" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="accent1"/></a:solidFill><a:prstDash val="solid"/></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="dk1"/></a:solidFill><a:solidFill><a:schemeClr val="dk2"/></a:solidFill><a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="dk1"/></a:gs><a:gs pos="100000"><a:schemeClr val="dk2"/></a:gs></a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>`,
     },
     ...slides.flatMap((slide, index) => [
       {
@@ -2126,7 +2708,7 @@ declare global {
   interface Window {
     pptxgen?: PptxBrowserConstructor;
     PptxGenJS?: PptxBrowserConstructor;
-    __finsightPptxGenPromise?: Promise<PptxBrowserConstructor>;
+    __advisacorPptxGenPromise?: Promise<PptxBrowserConstructor>;
   }
 }
 
@@ -2134,9 +2716,9 @@ function loadPowerPointLibrary() {
   if (window.pptxgen || window.PptxGenJS) {
     return Promise.resolve((window.pptxgen || window.PptxGenJS) as PptxBrowserConstructor);
   }
-  if (window.__finsightPptxGenPromise) return window.__finsightPptxGenPromise;
+  if (window.__advisacorPptxGenPromise) return window.__advisacorPptxGenPromise;
 
-  window.__finsightPptxGenPromise = new Promise<PptxBrowserConstructor>((resolve, reject) => {
+  window.__advisacorPptxGenPromise = new Promise<PptxBrowserConstructor>((resolve, reject) => {
     const script = document.createElement("script");
     script.src = "https://unpkg.com/pptxgenjs/dist/pptxgen.bundle.js";
     script.async = true;
@@ -2149,7 +2731,7 @@ function loadPowerPointLibrary() {
     document.head.appendChild(script);
   });
 
-  return window.__finsightPptxGenPromise;
+  return window.__advisacorPptxGenPromise;
 }
 
 function getExecutiveSummaryCardBullets(slide: PowerPointSlideData, label: string, fallback: string[]) {
@@ -2221,8 +2803,8 @@ async function downloadPowerPointDeck(
     const PptxGenJS = await loadPowerPointLibrary();
     const pptx = new PptxGenJS();
     pptx.layout = "LAYOUT_WIDE";
-    pptx.author = preparedBy || "FinSight Reports";
-    pptx.company = "FinSight Reports";
+    pptx.author = preparedBy || "Advisacor";
+    pptx.company = "Wiseman Financial Technologies LLC";
     pptx.subject = "Board / Owner Presentation";
     pptx.title = `${companyName} Board Presentation`;
     pptx.theme = {
@@ -2231,7 +2813,7 @@ async function downloadPowerPointDeck(
       lang: "en-US",
     };
     const generatedDate = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    const footerText = `${preparedBy || "FinSight Reports"}  |  Confidential  |  ${boardMode ? "Board Mode" : "Detailed Mode"}  |  Generated ${generatedDate}`;
+    const footerText = `${preparedBy || "Advisacor"}  |  Confidential  |  ${boardMode ? "Board Mode" : "Detailed Mode"}  |  Generated ${generatedDate}`;
     const addPptFooter = (pptSlide: PptxBrowserSlide, pageNumber: number) => {
       pptSlide.addShape("rect", {
         x: 0.55,
@@ -2389,7 +2971,7 @@ async function downloadPowerPointDeck(
           margin: 0,
           fit: "shrink",
         });
-        pptSlide.addText(`${preparedBy || "FinSight Reports"}\nPrepared ${preparedDate}`, {
+        pptSlide.addText(`${preparedBy || "Advisacor"}\nPrepared ${preparedDate}`, {
           x: 4.45,
           y: 6.12,
           w: 4.4,
@@ -3317,16 +3899,24 @@ function calculateKPIs(plData: ParsedFile | null, bsData: ParsedFile | null): KP
 }
 
 function buildExecutiveSummary({
+  packageTier,
   kpis,
+  priorKpis,
   netMargin,
   bsRows,
   arKpis,
+  arReserveIntelligence,
+  reserveLifecycleIntelligence,
   apKpis,
   inventoryKpis,
   inventoryIntelligence,
   fixedAssetKpis,
   fixedAssetChangeRows,
   payrollAnalysis,
+  workforceIntelligence,
+  treasuryLiquidityIntelligence,
+  revenueRecognitionIntelligence,
+  apCutoffIntelligence,
   monthFluxRows,
   quarterFluxRows,
   yearFluxRows,
@@ -3341,16 +3931,24 @@ function buildExecutiveSummary({
   includeBudget,
   includeDebt,
 }: {
+  packageTier: PackageTier;
   kpis: KPIs;
+  priorKpis: KPIs;
   netMargin: number;
   bsRows: StatementRow[];
   arKpis: AgingKpis;
+  arReserveIntelligence: ARReserveIntelligence;
+  reserveLifecycleIntelligence: ReserveLifecycleIntelligence;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
   inventoryIntelligence: InventoryIntelligence;
   fixedAssetKpis: FixedAssetKpis;
   fixedAssetChangeRows: FixedAssetChangeRow[];
   payrollAnalysis: PayrollAnalysis;
+  workforceIntelligence: WorkforceIntelligence;
+  treasuryLiquidityIntelligence: TreasuryLiquidityIntelligence;
+  revenueRecognitionIntelligence: RevenueRecognitionIntelligence;
+  apCutoffIntelligence: ApCutoffIntelligence;
   monthFluxRows: FluxRow[];
   quarterFluxRows: FluxRow[];
   yearFluxRows: FluxRow[];
@@ -3376,164 +3974,26 @@ function buildExecutiveSummary({
   const quickRatio = currentLiabilities
     ? (kpis.cash + kpis.accountsReceivable) / currentLiabilities
     : null;
-  const inventoryToAssets = kpis.totalAssets ? (inventoryKpis.totalValue / kpis.totalAssets) * 100 : 0;
   const topInventoryItem = inventoryKpis.topByValue[0];
   const topInventoryConcentration =
     topInventoryItem && inventoryKpis.totalValue ? (topInventoryItem.value / inventoryKpis.totalValue) * 100 : 0;
-  const largestMonthVariance = monthFluxRows[0];
-  const largestQuarterVariance = quarterFluxRows[0];
-  const largestYearVariance = yearFluxRows[0];
   const highestSeverityFlux = [...monthFluxRows, ...quarterFluxRows, ...yearFluxRows].find(
     (row) => row.severity === "High",
   );
   const payrollCostPerFte = payrollAnalysis.totalCurrentFte
     ? payrollAnalysis.totalCurrentPayrollCost / payrollAnalysis.totalCurrentFte
     : 0;
-  const sections: ExecutiveSummarySectionItem[] = [
-    {
-      title: "Financial Performance Summary",
-      body: `Revenue was ${formatMoney(kpis.revenue)} with gross profit of ${formatMoney(
-        kpis.grossProfit,
-      )}, net income of ${formatMoney(kpis.netIncome)}, and net margin of ${netMargin.toFixed(
-        1,
-      )}%. Expenses represented ${expenseRatio.toFixed(
-        1,
-      )}% of revenue, making expense control and margin trend review key areas for management attention.`,
-    },
-    {
-      title: "Liquidity and Working Capital Summary",
-      body: `Cash was ${formatMoney(kpis.cash)} and accounts receivable was ${formatMoney(
-        kpis.accountsReceivable,
-      )}${includeAp ? `, compared with accounts payable of ${formatMoney(apKpis.total)}` : ""}. ${
-        workingCapital !== null
-          ? `Working capital was ${formatMoney(workingCapital)}, with a current ratio of ${
-              currentRatio?.toFixed(2) || "N/A"
-            } and quick ratio of ${quickRatio?.toFixed(2) || "N/A"}.`
-          : "Current asset and current liability detail should be reviewed as additional balance sheet support becomes available."
-      }${dso !== null ? ` DSO was ${dso.toFixed(1)} days.` : ""}`,
-    },
-    {
-      title: "Operating Efficiency Summary",
-      body: [
-        includeAr
-          ? `AR aging totaled ${formatMoney(arKpis.total)}, including ${formatMoney(
-              arKpis.days61To90 + arKpis.days90Plus,
-            )} over 60 days and ${formatMoney(arKpis.days90Plus)} over 90 days.`
-          : "",
-        includeAp
-          ? `AP aging totaled ${formatMoney(apKpis.total)}, including ${formatMoney(
-              apKpis.days61To90 + apKpis.days90Plus,
-            )} over 60 days and ${formatMoney(apKpis.days90Plus)} over 90 days.`
-          : "",
-        includeInventory
-          ? `Inventory was ${formatMoney(inventoryKpis.totalValue)}, equal to ${inventoryToAssets.toFixed(
-              1,
-            )}% of total assets${
-              topInventoryItem
-                ? `; ${topInventoryItem.name} represented ${topInventoryConcentration.toFixed(1)}% of inventory value`
-                : ""
-            }${
-              inventoryIntelligence.turns !== null
-                ? ` Inventory turns were ${inventoryIntelligence.turns.toFixed(1)}x, or every ${Math.round(
-                    inventoryIntelligence.daysPerCycle || 0,
-                  )} days.`
-                : ""
-            }.`
-          : "",
-      ]
-        .filter(Boolean)
-        .join(" ") || "Operating efficiency should continue to be reviewed against margin, collections, vendor obligations, and production trends.",
-    },
-    {
-      title: "Payroll and FTE Summary",
-      body: includePayroll
-        ? `Current FTE was ${formatFte(payrollAnalysis.totalCurrentFte)} compared with ${formatFte(
-            payrollAnalysis.totalPriorFte,
-          )} in the prior month, a change of ${formatFte(payrollAnalysis.totalFteChange)} FTE. Payroll cost was ${formatMoney(
-            payrollAnalysis.totalCurrentPayrollCost,
-          )}, with a month-over-month change of ${formatMoney(
-            payrollAnalysis.totalPayrollCostChange,
-          )} and payroll cost per FTE of ${formatMoney(payrollCostPerFte)}; the largest FTE and payroll cost increases were in ${
-            payrollAnalysis.highestFteIncreaseDepartment
-          } and ${payrollAnalysis.highestPayrollCostIncreaseDepartment}.`
-        : "Payroll and FTE trends were not included in this package.",
-    },
-    {
-      title: "Fixed Asset and Capital Investment Summary",
-      body: includeFixedAssets
-        ? `Fixed assets totaled ${formatMoney(
-            fixedAssetKpis.totalFixedAssets,
-          )}, accumulated depreciation was ${formatMoney(
-            fixedAssetKpis.accumulatedDepreciation,
-          )}, and net book value was ${formatMoney(fixedAssetKpis.netBookValue)}.${
-            fixedAssetKpis.depreciationExpense !== null
-              ? ` Depreciation expense was ${formatMoney(fixedAssetKpis.depreciationExpense)}.`
-              : ""
-          }${
-            fixedAssetChangeRows.length
-              ? ` Prior-period comparison shows net book value changed by ${formatMoney(
-                  fixedAssetChangeRows.find((row) => row.metric === "Net book value change")?.change || 0,
-                )}.`
-              : ""
-          }`
-        : "Capital investment analysis was not included in this package.",
-    },
-    {
-      title: "Risk and Watch Items",
-      body: [
-        largestMonthVariance
-          ? `The largest month-over-month flux variance was ${largestMonthVariance.accountName} at ${formatMoney(
-              largestMonthVariance.dollarVariance,
-            )}.`
-          : "",
-        largestQuarterVariance
-          ? `The largest quarter-over-quarter variance was ${largestQuarterVariance.accountName} at ${formatMoney(
-              largestQuarterVariance.dollarVariance,
-            )}.`
-          : "",
-        largestYearVariance
-          ? `The largest year-over-year variance was ${largestYearVariance.accountName} at ${formatMoney(
-              largestYearVariance.dollarVariance,
-            )}.`
-          : "",
-        highestSeverityFlux ? `High-severity flux activity was flagged in ${highestSeverityFlux.accountName}.` : "",
-        includeBudget && budgetMetrics.largestUnfavorableVariance !== null
-          ? `The largest unfavorable budget variance was ${budgetMetrics.largestUnfavorableVarianceLabel} at ${formatMoney(
-              budgetMetrics.largestUnfavorableVariance,
-            )}.`
-          : "",
-        includeDebt && debtMetrics.totalDebt
-          ? `Debt totaled ${formatMoney(debtMetrics.totalDebt)}, with debt-to-assets of ${
-              debtMetrics.debtToAssets !== null ? `${debtMetrics.debtToAssets.toFixed(1)}%` : "N/A"
-            }.`
-          : "",
-      ]
-        .filter(Boolean)
-        .join(" ") || "No elevated Virtual CFO risk indicators were identified from the uploaded package data.",
-    },
-    {
-      title: "Recommended Follow-Up Items",
-      body: buildRecommendedFollowUps({
-        netMargin,
-        expenseRatio,
-        dso,
-        arKpis,
-        apKpis,
-        payrollAnalysis,
-        includeAr,
-        includeAp,
-        includePayroll,
-        includeBudget,
-        budgetMetrics,
-      }).join(" "),
-    },
-  ].filter((section) => section.title !== "Payroll and FTE Summary" || includePayroll)
-    .filter((section) => section.title !== "Fixed Asset and Capital Investment Summary" || includeFixedAssets);
+  const workforceSummary = workforceIntelligence.tierAdvisoryCommentary[0] || "Payroll and FTE movement should be reviewed against revenue, productivity, and operating margin trends.";
+  const treasurySummary = treasuryLiquidityIntelligence.commentary[0] || "Liquidity should be reviewed against cash movement, AR/AP timing, working capital, and operating cash flow trends.";
+  const reserveLifecycleSummary =
+    reserveLifecycleIntelligence.commentary[0] ||
+    "Reserve exposure should be reviewed against AR aging, collection timing, customer concentration, and write-off history.";
   const followUpItems = buildRecommendedFollowUps({
     netMargin,
     expenseRatio,
     dso,
     arKpis,
+    arReserveIntelligence,
     apKpis,
     payrollAnalysis,
     includeAr,
@@ -3542,44 +4002,277 @@ function buildExecutiveSummary({
     includeBudget,
     budgetMetrics,
   });
-  const managementFocusAreas = [
-    inventoryIntelligence.turns !== null && inventoryIntelligence.turns < 3
-      ? "Improve inventory turnover and review slow-moving stock for pricing, purchasing, and reserve actions."
-      : includeInventory
-        ? "Maintain inventory discipline by monitoring turnover, item concentration, and reserve coverage."
-        : "",
-    includePayroll && payrollAnalysis.totalPayrollCostChange > 0
-      ? "Monitor payroll growth against revenue, gross margin, and revenue per FTE trends."
-      : includePayroll
-        ? "Maintain payroll efficiency and continue reviewing staffing levels against revenue capacity."
-        : "",
-    dso !== null && dso > 45
-      ? "Tighten AR collection cadence and assign ownership for older balances."
-      : includeAr
-        ? "Maintain AR collection performance and watch for aging migration into older buckets."
-        : "",
-    includeDebt && debtMetrics.debtToAssets !== null && debtMetrics.debtToAssets > 40
-      ? "Review debt leverage, debt service capacity, and covenant-sensitive liquidity metrics."
-      : includeDebt
-        ? "Review debt capacity in the context of cash flow, growth plans, and capital needs."
-        : "",
-    includeFixedAssets
-      ? "Review fixed asset additions, depreciation trend, and whether capital spending is producing operating capacity."
+  const priorityFromScore = (score: number): ExecutivePriorityLevel =>
+    score >= 75 ? "Top Priority" : score >= 45 ? "Moderate Priority" : "Monitoring Item";
+  const addPriority = (
+    items: ExecutivePriorityItem[],
+    category: string,
+    title: string,
+    narrative: string,
+    score: number,
+  ) => {
+    if (!narrative) return;
+    items.push({
+      category,
+      title,
+      narrative,
+      score,
+      priority: priorityFromScore(score),
+    });
+  };
+  const allFluxRows = [
+    ...monthFluxRows.map((row) => ({ ...row, periodLabel: "month-over-month" })),
+    ...(packageTier !== "essential" ? quarterFluxRows.map((row) => ({ ...row, periodLabel: "quarter-over-quarter" })) : []),
+    ...(isVirtualCfo(packageTier) ? yearFluxRows.map((row) => ({ ...row, periodLabel: "year-over-year" })) : []),
+  ].sort((a, b) => Math.abs(b.dollarVariance) - Math.abs(a.dollarVariance));
+  const topFluxRows = allFluxRows.slice(0, 3);
+  const revenueFlux = allFluxRows.find((row) => /revenue|income|sales/i.test(row.accountName));
+  const payrollFlux = allFluxRows.find((row) => /payroll|wages|salary|labor/i.test(row.accountName));
+  const marginFlux = allFluxRows.find((row) => /cost of goods|cogs|gross margin|materials|labor variance|manufacturing/i.test(row.accountName));
+  const liquidityFlux = allFluxRows.find((row) => /cash|accounts receivable|inventory|accounts payable|working capital/i.test(row.accountName));
+  const variationSeed = Math.abs(Math.round(kpis.netIncome + kpis.revenue + topFluxRows.reduce((total, row) => total + row.dollarVariance, 0)));
+  const pickPhrase = (phrases: string[], offset = 0) => phrases[(variationSeed + offset) % phrases.length];
+  const describeFluxDriver = (row: (FluxRow & { periodLabel: string }) | undefined, fallback: string) => {
+    if (!row) return fallback;
+    const movement = row.dollarVariance >= 0 ? "increased" : "decreased";
+    const driver = isMeaningfulFluxDriver(row.topDriver) ? `, with ${row.topDriver} identified as the largest activity driver` : "";
+    return `${row.accountName} ${movement} ${formatMoney(Math.abs(row.dollarVariance))} ${row.periodLabel}${driver}`;
+  };
+  const netIncomeDriverNarratives = [
+    revenueFlux ? describeFluxDriver(revenueFlux, "") : "",
+    marginFlux ? describeFluxDriver(marginFlux, "") : "",
+    payrollFlux ? describeFluxDriver(payrollFlux, "") : "",
+    includePayroll && Math.abs(payrollAnalysis.totalPayrollCostChange) > 0
+      ? `Payroll changed by ${formatMoney(payrollAnalysis.totalPayrollCostChange)} while FTE changed by ${formatFte(payrollAnalysis.totalFteChange)}, connecting labor cost movement to operating capacity.`
       : "",
+    includeAr && arReserveIntelligence.totalSuggestedReserve > 0
+      ? `Reserve exposure of ${formatMoney(arReserveIntelligence.totalSuggestedReserve)} should be read with collection timing, customer concentration, and aging migration.`
+      : "",
+    isProfessionalOrHigher(packageTier) && liquidityFlux ? describeFluxDriver(liquidityFlux, "") : "",
+    isVirtualCfo(packageTier) && revenueRecognitionIntelligence.enabled && revenueRecognitionIntelligence.commentary[0]
+      ? revenueRecognitionIntelligence.commentary[0]
+      : "",
+  ].filter(Boolean);
+  const priorityItems: ExecutivePriorityItem[] = [];
+  addPriority(
+    priorityItems,
+    "Margin",
+    "Protect operating margin and net income quality",
     netMargin < 10
-      ? "Prioritize margin improvement through pricing, direct cost control, and operating expense review."
-      : "Sustain profitability by tracking gross margin and operating expense leverage against targets.",
-  ].filter(Boolean).slice(0, 5);
-  const boardDiscussionTopics = [
-    includeInventory
-      ? `Inventory reserve strategy, including ${formatCurrency(inventoryIntelligence.slowMovingValue)} of identified slow-moving inventory and ${inventoryIntelligence.eoReserveBalance === null ? "no identified E&O reserve" : `${formatCurrency(inventoryIntelligence.eoReserveBalance)} of reserve coverage`}.`
+      ? "Net margin is compressed, making pricing, direct cost behavior, and operating expense leverage the primary management focus."
+      : "Margin remains positive, but management should continue monitoring operating leverage against revenue and gross profit trends.",
+    netMargin < 5 ? 90 : netMargin < 10 ? 75 : 35,
+  );
+  if (includePayroll) {
+    addPriority(
+      priorityItems,
+      "Workforce",
+      "Review staffing scalability",
+      Math.abs(payrollAnalysis.totalFteChange) > 0.5 || payrollAnalysis.totalPayrollCostChange > 0
+        ? `Payroll and FTE movement should be reviewed together: payroll changed ${formatMoney(payrollAnalysis.totalPayrollCostChange)} while FTE changed ${formatFte(payrollAnalysis.totalFteChange)}. ${workforceSummary}`
+        : "Payroll and FTE levels appear stable, but revenue per FTE and labor utilization should remain part of the monthly operating review.",
+      payrollAnalysis.totalPayrollCostChange > 0 && kpis.revenue <= priorKpis.revenue ? 80 : Math.abs(payrollAnalysis.totalFteChange) > 0.5 ? 65 : 30,
+    );
+  }
+  if (includeAr) {
+    addPriority(
+      priorityItems,
+      "Receivables",
+      "Manage reserve exposure and collection cadence",
+      reserveLifecycleIntelligence.adequacyStatus === "Elevated Review"
+        ? `${reserveLifecycleSummary} Collection timing and customer concentration may warrant management review before client-ready commentary is finalized.`
+        : `AR quality remains a management watch area, with ${formatMoney(arKpis.days90Plus)} over 90 days and preliminary reserve exposure of ${formatMoney(arReserveIntelligence.totalSuggestedReserve)}.`,
+      reserveLifecycleIntelligence.adequacyStatus === "Elevated Review" ? 88 : arKpis.days90Plus > 0 ? 58 : 28,
+    );
+  }
+  if (isProfessionalOrHigher(packageTier) && includeInventory) {
+    addPriority(
+      priorityItems,
+      "Inventory",
+      "Improve inventory and working capital discipline",
+      inventoryIntelligence.turns !== null && inventoryIntelligence.turns < 3
+        ? `Inventory turns are ${inventoryIntelligence.turns.toFixed(1)}x, and slow-moving exposure of ${formatCurrency(inventoryIntelligence.slowMovingValue)} may pressure working capital and reserve planning.`
+        : `Inventory totals ${formatMoney(inventoryKpis.totalValue)}${topInventoryItem ? `, with ${topInventoryItem.name} representing ${topInventoryConcentration.toFixed(1)}% of value` : ""}. Continue reviewing turnover, purchasing cadence, and concentration.`,
+      inventoryIntelligence.turns !== null && inventoryIntelligence.turns < 3 ? 78 : inventoryIntelligence.slowMovingValue > 0 ? 62 : 32,
+    );
+  }
+  if (isProfessionalOrHigher(packageTier) && treasuryLiquidityIntelligence.enabled) {
+    addPriority(
+      priorityItems,
+      "Liquidity",
+      "Monitor liquidity and working capital pressure",
+      `${treasurySummary} Working capital is ${workingCapital === null ? "not fully available" : formatMoney(workingCapital)}, current ratio is ${currentRatio !== null ? currentRatio.toFixed(2) : "N/A"}, and quick ratio is ${quickRatio !== null ? quickRatio.toFixed(2) : "N/A"}. Cash positioning should be read alongside AR/AP timing.`,
+      treasuryLiquidityIntelligence.internalFlags.length ? 72 : workingCapital !== null && workingCapital < 0 ? 85 : 38,
+    );
+  }
+  if (isProfessionalOrHigher(packageTier) && includeFixedAssets) {
+    const nbvChange = fixedAssetChangeRows.find((row) => row.metric === "Net book value change")?.change ?? null;
+    addPriority(
+      priorityItems,
+      "Capital Investment",
+      "Review capital spending and asset utilization",
+      `Fixed assets have net book value of ${formatMoney(fixedAssetKpis.netBookValue)}${nbvChange !== null ? `, with net book value changing ${formatMoney(nbvChange)} versus the prior comparison period` : ""}. Review whether capital investment is translating into operating capacity and margin support.`,
+      nbvChange !== null && Math.abs(nbvChange) > Math.max(fixedAssetKpis.netBookValue * 0.1, 25000) ? 52 : 30,
+    );
+  }
+  if (isProfessionalOrHigher(packageTier) && includeDebt) {
+    addPriority(
+      priorityItems,
+      "Debt",
+      "Review leverage and debt service capacity",
+      `Debt totals ${formatMoney(debtMetrics.totalDebt)}, with debt-to-assets of ${debtMetrics.debtToAssets !== null ? `${debtMetrics.debtToAssets.toFixed(1)}%` : "N/A"}. Review liquidity, debt service capacity, and capital needs together.`,
+      debtMetrics.debtToAssets !== null && debtMetrics.debtToAssets > 40 ? 70 : 42,
+    );
+  }
+  if (isVirtualCfo(packageTier) && revenueRecognitionIntelligence.enabled) {
+    addPriority(
+      priorityItems,
+      "Revenue Timing",
+      "Review revenue timing and future visibility",
+      revenueRecognitionIntelligence.commentary[0] || "Deferred revenue, unbilled AR, and billing cadence should be reviewed for future revenue visibility and liquidity planning.",
+      revenueRecognitionIntelligence.internalFlags.length ? 72 : 44,
+    );
+  }
+  if (isVirtualCfo(packageTier) && apCutoffIntelligence.enabled && apCutoffIntelligence.internalFlags.length) {
+    addPriority(
+      priorityItems,
+      "Close Quality",
+      "Review recurring accrual and cutoff patterns",
+      apCutoffIntelligence.internalFlags[0],
+      apCutoffIntelligence.recurringAccrualRiskStatus === "High" ? 82 : 58,
+    );
+  }
+  const rankedPriorityItems = priorityItems.sort((a, b) => b.score - a.score).slice(0, 6);
+  const managementFocusAreas = rankedPriorityItems
+    .map((item) => `${item.priority}: ${item.narrative}`)
+    .slice(0, 5);
+  const riskNarratives: ExecutiveRiskNarrative[] = rankedPriorityItems
+    .filter((item) => item.score >= 45)
+    .map((item) => ({
+      title: item.title,
+      severity: item.priority,
+      score: item.score,
+      narrative: item.narrative,
+    }))
+    .slice(0, 5);
+  const riskSummary = riskNarratives.length
+    ? riskNarratives.map((item) => `${item.severity} - ${item.title}: ${item.narrative}`).join(" ")
+    : "No elevated management risk themes were identified from the approved KPI, flux, and operational intelligence inputs.";
+  const storyCards: ExecutiveStoryCard[] = [
+    {
+      label: "Profit Story",
+      value: formatMoney(kpis.netIncome),
+      tone: netMargin < 10 ? "watch" : "neutral",
+      narrative: netIncomeDriverNarratives[0] || "Net income should be reviewed through revenue movement, margin behavior, payroll scaling, and approved flux drivers.",
+    },
+    {
+      label: "Liquidity Outlook",
+      value: packageTier === "essential" ? formatMoney(arKpis.total - apKpis.total) : formatMoney(kpis.cash),
+      tone: isProfessionalOrHigher(packageTier) && treasuryLiquidityIntelligence.internalFlags.length ? "watch" : "neutral",
+      narrative: packageTier === "essential"
+        ? "Essential liquidity storytelling focuses on AR collection cadence and AP timing rather than broader treasury analysis."
+        : treasurySummary,
+    },
+    {
+      label: "Operating Leverage",
+      value: includePayroll && workforceIntelligence.revenuePerFte !== null ? formatMoney(workforceIntelligence.revenuePerFte) : `${netMargin.toFixed(1)}%`,
+      tone: includePayroll && payrollAnalysis.totalPayrollCostChange > 0 && kpis.revenue <= priorKpis.revenue ? "watch" : "neutral",
+      narrative: includePayroll ? workforceSummary : "Operating leverage should be read through margin, expense behavior, and revenue conversion.",
+    },
+    {
+      label: "Receivables Quality",
+      value: formatMoney(arReserveIntelligence.totalSuggestedReserve),
+      tone: reserveLifecycleIntelligence.adequacyStatus === "Elevated Review" ? "watch" : "neutral",
+      narrative: reserveLifecycleSummary,
+    },
+  ];
+  const executiveDashboard = storyCards.map((card) => `${card.label}: ${card.value} - ${card.narrative}`);
+  const topPriority = rankedPriorityItems[0];
+  const secondPriority = rankedPriorityItems[1];
+  const netIncomeDriverBody = netIncomeDriverNarratives.length
+    ? `${pickPhrase(["Net income movement is best explained through the operating drivers behind the numbers.", "The performance story is concentrated in a few operating movements.", "Management should read net income through the underlying business drivers."], 1)} ${netIncomeDriverNarratives.slice(0, 4).join(" ")}`
+    : "Net income movement should be reviewed against approved flux analysis, revenue behavior, gross margin, payroll scaling, and reserve exposure as additional comparative data becomes available.";
+  const operationalCausationBody = [
+    includePayroll ? `Labor movement provides operational context: ${workforceSummary}` : "",
+    isProfessionalOrHigher(packageTier) && includeInventory
+      ? inventoryIntelligence.operationalInventoryCommentary[0] || "Inventory levels should be reviewed with purchasing cadence, turnover, slow-moving exposure, and working capital conversion."
       : "",
-    "Revenue concentration risk and quality of recurring revenue streams.",
-    includePayroll ? "Staffing growth sustainability and whether payroll cost is scaling with revenue capacity." : "",
-    includeFixedAssets ? "Capital spending strategy, asset utilization, and depreciation trend implications." : "",
-    includeDebt ? "Debt capacity review, leverage tolerance, and cash flow available for debt service." : "",
-    "Margin trend sustainability and management actions needed to protect profitability.",
-  ].filter(Boolean).slice(0, 6);
+    isProfessionalOrHigher(packageTier) ? treasurySummary : "",
+    includeAr ? reserveLifecycleSummary : "",
+    isVirtualCfo(packageTier) && revenueRecognitionIntelligence.enabled
+      ? revenueRecognitionIntelligence.commentary[0] || "Revenue timing should be reviewed through deferred revenue, unbilled AR, billing cadence, and forecast visibility."
+      : "",
+  ].filter(Boolean).join(" ");
+  const sections: ExecutiveSummarySectionItem[] = [
+    {
+      title: "Executive Storyline",
+      body: `${pickPhrase(["The period should be read through operating execution, cash conversion, and margin quality.", "The executive story is less about isolated balances and more about how performance converted into cash, capacity, and risk.", "The management view starts with what changed, why it changed, and where attention should go next."])} Revenue was ${formatMoney(kpis.revenue)}, gross margin was ${grossMargin.toFixed(1)}%, net income was ${formatMoney(kpis.netIncome)}, and net margin was ${netMargin.toFixed(1)}%. ${topPriority ? `The primary management priority is ${topPriority.title.toLowerCase()}: ${topPriority.narrative}` : "Management should continue reviewing profitability, collections, and operating trend indicators."}`,
+    },
+    {
+      title: "Net Income Driver Intelligence",
+      body: netIncomeDriverBody,
+    },
+    {
+      title: "Operational Causation",
+      body: operationalCausationBody || "Operational causation should be refined as payroll, AR/AP, flux, and supporting schedules are reviewed by management.",
+    },
+    {
+      title: "Management Focus Areas",
+      body: rankedPriorityItems.slice(0, 3).map((item) => `${item.priority}: ${item.title} - ${item.narrative}`).join(" "),
+    },
+    {
+      title: "Risks and Challenges",
+      body: riskSummary,
+    },
+    ...(isVirtualCfo(packageTier)
+      ? [
+          {
+            title: "Board-Level Planning View",
+            body: `${secondPriority ? `Secondary priority: ${secondPriority.narrative}` : "Board discussion should remain focused on liquidity, margin quality, staffing scalability, and forecast visibility."} ${
+              treasuryLiquidityIntelligence.cashForecast.length
+                ? `Cash forecasting indicates ${formatMoney(treasuryLiquidityIntelligence.cashForecast[treasuryLiquidityIntelligence.cashForecast.length - 1].projectedCash)} projected cash in the outer forecast period.`
+                : ""
+            }`,
+          },
+        ]
+      : []),
+    {
+      title: "Recommended Follow-Up Items",
+      body: followUpItems.join(" "),
+    },
+  ].filter((section) => section.body.trim().length > 0);
+  const boardDiscussionTopics = isVirtualCfo(packageTier)
+    ? [
+        treasuryLiquidityIntelligence.enabled ? "Liquidity outlook, cash runway, and working capital pressure under current operating assumptions." : "",
+        includePayroll ? "Staffing scalability, revenue per FTE, and whether payroll growth is producing operating leverage." : "",
+        includeInventory ? `Inventory reserve exposure and turnover discipline, including ${formatCurrency(inventoryIntelligence.slowMovingValue)} of identified slow-moving inventory.` : "",
+        includeDebt ? "Debt capacity, leverage tolerance, and cash flow available for debt service." : "",
+        revenueRecognitionIntelligence.enabled ? "Deferred revenue timing, unbilled AR conversion, and future revenue visibility." : "",
+        reserveLifecycleIntelligence.enabled ? "Reserve exposure, customer concentration, and collection trend implications for liquidity and earnings quality." : "",
+        "Management action plan for the top ranked executive priorities.",
+      ].filter(Boolean).slice(0, 6)
+    : [
+        includePayroll ? "Staffing and payroll scalability within current package scope." : "",
+        includeAr ? "AR collection cadence and reserve exposure." : "",
+        includeAp ? "AP timing and vendor obligation management." : "",
+        isProfessionalOrHigher(packageTier) && includeInventory ? "Inventory turnover, concentration, and working capital conversion." : "",
+        isProfessionalOrHigher(packageTier) ? "Operating margin sustainability and working capital review." : "",
+      ].filter(Boolean).slice(0, 5);
+  const backendReviewFlags = [
+    highestSeverityFlux ? `Validate executive summary direction against approved flux movement for ${highestSeverityFlux.accountName}.` : "",
+    includePayroll && payrollAnalysis.totalPayrollCostChange > 0 && payrollAnalysis.totalFteChange <= 0
+      ? "Validate payroll commentary explains cost growth without matching FTE growth."
+      : "",
+    includeAr && reserveLifecycleIntelligence.adequacyStatus === "Elevated Review"
+      ? "Validate reserve commentary aligns with aging, reserve exposure, and collectibility review language."
+      : "",
+    isProfessionalOrHigher(packageTier) && treasuryLiquidityIntelligence.internalFlags.length
+      ? "Validate liquidity commentary aligns with cash, AR/AP timing, and working capital indicators."
+      : "",
+    isVirtualCfo(packageTier) && revenueRecognitionIntelligence.internalFlags.length
+      ? "Validate revenue timing commentary aligns with deferred revenue, unbilled AR, and forecast visibility."
+      : "",
+  ].filter(Boolean);
 
   return {
     paragraph: sections.map((section) => section.body).join(" "),
@@ -3587,29 +4280,29 @@ function buildExecutiveSummary({
     followUpItems,
     managementFocusAreas,
     boardDiscussionTopics,
+    priorityItems: rankedPriorityItems,
+    riskNarratives,
+    storyCards,
+    executiveDashboard,
+    backendReviewFlags,
     highlights: [
-      `Revenue totaled ${formatMoney(kpis.revenue)} for the uploaded period.`,
+      `${storyCards[0].label}: ${storyCards[0].value} - ${storyCards[0].narrative}`,
       `Gross profit was ${formatMoney(kpis.grossProfit)}, representing a gross margin of ${grossMargin.toFixed(1)}%.`,
-      `Net income was ${formatMoney(kpis.netIncome)}, with a net margin of ${netMargin.toFixed(1)}%.`,
-      `Cash on hand was ${formatMoney(kpis.cash)}, equal to ${cashToAssets.toFixed(1)}% of total assets.`,
-      ...(includePayroll ? [`Payroll cost was ${formatMoney(payrollAnalysis.totalCurrentPayrollCost)} across ${formatFte(payrollAnalysis.totalCurrentFte)} FTE.`] : []),
+      ...(packageTier !== "essential" ? [`Cash on hand was ${formatMoney(kpis.cash)}, equal to ${cashToAssets.toFixed(1)}% of total assets.`] : []),
+      ...(includePayroll ? [`Payroll cost was ${formatMoney(payrollAnalysis.totalCurrentPayrollCost)} across ${formatFte(payrollAnalysis.totalCurrentFte)} FTE, creating a staffing scalability review point.`] : []),
       ...(includeFixedAssets
         ? [`Net book value of fixed assets was ${formatCurrency(fixedAssetKpis.netBookValue)}.`]
         : []),
     ],
-    watchItems: [
-      `Expenses totaled ${formatMoney(kpis.expenses)}, or ${expenseRatio.toFixed(1)}% of revenue.`,
-      `Accounts receivable was ${formatMoney(kpis.accountsReceivable)}, which should be monitored for collection timing.`,
-      ...(includePayroll
-        ? [`Payroll cost per FTE was ${formatMoney(payrollCostPerFte)}, which should be reviewed with revenue per FTE and gross margin trends.`]
-        : []),
-      netMargin < 10
-        ? "Net margin is below 10%, suggesting profitability may need closer review."
-        : "Net margin is positive, but should still be tracked against monthly targets.",
-      kpis.cash < kpis.accountsReceivable
-        ? "Accounts receivable exceeds cash, making collections an important near-term focus."
-        : "Cash exceeds accounts receivable, supporting a stronger liquidity position.",
-    ],
+    watchItems: riskNarratives.length
+      ? riskNarratives.map((item) => `${item.severity}: ${item.title} - ${item.narrative}`)
+      : [
+          `Expenses totaled ${formatMoney(kpis.expenses)}, or ${expenseRatio.toFixed(1)}% of revenue.`,
+          `Accounts receivable was ${formatMoney(kpis.accountsReceivable)}, which should be monitored for collection timing.`,
+          ...(includePayroll
+            ? [`Payroll cost per FTE was ${formatMoney(payrollCostPerFte)}, which should be reviewed with revenue per FTE and gross margin trends.`]
+            : []),
+        ],
   };
 }
 
@@ -3618,6 +4311,7 @@ function buildRecommendedFollowUps({
   expenseRatio,
   dso,
   arKpis,
+  arReserveIntelligence,
   apKpis,
   payrollAnalysis,
   includeAr,
@@ -3630,6 +4324,7 @@ function buildRecommendedFollowUps({
   expenseRatio: number;
   dso: number | null;
   arKpis: AgingKpis;
+  arReserveIntelligence: ARReserveIntelligence;
   apKpis: APKpis;
   payrollAnalysis: PayrollAnalysis;
   includeAr: boolean;
@@ -3645,6 +4340,9 @@ function buildRecommendedFollowUps({
     expenseRatio > 40 ? "Review overhead categories for cost reduction or reclassification opportunities." : "",
     dso !== null && dso > 60 ? "Prioritize AR collections and aging follow-up for balances over 60 days." : "",
     includeAr && arKpis.days90Plus > 0 ? "Investigate AR balances over 90 days and assign collection ownership." : "",
+    includeAr && arReserveIntelligence.totalSuggestedReserve > 0
+      ? "Consider reviewing AR reserve adequacy against aging exposure, write-offs, and customer-specific collection history."
+      : "",
     includeAp && apKpis.days90Plus > 0 ? "Review AP balances over 90 days for vendor risk and payment timing." : "",
     includePayroll && Math.abs(payrollAnalysis.totalFteChange) > 0.5
       ? "Validate staffing changes by department against revenue volume and project demand."
@@ -3822,6 +4520,245 @@ function calculateBudgetMetrics(data: ParsedFile | null): BudgetMetrics {
   };
 }
 
+function findStatementBalanceByPatterns(rows: StatementRow[], includePatterns: string[], excludePatterns: string[] = []) {
+  return rows
+    .filter((row) => {
+      const label = normalizeStatementLabel(row.label);
+      return includePatterns.some((pattern) => label.includes(pattern)) && !excludePatterns.some((pattern) => label.includes(pattern));
+    })
+    .reduce((total, row) => total + Math.abs(row.amount || 0), 0);
+}
+
+function calculateGrowthPercent(current: number, prior: number) {
+  if (!prior) return current ? 100 : null;
+  return ((current - prior) / Math.abs(prior)) * 100;
+}
+
+function getRevenueRecognitionRows(dataSets: Array<ParsedFile | null>, patterns: string[]) {
+  const seenRows = new Set<string>();
+  return dataSets
+    .flatMap((data) => getAccountActivity(data, "__all__"))
+    .filter((row) => {
+      const text = normalizeStatementLabel(`${row.accountName} ${row.name} ${row.customer} ${row.memo} ${row.description}`);
+      return patterns.some((pattern) => text.includes(pattern));
+    })
+    .filter((row) => {
+      const amount = row.amount || row.debit - row.credit;
+      const key = [row.date, row.accountName, row.name, row.customer, row.memo, row.description, amount].map((value) => String(value).toLowerCase()).join("|");
+      if (seenRows.has(key)) return false;
+      seenRows.add(key);
+      return true;
+    });
+}
+
+function buildRevenueRecognitionReviewItems(
+  rows: GlActivityRow[],
+  labelBuilder: (row: GlActivityRow) => string,
+  commentaryBuilder: (label: string, amount: number, count: number) => string,
+): RevenueRecognitionReviewItem[] {
+  const grouped = new Map<string, { amount: number; count: number }>();
+  rows.forEach((row) => {
+    const label = labelBuilder(row) || row.customer || row.name || row.accountName || "Unspecified revenue timing item";
+    const amount = Math.abs(row.amount || row.debit - row.credit);
+    const existing = grouped.get(label) || { amount: 0, count: 0 };
+    grouped.set(label, { amount: existing.amount + amount, count: existing.count + 1 });
+  });
+
+  return [...grouped.entries()]
+    .map(([label, value]) => ({
+      label,
+      amount: value.amount,
+      count: value.count,
+      commentary: commentaryBuilder(label, value.amount, value.count),
+    }))
+    .filter((item) => item.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 6);
+}
+
+function getFutureQuarterLabels(reportingPeriodEnd: string, count: number) {
+  const endDate = parseOperationalDate(reportingPeriodEnd) || new Date();
+  return Array.from({ length: count }, (_, index) => {
+    const future = new Date(endDate);
+    future.setMonth(future.getMonth() + (index + 1) * 3);
+    const quarter = Math.floor(future.getMonth() / 3) + 1;
+    return `Q${quarter} ${future.getFullYear()} expected recognition`;
+  });
+}
+
+function buildAnticipatedRecognitionSchedule({
+  deferredRevenueBalance,
+  recognizedRevenueActivity,
+  reportingPeriodEnd,
+  fullReview,
+}: {
+  deferredRevenueBalance: number;
+  recognizedRevenueActivity: number;
+  reportingPeriodEnd: string;
+  fullReview: boolean;
+}): AnticipatedRecognitionSchedule[] {
+  if (!deferredRevenueBalance) return [];
+  const periodCount = fullReview ? 4 : 2;
+  const baseRate = recognizedRevenueActivity > 0
+    ? Math.min(Math.max(recognizedRevenueActivity / Math.max(recognizedRevenueActivity + deferredRevenueBalance, 1), 0.2), 0.65)
+    : 0.35;
+  let remainingDeferredObligation = deferredRevenueBalance;
+
+  return getFutureQuarterLabels(reportingPeriodEnd, periodCount).map((period, index) => {
+    const expectedRecognition = Math.min(remainingDeferredObligation, deferredRevenueBalance * baseRate * (index === 0 ? 1 : 0.8));
+    remainingDeferredObligation = Math.max(remainingDeferredObligation - expectedRecognition, 0);
+    return {
+      period,
+      expectedRecognition,
+      remainingDeferredObligation,
+      confidence: recognizedRevenueActivity > 0 ? "Moderate" : "Low",
+      commentary: `${period}: anticipated recognition of ${formatCurrency(expectedRecognition)} with ${formatCurrency(remainingDeferredObligation)} of remaining deferred obligations after this period.`,
+    };
+  });
+}
+
+function calculateRevenueRecognitionIntelligence({
+  packageTier,
+  currentBsRows,
+  priorBsRows,
+  currentRevenue,
+  priorRevenue,
+  reportingPeriodEnd,
+  currentMonthGlData,
+  currentQuarterGlData,
+  currentYearGlData,
+  priorMonthGlData,
+  priorQuarterGlData,
+  priorYearGlData,
+}: {
+  packageTier: PackageTier;
+  currentBsRows: StatementRow[];
+  priorBsRows: StatementRow[];
+  currentRevenue: number;
+  priorRevenue: number;
+  reportingPeriodEnd: string;
+  currentMonthGlData: ParsedFile | null;
+  currentQuarterGlData: ParsedFile | null;
+  currentYearGlData: ParsedFile | null;
+  priorMonthGlData: ParsedFile | null;
+  priorQuarterGlData: ParsedFile | null;
+  priorYearGlData: ParsedFile | null;
+}): RevenueRecognitionIntelligence {
+  const fullReview = isVirtualCfo(packageTier);
+  const enabled = isProfessionalOrHigher(packageTier);
+  const deferredPatterns = ["deferred revenue", "unearned revenue", "contract liability", "customer deposit", "customer deposits"];
+  const unbilledPatterns = ["unbilled", "contract asset", "accrued revenue", "revenue in excess", "costs and estimated earnings in excess"];
+  const deferredRevenueBalance = findStatementBalanceByPatterns(currentBsRows, deferredPatterns, ["tax"]);
+  const priorDeferredRevenueBalance = findStatementBalanceByPatterns(priorBsRows, deferredPatterns, ["tax"]);
+  const unbilledArBalance = findStatementBalanceByPatterns(currentBsRows, unbilledPatterns, ["inventory"]);
+  const priorUnbilledArBalance = findStatementBalanceByPatterns(priorBsRows, unbilledPatterns, ["inventory"]);
+  const deferredRevenueChange = deferredRevenueBalance - priorDeferredRevenueBalance;
+  const unbilledArChange = unbilledArBalance - priorUnbilledArBalance;
+  const revenueGrowthPercent = calculateGrowthPercent(currentRevenue, priorRevenue);
+  const currentDataSets = [currentMonthGlData, currentQuarterGlData, currentYearGlData];
+  const priorDataSets = [priorMonthGlData, priorQuarterGlData, priorYearGlData];
+  const deferredRows = getRevenueRecognitionRows([...currentDataSets, ...priorDataSets], deferredPatterns);
+  const unbilledRows = getRevenueRecognitionRows([...currentDataSets, ...priorDataSets], unbilledPatterns);
+  const recognizedRows = getRevenueRecognitionRows(currentDataSets, ["revenue", "income", "sales"]).filter((row) => {
+    const text = normalizeStatementLabel(`${row.accountName} ${row.memo} ${row.description}`);
+    return !deferredPatterns.some((pattern) => text.includes(pattern)) && !unbilledPatterns.some((pattern) => text.includes(pattern));
+  });
+  const billingRows = getRevenueRecognitionRows(currentDataSets, ["invoice", "billing", "billings", "accounts receivable", "a/r"]);
+  const recognizedRevenueActivity = recognizedRows.reduce((total, row) => total + Math.abs(row.amount || row.debit - row.credit), 0);
+  const billingActivity = billingRows.reduce((total, row) => total + Math.abs(row.amount || row.debit - row.credit), 0);
+  const deferredRecognitionRate = deferredRevenueBalance > 0 && recognizedRevenueActivity > 0
+    ? recognizedRevenueActivity / Math.max(deferredRevenueBalance + recognizedRevenueActivity, 1)
+    : null;
+  const anticipatedRecognitionSchedule = fullReview
+    ? buildAnticipatedRecognitionSchedule({ deferredRevenueBalance, recognizedRevenueActivity, reportingPeriodEnd, fullReview })
+    : [];
+  const deferredReviewItems = buildRevenueRecognitionReviewItems(
+    deferredRows,
+    (row) => row.accountName,
+    (label, amount, count) => `${label} shows ${count} deferred revenue review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review recognition timing and remaining future obligations.`,
+  );
+  const unbilledReviewItems = buildRevenueRecognitionReviewItems(
+    unbilledRows,
+    (row) => row.customer || row.name || row.accountName,
+    (label, amount, count) => `${label} shows ${count} unbilled AR review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Consider billing cadence, project status, and near-term cash conversion timing.`,
+  );
+  const billingCadenceItems = fullReview
+    ? buildRevenueRecognitionReviewItems(
+        billingRows,
+        (row) => row.customer || row.name || row.accountName,
+        (label, amount, count) => `${label} shows ${count} billing cadence item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review recurring invoice timing patterns and operational billing cadence.`,
+      )
+    : [];
+  const scheduleRecognition = anticipatedRecognitionSchedule.reduce((total, schedule) => total + schedule.expectedRecognition, 0);
+  const commentary = [
+    deferredRevenueChange > Math.max(priorDeferredRevenueBalance * 0.15, 1000)
+      ? `Deferred revenue balances increased period-over-period by ${formatCurrency(deferredRevenueChange)}, indicating future revenue recognition obligations tied to current-period billings.`
+      : deferredRevenueBalance > 0
+        ? `Deferred revenue balances total ${formatCurrency(deferredRevenueBalance)}. Review recognition timing and remaining service delivery schedules.`
+        : "No deferred revenue balance was identified in the uploaded Balance Sheet detail.",
+    unbilledArChange > Math.max(priorUnbilledArBalance * 0.15, 1000)
+      ? `Unbilled receivables increased by ${formatCurrency(unbilledArChange)}. Review project billing cadence, invoicing timing, and cash conversion implications.`
+      : unbilledArBalance > 0
+        ? `Unbilled AR totals ${formatCurrency(unbilledArBalance)}. Consider billing cadence and expected invoice timing.`
+        : "No unbilled AR balance was identified in the uploaded Balance Sheet detail.",
+    fullReview && deferredRevenueBalance > 0 && scheduleRecognition > 0
+      ? `Approximately ${((scheduleRecognition / deferredRevenueBalance) * 100).toFixed(0)}% of deferred balances are expected to convert into recognized revenue across the anticipated recognition schedule.`
+      : "",
+    revenueGrowthPercent !== null && deferredRevenueChange > 0 && revenueGrowthPercent < 5
+      ? "Deferred balances are growing while recognized revenue is relatively flat. This may warrant review of revenue timing, billing cadence, and service delivery schedules."
+      : "",
+  ].filter(Boolean);
+  const internalFlags = [
+    deferredRevenueBalance > 0 && recognizedRevenueActivity === 0
+      ? "Deferred balances remain present without identified recognition activity in available GL detail; review recognition timing."
+      : "",
+    deferredRevenueChange > Math.max(priorDeferredRevenueBalance * 0.25, 2500) && (revenueGrowthPercent === null || revenueGrowthPercent < 10)
+      ? "Deferred revenue growth appears elevated relative to recognized revenue growth; review billing vs recognition timing."
+      : "",
+    unbilledArChange > Math.max(priorUnbilledArBalance * 0.25, 2500)
+      ? "Unbilled AR growth may warrant review of project completion, invoice timing, and cash conversion timing."
+      : "",
+    fullReview && billingCadenceItems.some((item) => item.count > 1)
+      ? "Recurring billing cadence pattern identified; consider reviewing repeated invoice timing by customer or project."
+      : "",
+    ...deferredReviewItems.slice(0, 3).map((item) => `Deferred revenue review item: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...unbilledReviewItems.slice(0, 3).map((item) => `Unbilled AR review item: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+  ].filter(Boolean).slice(0, 10);
+  const forecastIntegrationNotes = fullReview
+    ? [
+        anticipatedRecognitionSchedule.length
+          ? `Use anticipated recognition schedule as a revenue forecast input: ${formatCurrency(scheduleRecognition)} expected recognition across ${anticipatedRecognitionSchedule.length} future period${anticipatedRecognitionSchedule.length === 1 ? "" : "s"}.`
+          : "Deferred recognition schedule could not be estimated until deferred balance or recognition cadence is available.",
+        unbilledArBalance > 0
+          ? `Use ${formatCurrency(unbilledArBalance)} of unbilled AR as a billing cadence and liquidity planning input, subject to project and invoice review.`
+          : "No unbilled AR balance was available for liquidity planning support.",
+      ]
+    : ["Professional package review is limited to high-level deferred revenue and unbilled AR operational timing commentary."];
+
+  return {
+    enabled,
+    deferredRevenueBalance,
+    priorDeferredRevenueBalance,
+    deferredRevenueChange,
+    deferredRevenueGrowthPercent: calculateGrowthPercent(deferredRevenueBalance, priorDeferredRevenueBalance),
+    unbilledArBalance,
+    priorUnbilledArBalance,
+    unbilledArChange,
+    unbilledArGrowthPercent: calculateGrowthPercent(unbilledArBalance, priorUnbilledArBalance),
+    revenueGrowthPercent,
+    recognizedRevenueActivity,
+    billingActivity,
+    deferredRecognitionRate,
+    anticipatedRecognitionSchedule,
+    deferredReviewItems,
+    unbilledReviewItems,
+    billingCadenceItems,
+    commentary,
+    internalFlags,
+    forecastIntegrationNotes,
+  };
+}
+
 function calculateDebtMetrics(data: ParsedFile | null, kpis: KPIs, bsRows: StatementRow[] = []): DebtMetrics {
   const balanceSheetDebt = getDebtLikeBalance(bsRows);
   const totalLiabilities = kpis.totalLiabilities || getTotalLiabilities(bsRows);
@@ -3861,6 +4798,308 @@ function calculateDebtMetrics(data: ParsedFile | null, kpis: KPIs, bsRows: State
     longTermPortion: longTermPortion || fallbackLongTermPortion,
     debtToAssets: kpis.totalAssets ? (totalDebt / kpis.totalAssets) * 100 : null,
     debtToEquity: kpis.totalEquity ? (totalDebt / kpis.totalEquity) * 100 : null,
+  };
+}
+
+function isCashAccountLabel(label: string) {
+  const normalized = normalizeStatementLabel(label);
+  return (
+    ["cash", "bank", "checking", "savings", "money market", "operating account", "merchant account", "payroll account"].some((pattern) =>
+      normalized.includes(pattern),
+    ) && !["accounts receivable", "cash flow", "cash basis"].some((pattern) => normalized.includes(pattern))
+  );
+}
+
+function getCashAccountRows(rows: StatementRow[]) {
+  return rows
+    .filter((row) => row.amount !== null && isCashAccountLabel(row.label))
+    .filter((row) => !normalizeStatementLabel(row.label).startsWith("total "))
+    .map((row) => ({ label: row.label, amount: Math.abs(row.amount || 0) }))
+    .filter((row) => row.amount > 0);
+}
+
+function getTreasuryActivityRows(dataSets: Array<ParsedFile | null>) {
+  const seenRows = new Set<string>();
+  return dataSets
+    .flatMap((data) => getAccountActivity(data, "__all__"))
+    .filter((row) => {
+      const text = normalizeStatementLabel(`${row.accountName} ${row.memo} ${row.description}`);
+      return isCashAccountLabel(row.accountName) || ["transfer", "check", "deposit", "wire", "ach", "reconciliation", "uncleared", "outstanding"].some((pattern) => text.includes(pattern));
+    })
+    .filter((row) => {
+      const amount = row.amount || row.debit - row.credit;
+      const key = [row.date, row.accountName, row.memo, row.description, amount].map((value) => String(value).toLowerCase()).join("|");
+      if (seenRows.has(key)) return false;
+      seenRows.add(key);
+      return true;
+    });
+}
+
+function extractCheckNumber(row: GlActivityRow) {
+  const text = `${row.memo} ${row.description}`.trim();
+  const match = text.match(/\b(?:check|chk|check #|chk #)\s*#?\s*(\d{3,})\b/i) || text.match(/\b#\s*(\d{3,})\b/);
+  return match ? Number(match[1]) : null;
+}
+
+function buildCashForecast({
+  cashBalance,
+  arKpis,
+  apKpis,
+  payrollAnalysis,
+  debtMetrics,
+}: {
+  cashBalance: number;
+  arKpis: AgingKpis;
+  apKpis: APKpis;
+  payrollAnalysis: PayrollAnalysis;
+  debtMetrics: DebtMetrics;
+}): CashForecastPeriod[] {
+  let projectedCash = cashBalance;
+  const periods = ["Next 30 days", "31-60 days", "61-90 days", "91-120 days"];
+  const collectionBuckets = [
+    arKpis.current + arKpis.days1To30,
+    arKpis.days31To60,
+    arKpis.days61To90,
+    arKpis.days90Plus * 0.25,
+  ];
+  const paymentBuckets = [
+    apKpis.current + apKpis.days1To30,
+    apKpis.days31To60,
+    apKpis.days61To90,
+    apKpis.days90Plus * 0.5,
+  ];
+  const monthlyPayroll = payrollAnalysis.totalCurrentPayrollCost || 0;
+  const monthlyDebt = Math.max(debtMetrics.currentPortion / 12, 0);
+
+  return periods.map((period, index) => {
+    const expectedCollections = collectionBuckets[index] || 0;
+    const expectedPayments = paymentBuckets[index] || 0;
+    const payrollOutflow = monthlyPayroll;
+    const debtOutflow = monthlyDebt;
+    projectedCash = projectedCash + expectedCollections - expectedPayments - payrollOutflow - debtOutflow;
+    return {
+      period,
+      projectedCash,
+      expectedCollections,
+      expectedPayments,
+      payrollOutflow,
+      debtOutflow,
+      commentary: `${period}: projected cash of ${formatCurrency(projectedCash)} after expected collections, vendor payments, payroll timing, and scheduled debt outflows.`,
+    };
+  });
+}
+
+function calculateTreasuryLiquidityIntelligence({
+  packageTier,
+  kpis,
+  priorKpis,
+  currentBsRows,
+  priorBsRows,
+  arKpis,
+  apKpis,
+  payrollAnalysis,
+  debtMetrics,
+  cashFlowData,
+  currentMonthGlData,
+  currentQuarterGlData,
+  currentYearGlData,
+}: {
+  packageTier: PackageTier;
+  kpis: KPIs;
+  priorKpis: KPIs;
+  currentBsRows: StatementRow[];
+  priorBsRows: StatementRow[];
+  arKpis: AgingKpis;
+  apKpis: APKpis;
+  payrollAnalysis: PayrollAnalysis;
+  debtMetrics: DebtMetrics;
+  cashFlowData: ParsedFile | null;
+  currentMonthGlData: ParsedFile | null;
+  currentQuarterGlData: ParsedFile | null;
+  currentYearGlData: ParsedFile | null;
+}): TreasuryLiquidityIntelligence {
+  const cashAccountRows = getCashAccountRows(currentBsRows);
+  const cashBalance = kpis.cash || cashAccountRows.reduce((total, row) => total + row.amount, 0);
+  const priorCashBalance = priorKpis.cash || findStatementBalanceByPatterns(priorBsRows, ["cash", "bank", "checking", "savings", "money market"], ["accounts receivable"]);
+  const cashChange = cashBalance - priorCashBalance;
+  const currentAssets = getCurrentAssetTotal(currentBsRows);
+  const currentLiabilities = getCurrentLiabilityTotal(currentBsRows);
+  const priorCurrentAssets = getCurrentAssetTotal(priorBsRows);
+  const priorCurrentLiabilities = getCurrentLiabilityTotal(priorBsRows);
+  const workingCapital = currentAssets && currentLiabilities ? currentAssets - currentLiabilities : null;
+  const priorWorkingCapital = priorCurrentAssets && priorCurrentLiabilities ? priorCurrentAssets - priorCurrentLiabilities : null;
+  const currentRatio = currentAssets && currentLiabilities ? currentAssets / currentLiabilities : null;
+  const quickRatio = currentLiabilities ? (cashBalance + kpis.accountsReceivable) / currentLiabilities : null;
+  const treasuryRows = getTreasuryActivityRows([currentMonthGlData, currentQuarterGlData, currentYearGlData]);
+  const accountActivity = new Map<string, { count: number; amount: number }>();
+  treasuryRows.forEach((row) => {
+    const account = row.accountName || "Unspecified cash account";
+    const current = accountActivity.get(account) || { count: 0, amount: 0 };
+    accountActivity.set(account, {
+      count: current.count + 1,
+      amount: current.amount + Math.abs(row.amount || row.debit - row.credit),
+    });
+  });
+  const bankAccountCount = Math.max(cashAccountRows.length || accountActivity.size, cashBalance > 0 ? 1 : 0);
+  const topCashBalance = cashAccountRows.reduce((max, row) => Math.max(max, row.amount), 0);
+  const cashConcentrationPercent = cashBalance ? (topCashBalance / cashBalance) * 100 : 0;
+  const idleCashEstimate = cashAccountRows
+    .filter((row) => {
+      const activity = accountActivity.get(row.label);
+      return row.amount > Math.max(cashBalance * 0.1, 5000) && (!activity || activity.count <= 1);
+    })
+    .reduce((total, row) => total + row.amount, 0);
+  const operatingCashMovement =
+    getStatementAmountByPatterns(getStatementRows(cashFlowData), ["net cash provided by operating activities", "net cash from operating activities", "operating activities"]) ?? null;
+  const averageWeeklyOutflow = Math.max((payrollAnalysis.totalCurrentPayrollCost + apKpis.total + Math.max(debtMetrics.currentPortion / 12, 0)) / 4, 0);
+  const liquidityRunwayWeeks = averageWeeklyOutflow > 0 ? cashBalance / averageWeeklyOutflow : null;
+  const transferRows = treasuryRows.filter((row) => /transfer|wire|ach/i.test(`${row.memo} ${row.description}`));
+  const reconRows = treasuryRows.filter((row) => /uncleared|outstanding|reconcil|deposit in transit|stale/i.test(`${row.memo} ${row.description}`));
+  const checkNumbers = treasuryRows.map(extractCheckNumber).filter((value): value is number => value !== null).sort((a, b) => a - b);
+  const duplicateChecks = checkNumbers.filter((value, index, all) => all.indexOf(value) !== index);
+  const sequenceGaps = checkNumbers.slice(1).filter((value, index) => value - checkNumbers[index] > 10);
+  const cashForecast = isVirtualCfo(packageTier)
+    ? buildCashForecast({ cashBalance, arKpis, apKpis, payrollAnalysis, debtMetrics })
+    : [];
+  const bankAccountItems: TreasuryReviewItem[] = [
+    {
+      label: "Bank account structure",
+      value: `${bankAccountCount} account${bankAccountCount === 1 ? "" : "s"}`,
+      commentary:
+        bankAccountCount > 4
+          ? "Multiple cash accounts were identified. Consider reviewing treasury structure, account segmentation, and operating account overlap."
+          : "Bank account structure appears manageable based on available balance sheet and GL detail.",
+    },
+    {
+      label: "Transfer activity",
+      value: `${transferRows.length} item${transferRows.length === 1 ? "" : "s"}`,
+      commentary:
+        transferRows.length > 5
+          ? "Recurring transfer activity may warrant review of operating account segmentation and cash positioning."
+          : "Transfer activity does not show elevated treasury complexity from available GL detail.",
+    },
+    {
+      label: "Idle cash estimate",
+      value: formatCurrency(idleCashEstimate),
+      commentary:
+        idleCashEstimate > 0
+          ? "Cash balances appear concentrated in low-activity accounts and may warrant treasury positioning review."
+          : "No material idle cash estimate was identified from available account activity.",
+    },
+  ];
+  const cashPositionItems: TreasuryReviewItem[] = [
+    {
+      label: "Cash movement",
+      value: formatCurrency(cashChange),
+      commentary:
+        cashChange < -Math.max(priorCashBalance * 0.1, 5000)
+          ? "Cash declined period-over-period. Review operational cash flow, collections, vendor payments, and payroll timing."
+          : cashChange > Math.max(priorCashBalance * 0.1, 5000)
+            ? "Cash improved period-over-period. Review whether improvement came from collections, operating cash flow, or timing of payments."
+            : "Cash balances remained relatively stable period-over-period.",
+    },
+    {
+      label: "Working capital",
+      value: workingCapital !== null ? formatCurrency(workingCapital) : "N/A",
+      commentary:
+        workingCapital !== null && workingCapital < 0
+          ? "Working capital is negative and may warrant liquidity timing review."
+          : "Working capital should be reviewed with AR aging, AP aging, inventory movement, and cash timing.",
+    },
+    {
+      label: "Liquidity runway",
+      value: liquidityRunwayWeeks !== null ? `${liquidityRunwayWeeks.toFixed(1)} weeks` : "N/A",
+      commentary: "Runway estimate uses current cash against payroll, AP, and scheduled debt timing assumptions for review support.",
+    },
+  ];
+  const reconciliationItems: TreasuryReviewItem[] = reconRows.length
+    ? [
+        {
+          label: "Reconciling item review",
+          value: `${reconRows.length} item${reconRows.length === 1 ? "" : "s"}`,
+          commentary: "Recurring uncleared or reconciling items were identified and may warrant bank reconciliation review.",
+        },
+      ]
+    : [];
+  const checkSequenceItems: TreasuryReviewItem[] = [
+    ...(duplicateChecks.length
+      ? [{
+          label: "Duplicate check numbers",
+          value: [...new Set(duplicateChecks)].slice(0, 5).join(", "),
+          commentary: "Duplicate check number patterns were identified and may warrant operational disbursement review.",
+        }]
+      : []),
+    ...(sequenceGaps.length
+      ? [{
+          label: "Check sequence gaps",
+          value: `${sequenceGaps.length} gap${sequenceGaps.length === 1 ? "" : "s"}`,
+          commentary: "Check sequencing gaps were identified outside normal sequential patterns and may warrant review.",
+        }]
+      : []),
+  ];
+  const commentary = [
+    packageTier === "essential"
+      ? `Cash balances were ${formatCurrency(cashBalance)}. Review cash positioning together with AR collections and AP payment timing.`
+      : `Liquidity review shows cash of ${formatCurrency(cashBalance)}, working capital of ${workingCapital !== null ? formatCurrency(workingCapital) : "N/A"}, and a current ratio of ${currentRatio !== null ? currentRatio.toFixed(2) : "N/A"}.`,
+    apKpis.days90Plus > 0 || arKpis.days90Plus > 0
+      ? "AR/AP aging timing may affect near-term operating cash flow and should be reviewed with cash positioning."
+      : "AR/AP aging does not show elevated older-bucket timing from available data.",
+    isProfessionalOrHigher(packageTier) && bankAccountCount > 4
+      ? "Cash balances appear fragmented across multiple accounts and may warrant treasury structure review."
+      : "",
+    isVirtualCfo(packageTier) && cashForecast.length
+      ? `Cash forecast intelligence projects ${formatCurrency(cashForecast[cashForecast.length - 1].projectedCash)} by ${cashForecast[cashForecast.length - 1].period.toLowerCase()} based on current collection, AP, payroll, and debt timing assumptions.`
+      : "",
+  ].filter(Boolean);
+  const internalFlags = [
+    cashChange < -Math.max(priorCashBalance * 0.15, 10000) ? "Cash declined materially period-over-period; review operating cash flow and working capital timing." : "",
+    workingCapital !== null && workingCapital < 0 ? "Working capital is negative; review AR collection timing, AP obligations, and operating cash needs." : "",
+    bankAccountCount > 4 ? "Multiple cash accounts may indicate fragmented treasury structure; review account purpose and activity overlap." : "",
+    idleCashEstimate > Math.max(cashBalance * 0.15, 10000) ? "Idle cash positioning identified in low-activity accounts; consider cash concentration and utilization review." : "",
+    reconRows.length ? "Reconciling or uncleared cash items identified; review stale reconciliation timing." : "",
+    duplicateChecks.length || sequenceGaps.length ? "Check sequencing review item identified; consider operational disbursement review." : "",
+    liquidityRunwayWeeks !== null && liquidityRunwayWeeks < 4 ? "Liquidity runway estimate is under four weeks based on AP, payroll, and debt timing assumptions." : "",
+  ].filter(Boolean).slice(0, 10);
+  const forecastIntegrationNotes = isVirtualCfo(packageTier)
+    ? [
+        "Cash Forecast Intelligence uses current cash, AR expected collections, AP expected payments, payroll timing, and scheduled debt timing as preliminary forecast drivers.",
+        "This structure prepares future 13-week cash forecasting by separating collections, vendor payments, payroll, debt, and projected cash balance.",
+        liquidityRunwayWeeks !== null
+          ? `Estimated liquidity runway is ${liquidityRunwayWeeks.toFixed(1)} weeks using available operating cash timing assumptions.`
+          : "Liquidity runway requires cash balance plus AP, payroll, or debt timing assumptions.",
+      ]
+    : [];
+
+  return {
+    enabled: cashBalance > 0 || isProfessionalOrHigher(packageTier),
+    tierScope:
+      packageTier === "essential"
+        ? "Essential includes basic cash, AR/AP timing, and operational liquidity commentary."
+        : packageTier === "professional"
+          ? "Professional includes liquidity review, working capital trends, AR/AP timing, treasury operational commentary, and cash positioning review."
+          : "Virtual CFO includes treasury review, cash forecasting, runway analysis, concentration review, and executive liquidity planning.",
+    cashBalance,
+    priorCashBalance,
+    cashChange,
+    cashGrowthPercent: calculateGrowthPercent(cashBalance, priorCashBalance),
+    currentRatio,
+    quickRatio,
+    workingCapital,
+    priorWorkingCapital,
+    workingCapitalChange: workingCapital !== null && priorWorkingCapital !== null ? workingCapital - priorWorkingCapital : null,
+    bankAccountCount,
+    cashConcentrationPercent,
+    idleCashEstimate,
+    operatingCashMovement,
+    liquidityRunwayWeeks,
+    bankAccountItems,
+    cashPositionItems,
+    reconciliationItems,
+    checkSequenceItems,
+    cashForecast,
+    commentary,
+    internalFlags,
+    forecastIntegrationNotes,
   };
 }
 
@@ -4052,6 +5291,7 @@ function validateFinancialPackage({
   priorYearGlData,
   kpis,
   arKpis,
+  arReserveIntelligence,
   apKpis,
   inventoryKpis,
   fixedAssetKpis,
@@ -4078,6 +5318,7 @@ function validateFinancialPackage({
   priorYearGlData: ParsedFile | null;
   kpis: KPIs;
   arKpis: AgingKpis;
+  arReserveIntelligence: ARReserveIntelligence;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
   fixedAssetKpis: FixedAssetKpis;
@@ -4117,6 +5358,17 @@ function validateFinancialPackage({
       missingMessage: "AP Aging and Balance Sheet AP balance are both required for this reconciliation.",
       successMessage: "AP Aging agrees to the Balance Sheet AP balance.",
       mismatchMessage: (variance) => `AP Aging does not agree to Balance Sheet by ${formatCurrency(Math.abs(variance))}.`,
+    }),
+    buildValidationCheck({
+      id: "ar-reserve-guidance-math",
+      category: "AR",
+      label: "AR Reserve Guidance Math",
+      expectedBalance: arData ? arReserveIntelligence.buckets.reduce((total, bucket) => total + bucket.balance * (bucket.reservePercent / 100), 0) : null,
+      actualBalance: arData ? arReserveIntelligence.totalSuggestedReserve : null,
+      tolerance: 1,
+      missingMessage: "AR Aging is required to validate reserve guidance math.",
+      successMessage: "AR reserve percentages and reserve dollars calculate as expected.",
+      mismatchMessage: (variance) => `AR reserve guidance math differs by ${formatCurrency(Math.abs(variance))}.`,
     }),
     buildValidationCheck({
       id: "inventory-to-bs",
@@ -4329,6 +5581,241 @@ function validateFinancialPackage({
   };
 }
 
+function buildPackageQaFindings({
+  packageTier,
+  validationResults,
+  arReserveIntelligence,
+  reserveLifecycleIntelligence,
+  apCutoffIntelligence,
+  revenueRecognitionIntelligence,
+  payrollAnalysis,
+  workforceIntelligence,
+  treasuryLiquidityIntelligence,
+  fixedAssetIntegrityIntelligence,
+  manufacturingInventoryIntelligence,
+  closeManagementIntelligence,
+  monthFluxRows,
+  quarterFluxRows,
+  yearFluxRows,
+  executiveSummary,
+}: {
+  packageTier: PackageTier;
+  validationResults: ValidationResults;
+  arReserveIntelligence: ARReserveIntelligence;
+  reserveLifecycleIntelligence: ReserveLifecycleIntelligence;
+  apCutoffIntelligence: ApCutoffIntelligence;
+  revenueRecognitionIntelligence: RevenueRecognitionIntelligence;
+  payrollAnalysis: PayrollAnalysis;
+  workforceIntelligence: WorkforceIntelligence;
+  treasuryLiquidityIntelligence: TreasuryLiquidityIntelligence;
+  fixedAssetIntegrityIntelligence: FixedAssetIntegrityIntelligence;
+  manufacturingInventoryIntelligence: ManufacturingInventoryIntelligence;
+  closeManagementIntelligence: CloseManagementIntelligence;
+  monthFluxRows: FluxRow[];
+  quarterFluxRows: FluxRow[];
+  yearFluxRows: FluxRow[];
+  executiveSummary: ReturnType<typeof buildExecutiveSummary>;
+}): PackageQaFinding[] {
+  const findings: PackageQaFinding[] = [];
+  validationResults.checks
+    .filter((check) => check.status === "red" || check.status === "yellow")
+    .slice(0, 8)
+    .forEach((check) => {
+      findings.push({
+        id: `deterministic-${check.id}`,
+        severity: check.severity,
+        category: "calculation",
+        message: `${check.label}: ${check.message}`,
+        internalOnly: true,
+      });
+    });
+
+  const allFluxRows = [...monthFluxRows, ...quarterFluxRows, ...yearFluxRows];
+  arReserveIntelligence.internalFlags.forEach((flag, index) => {
+    findings.push({
+      id: `ar-reserve-${index}`,
+      severity: "info",
+      category: "ar-reserve",
+      message: flag,
+      internalOnly: true,
+    });
+  });
+  arReserveIntelligence.buckets.forEach((bucket) => {
+    const expectedReserve = bucket.balance * (bucket.reservePercent / 100);
+    if (Math.abs(expectedReserve - bucket.reserveAmount) > 1) {
+      findings.push({
+        id: `ar-reserve-math-${bucket.id}`,
+        severity: "minor",
+        category: "ar-reserve",
+        message: `Review AR reserve math for ${bucket.label}; calculated reserve dollars do not match the applied percentage.`,
+        internalOnly: true,
+      });
+    }
+  });
+  if (reserveLifecycleIntelligence.enabled) {
+    reserveLifecycleIntelligence.internalFlags.slice(0, packageTier === "essential" ? 2 : 4).forEach((flag, index) => {
+      findings.push({
+        id: `reserve-lifecycle-${index}`,
+        severity: reserveLifecycleIntelligence.adequacyStatus === "Elevated Review" ? "minor" : "info",
+        category: "reserve-lifecycle",
+        message: flag,
+        internalOnly: true,
+      });
+    });
+  }
+  if (revenueRecognitionIntelligence.enabled) {
+    revenueRecognitionIntelligence.internalFlags.slice(0, packageTier === "virtualCfo" ? 4 : 2).forEach((flag, index) => {
+      findings.push({
+        id: `revenue-recognition-${index}`,
+        severity: "info",
+        category: "revenue-recognition",
+        message: flag,
+        internalOnly: true,
+      });
+    });
+  }
+  if (workforceIntelligence.enabled) {
+    workforceIntelligence.internalFlags.slice(0, packageTier === "essential" ? 2 : 4).forEach((flag, index) => {
+      findings.push({
+        id: `workforce-${index}`,
+        severity: "info",
+        category: "workforce",
+        message: flag,
+        internalOnly: true,
+      });
+    });
+  }
+  if (treasuryLiquidityIntelligence.enabled) {
+    treasuryLiquidityIntelligence.internalFlags.slice(0, packageTier === "essential" ? 2 : 4).forEach((flag, index) => {
+      findings.push({
+        id: `treasury-${index}`,
+        severity: "info",
+        category: "treasury",
+        message: flag,
+        internalOnly: true,
+      });
+    });
+  }
+  if (fixedAssetIntegrityIntelligence.enabled) {
+    fixedAssetIntegrityIntelligence.internalFlags.slice(0, packageTier === "essential" ? 2 : 4).forEach((flag, index) => {
+      findings.push({
+        id: `fixed-asset-integrity-${index}`,
+        severity: fixedAssetIntegrityIntelligence.integrityStatus === "Focused Review" ? "minor" : "info",
+        category: "fixed-asset-integrity",
+        message: flag,
+        internalOnly: true,
+      });
+    });
+  }
+  if (manufacturingInventoryIntelligence.enabled) {
+    manufacturingInventoryIntelligence.internalFlags.slice(0, packageTier === "essential" ? 2 : packageTier === "professional" ? 3 : 5).forEach((flag, index) => {
+      findings.push({
+        id: `manufacturing-inventory-${index}`,
+        severity: manufacturingInventoryIntelligence.operationalEfficiencyStatus === "Focused Review" ? "minor" : "info",
+        category: "manufacturing-inventory",
+        message: flag,
+        internalOnly: true,
+      });
+    });
+  }
+  if (closeManagementIntelligence.enabled) {
+    closeManagementIntelligence.internalFlags.slice(0, packageTier === "virtualCfo" ? 6 : 3).forEach((flag, index) => {
+      findings.push({
+        id: `close-management-${index}`,
+        severity: closeManagementIntelligence.closeQualityStatus === "High Review" || closeManagementIntelligence.closeQualityStatus === "Elevated Review" ? "minor" : "info",
+        category: "close-management",
+        message: flag,
+        internalOnly: true,
+      });
+    });
+  }
+  if (packageTier === "virtualCfo") {
+    apCutoffIntelligence.internalFlags.slice(0, 4).forEach((flag, index) => {
+      findings.push({
+        id: `ap-cutoff-${index}`,
+        severity: apCutoffIntelligence.recurringAccrualRiskStatus === "High" ? "minor" : "info",
+        category: "ap-cutoff",
+        message: flag,
+        internalOnly: true,
+      });
+    });
+    apCutoffIntelligence.recurringVendorProfiles
+      .filter((profile) => profile.riskStatus === "Elevated" || profile.riskStatus === "High")
+      .slice(0, 3)
+      .forEach((profile) => {
+        findings.push({
+          id: `recurring-accrual-${normalizeStatementLabel(profile.vendor).replace(/\s+/g, "-")}`,
+          severity: profile.riskStatus === "High" ? "minor" : "info",
+          category: "ap-cutoff",
+          message: `Recurring invoices from ${profile.vendor} continue to be entered after month-end with prior-period invoice dates. Review whether recurring accrual procedures should be evaluated.`,
+          internalOnly: true,
+        });
+      });
+  }
+  allFluxRows.forEach((row) => {
+    const commentary = row.commentary.toLowerCase();
+    const movedUp = row.dollarVariance > 0;
+    if ((movedUp && commentary.includes("decreased")) || (!movedUp && commentary.includes("increased"))) {
+      findings.push({
+        id: `commentary-direction-${getFluxRowKey(row)}`,
+        severity: "minor",
+        category: "commentary",
+        message: `Review commentary direction for ${row.accountName}; variance direction may not match increase/decrease wording.`,
+        internalOnly: true,
+      });
+    }
+    if (
+      row.accountType === "expense" &&
+      row.dollarVariance < 0 &&
+      Math.abs(row.percentVariance || 0) > 25 &&
+      row.priorAmount > 5000
+    ) {
+      findings.push({
+        id: `possible-accrual-${getFluxRowKey(row)}`,
+        severity: "info",
+        category: "possible-accrual",
+        message: `Consider whether ${row.accountName} has a timing issue or potential accrual review item based on the material expense decrease.`,
+        internalOnly: true,
+      });
+    }
+  });
+
+  if (payrollAnalysis.totalFteChange > 0 && payrollAnalysis.totalPayrollCostChange < 0) {
+    findings.push({
+      id: "payroll-fte-relationship",
+      severity: "info",
+      category: "relationship",
+      message: "Review whether payroll commentary explains why FTE increased while payroll cost decreased.",
+      internalOnly: true,
+    });
+  }
+
+  if (
+    packageTier === "virtualCfo" &&
+    allFluxRows.length &&
+    !executiveSummary.sections.some((section) => /net income|driver|flux|variance/i.test(section.body))
+  ) {
+    findings.push({
+      id: "executive-summary-net-income-drivers",
+      severity: "info",
+      category: "executive-summary",
+      message: "Executive Summary should tie net income movement to approved flux drivers before finalizing the Virtual CFO package.",
+      internalOnly: true,
+    });
+  }
+  executiveSummary.backendReviewFlags.slice(0, packageTier === "essential" ? 2 : 4).forEach((flag, index) => {
+    findings.push({
+      id: `executive-storytelling-${index}`,
+      severity: "info",
+      category: "executive-summary",
+      message: flag,
+      internalOnly: true,
+    });
+  });
+
+  return findings.slice(0, 12);
+}
+
 function calculateAgingKpis(data: ParsedFile | null): AgingKpis {
   if (!data) {
     return {
@@ -4367,6 +5854,410 @@ function calculateAgingKpis(data: ParsedFile | null): AgingKpis {
     valueFromTotalRow(totalIndex) || current + days1To30 + days31To60 + days61To90 + days90Plus;
 
   return { total, current, days1To30, days31To60, days61To90, days90Plus };
+}
+
+function getAgingBucketValue(data: ParsedFile | null, labels: string[]) {
+  if (!data) return null;
+  const headerIndex = data.rows.findIndex((row) =>
+    row.some((cell) => normalizeHeader(cell).includes("current")),
+  );
+  const headers = data.rows[headerIndex] || [];
+  const dataRows = headerIndex >= 0 ? data.rows.slice(headerIndex + 1) : data.rows;
+  const totalRow = dataRows.find((row) => normalizeHeader(row[0]) === "total");
+  const index = findHeaderIndex(headers, labels);
+  if (index < 0) return null;
+  return totalRow ? parseNumber(totalRow[index]) || 0 : sumColumn(dataRows, index);
+}
+
+function findARReserveBalance(rows: StatementRow[]) {
+  const reserve = getStatementAmountByPatterns(rows, [
+    "allowance for doubtful accounts",
+    "allowance for bad debts",
+    "allowance for credit losses",
+    "bad debt reserve",
+    "reserve for doubtful accounts",
+    "ar reserve",
+    "a/r reserve",
+  ]);
+  return reserve === null ? null : Math.abs(reserve);
+}
+
+function findBadDebtExpense(rows: StatementRow[]) {
+  const expense = getStatementAmountByPatterns(rows, [
+    "bad debt expense",
+    "bad debts",
+    "doubtful accounts expense",
+    "credit loss expense",
+    "provision for doubtful accounts",
+  ]);
+  return expense === null ? null : Math.abs(expense);
+}
+
+function findWriteOffs(data: ParsedFile | null) {
+  const rows = getStatementRows(data).filter((row) => {
+    const label = normalizeStatementLabel(row.label);
+    return label.includes("write off") || label.includes("write-off") || label.includes("writeoff");
+  });
+  if (!rows.length) return null;
+  return rows.reduce((total, row) => total + Math.abs(row.amount || 0), 0);
+}
+
+function calculateARReserveIntelligence({
+  arData,
+  arKpis,
+  balanceSheetRows,
+  plRows,
+  currentMonthGlData,
+  priorMonthGlData,
+}: {
+  arData: ParsedFile | null;
+  arKpis: AgingKpis;
+  balanceSheetRows: StatementRow[];
+  plRows: StatementRow[];
+  currentMonthGlData: ParsedFile | null;
+  priorMonthGlData: ParsedFile | null;
+}): ARReserveIntelligence {
+  const over180 = getAgingBucketValue(arData, ["181 - 365", "181-365", "181 to 365", "181+"]);
+  const over365 = getAgingBucketValue(arData, ["over 365", ">365", "365+", "over 1 year"]);
+  const overTwoYears = getAgingBucketValue(arData, ["over 2 years", ">2 years", "730+", "over 730"]);
+  const fallback91To180 = Math.max(
+    arKpis.days90Plus - (over180 || 0) - (over365 || 0) - (overTwoYears || 0),
+    0,
+  );
+  const buckets: ARReserveBucket[] = [
+    { id: "current", label: "Current (0-30 days)", balance: arKpis.current + arKpis.days1To30, reservePercent: 0, rationale: "No reserve" },
+    { id: "31-60", label: "31-60 days", balance: arKpis.days31To60, reservePercent: 0, rationale: "No reserve" },
+    { id: "61-90", label: "61-90 days", balance: arKpis.days61To90, reservePercent: 0, rationale: "No reserve" },
+    { id: "91-180", label: "91-180 days", balance: fallback91To180, reservePercent: 10, rationale: "Mild concern" },
+    { id: "181-365", label: "181-365 days", balance: over180 || 0, reservePercent: 25, rationale: "Elevated risk" },
+    { id: "over-365", label: "Over 365 days", balance: over365 || 0, reservePercent: 50, rationale: "High risk" },
+    { id: "over-2-years", label: "Over 2 years", balance: overTwoYears || 0, reservePercent: 100, rationale: "Likely uncollectible" },
+  ].map((bucket) => ({
+    ...bucket,
+    reserveAmount: bucket.balance * (bucket.reservePercent / 100),
+  }));
+  const totalSuggestedReserve = buckets.reduce((total, bucket) => total + bucket.reserveAmount, 0);
+  const existingReserveBalance = findARReserveBalance(balanceSheetRows);
+  const badDebtExpense = findBadDebtExpense(plRows);
+  const writeOffs = [findWriteOffs(currentMonthGlData), findWriteOffs(priorMonthGlData)]
+    .filter((value): value is number => value !== null)
+    .reduce((total, value) => total + value, 0);
+  const resolvedWriteOffs = writeOffs > 0 ? writeOffs : null;
+  const reserveGap = existingReserveBalance === null ? null : totalSuggestedReserve - existingReserveBalance;
+  const olderAr = buckets
+    .filter((bucket) => ["91-180", "181-365", "over-365", "over-2-years"].includes(bucket.id))
+    .reduce((total, bucket) => total + bucket.balance, 0);
+  const olderArPercent = arKpis.total ? (olderAr / arKpis.total) * 100 : 0;
+  const collectionRiskStatus =
+    !arData || arKpis.total === 0
+      ? "Insufficient Data"
+      : buckets.some((bucket) => ["over-365", "over-2-years"].includes(bucket.id) && bucket.balance > 0)
+        ? "High"
+        : olderArPercent > 20
+          ? "Elevated"
+          : olderArPercent > 10
+            ? "Moderate"
+            : "Low";
+  const hasHistoricalOverride =
+    resolvedWriteOffs !== null ||
+    badDebtExpense !== null ||
+    existingReserveBalance !== null ||
+    getAgingBucketValue(arData, ["over 365", ">365", "365+"]) !== null;
+  const internalFlags = [
+    existingReserveBalance === null && olderAr > 0 ? "No identified AR reserve despite older receivable balances." : "",
+    reserveGap !== null && reserveGap > Math.max(totalSuggestedReserve * 0.2, 1000)
+      ? "Existing reserve appears materially below preliminary reserve guidance."
+      : "",
+    reserveGap !== null && reserveGap < -Math.max(totalSuggestedReserve * 0.5, 1000)
+      ? "Existing reserve appears materially above preliminary aging-based guidance; compare to historical collection trends."
+      : "",
+    resolvedWriteOffs !== null && existingReserveBalance !== null && resolvedWriteOffs > existingReserveBalance
+      ? "Write-offs identified in uploaded activity exceed current reserve balance."
+      : "",
+    badDebtExpense === null && olderAr > 0 ? "No bad debt expense identified despite aged receivable balances." : "",
+  ].filter(Boolean);
+  const commentary = [
+    collectionRiskStatus === "Low"
+      ? "Collection performance appears strongest through 90 days, reducing near-term reserve pressure based on available aging."
+      : "Potential reserve exposure exists in older receivable buckets and may warrant management review.",
+    olderAr > 0
+      ? `Receivables over 90 days total ${formatMoney(olderAr)}; preliminary reserve guidance estimates ${formatMoney(totalSuggestedReserve)} before considering customer-specific collection history.`
+      : "No material receivable balance over 90 days was identified from the uploaded AR Aging.",
+    existingReserveBalance !== null
+      ? `Existing reserve balance identified: ${formatMoney(existingReserveBalance)}. ${reserveGap !== null && reserveGap > 0 ? `Preliminary aging guidance exceeds the reserve by ${formatMoney(reserveGap)}.` : "Compare reserve coverage to historical write-offs and collections before concluding."}`
+      : "No allowance or bad debt reserve balance was identified in the Balance Sheet data.",
+    resolvedWriteOffs !== null
+      ? `Write-off activity identified in uploaded reports totals ${formatMoney(resolvedWriteOffs)}; consider comparing this to reserve coverage and collection trends.`
+      : "Historical write-off detail was not identified in uploaded reports, so static aging guidance remains a starting point only.",
+  ];
+
+  return {
+    buckets,
+    totalSuggestedReserve,
+    existingReserveBalance,
+    reserveGap,
+    badDebtExpense,
+    writeOffs: resolvedWriteOffs,
+    collectionRiskStatus,
+    commentary,
+    internalFlags,
+    hasHistoricalOverride,
+  };
+}
+
+function getCustomerAgingExposures(arData: ParsedFile | null): ReserveLifecycleReviewItem[] {
+  if (!arData) return [];
+  const headerIndex = arData.rows.findIndex((row) =>
+    row.some((cell) => normalizeHeader(cell).includes("current") || normalizeHeader(cell).includes("90") || normalizeHeader(cell).includes("total")),
+  );
+  const headers = arData.rows[headerIndex] || [];
+  const dataRows = headerIndex >= 0 ? arData.rows.slice(headerIndex + 1) : arData.rows;
+  const customerIndex = findHeaderIndex(headers, ["customer", "name"]);
+  const totalIndex = findHeaderIndex(headers, ["total"]);
+  const olderIndexes = findHeaderIndexes(headers, ["91", "90+", ">90", "181", "365", "over"]);
+  const totalAr = dataRows.reduce((total, row) => total + (parseNumber(row[totalIndex]) || getLastNumericValue(row) || 0), 0);
+
+  return dataRows
+    .map((row) => {
+      const label = String(row[customerIndex >= 0 ? customerIndex : 0] || "").trim();
+      const amount = totalIndex >= 0 ? parseNumber(row[totalIndex]) || 0 : getLastNumericValue(row) || 0;
+      const olderAmount = olderIndexes.length ? sumRowColumns(row, olderIndexes) : 0;
+      return {
+        label,
+        amount: Math.abs(amount),
+        percent: totalAr ? (Math.abs(amount) / Math.abs(totalAr)) * 100 : null,
+        olderAmount: Math.abs(olderAmount),
+      };
+    })
+    .filter((item) => item.label && normalizeHeader(item.label) !== "total" && item.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 8)
+    .map((item) => ({
+      label: item.label,
+      amount: item.amount,
+      percent: item.percent,
+      commentary:
+        item.olderAmount > 0
+          ? `${item.label} has ${formatCurrency(item.olderAmount)} in older receivable exposure. Consider customer-specific collectibility review and collection timing.`
+          : `${item.label} represents ${item.percent !== null ? `${item.percent.toFixed(1)}%` : "a portion"} of AR exposure. Review concentration and payment patterns where appropriate.`,
+    }));
+}
+
+function getUnappliedCreditItems(arData: ParsedFile | null, glDataSets: Array<ParsedFile | null>): ReserveLifecycleReviewItem[] {
+  const agingCredits = (arData?.rows || [])
+    .map((row) => {
+      const label = String(row[0] || "").trim();
+      const value = getLastNumericValue(row);
+      return value !== null && value < 0
+        ? {
+            label,
+            amount: Math.abs(value),
+            commentary: `${label} shows a negative receivable or credit balance of ${formatCurrency(Math.abs(value))}. Review application, refund timing, or classification.`,
+          }
+        : null;
+    })
+    .filter(Boolean) as ReserveLifecycleReviewItem[];
+  const glCredits = glDataSets
+    .flatMap((data) => getAccountActivity(data, "__all__"))
+    .filter((row) => /unapplied|credit|refund|negative ar|negative receivable/i.test(`${row.accountName} ${row.memo} ${row.description}`))
+    .map((row) => ({
+      label: row.customer || row.name || row.accountName || "Unapplied credit review",
+      amount: Math.abs(row.amount || row.debit - row.credit),
+      commentary: `${row.customer || row.name || row.accountName || "Customer credit activity"} includes credit-related activity of ${formatCurrency(Math.abs(row.amount || row.debit - row.credit))}. Review application and classification timing.`,
+    }))
+    .filter((item) => item.amount > 0);
+
+  return [...agingCredits, ...glCredits].sort((a, b) => b.amount - a.amount).slice(0, 6);
+}
+
+function getWriteOffReviewItems(glDataSets: Array<ParsedFile | null>): ReserveLifecycleReviewItem[] {
+  const grouped = new Map<string, { amount: number; count: number }>();
+  glDataSets
+    .flatMap((data) => getAccountActivity(data, "__all__"))
+    .filter((row) => /write.?off|bad debt|allowance|reserve/i.test(`${row.accountName} ${row.memo} ${row.description}`))
+    .forEach((row) => {
+      const label = row.customer || row.name || row.accountName || "Write-off activity";
+      const amount = Math.abs(row.amount || row.debit - row.credit);
+      const current = grouped.get(label) || { amount: 0, count: 0 };
+      grouped.set(label, { amount: current.amount + amount, count: current.count + 1 });
+    });
+
+  return [...grouped.entries()]
+    .map(([label, item]) => ({
+      label,
+      amount: item.amount,
+      commentary: `${label} shows ${item.count} write-off or reserve-related item${item.count === 1 ? "" : "s"} totaling ${formatCurrency(item.amount)}. Compare timing to reserve coverage and collection trends.`,
+    }))
+    .filter((item) => item.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 6);
+}
+
+function calculateReserveLifecycleIntelligence({
+  packageTier,
+  arData,
+  arKpis,
+  arReserveIntelligence,
+  priorBsRows,
+  currentMonthGlData,
+  priorMonthGlData,
+  currentQuarterGlData,
+  priorQuarterGlData,
+  currentYearGlData,
+  priorYearGlData,
+}: {
+  packageTier: PackageTier;
+  arData: ParsedFile | null;
+  arKpis: AgingKpis;
+  arReserveIntelligence: ARReserveIntelligence;
+  priorBsRows: StatementRow[];
+  currentMonthGlData: ParsedFile | null;
+  priorMonthGlData: ParsedFile | null;
+  currentQuarterGlData: ParsedFile | null;
+  priorQuarterGlData: ParsedFile | null;
+  currentYearGlData: ParsedFile | null;
+  priorYearGlData: ParsedFile | null;
+}): ReserveLifecycleIntelligence {
+  const priorReserveBalance = findARReserveBalance(priorBsRows);
+  const currentReserveBalance = arReserveIntelligence.existingReserveBalance;
+  const reserveTrendAmount = currentReserveBalance !== null && priorReserveBalance !== null ? currentReserveBalance - priorReserveBalance : null;
+  const reserveTrendPercent = reserveTrendAmount !== null && priorReserveBalance ? (reserveTrendAmount / Math.abs(priorReserveBalance)) * 100 : null;
+  const reserveToArPercent = currentReserveBalance !== null && arKpis.total ? (currentReserveBalance / arKpis.total) * 100 : null;
+  const priorArBalance = findStatementBalanceByPatterns(priorBsRows, ["accounts receivable", "a/r", "trade accounts receivable"], ["allowance", "reserve"]);
+  const priorReserveToArPercent = priorReserveBalance !== null && priorArBalance ? (priorReserveBalance / priorArBalance) * 100 : null;
+  const olderArBalance = arKpis.days90Plus;
+  const olderArPercent = arKpis.total ? (olderArBalance / arKpis.total) * 100 : 0;
+  const customerConcentrationItems = getCustomerAgingExposures(arData);
+  const concentrationExposure = customerConcentrationItems.slice(0, 3).reduce((total, item) => total + item.amount, 0);
+  const concentrationPercent = arKpis.total ? (concentrationExposure / arKpis.total) * 100 : 0;
+  const glDataSets = [currentMonthGlData, priorMonthGlData, currentQuarterGlData, priorQuarterGlData, currentYearGlData, priorYearGlData];
+  const writeOffItems = getWriteOffReviewItems(glDataSets);
+  const writeOffTotal = arReserveIntelligence.writeOffs || writeOffItems.reduce((total, item) => total + item.amount, 0);
+  const reserveBurnRate = currentReserveBalance && writeOffTotal ? (writeOffTotal / currentReserveBalance) * 100 : null;
+  const unappliedCreditItems = getUnappliedCreditItems(arData, glDataSets);
+  const collectionTrendItems: ReserveLifecycleReviewItem[] = [
+    {
+      label: "Older AR exposure",
+      amount: olderArBalance,
+      percent: olderArPercent,
+      commentary:
+        olderArBalance > 0
+          ? `Receivables over 90 days total ${formatCurrency(olderArBalance)}, or ${olderArPercent.toFixed(1)}% of AR. Review collection timing and reserve exposure.`
+          : "Collection performance appears strongest through 90 days based on available aging detail.",
+    },
+    {
+      label: "Reserve coverage",
+      amount: currentReserveBalance || 0,
+      percent: reserveToArPercent,
+      commentary:
+        currentReserveBalance !== null
+          ? `Reserve coverage is ${reserveToArPercent !== null ? `${reserveToArPercent.toFixed(1)}%` : "available"} of AR. Compare coverage to aging, write-offs, and customer concentration.`
+          : "No reserve balance was identified in the uploaded Balance Sheet data.",
+    },
+  ];
+  const suggestedReserveLow = arReserveIntelligence.totalSuggestedReserve * 0.75;
+  const suggestedReserveHigh = arReserveIntelligence.totalSuggestedReserve * 1.25;
+  const reserveVolatility =
+    reserveTrendPercent === null
+      ? "Insufficient Data"
+      : Math.abs(reserveTrendPercent) > 30
+        ? "Elevated"
+        : Math.abs(reserveTrendPercent) > 10
+          ? "Moderate"
+          : "Low";
+  const adequacyStatus =
+    !arData || !arKpis.total
+      ? "Insufficient Data"
+      : arReserveIntelligence.reserveGap !== null && arReserveIntelligence.reserveGap > Math.max(arReserveIntelligence.totalSuggestedReserve * 0.25, 2500)
+        ? "Elevated Review"
+        : olderArPercent > 15 || concentrationPercent > 50
+          ? "Review Needed"
+          : "Low Exposure";
+  const forecastGrowthRate = olderArPercent > 20 ? 0.15 : olderArPercent > 10 ? 0.08 : 0.03;
+  const reserveForecast = isVirtualCfo(packageTier)
+    ? ["Next period", "Second period", "Third period"].map((period, index) => {
+        const projectedOlderAr = olderArBalance * (1 + forecastGrowthRate * (index + 1));
+        const projectedReserveExposure = arReserveIntelligence.totalSuggestedReserve * (1 + forecastGrowthRate * (index + 1));
+        return {
+          period,
+          projectedReserveExposure,
+          projectedOlderAr,
+          commentary: `${period}: projected reserve exposure of ${formatCurrency(projectedReserveExposure)} if current collection and aging trends continue.`,
+        };
+      })
+    : [];
+  const commentary = [
+    `Preliminary reserve guidance remains ${formatCurrency(arReserveIntelligence.totalSuggestedReserve)}, with a suggested review range of ${formatCurrency(suggestedReserveLow)} to ${formatCurrency(suggestedReserveHigh)}.`,
+    currentReserveBalance !== null
+      ? `Current reserve balance identified: ${formatCurrency(currentReserveBalance)}${arReserveIntelligence.reserveGap !== null ? `, with a preliminary reserve gap/surplus of ${formatCurrency(arReserveIntelligence.reserveGap)}.` : "."}`
+      : "No reserve balance was identified in the uploaded Balance Sheet data; review whether a reserve account exists outside the uploaded report detail.",
+    writeOffTotal > 0
+      ? `Write-off or reserve-related activity totals ${formatCurrency(writeOffTotal)} from available activity. Compare write-off timing to reserve coverage and collection trends.`
+      : "Historical write-off activity was not identified in uploaded activity, so aging guidance remains a preliminary starting point.",
+    isProfessionalOrHigher(packageTier) && concentrationPercent > 0
+      ? `Top customer AR exposure represents ${concentrationPercent.toFixed(1)}% of receivables. Review concentration risk and customer-specific collection patterns.`
+      : "",
+    isVirtualCfo(packageTier) && reserveForecast.length
+      ? `Forecasted reserve exposure may reach ${formatCurrency(reserveForecast[reserveForecast.length - 1].projectedReserveExposure)} if current aging and collection patterns continue.`
+      : "",
+  ].filter(Boolean);
+  const internalFlags = [
+    arReserveIntelligence.reserveGap !== null && arReserveIntelligence.reserveGap > Math.max(arReserveIntelligence.totalSuggestedReserve * 0.25, 2500)
+      ? "Existing reserve appears below preliminary aging-based guidance; review reserve adequacy, customer-specific collectibility, and write-off history."
+      : "",
+    arReserveIntelligence.reserveGap !== null && arReserveIntelligence.reserveGap < -Math.max(arReserveIntelligence.totalSuggestedReserve * 0.5, 2500)
+      ? "Existing reserve appears above preliminary aging-based guidance; review whether historical collection and write-off trends support the balance."
+      : "",
+    reserveTrendAmount !== null && Math.abs(reserveTrendAmount) < 1 && olderArBalance > 0
+      ? "Reserve balance appears stagnant while aged receivable exposure remains; review reserve trend behavior."
+      : "",
+    reserveBurnRate !== null && reserveBurnRate > 75
+      ? "Write-offs or reserve-related activity are elevated relative to reserve coverage; review reserve burn rate and trend."
+      : "",
+    concentrationPercent > 50
+      ? "Aged receivable exposure appears concentrated within a small number of customers and may warrant additional collectibility review."
+      : "",
+    unappliedCreditItems.length ? "Unapplied credit or negative AR balances were identified; review application, refund timing, or classification." : "",
+  ].filter(Boolean).slice(0, 10);
+  const forecastIntegrationNotes = isVirtualCfo(packageTier)
+    ? [
+        "Reserve forecast uses current aging, reserve guidance, and collection trend indicators as preliminary forecast drivers.",
+        "Use projected reserve exposure in earnings quality, liquidity, and board-level receivables review.",
+      ]
+    : [];
+
+  return {
+    enabled: Boolean(arData || arKpis.total || arReserveIntelligence.totalSuggestedReserve),
+    tierScope:
+      packageTier === "essential"
+        ? "Essential includes reserve estimate review, basic aging review, write-off comparison, and AR quality commentary."
+        : packageTier === "professional"
+          ? "Professional adds customer concentration, reserve trend, collection trend, operational collection, and reserve adequacy analysis."
+          : "Virtual CFO adds reserve forecasting, volatility analysis, earnings quality implications, liquidity implications, and board-level reserve review.",
+    suggestedReserveLow,
+    suggestedReserveHigh,
+    currentReserveBalance,
+    priorReserveBalance,
+    reserveTrendAmount,
+    reserveTrendPercent,
+    reserveToArPercent,
+    priorReserveToArPercent,
+    olderArBalance,
+    olderArPercent,
+    concentrationExposure,
+    concentrationPercent,
+    reserveBurnRate,
+    reserveVolatility,
+    adequacyStatus,
+    customerConcentrationItems,
+    writeOffItems,
+    unappliedCreditItems,
+    collectionTrendItems,
+    reserveForecast,
+    commentary,
+    internalFlags,
+    forecastIntegrationNotes,
+  };
 }
 
 function calculateAPKpis(apData: ParsedFile | null): APKpis {
@@ -4458,20 +6349,99 @@ function getSlowMovingCommentary(value: number) {
   )} of flagged items for discounting, bundling, return-to-vendor options, or reserve adjustments.`;
 }
 
+function isInventoryOperationalRow(row: GlActivityRow) {
+  const text = normalizeStatementLabel(`${row.accountName} ${row.memo} ${row.description}`);
+  return [
+    "inventory",
+    "shrink",
+    "scrap",
+    "cycle count",
+    "ppv",
+    "purchase price variance",
+    "bom",
+    "bill of material",
+    "bill of labor",
+    "job cost",
+    "manufacturing variance",
+    "production variance",
+    "yield variance",
+    "usage variance",
+    "material variance",
+    "wip",
+    "work in process",
+  ].some((term) => text.includes(term));
+}
+
+function buildInventoryReviewItems(rows: GlActivityRow[], patterns: string[], labelBuilder: (row: GlActivityRow) => string): InventoryReviewItem[] {
+  const grouped = new Map<string, { amount: number; count: number }>();
+  rows
+    .filter((row) => {
+      const text = normalizeStatementLabel(`${row.accountName} ${row.memo} ${row.description}`);
+      return patterns.some((pattern) => text.includes(pattern));
+    })
+    .forEach((row) => {
+      const label = labelBuilder(row) || row.accountName || "Unspecified inventory activity";
+      const existing = grouped.get(label) || { amount: 0, count: 0 };
+      grouped.set(label, {
+        amount: existing.amount + Math.abs(row.amount || row.debit - row.credit),
+        count: existing.count + 1,
+      });
+    });
+
+  return [...grouped.entries()]
+    .map(([label, value]) => ({
+      label,
+      amount: value.amount,
+      count: value.count,
+      commentary: `${label} shows ${value.count} review item${value.count === 1 ? "" : "s"} totaling ${formatCurrency(value.amount)}. Consider reviewing whether this represents a recurring operational inventory pattern.`,
+    }))
+    .filter((item) => item.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 6);
+}
+
+function getInventoryOperationalRows(dataSets: Array<ParsedFile | null>) {
+  const seenRows = new Set<string>();
+  return dataSets
+    .flatMap((data) => getAccountActivity(data, "__all__"))
+    .filter(isInventoryOperationalRow)
+    .filter((row) => {
+      const amount = row.amount || row.debit - row.credit;
+      const key = [row.date, row.accountName, row.memo, row.description, amount].map((value) => String(value).toLowerCase()).join("|");
+      if (seenRows.has(key)) return false;
+      seenRows.add(key);
+      return true;
+    });
+}
+
 function calculateInventoryIntelligence({
+  packageTier,
   inventoryKpis,
   priorInventoryKpis,
   cogs,
   currentBsRows,
   priorBsRows,
   periodDays,
+  currentMonthGlData,
+  priorMonthGlData,
+  currentQuarterGlData,
+  priorQuarterGlData,
+  currentYearGlData,
+  priorYearGlData,
 }: {
+  packageTier: PackageTier;
   inventoryKpis: InventoryKpis;
   priorInventoryKpis: InventoryKpis;
   cogs: number;
   currentBsRows: StatementRow[];
   priorBsRows: StatementRow[];
   periodDays: number | null;
+  currentMonthGlData: ParsedFile | null;
+  priorMonthGlData: ParsedFile | null;
+  currentQuarterGlData: ParsedFile | null;
+  priorQuarterGlData: ParsedFile | null;
+  currentYearGlData: ParsedFile | null;
+  priorYearGlData: ParsedFile | null;
 }): InventoryIntelligence {
   const endingInventory = inventoryKpis.totalValue;
   const beginningInventory =
@@ -4514,6 +6484,82 @@ function calculateInventoryIntelligence({
           slowMovingValue,
         )}, consider establishing a reserve of 25% to 50% of that value.`
       : eoReserveWarning || "E&O reserve coverage appears aligned with the currently identified slow moving inventory risk.";
+  const currentInventoryRows = getInventoryOperationalRows([currentMonthGlData, currentQuarterGlData, currentYearGlData]);
+  const priorInventoryRows = getInventoryOperationalRows([priorMonthGlData, priorQuarterGlData, priorYearGlData]);
+  const allInventoryRows = [...currentInventoryRows, ...priorInventoryRows];
+  const fullOperationalReview = isVirtualCfo(packageTier);
+  const basicOperationalRows = fullOperationalReview ? allInventoryRows : currentInventoryRows;
+  const largestInventoryAdjustments = buildInventoryReviewItems(
+    basicOperationalRows,
+    ["adjustment", "inventory adjustment", "quantity adjustment"],
+    (row) => row.memo || row.description || row.accountName,
+  );
+  const recurringAdjustmentItems = buildInventoryReviewItems(
+    allInventoryRows,
+    ["adjustment", "shrink", "scrap", "write-off", "write off"],
+    (row) => row.accountName,
+  ).filter((item) => item.count > 1 || item.amount > Math.max(endingInventory * 0.02, 2500));
+  const cycleCountVarianceTrends = fullOperationalReview
+    ? buildInventoryReviewItems(allInventoryRows, ["cycle count", "physical count", "count variance"], (row) => row.accountName)
+    : [];
+  const purchasePriceVarianceTrends = fullOperationalReview
+    ? buildInventoryReviewItems(allInventoryRows, ["ppv", "purchase price variance", "price variance"], (row) => row.accountName)
+    : [];
+  const manufacturingVarianceReview = fullOperationalReview
+    ? buildInventoryReviewItems(allInventoryRows, ["manufacturing variance", "production variance", "yield variance", "usage variance"], (row) => row.accountName)
+    : [];
+  const bomVarianceReview = fullOperationalReview
+    ? buildInventoryReviewItems(allInventoryRows, ["bom", "bill of material", "material variance"], (row) => row.accountName)
+    : [];
+  const billOfLaborVarianceReview = fullOperationalReview
+    ? buildInventoryReviewItems(allInventoryRows, ["bill of labor", "labor variance", "labor efficiency"], (row) => row.accountName)
+    : [];
+  const jobProfitabilityConcerns = fullOperationalReview
+    ? buildInventoryReviewItems(allInventoryRows, ["job", "work order", "project", "overrun", "underrun", "wip"], (row) => row.memo || row.description || row.accountName)
+    : [];
+  const stagnantInventoryKeys = new Set(slowMovingItems.map((item) => normalizeStatementLabel(item.name)));
+  const inventoryPurchasesWithLimitedMovement = fullOperationalReview
+    ? inventoryKpis.topByValue
+        .filter((item) => stagnantInventoryKeys.has(normalizeStatementLabel(item.name)))
+        .map((item) => ({
+          label: item.name,
+          amount: item.value,
+          count: 1,
+          commentary: `${item.name} carries ${formatCurrency(item.value)} of inventory value with limited identified movement. Consider reviewing purchasing cadence, demand planning, and reserve implications.`,
+        }))
+        .slice(0, 6)
+    : [];
+  const operationalInventoryCommentary = [
+    turns !== null && turns < 3
+      ? "Inventory turns appear slower than expected. Review purchasing cadence, demand assumptions, stagnant inventory, and inventory reserve exposure."
+      : "Inventory turns support a basic inventory velocity review. Continue monitoring inventory aging, reserve exposure, and item concentration.",
+    slowMovingValue > 0
+      ? `Slow-moving inventory exposure totals ${formatCurrency(slowMovingValue)} and appears concentrated in ${slowMovingItems.slice(0, 3).map((item) => item.name).join(", ") || "identified items"}. Consider reviewing movement history and reserve implications.`
+      : "No slow-moving inventory exposure was identified from the available current/prior valuation comparison.",
+    largestInventoryAdjustments.length
+      ? `Inventory adjustment activity appears concentrated in ${largestInventoryAdjustments[0].label}. Consider reviewing cycle count procedures, shrinkage trends, and purchasing controls.`
+      : "No material inventory adjustment pattern was identified from the available GL detail.",
+    fullOperationalReview && purchasePriceVarianceTrends.length
+      ? `PPV activity appears concentrated in ${purchasePriceVarianceTrends[0].label}. Consider reviewing vendor pricing, standard cost assumptions, and margin impact.`
+      : "",
+    fullOperationalReview && (bomVarianceReview.length || billOfLaborVarianceReview.length || jobProfitabilityConcerns.length)
+      ? "Manufacturing variance indicators were identified. Review BOM assumptions, bill of labor expectations, production usage, and job margin impact."
+      : "",
+  ].filter(Boolean);
+  const internalInventoryFlags = [
+    ...largestInventoryAdjustments.map((item) => `Largest inventory adjustment review item: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...(fullOperationalReview
+      ? [
+          ...recurringAdjustmentItems.map((item) => `Recurring adjustment pattern identified in ${item.label}; review ${item.count} related item${item.count === 1 ? "" : "s"}.`),
+          ...cycleCountVarianceTrends.map((item) => `Cycle count variance trend identified in ${item.label}; may warrant review of count procedures.`),
+          ...purchasePriceVarianceTrends.map((item) => `PPV trend identified in ${item.label}; consider reviewing purchasing controls and standard cost assumptions.`),
+          ...manufacturingVarianceReview.map((item) => `Manufacturing variance review item identified in ${item.label}; consider reviewing operational variance drivers.`),
+          ...bomVarianceReview.map((item) => `BOM overrun/underrun review item identified in ${item.label}; review material usage assumptions and margin impact.`),
+          ...billOfLaborVarianceReview.map((item) => `Bill of labor variance review item identified in ${item.label}; review labor usage assumptions and production efficiency.`),
+          ...jobProfitabilityConcerns.map((item) => `Job overrun/underrun review item identified in ${item.label}; review job profitability and production assumptions.`),
+        ]
+      : []),
+  ].slice(0, 12);
 
   return {
     turns,
@@ -4533,6 +6579,196 @@ function calculateInventoryIntelligence({
     eoReservePercent,
     eoReserveWarning,
     eoReserveCommentary,
+    largestInventoryAdjustments,
+    recurringAdjustmentItems,
+    cycleCountVarianceTrends,
+    purchasePriceVarianceTrends,
+    manufacturingVarianceReview,
+    bomVarianceReview,
+    billOfLaborVarianceReview,
+    jobProfitabilityConcerns,
+    inventoryPurchasesWithLimitedMovement,
+    operationalInventoryCommentary,
+    internalInventoryFlags,
+  };
+}
+
+function toManufacturingCostItems(items: InventoryReviewItem[], highWatermark: number): ManufacturingCostReviewItem[] {
+  return items.map((item) => ({
+    label: item.label,
+    amount: item.amount,
+    count: item.count,
+    impact: item.amount > highWatermark ? "High" : item.count > 1 || item.amount > highWatermark * 0.4 ? "Moderate" : "Monitor",
+    commentary: item.commentary,
+  }));
+}
+
+function sumInventoryReviewItems(items: InventoryReviewItem[]) {
+  return items.reduce((total, item) => total + item.amount, 0);
+}
+
+function calculateManufacturingInventoryIntelligence({
+  packageTier,
+  inventoryKpis,
+  priorInventoryKpis,
+  inventoryIntelligence,
+  currentMonthGlData,
+  priorMonthGlData,
+  currentQuarterGlData,
+  priorQuarterGlData,
+  currentYearGlData,
+  priorYearGlData,
+}: {
+  packageTier: PackageTier;
+  inventoryKpis: InventoryKpis;
+  priorInventoryKpis: InventoryKpis;
+  inventoryIntelligence: InventoryIntelligence;
+  currentMonthGlData: ParsedFile | null;
+  priorMonthGlData: ParsedFile | null;
+  currentQuarterGlData: ParsedFile | null;
+  priorQuarterGlData: ParsedFile | null;
+  currentYearGlData: ParsedFile | null;
+  priorYearGlData: ParsedFile | null;
+}): ManufacturingInventoryIntelligence {
+  const currentInventoryRows = getInventoryOperationalRows([currentMonthGlData, currentQuarterGlData, currentYearGlData]);
+  const priorInventoryRows = getInventoryOperationalRows([priorMonthGlData, priorQuarterGlData, priorYearGlData]);
+  const allInventoryRows = [...currentInventoryRows, ...priorInventoryRows];
+  const endingInventory = inventoryKpis.totalValue;
+  const beginningInventory = priorInventoryKpis.totalValue || inventoryIntelligence.beginningInventory;
+  const inventoryGrowthPercent = beginningInventory ? ((endingInventory - beginningInventory) / Math.abs(beginningInventory)) * 100 : null;
+  const workingCapitalImpact = endingInventory - beginningInventory;
+  const currentAdjustmentItems = buildInventoryReviewItems(
+    currentInventoryRows,
+    ["adjustment", "quantity adjustment", "inventory adjustment", "shrink", "scrap", "write-off", "write off"],
+    (row) => row.className || row.memo || row.description || row.accountName,
+  );
+  const priorAdjustmentItems = buildInventoryReviewItems(
+    priorInventoryRows,
+    ["adjustment", "quantity adjustment", "inventory adjustment", "shrink", "scrap", "write-off", "write off"],
+    (row) => row.className || row.memo || row.description || row.accountName,
+  );
+  const currentAdjustmentTotal = sumInventoryReviewItems(currentAdjustmentItems);
+  const priorAdjustmentTotal = sumInventoryReviewItems(priorAdjustmentItems);
+  const adjustmentTrendAmount = currentAdjustmentTotal - priorAdjustmentTotal;
+  const highWatermark = Math.max(endingInventory * 0.03, 5000);
+  const fullManufacturingReview = isVirtualCfo(packageTier);
+  const adjustmentItems = toManufacturingCostItems(
+    currentAdjustmentItems.length ? currentAdjustmentItems : inventoryIntelligence.largestInventoryAdjustments,
+    highWatermark,
+  );
+  const cycleCountItems = toManufacturingCostItems(
+    fullManufacturingReview
+      ? inventoryIntelligence.cycleCountVarianceTrends
+      : inventoryIntelligence.cycleCountVarianceTrends.slice(0, 2),
+    highWatermark,
+  );
+  const ppvItems = fullManufacturingReview ? toManufacturingCostItems(inventoryIntelligence.purchasePriceVarianceTrends, highWatermark) : [];
+  const bomVarianceItems = fullManufacturingReview ? toManufacturingCostItems(inventoryIntelligence.bomVarianceReview, highWatermark) : [];
+  const laborVarianceItems = fullManufacturingReview ? toManufacturingCostItems(inventoryIntelligence.billOfLaborVarianceReview, highWatermark) : [];
+  const jobProfitabilityItems = fullManufacturingReview ? toManufacturingCostItems(inventoryIntelligence.jobProfitabilityConcerns, highWatermark) : [];
+  const manufacturingVarianceItems = fullManufacturingReview ? toManufacturingCostItems(inventoryIntelligence.manufacturingVarianceReview, highWatermark) : [];
+  const agingItems = [
+    ...inventoryIntelligence.slowMovingItems.slice(0, fullManufacturingReview ? 6 : 3).map((item) => ({
+      label: item.name,
+      amount: item.value,
+      count: 1,
+      impact: item.value > highWatermark ? "High" as const : "Monitor" as const,
+      commentary: `${item.name} carries ${formatCurrency(item.value)} of slow-moving inventory exposure. Review turnover, demand assumptions, and reserve exposure.`,
+    })),
+    ...toManufacturingCostItems(inventoryIntelligence.inventoryPurchasesWithLimitedMovement, highWatermark),
+  ].slice(0, fullManufacturingReview ? 8 : 4);
+  const ppvImpact = ppvItems.reduce((total, item) => total + item.amount, 0);
+  const bomVarianceImpact = bomVarianceItems.reduce((total, item) => total + item.amount, 0);
+  const laborVarianceImpact = laborVarianceItems.reduce((total, item) => total + item.amount, 0);
+  const jobProfitabilityImpact = jobProfitabilityItems.reduce((total, item) => total + item.amount, 0);
+  const reserveExposure = inventoryIntelligence.slowMovingValue;
+  const reviewSignalCount = [
+    adjustmentTrendAmount > highWatermark,
+    reserveExposure > highWatermark,
+    ppvImpact > highWatermark,
+    bomVarianceImpact > highWatermark,
+    laborVarianceImpact > highWatermark,
+    jobProfitabilityImpact > highWatermark,
+  ].filter(Boolean).length;
+  const operationalEfficiencyStatus =
+    !endingInventory && !allInventoryRows.length
+      ? "Insufficient Data"
+      : reviewSignalCount >= 3
+        ? "Focused Review"
+        : reviewSignalCount > 0 || adjustmentItems.length || agingItems.length
+          ? "Monitor"
+          : "Stable";
+  const operationalCommentary = [
+    packageTier === "essential"
+      ? "Basic inventory review focuses on turnover, aging, and reserve exposure where inventory data is available."
+      : packageTier === "professional"
+        ? `Inventory operational review shows ending inventory of ${formatCurrency(endingInventory)} and working capital movement of ${formatCurrency(workingCapitalImpact)}. Review inventory aging, adjustment activity, and reserve exposure.`
+        : `Manufacturing & Inventory Intelligence connects inventory balances, adjustments, PPV, BOM variance, labor variance, job profitability, and production efficiency into an operational finance review.`,
+    inventoryGrowthPercent !== null
+      ? `Inventory changed ${inventoryGrowthPercent.toFixed(1)}% versus the prior inventory baseline. Review whether inventory growth aligns with revenue, production demand, and working capital goals.`
+      : "",
+    adjustmentTrendAmount > 0
+      ? `Inventory adjustments increased by ${formatCurrency(adjustmentTrendAmount)} versus prior activity and may warrant review of cycle count procedures, shrinkage patterns, and location-level activity.`
+      : adjustmentTrendAmount < 0
+        ? `Inventory adjustments decreased by ${formatCurrency(Math.abs(adjustmentTrendAmount))} versus prior activity. Continue monitoring recurring adjustment accounts and count variance trends.`
+        : "Inventory adjustment activity appears stable based on available current and prior GL detail.",
+    reserveExposure > 0
+      ? `Slow-moving inventory exposure totals ${formatCurrency(reserveExposure)} and should be reviewed with reserve coverage, turnover, and purchasing cadence.`
+      : "",
+    fullManufacturingReview && ppvImpact > 0
+      ? `PPV activity totals ${formatCurrency(ppvImpact)} in identified review items. Review material cost pressure, vendor pricing, and standard/BOM assumptions.`
+      : "",
+    fullManufacturingReview && (bomVarianceImpact || laborVarianceImpact || jobProfitabilityImpact)
+      ? `Production variance indicators total ${formatCurrency(bomVarianceImpact + laborVarianceImpact + jobProfitabilityImpact)} across BOM, labor, and job profitability review items. Review production assumptions and margin impact.`
+      : "",
+  ].filter(Boolean);
+  const internalFlags = [
+    adjustmentTrendAmount > highWatermark
+      ? "Inventory adjustment activity increased materially and may warrant operational review of shrinkage, cycle counts, and location-level activity."
+      : "",
+    reserveExposure > highWatermark
+      ? "Slow-moving inventory exposure is material relative to inventory balances and may warrant reserve exposure review."
+      : "",
+    ...adjustmentItems.filter((item) => item.impact !== "Monitor").map((item) => `Inventory adjustment review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...cycleCountItems.map((item) => `Cycle count review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...(fullManufacturingReview
+      ? [
+          ...ppvItems.map((item) => `PPV review: ${item.label} totaling ${formatCurrency(item.amount)}. Review vendor pricing and standard cost assumptions.`),
+          ...bomVarianceItems.map((item) => `BOM variance review: ${item.label} totaling ${formatCurrency(item.amount)}. Review material usage assumptions and production costing.`),
+          ...laborVarianceItems.map((item) => `Labor variance review: ${item.label} totaling ${formatCurrency(item.amount)}. Review expected labor hours, overtime pressure, and production efficiency.`),
+          ...jobProfitabilityItems.map((item) => `Job profitability review: ${item.label} totaling ${formatCurrency(item.amount)}. Review margin assumptions, material usage, and labor burden.`),
+          ...manufacturingVarianceItems.map((item) => `Manufacturing variance review: ${item.label} totaling ${formatCurrency(item.amount)}. Review production efficiency and margin impact.`),
+        ]
+      : []),
+  ].filter(Boolean).slice(0, 14);
+
+  return {
+    enabled: Boolean(endingInventory || allInventoryRows.length || inventoryIntelligence.slowMovingValue),
+    tierScope:
+      packageTier === "essential"
+        ? "Essential includes basic inventory turnover, inventory aging, and reserve exposure commentary when inventory data is available."
+        : packageTier === "professional"
+          ? "Professional includes inventory intelligence, inventory aging, operational inventory commentary, reserve exposure review, QoQ trends, and working capital impact."
+          : "Virtual CFO includes full manufacturing intelligence: PPV review, BOM variance, labor variance, job profitability, production efficiency, operational manufacturing commentary, and board-level operational review.",
+    operationalEfficiencyStatus,
+    inventoryGrowthPercent,
+    adjustmentTrendAmount,
+    workingCapitalImpact,
+    reserveExposure,
+    ppvImpact,
+    bomVarianceImpact,
+    laborVarianceImpact,
+    jobProfitabilityImpact,
+    adjustmentItems,
+    cycleCountItems,
+    agingItems,
+    ppvItems,
+    bomVarianceItems,
+    laborVarianceItems,
+    jobProfitabilityItems,
+    manufacturingVarianceItems,
+    operationalCommentary,
+    internalFlags,
   };
 }
 
@@ -4711,6 +6947,174 @@ function calculatePayrollAnalysis(
   return { ...analysis, commentary: buildPayrollCommentary(rows, analysis) };
 }
 
+function calculateWorkforceIntelligence({
+  packageTier,
+  payrollAnalysis,
+  currentRevenue,
+  priorRevenue,
+  grossProfit,
+  netMargin,
+  budgetMetrics,
+  monthFluxRows,
+  quarterFluxRows,
+}: {
+  packageTier: PackageTier;
+  payrollAnalysis: PayrollAnalysis;
+  currentRevenue: number;
+  priorRevenue: number;
+  grossProfit: number;
+  netMargin: number;
+  budgetMetrics: BudgetMetrics;
+  monthFluxRows: FluxRow[];
+  quarterFluxRows: FluxRow[];
+}): WorkforceIntelligence {
+  const enabled = payrollAnalysis.totalCurrentFte > 0 || payrollAnalysis.totalCurrentPayrollCost > 0;
+  const revenuePerFte = payrollAnalysis.totalCurrentFte ? currentRevenue / payrollAnalysis.totalCurrentFte : null;
+  const priorRevenuePerFte = payrollAnalysis.totalPriorFte ? priorRevenue / payrollAnalysis.totalPriorFte : null;
+  const revenuePerFteChange = revenuePerFte !== null && priorRevenuePerFte !== null ? revenuePerFte - priorRevenuePerFte : null;
+  const payrollToRevenuePercent = currentRevenue ? (payrollAnalysis.totalCurrentPayrollCost / currentRevenue) * 100 : null;
+  const priorPayrollToRevenuePercent = priorRevenue ? (payrollAnalysis.totalPriorPayrollCost / priorRevenue) * 100 : null;
+  const payrollGrowthPercent = calculateGrowthPercent(payrollAnalysis.totalCurrentPayrollCost, payrollAnalysis.totalPriorPayrollCost);
+  const fteGrowthPercent = calculateGrowthPercent(payrollAnalysis.totalCurrentFte, payrollAnalysis.totalPriorFte);
+  const revenueGrowthPercent = calculateGrowthPercent(currentRevenue, priorRevenue);
+  const grossProfitPerFte = payrollAnalysis.totalCurrentFte ? grossProfit / payrollAnalysis.totalCurrentFte : null;
+  const laborBurdenPerFte = payrollAnalysis.totalCurrentFte ? payrollAnalysis.totalCurrentPayrollCost / payrollAnalysis.totalCurrentFte : null;
+  const payrollMarginPressure =
+    payrollToRevenuePercent !== null && priorPayrollToRevenuePercent !== null
+      ? payrollToRevenuePercent - priorPayrollToRevenuePercent
+      : null;
+  const topDepartmentMoves = payrollAnalysis.rows
+    .filter((row) => Math.abs(row.fteChange) >= 0.01 || Math.abs(row.payrollCostChange) > 0)
+    .sort((a, b) => Math.abs(b.payrollCostChange) - Math.abs(a.payrollCostChange))
+    .slice(0, isProfessionalOrHigher(packageTier) ? 6 : 3);
+  const departmentScalingItems = topDepartmentMoves.map((row) => ({
+    label: row.department,
+    value: `${formatCurrency(row.payrollCostChange)} payroll change / ${formatFte(row.fteChange)} FTE change`,
+    commentary:
+      row.payrollCostChange > 0 && row.fteChange <= 0.01
+        ? `${row.department} payroll increased without matching FTE growth. Review overtime, compensation mix, payroll timing, or labor utilization.`
+        : row.fteChange > 0 && (revenueGrowthPercent === null || revenueGrowthPercent < (fteGrowthPercent || 0))
+          ? `${row.department} staffing increased while revenue growth did not expand at the same pace. Consider utilization and operational scaling.`
+          : `${row.department} shows payroll and FTE movement that may warrant operational staffing review.`,
+  }));
+  const productivityItems: WorkforceReviewItem[] = [
+    {
+      label: "Revenue per FTE",
+      value: revenuePerFte !== null ? formatCurrency(revenuePerFte) : "N/A",
+      commentary:
+        revenuePerFteChange !== null && revenuePerFteChange < 0
+          ? `Revenue per FTE declined by ${formatCurrency(Math.abs(revenuePerFteChange))}. Review staffing growth, utilization, and productivity trends.`
+          : revenuePerFteChange !== null
+            ? `Revenue per FTE improved by ${formatCurrency(revenuePerFteChange)}, indicating improving productivity or operating leverage.`
+            : "Revenue per FTE requires current and prior revenue and FTE data for trend review.",
+    },
+    {
+      label: "Payroll as % of Revenue",
+      value: payrollToRevenuePercent !== null ? `${payrollToRevenuePercent.toFixed(1)}%` : "N/A",
+      commentary:
+        payrollMarginPressure !== null && payrollMarginPressure > 2
+          ? `Payroll as a percent of revenue increased by ${payrollMarginPressure.toFixed(1)} percentage points, which may place pressure on margins.`
+          : "Payroll scaling should be reviewed against revenue growth and gross margin trends.",
+    },
+    {
+      label: "Gross Profit per FTE",
+      value: grossProfitPerFte !== null ? formatCurrency(grossProfitPerFte) : "N/A",
+      commentary: "Use gross profit per FTE to review labor efficiency and operating leverage before finalizing payroll commentary.",
+    },
+  ];
+  const payrollFluxRows = monthFluxRows.filter((row) => /payroll|wage|salary|labor|employee|benefit/i.test(row.accountName));
+  const quarterPayrollFluxRows = quarterFluxRows.filter((row) => /payroll|wage|salary|labor|employee|benefit/i.test(row.accountName));
+  const operationalCommentary = [
+    payrollAnalysis.totalPayrollCostChange > 0 && payrollAnalysis.totalFteChange <= 0.01
+      ? "Payroll increased while FTE remained relatively stable, potentially indicating overtime, compensation changes, benefits, or payroll timing."
+      : payrollAnalysis.totalFteChange > 0
+        ? `FTE increased by ${formatFte(payrollAnalysis.totalFteChange)}. Review whether staffing growth is aligned with revenue volume and operational demand.`
+        : "FTE remained stable or decreased; review whether payroll movement reflects utilization, compensation, or timing factors.",
+    revenueGrowthPercent !== null && fteGrowthPercent !== null && fteGrowthPercent > revenueGrowthPercent + 5
+      ? "FTE growth exceeded revenue growth trends and may warrant review of staffing scalability and labor utilization."
+      : "Revenue and FTE trends should be reviewed together to assess productivity and operational leverage.",
+    payrollFluxRows[0]
+      ? `Month-over-month payroll flux was led by ${payrollFluxRows[0].accountName} at ${formatCurrency(payrollFluxRows[0].dollarVariance)}. Tie payroll commentary to the approved flux explanation.`
+      : "Month-over-month payroll flux should be reviewed when payroll GL detail is available.",
+  ];
+  const tierAdvisoryCommentary = [
+    ...operationalCommentary,
+    ...(isProfessionalOrHigher(packageTier)
+      ? [
+          quarterPayrollFluxRows[0]
+            ? `Quarter-over-quarter workforce movement was led by ${quarterPayrollFluxRows[0].accountName}. Review labor efficiency and operational scaling trends.`
+            : "Professional workforce review includes quarter-over-quarter labor efficiency and department staffing analysis when GL detail is available.",
+          departmentScalingItems[0]
+            ? `${departmentScalingItems[0].label} is the largest department staffing/payroll movement and may warrant controller-level review.`
+            : "Department-level staffing analysis requires payroll by department, class, location, or cost center.",
+        ]
+      : []),
+    ...(isVirtualCfo(packageTier)
+      ? [
+          budgetMetrics.revenueBudget !== null && budgetMetrics.revenueActual !== null
+            ? "Compare payroll and FTE movement against revenue budget assumptions, hiring plans, and forecasted margin expectations."
+            : "Virtual CFO workforce intelligence should feed hiring assumptions, payroll planning, and forecasted operating margin review.",
+          netMargin < 10
+            ? "Labor burden should be reviewed in the context of current margin pressure and future operating leverage."
+            : "Workforce productivity can support executive-level review of operating leverage and scalable staffing growth.",
+        ]
+      : []),
+  ];
+  const internalFlags = [
+    payrollAnalysis.totalPayrollCostChange > Math.max(payrollAnalysis.totalPriorPayrollCost * 0.1, 2500) && payrollAnalysis.totalFteChange <= 0.01
+      ? "Payroll increased without matching FTE growth; review overtime, compensation mix, benefits, or payroll timing."
+      : "",
+    fteGrowthPercent !== null && revenueGrowthPercent !== null && fteGrowthPercent > revenueGrowthPercent + 10
+      ? "FTE growth outpaced revenue growth; review staffing utilization and operational scalability."
+      : "",
+    revenuePerFteChange !== null && revenuePerFteChange < -Math.max(Math.abs(priorRevenuePerFte || 0) * 0.1, 1000)
+      ? "Revenue per FTE declined materially; review productivity trends and labor utilization."
+      : "",
+    payrollMarginPressure !== null && payrollMarginPressure > 3
+      ? "Payroll burden increased as a share of revenue; review margin pressure and labor scaling."
+      : "",
+    ...departmentScalingItems.slice(0, 3).map((item) => `${item.label}: ${item.commentary}`),
+  ].filter(Boolean).slice(0, 10);
+  const forecastIntegrationNotes = isVirtualCfo(packageTier)
+    ? [
+        `Use current payroll cost of ${formatCurrency(payrollAnalysis.totalCurrentPayrollCost)} and ${formatFte(payrollAnalysis.totalCurrentFte)} FTE as workforce forecast baseline.`,
+        revenuePerFte !== null
+          ? `Revenue per FTE of ${formatCurrency(revenuePerFte)} can support revenue scaling assumptions and hiring plan review.`
+          : "Revenue per FTE requires current revenue and FTE data before it can support forecast assumptions.",
+        payrollToRevenuePercent !== null
+          ? `Payroll is ${payrollToRevenuePercent.toFixed(1)}% of revenue; use this as a labor burden assumption when reviewing forecasted operating margins.`
+          : "Payroll-to-revenue trend requires revenue data before labor burden can support forecasting.",
+      ]
+    : [];
+
+  return {
+    enabled,
+    tierScope:
+      packageTier === "essential"
+        ? "Essential workforce intelligence focuses on payroll, FTE, revenue per FTE, and month-over-month operational staffing review."
+        : packageTier === "professional"
+          ? "Professional adds controller-level department staffing, quarter-over-quarter workforce trends, labor efficiency, and operational scaling review."
+          : "Virtual CFO adds workforce forecasting, hiring assumptions, payroll planning, budget context, and executive staffing guidance.",
+    revenuePerFte,
+    priorRevenuePerFte,
+    revenuePerFteChange,
+    payrollToRevenuePercent,
+    priorPayrollToRevenuePercent,
+    payrollGrowthPercent,
+    fteGrowthPercent,
+    revenueGrowthPercent,
+    grossProfitPerFte,
+    laborBurdenPerFte,
+    payrollMarginPressure,
+    departmentScalingItems,
+    productivityItems,
+    operationalCommentary,
+    tierAdvisoryCommentary,
+    internalFlags,
+    forecastIntegrationNotes,
+  };
+}
+
 function buildBoardPackageSections({
   packageTier,
   reports,
@@ -4772,6 +7176,7 @@ function createPowerPointSlidesData({
   executiveSummary,
   arKpis,
   apKpis,
+  arReserveIntelligence,
   inventoryIntelligence,
   fixedAssetKpis,
   payrollAnalysis,
@@ -4796,6 +7201,7 @@ function createPowerPointSlidesData({
   executiveSummary: ReturnType<typeof buildExecutiveSummary>;
   arKpis: AgingKpis;
   apKpis: APKpis;
+  arReserveIntelligence: ARReserveIntelligence;
   inventoryIntelligence: InventoryIntelligence;
   fixedAssetKpis: FixedAssetKpis;
   payrollAnalysis: PayrollAnalysis;
@@ -4870,8 +7276,8 @@ function createPowerPointSlidesData({
     packageTier === "virtualCfo"
       ? allFluxRows
       : packageTier === "professional"
-        ? [...monthFluxRows].sort((a, b) => Math.abs(b.dollarVariance) - Math.abs(a.dollarVariance)).slice(0, 5)
-        : [];
+        ? [...monthFluxRows, ...quarterFluxRows].sort((a, b) => Math.abs(b.dollarVariance) - Math.abs(a.dollarVariance)).slice(0, 5)
+        : [...monthFluxRows].sort((a, b) => Math.abs(b.dollarVariance) - Math.abs(a.dollarVariance)).slice(0, 3);
   const dividerSlide = (title: string, subtitle: string, takeaway: string): PowerPointSlideData => ({
     title,
     subtitle,
@@ -4885,7 +7291,7 @@ function createPowerPointSlidesData({
       {
         title: companyName,
         subtitle: `${reportPeriod} Board / Owner Discussion Deck`,
-        bullets: [`Prepared by ${preparedBy || "FinSight Reports"}`, "Executive discussion version of the reviewed financial package."],
+      bullets: [`Prepared by ${preparedBy || "Advisacor"}`, "Executive discussion version of the reviewed financial package."],
         chartData: [],
         sectionType: "title",
       },
@@ -4938,6 +7344,7 @@ function createPowerPointSlidesData({
         ],
         sectionType: "balance-sheet",
       },
+      dividerSlide("Operational Efficiency", "Labor, inventory, fixed assets, and operating capacity", "Operational views connect accounting movement to staffing, working capital, and asset utilization."),
       ...(includeInventory
         ? [
             {
@@ -5012,6 +7419,7 @@ function createPowerPointSlidesData({
         chartData: [],
         sectionType: "ratio-analysis",
       },
+      dividerSlide("Variance Review", "Approved flux insights and operating drivers", "Variance slides focus on the reviewed items that are client-ready after preparer investigation."),
       {
         title: "Variance / Flux Highlights",
         subtitle: packageTier === "virtualCfo" ? "Monthly, quarterly, and year-over-year movement highlights" : "Month-over-month movement highlights",
@@ -5032,6 +7440,7 @@ function createPowerPointSlidesData({
         }),
         sectionType: "flux-summary",
       },
+      dividerSlide("Executive Recommendations", "Management focus and next decisions", "Approved observations are converted into concise management priorities and discussion topics."),
       {
         title: "Board Discussion Topics",
         subtitle: "Questions for ownership and management",
@@ -5062,7 +7471,7 @@ function createPowerPointSlidesData({
     {
       title: companyName,
       subtitle: `${reportPeriod} Board / Owner Presentation`,
-      bullets: [`Prepared by ${preparedBy || "FinSight Reports"}`, "Generated from the approved PDF package selections."],
+      bullets: [`Prepared by ${preparedBy || "Advisacor"}`, "Generated from the approved PDF package selections."],
       chartData: [],
       sectionType: "title",
     },
@@ -5143,8 +7552,10 @@ function createPowerPointSlidesData({
       subtitle: "Receivables risk and collection focus",
       bullets: [
         arKpis.total ? `${((arKpis.days90Plus / arKpis.total) * 100).toFixed(1)}% of receivables are 90+ days.` : "AR detail was not available.",
-        "Collection focus should prioritize older buckets and customer-specific follow-up.",
-        "Monitor DSO alongside AR aging mix.",
+        `Preliminary reserve guidance is ${formatCurrency(arReserveIntelligence.totalSuggestedReserve)} with ${arReserveIntelligence.collectionRiskStatus.toLowerCase()} collection risk.`,
+        arReserveIntelligence.existingReserveBalance !== null
+          ? `Existing reserve identified: ${formatCurrency(arReserveIntelligence.existingReserveBalance)}.`
+          : "No AR reserve balance was identified in uploaded Balance Sheet data.",
       ],
       chartData: [
         { name: "Current", value: arKpis.current },
@@ -5152,6 +7563,7 @@ function createPowerPointSlidesData({
         { name: "31-60", value: arKpis.days31To60 },
         { name: "61-90", value: arKpis.days61To90 },
         { name: "90+", value: arKpis.days90Plus },
+        { name: "Reserve Guidance", value: arReserveIntelligence.totalSuggestedReserve },
       ],
       sectionType: "ar-aging",
     },
@@ -5365,6 +7777,7 @@ function calculateFixedAssetKpis(
     "Depreciation and Amortization",
   ]);
   const emptyKpis = {
+    grossFixedAssets: 0,
     totalFixedAssets: 0,
     accumulatedDepreciation: 0,
     netBookValue: 0,
@@ -5419,6 +7832,7 @@ function calculateFixedAssetKpis(
     ];
 
     return {
+      grossFixedAssets,
       totalFixedAssets: grossFixedAssets,
       accumulatedDepreciation,
       netBookValue,
@@ -5669,6 +8083,592 @@ function getFixedAssetChangeRows(
       "Net book value was unchanged.",
     ),
   ];
+}
+
+function isFixedAssetActivityLabel(label: string) {
+  return /fixed asset|property|equipment|machinery|vehicle|leasehold|furniture|building|capital asset|capex|capital expenditure/i.test(label) &&
+    !/accumulated depreciation|depreciation expense|net fixed asset|net book value/i.test(label);
+}
+
+function isCipLabel(label: string) {
+  return /construction in progress|\bcip\b|construction work in progress|capital project|work in progress/i.test(label);
+}
+
+function isPrepaidLabel(label: string) {
+  return /prepaid|deferred cost|deferred expense|deferred charge|deposit|retainage/i.test(label);
+}
+
+function isStagnantBalanceSheetLabel(label: string) {
+  return /prepaid|deposit|retainage|intercompany|clearing|suspense|construction in progress|\bcip\b|deferred cost|deferred charge|accrued|other current asset|other asset|other liability/i.test(label);
+}
+
+function sumStatementRowsByLabel(rows: StatementRow[], matcher: (label: string) => boolean) {
+  return rows
+    .filter((row) => matcher(row.label))
+    .reduce((total, row) => total + Math.abs(row.amount || 0), 0);
+}
+
+function getGlRowsByPattern(dataSets: Array<ParsedFile | null>, patterns: RegExp[]) {
+  return dataSets
+    .flatMap((data) => getAccountActivity(data, "__all__"))
+    .filter((row) => {
+      const text = `${row.accountName} ${row.memo} ${row.description}`;
+      return patterns.some((pattern) => pattern.test(text));
+    });
+}
+
+function buildAssetIntegrityItems(
+  rows: GlActivityRow[],
+  labelBuilder: (row: GlActivityRow) => string,
+  commentaryBuilder: (label: string, amount: number, count: number) => string,
+  status: AssetIntegrityReviewItem["status"] = "Monitor",
+) {
+  const grouped = new Map<string, { amount: number; count: number }>();
+  rows.forEach((row) => {
+    const label = labelBuilder(row) || row.accountName || "Review item";
+    const amount = Math.abs(row.amount || row.debit - row.credit);
+    if (!amount) return;
+    const current = grouped.get(label) || { amount: 0, count: 0 };
+    grouped.set(label, { amount: current.amount + amount, count: current.count + 1 });
+  });
+
+  return [...grouped.entries()]
+    .map(([label, item]) => ({
+      label,
+      amount: item.amount,
+      count: item.count,
+      status,
+      commentary: commentaryBuilder(label, item.amount, item.count),
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 8);
+}
+
+function buildFixedAssetRollforwardPeriod({
+  period,
+  current,
+  prior,
+  activityRows,
+}: {
+  period: string;
+  current: FixedAssetKpis;
+  prior: FixedAssetKpis;
+  activityRows: GlActivityRow[];
+}): FixedAssetRollforwardPeriod {
+  const grossChange = current.totalFixedAssets - prior.totalFixedAssets;
+  const activityAdditions = activityRows
+    .filter((row) => isFixedAssetActivityLabel(row.accountName) && (row.debit > row.credit || row.amount > 0))
+    .reduce((total, row) => total + Math.abs(row.amount || row.debit - row.credit), 0);
+  const activityDisposals = activityRows
+    .filter((row) => /disposal|sale of asset|retirement|write.?off|reclass/i.test(`${row.accountName} ${row.memo} ${row.description}`))
+    .reduce((total, row) => total + Math.abs(row.amount || row.debit - row.credit), 0);
+  const additions = activityAdditions || Math.max(grossChange, 0);
+  const disposals = activityDisposals || Math.max(-grossChange, 0);
+  const depreciationRows = activityRows.filter((row) => /depreciation|amortization/i.test(`${row.accountName} ${row.memo} ${row.description}`));
+  const activityDepreciation = depreciationRows.reduce((total, row) => total + Math.abs(row.amount || row.debit - row.credit), 0);
+  const depreciationExpense = current.depreciationExpense || activityDepreciation || 0;
+  const beginningAccumulatedDepreciation = Math.abs(prior.accumulatedDepreciation);
+  const endingAccumulatedDepreciation = Math.abs(current.accumulatedDepreciation);
+  const disposalWriteOffs = Math.max(beginningAccumulatedDepreciation + depreciationExpense - endingAccumulatedDepreciation, 0);
+
+  return {
+    period,
+    beginningGrossFixedAssets: prior.totalFixedAssets,
+    additions,
+    disposals,
+    endingGrossFixedAssets: current.totalFixedAssets,
+    beginningAccumulatedDepreciation,
+    depreciationExpense,
+    disposalWriteOffs,
+    endingAccumulatedDepreciation,
+    endingNetBookValue: current.netBookValue,
+    commentary:
+      additions > 0 || disposals > 0
+        ? `${period} rollforward identifies ${formatCurrency(additions)} of additions and ${formatCurrency(disposals)} of disposals or reclassification activity.`
+        : `${period} rollforward shows limited gross fixed asset movement from available data.`,
+  };
+}
+
+function calculateFixedAssetIntegrityIntelligence({
+  packageTier,
+  currentFixedAssetKpis,
+  priorFixedAssetKpis,
+  currentBsRows,
+  priorBsRows,
+  currentMonthGlData,
+  priorMonthGlData,
+  currentQuarterGlData,
+  priorQuarterGlData,
+  currentYearGlData,
+  priorYearGlData,
+}: {
+  packageTier: PackageTier;
+  currentFixedAssetKpis: FixedAssetKpis;
+  priorFixedAssetKpis: FixedAssetKpis;
+  currentBsRows: StatementRow[];
+  priorBsRows: StatementRow[];
+  currentMonthGlData: ParsedFile | null;
+  priorMonthGlData: ParsedFile | null;
+  currentQuarterGlData: ParsedFile | null;
+  priorQuarterGlData: ParsedFile | null;
+  currentYearGlData: ParsedFile | null;
+  priorYearGlData: ParsedFile | null;
+}): FixedAssetIntegrityIntelligence {
+  const fullOversight = isVirtualCfo(packageTier);
+  const currentDataSets = [currentMonthGlData, currentQuarterGlData, currentYearGlData];
+  const allDataSets = [currentMonthGlData, priorMonthGlData, currentQuarterGlData, priorQuarterGlData, currentYearGlData, priorYearGlData];
+  const currentPrepaidRows = getGlRowsByPattern(currentDataSets, [/prepaid/i, /deferred cost/i, /deferred expense/i, /deposit/i, /retainage/i]);
+  const allPrepaidRows = getGlRowsByPattern(allDataSets, [/prepaid/i, /deferred cost/i, /deferred expense/i, /deposit/i, /retainage/i]);
+  const currentCipRows = getGlRowsByPattern(currentDataSets, [/construction in progress/i, /\bcip\b/i, /capital project/i]);
+  const allCipRows = getGlRowsByPattern(allDataSets, [/construction in progress/i, /\bcip\b/i, /capital project/i]);
+  const currentDepreciationRows = getGlRowsByPattern(currentDataSets, [/depreciation/i, /amortization/i]);
+  const allDepreciationRows = getGlRowsByPattern(allDataSets, [/depreciation/i, /amortization/i]);
+  const cipBalance = sumStatementRowsByLabel(currentBsRows, isCipLabel);
+  const priorCipBalance = sumStatementRowsByLabel(priorBsRows, isCipLabel);
+  const prepaidBalance = sumStatementRowsByLabel(currentBsRows, isPrepaidLabel);
+  const priorPrepaidBalance = sumStatementRowsByLabel(priorBsRows, isPrepaidLabel);
+  const capexTrendAmount = currentFixedAssetKpis.totalFixedAssets - priorFixedAssetKpis.totalFixedAssets;
+  const depreciationTrendAmount = Math.abs(currentFixedAssetKpis.accumulatedDepreciation) - Math.abs(priorFixedAssetKpis.accumulatedDepreciation);
+  const rollforwards = isProfessionalOrHigher(packageTier)
+    ? [
+        buildFixedAssetRollforwardPeriod({ period: "Monthly", current: currentFixedAssetKpis, prior: priorFixedAssetKpis, activityRows: getAccountActivity(currentMonthGlData, "__all__") }),
+        buildFixedAssetRollforwardPeriod({ period: "Quarterly", current: currentFixedAssetKpis, prior: priorFixedAssetKpis, activityRows: getAccountActivity(currentQuarterGlData, "__all__") }),
+        buildFixedAssetRollforwardPeriod({ period: "Yearly", current: currentFixedAssetKpis, prior: priorFixedAssetKpis, activityRows: getAccountActivity(currentYearGlData, "__all__") }),
+      ]
+    : [];
+  const cipItems = [
+    ...(cipBalance > 0 && Math.abs(cipBalance - priorCipBalance) < Math.max(cipBalance * 0.01, 1)
+      ? [{
+          label: "Construction in Progress",
+          amount: cipBalance,
+          count: 1,
+          status: "Review" as const,
+          commentary: "Construction in Progress balances appear unchanged across comparison periods. Review capitalization timing and transfer activity into depreciable asset categories.",
+        }]
+      : []),
+    ...buildAssetIntegrityItems(
+      fullOversight ? allCipRows : currentCipRows,
+      (row) => row.accountName,
+      (label, amount, count) => `${label} includes ${count} CIP-related activity item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review project status, capitalization timing, and transfer activity.`,
+      "Monitor",
+    ),
+  ].slice(0, 8);
+  const depreciationItems = [
+    ...(currentFixedAssetKpis.totalFixedAssets > 0 && !currentFixedAssetKpis.depreciationExpense && !currentDepreciationRows.length
+      ? [{
+          label: "Depreciation activity",
+          amount: currentFixedAssetKpis.totalFixedAssets,
+          count: 1,
+          status: "Review" as const,
+          commentary: "Fixed asset balances were identified with limited depreciation expense activity. Review depreciation setup, asset lives, and timing.",
+        }]
+      : []),
+    ...(capexTrendAmount > Math.max(currentFixedAssetKpis.totalFixedAssets * 0.05, 10000) && depreciationTrendAmount <= 0
+      ? [{
+          label: "Additions vs depreciation",
+          amount: capexTrendAmount,
+          count: 1,
+          status: "Review" as const,
+          commentary: "Fixed asset additions increased while accumulated depreciation movement appears limited. Review capitalization timing and depreciation setup for new assets.",
+        }]
+      : []),
+    ...buildAssetIntegrityItems(
+      fullOversight ? allDepreciationRows : currentDepreciationRows,
+      (row) => row.accountName,
+      (label, amount, count) => `${label} includes ${count} depreciation or amortization activity item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review timing consistency and relationship to the fixed asset base.`,
+      "Informational",
+    ),
+  ].slice(0, 8);
+  const prepaidItems = [
+    ...(prepaidBalance > 0 && Math.abs(prepaidBalance - priorPrepaidBalance) < Math.max(prepaidBalance * 0.01, 1) && !currentPrepaidRows.some((row) => /amortization|expense recognition|monthly entry/i.test(`${row.memo} ${row.description} ${row.accountName}`))
+      ? [{
+          label: "Prepaid balances",
+          amount: prepaidBalance,
+          count: 1,
+          status: packageTier === "essential" ? "Monitor" as const : "Review" as const,
+          commentary: "Prepaid balances appear stable with limited amortization activity in available detail. Review amortization cadence and expense recognition timing.",
+        }]
+      : []),
+    ...buildAssetIntegrityItems(
+      fullOversight ? allPrepaidRows : currentPrepaidRows,
+      (row) => row.accountName,
+      (label, amount, count) => `${label} includes ${count} prepaid or deferred cost activity item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review amortization cadence, recurring entry timing, and balance reduction patterns.`,
+      packageTier === "essential" ? "Monitor" : "Informational",
+    ),
+  ].slice(0, 8);
+  const priorRowsByLabel = new Map(priorBsRows.map((row) => [normalizeStatementLabel(row.label), row]));
+  const stagnantAssetItems = currentBsRows
+    .filter((row) => Math.abs(row.amount || 0) > 1000 && isStagnantBalanceSheetLabel(row.label))
+    .map((row) => {
+      const prior = priorRowsByLabel.get(normalizeStatementLabel(row.label));
+      if (!prior || Math.abs((row.amount || 0) - (prior.amount || 0)) > Math.max(Math.abs(row.amount || 0) * 0.01, 1)) return null;
+      return {
+        label: row.label,
+        amount: Math.abs(row.amount || 0),
+        count: 1,
+        status: packageTier === "essential" ? "Monitor" as const : "Review" as const,
+        commentary: `${row.label} appears stagnant across comparison periods. Review reconciliation support, classification, and whether clearing or amortization activity is expected.`,
+      };
+    })
+    .filter(Boolean) as AssetIntegrityReviewItem[];
+  const fixedAssetAccounts = currentBsRows.filter((row) => isFixedAssetActivityLabel(row.label));
+  const accumulatedDepreciationAccounts = currentBsRows.filter((row) => /accumulated depreciation/i.test(row.label));
+  const balanceSheetIntegrityItems = [
+    ...(fixedAssetAccounts.length && !accumulatedDepreciationAccounts.length
+      ? [{
+          label: "Accumulated depreciation relationship",
+          amount: fixedAssetAccounts.reduce((total, row) => total + Math.abs(row.amount || 0), 0),
+          count: fixedAssetAccounts.length,
+          status: "Review" as const,
+          commentary: "Fixed asset accounts were identified without a clear accumulated depreciation relationship in the Balance Sheet detail. Review depreciation setup and asset classification.",
+        }]
+      : []),
+    ...(fullOversight ? stagnantAssetItems : stagnantAssetItems.slice(0, 3)),
+  ].slice(0, 10);
+  const internalFlags = [
+    ...cipItems.filter((item) => item.status === "Review").map((item) => item.commentary),
+    ...depreciationItems.filter((item) => item.status === "Review").map((item) => item.commentary),
+    ...prepaidItems.filter((item) => item.status === "Review").map((item) => item.commentary),
+    ...balanceSheetIntegrityItems.filter((item) => item.status === "Review").map((item) => item.commentary),
+  ].slice(0, 12);
+  const integrityStatus =
+    !currentBsRows.length && !currentFixedAssetKpis.totalFixedAssets
+      ? "Insufficient Data"
+      : internalFlags.length >= 4
+        ? "Focused Review"
+        : internalFlags.length || stagnantAssetItems.length
+          ? "Monitor"
+          : "Low Review";
+  const commentary = [
+    isProfessionalOrHigher(packageTier)
+      ? `Fixed asset lifecycle review shows gross fixed assets of ${formatCurrency(currentFixedAssetKpis.totalFixedAssets)}, accumulated depreciation of ${formatCurrency(currentFixedAssetKpis.accumulatedDepreciation)}, and net book value of ${formatCurrency(currentFixedAssetKpis.netBookValue)}.`
+      : "Basic balance sheet integrity review focuses on prepaid activity and stagnant operational balances.",
+    capexTrendAmount
+      ? `CapEx trend movement is ${formatCurrency(capexTrendAmount)} compared with the prior fixed asset baseline. Review additions, disposals, capitalization timing, and operational asset use.`
+      : "No net fixed asset cost movement was identified from the available current and prior fixed asset data.",
+    depreciationTrendAmount || currentFixedAssetKpis.depreciationExpense
+      ? `Depreciation activity should be reviewed against asset additions and accumulated depreciation movement. Current depreciation expense is ${currentFixedAssetKpis.depreciationExpense === null ? "not identified" : formatCurrency(currentFixedAssetKpis.depreciationExpense)}.`
+      : "Depreciation activity appears limited from available reports and may warrant review where fixed asset balances exist.",
+    cipBalance > 0
+      ? `CIP balance is ${formatCurrency(cipBalance)}. Review project status and capitalization timing where balances remain open across periods.`
+      : "",
+    prepaidBalance > 0
+      ? `Prepaid and deferred cost balances total ${formatCurrency(prepaidBalance)}. Review amortization cadence and recurring entry timing.`
+      : "",
+  ].filter(Boolean);
+
+  return {
+    enabled: Boolean(currentBsRows.length || currentFixedAssetKpis.totalFixedAssets || prepaidBalance || cipBalance),
+    tierScope:
+      packageTier === "essential"
+        ? "Essential includes basic prepaid review, stagnant balance commentary, and operational balance sheet review."
+        : packageTier === "professional"
+          ? "Professional includes fixed asset rollforwards, depreciation review, prepaid lifecycle review, stagnant asset analysis, CIP monitoring, and operational CapEx commentary."
+          : "Virtual CFO includes full balance sheet integrity intelligence, asset lifecycle oversight, strategic CapEx review, CIP monitoring, and board-level asset lifecycle commentary.",
+    integrityStatus,
+    capexTrendAmount,
+    depreciationTrendAmount,
+    cipBalance,
+    prepaidBalance,
+    rollforwards,
+    cipItems,
+    depreciationItems,
+    prepaidItems,
+    stagnantAssetItems,
+    balanceSheetIntegrityItems,
+    commentary,
+    internalFlags,
+  };
+}
+
+function isCloseLiabilityLabel(label: string) {
+  return /accrued|accrual|payable|liabilit|clearing|suspense|customer credit|credit balance|deferred revenue|unearned|tax payable|wages payable|payroll payable/i.test(label);
+}
+
+function isCloseAssetLabel(label: string) {
+  return /deposit|clearing|suspense|intercompany|receivable|construction in progress|\bcip\b|deferred cost|deferred charge|prepaid|other current asset|other asset|retainage/i.test(label);
+}
+
+function getCloseRowAmount(row: GlActivityRow) {
+  return Math.abs(row.amount || row.debit - row.credit || row.balance);
+}
+
+function getCloseRowKey(row: GlActivityRow) {
+  return [row.date, row.accountName, row.memo, row.description, row.vendor, row.payee, getCloseRowAmount(row)]
+    .map((value) => String(value).toLowerCase())
+    .join("|");
+}
+
+function isManualJournalEntryRow(row: GlActivityRow) {
+  const text = normalizeStatementLabel(`${row.memo} ${row.description} ${row.name} ${row.payee}`);
+  return /\bje\b|journal|manual entry|adjusting entry|adjustment|reclass|reclassification/.test(text);
+}
+
+function getCloseManagementRows(dataSets: Array<ParsedFile | null>) {
+  const seenRows = new Set<string>();
+  return dataSets
+    .flatMap((data) => getAccountActivity(data, "__all__"))
+    .filter((row) => {
+      const key = getCloseRowKey(row);
+      if (seenRows.has(key)) return false;
+      seenRows.add(key);
+      return Boolean(row.accountName);
+    });
+}
+
+function buildCloseReviewItems(
+  rows: GlActivityRow[],
+  labelBuilder: (row: GlActivityRow) => string,
+  commentaryBuilder: (label: string, amount: number, count: number) => string,
+  status: CloseManagementReviewItem["status"] = "Monitor",
+) {
+  const grouped = new Map<string, { amount: number; count: number }>();
+  rows.forEach((row) => {
+    const label = labelBuilder(row) || row.accountName || "Close review item";
+    const amount = getCloseRowAmount(row);
+    if (!amount) return;
+    const existing = grouped.get(label) || { amount: 0, count: 0 };
+    grouped.set(label, { amount: existing.amount + amount, count: existing.count + 1 });
+  });
+
+  return [...grouped.entries()]
+    .map(([label, item]) => ({
+      label,
+      amount: item.amount,
+      count: item.count,
+      status,
+      commentary: commentaryBuilder(label, item.amount, item.count),
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 8);
+}
+
+function getCloseQualityStatus(score: number): CloseQualityStatus {
+  if (score >= 85) return "Healthy";
+  if (score >= 70) return "Moderate Review";
+  if (score >= 55) return "Elevated Review";
+  return "High Review";
+}
+
+function calculateCloseManagementIntelligence({
+  packageTier,
+  currentBsRows,
+  priorBsRows,
+  validationResults,
+  reserveLifecycleIntelligence,
+  treasuryLiquidityIntelligence,
+  fixedAssetIntegrityIntelligence,
+  manufacturingInventoryIntelligence,
+  currentMonthGlData,
+  priorMonthGlData,
+  currentQuarterGlData,
+  priorQuarterGlData,
+  currentYearGlData,
+  priorYearGlData,
+}: {
+  packageTier: PackageTier;
+  currentBsRows: StatementRow[];
+  priorBsRows: StatementRow[];
+  validationResults: ValidationResults;
+  reserveLifecycleIntelligence: ReserveLifecycleIntelligence;
+  treasuryLiquidityIntelligence: TreasuryLiquidityIntelligence;
+  fixedAssetIntegrityIntelligence: FixedAssetIntegrityIntelligence;
+  manufacturingInventoryIntelligence: ManufacturingInventoryIntelligence;
+  currentMonthGlData: ParsedFile | null;
+  priorMonthGlData: ParsedFile | null;
+  currentQuarterGlData: ParsedFile | null;
+  priorQuarterGlData: ParsedFile | null;
+  currentYearGlData: ParsedFile | null;
+  priorYearGlData: ParsedFile | null;
+}): CloseManagementIntelligence {
+  const currentDataSets = [currentMonthGlData, currentQuarterGlData, currentYearGlData];
+  const allDataSets = [currentMonthGlData, priorMonthGlData, currentQuarterGlData, priorQuarterGlData, currentYearGlData, priorYearGlData];
+  const currentRows = getCloseManagementRows(currentDataSets);
+  const allRows = getCloseManagementRows(allDataSets);
+  const currentRowKeys = new Set(currentRows.map(getCloseRowKey));
+  const fullCloseReview = isVirtualCfo(packageTier);
+  const totalAssets = currentBsRows.reduce((total, row) => total + (row.amount && row.amount > 0 ? row.amount : 0), 0);
+  const reviewThreshold = Math.max(totalAssets * 0.01, 2500);
+  const priorMap = new Map(priorBsRows.map((row) => [normalizeStatementLabel(row.label), Math.abs(row.amount || 0)]));
+  const currentLiabilityRows = currentBsRows.filter((row) => row.amount !== null && Math.abs(row.amount || 0) > 0 && isCloseLiabilityLabel(row.label));
+  const currentAssetRows = currentBsRows.filter((row) => row.amount !== null && Math.abs(row.amount || 0) > 0 && isCloseAssetLabel(row.label));
+  const staleLiabilityItems = currentLiabilityRows
+    .filter((row) => {
+      const currentAmount = Math.abs(row.amount || 0);
+      const priorAmount = priorMap.get(normalizeStatementLabel(row.label)) || 0;
+      const accountStem = normalizeStatementLabel(row.label).slice(0, 14);
+      const relatedActivity = currentRows.filter((activity) => normalizeStatementLabel(activity.accountName).includes(accountStem));
+      return currentAmount > reviewThreshold && (Math.abs(currentAmount - priorAmount) < Math.max(currentAmount * 0.03, 250) || relatedActivity.length === 0);
+    })
+    .map((row) => ({
+      label: row.label,
+      amount: Math.abs(row.amount || 0),
+      count: 1,
+      status: "Review" as const,
+      commentary: `${row.label} remains outstanding with limited identified clearing activity. This may warrant stale liability or accrual clearing review.`,
+    }))
+    .slice(0, 8);
+  const staleAssetItems = currentAssetRows
+    .filter((row) => {
+      const currentAmount = Math.abs(row.amount || 0);
+      const priorAmount = priorMap.get(normalizeStatementLabel(row.label)) || 0;
+      return currentAmount > reviewThreshold && Math.abs(currentAmount - priorAmount) < Math.max(currentAmount * 0.03, 250);
+    })
+    .map((row) => ({
+      label: row.label,
+      amount: Math.abs(row.amount || 0),
+      count: 1,
+      status: "Review" as const,
+      commentary: `${row.label} appears stagnant across comparison periods and may warrant reconciliation, classification, or settlement timing review.`,
+    }))
+    .slice(0, 8);
+  const prepaidRows = currentRows.filter((row) => isPrepaidLabel(row.accountName) || /amortization|expense recognition/.test(normalizeStatementLabel(`${row.memo} ${row.description}`)));
+  const prepaidLifecycleItems = [
+    ...staleAssetItems.filter((item) => isPrepaidLabel(item.label)).map((item) => ({
+      ...item,
+      commentary: `${item.label} appears stagnant or elevated without clear amortization activity. Review amortization cadence and expense recognition timing.`,
+    })),
+    ...buildCloseReviewItems(
+      prepaidRows,
+      (row) => row.accountName,
+      (label, amount, count) => `${label} includes ${count} prepaid or amortization-related posting${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review prepaid buildup, amortization timing, and recurring entry cadence.`,
+      "Monitor",
+    ),
+  ].slice(0, 8);
+  const accrualRows = allRows.filter((row) => {
+    const text = normalizeStatementLabel(`${row.accountName} ${row.memo} ${row.description} ${row.vendor} ${row.payee}`);
+    return /accrual|accrued|reversal|reverse|clearing|settlement|rebook|re-book/.test(text);
+  });
+  const accrualReversalItems = buildCloseReviewItems(
+    fullCloseReview ? accrualRows : accrualRows.slice(0, 25),
+    (row) => row.vendor || row.payee || row.accountName,
+    (label, amount, count) => `${label} includes ${count} accrual, reversal, or clearing review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review recurring timing, settlement, and uncleared accrual balances.`,
+    "Review",
+  );
+  const manualJeRows = allRows.filter(isManualJournalEntryRow);
+  const accountStats = new Map<string, { values: number[]; current: number }>();
+  allRows.forEach((row) => {
+    const key = row.accountName || "Unspecified account";
+    const amount = getCloseRowAmount(row);
+    if (!amount) return;
+    const existing = accountStats.get(key) || { values: [], current: 0 };
+    existing.values.push(amount);
+    if (currentRowKeys.has(getCloseRowKey(row))) existing.current += amount;
+    accountStats.set(key, existing);
+  });
+  const unusualManualRows = manualJeRows.filter((row) => {
+    const amount = getCloseRowAmount(row);
+    const stats = accountStats.get(row.accountName);
+    if (!stats || stats.values.length < 3) return amount > reviewThreshold;
+    const average = stats.values.reduce((total, value) => total + value, 0) / stats.values.length;
+    const variance = stats.values.reduce((total, value) => total + (value - average) ** 2, 0) / stats.values.length;
+    return amount > average + Math.sqrt(variance) * 2;
+  });
+  const roundDollarRows = manualJeRows.filter((row) => {
+    const amount = getCloseRowAmount(row);
+    return amount >= reviewThreshold && amount % 1000 === 0;
+  });
+  const manualJournalEntryItems = buildCloseReviewItems(
+    [...unusualManualRows, ...roundDollarRows],
+    (row) => row.accountName,
+    (label, amount, count) => `${label} includes ${count} manual or round-dollar journal entry review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review posting timing and whether activity is consistent with historical patterns.`,
+    "Review",
+  );
+  const accountActivityItems = [...accountStats.entries()]
+    .filter(([, stats]) => {
+      const historicalAverage = stats.values.reduce((total, value) => total + value, 0) / Math.max(stats.values.length, 1);
+      return historicalAverage > reviewThreshold && (stats.current === 0 || stats.current > historicalAverage * 2.5);
+    })
+    .map(([label, stats]) => ({
+      label,
+      amount: stats.current || stats.values.reduce((total, value) => total + value, 0) / Math.max(stats.values.length, 1),
+      count: stats.values.length,
+      status: stats.current === 0 ? "Monitor" as const : "Review" as const,
+      commentary: stats.current === 0
+        ? `${label} has historical activity but limited current-period movement. Review whether the account should have recurring activity or clearing entries.`
+        : `${label} current activity appears elevated relative to historical posting patterns and may warrant account activity review.`,
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 8);
+  const scoreDrivers = [
+    staleLiabilityItems.length ? `${staleLiabilityItems.length} stale liability review item${staleLiabilityItems.length === 1 ? "" : "s"}` : "",
+    staleAssetItems.length ? `${staleAssetItems.length} stale asset review item${staleAssetItems.length === 1 ? "" : "s"}` : "",
+    accrualReversalItems.length ? `${accrualReversalItems.length} accrual lifecycle review item${accrualReversalItems.length === 1 ? "" : "s"}` : "",
+    manualJournalEntryItems.length ? `${manualJournalEntryItems.length} manual journal entry review item${manualJournalEntryItems.length === 1 ? "" : "s"}` : "",
+    validationResults.checks.some((check) => check.status === "red" || check.status === "yellow") ? "validation or reconciliation exceptions" : "",
+    reserveLifecycleIntelligence.enabled && reserveLifecycleIntelligence.adequacyStatus === "Elevated Review" ? "reserve exposure deterioration" : "",
+    treasuryLiquidityIntelligence.enabled && treasuryLiquidityIntelligence.internalFlags.length ? "treasury or liquidity review flags" : "",
+    fixedAssetIntegrityIntelligence.enabled && fixedAssetIntegrityIntelligence.internalFlags.length ? "balance sheet integrity review flags" : "",
+    manufacturingInventoryIntelligence.enabled && manufacturingInventoryIntelligence.internalFlags.length ? "inventory or manufacturing operational review flags" : "",
+  ].filter(Boolean);
+  const closeQualityScore = Math.max(
+    0,
+    Math.min(
+      100,
+      100 -
+        staleLiabilityItems.length * 6 -
+        staleAssetItems.length * 5 -
+        accrualReversalItems.length * 4 -
+        manualJournalEntryItems.length * 5 -
+        accountActivityItems.length * 3 -
+        validationResults.checks.filter((check) => check.status === "red").length * 8 -
+        validationResults.checks.filter((check) => check.status === "yellow").length * 3 -
+        (reserveLifecycleIntelligence.adequacyStatus === "Elevated Review" ? 5 : 0) -
+        (treasuryLiquidityIntelligence.internalFlags.length ? 3 : 0) -
+        (fixedAssetIntegrityIntelligence.internalFlags.length ? 3 : 0) -
+        (manufacturingInventoryIntelligence.internalFlags.length ? 3 : 0),
+    ),
+  );
+  const closeQualityStatus = getCloseQualityStatus(closeQualityScore);
+  const operationalCommentary = [
+    packageTier === "essential"
+      ? "Essential close review focuses on operational commentary, stale balance awareness, reserve review, and payroll/FTE context."
+      : packageTier === "professional"
+        ? "Professional close review expands into operational accounting review, working capital, liquidity, inventory, and fixed asset review signals."
+        : "Virtual CFO Close Management Intelligence reviews stale balances, accrual lifecycle, manual journal entries, account activity patterns, and recurring operational accounting issues.",
+    `Internal Close Quality Score is ${closeQualityScore}/100 (${closeQualityStatus}). This remains preparer-facing review intelligence, not assurance or audit certification.`,
+    staleLiabilityItems[0]?.commentary || "No material stale liability pattern was identified from available balance sheet and GL detail.",
+    staleAssetItems[0]?.commentary || "No material stale asset pattern was identified from available balance sheet and GL detail.",
+    manualJournalEntryItems[0]?.commentary || "Manual journal entry activity should continue to be reviewed against posting timing, account patterns, and period-end activity.",
+  ];
+  const futureOperationsRoadmap = isVirtualCfo(packageTier)
+    ? [
+        "Prepare future invoice ingestion and OCR/AP automation workflows with human approval before posting.",
+        "Prepare future suggested journal entries, suggested accruals, and suggested reserve entries as review drafts only.",
+        "Prepare future AI-assisted reconciliations and workflow approvals while maintaining controller/CFO approval gates.",
+        "Prepare semi-autonomous accounting operations architecture without removing human review.",
+      ]
+    : [];
+  const internalFlags = [
+    ...scoreDrivers.map((driver) => `Close quality driver identified: ${driver}.`),
+    ...staleLiabilityItems.map((item) => `Stale liability review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...staleAssetItems.map((item) => `Stale asset review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...accrualReversalItems.map((item) => `Accrual lifecycle review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...manualJournalEntryItems.map((item) => `Manual journal entry review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...accountActivityItems.map((item) => `Account activity review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+  ].slice(0, 16);
+
+  return {
+    enabled: Boolean(currentBsRows.length || allRows.length || isProfessionalOrHigher(packageTier)),
+    tierScope:
+      packageTier === "essential"
+        ? "Essential includes basic operational close commentary, stale balance awareness, reserve review, and payroll/FTE operational commentary."
+        : packageTier === "professional"
+          ? "Professional includes operational accounting review, inventory and fixed asset operational review, liquidity review, and working capital commentary."
+          : "Virtual CFO includes full close management intelligence, accrual lifecycle review, stale balance monitoring, manual JE intelligence, operational accounting oversight, treasury review, and forecasting integration.",
+    closeQualityScore,
+    closeQualityStatus,
+    staleLiabilityItems,
+    staleAssetItems,
+    prepaidLifecycleItems,
+    accrualReversalItems,
+    manualJournalEntryItems,
+    accountActivityItems,
+    scoreDrivers,
+    operationalCommentary,
+    futureOperationsRoadmap,
+    internalFlags,
+  };
 }
 
 function getStatementRows(data: ParsedFile | null): StatementRow[] {
@@ -7386,6 +10386,209 @@ function getAccountActivity(glData: ParsedFile | null, accountName: string): GlA
     .filter((row) => includeAllAccounts || normalizeStatementLabel(row.accountName) === targetAccount);
 }
 
+function getApCutoffCandidatesFromReport(
+  data: ParsedFile | null,
+  reportingPeriodEnd: string,
+  source: string,
+  reviewWindows = [5, 10, 15],
+): ApCutoffCandidate[] {
+  const periodEnd = parseOperationalDate(reportingPeriodEnd);
+  if (!data || !periodEnd) return [];
+
+  const headerIndex = data.rows.findIndex((row) =>
+    row.some((cell) => {
+      const text = normalizeHeader(cell);
+      return text.includes("invoice date") || text.includes("bill date") || text.includes("entry date") || text.includes("post date") || text.includes("vendor");
+    }),
+  );
+  const headers = data.rows[headerIndex] || [];
+  const dataRows = headerIndex >= 0 ? data.rows.slice(headerIndex + 1) : data.rows;
+  const invoiceDateIndex = findHeaderIndex(headers, ["invoice date", "bill date", "document date", "invoice dt", "bill dt"]);
+  const postingDateIndex = findHeaderIndex(headers, ["post date", "posting date", "entry date", "entered date", "date"]);
+  const vendorIndex = findHeaderIndex(headers, ["vendor", "name", "payee"]);
+  const accountIndex = findAccountNameHeaderIndex(headers);
+  const memoIndex = findHeaderIndex(headers, ["memo", "description"]);
+  const debitIndex = findHeaderIndex(headers, ["debit", "debits", "dr"]);
+  const creditIndex = findHeaderIndex(headers, ["credit", "credits", "cr"]);
+  const amountIndex = findHeaderIndex(headers, ["amount", "total"]);
+  const maxWindow = Math.max(...reviewWindows);
+  const maxReviewDate = addDays(periodEnd, maxWindow);
+
+  return dataRows
+    .map((row) => {
+      const memo = String(row[memoIndex] || "").trim();
+      const invoiceDate =
+        invoiceDateIndex >= 0
+          ? parseOperationalDate(row[invoiceDateIndex])
+          : extractDateFromText(`${memo} ${String(row[0] || "")}`);
+      const postingDate = postingDateIndex >= 0 ? parseOperationalDate(row[postingDateIndex]) : null;
+      const vendor = String(row[vendorIndex] || row[0] || "Unspecified vendor").trim();
+      const accountName = String(row[accountIndex >= 0 ? accountIndex : 0] || "").trim();
+      const debit = parseNumber(row[debitIndex]) || 0;
+      const credit = parseNumber(row[creditIndex]) || 0;
+      const amount = Math.abs(parseNumber(row[amountIndex]) ?? (debit - credit));
+
+      if (!invoiceDate || !postingDate || !vendor || !amount) return null;
+      if (invoiceDate > periodEnd || postingDate <= periodEnd || postingDate > maxReviewDate) return null;
+
+      return {
+        vendor,
+        accountName,
+        invoiceDate: formatIsoDate(invoiceDate),
+        postingDate: formatIsoDate(postingDate),
+        daysAfterClose: daysBetween(periodEnd, postingDate),
+        amount,
+        source,
+        memo,
+      };
+    })
+    .filter((candidate): candidate is ApCutoffCandidate => Boolean(candidate));
+}
+
+function getApCutoffRiskStatus(score: number): ApCutoffRiskStatus {
+  if (score >= 8) return "High";
+  if (score >= 5) return "Elevated";
+  if (score >= 3) return "Moderate";
+  return "Low";
+}
+
+function calculateApCutoffIntelligence({
+  packageTier,
+  reportingPeriodEnd,
+  currentMonthGlData,
+  currentQuarterGlData,
+  currentYearGlData,
+  priorMonthGlData,
+}: {
+  packageTier: PackageTier;
+  reportingPeriodEnd: string;
+  currentMonthGlData: ParsedFile | null;
+  currentQuarterGlData: ParsedFile | null;
+  currentYearGlData: ParsedFile | null;
+  priorMonthGlData: ParsedFile | null;
+}): ApCutoffIntelligence {
+  const empty: ApCutoffIntelligence = {
+    enabled: isVirtualCfo(packageTier),
+    reviewWindows: [5, 10, 15].map((daysAfterClose) => ({ daysAfterClose, candidateCount: 0, totalAmount: 0, vendorCount: 0 })),
+    candidates: [],
+    recurringVendorProfiles: [],
+    accrualClearingItems: [],
+    recurringAccrualRiskStatus: "Low",
+    commentary: [],
+    internalFlags: [],
+  };
+  if (!isVirtualCfo(packageTier) || !reportingPeriodEnd) return empty;
+
+  const candidates = [
+    ...getApCutoffCandidatesFromReport(currentMonthGlData, reportingPeriodEnd, "Current Month GL"),
+    ...getApCutoffCandidatesFromReport(currentQuarterGlData, reportingPeriodEnd, "Current Quarter GL"),
+    ...getApCutoffCandidatesFromReport(currentYearGlData, reportingPeriodEnd, "Current Year GL"),
+  ];
+  const uniqueCandidates = candidates.filter((candidate, index, all) => {
+    const key = `${candidate.vendor}-${candidate.invoiceDate}-${candidate.postingDate}-${candidate.amount}`;
+    return all.findIndex((item) => `${item.vendor}-${item.invoiceDate}-${item.postingDate}-${item.amount}` === key) === index;
+  });
+  const reviewWindows = [5, 10, 15].map((daysAfterClose) => {
+    const windowCandidates = uniqueCandidates.filter((candidate) => candidate.daysAfterClose <= daysAfterClose);
+    return {
+      daysAfterClose,
+      candidateCount: windowCandidates.length,
+      totalAmount: windowCandidates.reduce((total, candidate) => total + candidate.amount, 0),
+      vendorCount: new Set(windowCandidates.map((candidate) => normalizeStatementLabel(candidate.vendor))).size,
+    };
+  });
+
+  const vendorProfiles = [...uniqueCandidates.reduce((map, candidate) => {
+    const key = normalizeStatementLabel(candidate.vendor);
+    const existing = map.get(key) || [];
+    existing.push(candidate);
+    map.set(key, existing);
+    return map;
+  }, new Map<string, ApCutoffCandidate[]>()).entries()]
+    .map(([, vendorCandidates]) => {
+      const totalLateInvoiceAmount = vendorCandidates.reduce((total, candidate) => total + candidate.amount, 0);
+      const averageLateInvoiceAmount = totalLateInvoiceAmount / vendorCandidates.length;
+      const averageDaysAfterClose = vendorCandidates.reduce((total, candidate) => total + candidate.daysAfterClose, 0) / vendorCandidates.length;
+      const score =
+        Math.min(vendorCandidates.length, 4) +
+        (averageLateInvoiceAmount > 10000 ? 3 : averageLateInvoiceAmount > 2500 ? 2 : averageLateInvoiceAmount > 500 ? 1 : 0) +
+        (averageDaysAfterClose <= 10 ? 1 : 0) +
+        (vendorCandidates.length >= 3 ? 2 : 0);
+      const riskStatus = getApCutoffRiskStatus(score);
+      const vendor = vendorCandidates[0]?.vendor || "Unspecified vendor";
+      return {
+        vendor,
+        lateInvoiceCount: vendorCandidates.length,
+        averageLateInvoiceAmount,
+        totalLateInvoiceAmount,
+        averageDaysAfterClose,
+        riskStatus,
+        commentary: `${vendor} historically averages approximately ${formatCurrency(averageLateInvoiceAmount)} of invoices entered within ${Math.round(averageDaysAfterClose)} days after close with prior-period invoice dates. Consider whether a recurring month-end accrual process should be evaluated.`,
+      };
+    })
+    .sort((a, b) => b.totalLateInvoiceAmount - a.totalLateInvoiceAmount)
+    .slice(0, 8);
+
+  const currentAccrualRows = getAccountActivity(currentMonthGlData, "__all__").filter((row) => {
+    const normalized = normalizeStatementLabel(`${row.accountName} ${row.memo} ${row.description}`);
+    return normalized.includes("accrual") || normalized.includes("accrued");
+  });
+  const priorAccrualRows = getAccountActivity(priorMonthGlData, "__all__").filter((row) => {
+    const normalized = normalizeStatementLabel(`${row.accountName} ${row.memo} ${row.description}`);
+    return normalized.includes("accrual") || normalized.includes("accrued");
+  });
+  const accrualAccounts = new Set([...currentAccrualRows, ...priorAccrualRows].map((row) => row.accountName).filter(Boolean));
+  const accrualClearingItems = [...accrualAccounts].map((accountName) => {
+    const currentActivity = currentAccrualRows
+      .filter((row) => row.accountName === accountName)
+      .reduce((total, row) => total + Math.abs(row.amount || row.debit - row.credit), 0);
+    const priorActivity = priorAccrualRows
+      .filter((row) => row.accountName === accountName)
+      .reduce((total, row) => total + Math.abs(row.amount || row.debit - row.credit), 0);
+    const change = currentActivity - priorActivity;
+    const status = getApCutoffRiskStatus((Math.abs(change) > 10000 ? 4 : Math.abs(change) > 2500 ? 2 : 1) + (currentActivity && priorActivity ? 1 : 0));
+    return {
+      accountName,
+      currentActivity,
+      priorActivity,
+      change,
+      status,
+      commentary: `Review ${accountName} for accrual reversal, AP clearing, and stale balance patterns. Activity changed by ${formatCurrency(change)} compared with the prior comparison period.`,
+    };
+  }).slice(0, 6);
+
+  const highestVendorRisk = vendorProfiles.some((profile) => profile.riskStatus === "High")
+    ? "High"
+    : vendorProfiles.some((profile) => profile.riskStatus === "Elevated")
+      ? "Elevated"
+      : vendorProfiles.some((profile) => profile.riskStatus === "Moderate")
+        ? "Moderate"
+        : "Low";
+  const commentary = uniqueCandidates.length
+    ? [
+        `${uniqueCandidates.length} AP cutoff review item${uniqueCandidates.length === 1 ? "" : "s"} were identified within the post-close review windows. These should be reviewed as potential prior-period accrual activity, not treated as an automatic adjustment.`,
+        ...vendorProfiles.slice(0, 3).map((profile) => profile.commentary),
+      ]
+    : ["No AP cutoff review items were identified from the available GL detail. Continue reviewing recurring vendor timing as additional post-close AP detail becomes available."];
+  const internalFlags = [
+    ...reviewWindows
+      .filter((window) => window.candidateCount > 0)
+      .map((window) => `AP cutoff window ${window.daysAfterClose} days: ${window.candidateCount} review item${window.candidateCount === 1 ? "" : "s"} totaling ${formatCurrency(window.totalAmount)}.`),
+    ...accrualClearingItems.map((item) => item.commentary),
+  ];
+
+  return {
+    enabled: true,
+    reviewWindows,
+    candidates: uniqueCandidates,
+    recurringVendorProfiles: vendorProfiles,
+    accrualClearingItems,
+    recurringAccrualRiskStatus: highestVendorRisk,
+    commentary,
+    internalFlags,
+  };
+}
+
 function isMeaningfulFluxDriver(value: string) {
   const normalized = normalizeStatementLabel(value);
   if (!normalized) return false;
@@ -7842,6 +11045,7 @@ function buildFluxDebugInfo(
 
 export default function UploadPage() {
   const [packageTier, setPackageTier] = useState<PackageTier>("essential");
+  const [personaOutputMode, setPersonaOutputMode] = useState<PersonaOutputModeId>("business-owner");
   const [hasSelectedPackage, setHasSelectedPackage] = useState(false);
   const [packageSelectionConfirmed, setPackageSelectionConfirmed] = useState(false);
   const [showImportReports, setShowImportReports] = useState(false);
@@ -7851,30 +11055,41 @@ export default function UploadPage() {
   const [pdfReviewed, setPdfReviewed] = useState(false);
   const [kpisConfirmed, setKpisConfirmed] = useState(false);
   const [kpiReviewVisible, setKpiReviewVisible] = useState(false);
+  const [showFluxReview, setShowFluxReview] = useState(false);
+  const [fluxReviewConfirmed, setFluxReviewConfirmed] = useState(false);
+  const [fluxReviewState, setFluxReviewState] = useState<Record<string, FluxReviewRowState>>({});
   const [kpiReviewMode, setKpiReviewMode] = useState<KpiReviewMode>("choose");
+  const [virtualCfoKpiMode, setVirtualCfoKpiMode] = useState<VirtualCfoKpiMode>("recommended");
   const [activeKpiReviewSection, setActiveKpiReviewSection] = useState<KpiReviewSectionId>("validation");
   const [approvedKpiReviewSections, setApprovedKpiReviewSections] = useState<KpiReviewSectionId[]>([]);
   const [showPdfGeneration, setShowPdfGeneration] = useState(false);
   const [showPowerPointStep, setShowPowerPointStep] = useState(false);
   const [reviewerNotes, setReviewerNotes] = useState("");
-  const [clientName, setClientName] = useState("Client Company Name");
-  const [clientReportingPeriod, setClientReportingPeriod] = useState("Current Reporting Period");
-  const [clientIndustry, setClientIndustry] = useState("Industry not specified");
-  const [companyTagline, setCompanyTagline] = useState("Board-ready financial package");
-  const [preparedFor, setPreparedFor] = useState("Management / Ownership / Board Review");
+  const [clientName, setClientName] = useState(DEFAULT_CLIENT_NAME);
+  const [clientReportingPeriod, setClientReportingPeriod] = useState(DEFAULT_REPORTING_PERIOD);
+  const [clientIndustry, setClientIndustry] = useState(DEFAULT_CLIENT_INDUSTRY);
+  const [companyTagline, setCompanyTagline] = useState(DEFAULT_COMPANY_TAGLINE);
+  const [preparedFor, setPreparedFor] = useState(DEFAULT_PREPARED_FOR);
+  const quickBooksAutoProfileRef = useRef({
+    clientName: "",
+    reportingPeriod: "",
+    preparedFor: "",
+    preparedBy: "",
+  });
   const [firmLogoPath, setFirmLogoPath] = useState("");
   const [firmLogoDataUrl, setFirmLogoDataUrl] = useState("");
   const [firmLogoFileName, setFirmLogoFileName] = useState("");
   const [confidentialWatermark, setConfidentialWatermark] = useState(true);
   const [outputStyle, setOutputStyle] = useState<OutputStyle>("hybrid");
-  const [preparedBy, setPreparedBy] = useState("FinSight Reports");
+  const [preparedBy, setPreparedBy] = useState(DEFAULT_PREPARED_BY);
   const [saveSettingsForClient, setSaveSettingsForClient] = useState(false);
   const [selectedPdfSections, setSelectedPdfSections] = useState<PackageSectionId[]>(packageDefaultSections.essential);
   const [useSamePowerPointSelections, setUseSamePowerPointSelections] = useState(true);
   const [selectedPowerPointSections, setSelectedPowerPointSections] = useState<PackageSectionId[]>(packageDefaultSections.essential);
   const [selectedRatios, setSelectedRatios] = useState<RatioId[]>(getDefaultRatiosForPackage("essential"));
   const [selectedCharts, setSelectedCharts] = useState<ChartSelectionId[]>(packageDefaultCharts.essential);
-  const [selectedFluxAnalyses, setSelectedFluxAnalyses] = useState<FluxAnalysisId[]>(["month", "quarter", "year"]);
+  const [selectedFluxAnalyses, setSelectedFluxAnalyses] = useState<FluxAnalysisId[]>(entitlementFluxAnalyses.essential);
+  const [selectedImportMethod, setSelectedImportMethod] = useState<ImportMethod>(null);
   const [includeHighSeverityOnly, setIncludeHighSeverityOnly] = useState(false);
   const [includeModerateSeverity, setIncludeModerateSeverity] = useState(true);
   const [maxFluxRows, setMaxFluxRows] = useState(10);
@@ -7918,9 +11133,17 @@ export default function UploadPage() {
   const [priorPayrollDetailData, setPriorPayrollDetailData] = useState<ParsedFile | null>(null);
   const [salesDetailData, setSalesDetailData] = useState<ParsedFile | null>(null);
   const [quickBooksConnected, setQuickBooksConnected] = useState(false);
+  const [quickBooksRealmId, setQuickBooksRealmId] = useState("");
   const [quickBooksStatusChecked, setQuickBooksStatusChecked] = useState(false);
   const [quickBooksFetching, setQuickBooksFetching] = useState(false);
   const [quickBooksMessage, setQuickBooksMessage] = useState("");
+  const [quickBooksHybridImport, setQuickBooksHybridImport] = useState<QuickBooksHybridImportState>({
+    attempted: false,
+    importedReportIds: [],
+    unavailableReportIds: [],
+  });
+  const [quickBooksImportSummaryOpen, setQuickBooksImportSummaryOpen] = useState(false);
+  const [quickBooksCapabilities, setQuickBooksCapabilities] = useState<QuickBooksCapabilities | null>(null);
   const [fteDivisor, setFteDivisor] = useState(173.33);
   const [folderImportResult, setFolderImportResult] = useState<FolderImportResult | null>(null);
   const [isFolderImporting, setIsFolderImporting] = useState(false);
@@ -7929,6 +11152,7 @@ export default function UploadPage() {
   const [powerpointCreated, setPowerpointCreated] = useState(false);
   const [packageComplete, setPackageComplete] = useState(false);
   const [validationOverrideAccepted, setValidationOverrideAccepted] = useState(false);
+  const [validationReviewOpen, setValidationReviewOpen] = useState(false);
   const [syncedActiveWorkflowStep, setSyncedActiveWorkflowStep] = useState(1);
   const [fluxSettings, setFluxSettings] = useState<FluxSettings>({
     dollarThreshold: 5000,
@@ -7962,6 +11186,56 @@ export default function UploadPage() {
     if (kpisConfirmed) setReportsChangedAfterConfirmation(true);
     setKpisConfirmed(false);
   };
+  const resetImportMethod = () => {
+    setSelectedImportMethod(null);
+    setSelectedUploadReportId(null);
+  };
+  const shouldAutoFillProfileField = (currentValue: string, defaultValue: string, previousAutoValue = "") =>
+    !currentValue.trim() || currentValue === defaultValue || (!!previousAutoValue && currentValue === previousAutoValue);
+  const applyQuickBooksClientProfile = (
+    profile: QuickBooksCompanyProfile | null | undefined,
+    periodStart = "",
+    periodEnd = "",
+  ) => {
+    if (!profile && !periodEnd) return;
+
+    const companyName = (profile?.company_name || profile?.legal_name || "").trim();
+    let changed = false;
+
+    if (companyName && shouldAutoFillProfileField(clientName, DEFAULT_CLIENT_NAME, quickBooksAutoProfileRef.current.clientName)) {
+      setClientName(companyName);
+      quickBooksAutoProfileRef.current.clientName = companyName;
+      changed = true;
+    }
+
+    const quickBooksPreparedFor = companyName ? `${companyName} Management / Ownership / Board Review` : "";
+    if (
+      quickBooksPreparedFor &&
+      shouldAutoFillProfileField(preparedFor, DEFAULT_PREPARED_FOR, quickBooksAutoProfileRef.current.preparedFor)
+    ) {
+      setPreparedFor(quickBooksPreparedFor);
+      quickBooksAutoProfileRef.current.preparedFor = quickBooksPreparedFor;
+      changed = true;
+    }
+
+    if (companyName && shouldAutoFillProfileField(preparedBy, DEFAULT_PREPARED_BY, quickBooksAutoProfileRef.current.preparedBy)) {
+      setPreparedBy(companyName);
+      quickBooksAutoProfileRef.current.preparedBy = companyName;
+      changed = true;
+    }
+
+    const quickBooksReportingPeriod = periodEnd ? formatReportingPeriodRange(periodStart, periodEnd) : "";
+    if (
+      quickBooksReportingPeriod &&
+      shouldAutoFillProfileField(clientReportingPeriod, DEFAULT_REPORTING_PERIOD, quickBooksAutoProfileRef.current.reportingPeriod)
+    ) {
+      setClientReportingPeriod(quickBooksReportingPeriod);
+      quickBooksAutoProfileRef.current.reportingPeriod = quickBooksReportingPeriod;
+      changed = true;
+    }
+
+    if (changed) resetGeneratedState();
+  };
   const applyPackageEntitlement = (tier: PackageTier) => {
     setPackageTier(tier);
     setHasSelectedPackage(true);
@@ -7989,12 +11263,74 @@ export default function UploadPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const result = await response.json();
-      setQuickBooksConnected(Boolean(response.ok && result.connected));
+      const connected = Boolean(response.ok && result.connected);
+      setQuickBooksConnected(connected);
+      setQuickBooksRealmId(connected ? result.realm_id || "" : "");
+      if (connected) {
+        const capabilitiesResponse = await fetch("/api/quickbooks/detect-capabilities", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const capabilitiesResult = await capabilitiesResponse.json().catch(() => null);
+        setQuickBooksCapabilities(capabilitiesResponse.ok ? capabilitiesResult : null);
+        if (capabilitiesResponse.ok) {
+          applyQuickBooksClientProfile({
+            company_name: capabilitiesResult?.company_name,
+            legal_name: capabilitiesResult?.company_legal_name,
+          });
+        }
+      } else {
+        setQuickBooksCapabilities(null);
+      }
     } catch {
       setQuickBooksConnected(false);
+      setQuickBooksRealmId("");
+      setQuickBooksCapabilities(null);
     } finally {
       setQuickBooksStatusChecked(true);
     }
+  };
+  const getSupabaseAuthTokenForQuickBooks = async () => {
+    const isExpiredJwt = (token: string) => {
+      try {
+        if (token.split(".").length !== 3) return true;
+        const payload = JSON.parse(window.atob(token.split(".")[1]?.replace(/-/g, "+").replace(/_/g, "/") || ""));
+        return typeof payload.exp === "number" && payload.exp * 1000 <= Date.now();
+      } catch {
+        return true;
+      }
+    };
+    const { data } = await supabase.auth.getSession();
+    const sessionToken = data.session?.access_token || "";
+    if (sessionToken && !isExpiredJwt(sessionToken)) {
+      window.localStorage.setItem("supabase_access_token", sessionToken);
+      return sessionToken;
+    }
+    if (sessionToken) {
+      await supabase.auth.signOut();
+      window.localStorage.removeItem("supabase_access_token");
+    }
+
+    const storedToken = window.localStorage.getItem("supabase_access_token") || "";
+    if (storedToken && !isExpiredJwt(storedToken)) return storedToken;
+    if (storedToken) window.localStorage.removeItem("supabase_access_token");
+
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index) || "";
+      if (!key.includes("auth-token")) continue;
+
+      try {
+        const parsedValue = JSON.parse(window.localStorage.getItem(key) || "{}");
+        const token =
+          parsedValue?.access_token ||
+          parsedValue?.currentSession?.access_token ||
+          parsedValue?.session?.access_token;
+        if (token && !isExpiredJwt(token)) return token;
+      } catch {
+        // Ignore unrelated localStorage values.
+      }
+    }
+
+    return uploadAccess.token === "development-bypass" ? "" : uploadAccess.token || "";
   };
 
   useEffect(() => {
@@ -8004,18 +11340,23 @@ export default function UploadPage() {
     if (devBypassEnabled) {
       applyPackageEntitlement("virtualCfo");
       setUploadAccess({ status: "allowed", token: "development-bypass", plan: "virtualCfo", reason: "subscriber" });
-      setQuickBooksStatusChecked(true);
-      return;
-    }
-
-    const token = window.localStorage.getItem("supabase_access_token");
-
-    if (!token) {
-      window.location.href = "/signin";
+      const storedToken = window.localStorage.getItem("supabase_access_token") || "";
+      if (storedToken) {
+        void checkQuickBooksConnection(storedToken);
+      } else {
+        setQuickBooksStatusChecked(true);
+      }
       return;
     }
 
     async function verifyAccess() {
+      const token = await getSupabaseAuthTokenForQuickBooks();
+
+      if (!token) {
+        window.location.href = "/signin";
+        return;
+      }
+
       try {
         const response = await fetch("/api/check-trial", {
           method: "POST",
@@ -8051,6 +11392,11 @@ export default function UploadPage() {
             ? result.subscription_plan || STRIPE_PRICE_TO_PACKAGE_TIER[result.subscription_price_id as string] || "essential"
             : "virtualCfo";
         applyPackageEntitlement(plan);
+        if (result.reason === "subscriber") {
+          setPackageSelectionConfirmed(true);
+          setShowImportReports(true);
+          setSyncedActiveWorkflowStep(2);
+        }
         setUploadAccess({ status: "allowed", token, plan, reason: result.reason });
         await checkQuickBooksConnection(token);
       } catch {
@@ -8444,19 +11790,32 @@ export default function UploadPage() {
   };
   const populateQuickBooksReports = (reports: Record<string, QuickBooksFetchedReport>) => {
     resetGeneratedState();
-    const populatedCount = [
-      applyQuickBooksReport("pl", "Profit and Loss", reports.profitAndLoss, setPlData),
-      applyQuickBooksReport("bs", "Balance Sheet", reports.balanceSheet, setBsData),
-      applyQuickBooksReport("cash-flow", "Statement of Cash Flows", reports.cashFlowStatement, setCashFlowData),
-      applyQuickBooksReport("current-month-gl", "General Ledger", reports.generalLedger, setCurrentMonthGlData),
-      applyQuickBooksReport("ar", "Accounts Receivable Aging Summary", reports.arAgingSummary, setArData),
-      applyQuickBooksReport("ap", "Accounts Payable Aging Summary", reports.apAgingSummary, setApData),
-      applyQuickBooksReport("customers", "Sales by Customer Summary", reports.salesByCustomer, setCustomerSalesData),
-      applyQuickBooksReport("vendors", "Expenses by Vendor Summary", reports.expensesByVendor, setVendorExpenseData),
-      applyQuickBooksReport("inventory", "Inventory Valuation Summary", reports.inventoryValuation, setInventoryData),
-      applyQuickBooksReport("budget", "Budget vs Actuals", reports.budgetVsActuals, setBudgetVsActualData),
-    ].filter(Boolean).length;
+    const quickBooksReportMappings = [
+      { reportId: "pl", reportName: "Profit and Loss", report: reports.profitAndLoss, setData: setPlData },
+      { reportId: "bs", reportName: "Balance Sheet", report: reports.balanceSheet, setData: setBsData },
+      { reportId: "cash-flow", reportName: "Statement of Cash Flows", report: reports.cashFlowStatement, setData: setCashFlowData },
+      { reportId: "current-month-gl", reportName: "General Ledger", report: reports.generalLedger, setData: setCurrentMonthGlData },
+      { reportId: "ar", reportName: "Accounts Receivable Aging Summary", report: reports.arAgingSummary, setData: setArData },
+      { reportId: "ap", reportName: "Accounts Payable Aging Summary", report: reports.apAgingSummary, setData: setApData },
+      { reportId: "customers", reportName: "Sales by Customer Summary", report: reports.salesByCustomer, setData: setCustomerSalesData },
+      { reportId: "vendors", reportName: "Expenses by Vendor Summary", report: reports.expensesByVendor, setData: setVendorExpenseData },
+      { reportId: "inventory", reportName: "Inventory Valuation Summary", report: reports.inventoryValuation, setData: setInventoryData },
+      { reportId: "budget", reportName: "Budget vs Actuals", report: reports.budgetVsActuals, setData: setBudgetVsActualData },
+    ];
+    const importedReportIds = quickBooksReportMappings
+      .filter(({ reportId, reportName, report, setData }) => applyQuickBooksReport(reportId, reportName, report, setData))
+      .map(({ reportId }) => reportId);
+    const unavailableReportIds = quickBooksReportMappings
+      .filter(({ reportId }) => !importedReportIds.includes(reportId))
+      .map(({ reportId }) => reportId);
+    const populatedCount = importedReportIds.length;
     const failedReports = Object.values(reports).filter((report) => report && !report.ok).length;
+    setQuickBooksHybridImport({
+      attempted: true,
+      importedReportIds,
+      unavailableReportIds,
+    });
+    setQuickBooksImportSummaryOpen(true);
     setQuickBooksMessage(
       failedReports
         ? `Imported ${populatedCount} QuickBooks reports. ${failedReports} report${failedReports === 1 ? "" : "s"} need manual review.`
@@ -8464,9 +11823,9 @@ export default function UploadPage() {
     );
   };
   const handleConnectQuickBooks = async () => {
-    const token = uploadAccess.token || window.localStorage.getItem("supabase_access_token") || "";
-    if (!token || token === "development-bypass") {
-      alert("Sign in with Supabase before connecting QuickBooks.");
+    const token = await getSupabaseAuthTokenForQuickBooks();
+    if (!token) {
+      setQuickBooksMessage("Sign in first, then return to Step 2 to connect QuickBooks.");
       return;
     }
 
@@ -8475,7 +11834,7 @@ export default function UploadPage() {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
 
       if (!response.ok || !result.url) {
         alert(result.error || "Unable to start QuickBooks connection.");
@@ -8488,9 +11847,9 @@ export default function UploadPage() {
     }
   };
   const handleFetchQuickBooksReports = async () => {
-    const token = uploadAccess.token || window.localStorage.getItem("supabase_access_token") || "";
-    if (!token || token === "development-bypass") {
-      alert("Sign in with Supabase before fetching QuickBooks reports.");
+    const token = await getSupabaseAuthTokenForQuickBooks();
+    if (!token) {
+      setQuickBooksMessage("Sign in first, then return to Step 2 to fetch QuickBooks reports.");
       return;
     }
     if (!reportingPeriodStart || !reportingPeriodEnd) {
@@ -8523,7 +11882,9 @@ export default function UploadPage() {
       }
 
       populateQuickBooksReports(result.reports || {});
+      applyQuickBooksClientProfile(result.company_profile, result.start_date || reportingPeriodStart, result.end_date || reportingPeriodEnd);
       setQuickBooksConnected(true);
+      setQuickBooksRealmId(result.realm_id || "");
       setShowImportReports(true);
       setSyncedActiveWorkflowStep(2);
       window.setTimeout(() => scrollToWorkflowSection("upload-reports"), 100);
@@ -8532,6 +11893,39 @@ export default function UploadPage() {
     } finally {
       setQuickBooksFetching(false);
     }
+  };
+  const handleOmitQuickBooksMissingAndProceed = () => {
+    const missingReportIds = quickBooksHybridImport.unavailableReportIds.filter((reportId) => {
+      const report = uploadReports.find((candidate) => candidate.id === reportId);
+      return report && !report.data;
+    });
+
+    if (missingReportIds.length) {
+      setOmittedReportIds((current) => [...new Set([...current, ...missingReportIds])]);
+    }
+
+    setQuickBooksImportSummaryOpen(false);
+    setSelectedImportMethod(null);
+    setSyncedActiveWorkflowStep(2);
+    setValidationReviewOpen(true);
+  };
+  const handleProceedFromValidationReview = () => {
+    const unresolvedReportIds = missingReports.flatMap((requirement) => requirement.reportIds);
+    const reportIdsToOmit = unresolvedReportIds.filter((reportId) => {
+      const report = uploadReports.find((candidate) => candidate.id === reportId);
+      return report && !report.data;
+    });
+
+    if (reportIdsToOmit.length) {
+      setOmittedReportIds((current) => [...new Set([...current, ...reportIdsToOmit])]);
+    }
+
+    setValidationOverrideAccepted(true);
+    setValidationReviewOpen(false);
+    setShowCustomizePackage(true);
+    setSelectedImportMethod(null);
+    setSyncedActiveWorkflowStep(3);
+    window.setTimeout(() => scrollToWorkflowSection("missing-inputs"), 100);
   };
   const selectedReports = uploadReports.filter((report) =>
     isReportAvailable(report.tier, packageTier) || isReportRequiredForPackage(report.id, packageTier),
@@ -8581,7 +11975,9 @@ export default function UploadPage() {
   const manualPeriodDaysValue = parseNumber(manualPeriodDays);
   const reportingPeriodDays =
     manualPeriodDaysValue && manualPeriodDaysValue > 0 ? manualPeriodDaysValue : autoPeriodDays;
-  const automaticDso = calculateDso(kpis, reportingPeriodDays);
+  const useAdvisacorRecommendedKpis = packageTier === "virtualCfo" && virtualCfoKpiMode === "recommended";
+  const automaticDsoPeriodDays = useAdvisacorRecommendedKpis && reportingPeriodEnd ? 365 : reportingPeriodDays;
+  const automaticDso = calculateDso(kpis, automaticDsoPeriodDays);
   const dsoAccountsReceivableValue = parseNumber(dsoAccountsReceivable);
   const dsoMonthlyRevenueValue = parseNumber(dsoMonthlyRevenue);
   const dsoPeriodDaysValue = parseNumber(dsoPeriodDays);
@@ -8607,26 +12003,68 @@ export default function UploadPage() {
       resolvedAverageDailySales,
     );
   const dsoRatioSelected = selectedRatios.includes("DSO");
-  const dsoInputNeeded = requiredUploadsComplete && dsoRatioSelected && kpis.accountsReceivable > 0;
+  const dsoInputNeeded = !useAdvisacorRecommendedKpis && requiredUploadsComplete && dsoRatioSelected && kpis.accountsReceivable > 0;
   const dsoInputResolved = !dsoInputNeeded || dsoConfirmed || dsoInputOmitted;
   const missingInputsRemaining = dsoInputResolved ? 0 : 1;
   const resolvedInputsCount = dsoInputNeeded && dsoInputResolved ? 1 : 0;
   const missingInputsResolved = requiredUploadsComplete && missingInputsRemaining === 0;
   const canReviewInputs = showCustomizePackage && missingInputsResolved;
-  const dso = dsoConfirmed && !dsoInputOmitted ? dsoPreview : null;
+  const dso = useAdvisacorRecommendedKpis && dsoRatioSelected ? dsoPreview : dsoConfirmed && !dsoInputOmitted ? dsoPreview : null;
   const arKpis = calculateAgingKpis(activeArData);
   const apKpis = calculateAPKpis(activeApData);
   const inventoryKpis = calculateInventoryKpis(activeInventoryData);
   const priorInventoryKpis = calculateInventoryKpis(activePriorInventoryData);
   const bsStatementRows = getStatementRows(activeBsData);
+  const plStatementRows = getStatementRows(activePlData);
   const priorBsRowsForInventory = getStatementRows(activePriorPeriodBsData);
+  const priorKpis = calculateKPIs(activePriorPeriodPlData, activePriorPeriodBsData);
+  const arReserveIntelligence = calculateARReserveIntelligence({
+    arData: activeArData,
+    arKpis,
+    balanceSheetRows: bsStatementRows,
+    plRows: plStatementRows,
+    currentMonthGlData: activeCurrentMonthGlData,
+    priorMonthGlData: activePriorMonthGlData,
+  });
+  const reserveLifecycleIntelligence = calculateReserveLifecycleIntelligence({
+    packageTier,
+    arData: activeArData,
+    arKpis,
+    arReserveIntelligence,
+    priorBsRows: priorBsRowsForInventory,
+    currentMonthGlData: activeCurrentMonthGlData,
+    priorMonthGlData: activePriorMonthGlData,
+    currentQuarterGlData: activeCurrentQuarterGlData,
+    priorQuarterGlData: activePriorQuarterGlData,
+    currentYearGlData: activeCurrentYearGlData,
+    priorYearGlData: activePriorYearGlData,
+  });
   const inventoryIntelligence = calculateInventoryIntelligence({
+    packageTier,
     inventoryKpis,
     priorInventoryKpis,
     cogs: kpis.cogs,
     currentBsRows: bsStatementRows,
     priorBsRows: priorBsRowsForInventory,
     periodDays: reportingPeriodDays,
+    currentMonthGlData: activeCurrentMonthGlData,
+    priorMonthGlData: activePriorMonthGlData,
+    currentQuarterGlData: activeCurrentQuarterGlData,
+    priorQuarterGlData: activePriorQuarterGlData,
+    currentYearGlData: activeCurrentYearGlData,
+    priorYearGlData: activePriorYearGlData,
+  });
+  const manufacturingInventoryIntelligence = calculateManufacturingInventoryIntelligence({
+    packageTier,
+    inventoryKpis,
+    priorInventoryKpis,
+    inventoryIntelligence,
+    currentMonthGlData: activeCurrentMonthGlData,
+    priorMonthGlData: activePriorMonthGlData,
+    currentQuarterGlData: activeCurrentQuarterGlData,
+    priorQuarterGlData: activePriorQuarterGlData,
+    currentYearGlData: activeCurrentYearGlData,
+    priorYearGlData: activePriorYearGlData,
   });
   const fixedAssetKpis = calculateFixedAssetKpis(activeFixedAssetData, kpis.totalAssets, activePlData, bsStatementRows);
   const grossFixedAssets = fixedAssetKpis.totalFixedAssets;
@@ -8637,6 +12075,19 @@ export default function UploadPage() {
   void netBookValue;
   const priorFixedAssetKpis = calculateFixedAssetKpis(activePriorFixedAssetData, kpis.totalAssets, null, priorBsRowsForInventory);
   const fixedAssetChangeRows = getFixedAssetChangeRows(fixedAssetKpis, priorFixedAssetKpis);
+  const fixedAssetIntegrityIntelligence = calculateFixedAssetIntegrityIntelligence({
+    packageTier,
+    currentFixedAssetKpis: fixedAssetKpis,
+    priorFixedAssetKpis,
+    currentBsRows: bsStatementRows,
+    priorBsRows: priorBsRowsForInventory,
+    currentMonthGlData: activeCurrentMonthGlData,
+    priorMonthGlData: activePriorMonthGlData,
+    currentQuarterGlData: activeCurrentQuarterGlData,
+    priorQuarterGlData: activePriorQuarterGlData,
+    currentYearGlData: activeCurrentYearGlData,
+    priorYearGlData: activePriorYearGlData,
+  });
   const reportPeriod = clientReportingPeriod || "Current Reporting Period";
   const companyName = clientName || "Client Company Name";
   const payrollAnalysis = calculatePayrollAnalysis(activeCurrentPayrollData, activePriorPayrollData, fteDivisor);
@@ -8673,11 +12124,77 @@ export default function UploadPage() {
   const yearFluxRows = selectedFluxAnalyses.includes("year")
     ? filterSelectedFluxRows(rawYearFluxRows, includeHighSeverityOnly, includeModerateSeverity, maxFluxRows)
     : [];
+  const fluxReviewRows = [
+    ...monthFluxRows.map((row) => ({ row, basisLabel: "Month-over-Month" })),
+    ...quarterFluxRows.map((row) => ({ row, basisLabel: "Quarter-over-Quarter" })),
+    ...yearFluxRows.map((row) => ({ row, basisLabel: "Year-over-Year" })),
+  ];
+  const getFluxReviewStateForRow = (row: FluxRow, basisLabel: string): FluxReviewRowState => {
+    const key = getFluxRowKey(row, basisLabel);
+    return fluxReviewState[key] || {
+      reviewed: false,
+      includeInDeliverables: true,
+      flagForManagement: row.severity === "High",
+      internalNote: "",
+      clientExplanation: row.commentary,
+    };
+  };
+  const exportMonthFluxRows = monthFluxRows.filter((row) => getFluxReviewStateForRow(row, "Month-over-Month").includeInDeliverables);
+  const exportQuarterFluxRows = quarterFluxRows.filter((row) => getFluxReviewStateForRow(row, "Quarter-over-Quarter").includeInDeliverables);
+  const exportYearFluxRows = yearFluxRows.filter((row) => getFluxReviewStateForRow(row, "Year-over-Year").includeInDeliverables);
   const monthFluxDebug = buildFluxDebugInfo(activeCurrentMonthGlData, activePriorMonthGlData, monthFluxRows, fluxSettings);
   const quarterFluxDebug = buildFluxDebugInfo(activeCurrentQuarterGlData, activePriorQuarterGlData, quarterFluxRows, fluxSettings);
   const yearFluxDebug = buildFluxDebugInfo(activeCurrentYearGlData, activePriorYearGlData, yearFluxRows, fluxSettings);
   const budgetMetrics = calculateBudgetMetrics(activeBudgetVsActualData);
+  const workforceIntelligence = calculateWorkforceIntelligence({
+    packageTier,
+    payrollAnalysis,
+    currentRevenue: kpis.revenue,
+    priorRevenue: priorKpis.revenue,
+    grossProfit: kpis.grossProfit,
+    netMargin,
+    budgetMetrics,
+    monthFluxRows,
+    quarterFluxRows,
+  });
   const debtMetrics = calculateDebtMetrics(activeDebtScheduleData, kpis, bsStatementRows);
+  const treasuryLiquidityIntelligence = calculateTreasuryLiquidityIntelligence({
+    packageTier,
+    kpis,
+    priorKpis,
+    currentBsRows: bsStatementRows,
+    priorBsRows: priorBsRowsForInventory,
+    arKpis,
+    apKpis,
+    payrollAnalysis,
+    debtMetrics,
+    cashFlowData: activeCashFlowData,
+    currentMonthGlData: activeCurrentMonthGlData,
+    currentQuarterGlData: activeCurrentQuarterGlData,
+    currentYearGlData: activeCurrentYearGlData,
+  });
+  const apCutoffIntelligence = calculateApCutoffIntelligence({
+    packageTier,
+    reportingPeriodEnd,
+    currentMonthGlData: activeCurrentMonthGlData,
+    currentQuarterGlData: activeCurrentQuarterGlData,
+    currentYearGlData: activeCurrentYearGlData,
+    priorMonthGlData: activePriorMonthGlData,
+  });
+  const revenueRecognitionIntelligence = calculateRevenueRecognitionIntelligence({
+    packageTier,
+    currentBsRows: bsStatementRows,
+    priorBsRows: priorBsRowsForInventory,
+    currentRevenue: kpis.revenue,
+    priorRevenue: priorKpis.revenue,
+    reportingPeriodEnd,
+    currentMonthGlData: activeCurrentMonthGlData,
+    currentQuarterGlData: activeCurrentQuarterGlData,
+    currentYearGlData: activeCurrentYearGlData,
+    priorMonthGlData: activePriorMonthGlData,
+    priorQuarterGlData: activePriorQuarterGlData,
+    priorYearGlData: activePriorYearGlData,
+  });
   const validationResults = validateFinancialPackage({
     packageTier,
     plData: activePlData,
@@ -8697,12 +12214,29 @@ export default function UploadPage() {
     priorYearGlData: activePriorYearGlData,
     kpis,
     arKpis,
+    arReserveIntelligence,
     apKpis,
     inventoryKpis,
     fixedAssetKpis,
     debtMetrics,
     payrollAnalysis,
     bsRows: bsStatementRows,
+  });
+  const closeManagementIntelligence = calculateCloseManagementIntelligence({
+    packageTier,
+    currentBsRows: bsStatementRows,
+    priorBsRows: priorBsRowsForInventory,
+    validationResults,
+    reserveLifecycleIntelligence,
+    treasuryLiquidityIntelligence,
+    fixedAssetIntegrityIntelligence,
+    manufacturingInventoryIntelligence,
+    currentMonthGlData: activeCurrentMonthGlData,
+    priorMonthGlData: activePriorMonthGlData,
+    currentQuarterGlData: activeCurrentQuarterGlData,
+    priorQuarterGlData: activePriorQuarterGlData,
+    currentYearGlData: activeCurrentYearGlData,
+    priorYearGlData: activePriorYearGlData,
   });
   const selectedUploadReport = selectedUploadReportId
     ? uploadReports.find((report) => report.id === selectedUploadReportId) || null
@@ -8712,13 +12246,24 @@ export default function UploadPage() {
     : null;
   const validationBlocksWorkflow = validationResults.hasCriticalFailures && !validationOverrideAccepted;
   const canReviewKpis = canReviewInputs;
+  const quickBooksCapabilityWarning =
+    quickBooksCapabilities &&
+    packageTier === "virtualCfo" &&
+    quickBooksCapabilities.missing_virtual_cfo_features &&
+    quickBooksCapabilities.missing_virtual_cfo_features.length > 0
+      ? `Some Virtual CFO features require QuickBooks Advanced or payroll enabled. Missing: ${quickBooksCapabilities.missing_virtual_cfo_features.join(", ")}. The reports below show what's available for your QuickBooks version.`
+      : quickBooksCapabilities?.mismatch_warning || "";
   const showKpiReview = canReviewKpis && kpiReviewVisible;
   const visibleKpiReviewSections = kpiReviewSectionOrder;
   const allKpiReviewSectionsApproved = visibleKpiReviewSections.every((section) =>
     approvedKpiReviewSections.includes(section.id),
   );
   const canGeneratePackage =
-    uploadAccess.status === "allowed" && canReviewKpis && kpisAvailable && kpisConfirmed && !validationBlocksWorkflow;
+    uploadAccess.status === "allowed" && canReviewKpis && kpisAvailable && kpisConfirmed && fluxReviewConfirmed && !validationBlocksWorkflow;
+  const canSelectPackage =
+    uploadAccess.status !== "allowed" ||
+    uploadAccess.reason !== "subscriber" ||
+    uploadAccess.token === "development-bypass";
   const activeWorkflowStep = !packageSelectionConfirmed || !showImportReports
     ? 1
     : !showCustomizePackage
@@ -8727,15 +12272,15 @@ export default function UploadPage() {
         ? 3
         : !kpisConfirmed
           ? 4
-          : !showPdfGeneration
-            ? 4
-            : !isPackageGenerated || !pdfReviewed || (packageTier !== "essential" && !showPowerPointStep)
-              ? 5
-              : !powerpointCreated && !powerpointOmitted
-                ? 6
+          : !showFluxReview || !fluxReviewConfirmed
+            ? 5
+            : !showPdfGeneration || !isPackageGenerated || !pdfReviewed
+              ? 6
+              : packageTier !== "essential" && (!showPowerPointStep || (!powerpointCreated && !powerpointOmitted))
+                ? 7
                 : !packageComplete
-                  ? 7
-                  : 0;
+                  ? 8
+                  : 8;
   useEffect(() => {
     setSyncedActiveWorkflowStep(activeWorkflowStep || 1);
   }, [activeWorkflowStep]);
@@ -8758,8 +12303,9 @@ export default function UploadPage() {
       { id: "kpi-review-stage-executive-summary", step: 4 },
       { id: "kpi-review-stage-ratio-analysis", step: 4 },
       { id: "kpi-review-stage-financial-snapshot", step: 4 },
-      { id: "pdf-review", step: 5 },
-      { id: "powerpoint-section", step: 6 },
+      { id: "flux-review", step: 5 },
+      { id: "pdf-review", step: 6 },
+      { id: "powerpoint-section", step: 7 },
     ];
     const visibleById = new Map<string, IntersectionObserverEntry>();
     const updateVisibleStep = () => {
@@ -8814,29 +12360,55 @@ export default function UploadPage() {
     dso,
   ).filter((ratio) => selectedRatios.includes(ratio.name as RatioId));
   const executiveSummary = buildExecutiveSummary({
+    packageTier,
     kpis,
+    priorKpis,
     netMargin,
     bsRows: bsStatementRows,
     arKpis,
+    arReserveIntelligence,
+    reserveLifecycleIntelligence,
     apKpis,
     inventoryKpis,
     inventoryIntelligence,
     fixedAssetKpis,
     fixedAssetChangeRows,
     payrollAnalysis,
-    monthFluxRows,
-    quarterFluxRows,
-    yearFluxRows,
+    workforceIntelligence,
+    treasuryLiquidityIntelligence,
+    revenueRecognitionIntelligence,
+    apCutoffIntelligence,
+    monthFluxRows: exportMonthFluxRows,
+    quarterFluxRows: exportQuarterFluxRows,
+    yearFluxRows: exportYearFluxRows,
     budgetMetrics,
     debtMetrics,
     dso,
     includeAr: Boolean(activeArData),
     includeAp: Boolean(activeApData),
-    includeInventory: Boolean(activeInventoryData) && isVirtualCfo(packageTier),
+    includeInventory: Boolean(activeInventoryData) && isProfessionalOrHigher(packageTier),
     includeFixedAssets: Boolean(activeFixedAssetData),
     includePayroll: Boolean(activeCurrentPayrollData),
     includeBudget: Boolean(activeBudgetVsActualData),
     includeDebt: Boolean(activeDebtScheduleData),
+  });
+  const packageQaFindings = buildPackageQaFindings({
+    packageTier,
+    validationResults,
+    arReserveIntelligence,
+    reserveLifecycleIntelligence,
+    apCutoffIntelligence,
+    revenueRecognitionIntelligence,
+    payrollAnalysis,
+    workforceIntelligence,
+    treasuryLiquidityIntelligence,
+    fixedAssetIntegrityIntelligence,
+    manufacturingInventoryIntelligence,
+    closeManagementIntelligence,
+    monthFluxRows: exportMonthFluxRows,
+    quarterFluxRows: exportQuarterFluxRows,
+    yearFluxRows: exportYearFluxRows,
+    executiveSummary,
   });
   const boardPackageSections = buildBoardPackageSections({
     packageTier,
@@ -8845,7 +12417,7 @@ export default function UploadPage() {
     hasFinancialSnapshot: Boolean(activePlData || activeBsData),
     hasRatios: ratioRows.length > 0,
     hasFollowUps: executiveSummary.followUpItems.length > 0,
-    hasAnyFlux: monthFluxRows.length > 0 || quarterFluxRows.length > 0 || yearFluxRows.length > 0,
+    hasAnyFlux: exportMonthFluxRows.length > 0 || exportQuarterFluxRows.length > 0 || exportYearFluxRows.length > 0,
   }).filter((section) => {
     const matchingOption = packageSectionOptions.find((option) => option.label === section.title);
     if (!matchingOption && section.title === "Financial Performance Snapshot") {
@@ -8873,11 +12445,12 @@ export default function UploadPage() {
     packageTier,
     companyName,
     reportPeriod,
-    preparedBy: preparedBy || "FinSight Reports",
+    preparedBy: preparedBy || "Advisacor",
     kpis,
     executiveSummary,
     arKpis,
     apKpis,
+    arReserveIntelligence,
     inventoryIntelligence,
     fixedAssetKpis,
     payrollAnalysis,
@@ -8886,9 +12459,9 @@ export default function UploadPage() {
     topExpenseRows: getTopOperatingExpenseRows(activePlData),
     budgetMetrics,
     debtMetrics,
-    monthFluxRows,
-    quarterFluxRows,
-    yearFluxRows,
+    monthFluxRows: exportMonthFluxRows,
+    quarterFluxRows: exportQuarterFluxRows,
+    yearFluxRows: exportYearFluxRows,
     boardMode: true,
     includeInventory: Boolean(activeInventoryData),
     includePayroll: Boolean(activeCurrentPayrollData),
@@ -8913,6 +12486,7 @@ export default function UploadPage() {
       return;
     }
     applyPackageEntitlement(tier);
+    resetImportMethod();
     setPackageSelectionConfirmed(false);
     setShowImportReports(false);
     setShowCustomizePackage(false);
@@ -8924,6 +12498,9 @@ export default function UploadPage() {
     setPackageComplete(false);
     setShowPowerPointDraft(false);
     setKpisConfirmed(false);
+    setShowFluxReview(false);
+    setFluxReviewConfirmed(false);
+    setFluxReviewState({});
     setKpiReviewVisible(false);
     setReportsChangedAfterConfirmation(false);
     setSyncedActiveWorkflowStep(1);
@@ -9158,15 +12735,21 @@ export default function UploadPage() {
     window.setTimeout(() => scrollToWorkflowSection(`kpi-review-stage-${previousSection.id}`), 50);
   };
   const handleContinueToPdfGeneration = () => {
-    if (!kpisConfirmed || validationBlocksWorkflow) return;
+    if (!kpisConfirmed || !fluxReviewConfirmed || validationBlocksWorkflow) return;
     setShowPdfGeneration(true);
-    setSyncedActiveWorkflowStep(5);
+    setSyncedActiveWorkflowStep(6);
     window.setTimeout(() => scrollToWorkflowSection("pdf-review"), 50);
+  };
+  const handleContinueToFluxReview = () => {
+    if (!kpisConfirmed || validationBlocksWorkflow) return;
+    setShowFluxReview(true);
+    setSyncedActiveWorkflowStep(5);
+    window.setTimeout(() => scrollToWorkflowSection("flux-review"), 50);
   };
   const handleContinueToPowerPoint = () => {
     if (!pdfReviewed) return;
     setShowPowerPointStep(true);
-    setSyncedActiveWorkflowStep(6);
+    setSyncedActiveWorkflowStep(7);
     window.setTimeout(() => scrollToWorkflowSection("powerpoint-section"), 50);
   };
   const handleContinueToUploadReports = () => {
@@ -9175,7 +12758,7 @@ export default function UploadPage() {
     setShowImportReports(true);
     setSyncedActiveWorkflowStep(2);
     window.requestAnimationFrame(() => {
-      window.setTimeout(() => scrollToWorkflowSection("upload-reports"), 100);
+      window.setTimeout(() => scrollToWorkflowSection("import-method"), 100);
     });
   };
   const handleContinueToCustomizePackage = () => {
@@ -9251,7 +12834,7 @@ export default function UploadPage() {
       powerPointSlides,
       companyName,
       reportPeriod,
-      preparedBy || "FinSight Reports",
+        preparedBy || "Advisacor",
       packageTier === "virtualCfo" ? firmLogoPath : "",
       packageTier === "virtualCfo" ? firmLogoDataUrl : "",
       true,
@@ -9288,20 +12871,29 @@ export default function UploadPage() {
     setPdfReviewed(false);
     setKpisConfirmed(false);
     setKpiReviewVisible(false);
+    setShowFluxReview(false);
+    setFluxReviewConfirmed(false);
+    setFluxReviewState({});
     setShowPdfGeneration(false);
     setShowPowerPointStep(false);
     setReviewerNotes("");
-    setClientName("Client Company Name");
-    setClientReportingPeriod("Current Reporting Period");
-    setClientIndustry("Industry not specified");
-    setCompanyTagline("Board-ready financial package");
-    setPreparedFor("Management / Ownership / Board Review");
+    setClientName(DEFAULT_CLIENT_NAME);
+    setClientReportingPeriod(DEFAULT_REPORTING_PERIOD);
+    setClientIndustry(DEFAULT_CLIENT_INDUSTRY);
+    setCompanyTagline(DEFAULT_COMPANY_TAGLINE);
+    setPreparedFor(DEFAULT_PREPARED_FOR);
+    quickBooksAutoProfileRef.current = {
+      clientName: "",
+      reportingPeriod: "",
+      preparedFor: "",
+      preparedBy: "",
+    };
     setFirmLogoPath("");
     setFirmLogoDataUrl("");
     setFirmLogoFileName("");
     setConfidentialWatermark(true);
     setOutputStyle("hybrid");
-    setPreparedBy("FinSight Reports");
+    setPreparedBy(DEFAULT_PREPARED_BY);
     setSaveSettingsForClient(false);
     setSelectedPdfSections(packageDefaultSections[startingTier]);
     setSelectedPowerPointSections(startingTier === "essential" ? [] : packageDefaultSections[startingTier]);
@@ -9365,11 +12957,11 @@ export default function UploadPage() {
     window.setTimeout(() => scrollToWorkflowSection("package-selection"), 50);
   };
   const handleBackWorkflowStep = () => {
-    if (activeWorkflowStep === 7) {
+    if (activeWorkflowStep === 8) {
       setPackageComplete(false);
       if (packageTier === "essential") {
         setPdfReviewed(false);
-        setSyncedActiveWorkflowStep(5);
+        setSyncedActiveWorkflowStep(6);
         window.setTimeout(() => scrollToWorkflowSection("pdf-review"), 50);
         return;
       }
@@ -9377,24 +12969,31 @@ export default function UploadPage() {
       setPowerpointOmitted(false);
       setShowPowerPointDraft(false);
       setShowPowerPointStep(true);
-      setSyncedActiveWorkflowStep(6);
+      setSyncedActiveWorkflowStep(7);
       window.setTimeout(() => scrollToWorkflowSection("powerpoint-section"), 50);
       return;
     }
-    if (activeWorkflowStep === 6) {
+    if (activeWorkflowStep === 7) {
       setShowPowerPointStep(false);
       setPowerpointCreated(false);
       setPowerpointOmitted(false);
       setShowPowerPointDraft(false);
-      setSyncedActiveWorkflowStep(5);
+      setSyncedActiveWorkflowStep(6);
       window.setTimeout(() => scrollToWorkflowSection("pdf-review"), 50);
       return;
     }
-    if (activeWorkflowStep === 5) {
+    if (activeWorkflowStep === 6) {
       setShowPdfGeneration(false);
       setIsPackageGenerated(false);
       setIsPackageExported(false);
       setPdfReviewed(false);
+      setSyncedActiveWorkflowStep(5);
+      window.setTimeout(() => scrollToWorkflowSection("flux-review"), 50);
+      return;
+    }
+    if (activeWorkflowStep === 5) {
+      setShowFluxReview(false);
+      setFluxReviewConfirmed(false);
       setSyncedActiveWorkflowStep(4);
       window.setTimeout(() => scrollToWorkflowSection("kpi-review"), 50);
       return;
@@ -9534,7 +13133,7 @@ export default function UploadPage() {
       <main className="flex min-h-screen items-center justify-center bg-[#0B1020] px-6 text-white">
         <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-8 text-center shadow-2xl shadow-black/30">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Checking Access</p>
-          <h1 className="mt-3 text-2xl font-bold">Verifying your FinSight session</h1>
+          <h1 className="mt-3 text-2xl font-bold">Verifying your Advisacor session</h1>
           <p className="mt-2 text-sm text-slate-400">You will be redirected if sign-in or subscription action is needed.</p>
         </div>
       </main>
@@ -9863,11 +13462,22 @@ export default function UploadPage() {
             position: absolute;
             right: 36px;
             bottom: 28px;
-            color: rgba(15, 23, 42, 0.34);
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 170px;
+            min-height: 42px;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 8px 12px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+          }
+
+          .print-logo-box img {
+            display: block;
+            width: 100%;
+            height: auto;
+            object-fit: contain;
           }
 
           .print-client-logo-box {
@@ -10646,12 +14256,15 @@ export default function UploadPage() {
         <div className="mx-auto max-w-7xl">
           <ImportWorkflow
             packageTier={packageTier}
+            personaOutputMode={personaOutputMode}
             hasSelectedPackage={hasSelectedPackage}
+            canSelectPackage={canSelectPackage}
             packageSelectionConfirmed={packageSelectionConfirmed}
             showImportReports={showImportReports}
             showCustomizePackage={showCustomizePackage}
             activeWorkflowStep={activeWorkflowStep}
             onPackageTierChange={handlePackageTierChange}
+            onPersonaOutputModeChange={setPersonaOutputMode}
             reports={uploadReports}
             selectedUploadReportId={selectedUploadReportId}
             onSelectedUploadReportIdChange={setSelectedUploadReportId}
@@ -10665,14 +14278,23 @@ export default function UploadPage() {
             missingInputsRemaining={missingInputsRemaining}
             resolvedInputsCount={resolvedInputsCount}
             kpisConfirmed={kpisConfirmed}
+            showFluxReview={showFluxReview}
+            fluxReviewConfirmed={fluxReviewConfirmed}
             kpiReviewVisible={kpiReviewVisible}
             showPdfGeneration={showPdfGeneration}
             showPowerPointStep={showPowerPointStep}
             reviewerNotes={reviewerNotes}
+            selectedImportMethod={selectedImportMethod}
             quickBooksConnected={quickBooksConnected}
+            quickBooksRealmId={quickBooksRealmId}
+            quickBooksCapabilityWarning={quickBooksCapabilityWarning}
+            quickBooksHybridImport={quickBooksHybridImport}
             quickBooksStatusChecked={quickBooksStatusChecked}
             quickBooksFetching={quickBooksFetching}
             quickBooksMessage={quickBooksMessage}
+            validationResults={validationResults}
+            reportingPeriodStart={reportingPeriodStart}
+            reportingPeriodEnd={reportingPeriodEnd}
             reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
             canGeneratePackage={canGeneratePackage}
             isPackageGenerated={isPackageGenerated}
@@ -10689,6 +14311,7 @@ export default function UploadPage() {
             onContinueToUploadReports={handleContinueToUploadReports}
             onContinueToCustomizePackage={handleContinueToCustomizePackage}
             onContinueToKpiReview={handleContinueToKpiReview}
+            onContinueToFluxReview={handleContinueToFluxReview}
             onContinueToPdfGeneration={handleContinueToPdfGeneration}
             onContinueToPowerPoint={handleContinueToPowerPoint}
             onKpisConfirmedChange={(confirmed) => {
@@ -10704,6 +14327,8 @@ export default function UploadPage() {
               }
               if (!confirmed) {
                 setApprovedKpiReviewSections([]);
+                setShowFluxReview(false);
+                setFluxReviewConfirmed(false);
                 setShowPdfGeneration(false);
                 setShowPowerPointStep(false);
                 setIsPackageGenerated(false);
@@ -10718,6 +14343,9 @@ export default function UploadPage() {
             onReviewerNotesChange={setReviewerNotes}
             onConnectQuickBooks={handleConnectQuickBooks}
             onFetchQuickBooksReports={handleFetchQuickBooksReports}
+            onSelectedImportMethodChange={setSelectedImportMethod}
+            onReportingPeriodStartChange={setReportingPeriodStart}
+            onReportingPeriodEndChange={setReportingPeriodEnd}
             onExportPackage={handleExportPackage}
             onPdfReviewedChange={handlePdfReviewedChange}
             onCreatePowerPoint={handleCreatePowerPoint}
@@ -10751,6 +14379,7 @@ export default function UploadPage() {
                 selectedRatios={selectedRatios}
                 selectedCharts={selectedCharts}
                 selectedFluxAnalyses={selectedFluxAnalyses}
+                virtualCfoKpiMode={virtualCfoKpiMode}
                 fluxSettings={fluxSettings}
                 includeHighSeverityOnly={includeHighSeverityOnly}
                 includeModerateSeverity={includeModerateSeverity}
@@ -10823,6 +14452,14 @@ export default function UploadPage() {
                   setDsoConfirmed(false);
                 }
                 setSelectedRatios(ratios.filter((ratio) => entitlementRatios[packageTier].includes(ratio)));
+              }}
+              onVirtualCfoKpiModeChange={(mode) => {
+                setVirtualCfoKpiMode(mode);
+                if (mode === "recommended") {
+                  setDsoConfirmed(false);
+                  setDsoInputOmitted(false);
+                  setDsoInputsChangedAfterConfirmation(false);
+                }
               }}
               onSelectedChartsChange={(charts) => {
                 resetGeneratedState();
@@ -10909,11 +14546,6 @@ export default function UploadPage() {
               onEditDsoInputs={handleEditDsoInputs}
               onOmitDsoInput={handleOmitDso}
             />
-            <ValidationDashboardSection
-              validationResults={validationResults}
-              overrideAccepted={validationOverrideAccepted}
-              onOverrideAcceptedChange={setValidationOverrideAccepted}
-            />
             </>
           )}
           {activeWorkflowStep === 4 && showKpiReview && (
@@ -10937,8 +14569,7 @@ export default function UploadPage() {
                 <div id="kpi-review-stage-validation">
                   <ValidationDashboardSection
                     validationResults={validationResults}
-                    overrideAccepted={validationOverrideAccepted}
-                    onOverrideAcceptedChange={setValidationOverrideAccepted}
+                    apCutoffIntelligence={apCutoffIntelligence}
                   />
                   {kpiReviewMode === "staged" && (
                     <KpiReviewSectionActions
@@ -10992,9 +14623,9 @@ export default function UploadPage() {
                       />
                     </>
                   )}
-                  {isVirtualCfo(packageTier) && activeFixedAssetData && (
+                  {isProfessionalOrHigher(packageTier) && activeFixedAssetData && (
                     <>
-                      <KpiCard label="Total Fixed Assets" value={fixedAssetKpis.totalFixedAssets} />
+                      <KpiCard label="Gross Fixed Assets" value={fixedAssetKpis.grossFixedAssets} />
                       <KpiCard
                         label="Accumulated Depreciation"
                         value={fixedAssetKpis.accumulatedDepreciation}
@@ -11020,6 +14651,7 @@ export default function UploadPage() {
                     packageTier={packageTier}
                     kpis={kpis}
                     arKpis={arKpis}
+                    arReserveIntelligence={arReserveIntelligence}
                     apKpis={apKpis}
                     inventoryKpis={inventoryKpis}
                     inventoryIntelligence={inventoryIntelligence}
@@ -11035,6 +14667,39 @@ export default function UploadPage() {
                     ratioRows={ratioRows}
                     reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
                   />
+                  {revenueRecognitionIntelligence.enabled && (
+                    <RevenueRecognitionIntelligenceSection
+                      revenueRecognitionIntelligence={revenueRecognitionIntelligence}
+                      packageTier={packageTier}
+                    />
+                  )}
+                  {workforceIntelligence.enabled && (
+                    <section className="mt-6 rounded-3xl border border-[#243041] bg-[#172033] p-6 shadow-xl shadow-black/10">
+                      <WorkforceIntelligenceSection workforceIntelligence={workforceIntelligence} packageTier={packageTier} />
+                    </section>
+                  )}
+                  {treasuryLiquidityIntelligence.enabled && (
+                    <TreasuryLiquidityIntelligenceSection
+                      treasuryLiquidityIntelligence={treasuryLiquidityIntelligence}
+                      packageTier={packageTier}
+                    />
+                  )}
+                  {isProfessionalOrHigher(packageTier) && activeInventoryData && (
+                    <InventoryIntelligenceSection inventoryIntelligence={inventoryIntelligence} packageTier={packageTier} />
+                  )}
+                  {activeInventoryData && manufacturingInventoryIntelligence.enabled && (
+                    <ManufacturingInventoryIntelligenceSection intelligence={manufacturingInventoryIntelligence} packageTier={packageTier} />
+                  )}
+                  {closeManagementIntelligence.enabled && (
+                    <CloseManagementIntelligenceSection intelligence={closeManagementIntelligence} packageTier={packageTier} />
+                  )}
+                  <ARReserveIntelligenceSection arReserveIntelligence={arReserveIntelligence} packageTier={packageTier} />
+                  {reserveLifecycleIntelligence.enabled && (
+                    <ReserveLifecycleIntelligenceSection reserveLifecycleIntelligence={reserveLifecycleIntelligence} packageTier={packageTier} />
+                  )}
+                  {!isProfessionalOrHigher(packageTier) && fixedAssetIntegrityIntelligence.enabled && (
+                    <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} />
+                  )}
                   {kpiReviewMode === "staged" && (
                     <KpiReviewSectionActions
                       sectionLabel="KPI Review Summary"
@@ -11075,17 +14740,29 @@ export default function UploadPage() {
             </>
           )}
 
-          {activeWorkflowStep === 5 && (
+          {activeWorkflowStep === 5 && showFluxReview && (
+            <FluxReviewWorkspace
+              packageTier={packageTier}
+              rows={fluxReviewRows}
+              reviewState={fluxReviewState}
+              onReviewStateChange={setFluxReviewState}
+              confirmed={fluxReviewConfirmed}
+              onConfirmedChange={setFluxReviewConfirmed}
+            />
+          )}
+
+          {activeWorkflowStep === 6 && (
             <BoardPackagePreview
               companyName={companyName}
               reportPeriod={reportPeriod}
-              preparedBy={preparedBy || "FinSight Reports"}
+              preparedBy={preparedBy || "Advisacor"}
               packageTier={packageTier}
-              stepLabel="Step 5 - Generate & Review PDF Package"
-              introText="Review the package preview below. If the content and section selections look right, use Generate PDF Package in the action panel. After generation, check PDF looks correct to reveal Export PDF."
+              stepLabel="Step 6 - Generate & Review PDF Package"
+              introText="Review the package preview below. If the content and section selections look right, use Generate PDF Package in the step controls. After generation, check PDF looks correct to reveal Export PDF."
               sections={boardPackageSections}
               kpis={kpis}
               apKpis={apKpis}
+              arReserveIntelligence={arReserveIntelligence}
               inventoryKpis={inventoryKpis}
               fixedAssetKpis={fixedAssetKpis}
               payrollAnalysis={payrollAnalysis}
@@ -11093,10 +14770,11 @@ export default function UploadPage() {
               includeInventory={Boolean(activeInventoryData)}
               includeFixedAssets={Boolean(activeFixedAssetData)}
               includePayroll={Boolean(activeCurrentPayrollData)}
+              inventoryIntelligence={inventoryIntelligence}
             />
           )}
 
-          {activeWorkflowStep === 6 && canPreviewPackage && kpisConfirmed && (
+          {activeWorkflowStep === 7 && canPreviewPackage && kpisConfirmed && fluxReviewConfirmed && (
             <PowerPointPrompt
               showDraft={showPowerPointDraft}
               slides={powerPointSlides}
@@ -11149,6 +14827,16 @@ export default function UploadPage() {
             isProfessionalOrHigher(packageTier) && (
             <>
               {activeInventoryData && !isVirtualCfo(packageTier) && <LockedInventoryIntelligencePlaceholder />}
+              {!isVirtualCfo(packageTier) && activeFixedAssetData && (
+                <FixedAssetAnalysisSection
+                  fixedAssetKpis={fixedAssetKpis}
+                  priorFixedAssetData={activePriorFixedAssetData}
+                  changeRows={fixedAssetChangeRows}
+                />
+              )}
+              {!isVirtualCfo(packageTier) && fixedAssetIntegrityIntelligence.enabled && (
+                <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} />
+              )}
               <ProfessionalPlaceholderSection />
             </>
           )}
@@ -11171,9 +14859,13 @@ export default function UploadPage() {
                   changeRows={fixedAssetChangeRows}
                 />
               )}
+              {fixedAssetIntegrityIntelligence.enabled && (
+                <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} />
+              )}
               <VirtualCfoPlaceholderSection />
               <PayrollAnalysisSection
                 analysis={payrollAnalysis}
+                workforceIntelligence={workforceIntelligence}
                 currentPayrollData={activeCurrentPayrollData}
                 priorPayrollData={activePriorPayrollData}
                 fteDivisor={fteDivisor}
@@ -11251,6 +14943,38 @@ export default function UploadPage() {
         </div>
       </main>
 
+      {quickBooksImportSummaryOpen && (
+        <QuickBooksImportSummaryModal
+          packageTier={packageTier}
+          reports={uploadReports}
+          quickBooksHybridImport={quickBooksHybridImport}
+          onClose={() => setQuickBooksImportSummaryOpen(false)}
+          onOmitMissingAndProceed={handleOmitQuickBooksMissingAndProceed}
+          onManualImport={() => {
+            setQuickBooksImportSummaryOpen(false);
+            setSelectedImportMethod("manual");
+            setSyncedActiveWorkflowStep(2);
+            window.setTimeout(() => scrollToWorkflowSection("manual-upload-reports"), 100);
+          }}
+          onImportFromFolder={() => {
+            setQuickBooksImportSummaryOpen(false);
+            setSelectedImportMethod("folder");
+            setSyncedActiveWorkflowStep(2);
+            void handleImportFromFolder().finally(() => {
+              setValidationReviewOpen(true);
+            });
+          }}
+        />
+      )}
+
+      {validationReviewOpen && (
+        <ValidationReviewModal
+          validationResults={validationResults}
+          onProceed={handleProceedFromValidationReview}
+          onBack={() => setValidationReviewOpen(false)}
+        />
+      )}
+
       <PrintableFinancialPackage
         packageTier={packageTier}
         companyName={companyName}
@@ -11263,10 +14987,11 @@ export default function UploadPage() {
         firmLogoFileName={packageTier === "virtualCfo" ? firmLogoFileName : ""}
         confidentialWatermark={confidentialWatermark}
         outputStyle={outputStyle}
-        preparedBy={preparedBy || "FinSight Reports"}
+        preparedBy={preparedBy || "Advisacor"}
         selectedSections={selectedPdfSections}
         kpis={kpis}
         arKpis={arKpis}
+        arReserveIntelligence={arReserveIntelligence}
         apKpis={apKpis}
         inventoryKpis={inventoryKpis}
         inventoryIntelligence={inventoryIntelligence}
@@ -11315,13 +15040,17 @@ export default function UploadPage() {
         includeFixedAssets={Boolean(activeFixedAssetData)}
         includePayroll={Boolean(activeCurrentPayrollData)}
       />
-      <FinSightCopilotPanel
+      <AdvisacorCopilotPanel
         packageTier={packageTier}
+        personaOutputMode={personaOutputMode}
         activeWorkflowStep={syncedActiveWorkflowStep || activeWorkflowStep}
+        selectedImportMethod={selectedImportMethod}
         reports={uploadReports}
         validationResults={validationResults}
         kpis={kpis}
         arKpis={arKpis}
+        arReserveIntelligence={arReserveIntelligence}
+        reserveLifecycleIntelligence={reserveLifecycleIntelligence}
         apKpis={apKpis}
         inventoryIntelligence={inventoryIntelligence}
         payrollAnalysis={payrollAnalysis}
@@ -11331,6 +15060,13 @@ export default function UploadPage() {
         yearFluxRows={yearFluxRows}
         dso={dso}
         selectedUploadContext={(syncedActiveWorkflowStep || activeWorkflowStep) === 2 ? selectedUploadContext : null}
+        packageQaFindings={packageQaFindings}
+        apCutoffIntelligence={apCutoffIntelligence}
+        revenueRecognitionIntelligence={revenueRecognitionIntelligence}
+        workforceIntelligence={workforceIntelligence}
+        treasuryLiquidityIntelligence={treasuryLiquidityIntelligence}
+        manufacturingInventoryIntelligence={manufacturingInventoryIntelligence}
+        closeManagementIntelligence={closeManagementIntelligence}
       />
     </>
   );
@@ -11365,12 +15101,15 @@ function scrollToWorkflowSection(target: string | HTMLElement | RefObject<HTMLEl
 
 function ImportWorkflow({
   packageTier,
+  personaOutputMode,
   hasSelectedPackage,
+  canSelectPackage,
   packageSelectionConfirmed,
   showImportReports,
   showCustomizePackage,
   activeWorkflowStep,
   onPackageTierChange,
+  onPersonaOutputModeChange,
   reports,
   selectedUploadReportId,
   onSelectedUploadReportIdChange,
@@ -11384,14 +15123,23 @@ function ImportWorkflow({
   missingInputsRemaining,
   resolvedInputsCount,
   kpisConfirmed,
+  showFluxReview,
+  fluxReviewConfirmed,
   kpiReviewVisible,
   showPdfGeneration,
   showPowerPointStep,
   reviewerNotes,
+  selectedImportMethod,
   quickBooksConnected,
+  quickBooksRealmId,
+  quickBooksCapabilityWarning,
+  quickBooksHybridImport,
   quickBooksStatusChecked,
   quickBooksFetching,
   quickBooksMessage,
+  validationResults,
+  reportingPeriodStart,
+  reportingPeriodEnd,
   reportsChangedAfterConfirmation,
   canGeneratePackage,
   isPackageGenerated,
@@ -11408,12 +15156,16 @@ function ImportWorkflow({
   onContinueToUploadReports,
   onContinueToCustomizePackage,
   onContinueToKpiReview,
+  onContinueToFluxReview,
   onContinueToPdfGeneration,
   onContinueToPowerPoint,
   onKpisConfirmedChange,
   onReviewerNotesChange,
   onConnectQuickBooks,
   onFetchQuickBooksReports,
+  onSelectedImportMethodChange,
+  onReportingPeriodStartChange,
+  onReportingPeriodEndChange,
   onExportPackage,
   onPdfReviewedChange,
   onCreatePowerPoint,
@@ -11425,12 +15177,15 @@ function ImportWorkflow({
   children,
 }: {
   packageTier: PackageTier;
+  personaOutputMode: PersonaOutputModeId;
   hasSelectedPackage: boolean;
+  canSelectPackage: boolean;
   packageSelectionConfirmed: boolean;
   showImportReports: boolean;
   showCustomizePackage: boolean;
   activeWorkflowStep: number;
   onPackageTierChange: (tier: PackageTier) => void;
+  onPersonaOutputModeChange: (mode: PersonaOutputModeId) => void;
   reports: UploadReport[];
   selectedUploadReportId: string | null;
   onSelectedUploadReportIdChange: (reportId: string) => void;
@@ -11444,14 +15199,23 @@ function ImportWorkflow({
   missingInputsRemaining: number;
   resolvedInputsCount: number;
   kpisConfirmed: boolean;
+  showFluxReview: boolean;
+  fluxReviewConfirmed: boolean;
   kpiReviewVisible: boolean;
   showPdfGeneration: boolean;
   showPowerPointStep: boolean;
   reviewerNotes: string;
+  selectedImportMethod: ImportMethod;
   quickBooksConnected: boolean;
+  quickBooksRealmId: string;
+  quickBooksCapabilityWarning: string;
+  quickBooksHybridImport: QuickBooksHybridImportState;
   quickBooksStatusChecked: boolean;
   quickBooksFetching: boolean;
   quickBooksMessage: string;
+  validationResults: ValidationResults;
+  reportingPeriodStart: string;
+  reportingPeriodEnd: string;
   reportsChangedAfterConfirmation: boolean;
   canGeneratePackage: boolean;
   isPackageGenerated: boolean;
@@ -11468,12 +15232,16 @@ function ImportWorkflow({
   onContinueToUploadReports: () => void;
   onContinueToCustomizePackage: () => void;
   onContinueToKpiReview: () => void;
+  onContinueToFluxReview: () => void;
   onContinueToPdfGeneration: () => void;
   onContinueToPowerPoint: () => void;
   onKpisConfirmedChange: (confirmed: boolean) => void;
   onReviewerNotesChange: (notes: string) => void;
   onConnectQuickBooks: () => void;
   onFetchQuickBooksReports: () => void;
+  onSelectedImportMethodChange: (method: ImportMethod) => void;
+  onReportingPeriodStartChange: (value: string) => void;
+  onReportingPeriodEndChange: (value: string) => void;
   onExportPackage: () => void;
   onPdfReviewedChange: (reviewed: boolean) => void;
   onCreatePowerPoint: () => void;
@@ -11486,26 +15254,48 @@ function ImportWorkflow({
 }) {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const handleImportFromFolderClick = async () => {
+    onSelectedImportMethodChange("folder");
     const usedNativePicker = await onImportFromFolder();
     if (!usedNativePicker) folderInputRef.current?.click();
   };
+  const handleManualSelection = () => {
+    onSelectedImportMethodChange("manual");
+    window.setTimeout(() => scrollToWorkflowSection("manual-upload-reports"), 50);
+  };
+  const handleQuickBooksConnect = () => {
+    onSelectedImportMethodChange("quickbooks");
+    onConnectQuickBooks();
+  };
 
   return (
-    <div className="rounded-[2rem] border border-[#243041] bg-[#0B1020] p-8 shadow-2xl shadow-black/20">
+    <div className="rounded-[2rem] border border-white/10 bg-[#0A1020]/95 p-8 shadow-2xl shadow-black/30">
       <div className="mb-10">
-        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-[#5B8CFF]">
-          FinSight Reports
+        <div className="mb-6 inline-flex rounded-2xl bg-white p-3 shadow-xl shadow-black/20">
+          <AdvisacorLogo priority className="w-[230px]" />
+        </div>
+        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-[#FFB36F]">
+          Enterprise Operational Intelligence
         </p>
         <h1 className="text-5xl font-bold tracking-tight text-[#F9FAFB]">
           Build a Client Financial Package
         </h1>
         <p className="mt-5 max-w-3xl text-lg leading-8 text-[#94A3B8]">
-          Upload QuickBooks reports, choose the appropriate advisory package, and FinSight prepares
-          a polished client-ready financial package with the right level of analysis.
+          Upload QuickBooks reports, choose the appropriate advisory package, and Advisacor prepares
+          a polished executive-ready financial package with the right level of analysis and delivery automation.
         </p>
+        <div className="mt-5 inline-flex rounded-full border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#FFD0AB]">
+          {PACKAGE_LABELS[packageTier]} Package
+        </div>
       </div>
 
+      <PersonaOutputSelector
+        packageTier={packageTier}
+        personaOutputMode={personaOutputMode}
+        onPersonaOutputModeChange={onPersonaOutputModeChange}
+      />
+
       <WorkflowSteps
+        activeStep={activeWorkflowStep}
         hasSelectedPackage={hasSelectedPackage}
         packageSelectionConfirmed={packageSelectionConfirmed}
         requiredUploadsComplete={requiredUploadsComplete}
@@ -11514,6 +15304,8 @@ function ImportWorkflow({
         missingInputsRemaining={missingInputsRemaining}
         resolvedInputsCount={resolvedInputsCount}
         kpisConfirmed={kpisConfirmed}
+        showFluxReview={showFluxReview}
+        fluxReviewConfirmed={fluxReviewConfirmed}
         showPdfGeneration={showPdfGeneration}
         showPowerPointStep={showPowerPointStep}
         isPackageGenerated={isPackageGenerated}
@@ -11540,6 +15332,8 @@ function ImportWorkflow({
         missingInputsRemaining={missingInputsRemaining}
         resolvedInputsCount={resolvedInputsCount}
         kpisConfirmed={kpisConfirmed}
+        showFluxReview={showFluxReview}
+        fluxReviewConfirmed={fluxReviewConfirmed}
         kpiReviewVisible={kpiReviewVisible}
         showPdfGeneration={showPdfGeneration}
         showPowerPointStep={showPowerPointStep}
@@ -11567,6 +15361,7 @@ function ImportWorkflow({
         onContinueToUploadReports={onContinueToUploadReports}
         onContinueToCustomizePackage={onContinueToCustomizePackage}
         onContinueToKpiReview={onContinueToKpiReview}
+        onContinueToFluxReview={onContinueToFluxReview}
         onContinueToPdfGeneration={onContinueToPdfGeneration}
         onContinueToPowerPoint={onContinueToPowerPoint}
         onKpisConfirmedChange={onKpisConfirmedChange}
@@ -11575,18 +15370,7 @@ function ImportWorkflow({
         onFetchQuickBooksReports={onFetchQuickBooksReports}
       />
 
-      {activeWorkflowStep === 2 && showImportReports && !requiredUploadsComplete && (
-        <ImportActionBar
-          missingReports={missingReports}
-          requiredUploadedReportsCount={requiredUploadedReportsCount}
-          totalReportsCount={totalRequiredReportsCount}
-          isFolderImporting={isFolderImporting}
-          onImportClick={handleImportFromFolderClick}
-          onManualUploadsClick={() => scrollToWorkflowSection("upload-reports")}
-        />
-      )}
-
-      {activeWorkflowStep === 1 && (
+      {activeWorkflowStep === 1 && canSelectPackage && (
         <PremiumPackageSelector
           packageTier={packageTier}
           hasSelectedPackage={hasSelectedPackage}
@@ -11597,59 +15381,100 @@ function ImportWorkflow({
       {activeWorkflowStep === 2 && showImportReports && (
         <>
           <div className="mt-10 grid gap-8">
-            <div id="upload-reports" className="workflow-section">
+            <div id="import-method" className="workflow-section">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
                 Step 2
               </p>
-              <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Upload Reports</h2>
+              <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Import Reports</h2>
               <p className="mt-2 text-sm leading-6 text-[#94A3B8]">
-                Complete the checklist for the selected package. Higher-tier uploads remain visible as
-                upgrade opportunities without adding clutter to the active workflow.
+                Choose how you want to bring QuickBooks data into Advisacor. Manual upload cards stay hidden until you choose that path.
               </p>
             </div>
+            {quickBooksCapabilityWarning && (
+              <div className="rounded-2xl border border-amber-300/30 bg-amber-500/10 px-5 py-4 text-sm font-semibold leading-6 text-amber-100">
+                {quickBooksCapabilityWarning}
+              </div>
+            )}
 
             <ImportMethodSelector
+              selectedImportMethod={selectedImportMethod}
+              folderImportResult={folderImportResult}
               isImporting={isFolderImporting}
+              quickBooksConnected={quickBooksConnected}
+              quickBooksRealmId={quickBooksRealmId}
+              quickBooksStatusChecked={quickBooksStatusChecked}
+              quickBooksFetching={quickBooksFetching}
+              reportingPeriodStart={reportingPeriodStart}
+              reportingPeriodEnd={reportingPeriodEnd}
+              onQuickBooksSelect={handleQuickBooksConnect}
+              onFetchQuickBooksReports={onFetchQuickBooksReports}
+              onReportingPeriodStartChange={onReportingPeriodStartChange}
+              onReportingPeriodEndChange={onReportingPeriodEndChange}
               onImportFromFolder={handleImportFromFolderClick}
-              onManualUpload={() => scrollToWorkflowSection("manual-upload-reports")}
+              onManualUpload={handleManualSelection}
             />
 
-            <FolderImportPanel
-              inputRef={folderInputRef}
-              result={folderImportResult}
-              isImporting={isFolderImporting}
-              onImportClick={handleImportFromFolderClick}
-              onFallbackFiles={onImportFolderFallbackFiles}
-            />
+            <EnterpriseImportExperiencePanel selectedImportMethod={selectedImportMethod} />
 
-            <div id="manual-upload-reports">
-              <UploadGroup
-                title="Essential Imports"
-                subtitle="Core reports required for monthly financial package preparation."
-                reports={reports.filter((report) => report.tier === "essential")}
+            {quickBooksHybridImport.attempted && selectedImportMethod !== null && (
+              <QuickBooksHybridResultsPanel
                 packageTier={packageTier}
-                selectedUploadReportId={selectedUploadReportId}
+                reports={reports}
+                quickBooksHybridImport={quickBooksHybridImport}
+                requiredUploadedReportsCount={requiredUploadedReportsCount}
+                totalRequiredReportsCount={totalRequiredReportsCount}
+                onImportFromFolder={handleImportFromFolderClick}
                 onSelectReport={onSelectedUploadReportIdChange}
               />
-            </div>
+            )}
 
-            <UploadGroup
-              title="Professional Imports"
-              subtitle="Additional advisory reports for inventory, customer, vendor, and margin analysis."
-              reports={reports.filter((report) => report.tier === "professional")}
-              packageTier={packageTier}
-              selectedUploadReportId={selectedUploadReportId}
-              onSelectReport={onSelectedUploadReportIdChange}
+            <input
+              ref={folderInputRef}
+              type="file"
+              multiple
+              accept=".csv,.xlsx,.xls"
+              className="sr-only"
+              {...{ webkitdirectory: "", directory: "" }}
+              onChange={async (event) => {
+                const files = Array.from(event.target.files || []);
+                if (files.length) await onImportFolderFallbackFiles(files);
+                event.target.value = "";
+              }}
             />
 
-            <UploadGroup
-              title="Virtual CFO Imports"
-              subtitle="Advanced reports for board-style analysis, budget review, capital planning, and flux review."
-              reports={reports.filter((report) => report.tier === "virtualCfo")}
-              packageTier={packageTier}
-              selectedUploadReportId={selectedUploadReportId}
-              onSelectReport={onSelectedUploadReportIdChange}
-            />
+            {selectedImportMethod === "manual" && (
+              <>
+                <div id="manual-upload-reports">
+                  <UploadGroup
+                    title="Essential Imports"
+                    subtitle="Core reports required for monthly financial package preparation."
+                    reports={reports.filter((report) => report.tier === "essential")}
+                    packageTier={packageTier}
+                    selectedUploadReportId={selectedUploadReportId}
+                    onSelectReport={onSelectedUploadReportIdChange}
+                  />
+                </div>
+
+                <UploadGroup
+                  title="Professional Imports"
+                  subtitle="Additional advisory reports for inventory, customer, vendor, and margin analysis."
+                  reports={reports.filter((report) => report.tier === "professional")}
+                  packageTier={packageTier}
+                  selectedUploadReportId={selectedUploadReportId}
+                  onSelectReport={onSelectedUploadReportIdChange}
+                />
+
+                <UploadGroup
+                  title="Virtual CFO Imports"
+                  subtitle="Advanced reports for board-style analysis, budget review, capital planning, and flux review."
+                  reports={reports.filter((report) => report.tier === "virtualCfo")}
+                  packageTier={packageTier}
+                  selectedUploadReportId={selectedUploadReportId}
+                  onSelectReport={onSelectedUploadReportIdChange}
+                />
+              </>
+            )}
+
           </div>
           {reportsChangedAfterConfirmation && (
             <p className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200">
@@ -11663,7 +15488,80 @@ function ImportWorkflow({
   );
 }
 
+function PersonaOutputSelector({
+  packageTier,
+  personaOutputMode,
+  onPersonaOutputModeChange,
+}: {
+  packageTier: PackageTier;
+  personaOutputMode: PersonaOutputModeId;
+  onPersonaOutputModeChange: (mode: PersonaOutputModeId) => void;
+}) {
+  const selectedPersona =
+    personaOutputModes.find((persona: { id: string }) => persona.id === personaOutputMode) || personaOutputModes[3];
+  const packageScope =
+    packageScopeRules.find((rule: { packageName: string }) => rule.packageName === PACKAGE_LABELS[packageTier]) ||
+    packageScopeRules[0];
+
+  return (
+    <section className="mb-8 rounded-[2rem] border border-[#1E6BFF]/20 bg-[#07101F] p-6 shadow-2xl shadow-black/20">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Persona Output Layer</p>
+          <h2 className="mt-2 text-2xl font-black text-white">One intelligence engine, different presentation layers</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+            Package scope determines which intelligence is available. Persona mode determines wording, depth, visuals, recommendations, report structure, AI tone, and delivery summary style.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm leading-6 text-slate-300 lg:max-w-md">
+          <span className="font-black text-white">{packageScope.packageName} scope:</span> {packageScope.scope}
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-3 lg:grid-cols-4">
+        {personaOutputModes.map((persona: { id: string; label: string; tone: string; positioning: string }) => (
+          <button
+            key={persona.id}
+            type="button"
+            onClick={() => onPersonaOutputModeChange(persona.id as PersonaOutputModeId)}
+            className={`rounded-3xl border p-4 text-left transition ${
+              personaOutputMode === persona.id
+                ? "border-[#FF7A1A]/70 bg-[#FF7A1A]/15 shadow-xl shadow-[#FF7A1A]/10"
+                : "border-white/10 bg-white/[0.035] hover:border-white/25"
+            }`}
+          >
+            <p className="text-base font-black text-white">{persona.label}</p>
+            <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{persona.positioning}</p>
+            <p className="mt-3 text-xs font-bold text-[#FFB36F]">{persona.tone}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+          <p className="text-sm font-black text-white">{selectedPersona.label} output behavior</p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">{selectedPersona.outputStyle}</p>
+          <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
+            AI assistant tone: {selectedPersona.aiAssistantTone}
+          </p>
+        </div>
+        <div className="rounded-3xl border border-[#3BB273]/20 bg-[#3BB273]/10 p-5">
+          <p className="text-sm font-black text-white">Automated delivery outputs</p>
+          <div className="mt-3 grid gap-2">
+            {automatedDeliveryOutputTypes.map((output: { id: string; label: string; availability: string }) => (
+              <p key={output.id} className="rounded-2xl bg-slate-950/50 px-4 py-3 text-sm font-bold text-slate-200">
+                {output.label} <span className="font-medium text-slate-500">({output.availability})</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function WorkflowSteps({
+  activeStep,
   hasSelectedPackage,
   packageSelectionConfirmed,
   requiredUploadsComplete,
@@ -11672,6 +15570,8 @@ function WorkflowSteps({
   missingInputsRemaining,
   resolvedInputsCount,
   kpisConfirmed,
+  showFluxReview,
+  fluxReviewConfirmed,
   showPdfGeneration,
   showPowerPointStep,
   isPackageGenerated,
@@ -11680,6 +15580,7 @@ function WorkflowSteps({
   powerpointCreated,
   packageComplete,
 }: {
+  activeStep: number;
   hasSelectedPackage: boolean;
   packageSelectionConfirmed: boolean;
   requiredUploadsComplete: boolean;
@@ -11688,6 +15589,8 @@ function WorkflowSteps({
   missingInputsRemaining: number;
   resolvedInputsCount: number;
   kpisConfirmed: boolean;
+  showFluxReview: boolean;
+  fluxReviewConfirmed: boolean;
   showPdfGeneration: boolean;
   showPowerPointStep: boolean;
   isPackageGenerated: boolean;
@@ -11698,27 +15601,31 @@ function WorkflowSteps({
 }) {
   const steps: Array<{
     label: string;
+    shortLabel: string;
     status: "Not Started" | "Ready to continue" | "In Progress" | "Complete" | "Omitted" | "Locked";
     detail?: string;
   }> = [
     {
       label: "Select Package",
+      shortLabel: "Setup",
       status: packageSelectionConfirmed ? "Complete" : hasSelectedPackage ? "Ready to continue" : "Not Started",
     },
     {
       label: "Import Reports",
-      status: !packageSelectionConfirmed ? "Locked" : requiredUploadsComplete ? "Complete" : "In Progress",
+      shortLabel: "Import",
+      status: !packageSelectionConfirmed ? "Locked" : showCustomizePackage || requiredUploadsComplete ? "Complete" : "In Progress",
     },
     {
       label: "Customize Package",
-      status: !requiredUploadsComplete
+      shortLabel: "Customize",
+      status: !requiredUploadsComplete && !showCustomizePackage
         ? "Locked"
         : !showCustomizePackage
           ? "Not Started"
           : missingInputsResolved
             ? "Complete"
             : "In Progress",
-      detail: !requiredUploadsComplete
+      detail: !requiredUploadsComplete && !showCustomizePackage
         ? undefined
         : !showCustomizePackage
           ? "Proceed when uploads are complete"
@@ -11728,11 +15635,18 @@ function WorkflowSteps({
     },
     {
       label: "Review KPIs",
+      shortLabel: "Review",
       status: !showCustomizePackage || !missingInputsResolved ? "Locked" : kpisConfirmed ? "Complete" : "In Progress",
     },
     {
+      label: "Review Flux",
+      shortLabel: "Flux",
+      status: !kpisConfirmed ? "Locked" : fluxReviewConfirmed ? "Complete" : showFluxReview ? "In Progress" : "Not Started",
+    },
+    {
       label: "Generate & Review PDF",
-      status: !kpisConfirmed
+      shortLabel: "PDF",
+      status: !fluxReviewConfirmed
         ? "Locked"
         : !showPdfGeneration
           ? "Not Started"
@@ -11742,7 +15656,7 @@ function WorkflowSteps({
       detail: !kpisConfirmed
         ? undefined
         : !showPdfGeneration
-          ? "Proceed after KPI approval"
+          ? "Proceed after flux review"
           : !isPackageGenerated
           ? "Generate PDF after preview"
           : pdfReviewed
@@ -11751,6 +15665,7 @@ function WorkflowSteps({
     },
     {
       label: "Create PowerPoint",
+      shortLabel: "PowerPoint",
       status: !pdfReviewed
         ? "Locked"
         : !showPowerPointStep
@@ -11763,6 +15678,7 @@ function WorkflowSteps({
     },
     {
       label: "Complete",
+      shortLabel: "Complete",
       status: !pdfReviewed || (!powerpointCreated && !powerpointOmitted)
         ? "Locked"
         : packageComplete
@@ -11772,10 +15688,10 @@ function WorkflowSteps({
   ];
 
   return (
-    <div className="mb-10 rounded-3xl border border-[#243041] bg-[#111827] p-5">
-      <div className="grid gap-3 md:grid-cols-7">
+    <div className="mb-8 rounded-2xl border border-[#243041] bg-[#111827]/80 p-3">
+      <div className="grid gap-2 md:grid-cols-8">
         {steps.map((step, index) => {
-          const current = step.status === "In Progress" || step.status === "Ready to continue";
+          const current = activeStep === index + 1 || step.status === "In Progress" || step.status === "Ready to continue";
           const complete = step.status === "Complete";
           const omitted = step.status === "Omitted";
           const locked = step.status === "Locked";
@@ -11783,7 +15699,7 @@ function WorkflowSteps({
           return (
             <div
               key={step.label}
-              className={`rounded-2xl border p-4 ${
+              className={`rounded-xl border px-3 py-2 transition ${
                 current
                   ? "border-[#5B8CFF] bg-[#172033]"
                   : complete
@@ -11795,12 +15711,11 @@ function WorkflowSteps({
                         : "border-[#243041] bg-[#111827]"
               }`}
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5B8CFF]">
-                Step {index + 1}
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#5B8CFF]">
+                {complete ? "✓" : index + 1} {step.shortLabel}
               </p>
-              <p className="mt-2 text-sm font-semibold text-[#F9FAFB]">{step.label}</p>
               <p
-                className={`mt-2 text-xs font-semibold ${
+                className={`mt-1 text-[10px] font-semibold ${
                   complete
                     ? "text-emerald-300"
                     : omitted
@@ -11812,7 +15727,6 @@ function WorkflowSteps({
               >
                 {step.status}
               </p>
-              {step.detail && <p className="mt-2 text-[11px] leading-4 text-[#94A3B8]">{step.detail}</p>}
             </div>
           );
         })}
@@ -11838,6 +15752,8 @@ function WorkflowActionPanel({
   missingInputsRemaining,
   resolvedInputsCount,
   kpisConfirmed,
+  showFluxReview,
+  fluxReviewConfirmed,
   kpiReviewVisible,
   showPdfGeneration,
   showPowerPointStep,
@@ -11857,6 +15773,7 @@ function WorkflowActionPanel({
   onContinueToUploadReports,
   onContinueToCustomizePackage,
   onContinueToKpiReview,
+  onContinueToFluxReview,
   onContinueToPdfGeneration,
   onContinueToPowerPoint,
   onKpisConfirmedChange,
@@ -11888,6 +15805,8 @@ function WorkflowActionPanel({
   missingInputsRemaining: number;
   resolvedInputsCount: number;
   kpisConfirmed: boolean;
+  showFluxReview: boolean;
+  fluxReviewConfirmed: boolean;
   kpiReviewVisible: boolean;
   showPdfGeneration: boolean;
   showPowerPointStep: boolean;
@@ -11907,6 +15826,7 @@ function WorkflowActionPanel({
   onContinueToUploadReports: () => void;
   onContinueToCustomizePackage: () => void;
   onContinueToKpiReview: () => void;
+  onContinueToFluxReview: () => void;
   onContinueToPdfGeneration: () => void;
   onContinueToPowerPoint: () => void;
   onKpisConfirmedChange: (confirmed: boolean) => void;
@@ -11923,12 +15843,26 @@ function WorkflowActionPanel({
   onBackWorkflowStep: () => void;
 }) {
   const [quickBooksGuideOpen, setQuickBooksGuideOpen] = useState(false);
-  const [actionPanelHidden, setActionPanelHidden] = useState(false);
   const buttonBase =
-    "rounded-2xl px-5 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60";
+    "rounded-full px-4 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-60";
   const primaryButton = `${buttonBase} bg-[#5B8CFF] text-white hover:bg-blue-500`;
-  const secondaryButton = `${buttonBase} border border-slate-700 bg-slate-950 text-slate-200 hover:border-slate-500`;
-  const compactReviewPanel = activeStep === 4 || activeStep === 5;
+  const secondaryButton = `${buttonBase} border border-slate-700 bg-[#0B1020] text-slate-200 hover:border-slate-500`;
+  const currentStepLabel =
+    activeStep === 1
+      ? "Step 1 - Setup"
+      : activeStep === 2
+        ? "Step 2 - Import Reports"
+        : activeStep === 3
+          ? "Step 3 - Customize Package"
+          : activeStep === 4
+            ? "Step 4 - Review KPIs"
+            : activeStep === 5
+              ? "Step 5 - Review Flux"
+              : activeStep === 6
+                ? "Step 6 - Generate & Review PDF"
+                : activeStep === 7
+                  ? "Step 7 - Create PowerPoint"
+                  : "Step 8 - Complete";
   const nextAction = !hasSelectedPackage
     ? {
         label: "Proceed to Step 1 - Select Package",
@@ -11947,25 +15881,28 @@ function WorkflowActionPanel({
           onClick: onContinueToUploadReports,
           disabled: false,
         }
-    : !requiredUploadsComplete
+    : !requiredUploadsComplete && !showCustomizePackage
       ? {
           label: "Go to Report Uploads",
           helper: missingReports.length
             ? `Step 2 is open. Missing required reports: ${missingReports.map((report) => report.label).join(", ")}.`
             : "Step 2 is open. Continue importing optional reports for this package.",
-          onClick: () => scrollToWorkflowSection("upload-reports"),
+          onClick: () => scrollToWorkflowSection("import-method"),
           disabled: false,
         }
-      : !showCustomizePackage || !missingInputsResolved
+      : !showCustomizePackage
         ? {
             label: "Proceed to Step 3 - Customize Package",
-            helper: !showCustomizePackage
-              ? "Review package outputs, ratios, flux settings, and required calculation inputs."
-              : missingInputsRemaining
-                ? `Customize Package has ${missingInputsRemaining} item${missingInputsRemaining === 1 ? "" : "s"} needing attention.`
-                : "Customize Package is ready for KPI review.",
+            helper: "Review package outputs, ratios, flux settings, and required calculation inputs.",
             onClick: onContinueToCustomizePackage,
             disabled: false,
+          }
+      : !missingInputsResolved
+        ? {
+            label: "Proceed to Step 4 - Review KPIs",
+            helper: `Customize Package has ${missingInputsRemaining} item${missingInputsRemaining === 1 ? "" : "s"} needing attention.`,
+            onClick: onContinueToKpiReview,
+            disabled: true,
           }
       : !kpisConfirmed
         ? kpiReviewVisible
@@ -11981,10 +15918,19 @@ function WorkflowActionPanel({
               onClick: onContinueToKpiReview,
               disabled: false,
             }
+        : !showFluxReview || !fluxReviewConfirmed
+          ? {
+              label: showFluxReview ? "Flux Review Awaiting Approval" : "Proceed to Step 5 - Review Flux",
+              helper: showFluxReview
+                ? "Review variance rows, mark items reviewed, and approve flux before generating client deliverables."
+                : "Move into internal variance review before PDF generation.",
+              onClick: showFluxReview ? () => scrollToWorkflowSection("flux-review") : onContinueToFluxReview,
+              disabled: false,
+            }
         : !showPdfGeneration
           ? {
-              label: "Proceed to Step 5 - Generate & Review PDF",
-              helper: "Package ready for generation. Continue when you are ready to review and generate the PDF.",
+              label: "Proceed to Step 6 - Generate PDF",
+              helper: "Flux review is complete. Continue when you are ready to review and generate the PDF.",
               onClick: onContinueToPdfGeneration,
               disabled: false,
             }
@@ -12000,28 +15946,30 @@ function WorkflowActionPanel({
             }
           : !pdfReviewed
             ? {
-                label: "PDF Awaiting Approval",
-                helper: "Export and review the PDF. Check PDF looks correct when you approve it.",
-                onClick: () => undefined,
-                disabled: true,
+                label: "Approve PDF",
+                helper: isPackageExported
+                  ? "Confirm the exported PDF looks correct, then approve it to continue."
+                  : "Export and review the PDF, then approve it to continue.",
+                onClick: () => onPdfReviewedChange(true),
+                disabled: false,
               }
             : packageTier === "essential"
               ? {
-                  label: "Proceed to Step 7 - Complete",
+                  label: "Proceed to Step 8 - Complete",
                   helper: "Essential includes PDF output only. PowerPoint export is available on Professional and Virtual CFO plans.",
                   onClick: onCompletePackage,
                   disabled: false,
                 }
             : !showPowerPointStep
               ? {
-                  label: "Proceed to Step 6 - Create PowerPoint",
+                  label: "Proceed to Step 7 - Create PowerPoint",
                   helper: "PDF approved. Continue when you are ready to decide on the Board / Owner presentation.",
                   onClick: onContinueToPowerPoint,
                   disabled: false,
                 }
             : !powerpointCreated && !powerpointOmitted
               ? {
-                  label: "Proceed to Step 6 - Create PowerPoint",
+                  label: "Proceed to Step 7 - Create PowerPoint",
                   helper: "PowerPoint is optional. Create it now or omit it for this package.",
                   onClick: () => {
                     onCreatePowerPoint();
@@ -12031,7 +15979,7 @@ function WorkflowActionPanel({
                 }
               : !packageComplete
                 ? {
-                    label: "Proceed to Step 7 - Complete",
+                    label: "Proceed to Step 8 - Complete",
                     helper: powerpointOmitted
                       ? "PowerPoint omitted. You can complete the package."
                       : "PowerPoint created. You can complete the package.",
@@ -12044,46 +15992,18 @@ function WorkflowActionPanel({
                     onClick: () => undefined,
                     disabled: true,
                   };
-  if (actionPanelHidden) {
-    return (
-      <section className="workflow-action-panel workflow-section sticky top-4 z-20 mb-10 rounded-2xl border border-[#5B8CFF]/40 bg-[#172033]/95 p-3 shadow-2xl shadow-black/30 backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Workflow Action Panel Hidden</p>
-            <p className="mt-1 text-sm font-bold text-[#F9FAFB]">Step {activeStep} controls are hidden for review space.</p>
-          </div>
-          <button type="button" onClick={() => setActionPanelHidden(false)} className={secondaryButton}>
-            Show Action Panel
-          </button>
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section
       id="pdf-generation"
-      className={`workflow-action-panel workflow-section sticky top-4 z-20 mb-10 border border-[#5B8CFF]/40 bg-[#172033]/95 shadow-2xl shadow-black/30 backdrop-blur ${
-        compactReviewPanel ? "rounded-2xl p-3" : "rounded-3xl p-5"
-      }`}
+      className="workflow-action-panel workflow-section mb-8 rounded-2xl border border-[#243041] bg-[#0B1020]/70 px-3 py-2"
     >
-      <div className={`grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center ${compactReviewPanel ? "gap-3" : "gap-5"}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className={`${compactReviewPanel ? "text-[10px]" : "text-sm"} font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]`}>
-            Workflow Action Panel
-          </p>
-          <h2 className={`${compactReviewPanel ? "mt-1 text-lg" : "mt-2 text-2xl"} font-bold text-[#F9FAFB]`}>
-            {hasSelectedPackage ? PACKAGE_LABELS[packageTier] : "No package selected"}
-          </h2>
-          <p className={`${compactReviewPanel ? "mt-1 text-xs leading-5" : "mt-2 text-sm leading-6"} text-[#94A3B8]`}>
-            {nextAction.helper}
-          </p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Current Step</p>
+          <p className="mt-1 text-xs font-semibold text-[#CBD5E1]">{currentStepLabel}</p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <button type="button" onClick={() => setActionPanelHidden(true)} className={secondaryButton}>
-            Hide Panel
-          </button>
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setQuickBooksGuideOpen(true)}
@@ -12094,25 +16014,6 @@ function WorkflowActionPanel({
             </span>
             QuickBooks Report Guide
           </button>
-          {quickBooksConnected ? (
-            <>
-              <span className="inline-flex items-center justify-center rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200">
-                QuickBooks Connected
-              </span>
-              <button type="button" onClick={onFetchQuickBooksReports} disabled={quickBooksFetching} className={primaryButton}>
-                {quickBooksFetching ? "Fetching Reports..." : "Fetch Latest Reports"}
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={onConnectQuickBooks}
-              disabled={!quickBooksStatusChecked}
-              className={`${secondaryButton} border-emerald-400/40 text-emerald-200 hover:border-emerald-300`}
-            >
-              {quickBooksStatusChecked ? "Connect QuickBooks" : "Checking QuickBooks..."}
-            </button>
-          )}
           {activeStep > 1 && (
             <button type="button" onClick={onBackWorkflowStep} className={secondaryButton}>
               Back
@@ -12121,7 +16022,7 @@ function WorkflowActionPanel({
           <button type="button" onClick={nextAction.onClick} disabled={nextAction.disabled} className={primaryButton}>
             {nextAction.label}
           </button>
-          {isPackageGenerated && activeStep === 5 && (
+          {isPackageGenerated && activeStep === 6 && (
             <button type="button" onClick={onExportPackage} className={secondaryButton}>
               {isPackageExported ? "Re-export PDF" : "Export PDF"}
             </button>
@@ -12150,105 +16051,6 @@ function WorkflowActionPanel({
         </p>
       )}
 
-      {compactReviewPanel ? (
-        <div className="mt-3 max-w-xl">
-          {activeStep === 4 && (
-            <KpiApprovalStatusCard
-              step="Step 4"
-              kpiReviewVisible={kpiReviewVisible}
-              kpisConfirmed={kpisConfirmed}
-              reviewerNotes={reviewerNotes}
-              canReviewKpis={canReviewKpis}
-              active
-              compact
-              onReviewKpis={onContinueToKpiReview}
-              onKpisConfirmedChange={onKpisConfirmedChange}
-              onReviewerNotesChange={onReviewerNotesChange}
-            />
-          )}
-          {activeStep === 5 && (
-            <PdfReviewStatusCard
-              step="Step 5"
-              isPackageGenerated={isPackageGenerated}
-              pdfReviewed={pdfReviewed}
-              active
-              compact
-              onPdfReviewedChange={onPdfReviewedChange}
-            />
-          )}
-        </div>
-      ) : (
-        <div className="mt-5 grid gap-3 md:grid-cols-6">
-          <WorkflowStatusPill
-            step="Step 2"
-            label="Import Reports"
-            description="Upload or omit required QuickBooks reports."
-            value={`${requiredUploadedReportsCount}/${totalReportsCount} required`}
-            complete={requiredUploadsComplete}
-            active={activeStep === 2}
-          />
-          <WorkflowStatusPill
-            step="Step 3"
-            label="Customize Package"
-            description="Choose outputs, ratios, flux settings, and DSO options."
-            value={
-              !requiredUploadsComplete
-                ? "Not started"
-                : missingInputsResolved
-                  ? "Ready"
-                  : `${missingInputsRemaining} item${missingInputsRemaining === 1 ? "" : "s"} needs attention`
-            }
-            complete={missingInputsResolved}
-            active={activeStep === 3}
-          />
-          <KpiApprovalStatusCard
-            step="Step 4"
-            kpiReviewVisible={kpiReviewVisible}
-            kpisConfirmed={kpisConfirmed}
-            reviewerNotes={reviewerNotes}
-            canReviewKpis={canReviewKpis}
-            active={activeStep === 4}
-            onReviewKpis={onContinueToKpiReview}
-            onKpisConfirmedChange={onKpisConfirmedChange}
-            onReviewerNotesChange={onReviewerNotesChange}
-          />
-          <WorkflowStatusPill
-            step="Step 5"
-            label="Generate & Review PDF"
-            description="Generate the PDF, confirm it is correct, then export."
-            value={pdfReviewed ? "PDF approved" : isPackageGenerated ? "Awaiting approval" : "Not created"}
-            complete={pdfReviewed}
-            active={activeStep === 5}
-          />
-          <WorkflowStatusPill
-            step="Step 6"
-            label="PowerPoint"
-            description="Create or omit the board presentation."
-            value={powerpointOmitted ? "Omitted" : powerpointCreated ? "Created" : pdfReviewed ? "Optional" : "Locked"}
-            complete={powerpointCreated || powerpointOmitted}
-            omitted={powerpointOmitted}
-            active={activeStep === 6}
-          />
-          <WorkflowStatusPill
-            step="Step 7"
-            label="Complete"
-            description="Finalize the package workflow."
-            value={packageComplete ? "Complete" : "In progress"}
-            complete={packageComplete}
-            active={activeStep === 7}
-          />
-        </div>
-      )}
-      {uploadedReportsCount > 0 && (
-        <p className="mt-3 text-xs font-medium text-[#94A3B8]">
-          Required reports for selected package. {uploadedReportsCount} total reports uploaded.
-        </p>
-      )}
-      {uploadedReportsCount === 0 && (
-        <p className="mt-3 text-xs font-medium text-[#94A3B8]">
-          Required reports for selected package.
-        </p>
-      )}
     </section>
   );
 }
@@ -12577,53 +16379,638 @@ function ImportActionBar({
 }
 
 function ImportMethodSelector({
+  selectedImportMethod,
+  folderImportResult,
   isImporting,
+  quickBooksConnected,
+  quickBooksRealmId,
+  quickBooksStatusChecked,
+  quickBooksFetching,
+  reportingPeriodStart,
+  reportingPeriodEnd,
+  onQuickBooksSelect,
+  onFetchQuickBooksReports,
+  onReportingPeriodStartChange,
+  onReportingPeriodEndChange,
   onImportFromFolder,
   onManualUpload,
 }: {
+  selectedImportMethod: ImportMethod;
+  folderImportResult: FolderImportResult | null;
   isImporting: boolean;
+  quickBooksConnected: boolean;
+  quickBooksRealmId: string;
+  quickBooksStatusChecked: boolean;
+  quickBooksFetching: boolean;
+  reportingPeriodStart: string;
+  reportingPeriodEnd: string;
+  onQuickBooksSelect: () => void;
+  onFetchQuickBooksReports: () => void;
+  onReportingPeriodStartChange: (value: string) => void;
+  onReportingPeriodEndChange: (value: string) => void;
   onImportFromFolder: () => void;
   onManualUpload: () => void;
 }) {
+  const flowSteps = ["Choose Import Method", "Upload / Connect", "Validate Reports", "Continue to Customize Package"];
+
   return (
-    <section className="rounded-3xl border border-[#243041] bg-[#111827] p-6 shadow-xl shadow-black/10">
-      <div className="mb-5">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 shadow-xl shadow-black/10">
+      <div className="mb-6">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#FFB36F]">
           Choose Import Method
         </p>
-        <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">How would you like to add reports?</h3>
-        <p className="mt-2 text-sm leading-6 text-[#94A3B8]">
-          Import a full folder of QuickBooks exports for auto-matching, or manually upload each report below.
+        <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">How would you like to bring in reports?</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+          Start with the fastest import path. Manual report cards are available only when you choose manual file selection.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <button
-          type="button"
-          onClick={onImportFromFolder}
-          disabled={isImporting}
-          className="rounded-2xl border border-[#5B8CFF]/40 bg-[#172033] p-5 text-left transition hover:border-[#5B8CFF] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <span className="block text-lg font-bold text-[#F9FAFB]">
-            {isImporting ? "Importing..." : "Import From Folder"}
-          </span>
-          <span className="mt-2 block text-sm leading-6 text-[#94A3B8]">
-            Select one local folder and let FinSight auto-match supported CSV, XLS, and XLSX exports.
-          </span>
-        </button>
+      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-[#070B16] p-3">
+        {flowSteps.map((step, index) => (
+          <Fragment key={step}>
+            <span className="rounded-full bg-[#172033] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">
+              {step}
+            </span>
+            {index < flowSteps.length - 1 && <span className="text-[#FF7A1A]">→</span>}
+          </Fragment>
+        ))}
+      </div>
 
-        <button
-          type="button"
+      <div className="grid gap-5 lg:grid-cols-3">
+        <QuickBooksImportOptionCard
+          connected={quickBooksConnected}
+          realmId={quickBooksRealmId}
+          statusChecked={quickBooksStatusChecked}
+          fetching={quickBooksFetching}
+          reportingPeriodStart={reportingPeriodStart}
+          reportingPeriodEnd={reportingPeriodEnd}
+          active={selectedImportMethod === "quickbooks"}
+          onConnect={onQuickBooksSelect}
+          onFetchReports={onFetchQuickBooksReports}
+          onReportingPeriodStartChange={onReportingPeriodStartChange}
+          onReportingPeriodEndChange={onReportingPeriodEndChange}
+        />
+        <ImportOptionCard
+          icon="FD"
+          title="Import from Folder"
+          badge="Recommended"
+          description="Select a prepared Advisacor folder containing exported QuickBooks reports."
+          recommendedUse="Best when reports are exported together and named clearly for auto-matching."
+          ctaLabel={isImporting ? "Scanning Folder..." : "Select Folder"}
+          active={selectedImportMethod === "folder"}
+          disabled={isImporting}
+          onClick={onImportFromFolder}
+        />
+        <ImportOptionCard
+          icon="MF"
+          title="Manual File Selection"
+          badge="Manual"
+          description="Upload individual reports one at a time using the full report checklist."
+          recommendedUse="Best for exceptions, replacements, or when only a few files are available."
+          ctaLabel="Show Manual Uploads"
+          active={selectedImportMethod === "manual"}
+          disabled={false}
           onClick={onManualUpload}
-          className="rounded-2xl border border-[#243041] bg-[#0B1020] p-5 text-left transition hover:border-[#5B8CFF]/70"
-        >
-          <span className="block text-lg font-bold text-[#F9FAFB]">Manual Upload Reports</span>
-          <span className="mt-2 block text-sm leading-6 text-[#94A3B8]">
-            Skip folder matching and upload or replace reports one card at a time.
-          </span>
-        </button>
+        />
+      </div>
+
+      {selectedImportMethod === "folder" && folderImportResult && <FolderImportResults result={folderImportResult} />}
+    </section>
+  );
+}
+
+function EnterpriseImportExperiencePanel({ selectedImportMethod }: { selectedImportMethod: ImportMethod }) {
+  const stages = [
+    {
+      title: "Drag and drop upload",
+      body: "CSV, Excel, ERP exports, QuickBooks exports, and folder imports are routed into one guided import workflow.",
+      status: selectedImportMethod === "manual" || selectedImportMethod === "folder" ? "Ready" : "Available",
+    },
+    {
+      title: "Import validation",
+      body: "Advisacor checks required reports, date consistency, missing inputs, and package-level completeness before moving forward.",
+      status: "Active",
+    },
+    {
+      title: "Field mapping and preview",
+      body: "Imported data flows into report cards, parsed tables, preview panels, and package-specific review calculations.",
+      status: selectedImportMethod ? "In workflow" : "Next",
+    },
+    {
+      title: "AI recommendations",
+      body: "After upload, Advisacor surfaces review-oriented recommendations across KPIs, AP/AR, payroll, reserves, liquidity, and close quality.",
+      status: "Prepared",
+    },
+  ];
+
+  return (
+    <section className="rounded-[2rem] border border-[#1E6BFF]/20 bg-[#07101F] p-6 shadow-2xl shadow-black/20">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Import Operations Layer</p>
+          <h3 className="mt-2 text-2xl font-black text-white">Enterprise data intake, validation, mapping, and AI review</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+            The import workflow supports drag-and-drop style report intake, folder import, manual file selection, QuickBooks exports, validation, data preview, and AI-generated recommendations after reports are available.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#3BB273]/25 bg-[#3BB273]/10 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-[#B9F4D2]">
+          CSV • Excel • ERP • QuickBooks
+        </div>
+      </div>
+      <div className="mt-6 grid gap-4 lg:grid-cols-4">
+        {stages.map((stage, index) => (
+          <div key={stage.title} className="rounded-3xl border border-white/10 bg-white/[0.045] p-5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#FF7A1A]/15 text-sm font-black text-[#FFB36F]">
+                {index + 1}
+              </span>
+              <span className="rounded-full bg-[#1E6BFF]/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#AFC8FF]">
+                {stage.status}
+              </span>
+            </div>
+            <h4 className="mt-5 text-base font-black text-white">{stage.title}</h4>
+            <p className="mt-3 text-sm leading-6 text-[#94A3B8]">{stage.body}</p>
+          </div>
+        ))}
       </div>
     </section>
+  );
+}
+
+function QuickBooksImportSummaryModal({
+  packageTier,
+  reports,
+  quickBooksHybridImport,
+  onClose,
+  onOmitMissingAndProceed,
+  onManualImport,
+  onImportFromFolder,
+}: {
+  packageTier: PackageTier;
+  reports: UploadReport[];
+  quickBooksHybridImport: QuickBooksHybridImportState;
+  onClose: () => void;
+  onOmitMissingAndProceed: () => void;
+  onManualImport: () => void;
+  onImportFromFolder: () => void;
+}) {
+  const importedReportIds = new Set(quickBooksHybridImport.importedReportIds);
+  const missingReportIds = new Set(quickBooksHybridImport.unavailableReportIds);
+  const importedReports = reports.filter((report) => importedReportIds.has(report.id));
+  const missingReports = reports.filter((report) => missingReportIds.has(report.id) && !report.data);
+  const requiredReportIds = new Set(getPackageRequiredReportIds(packageTier));
+  const requiredMissingReports = missingReports.filter((report) => requiredReportIds.has(report.id));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-4 backdrop-blur-sm">
+      <section className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-[#334155] bg-[#0B1020] shadow-2xl shadow-black/40">
+        <div className="shrink-0 flex flex-col gap-4 border-b border-[#243041] bg-[#111827] px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#5B8CFF]">QuickBooks Import Complete</p>
+            <h2 className="mt-2 text-2xl font-bold text-white">Review imported and missing reports</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#CBD5E1]">
+              Advisacor imported the reports QuickBooks made available through the API. Missing reports can be uploaded manually, imported from a folder, or omitted for this package.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-slate-700 px-4 py-2 text-xs font-bold text-slate-200 transition hover:border-slate-500"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+          <div className="mb-5 grid gap-3 md:grid-cols-3">
+            <ReportMetricCard label="Imported" value={String(importedReports.length)} />
+            <ReportMetricCard label="Not Found" value={String(missingReports.length)} />
+            <ReportMetricCard label="Required Missing" value={String(requiredMissingReports.length)} />
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="rounded-3xl border border-emerald-400/20 bg-emerald-500/5 p-5">
+              <h3 className="text-lg font-bold text-emerald-100">Reports brought in</h3>
+              <div className="mt-4 grid gap-3">
+                {importedReports.length ? (
+                  importedReports.map((report) => (
+                    <div key={report.id} className="rounded-2xl border border-emerald-400/20 bg-[#0B1020] px-4 py-3">
+                      <p className="text-sm font-bold text-white">{report.label}</p>
+                      <p className="mt-1 text-xs text-emerald-100/70">{report.data?.name || "Imported from QuickBooks Online"}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-2xl border border-[#243041] bg-[#0B1020] px-4 py-3 text-sm text-[#94A3B8]">
+                    No reports were imported from QuickBooks.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-amber-400/20 bg-amber-500/5 p-5">
+              <h3 className="text-lg font-bold text-amber-100">Reports not found</h3>
+              <div className="mt-4 grid gap-3">
+                {missingReports.length ? (
+                  missingReports.map((report) => (
+                    <div key={report.id} className="rounded-2xl border border-amber-400/20 bg-[#0B1020] px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-bold text-white">{report.label}</p>
+                        {requiredReportIds.has(report.id) && (
+                          <span className="rounded-full bg-amber-500/15 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">
+                            Required
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-[#94A3B8]">{report.description}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100">
+                    QuickBooks returned every report requested by this import flow.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="shrink-0 flex flex-col gap-3 border-t border-[#243041] bg-[#111827] px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+          <button
+            type="button"
+            onClick={onImportFromFolder}
+            className="rounded-full border border-slate-700 bg-[#0B1020] px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+          >
+            Import Missing From Folder
+          </button>
+          <button
+            type="button"
+            onClick={onManualImport}
+            className="rounded-full border border-slate-700 bg-[#0B1020] px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+          >
+            Manually Import
+          </button>
+          <button
+            type="button"
+            onClick={onOmitMissingAndProceed}
+            className="rounded-full bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+          >
+            Omit Not Found & Continue
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function QuickBooksHybridResultsPanel({
+  packageTier,
+  reports,
+  quickBooksHybridImport,
+  requiredUploadedReportsCount,
+  totalRequiredReportsCount,
+  onImportFromFolder,
+  onSelectReport,
+}: {
+  packageTier: PackageTier;
+  reports: UploadReport[];
+  quickBooksHybridImport: QuickBooksHybridImportState;
+  requiredUploadedReportsCount: number;
+  totalRequiredReportsCount: number;
+  onImportFromFolder: () => void;
+  onSelectReport: (reportId: string) => void;
+}) {
+  const importedReportIds = new Set(quickBooksHybridImport.importedReportIds);
+  const requiredReportIds = getPackageRequiredReportIds(packageTier);
+  const requiredReports = requiredReportIds
+    .map((reportId) => reports.find((report) => report.id === reportId))
+    .filter(Boolean) as UploadReport[];
+  const importedReports = requiredReports.filter((report) => importedReportIds.has(report.id) && report.data && !report.omitted);
+  const manualRequiredReports = requiredReports.filter((report) => !report.data && !report.omitted);
+  const readyReportCount = requiredReports.filter((report) => (report.data || report.omitted) && !manualRequiredReports.some((manualReport) => manualReport.id === report.id)).length;
+  const remainingReportCount = Math.max(requiredReports.length - readyReportCount, 0);
+
+  return (
+    <section className="rounded-[2rem] border border-[#243041] bg-[#111827] p-6 shadow-xl shadow-black/10">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">QuickBooks Import Results</p>
+          <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Hybrid import workflow</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+            QuickBooks filled the reports it can provide through the API. Finish the remaining package inputs with folder import or individual uploads.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#5B8CFF]/30 bg-[#0B1020] px-4 py-3 text-sm font-bold text-blue-100">
+          {readyReportCount} of {requiredReports.length} reports ready - {remainingReportCount} remaining
+          <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-200/70">
+            {requiredUploadedReportsCount} of {totalRequiredReportsCount} package requirements resolved
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <div className="rounded-3xl border border-emerald-400/20 bg-emerald-500/5 p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-lg font-bold text-emerald-100">Imported from QuickBooks</h4>
+              <p className="mt-1 text-xs text-emerald-100/70">{importedReports.length} reports pulled successfully</p>
+            </div>
+            <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-200">API Import</span>
+          </div>
+          <div className="grid gap-3">
+            {importedReports.length ? (
+              importedReports.map((report) => (
+                <div key={report.id} className="flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-[#0B1020] px-4 py-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-sm font-black text-emerald-200">
+                    ✓
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-[#F9FAFB]">{report.label}</p>
+                    <p className="truncate text-xs text-[#94A3B8]">{report.data?.name || "Imported from QuickBooks Online"}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-2xl border border-[#243041] bg-[#0B1020] px-4 py-3 text-sm text-[#94A3B8]">
+                No required reports were imported from QuickBooks yet.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-amber-400/20 bg-amber-500/5 p-5">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h4 className="text-lg font-bold text-amber-100">Manual Upload Required</h4>
+              <p className="mt-1 text-xs text-amber-100/70">{manualRequiredReports.length} reports still needed for {PACKAGE_LABELS[packageTier]}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onImportFromFolder}
+              className="rounded-2xl border border-amber-300/30 bg-amber-500/10 px-4 py-2 text-xs font-bold text-amber-100 transition hover:border-amber-200/60"
+            >
+              Import from Folder
+            </button>
+          </div>
+          <div className="grid gap-3">
+            {manualRequiredReports.length ? (
+              manualRequiredReports.map((report) => (
+                <QuickBooksManualRequiredRow
+                  key={report.id}
+                  report={report}
+                  onSelectReport={() => onSelectReport(report.id)}
+                />
+              ))
+            ) : (
+              <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100">
+                All required reports for this package are ready. You can proceed to Step 3.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function QuickBooksManualRequiredRow({
+  report,
+  onSelectReport,
+}: {
+  report: UploadReport;
+  onSelectReport: () => void;
+}) {
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const quickBooksHelp = QUICKBOOKS_REPORT_HELP[report.id];
+
+  return (
+    <div className="rounded-2xl border border-amber-400/20 bg-[#0B1020] p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-sm font-black text-amber-200">
+              ⇧
+            </span>
+            <p className="text-sm font-bold text-[#F9FAFB]">{report.label}</p>
+            {quickBooksHelp && <QuickBooksHelpTrigger help={quickBooksHelp} />}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{report.description}</p>
+        </div>
+        <label className="shrink-0">
+          <input
+            key={fileInputKey}
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            className="sr-only"
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              onSelectReport();
+              await report.onFile(file);
+              setFileInputKey((current) => current + 1);
+            }}
+          />
+          <span className="inline-flex cursor-pointer rounded-2xl bg-[#5B8CFF] px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-500">
+            Upload File
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function QuickBooksImportOptionCard({
+  connected,
+  realmId,
+  statusChecked,
+  fetching,
+  reportingPeriodStart,
+  reportingPeriodEnd,
+  active,
+  onConnect,
+  onFetchReports,
+  onReportingPeriodStartChange,
+  onReportingPeriodEndChange,
+}: {
+  connected: boolean;
+  realmId: string;
+  statusChecked: boolean;
+  fetching: boolean;
+  reportingPeriodStart: string;
+  reportingPeriodEnd: string;
+  active: boolean;
+  onConnect: () => void;
+  onFetchReports: () => void;
+  onReportingPeriodStartChange: (value: string) => void;
+  onReportingPeriodEndChange: (value: string) => void;
+}) {
+  const [platformNotice, setPlatformNotice] = useState("");
+  const comingSoonPlatforms = [
+    { name: "Xero", className: "border-[#13B5EA]/40 bg-[#13B5EA]/15 text-[#B9EFFF]" },
+    { name: "Sage", className: "border-[#00D639]/40 bg-[#00D639]/15 text-[#BFFFD0]" },
+    { name: "NetSuite", className: "border-[#F47B20]/40 bg-[#F47B20]/15 text-[#FFD7B8]" },
+  ];
+
+  return (
+    <div
+      className={`flex min-h-[285px] flex-col justify-between rounded-3xl border p-6 transition ${
+        active
+          ? "border-[#5B8CFF] bg-[#172033] shadow-xl shadow-[#5B8CFF]/10"
+          : "border-[#243041] bg-[#0B1020]"
+      }`}
+    >
+      <div>
+        <div className="mb-5 rounded-2xl border border-[#243041] bg-[#111827] p-3">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#94A3B8]">Accounting Platform</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              className="rounded-xl border border-[#5B8CFF]/50 bg-[#5B8CFF]/20 px-3 py-2 text-xs font-black text-blue-100"
+            >
+              QuickBooks
+            </button>
+            {comingSoonPlatforms.map((platform) => (
+              <button
+                key={platform.name}
+                type="button"
+                onClick={() => setPlatformNotice(`${platform.name} Coming Soon`)}
+                className={`rounded-xl border px-3 py-2 text-xs font-black transition hover:opacity-85 ${platform.className}`}
+              >
+                {platform.name}
+              </button>
+            ))}
+          </div>
+          {platformNotice && (
+            <p className="mt-3 rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-100">
+              {platformNotice}
+            </p>
+          )}
+        </div>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#5B8CFF]/15 text-sm font-black text-blue-200">
+            QB
+          </span>
+          <span
+            className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+              connected
+                ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                : "border-[#5B8CFF]/30 bg-[#172033] text-blue-200"
+            }`}
+          >
+            {connected ? "Connected" : "Secure OAuth"}
+          </span>
+        </div>
+        <h4 className="text-xl font-bold text-[#F9FAFB]">Connect to QuickBooks</h4>
+        <p className="mt-3 text-sm leading-6 text-[#94A3B8]">
+          Connect directly to QuickBooks to automate report retrieval and reduce manual uploads.
+        </p>
+        <p className="mt-4 rounded-2xl border border-[#243041] bg-[#111827] px-4 py-3 text-xs leading-5 text-slate-300">
+          <span className="font-bold text-slate-100">Recommended use:</span> Best for connected QuickBooks Online companies where you want Advisacor to fetch report data directly.
+        </p>
+      </div>
+      {connected ? (
+        <div className="mt-5 grid gap-3">
+          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-center text-sm font-bold text-emerald-200">
+            QuickBooks Connected
+            {realmId && <span className="mt-1 block text-[10px] font-semibold text-emerald-100/80">Company ID: {realmId}</span>}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">Start Date</span>
+              <input
+                type="date"
+                value={reportingPeriodStart}
+                onChange={(event) => onReportingPeriodStartChange(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">End Date</span>
+              <input
+                type="date"
+                value={reportingPeriodEnd}
+                onChange={(event) => onReportingPeriodEndChange(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={onFetchReports}
+            disabled={fetching}
+            className="rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {fetching ? "Fetching Reports..." : "Fetch Reports"}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onConnect}
+          disabled={!statusChecked}
+          className="mt-5 rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {statusChecked ? "Connect to QuickBooks" : "Checking QuickBooks..."}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ImportOptionCard({
+  icon,
+  title,
+  badge,
+  description,
+  recommendedUse,
+  ctaLabel,
+  active,
+  disabled,
+  onClick,
+}: {
+  icon: string;
+  title: string;
+  badge: string;
+  description: string;
+  recommendedUse: string;
+  ctaLabel: string;
+  active: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      className={`flex min-h-[285px] flex-col justify-between rounded-3xl border p-6 transition ${
+        active
+          ? "border-[#5B8CFF] bg-[#172033] shadow-xl shadow-[#5B8CFF]/10"
+          : "border-[#243041] bg-[#0B1020]"
+      }`}
+    >
+      <div>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#5B8CFF]/15 text-sm font-black text-blue-200">
+            {icon}
+          </span>
+          <span className="rounded-full border border-[#5B8CFF]/30 bg-[#172033] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-blue-200">
+            {badge}
+          </span>
+        </div>
+        <h4 className="text-xl font-bold text-[#F9FAFB]">{title}</h4>
+        <p className="mt-3 text-sm leading-6 text-[#94A3B8]">{description}</p>
+        <p className="mt-4 rounded-2xl border border-[#243041] bg-[#111827] px-4 py-3 text-xs leading-5 text-slate-300">
+          <span className="font-bold text-slate-100">Recommended use:</span> {recommendedUse}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`mt-5 rounded-2xl px-5 py-3 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+          active ? "bg-[#5B8CFF] text-white hover:bg-blue-500" : "border border-slate-700 bg-slate-950 text-slate-200 hover:border-[#5B8CFF]"
+        }`}
+      >
+        {ctaLabel}
+      </button>
+    </div>
   );
 }
 
@@ -12736,7 +17123,7 @@ function FolderImportPanel({
           </p>
           <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Import From Folder</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
-            Select a local folder and FinSight will scan CSV/XLS/XLSX files, match filenames to
+            Select a local folder and Advisacor will scan CSV/XLS/XLSX files, match filenames to
             report slots, and load matches through the same parser used by manual uploads.
           </p>
         </div>
@@ -12859,7 +17246,7 @@ function UploadGroup({
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
         {reports.map((report) =>
           isReportAvailable(report.tier, packageTier) || isReportRequiredForPackage(report.id, packageTier) ? (
             <PremiumUploadCard
@@ -13132,6 +17519,7 @@ function PackageCustomizationPanel({
   selectedRatios,
   selectedCharts,
   selectedFluxAnalyses,
+  virtualCfoKpiMode,
   fluxSettings,
   includeHighSeverityOnly,
   includeModerateSeverity,
@@ -13152,6 +17540,7 @@ function PackageCustomizationPanel({
   onUseSamePowerPointSelectionsChange,
   onSelectedPowerPointSectionsChange,
   onSelectedRatiosChange,
+  onVirtualCfoKpiModeChange,
   onSelectedChartsChange,
   onSelectedFluxAnalysesChange,
   onFluxSettingsChange,
@@ -13215,6 +17604,7 @@ function PackageCustomizationPanel({
   selectedRatios: RatioId[];
   selectedCharts: ChartSelectionId[];
   selectedFluxAnalyses: FluxAnalysisId[];
+  virtualCfoKpiMode: VirtualCfoKpiMode;
   fluxSettings: FluxSettings;
   includeHighSeverityOnly: boolean;
   includeModerateSeverity: boolean;
@@ -13235,6 +17625,7 @@ function PackageCustomizationPanel({
   onUseSamePowerPointSelectionsChange: (value: boolean) => void;
   onSelectedPowerPointSectionsChange: (sections: PackageSectionId[]) => void;
   onSelectedRatiosChange: (ratios: RatioId[]) => void;
+  onVirtualCfoKpiModeChange: (mode: VirtualCfoKpiMode) => void;
   onSelectedChartsChange: (charts: ChartSelectionId[]) => void;
   onSelectedFluxAnalysesChange: (analyses: FluxAnalysisId[]) => void;
   onFluxSettingsChange: (settings: FluxSettings) => void;
@@ -13279,19 +17670,66 @@ function PackageCustomizationPanel({
   onOmitDsoInput: () => void;
 }) {
   const [salesDetailInputKey, setSalesDetailInputKey] = useState(0);
-  const missingCount = dsoInputResolved ? 0 : 1;
-  const resolvedCount = dsoInputNeeded && dsoInputResolved ? 1 : 0;
+  const [customKpiModalOpen, setCustomKpiModalOpen] = useState(false);
+  const [customDsoModalOpen, setCustomDsoModalOpen] = useState(false);
+  const useRecommendedKpiSetup = packageTier === "virtualCfo" && virtualCfoKpiMode === "recommended";
+  const useCustomKpiSetup = packageTier === "virtualCfo" && virtualCfoKpiMode === "custom";
+  const missingCount = useRecommendedKpiSetup ? 0 : dsoInputResolved ? 0 : 1;
+  const resolvedCount = useRecommendedKpiSetup ? 0 : dsoInputNeeded && dsoInputResolved ? 1 : 0;
   const showDsoSetup =
-    dsoInputNeeded ||
-    dsoConfirmed ||
-    dsoInputOmitted ||
-    dsoInputsChangedAfterConfirmation ||
-    dso !== null;
+    !useRecommendedKpiSetup &&
+    !useCustomKpiSetup &&
+    (dsoInputNeeded ||
+      dsoConfirmed ||
+      dsoInputOmitted ||
+      dsoInputsChangedAfterConfirmation ||
+      dso !== null);
   const availableSectionOptions = packageSectionOptions.filter((option) =>
     isReportAvailable(option.minimumTier, packageTier),
   );
   const packageCompletenessScore = Math.round((selectedPdfSections.length / Math.max(availableSectionOptions.length, 1)) * 100);
   const reportMap = new Map(reports.map((report) => [report.id, report]));
+  const ratioReportRequirements: Partial<Record<RatioId, string[]>> = {
+    "Net Margin": ["pl"],
+    "Gross Margin": ["pl"],
+    "Operating Margin": ["pl"],
+    "EBITDA Margin": ["pl"],
+    "Expense Ratio": ["pl"],
+    "Current Ratio": ["bs"],
+    "Quick Ratio": ["bs"],
+    "Cash to Assets": ["bs"],
+    "Accounts Receivable to Assets": ["bs"],
+    "AP to Revenue": ["ap", "pl"],
+    "Inventory to Total Assets": ["inventory", "bs"],
+    "Working Capital Estimate": ["bs"],
+    DSO: ["ar", "pl"],
+    "Payroll Cost as % of Revenue": ["current-payroll", "pl"],
+    "Gross Wages as % of Revenue": ["current-payroll", "pl"],
+    "Payroll Taxes as % of Gross Wages": ["current-payroll"],
+    "Payroll Cost per FTE": ["current-payroll"],
+    "Revenue per FTE": ["current-payroll", "pl"],
+    "Gross Profit per FTE": ["current-payroll", "pl"],
+    "Inventory Turnover": ["inventory", "pl"],
+    "AR Turnover": ["ar", "pl"],
+    "AP Turnover": ["ap", "pl"],
+    "Cash Conversion Cycle": ["ar", "ap", "inventory"],
+    "Debt to Equity": ["debt", "bs"],
+    "Debt to Assets": ["debt", "bs"],
+  };
+  const getMissingRatioReports = (ratio: RatioId) =>
+    (ratioReportRequirements[ratio] || []).filter((reportId) => {
+      const report = reportMap.get(reportId);
+      return !report?.data && !report?.omitted;
+    });
+  const recommendedRatios = entitlementRatios[packageTier].filter((ratio) => getMissingRatioReports(ratio).length === 0);
+  const optionalRatios = ratioOptions.filter((ratio) => entitlementRatios[packageTier].includes(ratio) && !recommendedRatios.includes(ratio));
+  const showAdvancedCustomization = packageTier === "virtualCfo" && virtualCfoKpiMode === "custom";
+  const packageKpiSummary =
+    packageTier === "essential"
+      ? "Advisacor will use the Essential standard KPI set with core profitability and liquidity ratios. Flux analysis is not included."
+      : packageTier === "professional"
+        ? "Advisacor will use the Professional enhanced KPI set with operational ratios, reconciliation support, and month-over-month flux."
+        : "Advisacor will use Virtual CFO recommended KPI groups, advisory sections, and full month/quarter/year flux unless you choose a custom client setup.";
   const isSectionMissingData = (option: (typeof packageSectionOptions)[number]) =>
     Boolean(
       option.requiredReportIds?.length &&
@@ -13334,6 +17772,20 @@ function PackageCustomizationPanel({
         ? selectedFluxAnalyses.filter((id) => id !== analysisId)
         : [...selectedFluxAnalyses, analysisId],
     );
+  };
+  const handleContinueFromCustomKpis = () => {
+    setCustomKpiModalOpen(false);
+    if (selectedRatios.includes("DSO") && accountsReceivable > 0 && !dsoConfirmed && !dsoInputOmitted) {
+      setCustomDsoModalOpen(true);
+    }
+  };
+  const handleCompleteCustomDso = (action: "confirm" | "omit") => {
+    if (action === "confirm") {
+      onConfirmDso();
+    } else {
+      onOmitDsoInput();
+    }
+    setCustomDsoModalOpen(false);
   };
 
   return (
@@ -13469,6 +17921,65 @@ function PackageCustomizationPanel({
         </div>
 
         <div className="rounded-3xl border border-[#243041] bg-[#172033] p-6">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">KPI Setup</p>
+          <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">{PACKAGE_LABELS[packageTier]} Package Defaults</h3>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#94A3B8]">{packageKpiSummary}</p>
+          {packageTier === "virtualCfo" ? (
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onVirtualCfoKpiModeChange("recommended");
+                  onResetDefaults();
+                }}
+                className={`rounded-2xl border p-5 text-left transition ${
+                  virtualCfoKpiMode === "recommended"
+                    ? "border-[#5B8CFF] bg-[#5B8CFF]/15"
+                    : "border-[#243041] bg-[#111827] hover:border-[#5B8CFF]/60"
+                }`}
+              >
+                <span className="block text-lg font-bold text-[#F9FAFB]">Let Advisacor Choose For Me</span>
+                <span className="mt-2 block text-sm leading-6 text-[#94A3B8]">
+                  Use recommended KPI groups, ratios, advisory sections, flux options, and package structure.
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onVirtualCfoKpiModeChange("custom");
+                  setCustomKpiModalOpen(true);
+                }}
+                className={`rounded-2xl border p-5 text-left transition ${
+                  virtualCfoKpiMode === "custom"
+                    ? "border-[#5B8CFF] bg-[#5B8CFF]/15"
+                    : "border-[#243041] bg-[#111827] hover:border-[#5B8CFF]/60"
+                }`}
+              >
+                <span className="block text-lg font-bold text-[#F9FAFB]">Build Customized KPIs For This Client</span>
+                <span className="mt-2 block text-sm leading-6 text-[#94A3B8]">
+                  Customize client-specific KPI groups, ratios, advisory sections, flux options, and reporting preferences.
+                </span>
+              </button>
+            </div>
+          ) : (
+            <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-5 py-4 text-sm font-semibold text-emerald-100">
+              KPI and package configuration will be handled automatically for this tier.
+            </div>
+          )}
+          {packageTier === "virtualCfo" && virtualCfoKpiMode === "custom" && (
+            <div className="mt-5 flex flex-wrap gap-2">
+              {["Liquidity", "Profitability", "Efficiency", "Leverage", "Payroll", "Working Capital", "Inventory", "Flux", "Operational KPIs"].map((category) => (
+                <span key={category} className="rounded-full border border-[#5B8CFF]/30 bg-[#0B1020] px-3 py-2 text-xs font-bold text-blue-100">
+                  {category}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showAdvancedCustomization && (
+          <>
+        <div className="rounded-3xl border border-[#243041] bg-[#172033] p-6">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Output Selection</p>
           <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">PDF Package Sections</h3>
           <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -13498,16 +18009,57 @@ function PackageCustomizationPanel({
 
         <div className="grid gap-6 xl:grid-cols-2">
           <div className="rounded-3xl border border-[#243041] bg-[#172033] p-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Ratio Customization</p>
-            <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Ratios to Include</h3>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">KPI Selection</p>
+            <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Recommended KPIs</h3>
+            <p className="mt-2 text-sm leading-6 text-[#94A3B8]">
+              Advisacor pre-selects KPIs based on your package and available report data. Manual KPI selection is available below as an advanced option.
+            </p>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {ratioOptions.map((ratio) => (
-                <label key={ratio} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
-                  <input type="checkbox" checked={selectedRatios.includes(ratio)} onChange={() => toggleRatio(ratio)} />
-                  <span className="text-sm font-semibold text-[#F9FAFB]">{ratio}</span>
-                </label>
-              ))}
+              {recommendedRatios.map((ratio) => {
+                const requiredReports = ratioReportRequirements[ratio] || [];
+                return (
+                  <label key={ratio} className="flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4">
+                    <input type="checkbox" checked={selectedRatios.includes(ratio)} onChange={() => toggleRatio(ratio)} className="mt-1" />
+                    <span>
+                      <span className="block text-sm font-semibold text-[#F9FAFB]">{ratio}</span>
+                      <span className="mt-1 block text-xs text-emerald-100/80">
+                        Uses {requiredReports.length ? requiredReports.map((reportId) => reportMap.get(reportId)?.label || reportId).join(", ") : "available package data"}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
             </div>
+
+            <details className="mt-5 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <summary className="cursor-pointer text-sm font-bold text-blue-200">Advanced optional KPI selection</summary>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {optionalRatios.map((ratio) => {
+                  const missingReports = getMissingRatioReports(ratio);
+                  const disabled = missingReports.length > 0;
+                  return (
+                    <label
+                      key={ratio}
+                      className={`flex items-start gap-3 rounded-2xl border p-4 ${
+                        disabled ? "border-slate-700 bg-slate-950/60 opacity-60" : "border-[#243041] bg-[#0B1020]"
+                      }`}
+                    >
+                      <input type="checkbox" checked={selectedRatios.includes(ratio)} disabled={disabled} onChange={() => toggleRatio(ratio)} className="mt-1" />
+                      <span>
+                        <span className="block text-sm font-semibold text-[#F9FAFB]">{disabled ? "Locked: " : ""}{ratio}</span>
+                        {disabled ? (
+                          <span className="mt-1 block text-xs text-amber-200">
+                            Requires {missingReports.map((reportId) => reportMap.get(reportId)?.label || reportId).join(", ")}
+                          </span>
+                        ) : (
+                          <span className="mt-1 block text-xs text-[#94A3B8]">Optional for this package.</span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </details>
           </div>
 
           <div className="rounded-3xl border border-[#243041] bg-[#172033] p-6">
@@ -13576,16 +18128,36 @@ function PackageCustomizationPanel({
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
 
-      {!showDsoSetup && (
+      {!showDsoSetup && dsoInputResolved && (
         <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-5">
           <p className="text-sm font-bold uppercase tracking-[0.12em] text-emerald-300">
             Customize Package Complete
           </p>
           <p className="mt-2 text-sm leading-6 text-[#F9FAFB]">
-            FinSight has enough uploaded data and period assumptions to continue to KPI review.
+            Advisacor has enough uploaded data and period assumptions to continue to KPI review.
           </p>
+        </div>
+      )}
+
+      {!showDsoSetup && !dsoInputResolved && useCustomKpiSetup && (
+        <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-950/20 p-5">
+          <p className="text-sm font-bold uppercase tracking-[0.12em] text-amber-300">
+            Custom KPI setup pending
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[#F9FAFB]">
+            Finish the custom KPI window and confirm or omit DSO before proceeding to KPI review.
+          </p>
+          <button
+            type="button"
+            onClick={() => setCustomKpiModalOpen(true)}
+            className="mt-4 rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+          >
+            Continue Custom KPI Setup
+          </button>
         </div>
       )}
 
@@ -13600,7 +18172,7 @@ function PackageCustomizationPanel({
                 Additional Information Needed for DSO
               </h3>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
-                Accounts receivable was detected at {formatCurrency(accountsReceivable)}, but FinSight
+                Accounts receivable was detected at {formatCurrency(accountsReceivable)}, but Advisacor
                 needs average daily sales to calculate DSO.
               </p>
             </div>
@@ -13807,6 +18379,231 @@ function PackageCustomizationPanel({
           </div>
         </div>
       )}
+
+      {customKpiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#243041] bg-[#111827] shadow-2xl shadow-black/40">
+            <div className="shrink-0 border-b border-[#243041] px-6 py-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Custom KPI Setup</p>
+              <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Select KPIs for this client</h3>
+              <p className="mt-2 text-sm leading-6 text-[#94A3B8]">
+                Choose the ratios and performance measures to include in the Virtual CFO package. Locked KPIs need additional report data before they can be selected.
+              </p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+              <div className="grid gap-3 md:grid-cols-2">
+                {recommendedRatios.map((ratio) => {
+                  const requiredReports = ratioReportRequirements[ratio] || [];
+                  return (
+                    <label key={ratio} className="flex items-start gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4">
+                      <input type="checkbox" checked={selectedRatios.includes(ratio)} onChange={() => toggleRatio(ratio)} className="mt-1" />
+                      <span>
+                        <span className="block text-sm font-semibold text-[#F9FAFB]">{ratio}</span>
+                        <span className="mt-1 block text-xs text-emerald-100/80">
+                          Uses {requiredReports.length ? requiredReports.map((reportId) => reportMap.get(reportId)?.label || reportId).join(", ") : "available package data"}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+                {optionalRatios.map((ratio) => {
+                  const missingReports = getMissingRatioReports(ratio);
+                  const disabled = missingReports.length > 0;
+                  return (
+                    <label
+                      key={ratio}
+                      className={`flex items-start gap-3 rounded-2xl border p-4 ${
+                        disabled ? "border-slate-700 bg-slate-950/60 opacity-60" : "border-[#243041] bg-[#0B1020]"
+                      }`}
+                    >
+                      <input type="checkbox" checked={selectedRatios.includes(ratio)} disabled={disabled} onChange={() => toggleRatio(ratio)} className="mt-1" />
+                      <span>
+                        <span className="block text-sm font-semibold text-[#F9FAFB]">{disabled ? "Locked: " : ""}{ratio}</span>
+                        <span className={`mt-1 block text-xs ${disabled ? "text-amber-200" : "text-[#94A3B8]"}`}>
+                          {disabled ? `Requires ${missingReports.map((reportId) => reportMap.get(reportId)?.label || reportId).join(", ")}` : "Optional for this package."}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-3 border-t border-[#243041] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-[#94A3B8]">{selectedRatios.length} KPI{selectedRatios.length === 1 ? "" : "s"} selected</p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setCustomKpiModalOpen(false)}
+                  className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+                >
+                  Take Me Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleContinueFromCustomKpis}
+                  className="rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+                >
+                  {selectedRatios.includes("DSO") && accountsReceivable > 0 && !dsoConfirmed && !dsoInputOmitted
+                    ? "Continue to DSO Setup"
+                    : "Return to Step 3"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {customDsoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#243041] bg-[#111827] shadow-2xl shadow-black/40">
+            <div className="shrink-0 border-b border-[#243041] px-6 py-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">DSO Setup</p>
+              <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Confirm DSO before returning to Step 3</h3>
+              <p className="mt-2 text-sm leading-6 text-[#94A3B8]">
+                Accounts receivable was detected at {formatCurrency(accountsReceivable)}. Provide sales data, confirm the calculation, or omit DSO from this custom package.
+              </p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
+                  <p className="text-sm font-bold text-[#F9FAFB]">Option 1: Monthly Revenue and Days</p>
+                  <input
+                    type="number"
+                    min="0"
+                    value={accountsReceivableOverride}
+                    onChange={(event) => onAccountsReceivableOverrideChange(event.target.value)}
+                    placeholder="Accounts receivable source value"
+                    className="mt-4 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    value={monthlyRevenue}
+                    onChange={(event) => onMonthlyRevenueChange(event.target.value)}
+                    placeholder="Monthly revenue amount"
+                    className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+                  />
+                  <input
+                    type="number"
+                    min="1"
+                    value={dsoPeriodDays}
+                    onChange={(event) => onDsoPeriodDaysChange(event.target.value)}
+                    placeholder="Days in period"
+                    className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+                  />
+                </div>
+                <div className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
+                  <p className="text-sm font-bold text-[#F9FAFB]">Option 2: Average Daily Sales</p>
+                  <input
+                    type="number"
+                    min="0"
+                    value={averageDailySales}
+                    onChange={(event) => onAverageDailySalesChange(event.target.value)}
+                    placeholder="Average daily sales"
+                    className="mt-4 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+                  />
+                </div>
+                <div className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
+                  <p className="text-sm font-bold text-[#F9FAFB]">Option 3: Upload Sales Detail</p>
+                  <label className="mt-4 block cursor-pointer rounded-xl border border-dashed border-[#5B8CFF]/40 bg-[#0B1020] px-3 py-3 text-sm font-semibold text-[#F9FAFB] hover:border-[#5B8CFF]">
+                    <input
+                      key={`custom-dso-${salesDetailInputKey}`}
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      className="sr-only"
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        await onSalesDetailFile(file);
+                        setSalesDetailInputKey((current) => current + 1);
+                      }}
+                    />
+                    {salesDetailData ? "Replace sales detail report" : "Upload invoice/sales detail report"}
+                  </label>
+                  {salesDetailData && (
+                    <p className="mt-3 truncate rounded-xl bg-[#0B1020] px-3 py-2 text-xs text-[#94A3B8]">
+                      {salesDetailData.name}
+                      {salesDetailRevenue ? ` | Sales detected: ${formatCurrency(salesDetailRevenue)}` : ""}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-5 grid gap-4 md:grid-cols-3">
+                <label className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
+                  <span className="text-sm font-semibold text-[#F9FAFB]">Report start date</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => onStartDateChange(event.target.value)}
+                    className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
+                  />
+                </label>
+                <label className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
+                  <span className="text-sm font-semibold text-[#F9FAFB]">Report end date</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(event) => onEndDateChange(event.target.value)}
+                    className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
+                  />
+                  <span className="mt-2 block text-xs text-[#94A3B8]">Auto days: {autoDays ?? "Enter dates"}</span>
+                </label>
+                <label className="rounded-2xl border border-[#243041] bg-[#172033] p-4">
+                  <span className="text-sm font-semibold text-[#F9FAFB]">Manual period days</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={manualDays}
+                    onChange={(event) => onManualDaysChange(event.target.value)}
+                    placeholder="Optional"
+                    className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+                  />
+                  <span className="mt-2 block text-xs text-[#94A3B8]">Effective days: {effectiveDays ?? "Not set"}</span>
+                </label>
+              </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+                <PrintLikeMetric label="Accounts Receivable" value={formatCurrency(accountsReceivableUsed)} />
+                <PrintLikeMetric label="Revenue Used" value={revenueUsed ? formatCurrency(revenueUsed) : "N/A"} />
+                <PrintLikeMetric label="Period Days" value={dsoPeriodDays || effectiveDays ? String(dsoPeriodDays || effectiveDays) : "N/A"} />
+                <PrintLikeMetric label="Average Daily Sales" value={averageDailySalesUsed ? formatCurrency(averageDailySalesUsed) : "N/A"} />
+                <PrintLikeMetric label="Calculated DSO" value={dso !== null ? `${dso.toFixed(1)} days` : "Pending"} />
+              </div>
+              <p className="mt-4 text-sm leading-6 text-[#94A3B8]">
+                {dso !== null
+                  ? interpretDso(dso)
+                  : "Provide Accounts Receivable and either revenue with period days or an average daily sales override to preview DSO."}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-3 border-t border-[#243041] px-6 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomDsoModalOpen(false);
+                  setCustomKpiModalOpen(true);
+                }}
+                className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+              >
+                Back to KPI Selection
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCompleteCustomDso("omit")}
+                className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+              >
+                Omit DSO and Return
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCompleteCustomDso("confirm")}
+                disabled={dso === null || dsoInputOmitted}
+                className="rounded-2xl bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Confirm DSO and Return
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -13861,6 +18658,7 @@ function KpiConfirmationPanel({
   packageTier,
   kpis,
   arKpis,
+  arReserveIntelligence,
   apKpis,
   inventoryKpis,
   inventoryIntelligence,
@@ -13879,6 +18677,7 @@ function KpiConfirmationPanel({
   packageTier: PackageTier;
   kpis: KPIs;
   arKpis: AgingKpis;
+  arReserveIntelligence: ARReserveIntelligence;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
   inventoryIntelligence: InventoryIntelligence;
@@ -13906,6 +18705,12 @@ function KpiConfirmationPanel({
       .filter((row) => ["Current Ratio", "Quick Ratio", "Working Capital Estimate"].includes(row.name))
       .map((row) => ({ label: row.name, value: row.value })),
     ...(includeAr ? [{ label: "AR Aging Total", value: formatMoney(arKpis.total) }] : []),
+    ...(includeAr
+      ? [
+          { label: "Suggested AR Reserve", value: formatMoney(arReserveIntelligence.totalSuggestedReserve) },
+          { label: "AR Collection Risk", value: arReserveIntelligence.collectionRiskStatus },
+        ]
+      : []),
     ...(includeAp ? [{ label: "AP Aging Total", value: formatMoney(apKpis.total) }] : []),
     ...(dso !== null ? [{ label: "DSO", value: `${dso.toFixed(1)} days` }] : []),
     ...(isProfessionalOrHigher(packageTier) && includeInventory
@@ -13925,13 +18730,13 @@ function KpiConfirmationPanel({
             : []),
         ]
       : []),
-    ...(isVirtualCfo(packageTier) && includeFixedAssets
+    ...(isProfessionalOrHigher(packageTier) && includeFixedAssets
       ? [
-          { label: "Fixed Assets", value: formatMoney(fixedAssetKpis.totalFixedAssets) },
+          { label: "Gross Fixed Assets", value: formatMoney(fixedAssetKpis.grossFixedAssets) },
           { label: "Net Book Value", value: formatMoney(fixedAssetKpis.netBookValue) },
         ]
       : []),
-    ...(isVirtualCfo(packageTier) && includePayroll
+    ...(includePayroll
       ? [
           { label: "Current FTE", value: formatFte(payrollAnalysis.totalCurrentFte) },
           { label: "Payroll Cost", value: formatMoney(payrollAnalysis.totalCurrentPayrollCost) },
@@ -13973,6 +18778,468 @@ function KpiConfirmationPanel({
         ))}
       </div>
 
+    </section>
+  );
+}
+
+function InventoryIntelligenceSection({
+  inventoryIntelligence,
+  packageTier,
+}: {
+  inventoryIntelligence: InventoryIntelligence;
+  packageTier: PackageTier;
+}) {
+  const isFullReview = isVirtualCfo(packageTier);
+  const summaryItems = [
+    {
+      label: "Inventory Aging / Slow-Moving Exposure",
+      value: formatMoney(inventoryIntelligence.slowMovingValue),
+      detail: inventoryIntelligence.slowMovingCommentary,
+    },
+    {
+      label: "Inventory Turns",
+      value: inventoryIntelligence.turns !== null ? `${inventoryIntelligence.turns.toFixed(1)}x` : "N/A",
+      detail: inventoryIntelligence.turnsCommentary,
+    },
+    {
+      label: "Inventory Reserve Exposure",
+      value: inventoryIntelligence.eoReserveBalance !== null ? formatMoney(inventoryIntelligence.eoReserveBalance) : "Not identified",
+      detail: inventoryIntelligence.eoReserveWarning || inventoryIntelligence.eoReserveCommentary,
+    },
+  ];
+  const reviewGroups = [
+    { title: "Largest Inventory Adjustments", items: inventoryIntelligence.largestInventoryAdjustments },
+    ...(isFullReview
+      ? [
+          { title: "Recurring Adjustment Accounts / Items", items: inventoryIntelligence.recurringAdjustmentItems },
+          { title: "Cycle Count Variance Trends", items: inventoryIntelligence.cycleCountVarianceTrends },
+          { title: "Slow-Moving Purchases With Limited Movement", items: inventoryIntelligence.inventoryPurchasesWithLimitedMovement },
+          { title: "PPV Impact", items: inventoryIntelligence.purchasePriceVarianceTrends },
+          { title: "Manufacturing Variance Review", items: inventoryIntelligence.manufacturingVarianceReview },
+          { title: "BOM Overrun / Underrun", items: inventoryIntelligence.bomVarianceReview },
+          { title: "Labor Variance Impact", items: inventoryIntelligence.billOfLaborVarianceReview },
+          { title: "Job Profitability Concerns", items: inventoryIntelligence.jobProfitabilityConcerns },
+        ]
+      : []),
+  ];
+
+  return (
+    <section className="mt-6 rounded-3xl border border-[#243041] bg-[#172033] p-6 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Internal Inventory Intelligence</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">
+            {isFullReview ? "Controller / Virtual CFO Inventory Review" : "Professional Inventory Review"}
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+            Preparer-facing inventory review support. These items are intended for review and approval before anything is used in client deliverables.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] px-4 py-3 text-sm text-[#CBD5E1]">
+          <p className="font-semibold text-white">{PACKAGE_LABELS[packageTier]} scope</p>
+          <p className="mt-1 max-w-sm">
+            {isFullReview
+              ? "Full manufacturing, variance, job, reserve, and operational inventory review."
+              : "Basic inventory aging, turns, reserve exposure, and adjustment commentary."}
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-5 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
+        {summaryItems.map((item) => (
+          <div key={item.label} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#94A3B8]">{item.label}</p>
+            <p className="mt-2 text-xl font-bold text-[#F9FAFB]">{item.value}</p>
+            <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{item.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Review commentary</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {inventoryIntelligence.operationalInventoryCommentary.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Internal preparer flags</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {(inventoryIntelligence.internalInventoryFlags.length
+              ? inventoryIntelligence.internalInventoryFlags
+              : ["No elevated operational inventory flags were identified from the uploaded GL detail. Continue reviewing inventory aging, turns, and reserve exposure where appropriate."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {reviewGroups.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <p className="text-sm font-bold text-white">{group.title}</p>
+            <div className="mt-3 space-y-3">
+              {group.items.length ? (
+                group.items.slice(0, 4).map((item) => (
+                  <div key={`${group.title}-${item.label}`} className="rounded-xl border border-[#334155] bg-[#0B1120] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-semibold text-[#F9FAFB]">{item.label}</p>
+                      <p className="shrink-0 text-sm font-bold text-[#C4B5FD]">{formatMoney(item.amount)}</p>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-[#94A3B8]">{item.commentary}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-[#94A3B8]">No review item identified from available uploaded data.</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RevenueRecognitionIntelligenceSection({
+  revenueRecognitionIntelligence,
+  packageTier,
+}: {
+  revenueRecognitionIntelligence: RevenueRecognitionIntelligence;
+  packageTier: PackageTier;
+}) {
+  const isFullReview = isVirtualCfo(packageTier);
+  const metricCards = [
+    {
+      label: "Deferred Revenue",
+      value: formatMoney(revenueRecognitionIntelligence.deferredRevenueBalance),
+      detail: `${formatMoney(revenueRecognitionIntelligence.deferredRevenueChange)} period-over-period change`,
+    },
+    {
+      label: "Unbilled AR",
+      value: formatMoney(revenueRecognitionIntelligence.unbilledArBalance),
+      detail: `${formatMoney(revenueRecognitionIntelligence.unbilledArChange)} period-over-period change`,
+    },
+    {
+      label: "Recognition Activity",
+      value: formatMoney(revenueRecognitionIntelligence.recognizedRevenueActivity),
+      detail:
+        revenueRecognitionIntelligence.deferredRecognitionRate !== null
+          ? `${(revenueRecognitionIntelligence.deferredRecognitionRate * 100).toFixed(0)}% estimated recognition cadence`
+          : "Recognition cadence not available",
+    },
+    {
+      label: "Billing Activity",
+      value: formatMoney(revenueRecognitionIntelligence.billingActivity),
+      detail: "Used for billing cadence and liquidity timing review",
+    },
+  ];
+  const reviewGroups = [
+    { title: "Deferred Revenue Review", items: revenueRecognitionIntelligence.deferredReviewItems },
+    { title: "Unbilled AR / Project Billing Review", items: revenueRecognitionIntelligence.unbilledReviewItems },
+    ...(isFullReview ? [{ title: "Billing Cadence Review", items: revenueRecognitionIntelligence.billingCadenceItems }] : []),
+  ];
+
+  return (
+    <section className="mt-6 rounded-3xl border border-[#243041] bg-[#172033] p-6 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Revenue Recognition Intelligence</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Deferred Revenue & Unbilled AR Review</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+            Internal preparer review for revenue timing, billing cadence, deferred obligations, unbilled exposure, and future recognition visibility.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] px-4 py-3 text-sm text-[#CBD5E1]">
+          <p className="font-semibold text-white">{PACKAGE_LABELS[packageTier]} scope</p>
+          <p className="mt-1 max-w-sm">
+            {isFullReview
+              ? "Full recognition scheduling, billing cadence intelligence, forecast support, and executive revenue timing review."
+              : "High-level deferred revenue and unbilled AR operational timing commentary."}
+          </p>
+        </div>
+      </div>
+
+      <div className="mb-5 grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3">
+        {metricCards.map((item) => (
+          <div key={item.label} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#94A3B8]">{item.label}</p>
+            <p className="mt-2 text-xl font-bold text-[#F9FAFB]">{item.value}</p>
+            <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{item.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Revenue timing commentary</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {revenueRecognitionIntelligence.commentary.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Forecasting and liquidity planning support</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {revenueRecognitionIntelligence.forecastIntegrationNotes.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {isFullReview && revenueRecognitionIntelligence.anticipatedRecognitionSchedule.length > 0 && (
+        <div className="mt-5 overflow-x-auto rounded-2xl border border-[#243041]">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#111827] text-[#CBD5E1]">
+              <tr>
+                <th className="px-4 py-3">Anticipated Recognition Period</th>
+                <th className="px-4 py-3 text-right">Expected Recognition</th>
+                <th className="px-4 py-3 text-right">Remaining Deferred Obligations</th>
+                <th className="px-4 py-3">Confidence</th>
+                <th className="px-4 py-3">Review Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revenueRecognitionIntelligence.anticipatedRecognitionSchedule.map((schedule) => (
+                <tr key={schedule.period} className="border-t border-[#243041]">
+                  <td className="px-4 py-3 font-semibold text-[#F9FAFB]">{schedule.period}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoney(schedule.expectedRecognition)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoney(schedule.remainingDeferredObligation)}</td>
+                  <td className="px-4 py-3 text-[#CBD5E1]">{schedule.confidence}</td>
+                  <td className="px-4 py-3 text-[#94A3B8]">{schedule.commentary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {reviewGroups.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <p className="text-sm font-bold text-white">{group.title}</p>
+            <div className="mt-3 space-y-3">
+              {group.items.length ? (
+                group.items.slice(0, 4).map((item) => (
+                  <div key={`${group.title}-${item.label}`} className="rounded-xl border border-[#334155] bg-[#0B1120] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-semibold text-[#F9FAFB]">{item.label}</p>
+                      <p className="shrink-0 text-sm font-bold text-[#C4B5FD]">{formatMoney(item.amount)}</p>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-[#94A3B8]">{item.commentary}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-[#94A3B8]">No review item identified from available uploaded data.</p>
+              )}
+            </div>
+          </div>
+        ))}
+        <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <p className="text-sm font-bold text-white">Backend AI review flags</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {(revenueRecognitionIntelligence.internalFlags.length
+              ? revenueRecognitionIntelligence.internalFlags
+              : ["No elevated deferred revenue or unbilled AR timing flags were identified from the uploaded data."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TreasuryLiquidityIntelligenceSection({
+  treasuryLiquidityIntelligence,
+  packageTier,
+}: {
+  treasuryLiquidityIntelligence: TreasuryLiquidityIntelligence;
+  packageTier: PackageTier;
+}) {
+  const isProfessionalScope = isProfessionalOrHigher(packageTier);
+  const isVirtualScope = isVirtualCfo(packageTier);
+  const metricCards = [
+    {
+      label: "Cash Position",
+      value: formatMoney(treasuryLiquidityIntelligence.cashBalance),
+      detail: `${formatMoney(treasuryLiquidityIntelligence.cashChange)} period-over-period change`,
+    },
+    {
+      label: "Working Capital",
+      value: treasuryLiquidityIntelligence.workingCapital !== null ? formatMoney(treasuryLiquidityIntelligence.workingCapital) : "N/A",
+      detail:
+        treasuryLiquidityIntelligence.workingCapitalChange !== null
+          ? `${formatMoney(treasuryLiquidityIntelligence.workingCapitalChange)} movement`
+          : "Requires current/prior balance sheet detail",
+    },
+    {
+      label: "Current Ratio",
+      value: treasuryLiquidityIntelligence.currentRatio !== null ? treasuryLiquidityIntelligence.currentRatio.toFixed(2) : "N/A",
+      detail: "Liquidity quality review",
+    },
+    {
+      label: "Liquidity Runway",
+      value: treasuryLiquidityIntelligence.liquidityRunwayWeeks !== null ? `${treasuryLiquidityIntelligence.liquidityRunwayWeeks.toFixed(1)} weeks` : "N/A",
+      detail: isVirtualScope ? "Uses AP, payroll, and debt timing assumptions" : "Available in Virtual CFO forecasting",
+    },
+  ];
+  const reviewGroups = [
+    { title: "Cash Position Intelligence", items: treasuryLiquidityIntelligence.cashPositionItems },
+    ...(isProfessionalScope ? [{ title: "Bank Account Structure Review", items: treasuryLiquidityIntelligence.bankAccountItems }] : []),
+    ...(isProfessionalScope && treasuryLiquidityIntelligence.reconciliationItems.length
+      ? [{ title: "Bank Reconciliation Review", items: treasuryLiquidityIntelligence.reconciliationItems }]
+      : []),
+    ...(isProfessionalScope && treasuryLiquidityIntelligence.checkSequenceItems.length
+      ? [{ title: "Check Sequence Review", items: treasuryLiquidityIntelligence.checkSequenceItems }]
+      : []),
+  ];
+  const visualRows = [
+    { label: "Cash Change", value: Math.abs(treasuryLiquidityIntelligence.cashChange), display: formatCurrency(treasuryLiquidityIntelligence.cashChange) },
+    {
+      label: "Working Capital Change",
+      value: Math.abs(treasuryLiquidityIntelligence.workingCapitalChange || 0),
+      display: treasuryLiquidityIntelligence.workingCapitalChange !== null ? formatCurrency(treasuryLiquidityIntelligence.workingCapitalChange) : "N/A",
+    },
+    { label: "Idle Cash Estimate", value: treasuryLiquidityIntelligence.idleCashEstimate, display: formatCurrency(treasuryLiquidityIntelligence.idleCashEstimate) },
+  ];
+  const maxVisualValue = Math.max(...visualRows.map((row) => row.value), 1);
+
+  return (
+    <section className="mt-6 rounded-3xl border border-[#243041] bg-[#172033] p-6 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Treasury & Liquidity Intelligence</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Cash Position, Working Capital & Treasury Review</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">{treasuryLiquidityIntelligence.tierScope}</p>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] px-4 py-3 text-sm text-[#CBD5E1]">
+          <p className="font-semibold text-white">{PACKAGE_LABELS[packageTier]} scope</p>
+          <p className="mt-1 max-w-sm">
+            {isVirtualScope
+              ? "Treasury structure, cash concentration, runway, and forecast liquidity review."
+              : isProfessionalScope
+                ? "Liquidity, working capital, AR/AP timing, and treasury operational review."
+                : "Basic cash and AR/AP timing commentary."}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
+        {metricCards.map((card) => (
+          <div key={card.label} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#94A3B8]">{card.label}</p>
+            <p className="mt-2 text-xl font-bold text-[#F9FAFB]">{card.value}</p>
+            <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{card.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+        <p className="text-sm font-bold text-white">Cash and working capital visual</p>
+        <div className="mt-4 space-y-3">
+          {visualRows.map((row) => (
+            <div key={row.label}>
+              <div className="mb-1 flex items-center justify-between text-xs font-semibold text-[#CBD5E1]">
+                <span>{row.label}</span>
+                <span>{row.display}</span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-[#111827]">
+                <div className="h-full rounded-full bg-[#5B8CFF]" style={{ width: `${Math.min((row.value / maxVisualValue) * 100, 100)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Operational cash commentary</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {treasuryLiquidityIntelligence.commentary.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Backend AI review flags</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {(treasuryLiquidityIntelligence.internalFlags.length
+              ? treasuryLiquidityIntelligence.internalFlags
+              : ["No elevated liquidity, cash timing, or treasury structure flags were identified from available data."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {reviewGroups.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <p className="text-sm font-bold text-white">{group.title}</p>
+            <div className="mt-3 space-y-3">
+              {group.items.length ? (
+                group.items.map((item) => (
+                  <div key={`${group.title}-${item.label}`} className="rounded-xl border border-[#334155] bg-[#0B1120] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-semibold text-[#F9FAFB]">{item.label}</p>
+                      <p className="shrink-0 text-sm font-bold text-[#C4B5FD]">{item.value}</p>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-[#94A3B8]">{item.commentary}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-[#94A3B8]">No review item identified from available cash or GL data.</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {isVirtualScope && treasuryLiquidityIntelligence.cashForecast.length > 0 && (
+        <div className="mt-5 overflow-x-auto rounded-2xl border border-[#243041]">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#111827] text-[#CBD5E1]">
+              <tr>
+                <th className="px-4 py-3">Forecast Period</th>
+                <th className="px-4 py-3 text-right">Projected Cash</th>
+                <th className="px-4 py-3 text-right">AR Collections</th>
+                <th className="px-4 py-3 text-right">AP Payments</th>
+                <th className="px-4 py-3 text-right">Payroll</th>
+                <th className="px-4 py-3 text-right">Debt</th>
+                <th className="px-4 py-3">Review Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {treasuryLiquidityIntelligence.cashForecast.map((period) => (
+                <tr key={period.period} className="border-t border-[#243041]">
+                  <td className="px-4 py-3 font-semibold text-[#F9FAFB]">{period.period}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoney(period.projectedCash)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoney(period.expectedCollections)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoney(period.expectedPayments)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoney(period.payrollOutflow)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoney(period.debtOutflow)}</td>
+                  <td className="px-4 py-3 text-[#94A3B8]">{period.commentary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="border-t border-[#243041] bg-[#0B1120] p-4">
+            <p className="text-sm font-bold text-white">Forecasting integration</p>
+            <ul className="mt-2 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+              {treasuryLiquidityIntelligence.forecastIntegrationNotes.map((item) => (
+                <li key={item}>- {item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -14144,6 +19411,33 @@ function KpiCard({
   );
 }
 
+function MiniBar({
+  label,
+  value,
+  max,
+  suffix = "",
+}: {
+  label: string;
+  value: number;
+  max: number;
+  suffix?: string;
+}) {
+  const width = Math.max(0, Math.min(100, max ? (Math.abs(value) / Math.abs(max)) * 100 : 0));
+  const displayValue = suffix === "%" ? `${value.toFixed(1)}%` : formatCurrency(value);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 text-xs text-cyan-50/80">
+        <span>{label}</span>
+        <span className="font-bold tabular-nums text-white">{displayValue}</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+        <div className="h-full rounded-full bg-cyan-300" style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function KpiReviewWorkflowPanel({
   mode,
   activeSection,
@@ -14265,6 +19559,547 @@ function KpiReviewSectionActions({
   );
 }
 
+function ManufacturingInventoryIntelligenceSection({
+  intelligence,
+  packageTier,
+}: {
+  intelligence: ManufacturingInventoryIntelligence;
+  packageTier: PackageTier;
+}) {
+  const showManufacturingDetail = isVirtualCfo(packageTier);
+  const reviewGroups = [
+    { title: "Inventory Adjustment Monitoring", items: intelligence.adjustmentItems },
+    { title: "Cycle Count Intelligence", items: intelligence.cycleCountItems },
+    { title: "Inventory Aging & Reserve Exposure", items: intelligence.agingItems },
+    ...(showManufacturingDetail
+      ? [
+          { title: "PPV Intelligence", items: intelligence.ppvItems },
+          { title: "BOM Variance Intelligence", items: intelligence.bomVarianceItems },
+          { title: "Bill of Labor / Labor Variance", items: intelligence.laborVarianceItems },
+          { title: "Job Profitability Intelligence", items: intelligence.jobProfitabilityItems },
+          { title: "Manufacturing Variance Review", items: intelligence.manufacturingVarianceItems },
+        ]
+      : []),
+  ];
+  const maxOperationalImpact = Math.max(
+    Math.abs(intelligence.workingCapitalImpact),
+    Math.abs(intelligence.adjustmentTrendAmount),
+    intelligence.reserveExposure,
+    intelligence.ppvImpact,
+    intelligence.bomVarianceImpact,
+    intelligence.laborVarianceImpact,
+    intelligence.jobProfitabilityImpact,
+    1,
+  );
+
+  return (
+    <section className="mt-6 rounded-3xl border border-orange-400/20 bg-orange-500/10 p-6 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-orange-200">Manufacturing & Inventory Intelligence</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Operational Manufacturing Cost Review</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-orange-50/80">
+            Review-oriented intelligence that connects inventory balances, adjustments, cycle counts, PPV, BOM variance, labor variance, job profitability, and reserve exposure into operational finance review.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-orange-300/20 bg-[#0B1020] px-4 py-3 text-sm text-orange-50/80">
+          <p className="font-semibold text-white">{PACKAGE_LABELS[packageTier]} scope</p>
+          <p className="mt-1 max-w-sm">{intelligence.tierScope}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <KpiCard label="Efficiency Status" value={intelligence.operationalEfficiencyStatus} />
+        <KpiCard label="Inventory Growth" value={intelligence.inventoryGrowthPercent === null ? "N/A" : `${intelligence.inventoryGrowthPercent.toFixed(1)}%`} />
+        <KpiCard label="Working Capital Impact" value={intelligence.workingCapitalImpact} />
+        <KpiCard label="Adjustment Trend" value={intelligence.adjustmentTrendAmount} />
+        <KpiCard label="Reserve Exposure" value={intelligence.reserveExposure} />
+        <KpiCard label="Manufacturing Flags" value={String(intelligence.internalFlags.length)} />
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-orange-300/20 bg-[#0B1020] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-orange-200">Inventory Trend Visual</p>
+          <div className="mt-4 space-y-3">
+            <MiniBar label="Working Capital Impact" value={Math.abs(intelligence.workingCapitalImpact)} max={maxOperationalImpact} />
+            <MiniBar label="Adjustment Trend" value={Math.abs(intelligence.adjustmentTrendAmount)} max={maxOperationalImpact} />
+            <MiniBar label="Reserve Exposure" value={intelligence.reserveExposure} max={maxOperationalImpact} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-orange-300/20 bg-[#0B1020] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-orange-200">Manufacturing Variance Visual</p>
+          <div className="mt-4 space-y-3">
+            <MiniBar label="PPV Impact" value={intelligence.ppvImpact} max={maxOperationalImpact} />
+            <MiniBar label="BOM Variance" value={intelligence.bomVarianceImpact} max={maxOperationalImpact} />
+            <MiniBar label="Labor Variance" value={intelligence.laborVarianceImpact} max={maxOperationalImpact} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-orange-300/20 bg-[#0B1020] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-orange-200">Operational Efficiency Visual</p>
+          <div className="mt-4 space-y-3">
+            <MiniBar label="Job Profitability" value={intelligence.jobProfitabilityImpact} max={maxOperationalImpact} />
+            <MiniBar label="Production Variance" value={intelligence.manufacturingVarianceItems.reduce((total, item) => total + item.amount, 0)} max={maxOperationalImpact} />
+            <MiniBar label="Reserve Exposure" value={intelligence.reserveExposure} max={maxOperationalImpact} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-orange-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Operational manufacturing commentary</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-orange-50/80">
+            {intelligence.operationalCommentary.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-orange-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Backend AI review focus</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-orange-50/80">
+            {(intelligence.internalFlags.length
+              ? intelligence.internalFlags
+              : ["No elevated manufacturing or inventory cost intelligence flags were identified from available data. Continue reviewing turnover, reserve exposure, and operating variance activity where appropriate."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {reviewGroups.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-orange-300/20 bg-[#0B1020] p-4">
+            <p className="text-sm font-bold text-white">{group.title}</p>
+            <div className="mt-3 grid gap-3">
+              {group.items.length ? (
+                group.items.slice(0, showManufacturingDetail ? 6 : 3).map((item) => (
+                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-bold text-[#F9FAFB]">{item.label}</p>
+                      <span className="rounded-full bg-orange-300/10 px-2 py-1 text-xs font-bold text-orange-100">
+                        {item.impact} | {formatCurrency(item.amount)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-[#CBD5E1]">{item.commentary}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-orange-50/70">No review items were identified from available data for this category.</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CloseManagementIntelligenceSection({
+  intelligence,
+  packageTier,
+}: {
+  intelligence: CloseManagementIntelligence;
+  packageTier: PackageTier;
+}) {
+  const showFullCloseReview = isVirtualCfo(packageTier);
+  const reviewGroups = [
+    { title: "Stale Liability Monitoring", items: intelligence.staleLiabilityItems },
+    { title: "Stale Asset Monitoring", items: intelligence.staleAssetItems },
+    { title: "Prepaid Lifecycle Review", items: intelligence.prepaidLifecycleItems },
+    ...(showFullCloseReview
+      ? [
+          { title: "Accrual Reversal Intelligence", items: intelligence.accrualReversalItems },
+          { title: "Manual Journal Entry Intelligence", items: intelligence.manualJournalEntryItems },
+          { title: "Account Activity Intelligence", items: intelligence.accountActivityItems },
+        ]
+      : []),
+  ];
+  const maxItemAmount = Math.max(
+    ...reviewGroups.flatMap((group) => group.items.map((item) => item.amount)),
+    1,
+  );
+  const staleLiabilityAmount = intelligence.staleLiabilityItems.reduce((total, item) => total + item.amount, 0);
+  const staleAssetAmount = intelligence.staleAssetItems.reduce((total, item) => total + item.amount, 0);
+  const manualJeAmount = intelligence.manualJournalEntryItems.reduce((total, item) => total + item.amount, 0);
+
+  return (
+    <section className="mt-6 rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-6 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">Close Management Intelligence</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">AI-Assisted Close & Accounting Operations Review</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-50/80">
+            Internal review intelligence for close quality, stale balances, accrual lifecycle, manual journal entry patterns, account activity, and operational accounting oversight. This is not audit, assurance, or fraud certification.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] px-4 py-3 text-sm text-cyan-50/80">
+          <p className="font-semibold text-white">{PACKAGE_LABELS[packageTier]} scope</p>
+          <p className="mt-1 max-w-sm">{intelligence.tierScope}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <KpiCard label="Close Quality Score" value={`${intelligence.closeQualityScore}/100`} />
+        <KpiCard label="Close Status" value={intelligence.closeQualityStatus} />
+        <KpiCard label="Stale Liabilities" value={String(intelligence.staleLiabilityItems.length)} />
+        <KpiCard label="Stale Assets" value={String(intelligence.staleAssetItems.length)} />
+        <KpiCard label="Manual JE Items" value={String(intelligence.manualJournalEntryItems.length)} />
+        <KpiCard label="AI Review Flags" value={String(intelligence.internalFlags.length)} />
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-cyan-200">Close Quality Drivers</p>
+          <div className="mt-4 space-y-3">
+            <MiniBar label="Stale Liabilities" value={staleLiabilityAmount} max={maxItemAmount} />
+            <MiniBar label="Stale Assets" value={staleAssetAmount} max={maxItemAmount} />
+            <MiniBar label="Manual JE Items" value={manualJeAmount} max={maxItemAmount} />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4 lg:col-span-2">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-cyan-200">Preparer-Facing Commentary</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-cyan-50/80">
+            {intelligence.operationalCommentary.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Close quality score drivers</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-cyan-50/80">
+            {(intelligence.scoreDrivers.length
+              ? intelligence.scoreDrivers
+              : ["No elevated close quality score drivers were identified from available statement and GL detail."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Backend AI accounting operations review</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-cyan-50/80">
+            {(intelligence.internalFlags.length
+              ? intelligence.internalFlags
+              : ["No elevated close-management flags were identified. Continue reviewing recurring stale balances, cutoff timing, manual entries, and reconciliation exceptions."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {reviewGroups.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+            <p className="text-sm font-bold text-white">{group.title}</p>
+            <div className="mt-3 grid gap-3">
+              {group.items.length ? (
+                group.items.slice(0, showFullCloseReview ? 6 : 3).map((item) => (
+                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-bold text-[#F9FAFB]">{item.label}</p>
+                      <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-xs font-bold text-cyan-100">
+                        {item.status} | {formatCurrency(item.amount)}
+                      </span>
+                    </div>
+                    <MiniBar label="Review exposure" value={item.amount} max={maxItemAmount} />
+                    <p className="mt-2 text-xs leading-5 text-[#CBD5E1]">{item.commentary}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-cyan-50/70">No review items were identified from available data for this category.</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showFullCloseReview && (
+        <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Future accounting operations roadmap</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {intelligence.futureOperationsRoadmap.map((item) => (
+              <p key={item} className="rounded-xl border border-[#243041] bg-[#111827] p-3 text-sm leading-6 text-cyan-50/80">
+                {item}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ARReserveIntelligenceSection({
+  arReserveIntelligence,
+  packageTier,
+}: {
+  arReserveIntelligence: ARReserveIntelligence;
+  packageTier: PackageTier;
+}) {
+  const tierScope =
+    packageTier === "essential"
+      ? "Bookkeeping-focused AR quality and reserve estimate review."
+      : packageTier === "professional"
+        ? "Controller-level reserve adequacy, customer concentration, and collection trend review."
+        : "Virtual CFO reserve review with liquidity, working capital, and earnings quality implications.";
+
+  return (
+    <section className="mt-6 rounded-3xl border border-[#243041] bg-[#172033] p-6 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">AR Reserve Intelligence</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Receivables Reserve Review Support</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
+            Preliminary reserve guidance based on AR aging, identified reserve balances, bad debt expense, and write-off activity. This is preparer review intelligence only, not a mandatory reserve conclusion.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] px-4 py-3 text-sm text-[#CBD5E1]">
+          <p className="font-semibold text-white">{PACKAGE_LABELS[packageTier]} scope</p>
+          <p className="mt-1 max-w-sm">{tierScope}</p>
+        </div>
+      </div>
+
+      <div className="mb-5 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+        <KpiCard label="Suggested Reserve" value={arReserveIntelligence.totalSuggestedReserve} />
+        <KpiCard
+          label="Existing Reserve"
+          value={arReserveIntelligence.existingReserveBalance === null ? "Not identified" : arReserveIntelligence.existingReserveBalance}
+        />
+        <KpiCard
+          label="Reserve Gap / Surplus"
+          value={arReserveIntelligence.reserveGap === null ? "N/A" : arReserveIntelligence.reserveGap}
+        />
+        <KpiCard label="Collection Risk" value={arReserveIntelligence.collectionRiskStatus} />
+        <KpiCard
+          label="Write-offs Identified"
+          value={arReserveIntelligence.writeOffs === null ? "Not identified" : arReserveIntelligence.writeOffs}
+        />
+        <KpiCard
+          label="Reserve Expense"
+          value={arReserveIntelligence.badDebtExpense === null ? "Not identified" : arReserveIntelligence.badDebtExpense}
+        />
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border border-[#243041]">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-[#111827] text-[#CBD5E1]">
+            <tr>
+              <th className="px-4 py-3">Aging Bucket</th>
+              <th className="px-4 py-3 text-right">Balance</th>
+              <th className="px-4 py-3 text-right">Reserve %</th>
+              <th className="px-4 py-3 text-right">Reserve Dollars</th>
+              <th className="px-4 py-3">Rationale</th>
+            </tr>
+          </thead>
+          <tbody>
+            {arReserveIntelligence.buckets.map((bucket) => (
+              <tr key={bucket.id} className="border-t border-[#243041]">
+                <td className="px-4 py-3 font-semibold text-[#F9FAFB]">{bucket.label}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoney(bucket.balance)}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{bucket.reservePercent}%</td>
+                <td className="px-4 py-3 text-right tabular-nums font-semibold text-[#F9FAFB]">{formatMoney(bucket.reserveAmount)}</td>
+                <td className="px-4 py-3 text-[#94A3B8]">{bucket.rationale}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Advisory commentary</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {arReserveIntelligence.commentary.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Internal preparer flags</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {(arReserveIntelligence.internalFlags.length
+              ? arReserveIntelligence.internalFlags
+              : ["No elevated reserve flags were identified from the uploaded AR data. Continue reviewing customer-specific collectibility where appropriate."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReserveLifecycleIntelligenceSection({
+  reserveLifecycleIntelligence,
+  packageTier,
+}: {
+  reserveLifecycleIntelligence: ReserveLifecycleIntelligence;
+  packageTier: PackageTier;
+}) {
+  const showProfessionalDetail = isProfessionalOrHigher(packageTier);
+  const showVirtualCfoDetail = isVirtualCfo(packageTier);
+  const reviewGroups = [
+    { title: "Collection Trend Intelligence", items: reserveLifecycleIntelligence.collectionTrendItems },
+    ...(showProfessionalDetail
+      ? [
+          { title: "Customer Concentration Review", items: reserveLifecycleIntelligence.customerConcentrationItems },
+          { title: "Write-off and Reserve Activity", items: reserveLifecycleIntelligence.writeOffItems },
+        ]
+      : [{ title: "Write-off Comparison", items: reserveLifecycleIntelligence.writeOffItems.slice(0, 2) }]),
+    { title: "Unapplied Credit Review", items: reserveLifecycleIntelligence.unappliedCreditItems },
+  ];
+
+  return (
+    <section className="mt-6 rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-6 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">Reserve Lifecycle Intelligence</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Collectibility and Reserve Adequacy Review</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-cyan-50/80">
+            Internal preparer review that combines aging, reserve coverage, write-off activity, collection timing, customer concentration, and unapplied credit indicators. Guidance remains preliminary and review-oriented.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] px-4 py-3 text-sm text-cyan-50/80">
+          <p className="font-semibold text-white">{PACKAGE_LABELS[packageTier]} scope</p>
+          <p className="mt-1 max-w-sm">{reserveLifecycleIntelligence.tierScope}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <KpiCard label="Adequacy Status" value={reserveLifecycleIntelligence.adequacyStatus} />
+        <KpiCard label="Suggested Low" value={reserveLifecycleIntelligence.suggestedReserveLow} />
+        <KpiCard label="Suggested High" value={reserveLifecycleIntelligence.suggestedReserveHigh} />
+        <KpiCard label="Older AR %" value={`${reserveLifecycleIntelligence.olderArPercent.toFixed(1)}%`} />
+        <KpiCard label="Top Customer AR %" value={`${reserveLifecycleIntelligence.concentrationPercent.toFixed(1)}%`} />
+        <KpiCard label="Reserve Volatility" value={reserveLifecycleIntelligence.reserveVolatility} />
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-cyan-200">Reserve Trend Visual</p>
+          <div className="mt-4 space-y-3">
+            <MiniBar label="Prior Reserve" value={reserveLifecycleIntelligence.priorReserveBalance || 0} max={Math.max(reserveLifecycleIntelligence.priorReserveBalance || 0, reserveLifecycleIntelligence.suggestedReserveHigh, 1)} />
+            <MiniBar label="Current Reserve" value={reserveLifecycleIntelligence.currentReserveBalance || 0} max={Math.max(reserveLifecycleIntelligence.suggestedReserveHigh, reserveLifecycleIntelligence.priorReserveBalance || 0, reserveLifecycleIntelligence.currentReserveBalance || 0, 1)} />
+            <MiniBar label="Suggested Reserve" value={reserveLifecycleIntelligence.suggestedReserveHigh} max={Math.max(reserveLifecycleIntelligence.suggestedReserveHigh, reserveLifecycleIntelligence.priorReserveBalance || 0, 1)} />
+          </div>
+          <p className="mt-3 text-xs leading-5 text-cyan-50/70">
+            Trend change: {reserveLifecycleIntelligence.reserveTrendAmount === null ? "Not enough prior reserve data" : formatCurrency(reserveLifecycleIntelligence.reserveTrendAmount)}
+            {reserveLifecycleIntelligence.reserveTrendPercent !== null ? ` (${reserveLifecycleIntelligence.reserveTrendPercent.toFixed(1)}%)` : ""}.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-cyan-200">Aging Concentration Visual</p>
+          <div className="mt-4 space-y-3">
+            <MiniBar label="Current-90 Days" value={Math.max(reserveLifecycleIntelligence.olderArBalance ? reserveLifecycleIntelligence.olderArBalance / Math.max(reserveLifecycleIntelligence.olderArPercent / 100, 0.01) - reserveLifecycleIntelligence.olderArBalance : 0, 0)} max={Math.max(reserveLifecycleIntelligence.olderArBalance / Math.max(reserveLifecycleIntelligence.olderArPercent / 100, 0.01), 1)} />
+            <MiniBar label="Over 90 Days" value={reserveLifecycleIntelligence.olderArBalance} max={Math.max(reserveLifecycleIntelligence.olderArBalance / Math.max(reserveLifecycleIntelligence.olderArPercent / 100, 0.01), 1)} />
+            <MiniBar label="Top Customer Exposure" value={reserveLifecycleIntelligence.concentrationExposure} max={Math.max(reserveLifecycleIntelligence.concentrationExposure, reserveLifecycleIntelligence.olderArBalance, 1)} />
+          </div>
+          <p className="mt-3 text-xs leading-5 text-cyan-50/70">
+            Older AR totals {formatCurrency(reserveLifecycleIntelligence.olderArBalance)} and top customer exposure totals {formatCurrency(reserveLifecycleIntelligence.concentrationExposure)}.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-cyan-200">Reserve vs Write-off Visual</p>
+          <div className="mt-4 space-y-3">
+            <MiniBar label="Reserve Guidance" value={reserveLifecycleIntelligence.suggestedReserveHigh} max={Math.max(reserveLifecycleIntelligence.suggestedReserveHigh, reserveLifecycleIntelligence.writeOffItems[0]?.amount || 0, 1)} />
+            <MiniBar label="Largest Write-off Item" value={reserveLifecycleIntelligence.writeOffItems[0]?.amount || 0} max={Math.max(reserveLifecycleIntelligence.suggestedReserveHigh, reserveLifecycleIntelligence.writeOffItems[0]?.amount || 0, 1)} />
+            <MiniBar label="Reserve Burn Rate" value={reserveLifecycleIntelligence.reserveBurnRate || 0} max={100} suffix="%" />
+          </div>
+          <p className="mt-3 text-xs leading-5 text-cyan-50/70">
+            Burn rate: {reserveLifecycleIntelligence.reserveBurnRate === null ? "Not enough data" : `${reserveLifecycleIntelligence.reserveBurnRate.toFixed(1)}%`}. Use with collection trends and customer exposure.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Advisory reserve commentary</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-cyan-50/80">
+            {reserveLifecycleIntelligence.commentary.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Backend AI review focus</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-cyan-50/80">
+            {(reserveLifecycleIntelligence.internalFlags.length
+              ? reserveLifecycleIntelligence.internalFlags
+              : ["No elevated reserve lifecycle flags were identified from available data. Continue customer-specific collectibility review where appropriate."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {reviewGroups.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+            <p className="text-sm font-bold text-white">{group.title}</p>
+            <div className="mt-3 grid gap-3">
+              {group.items.length ? (
+                group.items.slice(0, showVirtualCfoDetail ? 6 : 3).map((item) => (
+                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-bold text-[#F9FAFB]">{item.label}</p>
+                      <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-xs font-bold text-cyan-100">
+                        {formatCurrency(item.amount)}
+                        {item.percent !== undefined && item.percent !== null ? ` | ${item.percent.toFixed(1)}%` : ""}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-[#CBD5E1]">{item.commentary}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-cyan-50/70">No review items were identified from available data for this category.</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showVirtualCfoDetail && reserveLifecycleIntelligence.reserveForecast.length > 0 && (
+        <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Virtual CFO Reserve Forecast</p>
+          <div className="mt-3 overflow-x-auto rounded-xl border border-[#243041]">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#111827] text-cyan-100">
+                <tr>
+                  <th className="px-4 py-3">Period</th>
+                  <th className="px-4 py-3 text-right">Projected Older AR</th>
+                  <th className="px-4 py-3 text-right">Projected Reserve Exposure</th>
+                  <th className="px-4 py-3">Review Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reserveLifecycleIntelligence.reserveForecast.map((period) => (
+                  <tr key={period.period} className="border-t border-[#243041]">
+                    <td className="px-4 py-3 font-semibold text-white">{period.period}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-cyan-50/80">{formatCurrency(period.projectedOlderAr)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-cyan-50/80">{formatCurrency(period.projectedReserveExposure)}</td>
+                    <td className="px-4 py-3 text-cyan-50/70">{period.commentary}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ul className="mt-3 space-y-2 text-xs leading-5 text-cyan-50/70">
+            {reserveLifecycleIntelligence.forecastIntegrationNotes.map((note) => (
+              <li key={note}>- {note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function getValidationToneClasses(status: ValidationStatus) {
   if (status === "green") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-200";
   if (status === "yellow") return "border-amber-500/30 bg-amber-500/10 text-amber-200";
@@ -14281,12 +20116,10 @@ function getValidationLabel(status: ValidationStatus) {
 
 function ValidationDashboardSection({
   validationResults,
-  overrideAccepted,
-  onOverrideAcceptedChange,
+  apCutoffIntelligence,
 }: {
   validationResults: ValidationResults;
-  overrideAccepted: boolean;
-  onOverrideAcceptedChange: (accepted: boolean) => void;
+  apCutoffIntelligence?: ApCutoffIntelligence;
 }) {
   const visibleChecks = validationResults.checks.filter((check) => check.status !== "gray" || check.category !== "periods");
   const criticalChecks = validationResults.checks.filter((check) => check.status === "red");
@@ -14315,20 +20148,90 @@ function ValidationDashboardSection({
         <KpiCard label="AI Commentary Confidence" value={`${validationResults.AICommentaryConfidenceScore}%`} />
       </div>
 
+      {apCutoffIntelligence?.enabled && (
+        <div className="mt-6 rounded-3xl border border-amber-400/20 bg-amber-500/10 p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">Financial Oversight Review</p>
+              <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Unrecorded Liability / AP Cutoff Intelligence</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-50/80">
+                Virtual CFO preparer review support for AP cutoff timing, recurring late vendor invoices, recurring accrual candidates, liability timing quality, and close-quality review. This is not audit, fraud, or assurance software.
+              </p>
+            </div>
+            <span className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-black text-amber-100">
+              {apCutoffIntelligence.recurringAccrualRiskStatus} Review Focus
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {apCutoffIntelligence.reviewWindows.map((window) => (
+              <div key={window.daysAfterClose} className="rounded-2xl border border-amber-300/20 bg-[#0B1020] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-amber-200">{window.daysAfterClose}-day post-close window</p>
+                <p className="mt-2 text-2xl font-black text-white">{window.candidateCount}</p>
+                <p className="mt-1 text-xs text-amber-50/70">
+                  {formatCurrency(window.totalAmount)} across {window.vendorCount} vendor{window.vendorCount === 1 ? "" : "s"}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-amber-300/20 bg-[#0B1020] p-4">
+              <p className="text-sm font-bold text-white">Recurring Vendor Accrual Review</p>
+              <div className="mt-3 grid gap-3">
+                {apCutoffIntelligence.recurringVendorProfiles.length ? (
+                  apCutoffIntelligence.recurringVendorProfiles.slice(0, 4).map((profile) => (
+                    <div key={profile.vendor} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="font-bold text-[#F9FAFB]">{profile.vendor}</p>
+                        <span className="rounded-full bg-amber-300/10 px-2 py-1 text-xs font-bold text-amber-200">{profile.riskStatus}</span>
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-[#CBD5E1]">{profile.commentary}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-[#CBD5E1]">No recurring vendor AP cutoff patterns were identified from the available post-close detail.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-amber-300/20 bg-[#0B1020] p-4">
+              <p className="text-sm font-bold text-white">Accrual Clearing Review</p>
+              <div className="mt-3 grid gap-3">
+                {apCutoffIntelligence.accrualClearingItems.length ? (
+                  apCutoffIntelligence.accrualClearingItems.map((item) => (
+                    <div key={item.accountName} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="font-bold text-[#F9FAFB]">{item.accountName}</p>
+                        <span className="rounded-full bg-slate-500/15 px-2 py-1 text-xs font-bold text-slate-200">{item.status}</span>
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-[#CBD5E1]">{item.commentary}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-[#CBD5E1]">No accrued liability clearing patterns were identified from the available GL detail.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-amber-300/20 bg-[#111827] p-4">
+            <p className="text-sm font-bold text-white">Review-Oriented Commentary</p>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+              {apCutoffIntelligence.commentary.map((item) => (
+                <li key={item}>- {item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {criticalChecks.length > 0 && (
         <div className="mt-6 rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm leading-6 text-red-100">
           <p className="font-bold">Critical mismatches must be resolved before KPI approval, PDF generation, and PowerPoint generation.</p>
-          <label className="mt-3 flex items-start gap-3">
-            <input
-              type="checkbox"
-              checked={overrideAccepted}
-              onChange={(event) => onOverrideAcceptedChange(event.target.checked)}
-              className="mt-1"
-            />
-            <span>
-              Override and continue internally with reduced confidence. Client-facing PDF and PowerPoint exports remain clean and do not disclose this QA detail.
-            </span>
-          </label>
+          <p className="mt-3">
+            Use the validation review action to proceed internally with reduced confidence, or return to imports if the mismatch should be corrected first. Client-facing PDF and PowerPoint exports remain clean and do not disclose this QA detail.
+          </p>
         </div>
       )}
 
@@ -14366,12 +20269,228 @@ function ValidationDashboardSection({
   );
 }
 
+function ValidationReviewModal({
+  validationResults,
+  onProceed,
+  onBack,
+}: {
+  validationResults: ValidationResults;
+  onProceed: () => void;
+  onBack: () => void;
+}) {
+  const hasCriticalFailures = validationResults.hasCriticalFailures;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-4 backdrop-blur-sm">
+      <section className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-[#334155] bg-[#0B1020] shadow-2xl shadow-black/40">
+        <div className="shrink-0 flex flex-col gap-4 border-b border-[#243041] bg-[#111827] px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#5B8CFF]">Validation Review</p>
+            <h2 className="mt-2 text-2xl font-bold text-white">Confirm reconciliation results</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#CBD5E1]">
+              Review the internal QA results before customizing the package. These checks stay internal and are not included in client-facing exports.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-full border border-slate-700 px-4 py-2 text-xs font-bold text-slate-200 transition hover:border-slate-500"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+        <ValidationDashboardSection validationResults={validationResults} />
+        </div>
+
+        <div className="shrink-0 flex flex-col gap-3 border-t border-[#243041] bg-[#111827] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs leading-5 text-[#94A3B8]">
+            {hasCriticalFailures
+              ? "Proceeding accepts the internal mismatch review and continues with reduced confidence."
+              : "Validation does not show critical blockers. Continue when the results look right."}
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded-full border border-slate-700 bg-[#0B1020] px-5 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500"
+            >
+              Take Me Back
+            </button>
+            <button
+              type="button"
+              onClick={onProceed}
+              className="rounded-full bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-500"
+            >
+              Proceed to Step 3
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function ReportMetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-h-28 flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-5">
       <p className="text-sm font-medium text-slate-500">{label}</p>
       <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
     </div>
+  );
+}
+
+function FluxReviewWorkspace({
+  packageTier,
+  rows,
+  reviewState,
+  onReviewStateChange,
+  confirmed,
+  onConfirmedChange,
+}: {
+  packageTier: PackageTier;
+  rows: Array<{ row: FluxRow; basisLabel: string }>;
+  reviewState: Record<string, FluxReviewRowState>;
+  onReviewStateChange: Dispatch<SetStateAction<Record<string, FluxReviewRowState>>>;
+  confirmed: boolean;
+  onConfirmedChange: (confirmed: boolean) => void;
+}) {
+  const getState = (row: FluxRow, basisLabel: string): FluxReviewRowState => {
+    const key = getFluxRowKey(row, basisLabel);
+    return reviewState[key] || {
+      reviewed: false,
+      includeInDeliverables: true,
+      flagForManagement: row.severity === "High",
+      internalNote: "",
+      clientExplanation: row.commentary,
+    };
+  };
+  const updateRowState = (row: FluxRow, basisLabel: string, patch: Partial<FluxReviewRowState>) => {
+    const key = getFluxRowKey(row, basisLabel);
+    onConfirmedChange(false);
+    onReviewStateChange((current) => ({
+      ...current,
+      [key]: {
+        ...getState(row, basisLabel),
+        ...current[key],
+        ...patch,
+      },
+    }));
+  };
+  const reviewedCount = rows.filter(({ row, basisLabel }) => getState(row, basisLabel).reviewed).length;
+  const deliverableCount = rows.filter(({ row, basisLabel }) => getState(row, basisLabel).includeInDeliverables).length;
+  const flaggedCount = rows.filter(({ row, basisLabel }) => getState(row, basisLabel).flagForManagement).length;
+  const allReviewed = rows.length === 0 || reviewedCount === rows.length;
+  const tierGuidance =
+    packageTier === "essential"
+      ? "Essential focuses on month-over-month operational payroll, FTE, AR, and AP movement."
+      : packageTier === "professional"
+        ? "Professional supports controller-level month and quarter variance investigation without strategic recommendations."
+        : "Virtual CFO supports full advisory variance review, management discussion flags, and client-ready explanations.";
+
+  return (
+    <section id="flux-review" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#111827] p-8 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Step 5 - Review Flux</p>
+          <h2 className="text-3xl font-bold text-white">Internal Variance Review Workspace</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#CBD5E1]">
+            Review variance activity before any client deliverable is generated. Internal notes stay in this workspace; only approved client-facing explanations and included rows flow forward.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] px-4 py-3 text-sm text-[#CBD5E1]">
+          <p className="font-semibold text-white">{PACKAGE_LABELS[packageTier]} flux scope</p>
+          <p className="mt-1 max-w-sm">{tierGuidance}</p>
+        </div>
+      </div>
+
+      <div className="mb-6 grid gap-3 md:grid-cols-4">
+        <ReportMetricCard label="Variance Rows" value={String(rows.length)} />
+        <ReportMetricCard label="Reviewed" value={`${reviewedCount}/${rows.length || 0}`} />
+        <ReportMetricCard label="Client Included" value={String(deliverableCount)} />
+        <ReportMetricCard label="Management Flags" value={String(flaggedCount)} />
+      </div>
+
+      {!rows.length ? (
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-6 text-sm text-[#CBD5E1]">
+          No flux rows met the selected package scope and thresholds. You can approve this step and continue to PDF generation.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {rows.map(({ row, basisLabel }) => {
+            const state = getState(row, basisLabel);
+            const severityColor = row.severity === "High" ? "text-red-300" : row.severity === "Moderate" ? "text-amber-300" : "text-emerald-300";
+            return (
+              <article key={getFluxRowKey(row, basisLabel)} className="rounded-2xl border border-[#334155] bg-[#0B1120] p-5">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#94A3B8]">
+                      <span>{basisLabel}</span>
+                      <span className={severityColor}>{row.severity}</span>
+                      <span>{formatFluxPercentLabel(row)}</span>
+                    </div>
+                    <h3 className="mt-2 text-xl font-bold text-white">{row.accountName}</h3>
+                    <p className="mt-1 text-sm text-[#CBD5E1]">
+                      {formatCurrency(row.priorAmount)} to {formatCurrency(row.currentAmount)} ({formatCurrency(row.dollarVariance)})
+                    </p>
+                    <p className="mt-2 text-sm text-[#94A3B8]">Top driver: {isMeaningfulFluxDriver(row.topDriver) ? row.topDriver : "Review GL detail for named vendor, customer, employee, or memo context."}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <label className="flex items-center gap-2 rounded-full border border-[#334155] px-3 py-2 text-xs font-semibold text-[#CBD5E1]">
+                      <input type="checkbox" checked={state.reviewed} onChange={(event) => updateRowState(row, basisLabel, { reviewed: event.target.checked })} />
+                      Reviewed
+                    </label>
+                    <label className="flex items-center gap-2 rounded-full border border-[#334155] px-3 py-2 text-xs font-semibold text-[#CBD5E1]">
+                      <input type="checkbox" checked={state.flagForManagement} onChange={(event) => updateRowState(row, basisLabel, { flagForManagement: event.target.checked })} />
+                      Flag
+                    </label>
+                    <label className="flex items-center gap-2 rounded-full border border-[#334155] px-3 py-2 text-xs font-semibold text-[#CBD5E1]">
+                      <input type="checkbox" checked={state.includeInDeliverables} onChange={(event) => updateRowState(row, basisLabel, { includeInDeliverables: event.target.checked })} />
+                      Include in deliverables
+                    </label>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  <label className="block text-sm font-semibold text-[#CBD5E1]">
+                    Internal preparer notes
+                    <textarea
+                      className="mt-2 h-24 w-full rounded-2xl border border-[#334155] bg-[#111827] p-3 text-sm text-white outline-none focus:border-[#5B8CFF]"
+                      placeholder="Investigation notes for the preparer only. These never export."
+                      value={state.internalNote}
+                      onChange={(event) => updateRowState(row, basisLabel, { internalNote: event.target.value })}
+                    />
+                  </label>
+                  <label className="block text-sm font-semibold text-[#CBD5E1]">
+                    Client-facing explanation
+                    <textarea
+                      className="mt-2 h-24 w-full rounded-2xl border border-[#334155] bg-[#111827] p-3 text-sm text-white outline-none focus:border-[#5B8CFF]"
+                      placeholder="Polished explanation approved for the client package."
+                      value={state.clientExplanation}
+                      onChange={(event) => updateRowState(row, basisLabel, { clientExplanation: event.target.value })}
+                    />
+                  </label>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-[#334155] bg-[#0B1120] p-4 md:flex-row md:items-center md:justify-between">
+        <p className="text-sm text-[#CBD5E1]">
+          {allReviewed ? "Flux review is ready for approval." : "Mark each variance reviewed before approving the flux step."}
+        </p>
+        <button
+          type="button"
+          disabled={!allReviewed}
+          onClick={() => onConfirmedChange(true)}
+          className="rounded-full bg-[#5B8CFF] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#4A7AE6] disabled:cursor-not-allowed disabled:bg-slate-600"
+        >
+          {confirmed ? "Flux Review Approved" : "Approve Flux Review"}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -14385,6 +20504,7 @@ function BoardPackagePreview({
   sections,
   kpis,
   apKpis,
+  arReserveIntelligence,
   inventoryKpis,
   inventoryIntelligence,
   fixedAssetKpis,
@@ -14403,6 +20523,7 @@ function BoardPackagePreview({
   sections: BoardPackageSection[];
   kpis: KPIs;
   apKpis: APKpis;
+  arReserveIntelligence: ARReserveIntelligence;
   inventoryKpis: InventoryKpis;
   inventoryIntelligence: InventoryIntelligence;
   fixedAssetKpis: FixedAssetKpis;
@@ -14414,6 +20535,7 @@ function BoardPackagePreview({
 }) {
   const includedCount = sections.filter((section) => section.status === "Included").length;
   const completenessScore = Math.round((includedCount / sections.length) * 100);
+  const includeArReservePreview = sections.some((section) => section.title === "AR and AP Aging" && section.status === "Included");
 
   return (
     <section id="pdf-review" className="workflow-section mt-10 rounded-[2rem] border border-[#243041] bg-[#F9FAFB] p-2 text-[#111827] shadow-2xl shadow-black/20">
@@ -14470,6 +20592,12 @@ function BoardPackagePreview({
           <ReportMetricCard label="Gross Profit" value={formatMoney(kpis.grossProfit)} />
           <ReportMetricCard label="Net Income" value={formatMoney(kpis.netIncome)} />
           <ReportMetricCard label="Cash" value={formatMoney(kpis.cash)} />
+          {includeArReservePreview && (
+            <>
+              <ReportMetricCard label="AR Reserve Guidance" value={formatMoney(arReserveIntelligence.totalSuggestedReserve)} />
+              <ReportMetricCard label="AR Collection Risk" value={arReserveIntelligence.collectionRiskStatus} />
+            </>
+          )}
           {includeAp && <ReportMetricCard label="AP Aging Total" value={formatMoney(apKpis.total)} />}
           {includeInventory && (
             <ReportMetricCard label="Inventory Value" value={formatMoney(inventoryKpis.totalValue)} />
@@ -14664,9 +20792,10 @@ function getWorkflowStepLabel(step: number) {
     2: "Import Reports",
     3: "Customize Package",
     4: "Review KPIs",
-    5: "Generate & Review PDF",
-    6: "Create PowerPoint",
-    7: "Complete Package",
+    5: "Review Flux",
+    6: "Generate & Review PDF",
+    7: "Create PowerPoint",
+    8: "Complete Package",
   };
   return labels[step] || "Workflow";
 }
@@ -14721,13 +20850,17 @@ function getQuickBooksTroubleshootingPlaybook(topic: string) {
   ];
 }
 
-function FinSightCopilotPanel({
+function AdvisacorCopilotPanel({
   packageTier,
+  personaOutputMode,
   activeWorkflowStep,
+  selectedImportMethod,
   reports,
   validationResults,
   kpis,
   arKpis,
+  arReserveIntelligence,
+  reserveLifecycleIntelligence,
   apKpis,
   inventoryIntelligence,
   payrollAnalysis,
@@ -14737,13 +20870,24 @@ function FinSightCopilotPanel({
   yearFluxRows,
   dso,
   selectedUploadContext,
+  packageQaFindings,
+  apCutoffIntelligence,
+  revenueRecognitionIntelligence,
+  workforceIntelligence,
+  treasuryLiquidityIntelligence,
+  manufacturingInventoryIntelligence,
+  closeManagementIntelligence,
 }: {
   packageTier: PackageTier;
+  personaOutputMode: PersonaOutputModeId;
   activeWorkflowStep: number;
+  selectedImportMethod: ImportMethod;
   reports: UploadReport[];
   validationResults: ValidationResults;
   kpis: KPIs;
   arKpis: AgingKpis;
+  arReserveIntelligence: ARReserveIntelligence;
+  reserveLifecycleIntelligence: ReserveLifecycleIntelligence;
   apKpis: APKpis;
   inventoryIntelligence: InventoryIntelligence;
   payrollAnalysis: PayrollAnalysis;
@@ -14753,16 +20897,22 @@ function FinSightCopilotPanel({
   yearFluxRows: FluxRow[];
   dso: number | null;
   selectedUploadContext: SelectedUploadContext | null;
+  packageQaFindings: PackageQaFinding[];
+  apCutoffIntelligence: ApCutoffIntelligence;
+  revenueRecognitionIntelligence: RevenueRecognitionIntelligence;
+  workforceIntelligence: WorkforceIntelligence;
+  treasuryLiquidityIntelligence: TreasuryLiquidityIntelligence;
+  manufacturingInventoryIntelligence: ManufacturingInventoryIntelligence;
+  closeManagementIntelligence: CloseManagementIntelligence;
 }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [showMoreSuggestions, setShowMoreSuggestions] = useState(false);
   const [messages, setMessages] = useState<CopilotMessage[]>([
     {
       id: "welcome",
       sender: "assistant",
       text:
-        "Hi, I’m FinSight Copilot. I can help with workflow steps, QuickBooks report issues, KPI definitions, reconciliation mismatches, and preparer review questions based on the current package context.",
+        "Hi, I’m Advisacor Copilot. I can help with workflow steps, QuickBooks report issues, KPI definitions, reconciliation mismatches, delivery automation, and preparer review questions based on the current package context.",
     },
   ]);
   const uploadedReports = reports.filter((report) => report.data);
@@ -14777,6 +20927,9 @@ function FinSightCopilotPanel({
   const canAnswerFinancialQa = copilotCapabilities.canUseFinancialQA;
   const advancedCfoMode = isVirtualCfo(packageTier);
   const currentStepLabel = getWorkflowStepLabel(activeWorkflowStep);
+  const selectedPersona =
+    personaOutputModes.find((persona: { id: string }) => persona.id === personaOutputMode) || personaOutputModes[3];
+  const selectedPersonaRole = getCopilotRoleForPersona(personaOutputMode);
   const kpiSummaryItems = [
     `Revenue ${formatMoney(kpis.revenue)}`,
     `Net Income ${formatMoney(kpis.netIncome)}`,
@@ -14791,9 +20944,44 @@ function FinSightCopilotPanel({
       });
     };
 
+    if (personaOutputMode === "business-owner" && activeWorkflowStep >= 4) {
+      add("What does this mean?", "What should I focus on?", "Why did profit change?");
+      return prompts;
+    }
+
+    if (personaOutputMode === "fractional-cfo" && activeWorkflowStep >= 4) {
+      add("What would ownership focus on?", "Prepare board talking points", "Review liquidity outlook");
+      return prompts;
+    }
+
+    if (personaOutputMode === "controller" && activeWorkflowStep >= 4) {
+      add("Review close quality", "Explain this variance", "What should stay internal?");
+      return prompts;
+    }
+
+    if (personaOutputMode === "bookkeeper" && activeWorkflowStep <= 4) {
+      add("Help me upload reports", "Explain AP/AR issues", "What should I review next?");
+      return prompts;
+    }
+
     if (selectedUploadContext && activeWorkflowStep <= 2) {
       add("Help me with this upload", "Common QuickBooks issues", "Why does this report matter?");
       if (copilotCapabilities.canUseFinancialQA) add("How do I export this from QuickBooks?");
+      return prompts;
+    }
+
+    if (activeWorkflowStep === 2 && selectedImportMethod === "quickbooks") {
+      add("Help me connect QuickBooks", "What permissions are needed?", "What happens after connection?");
+      return prompts;
+    }
+
+    if (activeWorkflowStep === 2 && selectedImportMethod === "folder") {
+      add("How should I name files?", "What should be in the folder?", "Help me export reports");
+      return prompts;
+    }
+
+    if (activeWorkflowStep === 2 && selectedImportMethod === "manual") {
+      add("Help me with this upload", "How do I export this from QuickBooks?", "Common QuickBooks issues");
       return prompts;
     }
 
@@ -14814,7 +21002,13 @@ function FinSightCopilotPanel({
     }
 
     if (activeWorkflowStep === 4) {
-      add("Explain this KPI");
+      add("Explain this KPI", "Review AR reserve exposure");
+      if (workforceIntelligence.enabled) add("Review workforce productivity");
+      if (treasuryLiquidityIntelligence.enabled) add("Review liquidity position");
+      if (revenueRecognitionIntelligence.enabled) add("Review revenue timing");
+      if (manufacturingInventoryIntelligence.enabled) add("Review manufacturing costs");
+      if (closeManagementIntelligence.enabled) add("Review close quality");
+      if (isVirtualCfo(packageTier) && apCutoffIntelligence.candidates.length) add("Review AP cutoff timing");
       if (copilotCapabilities.canUseFinancialQA) {
         add("Why did this KPI change?", "What should I review before sending?");
       } else {
@@ -14824,6 +21018,15 @@ function FinSightCopilotPanel({
     }
 
     if (activeWorkflowStep === 5) {
+      if (copilotCapabilities.canUseFinancialQA) {
+        add("Explain this variance", "What should I document?", "What should stay internal?");
+      } else {
+        add("Explain this variance", "Why does this not reconcile?", "Common QuickBooks issues");
+      }
+      return prompts;
+    }
+
+    if (activeWorkflowStep === 6 || activeWorkflowStep === 7) {
       if (copilotCapabilities.canUseStrategicAI) {
         add("How can I improve this presentation?", "What would ownership focus on?", "What recommendations would you make?");
       } else if (copilotCapabilities.canUseFinancialQA) {
@@ -14856,11 +21059,11 @@ function FinSightCopilotPanel({
   };
   const contextualQuickPrompts = buildContextualQuickPrompts();
   const visibleQuickPrompts = contextualQuickPrompts.slice(0, 3);
-  const hiddenQuickPrompts = contextualQuickPrompts.slice(3);
   const buildBackendPayload = (question: string): CopilotBackendPayload => ({
     context: {
       workflowStep: activeWorkflowStep,
       workflowStepLabel: currentStepLabel,
+      importMethod: selectedImportMethod,
       selectedPackage: packageTier,
       uploadedReports: reports.map((report) => ({
         id: report.id,
@@ -14905,6 +21108,35 @@ function FinSightCopilotPanel({
         topDriver: row.topDriver,
         commentary: row.commentary,
       })),
+      packageQaFindings,
+      apCutoffIntelligence: {
+        recurringAccrualRiskStatus: apCutoffIntelligence.recurringAccrualRiskStatus,
+        reviewWindows: apCutoffIntelligence.reviewWindows,
+        recurringVendorProfiles: apCutoffIntelligence.recurringVendorProfiles.slice(0, 5),
+        commentary: apCutoffIntelligence.commentary,
+      },
+      reserveLifecycleIntelligence: {
+        adequacyStatus: reserveLifecycleIntelligence.adequacyStatus,
+        suggestedReserveLow: reserveLifecycleIntelligence.suggestedReserveLow,
+        suggestedReserveHigh: reserveLifecycleIntelligence.suggestedReserveHigh,
+        reserveToArPercent: reserveLifecycleIntelligence.reserveToArPercent,
+        olderArBalance: reserveLifecycleIntelligence.olderArBalance,
+        olderArPercent: reserveLifecycleIntelligence.olderArPercent,
+        concentrationExposure: reserveLifecycleIntelligence.concentrationExposure,
+        concentrationPercent: reserveLifecycleIntelligence.concentrationPercent,
+        reserveVolatility: reserveLifecycleIntelligence.reserveVolatility,
+        reserveForecast: reserveLifecycleIntelligence.reserveForecast,
+        commentary: reserveLifecycleIntelligence.commentary,
+        internalFlags: reserveLifecycleIntelligence.internalFlags,
+      },
+      revenueRecognitionIntelligence: {
+        deferredRevenueBalance: revenueRecognitionIntelligence.deferredRevenueBalance,
+        unbilledArBalance: revenueRecognitionIntelligence.unbilledArBalance,
+        anticipatedRecognitionSchedule: revenueRecognitionIntelligence.anticipatedRecognitionSchedule,
+        commentary: revenueRecognitionIntelligence.commentary,
+        internalFlags: revenueRecognitionIntelligence.internalFlags,
+        forecastIntegrationNotes: revenueRecognitionIntelligence.forecastIntegrationNotes,
+      },
       payrollFteResults: {
         totalCurrentFte: payrollAnalysis.totalCurrentFte,
         totalPriorFte: payrollAnalysis.totalPriorFte,
@@ -14914,10 +21146,56 @@ function FinSightCopilotPanel({
         highestFteIncreaseDepartment: payrollAnalysis.highestFteIncreaseDepartment,
         highestPayrollCostIncreaseDepartment: payrollAnalysis.highestPayrollCostIncreaseDepartment,
       },
+      workforceIntelligence: {
+        revenuePerFte: workforceIntelligence.revenuePerFte,
+        payrollToRevenuePercent: workforceIntelligence.payrollToRevenuePercent,
+        productivityItems: workforceIntelligence.productivityItems,
+        departmentScalingItems: workforceIntelligence.departmentScalingItems.slice(0, 6),
+        internalFlags: workforceIntelligence.internalFlags,
+        forecastIntegrationNotes: workforceIntelligence.forecastIntegrationNotes,
+      },
+      treasuryLiquidityIntelligence: {
+        cashBalance: treasuryLiquidityIntelligence.cashBalance,
+        workingCapital: treasuryLiquidityIntelligence.workingCapital,
+        currentRatio: treasuryLiquidityIntelligence.currentRatio,
+        quickRatio: treasuryLiquidityIntelligence.quickRatio,
+        liquidityRunwayWeeks: treasuryLiquidityIntelligence.liquidityRunwayWeeks,
+        bankAccountCount: treasuryLiquidityIntelligence.bankAccountCount,
+        cashForecast: treasuryLiquidityIntelligence.cashForecast,
+        commentary: treasuryLiquidityIntelligence.commentary,
+        internalFlags: treasuryLiquidityIntelligence.internalFlags,
+      },
+      manufacturingInventoryIntelligence: {
+        operationalEfficiencyStatus: manufacturingInventoryIntelligence.operationalEfficiencyStatus,
+        inventoryGrowthPercent: manufacturingInventoryIntelligence.inventoryGrowthPercent,
+        adjustmentTrendAmount: manufacturingInventoryIntelligence.adjustmentTrendAmount,
+        workingCapitalImpact: manufacturingInventoryIntelligence.workingCapitalImpact,
+        reserveExposure: manufacturingInventoryIntelligence.reserveExposure,
+        ppvImpact: manufacturingInventoryIntelligence.ppvImpact,
+        bomVarianceImpact: manufacturingInventoryIntelligence.bomVarianceImpact,
+        laborVarianceImpact: manufacturingInventoryIntelligence.laborVarianceImpact,
+        jobProfitabilityImpact: manufacturingInventoryIntelligence.jobProfitabilityImpact,
+        operationalCommentary: manufacturingInventoryIntelligence.operationalCommentary,
+        internalFlags: manufacturingInventoryIntelligence.internalFlags,
+      },
+      closeManagementIntelligence: {
+        closeQualityScore: closeManagementIntelligence.closeQualityScore,
+        closeQualityStatus: closeManagementIntelligence.closeQualityStatus,
+        staleLiabilityItems: closeManagementIntelligence.staleLiabilityItems,
+        staleAssetItems: closeManagementIntelligence.staleAssetItems,
+        prepaidLifecycleItems: closeManagementIntelligence.prepaidLifecycleItems,
+        accrualReversalItems: closeManagementIntelligence.accrualReversalItems,
+        manualJournalEntryItems: closeManagementIntelligence.manualJournalEntryItems,
+        accountActivityItems: closeManagementIntelligence.accountActivityItems,
+        scoreDrivers: closeManagementIntelligence.scoreDrivers,
+        operationalCommentary: closeManagementIntelligence.operationalCommentary,
+        internalFlags: closeManagementIntelligence.internalFlags,
+      },
       selectedUploadContext,
     },
     userQuestion: question,
-    selectedRole: inferCopilotRole(packageTier, activeWorkflowStep, question),
+    selectedRole: selectedPersonaRole,
+    selectedPersonaOutputMode: personaOutputMode,
     selectedPackage: packageTier,
   });
   const getBackendRouteReason = (question: string): "local" | "ai" | "advanced-ai" => {
@@ -14925,6 +21203,12 @@ function FinSightCopilotPanel({
     const localPatterns = [
       "help me with this upload",
       "help me upload reports",
+      "help me connect quickbooks",
+      "what permissions are needed",
+      "what happens after connection",
+      "how should i name files",
+      "what should be in the folder",
+      "help me export reports",
       "how do i export this from quickbooks",
       "where do i find",
       "what columns are needed",
@@ -14935,6 +21219,43 @@ function FinSightCopilotPanel({
       "file type",
       "file format",
       "dso",
+      "reserve",
+      "allowance",
+      "collectibility",
+      "collection",
+      "receivable",
+      "write-off",
+      "write off",
+      "unapplied credit",
+      "payroll",
+      "fte",
+      "workforce",
+      "staffing",
+      "labor",
+      "productivity",
+      "cash",
+      "liquidity",
+      "treasury",
+      "working capital",
+      "runway",
+      "inventory",
+      "manufacturing",
+      "ppv",
+      "purchase price variance",
+      "bom",
+      "labor variance",
+      "job profitability",
+      "cycle count",
+      "production efficiency",
+      "close quality",
+      "close management",
+      "stale balance",
+      "stale liability",
+      "stale asset",
+      "manual journal",
+      "journal entry",
+      "accrual reversal",
+      "accounting operations",
       "net margin",
       "ratio",
       "quickbooks troubleshooting",
@@ -15011,13 +21332,13 @@ function FinSightCopilotPanel({
   const getAiUnavailableMessage = (route: "ai" | "advanced-ai") => {
     if (packageTier === "essential") {
       return route === "advanced-ai"
-        ? "Strategic CFO-level analysis is available in the Virtual CFO package. I can still help with workflow, uploads, QuickBooks issues, KPI definitions, and reconciliation basics."
-        : "FinSight can help analyze this question, but financial Q&A is available in the Professional package. I can still provide workflow guidance and reconciliation basics.";
+        ? "Strategic CFO-level analysis, forecasting, and board guidance are available in the Virtual CFO package. I can still help with workflow, uploads, QuickBooks issues, KPI definitions, payroll/FTE, AR/AP, and month-to-month variance explanations."
+        : "Broader financial Q&A is available in the Professional package. I can still help with payroll/FTE, AR/AP, KPI definitions, QuickBooks troubleshooting, reconciliation basics, and month-to-month variance explanations.";
     }
     if (route === "advanced-ai" && packageTier === "professional") {
       return "Strategic CFO-level analysis, board advisory guidance, risk review, and preparer review intelligence are available in the Virtual CFO package. I can still provide financial Q&A and reconciliation guidance.";
     }
-    return "The AI analysis service is unavailable right now. Here is FinSight Help guidance instead.";
+    return "The AI analysis service is unavailable right now. Here is Advisacor Help guidance instead.";
   };
   const requestBackendAiResponse = async (
     question: string,
@@ -15048,7 +21369,7 @@ function FinSightCopilotPanel({
   };
   const generateResponse = (question: string) => {
     const normalized = question.toLowerCase();
-    const role = inferCopilotRole(packageTier, activeWorkflowStep, question);
+    const role = selectedPersonaRole || inferCopilotRole(packageTier, activeWorkflowStep, question);
     const isFinancialQuestion =
       normalized.includes("concern") ||
       normalized.includes("risk") ||
@@ -15057,9 +21378,31 @@ function FinSightCopilotPanel({
       normalized.includes("anomal") ||
       normalized.includes("margin") ||
       normalized.includes("payroll") ||
+      normalized.includes("bad debt") ||
+      normalized.includes("reserve") ||
       normalized.includes("inventory reserve") ||
       normalized.includes("cash") ||
-      normalized.includes("working capital");
+      normalized.includes("working capital") ||
+      normalized.includes("manufacturing") ||
+      normalized.includes("ppv") ||
+      normalized.includes("bom") ||
+      normalized.includes("job profitability") ||
+      normalized.includes("cycle count") ||
+      normalized.includes("close quality") ||
+      normalized.includes("close management") ||
+      normalized.includes("stale balance") ||
+      normalized.includes("manual journal") ||
+      normalized.includes("journal entry") ||
+      normalized.includes("accounting operations");
+    const isEssentialOperationalQuestion =
+      normalized.includes("payroll") ||
+      normalized.includes("fte") ||
+      normalized.includes("ar") ||
+      normalized.includes("receivable") ||
+      normalized.includes("ap") ||
+      normalized.includes("payable") ||
+      normalized.includes("month") ||
+      normalized.includes("variance");
 
     const selectedUploadIntent =
       normalized.includes("help me with this upload") ||
@@ -15084,6 +21427,25 @@ function FinSightCopilotPanel({
       normalized.includes("benchmark against industry")
     ) {
       return "Coming soon: that request needs the backend AI endpoint so Copilot can safely draft longer narrative or benchmark analysis from the full context payload.";
+    }
+
+    if (normalized.includes("delivery") || normalized.includes("weekly") || normalized.includes("monthly") || normalized.includes("quarterly")) {
+      const outputList = automatedDeliveryOutputTypes
+        .map((output: { label: string; availability: string }) => `${output.label} (${output.availability})`)
+        .join("; ");
+      return `${selectedPersona.label} delivery mode uses the same Advisacor intelligence engine and changes the presentation layer only. Available automated outputs: ${outputList}. Delivery should run asynchronously through scheduled, queued, processing, awaiting approval, sent, or failed statuses so ERP sync, AI commentary, PDF/PPT generation, and email delivery do not freeze the frontend.`;
+    }
+
+    if (personaOutputMode === "business-owner" && (normalized.includes("cutoff") || normalized.includes("accrual"))) {
+      return "Some recurring expenses may not be lining up cleanly with the month they belong to. This may affect how monthly profit is shown. The preparer workspace should keep the accounting detail internal, while owner-facing output should explain the business impact in plain English.";
+    }
+
+    if (normalized.includes("connect quickbooks") || normalized.includes("permissions are needed") || normalized.includes("after connection")) {
+      return "QuickBooks connection is being staged as a guided import option. When enabled, Advisacor will request accounting report access, connect the company file, and use that connection to retrieve reports without exposing tokens in the browser. For now, use Import from Folder for the recommended workflow.";
+    }
+
+    if (normalized.includes("name files") || normalized.includes("in the folder") || normalized.includes("export reports")) {
+      return "For folder import, place the exported QuickBooks reports in one folder and keep names descriptive, such as Profit and Loss, Balance Sheet, AR Aging, AP Aging, Inventory Valuation, and General Ledger. Export to Excel when possible, keep dates consistent, and avoid renaming files to generic names like Report1.";
     }
 
     if (normalized.includes("help me upload reports")) {
@@ -15130,6 +21492,111 @@ function FinSightCopilotPanel({
       return `DSO means Days Sales Outstanding. It estimates how many days it takes to collect receivables. Lower is usually better because cash is collected faster. In this package, DSO is ${dso !== null ? `${dso.toFixed(1)} days` : "not finalized yet"}. Common inputs are Accounts Receivable, revenue, and the period length.`;
     }
 
+    if (
+      normalized.includes("workforce") ||
+      normalized.includes("payroll") ||
+      normalized.includes("fte") ||
+      normalized.includes("staffing") ||
+      normalized.includes("labor") ||
+      normalized.includes("productivity")
+    ) {
+      const topFlag = workforceIntelligence.internalFlags[0] || "Review payroll movement against FTE, revenue, utilization, and margin trends.";
+      return `Workforce Intelligence shows ${formatFte(payrollAnalysis.totalCurrentFte)} current FTE, payroll cost of ${formatMoney(
+        payrollAnalysis.totalCurrentPayrollCost,
+      )}, and revenue per FTE of ${
+        workforceIntelligence.revenuePerFte !== null ? formatCurrency(workforceIntelligence.revenuePerFte) : "N/A"
+      }. ${topFlag} Commentary should stay within the ${PACKAGE_LABELS[packageTier]} package scope.`;
+    }
+
+    if (
+      normalized.includes("cash") ||
+      normalized.includes("liquidity") ||
+      normalized.includes("treasury") ||
+      normalized.includes("working capital") ||
+      normalized.includes("runway")
+    ) {
+      const topFlag = treasuryLiquidityIntelligence.internalFlags[0] || "Review cash positioning with AR collections, AP timing, payroll timing, and working capital trends.";
+      const forecastText = treasuryLiquidityIntelligence.cashForecast.length
+        ? ` Forecast view projects ${formatCurrency(treasuryLiquidityIntelligence.cashForecast[treasuryLiquidityIntelligence.cashForecast.length - 1].projectedCash)} by ${treasuryLiquidityIntelligence.cashForecast[treasuryLiquidityIntelligence.cashForecast.length - 1].period.toLowerCase()}.`
+        : "";
+      return `Treasury & Liquidity Intelligence shows cash of ${formatMoney(
+        treasuryLiquidityIntelligence.cashBalance,
+      )}, working capital of ${
+        treasuryLiquidityIntelligence.workingCapital !== null ? formatMoney(treasuryLiquidityIntelligence.workingCapital) : "N/A"
+      }, and current ratio of ${
+        treasuryLiquidityIntelligence.currentRatio !== null ? treasuryLiquidityIntelligence.currentRatio.toFixed(2) : "N/A"
+      }. ${topFlag}${forecastText}`;
+    }
+
+    if (
+      normalized.includes("inventory") ||
+      normalized.includes("manufacturing") ||
+      normalized.includes("ppv") ||
+      normalized.includes("purchase price variance") ||
+      normalized.includes("bom") ||
+      normalized.includes("labor variance") ||
+      normalized.includes("job profitability") ||
+      normalized.includes("cycle count") ||
+      normalized.includes("production efficiency")
+    ) {
+      const topFlag = manufacturingInventoryIntelligence.internalFlags[0] || inventoryIntelligence.internalInventoryFlags[0] || "Review inventory turnover, adjustment activity, slow-moving exposure, and production variance signals.";
+      const manufacturingText = isVirtualCfo(packageTier)
+        ? ` PPV impact is ${formatMoney(manufacturingInventoryIntelligence.ppvImpact)}, BOM variance impact is ${formatMoney(manufacturingInventoryIntelligence.bomVarianceImpact)}, labor variance impact is ${formatMoney(manufacturingInventoryIntelligence.laborVarianceImpact)}, and job profitability impact is ${formatMoney(manufacturingInventoryIntelligence.jobProfitabilityImpact)}.`
+        : " Advanced PPV, BOM, labor variance, and job profitability intelligence is scoped to the Virtual CFO package.";
+      return `Manufacturing & Inventory Intelligence status is ${manufacturingInventoryIntelligence.operationalEfficiencyStatus.toLowerCase()}. Inventory working capital impact is ${formatMoney(
+        manufacturingInventoryIntelligence.workingCapitalImpact,
+      )}, adjustment trend is ${formatMoney(manufacturingInventoryIntelligence.adjustmentTrendAmount)}, and slow-moving reserve exposure is ${formatMoney(
+        manufacturingInventoryIntelligence.reserveExposure,
+      )}.${manufacturingText} ${topFlag}`;
+    }
+
+    if (
+      normalized.includes("close quality") ||
+      normalized.includes("close management") ||
+      normalized.includes("stale balance") ||
+      normalized.includes("stale liability") ||
+      normalized.includes("stale asset") ||
+      normalized.includes("manual journal") ||
+      normalized.includes("journal entry") ||
+      normalized.includes("accrual reversal") ||
+      normalized.includes("accounting operations")
+    ) {
+      const topFlag = closeManagementIntelligence.internalFlags[0] || "Review stale balances, accrual clearing, manual journal entries, and account activity patterns before final package approval.";
+      const virtualCfoText = isVirtualCfo(packageTier)
+        ? ` Virtual CFO close review includes ${closeManagementIntelligence.accrualReversalItems.length} accrual lifecycle item(s), ${closeManagementIntelligence.manualJournalEntryItems.length} manual JE item(s), and ${closeManagementIntelligence.accountActivityItems.length} account activity item(s).`
+        : " Detailed accrual lifecycle, manual journal entry, and accounting operations review is scoped primarily to Virtual CFO.";
+      return `Close Management Intelligence score is ${closeManagementIntelligence.closeQualityScore}/100 (${closeManagementIntelligence.closeQualityStatus}). Stale liability items: ${closeManagementIntelligence.staleLiabilityItems.length}; stale asset items: ${closeManagementIntelligence.staleAssetItems.length}; prepaid lifecycle items: ${closeManagementIntelligence.prepaidLifecycleItems.length}.${virtualCfoText} This is internal review intelligence only, not assurance or audit certification. ${topFlag}`;
+    }
+
+    if (normalized.includes("bad debt") || normalized.includes("reserve") || normalized.includes("allowance")) {
+      const forecastText = reserveLifecycleIntelligence.reserveForecast.length
+        ? ` Forecasted reserve exposure may reach ${formatMoney(reserveLifecycleIntelligence.reserveForecast[reserveLifecycleIntelligence.reserveForecast.length - 1].projectedReserveExposure)} if current aging and collection patterns continue.`
+        : "";
+      return `Reserve Lifecycle Intelligence estimates a preliminary review range of ${formatMoney(reserveLifecycleIntelligence.suggestedReserveLow)} to ${formatMoney(reserveLifecycleIntelligence.suggestedReserveHigh)} with ${reserveLifecycleIntelligence.adequacyStatus.toLowerCase()} status. Existing reserve is ${
+        arReserveIntelligence.existingReserveBalance === null ? "not identified" : formatMoney(arReserveIntelligence.existingReserveBalance)
+      }. Older AR is ${formatMoney(reserveLifecycleIntelligence.olderArBalance)} (${reserveLifecycleIntelligence.olderArPercent.toFixed(1)}% of AR), and top customer exposure is ${reserveLifecycleIntelligence.concentrationPercent.toFixed(1)}% of AR. This is review support only; consider customer-specific collectibility, historical write-offs, payment behavior, unapplied credits, and any management-specific reserve policy before finalizing commentary.${forecastText}`;
+    }
+
+    if (
+      normalized.includes("revenue timing") ||
+      normalized.includes("deferred") ||
+      normalized.includes("unbilled") ||
+      normalized.includes("billing cadence") ||
+      normalized.includes("recognition")
+    ) {
+      const scheduleText = revenueRecognitionIntelligence.anticipatedRecognitionSchedule.length
+        ? ` Anticipated recognition schedule: ${revenueRecognitionIntelligence.anticipatedRecognitionSchedule
+            .slice(0, 2)
+            .map((schedule) => `${schedule.period} ${formatMoney(schedule.expectedRecognition)}`)
+            .join("; ")}.`
+        : "";
+      return `Revenue Recognition Intelligence shows deferred revenue of ${formatMoney(
+        revenueRecognitionIntelligence.deferredRevenueBalance,
+      )} and unbilled AR of ${formatMoney(
+        revenueRecognitionIntelligence.unbilledArBalance,
+      )}. Review recognition timing, billing cadence, future obligations, and project invoicing patterns before using advanced commentary in client deliverables.${scheduleText}`;
+    }
+
     if (normalized.includes("net margin")) {
       return `Net Margin is Net Income divided by Revenue. It shows how much profit remains after direct costs and operating expenses. Based on uploaded data, net income is ${formatMoney(kpis.netIncome)} on revenue of ${formatMoney(kpis.revenue)}. Use it to evaluate profitability quality, not just sales volume.`;
     }
@@ -15144,7 +21611,7 @@ function FinSightCopilotPanel({
       const missingText = missingRequiredReports.length
         ? missingRequiredReports.map((report) => report.label).join(", ")
         : "no required reports are currently missing";
-      return `You are on ${currentStepLabel}. Uploaded reports: ${uploadedReports.length}. Missing required reports: ${missingText}. For QuickBooks, use the Report Guide in the action panel for exact Online and Desktop paths. Export reports to Excel where possible.`;
+      return `You are on ${currentStepLabel}. Uploaded reports: ${uploadedReports.length}. Missing required reports: ${missingText}. For QuickBooks, use the Report Guide in the import controls for exact Online and Desktop paths. Export reports to Excel where possible.`;
     }
 
     if (
@@ -15168,8 +21635,8 @@ function FinSightCopilotPanel({
       return `Validation is internal preparer QA only. Current status: ${getValidationLabel(validationResults.status)}. ${criticalText} Recommended approach: resolve source report/date/basis issues first; only use override when the preparer has documented the difference.`;
     }
 
-    if (isFinancialQuestion && !canAnswerFinancialQa) {
-      return "I can explain workflow, uploads, KPI definitions, DSO, ratios, and QuickBooks troubleshooting on this plan. Financial Q&A and advisory interpretation are available on Professional and Virtual CFO packages.";
+    if (isFinancialQuestion && !canAnswerFinancialQa && !isEssentialOperationalQuestion) {
+      return "I can explain workflow, uploads, KPI definitions, QuickBooks issues, payroll/FTE, AR/AP, and month-to-month variance questions on this plan. Broader financial Q&A is available on Professional, and strategic advisory or forecasting questions are available on Virtual CFO.";
     }
 
     if (normalized.includes("payroll")) {
@@ -15261,16 +21728,16 @@ function FinSightCopilotPanel({
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-sm font-black text-white shadow-inner ring-1 ring-white/20">AI</span>
           <span>
-            <span className="block text-sm font-black text-white">FinSight Copilot</span>
-            <span className="block text-xs text-blue-100/75">Workflow, QuickBooks, KPI, and advisory help</span>
+            <span className="block text-sm font-black text-white">Advisacor Copilot</span>
+            <span className="block text-xs text-blue-100/75">{selectedPersona.label} output style active</span>
           </span>
         </button>
       ) : (
         <section className="flex max-h-full w-full flex-col overflow-hidden rounded-[1.75rem] border border-white/20 bg-[#111B33] shadow-[0_30px_100px_rgba(0,0,0,0.58)] ring-1 ring-[#5B8CFF]/20 backdrop-blur">
           <div className="shrink-0 flex items-start justify-between gap-3 border-b border-white/10 bg-gradient-to-br from-[#2D4F8F] via-[#233D73] to-[#17233F] p-5">
             <div>
-              <p className="text-base font-black text-white">FinSight Copilot</p>
-              <p className="mt-1 text-sm text-blue-50/80">How can I help?</p>
+              <p className="text-base font-black text-white">Advisacor Copilot</p>
+              <p className="mt-1 text-sm text-blue-50/80">{selectedPersona.label} tone: {selectedPersona.tone}</p>
             </div>
             <button type="button" onClick={() => setOpen(false)} className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white/85 transition hover:bg-white/15">
               Hide
@@ -15278,8 +21745,11 @@ function FinSightCopilotPanel({
           </div>
           <div className="grid min-h-0 gap-5 overflow-y-auto bg-[#F4F6FB] p-5 text-slate-900">
             <p className="text-sm leading-6 text-slate-600">
-              Ask about uploads, QuickBooks issues, KPIs, reconciliations, or financial risks.
+              Ask about uploads, QuickBooks issues, KPIs, reconciliations, financial risks, or automated delivery. Responses use the active persona style while staying within the selected package scope.
             </p>
+            <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700 shadow-[0_12px_35px_rgba(15,23,42,0.08)] ring-1 ring-orange-100">
+              <span className="font-bold text-slate-950">Persona output:</span> {selectedPersona.outputStyle}
+            </div>
             {selectedUploadContext && (
               <div className="rounded-2xl bg-white p-4 text-sm text-slate-700 shadow-[0_12px_35px_rgba(15,23,42,0.08)] ring-1 ring-blue-100">
                 <span className="font-bold text-slate-950">Selected Report:</span> {selectedUploadContext.reportName}
@@ -15314,30 +21784,7 @@ function FinSightCopilotPanel({
                   {prompt}
                 </button>
               ))}
-              {hiddenQuickPrompts.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowMoreSuggestions((current) => !current)}
-                  className="rounded-full px-3.5 py-2 text-xs font-semibold text-[#1E5EFF] transition hover:bg-blue-50 hover:text-[#0B2A5B]"
-                >
-                  {showMoreSuggestions ? "Fewer suggestions" : "More suggestions"}
-                </button>
-              )}
             </div>
-            {showMoreSuggestions && hiddenQuickPrompts.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {hiddenQuickPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => sendMessage(prompt)}
-                    className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-[0_8px_20px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 transition hover:bg-blue-50 hover:text-[#1E5EFF] hover:ring-[#5B8CFF]/40"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            )}
             <div className="flex gap-2 rounded-2xl bg-white p-2 shadow-[0_14px_45px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/80">
               <input
                 value={input}
@@ -15353,7 +21800,7 @@ function FinSightCopilotPanel({
               </button>
             </div>
             <p className="text-[11px] leading-5 text-slate-500">
-              Internal preparer assistance only. Copilot provides possible causes and review steps, not tax, legal, or audit opinions.
+              Same intelligence engine. Package scope controls advisory depth; persona controls wording and presentation. Copilot provides review-oriented guidance, not tax, legal, audit, or assurance opinions.
             </p>
           </div>
         </section>
@@ -15485,7 +21932,7 @@ function PowerPointPrompt({
           </p>
           <h2 className="text-3xl font-bold">Would you like to generate a Board / Owner presentation?</h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-            FinSight will generate a PowerPoint file from the approved PDF package sections, ratios, charts, and
+            Advisacor will generate a PowerPoint file from the approved PDF package sections, ratios, charts, and
             flux analysis settings. Slides are created only for sections included in the PDF package.
           </p>
         </div>
@@ -15554,12 +22001,37 @@ function ExecutiveSummarySection({
 }: {
   executiveSummary: ReturnType<typeof buildExecutiveSummary>;
 }) {
+  const toneClasses: Record<ExecutiveStoryCard["tone"], string> = {
+    positive: "border-emerald-400/30 bg-emerald-500/10 text-emerald-100",
+    neutral: "border-blue-400/30 bg-blue-500/10 text-blue-100",
+    watch: "border-amber-400/30 bg-amber-500/10 text-amber-100",
+  };
+  const priorityClasses: Record<ExecutivePriorityLevel, string> = {
+    "Top Priority": "border-red-400/30 bg-red-500/10 text-red-100",
+    "Moderate Priority": "border-amber-400/30 bg-amber-500/10 text-amber-100",
+    "Monitoring Item": "border-blue-400/30 bg-blue-500/10 text-blue-100",
+  };
+
   return (
     <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8 shadow-lg">
       <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
         Client-Ready Executive Summary
       </p>
-      <h2 className="mb-4 text-3xl font-bold">Executive Summary</h2>
+      <h2 className="text-3xl font-bold">CFO-Style Executive Storyline</h2>
+      <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
+        Board-ready narrative built from approved flux, KPIs, and operating intelligence. The summary is designed to answer what changed, why it changed, what it means operationally, and where management should focus next.
+      </p>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {executiveSummary.storyCards.map((card) => (
+          <div key={card.label} className={`rounded-2xl border p-5 ${toneClasses[card.tone]}`}>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] opacity-80">{card.label}</p>
+            <p className="mt-2 text-2xl font-black text-white">{card.value}</p>
+            <p className="mt-3 text-sm leading-6 opacity-90">{card.narrative}</p>
+          </div>
+        ))}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         {executiveSummary.sections.map((section) => (
           <div key={section.title} className="rounded-2xl border border-slate-700 bg-slate-950 p-5">
@@ -15571,28 +22043,61 @@ function ExecutiveSummarySection({
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl bg-blue-950 p-6">
-          <h3 className="mb-4 text-xl font-bold">Key Highlights</h3>
-          <ul className="list-disc space-y-3 pl-5 text-slate-300">
-            {executiveSummary.highlights.map((item) => (
-              <li key={item}>{item}</li>
+          <h3 className="mb-4 text-xl font-bold">Executive Priority Ranking</h3>
+          <div className="space-y-3">
+            {executiveSummary.priorityItems.map((item) => (
+              <div key={`${item.title}-${item.score}`} className={`rounded-2xl border p-4 ${priorityClasses[item.priority]}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-bold text-white">{item.title}</p>
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black">{item.priority}</span>
+                </div>
+                <p className="mt-2 text-sm leading-6 opacity-90">{item.narrative}</p>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-slate-700 bg-slate-950 p-6">
-          <h3 className="mb-4 text-xl font-bold">Watch Items</h3>
-          <ul className="list-disc space-y-3 pl-5 text-slate-300">
-            {executiveSummary.watchItems.map((item) => (
-              <li key={item}>{item}</li>
+          <h3 className="mb-4 text-xl font-bold">Risks & Challenges</h3>
+          <div className="space-y-3">
+            {(executiveSummary.riskNarratives.length
+              ? executiveSummary.riskNarratives
+              : executiveSummary.watchItems.map((item) => ({
+                  title: "Monitoring Item",
+                  severity: "Monitoring Item" as ExecutivePriorityLevel,
+                  score: 25,
+                  narrative: item,
+                }))
+            ).map((item) => (
+              <div key={`${item.title}-${item.narrative}`} className={`rounded-2xl border p-4 ${priorityClasses[item.severity]}`}>
+                <p className="text-xs font-black uppercase tracking-[0.14em] opacity-80">{item.severity}</p>
+                <p className="mt-2 font-bold text-white">{item.title}</p>
+                <p className="mt-2 text-sm leading-6 opacity-90">{item.narrative}</p>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
 
       <div className="mt-6 rounded-2xl border border-blue-900/60 bg-blue-950/40 p-6">
-        <h3 className="mb-4 text-xl font-bold">Recommended Follow-Up Items</h3>
+        <h3 className="mb-4 text-xl font-bold">Management Focus Areas</h3>
+        <ul className="space-y-3 text-slate-300">
+          {executiveSummary.managementFocusAreas.map((item, index) => (
+            <li key={item} className="flex gap-3 rounded-2xl bg-slate-950/50 p-4">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-500 text-sm font-black text-white">{index + 1}</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-950 p-6">
+        <h3 className="mb-4 text-xl font-bold">AI Backend Review Focus</h3>
         <ul className="list-disc space-y-3 pl-5 text-slate-300">
-          {executiveSummary.followUpItems.map((item) => (
+          {(executiveSummary.backendReviewFlags.length
+            ? executiveSummary.backendReviewFlags
+            : ["Commentary direction, KPI alignment, flux alignment, and operational causation should be validated before final package approval."]
+          ).map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
@@ -16088,6 +22593,9 @@ function VirtualCfoPlaceholderSection() {
       <div className="grid gap-4 md:grid-cols-3">
         {[
           "Budget performance review",
+          "Cash Snapshot & Forecasting",
+          "Budget Builder / Calculator",
+          "Budget vs Actual analysis",
           "Variance analysis",
           "EBITDA analysis",
           "Debt analysis",
@@ -16101,6 +22609,25 @@ function VirtualCfoPlaceholderSection() {
             {item}
           </div>
         ))}
+      </div>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-blue-800/60 bg-blue-950/30 p-5">
+          <p className="font-semibold text-blue-100">Cash Snapshot & Forecasting</p>
+          <p className="mt-2 text-sm leading-6 text-blue-100/75">
+            Current cash, AR collections, AP payments, payroll timing, debt timing, and future liquidity estimates. This is the architecture path for a 13-week cash flow forecast.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-blue-800/60 bg-blue-950/30 p-5">
+          <p className="font-semibold text-blue-100">Budget Builder</p>
+          <p className="mt-2 text-sm leading-6 text-blue-100/75">
+            Upcoming-year or remaining-year budget setup that mirrors the Income Statement and Balance Sheet hierarchy.
+          </p>
+          <div className="mt-4 grid gap-2 text-xs font-semibold text-blue-100/80">
+            <span className="rounded-xl bg-slate-950/60 px-3 py-2">Summary level: Total Revenue, COGS, Payroll, Opex</span>
+            <span className="rounded-xl bg-slate-950/60 px-3 py-2">GL detail: Industrial Services Revenue, Payroll - Field Operations</span>
+            <span className="rounded-xl bg-slate-950/60 px-3 py-2">Mixed mode: detail where needed, summary where appropriate</span>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -16123,7 +22650,7 @@ function FixedAssetAnalysisSection({
       <h2 className="mb-6 text-3xl font-bold">Fixed Asset KPIs</h2>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-        <KpiCard label="Total Fixed Assets" value={fixedAssetKpis.totalFixedAssets} />
+        <KpiCard label="Gross Fixed Assets" value={fixedAssetKpis.grossFixedAssets} />
         <KpiCard label="Accumulated Depreciation" value={fixedAssetKpis.accumulatedDepreciation} />
         <KpiCard label="Net Book Value" value={fixedAssetKpis.netBookValue} />
         <KpiCard
@@ -16187,6 +22714,146 @@ function FixedAssetAnalysisSection({
   );
 }
 
+function FixedAssetIntegrityIntelligenceSection({
+  intelligence,
+  packageTier,
+}: {
+  intelligence: FixedAssetIntegrityIntelligence;
+  packageTier: PackageTier;
+}) {
+  const showRollforward = isProfessionalOrHigher(packageTier);
+  const showOversight = isVirtualCfo(packageTier);
+  const reviewGroups = [
+    ...(showRollforward ? [{ title: "CIP Monitoring", items: intelligence.cipItems }] : []),
+    ...(showRollforward ? [{ title: "Depreciation Intelligence", items: intelligence.depreciationItems }] : []),
+    { title: "Prepaid Lifecycle Intelligence", items: intelligence.prepaidItems },
+    { title: "Stagnant Balance Sheet Indicators", items: showOversight ? intelligence.balanceSheetIntegrityItems : intelligence.stagnantAssetItems.slice(0, 4) },
+  ];
+
+  return (
+    <section className="mt-6 rounded-3xl border border-violet-400/20 bg-violet-500/10 p-6 shadow-xl shadow-black/10">
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-violet-200">Fixed Asset & Balance Sheet Integrity Intelligence</p>
+          <h2 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Asset Lifecycle and Balance Sheet Review</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-violet-50/80">
+            Review-oriented intelligence for fixed asset lifecycle, capitalization timing, depreciation activity, CIP, prepaids, and stagnant operational balances. This is internal preparer review support, not a definitive accounting conclusion.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-violet-300/20 bg-[#0B1020] px-4 py-3 text-sm text-violet-50/80">
+          <p className="font-semibold text-white">{PACKAGE_LABELS[packageTier]} scope</p>
+          <p className="mt-1 max-w-sm">{intelligence.tierScope}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+        <KpiCard label="Integrity Status" value={intelligence.integrityStatus} />
+        <KpiCard label="CapEx Trend" value={intelligence.capexTrendAmount} />
+        <KpiCard label="Depreciation Movement" value={intelligence.depreciationTrendAmount} />
+        <KpiCard label="CIP Balance" value={intelligence.cipBalance} />
+        <KpiCard label="Prepaid Balance" value={intelligence.prepaidBalance} />
+        <KpiCard label="Review Flags" value={String(intelligence.internalFlags.length)} />
+      </div>
+
+      {showRollforward && intelligence.rollforwards.length > 0 && (
+        <div className="mt-5 rounded-2xl border border-violet-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Fixed Asset Rollforward Schedules</p>
+          <div className="mt-3 overflow-x-auto rounded-xl border border-[#243041]">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#111827] text-violet-100">
+                <tr>
+                  <th className="px-4 py-3">Period</th>
+                  <th className="px-4 py-3 text-right">Beginning Gross</th>
+                  <th className="px-4 py-3 text-right">Additions</th>
+                  <th className="px-4 py-3 text-right">Disposals</th>
+                  <th className="px-4 py-3 text-right">Ending Gross</th>
+                  <th className="px-4 py-3 text-right">Depreciation Expense</th>
+                  <th className="px-4 py-3 text-right">Ending Accum. Dep.</th>
+                  <th className="px-4 py-3 text-right">Ending NBV</th>
+                </tr>
+              </thead>
+              <tbody>
+                {intelligence.rollforwards.map((period) => (
+                  <tr key={period.period} className="border-t border-[#243041]">
+                    <td className="px-4 py-3 font-semibold text-white">{period.period}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.beginningGrossFixedAssets)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.additions)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.disposals)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.endingGrossFixedAssets)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.depreciationExpense)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.endingAccumulatedDepreciation)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-bold text-white">{formatCurrency(period.endingNetBookValue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            {intelligence.rollforwards.map((period) => (
+              <div key={`${period.period}-visual`} className="rounded-2xl border border-violet-300/20 bg-[#111827] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-violet-200">{period.period} visual</p>
+                <div className="mt-4 space-y-3">
+                  <MiniBar label="Additions" value={period.additions} max={Math.max(period.additions, period.disposals, period.depreciationExpense, 1)} />
+                  <MiniBar label="Disposals" value={period.disposals} max={Math.max(period.additions, period.disposals, period.depreciationExpense, 1)} />
+                  <MiniBar label="Depreciation" value={period.depreciationExpense} max={Math.max(period.additions, period.disposals, period.depreciationExpense, 1)} />
+                </div>
+                <p className="mt-3 text-xs leading-5 text-violet-50/70">{period.commentary}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-violet-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Advisory asset lifecycle commentary</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-violet-50/80">
+            {intelligence.commentary.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-violet-300/20 bg-[#0B1020] p-4">
+          <p className="text-sm font-bold text-white">Backend AI review focus</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-violet-50/80">
+            {(intelligence.internalFlags.length
+              ? intelligence.internalFlags
+              : ["No elevated fixed asset or balance sheet integrity flags were identified from available data. Continue reviewing asset lifecycle support and recurring balance sheet activity where appropriate."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {reviewGroups.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-violet-300/20 bg-[#0B1020] p-4">
+            <p className="text-sm font-bold text-white">{group.title}</p>
+            <div className="mt-3 grid gap-3">
+              {group.items.length ? (
+                group.items.slice(0, showOversight ? 6 : 3).map((item) => (
+                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-bold text-[#F9FAFB]">{item.label}</p>
+                      <span className="rounded-full bg-violet-300/10 px-2 py-1 text-xs font-bold text-violet-100">
+                        {item.status} | {formatCurrency(item.amount)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-[#CBD5E1]">{item.commentary}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-violet-50/70">No review items were identified from available data for this category.</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function FixedAssetChangeTable({ rows }: { rows: FixedAssetChangeRow[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-700">
@@ -16218,12 +22885,14 @@ function FixedAssetChangeTable({ rows }: { rows: FixedAssetChangeRow[] }) {
 
 function PayrollAnalysisSection({
   analysis,
+  workforceIntelligence,
   currentPayrollData,
   priorPayrollData,
   fteDivisor,
   onFteDivisorChange,
 }: {
   analysis: PayrollAnalysis;
+  workforceIntelligence: WorkforceIntelligence;
   currentPayrollData: ParsedFile | null;
   priorPayrollData: ParsedFile | null;
   fteDivisor: number;
@@ -16275,6 +22944,8 @@ function PayrollAnalysisSection({
             <PayrollMetricCard label="Prior FTE" value={priorPayrollData ? formatFte(analysis.totalPriorFte) : "N/A"} />
             <PayrollMetricCard label="FTE Change" value={priorPayrollData ? formatFte(analysis.totalFteChange) : "N/A"} />
             <PayrollMetricCard label="Payroll Cost Change" value={priorPayrollData ? formatCurrency(analysis.totalPayrollCostChange) : "N/A"} />
+            <PayrollMetricCard label="Revenue per FTE" value={workforceIntelligence.revenuePerFte !== null ? formatCurrency(workforceIntelligence.revenuePerFte) : "N/A"} />
+            <PayrollMetricCard label="Payroll % of Revenue" value={workforceIntelligence.payrollToRevenuePercent !== null ? `${workforceIntelligence.payrollToRevenuePercent.toFixed(1)}%` : "N/A"} />
           </div>
 
           <PayrollSummaryCallout analysis={analysis} includePrior={Boolean(priorPayrollData)} />
@@ -16283,6 +22954,152 @@ function PayrollAnalysisSection({
         </>
       )}
     </section>
+  );
+}
+
+function WorkforceIntelligenceSection({
+  workforceIntelligence,
+  packageTier,
+}: {
+  workforceIntelligence: WorkforceIntelligence;
+  packageTier: PackageTier;
+}) {
+  const isProfessionalScope = isProfessionalOrHigher(packageTier);
+  const isVirtualScope = isVirtualCfo(packageTier);
+  const metricCards = [
+    {
+      label: "Revenue per FTE",
+      value: workforceIntelligence.revenuePerFte !== null ? formatCurrency(workforceIntelligence.revenuePerFte) : "N/A",
+      detail:
+        workforceIntelligence.revenuePerFteChange !== null
+          ? `${formatCurrency(workforceIntelligence.revenuePerFteChange)} change from prior period`
+          : "Requires current and prior revenue/FTE data",
+    },
+    {
+      label: "Payroll % of Revenue",
+      value: workforceIntelligence.payrollToRevenuePercent !== null ? `${workforceIntelligence.payrollToRevenuePercent.toFixed(1)}%` : "N/A",
+      detail:
+        workforceIntelligence.payrollMarginPressure !== null
+          ? `${workforceIntelligence.payrollMarginPressure.toFixed(1)} point margin pressure movement`
+          : "Review labor burden against revenue",
+    },
+    {
+      label: "Payroll Growth",
+      value: workforceIntelligence.payrollGrowthPercent !== null ? `${workforceIntelligence.payrollGrowthPercent.toFixed(1)}%` : "N/A",
+      detail: "Compared with prior payroll baseline",
+    },
+    {
+      label: "FTE Growth",
+      value: workforceIntelligence.fteGrowthPercent !== null ? `${workforceIntelligence.fteGrowthPercent.toFixed(1)}%` : "N/A",
+      detail: "Used to assess staffing growth and utilization",
+    },
+  ];
+  const reviewGroups = [
+    { title: "Workforce Productivity Intelligence", items: workforceIntelligence.productivityItems },
+    ...(isProfessionalScope ? [{ title: "Department Staffing and Scaling Review", items: workforceIntelligence.departmentScalingItems }] : []),
+  ];
+  const visualRows = [
+    { label: "Payroll Growth", value: Math.abs(workforceIntelligence.payrollGrowthPercent || 0), display: workforceIntelligence.payrollGrowthPercent !== null ? `${workforceIntelligence.payrollGrowthPercent.toFixed(1)}%` : "N/A" },
+    { label: "FTE Growth", value: Math.abs(workforceIntelligence.fteGrowthPercent || 0), display: workforceIntelligence.fteGrowthPercent !== null ? `${workforceIntelligence.fteGrowthPercent.toFixed(1)}%` : "N/A" },
+    { label: "Revenue Growth", value: Math.abs(workforceIntelligence.revenueGrowthPercent || 0), display: workforceIntelligence.revenueGrowthPercent !== null ? `${workforceIntelligence.revenueGrowthPercent.toFixed(1)}%` : "N/A" },
+  ];
+  const maxVisualValue = Math.max(...visualRows.map((row) => row.value), 1);
+
+  return (
+    <div className="mt-6 rounded-3xl border border-[#243041] bg-[#172033] p-6">
+      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Workforce Intelligence</p>
+          <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Payroll, FTE & Productivity Review</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">{workforceIntelligence.tierScope}</p>
+        </div>
+        <span className="rounded-2xl border border-[#334155] bg-[#0B1120] px-4 py-3 text-sm font-bold text-[#CBD5E1]">
+          {PACKAGE_LABELS[packageTier]} scope
+        </span>
+      </div>
+
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3">
+        {metricCards.map((card) => (
+          <div key={card.label} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#94A3B8]">{card.label}</p>
+            <p className="mt-2 text-xl font-bold text-[#F9FAFB]">{card.value}</p>
+            <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{card.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+        <p className="text-sm font-bold text-white">Payroll, FTE, and revenue scaling visual</p>
+        <div className="mt-4 space-y-3">
+          {visualRows.map((row) => (
+            <div key={row.label}>
+              <div className="mb-1 flex items-center justify-between text-xs font-semibold text-[#CBD5E1]">
+                <span>{row.label}</span>
+                <span>{row.display}</span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-[#111827]">
+                <div className="h-full rounded-full bg-[#5B8CFF]" style={{ width: `${Math.min((row.value / maxVisualValue) * 100, 100)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Advisory commentary</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {workforceIntelligence.tierAdvisoryCommentary.map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-[#334155] bg-[#0B1120] p-4">
+          <p className="text-sm font-bold text-white">Backend AI review flags</p>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+            {(workforceIntelligence.internalFlags.length
+              ? workforceIntelligence.internalFlags
+              : ["No elevated payroll/FTE consistency or productivity flags were identified from the uploaded data."]
+            ).map((item) => (
+              <li key={item}>- {item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {reviewGroups.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <p className="text-sm font-bold text-white">{group.title}</p>
+            <div className="mt-3 space-y-3">
+              {group.items.length ? (
+                group.items.slice(0, 5).map((item) => (
+                  <div key={`${group.title}-${item.label}`} className="rounded-xl border border-[#334155] bg-[#0B1120] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-semibold text-[#F9FAFB]">{item.label}</p>
+                      <p className="shrink-0 text-sm font-bold text-[#C4B5FD]">{item.value}</p>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-[#94A3B8]">{item.commentary}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-[#94A3B8]">No review item identified from available payroll data.</p>
+              )}
+            </div>
+          </div>
+        ))}
+        {isVirtualScope && (
+          <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <p className="text-sm font-bold text-white">Forecasting and workforce planning support</p>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
+              {workforceIntelligence.forecastIntegrationNotes.map((item) => (
+                <li key={item}>- {item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -16715,6 +23532,7 @@ function PrintableFinancialPackage({
   selectedSections,
   kpis,
   arKpis,
+  arReserveIntelligence,
   apKpis,
   inventoryKpis,
   inventoryIntelligence,
@@ -16758,6 +23576,7 @@ function PrintableFinancialPackage({
   selectedSections: PackageSectionId[];
   kpis: KPIs;
   arKpis: AgingKpis;
+  arReserveIntelligence: ARReserveIntelligence;
   apKpis: APKpis;
   inventoryKpis: InventoryKpis;
   inventoryIntelligence: InventoryIntelligence;
@@ -16800,7 +23619,7 @@ function PrintableFinancialPackage({
   const printableLogoSource = firmLogoDataUrl.trim() || firmLogoPath.trim();
   const generatedDate = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const outputStyleLabel = outputStyle === "board" ? "Board Mode" : outputStyle === "hybrid" ? "Hybrid Mode" : "Detailed Mode";
-  const printFooter = `Prepared by ${preparedBy || "FinSight Reports"} | ${confidentialWatermark ? "Confidential" : "Client Use"} | ${outputStyleLabel} | v1.0 | Generated ${generatedDate}`;
+  const printFooter = `Prepared by ${preparedBy || "Advisacor"} | ${confidentialWatermark ? "Confidential" : "Client Use"} | ${outputStyleLabel} | v1.0 | Generated ${generatedDate}`;
   const currentRatioValue = Number.parseFloat(ratioValue("Current Ratio"));
   const payrollToRevenue = kpis.revenue ? (payrollAnalysis.totalCurrentPayrollCost / kpis.revenue) * 100 : null;
   const inventoryTurnsLabel = inventoryIntelligence.turns !== null ? `${inventoryIntelligence.turns.toFixed(1)}x` : "N/A";
@@ -17036,7 +23855,9 @@ function PrintableFinancialPackage({
               <span className="print-client-logo-placeholder">Client Logo</span>
             )}
           </div>
-          <div className="print-logo-box">FinSight</div>
+          <div className="print-logo-box">
+            <img src="/advisacor-logo.svg" alt="Advisacor" />
+          </div>
         </div>
 
         <div className="print-cover-hero">
@@ -17180,6 +24001,12 @@ function PrintableFinancialPackage({
                   <h3>Collection Risk</h3>
                   <PrintStatusPill status={(executiveStatusCards.find((card) => card.label === "Collections")?.status || "Yellow") as "Green" | "Yellow" | "Red"} />
                   <p>90+ receivables represent {arKpis.total ? ((arKpis.days90Plus / arKpis.total) * 100).toFixed(1) : "0.0"}% of AR.</p>
+                </div>
+                <div className="print-insight-card">
+                  <h3>Reserve Review</h3>
+                  <p>
+                    Preliminary reserve guidance is {formatMoney(arReserveIntelligence.totalSuggestedReserve)} with {arReserveIntelligence.collectionRiskStatus.toLowerCase()} collection risk. Consider customer-specific collectibility and historical write-offs before finalizing commentary.
+                  </p>
                 </div>
                 <div className="print-insight-card">
                   <h3>Management Discussion</h3>

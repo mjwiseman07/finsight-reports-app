@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AdvisacorLogo } from "../../components/AdvisacorLogo";
 import { supabase } from "../../lib/supabase";
 
 export default function SigninPage() {
@@ -18,10 +19,7 @@ export default function SigninPage() {
     setIsSubmitting(true);
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
       if (signInError || !data?.session?.access_token) {
         setError("Invalid email or password. Please try again.");
@@ -38,91 +36,85 @@ export default function SigninPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#07111f] px-6 py-12 text-white">
-      <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-6xl items-center justify-center">
-        <div className="grid w-full overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/30 lg:grid-cols-[0.95fr_1.05fr]">
-          <section className="hidden bg-gradient-to-br from-[#1a6cf6] to-[#4f46e5] p-10 lg:block">
-            <div className="flex h-full flex-col justify-between">
-              <div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M5 16L10 11L13 14L19 7" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M16 7H19V10" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+    <main className="advisacor-dark-grid min-h-screen bg-[#0A1020] px-6 py-8 text-white">
+      <header className="mx-auto flex max-w-7xl items-center justify-between">
+        <Link href="/" className="rounded-2xl bg-white p-3 shadow-xl shadow-black/20">
+          <AdvisacorLogo priority className="w-[210px]" />
+        </Link>
+        <Link href="/signup" className="rounded-full border border-white/15 bg-white/[0.06] px-5 py-2.5 text-sm font-black text-white backdrop-blur transition hover:bg-white/[0.1]">
+          Request Early Access
+        </Link>
+      </header>
+
+      <section className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-7xl items-center gap-10 py-12 lg:grid-cols-[1fr_0.85fr]">
+        <div className="hidden lg:block">
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Enterprise Login</p>
+          <h1 className="mt-5 max-w-3xl text-6xl font-black leading-[0.95] tracking-[-0.055em]">
+            Access your financial intelligence workspace.
+          </h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-300">
+            Continue reviewing KPI dashboards, forecasting signals, AP/AR intelligence, executive packages, and AI-powered advisory recommendations.
+          </p>
+          <div className="mt-8 grid max-w-2xl gap-4 sm:grid-cols-3">
+            {["Forecasting", "AP/AR", "Executive AI"].map((item) => (
+              <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-xl shadow-black/10 backdrop-blur">
+                <p className="text-sm font-black text-white">{item}</p>
+                <div className="mt-4 h-2 rounded-full bg-white/10">
+                  <div className="h-2 w-2/3 rounded-full bg-[#FF7A1A]" />
                 </div>
-                <h1 className="mt-8 text-4xl font-black leading-tight">
-                  Welcome back to FinSight.
-                </h1>
-                <p className="mt-5 max-w-md text-lg leading-8 text-blue-50">
-                  Sign in to continue building client-ready financial reports,
-                  AI commentary, and board presentation packages.
-                </p>
               </div>
-            </div>
-          </section>
-
-          <section className="p-8 sm:p-10">
-            <div className="mx-auto max-w-md">
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-300">
-                Sign In
-              </p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight">
-                Access your account
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                Continue to your FinSight dashboard and client reporting workflow.
-              </p>
-
-              <form onSubmit={handleSubmit} className="mt-8 grid gap-4">
-                <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-200">Email</span>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
-                    className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400"
-                    placeholder="you@firm.com"
-                  />
-                </label>
-
-                <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-200">Password</span>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    required
-                    className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400"
-                    placeholder="Enter your password"
-                  />
-                </label>
-
-                {error && (
-                  <p className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="mt-2 rounded-2xl bg-[#1a6cf6] px-5 py-4 text-sm font-black text-white shadow-xl shadow-blue-500/20 transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isSubmitting ? "Signing in..." : "Sign In"}
-                </button>
-              </form>
-
-              <p className="mt-6 text-center text-sm text-slate-400">
-                Don&apos;t have an account?{" "}
-                <Link href="/signup" className="font-bold text-blue-300 hover:text-blue-200">
-                  Start your free trial
-                </Link>
-              </p>
-            </div>
-          </section>
+            ))}
+          </div>
         </div>
-      </div>
+
+        <div className="dark-enterprise-card rounded-[2rem] p-8 md:p-10">
+          <AdvisacorLogo priority className="mb-8 w-[240px] rounded-2xl bg-white p-3" />
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Sign In</p>
+          <h2 className="mt-3 text-4xl font-black tracking-[-0.04em]">Welcome back</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-400">
+            Sign in to access Advisacor dashboards, import workflows, executive packages, and AI recommendations.
+          </p>
+
+          <form onSubmit={handleSubmit} className="mt-8 grid gap-4">
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-200">Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-[#FF7A1A]"
+                placeholder="you@firm.com"
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-200">Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-[#FF7A1A]"
+                placeholder="Enter your password"
+              />
+            </label>
+
+            {error && <p className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">{error}</p>}
+
+            <button type="submit" disabled={isSubmitting} className="premium-button mt-2 rounded-2xl px-5 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+              {isSubmitting ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-slate-400">
+            Don&apos;t have an account?{" "}
+            <Link href="/signup" className="font-bold text-[#FFB36F] hover:text-[#FF7A1A]">
+              Request early access
+            </Link>
+          </p>
+        </div>
+      </section>
     </main>
   );
 }

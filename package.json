@@ -1,5 +1,5 @@
 {
-  "name": "finsight-reports",
+  "name": "advisacor",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
-    "intuit-oauth": "^4.2.3",
     "next": "16.2.6",
     "node-quickbooks": "^2.0.50",
     "papaparse": "^5.5.3",
