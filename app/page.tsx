@@ -243,7 +243,7 @@ export default function ComingSoonPage() {
         </div>
       </section>
 
-      <section id="early-access" className="px-6 py-24">
+      <section id="early-access" className="scroll-mt-40 px-6 py-24 md:scroll-mt-44">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#1E6BFF]">Be First To Know</p>
