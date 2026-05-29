@@ -90,10 +90,11 @@ function DashboardPreview() {
     { week: "W7", cash: 1.63, collections: 0.49, payments: 0.41 },
   ];
   const maxCash = Math.max(...liquidityForecast.map((point) => point.cash));
+  const maxCollections = Math.max(...liquidityForecast.map((point) => point.collections));
   const chartPoints = liquidityForecast
     .map((point, index) => {
-      const x = 32 + index * 58;
-      const y = 144 - (point.cash / maxCash) * 92;
+      const x = 34 + index * 58;
+      const y = 134 - (point.cash / maxCash) * 86;
       return `${x},${y}`;
     })
     .join(" ");
@@ -105,7 +106,7 @@ function DashboardPreview() {
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FFB36F]">Executive Workspace</p>
-            <p className="mt-1 text-xl font-black text-white">Financial intelligence command center</p>
+            <p className="mt-1 text-xl font-black text-white">Financial Intelligence Command Center</p>
           </div>
           <span className="rounded-full bg-[#3BB273]/15 px-3 py-1 text-xs font-black text-[#B9F4D2]">Live</span>
         </div>
@@ -131,39 +132,50 @@ function DashboardPreview() {
               <p className="font-black text-white">Liquidity Forecast</p>
               <p className="text-xs font-bold text-slate-500">13-week view</p>
             </div>
-            <div className="mt-5 rounded-2xl border border-white/10 bg-[#050915] p-4">
-              <svg viewBox="0 0 420 170" className="h-44 w-full overflow-visible" aria-label="Sample liquidity forecast chart">
-                {[48, 84, 120, 156].map((y) => (
-                  <line key={y} x1="28" x2="396" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
-                ))}
-                <polyline points={chartPoints} fill="none" stroke="#1E6BFF" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline
-                  points={liquidityForecast
-                    .map((point, index) => `${32 + index * 58},${144 - (point.collections / 0.6) * 58}`)
-                    .join(" ")}
-                  fill="none"
-                  stroke="#3BB273"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity="0.85"
-                />
-                {liquidityForecast.map((point, index) => {
-                  const x = 32 + index * 58;
-                  const y = 144 - (point.cash / maxCash) * 92;
-                  return (
-                    <g key={point.week}>
-                      <circle cx={x} cy={y} r="5" fill="#FF7A1A" stroke="#07101F" strokeWidth="3" />
-                      <text x={x} y="164" textAnchor="middle" fill="#64748B" fontSize="12" fontWeight="800">
-                        {point.week}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-[#050915] p-4 shadow-inner shadow-black/30">
+              <div className="relative h-56 overflow-hidden rounded-2xl border border-white/10 bg-[#081120] px-4 pb-8 pt-5" aria-label="Sample liquidity forecast chart">
+                <div className="absolute inset-x-4 top-8 h-px bg-white/10" />
+                <div className="absolute inset-x-4 top-20 h-px bg-white/10" />
+                <div className="absolute inset-x-4 top-32 h-px bg-white/10" />
+                <div className="absolute inset-x-4 top-44 h-px bg-white/10" />
+
+                <div className="absolute inset-x-5 bottom-8 top-5 flex items-end gap-3">
+                  {liquidityForecast.map((point) => (
+                    <div key={point.week} className="flex h-full flex-1 flex-col justify-end">
+                      <div
+                        className="min-h-8 rounded-t-xl bg-gradient-to-t from-[#1E6BFF] to-[#6EA0FF] shadow-lg shadow-[#1E6BFF]/20"
+                        style={{ height: `${Math.max(18, (point.collections / maxCollections) * 82)}%` }}
+                        title={`${point.week} collections: $${point.collections.toFixed(2)}M`}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <svg viewBox="0 0 420 160" className="absolute inset-x-0 top-5 h-40 w-full" preserveAspectRatio="none">
+                  <polyline
+                    points={chartPoints}
+                    fill="none"
+                    stroke="#FF7A1A"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {liquidityForecast.map((point, index) => {
+                    const x = 34 + index * 58;
+                    const y = 134 - (point.cash / maxCash) * 86;
+                    return <circle key={point.week} cx={x} cy={y} r="5.5" fill="#FFB36F" stroke="#081120" strokeWidth="3" />;
+                  })}
+                </svg>
+
+                <div className="absolute inset-x-5 bottom-3 grid grid-cols-7 text-center text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                  {liquidityForecast.map((point) => (
+                    <span key={point.week}>{point.week}</span>
+                  ))}
+                </div>
+              </div>
               <div className="mt-3 grid gap-2 text-xs font-bold text-slate-400 sm:grid-cols-3">
-                <span><span className="text-[#1E6BFF]">●</span> Projected cash</span>
-                <span><span className="text-[#3BB273]">●</span> Collections</span>
+                <span><span className="text-[#FF7A1A]">●</span> Projected cash line</span>
+                <span><span className="text-[#1E6BFF]">●</span> Collection bars</span>
                 <span className="text-[#FFB36F]">Ending cash: $1.63M</span>
               </div>
             </div>
