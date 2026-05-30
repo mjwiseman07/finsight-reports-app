@@ -90,7 +90,6 @@ function DashboardPreview() {
     { week: "W7", cash: 1.63, collections: 0.49, payments: 0.41 },
   ];
   const maxCash = Math.max(...liquidityForecast.map((point) => point.cash));
-  const maxCollections = Math.max(...liquidityForecast.map((point) => point.collections));
   const chartPoints = liquidityForecast
     .map((point, index) => {
       const x = 34 + index * 58;
@@ -98,6 +97,7 @@ function DashboardPreview() {
       return `${x},${y}`;
     })
     .join(" ");
+  const forecastAreaPath = `M ${chartPoints.replaceAll(" ", " L ")} L 382 142 L 34 142 Z`;
 
   return (
     <div className="dark-enterprise-card relative overflow-hidden rounded-[2rem] p-5">
@@ -133,49 +133,51 @@ function DashboardPreview() {
               <p className="text-xs font-bold text-slate-500">13-week view</p>
             </div>
             <div className="mt-5 rounded-2xl border border-white/10 bg-[#050915] p-4 shadow-inner shadow-black/30">
-              <div className="relative h-56 overflow-hidden rounded-2xl border border-white/10 bg-[#081120] px-4 pb-8 pt-5" aria-label="Sample liquidity forecast chart">
-                <div className="absolute inset-x-4 top-8 h-px bg-white/10" />
-                <div className="absolute inset-x-4 top-20 h-px bg-white/10" />
-                <div className="absolute inset-x-4 top-32 h-px bg-white/10" />
-                <div className="absolute inset-x-4 top-44 h-px bg-white/10" />
-
-                <div className="absolute inset-x-5 bottom-8 top-5 flex items-end gap-3">
-                  {liquidityForecast.map((point) => (
-                    <div key={point.week} className="flex h-full flex-1 flex-col justify-end">
-                      <div
-                        className="min-h-8 rounded-t-xl bg-gradient-to-t from-[#1E6BFF] to-[#6EA0FF] shadow-lg shadow-[#1E6BFF]/20"
-                        style={{ height: `${Math.max(18, (point.collections / maxCollections) * 82)}%` }}
-                        title={`${point.week} collections: $${point.collections.toFixed(2)}M`}
-                      />
-                    </div>
+              <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#060A12] p-4" aria-label="Sample liquidity forecast chart">
+                <svg viewBox="0 0 420 178" className="h-56 w-full" preserveAspectRatio="none" role="img">
+                  <rect x="267" y="18" width="116" height="124" fill="#D78342" opacity="0.07" />
+                  <text x="326" y="28" textAnchor="middle" fill="#94A3B8" fontSize="8" fontWeight="700" letterSpacing="1.2">
+                    FORECAST
+                  </text>
+                  {[36, 64, 92, 120, 148].map((y) => (
+                    <line key={y} x1="34" x2="382" y1={y} y2={y} stroke="rgba(148,163,184,0.16)" strokeWidth="0.8" />
                   ))}
-                </div>
-
-                <svg viewBox="0 0 420 160" className="absolute inset-x-0 top-5 h-40 w-full" preserveAspectRatio="none">
+                  <line x1="34" x2="382" y1="142" y2="142" stroke="rgba(148,163,184,0.3)" strokeWidth="1" />
+                  <path d={forecastAreaPath} fill="#C8A46A" opacity="0.08" />
                   <polyline
                     points={chartPoints}
                     fill="none"
-                    stroke="#FF7A1A"
-                    strokeWidth="5"
+                    stroke="#C8A46A"
+                    strokeWidth="2.2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                  />
+                  <polyline
+                    points="34,130 92,124 150,116 208,111 266,103 324,94 382,88"
+                    fill="none"
+                    stroke="rgba(148,163,184,0.45)"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeDasharray="5 7"
                   />
                   {liquidityForecast.map((point, index) => {
                     const x = 34 + index * 58;
                     const y = 134 - (point.cash / maxCash) * 86;
-                    return <circle key={point.week} cx={x} cy={y} r="5.5" fill="#FFB36F" stroke="#081120" strokeWidth="3" />;
+                    return <circle key={point.week} cx={x} cy={y} r="2.8" fill="#060A12" stroke="#C8A46A" strokeWidth="1.4" />;
                   })}
-                </svg>
-
-                <div className="absolute inset-x-5 bottom-3 grid grid-cols-7 text-center text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
-                  {liquidityForecast.map((point) => (
-                    <span key={point.week}>{point.week}</span>
+                  <text x="34" y="22" fill="#CBD5E1" fontSize="9" fontWeight="800" letterSpacing="1">CASH BALANCE ($M)</text>
+                  <text x="348" y="44" fill="#D78342" fontSize="9" fontWeight="900">+18.6%</text>
+                  {liquidityForecast.map((point, index) => (
+                    <text key={point.week} x={34 + index * 58} y="166" textAnchor="middle" fill="#64748B" fontSize="9" fontWeight="800">
+                      {point.week}
+                    </text>
                   ))}
-                </div>
+                </svg>
               </div>
               <div className="mt-3 grid gap-2 text-xs font-bold text-slate-400 sm:grid-cols-3">
-                <span><span className="text-[#FF7A1A]">●</span> Projected cash line</span>
-                <span><span className="text-[#1E6BFF]">●</span> Collection bars</span>
+                <span><span className="text-[#C8A46A]">●</span> Treasury cash forecast</span>
+                <span><span className="text-slate-500">●</span> Baseline scenario</span>
                 <span className="text-[#FFB36F]">Ending cash: $1.63M</span>
               </div>
             </div>
@@ -239,7 +241,7 @@ export default function Home() {
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
         <nav className="mx-auto flex max-w-7xl items-center justify-between">
-          <Link href="/" className="block w-[min(700px,62vw)] px-0 py-0">
+          <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
             <AdvisacorLogo priority className="w-full" />
           </Link>
           <div className="hidden items-center gap-8 text-sm font-bold text-[#6B7280] md:flex">
@@ -419,7 +421,7 @@ export default function Home() {
       <section className="px-6 pb-24">
         <div className="advisacor-dark-grid mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] bg-[#0A1020] p-10 text-white shadow-2xl shadow-slate-950/30 md:p-14">
           <div className="max-w-3xl">
-            <AdvisacorLogo className="mb-8 w-[230px] rounded-2xl bg-white p-3" />
+            <AdvisacorLogo className="mb-8 w-[230px]" />
             <h2 className="text-4xl font-black tracking-[-0.04em] md:text-6xl">
               Build the financial intelligence layer your leadership team deserves.
             </h2>

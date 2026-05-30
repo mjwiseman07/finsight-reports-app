@@ -13458,24 +13458,12 @@ export default function UploadPage() {
             margin: 0 0 42px;
           }
 
-          .print-logo-box {
+          .print-advisacor-logo {
             position: absolute;
             right: 36px;
             bottom: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             width: 170px;
-            min-height: 42px;
-            border-radius: 14px;
-            background: #ffffff;
-            padding: 8px 12px;
-            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
-          }
-
-          .print-logo-box img {
             display: block;
-            width: 100%;
             height: auto;
             object-fit: contain;
           }
@@ -14254,6 +14242,15 @@ export default function UploadPage() {
 
       <main className="app-screen min-h-screen bg-[#0B1020] px-6 py-20 text-white">
         <div className="mx-auto max-w-7xl">
+          {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("superAdmin") === "true" && (
+            <div className="mb-8 rounded-[2rem] border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 p-6">
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Super Admin Test Journey</p>
+              <h1 className="mt-3 text-3xl font-black">Start from the beginning of the product flow</h1>
+              <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+                Persona: {new URLSearchParams(window.location.search).get("persona") || "Selected persona"} | Package: {new URLSearchParams(window.location.search).get("package") || "Selected package"} | Demo company: {new URLSearchParams(window.location.search).get("testCompany") || "Selected demo company"}
+              </p>
+            </div>
+          )}
           <ImportWorkflow
             packageTier={packageTier}
             personaOutputMode={personaOutputMode}
@@ -15270,9 +15267,7 @@ function ImportWorkflow({
   return (
     <div className="rounded-[2rem] border border-white/10 bg-[#0A1020]/95 p-8 shadow-2xl shadow-black/30">
       <div className="mb-10">
-        <div className="mb-6 inline-flex rounded-2xl bg-white p-3 shadow-xl shadow-black/20">
-          <AdvisacorLogo priority className="w-[230px]" />
-        </div>
+        <AdvisacorLogo priority className="mb-6 w-[min(525px,46.5vw)]" />
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-[#FFB36F]">
           Enterprise Operational Intelligence
         </p>
@@ -23855,9 +23850,7 @@ function PrintableFinancialPackage({
               <span className="print-client-logo-placeholder">Client Logo</span>
             )}
           </div>
-          <div className="print-logo-box">
-            <img src="/advisacor-logo.svg" alt="Advisacor" />
-          </div>
+          <AdvisacorLogo className="print-advisacor-logo" />
         </div>
 
         <div className="print-cover-hero">

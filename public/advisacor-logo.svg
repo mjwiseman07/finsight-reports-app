@@ -1,21 +1,34 @@
-<svg width="520" height="110" viewBox="0 0 520 110" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<svg width="765" height="185" viewBox="0 0 765 185" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Advisacor Financial Intelligence</title>
-  <desc id="desc">Advisacor logo with stylized financial intelligence mark and wordmark.</desc>
-  <rect width="520" height="110" rx="0" fill="white" fill-opacity="0"/>
-  <g transform="translate(24 18)">
-    <path d="M46 4L86 74H72L46 28L20 74H7L46 4Z" fill="#0A1020"/>
-    <path d="M46 4L30 34L38 48L46 33L70 74H86L46 4Z" fill="#D78342"/>
-    <path d="M31 55H45V74H31V55Z" fill="#0A1020"/>
-    <path d="M50 43H64V74H50V43Z" fill="#0A1020"/>
-    <path d="M12 74H88" stroke="#C8A46A" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M17 62L30 41" stroke="#1E6BFF" stroke-width="3" stroke-linecap="round"/>
+  <desc id="desc">Advisacor logo with stylized A mark, vertical divider, wordmark, subtitle, and orange rule.</desc>
+  <rect width="765" height="166" fill="#FFFFFF"/>
+  <rect y="166" width="765" height="19" fill="url(#bottom-shadow)"/>
+
+  <g transform="translate(120 35)">
+    <path d="M50 0L104 89H88L50 24L16 89H0L50 0Z" fill="#070D20"/>
+    <path d="M50 0L31 37L42 51L50 35L88 89H104L50 0Z" fill="#D28A4A"/>
+    <path d="M30 65H44V89H30V65Z" fill="#070D20"/>
+    <path d="M53 49H68V89H53V49Z" fill="#070D20"/>
+    <path d="M8 89H104" stroke="#C29A62" stroke-width="3" stroke-linecap="round"/>
+    <path d="M11 76L31 40" stroke="#2146CF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M50 24L42 51L31 37L50 0L69 31H56L50 24Z" fill="#D28A4A"/>
   </g>
-  <line x1="132" y1="26" x2="132" y2="84" stroke="#0A1020" stroke-width="2" opacity="0.55"/>
-  <text x="154" y="58" fill="#0A1020" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" letter-spacing="7">
+
+  <line x1="248" y1="40" x2="248" y2="113" stroke="#0A1020" stroke-width="2.5" opacity="0.55"/>
+
+  <text x="276" y="80" fill="#070D20" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="800" letter-spacing="10">
     ADVISACOR
   </text>
-  <text x="158" y="82" fill="#6B7280" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="2.6">
+  <text x="281" y="111" fill="#374151" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="5.4">
     FINANCIAL INTELLIGENCE
   </text>
-  <path d="M394 76H454" stroke="#D78342" stroke-width="2" stroke-linecap="round"/>
+  <path d="M598 104H636" stroke="#D28A4A" stroke-width="2.5" stroke-linecap="square"/>
+
+  <defs>
+    <linearGradient id="bottom-shadow" x1="382.5" y1="166" x2="382.5" y2="185" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D1D5DB" stop-opacity="0.36"/>
+      <stop offset="0.45" stop-color="#E5E7EB" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
 </svg>

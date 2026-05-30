@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { getERPAdapter } from "../../../../lib/erp-adapters";
+import { rateLimit } from "../../../../lib/rate-limit";
 
 export async function POST(request) {
+  const rateLimitResponse = rateLimit(request, { key: "quickbooks-fetch-reports", limit: 8, windowMs: 60_000 });
+  if (rateLimitResponse) return rateLimitResponse;
+
   if (!supabaseAdmin) {
     return NextResponse.json({ error: "Supabase admin client is not configured" }, { status: 500 });
   }

@@ -1,51 +1,13 @@
 import { NextResponse } from "next/server";
+import { escapeHtml, getEarlyAccessEmailConfig, sendEmail, salesEmail } from "../../../lib/email";
+import { rateLimit } from "../../../lib/rate-limit";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const NOTIFICATION_EMAIL = process.env.EARLY_ACCESS_NOTIFICATION_EMAIL || "sales@advisacor.com";
-const REPLY_TO_EMAIL = "sales@advisacor.com";
-const FROM_EMAIL = process.env.EARLY_ACCESS_FROM_EMAIL || `Advisacor Team <${REPLY_TO_EMAIL}>`;
-
-type EmailPayload = {
-  from: string;
-  to: string[];
-  subject: string;
-  text: string;
-  html?: string;
-  reply_to?: string[];
-};
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-async function sendEmail(payload: EmailPayload) {
-  const resendApiKey = process.env.RESEND_API_KEY;
-
-  if (!resendApiKey) {
-    throw new Error("Email provider is not configured. Missing RESEND_API_KEY.");
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Email provider request failed: ${detail || response.statusText}`);
-  }
-}
 
 export async function POST(request: Request) {
+  const rateLimitResponse = rateLimit(request, { key: "early-access", limit: 5, windowMs: 60_000 });
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body = await request.json();
     const name = String(body?.name || "").trim();
@@ -66,11 +28,12 @@ export async function POST(request: Request) {
     const timestamp = new Date().toISOString();
     const safeName = escapeHtml(name);
     const safeEmail = escapeHtml(email);
+    const { notificationEmail, replyToEmail, fromEmail } = getEarlyAccessEmailConfig();
 
     await sendEmail({
-      from: FROM_EMAIL,
-      to: [NOTIFICATION_EMAIL],
-      reply_to: [REPLY_TO_EMAIL],
+      from: fromEmail,
+      to: [notificationEmail],
+      reply_to: [replyToEmail],
       subject: "New Advisacor Early Access Request",
       text: [
         `Name: ${name}`,
@@ -90,9 +53,9 @@ export async function POST(request: Request) {
     });
 
     await sendEmail({
-      from: FROM_EMAIL,
+      from: fromEmail,
       to: [email],
-      reply_to: [REPLY_TO_EMAIL],
+      reply_to: [replyToEmail],
       subject: "Welcome to Advisacor Early Access",
       text: [
         `Hello ${name},`,
@@ -142,7 +105,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[early-access] submission failed", error);
     return NextResponse.json(
-      { error: "Something went wrong. Please try again or email sales@advisacor.com." },
+      { error: `Something went wrong. Please try again or email ${salesEmail}.` },
       { status: 500 },
     );
   }

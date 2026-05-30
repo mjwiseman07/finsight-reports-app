@@ -51,7 +51,7 @@ export default function FreeReviewPage() {
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
       <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
         <nav className="mx-auto flex max-w-7xl items-center justify-between">
-          <Link href="/" className="block w-[min(620px,58vw)]">
+          <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
             <AdvisacorLogo priority className="w-full" />
           </Link>
           <Link href="/signin" className="rounded-full px-4 py-2 text-sm font-bold text-[#111827] hover:bg-slate-100">

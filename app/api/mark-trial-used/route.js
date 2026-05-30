@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabase";
+import { rateLimit } from "../../../lib/rate-limit";
 
 export async function POST(request) {
+  const rateLimitResponse = rateLimit(request, { key: "mark-trial-used", limit: 10, windowMs: 60_000 });
+  if (rateLimitResponse) return rateLimitResponse;
+
+  if (!supabaseAdmin) {
+    return NextResponse.json({ error: "Supabase is not configured for this deployment." }, { status: 503 });
+  }
+
   const authorization = request.headers.get("authorization") || "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
 

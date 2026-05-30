@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { getERPAdapter } from "../../../../lib/erp-adapters";
+import { rateLimit } from "../../../../lib/rate-limit";
 
 export async function GET(request) {
+  const rateLimitResponse = rateLimit(request, { key: "quickbooks-detect-capabilities", limit: 10, windowMs: 60_000 });
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     if (!supabaseAdmin) {
-      return NextResponse.json({ error: "Supabase admin client is not configured" }, { status: 500 });
+      return NextResponse.json({ error: "Supabase is not configured for this deployment." }, { status: 503 });
     }
 
     const authorization = request.headers.get("authorization") || "";
@@ -41,8 +45,6 @@ export async function GET(request) {
   } catch (error) {
     console.error("[quickbooks/detect-capabilities] failed", {
       message: error?.message,
-      stack: error?.stack,
-      fullError: error,
     });
     return NextResponse.json({ error: error?.message || "Unable to detect QuickBooks capabilities" }, { status: 500 });
   }

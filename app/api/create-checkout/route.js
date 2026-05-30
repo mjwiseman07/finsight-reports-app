@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAdmin } from "../../../lib/supabase";
+import { rateLimit } from "../../../lib/rate-limit";
 
 function getStripeClient() {
   if (!process.env.STRIPE_SECRET_KEY) return null;
@@ -29,6 +30,9 @@ function getBaseUrl(request) {
 }
 
 export async function POST(request) {
+  const rateLimitResponse = rateLimit(request, { key: "create-checkout", limit: 10, windowMs: 60_000 });
+  if (rateLimitResponse) return rateLimitResponse;
+
   const stripe = getStripeClient();
   const allowedPriceIds = getAllowedPriceIds();
 

@@ -2,15 +2,6 @@ import { NextResponse } from "next/server";
 import { getERPAdapter } from "../../../../lib/erp-adapters";
 import { supabaseAdmin } from "../../../../lib/supabase";
 
-function summarizeValue(value, firstLength = 6, lastLength = 4) {
-  const normalizedValue = value || "";
-  return {
-    first: normalizedValue.slice(0, firstLength),
-    last: normalizedValue.slice(-lastLength),
-    length: normalizedValue.length,
-  };
-}
-
 export async function GET(request) {
   const redirectUrl = new URL("/dashboard", request.url);
   const url = new URL(request.url);
@@ -24,33 +15,19 @@ export async function GET(request) {
   const expectedState = request.cookies.get("qb_oauth_state")?.value || "";
   const supabaseToken = request.cookies.get("qb_oauth_token")?.value || "";
 
-  console.log("[quickbooks/callback] QB env values", {
-    QB_CLIENT_ID_FIRST_6: process.env.QB_CLIENT_ID?.slice(0, 6) || "undefined",
-    QB_CLIENT_ID_LAST_4: process.env.QB_CLIENT_ID?.slice(-4) || "undefined",
-    QB_CLIENT_ID_LENGTH: process.env.QB_CLIENT_ID?.length || 0,
-    QB_CLIENT_SECRET_FIRST_6: process.env.QB_CLIENT_SECRET?.slice(0, 6) || "undefined",
-    QB_CLIENT_SECRET_LAST_4: process.env.QB_CLIENT_SECRET?.slice(-4) || "undefined",
-    QB_CLIENT_SECRET_LENGTH: process.env.QB_CLIENT_SECRET?.length || 0,
-    QB_REDIRECT_URI: process.env.QB_REDIRECT_URI || "undefined",
-    QB_ENVIRONMENT: process.env.QB_ENVIRONMENT || "undefined",
-  });
-
   console.log("[quickbooks/callback] received callback", {
     hasAuthCode: Boolean(authCode),
-    authCodeLength: authCode.length,
     hasState: Boolean(state),
     stateMatchesCookie: Boolean(state && expectedState && state === expectedState),
     hasSupabaseTokenCookie: Boolean(supabaseToken),
-    realmId: realmId || null,
+    hasRealmId: Boolean(realmId),
     intuitError: intuitError || null,
-    intuitErrorDescription: intuitErrorDescription || null,
   });
 
   if (intuitError) {
     console.error("[quickbooks/callback] Intuit returned an OAuth error", {
       error: intuitError,
-      description: intuitErrorDescription,
-      fullCallbackUrl: request.url,
+      hasDescription: Boolean(intuitErrorDescription),
     });
     return NextResponse.json({ error: intuitError, description: intuitErrorDescription }, { status: 400 });
   }
@@ -79,15 +56,11 @@ export async function GET(request) {
   }
 
   try {
-    console.log("[quickbooks/callback] token exchange config", {
-      clientIdFirst6: summarizeValue(quickBooksConfig.clientId).first,
-      clientIdLast4: summarizeValue(quickBooksConfig.clientId).last,
-      clientIdLength: quickBooksConfig.clientId.length,
-      clientSecretFirst6: summarizeValue(quickBooksConfig.clientSecret).first,
-      clientSecretLast4: summarizeValue(quickBooksConfig.clientSecret).last,
-      clientSecretLength: quickBooksConfig.clientSecret.length,
+    console.log("[quickbooks/callback] OAuth exchange config", {
+      hasClientId: Boolean(quickBooksConfig.clientId),
+      hasClientSecret: Boolean(quickBooksConfig.clientSecret),
       environment: quickBooksConfig.environment,
-      redirectUri: quickBooksConfig.redirectUri,
+      hasRedirectUri: Boolean(quickBooksConfig.redirectUri),
       redirectUriMatchesExpected: quickBooksConfig.redirectUri === "http://localhost:3000/api/quickbooks/callback",
     });
 
@@ -103,26 +76,25 @@ export async function GET(request) {
 
     console.log("[quickbooks/callback] exchanging authorization code", {
       userId: authData.user.id,
-      realmId,
-      redirectUri: process.env.QB_REDIRECT_URI || null,
+      hasRealmId: Boolean(realmId),
+      hasRedirectUri: Boolean(process.env.QB_REDIRECT_URI),
     });
 
     const adapter = getERPAdapter("quickbooks", authData.user.id);
     const tokenResponse = await adapter.exchangeAuthorizationCode(authCode);
 
-    console.log("[quickbooks/callback] Intuit token exchange response", {
+    console.log("[quickbooks/callback] Intuit OAuth exchange response", {
       ok: tokenResponse.ok,
       status: tokenResponse.status,
       statusText: tokenResponse.statusText,
-      payload: tokenResponse.payload,
-      raw: tokenResponse.raw,
+      hasPayload: Boolean(tokenResponse.payload),
     });
 
     if (!tokenResponse.ok) {
       return NextResponse.json(
         {
           error: tokenResponse.payload?.error || "quickbooks_token_exchange_failed",
-          description: tokenResponse.payload?.error_description || tokenResponse.raw,
+          description: tokenResponse.payload?.error_description || "QuickBooks token exchange failed.",
         },
         { status: tokenResponse.status || 500 },
       );
@@ -130,19 +102,17 @@ export async function GET(request) {
 
     const token = tokenResponse.payload;
 
-    console.log("[quickbooks/callback] token exchange succeeded", {
+    console.log("[quickbooks/callback] OAuth exchange succeeded", {
       userId: authData.user.id,
-      realmId,
+      hasRealmId: Boolean(realmId),
       hasAccessToken: Boolean(token?.access_token),
-      accessTokenLength: token?.access_token?.length || 0,
       hasRefreshToken: Boolean(token?.refresh_token),
-      refreshTokenLength: token?.refresh_token?.length || 0,
       expiresIn: token?.expires_in || null,
     });
 
-    console.log("[quickbooks/callback] saving QuickBooks tokens to Supabase", {
+    console.log("[quickbooks/callback] saving QuickBooks connection", {
       userId: authData.user.id,
-      realmId,
+      hasRealmId: Boolean(realmId),
       table: "erp_connections",
       platform: "quickbooks",
     });
@@ -155,7 +125,6 @@ export async function GET(request) {
     console.log("[quickbooks/callback] Supabase save succeeded", {
       connectionId: savedConnection?.id || null,
       userId: savedConnection?.user_id || authData.user.id,
-      realmId: savedConnection?.realm_id || realmId,
       tokenExpiry: savedConnection?.token_expiry || null,
       updatedAt: savedConnection?.updated_at || null,
     });
@@ -167,11 +136,8 @@ export async function GET(request) {
   } catch (error) {
     console.error("[quickbooks/callback] OAuth callback failed", {
       message: error?.message,
-      stack: error?.stack,
       code: error?.error || error?.code,
-      description: error?.error_description,
       intuitTid: error?.intuit_tid,
-      fullError: error,
     });
     return NextResponse.json({ error: error?.message || "QuickBooks OAuth callback failed" }, { status: 500 });
   }

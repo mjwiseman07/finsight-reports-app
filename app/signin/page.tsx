@@ -27,7 +27,11 @@ export default function SigninPage() {
       }
 
       window.localStorage.setItem("supabase_access_token", data.session.access_token);
-      router.push("/dashboard");
+      const isSuperAdmin =
+        data.user?.app_metadata?.role === "super_admin" ||
+        data.user?.user_metadata?.role === "super_admin";
+      const nextPath = new URLSearchParams(window.location.search).get("next") || (isSuperAdmin ? "/admin" : "/dashboard");
+      router.push(nextPath.startsWith("/") ? nextPath : "/dashboard");
     } catch {
       setError("Invalid email or password. Please try again.");
     } finally {
@@ -38,8 +42,8 @@ export default function SigninPage() {
   return (
     <main className="advisacor-dark-grid min-h-screen bg-[#0A1020] px-6 py-8 text-white">
       <header className="mx-auto flex max-w-7xl items-center justify-between">
-        <Link href="/" className="rounded-2xl bg-white p-3 shadow-xl shadow-black/20">
-          <AdvisacorLogo priority className="w-[210px]" />
+        <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
+          <AdvisacorLogo priority className="w-full" />
         </Link>
         <Link href="/signup" className="rounded-full border border-white/15 bg-white/[0.06] px-5 py-2.5 text-sm font-black text-white backdrop-blur transition hover:bg-white/[0.1]">
           Request Early Access
@@ -68,7 +72,6 @@ export default function SigninPage() {
         </div>
 
         <div className="dark-enterprise-card rounded-[2rem] p-8 md:p-10">
-          <AdvisacorLogo priority className="mb-8 w-[240px] rounded-2xl bg-white p-3" />
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Sign In</p>
           <h2 className="mt-3 text-4xl font-black tracking-[-0.04em]">Welcome back</h2>
           <p className="mt-3 text-sm leading-6 text-slate-400">

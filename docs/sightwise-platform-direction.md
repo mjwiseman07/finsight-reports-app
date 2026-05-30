@@ -10,17 +10,36 @@ Positioning: AI-assisted financial intelligence and advisory workflow infrastruc
 
 Advisacor is evolving into:
 
-- AI-assisted advisory workflow infrastructure
-- Executive financial intelligence platform
-- Preparer intelligence system
-- Controller/CFO oversight platform
-- Operational finance intelligence engine
-- Board reporting infrastructure
-- AI-assisted financial operations platform
+- AI-assisted financial intelligence platform
+- Advisory workflow infrastructure
+- Financial oversight platform
+- Executive reporting platform
+- Controller intelligence system
+- Outsourced CFO operating system
+- Continuous executive financial awareness platform
 
 The product should feel premium, executive-level, advisory-focused, operationally intelligent, modern SaaS, and fractional CFO-grade. It should not feel dashboard-heavy, cluttered, generic accounting software, or AI gimmick software.
 
 The frontend should remain simple, guided, clean, and workflow-oriented. Most intelligence should remain backend/internal.
+
+The core product rule is: one intelligence engine, four audiences, and three package depths. Package level controls the scope of intelligence available. Persona controls the presentation layer, wording, depth, and workflow.
+
+## Strategic Product Architecture
+
+Personas:
+
+1. Bookkeeper
+2. Controller
+3. Fractional CFO
+4. Business Owner
+
+Package levels:
+
+1. Essential
+2. Professional
+3. Virtual CFO
+
+All packages receive advisory commentary, AI intelligence, executive summaries, and recommendations. The difference is scope, not whether AI is available.
 
 ## Package Tiers
 
@@ -157,6 +176,129 @@ Advisory commentary expands to inventory, debt, liquidity, operational finance, 
 ### Virtual CFO AI Scope
 
 Virtual CFO receives full executive intelligence: forecasting, treasury, budgeting, oversight review, strategic guidance, board preparation, liquidity planning, operational risk review, and executive recommendations.
+
+## Advisacor Executive
+
+Advisacor Executive is the Business Owner experience. It is not an accounting workspace; it is an executive intelligence experience for continuous financial awareness.
+
+Owner-facing outputs should focus on:
+
+- Cash
+- Profitability
+- Growth
+- Staffing
+- Risks
+- Opportunities
+- Business health
+
+Owner-facing outputs should avoid accounting jargon and accounting mechanics.
+
+### Weekly Executive Brief
+
+Every Friday, Advisacor should automatically generate and email:
+
+- Business Health Score
+- Cash Position
+- Revenue Trend
+- Profit Trend
+- Payroll Status
+- Collection Status
+- Top Risk
+- Top Opportunity
+- Recommended Focus
+- AI Executive Summary
+
+Example owner-friendly language:
+
+"Revenue remained stable this week. Collections improved. Cash remains healthy. Inventory growth continues to exceed sales growth and should be monitored."
+
+### Monthly Executive Package
+
+Monthly owner delivery should include:
+
+- Executive PDF
+- Executive PowerPoint
+- Executive Summary
+- KPI Review
+- Forecast Summary
+- Management Focus Areas
+
+Every executive brief and monthly package should include a secure Ask Advisacor link that opens an authenticated AI workspace.
+
+## Email-First Strategy
+
+Do not require a native mobile app initially. Use:
+
+- Weekly Executive Brief Email
+- Monthly Executive Package Email
+- Secure Ask Advisacor Link
+
+The email becomes the primary engagement mechanism.
+
+## Product-Led Growth Strategy
+
+Remove "Book A Demo" as the primary CTA.
+
+Primary CTA:
+
+- Generate My Free Financial Review
+
+Alternative CTAs:
+
+- Upload Reports & Receive Free Executive Package
+- Generate My Free Executive Summary
+- Experience Advisacor Free
+
+The free report model allows upload of Balance Sheet and Income Statement, with optional AR Aging, AP Aging, Payroll, and Inventory. It generates a sample executive summary, sample KPI dashboard, sample PDF package, sample PowerPoint preview, and sample AI commentary.
+
+Free report limits:
+
+- One company
+- One package generation
+- One reporting period
+- Watermarked outputs
+- Limited AI interaction
+- Paid subscription required after free report
+
+## Firm Pricing Model
+
+Do not use per-client pricing initially. Use firm-size bands.
+
+### Starter Firm
+
+Up to 25 clients:
+
+- Essential: $199/month
+- Professional: $499/month
+- Virtual CFO: $1,499/month
+
+### Growth Firm
+
+26-100 clients:
+
+- Essential: $399/month
+- Professional: $999/month
+- Virtual CFO: $2,999/month
+
+### Enterprise
+
+101+ clients:
+
+- Custom pricing
+- Contact Sales
+
+## Async Automation
+
+All package generation should be async using background processing, scheduled jobs, queued processing, and status tracking.
+
+Statuses:
+
+- Scheduled
+- Queued
+- Processing
+- Awaiting Approval
+- Sent
+- Failed
 
 ## Import Flow
 

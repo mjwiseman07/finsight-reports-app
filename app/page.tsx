@@ -95,7 +95,7 @@ export default function ComingSoonPage() {
       {/* This is a temporary public Coming Soon page. Full landing page preserved at /landing-preview. */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-6">
-          <Link href="/" className="block w-[min(700px,62vw)] px-0 py-0">
+          <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
             <AdvisacorLogo priority className="w-full" />
           </Link>
           <div className="hidden items-center gap-8 text-sm font-bold text-[#6B7280] lg:flex">
@@ -168,49 +168,42 @@ export default function ComingSoonPage() {
                   </div>
                   <div className="mt-5 rounded-2xl border border-white/10 bg-[#050915] p-4">
                     <svg viewBox="0 0 520 220" className="h-44 w-full" role="img" aria-label="Sample executive forecast chart">
-                      <defs>
-                        <linearGradient id="homeCashAreaGradient" x1="0" x2="0" y1="0" y2="1">
-                          <stop offset="0%" stopColor="#1E6BFF" stopOpacity="0.3" />
-                          <stop offset="100%" stopColor="#1E6BFF" stopOpacity="0.02" />
-                        </linearGradient>
-                        <linearGradient id="homeCashLineGradient" x1="0" x2="1" y1="0" y2="0">
-                          <stop offset="0%" stopColor="#1E6BFF" />
-                          <stop offset="62%" stopColor="#3BB273" />
-                          <stop offset="100%" stopColor="#FF7A1A" />
-                        </linearGradient>
-                      </defs>
+                      <rect x="332" y="42" width="134" height="122" fill="#D78342" opacity="0.07" />
+                      <text x="399" y="50" textAnchor="middle" fill="#94A3B8" fontSize="10" fontWeight="800" letterSpacing="1.4">FORECAST</text>
                       {[52, 92, 132, 172].map((y) => (
-                        <line key={y} x1="28" x2="492" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" strokeWidth="1" />
+                        <line key={y} x1="36" x2="482" y1={y} y2={y} stroke="rgba(148,163,184,0.16)" strokeWidth="1" />
                       ))}
+                      <line x1="36" x2="482" y1="178" y2="178" stroke="rgba(148,163,184,0.3)" strokeWidth="1" />
                       <path
                         d="M50 146 C88 128, 108 116, 130 112 C165 106, 178 124, 205 116 C246 104, 250 80, 286 84 C318 88, 330 94, 352 84 C382 70, 402 58, 460 48 L460 178 L50 178 Z"
-                        fill="url(#homeCashAreaGradient)"
+                        fill="#C8A46A"
+                        opacity="0.08"
                       />
                       <path
                         d="M50 146 C88 128, 108 116, 130 112 C165 106, 178 124, 205 116 C246 104, 250 80, 286 84 C318 88, 330 94, 352 84 C382 70, 402 58, 460 48"
                         fill="none"
-                        stroke="url(#homeCashLineGradient)"
-                        strokeWidth="6"
+                        stroke="#C8A46A"
+                        strokeWidth="2.4"
                         strokeLinecap="round"
                       />
                       <polyline
                         points="50,160 130,150 205,142 286,132 352,116 460,98"
                         fill="none"
-                        stroke="rgba(255,255,255,0.28)"
-                        strokeWidth="3"
+                        stroke="rgba(148,163,184,0.5)"
+                        strokeWidth="1.6"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        strokeDasharray="8 10"
+                        strokeDasharray="5 8"
                       />
                       {[
                         [130, 112],
                         [286, 84],
                         [460, 48],
                       ].map(([cx, cy]) => (
-                        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="6" fill="#FFB36F" stroke="#050915" strokeWidth="3" />
+                        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" fill="#050915" stroke="#C8A46A" strokeWidth="1.5" />
                       ))}
-                      <text x="36" y="32" fill="#94A3B8" fontSize="12" fontWeight="800">Cash forecast</text>
-                      <text x="380" y="36" fill="#FFB36F" fontSize="13" fontWeight="900">+18.6%</text>
+                      <text x="36" y="32" fill="#CBD5E1" fontSize="11" fontWeight="900" letterSpacing="1">TREASURY CASH FORECAST</text>
+                      <text x="392" y="72" fill="#D78342" fontSize="11" fontWeight="900">+18.6%</text>
                       {["W1", "W2", "W3", "W4", "W5", "W6", "W7"].map((week, index) => (
                         <text key={week} x={71 + index * 62} y="206" textAnchor="middle" fill="#64748B" fontSize="12" fontWeight="800">
                           {week}
@@ -218,8 +211,8 @@ export default function ComingSoonPage() {
                       ))}
                     </svg>
                     <div className="mt-3 grid gap-2 text-xs font-bold text-slate-400 sm:grid-cols-3">
-                      <span><span className="text-[#1E6BFF]">●</span> Actual trend</span>
-                      <span><span className="text-[#FF7A1A]">●</span> Forecast outlook</span>
+                      <span><span className="text-[#C8A46A]">●</span> Treasury cash forecast</span>
+                      <span><span className="text-slate-500">●</span> Baseline scenario</span>
                       <span className="text-[#FFB36F]">Ending cash: $1.63M</span>
                     </div>
                   </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabase";
+import { rateLimit } from "../../../lib/rate-limit";
 
 function isDuplicateEmailError(error) {
   const message = String(error?.message || "").toLowerCase();
@@ -12,6 +13,9 @@ function isDuplicateEmailError(error) {
 }
 
 export async function POST(request) {
+  const rateLimitResponse = rateLimit(request, { key: "signup", limit: 5, windowMs: 60_000 });
+  if (rateLimitResponse) return rateLimitResponse;
+
   const { first_name, last_name, business_name, email, password } = await request.json();
 
   if (!first_name || !last_name || !business_name || !email || !password) {

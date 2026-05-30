@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabase";
+import { rateLimit } from "../../../lib/rate-limit";
 
 const priceIdToPlan = {
   [process.env.STRIPE_PRICE_ESSENTIAL]: "essential",
@@ -22,6 +23,9 @@ function isDevelopmentBypassRequest(request) {
 }
 
 export async function POST(request) {
+  const rateLimitResponse = rateLimit(request, { key: "check-trial", limit: 30, windowMs: 60_000 });
+  if (rateLimitResponse) return rateLimitResponse;
+
   if (isDevelopmentBypassRequest(request)) {
     return NextResponse.json({ allowed: true, reason: "subscriber" });
   }
