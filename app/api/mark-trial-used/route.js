@@ -24,14 +24,35 @@ export async function POST(request) {
   }
 
   // Call this route only after a report has been successfully generated.
-  const { data: userRecord, error: userError } = await supabaseAdmin
+  let { data: userRows, error: userError } = await supabaseAdmin
     .from("users")
-    .select("reports_generated")
+    .select("id, reports_generated")
     .eq("id", authData.user.id)
-    .single();
+    .limit(1);
 
   if (userError) {
     return NextResponse.json({ error: userError.message }, { status: 500 });
+  }
+
+  let userRecord = Array.isArray(userRows) ? userRows[0] || null : null;
+
+  if (!userRecord && authData.user.email) {
+    const fallbackResult = await supabaseAdmin
+      .from("users")
+      .select("id, reports_generated")
+      .eq("email", authData.user.email)
+      .limit(1);
+
+    if (fallbackResult.error) {
+      return NextResponse.json({ error: fallbackResult.error.message }, { status: 500 });
+    }
+
+    userRows = fallbackResult.data;
+    userRecord = Array.isArray(userRows) ? userRows[0] || null : null;
+  }
+
+  if (!userRecord) {
+    return NextResponse.json({ error: "User record not found" }, { status: 404 });
   }
 
   const reportsGenerated = Number(userRecord?.reports_generated || 0) + 1;
@@ -42,7 +63,7 @@ export async function POST(request) {
       trial_used: true,
       reports_generated: reportsGenerated,
     })
-    .eq("id", authData.user.id);
+    .eq("id", userRecord.id);
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });

@@ -6,77 +6,77 @@ import { AdvisacorLogo } from "../components/AdvisacorLogo";
 
 const platformCards = [
   {
-    title: "AP Intelligence",
-    body: "Monitor vendor obligations, payment timing, accrual exposure, and cash flow pressure before liabilities disrupt working capital planning.",
+    title: "Executive Package Automation",
+    body: "Turn accounting reports into board-ready PDF financial packages, PowerPoint executive packages, dashboards, and AI-assisted commentary in minutes.",
   },
   {
-    title: "AR Visibility",
-    body: "Unify receivables aging, collection timing, reserve exposure, and customer concentration into a clear cash conversion view.",
+    title: "Business Owner Weekly Briefs",
+    body: "Give owners weekly awareness without forcing them to read accounting reports: business health, cash, revenue, profitability, payroll, collections, risk, and opportunity.",
   },
   {
-    title: "Payroll & Workforce Analytics",
-    body: "Connect payroll movement, FTE changes, productivity, revenue per FTE, and staffing scalability into one operational finance signal.",
+    title: "Ask Advisacor AI Assistant",
+    body: "Let leaders securely ask questions like why profit changed, whether cash is healthy, if hiring is affordable, and what to focus on this week.",
   },
   {
-    title: "AI Advisory Insights",
-    body: "Turn close data into review-oriented commentary, management focus areas, and executive-ready recommendations scoped to each package.",
+    title: "Persona-Aware Workflows",
+    body: "Support bookkeepers, controllers, fractional CFOs, and business owners with outputs tailored to upload workflows, close quality, forecasting, board packages, and owner summaries.",
   },
   {
-    title: "Forecasting & Predictive Analytics",
-    body: "Support leadership with liquidity outlooks, revenue timing, workforce assumptions, and forecast updates built from operational drivers.",
+    title: "Industry Intelligence",
+    body: "Adapt KPIs and commentary by industry, including healthcare patient-day metrics, manufacturing variances, construction WIP, distribution inventory, and professional services utilization.",
   },
   {
-    title: "Executive Dashboards",
-    body: "Give owners, boards, and CFO teams a premium financial command center for KPIs, risks, forecasts, and operating performance.",
+    title: "Accounting Firm Client Management",
+    body: "Help firms scale advisory work with a multi-client dashboard, client health status, package tracking, review queues, delivery status, and role-based outputs.",
   },
 ];
 
 const packages = [
   {
-    name: "Essentials",
-    summary: "Monthly financial intelligence for bookkeeping and operational review teams.",
-    analytics: ["MoM operational review", "AP/AR visibility", "Payroll and FTE analytics", "Reserve exposure"],
-    ai: ["Workflow assistance", "Bookkeeping operations commentary", "Variance explanations"],
-    workflow: ["Guided import", "Validation center", "Executive package generation"],
+    name: "Essential",
+    summary: "Core executive reporting for AP, AR, payroll, FTE, reserves, and month-over-month review.",
+    analytics: ["AP review", "AR review", "Payroll and FTE analytics", "Reserve exposure"],
+    ai: ["Executive summary", "KPI review", "Basic AI commentary"],
+    workflow: ["Guided upload", "Month-end package preparation", "PDF financial package"],
     detail:
-      "Essentials gives teams a clean monthly review workflow for core close packages, AP/AR visibility, payroll/FTE commentary, reserve exposure, and operational variance explanations. Integrations focus on QuickBooks exports, CSV, Excel, and ERP report uploads.",
+      "Essential gives teams a clean monthly workflow for AP, AR, payroll, FTE, reserves, month-over-month review, executive summaries, KPI review, and PDF financial package generation from uploaded accounting reports.",
   },
   {
     name: "Professional",
-    summary: "Controller-grade operational analytics for growing advisory and finance teams.",
-    analytics: ["Inventory intelligence", "Liquidity review", "Fixed asset review", "Working capital trends"],
-    ai: ["Operational finance Q&A", "Reconciliation guidance", "QoQ commentary"],
+    summary: "Controller-grade intelligence for inventory, fixed assets, debt, liquidity, working capital, and QoQ trends.",
+    analytics: ["Inventory intelligence", "Fixed asset review", "Debt and liquidity review", "Working capital trends"],
+    ai: ["Flux analysis", "Balance sheet integrity review", "QoQ commentary"],
     workflow: ["Advanced schedules", "PowerPoint generation", "Client-ready review workflow"],
     featured: true,
     detail:
-      "Professional expands Advisacor into controller-level operational finance. Teams receive inventory, debt, liquidity, fixed asset, working capital, and quarter-over-quarter analytics with richer reporting workflows and board-ready presentation automation.",
+      "Professional expands Advisacor into controller-level operational finance with everything in Essential plus inventory, fixed assets, debt, liquidity, working capital, stale balance review, quarter-over-quarter trends, richer reporting workflows, and PowerPoint executive packages.",
   },
   {
-    name: "Enterprise",
-    summary: "Virtual CFO intelligence, forecasting, oversight review, and executive delivery automation.",
-    analytics: ["Forecast intelligence", "Treasury review", "Close management", "Manufacturing and operations"],
+    name: "Virtual CFO",
+    summary: "Board-level forecasting, budgeting, treasury, oversight review, and executive recommendations.",
+    analytics: ["Forecasting and budgeting", "Treasury review", "Oversight review", "Manufacturing intelligence"],
     ai: ["Executive AI assistant", "Board preparation", "Strategic recommendations"],
-    workflow: ["Executive Workspace", "Automated delivery", "Forecast and KPI refresh"],
+    workflow: ["Board-level reporting", "Automated delivery", "Forecast and KPI refresh"],
     detail:
-      "Enterprise is built for fractional CFO teams, boards, and finance leadership. It combines forecasting, treasury, budgeting, oversight review, close intelligence, manufacturing variance review, executive recommendations, and automated delivery of PDF, PowerPoint, KPI, and forecast updates.",
+      "Virtual CFO is built for fractional CFO teams, boards, and finance leadership. It includes everything in Professional plus forecasting, budgeting, treasury, oversight review, manufacturing intelligence, deferred revenue, unbilled AR, board-level reporting, executive recommendations, and automated delivery of PDF, PowerPoint, KPI, and forecast updates.",
   },
 ];
 
 const whyItems = [
-  "Generate a board-ready financial package from accounting reports without scheduling a sales call.",
-  "Experience executive summaries, KPI review, dashboard previews, and AI commentary before choosing a package.",
-  "Scale advisory services with product-led workflows that turn uploads into polished executive outputs.",
-  "Unlock deeper intelligence only when the business needs recurring reporting, forecasting, budgeting, and oversight.",
-  "Keep preparer review internal while delivering owner-ready explanations and executive visibility.",
+  "From upload to first executive package in under 15 minutes, with no demo required.",
+  "Manual upload creates a fast sample review; connected accounting unlocks QuickBooks, Xero, NetSuite, Sage, Microsoft Dynamics, weekly briefs, monthly packages, forecasting, budgeting, industry intelligence, and AI access.",
+  "Scale advisory services without adding headcount by giving firms client health status, package tracking, review queues, delivery status, and persona-specific outputs.",
+  "Give business owners weekly financial awareness with owner-ready explanations, cash position, revenue/profit trends, top risk, top opportunity, and secure Ask Advisacor questions.",
+  "Support professional workflows with role-based access, company-level permissions, protected report access, audit logging, secure backend processing, and a built-in support ticket system.",
 ];
 
 const educationVideos = [
-  ["Executive Package Generation", "See how uploaded reports become a limited executive review in minutes."],
-  ["Payroll & FTE Intelligence", "Watch payroll movement, staffing trends, and revenue per FTE become advisory commentary."],
-  ["Financial Oversight Review", "Preview close-quality, stale balance, reserve, and accrual review workflows."],
-  ["Forecasting & Budgeting", "See how Virtual CFO users extend actuals into forecasts, budgets, and liquidity planning."],
-  ["Executive Workspace", "Preview owner-friendly dashboards, weekly snapshots, action items, and financial trends."],
-  ["Fractional CFO Workflows", "See how advisory teams prepare board-ready recommendations and recurring delivery."],
+  ["How Advisacor Turns Reports Into Executive Packages", "See how uploaded reports become executive summaries, dashboards, PDF packages, and PowerPoint previews in minutes."],
+  ["Weekly Executive Briefs For Business Owners", "Preview business health, cash, revenue, profitability, payroll, collections, top risk, and top opportunity in an owner-friendly email."],
+  ["Industry Intelligence Dashboards", "Watch healthcare, manufacturing, construction, distribution, and professional services KPIs adapt to how each company operates."],
+  ["Accounting Firm Client Management", "See how advisory firms manage client health, package tracking, review queues, delivery status, and multi-client workflows."],
+  ["Ask Advisacor AI Assistant", "Preview secure owner questions about profit changes, cash health, hiring capacity, and weekly management focus."],
+  ["Virtual CFO Package Workflow", "See forecasting, budgeting, treasury, oversight review, board packages, and executive recommendations come together."],
 ];
 
 function DashboardPreview() {
@@ -185,9 +185,9 @@ function DashboardPreview() {
 
           <div className="space-y-3">
             {[
-              ["AI Recommendation", "Review inventory expansion before approving hiring plan."],
-              ["AP/AR Signal", "Collections improved while AP timing remains concentrated."],
-              ["Workforce Insight", "Revenue per FTE improved despite payroll growth."],
+              ["AI Recommendation", "Generate the board package and highlight cash timing before approving the hiring plan."],
+              ["Owner Brief Signal", "Cash is stable, revenue is improving, and collections remain this week's top risk."],
+              ["Industry Insight", "Manufacturing variance and inventory efficiency are driving the next executive recommendation."],
             ].map(([title, body]) => (
               <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FFB36F]">{title}</p>
@@ -269,7 +269,7 @@ export default function Home() {
               Turn Accounting Data Into Executive Intelligence
             </h1>
             <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-300">
-              Upload your Balance Sheet and Income Statement to generate a free sample executive review. The product becomes the demo, so you can see the quality before talking to anyone.
+              Generate board-ready financial packages in minutes. Upload statements for a free sample review, or connect accounting systems to unlock weekly briefs, monthly packages, Ask Advisacor, forecasting, budgeting, and industry intelligence.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link href="/free-review" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
@@ -294,11 +294,11 @@ export default function Home() {
           <div className="max-w-3xl">
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#1E6BFF]">Free Review Funnel</p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-6xl">
-              Upload reports. Generate value. Upgrade when you are ready.
+              No demo required. From upload to first executive package in under 15 minutes.
             </h2>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-6">
-            {["Visitor", "Upload Reports", "Generate Free Review", "Experience Value", "See Upgrade Options", "Subscribe"].map((step, index) => (
+            {["Visitor", "Upload Reports", "Generate Free Review", "Experience Value", "Connect Accounting", "Scale Advisory"].map((step, index) => (
               <div key={step} className="enterprise-card rounded-3xl p-5">
                 <p className="text-sm font-black text-[#FF7A1A]">{index + 1}</p>
                 <p className="mt-2 text-sm font-black text-[#0A1020]">{step}</p>
@@ -324,7 +324,7 @@ export default function Home() {
           <div className="text-center">
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Packages</p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] md:text-6xl">
-              Intelligence levels for every finance operating model.
+              Executive reporting infrastructure for every finance operating model.
             </h2>
           </div>
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
@@ -374,7 +374,7 @@ export default function Home() {
           <div>
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#1E6BFF]">Why Advisacor</p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-6xl">
-              Executive visibility without operational noise.
+              Business owner awareness and advisory firm scale without operational noise.
             </h2>
           </div>
           <div className="grid gap-4">
@@ -395,10 +395,10 @@ export default function Home() {
           <div className="max-w-3xl">
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FF7A1A]">Watch Advisacor In Action</p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-6xl">
-              Short product videos instead of demo-first selling.
+              Product videos for executive packages, owner briefs, industry intelligence, and firm workflows.
             </h2>
             <p className="mt-5 text-lg leading-8 text-[#6B7280]">
-              Learn the platform in 1-3 minute visual walkthroughs, then generate your own free financial review.
+              Learn the platform in 1-3 minute visual walkthroughs, then generate your own free sample executive review from Balance Sheet, Income Statement, AR Aging, AP Aging, or Inventory reports.
             </p>
           </div>
           <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -423,10 +423,10 @@ export default function Home() {
           <div className="max-w-3xl">
             <AdvisacorLogo className="mb-8 w-[230px]" />
             <h2 className="text-4xl font-black tracking-[-0.04em] md:text-6xl">
-              Build the financial intelligence layer your leadership team deserves.
+              Build the AI-assisted financial intelligence layer your leadership team deserves.
             </h2>
             <p className="mt-5 text-lg leading-8 text-slate-300">
-              Bring forecasting, operational analytics, executive reporting, and AI-assisted advisory workflows into one premium enterprise platform.
+              Bring executive reporting, PDF and PowerPoint packages, owner weekly briefs, Ask Advisacor, firm client management, support tickets, and industry-aware operational finance intelligence into one premium platform.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/free-review" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
@@ -478,7 +478,7 @@ export default function Home() {
             <div className="mt-6 rounded-3xl border border-[#FF7A1A]/20 bg-[#FF7A1A]/10 p-5">
               <p className="font-black text-[#0A1020]">Integrations and reporting</p>
               <p className="mt-2 leading-7 text-[#6B7280]">
-                Supports CSV, Excel, ERP exports, QuickBooks exports, report validation, AI review, PDF packages, PowerPoint presentations, executive dashboards, and future connected ERP sync.
+                Supports QuickBooks, Xero, NetSuite, Sage, Microsoft Dynamics, Manual Upload, CSV, Excel, ERP exports, report validation, AI review, PDF packages, PowerPoint presentations, executive dashboards, weekly briefs, and future connected sync.
               </p>
             </div>
             <button type="button" onClick={openPackagePdf} className="premium-button mt-6 rounded-2xl px-6 py-4 text-sm font-black text-white">

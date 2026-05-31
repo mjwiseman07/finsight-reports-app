@@ -252,6 +252,24 @@ export default function AdminPage() {
     window.location.assign(`/dashboard?${params.toString()}`);
   };
 
+  const viewAsCustomer = async () => {
+    await runAdminAction("view_as_customer_started", {
+      workflow: "customer_experience_qa",
+      target_user_id: "demo@advisacor.com",
+    });
+    const params = new URLSearchParams({
+      customerView: "true",
+      readOnly: "true",
+      testCustomer: "demo@advisacor.com",
+      companyName: "Advisacor Customer Demo Company",
+      industryType: "Manufacturing",
+      packageLevel: "advisacor_cfo",
+      dataSourcePath: "connected",
+      "x-dev-bypass": "true",
+    });
+    window.location.assign(`/dashboard?${params.toString()}`);
+  };
+
   return (
     <main className="min-h-screen bg-[#0A1020] px-6 py-6 text-white">
       <div className="mx-auto max-w-7xl">
@@ -333,11 +351,36 @@ export default function AdminPage() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
+              <Panel id="customer-experience-qa" title="Customer Experience QA">
+                <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+                  <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">Customer Test Account</p>
+                  <h2 className="mt-3 text-2xl font-black text-white">demo@advisacor.com</h2>
+                  <p className="mt-3 text-sm leading-6 text-emerald-50/85">
+                    Dedicated customer QA account with active Advisacor CFO subscription and 12 months of demo financial memory.
+                    Use this to validate the customer experience without changing Super Admin permissions.
+                  </p>
+                  <div className="mt-4 grid gap-2 text-sm font-bold text-emerald-50/80">
+                    <p>Role: Customer</p>
+                    <p>Subscription: Advisacor CFO</p>
+                    <p>Status: Active</p>
+                    <p>Mode: Read-only customer view with audit trail</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void viewAsCustomer()}
+                    disabled={isRunningAction}
+                    className="mt-5 rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-[#082014] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    View As Customer
+                  </button>
+                </div>
+              </Panel>
+
               <Panel id="company-testing-center" title="Company Testing Center">
                 <div className="mb-6 rounded-3xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 p-5">
                   <p className="text-sm font-black text-white">Test Journey Launcher</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Start with onboarding when validating real customer setup. Launching a dashboard uses the selected company's stored persona, package, users, and delivery settings.
+                    Start with onboarding when validating real customer setup. Launching a dashboard uses the selected company&apos;s stored persona, package, users, and delivery settings.
                   </p>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <button
@@ -347,7 +390,7 @@ export default function AdminPage() {
                       className="rounded-2xl border border-white/10 bg-[#0A1020] px-4 py-3 text-left text-sm font-black text-white transition hover:border-[#FF7A1A]/60 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <span className="block">Start My Own Company</span>
-                      <span className="mt-1 block text-xs font-bold leading-5 text-slate-500">Test owner/internal team onboarding from Step 0.</span>
+                      <span className="mt-1 block text-xs font-bold leading-5 text-slate-500">Test owner/internal team onboarding from Step 1.</span>
                     </button>
                     <button
                       type="button"

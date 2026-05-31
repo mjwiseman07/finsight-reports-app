@@ -26,45 +26,52 @@ import {
   personaOutputModes,
   workspaceArchitecture,
 } from "../../lib/executive-delivery-architecture";
+import { getCheckoutTiers, getProductTier } from "../../lib/product-tiers";
+import {
+  answerPulseCfoQuestion,
+  answerPulsePredictQuestion,
+  buildPulsePredictSnapshot,
+  executiveInsightSnapshot,
+  pulseAiCoreQuestions,
+  pulsePredictQuestions,
+  whatIfScenarioExamples,
+} from "../../lib/pulse-predict";
+import {
+  buildPulseMemoryScore,
+  buildPulseMemoryTimeline,
+  demoPulseInsightMemory,
+} from "../../lib/pulse-insight-memory";
 
-const priceIds = {
-  essential: "price_1Tanv2CYGplhrQTJhQ1riXCe",
-  professional: "price_1TanxOCYGplhrQTJSv3ynV3Y",
-  virtualCfo: "price_1TanyYCYGplhrQTJG82yVpJC",
-};
-
-const plans = [
-  {
-    key: "essential",
-    name: "Essential",
-    price: "$99/mo",
-    description: "Core monthly reporting and KPI package automation.",
-  },
-  {
-    key: "professional",
-    name: "Professional",
-    price: "$199/mo",
-    description: "Advisory reporting with deeper analysis and presentation automation.",
-    featured: true,
-  },
-  {
-    key: "virtualCfo",
-    name: "Virtual CFO",
-    price: "$499/mo",
-    description: "Premium CFO-level intelligence, flux analysis, and board-ready reporting.",
-  },
-];
+const plans = getCheckoutTiers().map((tier) => ({
+  key: tier.key,
+  name: tier.name,
+  price: tier.priceRange,
+  description: tier.targetCustomer,
+  featured: tier.featured,
+  priceId: tier.priceId,
+  features: tier.summaryFeatures || tier.features,
+}));
 
 const planRank = {
   essential: 1,
-  professional: 2,
-  virtualCfo: 3,
+  pulse_starter: 1,
+  pulse_pro: 2,
+  professional: 3,
+  advisacor_professional: 3,
+  virtual_cfo: 4,
+  virtualCfo: 4,
+  advisacor_cfo: 4,
 };
 
 const planLabels = {
-  essential: "Essential",
-  professional: "Professional",
-  virtualCfo: "Virtual CFO",
+  essential: "Pulse Starter",
+  pulse_starter: "Pulse Starter",
+  pulse_pro: "Pulse Pro",
+  professional: "Advisacor Professional",
+  advisacor_professional: "Advisacor Professional",
+  virtual_cfo: "Advisacor CFO",
+  virtualCfo: "Advisacor CFO",
+  advisacor_cfo: "Advisacor CFO",
 };
 
 const featureChecks = [
@@ -75,12 +82,6 @@ const featureChecks = [
   ["has_fixed_assets", "Fixed assets"],
 ];
 
-const recommendationToPlanKey = {
-  essential: "essential",
-  professional: "professional",
-  virtual_cfo: "virtualCfo",
-};
-
 const firstPackageMetrics = [
   ["Business Health Score", "82 / 100", "Healthy, with cash and margin items to watch."],
   ["Cash Position", "$428K", "Stable near-term liquidity."],
@@ -89,6 +90,140 @@ const firstPackageMetrics = [
   ["Top Risk", "AR concentration", "Collections timing could pressure short-term cash."],
   ["Top Opportunity", "Margin expansion", "Pricing and expense discipline can improve operating leverage."],
 ];
+
+const pulseInsights = [
+  "Pulse identified slowing customer collections.",
+  "Pulse detected margin compression in two product categories.",
+  "Pulse detected inventory growth exceeding sales growth.",
+];
+
+const pulseAlerts = [
+  "Cash collections slowed this month.",
+  "Retainage exposure increased.",
+  "Labor cost per operating unit is trending higher.",
+];
+
+const pulseRecommendations = [
+  "Monitor customer collection activity.",
+  "Review inventory purchasing levels.",
+  "Evaluate labor scheduling before adding staff.",
+];
+
+const capabilityRecommendationMap = [
+  {
+    key: "has_inventory",
+    report: "Inventory",
+    minimumPlan: "professional",
+    benefits: ["Inventory Intelligence", "Working Capital Analysis"],
+  },
+  {
+    key: "has_fixed_assets",
+    report: "Fixed Asset",
+    minimumPlan: "professional",
+    benefits: ["Fixed Asset Monitoring", "Working Capital Analysis"],
+  },
+  {
+    key: "has_payroll",
+    report: "Payroll",
+    minimumPlan: "professional",
+    benefits: ["Payroll and FTE Trends", "Labor Cost Monitoring"],
+  },
+  {
+    key: "has_budgets",
+    report: "Budget",
+    minimumPlan: "virtualCfo",
+    benefits: ["Budget vs Actual", "Forecast Review"],
+  },
+  {
+    key: "has_classes",
+    report: "Class Tracking",
+    minimumPlan: "virtualCfo",
+    benefits: ["Segment Profitability", "Management Reporting"],
+  },
+];
+
+function buildIntelligenceRecommendation(capabilities, currentPlanKey) {
+  if (!capabilities) return null;
+  const currentRank = planRank[currentPlanKey] || 1;
+  const availableCapabilities = capabilityRecommendationMap.filter(
+    (capability) => capabilities[capability.key] && planRank[capability.minimumPlan] > currentRank,
+  );
+
+  if (!availableCapabilities.length) return null;
+
+  return {
+    reports: availableCapabilities.map((capability) => capability.report),
+    benefits: Array.from(new Set(availableCapabilities.flatMap((capability) => capability.benefits))),
+  };
+}
+
+function trackRecommendationEvent(eventType, metadata = {}) {
+  if (typeof window === "undefined") return;
+  const storageKey = "advisacor_recommendation_events";
+  const currentEvents = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
+  currentEvents.push({ eventType, metadata, createdAt: new Date().toISOString() });
+  window.localStorage.setItem(storageKey, JSON.stringify(currentEvents.slice(-50)));
+}
+
+const defaultAiQuestions = [
+  ...pulseAiCoreQuestions,
+  ...pulsePredictQuestions,
+  "Why did profit decrease?",
+  "Why is cash lower this month?",
+  "What concerns you most?",
+  "Which customers are impacting collections?",
+  "Can I afford another employee?",
+  "Why did margin decline?",
+];
+
+function buildDashboardAiAnswer(question, context) {
+  const normalizedQuestion = question.toLowerCase();
+  const industry = context.industryType || "General";
+  const prefix = `Using ${context.companyName || "this company"}'s ${industry} dashboard context`;
+
+  if (
+    normalizedQuestion.includes("projected") ||
+    normalizedQuestion.includes("predict") ||
+    normalizedQuestion.includes("forecast") ||
+    normalizedQuestion.includes("year-end") ||
+    normalizedQuestion.includes("90 days")
+  ) {
+    return answerPulsePredictQuestion(question, context);
+  }
+
+  if (
+    normalizedQuestion.includes("reduce expenses") ||
+    normalizedQuestion.includes("expenses seem") ||
+    normalizedQuestion.includes("biggest financial risk") ||
+    normalizedQuestion.includes("focus on this month") ||
+    normalizedQuestion.includes("cash flow") ||
+    normalizedQuestion.includes("margins shrinking")
+  ) {
+    return answerPulseCfoQuestion(question, context);
+  }
+
+  if (normalizedQuestion.includes("cash")) {
+    return `${prefix}, Pulse sees cash lower primarily because payroll, vendor payments, and collections timing are moving faster than incoming receipts. The next action is to review the upcoming two-week cash schedule and follow up on the largest overdue balances.`;
+  }
+
+  if (normalizedQuestion.includes("profit") || normalizedQuestion.includes("margin")) {
+    return `${prefix}, Pulse sees profitability pressure tied to labor, overhead, and margin discipline. Review gross margin movement first, then isolate payroll, material, or job-cost drivers before changing pricing or staffing.`;
+  }
+
+  if (normalizedQuestion.includes("employee") || normalizedQuestion.includes("staff") || normalizedQuestion.includes("nurse") || normalizedQuestion.includes("cna")) {
+    return `${prefix}, Pulse would evaluate staffing capacity against cash, labor cost per operating unit, and expected revenue. If labor cost per patient day or revenue per employee worsens after the hire, wait or offset the role with productivity gains.`;
+  }
+
+  if (normalizedQuestion.includes("customer") || normalizedQuestion.includes("collections") || normalizedQuestion.includes("receivable")) {
+    return `${prefix}, Pulse sees collections risk concentrated in older receivables. Prioritize the top overdue customer balances, confirm payment timing, and watch whether AR over 60 days is increasing faster than revenue.`;
+  }
+
+  if (normalizedQuestion.includes("concern") || normalizedQuestion.includes("risk")) {
+    return `${prefix}, Pulse's top concerns are cash timing, collections quality, and whether operating costs are moving faster than revenue. Industry-specific risks should be reviewed in the operating panels below before the next management decision.`;
+  }
+
+  return `${prefix}, Pulse would start with cash, revenue trend, profitability movement, and the industry KPIs shown on this dashboard. The most useful next step is to compare the current metric against the prior period and identify whether the change is timing, volume, pricing, labor, or working capital.`;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -99,7 +234,7 @@ export default function DashboardPage() {
   const [checkoutPlan, setCheckoutPlan] = useState("");
   const [quickBooksCapabilities, setQuickBooksCapabilities] = useState(null);
   const [quickBooksDetecting, setQuickBooksDetecting] = useState(false);
-  const [recommendedPlan, setRecommendedPlan] = useState("");
+  const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [accountSaving, setAccountSaving] = useState(false);
@@ -120,19 +255,57 @@ export default function DashboardPage() {
   const [ownerPackageLevel, setOwnerPackageLevel] = useState("essential");
   const [ownerSettingsSaving, setOwnerSettingsSaving] = useState(false);
   const [ownerSettingsMessage, setOwnerSettingsMessage] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [executiveQuestion, setExecutiveQuestion] = useState("");
+  const [aiMessages, setAiMessages] = useState([
+    {
+      role: "advisacor",
+      content: "Hi, I'm Pulse. I help you understand the financial and operational health of your business.",
+    },
+  ]);
+  const [pulseMemory, setPulseMemory] = useState({
+    insights: demoPulseInsightMemory,
+    timeline: buildPulseMemoryTimeline(demoPulseInsightMemory),
+    score: buildPulseMemoryScore(demoPulseInsightMemory),
+    source: "fallback",
+  });
 
   const currentPlanKey = access?.subscription_plan || null;
-  const currentPlanName = currentPlanKey ? planLabels[currentPlanKey] || currentPlanKey : access?.reason === "trial" ? "Free Trial" : "No Active Plan";
+  const currentProductTier = getProductTier(currentPlanKey);
+  const currentPlanName = currentPlanKey ? currentProductTier.name || planLabels[currentPlanKey] || currentPlanKey : access?.reason === "trial" ? "Free Trial" : "No Active Plan";
   const accountEmail = access?.email || "Not available";
   const accountBusinessName = access?.business_name || "Not provided";
   const dashboardParams = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
   const firstPackageReady = dashboardParams.get("firstPackage") === "ready";
+  const customerViewMode = dashboardParams.get("customerView") === "true";
+  const readOnlyCustomerView = dashboardParams.get("readOnly") === "true";
   const onboardingCompanyName = dashboardParams.get("companyName") || accountBusinessName;
   const onboardingIndustryType = dashboardParams.get("industryType") || "Industry Intelligence";
-  const onboardingDataSourcePath = dashboardParams.get("dataSourcePath") || "";
-  const isManualUploadDashboard = onboardingDataSourcePath === "manual_upload";
   const selectedPersonaMode = personaOutputModes.find((persona) => persona.id === deliveryPersona) || personaOutputModes[3];
   const selectedOwnerPackageScope = ownerPackageScopeRules.find((rule) => rule.packageKey === ownerPackageLevel) || ownerPackageScopeRules[0];
+  const intelligenceRecommendation = buildIntelligenceRecommendation(quickBooksCapabilities, currentPlanKey);
+  const dashboardAiContext = {
+    companyName: onboardingCompanyName,
+    packageName: currentPlanName,
+    industryType: onboardingIndustryType,
+    healthScore: "82 / 100",
+    cash: "$428K",
+    revenue: "$1.8M",
+    profitability: "14.6%",
+    latestPackage: firstPackageReady ? "First executive package" : "Current dashboard snapshot",
+    tierName: currentProductTier.name,
+    scenarioHorizon: currentProductTier.entitlements.scenarioForecastHorizon,
+    scenarioLimit:
+      currentProductTier.entitlements.savedScenarioLimit === "unlimited"
+        ? "unlimited scenarios"
+        : `${currentProductTier.entitlements.savedScenarioLimit} saved scenarios`,
+  };
+  const pulsePredictSnapshot = buildPulsePredictSnapshot({
+    companyName: onboardingCompanyName,
+    industryType: onboardingIndustryType,
+  });
+  const whatIfStrategy = currentProductTier.whatIfScenario;
 
   const readValidStoredAuthToken = useCallback((fallbackToken = "") => {
     const isInvalidJwt = (authToken) => {
@@ -230,6 +403,42 @@ export default function DashboardPage() {
     loadAccess();
   }, [getAuthToken, router]);
 
+  useEffect(() => {
+    const loadPulseMemory = async () => {
+      if (access?.allowed !== true) return;
+      const authToken = token || (await getAuthToken());
+      if (!authToken) return;
+
+      try {
+        const params = new URLSearchParams();
+        const companyId = dashboardParams.get("companyId");
+        if (companyId) params.set("companyId", companyId);
+
+        const response = await fetch(`/api/pulse/memory?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const result = await response.json().catch(() => ({}));
+        if (response.ok && Array.isArray(result.insights)) {
+          setPulseMemory({
+            insights: result.insights,
+            timeline: result.timeline || buildPulseMemoryTimeline(result.insights),
+            score: result.score || buildPulseMemoryScore(result.insights),
+            source: result.source || "supabase",
+          });
+        }
+      } catch {
+        setPulseMemory({
+          insights: demoPulseInsightMemory,
+          timeline: buildPulseMemoryTimeline(demoPulseInsightMemory),
+          score: buildPulseMemoryScore(demoPulseInsightMemory),
+          source: "fallback",
+        });
+      }
+    };
+
+    void loadPulseMemory();
+  }, [access?.allowed, getAuthToken, token]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.localStorage.removeItem("supabase_access_token");
@@ -239,6 +448,13 @@ export default function DashboardPage() {
   const handleSubscribe = async (planKey) => {
     setError("");
     setCheckoutPlan(planKey);
+    const selectedPlan = plans.find((plan) => plan.key === planKey);
+
+    if (!selectedPlan?.priceId) {
+      setError(`${selectedPlan?.name || "This plan"} is not connected to a Stripe price yet.`);
+      setCheckoutPlan("");
+      return;
+    }
 
     try {
       const response = await fetch("/api/create-checkout", {
@@ -248,7 +464,7 @@ export default function DashboardPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          priceId: priceIds[planKey],
+          priceId: selectedPlan.priceId,
         }),
       });
 
@@ -413,16 +629,74 @@ export default function DashboardPage() {
       });
       const result = await response.json();
       if (!response.ok) {
-        setError(result.error || "Connect QuickBooks first, then run plan recommendation.");
+        setError(result.error || "Unable to evaluate newly available intelligence.");
         return;
       }
       setQuickBooksCapabilities(result);
-      setRecommendedPlan(recommendationToPlanKey[result.recommended_package] || "professional");
+      setRecommendationDismissed(false);
+      trackRecommendationEvent("recommendation_shown", {
+        source: "quickbooks_capability_detection",
+        available_reports: featureChecks.filter(([key]) => result[key]).map(([, label]) => label),
+      });
     } catch {
-      setError("Unable to detect QuickBooks capabilities.");
+      setError("Unable to evaluate newly available intelligence.");
     } finally {
       setQuickBooksDetecting(false);
     }
+  };
+
+  const submitAiQuestion = async (value = aiQuestion) => {
+    const trimmedQuestion = value.trim();
+    if (!trimmedQuestion) return;
+
+    setAiMessages((current) => [
+      ...current,
+      { role: "user", content: trimmedQuestion },
+      { role: "advisacor", content: "Pulse is reviewing your company context, historical memory, forecasts, and prior conversations..." },
+    ]);
+    setAiQuestion("");
+    setAiOpen(true);
+
+    let answer = buildDashboardAiAnswer(trimmedQuestion, dashboardAiContext);
+
+    try {
+      const authToken = token || window.localStorage.getItem("supabase_access_token") || "";
+      if (authToken) {
+        const response = await fetch("/api/pulse/ask", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            question: trimmedQuestion,
+            companyId: dashboardParams.get("companyId") || null,
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (response.ok && result.answer) answer = result.answer;
+        else if (result.error) answer = `${answer}\n\nPulse API note: ${result.error}`;
+      }
+    } catch {
+      answer = `${answer}\n\nPulse API note: using local CFO-mode response because the server context engine is unavailable.`;
+    }
+
+    setAiMessages((current) => [
+      ...current.slice(0, -1),
+      { role: "advisacor", content: answer },
+    ]);
+  };
+
+  const submitExecutiveQuestion = (value = executiveQuestion) => {
+    const trimmedQuestion = value.trim();
+    if (!trimmedQuestion) return;
+    setAiOpen(true);
+    void submitAiQuestion(trimmedQuestion);
+    setExecutiveQuestion("");
+  };
+
+  const askAboutMetric = (metric) => {
+    void submitAiQuestion(`Explain ${metric} for this ${onboardingIndustryType} dashboard.`);
   };
 
   return (
@@ -484,12 +758,6 @@ export default function DashboardPage() {
                     {onboardingCompanyName} has its first executive package, dashboard, and summary prepared with {onboardingIndustryType} context.
                   </p>
 
-                  {isManualUploadDashboard && (
-                    <p className="mt-5 rounded-2xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 px-4 py-3 text-sm font-bold text-[#FFD0AB]">
-                      Connect QuickBooks, Xero, NetSuite, Sage, or Microsoft Dynamics to unlock the full Advisacor intelligence platform.
-                    </p>
-                  )}
-
                   <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {firstPackageMetrics.map(([label, value, detail]) => (
                       <div key={label} className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
@@ -508,21 +776,16 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="mt-6 flex flex-wrap gap-3">
-                    <Link href="/upload" className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
-                      View Package
-                    </Link>
-                    <Link href="/owner/ask/first-package" className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
-                      Ask Advisacor
-                    </Link>
-                    {isManualUploadDashboard && (
-                      <button
-                        type="button"
-                        onClick={handleConnectQuickBooks}
-                        className="rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-5 py-3 text-sm font-black text-emerald-100"
-                      >
-                        Connect Accounting System
-                      </button>
+                    {readOnlyCustomerView ? (
+                      <span className="rounded-2xl bg-slate-700 px-5 py-3 text-sm font-black text-slate-300">View Package disabled in read-only QA</span>
+                    ) : (
+                      <Link href="/upload" className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+                        View Package
+                      </Link>
                     )}
+                    <Link href="/owner/ask/first-package" className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+                      Ask Pulse
+                    </Link>
                     <a href="#owner-delivery-settings" className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
                       Configure Weekly Brief
                     </a>
@@ -530,93 +793,88 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              <div className="rounded-[2rem] border border-blue-300/30 bg-blue-500/10 p-8 shadow-2xl shadow-blue-500/10">
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Connect QuickBooks to get your recommended plan</p>
-                <h1 className="mt-4 text-4xl font-black">Match {PLATFORM_PRODUCT_NAME} to the reports your QuickBooks can provide.</h1>
-                <p className="mt-4 max-w-3xl leading-8 text-slate-300">
-                  We will inspect your connected QuickBooks features, recommend the best {PLATFORM_PRODUCT_NAME} package, and still let you choose any plan.
-                </p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={handleConnectQuickBooks}
-                    className="premium-button rounded-2xl px-6 py-4 text-sm font-black text-white"
-                  >
-                    Connect QuickBooks
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDetectQuickBooksCapabilities}
-                    disabled={quickBooksDetecting}
-                    className="rounded-2xl border border-white/15 bg-slate-950 px-6 py-4 text-sm font-black text-slate-100 transition hover:border-blue-300/50 disabled:opacity-60"
-                  >
-                    {quickBooksDetecting ? "Detecting..." : "Detect Capabilities"}
-                  </button>
-                  <Link
-                    href="/upload"
-                    className="rounded-2xl border border-white/15 px-6 py-4 text-sm font-black text-slate-100 transition hover:border-white/30"
-                  >
-                    Skip and Generate Trial Report
-                  </Link>
-                </div>
-              </div>
-
-              {quickBooksCapabilities && (
-                <div className="rounded-[2rem] border border-blue-300/30 bg-white/[0.04] p-8">
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Recommended Plan</p>
-                  <h2 className="mt-3 text-3xl font-black">
-                    Based on your QuickBooks {quickBooksCapabilities.qbo_version}, we recommend the{" "}
-                    {plans.find((plan) => plan.key === recommendedPlan)?.name || "Professional"} plan.
-                  </h2>
-                  {quickBooksCapabilities.mismatch_warning && (
-                    <p className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100">
-                      {quickBooksCapabilities.mismatch_warning}
-                    </p>
-                  )}
-                  {quickBooksCapabilities.missing_virtual_cfo_features?.length > 0 && (
-                    <p className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100">
-                      Your QuickBooks plan does not include {quickBooksCapabilities.missing_virtual_cfo_features.join(", ")}. Consider upgrading QuickBooks or choose Professional instead.
-                    </p>
-                  )}
-                  <div className="mt-6 grid gap-3 md:grid-cols-5">
-                    {featureChecks.map(([key, label]) => (
-                      <div key={key} className={`rounded-2xl border px-4 py-3 ${quickBooksCapabilities[key] ? "border-emerald-300/30 bg-emerald-500/10 text-emerald-100" : "border-white/10 bg-slate-950/60 text-slate-500"}`}>
-                        <p className="text-sm font-black">{quickBooksCapabilities[key] ? "✓" : "○"} {label}</p>
-                      </div>
-                    ))}
+              {customerViewMode && (
+                <div className="rounded-[2rem] border border-amber-300/35 bg-amber-400/10 p-5 text-amber-50">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-[0.2em] text-amber-200">Customer View Mode</p>
+                      <p className="mt-2 text-lg font-black">You are viewing this account as the customer.</p>
+                      <p className="mt-1 text-sm leading-6 text-amber-50/80">
+                        Read-only QA mode is active. Internal Super Admin panels, billing administration, platform settings, and monitoring tools are not shown here.
+                      </p>
+                    </div>
+                    <Link href="/admin" className="rounded-2xl border border-amber-200/40 px-5 py-3 text-sm font-black text-amber-50">
+                      Return to Super Admin
+                    </Link>
                   </div>
                 </div>
               )}
 
-              <div className="grid gap-6 lg:grid-cols-3">
-                {plans.map((plan) => {
-                  const recommended = recommendedPlan ? plan.key === recommendedPlan : plan.featured;
-                  return (
-                    <div
-                      key={plan.key}
-                      className={`rounded-[2rem] border p-8 ${
-                        recommended ? "border-[#FF7A1A]/60 bg-[#FF7A1A]/15 shadow-2xl shadow-[#FF7A1A]/20" : "border-white/10 bg-white/[0.04]"
-                      }`}
-                    >
-                      <p className={`text-sm font-black uppercase tracking-[0.18em] ${recommended ? "text-white" : "text-blue-200"}`}>
-                        {plan.name} {recommended ? "Recommended" : ""}
+              <ExecutiveQuestionBar
+                question={executiveQuestion}
+                onQuestionChange={setExecutiveQuestion}
+                onSubmit={submitExecutiveQuestion}
+              />
+
+              <ExecutiveInsightEngine insights={executiveInsightSnapshot} onAskMetric={askAboutMetric} />
+
+              <PulseCfoMemoryPanel memory={pulseMemory} onAskMetric={askAboutMetric} />
+
+              <OperationalDashboardSnapshot companyName={onboardingCompanyName} industryType={onboardingIndustryType} readOnly={readOnlyCustomerView} />
+
+              <PulsePredictPanel snapshot={pulsePredictSnapshot} whatIfStrategy={whatIfStrategy} onAskMetric={askAboutMetric} />
+
+              <IndustryIntelligenceDashboard industryType={onboardingIndustryType} onAskMetric={askAboutMetric} />
+
+              {intelligenceRecommendation && !recommendationDismissed && (
+                <div className="rounded-[2rem] border border-blue-300/25 bg-blue-500/10 p-6">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Pulse Recommendation</p>
+                      <h2 className="mt-3 text-2xl font-black">
+                        We detected {intelligenceRecommendation.reports.join(" and ")} reports that can support additional intelligence.
+                      </h2>
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+                        This is a contextual recommendation based on newly available data, not an onboarding step.
                       </p>
-                      <h2 className="mt-4 text-5xl font-black">{plan.price}</h2>
-                      <p className={`mt-4 min-h-20 leading-7 ${recommended ? "text-blue-50" : "text-slate-300"}`}>{plan.description}</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {intelligenceRecommendation.benefits.map((benefit) => (
+                          <span key={benefit} className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 text-xs font-black text-slate-200">
+                            {benefit}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => handleSubscribe(plan.key)}
-                        disabled={checkoutPlan === plan.key}
-                        className={`mt-8 w-full rounded-2xl px-5 py-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                          recommended ? "bg-white text-[#0A1020] hover:bg-orange-50" : "premium-button text-white"
-                        }`}
+                        onClick={() => {
+                          trackRecommendationEvent("recommendation_accepted", {
+                            available_reports: intelligenceRecommendation.reports,
+                            benefits: intelligenceRecommendation.benefits,
+                          });
+                          setAccountOpen(true);
+                        }}
+                        className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white"
                       >
-                        {checkoutPlan === plan.key ? "Starting checkout..." : `Choose ${plan.name}`}
+                        Review Recommendation
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          trackRecommendationEvent("recommendation_dismissed", {
+                            available_reports: intelligenceRecommendation.reports,
+                          });
+                          setRecommendationDismissed(true);
+                        }}
+                        className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200"
+                      >
+                        Dismiss
                       </button>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -627,7 +885,7 @@ export default function DashboardPage() {
                 <h1 className="mt-4 text-4xl font-black">Your free trial has been used. Choose a plan to continue.</h1>
               </div>
 
-              <div className="grid gap-6 lg:grid-cols-3">
+              <div className="grid gap-6 xl:grid-cols-4">
                 {plans.map((plan) => (
                   <div
                     key={plan.key}
@@ -644,17 +902,22 @@ export default function DashboardPage() {
                     <p className={`mt-4 min-h-20 leading-7 ${plan.featured ? "text-blue-50" : "text-slate-300"}`}>
                       {plan.description}
                     </p>
+                    <ul className={`mt-5 grid gap-2 text-sm leading-6 ${plan.featured ? "text-blue-50" : "text-slate-300"}`}>
+                      {plan.features.slice(0, 5).map((feature) => (
+                        <li key={feature}>- {feature}</li>
+                      ))}
+                    </ul>
                     <button
                       type="button"
                       onClick={() => handleSubscribe(plan.key)}
-                      disabled={checkoutPlan === plan.key}
+                      disabled={checkoutPlan === plan.key || !plan.priceId}
                       className={`mt-8 w-full rounded-2xl px-5 py-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
                         plan.featured
                           ? "bg-white text-[#0A1020] hover:bg-orange-50"
                           : "premium-button text-white"
                       }`}
                     >
-                      {checkoutPlan === plan.key ? "Starting checkout..." : "Subscribe"}
+                      {checkoutPlan === plan.key ? "Starting checkout..." : plan.priceId ? "Subscribe" : "Stripe price pending"}
                     </button>
                   </div>
                 ))}
@@ -911,7 +1174,7 @@ export default function DashboardPage() {
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Business Owner Only</p>
-                    <h2 className="mt-3 text-3xl font-black">Email-first Executive Brief and Secure Ask Advisacor</h2>
+                    <h2 className="mt-3 text-3xl font-black">Email-first Weekly Pulse Brief and Secure Ask Pulse</h2>
                     <p className="mt-3 max-w-3xl leading-7 text-slate-300">
                       {ownerExecutiveBriefWorkflow.productGoal} This workflow is limited to the Business Owner persona and does not apply to bookkeeper, controller, or fractional CFO outputs.
                     </p>
@@ -945,7 +1208,7 @@ export default function DashboardPage() {
                 <div className="mt-6 grid gap-4 lg:grid-cols-3">
                   <label className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
                     <span className="flex items-center gap-2 text-sm font-black text-white">
-                      Weekly Executive Brief <HelpTip content={contextualHelp.reportingCadence} />
+                      Weekly Pulse Brief <HelpTip content={contextualHelp.reportingCadence} />
                     </span>
                     <p className="mt-2 text-sm leading-6 text-slate-400">Automated Friday owner snapshot with health, cash, revenue, profit, payroll, collections, risk, opportunity, and focus.</p>
                     <select
@@ -962,7 +1225,7 @@ export default function DashboardPage() {
                     <span className="flex items-center gap-2 text-sm font-black text-white">
                       Monthly Executive Package <HelpTip content={contextualHelp.packageType} />
                     </span>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">Month-end email with executive summary, KPI highlights, PDF/PPT links, and the secure Ask Advisacor button.</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">Month-end email with Pulse Executive Summary, KPI highlights, PDF/PPT links, and the secure Ask Pulse button.</p>
                     <select
                       value={ownerMonthlyEnabled ? "enabled" : "disabled"}
                       onChange={(event) => setOwnerMonthlyEnabled(event.target.value === "enabled")}
@@ -1090,7 +1353,7 @@ export default function DashboardPage() {
                     <p className="mt-2 text-sm leading-6 text-slate-400">CTA: {ownerEmailTemplateSpec.primaryCta}</p>
                   </div>
                   <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Secure Ask Advisacor</p>
+                    <p className="text-sm font-black text-white">Secure Ask Pulse</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
                       Opens /owner/ask/[briefId] with an authenticated session or expiring owner magic link. No public chatbot links.
                     </p>
@@ -1109,7 +1372,7 @@ export default function DashboardPage() {
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
                   <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Owner Suggested Questions</p>
+                    <p className="text-sm font-black text-white">Pulse Suggested Questions</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {ownerSuggestedQuestions.map((item) => (
                         <span key={item} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-bold text-slate-300">
@@ -1134,6 +1397,18 @@ export default function DashboardPage() {
           )}
         </section>
       </div>
+
+      {!isLoading && access?.allowed === true && (
+        <DashboardAiLauncher
+          open={aiOpen}
+          onOpenChange={setAiOpen}
+          question={aiQuestion}
+          onQuestionChange={setAiQuestion}
+          messages={aiMessages}
+          onSubmit={submitAiQuestion}
+          context={dashboardAiContext}
+        />
+      )}
 
       {accountOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
@@ -1268,5 +1543,711 @@ export default function DashboardPage() {
         </div>
       )}
     </main>
+  );
+}
+
+function OperationalDashboardSnapshot({ companyName, industryType, readOnly = false }) {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Company Dashboard</p>
+          <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{companyName || "Executive financial intelligence"}</h1>
+          <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+            Operational view focused on executive summary, health score, cash, revenue, profitability, risks, opportunities, and tasks.
+            {industryType ? ` Industry context: ${industryType}.` : ""}
+          </p>
+        </div>
+        {readOnly ? (
+          <span className="rounded-2xl border border-white/10 bg-slate-800 px-5 py-3 text-sm font-black text-slate-300">
+            Report generation disabled in read-only QA
+          </span>
+        ) : (
+          <Link href="/upload" className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+            Generate Report
+          </Link>
+        )}
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Health Score", "82 / 100", "Healthy with cash and margin items to monitor."],
+          ["Cash", "$428K", "Stable near-term liquidity."],
+          ["Revenue", "$1.8M", "Trending above the prior period."],
+          ["Profitability", "14.6%", "Positive margin with expense discipline needed."],
+        ].map(([label, value, detail]) => (
+          <div key={label} className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
+            <p className="mt-3 text-3xl font-black text-white">{value}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">{detail}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-3">
+        <DashboardFocusCard
+          title="Pulse Executive Summary"
+          items={[
+            "Stable liquidity with positive revenue momentum.",
+            "Profitability is healthy, but labor and overhead should stay under review.",
+            "Collections concentration remains the most important near-term watch item.",
+          ]}
+        />
+        <DashboardFocusCard
+          title="Risks"
+          items={[
+            "AR concentration could pressure short-term cash.",
+            "Vendor payment timing should stay aligned with receipts.",
+            "Margin can soften if payroll and overhead move faster than revenue.",
+          ]}
+        />
+        <DashboardFocusCard
+          title="Opportunities & Tasks"
+          items={[
+            "Follow up on the top overdue customer balances.",
+            "Review pricing and expense discipline for margin expansion.",
+            "Confirm next weekly brief recipients and approval settings.",
+          ]}
+        />
+      </div>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-6">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">Pulse Business Health Score</p>
+          <p className="mt-3 text-5xl font-black text-white">82 / 100</p>
+          <p className="mt-2 text-lg font-black text-emerald-100">Healthy</p>
+          <p className="mt-3 text-sm leading-6 text-emerald-50/80">
+            Pulse is taking the pulse of your business across cash, revenue, profitability, working capital, and industry operating drivers.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <PulseListCard title="Pulse Insights" items={pulseInsights} />
+          <PulseListCard title="Pulse Alerts" items={pulseAlerts} />
+          <PulseListCard title="Pulse Recommendations" items={pulseRecommendations} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit }) {
+  const examples = [
+    "I need to reduce expenses. Where should I start?",
+    "Why is cash lower this month?",
+    "What is causing margins to decline?",
+    "What is my biggest financial risk?",
+    "What should I focus on this month?",
+    "What expenses seem unusually high?",
+    "Which customers are most profitable?",
+    "What should I do to improve cash flow?",
+  ];
+
+  return (
+    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#FF7A1A]/10 p-6 shadow-2xl shadow-orange-500/5">
+      <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Ask Pulse Anything About Your Business</p>
+      <div className="mt-4 flex flex-col gap-3 lg:flex-row">
+        <input
+          value={question}
+          onChange={(event) => onQuestionChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") onSubmit();
+          }}
+          placeholder="Ask about cash, margins, expenses, customers, risk, or what to do next..."
+          className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950 px-5 py-4 text-sm font-bold text-white outline-none focus:border-[#FFB36F]"
+        />
+        <button type="button" onClick={() => onSubmit()} className="rounded-2xl bg-[#FF7A1A] px-6 py-4 text-sm font-black text-white">
+          Ask Pulse
+        </button>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {examples.map((example) => (
+          <button
+            key={example}
+            type="button"
+            onClick={() => onSubmit(example)}
+            className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-2 text-xs font-bold text-slate-200"
+          >
+            {example}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ExecutiveInsightEngine({ insights, onAskMetric }) {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Executive Insight Engine</p>
+          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em]">What Pulse found when you logged in</h2>
+        </div>
+        <p className="max-w-xl text-sm leading-6 text-slate-400">
+          Pulse reviews historical trends, recurring issues, seasonality, and forecast movement to identify where executives should focus first.
+        </p>
+      </div>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-3">
+        <ExecutiveInsightCard title="Top 3 Risks" items={insights.risks} onAskMetric={onAskMetric} />
+        <ExecutiveInsightCard title="Top 3 Opportunities" items={insights.opportunities} onAskMetric={onAskMetric} />
+        <ExecutiveInsightCard title="Top 3 Recommended Actions" items={insights.recommendedActions} onAskMetric={onAskMetric} />
+      </div>
+    </div>
+  );
+}
+
+function ExecutiveInsightCard({ title, items, onAskMetric }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+      <p className="text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]">{title}</p>
+      <div className="mt-4 grid gap-3">
+        {items.map((item, index) => (
+          <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm leading-6 text-slate-300">
+                <span className="font-black text-white">{index + 1}.</span> {item}
+              </p>
+              <button
+                type="button"
+                onClick={() => onAskMetric(item)}
+                className="shrink-0 rounded-xl border border-blue-300/20 bg-blue-400/10 px-3 py-2 text-xs font-black text-blue-100"
+              >
+                Ask Pulse
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PulseListCard({ title, items }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+      <p className="text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]">{title}</p>
+      <ul className="mt-4 grid gap-3 text-sm leading-6 text-slate-300">
+        {items.map((item) => (
+          <li key={item}>- {item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function PulseCfoMemoryPanel({ memory, onAskMetric }) {
+  const timeline = memory.timeline?.length ? memory.timeline : buildPulseMemoryTimeline(demoPulseInsightMemory);
+  const [selectedInsightId, setSelectedInsightId] = useState(timeline[0]?.id || "");
+  const selectedInsight = timeline.find((item) => item.id === selectedInsightId) || timeline[0];
+  const score = memory.score || buildPulseMemoryScore(timeline);
+
+  return (
+    <div className="rounded-[2rem] border border-violet-300/20 bg-violet-400/10 p-8 shadow-2xl shadow-violet-500/5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-200">Pulse CFO Memory</p>
+          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em]">Pulse remembers what it identified, recommended, and tracked.</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+            Persistent insight memory lets Pulse act like a CFO that has worked with the company over time, not a stateless chatbot.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onAskMetric("what concerns you most based on prior Pulse memory")}
+          className="rounded-2xl bg-violet-300 px-5 py-3 text-sm font-black text-[#170826]"
+        >
+          Ask Pulse About Memory
+        </button>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MemoryScoreCard label="Issues Resolved" value={score.issuesResolved} />
+        <MemoryScoreCard label="Open Risks" value={score.openRisks} />
+        <MemoryScoreCard label="Potential Annual Savings" value={`$${Number(score.potentialAnnualSavings || 0).toLocaleString()}`} />
+        <MemoryScoreCard label="Revenue Opportunity" value={`$${Number(score.potentialRevenueOpportunity || 0).toLocaleString()}`} />
+      </div>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+          <p className="text-sm font-black text-white">Executive Timeline</p>
+          <div className="mt-4 grid gap-3">
+            {timeline.map((item) => (
+              <button
+                type="button"
+                key={item.id}
+                onClick={() => setSelectedInsightId(item.id)}
+                className={`rounded-2xl border p-4 text-left transition ${
+                  selectedInsight?.id === item.id
+                    ? "border-violet-200/60 bg-violet-300/15"
+                    : "border-white/10 bg-[#0A1020] hover:border-white/25"
+                }`}
+              >
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-200">{item.month}</p>
+                <p className="mt-1 text-sm font-black text-white">{item.label}</p>
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  {item.current_trend} | {item.status} | {item.severity}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {selectedInsight && (
+          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-6">
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-violet-300/15 px-3 py-1 text-xs font-black text-violet-100">{selectedInsight.insight_category}</span>
+              <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-black text-slate-300">{selectedInsight.current_trend}</span>
+              <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-black text-slate-300">{selectedInsight.status}</span>
+            </div>
+            <h3 className="mt-5 text-2xl font-black text-white">{selectedInsight.description}</h3>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-[#0A1020] p-4">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Financial Impact</p>
+                <p className="mt-2 text-lg font-black text-white">
+                  {selectedInsight.financial_impact_label || `$${Number(selectedInsight.financial_impact || 0).toLocaleString()}`}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-[#0A1020] p-4">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Current Status</p>
+                <p className="mt-2 text-lg font-black capitalize text-white">{String(selectedInsight.current_trend || "monitoring").replace(/_/g, " ")}</p>
+              </div>
+            </div>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-[#0A1020] p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Original Recommendation</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{selectedInsight.recommended_action}</p>
+            </div>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-[#0A1020] p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Follow-up Notes</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{selectedInsight.follow_up_notes}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MemoryScoreCard({ label, value }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
+      <p className="mt-3 text-2xl font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
+  return (
+    <div className="rounded-[2rem] border border-cyan-300/20 bg-cyan-400/10 p-8 shadow-2xl shadow-cyan-500/5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-cyan-200">{snapshot.moduleName}</p>
+          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Predictive analytics for the next 30-90 days</h2>
+          <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+            Pulse automatically explains revenue, EBITDA, cash, payroll, risk, and opportunity forecasts in plain English.
+            {snapshot.industryType ? ` Industry model: ${snapshot.industryType}.` : ""}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onAskMetric("biggest risks over the next 90 days")}
+          className="rounded-2xl border border-cyan-200/30 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-100"
+        >
+          Ask Pulse About Forecast
+        </button>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {snapshot.forecasts.map((forecast) => (
+          <div key={forecast.label} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{forecast.label}</p>
+                <p className="mt-3 text-3xl font-black text-white">{forecast.value}</p>
+                <p className="mt-1 text-sm font-black text-cyan-100">{forecast.trend}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onAskMetric(forecast.label)}
+                className="rounded-xl border border-cyan-200/20 px-3 py-2 text-xs font-black text-cyan-100"
+              >
+                Ask Pulse
+              </button>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-300">{forecast.explanation}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.85fr]">
+        <PulseListCard title="Predictive Alerts" items={snapshot.alerts} />
+        <PulseListCard title="Industry Models" items={snapshot.industryModels} />
+      </div>
+
+      <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Predictive Alert Center</p>
+            <h3 className="mt-2 text-2xl font-black text-white">Explanation, impact, and recommended action</h3>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-slate-400">
+            Every alert includes plain-English context and can be sent to Pulse for follow-up.
+          </p>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {snapshot.predictiveAlerts.map((alert) => (
+            <div key={alert.title} className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-lg font-black text-white">{alert.title}</p>
+                <button
+                  type="button"
+                  onClick={() => onAskMetric(alert.title)}
+                  className="rounded-xl border border-cyan-200/20 px-3 py-2 text-xs font-black text-cyan-100"
+                >
+                  Ask Pulse
+                </button>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                <span className="font-black text-slate-100">Explanation:</span> {alert.explanation}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                <span className="font-black text-slate-100">Financial impact:</span> {alert.financialImpact}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                <span className="font-black text-slate-100">Recommended action:</span> {alert.recommendedAction}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          {snapshot.scores.map((score) => (
+            <div key={score.label} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{score.label}</p>
+              <p className="mt-3 text-3xl font-black text-white">{score.value}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{score.explanation}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {whatIfStrategy && (
+        <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">What-If Scenario Modeling</p>
+              <h3 className="mt-2 text-2xl font-black text-white">{whatIfStrategy.label}</h3>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+                Pulse can build scenarios from natural language and explain estimated profit, cash, EBITDA, and KPI impact in plain English.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-cyan-200/20 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-100">
+              {whatIfStrategy.limits.join(" | ")}
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <PulseListCard title="Scenario Inputs" items={whatIfStrategy.inputs} />
+            <PulseListCard title="Scenario Outputs" items={whatIfStrategy.outputs} />
+            <PulseListCard title="Example Questions" items={whatIfStrategy.examples} />
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            {whatIfScenarioExamples.map((example) => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => onAskMetric(example)}
+                className="rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-slate-200"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DashboardFocusCard({ title, items }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+      <p className="text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]">{title}</p>
+      <ul className="mt-4 grid gap-3 text-sm leading-6 text-slate-300">
+        {items.map((item) => (
+          <li key={item}>- {item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function MetricTile({ label, value, detail, onAskMetric }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
+          <p className="mt-3 text-3xl font-black text-white">{value}</p>
+        </div>
+        {onAskMetric && (
+          <button
+            type="button"
+            onClick={() => onAskMetric(label)}
+            className="rounded-xl border border-blue-300/20 bg-blue-400/10 px-3 py-2 text-xs font-black text-blue-100"
+          >
+            Ask Pulse
+          </button>
+        )}
+      </div>
+      <p className="mt-2 text-sm leading-6 text-slate-400">{detail}</p>
+    </div>
+  );
+}
+
+function IndustryIntelligenceDashboard({ industryType, onAskMetric }) {
+  if (industryType === "Construction") return <ConstructionDashboard onAskMetric={onAskMetric} />;
+  if (industryType === "Healthcare") return <HealthcareDashboard onAskMetric={onAskMetric} />;
+  if (industryType === "Manufacturing") return <ManufacturingDashboard onAskMetric={onAskMetric} />;
+  if (industryType === "Wholesale Distribution") return <WholesaleDashboard onAskMetric={onAskMetric} />;
+  if (industryType === "Professional Services") return <ProfessionalServicesDashboard onAskMetric={onAskMetric} />;
+
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Industry Intelligence</p>
+      <h2 className="mt-3 text-3xl font-black">Operational intelligence will adapt as industry data becomes available.</h2>
+      <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+        Advisacor combines core financial intelligence with industry-specific KPIs, commentary, and recommendations.
+      </p>
+    </div>
+  );
+}
+
+function ConstructionDashboard({ onAskMetric }) {
+  const jobs = [
+    ["Riverfront Medical Buildout", "$1.8M", "$1.1M", "$420K", "22.4%", "67%", "$96K", "$28K", "$42K", "$0", "Watch"],
+    ["North Ridge Warehouse", "$2.4M", "$1.5M", "$610K", "24.8%", "71%", "$122K", "$45K", "$0", "$38K", "Healthy"],
+    ["Civic Center Renovation", "$950K", "$760K", "$260K", "11.8%", "79%", "$54K", "$19K", "$0", "$72K", "Risk"],
+  ];
+
+  return (
+    <IndustryShell title="Construction Intelligence Dashboard" subtitle="Contract performance, retainage exposure, job profitability, and backlog trends.">
+      <div className="grid gap-4 md:grid-cols-4">
+        <MetricTile label="Total Retainage" value="$218K" detail="Receivable retainage is concentrated in two active jobs." onAskMetric={onAskMetric} />
+        <MetricTile label="WIP Summary" value="$110K under" detail="Under billing requires review before the next draw cycle." onAskMetric={onAskMetric} />
+        <MetricTile label="Backlog" value="$3.9M" detail="Backlog supports near-term revenue visibility." onAskMetric={onAskMetric} />
+        <MetricTile label="Contract Margin Trends" value="19.7%" detail="Margin is stable but one renovation job is pressuring results." onAskMetric={onAskMetric} />
+      </div>
+      <div className="mt-6 overflow-x-auto rounded-3xl border border-white/10">
+        <table className="min-w-[1200px] w-full text-left text-sm">
+          <thead className="bg-slate-950/80 text-xs uppercase tracking-[0.12em] text-slate-500">
+            <tr>{["Job Name", "Contract Value", "Cost Incurred", "Estimated Remaining Cost", "Gross Margin", "Percent Complete", "Retainage Receivable", "Retainage Payable", "Over Billing", "Under Billing", "Status"].map((header) => <th key={header} className="px-4 py-3">{header}</th>)}</tr>
+          </thead>
+          <tbody className="divide-y divide-white/10">
+            {jobs.map((job) => (
+              <tr key={job[0]} className="bg-slate-950/35">
+                {job.map((cell) => <td key={`${job[0]}-${cell}`} className="px-4 py-4 font-bold text-slate-300">{cell}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <IndustryCommentary items={["Retainage exposure is manageable but should be reviewed before vendor timing tightens.", "Top risk job is Civic Center Renovation due to under billing and lower margin.", "Backlog remains healthy and supports near-term revenue planning."]} />
+    </IndustryShell>
+  );
+}
+
+function HealthcareDashboard({ onAskMetric }) {
+  return (
+    <IndustryShell title="Patient Day Intelligence Dashboard" subtitle="Healthcare operating economics with per patient day trends and workforce modeling.">
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricTile label="Revenue Per Patient Day" value="$712" detail="Improved despite flat census levels." onAskMetric={onAskMetric} />
+        <MetricTile label="Expense Per Patient Day" value="$548" detail="Operating expenses remain within the expected range." onAskMetric={onAskMetric} />
+        <MetricTile label="Labor Cost Per Patient Day" value="$185" detail="Labor cost is the key staffing sensitivity." onAskMetric={onAskMetric} />
+        <MetricTile label="Contract Labor Per Patient Day" value="$42" detail="Agency usage is elevated versus target." onAskMetric={onAskMetric} />
+        <MetricTile label="Average Daily Census" value="118" detail="Stable volume supports comparable PPD analysis." onAskMetric={onAskMetric} />
+        <MetricTile label="Occupancy" value="86%" detail="Occupancy is healthy but staffing mix needs review." onAskMetric={onAskMetric} />
+      </div>
+      <WorkforceModeling onAskMetric={onAskMetric} />
+    </IndustryShell>
+  );
+}
+
+function WorkforceModeling({ onAskMetric }) {
+  const currentLaborPpd = 185;
+  const addedNurses = 2;
+  const projectedLaborPpd = 198;
+  const dollarImpact = projectedLaborPpd - currentLaborPpd;
+  const percentImpact = ((dollarImpact / currentLaborPpd) * 100).toFixed(1);
+
+  return (
+    <div className="mt-6 rounded-3xl border border-emerald-300/20 bg-emerald-400/10 p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">What If Workforce Modeling</p>
+          <h3 className="mt-2 text-2xl font-black">Add 2 Nurses</h3>
+          <p className="mt-2 text-sm leading-6 text-emerald-50/80">Simulates adding nurses, CNAs, therapists, or other staff positions against patient day economics.</p>
+        </div>
+        <button type="button" onClick={() => onAskMetric("Labor Cost Per Patient Day workforce model")} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white">
+          Ask Pulse
+        </button>
+      </div>
+      <div className="mt-5 grid gap-4 md:grid-cols-4">
+        <MetricTile label="Current Labor PPD" value={`$${currentLaborPpd}`} detail="Current labor cost per patient day." />
+        <MetricTile label="Projected Labor PPD" value={`$${projectedLaborPpd}`} detail="Projected after adding staff." />
+        <MetricTile label="Dollar Impact" value={`+$${dollarImpact}`} detail={`${addedNurses} nurses added to staffing model.`} />
+        <MetricTile label="Percentage Impact" value={`+${percentImpact}%`} detail="Projected increase in labor PPD." />
+      </div>
+    </div>
+  );
+}
+
+function ManufacturingDashboard({ onAskMetric }) {
+  return (
+    <IndustryShell title="Manufacturing Intelligence Dashboard" subtitle="Production efficiency, inventory intelligence, and margin performance.">
+      <div className="grid gap-4 md:grid-cols-4">
+        {[
+          ["BOM Variance", "3.8%", "Material standards are slightly unfavorable."],
+          ["Bill of Labor Variance", "2.1%", "Labor routing variance is controlled."],
+          ["PPV", "$42K", "Purchase price variance is pressuring margin."],
+          ["Labor Efficiency Variance", "1.7%", "Efficiency remains near target."],
+          ["Material Usage Variance", "4.4%", "Usage variance needs production review."],
+          ["Yield %", "94.8%", "Yield is stable."],
+          ["Scrap %", "2.6%", "Scrap is above target."],
+          ["Rework %", "1.9%", "Rework is manageable but trending up."],
+        ].map(([label, value, detail]) => <MetricTile key={label} label={label} value={value} detail={detail} onAskMetric={onAskMetric} />)}
+      </div>
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <DashboardFocusCard title="Inventory Intelligence" items={["Raw material turns: 5.4x", "WIP: $640K", "Finished goods turns: 4.1x", "Obsolete inventory: $82K", "Slow moving inventory: $146K"]} />
+        <DashboardFocusCard title="Profitability" items={["Job profitability is strongest in repeat production runs.", "Product profitability is pressured by PPV and scrap.", "Margin trends are stable but material costs need review."]} />
+      </div>
+      <IndustryCommentary items={["PPV is the primary material cost driver this period.", "Labor performance is stable, but scrap and rework should be reviewed with production leadership.", "Inventory concerns are concentrated in slow moving finished goods."]} />
+    </IndustryShell>
+  );
+}
+
+function WholesaleDashboard({ onAskMetric }) {
+  return (
+    <IndustryShell title="Wholesale Distribution Intelligence Dashboard" subtitle="Inventory velocity, stock exposure, margin by product group, and working capital.">
+      <div className="grid gap-4 md:grid-cols-4">
+        {[
+          ["Inventory Turns", "6.2x", "Velocity is healthy but varies by product group."],
+          ["DIO", "58 days", "Days inventory outstanding is slightly elevated."],
+          ["Inventory Aging", "$410K", "Aged inventory needs review."],
+          ["Dead Inventory", "$96K", "Dead stock creates carrying-cost risk."],
+          ["Stockout Risk", "Medium", "Three product groups need reorder review."],
+          ["Vendor Concentration", "41%", "Top two vendors drive supply exposure."],
+          ["Margin By Product Group", "22.8%", "Margin compression appears in commodity lines."],
+          ["Working Capital", "$1.2M", "Cash conversion cycle should be monitored."],
+        ].map(([label, value, detail]) => <MetricTile key={label} label={label} value={value} detail={detail} onAskMetric={onAskMetric} />)}
+      </div>
+    </IndustryShell>
+  );
+}
+
+function ProfessionalServicesDashboard({ onAskMetric }) {
+  return (
+    <IndustryShell title="Professional Services Intelligence Dashboard" subtitle="Utilization, realization, labor leverage, and project margin.">
+      <div className="grid gap-4 md:grid-cols-3">
+        {[
+          ["Revenue Per Employee", "$184K", "Revenue productivity is healthy."],
+          ["Revenue Per FTE", "$196K", "FTE-adjusted revenue is trending up."],
+          ["Utilization %", "74%", "Billable utilization is below target."],
+          ["Realization %", "91%", "Discounting and write-downs are controlled."],
+          ["Labor Leverage", "3.1x", "Manager-to-staff leverage is improving."],
+          ["Project Margin %", "28%", "Project profitability is strong with staffing discipline."],
+        ].map(([label, value, detail]) => <MetricTile key={label} label={label} value={value} detail={detail} onAskMetric={onAskMetric} />)}
+      </div>
+    </IndustryShell>
+  );
+}
+
+function IndustryShell({ title, subtitle, children }) {
+  return (
+    <div className="rounded-[2rem] border border-blue-300/20 bg-blue-500/10 p-8">
+      <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Industry Intelligence</p>
+      <h2 className="mt-3 text-3xl font-black">{title}</h2>
+      <p className="mt-3 max-w-3xl leading-7 text-slate-300">{subtitle}</p>
+      <div className="mt-6">{children}</div>
+    </div>
+  );
+}
+
+function IndustryCommentary({ items }) {
+  return (
+    <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+      <p className="text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]">Executive Commentary</p>
+      <ul className="mt-4 grid gap-3 text-sm leading-6 text-slate-300">
+        {items.map((item) => <li key={item}>- {item}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+function DashboardAiLauncher({ open, onOpenChange, question, onQuestionChange, messages, onSubmit, context }) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => onOpenChange(true)}
+        className="fixed bottom-5 right-5 z-50 rounded-full bg-[#FF7A1A] px-5 py-4 text-sm font-black text-white shadow-2xl shadow-black/40"
+      >
+        Ask Pulse
+      </button>
+
+      {open && (
+        <div className="fixed bottom-20 right-5 z-50 flex max-h-[78vh] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b1220] shadow-2xl shadow-black/50">
+          <div className="border-b border-white/10 p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Pulse</p>
+                <h3 className="mt-2 text-2xl font-black text-white">Your business intelligence assistant</h3>
+                <p className="mt-2 text-xs leading-5 text-slate-400">
+                  Context: {context.companyName} | {context.industryType} | {context.packageName}
+                </p>
+              </div>
+              <button type="button" onClick={() => onOpenChange(false)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-200">
+                Close
+              </button>
+            </div>
+          </div>
+
+          <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-4">
+            {messages.map((message, index) => (
+              <div key={`${message.role}-${index}`} className={`rounded-3xl px-4 py-3 text-sm leading-6 ${message.role === "user" ? "ml-auto bg-[#FF7A1A] text-white" : "mr-auto bg-white/[0.06] text-slate-200"}`}>
+                {message.content}
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-white/10 p-4">
+            <div className="mb-3 flex flex-wrap gap-2">
+              {defaultAiQuestions.slice(0, 5).map((item) => (
+                <button key={item} type="button" onClick={() => onSubmit(item)} className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-300">
+                  {item}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={question}
+                onChange={(event) => onQuestionChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") onSubmit();
+                }}
+                placeholder="Ask about forecasts, cash, profit, staffing, margin..."
+                className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none"
+              />
+              <button type="button" onClick={() => onSubmit()} className="rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm font-black text-white">
+                Ask
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -53,6 +53,9 @@ async function handleConnect(request) {
     const adapter = getERPAdapter("quickbooks", authData.user.id);
     const { url, config: quickBooksConfig } = adapter.connect({ state });
     const parsedUrl = new URL(url);
+    const requestUrl = new URL(request.url);
+    const returnTo = requestUrl.searchParams.get("returnTo") || "";
+    const safeReturnTo = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "";
 
     console.log("[quickbooks/connect] authorization URL generated", {
       userId: authData.user.id,
@@ -74,6 +77,7 @@ async function handleConnect(request) {
     };
     response.cookies.set("qb_oauth_state", state, cookieOptions);
     response.cookies.set("qb_oauth_token", token, cookieOptions);
+    if (safeReturnTo) response.cookies.set("qb_oauth_return_to", safeReturnTo, cookieOptions);
 
     return response;
   } catch (error) {

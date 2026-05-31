@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   accountingSystemOptions,
+  accountingReportCatalog,
   accountTypeOptions,
   advisoryServiceOptions,
   clientCountOptions,
@@ -52,6 +53,7 @@ export async function GET(request) {
     accounting_systems: accountingSystemOptions,
     connected_accounting_systems: connectedAccountingSystemOptions,
     manual_financial_upload_reports: manualFinancialUploadReports,
+    accounting_report_catalog: accountingReportCatalog,
     reporting_cadences: reportingCadenceOptions,
     revenue_ranges: revenueRangeOptions,
   });
@@ -72,6 +74,8 @@ export async function POST(request) {
   const invitations = Array.isArray(body.invitations) ? body.invitations : [];
   const dataSourcePath = String(body.data_source_path || "").trim();
   const manualUploads = body.manual_uploads || {};
+  const reportDiscovery = body.report_discovery || {};
+  const recommendedPackage = String(body.recommended_package || "").trim();
   const dataConnectionStatus = String(body.data_connection_status || "").trim();
   const firstPackageGenerated = Boolean(body.first_package_generated);
 
@@ -121,6 +125,10 @@ export async function POST(request) {
 
   if (!companyPackageOptions.some((option) => option.id === packageLevel)) {
     return NextResponse.json({ error: "Invalid package level." }, { status: 400 });
+  }
+
+  if (recommendedPackage && !companyPackageOptions.some((option) => option.id === recommendedPackage)) {
+    return NextResponse.json({ error: "Invalid recommended package." }, { status: 400 });
   }
 
   if (!supabaseAdmin) {
@@ -210,15 +218,22 @@ export async function POST(request) {
       data_source_path: dataSourcePath,
       data_source: dataSourcePath === "manual_upload" ? "Manual Financial Upload" : company.data_source || company.accounting_system,
       manual_uploads: dataSourcePath === "manual_upload" ? manualUploads : {},
+      discovered_reports: {
+        found: Array.isArray(reportDiscovery.found) ? reportDiscovery.found : [],
+        missing: Array.isArray(reportDiscovery.missing) ? reportDiscovery.missing : [],
+        catalog: accountingReportCatalog,
+      },
+      recommended_package: recommendedPackage || packageLevel,
       free_report_limitations:
         dataSourcePath === "manual_upload"
-          ? ["Executive Summary", "KPI Review", "Basic Dashboard", "Sample PDF", "Sample PowerPoint Preview", "Sample AI Commentary"]
+          ? ["Executive Summary", "KPI Review", "Sample PDF"]
           : [],
     },
     package_scope: companyPackageOptions.find((option) => option.id === packageLevel)?.scope || [],
     permissions: {
       data_connection_status: dataConnectionStatus,
       report_mode: dataSourcePath === "manual_upload" ? "free_manual_upload" : "full_connected_intelligence",
+      recommended_package: recommendedPackage || packageLevel,
       first_package_generated: firstPackageGenerated,
       first_package_generated_at: new Date().toISOString(),
     },
@@ -274,6 +289,7 @@ export async function POST(request) {
         data_source_path: dataSourcePath,
         report_mode: dataSourcePath === "manual_upload" ? "free_manual_upload" : "full_connected_intelligence",
         package_level: packageLevel,
+        recommended_package: recommendedPackage || packageLevel,
       },
     })
     .then(() => null);

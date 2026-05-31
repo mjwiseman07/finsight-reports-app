@@ -3,7 +3,6 @@ import { getERPAdapter } from "../../../../lib/erp-adapters";
 import { supabaseAdmin } from "../../../../lib/supabase";
 
 export async function GET(request) {
-  const redirectUrl = new URL("/dashboard", request.url);
   const url = new URL(request.url);
   const authCode = url.searchParams.get("code") || "";
   const intuitError = url.searchParams.get("error") || "";
@@ -14,6 +13,8 @@ export async function GET(request) {
   const quickBooksConfig = configAdapter.getConfig();
   const expectedState = request.cookies.get("qb_oauth_state")?.value || "";
   const supabaseToken = request.cookies.get("qb_oauth_token")?.value || "";
+  const returnTo = request.cookies.get("qb_oauth_return_to")?.value || "";
+  const redirectUrl = new URL(returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard", request.url);
 
   console.log("[quickbooks/callback] received callback", {
     hasAuthCode: Boolean(authCode),
@@ -132,6 +133,7 @@ export async function GET(request) {
     const response = NextResponse.redirect(redirectUrl);
     response.cookies.delete("qb_oauth_state");
     response.cookies.delete("qb_oauth_token");
+    response.cookies.delete("qb_oauth_return_to");
     return response;
   } catch (error) {
     console.error("[quickbooks/callback] OAuth callback failed", {

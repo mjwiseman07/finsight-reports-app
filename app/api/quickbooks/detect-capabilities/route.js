@@ -25,11 +25,21 @@ export async function GET(request) {
       return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
     }
 
-    const { data: userRecord } = await supabaseAdmin
+    let { data: userRecord, error: userRecordError } = await supabaseAdmin
       .from("users")
       .select("subscription_status, subscription_plan, subscription_price_id")
       .eq("id", authData.user.id)
       .maybeSingle();
+
+    if (userRecordError?.code === "42703" || String(userRecordError?.message || "").includes("column")) {
+      const fallbackResult = await supabaseAdmin
+        .from("users")
+        .select("subscription_status")
+        .eq("id", authData.user.id)
+        .maybeSingle();
+      userRecord = fallbackResult.data;
+    }
+
     const currentSubscription =
       userRecord?.subscription_plan ||
       (userRecord?.subscription_price_id === process.env.STRIPE_PRICE_VIRTUAL_CFO

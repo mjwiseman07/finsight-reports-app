@@ -9,6 +9,10 @@ function getStripeClient() {
 
 function getPriceIdToPlan() {
   return {
+    [process.env.STRIPE_PRICE_PULSE_STARTER]: "pulse_starter",
+    [process.env.STRIPE_PRICE_PULSE_PRO]: "pulse_pro",
+    [process.env.STRIPE_PRICE_ADVISACOR_PROFESSIONAL]: "advisacor_professional",
+    [process.env.STRIPE_PRICE_ADVISACOR_CFO]: "advisacor_cfo",
     [process.env.STRIPE_PRICE_ESSENTIAL]: "essential",
     [process.env.STRIPE_PRICE_PROFESSIONAL]: "professional",
     [process.env.STRIPE_PRICE_VIRTUAL_CFO]: "virtualCfo",

@@ -65,7 +65,7 @@ export default function OwnerAskPage() {
             role: "advisacor",
             content:
               result.brief?.owner_summary ||
-              "This secure owner chat is ready. Ask a plain-English question about this report.",
+              "Hi, I'm Pulse. I help you understand the financial and operational health of your business.",
           },
         ]);
       } catch {
@@ -120,17 +120,17 @@ export default function OwnerAskPage() {
             <AdvisacorLogo priority className="w-full" />
           </Link>
           <span className="rounded-full bg-[#0A1020] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white">
-            Secure Owner Chat
+            Pulse
           </span>
         </header>
 
         <section className="mt-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.2em] text-[#FF7A1A]">Ask Advisacor About This Report</p>
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-[#FF7A1A]">Ask Pulse About This Report</p>
           <h1 className="mt-3 text-3xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl">
-            Simple answers from your business snapshot.
+            Your business intelligence assistant.
           </h1>
           <p className="mt-4 max-w-2xl leading-7 text-[#6B7280]">
-            This page is tied to one company, one owner, one report, and one package level. Advisacor keeps answers plain-English and owner-focused.
+            Pulse is tied to one company, one owner, one report, and one package level. Pulse keeps answers plain-English and owner-focused.
           </p>
 
           {brief && (
@@ -199,7 +199,7 @@ export default function OwnerAskPage() {
                   disabled={isAsking}
                   className="rounded-2xl bg-[#FF7A1A] px-6 py-3 text-sm font-black text-white transition hover:bg-[#E5660F] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isAsking ? "Asking..." : "Ask"}
+                  {isAsking ? "Asking..." : "Ask Pulse"}
                 </button>
               </form>
             </div>
@@ -219,7 +219,7 @@ export default function OwnerAskPage() {
                 ))}
               </div>
               <p className="mt-5 rounded-2xl bg-[#F5F7FA] px-4 py-3 text-xs leading-5 text-[#6B7280]">
-                Owner answers avoid accounting jargon and only use authorized context from this secure report.
+                Pulse answers avoid accounting jargon and only use authorized context from this secure report.
               </p>
             </aside>
           </section>

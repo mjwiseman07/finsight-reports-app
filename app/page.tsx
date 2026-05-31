@@ -3,37 +3,38 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AdvisacorLogo } from "../components/AdvisacorLogo";
+import FullLandingPage from "../components/FullLandingPage";
 
 const features = [
   {
-    title: "AP Intelligence",
-    description: "Monitor AP aging, vendor trends, cash timing, and liability anomalies.",
+    title: "Executive Package Generation",
+    description: "Turn accounting data into board-ready PDF financial packages, PowerPoint executive packages, executive summaries, dashboards, and AI-assisted commentary.",
   },
   {
-    title: "AR Visibility",
-    description: "Track collections performance, DSO trends, payment forecasting, and customer analytics.",
+    title: "Product-Led Free Review",
+    description: "Upload Balance Sheet, Income Statement, AR Aging, AP Aging, or Inventory reports to generate a free sample executive review without a demo.",
   },
   {
-    title: "Payroll Analytics",
-    description: "Analyze labor spend, payroll trends, overtime exposure, and FTE efficiency.",
+    title: "Business Owner Weekly Briefs",
+    description: "Give owners weekly financial awareness with business health, cash, revenue, profitability, payroll, collections, top risk, and top opportunity.",
   },
   {
-    title: "Forecasting",
-    description: "Predict cash flow, operational bottlenecks, and financial risk before they impact performance.",
+    title: "Ask Advisacor AI Assistant",
+    description: "Let leaders ask secure questions about profit changes, cash health, hiring capacity, and what to focus on this week.",
   },
   {
-    title: "Executive Dashboards",
-    description: "Provide leadership with real-time operational and financial visibility.",
+    title: "Advisory Firm Workflows",
+    description: "Help accounting firms scale advisory services with client health status, package tracking, review queues, delivery status, and multi-client workflows.",
   },
   {
-    title: "AI Advisory Insights",
-    description: "Receive AI-generated recommendations and executive commentary based on operational data.",
+    title: "Industry Intelligence",
+    description: "Adapt KPIs and commentary for healthcare, manufacturing, construction, wholesale distribution, professional services, and more.",
   },
 ];
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function ComingSoonPage() {
+export function ComingSoonPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -117,13 +118,13 @@ export default function ComingSoonPage() {
               Coming Soon
             </div>
             <h1 className="max-w-4xl text-5xl font-black leading-[0.98] tracking-[-0.055em] md:text-6xl xl:text-7xl">
-              AI Powered Financial Intelligence
+              AI-Assisted Financial Intelligence
             </h1>
             <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-300">
-              Advisacor delivers operational analytics, forecasting, AI-powered advisory insights, workforce intelligence, and executive reporting designed for modern finance teams.
+              Turn accounting data into executive intelligence. Advisacor generates board-ready financial packages, owner weekly briefs, AI-assisted commentary, and industry-aware dashboards for modern finance teams and advisory firms.
             </p>
             <p className="mt-5 max-w-2xl leading-7 text-slate-400">
-              We are building the next generation of financial intelligence software that helps businesses transform operational data into actionable executive insights.
+              From upload to first executive package in under 15 minutes: manual upload creates a fast sample review, while connected accounting unlocks QuickBooks, Xero, NetSuite, Sage, Microsoft Dynamics, recurring packages, forecasting, budgeting, and Ask Advisacor.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <a href="#early-access" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
@@ -141,7 +142,7 @@ export default function ComingSoonPage() {
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FFB36F]">Platform Preview</p>
-                  <h2 className="mt-1 text-xl font-black text-white">Financial Intelligence Command Center</h2>
+                  <h2 className="mt-1 text-xl font-black text-white">Executive Intelligence Command Center</h2>
                 </div>
                 <span className="rounded-full bg-[#3BB273]/15 px-3 py-1 text-xs font-black text-[#B9F4D2]">Soon</span>
               </div>
@@ -220,9 +221,9 @@ export default function ComingSoonPage() {
 
                 <div className="space-y-3">
                   {[
-                    ["AI Recommendation", "Review inventory expansion before approving hiring plan."],
-                    ["AP/AR Signal", "Collections improved while AP timing remains concentrated."],
-                    ["Workforce Insight", "Revenue per FTE improved despite payroll growth."],
+                    ["AI Recommendation", "Generate the board package and review cash timing before approving the hiring plan."],
+                    ["Owner Brief Signal", "Cash is stable, revenue is improving, and collections remain this week's top risk."],
+                    ["Industry Insight", "Manufacturing variance and inventory efficiency are driving the next executive recommendation."],
                   ].map(([title, body]) => (
                     <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                       <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FFB36F]">{title}</p>
@@ -241,10 +242,10 @@ export default function ComingSoonPage() {
           <div>
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#1E6BFF]">Be First To Know</p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-6xl">
-              Join our early access list.
+              Join early access for financial intelligence that starts with value.
             </h2>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#6B7280]">
-              Join our early access list and receive launch updates, product announcements, and early adopter opportunities.
+              Receive launch updates for free sample financial reviews, product-led onboarding, executive package generation, owner weekly briefs, Ask Advisacor, industry intelligence, and advisory firm workflows.
             </p>
           </div>
           <form onSubmit={handleSubmit} noValidate className="enterprise-card rounded-[2rem] p-7">
@@ -322,7 +323,7 @@ export default function ComingSoonPage() {
           <div className="max-w-3xl">
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FF7A1A]">Platform Preview</p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-6xl">
-              Built for operational finance visibility.
+              More than reporting: executive intelligence infrastructure.
             </h2>
           </div>
           <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -343,10 +344,10 @@ export default function ComingSoonPage() {
         <div className="mx-auto max-w-7xl rounded-[2.5rem] border border-slate-200 bg-white p-10 shadow-2xl shadow-slate-900/10 md:p-14">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#1E6BFF]">Built By Finance Professionals</p>
           <h2 className="mt-4 max-w-4xl text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-6xl">
-            Financial intelligence for CFOs, controllers, finance leaders, and business owners.
+            Financial intelligence for bookkeepers, controllers, fractional CFOs, accounting firms, and business owners.
           </h2>
           <p className="mt-6 max-w-4xl text-lg leading-8 text-[#6B7280]">
-            Advisacor is being developed by Wiseman Financial Technologies LLC to provide finance leaders with modern operational intelligence, forecasting, and advisory capabilities powered by AI.
+            Advisacor helps bookkeepers prepare AP, AR, payroll/FTE, and month-end packages; controllers review close quality, flux, accruals, reserves, fixed assets, and stale balances; fractional CFOs deliver forecasting, budgeting, treasury, board packages, and strategic commentary; and business owners receive weekly financial awareness without reading accounting reports.
           </p>
         </div>
       </section>
@@ -355,10 +356,10 @@ export default function ComingSoonPage() {
         <div className="advisacor-dark-grid mx-auto max-w-7xl rounded-[2.5rem] bg-[#0A1020] p-10 text-white shadow-2xl shadow-slate-950/30 md:p-14">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Financial Intelligence Is Coming Soon</p>
           <h2 className="mt-4 max-w-4xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-            Join early access for Advisacor.
+            Generate board-ready financial packages in minutes.
           </h2>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
-            Join the early access list and be among the first to see how Advisacor transforms operational finance data into executive-level insight.
+            Join the early access list and be among the first to see how Advisacor turns uploaded statements and connected accounting systems into executive summaries, dashboards, PDF packages, PowerPoint packages, weekly briefs, support workflows, and industry-specific recommendations.
           </p>
           <a href="#early-access" className="premium-button mt-8 inline-flex rounded-2xl px-6 py-4 text-sm font-black text-white">
             Join Early Access
@@ -385,3 +386,5 @@ export default function ComingSoonPage() {
     </main>
   );
 }
+
+export default FullLandingPage;

@@ -8,11 +8,14 @@ import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
 import { SupportTicketForm } from "../../components/SupportTicketForm";
 import {
+  accountingReportCatalog,
   accountTypeOptions,
+  buildReportDiscovery,
   companyPackageOptions,
   connectedAccountingSystemOptions,
   industryTypeOptions,
   manualFinancialUploadReports,
+  recommendPackageFromReports,
   revenueRangeOptions,
 } from "../../lib/company-account";
 import { contextualHelp } from "../../lib/contextual-help";
@@ -66,6 +69,11 @@ type CompanyForm = {
 };
 
 type UploadSelections = Record<string, boolean>;
+type ReportSummary = {
+  found: Array<{ id: string; label: string }>;
+  missing: Array<{ id: string; label: string }>;
+};
+type ConnectionStatus = "idle" | "connecting" | "connected";
 
 function OnboardingContent() {
   const router = useRouter();
@@ -79,6 +87,7 @@ function OnboardingContent() {
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [manualCompanyInfoOpen, setManualCompanyInfoOpen] = useState(false);
   const [packageStatusIndex, setPackageStatusIndex] = useState(0);
   const hasTrackedStart = useRef(false);
   const [accountType, setAccountType] = useState(searchParams?.get("accountType") || "my-own-company");
@@ -95,6 +104,10 @@ function OnboardingContent() {
   const [dataSourcePath, setDataSourcePath] = useState<"connected" | "manual_upload">(
     template.accounting_system && template.accounting_system !== "Manual Financial Upload" ? "connected" : "manual_upload",
   );
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
+  const [connectionValidationOpen, setConnectionValidationOpen] = useState(false);
+  const [reportSummary, setReportSummary] = useState<ReportSummary>({ found: [], missing: accountingReportCatalog });
+  const [recommendedPackage, setRecommendedPackage] = useState(company.package_level);
   const [manualUploads, setManualUploads] = useState<UploadSelections>({
     balance_sheet: false,
     income_statement: false,
@@ -114,10 +127,9 @@ function OnboardingContent() {
   const steps = useMemo(() => {
     return [
       "Account Type",
+      "Data Acquisition",
       "Company Information",
-      "Industry Type",
-      "Package Selection",
-      "Data Source",
+      "Package Recommendation",
       "Delivery Configuration",
       "Generate First Package",
     ];
@@ -127,12 +139,11 @@ function OnboardingContent() {
     setCompany((current) => ({ ...current, [key]: value }));
   };
 
-  const companyInfoStep = 1;
-  const industryTypeStep = 2;
+  const dataSourceStep = 1;
+  const companyInfoStep = 2;
   const packageStep = 3;
-  const dataSourceStep = 4;
-  const deliveryStep = 5;
-  const generatePackageStep = 6;
+  const deliveryStep = 4;
+  const generatePackageStep = 5;
   const estimatedRemainingSeconds = getEstimatedRemainingSeconds(steps, step);
   const currentStepSeconds = getStepEstimatedSeconds(steps[step]);
   const progressPercent = Math.round(((step + 1) / steps.length) * 100);
@@ -188,6 +199,26 @@ function OnboardingContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (searchParams?.get("quickBooksConnected") !== "true") return;
+    setDataSourcePath("connected");
+    setConnectionStatus("connected");
+    setCompany((current) => ({
+      ...current,
+      name: current.name || "QuickBooks Company",
+      industry_type: current.industry_type === "Other" ? "Professional Services" : current.industry_type,
+      revenue_range: current.revenue_range || "$1M-$5M",
+      employee_count: current.employee_count || "10",
+      data_source: "QuickBooks Online",
+      accounting_system: "QuickBooks Online",
+    }));
+    const discovery = buildReportDiscovery("QuickBooks Online");
+    setReportSummary(discovery);
+    applyRecommendation(discovery.found);
+    setConnectionValidationOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const getPrimaryPersonaForAccountType = (selectedAccountType: string) => {
     if (selectedAccountType === "bookkeeper-advisor") return "bookkeeper";
     if (selectedAccountType === "fractional-cfo-firm") return "fractional-cfo";
@@ -195,6 +226,151 @@ function OnboardingContent() {
   };
 
   const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+  const applyRecommendation = (foundReports: Array<{ id: string; label: string }>) => {
+    const nextRecommendation = recommendPackageFromReports(foundReports.map((report) => report.id));
+    setRecommendedPackage(nextRecommendation);
+    setCompany((current) => ({ ...current, package_level: nextRecommendation }));
+  };
+
+  const validateAccountingConnection = async () => {
+    setError("");
+    setMessage("");
+    if (company.data_source === "QuickBooks Online") {
+      const token = window.localStorage.getItem("supabase_access_token") || "";
+      if (!token) {
+        router.push(`/signin?next=${encodeURIComponent("/onboarding")}`);
+        return;
+      }
+
+      const returnUrl = new URL(window.location.href);
+      returnUrl.searchParams.set("quickBooksConnected", "true");
+      const response = await fetch(`/api/quickbooks/connect?returnTo=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.url) {
+        setError(result.error || "Unable to start QuickBooks connection.");
+        return;
+      }
+      window.location.assign(result.url);
+      return;
+    }
+
+    setConnectionStatus("connecting");
+    await delay(850);
+    const discovery = buildReportDiscovery(company.data_source);
+    setReportSummary(discovery);
+    applyRecommendation(discovery.found);
+    setCompany((current) => ({
+      ...current,
+      name: current.name || `${company.data_source} Company`,
+      industry_type: current.industry_type === "Other" && (company.data_source === "QuickBooks Enterprise" || company.data_source === "Sage") ? "Manufacturing" : current.industry_type,
+      revenue_range: current.revenue_range || "$5M-$25M",
+      employee_count: current.employee_count || "25",
+    }));
+    setConnectionStatus("connected");
+    setConnectionValidationOpen(true);
+  };
+
+  const updateManualUpload = (reportId: string, selected: boolean) => {
+    const nextUploads = { ...manualUploads, [reportId]: selected };
+    setManualUploads(nextUploads);
+    const found = manualFinancialUploadReports
+      .filter((report) => nextUploads[report.id])
+      .map((report) => ({
+        id: report.id === "inventory_report" ? "inventory" : report.id,
+        label: report.label,
+      }));
+    const foundIds = new Set(found.map((report) => report.id));
+    const missing = accountingReportCatalog.filter((report) => !foundIds.has(report.id));
+    setReportSummary({ found, missing });
+    applyRecommendation(found);
+  };
+
+  const canContinueFromDataSource = () => {
+    if (dataSourcePath === "connected") return connectionStatus === "connected";
+    return Boolean(manualUploads.balance_sheet && manualUploads.income_statement);
+  };
+
+  const continueOnboarding = () => {
+    setError("");
+    if (step === dataSourceStep && !canContinueFromDataSource()) {
+      setError(
+        dataSourcePath === "connected"
+          ? "Connect and validate your accounting system before continuing, or choose Upload Financial Statements."
+          : "Upload or confirm both Balance Sheet and Income Statement before continuing.",
+      );
+      return;
+    }
+    setStep((current) => current + 1);
+  };
+
+  const chooseManualUploadPath = () => {
+    setDataSourcePath("manual_upload");
+    setConnectionStatus("idle");
+    updateCompany("data_source", "Manual Financial Upload");
+    setManualCompanyInfoOpen(true);
+  };
+
+  const continueAfterConnectionValidation = () => {
+    setConnectionValidationOpen(false);
+    setError("");
+    setStep((current) => (current <= dataSourceStep ? companyInfoStep : current));
+  };
+
+  const openReportGuide = () => {
+    const popup = window.open("", "_blank", "width=900,height=1100");
+    if (!popup) return;
+    popup.document.write(`
+      <html>
+        <head>
+          <title>Advisacor Report Guide</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 48px; color: #111827; line-height: 1.6; }
+            h1 { color: #0A1020; font-size: 34px; margin-bottom: 8px; }
+            h2 { color: #0A1020; margin-top: 28px; }
+            .brand { color: #D28A4A; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+            .box { border: 1px solid #E5E7EB; border-radius: 18px; padding: 20px; margin-top: 18px; }
+            li { margin: 8px 0; }
+          </style>
+        </head>
+        <body>
+          <p class="brand">Advisacor Report Guide</p>
+          <h1>How to export reports for your free financial review</h1>
+          <p>Required reports: Balance Sheet and Income Statement. Optional reports: AR Aging, AP Aging, and Inventory Report.</p>
+          <div class="box">
+            <h2>QuickBooks Online</h2>
+            <ul>
+              <li>Go to Reports, then Business overview for Balance Sheet and Profit and Loss.</li>
+              <li>Use Who owes you for AR Aging and What you owe for AP Aging.</li>
+              <li>Use Sales, Products and Services, or Inventory reports for inventory exports.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h2>QuickBooks Desktop</h2>
+            <ul>
+              <li>Go to Reports, then Company & Financial for Balance Sheet and Profit & Loss.</li>
+              <li>Use Customers & Receivables for AR Aging.</li>
+              <li>Use Vendors & Payables for AP Aging.</li>
+              <li>Use Inventory reports for item valuation or stock status.</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h2>QuickBooks Enterprise</h2>
+            <ul>
+              <li>Use Desktop report menus for core statements, AR, AP, and inventory.</li>
+              <li>Use Advanced Reporting for job costing, manufacturing, inventory, and industry-specific exports.</li>
+            </ul>
+          </div>
+          <p>Future guide sections will include Xero, NetSuite, Sage, and Microsoft Dynamics screenshots and workflows.</p>
+          <script>window.print()</script>
+        </body>
+      </html>
+    `);
+    popup.document.close();
+  };
 
   const generateFirstPackage = async () => {
     setError("");
@@ -206,6 +382,10 @@ function OnboardingContent() {
       const missingRequiredUploads = dataSourcePath === "manual_upload" && (!manualUploads.balance_sheet || !manualUploads.income_statement);
       if (missingRequiredUploads) {
         setError("Upload or confirm both Balance Sheet and Income Statement before generating the free report.");
+        return;
+      }
+      if (dataSourcePath === "connected" && connectionStatus !== "connected") {
+        setError("Connect and validate your accounting system before generating the full one-time free package.");
         return;
       }
 
@@ -240,6 +420,8 @@ function OnboardingContent() {
           delivery_settings: delivery,
           data_source_path: dataSourcePath,
           manual_uploads: manualUploads,
+          report_discovery: reportSummary,
+          recommended_package: recommendedPackage,
           data_connection_status: dataSourcePath === "manual_upload" ? "upload_configured" : "connected",
           first_package_generated: true,
           invitations: [],
@@ -340,7 +522,7 @@ function OnboardingContent() {
                     step === index ? "bg-[#FF7A1A] text-white" : index < step ? "bg-emerald-400/10 text-emerald-100" : "bg-white/[0.05] text-slate-400"
                   }`}
                 >
-                  {index === 0 ? "0" : index}. {label}
+                  {index + 1}. {label}
                 </button>
               ))}
             </div>
@@ -369,33 +551,43 @@ function OnboardingContent() {
             )}
 
             {step === companyInfoStep && (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Company name" value={company.name} help={contextualHelp.companyName} onChange={(value) => updateCompany("name", value)} />
-                <Select label="Revenue range" value={company.revenue_range} options={revenueRangeOptions} help={contextualHelp.revenueRange} onChange={(value) => updateCompany("revenue_range", value)} />
-                <Field label="Employee count" value={company.employee_count} help={contextualHelp.employeeCount} onChange={(value) => updateCompany("employee_count", value)} />
+              <div className="grid gap-5">
+                <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+                  <p className="text-sm font-black text-emerald-100">
+                    {dataSourcePath === "connected" ? "Discovered from your accounting connection" : "Confirm company information"}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    {dataSourcePath === "connected"
+                      ? "Advisacor retrieved what it could from the connection. Confirm or edit only the details needed for reporting and industry intelligence."
+                      : "Manual upload users provide company information before reports are analyzed."}
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Company name" value={company.name} help={contextualHelp.companyName} onChange={(value) => updateCompany("name", value)} />
+                  <Select label="Industry type" value={company.industry_type} options={industryTypeOptions} help={contextualHelp.industryType} onChange={(value) => updateCompany("industry_type", value)} />
+                  <Select label="Revenue range" value={company.revenue_range} options={revenueRangeOptions} help={contextualHelp.revenueRange} onChange={(value) => updateCompany("revenue_range", value)} />
+                  <Field label="Employee count" value={company.employee_count} help={contextualHelp.employeeCount} onChange={(value) => updateCompany("employee_count", value)} />
+                </div>
               </div>
             )}
 
-            {step === industryTypeStep && (
-              <ChoiceGrid
-                options={industryTypeOptions.map((industryType) => ({
-                  id: industryType,
-                  label: industryType,
-                  description: "Tailors KPIs, dashboard emphasis, executive summaries, AI commentary, and future benchmarking.",
-                }))}
-                selected={company.industry_type}
-                help={contextualHelp.industryType}
-                onSelect={(value) => updateCompany("industry_type", value)}
-              />
-            )}
-
             {step === packageStep && (
-              <ChoiceGrid
-                options={companyPackageOptions.map((option) => ({ id: option.id, label: option.label, description: option.scope.join(", ") }))}
-                selected={company.package_level}
-                help={contextualHelp.packageSelection}
-                onSelect={(value) => updateCompany("package_level", value)}
-              />
+              <div className="grid gap-5">
+                {recommendedPackage && (
+                  <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+                    <p className="text-sm font-black text-emerald-100">Recommended Based On Your Available Data</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      Current recommendation: {companyPackageOptions.find((option) => option.id === recommendedPackage)?.label || recommendedPackage}. Advisacor will automatically update this after report discovery. You can override it if your operating model requires a different package.
+                    </p>
+                  </div>
+                )}
+                <ChoiceGrid
+                  options={companyPackageOptions.map((option) => ({ id: option.id, label: option.label, description: option.scope.join(", ") }))}
+                  selected={company.package_level}
+                  help={contextualHelp.packageSelection}
+                  onSelect={(value) => updateCompany("package_level", value)}
+                />
+              </div>
             )}
 
             {step === dataSourceStep && (
@@ -409,6 +601,8 @@ function OnboardingContent() {
                     type="button"
                     onClick={() => {
                       setDataSourcePath("connected");
+                      setConnectionStatus("idle");
+                      setReportSummary({ found: [], missing: accountingReportCatalog });
                       if (!connectedAccountingSystemOptions.includes(company.data_source)) {
                         updateCompany("data_source", "QuickBooks Online");
                       }
@@ -429,10 +623,7 @@ function OnboardingContent() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setDataSourcePath("manual_upload");
-                      updateCompany("data_source", "Manual Financial Upload");
-                    }}
+                    onClick={chooseManualUploadPath}
                     className={`rounded-3xl border p-5 text-left transition ${
                       dataSourcePath === "manual_upload" ? "border-emerald-300/60 bg-emerald-400/10" : "border-white/10 bg-[#0A1020] hover:border-white/25"
                     }`}
@@ -449,11 +640,42 @@ function OnboardingContent() {
 
                 {dataSourcePath === "connected" ? (
                   <div className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
-                    <Select label="Accounting system" value={company.data_source} options={connectedAccountingSystemOptions} help={contextualHelp.accountingSystem} onChange={(value) => updateCompany("data_source", value)} />
+                    <Select
+                      label="Accounting system"
+                      value={company.data_source}
+                      options={connectedAccountingSystemOptions}
+                      help={contextualHelp.accountingSystem}
+                      onChange={(value) => {
+                        updateCompany("data_source", value);
+                        setConnectionStatus("idle");
+                        setReportSummary({ found: [], missing: accountingReportCatalog });
+                      }}
+                    />
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void validateAccountingConnection()}
+                        disabled={connectionStatus === "connecting"}
+                        className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {connectionStatus === "connecting" ? "Connecting..." : connectionStatus === "connected" ? "Connection Validated" : "Connect and Validate"}
+                      </button>
+                      <button type="button" onClick={() => setConnectionValidationOpen(true)} disabled={connectionStatus !== "connected"} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 disabled:cursor-not-allowed disabled:opacity-40">
+                        View Validation Summary
+                      </button>
+                    </div>
+                    {connectionStatus !== "connected" && (
+                      <p className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
+                        Connection is required before continuing. If you do not want to connect now, choose Upload Financial Statements.
+                      </p>
+                    )}
+                    {connectionStatus === "connected" && (
+                      <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} />
+                    )}
                     <div className="mt-5 grid gap-3 md:grid-cols-2">
                       <ComparisonList
                         title="Connected Accounting System"
-                        items={["Full operational intelligence", "Automated updates", "Weekly Executive Briefs", "Monthly Executive Packages", "Forecasting", "Budgeting", "Treasury", "Oversight Review", "Industry Intelligence", "AI Assistant"]}
+                        items={["Full one-time free package", "Executive Summary", "Full PDF", "Sample PowerPoint", "Industry Intelligence", "AI Commentary", "Health Score", "Risks and Opportunities", "Weekly Executive Briefs", "Monthly Executive Packages", "Forecasting", "Budgeting"]}
                       />
                     </div>
                   </div>
@@ -470,14 +692,33 @@ function OnboardingContent() {
                           label={report.label}
                           required={report.required}
                           selected={Boolean(manualUploads[report.id])}
-                          onChange={(selected) => setManualUploads((current) => ({ ...current, [report.id]: selected }))}
+                          onChange={(selected) => updateManualUpload(report.id, selected)}
                         />
                       ))}
                     </div>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button type="button" onClick={openReportGuide} className="rounded-2xl border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 px-5 py-3 text-sm font-black text-[#FFD0AB]">
+                        Download Report Guide PDF
+                      </button>
+                    </div>
+                    <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-black text-white">Where to find reports</p>
+                        <HelpTip content={contextualHelp.dataSource} />
+                      </div>
+                      <div className="mt-3 grid gap-3 text-sm leading-6 text-slate-300 md:grid-cols-3">
+                        <p><span className="font-black text-white">QuickBooks Online:</span> Reports, then Business overview for Balance Sheet and Profit and Loss; Who owes you / What you owe for AR and AP aging; Sales and Products/Services for inventory reports.</p>
+                        <p><span className="font-black text-white">QuickBooks Desktop:</span> Reports, then Company & Financial for Balance Sheet and Profit & Loss; Customers & Receivables for AR Aging; Vendors & Payables for AP Aging; Inventory for item valuation.</p>
+                        <p><span className="font-black text-white">QuickBooks Enterprise:</span> Use the same Desktop report menus plus Advanced Reporting for inventory, job costing, manufacturing, and industry-specific report exports.</p>
+                      </div>
+                    </div>
+                    {manualUploads.balance_sheet && manualUploads.income_statement && (
+                      <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} manual />
+                    )}
                     <div className="mt-5 grid gap-3 md:grid-cols-2">
                       <ComparisonList
                         title="Manual Upload"
-                        items={["Balance Sheet analysis", "Income Statement analysis", "AR/AP review if uploaded", "Inventory review if uploaded", "Executive Summary", "KPI Review", "Basic Dashboard", "Sample PDF", "Sample PowerPoint Preview", "Sample AI Commentary"]}
+                        items={["Limited Free Report", "Balance Sheet analysis", "Income Statement analysis", "AR/AP review if uploaded", "Inventory review if uploaded", "Executive Summary", "KPI Review", "Sample PDF"]}
                       />
                       <ComparisonList
                         title="Connected Accounting System"
@@ -512,7 +753,13 @@ function OnboardingContent() {
                       Limited report generated from uploaded financial statements.
                     </p>
                   )}
+                  {dataSourcePath === "connected" && (
+                    <p className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">
+                      Full one-time free package: Executive Summary, Full PDF, Sample PowerPoint, Industry Intelligence, AI Commentary, Health Score, Risks, and Opportunities.
+                    </p>
+                  )}
                 </div>
+                <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} manual={dataSourcePath === "manual_upload"} />
                 <div className="grid gap-3">
                   {packageBuildStatuses.map((status, index) => (
                     <div
@@ -551,7 +798,7 @@ function OnboardingContent() {
                 Back
               </button>
               {step < steps.length - 1 ? (
-                <button type="button" onClick={() => setStep((current) => current + 1)} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+                <button type="button" onClick={continueOnboarding} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
                   Continue
                 </button>
               ) : (
@@ -576,6 +823,57 @@ function OnboardingContent() {
             <div className="mt-5">
               <SupportTicketForm defaultCategory="Onboarding" />
             </div>
+          </section>
+        </div>
+      )}
+      {connectionValidationOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
+          <section className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-3xl border border-white/10 bg-[#0A1020] p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Connection Validation</p>
+                <h2 className="mt-2 text-2xl font-black">Connected Reports Summary</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Advisacor discovered available reports, evaluated the data, and selected the recommended package.
+                </p>
+              </div>
+              <button type="button" onClick={() => setConnectionValidationOpen(false)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-slate-300">
+                Close
+              </button>
+            </div>
+            <div className="mt-5">
+              <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} />
+            </div>
+            <button type="button" onClick={continueAfterConnectionValidation} className="mt-5 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+              Continue With Recommended Package
+            </button>
+          </section>
+        </div>
+      )}
+      {manualCompanyInfoOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
+          <section className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-3xl border border-white/10 bg-[#0A1020] p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Manual Upload Setup</p>
+                <h2 className="mt-2 text-2xl font-black">Company Information</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Since no accounting system is connected, Advisacor needs these details before analyzing uploaded financial statements.
+                </p>
+              </div>
+              <button type="button" onClick={() => setManualCompanyInfoOpen(false)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-slate-300">
+                Close
+              </button>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <Field label="Company name" value={company.name} help={contextualHelp.companyName} onChange={(value) => updateCompany("name", value)} />
+              <Select label="Industry type" value={company.industry_type} options={industryTypeOptions} help={contextualHelp.industryType} onChange={(value) => updateCompany("industry_type", value)} />
+              <Select label="Revenue range" value={company.revenue_range} options={revenueRangeOptions} help={contextualHelp.revenueRange} onChange={(value) => updateCompany("revenue_range", value)} />
+              <Field label="Employee count" value={company.employee_count} help={contextualHelp.employeeCount} onChange={(value) => updateCompany("employee_count", value)} />
+            </div>
+            <button type="button" onClick={() => setManualCompanyInfoOpen(false)} className="mt-5 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+              Continue to Upload Reports
+            </button>
           </section>
         </div>
       )}
@@ -639,6 +937,40 @@ function Toggle({ label, checked, onChange, help }: { label: string; checked: bo
       </span>
       <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-5 w-5 accent-[#FF7A1A]" />
     </label>
+  );
+}
+
+function ConnectedReportsSummary({ reportSummary, recommendedPackage, manual = false }: { reportSummary: ReportSummary; recommendedPackage: string; manual?: boolean }) {
+  const packageLabel = companyPackageOptions.find((option) => option.id === recommendedPackage)?.label || recommendedPackage;
+  return (
+    <div className="mt-5 rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-sm font-black text-white">Connected Reports Summary</p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            {manual ? "Manual upload gives a limited free report and sample PDF." : "Connected accounting unlocks the full one-time free package and full intelligence path."}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 px-4 py-3">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFB36F]">Recommended Package</p>
+          <p className="mt-1 text-lg font-black text-white">{packageLabel}</p>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-[#0A1020] p-4">
+          <p className="text-sm font-black text-emerald-100">Found</p>
+          <div className="mt-3 grid gap-2 text-sm text-slate-300">
+            {reportSummary.found.length ? reportSummary.found.map((report) => <span key={report.id}>✓ {report.label}</span>) : <span>No reports found yet.</span>}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-[#0A1020] p-4">
+          <p className="text-sm font-black text-red-100">Missing</p>
+          <div className="mt-3 grid gap-2 text-sm text-slate-400">
+            {reportSummary.missing.length ? reportSummary.missing.map((report) => <span key={report.id}>× {report.label}</span>) : <span>No missing reports detected.</span>}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

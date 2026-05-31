@@ -152,6 +152,9 @@ export default function FirmDashboardPage() {
             <AdvisacorLogo priority className="w-full" />
           </Link>
           <div className="flex flex-wrap items-center gap-3">
+            <Link href="/client-briefings" className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-emerald-100">
+              Client Briefings
+            </Link>
             <span className="rounded-full border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#FFD0AB]">
               Phase 11
             </span>

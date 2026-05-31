@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { rateLimit } from "../../../lib/rate-limit";
+import { getCheckoutTiers } from "../../../lib/product-tiers";
 
 function getStripeClient() {
   if (!process.env.STRIPE_SECRET_KEY) return null;
@@ -9,11 +10,7 @@ function getStripeClient() {
 }
 
 function getAllowedPriceIds() {
-  return [
-    process.env.STRIPE_PRICE_ESSENTIAL,
-    process.env.STRIPE_PRICE_PROFESSIONAL,
-    process.env.STRIPE_PRICE_VIRTUAL_CFO,
-  ].filter(Boolean);
+  return getCheckoutTiers().map((tier) => tier.priceId).filter(Boolean);
 }
 
 function stripeUnavailableResponse() {

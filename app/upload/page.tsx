@@ -16839,11 +16839,34 @@ function QuickBooksImportOptionCard({
   onReportingPeriodEndChange: (value: string) => void;
 }) {
   const [platformNotice, setPlatformNotice] = useState("");
-  const comingSoonPlatforms = [
-    { name: "Xero", className: "border-[#13B5EA]/40 bg-[#13B5EA]/15 text-[#B9EFFF]" },
-    { name: "Sage", className: "border-[#00D639]/40 bg-[#00D639]/15 text-[#BFFFD0]" },
-    { name: "NetSuite", className: "border-[#F47B20]/40 bg-[#F47B20]/15 text-[#FFD7B8]" },
+  const additionalProviders = [
+    { key: "xero", name: "Xero", className: "border-[#13B5EA]/40 bg-[#13B5EA]/15 text-[#B9EFFF]" },
+    { key: "sage", name: "Sage", className: "border-[#00D639]/40 bg-[#00D639]/15 text-[#BFFFD0]" },
+    { key: "netsuite", name: "NetSuite", className: "border-[#F47B20]/40 bg-[#F47B20]/15 text-[#FFD7B8]" },
+    { key: "dynamics365", name: "Microsoft Dynamics", className: "border-[#5B8CFF]/40 bg-[#5B8CFF]/15 text-[#C8D7FF]" },
   ];
+  const handleConnectProvider = async (provider: string, name: string) => {
+    const token = window.localStorage.getItem("supabase_access_token") || "";
+    if (!token) {
+      setPlatformNotice(`Sign in first, then connect ${name}. Manual upload remains available.`);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/accounting/connect?provider=${encodeURIComponent(provider)}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.url) {
+        setPlatformNotice(result.error || `${name} direct sync is not fully configured. Use folder import or manual upload as fallback.`);
+        return;
+      }
+      window.location.assign(result.url);
+    } catch {
+      setPlatformNotice(`${name} direct sync is not available. Use folder import or manual upload as fallback.`);
+    }
+  };
 
   return (
     <div
@@ -16863,11 +16886,11 @@ function QuickBooksImportOptionCard({
             >
               QuickBooks
             </button>
-            {comingSoonPlatforms.map((platform) => (
+            {additionalProviders.map((platform) => (
               <button
-                key={platform.name}
+                key={platform.key}
                 type="button"
-                onClick={() => setPlatformNotice(`${platform.name} Coming Soon`)}
+                onClick={() => void handleConnectProvider(platform.key, platform.name)}
                 className={`rounded-xl border px-3 py-2 text-xs font-black transition hover:opacity-85 ${platform.className}`}
               >
                 {platform.name}
@@ -16879,6 +16902,9 @@ function QuickBooksImportOptionCard({
               {platformNotice}
             </p>
           )}
+          <p className="mt-3 rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-xs leading-5 text-[#94A3B8]">
+            Direct sync support varies by provider and permissions. If a report is unavailable, Advisacor keeps folder import and manual upload available as fallback.
+          </p>
         </div>
         <div className="mb-5 flex items-center justify-between gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#5B8CFF]/15 text-sm font-black text-blue-200">
