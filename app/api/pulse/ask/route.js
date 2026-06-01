@@ -18,6 +18,8 @@ import {
   getRequestedRecurrence,
   shouldPersistRecurringPreference,
 } from "../../../../lib/pdf-package-customization";
+import { resolveCompanyMembership } from "../../../../lib/company-security";
+import { auditSecurityEvent } from "../../../../lib/security-audit";
 
 function isMissingColumnError(error) {
   const message = String(error?.message || "");
@@ -275,6 +277,19 @@ export async function POST(request) {
         previousMemory: body.conversationMemory,
       });
 
+      await auditSecurityEvent({
+        eventType: "ai_analysis_requested",
+        actorUserId: null,
+        actorEmail: lead.email || null,
+        resourceType: "pulse_ai",
+        resourceId: lead.id,
+        metadata: {
+          lead_id: lead.id,
+          response_source: pulseResponse.source,
+          access_mode: "free_review_lead",
+        },
+      });
+
       return NextResponse.json({
         question,
         answer: pulseResponse.answer,
@@ -320,6 +335,11 @@ export async function POST(request) {
     const companyId = body.companyId || body.company_id || null;
     const clientId = body.clientId || body.client_id || null;
     const pdfCustomization = detectPdfPackageRequest(question);
+
+    if (companyId) {
+      const membership = await resolveCompanyMembership({ userId: authData.user.id, companyId });
+      if (membership.response) return membership.response;
+    }
 
     if (pdfCustomization) {
       const recurrence = body.recurrence || getRequestedRecurrence(question);
@@ -370,6 +390,21 @@ export async function POST(request) {
         subscriptionPlan,
         question,
         responseSource: "pdf_package_customization",
+      });
+
+      await auditSecurityEvent({
+        eventType: "ai_pdf_package_customization_requested",
+        actorUserId: authData.user.id,
+        actorEmail: authData.user.email || null,
+        companyId,
+        clientId,
+        resourceType: "pulse_ai",
+        metadata: {
+          report_key: pdfCustomization.reportKey,
+          package_type: pdfCustomization.packageType,
+          action: pdfCustomization.action,
+          response_source: "pdf_package_customization",
+        },
       });
 
       await supabaseAdmin.from("pulse_conversation_memory").insert({
@@ -440,6 +475,19 @@ export async function POST(request) {
       subscriptionPlan,
       question,
       responseSource: pulseResponse.source,
+    });
+
+    await auditSecurityEvent({
+      eventType: "ai_analysis_requested",
+      actorUserId: authData.user.id,
+      actorEmail: authData.user.email || null,
+      companyId,
+      clientId,
+      resourceType: "pulse_ai",
+      metadata: {
+        response_source: pulseResponse.source,
+        subscription_plan: subscriptionPlan,
+      },
     });
 
     await supabaseAdmin.from("pulse_conversation_memory").insert({

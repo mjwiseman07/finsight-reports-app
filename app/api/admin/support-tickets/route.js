@@ -3,6 +3,7 @@ import { rateLimit } from "../../../../lib/rate-limit";
 import { resolveSuperAdminAccess } from "../../../../lib/super-admin-security";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { normalizeSupportTicket, supportTicketStatuses } from "../../../../lib/support-center";
+import { auditSecurityEvent } from "../../../../lib/security-audit";
 
 export async function GET(request) {
   const rateLimitResponse = rateLimit(request, { key: "admin-support-ticket-list", limit: 60, windowMs: 60_000 });
@@ -81,6 +82,19 @@ export async function PATCH(request) {
   if (error) {
     return NextResponse.json({ error: "Unable to update support ticket." }, { status: 500 });
   }
+
+  await auditSecurityEvent({
+    eventType: "admin_support_ticket_updated",
+    actorUserId: access.userId,
+    actorEmail: access.email,
+    resourceType: "support_ticket",
+    resourceId: ticketId,
+    metadata: {
+      status: updates.status || null,
+      assigned_to_updated: typeof body.assigned_to === "string",
+      admin_notes_updated: typeof body.admin_notes === "string",
+    },
+  });
 
   return NextResponse.json({ ticket: normalizeSupportTicket(data) });
 }

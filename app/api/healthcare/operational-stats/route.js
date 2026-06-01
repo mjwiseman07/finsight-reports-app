@@ -12,6 +12,7 @@ import {
 } from "../../../../lib/healthcare-operational-intelligence";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { supabaseAdmin } from "../../../../lib/supabase";
+import { auditSecurityEvent } from "../../../../lib/security-audit";
 
 function numberOrZero(value) {
   const numberValue = Number(value || 0);
@@ -160,6 +161,21 @@ export async function POST(request) {
   }
 
   if (error) return NextResponse.json({ error: "Unable to save healthcare operational stats." }, { status: 500 });
+
+  await auditSecurityEvent({
+    eventType: "data_import_saved",
+    actorUserId: access.user.id,
+    actorEmail: access.user.email || null,
+    companyId,
+    resourceType: "healthcare_operational_stats",
+    resourceId: data.id,
+    metadata: {
+      period_type: row.period_type,
+      period_label: row.period_label,
+      input_source: row.input_source,
+      import_batch_id: row.import_batch_id,
+    },
+  });
 
   const normalizedStats = normalizeHealthcareOperationalStats(data);
   return NextResponse.json({

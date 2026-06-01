@@ -3,6 +3,7 @@ import { companyRoleDefinitions } from "../../../../lib/company-account";
 import { getAuthenticatedCompanyUser, resolveCompanyMembership } from "../../../../lib/company-security";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { supabaseAdmin } from "../../../../lib/supabase";
+import { auditSecurityEvent } from "../../../../lib/security-audit";
 
 function normalizeRole(role) {
   const normalizedRole = String(role || "").trim();
@@ -76,6 +77,16 @@ export async function POST(request) {
     .single();
 
   if (error) return NextResponse.json({ error: "Unable to invite company user." }, { status: 500 });
+
+  await auditSecurityEvent({
+    eventType: "permission_invitation_created",
+    actorUserId: access.user.id,
+    actorEmail: access.user.email || null,
+    companyId,
+    resourceType: "company_invitation",
+    resourceId: data.id,
+    metadata: { invited_email: email, role },
+  });
 
   return NextResponse.json({ ok: true, invitation: data });
 }

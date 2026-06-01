@@ -22,6 +22,7 @@ import {
 import { getAuthenticatedCompanyUser } from "../../../../lib/company-security";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { supabaseAdmin } from "../../../../lib/supabase";
+import { auditSecurityEvent } from "../../../../lib/security-audit";
 
 function normalizeEmailList(value) {
   if (Array.isArray(value)) return value.map((email) => String(email).trim().toLowerCase()).filter(Boolean);
@@ -306,7 +307,35 @@ export async function POST(request) {
 
   if (invitationRows.length) {
     await supabaseAdmin.from("company_invitations").insert(invitationRows);
+    await auditSecurityEvent({
+      eventType: "permission_invitations_created",
+      actorUserId: access.user.id,
+      actorEmail: access.user.email || null,
+      companyId: insertedCompany.id,
+      resourceType: "company_invitation",
+      resourceId: insertedCompany.id,
+      metadata: {
+        invitation_count: invitationRows.length,
+        roles: invitationRows.map((invitation) => invitation.role),
+      },
+    });
   }
+
+  await auditSecurityEvent({
+    eventType: "report_generation_completed",
+    actorUserId: access.user.id,
+    actorEmail: access.user.email || null,
+    companyId: insertedCompany.id,
+    resourceType: "executive_package",
+    resourceId: insertedCompany.id,
+    metadata: {
+      report_type: "first_package",
+      data_connection_status: dataConnectionStatus,
+      data_source_path: dataSourcePath,
+      package_level: packageLevel,
+      recommended_package: recommendedPackage || packageLevel,
+    },
+  });
 
   return NextResponse.json({
     ok: true,

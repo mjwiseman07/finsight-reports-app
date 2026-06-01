@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { fetchCanonicalReports } from "../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
+import { auditSecurityEvent } from "../../../../lib/security-audit";
 
 export async function POST(request) {
   const rateLimitResponse = rateLimit(request, { key: "accounting-fetch-reports", limit: 8, windowMs: 60_000 });
@@ -19,7 +20,16 @@ export async function POST(request) {
     if (!token) return NextResponse.json({ error: "Missing Authorization bearer token" }, { status: 401 });
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
     if (authError || !authData?.user?.id) return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
-    return NextResponse.json(await fetchCanonicalReports(connectionId, authData.user.id, { startDate, endDate }));
+    const result = await fetchCanonicalReports(connectionId, authData.user.id, { startDate, endDate });
+    await auditSecurityEvent({
+      eventType: "data_import_requested",
+      actorUserId: authData.user.id,
+      actorEmail: authData.user.email || null,
+      resourceType: "accounting_connection",
+      resourceId: connectionId,
+      metadata: { start_date: startDate, end_date: endDate, provider: result.provider },
+    });
+    return NextResponse.json(result);
   } catch (error) {
     console.error("[accounting/fetch-reports] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to fetch accounting reports" }, { status: 500 });

@@ -11,6 +11,8 @@ import {
   getRequestedRecurrence,
   shouldPersistRecurringPreference,
 } from "../../../../lib/pdf-package-customization";
+import { resolveCompanyMembership } from "../../../../lib/company-security";
+import { auditSecurityEvent } from "../../../../lib/security-audit";
 
 function isMissingSchema(error) {
   const message = String(error?.message || "");
@@ -128,6 +130,10 @@ export async function POST(request) {
       null;
     const companyId = body.companyId || body.company_id || null;
     const clientId = body.clientId || body.client_id || null;
+    if (companyId) {
+      const membership = await resolveCompanyMembership({ userId: resolved.user.id, companyId });
+      if (membership.response) return membership.response;
+    }
     const recurrence = body.recurrence || getRequestedRecurrence(question);
     const packagePeriod = body.packagePeriod || getCurrentPackagePeriod();
     const permission = canUsePdfReport(subscriptionPlan, detected.reportKey);
@@ -168,6 +174,23 @@ export async function POST(request) {
           action: detected.action,
         })
       : { saved: false };
+
+    await auditSecurityEvent({
+      eventType: "pdf_package_customization_requested",
+      actorUserId: resolved.user.id,
+      actorEmail: resolved.user.email || null,
+      companyId,
+      clientId,
+      resourceType: "pdf_package",
+      resourceId: saveResult.customization?.id || null,
+      metadata: {
+        report_key: detected.reportKey,
+        package_type: detected.packageType,
+        action: detected.action,
+        allowed: response.allowed,
+        preference_saved: Boolean(saveResult.customization?.id),
+      },
+    });
 
     return NextResponse.json({
       matched: true,

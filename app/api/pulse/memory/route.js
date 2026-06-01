@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
+import { resolveCompanyMembership } from "../../../../lib/company-security";
 import {
   buildPulseMemoryScore,
   buildPulseMemoryTimeline,
@@ -35,6 +36,11 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get("companyId");
     const clientId = searchParams.get("clientId");
+
+    if (companyId) {
+      const membership = await resolveCompanyMembership({ userId: resolved.user.id, companyId });
+      if (membership.response) return membership.response;
+    }
 
     let query = supabaseAdmin
       .from("pulse_insight_memory")

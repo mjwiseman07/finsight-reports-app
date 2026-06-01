@@ -27,6 +27,7 @@
     "verify:demo-environments": "node scripts/verify-demo-environments.js",
     "verify:pdf-customization": "node scripts/verify-pdf-customization.js",
     "verify:fresh-customer-demo": "node scripts/verify-fresh-customer-demo.js",
+    "verify:security-controls": "node scripts/verify-security-controls.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
