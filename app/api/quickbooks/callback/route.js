@@ -12,7 +12,9 @@ export async function GET(request) {
   const configAdapter = getERPAdapter("quickbooks", null);
   const quickBooksConfig = configAdapter.getConfig();
   const expectedState = request.cookies.get("qb_oauth_state")?.value || "";
+  const oauthMode = request.cookies.get("qb_oauth_mode")?.value || "user";
   const supabaseToken = request.cookies.get("qb_oauth_token")?.value || "";
+  const leadId = request.cookies.get("qb_oauth_lead_id")?.value || "";
   const returnTo = request.cookies.get("qb_oauth_return_to")?.value || "";
   const redirectUrl = new URL(returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard", request.url);
 
@@ -21,6 +23,8 @@ export async function GET(request) {
     hasState: Boolean(state),
     stateMatchesCookie: Boolean(state && expectedState && state === expectedState),
     hasSupabaseTokenCookie: Boolean(supabaseToken),
+    mode: oauthMode,
+    hasLeadIdCookie: Boolean(leadId),
     hasRealmId: Boolean(realmId),
     intuitError: intuitError || null,
   });
@@ -33,12 +37,14 @@ export async function GET(request) {
     return NextResponse.json({ error: intuitError, description: intuitErrorDescription }, { status: 400 });
   }
 
-  if (!state || !expectedState || state !== expectedState || !supabaseToken) {
+  if (!state || !expectedState || state !== expectedState || (oauthMode === "user" && !supabaseToken) || (oauthMode === "lead" && !leadId)) {
     console.error("[quickbooks/callback] missing or invalid OAuth state cookie", {
       hasState: Boolean(state),
       hasExpectedStateCookie: Boolean(expectedState),
       stateMatchesCookie: Boolean(state && expectedState && state === expectedState),
       hasSupabaseTokenCookie: Boolean(supabaseToken),
+      hasLeadIdCookie: Boolean(leadId),
+      mode: oauthMode,
     });
     return NextResponse.json({ error: "Missing or invalid QuickBooks OAuth state" }, { status: 400 });
   }
@@ -65,23 +71,7 @@ export async function GET(request) {
       redirectUriMatchesExpected: quickBooksConfig.redirectUri === "http://localhost:3000/api/quickbooks/callback",
     });
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(supabaseToken);
-
-    if (authError || !authData?.user?.id) {
-      console.error("[quickbooks/callback] Supabase JWT from OAuth cookie is invalid", {
-        message: authError?.message,
-        status: authError?.status,
-      });
-      return NextResponse.json({ error: "Invalid or expired Supabase token in QuickBooks OAuth cookie" }, { status: 401 });
-    }
-
-    console.log("[quickbooks/callback] exchanging authorization code", {
-      userId: authData.user.id,
-      hasRealmId: Boolean(realmId),
-      hasRedirectUri: Boolean(process.env.QB_REDIRECT_URI),
-    });
-
-    const adapter = getERPAdapter("quickbooks", authData.user.id);
+    const adapter = getERPAdapter("quickbooks", null);
     const tokenResponse = await adapter.exchangeAuthorizationCode(authCode);
 
     console.log("[quickbooks/callback] Intuit OAuth exchange response", {
@@ -103,6 +93,52 @@ export async function GET(request) {
 
     const token = tokenResponse.payload;
 
+    if (oauthMode === "lead") {
+      const companyProfile = await adapter.getCompanyProfile(token.access_token, realmId).catch(() => ({}));
+      const { error: leadError } = await supabaseAdmin
+        .from("free_review_leads")
+        .update({
+          legal_company_name: companyProfile.legal_name || companyProfile.company_name || "",
+          status: "quickbooks_connected",
+          additional_business_information: {
+            quickbooks: {
+              realm_id: realmId,
+              company_profile: companyProfile,
+              connected_at: new Date().toISOString(),
+              token_stored: false,
+            },
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", leadId);
+
+      if (leadError) {
+        console.error("[quickbooks/callback] failed to enrich free review lead", {
+          leadId,
+          message: leadError.message,
+        });
+      }
+
+      redirectUrl.searchParams.set("quickBooksConnected", "true");
+      redirectUrl.searchParams.set("leadId", leadId);
+      const response = NextResponse.redirect(redirectUrl);
+      response.cookies.delete("qb_oauth_state");
+      response.cookies.delete("qb_oauth_mode");
+      response.cookies.delete("qb_oauth_lead_id");
+      response.cookies.delete("qb_oauth_return_to");
+      return response;
+    }
+
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(supabaseToken);
+
+    if (authError || !authData?.user?.id) {
+      console.error("[quickbooks/callback] Supabase JWT from OAuth cookie is invalid", {
+        message: authError?.message,
+        status: authError?.status,
+      });
+      return NextResponse.json({ error: "Invalid or expired Supabase token in QuickBooks OAuth cookie" }, { status: 401 });
+    }
+
     console.log("[quickbooks/callback] OAuth exchange succeeded", {
       userId: authData.user.id,
       hasRealmId: Boolean(realmId),
@@ -118,7 +154,8 @@ export async function GET(request) {
       platform: "quickbooks",
     });
 
-    const savedConnection = await adapter.saveConnection({
+    const userAdapter = getERPAdapter("quickbooks", authData.user.id);
+    const savedConnection = await userAdapter.saveConnection({
       realmId,
       token,
     });
@@ -132,7 +169,9 @@ export async function GET(request) {
 
     const response = NextResponse.redirect(redirectUrl);
     response.cookies.delete("qb_oauth_state");
+    response.cookies.delete("qb_oauth_mode");
     response.cookies.delete("qb_oauth_token");
+    response.cookies.delete("qb_oauth_lead_id");
     response.cookies.delete("qb_oauth_return_to");
     return response;
   } catch (error) {

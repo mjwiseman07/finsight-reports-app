@@ -32,33 +32,62 @@ async function handleConnect(request) {
       );
     }
 
+    const requestUrl = new URL(request.url);
     const authorization = request.headers.get("authorization") || "";
     const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
+    const requestedLeadId = requestUrl.searchParams.get("leadId") || request.cookies.get("free_review_lead_id")?.value || "";
+    let connectContext = null;
 
-    if (!token) {
-      return NextResponse.json({ error: "Missing Authorization bearer token" }, { status: 401 });
-    }
+    if (token) {
+      const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+      if (authError || !authData?.user?.id) {
+        console.error("[quickbooks/connect] Supabase token validation failed", {
+          message: authError?.message,
+          status: authError?.status,
+        });
+        return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+      }
 
-    if (authError || !authData?.user?.id) {
-      console.error("[quickbooks/connect] Supabase token validation failed", {
-        message: authError?.message,
-        status: authError?.status,
-      });
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+      connectContext = {
+        mode: "user",
+        userId: authData.user.id,
+        token,
+      };
+    } else if (requestedLeadId) {
+      const { data: lead, error: leadError } = await supabaseAdmin
+        .from("free_review_leads")
+        .select("id, email, business_name")
+        .eq("id", requestedLeadId)
+        .maybeSingle();
+
+      if (leadError?.code === "42P01") {
+        return NextResponse.json({ error: "Run the free review leads migration before connecting QuickBooks from onboarding." }, { status: 501 });
+      }
+
+      if (leadError || !lead?.id) {
+        return NextResponse.json({ error: "Lead capture is required before connecting QuickBooks." }, { status: 401 });
+      }
+
+      connectContext = {
+        mode: "lead",
+        leadId: lead.id,
+      };
+    } else {
+      return NextResponse.json({ error: "Lead capture or sign-in is required before connecting QuickBooks." }, { status: 401 });
     }
 
     const state = crypto.randomUUID();
-    const adapter = getERPAdapter("quickbooks", authData.user.id);
+    const adapter = getERPAdapter("quickbooks", connectContext.userId || null);
     const { url, config: quickBooksConfig } = adapter.connect({ state });
     const parsedUrl = new URL(url);
-    const requestUrl = new URL(request.url);
     const returnTo = requestUrl.searchParams.get("returnTo") || "";
     const safeReturnTo = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "";
 
     console.log("[quickbooks/connect] authorization URL generated", {
-      userId: authData.user.id,
+      mode: connectContext.mode,
+      userId: connectContext.userId || null,
+      leadId: connectContext.leadId || null,
       stateLength: state.length,
       scope: "com.intuit.quickbooks.accounting",
       environment: quickBooksConfig.environment,
@@ -76,7 +105,9 @@ async function handleConnect(request) {
       path: "/",
     };
     response.cookies.set("qb_oauth_state", state, cookieOptions);
-    response.cookies.set("qb_oauth_token", token, cookieOptions);
+    response.cookies.set("qb_oauth_mode", connectContext.mode, cookieOptions);
+    if (connectContext.token) response.cookies.set("qb_oauth_token", connectContext.token, cookieOptions);
+    if (connectContext.leadId) response.cookies.set("qb_oauth_lead_id", connectContext.leadId, cookieOptions);
     if (safeReturnTo) response.cookies.set("qb_oauth_return_to", safeReturnTo, cookieOptions);
 
     return response;

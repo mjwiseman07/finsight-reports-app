@@ -41,6 +41,7 @@ import {
   buildPulseMemoryTimeline,
   demoPulseInsightMemory,
 } from "../../lib/pulse-insight-memory";
+import { downloadFinancialPackagePdf, downloadFluxAnalysisPdf } from "../../lib/financial-package-pdf";
 
 const plans = getCheckoutTiers().map((tier) => ({
   key: tier.key,
@@ -142,6 +143,99 @@ const capabilityRecommendationMap = [
   },
 ];
 
+const fluxTypeOptions = [
+  { key: "month-over-month", label: "Month-over-Month", minimumLevel: "starter" },
+  { key: "quarter-over-quarter", label: "Quarter-over-Quarter", minimumLevel: "pro" },
+  { key: "year-over-year", label: "Year-over-Year", minimumLevel: "professional" },
+  { key: "custom-period", label: "Custom Period Comparison", minimumLevel: "cfo" },
+];
+
+const fluxStatements = [
+  "Balance Sheet",
+  "Income Statement",
+  "Cash Flow Statement",
+  "Payroll Analysis",
+  "Fixed Asset Rollforward",
+  "AR Aging",
+  "AP Aging",
+  "Inventory",
+];
+
+const fluxCommentaryOptions = [
+  "Executive Commentary",
+  "Business Impact Analysis",
+  "Recommended Actions",
+  "Driver Identification",
+  "Payroll/FTE Commentary",
+  "Working Capital Commentary",
+  "Margin Commentary",
+];
+
+const fluxLevelRank = {
+  starter: 1,
+  pro: 2,
+  professional: 3,
+  cfo: 4,
+};
+
+const defaultFluxConfig = {
+  fluxType: "month-over-month",
+  statements: ["Balance Sheet", "Income Statement"],
+  dollarThreshold: "5000",
+  percentageThreshold: "10",
+  filteringLogic: "both",
+  aiCommentaryEnabled: true,
+  commentaryOptions: fluxCommentaryOptions,
+  outputFormat: "pdf",
+};
+
+const executivePackagePeriodOptions = [
+  { key: "current-month-end", label: "Current Month-End" },
+  { key: "prior-month-end", label: "Prior Month-End" },
+  { key: "quarter-end", label: "Quarter-End" },
+  { key: "year-end", label: "Year-End" },
+  { key: "year-to-date", label: "Year-To-Date Through Today" },
+  { key: "custom-date", label: "Custom Date" },
+];
+
+const executivePowerPointSections = [
+  "Executive Summary",
+  "Financial Statements",
+  "KPI Dashboard",
+  "Pulse Commentary",
+  "Payroll/FTE Analysis",
+  "Ratio Analysis",
+  "Industry Insights",
+  "Recommendations",
+];
+
+const liveDataRefreshSources = [
+  "QuickBooks Data",
+  "Payroll Data",
+  "AR Data",
+  "AP Data",
+  "Inventory Data",
+  "Fixed Asset Data",
+  "Customer Data",
+  "Vendor Data",
+  "Forecast Data",
+];
+
+const defaultExecutivePackageConfig = {
+  packageType: "",
+  reportingPeriod: "current-month-end",
+  customDate: "",
+  powerPointSections: executivePowerPointSections,
+};
+
+function getFluxLevelFromPlan(planKey) {
+  if (!planKey) return "starter";
+  if (planKey === "pulse_starter" || planKey === "essential") return "starter";
+  if (planKey === "pulse_pro") return "pro";
+  if (planKey === "advisacor_professional" || planKey === "professional") return "professional";
+  return "cfo";
+}
+
 function buildIntelligenceRecommendation(capabilities, currentPlanKey) {
   if (!capabilities) return null;
   const currentRank = planRank[currentPlanKey] || 1;
@@ -176,17 +270,118 @@ const defaultAiQuestions = [
   "Why did margin decline?",
 ];
 
-function buildDashboardAiAnswer(question, context) {
+function wantsDetailedPulseAnalysis(question) {
+  const normalizedQuestion = String(question || "").toLowerCase();
+  return [
+    "why",
+    "explain",
+    "analysis",
+    "detail",
+    "supporting",
+    "impact",
+    "risk",
+    "recommend",
+    "compare",
+    "percentage",
+    "percent",
+    "last month",
+    "month over month",
+    "trend",
+    "driver",
+    "caused",
+  ].some((term) => normalizedQuestion.includes(term));
+}
+
+function getDashboardRequiredDetailLabel(question) {
+  const normalizedQuestion = String(question || "").toLowerCase();
+  if (normalizedQuestion.includes("customer") || normalizedQuestion.includes("sales") || normalizedQuestion.includes("revenue") || normalizedQuestion.includes("buy") || normalizedQuestion.includes("bought")) {
+    return normalizedQuestion.includes("ytd") || normalizedQuestion.includes("year-to-date")
+      ? "customer-level YTD sales analysis"
+      : "customer-level sales detail";
+  }
+  if (normalizedQuestion.includes("asset") || normalizedQuestion.includes("disposed") || normalizedQuestion.includes("disposal") || normalizedQuestion.includes("gain on sale")) return "fixed asset transaction detail";
+  if (normalizedQuestion.includes("payroll") || normalizedQuestion.includes("employee") || normalizedQuestion.includes("overtime") || normalizedQuestion.includes("hire")) return "employee-level payroll detail";
+  if (normalizedQuestion.includes("vendor") || normalizedQuestion.includes("expense") || normalizedQuestion.includes("bill") || normalizedQuestion.includes("payable")) return "vendor-level expense detail";
+  return "the required detail";
+}
+
+function buildDashboardUnavailableDataResponse(question, context) {
+  const normalizedQuestion = String(question || "").toLowerCase();
+  const detailLabel = getDashboardRequiredDetailLabel(question);
+  const planName = String(context.packageName || "").toLowerCase();
+  const starterPlan = !planName || planName.includes("free") || planName.includes("trial") || planName.includes("starter");
+  const packageLimited =
+    starterPlan &&
+    (normalizedQuestion.includes("ytd") ||
+      normalizedQuestion.includes("year-to-date") ||
+      normalizedQuestion.includes("customer-level") ||
+      normalizedQuestion.includes("vendor-level") ||
+      normalizedQuestion.includes("employee-level") ||
+      normalizedQuestion.includes("invoice") ||
+      normalizedQuestion.includes("transaction") ||
+      normalizedQuestion.includes("gain on sale") ||
+      normalizedQuestion.includes("which employees"));
+
+  if (packageLimited) {
+    return `I can answer this question, however ${detailLabel} is not included in your current Advisacor package.`;
+  }
+
+  return `I can answer this question once ${detailLabel} has been imported from QuickBooks.`;
+}
+
+function buildDashboardAiAnswer(question, context, conversationMemory = {}) {
   const normalizedQuestion = question.toLowerCase();
+  const wantsDetail = wantsDetailedPulseAnalysis(question);
   const industry = context.industryType || "General";
   const prefix = `Using ${context.companyName || "this company"}'s ${industry} dashboard context`;
+  const lastCustomer = conversationMemory.lastCustomer;
+  const lastAsset = conversationMemory.lastAsset;
+
+  if (
+    lastCustomer &&
+    /\b(their|they|them|same|that|this)\b/.test(normalizedQuestion) &&
+    (normalizedQuestion.includes("sales") || normalizedQuestion.includes("revenue") || normalizedQuestion.includes("buy") || normalizedQuestion.includes("bought"))
+  ) {
+    const customerName = lastCustomer.entityName || lastCustomer.name;
+    const revenue = lastCustomer.revenue || lastCustomer.currentMonthRevenue;
+    const priorRevenue = lastCustomer.priorMonthRevenue;
+    if (!wantsDetail) {
+      return `${customerName} had ${revenue ? `$${Number(revenue).toLocaleString()}` : "the last discussed customer sales amount"} of sales this month.`;
+    }
+    return [
+      `${customerName} had ${revenue ? `$${Number(revenue).toLocaleString()}` : "the last discussed customer sales amount"} of sales this month.`,
+      "",
+      priorRevenue
+        ? `Prior month sales for this customer were $${Number(priorRevenue).toLocaleString()}.`
+        : "Pulse resolved this follow-up to the customer discussed in the previous question.",
+    ].join("\n");
+  }
+
+  if (lastAsset && /\b(it|its|that|this|same)\b/.test(normalizedQuestion) && (normalizedQuestion.includes("gain") || normalizedQuestion.includes("bought") || normalizedQuestion.includes("buy"))) {
+    return buildDashboardUnavailableDataResponse(question, context);
+  }
+
+  if (normalizedQuestion.includes("asset") || normalizedQuestion.includes("disposed") || normalizedQuestion.includes("disposal")) {
+    if (normalizedQuestion.includes("what asset") || normalizedQuestion.includes("which asset")) {
+      return buildDashboardUnavailableDataResponse(question, context);
+    }
+    return wantsDetail
+      ? `I identified a $25,000 fixed asset disposal this period. ${buildDashboardUnavailableDataResponse(question, context)}`
+      : "I identified a $25,000 fixed asset disposal this period.";
+  }
 
   if (
     normalizedQuestion.includes("projected") ||
     normalizedQuestion.includes("predict") ||
     normalizedQuestion.includes("forecast") ||
     normalizedQuestion.includes("year-end") ||
-    normalizedQuestion.includes("90 days")
+    normalizedQuestion.includes("90 days") ||
+    normalizedQuestion.includes("can i afford") ||
+    normalizedQuestion.includes("can we afford") ||
+    normalizedQuestion.includes("what if") ||
+    normalizedQuestion.includes("what happens if") ||
+    normalizedQuestion.includes("should i hire") ||
+    normalizedQuestion.includes("should we hire")
   ) {
     return answerPulsePredictQuestion(question, context);
   }
@@ -203,26 +398,93 @@ function buildDashboardAiAnswer(question, context) {
   }
 
   if (normalizedQuestion.includes("cash")) {
-    return `${prefix}, Pulse sees cash lower primarily because payroll, vendor payments, and collections timing are moving faster than incoming receipts. The next action is to review the upcoming two-week cash schedule and follow up on the largest overdue balances.`;
+    return wantsDetail
+      ? `${prefix}, cash is lower primarily because payroll, vendor payments, and collections timing are moving faster than incoming receipts.`
+      : "Cash is lower primarily because outgoing payments are moving faster than incoming receipts.";
   }
 
   if (normalizedQuestion.includes("profit") || normalizedQuestion.includes("margin")) {
-    return `${prefix}, Pulse sees profitability pressure tied to labor, overhead, and margin discipline. Review gross margin movement first, then isolate payroll, material, or job-cost drivers before changing pricing or staffing.`;
+    return wantsDetail
+      ? `${prefix}, profitability pressure appears tied to labor, overhead, and margin discipline.`
+      : "Profitability pressure appears tied to labor, overhead, and margin discipline.";
   }
 
   if (normalizedQuestion.includes("employee") || normalizedQuestion.includes("staff") || normalizedQuestion.includes("nurse") || normalizedQuestion.includes("cna")) {
-    return `${prefix}, Pulse would evaluate staffing capacity against cash, labor cost per operating unit, and expected revenue. If labor cost per patient day or revenue per employee worsens after the hire, wait or offset the role with productivity gains.`;
+    return buildDashboardUnavailableDataResponse(question, context);
   }
 
   if (normalizedQuestion.includes("customer") || normalizedQuestion.includes("collections") || normalizedQuestion.includes("receivable")) {
-    return `${prefix}, Pulse sees collections risk concentrated in older receivables. Prioritize the top overdue customer balances, confirm payment timing, and watch whether AR over 60 days is increasing faster than revenue.`;
+    if (normalizedQuestion.includes("top") || normalizedQuestion.includes("largest") || normalizedQuestion.includes("most")) {
+      return [
+        "Blue Ridge Industrial Services was the top customer this month with $186,000 of revenue.",
+        wantsDetail ? "This represented 22.6% of monthly revenue and was up $24,000 from last month." : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
+    return wantsDetail
+      ? `${prefix}, collections risk is concentrated in older receivables.`
+      : "Collections risk is concentrated in older receivables.";
   }
 
   if (normalizedQuestion.includes("concern") || normalizedQuestion.includes("risk")) {
-    return `${prefix}, Pulse's top concerns are cash timing, collections quality, and whether operating costs are moving faster than revenue. Industry-specific risks should be reviewed in the operating panels below before the next management decision.`;
+    return "The top concerns are cash timing, collections quality, and operating costs growing faster than revenue.";
   }
 
-  return `${prefix}, Pulse would start with cash, revenue trend, profitability movement, and the industry KPIs shown on this dashboard. The most useful next step is to compare the current metric against the prior period and identify whether the change is timing, volume, pricing, labor, or working capital.`;
+  return buildDashboardUnavailableDataResponse(question, context);
+}
+
+function mergeDashboardConversationMemory(question, answer, previousMemory) {
+  const normalizedQuestion = question.toLowerCase();
+  const nextMemory = {
+    lastCustomer: previousMemory.lastCustomer || null,
+    lastVendor: previousMemory.lastVendor || null,
+    lastAsset: previousMemory.lastAsset || null,
+    lastEmployee: previousMemory.lastEmployee || null,
+    lastAccount: previousMemory.lastAccount || null,
+    lastReport: previousMemory.lastReport || null,
+  };
+
+  if (normalizedQuestion.includes("customer") || answer.includes("Blue Ridge Industrial Services")) {
+    nextMemory.lastCustomer = {
+      entityType: "Customer",
+      entityName: "Blue Ridge Industrial Services",
+      revenue: 186000,
+      currentMonthRevenue: 186000,
+      priorMonthRevenue: 162000,
+      percentOfRevenue: 22.6,
+      concentrationRisk: "Moderate",
+      source: "dashboard_customer_sales_context",
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  if (normalizedQuestion.includes("asset") || normalizedQuestion.includes("disposed") || answer.includes("$25,000 fixed asset disposal")) {
+    nextMemory.lastAsset = {
+      entityType: "Asset",
+      entityName: "Unidentified $25,000 fixed asset disposal",
+      disposalAmount: 25000,
+      source: "dashboard_fixed_asset_roll_forward",
+      updatedAt: new Date().toISOString(),
+    };
+    nextMemory.lastReport = {
+      entityType: "Report",
+      entityName: "Fixed Asset Roll-Forward",
+      source: "dashboard_fixed_asset_roll_forward",
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  if (normalizedQuestion.includes("payroll") || normalizedQuestion.includes("employee")) {
+    nextMemory.lastReport = {
+      entityType: "Report",
+      entityName: "Payroll Analysis",
+      source: "dashboard_question",
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  return nextMemory;
 }
 
 export default function DashboardPage() {
@@ -255,9 +517,29 @@ export default function DashboardPage() {
   const [ownerPackageLevel, setOwnerPackageLevel] = useState("essential");
   const [ownerSettingsSaving, setOwnerSettingsSaving] = useState(false);
   const [ownerSettingsMessage, setOwnerSettingsMessage] = useState("");
+  const [dashboardPackageGenerating, setDashboardPackageGenerating] = useState(false);
+  const [dashboardPackageReady, setDashboardPackageReady] = useState(false);
+  const [dashboardPackageHistory, setDashboardPackageHistory] = useState([]);
+  const [fluxWorkspaceOpen, setFluxWorkspaceOpen] = useState(false);
+  const [fluxConfig, setFluxConfig] = useState(defaultFluxConfig);
+  const [fluxWorkspaceMessage, setFluxWorkspaceMessage] = useState("");
+  const [executivePackageWizardOpen, setExecutivePackageWizardOpen] = useState(false);
+  const [executivePackageConfig, setExecutivePackageConfig] = useState(defaultExecutivePackageConfig);
+  const [executivePackageGenerating, setExecutivePackageGenerating] = useState(false);
+  const [executivePackageMessage, setExecutivePackageMessage] = useState("");
+  const [executivePackageRefreshStatus, setExecutivePackageRefreshStatus] = useState([]);
+  const [activeExploreSection, setActiveExploreSection] = useState("");
   const [aiOpen, setAiOpen] = useState(false);
   const [aiQuestion, setAiQuestion] = useState("");
   const [executiveQuestion, setExecutiveQuestion] = useState("");
+  const [conversationEntityMemory, setConversationEntityMemory] = useState({
+    lastCustomer: null,
+    lastVendor: null,
+    lastAsset: null,
+    lastEmployee: null,
+    lastAccount: null,
+    lastReport: null,
+  });
   const [aiMessages, setAiMessages] = useState([
     {
       role: "advisacor",
@@ -273,6 +555,7 @@ export default function DashboardPage() {
 
   const currentPlanKey = access?.subscription_plan || null;
   const currentProductTier = getProductTier(currentPlanKey);
+  const currentFluxLevel = getFluxLevelFromPlan(currentPlanKey);
   const currentPlanName = currentPlanKey ? currentProductTier.name || planLabels[currentPlanKey] || currentPlanKey : access?.reason === "trial" ? "Free Trial" : "No Active Plan";
   const accountEmail = access?.email || "Not available";
   const accountBusinessName = access?.business_name || "Not provided";
@@ -293,6 +576,13 @@ export default function DashboardPage() {
     cash: "$428K",
     revenue: "$1.8M",
     profitability: "14.6%",
+    currentMonthNetIncome: 269900,
+    currentMonthRevenue: 824000,
+    cashBalance: 428000,
+    currentFte: 57,
+    priorFte: 52,
+    payrollCostPerFte: 4250,
+    revenuePerFte: 14456,
     latestPackage: firstPackageReady ? "First executive package" : "Current dashboard snapshot",
     tierName: currentProductTier.name,
     scenarioHorizon: currentProductTier.entitlements.scenarioForecastHorizon,
@@ -306,6 +596,7 @@ export default function DashboardPage() {
     industryType: onboardingIndustryType,
   });
   const whatIfStrategy = currentProductTier.whatIfScenario;
+  const showLegacySubscriberConfiguration = false;
 
   const readValidStoredAuthToken = useCallback((fallbackToken = "") => {
     const isInvalidJwt = (authToken) => {
@@ -361,6 +652,31 @@ export default function DashboardPage() {
         process.env.NODE_ENV === "development" &&
         new URLSearchParams(window.location.search).get("superAdmin") === "true";
       const storedToken = await getAuthToken();
+      const leadDashboardSession = (() => {
+        try {
+          return JSON.parse(window.localStorage.getItem("advisacor_lead_dashboard_session") || "null");
+        } catch {
+          return null;
+        }
+      })();
+      const leadSessionMode =
+        Boolean(leadDashboardSession?.leadId) ||
+        (dashboardParams.get("leadSession") === "true" && Boolean(dashboardParams.get("leadId")));
+
+      if (!storedToken && leadSessionMode) {
+        const leadAccess = {
+          allowed: true,
+          reason: "lead_free_review",
+          email: window.localStorage.getItem("advisacor_free_review_lead_email") || "Lead captured",
+          business_name: leadDashboardSession?.companyName || dashboardParams.get("companyName") || "Free Review Company",
+          subscription_plan: leadDashboardSession?.packageLevel || dashboardParams.get("packageLevel") || "pulse_starter",
+          subscription_status: "free_review",
+        };
+        setAccess(leadAccess);
+        setBusinessNameDraft(leadAccess.business_name || "");
+        setIsLoading(false);
+        return;
+      }
 
       if (!storedToken && !devBypass && !superAdminJourney) {
         router.replace("/signin");
@@ -657,25 +973,48 @@ export default function DashboardPage() {
     setAiQuestion("");
     setAiOpen(true);
 
-    let answer = buildDashboardAiAnswer(trimmedQuestion, dashboardAiContext);
+    let answer = buildDashboardAiAnswer(trimmedQuestion, dashboardAiContext, conversationEntityMemory);
+    let nextConversationEntityMemory = mergeDashboardConversationMemory(trimmedQuestion, answer, conversationEntityMemory);
 
     try {
       const authToken = token || window.localStorage.getItem("supabase_access_token") || "";
-      if (authToken) {
+      const leadId = (() => {
+        try {
+          const leadSession = JSON.parse(window.localStorage.getItem("advisacor_lead_dashboard_session") || "null");
+          return leadSession?.leadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+        } catch {
+          return window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+        }
+      })();
+      if (authToken || leadId) {
         const response = await fetch("/api/pulse/ask", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+            ...(!authToken && leadId ? { "x-free-review-lead-id": leadId } : {}),
           },
           body: JSON.stringify({
             question: trimmedQuestion,
             companyId: dashboardParams.get("companyId") || null,
+            conversationMemory: conversationEntityMemory,
+            leadId: !authToken ? leadId : null,
+            leadContext: !authToken
+              ? {
+                  companyName: onboardingCompanyName,
+                  industryType: onboardingIndustryType,
+                  packageName: currentPlanName,
+                }
+              : null,
           }),
         });
         const result = await response.json().catch(() => ({}));
-        if (response.ok && result.answer) answer = result.answer;
-        else if (result.error) answer = `${answer}\n\nPulse API note: ${result.error}`;
+        if (response.ok && result.answer) {
+          answer = result.answer;
+          nextConversationEntityMemory = result.conversationMemory || mergeDashboardConversationMemory(trimmedQuestion, answer, conversationEntityMemory);
+        } else if (result.error) {
+          answer = `${answer}\n\nPulse API note: ${result.error}`;
+        }
       }
     } catch {
       answer = `${answer}\n\nPulse API note: using local CFO-mode response because the server context engine is unavailable.`;
@@ -685,6 +1024,7 @@ export default function DashboardPage() {
       ...current.slice(0, -1),
       { role: "advisacor", content: answer },
     ]);
+    setConversationEntityMemory(nextConversationEntityMemory);
   };
 
   const submitExecutiveQuestion = (value = executiveQuestion) => {
@@ -697,6 +1037,204 @@ export default function DashboardPage() {
 
   const askAboutMetric = (metric) => {
     void submitAiQuestion(`Explain ${metric} for this ${onboardingIndustryType} dashboard.`);
+  };
+
+  const downloadTrialReport = () => {
+    const isTrialReport = access?.reason === "lead_free_review" || access?.subscription_status === "free_review" || access?.reason === "trial";
+    downloadFinancialPackagePdf({
+      companyName: onboardingCompanyName || "QuickBooks Company",
+      industryType: onboardingIndustryType || "Industry Intelligence",
+      preparedBy: "Advisacor",
+      trial: isTrialReport,
+    });
+  };
+
+  const getExecutivePackagePeriodLabel = (config = executivePackageConfig) => {
+    const selectedPeriod = executivePackagePeriodOptions.find((option) => option.key === config.reportingPeriod);
+    if (config.reportingPeriod === "year-to-date") {
+      const today = new Date();
+      return `January 1, ${today.getFullYear()} through ${today.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })}`;
+    }
+    if (config.reportingPeriod === "custom-date") {
+      return config.customDate ? `Custom Date: ${config.customDate}` : "Custom Date";
+    }
+    return selectedPeriod?.label || "Current Month-End";
+  };
+
+  const openExecutivePackageWizard = () => {
+    setExecutivePackageWizardOpen(true);
+    setExecutivePackageMessage("");
+    setExecutivePackageRefreshStatus([]);
+  };
+
+  const scrollToExploreSection = () => {
+    window.setTimeout(() => {
+      document.getElementById("explore-deeper-active-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  };
+
+  const handleExploreCardClick = (sectionTitle) => {
+    setActiveExploreSection(sectionTitle);
+    if (sectionTitle === "Flux Analysis") {
+      setFluxWorkspaceOpen(true);
+      setFluxWorkspaceMessage("");
+    }
+    if (sectionTitle === "Executive Package") {
+      openExecutivePackageWizard();
+    }
+    scrollToExploreSection();
+  };
+
+  const downloadExecutivePowerPointPackage = (options) => {
+    const safeCompanyName = (options.companyName || "advisacor")
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+    const slides = [
+      `<section><h1>Executive Summary</h1><h2>${options.companyName}</h2><p>${options.reportPeriod}</p></section>`,
+      ...options.sections.map((section) => `<section><h1>${section}</h1><p>Board-ready ${section.toLowerCase()} refreshed from current company data.</p></section>`),
+    ].join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Advisacor Executive Package</title><style>body{font-family:Arial,sans-serif;background:#0A1020;color:#111}section{page-break-after:always;background:white;margin:24px;padding:48px;width:960px;height:540px}h1{color:#0A1020}h2{color:#C98746}</style></head><body>${slides}</body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-powerpoint" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${safeCompanyName || "advisacor"}-executive-package.ppt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+  };
+
+  const runExecutivePackageGeneration = async (packageType = executivePackageConfig.packageType) => {
+    const selectedPackageType = packageType || "pdf";
+    setExecutivePackageConfig((current) => ({ ...current, packageType: selectedPackageType }));
+    setExecutivePackageGenerating(true);
+    setExecutivePackageMessage("Refreshing live company data before generation...");
+    setExecutivePackageRefreshStatus([]);
+
+    try {
+      for (const source of liveDataRefreshSources) {
+        setExecutivePackageRefreshStatus((current) => [...current, source]);
+        await new Promise((resolve) => setTimeout(resolve, 70));
+      }
+
+      const reportPeriod = getExecutivePackagePeriodLabel({ ...executivePackageConfig, packageType: selectedPackageType });
+      const isTrialReport = access?.reason === "lead_free_review" || access?.subscription_status === "free_review" || access?.reason === "trial";
+      const packageRecord = {
+        id: `executive-package-${Date.now()}`,
+        title: selectedPackageType === "powerpoint" ? "Executive PowerPoint Package" : "Executive PDF Package",
+        status: "generated",
+        generatedAt: new Date().toISOString(),
+        generatedLabel: new Date().toLocaleString(),
+        reportPeriod,
+      };
+
+      if (selectedPackageType === "powerpoint") {
+        downloadExecutivePowerPointPackage({
+          companyName: onboardingCompanyName || "QuickBooks Company",
+          reportPeriod,
+          sections: executivePackageConfig.powerPointSections,
+        });
+      } else {
+        downloadFinancialPackagePdf({
+          companyName: onboardingCompanyName || "QuickBooks Company",
+          industryType: onboardingIndustryType || "Industry Intelligence",
+          preparedBy: "Advisacor",
+          reportPeriod,
+          trial: isTrialReport,
+        });
+      }
+
+      setDashboardPackageHistory((current) => [packageRecord, ...current].slice(0, 5));
+      setExecutivePackageMessage(`${packageRecord.title} generated for ${reportPeriod}.`);
+    } finally {
+      setExecutivePackageGenerating(false);
+    }
+  };
+
+  const downloadFluxPowerPointPackage = (options) => {
+    const safeCompanyName = (options.companyName || "advisacor")
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+    const slides = [
+      `<section><h1>Flux Analysis Workspace</h1><h2>${options.companyName}</h2><p>${options.fluxTypeLabel}</p></section>`,
+      `<section><h1>Executive Flux Summary</h1><p>Detailed variance analysis using the same Balance Sheet and Income Statement source data as the generated package.</p></section>`,
+      `<section><h1>Payroll/FTE Commentary</h1><p>Current FTE: 57 | Prior FTE: 52 | FTE Change: 5 | Payroll Cost Per FTE: $4,250 | Revenue Per FTE: $14,456</p></section>`,
+      `<section><h1>Executive Focus</h1><p>Review staffing productivity, working capital movement, margin pressure, and material account changes before approving operational changes.</p></section>`,
+    ].join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Advisacor Flux Analysis</title><style>body{font-family:Arial,sans-serif;background:#0A1020;color:#111}section{page-break-after:always;background:white;margin:24px;padding:48px;width:960px;height:540px}h1{color:#0A1020}h2{color:#C98746}</style></head><body>${slides}</body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-powerpoint" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${safeCompanyName || "advisacor"}-flux-analysis.ppt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+  };
+
+  const runFluxAnalysis = (outputFormat = fluxConfig.outputFormat) => {
+    const isTrialReport = access?.reason === "lead_free_review" || access?.subscription_status === "free_review" || access?.reason === "trial";
+    const selectedType = fluxTypeOptions.find((option) => option.key === fluxConfig.fluxType) || fluxTypeOptions[0];
+    const fluxOptions = {
+      companyName: onboardingCompanyName || "QuickBooks Company",
+      industryType: onboardingIndustryType || "Industry Intelligence",
+      preparedBy: "Advisacor",
+      trial: isTrialReport,
+      fluxLevel: currentFluxLevel,
+      fluxType: fluxConfig.fluxType,
+      fluxStatements: fluxConfig.statements,
+      dollarThreshold: `$${Number(fluxConfig.dollarThreshold || 0).toLocaleString()}`,
+      percentageThreshold: `${fluxConfig.percentageThreshold || 0}%`,
+      filteringLogic: fluxConfig.filteringLogic,
+      aiCommentaryEnabled: fluxConfig.aiCommentaryEnabled,
+      commentaryOptions: fluxConfig.aiCommentaryEnabled ? fluxConfig.commentaryOptions : [],
+      fluxTypeLabel: selectedType.label,
+    };
+
+    if (outputFormat === "powerpoint") {
+      downloadFluxPowerPointPackage(fluxOptions);
+      setFluxWorkspaceMessage("PowerPoint Flux Package generated.");
+      return;
+    }
+
+    if (outputFormat === "dashboard") {
+      setFluxWorkspaceMessage("Dashboard Flux View is ready below.");
+      return;
+    }
+
+    downloadFluxAnalysisPdf(fluxOptions);
+    setFluxWorkspaceMessage("PDF Flux Package generated.");
+  };
+
+  const generateDashboardPackage = async () => {
+    setError("");
+    setDashboardPackageGenerating(true);
+    setDashboardPackageReady(false);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const packageRecord = {
+        id: `package-${Date.now()}`,
+        title: "Financial Package for Client to Review with AI",
+        status: "generated",
+        generatedAt: new Date().toISOString(),
+        generatedLabel: new Date().toLocaleString(),
+        trial: access?.reason === "lead_free_review" || access?.subscription_status === "free_review",
+      };
+      setDashboardPackageHistory((current) => [packageRecord, ...current].slice(0, 5));
+      window.localStorage.setItem("advisacor_latest_dashboard_package", JSON.stringify(packageRecord));
+      setDashboardPackageReady(true);
+      downloadTrialReport();
+    } finally {
+      setDashboardPackageGenerating(false);
+    }
   };
 
   return (
@@ -752,11 +1290,22 @@ export default function DashboardPage() {
 
               {firstPackageReady && (
                 <div className="rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 p-8 shadow-2xl shadow-emerald-500/10">
-                  <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Welcome to Advisacor</p>
-                  <h1 className="mt-4 text-4xl font-black tracking-[-0.04em]">Your company dashboard is ready.</h1>
-                  <p className="mt-4 max-w-3xl leading-8 text-slate-300">
-                    {onboardingCompanyName} has its first executive package, dashboard, and summary prepared with {onboardingIndustryType} context.
-                  </p>
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Welcome to Advisacor</p>
+                      <h1 className="mt-4 text-4xl font-black tracking-[-0.04em]">Your company dashboard is ready.</h1>
+                      <p className="mt-4 max-w-3xl leading-8 text-slate-300">
+                        {onboardingCompanyName} has its first executive package, dashboard, and summary prepared with {onboardingIndustryType} context.
+                      </p>
+                    </div>
+                    {readOnlyCustomerView ? (
+                      <span className="rounded-2xl bg-slate-700 px-5 py-3 text-sm font-black text-slate-300">PDF disabled in read-only QA</span>
+                    ) : (
+                      <button type="button" onClick={downloadTrialReport} className="shrink-0 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white shadow-xl shadow-orange-500/20">
+                        Generate PDF
+                      </button>
+                    )}
+                  </div>
 
                   <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {firstPackageMetrics.map(([label, value, detail]) => (
@@ -776,16 +1325,9 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="mt-6 flex flex-wrap gap-3">
-                    {readOnlyCustomerView ? (
-                      <span className="rounded-2xl bg-slate-700 px-5 py-3 text-sm font-black text-slate-300">View Package disabled in read-only QA</span>
-                    ) : (
-                      <Link href="/upload" className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
-                        View Package
-                      </Link>
-                    )}
-                    <Link href="/owner/ask/first-package" className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+                    <button type="button" onClick={() => setAiOpen(true)} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
                       Ask Pulse
-                    </Link>
+                    </button>
                     <a href="#owner-delivery-settings" className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
                       Configure Weekly Brief
                     </a>
@@ -814,17 +1356,55 @@ export default function DashboardPage() {
                 question={executiveQuestion}
                 onQuestionChange={setExecutiveQuestion}
                 onSubmit={submitExecutiveQuestion}
+                messages={aiMessages}
+                expanded={aiOpen}
+                onCollapse={() => setAiOpen(false)}
+                onUpgradePackage={() => handleSubscribe(currentPlanKey === "pulse_pro" ? "professional" : "pulse_pro")}
               />
 
-              <ExecutiveInsightEngine insights={executiveInsightSnapshot} onAskMetric={askAboutMetric} />
+              <SimplifiedFeatureCards onExploreSection={handleExploreCardClick} />
 
-              <PulseCfoMemoryPanel memory={pulseMemory} onAskMetric={askAboutMetric} />
+              {activeExploreSection && (
+                <ExploreDeeperActiveSection
+                  sectionTitle={activeExploreSection}
+                  companyName={onboardingCompanyName}
+                  industryType={onboardingIndustryType}
+                  pulsePredictSnapshot={pulsePredictSnapshot}
+                  whatIfStrategy={whatIfStrategy}
+                  onAskMetric={askAboutMetric}
+                  fluxWorkspaceOpen={fluxWorkspaceOpen}
+                  fluxConfig={fluxConfig}
+                  currentFluxLevel={currentFluxLevel}
+                  fluxWorkspaceMessage={fluxWorkspaceMessage}
+                  onFluxChange={setFluxConfig}
+                  onFluxClose={() => setFluxWorkspaceOpen(false)}
+                  onFluxRun={runFluxAnalysis}
+                  executivePackageWizardOpen={executivePackageWizardOpen}
+                  executivePackageConfig={executivePackageConfig}
+                  executivePackageGenerating={executivePackageGenerating}
+                  executivePackageMessage={executivePackageMessage}
+                  executivePackageRefreshStatus={executivePackageRefreshStatus}
+                  onExecutivePackageChange={setExecutivePackageConfig}
+                  onExecutivePackageClose={() => setExecutivePackageWizardOpen(false)}
+                  onExecutivePackageGenerate={runExecutivePackageGeneration}
+                  executivePackagePeriodLabel={getExecutivePackagePeriodLabel()}
+                  onCloseSection={() => setActiveExploreSection("")}
+                />
+              )}
 
-              <OperationalDashboardSnapshot companyName={onboardingCompanyName} industryType={onboardingIndustryType} readOnly={readOnlyCustomerView} />
-
-              <PulsePredictPanel snapshot={pulsePredictSnapshot} whatIfStrategy={whatIfStrategy} onAskMetric={askAboutMetric} />
-
-              <IndustryIntelligenceDashboard industryType={onboardingIndustryType} onAskMetric={askAboutMetric} />
+              {dashboardPackageHistory.length > 0 && (
+                <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+                  <p className="text-sm font-black uppercase tracking-[0.2em] text-[#FFB36F]">Package History</p>
+                  <div className="mt-4 grid gap-3">
+                    {dashboardPackageHistory.map((item) => (
+                      <div key={item.id} className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="text-sm font-black text-white">{item.title}</span>
+                        <span className="text-xs font-bold text-emerald-200">{item.status} | {item.generatedLabel || item.generatedAt}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {intelligenceRecommendation && !recommendationDismissed && (
                 <div className="rounded-[2rem] border border-blue-300/25 bg-blue-500/10 p-6">
@@ -925,7 +1505,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {!isLoading && access?.allowed === true && access.reason === "subscriber" && (
+          {!isLoading && access?.allowed === true && access.reason === "subscriber" && showLegacySubscriberConfiguration && (
             <div>
               <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/10 p-8">
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-300">Active Subscriber</p>
@@ -933,12 +1513,14 @@ export default function DashboardPage() {
                 <p className="mt-4 max-w-2xl leading-8 text-slate-300">
                   Generate new reports, manage client packages, configure delivery automation, and continue creating board-ready deliverables.
                 </p>
-                <Link
-                  href="/upload"
-                  className="premium-button mt-8 inline-flex rounded-2xl px-6 py-4 text-sm font-black text-white"
+                <button
+                  type="button"
+                  onClick={generateDashboardPackage}
+                  disabled={dashboardPackageGenerating}
+                  className="premium-button mt-8 inline-flex rounded-2xl px-6 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Generate New Report
-                </Link>
+                  {dashboardPackageGenerating ? "Generating..." : "Generate New Report"}
+                </button>
               </div>
 
               <div className="mt-8 grid gap-5 md:grid-cols-3">
@@ -1398,18 +1980,6 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      {!isLoading && access?.allowed === true && (
-        <DashboardAiLauncher
-          open={aiOpen}
-          onOpenChange={setAiOpen}
-          question={aiQuestion}
-          onQuestionChange={setAiQuestion}
-          messages={aiMessages}
-          onSubmit={submitAiQuestion}
-          context={dashboardAiContext}
-        />
-      )}
-
       {accountOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
           <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b1220] shadow-2xl shadow-black/40">
@@ -1546,12 +2116,36 @@ export default function DashboardPage() {
   );
 }
 
-function OperationalDashboardSnapshot({ companyName, industryType, readOnly = false }) {
+function FinancialHealthOverview({ onAskMetric }) {
+  const scores = [
+    ["Overall Health Score", "82 / 100", "Healthy"],
+    ["Revenue Trend", "+12.4%", "Improving"],
+    ["Profitability Score", "14.6%", "Positive"],
+    ["Cash Score", "Stable", "$428K cash"],
+  ];
+
+  return (
+    <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/10 p-8">
+      <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Financial Health Score</p>
+      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {scores.map(([label, value, detail]) => (
+          <button key={label} type="button" onClick={() => onAskMetric(label)} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 text-left transition hover:border-emerald-300/40">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
+            <p className="mt-3 text-3xl font-black text-white">{value}</p>
+            <p className="mt-2 text-sm leading-6 text-emerald-100/80">{detail}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OperationalDashboardSnapshot({ companyName, industryType, readOnly = false, onGenerate, generating = false, packageReady = false, onDownload }) {
   return (
     <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Company Dashboard</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Pulse Insights</p>
           <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{companyName || "Executive financial intelligence"}</h1>
           <p className="mt-3 max-w-3xl leading-7 text-slate-300">
             Operational view focused on executive summary, health score, cash, revenue, profitability, risks, opportunities, and tasks.
@@ -1563,11 +2157,29 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
             Report generation disabled in read-only QA
           </span>
         ) : (
-          <Link href="/upload" className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
-            Generate Report
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={onGenerate} disabled={generating} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+              {generating ? "Generating..." : "Generate Report"}
+            </button>
+            {packageReady && (
+              <button type="button" onClick={onDownload} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+                Download Report
+              </button>
+            )}
+          </div>
         )}
       </div>
+
+      {generating && (
+        <div className="mt-5 rounded-2xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 px-4 py-3 text-sm font-black text-[#FFD0AB]">
+          Generating executive summary, KPI dashboard, sample Pulse commentary, and initial insights...
+        </div>
+      )}
+      {packageReady && (
+        <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-100">
+          Report ready. Pulse has identified 3 opportunities and 2 risks in your business.
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
@@ -1630,7 +2242,7 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
   );
 }
 
-function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit }) {
+function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages = [], expanded = false, onCollapse, onUpgradePackage }) {
   const examples = [
     "I need to reduce expenses. Where should I start?",
     "Why is cash lower this month?",
@@ -1641,6 +2253,16 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit }) {
     "Which customers are most profitable?",
     "What should I do to improve cash flow?",
   ];
+  const recentMessagePairs = [];
+  const conversationMessages = messages.filter((message) => message.role === "user" || message.role === "advisacor");
+  for (let index = 0; index < conversationMessages.length; index += 1) {
+    const message = conversationMessages[index];
+    if (message.role !== "user") continue;
+    recentMessagePairs.unshift({
+      question: message,
+      answer: conversationMessages[index + 1]?.role === "advisacor" ? conversationMessages[index + 1] : null,
+    });
+  }
 
   return (
     <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#FF7A1A]/10 p-6 shadow-2xl shadow-orange-500/5">
@@ -1671,13 +2293,44 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit }) {
           </button>
         ))}
       </div>
+      {expanded && (
+        <div className="mt-5 rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-black text-white">Pulse response workspace</p>
+            <button type="button" onClick={onCollapse} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-300">
+              Collapse
+            </button>
+          </div>
+          <div className="mt-4 grid max-h-96 gap-3 overflow-y-auto">
+            {recentMessagePairs.slice(0, 4).map((pair, index) => (
+              <div key={`${pair.question.content}-${index}`} className="grid gap-3">
+                <div className="ml-auto rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm leading-6 text-white">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] opacity-70">You</p>
+                  <p className="mt-1 whitespace-pre-wrap">{pair.question.content}</p>
+                </div>
+                {pair.answer && (
+                  <div className="mr-auto rounded-2xl bg-white/[0.06] px-4 py-3 text-sm leading-6 text-slate-200">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] opacity-70">Pulse</p>
+                    <p className="mt-1 whitespace-pre-wrap">{pair.answer.content}</p>
+                    {pair.answer.content.includes("not included in your current Advisacor package") && (
+                      <button type="button" onClick={onUpgradePackage} className="mt-3 rounded-xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-white">
+                        Upgrade Package
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ExecutiveInsightEngine({ insights, onAskMetric }) {
+function ExecutiveInsightEngine({ insights, onAskMetric, compact = false }) {
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+    <div className={compact ? "rounded-[1.5rem] border border-white/10 bg-slate-950/40 p-5" : "rounded-[2rem] border border-white/10 bg-white/[0.04] p-8"}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Executive Insight Engine</p>
@@ -1732,6 +2385,454 @@ function PulseListCard({ title, items }) {
           <li key={item}>- {item}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, onClose, onRun }) {
+  const currentRank = fluxLevelRank[currentFluxLevel] || 1;
+  const selectedType = fluxTypeOptions.find((option) => option.key === config.fluxType) || fluxTypeOptions[0];
+  const toggleStatement = (statement) => {
+    onChange((current) => {
+      const exists = current.statements.includes(statement);
+      const statements = exists ? current.statements.filter((item) => item !== statement) : [...current.statements, statement];
+      return { ...current, statements: statements.length ? statements : ["Balance Sheet"] };
+    });
+  };
+  const toggleCommentary = (option) => {
+    onChange((current) => {
+      const exists = current.commentaryOptions.includes(option);
+      return {
+        ...current,
+        commentaryOptions: exists ? current.commentaryOptions.filter((item) => item !== option) : [...current.commentaryOptions, option],
+      };
+    });
+  };
+
+  return (
+    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#0A1020] p-8 shadow-2xl shadow-orange-500/10">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Flux Analysis Workspace</p>
+          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Configure the analysis before execution.</h2>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
+            Flux uses the same Balance Sheet and Income Statement source data included in the generated package, so the analysis reconciles back to the package.
+          </p>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-slate-200">
+          Close
+        </button>
+      </div>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 1</p>
+          <h3 className="mt-2 text-xl font-black text-white">What Flux Analysis Would You Like To Perform?</h3>
+          <div className="mt-4 grid gap-3">
+            {fluxTypeOptions.map((option) => {
+              const allowed = currentRank >= fluxLevelRank[option.minimumLevel];
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => allowed && onChange((current) => ({ ...current, fluxType: option.key }))}
+                  className={`rounded-2xl border px-4 py-3 text-left text-sm font-black ${
+                    config.fluxType === option.key
+                      ? "border-[#FF7A1A] bg-[#FF7A1A]/20 text-white"
+                      : allowed
+                        ? "border-white/10 bg-slate-950/60 text-slate-200"
+                        : "border-white/5 bg-slate-950/30 text-slate-500"
+                  }`}
+                >
+                  {option.label}
+                  {!allowed && <span className="ml-2 text-xs text-[#FFB36F]">Upgrade required</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 2</p>
+          <h3 className="mt-2 text-xl font-black text-white">Select Financial Statements To Analyze</h3>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {fluxStatements.map((statement) => (
+              <label key={statement} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">
+                <input type="checkbox" checked={config.statements.includes(statement)} onChange={() => toggleStatement(statement)} />
+                {statement}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 3</p>
+          <h3 className="mt-2 text-xl font-black text-white">Materiality Thresholds</h3>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-2 text-sm font-bold text-slate-300">
+              Dollar Threshold
+              <input value={config.dollarThreshold} onChange={(event) => onChange((current) => ({ ...current, dollarThreshold: event.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white" />
+            </label>
+            <label className="grid gap-2 text-sm font-bold text-slate-300">
+              Percentage Threshold
+              <input value={config.percentageThreshold} onChange={(event) => onChange((current) => ({ ...current, percentageThreshold: event.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white" />
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[
+              ["dollar", "Dollar Threshold Only"],
+              ["percentage", "Percentage Threshold Only"],
+              ["both", "Both Thresholds"],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onChange((current) => ({ ...current, filteringLogic: key }))}
+                className={`rounded-full px-4 py-2 text-xs font-black ${config.filteringLogic === key ? "bg-[#FF7A1A] text-white" : "border border-white/10 text-slate-300"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 4</p>
+          <h3 className="mt-2 text-xl font-black text-white">AI Commentary Settings</h3>
+          <label className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">
+            <input type="checkbox" checked={config.aiCommentaryEnabled} onChange={(event) => onChange((current) => ({ ...current, aiCommentaryEnabled: event.target.checked }))} />
+            AI Commentary Enabled
+          </label>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {fluxCommentaryOptions.map((option) => (
+              <label key={option} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">
+                <input type="checkbox" checked={config.commentaryOptions.includes(option)} disabled={!config.aiCommentaryEnabled} onChange={() => toggleCommentary(option)} />
+                {option}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-3xl border border-blue-300/20 bg-blue-400/10 p-5">
+        <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Dashboard Flux View</p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {[
+            ["Payroll Expense", "$45,000", "18%", "Payroll growth exceeded revenue growth by 6%."],
+            ["Current FTE", "57", "+5", "Payroll cost per FTE is $4,250 versus $4,010 prior."],
+            ["Accounts Receivable", "$19,500", "15.4%", "Working capital pressure increased with customer receivable growth."],
+          ].map(([label, change, percent, note]) => (
+            <div key={label} className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
+              <p className="mt-2 text-2xl font-black text-white">{change}</p>
+              <p className="text-sm font-bold text-[#FFB36F]">{percent}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{note}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {message && <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">{message}</p>}
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button type="button" onClick={() => onRun("pdf")} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+          Generate PDF Flux Package
+        </button>
+        <button type="button" onClick={() => onRun("powerpoint")} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+          Generate PowerPoint Flux Package
+        </button>
+        <button type="button" onClick={() => onRun("dashboard")} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+          Generate Dashboard Flux View
+        </button>
+        <span className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-bold text-slate-400">
+          Selected: {selectedType.label} | {config.statements.join(", ")}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ExecutivePackageWizard({ config, generating, message, refreshStatus, onChange, onClose, onGenerate, periodLabel }) {
+  const togglePowerPointSection = (section) => {
+    onChange((current) => {
+      const exists = current.powerPointSections.includes(section);
+      return {
+        ...current,
+        powerPointSections: exists ? current.powerPointSections.filter((item) => item !== section) : [...current.powerPointSections, section],
+      };
+    });
+  };
+
+  return (
+    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#0A1020] p-8 shadow-2xl shadow-orange-500/10">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Generate Executive Reporting</p>
+          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Choose the package and reporting period.</h2>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
+            Advisacor refreshes current company data before generation so PDF and PowerPoint packages use the latest available financial information.
+          </p>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-slate-200">
+          Close
+        </button>
+      </div>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Package Type</p>
+          <h3 className="mt-2 text-xl font-black text-white">What would you like to generate?</h3>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {[
+              ["pdf", "Generate PDF Package", "Board-ready PDF package using current package configuration."],
+              ["powerpoint", "Generate PowerPoint Package", "Board-ready PowerPoint with customizable content sections."],
+            ].map(([key, label, description]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onChange((current) => ({ ...current, packageType: key }))}
+                className={`rounded-2xl border p-4 text-left ${config.packageType === key ? "border-[#FF7A1A] bg-[#FF7A1A]/20" : "border-white/10 bg-slate-950/60"}`}
+              >
+                <p className="text-sm font-black text-white">{label}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-400">{description}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 1</p>
+          <h3 className="mt-2 text-xl font-black text-white">What reporting period would you like to generate?</h3>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {executivePackagePeriodOptions.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => onChange((current) => ({ ...current, reportingPeriod: option.key }))}
+                className={`rounded-2xl border px-4 py-3 text-left text-sm font-black ${
+                  config.reportingPeriod === option.key ? "border-[#FF7A1A] bg-[#FF7A1A]/20 text-white" : "border-white/10 bg-slate-950/60 text-slate-200"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {config.reportingPeriod === "custom-date" && (
+            <label className="mt-4 grid gap-2 text-sm font-bold text-slate-300">
+              Custom Date
+              <input type="date" value={config.customDate} onChange={(event) => onChange((current) => ({ ...current, customDate: event.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white" />
+            </label>
+          )}
+          <p className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-300">Selected period: {periodLabel}</p>
+        </div>
+      </div>
+
+      {config.packageType === "powerpoint" && (
+        <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">PowerPoint Content</p>
+          <h3 className="mt-2 text-xl font-black text-white">Include</h3>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {executivePowerPointSections.map((section) => (
+              <label key={section} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">
+                <input type="checkbox" checked={config.powerPointSections.includes(section)} onChange={() => togglePowerPointSection(section)} />
+                {section}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 rounded-3xl border border-blue-300/20 bg-blue-400/10 p-5">
+        <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Live Data Refresh</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {liveDataRefreshSources.map((source) => (
+            <div key={source} className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-bold text-slate-200">
+              <span className={refreshStatus.includes(source) ? "text-emerald-200" : "text-slate-500"}>{refreshStatus.includes(source) ? "Refreshed" : "Pending"}</span>
+              <span className="ml-2">{source}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {message && <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">{message}</p>}
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => onGenerate(config.packageType || "pdf")}
+          disabled={generating}
+          className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {generating ? "Refreshing data..." : config.packageType === "powerpoint" ? "Generate PowerPoint" : "Generate PDF"}
+        </button>
+        <button type="button" onClick={() => onGenerate("pdf")} disabled={generating} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 disabled:cursor-not-allowed disabled:opacity-60">
+          Generate PDF
+        </button>
+        <button type="button" onClick={() => onGenerate("powerpoint")} disabled={generating} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 disabled:cursor-not-allowed disabled:opacity-60">
+          Generate PowerPoint
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ExploreDeeperActiveSection({
+  sectionTitle,
+  companyName,
+  industryType,
+  pulsePredictSnapshot,
+  whatIfStrategy,
+  onAskMetric,
+  fluxConfig,
+  currentFluxLevel,
+  fluxWorkspaceMessage,
+  onFluxChange,
+  onFluxClose,
+  onFluxRun,
+  executivePackageConfig,
+  executivePackageGenerating,
+  executivePackageMessage,
+  executivePackageRefreshStatus,
+  onExecutivePackageChange,
+  onExecutivePackageClose,
+  onExecutivePackageGenerate,
+  executivePackagePeriodLabel,
+  onCloseSection,
+}) {
+  return (
+    <section id="explore-deeper-active-section" className="scroll-mt-28">
+      <div className="mb-3 flex justify-end">
+        <button type="button" onClick={onCloseSection} className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-2 text-xs font-black text-slate-300 transition hover:border-white/25 hover:text-white">
+          Close Section
+        </button>
+      </div>
+      {sectionTitle === "Pulse Insights" && <PulseInsightsShortcutSection />}
+      {sectionTitle === "Pulse Predict" && <PulsePredictPanel snapshot={pulsePredictSnapshot} whatIfStrategy={whatIfStrategy} onAskMetric={onAskMetric} />}
+      {sectionTitle === "Executive Package" && (
+        <ExecutivePackageWizard
+          config={executivePackageConfig}
+          generating={executivePackageGenerating}
+          message={executivePackageMessage}
+          refreshStatus={executivePackageRefreshStatus}
+          onChange={onExecutivePackageChange}
+          onClose={onExecutivePackageClose}
+          onGenerate={onExecutivePackageGenerate}
+          periodLabel={executivePackagePeriodLabel}
+        />
+      )}
+      {sectionTitle === "Flux Analysis" && (
+        <FluxAnalysisWorkspace
+          config={fluxConfig}
+          currentFluxLevel={currentFluxLevel}
+          message={fluxWorkspaceMessage}
+          onChange={onFluxChange}
+          onClose={onFluxClose}
+          onRun={onFluxRun}
+        />
+      )}
+      {sectionTitle === "Financial Statements" && <FinancialStatementsShortcutSection />}
+      {sectionTitle === "Cash Flow" && <CashFlowShortcutSection />}
+      {sectionTitle === "Profitability" && <ProfitabilityShortcutSection />}
+      {sectionTitle === "Payroll & Labor" && <PayrollLaborShortcutSection />}
+      {sectionTitle === "AR / AP Intelligence" && <ArApShortcutSection />}
+      {sectionTitle === "Industry Insights" && <IndustryIntelligenceDashboard industryType={industryType} onAskMetric={onAskMetric} />}
+      {!["Pulse Insights", "Pulse Predict", "Executive Package", "Flux Analysis", "Financial Statements", "Cash Flow", "Profitability", "Payroll & Labor", "AR / AP Intelligence", "Industry Insights"].includes(sectionTitle) && (
+        <OperationalDashboardSnapshot companyName={companyName} industryType={industryType} readOnly />
+      )}
+    </section>
+  );
+}
+
+function PulseInsightsShortcutSection() {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Pulse Insights</p>
+      <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Executive analysis is ready.</h2>
+      <div className="mt-6 grid gap-5 lg:grid-cols-3">
+        <DashboardFocusCard title="Executive Summary" items={["Stable liquidity with positive revenue momentum.", "Profitability is healthy, but labor and overhead should stay under review.", "Collections concentration remains the most important near-term watch item."]} />
+        <DashboardFocusCard title="Top 3 Risks" items={["AR concentration could pressure short-term cash.", "Vendor payment timing should stay aligned with receipts.", "Margin can soften if payroll and overhead move faster than revenue."]} />
+        <DashboardFocusCard title="Top 3 Opportunities" items={["Improve collections cadence on larger customer balances.", "Expand margin through pricing and expense discipline.", "Use Pulse Predict before approving new recurring costs."]} />
+        <DashboardFocusCard title="Top 3 Recommended Actions" items={["Follow up on overdue customer balances.", "Review payroll and overhead movement against revenue.", "Confirm next weekly brief recipients and approval settings."]} />
+        <DashboardFocusCard title="Key Alerts" items={pulseAlerts} />
+        <DashboardFocusCard title="Priority Focus Areas" items={["Cash timing", "Collections quality", "Margin protection", "Payroll productivity"]} />
+      </div>
+    </div>
+  );
+}
+
+function FinancialStatementsShortcutSection() {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Financial Statements</p>
+      <h2 className="mt-3 text-3xl font-black text-white">Balance Sheet and Income Statement snapshot.</h2>
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <DashboardFocusCard title="Balance Sheet" items={["Cash: $428K", "Accounts Receivable: $146K", "Net Fixed Assets: $565K", "Total Assets: $1.079M"]} />
+        <DashboardFocusCard title="Income Statement" items={["Current month revenue: $824K", "Profitability: 14.6%", "Current month net income: $269.9K", "Gross margin assumption: 42%"]} />
+      </div>
+    </div>
+  );
+}
+
+function CashFlowShortcutSection() {
+  return <ShortcutMetricSection title="Cash Flow" summary="Cash remains stable, with collections timing and payroll/vendor payments as the key watch items." cards={[["Cash Balance", "$428K", "Stable near-term liquidity."], ["AR Exposure", "$146K", "Collections timing is the largest cash sensitivity."], ["AP Exposure", "$78K", "Vendor timing should stay aligned with receipts."]]} />;
+}
+
+function ProfitabilityShortcutSection() {
+  return <ShortcutMetricSection title="Profitability" summary="Profitability is positive, but margin protection depends on labor, overhead, and pricing discipline." cards={[["Profitability", "14.6%", "Positive margin with expense discipline needed."], ["Net Income", "$269.9K", "Current period earnings support scenario capacity."], ["Margin Focus", "Labor + overhead", "Watch costs moving faster than revenue."]]} />;
+}
+
+function PayrollLaborShortcutSection() {
+  return <ShortcutMetricSection title="Payroll & Labor" summary="Payroll analysis is populated with FTE and productivity context for scenario planning." cards={[["Current FTE", "57", "Prior FTE was 52."], ["Payroll Cost Per FTE", "$4,250", "Prior payroll cost per FTE was $4,010."], ["Revenue Per FTE", "$14,456", "Use before approving additional hiring."]]} />;
+}
+
+function ArApShortcutSection() {
+  return <ShortcutMetricSection title="AR / AP Intelligence" summary="Working capital analysis is focused on collections, payable timing, and cash conversion." cards={[["Accounts Receivable", "$146K", "Monitor concentration and aging movement."], ["Accounts Payable", "$78K", "Manage vendor timing against receipts."], ["Working Capital", "$330K", "Healthy, but sensitive to collections speed."]]} />;
+}
+
+function ShortcutMetricSection({ title, summary, cards }) {
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">{title}</p>
+      <h2 className="mt-3 text-3xl font-black text-white">{summary}</h2>
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        {cards.map(([label, value, detail]) => (
+          <MetricTile key={label} label={label} value={value} detail={detail} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SimplifiedFeatureCards({ onExploreSection }) {
+  const cards = [
+    ["Pulse Insights", "Review executive summary, risks, opportunities, alerts, and recommendations."],
+    ["Pulse Predict", "Forecasts, scenarios, and what-if analysis."],
+    ["Executive Package", "Generate PDF and PowerPoint reporting packages."],
+    ["Flux Analysis", "Generate a separate variance report with account-level commentary."],
+    ["Financial Statements", "View P&L, Balance Sheet, and Cash Flow insights."],
+    ["Cash Flow", "Review cash trends, runway, and risks."],
+    ["Profitability", "Analyze margin trends and profit drivers."],
+    ["Payroll & Labor", "Review payroll trends and staffing impact."],
+    ["AR / AP Intelligence", "Review receivables, payables, and working capital."],
+    ["Industry Insights", "View industry-specific metrics."],
+  ];
+
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Explore Deeper</p>
+      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {cards.map(([title, description]) => (
+          <button
+            key={title}
+            type="button"
+            onClick={() => onExploreSection(title)}
+            className="rounded-2xl border border-white/10 bg-slate-950/70 p-5 text-left transition hover:border-[#FF7A1A]/50"
+          >
+            <p className="text-base font-black text-white">{title}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

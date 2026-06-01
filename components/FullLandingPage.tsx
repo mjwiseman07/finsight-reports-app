@@ -253,7 +253,7 @@ export default function Home() {
             <Link href="/signin" className="hidden rounded-full px-4 py-2 text-sm font-bold text-[#111827] hover:bg-slate-100 sm:inline-flex">
               Login
             </Link>
-            <Link href="/free-review" className="premium-button rounded-full px-5 py-2.5 text-sm font-black text-white">
+            <Link href="/free-review?source=landing-header" className="premium-button rounded-full px-5 py-2.5 text-sm font-black text-white">
               Generate My Free Financial Review
             </Link>
           </div>
@@ -272,13 +272,13 @@ export default function Home() {
               Generate board-ready financial packages in minutes. Upload statements for a free sample review, or connect accounting systems to unlock weekly briefs, monthly packages, Ask Advisacor, forecasting, budgeting, and industry intelligence.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link href="/free-review" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
+              <Link href="/free-review?source=landing-hero" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
                 Generate My Free Financial Review
               </Link>
               <a href="#videos" className="rounded-2xl border border-white/15 bg-white/[0.06] px-6 py-4 text-center text-sm font-black text-white backdrop-blur transition hover:bg-white/[0.1]">
                 Watch Advisacor In Action
               </a>
-              <Link href="/upload" className="rounded-2xl border border-white/15 px-6 py-4 text-center text-sm font-black text-white/80 transition hover:bg-white/[0.06]">
+              <Link href="/free-review?source=landing-secondary" className="rounded-2xl border border-white/15 px-6 py-4 text-center text-sm font-black text-white/80 transition hover:bg-white/[0.06]">
                 See Your Financials Through Advisacor
               </Link>
             </div>
@@ -298,7 +298,7 @@ export default function Home() {
             </h2>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-6">
-            {["Visitor", "Upload Reports", "Generate Free Review", "Experience Value", "Connect Accounting", "Scale Advisory"].map((step, index) => (
+            {["Visitor", "Onboarding Wizard", "Connect QuickBooks", "Upload Reports", "Generate First Review", "Dashboard"].map((step, index) => (
               <div key={step} className="enterprise-card rounded-3xl p-5">
                 <p className="text-sm font-black text-[#FF7A1A]">{index + 1}</p>
                 <p className="mt-2 text-sm font-black text-[#0A1020]">{step}</p>
@@ -352,7 +352,7 @@ export default function Home() {
                   ))}
                 </div>
                 <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                  <Link href="/free-review" className="premium-button rounded-2xl px-4 py-3 text-center text-sm font-black text-white">
+                  <Link href="/free-review?source=landing-funnel" className="premium-button rounded-2xl px-4 py-3 text-center text-sm font-black text-white">
                     Generate Free Review
                   </Link>
                   <button
@@ -429,7 +429,7 @@ export default function Home() {
               Bring executive reporting, PDF and PowerPoint packages, owner weekly briefs, Ask Advisacor, firm client management, support tickets, and industry-aware operational finance intelligence into one premium platform.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/free-review" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
+              <Link href="/free-review?source=landing-bottom" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
                 Generate My Free Financial Review
               </Link>
               <a href="#videos" className="rounded-2xl border border-white/15 bg-white/[0.06] px-6 py-4 text-center text-sm font-black text-white">

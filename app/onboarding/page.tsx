@@ -25,6 +25,8 @@ import {
   getStepEstimatedSeconds,
   onboardingDesignPrinciple,
 } from "../../lib/onboarding-success";
+import { downloadFinancialPackagePdf } from "../../lib/financial-package-pdf";
+import { supabase } from "../../lib/supabase";
 
 const demoTemplates: Record<string, Partial<CompanyForm>> = {
   "demo-manufacturing": {
@@ -60,6 +62,7 @@ const demoTemplates: Record<string, Partial<CompanyForm>> = {
 type CompanyForm = {
   name: string;
   industry_type: string;
+  fiscal_year: string;
   revenue_range: string;
   employee_count: string;
   accounting_system: string;
@@ -81,31 +84,36 @@ function OnboardingContent() {
   const templateId = searchParams?.get("companyTemplate") || "";
   const isSuperAdmin = searchParams?.get("superAdmin") === "true";
   const template = demoTemplates[templateId] || {};
+  const queryLeadId = searchParams?.get("leadId") || "";
 
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [firstPackageReady, setFirstPackageReady] = useState(false);
+  const [firstPackageSession, setFirstPackageSession] = useState<Record<string, unknown>>({});
   const [supportOpen, setSupportOpen] = useState(false);
-  const [manualCompanyInfoOpen, setManualCompanyInfoOpen] = useState(false);
+  const [manualCompanySetupVisible, setManualCompanySetupVisible] = useState(template.accounting_system === "Manual Financial Upload");
   const [packageStatusIndex, setPackageStatusIndex] = useState(0);
   const hasTrackedStart = useRef(false);
   const [accountType, setAccountType] = useState(searchParams?.get("accountType") || "my-own-company");
   const [company, setCompany] = useState<CompanyForm>({
     name: template.name || "",
-    industry_type: template.industry_type || "Other",
-    revenue_range: "$5M-$25M",
-    employee_count: "25",
+    industry_type: template.industry_type || "",
+    fiscal_year: template.fiscal_year || "",
+    revenue_range: "",
+    employee_count: "",
     accounting_system: template.accounting_system || "QuickBooks Online",
     primary_persona: template.primary_persona || "business-owner",
     package_level: template.package_level || "essential",
     data_source: template.accounting_system || "QuickBooks Online",
   });
   const [dataSourcePath, setDataSourcePath] = useState<"connected" | "manual_upload">(
-    template.accounting_system && template.accounting_system !== "Manual Financial Upload" ? "connected" : "manual_upload",
+    template.accounting_system === "Manual Financial Upload" ? "manual_upload" : "connected",
   );
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
   const [connectionValidationOpen, setConnectionValidationOpen] = useState(false);
+  const [freeReviewLeadId, setFreeReviewLeadId] = useState(queryLeadId);
   const [reportSummary, setReportSummary] = useState<ReportSummary>({ found: [], missing: accountingReportCatalog });
   const [recommendedPackage, setRecommendedPackage] = useState(company.package_level);
   const [manualUploads, setManualUploads] = useState<UploadSelections>({
@@ -113,7 +121,9 @@ function OnboardingContent() {
     income_statement: false,
     ar_aging: false,
     ap_aging: false,
-    inventory_report: false,
+    payroll_reports: false,
+    fixed_asset_reports: false,
+    budget_reports: false,
   });
   const [delivery, setDelivery] = useState({
     weekly_brief_enabled: true,
@@ -126,12 +136,13 @@ function OnboardingContent() {
 
   const steps = useMemo(() => {
     return [
-      "Account Type",
-      "Data Acquisition",
-      "Company Information",
-      "Package Recommendation",
-      "Delivery Configuration",
-      "Generate First Package",
+      "Customer Type Selection",
+      "Connect QuickBooks",
+      "Upload Financial Reports",
+      "Select Industry",
+      "Configure Pulse",
+      "Generate First Review",
+      "Dashboard",
     ];
   }, []);
 
@@ -139,11 +150,13 @@ function OnboardingContent() {
     setCompany((current) => ({ ...current, [key]: value }));
   };
 
-  const dataSourceStep = 1;
-  const companyInfoStep = 2;
-  const packageStep = 3;
-  const deliveryStep = 4;
+  const companyInfoStep = 0;
+  const connectQuickBooksStep = 1;
+  const uploadReportsStep = 2;
+  const industryStep = 3;
+  const configurePulseStep = 4;
   const generatePackageStep = 5;
+  const dashboardStep = 6;
   const estimatedRemainingSeconds = getEstimatedRemainingSeconds(steps, step);
   const currentStepSeconds = getStepEstimatedSeconds(steps[step]);
   const progressPercent = Math.round(((step + 1) / steps.length) * 100);
@@ -154,6 +167,85 @@ function OnboardingContent() {
     "Building Dashboard",
     "Building Package",
   ];
+
+  const readValidStoredAuthToken = () => {
+    const isInvalidJwt = (authToken: string) => {
+      try {
+        if (authToken.split(".").length !== 3) return true;
+        const payload = JSON.parse(window.atob(authToken.split(".")[1]?.replace(/-/g, "+").replace(/_/g, "/") || ""));
+        return typeof payload.exp === "number" && payload.exp * 1000 <= Date.now();
+      } catch {
+        return true;
+      }
+    };
+
+    const storedToken = window.localStorage.getItem("supabase_access_token") || "";
+    if (storedToken && !isInvalidJwt(storedToken)) return storedToken;
+    if (storedToken) window.localStorage.removeItem("supabase_access_token");
+
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index) || "";
+      if (!key.includes("auth-token")) continue;
+      try {
+        const parsedValue = JSON.parse(window.localStorage.getItem(key) || "{}");
+        const accessToken =
+          parsedValue?.access_token ||
+          parsedValue?.currentSession?.access_token ||
+          parsedValue?.session?.access_token;
+        if (accessToken && !isInvalidJwt(accessToken)) return accessToken;
+      } catch {
+        // Ignore unrelated localStorage values.
+      }
+    }
+
+    return "";
+  };
+
+  const getAuthToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    const sessionToken = data.session?.access_token || "";
+    if (sessionToken) {
+      window.localStorage.setItem("supabase_access_token", sessionToken);
+      return sessionToken;
+    }
+    return readValidStoredAuthToken();
+  };
+
+  const enrichFreeReviewLead = async ({
+    status = "onboarding_started",
+    nextCompany = company,
+    nextReportSummary = reportSummary,
+  }: {
+    status?: string;
+    nextCompany?: CompanyForm;
+    nextReportSummary?: ReportSummary;
+  } = {}) => {
+    const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+    if (!leadId) return;
+
+    await fetch("/api/free-review/leads", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lead_id: leadId,
+        legal_company_name: nextCompany.name,
+        business_name: nextCompany.name,
+        industry: nextCompany.industry_type,
+        revenue_range: nextCompany.revenue_range,
+        fiscal_year: nextCompany.fiscal_year,
+        status,
+        additional_business_information: {
+          accounting_system: nextCompany.accounting_system,
+          data_source: nextCompany.data_source,
+          employee_count: nextCompany.employee_count,
+          recommended_package: recommendedPackage,
+          report_discovery: nextReportSummary,
+        },
+      }),
+    }).catch(() => {
+      // Lead enrichment should not interrupt onboarding.
+    });
+  };
 
   const trackTimeToFirstValue = async ({
     eventType,
@@ -166,7 +258,7 @@ function OnboardingContent() {
     stepLabel?: string;
     estimatedSecondsRemaining?: number;
   }) => {
-    const token = window.localStorage.getItem("supabase_access_token") || "";
+    const token = await getAuthToken();
     if (!token) return;
 
     await fetch("/api/onboarding/time-to-first-value", {
@@ -199,25 +291,55 @@ function OnboardingContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (isSuperAdmin) return;
+    const storedLeadId = window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+    const nextLeadId = queryLeadId || storedLeadId;
+    if (!nextLeadId) {
+      router.replace("/free-review?source=onboarding-gate");
+      return;
+    }
+    setFreeReviewLeadId(nextLeadId);
+    window.localStorage.setItem("advisacor_free_review_lead_id", nextLeadId);
+  }, [isSuperAdmin, queryLeadId, router]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (searchParams?.get("quickBooksConnected") !== "true") return;
-    setDataSourcePath("connected");
-    setConnectionStatus("connected");
-    setCompany((current) => ({
-      ...current,
-      name: current.name || "QuickBooks Company",
-      industry_type: current.industry_type === "Other" ? "Professional Services" : current.industry_type,
-      revenue_range: current.revenue_range || "$1M-$5M",
-      employee_count: current.employee_count || "10",
+    const importedQuickBooksProfile = {
+      ...company,
+      name: company.name || "QuickBooks Company",
+      industry_type: company.industry_type || "Professional Services",
+      revenue_range: company.revenue_range || "$1M-$5M",
+      fiscal_year: company.fiscal_year || "Calendar Year",
+      employee_count: company.employee_count || "10",
       data_source: "QuickBooks Online",
       accounting_system: "QuickBooks Online",
-    }));
+    };
+    setDataSourcePath("connected");
+    setConnectionStatus("connected");
+    setCompany(importedQuickBooksProfile);
     const discovery = buildReportDiscovery("QuickBooks Online");
+    const hasRequiredReports = hasRequiredFinancialReports(discovery);
     setReportSummary(discovery);
     applyRecommendation(discovery.found);
-    setConnectionValidationOpen(true);
+    setManualCompanySetupVisible(!hasCompanyProfileFields(importedQuickBooksProfile));
+    setConnectionValidationOpen(!hasRequiredReports);
+    setStep(hasRequiredReports ? industryStep : uploadReportsStep);
+    window.localStorage.setItem("advisacor_onboarding_quickbooks_connected", "true");
+    window.localStorage.setItem("advisacor_onboarding_quickbooks_profile", JSON.stringify(importedQuickBooksProfile));
+    window.localStorage.setItem("advisacor_onboarding_quickbooks_reports", JSON.stringify(discovery));
+    setMessage("QuickBooks connected successfully. We imported your available company profile and report data.");
+    void enrichFreeReviewLead({
+      status: "quickbooks_connected",
+      nextCompany: importedQuickBooksProfile,
+      nextReportSummary: discovery,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const getPrimaryPersonaForAccountType = (selectedAccountType: string) => {
     if (selectedAccountType === "bookkeeper-advisor") return "bookkeeper";
@@ -227,31 +349,68 @@ function OnboardingContent() {
 
   const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-  const applyRecommendation = (foundReports: Array<{ id: string; label: string }>) => {
+  function applyRecommendation(foundReports: Array<{ id: string; label: string }>) {
     const nextRecommendation = recommendPackageFromReports(foundReports.map((report) => report.id));
     setRecommendedPackage(nextRecommendation);
     setCompany((current) => ({ ...current, package_level: nextRecommendation }));
+  }
+
+  function hasCompanyProfileFields(profile: CompanyForm) {
+    return Boolean(
+      profile.name.trim() &&
+        profile.industry_type &&
+        profile.revenue_range &&
+        profile.employee_count.trim() &&
+        profile.fiscal_year,
+    );
+  }
+
+  function hasRequiredFinancialReports(summary: ReportSummary) {
+    const foundIds = new Set(summary.found.map((report) => report.id));
+    return foundIds.has("balance_sheet") && foundIds.has("income_statement");
+  }
+
+  const isStepComplete = (index: number) => {
+    if (index < step) return true;
+    if (index === companyInfoStep) return Boolean(accountType);
+    if (index === connectQuickBooksStep) return connectionStatus === "connected";
+    if (index === uploadReportsStep) return !needsSupplementalUploads || canContinueFromUploads();
+    return false;
   };
+
+  const needsSupplementalUploads = dataSourcePath === "manual_upload" || (connectionStatus === "connected" && !hasRequiredFinancialReports(reportSummary));
 
   const validateAccountingConnection = async () => {
     setError("");
     setMessage("");
     if (company.data_source === "QuickBooks Online") {
-      const token = window.localStorage.getItem("supabase_access_token") || "";
-      if (!token) {
-        router.push(`/signin?next=${encodeURIComponent("/onboarding")}`);
+      const token = await getAuthToken();
+      const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+      if (!token && !leadId) {
+        router.push("/free-review?source=quickbooks-connect-gate");
         return;
       }
 
       const returnUrl = new URL(window.location.href);
       returnUrl.searchParams.set("quickBooksConnected", "true");
-      const response = await fetch(`/api/quickbooks/connect?returnTo=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}`, {
+      if (leadId) returnUrl.searchParams.set("leadId", leadId);
+      const connectParams = new URLSearchParams({
+        returnTo: `${returnUrl.pathname}${returnUrl.search}`,
+      });
+      if (!token && leadId) connectParams.set("leadId", leadId);
+      const response = await fetch(`/api/quickbooks/connect?${connectParams.toString()}`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.url) {
-        setError(result.error || "Unable to start QuickBooks connection.");
+        if (response.status === 401 && token) {
+          window.localStorage.removeItem("supabase_access_token");
+          setError("Your login session expired. Please sign in again, then reconnect QuickBooks.");
+          router.push(`/signin?next=${encodeURIComponent("/onboarding")}`);
+          return;
+        }
+        setError(result.error || "Unable to start QuickBooks connection. Please complete lead capture first or try again.");
         return;
       }
       window.location.assign(result.url);
@@ -280,7 +439,14 @@ function OnboardingContent() {
     const found = manualFinancialUploadReports
       .filter((report) => nextUploads[report.id])
       .map((report) => ({
-        id: report.id === "inventory_report" ? "inventory" : report.id,
+        id:
+          report.id === "payroll_reports"
+            ? "payroll"
+            : report.id === "fixed_asset_reports"
+              ? "fixed_assets"
+              : report.id === "budget_reports"
+                ? "budget"
+                : report.id,
         label: report.label,
       }));
     const foundIds = new Set(found.map((report) => report.id));
@@ -289,19 +455,31 @@ function OnboardingContent() {
     applyRecommendation(found);
   };
 
-  const canContinueFromDataSource = () => {
-    if (dataSourcePath === "connected") return connectionStatus === "connected";
+  const canContinueFromQuickBooks = () => {
+    if (dataSourcePath === "manual_upload") {
+      return Boolean(manualCompanySetupVisible && hasCompanyProfileFields(company));
+    }
+    if (connectionStatus === "connected" && manualCompanySetupVisible) {
+      return hasCompanyProfileFields(company);
+    }
+    return connectionStatus === "connected";
+  };
+
+  const canContinueFromUploads = () => {
+    if (!needsSupplementalUploads) return true;
     return Boolean(manualUploads.balance_sheet && manualUploads.income_statement);
   };
 
   const continueOnboarding = () => {
     setError("");
-    if (step === dataSourceStep && !canContinueFromDataSource()) {
+    if (step === connectQuickBooksStep && !canContinueFromQuickBooks()) {
       setError(
-        dataSourcePath === "connected"
-          ? "Connect and validate your accounting system before continuing, or choose Upload Financial Statements."
-          : "Upload or confirm both Balance Sheet and Income Statement before continuing.",
+        "Connect QuickBooks before continuing, or choose Skip for Now and complete the manual company setup fields.",
       );
+      return;
+    }
+    if (step === uploadReportsStep && !canContinueFromUploads()) {
+      setError("Upload or confirm both Balance Sheet and Income Statement before continuing.");
       return;
     }
     setStep((current) => current + 1);
@@ -311,13 +489,15 @@ function OnboardingContent() {
     setDataSourcePath("manual_upload");
     setConnectionStatus("idle");
     updateCompany("data_source", "Manual Financial Upload");
-    setManualCompanyInfoOpen(true);
+    setManualCompanySetupVisible(true);
+    setMessage("Manual setup selected. Complete the company fields below, then continue to Step 3.");
+    void enrichFreeReviewLead({ status: "manual_upload_selected" });
   };
 
   const continueAfterConnectionValidation = () => {
     setConnectionValidationOpen(false);
     setError("");
-    setStep((current) => (current <= dataSourceStep ? companyInfoStep : current));
+    setStep((current) => (current <= connectQuickBooksStep ? (hasRequiredFinancialReports(reportSummary) ? industryStep : uploadReportsStep) : current));
   };
 
   const openReportGuide = () => {
@@ -339,7 +519,7 @@ function OnboardingContent() {
         <body>
           <p class="brand">Advisacor Report Guide</p>
           <h1>How to export reports for your free financial review</h1>
-          <p>Required reports: Balance Sheet and Income Statement. Optional reports: AR Aging, AP Aging, and Inventory Report.</p>
+          <p>Required reports: Balance Sheet and Income Statement. Optional reports: AR Aging, AP Aging, Payroll Reports, Fixed Asset Reports, and Budget Reports.</p>
           <div class="box">
             <h2>QuickBooks Online</h2>
             <ul>
@@ -372,6 +552,19 @@ function OnboardingContent() {
     popup.document.close();
   };
 
+  const downloadTrialReport = () => {
+    downloadFinancialPackagePdf({
+      companyName: company.name || "QuickBooks Company",
+      industryType: company.industry_type || "Industry Intelligence",
+      preparedBy: "Advisacor",
+      trial: true,
+    });
+  };
+
+  const advanceToDashboard = () => {
+    router.push("/dashboard?firstPackage=ready");
+  };
+
   const generateFirstPackage = async () => {
     setError("");
     setMessage("");
@@ -389,15 +582,43 @@ function OnboardingContent() {
         return;
       }
 
-      const token = window.localStorage.getItem("supabase_access_token") || "";
-      if (!token) {
-        router.push(`/signin?next=${encodeURIComponent("/onboarding")}`);
-        return;
-      }
-
       for (let index = 0; index < packageBuildStatuses.length; index += 1) {
         setPackageStatusIndex(index);
         await delay(450);
+      }
+
+      const token = await getAuthToken();
+      if (!token) {
+        const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+        if (!leadId) {
+          router.push("/free-review?source=generate-review-gate");
+          return;
+        }
+        await enrichFreeReviewLead({
+          status: "first_package_generated",
+          nextCompany: company,
+          nextReportSummary: reportSummary,
+        });
+        const leadDashboardSession = {
+          firstPackage: "ready",
+          leadId,
+          companyName: company.name || "Your Company",
+          industryType: company.industry_type || "Industry Intelligence",
+          packageLevel: company.package_level,
+          dataSourcePath,
+          quickBooksConnected: connectionStatus === "connected",
+          generatedAt: new Date().toISOString(),
+          onboardingComplete: true,
+        };
+        window.localStorage.setItem("advisacor_lead_dashboard_session", JSON.stringify(leadDashboardSession));
+        window.localStorage.setItem("advisacor_onboarding_complete", "true");
+        window.localStorage.setItem("advisacor_first_package_status", "generated");
+        setFirstPackageSession(leadDashboardSession);
+        setFirstPackageReady(true);
+        downloadTrialReport();
+        setMessage("Your first Advisacor financial review is ready. Downloading your PDF package and opening your company dashboard...");
+        window.setTimeout(advanceToDashboard, 900);
+        return;
       }
 
       const response = await fetch("/api/company/onboarding", {
@@ -434,18 +655,27 @@ function OnboardingContent() {
         return;
       }
 
+      await enrichFreeReviewLead({
+        status: "first_package_generated",
+        nextCompany: company,
+        nextReportSummary: reportSummary,
+      });
+
       setMessage(
         "Your first executive package is ready. Redirecting to your company dashboard...",
       );
-      const params = new URLSearchParams({
-        firstPackage: "ready",
-        companyId: result.company?.id || "",
+      window.localStorage.setItem("advisacor_onboarding_complete", "true");
+      window.localStorage.setItem("advisacor_first_package_status", "generated");
+      setFirstPackageSession({
         companyName: result.company?.name || company.name,
         industryType: result.company?.industryType || company.industry_type,
         packageLevel: result.company?.packageLevel || company.package_level,
-        dataSourcePath,
+        firstPackage: "ready",
       });
-      router.push(`/dashboard?${params.toString()}`);
+      setFirstPackageReady(true);
+      downloadTrialReport();
+      setMessage("Your first Advisacor financial review is ready. Downloading your PDF package and opening your company dashboard...");
+      window.setTimeout(advanceToDashboard, 900);
     } catch {
       setError("Unable to generate your first package.");
     } finally {
@@ -519,60 +749,54 @@ function OnboardingContent() {
                   type="button"
                   onClick={() => setStep(index)}
                   className={`rounded-2xl px-4 py-3 text-left text-sm font-black transition ${
-                    step === index ? "bg-[#FF7A1A] text-white" : index < step ? "bg-emerald-400/10 text-emerald-100" : "bg-white/[0.05] text-slate-400"
+                    step === index ? "bg-[#FF7A1A] text-white" : isStepComplete(index) ? "bg-emerald-400/10 text-emerald-100" : "bg-white/[0.05] text-slate-400"
                   }`}
                 >
-                  {index + 1}. {label}
+                  <span className="block text-[10px] uppercase tracking-[0.18em] opacity-75">Step {index + 1}</span>
+                  <span className="mt-1 block">{label}{isStepComplete(index) && step !== index ? " ✓" : ""}</span>
                 </button>
               ))}
             </div>
           </aside>
 
           <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6">
-            {step === 0 && (
-              <ChoiceGrid
-                options={accountTypeOptions}
-                selected={accountType}
-                help={contextualHelp.accountType}
-                onSelect={(value) => {
-                  setAccountType(value);
-                  setStep(0);
-                  if (value === "fractional-cfo-firm") {
-                    setCompany((current) => ({ ...current, package_level: "virtual-cfo", primary_persona: "fractional-cfo" }));
-                  }
-                  if (value === "bookkeeper-advisor") {
-                    setCompany((current) => ({ ...current, primary_persona: "bookkeeper" }));
-                  }
-                  if (value === "my-own-company") {
-                    setCompany((current) => ({ ...current, primary_persona: "business-owner" }));
-                  }
-                }}
-              />
-            )}
-
             {step === companyInfoStep && (
               <div className="grid gap-5">
                 <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                  <p className="text-sm font-black text-emerald-100">
-                    {dataSourcePath === "connected" ? "Discovered from your accounting connection" : "Confirm company information"}
-                  </p>
+                  <p className="text-sm font-black text-emerald-100">Customer Type Selection</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    {dataSourcePath === "connected"
-                      ? "Advisacor retrieved what it could from the connection. Confirm or edit only the details needed for reporting and industry intelligence."
-                      : "Manual upload users provide company information before reports are analyzed."}
+                    Start here so Advisacor can tailor the onboarding wizard, report package, and Pulse commentary to the right customer type.
                   </p>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Company name" value={company.name} help={contextualHelp.companyName} onChange={(value) => updateCompany("name", value)} />
-                  <Select label="Industry type" value={company.industry_type} options={industryTypeOptions} help={contextualHelp.industryType} onChange={(value) => updateCompany("industry_type", value)} />
-                  <Select label="Revenue range" value={company.revenue_range} options={revenueRangeOptions} help={contextualHelp.revenueRange} onChange={(value) => updateCompany("revenue_range", value)} />
-                  <Field label="Employee count" value={company.employee_count} help={contextualHelp.employeeCount} onChange={(value) => updateCompany("employee_count", value)} />
-                </div>
+                <ChoiceGrid
+                  options={accountTypeOptions}
+                  selected={accountType}
+                  help={contextualHelp.accountType}
+                  onSelect={(value) => {
+                    setAccountType(value);
+                    if (value === "fractional-cfo-firm") {
+                      setCompany((current) => ({ ...current, package_level: "virtual-cfo", primary_persona: "fractional-cfo" }));
+                    }
+                    if (value === "bookkeeper-advisor") {
+                      setCompany((current) => ({ ...current, primary_persona: "bookkeeper" }));
+                    }
+                    if (value === "my-own-company") {
+                      setCompany((current) => ({ ...current, primary_persona: "business-owner" }));
+                    }
+                  }}
+                />
               </div>
             )}
 
-            {step === packageStep && (
+            {step === industryStep && (
               <div className="grid gap-5">
+                <div className="rounded-3xl border border-blue-300/25 bg-blue-400/10 p-5">
+                  <p className="text-sm font-black text-blue-100">Select Industry</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Industry type drives KPI recommendations, dashboard emphasis, benchmarking, and Pulse commentary.
+                  </p>
+                </div>
+                <Select label="Industry type" value={company.industry_type} options={industryTypeOptions} help={contextualHelp.industryType} onChange={(value) => updateCompany("industry_type", value)} />
                 {recommendedPackage && (
                   <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
                     <p className="text-sm font-black text-emerald-100">Recommended Based On Your Available Data</p>
@@ -590,10 +814,10 @@ function OnboardingContent() {
               </div>
             )}
 
-            {step === dataSourceStep && (
+            {step === connectQuickBooksStep && (
               <div className="grid gap-5">
                 <div className="flex items-center gap-2 text-sm font-black text-slate-200">
-                  Choose your data path
+                  Connect QuickBooks
                   <HelpTip content={contextualHelp.dataSource} />
                 </div>
                 <div className="grid gap-4 lg:grid-cols-2">
@@ -602,6 +826,8 @@ function OnboardingContent() {
                     onClick={() => {
                       setDataSourcePath("connected");
                       setConnectionStatus("idle");
+                      setManualCompanySetupVisible(false);
+                      setMessage("");
                       setReportSummary({ found: [], missing: accountingReportCatalog });
                       if (!connectedAccountingSystemOptions.includes(company.data_source)) {
                         updateCompany("data_source", "QuickBooks Online");
@@ -611,7 +837,7 @@ function OnboardingContent() {
                       dataSourcePath === "connected" ? "border-[#FF7A1A]/70 bg-[#FF7A1A]/15" : "border-white/10 bg-[#0A1020] hover:border-white/25"
                     }`}
                   >
-                    <p className="text-lg font-black text-white">Connect Accounting System</p>
+                    <p className="text-lg font-black text-white">Connect QuickBooks</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
                       Connect your accounting system to unlock the full Advisacor intelligence platform.
                     </p>
@@ -628,29 +854,25 @@ function OnboardingContent() {
                       dataSourcePath === "manual_upload" ? "border-emerald-300/60 bg-emerald-400/10" : "border-white/10 bg-[#0A1020] hover:border-white/25"
                     }`}
                   >
-                    <p className="text-lg font-black text-white">Upload Financial Statements</p>
+                    <p className="text-lg font-black text-white">Skip for Now / Upload Reports Instead</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Fastest route to a free report. No ERP connection required.
+                      Skip QuickBooks and provide company information manually.
                     </p>
                     <p className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">
-                      Limited report generated from uploaded financial statements.
+                      Manual setup fields will appear below.
                     </p>
                   </button>
                 </div>
 
                 {dataSourcePath === "connected" ? (
                   <div className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
-                    <Select
-                      label="Accounting system"
-                      value={company.data_source}
-                      options={connectedAccountingSystemOptions}
-                      help={contextualHelp.accountingSystem}
-                      onChange={(value) => {
-                        updateCompany("data_source", value);
-                        setConnectionStatus("idle");
-                        setReportSummary({ found: [], missing: accountingReportCatalog });
-                      }}
-                    />
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-black text-white">Connect QuickBooks Online</p>
+                      <HelpTip content={contextualHelp.accountingSystem} />
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                      Advisacor will use QuickBooks data to populate company settings and discover available reports automatically.
+                    </p>
                     <div className="mt-4 flex flex-wrap gap-3">
                       <button
                         type="button"
@@ -658,7 +880,7 @@ function OnboardingContent() {
                         disabled={connectionStatus === "connecting"}
                         className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {connectionStatus === "connecting" ? "Connecting..." : connectionStatus === "connected" ? "Connection Validated" : "Connect and Validate"}
+                        {connectionStatus === "connecting" ? "Connecting..." : connectionStatus === "connected" ? "QuickBooks Connected" : "Connect QuickBooks"}
                       </button>
                       <button type="button" onClick={() => setConnectionValidationOpen(true)} disabled={connectionStatus !== "connected"} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 disabled:cursor-not-allowed disabled:opacity-40">
                         View Validation Summary
@@ -666,11 +888,58 @@ function OnboardingContent() {
                     </div>
                     {connectionStatus !== "connected" && (
                       <p className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
-                        Connection is required before continuing. If you do not want to connect now, choose Upload Financial Statements.
+                        Connect QuickBooks to auto-populate company details, or choose Skip for Now to enter them manually.
                       </p>
                     )}
-                    {connectionStatus === "connected" && (
-                      <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} />
+                    {connectionStatus === "connected" && !manualCompanySetupVisible && (
+                      <div className="grid gap-4">
+                        <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+                          <p className="text-sm font-black text-emerald-100">QuickBooks company profile imported</p>
+                          <p className="mt-2 text-sm leading-6 text-slate-300">
+                            Advisacor found the core company information it needs, so no manual company setup is required.
+                          </p>
+                          <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                            {[
+                              ["Company Name", company.name],
+                              ["Industry", company.industry_type],
+                              ["Revenue", company.revenue_range],
+                              ["Fiscal Year", company.fiscal_year],
+                              ["Employee Count", company.employee_count],
+                            ].map(([label, value]) => (
+                              <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                                <dt className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</dt>
+                                <dd className="mt-1 font-black text-white">{value}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </div>
+                        <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} />
+                      </div>
+                    )}
+                    {connectionStatus === "connected" && manualCompanySetupVisible && (
+                      <div className="grid gap-4">
+                        <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+                          <p className="text-sm font-black text-emerald-100">We found partial company information.</p>
+                          <p className="mt-2 text-sm leading-6 text-slate-300">
+                            Advisacor imported what QuickBooks provided. Confirm or complete the missing fields below.
+                          </p>
+                          <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                            {[
+                              ["Company Name", company.name || "QuickBooks Company"],
+                              ["Industry", company.industry_type || "Professional Services"],
+                              ["Revenue", company.revenue_range || "$1M-$5M"],
+                              ["Fiscal Year", company.fiscal_year || "Calendar Year"],
+                              ["Employee Count", company.employee_count || "Imported if available"],
+                            ].map(([label, value]) => (
+                              <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                                <dt className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</dt>
+                                <dd className="mt-1 font-black text-white">{value}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </div>
+                        <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} />
+                      </div>
                     )}
                     <div className="mt-5 grid gap-3 md:grid-cols-2">
                       <ComparisonList
@@ -680,10 +949,50 @@ function OnboardingContent() {
                     </div>
                   </div>
                 ) : (
+                  <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+                    <p className="text-sm font-black text-emerald-100">Manual setup selected</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      Complete the company information below. Financial report uploads remain in Step 3.
+                    </p>
+                  </div>
+                )}
+                {manualCompanySetupVisible && (
                   <div className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
-                    <p className="text-sm font-black text-white">Manual Financial Upload</p>
+                    <p className="text-sm font-black text-white">Manual Company Setup</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Required: Balance Sheet and Income Statement. Optional: AR Aging, AP Aging, and Inventory Report.
+                      We only ask for these fields because QuickBooks was skipped or you chose to edit imported company details.
+                    </p>
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      <Field label="Company name" value={company.name} help={contextualHelp.companyName} onChange={(value) => updateCompany("name", value)} />
+                      <Select label="Revenue range" value={company.revenue_range} options={["", ...revenueRangeOptions]} optionLabels={{ "": "Select revenue range" }} help={contextualHelp.revenueRange} onChange={(value) => updateCompany("revenue_range", value)} />
+                      <Field label="Employee count" value={company.employee_count} help={contextualHelp.employeeCount} onChange={(value) => updateCompany("employee_count", value)} />
+                      <Select label="Industry" value={company.industry_type} options={["", ...industryTypeOptions]} optionLabels={{ "": "Select industry" }} help={contextualHelp.industryType} onChange={(value) => updateCompany("industry_type", value)} />
+                      <Select label="Fiscal year" value={company.fiscal_year} options={["", "Calendar Year", "Fiscal Year"]} optionLabels={{ "": "Select fiscal year" }} onChange={(value) => updateCompany("fiscal_year", value)} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === uploadReportsStep && (
+              <div className="grid gap-5">
+                {!needsSupplementalUploads ? (
+                  <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+                    <p className="text-sm font-black text-emerald-100">Reports discovered from QuickBooks</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">
+                      No manual uploads are required. Advisacor will use the reports discovered during the QuickBooks connection.
+                    </p>
+                    <div className="mt-5">
+                      <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
+                    <p className="text-sm font-black text-white">Upload Financial Reports</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                      {dataSourcePath === "connected"
+                        ? "QuickBooks did not provide every required financial report. Upload Balance Sheet and Income Statement to complete the first review."
+                        : "Required uploads: Balance Sheet and Income Statement. Optional uploads: AR Aging, AP Aging, Payroll Reports, Fixed Asset Reports, and Budget Reports."}
                     </p>
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                       {manualFinancialUploadReports.map((report) => (
@@ -701,37 +1010,22 @@ function OnboardingContent() {
                         Download Report Guide PDF
                       </button>
                     </div>
-                    <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-black text-white">Where to find reports</p>
-                        <HelpTip content={contextualHelp.dataSource} />
-                      </div>
-                      <div className="mt-3 grid gap-3 text-sm leading-6 text-slate-300 md:grid-cols-3">
-                        <p><span className="font-black text-white">QuickBooks Online:</span> Reports, then Business overview for Balance Sheet and Profit and Loss; Who owes you / What you owe for AR and AP aging; Sales and Products/Services for inventory reports.</p>
-                        <p><span className="font-black text-white">QuickBooks Desktop:</span> Reports, then Company & Financial for Balance Sheet and Profit & Loss; Customers & Receivables for AR Aging; Vendors & Payables for AP Aging; Inventory for item valuation.</p>
-                        <p><span className="font-black text-white">QuickBooks Enterprise:</span> Use the same Desktop report menus plus Advanced Reporting for inventory, job costing, manufacturing, and industry-specific report exports.</p>
-                      </div>
-                    </div>
                     {manualUploads.balance_sheet && manualUploads.income_statement && (
                       <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} manual />
                     )}
-                    <div className="mt-5 grid gap-3 md:grid-cols-2">
-                      <ComparisonList
-                        title="Manual Upload"
-                        items={["Limited Free Report", "Balance Sheet analysis", "Income Statement analysis", "AR/AP review if uploaded", "Inventory review if uploaded", "Executive Summary", "KPI Review", "Sample PDF"]}
-                      />
-                      <ComparisonList
-                        title="Connected Accounting System"
-                        items={["Full operational intelligence", "Automated updates", "Weekly Executive Briefs", "Monthly Executive Packages", "Forecasting", "Budgeting", "Treasury", "Oversight Review", "Industry Intelligence", "AI Assistant"]}
-                      />
-                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            {step === deliveryStep && (
+            {step === configurePulseStep && (
               <div className="grid gap-4">
+                <div className="rounded-3xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 p-5">
+                  <p className="text-sm font-black text-white">Configure Pulse</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Configure briefs, monthly package delivery, approval settings, and how Pulse will keep stakeholders informed.
+                  </p>
+                </div>
                 <Toggle label="Weekly Executive Brief enabled" help={contextualHelp.reportingCadence} checked={delivery.weekly_brief_enabled} onChange={(value) => setDelivery((current) => ({ ...current, weekly_brief_enabled: value }))} />
                 <Toggle label="Monthly Package enabled" help={contextualHelp.packageType} checked={delivery.monthly_package_enabled} onChange={(value) => setDelivery((current) => ({ ...current, monthly_package_enabled: value }))} />
                 <Toggle label="Quarterly Review enabled" help={contextualHelp.reportingCadence} checked={delivery.quarterly_review_enabled} onChange={(value) => setDelivery((current) => ({ ...current, quarterly_review_enabled: value }))} />
@@ -743,6 +1037,32 @@ function OnboardingContent() {
 
             {step === generatePackageStep && (
               <div className="grid gap-5">
+                {firstPackageReady && (
+                  <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-6">
+                    <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">Report Ready</p>
+                    <h2 className="mt-3 text-3xl font-black text-white">Your first Advisacor financial review is ready.</h2>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                      Pulse has identified 3 opportunities and 2 risks in your business.
+                    </p>
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <button type="button" onClick={downloadTrialReport} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+                        Download Report
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (Object.keys(firstPackageSession).length) {
+                            window.localStorage.setItem("advisacor_lead_dashboard_session", JSON.stringify(firstPackageSession));
+                          }
+                          router.push("/dashboard");
+                        }}
+                        className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200"
+                      >
+                        View Dashboard
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-3xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 p-5">
                   <p className="text-sm font-black text-white">Generate First Package</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
@@ -785,6 +1105,20 @@ function OnboardingContent() {
               </div>
             )}
 
+            {step === dashboardStep && (
+              <div className="grid gap-5">
+                <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+                  <p className="text-sm font-black text-emerald-100">Dashboard</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    The final onboarding outcome is the customer dashboard. Generate the first review to complete setup and enter the dashboard with your first package context.
+                  </p>
+                </div>
+                <Link href="/dashboard" className="inline-flex rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+                  Go to Dashboard
+                </Link>
+              </div>
+            )}
+
             {error && <p className="mt-5 rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">{error}</p>}
             {message && <p className="mt-5 rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-100">{message}</p>}
 
@@ -797,7 +1131,7 @@ function OnboardingContent() {
               >
                 Back
               </button>
-              {step < steps.length - 1 ? (
+              {step < generatePackageStep ? (
                 <button type="button" onClick={continueOnboarding} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
                   Continue
                 </button>
@@ -846,33 +1180,6 @@ function OnboardingContent() {
             </div>
             <button type="button" onClick={continueAfterConnectionValidation} className="mt-5 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
               Continue With Recommended Package
-            </button>
-          </section>
-        </div>
-      )}
-      {manualCompanyInfoOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
-          <section className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-3xl border border-white/10 bg-[#0A1020] p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Manual Upload Setup</p>
-                <h2 className="mt-2 text-2xl font-black">Company Information</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Since no accounting system is connected, Advisacor needs these details before analyzing uploaded financial statements.
-                </p>
-              </div>
-              <button type="button" onClick={() => setManualCompanyInfoOpen(false)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-slate-300">
-                Close
-              </button>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label="Company name" value={company.name} help={contextualHelp.companyName} onChange={(value) => updateCompany("name", value)} />
-              <Select label="Industry type" value={company.industry_type} options={industryTypeOptions} help={contextualHelp.industryType} onChange={(value) => updateCompany("industry_type", value)} />
-              <Select label="Revenue range" value={company.revenue_range} options={revenueRangeOptions} help={contextualHelp.revenueRange} onChange={(value) => updateCompany("revenue_range", value)} />
-              <Field label="Employee count" value={company.employee_count} help={contextualHelp.employeeCount} onChange={(value) => updateCompany("employee_count", value)} />
-            </div>
-            <button type="button" onClick={() => setManualCompanyInfoOpen(false)} className="mt-5 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
-              Continue to Upload Reports
             </button>
           </section>
         </div>

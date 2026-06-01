@@ -71,13 +71,13 @@ export function GlobalPulseLauncher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 left-5 z-50 rounded-full bg-[#FF7A1A] px-5 py-4 text-sm font-black text-white shadow-2xl shadow-black/40"
+        className="fixed bottom-5 right-5 z-50 rounded-full bg-[#FF7A1A] px-4 py-3 text-xs font-black text-white shadow-2xl shadow-black/40"
       >
         Pulse
       </button>
 
       {open && (
-        <div className="fixed bottom-20 left-5 z-50 flex max-h-[78vh] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b1220] text-white shadow-2xl shadow-black/50">
+        <div className="fixed bottom-20 right-5 z-50 flex max-h-[78vh] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b1220] text-white shadow-2xl shadow-black/50">
           <div className="border-b border-white/10 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
