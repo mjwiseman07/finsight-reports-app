@@ -9,6 +9,7 @@ import type {
   CanonicalTrialBalanceRow,
   ConnectedAccountingEntity,
 } from "../types";
+import { normalizeStructuredReportRows } from "./financial-statements";
 
 function parseAmount(value: unknown): number {
   if (typeof value === "number") return value;
@@ -34,18 +35,7 @@ export function normalizeTabularReportRows<T extends CanonicalPnLRow | Canonical
   rows: unknown[] = [],
   externalEntityId?: string,
 ): T[] {
-  return rows
-    .map((row) => {
-      const record = row as Record<string, unknown>;
-      const colData = Array.isArray(record.ColData) ? (record.ColData as Array<Record<string, unknown>>) : [];
-      return {
-        label: String(record.label || record.name || record.accountName || colData[0]?.value || "Unlabeled"),
-        amount: parseAmount(record.amount ?? record.value ?? colData[1]?.value),
-        section: String(record.section || record.group || record.type || ""),
-        source: source(provider, sourceReport, row, externalEntityId),
-      };
-    })
-    .filter((row) => row.label !== "Unlabeled" || row.amount !== 0) as T[];
+  return normalizeStructuredReportRows<T>(provider, sourceReport, rows, externalEntityId);
 }
 
 export function normalizeTrialBalanceRows(

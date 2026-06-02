@@ -20,6 +20,7 @@ import {
 } from "../../../../lib/pdf-package-customization";
 import { resolveCompanyMembership } from "../../../../lib/company-security";
 import { auditSecurityEvent } from "../../../../lib/security-audit";
+import { assertReportPreflight } from "../../../../lib/reporting/report-preflight-validation";
 
 function isMissingColumnError(error) {
   const message = String(error?.message || "");
@@ -130,6 +131,20 @@ export async function POST(request) {
     const authorization = request.headers.get("authorization") || "";
     const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
     const requestedLeadId = String(body.leadId || request.headers.get("x-free-review-lead-id") || "").trim();
+    if (body.reportDataContext) {
+      assertReportPreflight(body.reportDataContext, {
+        requiresLiveData: true,
+        schedules: [
+          {
+            name: "Pulse AI generation",
+            sourceSystem: body.reportDataContext.sourceSystem,
+            connectionId: body.reportDataContext.connectionId,
+            syncId: body.reportDataContext.syncId,
+            reportPeriod: body.reportDataContext.reportPeriod,
+          },
+        ],
+      });
+    }
 
     if (!token && requestedLeadId) {
       const { data: lead, error: leadError } = await supabaseAdmin
@@ -518,6 +533,9 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error("[pulse/ask] failed", { message: error?.message });
+    if (error?.status === 422 || error?.preflight) {
+      return NextResponse.json({ error: error.message, preflight: error.preflight }, { status: 422 });
+    }
     return NextResponse.json({ error: error?.message || "Pulse could not answer this question." }, { status: 500 });
   }
 }

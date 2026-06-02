@@ -31,6 +31,11 @@ export default function SigninPage() {
         data.user?.app_metadata?.role === "super_admin" ||
         data.user?.user_metadata?.role === "super_admin";
       const nextPath = new URLSearchParams(window.location.search).get("next") || (isSuperAdmin ? "/admin" : "/dashboard");
+      if (nextPath.startsWith("/api/integrations/")) {
+        document.cookie = `advisacor_oauth_token=${encodeURIComponent(data.session.access_token)}; path=/; max-age=600; SameSite=Lax`;
+        window.location.assign(nextPath);
+        return;
+      }
       router.push(nextPath.startsWith("/") ? nextPath : "/dashboard");
     } catch {
       setError("Invalid email or password. Please try again.");

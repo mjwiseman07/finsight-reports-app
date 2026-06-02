@@ -1,3 +1,4 @@
+import { buildCertificationFixtureReportBundle } from "../normalizers/certification-fixtures";
 import { emptyReportBundle } from "../normalizers/reports";
 import type { AccountingProviderAdapter, ProviderCapabilities, ProviderRequestParams } from "../types";
 
@@ -50,9 +51,20 @@ export class Dynamics365AccountingProvider implements AccountingProviderAdapter 
   async getCashFlow() { return []; }
 
   async getPrimaryFinancialReports(params: ProviderRequestParams) {
+    const entity = await this.selectEntity(params);
+    const fixture = params.connection.metadata_json?.certification_fixture;
+    if (fixture && typeof fixture === "object") {
+      return buildCertificationFixtureReportBundle({
+        provider: this.provider,
+        entity,
+        dateRange: params.dateRange!,
+        fixture,
+      });
+    }
+
     return emptyReportBundle({
       provider: this.provider,
-      entity: await this.selectEntity(params),
+      entity,
       dateRange: params.dateRange!,
       missingReports: ["chart_of_accounts", "trial_balance", "profit_and_loss", "balance_sheet", "cash_flow"],
     });

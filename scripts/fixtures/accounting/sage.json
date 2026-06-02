@@ -1,0 +1,33 @@
+{
+  "companyName": "Sage Certification Entity",
+  "accounts": [
+    { "id": "sage-1000", "name": "Primary Checking", "number": "1000", "type": "Asset", "active": true },
+    { "id": "sage-4100", "name": "Advisory Revenue", "number": "4100", "type": "Revenue", "active": true },
+    { "id": "sage-7000", "name": "Contractor Expense", "number": "7000", "type": "Expense", "active": true }
+  ],
+  "trialBalance": [
+    { "accountId": "sage-1000", "accountName": "Primary Checking", "debit": 146000, "credit": 0, "netAmount": 146000 },
+    { "accountId": "sage-4100", "accountName": "Advisory Revenue", "debit": 0, "credit": 260000, "netAmount": -260000 },
+    { "accountId": "sage-7000", "accountName": "Contractor Expense", "debit": 84000, "credit": 0, "netAmount": 84000 }
+  ],
+  "balanceSheet": [
+    { "label": "Primary Checking", "amount": 146000, "section": "Assets" },
+    { "label": "Accounts Receivable", "amount": 72000, "section": "Assets" },
+    { "label": "Accounts Payable", "amount": 31000, "section": "Liabilities" }
+  ],
+  "incomeStatement": [
+    { "label": "Advisory Revenue", "amount": 260000, "section": "Revenue" },
+    { "label": "Contractor Expense", "amount": -84000, "section": "Operating Expenses" },
+    { "label": "Net Income", "amount": 88000, "section": "Net Income" }
+  ],
+  "transactions": [{ "id": "sage-txn-1", "name": "Receipt allocation", "amount": 21000, "type": "Receipt" }],
+  "arAging": [{ "id": "sage-ar-1", "name": "Atlas Customer", "amount": 17000, "type": "Current" }],
+  "apAging": [{ "id": "sage-ap-1", "name": "Contractor Vendor", "amount": 11000, "type": "Current" }],
+  "budgets": [{ "id": "sage-budget-1", "name": "Operating Plan", "amount": 275000, "type": "Budget" }],
+  "departments": [{ "id": "sage-dept-1", "name": "Advisory", "type": "Department" }],
+  "locations": [{ "id": "sage-loc-1", "name": "HQ", "type": "Location" }],
+  "classes": [{ "id": "sage-class-1", "name": "Consulting", "type": "Class" }],
+  "projects": [{ "id": "sage-project-1", "name": "CFO Support", "amount": 39000, "type": "Project" }],
+  "vendors": [{ "id": "sage-vendor-1", "name": "Contractor Vendor", "amount": 11000, "type": "Vendor" }],
+  "customers": [{ "id": "sage-customer-1", "name": "Atlas Customer", "amount": 17000, "type": "Customer" }]
+}

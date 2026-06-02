@@ -3,32 +3,31 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AdvisacorLogo } from "../components/AdvisacorLogo";
-import FullLandingPage from "../components/FullLandingPage";
 
 const features = [
   {
-    title: "Executive Package Generation",
-    description: "Turn accounting data into board-ready PDF financial packages, PowerPoint executive packages, executive summaries, dashboards, and AI-assisted commentary.",
+    title: "Executive Financial Intelligence",
+    description: "Advisacor is building a modern financial intelligence platform for operators, finance teams, and advisory firms.",
   },
   {
-    title: "Product-Led Free Review",
-    description: "Upload Balance Sheet, Income Statement, AR Aging, AP Aging, or Inventory reports to generate a free sample executive review without a demo.",
+    title: "Early Access Program",
+    description: "Join the waitlist to receive launch updates, product previews, and access invitations as availability opens.",
   },
   {
-    title: "Business Owner Weekly Briefs",
-    description: "Give owners weekly financial awareness with business health, cash, revenue, profitability, payroll, collections, top risk, and top opportunity.",
+    title: "Product Overview",
+    description: "A focused workspace for clearer financial visibility, executive-ready insights, and better decision support.",
   },
   {
-    title: "Ask Advisacor AI Assistant",
-    description: "Let leaders ask secure questions about profit changes, cash health, hiring capacity, and what to focus on this week.",
+    title: "Built For Modern Finance",
+    description: "Designed for business owners, controllers, advisory firms, and finance leaders who need practical intelligence.",
   },
   {
-    title: "Advisory Firm Workflows",
-    description: "Help accounting firms scale advisory services with client health status, package tracking, review queues, delivery status, and multi-client workflows.",
+    title: "Coming Soon",
+    description: "The public website will remain focused on early access, launch updates, product overview, and contact information.",
   },
   {
-    title: "Industry Intelligence",
-    description: "Adapt KPIs and commentary for healthcare, manufacturing, construction, wholesale distribution, professional services, and more.",
+    title: "Contact Us",
+    description: "Reach out to learn more, discuss early access, or follow Advisacor launch updates.",
   },
 ];
 
@@ -93,7 +92,7 @@ export function ComingSoonPage() {
 
   return (
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
-      {/* This is a temporary public Coming Soon page. Full landing page preserved at /landing-preview. */}
+      {/* Public marketing site only. Application routes are served from app.advisacor.com. */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-6">
           <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
@@ -104,7 +103,7 @@ export function ComingSoonPage() {
             <a href="#platform-preview" className="transition hover:text-[#111827]">Platform Preview</a>
             <a href="#contact" className="transition hover:text-[#111827]">Contact</a>
             <a href="#early-access" className="premium-button rounded-full px-5 py-2.5 text-white">
-              Join Early Access
+              Sign Up for Early Access
             </a>
           </div>
         </nav>
@@ -118,17 +117,17 @@ export function ComingSoonPage() {
               Coming Soon
             </div>
             <h1 className="max-w-4xl text-5xl font-black leading-[0.98] tracking-[-0.055em] md:text-6xl xl:text-7xl">
-              AI-Assisted Financial Intelligence
+              Advisacor Is Coming Soon
             </h1>
             <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-300">
-              Turn accounting data into executive intelligence. Advisacor generates board-ready financial packages, owner weekly briefs, AI-assisted commentary, and industry-aware dashboards for modern finance teams and advisory firms.
+              Advisacor is building AI-assisted financial intelligence for modern finance teams, operators, and advisory firms.
             </p>
             <p className="mt-5 max-w-2xl leading-7 text-slate-400">
-              From upload to first executive package in under 15 minutes: manual upload creates a fast sample review, while connected accounting unlocks QuickBooks, Xero, NetSuite, Sage, Microsoft Dynamics, recurring packages, forecasting, budgeting, and Ask Advisacor.
+              The public website is in coming soon mode while early access opens. Join the waitlist for launch updates and preview invitations.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <a href="#early-access" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
-                Join Early Access
+                Sign Up for Early Access
               </a>
               <a href="#contact" className="rounded-2xl border border-white/15 bg-white/[0.06] px-6 py-4 text-center text-sm font-black text-white transition hover:bg-white/[0.1]">
                 Contact Us
@@ -141,8 +140,8 @@ export function ComingSoonPage() {
             <div className="relative">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FFB36F]">Platform Preview</p>
-                  <h2 className="mt-1 text-xl font-black text-white">Executive Intelligence Command Center</h2>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FFB36F]">Product Preview</p>
+                  <h2 className="mt-1 text-xl font-black text-white">Financial Intelligence Preview</h2>
                 </div>
                 <span className="rounded-full bg-[#3BB273]/15 px-3 py-1 text-xs font-black text-[#B9F4D2]">Soon</span>
               </div>
@@ -203,7 +202,7 @@ export function ComingSoonPage() {
                       ].map(([cx, cy]) => (
                         <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" fill="#050915" stroke="#C8A46A" strokeWidth="1.5" />
                       ))}
-                      <text x="36" y="32" fill="#CBD5E1" fontSize="11" fontWeight="900" letterSpacing="1">TREASURY CASH FORECAST</text>
+                      <text x="36" y="32" fill="#CBD5E1" fontSize="11" fontWeight="900" letterSpacing="1">FINANCIAL VISIBILITY PREVIEW</text>
                       <text x="392" y="72" fill="#D78342" fontSize="11" fontWeight="900">+18.6%</text>
                       {["W1", "W2", "W3", "W4", "W5", "W6", "W7"].map((week, index) => (
                         <text key={week} x={71 + index * 62} y="206" textAnchor="middle" fill="#64748B" fontSize="12" fontWeight="800">
@@ -221,9 +220,9 @@ export function ComingSoonPage() {
 
                 <div className="space-y-3">
                   {[
-                    ["AI Recommendation", "Generate the board package and review cash timing before approving the hiring plan."],
-                    ["Owner Brief Signal", "Cash is stable, revenue is improving, and collections remain this week's top risk."],
-                    ["Industry Insight", "Manufacturing variance and inventory efficiency are driving the next executive recommendation."],
+                    ["Coming Soon", "Advisacor is preparing an early access launch for financial intelligence workflows."],
+                    ["Early Access", "Join the waitlist to receive product updates and preview invitations."],
+                    ["Product Overview", "Designed to help finance teams and advisors turn financial information into clearer decisions."],
                   ].map(([title, body]) => (
                     <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                       <p className="text-xs font-black uppercase tracking-[0.16em] text-[#FFB36F]">{title}</p>
@@ -242,10 +241,10 @@ export function ComingSoonPage() {
           <div>
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#1E6BFF]">Be First To Know</p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-6xl">
-              Join early access for financial intelligence that starts with value.
+              Join the early access waitlist.
             </h2>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#6B7280]">
-              Receive launch updates for free sample financial reviews, product-led onboarding, executive package generation, owner weekly briefs, Ask Advisacor, industry intelligence, and advisory firm workflows.
+              Receive launch updates, product previews, and early access invitations as Advisacor becomes available.
             </p>
           </div>
           <form onSubmit={handleSubmit} noValidate className="enterprise-card rounded-[2rem] p-7">
@@ -299,7 +298,7 @@ export function ComingSoonPage() {
               disabled={isSubmitting}
               className="premium-button mt-5 w-full rounded-2xl px-5 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? "Submitting..." : "Request Early Access"}
+              {isSubmitting ? "Submitting..." : "Sign Up for Early Access"}
             </button>
             {submitted && (
               <p className="mt-4 rounded-2xl border border-[#3BB273]/20 bg-[#3BB273]/10 px-4 py-3 text-sm font-bold text-[#176B42]">
@@ -321,9 +320,9 @@ export function ComingSoonPage() {
       <section id="platform-preview" className="bg-white px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-3xl">
-            <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FF7A1A]">Platform Preview</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FF7A1A]">Product Overview</p>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-6xl">
-              More than reporting: executive intelligence infrastructure.
+              Financial intelligence for modern teams.
             </h2>
           </div>
           <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -344,10 +343,10 @@ export function ComingSoonPage() {
         <div className="mx-auto max-w-7xl rounded-[2.5rem] border border-slate-200 bg-white p-10 shadow-2xl shadow-slate-900/10 md:p-14">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#1E6BFF]">Built By Finance Professionals</p>
           <h2 className="mt-4 max-w-4xl text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-6xl">
-            Financial intelligence for bookkeepers, controllers, fractional CFOs, accounting firms, and business owners.
+            Financial intelligence for finance teams, accounting firms, and business owners.
           </h2>
           <p className="mt-6 max-w-4xl text-lg leading-8 text-[#6B7280]">
-            Advisacor helps bookkeepers prepare AP, AR, payroll/FTE, and month-end packages; controllers review close quality, flux, accruals, reserves, fixed assets, and stale balances; fractional CFOs deliver forecasting, budgeting, treasury, board packages, and strategic commentary; and business owners receive weekly financial awareness without reading accounting reports.
+            Advisacor is being built by finance professionals to help teams move from raw financial information to clearer decisions, stronger visibility, and more useful executive conversations.
           </p>
         </div>
       </section>
@@ -356,13 +355,13 @@ export function ComingSoonPage() {
         <div className="advisacor-dark-grid mx-auto max-w-7xl rounded-[2.5rem] bg-[#0A1020] p-10 text-white shadow-2xl shadow-slate-950/30 md:p-14">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Financial Intelligence Is Coming Soon</p>
           <h2 className="mt-4 max-w-4xl text-4xl font-black tracking-[-0.04em] md:text-6xl">
-            Generate board-ready financial packages in minutes.
+            Early Access Coming Soon.
           </h2>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
-            Join the early access list and be among the first to see how Advisacor turns uploaded statements and connected accounting systems into executive summaries, dashboards, PDF packages, PowerPoint packages, weekly briefs, support workflows, and industry-specific recommendations.
+            Join the waitlist to receive launch updates, product previews, and early access invitations.
           </p>
           <a href="#early-access" className="premium-button mt-8 inline-flex rounded-2xl px-6 py-4 text-sm font-black text-white">
-            Join Early Access
+            Sign Up for Early Access
           </a>
         </div>
       </section>
@@ -387,4 +386,4 @@ export function ComingSoonPage() {
   );
 }
 
-export default FullLandingPage;
+export default ComingSoonPage;

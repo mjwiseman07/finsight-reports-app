@@ -26,6 +26,8 @@ import {
   onboardingDesignPrinciple,
 } from "../../lib/onboarding-success";
 import { downloadFinancialPackagePdf } from "../../lib/financial-package-pdf";
+import type { ReportDataContext } from "../../lib/integrations/accounting/report-data-context";
+import { assertReportPreflight, validateReportPreflight } from "../../lib/reporting/report-preflight-validation";
 import { supabase } from "../../lib/supabase";
 
 const demoTemplates: Record<string, Partial<CompanyForm>> = {
@@ -77,6 +79,310 @@ type ReportSummary = {
   missing: Array<{ id: string; label: string }>;
 };
 type ConnectionStatus = "idle" | "connecting" | "connected";
+type IntegrationProviderId = "quickbooks" | "xero" | "netsuite" | "dynamics" | "sage";
+type AccountingEntityOption = {
+  provider: string;
+  externalId: string;
+  canonicalId: string;
+  name: string;
+  tenantOrRealmId?: string;
+};
+type AccountingSyncDiagnostics = {
+  sourceSystem: string;
+  tenantName: string;
+  accountsCount: number;
+  trialBalanceCount: number;
+  balanceSheetCount: number;
+  incomeStatementCount: number;
+  xeroRawAccountsCount?: number;
+  xeroMappedAccountsCount?: number;
+  xeroRawTrialBalanceFlattenedRowsCount?: number;
+  xeroMappedTrialBalanceRowsCount?: number;
+  xeroRawBalanceSheetFlattenedRowsCount?: number;
+  xeroMappedBalanceSheetRowsCount?: number;
+  xeroRawProfitAndLossFlattenedRowsCount?: number;
+  xeroMappedIncomeStatementRowsCount?: number;
+};
+
+type ActiveReportNormalizedData = {
+  sourceSystem?: string;
+  adapterName?: string;
+  companyId?: string | null;
+  connectionId?: string;
+  tenantId?: string | null;
+  tenantName?: string;
+  syncId?: string;
+  syncStatus?: string;
+  reportPeriod?: unknown;
+  lastSyncedAt?: string;
+  normalizedAccounts?: unknown[];
+  normalizedTrialBalance?: unknown[];
+  normalizedBalanceSheet?: unknown[];
+  normalizedIncomeStatement?: unknown[];
+};
+
+type ActiveReportPayload = {
+  sourceSystem?: string;
+  adapterName?: string | null;
+  tenantName?: string;
+  tenantId?: string | null;
+  lastSyncedAt?: string;
+  connectionId?: string;
+  syncId?: string;
+  diagnostics?: unknown;
+  normalizedData?: ActiveReportNormalizedData | null;
+  reportDataContext?: {
+    companyId?: string | null;
+    connectionId?: string;
+    sourceSystem?: string;
+    adapterName?: string;
+    tenantId?: string | null;
+    tenantName?: string;
+    syncId?: string;
+    reportPeriod?: unknown;
+    normalizedData?: ActiveReportNormalizedData;
+  } | null;
+  preflight?: unknown;
+};
+
+type LatestNormalizedResponse = ActiveReportPayload & {
+  ok?: boolean;
+  error?: string;
+  sourceSystem?: string;
+  connectionId?: string;
+  syncId?: string;
+  syncLookupResult?: string;
+  tenantId?: string | null;
+  tenantName?: string;
+  lastSyncedAt?: string;
+  reportPeriod?: unknown;
+};
+
+type ReportSummarySource = {
+  syncId?: string;
+  connectionId?: string;
+  sourceSystem?: string;
+  tenantId?: string | null;
+  payload?: ActiveReportPayload | null;
+} | null;
+
+type PersistedSyncRecordDebug = {
+  syncId?: string;
+  syncStatus?: string;
+  companyId?: string;
+  connectionId?: string;
+  tenantId?: string;
+};
+
+type ActiveAccountingContext = {
+  companyId?: string | null;
+  connectionId?: string;
+  sourceSystem?: string;
+  tenantId?: string | null;
+  tenantName?: string;
+  latestSuccessfulSyncId?: string;
+  latestSyncId?: string;
+  latestSyncStatus?: string;
+  packageGeneratorExpectedStatus?: string;
+  packageGeneratorFoundStatus?: string;
+  persistedSyncRecord?: PersistedSyncRecordDebug;
+} | null;
+
+type ActiveAccountingContextResponse = LatestNormalizedResponse & {
+  activeContext?: ActiveAccountingContext;
+  companyId?: string | null;
+  latestSuccessfulSyncId?: string;
+  latestSyncId?: string;
+  latestSyncStatus?: string;
+  packageGeneratorExpectedStatus?: string;
+  packageGeneratorFoundStatus?: string;
+  persistedSyncRecord?: PersistedSyncRecordDebug;
+  validationStatus?: string | null;
+};
+
+type PackageLookupDebug = {
+  syncIdSearched?: string | null;
+  connectionIdSearched?: string | null;
+  sourceSystemSearched?: string | null;
+  tenantIdSearched?: string | null;
+  companyIdSearched?: string | null;
+  reportPeriodSearched?: unknown;
+  latestSuccessfulSyncFound: boolean;
+  syncLookupResult?: string;
+  latestSyncStatus?: string | null;
+  latestSyncId?: string | null;
+  packageGeneratorExpectedStatus?: string | null;
+  packageGeneratorFoundStatus?: string | null;
+  mismatchReasons: string[];
+};
+
+function buildEmptyXeroReportPayload(tenantName: string) {
+  const source = {
+    provider: "xero",
+    providerFamily: "xero",
+    providerProduct: "xero_accounting",
+    externalEntityId: undefined,
+  };
+  const timestamp = new Date().toISOString();
+  const syncId = `lead-xero-${Date.now()}`;
+  const normalizedData = {
+    sourceSystem: "xero",
+    adapterName: "xeroAdapter",
+    companyId: null,
+    connectionId: `lead:xero:${tenantName}`,
+    tenantId: tenantName,
+    tenantName,
+    syncId,
+    reportPeriod: {
+      startDate: timestamp.slice(0, 10),
+      endDate: timestamp.slice(0, 10),
+      label: "Onboarding Xero selection",
+    },
+    mappedAt: timestamp,
+    rawReportsPulled: {
+      accounts: false,
+      trialBalance: false,
+      balanceSheet: false,
+      incomeStatement: false,
+      arAging: false,
+      apAging: false,
+    },
+    syncStatus: "SUCCESS",
+    lastSyncedAt: timestamp,
+    normalizedAccounts: [],
+    normalizedTransactions: [],
+    normalizedTrialBalance: [],
+    normalizedBalanceSheet: [
+      { label: "Assets", amount: 0, section: "Assets", source },
+      { label: "Liabilities", amount: 0, section: "Liabilities", source },
+      { label: "Equity", amount: 0, section: "Equity", source },
+    ],
+    normalizedIncomeStatement: [
+      { label: "Revenue", amount: 0, section: "Revenue", source },
+      { label: "Expenses", amount: 0, section: "Expenses", source },
+    ],
+    normalizedARAging: [],
+    normalizedAPAging: [],
+    normalizedBudgets: [],
+    normalizedDepartments: [],
+    normalizedLocations: [],
+    normalizedClasses: [],
+    normalizedProjects: [],
+    normalizedVendors: [],
+    normalizedCustomers: [],
+    validation: {
+      readyForReporting: false,
+      missingObjects: ["normalizedAccounts", "normalizedTrialBalance"],
+      warnings: ["Xero organization selected. Sync required before financial reports can be generated."],
+    },
+  };
+  const diagnostics = {
+    sourceSystem: "xero",
+    adapterName: "xeroAdapter",
+    tenantName,
+    accountsCount: 0,
+    trialBalanceCount: 0,
+    balanceSheetCount: 3,
+    incomeStatementCount: 2,
+    xeroRawAccountsCount: 0,
+    xeroMappedAccountsCount: 0,
+    xeroRawTrialBalanceFlattenedRowsCount: 0,
+    xeroMappedTrialBalanceRowsCount: 0,
+    xeroRawBalanceSheetFlattenedRowsCount: 0,
+    xeroMappedBalanceSheetRowsCount: 3,
+    xeroRawProfitAndLossFlattenedRowsCount: 0,
+    xeroMappedIncomeStatementRowsCount: 2,
+  };
+  const reportDataContext = {
+    companyId: null,
+    connectionId: normalizedData.connectionId,
+    sourceSystem: "xero",
+    adapterName: "xeroAdapter",
+    tenantId: tenantName,
+    tenantName,
+    reportPeriod: normalizedData.reportPeriod,
+    normalizedData,
+    validationResult: normalizedData.validation,
+    syncId,
+    generatedAt: timestamp,
+    diagnostics,
+  };
+  const preflight = validateReportPreflight(reportDataContext as ReportDataContext, { requiresLiveData: true });
+  return {
+    sourceSystem: "xero",
+    tenantName,
+    lastSyncedAt: timestamp,
+    connectionId: normalizedData.connectionId,
+    syncId,
+    diagnostics,
+    normalizedData,
+    reportDataContext,
+    preflight,
+  };
+}
+
+function preflightIssueText(error: unknown) {
+  const record = error as { message?: string; preflight?: { blockers?: Array<{ code: string; message: string; affected?: string; expected?: string | number; actual?: string | number; variance?: number; recommendedFix?: string }> } };
+  const blockers = record?.preflight?.blockers || [];
+  if (!blockers.length) return record?.message || "We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.";
+  return [
+    record.message || "We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.",
+    ...blockers.map((issue) => {
+      const details = [
+        issue.affected ? `affected: ${issue.affected}` : "",
+        issue.expected !== undefined ? `expected: ${issue.expected}` : "",
+        issue.actual !== undefined ? `actual: ${issue.actual}` : "",
+        issue.variance !== undefined ? `variance: ${issue.variance}` : "",
+        issue.recommendedFix ? `fix: ${issue.recommendedFix}` : "",
+      ].filter(Boolean);
+      return `${issue.code}: ${issue.message}${details.length ? ` (${details.join("; ")})` : ""}`;
+    }),
+  ].join("\n");
+}
+
+const accountingIntegrationOptions: Array<{
+  id: IntegrationProviderId;
+  label: string;
+  dataSource: string;
+  status: "available" | "coming_soon";
+  description: string;
+}> = [
+  {
+    id: "quickbooks",
+    label: "QuickBooks",
+    dataSource: "QuickBooks Online",
+    status: "available",
+    description: "Connect QuickBooks Online and import available company and financial report data.",
+  },
+  {
+    id: "xero",
+    label: "Xero",
+    dataSource: "Xero",
+    status: "available",
+    description: "Connect Xero, select an organization, sync Demo Company data, and validate normalized reporting readiness.",
+  },
+  {
+    id: "netsuite",
+    label: "NetSuite",
+    dataSource: "NetSuite",
+    status: "coming_soon",
+    description: "Enterprise ERP connection coming soon.",
+  },
+  {
+    id: "dynamics",
+    label: "Microsoft Dynamics",
+    dataSource: "Microsoft Dynamics",
+    status: "coming_soon",
+    description: "Business Central and Dynamics finance connection coming soon.",
+  },
+  {
+    id: "sage",
+    label: "Sage Intacct",
+    dataSource: "Sage",
+    status: "coming_soon",
+    description: "Sage Intacct connection coming soon.",
+  },
+];
 
 function OnboardingContent() {
   const router = useRouter();
@@ -85,8 +391,10 @@ function OnboardingContent() {
   const isSuperAdmin = searchParams?.get("superAdmin") === "true";
   const template = demoTemplates[templateId] || {};
   const queryLeadId = searchParams?.get("leadId") || "";
+  const queryProvider = searchParams?.get("provider") === "xero" ? "xero" : searchParams?.get("provider") === "quickbooks" ? "quickbooks" : "quickbooks";
+  const startsOnConnectAccounting = searchParams?.get("step") === "connect-accounting";
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(startsOnConnectAccounting ? 1 : 0);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -96,6 +404,8 @@ function OnboardingContent() {
   const [manualCompanySetupVisible, setManualCompanySetupVisible] = useState(template.accounting_system === "Manual Financial Upload");
   const [packageStatusIndex, setPackageStatusIndex] = useState(0);
   const hasTrackedStart = useRef(false);
+  const hasResumedProviderConnect = useRef(false);
+  const activeContextHydrationKey = useRef("");
   const [accountType, setAccountType] = useState(searchParams?.get("accountType") || "my-own-company");
   const [company, setCompany] = useState<CompanyForm>({
     name: template.name || "",
@@ -112,9 +422,27 @@ function OnboardingContent() {
     template.accounting_system === "Manual Financial Upload" ? "manual_upload" : "connected",
   );
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
+  const [selectedIntegration, setSelectedIntegration] = useState<IntegrationProviderId>(queryProvider);
+  const [connectedIntegration, setConnectedIntegration] = useState<IntegrationProviderId | null>(null);
+  const [connectedOrganizationName, setConnectedOrganizationName] = useState("");
+  const [connectedLastSync, setConnectedLastSync] = useState("");
+  const [connectedConnectionId, setConnectedConnectionId] = useState("");
+  const [syncDiagnostics, setSyncDiagnostics] = useState<AccountingSyncDiagnostics | null>(null);
+  const [isSyncingIntegration, setIsSyncingIntegration] = useState(false);
+  const [xeroEntities, setXeroEntities] = useState<AccountingEntityOption[]>([]);
+  const [isLoadingXeroEntities, setIsLoadingXeroEntities] = useState(false);
+  const [hasOnboardingSession, setHasOnboardingSession] = useState(false);
   const [connectionValidationOpen, setConnectionValidationOpen] = useState(false);
   const [freeReviewLeadId, setFreeReviewLeadId] = useState(queryLeadId);
   const [reportSummary, setReportSummary] = useState<ReportSummary>({ found: [], missing: accountingReportCatalog });
+  const [reportSummarySource, setReportSummarySource] = useState<ReportSummarySource>(null);
+  const [packageContextSource, setPackageContextSource] = useState<ReportSummarySource>(null);
+  const [activeAccountingContext, setActiveAccountingContext] = useState<ActiveAccountingContext>(null);
+  const [packageLookupDebug, setPackageLookupDebug] = useState<PackageLookupDebug>({
+    latestSuccessfulSyncFound: false,
+    syncLookupResult: "not_checked",
+    mismatchReasons: [],
+  });
   const [recommendedPackage, setRecommendedPackage] = useState(company.package_level);
   const [manualUploads, setManualUploads] = useState<UploadSelections>({
     balance_sheet: false,
@@ -137,7 +465,7 @@ function OnboardingContent() {
   const steps = useMemo(() => {
     return [
       "Customer Type Selection",
-      "Connect QuickBooks",
+      "Connect Accounting",
       "Upload Financial Reports",
       "Select Industry",
       "Configure Pulse",
@@ -209,6 +537,314 @@ function OnboardingContent() {
       return sessionToken;
     }
     return readValidStoredAuthToken();
+  };
+
+  const getSelectedIntegrationOption = () =>
+    accountingIntegrationOptions.find((option) => option.id === selectedIntegration) || accountingIntegrationOptions[0];
+
+  const getSelectedConnectUrl = (integration: IntegrationProviderId = selectedIntegration) =>
+    integration === "xero" ? "/api/integrations/xero/connect" : "/api/integrations/quickbooks/connect";
+
+  const providerReportPayloadKey = (provider: IntegrationProviderId) => `advisacor_${provider}_report_payload`;
+
+  const parseReportPayload = (value: string | null): ActiveReportPayload | null => {
+    try {
+      return JSON.parse(value || "null") as ActiveReportPayload | null;
+    } catch {
+      return null;
+    }
+  };
+
+  const payloadSourceSystem = (payload: ActiveReportPayload | null) =>
+    payload?.reportDataContext?.sourceSystem || payload?.normalizedData?.sourceSystem || payload?.sourceSystem || "";
+
+  const payloadConnectionId = (payload: ActiveReportPayload | null) =>
+    payload?.reportDataContext?.connectionId || payload?.normalizedData?.connectionId || payload?.connectionId || "";
+
+  const clearReportContext = () => {
+    window.localStorage.removeItem("advisacor_active_report_payload");
+    window.sessionStorage.removeItem("advisacor_active_report_payload");
+    setSyncDiagnostics(null);
+    setConnectionValidationOpen(false);
+    setReportSummarySource(null);
+    setPackageContextSource(null);
+    setActiveAccountingContext(null);
+    setPackageLookupDebug({
+      latestSuccessfulSyncFound: false,
+      syncLookupResult: "not_checked",
+      mismatchReasons: [],
+    });
+  };
+
+  const setReportContextForProvider = (provider: IntegrationProviderId, payload: ActiveReportPayload | null) => {
+    if (!payload || payloadSourceSystem(payload) !== provider) return null;
+    window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload));
+    window.localStorage.setItem(providerReportPayloadKey(provider), JSON.stringify(payload));
+    setSyncDiagnostics((payload.diagnostics as AccountingSyncDiagnostics | null) || null);
+    const nextSource = {
+      syncId: payload.syncId || payload.reportDataContext?.syncId,
+      connectionId: payload.connectionId || payload.reportDataContext?.connectionId,
+      sourceSystem: payload.sourceSystem || payload.reportDataContext?.sourceSystem,
+      tenantId: payload.tenantId || payload.reportDataContext?.tenantId || null,
+      payload,
+    };
+    setReportSummarySource(nextSource);
+    setPackageContextSource(nextSource);
+    setActiveAccountingContext({
+      companyId: payload.reportDataContext?.companyId || payload.normalizedData?.companyId || null,
+      connectionId: nextSource.connectionId,
+      sourceSystem: nextSource.sourceSystem,
+      tenantId: nextSource.tenantId,
+      tenantName: payload.tenantName || payload.reportDataContext?.tenantName || payload.normalizedData?.tenantName,
+      latestSuccessfulSyncId: nextSource.syncId,
+      latestSyncId: nextSource.syncId,
+      latestSyncStatus: payload.normalizedData?.syncStatus || "SUCCESS",
+      packageGeneratorExpectedStatus: "SUCCESS",
+      packageGeneratorFoundStatus: payload.normalizedData?.syncStatus || "SUCCESS",
+    });
+    return payload;
+  };
+
+  const setPackageContextForProvider = (provider: IntegrationProviderId, payload: ActiveReportPayload | null) => {
+    if (!payload || payloadSourceSystem(payload) !== provider) return null;
+    const nextSource = {
+      syncId: payload.syncId || payload.reportDataContext?.syncId,
+      connectionId: payload.connectionId || payload.reportDataContext?.connectionId,
+      sourceSystem: payload.sourceSystem || payload.reportDataContext?.sourceSystem,
+      tenantId: payload.tenantId || payload.reportDataContext?.tenantId || null,
+      payload,
+    };
+    window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload));
+    setPackageContextSource(nextSource);
+    setActiveAccountingContext((current) => ({
+      companyId: payload.reportDataContext?.companyId || payload.normalizedData?.companyId || current?.companyId || null,
+      connectionId: nextSource.connectionId,
+      sourceSystem: nextSource.sourceSystem,
+      tenantId: nextSource.tenantId,
+      tenantName: payload.tenantName || payload.reportDataContext?.tenantName || payload.normalizedData?.tenantName || current?.tenantName,
+      latestSuccessfulSyncId: nextSource.syncId,
+      latestSyncId: nextSource.syncId || current?.latestSyncId,
+      latestSyncStatus: payload.normalizedData?.syncStatus || current?.latestSyncStatus,
+      packageGeneratorExpectedStatus: "SUCCESS",
+      packageGeneratorFoundStatus: payload.normalizedData?.syncStatus || current?.packageGeneratorFoundStatus,
+    }));
+    return payload;
+  };
+
+  const reportPayloadCompanyId = (payload: ActiveReportPayload | null) =>
+    payload?.reportDataContext?.companyId || payload?.normalizedData?.companyId || null;
+
+  const reportPayloadReportPeriod = (payload: ActiveReportPayload | null) =>
+    payload?.reportDataContext?.reportPeriod || payload?.normalizedData?.reportPeriod || null;
+
+  const hydrateActiveAccountingContext = async (provider: IntegrationProviderId = selectedIntegration, connectionId = connectedConnectionId) => {
+    const token = await getAuthToken();
+    const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+    if (!token && !leadId) return null;
+    const response = await fetch("/api/accounting/active-context", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        companyId: activeAccountingContext?.companyId || null,
+        connectionId,
+        sourceSystem: provider,
+        leadId,
+      }),
+    });
+    const result = await response.json().catch(() => ({})) as ActiveAccountingContextResponse;
+    if (!response.ok) return null;
+    const context = result.activeContext || {
+      companyId: result.companyId,
+      connectionId: result.connectionId,
+      sourceSystem: result.sourceSystem,
+      tenantId: result.tenantId,
+      tenantName: result.tenantName,
+      latestSuccessfulSyncId: result.latestSuccessfulSyncId || result.syncId,
+        latestSyncId: result.latestSyncId,
+        latestSyncStatus: result.latestSyncStatus,
+        packageGeneratorExpectedStatus: result.packageGeneratorExpectedStatus,
+        packageGeneratorFoundStatus: result.packageGeneratorFoundStatus,
+        persistedSyncRecord: result.persistedSyncRecord,
+    };
+    setActiveAccountingContext(context);
+    if (context?.connectionId) setConnectedConnectionId(context.connectionId);
+    if (context?.sourceSystem) setConnectedIntegration(context.sourceSystem as IntegrationProviderId);
+    if (context?.tenantName) setConnectedOrganizationName(context.tenantName);
+    if (result.lastSyncedAt) setConnectedLastSync(result.lastSyncedAt);
+    console.info("Hydrated Context:", {
+      companyId: context?.companyId || null,
+      connectionId: context?.connectionId || null,
+      tenantId: context?.tenantId || null,
+      syncId: context?.latestSuccessfulSyncId || null,
+        latestSyncStatus: context?.latestSyncStatus || null,
+    });
+    const payload: ActiveReportPayload | null = result.normalizedData || result.reportDataContext
+      ? {
+          sourceSystem: context?.sourceSystem || result.sourceSystem || provider,
+          adapterName: result.normalizedData?.adapterName || result.reportDataContext?.adapterName || null,
+          tenantId: context?.tenantId || result.tenantId || result.normalizedData?.tenantId || result.reportDataContext?.tenantId || null,
+          tenantName: context?.tenantName || result.tenantName || result.normalizedData?.tenantName || result.reportDataContext?.tenantName || "",
+          lastSyncedAt: result.lastSyncedAt || result.normalizedData?.lastSyncedAt || "",
+          connectionId: context?.connectionId || result.connectionId || connectionId,
+          syncId: context?.latestSuccessfulSyncId || result.syncId || result.reportDataContext?.syncId || "",
+          diagnostics: result.diagnostics || null,
+          normalizedData: result.normalizedData || null,
+          reportDataContext: result.reportDataContext || null,
+          preflight: null,
+        }
+      : null;
+    if (payload) {
+      setReportContextForProvider(provider, payload);
+      setPackageLookupDebug({
+        syncIdSearched: payload.syncId || null,
+        connectionIdSearched: payload.connectionId || null,
+        sourceSystemSearched: payload.sourceSystem || provider,
+        tenantIdSearched: payload.tenantId || null,
+        companyIdSearched: reportPayloadCompanyId(payload),
+        reportPeriodSearched: reportPayloadReportPeriod(payload),
+        latestSuccessfulSyncFound: Boolean(payload.syncId),
+        syncLookupResult: payload.syncId ? "active context hydrated" : "active context missing sync",
+        latestSyncStatus: context?.latestSyncStatus || null,
+        latestSyncId: context?.latestSyncId || context?.latestSuccessfulSyncId || null,
+        packageGeneratorExpectedStatus: context?.packageGeneratorExpectedStatus || "SUCCESS",
+        packageGeneratorFoundStatus: context?.packageGeneratorFoundStatus || null,
+        mismatchReasons: payload.syncId ? [] : ["sync status mismatch"],
+      });
+    }
+    return payload;
+  };
+
+  const fetchLatestSyncForProvider = async (provider: IntegrationProviderId, connectionId: string, fallbackPayload: ActiveReportPayload | null = null) => {
+    const nextPayload = await hydrateActiveAccountingContext(provider, connectionId);
+    if (!nextPayload) return setReportContextForProvider(provider, fallbackPayload);
+    console.info("[onboarding/provider-switch] loaded latest sync", {
+      selectedProvider: provider,
+      previousNormalizedSource: payloadSourceSystem(fallbackPayload) || null,
+      newNormalizedSource: payloadSourceSystem(nextPayload) || null,
+      loadedSyncId: nextPayload.syncId || nextPayload.reportDataContext?.syncId || null,
+      loadedConnectionId: payloadConnectionId(nextPayload) || null,
+    });
+    return setReportContextForProvider(provider, nextPayload);
+  };
+
+  const onProviderChange = (provider: IntegrationProviderId) => {
+    const previousPayload = parseReportPayload(window.localStorage.getItem("advisacor_active_report_payload"));
+    const providerPayload = parseReportPayload(window.localStorage.getItem(providerReportPayloadKey(provider)));
+    const providerConnectionId =
+      (connectedIntegration === provider ? connectedConnectionId : "") ||
+      payloadConnectionId(providerPayload) ||
+      window.localStorage.getItem(`advisacor_onboarding_${provider}_connection_id`) ||
+      "";
+    console.info("[onboarding/provider-switch]", {
+      selectedProvider: provider,
+      previousNormalizedSource: payloadSourceSystem(previousPayload) || null,
+      newNormalizedSource: payloadSourceSystem(providerPayload) || null,
+      loadedSyncId: providerPayload?.syncId || providerPayload?.reportDataContext?.syncId || null,
+      loadedConnectionId: providerConnectionId || null,
+    });
+    setSelectedIntegration(provider);
+    setDataSourcePath("connected");
+    setManualCompanySetupVisible(false);
+    setMessage("");
+    setReportSummary({ found: [], missing: accountingReportCatalog });
+    if (connectedIntegration !== provider) {
+      setConnectedIntegration(providerPayload || providerConnectionId ? provider : null);
+      setConnectedOrganizationName(providerPayload?.tenantName || providerPayload?.normalizedData?.tenantName || providerPayload?.reportDataContext?.tenantName || "");
+      setConnectedConnectionId(providerConnectionId);
+      setConnectedLastSync(providerPayload?.lastSyncedAt || providerPayload?.normalizedData?.lastSyncedAt || "");
+      setConnectionStatus(providerPayload || providerConnectionId ? "connected" : "idle");
+    }
+    clearReportContext();
+    void fetchLatestSyncForProvider(provider, providerConnectionId, providerPayload);
+  };
+
+  const selectIntegration = (integration: IntegrationProviderId) => {
+    const option = accountingIntegrationOptions.find((item) => item.id === integration) || accountingIntegrationOptions[0];
+    onProviderChange(integration);
+    updateCompany("data_source", option.dataSource);
+    updateCompany("accounting_system", option.dataSource);
+  };
+
+  const buildProviderLoginReturnUrl = (integration: IntegrationProviderId) => {
+    const returnUrl = new URL(getSelectedConnectUrl(integration), window.location.origin);
+    const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+    console.log("[onboarding/accounting-connect] login return prepared", {
+      selectedProvider: integration,
+      returnTo: returnUrl.pathname,
+      hasLeadId: Boolean(leadId),
+    });
+    return returnUrl.pathname;
+  };
+
+  const writeAccountingConnectCookies = (integration: IntegrationProviderId, token: string) => {
+    const returnUrl = new URL(window.location.href);
+    returnUrl.searchParams.set("accountingConnected", "true");
+    returnUrl.searchParams.set("provider", integration);
+    const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+    document.cookie = `advisacor_oauth_token=${encodeURIComponent(token)}; path=/; max-age=600; SameSite=Lax`;
+    document.cookie = `advisacor_oauth_return_to=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}; path=/; max-age=600; SameSite=Lax`;
+    if (leadId) document.cookie = `advisacor_oauth_lead_id=${encodeURIComponent(leadId)}; path=/; max-age=600; SameSite=Lax`;
+  };
+
+  const refreshAccountingConnectSessionCookie = async () => {
+    const token = await getAuthToken();
+    if (token) {
+      const returnUrl = new URL(window.location.href);
+      returnUrl.searchParams.set("accountingConnected", "true");
+      returnUrl.searchParams.set("provider", selectedIntegration);
+      document.cookie = `advisacor_oauth_token=${encodeURIComponent(token)}; path=/; max-age=600; SameSite=Lax`;
+      document.cookie = `advisacor_oauth_return_to=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}; path=/; max-age=600; SameSite=Lax`;
+    }
+    const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+    if (leadId) document.cookie = `advisacor_oauth_lead_id=${encodeURIComponent(leadId)}; path=/; max-age=600; SameSite=Lax`;
+    return token;
+  };
+
+  const applyConnectedIntegration = ({
+    integration,
+    organizationName,
+    connectionId = "",
+  }: {
+    integration: IntegrationProviderId;
+    organizationName: string;
+    connectionId?: string;
+  }) => {
+    const option = accountingIntegrationOptions.find((item) => item.id === integration) || accountingIntegrationOptions[0];
+    const connectedProfile = {
+      ...company,
+      name: integration === "xero" && organizationName ? organizationName : company.name || organizationName || `${option.label} Company`,
+      industry_type: company.industry_type || "Professional Services",
+      revenue_range: company.revenue_range || "$1M-$5M",
+      fiscal_year: company.fiscal_year || "Calendar Year",
+      employee_count: company.employee_count || "10",
+      data_source: option.dataSource,
+      accounting_system: option.dataSource,
+    };
+    const discovery = buildReportDiscovery(option.dataSource);
+    const hasRequiredReports = hasRequiredFinancialReports(discovery);
+    setSelectedIntegration(integration);
+    setConnectedIntegration(integration);
+    setConnectedOrganizationName(organizationName || connectedProfile.name);
+    setConnectedConnectionId(connectionId);
+    setConnectedLastSync(new Date().toISOString());
+    setSyncDiagnostics(null);
+    setDataSourcePath("connected");
+    setConnectionStatus("connected");
+    setCompany(connectedProfile);
+    setReportSummary(discovery);
+    applyRecommendation(discovery.found);
+    setManualCompanySetupVisible(!hasCompanyProfileFields(connectedProfile));
+    setConnectionValidationOpen(!hasRequiredReports);
+    setStep(hasRequiredReports ? industryStep : uploadReportsStep);
+    setMessage(`${option.label} connected successfully. Advisacor will use normalized financial data from this integration.`);
+    void enrichFreeReviewLead({
+      status: `${integration}_connected`,
+      nextCompany: connectedProfile,
+      nextReportSummary: discovery,
+    });
   };
 
   const enrichFreeReviewLead = async ({
@@ -291,18 +927,44 @@ function OnboardingContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    void getAuthToken().then((token) => {
+      if (token) {
+        const returnUrl = new URL(window.location.href);
+        returnUrl.searchParams.set("accountingConnected", "true");
+        returnUrl.searchParams.set("provider", selectedIntegration);
+        document.cookie = `advisacor_oauth_token=${encodeURIComponent(token)}; path=/; max-age=600; SameSite=Lax`;
+        document.cookie = `advisacor_oauth_return_to=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}; path=/; max-age=600; SameSite=Lax`;
+      }
+      window.requestAnimationFrame(() => setHasOnboardingSession(Boolean(token)));
+      console.log("[onboarding/accounting-connect] onboarding user/session status", {
+        authenticated: Boolean(token),
+        selectedProvider: selectedIntegration,
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIntegration]);
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isSuperAdmin) return;
     const storedLeadId = window.localStorage.getItem("advisacor_free_review_lead_id") || "";
     const nextLeadId = queryLeadId || storedLeadId;
+    const isProviderConnectResume = searchParams?.get("step") === "connect-accounting" && ["xero", "quickbooks"].includes(searchParams?.get("provider") || "");
     if (!nextLeadId) {
+      if (isProviderConnectResume) {
+        console.log("[onboarding/accounting-connect] no lead gate bypassed for provider connect resume", {
+          selectedProvider: searchParams?.get("provider"),
+          hasStoredLeadId: false,
+        });
+        return;
+      }
       router.replace("/free-review?source=onboarding-gate");
       return;
     }
     setFreeReviewLeadId(nextLeadId);
     window.localStorage.setItem("advisacor_free_review_lead_id", nextLeadId);
-  }, [isSuperAdmin, queryLeadId, router]);
+  }, [isSuperAdmin, queryLeadId, router, searchParams]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -320,6 +982,9 @@ function OnboardingContent() {
     };
     setDataSourcePath("connected");
     setConnectionStatus("connected");
+    setSelectedIntegration("quickbooks");
+    setConnectedIntegration("quickbooks");
+    setConnectedOrganizationName(importedQuickBooksProfile.name);
     setCompany(importedQuickBooksProfile);
     const discovery = buildReportDiscovery("QuickBooks Online");
     const hasRequiredReports = hasRequiredFinancialReports(discovery);
@@ -340,6 +1005,59 @@ function OnboardingContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (searchParams?.get("accountingConnected") !== "true" || searchParams?.get("provider") !== "xero") return;
+    const connectionId = searchParams?.get("connectionId") || "";
+    const requiresOrganizationSelection = searchParams?.get("xeroOrganizationSelection") === "required";
+    if (requiresOrganizationSelection) {
+      const option = accountingIntegrationOptions.find((item) => item.id === "xero") || accountingIntegrationOptions[0];
+      const discovery = buildReportDiscovery(option.dataSource);
+      setSelectedIntegration("xero");
+      setConnectedIntegration("xero");
+      setConnectedOrganizationName("Select a Xero organization");
+      setConnectedConnectionId(connectionId);
+      setConnectedLastSync("");
+      setSyncDiagnostics(null);
+      setDataSourcePath("connected");
+      setConnectionStatus("connected");
+      setReportSummary(discovery);
+      applyRecommendation(discovery.found);
+      setManualCompanySetupVisible(false);
+      setConnectionValidationOpen(false);
+      setStep(connectQuickBooksStep);
+      window.localStorage.setItem("advisacor_onboarding_xero_connected", "true");
+      if (connectionId) window.localStorage.setItem("advisacor_onboarding_xero_connection_id", connectionId);
+      void loadXeroEntities(connectionId);
+      setMessage(`Xero authorized ${searchParams?.get("xeroOrganizationCount") || "multiple"} organizations. Select the organization to use inside Advisacor before syncing.`);
+      return;
+    }
+    applyConnectedIntegration({
+      integration: "xero",
+      organizationName: searchParams?.get("organizationName") || "Xero Organization",
+      connectionId,
+    });
+    window.localStorage.setItem("advisacor_onboarding_xero_connected", "true");
+    if (connectionId) window.localStorage.setItem("advisacor_onboarding_xero_connection_id", connectionId);
+    if (connectionId) void loadXeroEntities(connectionId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (connectionStatus !== "connected") return;
+    const providerConnectionId =
+      connectedConnectionId ||
+      window.localStorage.getItem(`advisacor_onboarding_${selectedIntegration}_connection_id`) ||
+      "";
+    const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+    const hydrationKey = `${selectedIntegration}:${providerConnectionId}:${leadId}`;
+    if (activeContextHydrationKey.current === hydrationKey) return;
+    activeContextHydrationKey.current = hydrationKey;
+    void hydrateActiveAccountingContext(selectedIntegration, providerConnectionId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionStatus, connectedConnectionId, selectedIntegration, freeReviewLeadId]);
 
   const getPrimaryPersonaForAccountType = (selectedAccountType: string) => {
     if (selectedAccountType === "bookkeeper-advisor") return "bookkeeper";
@@ -380,11 +1098,68 @@ function OnboardingContent() {
 
   const needsSupplementalUploads = dataSourcePath === "manual_upload" || (connectionStatus === "connected" && !hasRequiredFinancialReports(reportSummary));
 
-  const validateAccountingConnection = async () => {
+  const validateAccountingConnection = async (integration: IntegrationProviderId = selectedIntegration) => {
     setError("");
     setMessage("");
-    if (company.data_source === "QuickBooks Online") {
+    console.log("[onboarding/accounting-connect] connect clicked", {
+      selectedProvider: integration,
+      companyDataSource: company.data_source,
+      currentStep: step,
+      connectUrl: getSelectedConnectUrl(integration),
+    });
+    if (integration === "xero") {
       const token = await getAuthToken();
+      console.log("[onboarding/accounting-connect] session status", {
+        selectedProvider: integration,
+        authenticated: Boolean(token),
+      });
+      if (!token) {
+        const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+        if (leadId) {
+          const returnUrl = new URL(window.location.href);
+          returnUrl.searchParams.set("accountingConnected", "true");
+          returnUrl.searchParams.set("provider", "xero");
+          document.cookie = `advisacor_oauth_lead_id=${encodeURIComponent(leadId)}; path=/; max-age=600; SameSite=Lax`;
+          document.cookie = `advisacor_oauth_return_to=${encodeURIComponent(`${returnUrl.pathname}${returnUrl.search}`)}; path=/; max-age=600; SameSite=Lax`;
+          console.log("[onboarding/accounting-connect] starting Xero OAuth in lead mode", {
+            selectedProvider: integration,
+            connectUrl: getSelectedConnectUrl("xero"),
+            session: false,
+            hasLeadId: true,
+            loginRedirectTriggered: false,
+          });
+          window.location.assign(getSelectedConnectUrl("xero"));
+          return;
+        }
+        const nextPath = buildProviderLoginReturnUrl("xero");
+        console.log("[onboarding/accounting-connect] redirecting to login", {
+          selectedProvider: integration,
+          loginRedirectTriggered: true,
+          returnTo: nextPath,
+        });
+        setError("Sign in first, then connect Xero.");
+        router.push(`/signin?next=${encodeURIComponent(nextPath)}`);
+        return;
+      }
+
+      const connectUrl = getSelectedConnectUrl("xero");
+      writeAccountingConnectCookies("xero", token);
+      console.log("[onboarding/accounting-connect] starting Xero OAuth", {
+        selectedProvider: integration,
+        connectUrl,
+        returnTo: document.cookie.includes("advisacor_oauth_return_to") ? "cookie:set" : "cookie:missing",
+        loginRedirectTriggered: false,
+      });
+      window.location.assign(connectUrl);
+      return;
+    }
+
+    if (integration === "quickbooks" || company.data_source === "QuickBooks Online") {
+      const token = await getAuthToken();
+      console.log("[onboarding/accounting-connect] session status", {
+        selectedProvider: integration,
+        authenticated: Boolean(token),
+      });
       const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
       if (!token && !leadId) {
         router.push("/free-review?source=quickbooks-connect-gate");
@@ -398,8 +1173,15 @@ function OnboardingContent() {
         returnTo: `${returnUrl.pathname}${returnUrl.search}`,
       });
       if (!token && leadId) connectParams.set("leadId", leadId);
-      const response = await fetch(`/api/quickbooks/connect?${connectParams.toString()}`, {
-        method: "POST",
+      const connectUrl = `/api/integrations/quickbooks/connect?${connectParams.toString()}`;
+      console.log("[onboarding/accounting-connect] starting QuickBooks OAuth", {
+        selectedProvider: integration,
+        connectUrl,
+        returnTo: connectParams.get("returnTo"),
+        loginRedirectTriggered: false,
+      });
+      const response = await fetch(connectUrl, {
+        method: "GET",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const result = await response.json().catch(() => ({}));
@@ -432,6 +1214,212 @@ function OnboardingContent() {
     setConnectionStatus("connected");
     setConnectionValidationOpen(true);
   };
+
+  const loadXeroEntities = async (connectionId = connectedConnectionId) => {
+    const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+    if (!connectionId && !leadId) return;
+    setIsLoadingXeroEntities(true);
+    setError("");
+
+    try {
+      const token = await getAuthToken();
+      if (!token && !leadId) {
+        setError("Sign in again to load Xero organizations.");
+        return;
+      }
+      const response =
+        token && connectionId
+          ? await fetch(`/api/accounting/entities?connectionId=${encodeURIComponent(connectionId)}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+          : await fetch(`/api/integrations/xero/lead-entities?leadId=${encodeURIComponent(leadId)}`);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(result.error || "Unable to load Xero organizations.");
+        return;
+      }
+      setXeroEntities(result.entities || []);
+      if ((result.entities || []).length === 1) {
+        setMessage("Xero connected. Select the organization below, then sync.");
+      }
+    } finally {
+      setIsLoadingXeroEntities(false);
+    }
+  };
+
+  const selectXeroEntity = async (entity: AccountingEntityOption) => {
+    setError("");
+    setMessage("");
+    const token = await getAuthToken();
+    const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+    if (!token && !leadId) {
+      setError("Sign in again to select a Xero organization.");
+      return;
+    }
+    const response =
+      token && connectedConnectionId
+        ? await fetch("/api/accounting/select-entity", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              connectionId: connectedConnectionId,
+              entityId: entity.canonicalId || entity.externalId,
+            }),
+          })
+        : await fetch("/api/integrations/xero/select-lead-entity", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              leadId,
+              entityId: entity.canonicalId || entity.externalId,
+            }),
+          });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(result.error || "Unable to select Xero organization.");
+      return;
+    }
+    applyConnectedIntegration({
+      integration: "xero",
+      organizationName: result.entity?.name || entity.name,
+      connectionId: result.connectionId || connectedConnectionId,
+    });
+    const reportPayload = buildEmptyXeroReportPayload(result.entity?.name || entity.name);
+    window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify({
+      ...reportPayload,
+      connectionId: result.connectionId || reportPayload.connectionId,
+      normalizedData: {
+        ...reportPayload.normalizedData,
+        connectionId: result.connectionId || reportPayload.normalizedData.connectionId,
+      },
+      reportDataContext: {
+        ...reportPayload.reportDataContext,
+        connectionId: result.connectionId || reportPayload.reportDataContext.connectionId,
+      },
+    }));
+  };
+
+  const syncConnectedIntegration = async () => {
+    if (!connectedConnectionId) return;
+    setIsSyncingIntegration(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError("Sign in again to sync your accounting data.");
+        return;
+      }
+      const endDate = new Date();
+      const startDate = new Date(endDate);
+      startDate.setMonth(startDate.getMonth() - 1);
+      const response = await fetch("/api/accounting/fetch-reports", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          connectionId: connectedConnectionId,
+          sourceSystem: selectedIntegration,
+          selectedProvider: selectedIntegration,
+          startDate: startDate.toISOString().slice(0, 10),
+          endDate: endDate.toISOString().slice(0, 10),
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (selectedIntegration === "xero" && result.diagnostics) {
+          setSyncDiagnostics(result.diagnostics);
+        }
+        setError(result.preflight ? preflightIssueText({ message: result.error, preflight: result.preflight }) : result.error || "Unable to sync accounting data.");
+        return;
+      }
+      if (selectedIntegration === "xero" && result.normalizedData?.sourceSystem !== "xero") {
+        setError(`Provider mismatch: active xero but normalized data is ${result.normalizedData?.sourceSystem || "unknown"}`);
+        return;
+      }
+      setConnectedLastSync(result.normalizedData?.lastSyncedAt || new Date().toISOString());
+      setSyncDiagnostics(result.diagnostics || null);
+      const syncedPayload = {
+        sourceSystem: result.normalizedData?.sourceSystem || selectedIntegration,
+        adapterName: result.normalizedData?.adapterName || result.reportDataContext?.adapterName || null,
+        tenantId: result.normalizedData?.tenantId || result.reportDataContext?.tenantId || null,
+        tenantName: result.diagnostics?.tenantName || connectedOrganizationName,
+        lastSyncedAt: result.normalizedData?.lastSyncedAt || new Date().toISOString(),
+        connectionId: connectedConnectionId,
+        syncId: result.syncId || result.reportDataContext?.syncId || "",
+        diagnostics: result.diagnostics || null,
+        normalizedData: result.normalizedData || null,
+        reportDataContext: result.reportDataContext || null,
+        preflight: result.preflight || null,
+      };
+      setReportContextForProvider(selectedIntegration, syncedPayload);
+      await hydrateActiveAccountingContext(selectedIntegration, connectedConnectionId);
+      if (connectedConnectionId) window.localStorage.setItem(`advisacor_onboarding_${selectedIntegration}_connection_id`, connectedConnectionId);
+      console.info("Connected Reports Summary Source:", {
+        syncId: syncedPayload.syncId,
+        connectionId: syncedPayload.connectionId,
+        sourceSystem: syncedPayload.sourceSystem,
+        tenantId: syncedPayload.tenantId,
+      });
+      setConnectionValidationOpen(true);
+      setMessage(result.message || `${getSelectedIntegrationOption().label} sync completed and normalized data validation passed.`);
+    } finally {
+      setIsSyncingIntegration(false);
+    }
+  };
+
+  const disconnectConnectedIntegration = async () => {
+    if (!connectedConnectionId || connectedIntegration !== "xero") return;
+    setError("");
+    setMessage("");
+    const token = await getAuthToken();
+    if (!token) {
+      setError("Sign in again to disconnect Xero.");
+      return;
+    }
+    const response = await fetch("/api/integrations/xero/disconnect", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ connectionId: connectedConnectionId }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setError(result.error || "Unable to disconnect Xero.");
+      return;
+    }
+    setConnectedIntegration(null);
+    setConnectedConnectionId("");
+    setConnectedOrganizationName("");
+    setConnectedLastSync("");
+    setSyncDiagnostics(null);
+    setConnectionStatus("idle");
+    setXeroEntities([]);
+    setMessage("Xero disconnected.");
+  };
+
+  useEffect(() => {
+    if (searchParams?.get("step") !== "connect-accounting" || searchParams?.get("provider") !== "xero" || hasResumedProviderConnect.current) return;
+    hasResumedProviderConnect.current = true;
+    selectIntegration("xero");
+    setStep(connectQuickBooksStep);
+    console.log("[onboarding/accounting-connect] resumed onboarding with Xero selected", {
+      selectedProvider: "xero",
+      step: "connect-accounting",
+      loginRedirectTriggered: false,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const updateManualUpload = (reportId: string, selected: boolean) => {
     const nextUploads = { ...manualUploads, [reportId]: selected };
@@ -474,7 +1462,7 @@ function OnboardingContent() {
     setError("");
     if (step === connectQuickBooksStep && !canContinueFromQuickBooks()) {
       setError(
-        "Connect QuickBooks before continuing, or choose Skip for Now and complete the manual company setup fields.",
+        "Connect an accounting system before continuing, or choose Skip for Now and complete the manual company setup fields.",
       );
       return;
     }
@@ -552,12 +1540,252 @@ function OnboardingContent() {
     popup.document.close();
   };
 
-  const downloadTrialReport = () => {
+  const readActiveReportPayload = (): ActiveReportPayload | null => {
+    return (() => {
+      try {
+        return JSON.parse(window.localStorage.getItem("advisacor_active_report_payload") || "null") as ActiveReportPayload | null;
+      } catch {
+        return null;
+      }
+    })();
+  };
+
+  const reportPayloadCounts = (reportPayload: ActiveReportPayload | null) => {
+    const normalizedData = reportPayload?.reportDataContext?.normalizedData || reportPayload?.normalizedData;
+    return {
+      normalizedAccounts: normalizedData?.normalizedAccounts?.length || 0,
+      normalizedTrialBalance: normalizedData?.normalizedTrialBalance?.length || 0,
+      normalizedBalanceSheet: normalizedData?.normalizedBalanceSheet?.length || 0,
+      normalizedIncomeStatement: normalizedData?.normalizedIncomeStatement?.length || 0,
+    };
+  };
+
+  const reportPayloadSyncId = (reportPayload: ActiveReportPayload | null) => {
+    return reportPayload?.reportDataContext?.syncId || reportPayload?.normalizedData?.syncId || reportPayload?.syncId || "";
+  };
+
+  const reportPayloadSourceSystem = (reportPayload: ActiveReportPayload | null) => {
+    return reportPayload?.reportDataContext?.sourceSystem || reportPayload?.normalizedData?.sourceSystem || reportPayload?.sourceSystem || "";
+  };
+
+  const reportPayloadConnectionId = (reportPayload: ActiveReportPayload | null) => {
+    return reportPayload?.reportDataContext?.connectionId || reportPayload?.normalizedData?.connectionId || reportPayload?.connectionId || "";
+  };
+
+  const reportPayloadTenantId = (reportPayload: ActiveReportPayload | null) => {
+    return reportPayload?.reportDataContext?.tenantId || reportPayload?.normalizedData?.tenantId || reportPayload?.tenantId || null;
+  };
+
+  const reportPayloadTenantName = (reportPayload: ActiveReportPayload | null) => {
+    return reportPayload?.reportDataContext?.tenantName || reportPayload?.normalizedData?.tenantName || reportPayload?.tenantName || "";
+  };
+
+  const isXeroPlaceholderPayload = (reportPayload: ActiveReportPayload | null) => {
+    if (reportPayloadSourceSystem(reportPayload) !== "xero") return false;
+    const counts = reportPayloadCounts(reportPayload);
+    const syncId = reportPayloadSyncId(reportPayload);
+    const connectionId = reportPayloadConnectionId(reportPayload);
+    return (
+      syncId.startsWith("lead-xero-") ||
+      connectionId.startsWith("lead:xero:") ||
+      (counts.normalizedAccounts === 0 &&
+        counts.normalizedTrialBalance === 0 &&
+        counts.normalizedBalanceSheet <= 3 &&
+        counts.normalizedIncomeStatement <= 2)
+    );
+  };
+
+  const buildPayloadFromLatestSync = (result: LatestNormalizedResponse, connectionId: string, sourceSystem: string): ActiveReportPayload => {
+    return {
+      sourceSystem,
+      adapterName: result.normalizedData?.adapterName || result.reportDataContext?.adapterName || null,
+      tenantId: result.tenantId || result.normalizedData?.tenantId || result.reportDataContext?.tenantId || null,
+      tenantName: result.tenantName || result.normalizedData?.tenantName || connectedOrganizationName,
+      lastSyncedAt: result.lastSyncedAt || result.normalizedData?.lastSyncedAt || new Date().toISOString(),
+      connectionId,
+      syncId: result.syncId || result.reportDataContext?.syncId || "",
+      diagnostics: result.diagnostics || null,
+      normalizedData: result.normalizedData || null,
+      reportDataContext: result.reportDataContext || null,
+      preflight: null,
+    };
+  };
+
+  const buildReportDataContextFromSync = (latestSync: LatestNormalizedResponse, sourceSystem: IntegrationProviderId, connectionId = "") => {
+    return buildPayloadFromLatestSync(latestSync, latestSync.connectionId || connectionId, sourceSystem);
+  };
+
+  const promoteSummarySyncToPackageContext = () => {
+    if (!reportSummarySource?.payload || reportSummarySource.sourceSystem !== selectedIntegration) {
+      setPackageLookupDebug((current) => ({
+        ...current,
+        latestSuccessfulSyncFound: false,
+        syncLookupResult: "summary sync unavailable",
+        mismatchReasons: ["source mismatch"],
+      }));
+      return null;
+    }
+    const payload = setPackageContextForProvider(selectedIntegration, reportSummarySource.payload);
+    setPackageLookupDebug({
+      syncIdSearched: reportSummarySource.syncId || null,
+      connectionIdSearched: reportSummarySource.connectionId || null,
+      sourceSystemSearched: reportSummarySource.sourceSystem || null,
+      tenantIdSearched: reportSummarySource.tenantId || null,
+      companyIdSearched: reportPayloadCompanyId(reportSummarySource.payload),
+      reportPeriodSearched: reportPayloadReportPeriod(reportSummarySource.payload),
+      latestSuccessfulSyncFound: Boolean(payload),
+      syncLookupResult: payload ? "using summary sync" : "summary sync unavailable",
+      latestSyncStatus: activeAccountingContext?.latestSyncStatus || payload?.normalizedData?.syncStatus || null,
+      latestSyncId: activeAccountingContext?.latestSyncId || reportSummarySource.syncId || null,
+      packageGeneratorExpectedStatus: activeAccountingContext?.packageGeneratorExpectedStatus || "SUCCESS",
+      packageGeneratorFoundStatus: activeAccountingContext?.packageGeneratorFoundStatus || payload?.normalizedData?.syncStatus || null,
+      mismatchReasons: payload ? [] : ["sync status mismatch"],
+    });
+    return payload;
+  };
+
+  const loadLatestNormalizedReportPayload = async (currentPayload: ActiveReportPayload | null): Promise<ActiveReportPayload | null> => {
+    const sourceSystem = selectedIntegration;
+    const activeContextPayload = await hydrateActiveAccountingContext(sourceSystem, connectedConnectionId || reportPayloadConnectionId(currentPayload));
+    if (!activeContextPayload && reportSummarySource?.payload && reportSummarySource.sourceSystem === sourceSystem) {
+      console.info("Connected Reports Summary Source:", {
+        syncId: reportSummarySource.syncId || null,
+        connectionId: reportSummarySource.connectionId || null,
+        sourceSystem: reportSummarySource.sourceSystem || null,
+        tenantId: reportSummarySource.tenantId || null,
+      });
+      return promoteSummarySyncToPackageContext();
+    }
+    if (!activeContextPayload) return null;
+    const latestSync = activeContextPayload as LatestNormalizedResponse;
+    const nextPayload = buildReportDataContextFromSync(latestSync, sourceSystem, connectedConnectionId);
+    const previousSyncId = reportPayloadSyncId(currentPayload);
+    const latestSyncId = reportPayloadSyncId(nextPayload);
+    console.info("Latest Successful Sync:", {
+      syncId: latestSyncId,
+      counts: reportPayloadCounts(nextPayload),
+    });
+    console.info("Package Context:", {
+      syncId: previousSyncId,
+      counts: reportPayloadCounts(currentPayload),
+    });
+    if (previousSyncId && latestSyncId && previousSyncId !== latestSyncId) {
+      console.warn("Package context is stale.", {
+        selectedProvider: sourceSystem,
+        activeConnectionId: reportPayloadConnectionId(nextPayload),
+        latestSuccessfulSyncId: latestSyncId,
+        packageContextSyncId: previousSyncId,
+      });
+    }
+    window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(nextPayload));
+    setReportContextForProvider(sourceSystem, nextPayload);
+    return nextPayload;
+  };
+
+  const logPackageGenerationInput = (reportPayload: ActiveReportPayload | null) => {
+    const normalizedData = reportPayload?.reportDataContext?.normalizedData || reportPayload?.normalizedData;
+    const summaryLog = {
+      companyId: reportSummarySource?.payload?.reportDataContext?.companyId || reportSummarySource?.payload?.normalizedData?.companyId || null,
+      sourceSystem: reportSummarySource?.sourceSystem || null,
+      connectionId: reportSummarySource?.connectionId || null,
+      tenantId: reportSummarySource?.tenantId || null,
+      syncId: reportSummarySource?.syncId || null,
+      foundReports: reportSummary.found.map((report) => report.id),
+    };
+    const packageLog = {
+      companyId: reportPayload?.reportDataContext?.companyId || normalizedData?.companyId || null,
+      sourceSystem: reportPayloadSourceSystem(reportPayload) || null,
+      connectionId: reportPayloadConnectionId(reportPayload) || null,
+      tenantId: reportPayloadTenantId(reportPayload),
+      syncId: reportPayloadSyncId(reportPayload) || null,
+      syncLookupResult: reportPayload ? "loaded" : "not_found",
+    };
+    console.info("Connected Reports Summary:", summaryLog);
+    console.info("Generate First Package:", packageLog);
+    console.info("Connected Reports Summary vs Generate First Package:", {
+      connectedReportsSummary: summaryLog,
+      generateFirstPackage: packageLog,
+    });
+    console.info("Package Generation Input:", {
+      sourceSystem: reportPayload?.reportDataContext?.sourceSystem || normalizedData?.sourceSystem || reportPayload?.sourceSystem,
+      connectionId: reportPayload?.reportDataContext?.connectionId || normalizedData?.connectionId || reportPayload?.connectionId,
+      tenantName: reportPayload?.reportDataContext?.tenantName || normalizedData?.tenantName || reportPayload?.tenantName,
+      syncId: reportPayload?.reportDataContext?.syncId || normalizedData?.syncId || reportPayload?.syncId,
+      ...reportPayloadCounts(reportPayload),
+    });
+    console.info("Selected Provider:", selectedIntegration);
+    console.info("Active Connection ID:", connectedConnectionId || reportPayloadConnectionId(reportPayload));
+    console.info("Active Tenant ID:", reportPayloadTenantId(reportPayload));
+    console.info("Latest Successful Sync ID:", reportPayloadSyncId(reportPayload));
+    console.info("Package Context Sync ID:", reportPayloadSyncId(reportPayload));
+    console.info("Latest Sync Counts:", reportPayloadCounts(reportPayload));
+    console.info("Package Context Counts:", reportPayloadCounts(reportPayload));
+    console.info("Source System:", reportPayloadSourceSystem(reportPayload));
+    console.info("Report Period:", reportPayload?.reportDataContext?.reportPeriod || reportPayload?.normalizedData?.reportPeriod || null);
+    console.info("Active Report Context:", {
+      sourceSystem: reportPayloadSourceSystem(reportPayload),
+      connectionId: reportPayloadConnectionId(reportPayload),
+      tenantId: reportPayloadTenantId(reportPayload),
+      tenantName: reportPayloadTenantName(reportPayload),
+      syncId: reportPayloadSyncId(reportPayload),
+      reportPeriod: reportPayload?.reportDataContext?.reportPeriod || reportPayload?.normalizedData?.reportPeriod || null,
+      ...reportPayloadCounts(reportPayload),
+    });
+  };
+
+  const refreshActiveReportContext = async () => {
+    setError("");
+    setMessage("");
+    const currentPayload = readActiveReportPayload();
+    const nextPayload = await loadLatestNormalizedReportPayload(currentPayload);
+    logPackageGenerationInput(nextPayload);
+    if (!nextPayload || !reportPayloadSyncId(nextPayload)) {
+      setError("No latest successful sync found for the selected accounting connection.");
+      return;
+    }
+    setMessage("Active report context refreshed from the latest successful sync.");
+  };
+
+  const downloadTrialReport = async () => {
+    const summaryPayload =
+      reportSummarySource?.sourceSystem === selectedIntegration && reportSummarySource.payload
+        ? promoteSummarySyncToPackageContext()
+        : null;
+    const reportPayload = summaryPayload || await loadLatestNormalizedReportPayload(null);
+    if (reportPayload) setPackageContextForProvider(selectedIntegration, reportPayload);
+    logPackageGenerationInput(reportPayload);
+    const activeProvider = selectedIntegration;
+    if (!reportPayload?.normalizedData && !reportPayload?.reportDataContext?.normalizedData) {
+      throw new Error("No successful accounting sync found. Please sync first.");
+    }
+    if (activeProvider === "xero" && isXeroPlaceholderPayload(reportPayload)) {
+      throw new Error("Xero report context is still empty. Please resync Xero or refresh report context before generating.");
+    }
+    if (reportPayloadSourceSystem(reportPayload) !== activeProvider) {
+      throw new Error(`Provider mismatch: active ${activeProvider} but normalized data is ${reportPayloadSourceSystem(reportPayload) || "missing"}`);
+    }
+    if (reportPayload?.reportDataContext) {
+      const reportContext = reportPayload.reportDataContext as ReportDataContext;
+      assertReportPreflight(reportContext, {
+        requiresLiveData: true,
+        schedules: [
+          {
+            name: "Onboarding first review",
+            sourceSystem: reportContext.sourceSystem,
+            connectionId: reportContext.connectionId,
+            syncId: reportContext.syncId,
+            reportPeriod: reportContext.reportPeriod,
+          },
+        ],
+      });
+    }
     downloadFinancialPackagePdf({
       companyName: company.name || "QuickBooks Company",
       industryType: company.industry_type || "Industry Intelligence",
       preparedBy: "Advisacor",
       trial: true,
+      normalizedData: (reportPayload?.normalizedData || undefined) as ReportDataContext["normalizedData"] | undefined,
+      reportDataContext: (reportPayload?.reportDataContext || undefined) as ReportDataContext | undefined,
     });
   };
 
@@ -606,7 +1834,9 @@ function OnboardingContent() {
           industryType: company.industry_type || "Industry Intelligence",
           packageLevel: company.package_level,
           dataSourcePath,
-          quickBooksConnected: connectionStatus === "connected",
+          accountingProvider: connectedIntegration || selectedIntegration,
+          quickBooksConnected: connectionStatus === "connected" && (connectedIntegration || selectedIntegration) === "quickbooks",
+          xeroConnected: connectionStatus === "connected" && (connectedIntegration || selectedIntegration) === "xero",
           generatedAt: new Date().toISOString(),
           onboardingComplete: true,
         };
@@ -615,7 +1845,7 @@ function OnboardingContent() {
         window.localStorage.setItem("advisacor_first_package_status", "generated");
         setFirstPackageSession(leadDashboardSession);
         setFirstPackageReady(true);
-        downloadTrialReport();
+        await downloadTrialReport();
         setMessage("Your first Advisacor financial review is ready. Downloading your PDF package and opening your company dashboard...");
         window.setTimeout(advanceToDashboard, 900);
         return;
@@ -673,11 +1903,11 @@ function OnboardingContent() {
         firstPackage: "ready",
       });
       setFirstPackageReady(true);
-      downloadTrialReport();
+      await downloadTrialReport();
       setMessage("Your first Advisacor financial review is ready. Downloading your PDF package and opening your company dashboard...");
       window.setTimeout(advanceToDashboard, 900);
-    } catch {
-      setError("Unable to generate your first package.");
+    } catch (error) {
+      setError(preflightIssueText(error));
     } finally {
       setIsSaving(false);
     }
@@ -817,7 +2047,7 @@ function OnboardingContent() {
             {step === connectQuickBooksStep && (
               <div className="grid gap-5">
                 <div className="flex items-center gap-2 text-sm font-black text-slate-200">
-                  Connect QuickBooks
+                  Connect Accounting System
                   <HelpTip content={contextualHelp.dataSource} />
                 </div>
                 <div className="grid gap-4 lg:grid-cols-2">
@@ -830,16 +2060,16 @@ function OnboardingContent() {
                       setMessage("");
                       setReportSummary({ found: [], missing: accountingReportCatalog });
                       if (!connectedAccountingSystemOptions.includes(company.data_source)) {
-                        updateCompany("data_source", "QuickBooks Online");
+                        selectIntegration("quickbooks");
                       }
                     }}
                     className={`rounded-3xl border p-5 text-left transition ${
                       dataSourcePath === "connected" ? "border-[#FF7A1A]/70 bg-[#FF7A1A]/15" : "border-white/10 bg-[#0A1020] hover:border-white/25"
                     }`}
                   >
-                    <p className="text-lg font-black text-white">Connect QuickBooks</p>
+                    <p className="text-lg font-black text-white">Connect Accounting</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Connect your accounting system to unlock the full Advisacor intelligence platform.
+                      Connect QuickBooks or Xero to unlock the full Advisacor intelligence platform.
                     </p>
                     <ul className="mt-4 grid gap-2 text-sm text-slate-300">
                       {["Full report", "Full intelligence engine", "Automated updates", "Weekly Executive Briefs", "Monthly Packages", "AI access", "Forecasting", "Budgeting", "Industry intelligence"].map((benefit) => (
@@ -856,7 +2086,7 @@ function OnboardingContent() {
                   >
                     <p className="text-lg font-black text-white">Skip for Now / Upload Reports Instead</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Skip QuickBooks and provide company information manually.
+                      Skip connected accounting and provide company information manually.
                     </p>
                     <p className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">
                       Manual setup fields will appear below.
@@ -867,34 +2097,198 @@ function OnboardingContent() {
                 {dataSourcePath === "connected" ? (
                   <div className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-black text-white">Connect QuickBooks Online</p>
+                      <p className="text-sm font-black text-white">Available Accounting Integrations</p>
                       <HelpTip content={contextualHelp.accountingSystem} />
                     </div>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Advisacor will use QuickBooks data to populate company settings and discover available reports automatically.
+                      Advisacor normalizes connected accounting data before dashboard, Pulse, PDF, PowerPoint, KPI, flux, and scheduled reporting engines use it.
                     </p>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() => void validateAccountingConnection()}
-                        disabled={connectionStatus === "connecting"}
-                        className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {accountingIntegrationOptions.map((integration) => (
+                        <button
+                          key={integration.id}
+                          type="button"
+                          onClick={() => integration.status === "available" && selectIntegration(integration.id)}
+                          disabled={integration.status !== "available"}
+                          className={`rounded-2xl border p-4 text-left transition ${
+                            selectedIntegration === integration.id
+                              ? "border-[#FF7A1A]/70 bg-[#FF7A1A]/15"
+                              : "border-white/10 bg-white/[0.04] hover:border-white/25"
+                          } disabled:cursor-not-allowed disabled:opacity-60`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-black text-white">{integration.label}</p>
+                            {integration.status === "coming_soon" && (
+                              <span className="rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                                Coming Soon
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-2 text-xs leading-5 text-slate-400">{integration.description}</p>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <a
+                        href={getSelectedConnectUrl(selectedIntegration)}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void validateAccountingConnection(selectedIntegration);
+                        }}
+                        aria-disabled={connectionStatus === "connecting" || getSelectedIntegrationOption().status !== "available"}
+                        className={`rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white ${
+                          connectionStatus === "connecting" || getSelectedIntegrationOption().status !== "available"
+                            ? "pointer-events-none cursor-not-allowed opacity-60"
+                            : ""
+                        }`}
                       >
-                        {connectionStatus === "connecting" ? "Connecting..." : connectionStatus === "connected" ? "QuickBooks Connected" : "Connect QuickBooks"}
-                      </button>
+                        {connectionStatus === "connecting"
+                          ? "Connecting..."
+                          : connectionStatus === "connected" && connectedIntegration === selectedIntegration
+                            ? `${getSelectedIntegrationOption().label} Connected`
+                            : `Connect ${getSelectedIntegrationOption().label}`}
+                      </a>
                       <button type="button" onClick={() => setConnectionValidationOpen(true)} disabled={connectionStatus !== "connected"} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 disabled:cursor-not-allowed disabled:opacity-40">
                         View Validation Summary
                       </button>
                     </div>
+                    <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-bold text-slate-300">
+                      selectedProvider: {selectedIntegration} | connectUrl: {getSelectedConnectUrl(selectedIntegration)} | session: {String(hasOnboardingSession)}
+                    </p>
+                    {selectedIntegration === "xero" && (
+                      <a
+                        href="/api/integrations/xero/connect"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void refreshAccountingConnectSessionCookie().then((token) => {
+                            console.log("[onboarding/accounting-connect] TEST DIRECT XERO CONNECT clicked", {
+                              selectedProvider: selectedIntegration,
+                              connectUrl: "/api/integrations/xero/connect",
+                              session: Boolean(token),
+                            });
+                            window.location.href = "/api/integrations/xero/connect";
+                          });
+                        }}
+                        className="mt-3 block rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-100"
+                      >
+                        TEST DIRECT XERO CONNECT
+                      </a>
+                    )}
                     {connectionStatus !== "connected" && (
                       <p className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
-                        Connect QuickBooks to auto-populate company details, or choose Skip for Now to enter them manually.
+                        Connect QuickBooks or Xero to auto-populate company details, or choose Skip for Now to enter them manually.
                       </p>
+                    )}
+                    {connectedIntegration === "xero" && (
+                      <div className="mt-5 rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+                        <p className="text-sm font-black text-emerald-100">Xero Integration Status</p>
+                        <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Status</p>
+                            <p className="mt-1 font-black text-white">{connectionStatus === "connected" ? "Connected" : "Pending organization selection"}</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Organization Name</p>
+                            <p className="mt-1 font-black text-white">{connectedOrganizationName || "Select a Xero organization"}</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Last Sync</p>
+                            <p className="mt-1 font-black text-white">{connectedLastSync ? new Date(connectedLastSync).toLocaleString() : "Not synced yet"}</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Source System</p>
+                            <p className="mt-1 font-black text-white">{syncDiagnostics?.sourceSystem || "xero"}</p>
+                          </div>
+                        </div>
+                        {syncDiagnostics && (
+                          <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                            {[
+                              ["Source System", syncDiagnostics.sourceSystem],
+                              ["Tenant Name", syncDiagnostics.tenantName || connectedOrganizationName || "Xero Organization"],
+                              ["Accounts Count", syncDiagnostics.accountsCount],
+                              ["Trial Balance Count", syncDiagnostics.trialBalanceCount],
+                              ["Balance Sheet Count", syncDiagnostics.balanceSheetCount],
+                              ["Income Statement Count", syncDiagnostics.incomeStatementCount],
+                            ].map(([label, value]) => (
+                              <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
+                                <p className="mt-1 font-black text-white">{value}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {syncDiagnostics && (
+                          <div className="mt-4 rounded-3xl border border-cyan-300/25 bg-cyan-400/10 p-4">
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-100">Temporary Xero Fetch Debug</p>
+                            <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
+                              {[
+                                ["Raw Xero Accounts Count", syncDiagnostics.xeroRawAccountsCount ?? "Not captured"],
+                                ["Mapped Accounts Count", syncDiagnostics.xeroMappedAccountsCount ?? syncDiagnostics.accountsCount],
+                                ["Raw Trial Balance Flattened Rows", syncDiagnostics.xeroRawTrialBalanceFlattenedRowsCount ?? "Not captured"],
+                                ["Mapped Trial Balance Rows", syncDiagnostics.xeroMappedTrialBalanceRowsCount ?? syncDiagnostics.trialBalanceCount],
+                                ["Raw Balance Sheet Flattened Rows", syncDiagnostics.xeroRawBalanceSheetFlattenedRowsCount ?? "Not captured"],
+                                ["Mapped Balance Sheet Rows", syncDiagnostics.xeroMappedBalanceSheetRowsCount ?? syncDiagnostics.balanceSheetCount],
+                                ["Raw P&L Flattened Rows", syncDiagnostics.xeroRawProfitAndLossFlattenedRowsCount ?? "Not captured"],
+                                ["Mapped P&L Rows", syncDiagnostics.xeroMappedIncomeStatementRowsCount ?? syncDiagnostics.incomeStatementCount],
+                              ].map(([label, value]) => (
+                                <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
+                                  <p className="mt-1 font-black text-white">{value}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {xeroEntities.length > 0 && (
+                          <div className="mt-4 grid gap-3">
+                            <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100">Select Xero Organization</p>
+                            <div className="grid gap-2 md:grid-cols-2">
+                              {xeroEntities.map((entity) => (
+                                <button
+                                  key={entity.canonicalId || entity.externalId}
+                                  type="button"
+                                  onClick={() => void selectXeroEntity(entity)}
+                                  className="rounded-2xl border border-emerald-300/25 bg-[#0A1020] px-4 py-3 text-left text-sm font-black text-white transition hover:border-emerald-200"
+                                >
+                                  {entity.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={() => void loadXeroEntities()}
+                            disabled={(!connectedConnectionId && !freeReviewLeadId) || isLoadingXeroEntities}
+                            className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isLoadingXeroEntities ? "Loading Organizations..." : "Load Organizations"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void syncConnectedIntegration()}
+                            disabled={!connectedConnectionId || isSyncingIntegration}
+                            className="rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-[#092014] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isSyncingIntegration ? "Syncing..." : "Sync Now"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void disconnectConnectedIntegration()}
+                            disabled={!connectedConnectionId}
+                            className="rounded-2xl border border-red-300/30 px-5 py-3 text-sm font-black text-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      </div>
                     )}
                     {connectionStatus === "connected" && !manualCompanySetupVisible && (
                       <div className="grid gap-4">
                         <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                          <p className="text-sm font-black text-emerald-100">QuickBooks company profile imported</p>
+                          <p className="text-sm font-black text-emerald-100">{getSelectedIntegrationOption().label} company profile imported</p>
                           <p className="mt-2 text-sm leading-6 text-slate-300">
                             Advisacor found the core company information it needs, so no manual company setup is required.
                           </p>
@@ -921,11 +2315,11 @@ function OnboardingContent() {
                         <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
                           <p className="text-sm font-black text-emerald-100">We found partial company information.</p>
                           <p className="mt-2 text-sm leading-6 text-slate-300">
-                            Advisacor imported what QuickBooks provided. Confirm or complete the missing fields below.
+                            Advisacor imported what your accounting system provided. Confirm or complete the missing fields below.
                           </p>
                           <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
                             {[
-                              ["Company Name", company.name || "QuickBooks Company"],
+                              ["Company Name", company.name || `${getSelectedIntegrationOption().label} Company`],
                               ["Industry", company.industry_type || "Professional Services"],
                               ["Revenue", company.revenue_range || "$1M-$5M"],
                               ["Fiscal Year", company.fiscal_year || "Calendar Year"],
@@ -960,7 +2354,7 @@ function OnboardingContent() {
                   <div className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
                     <p className="text-sm font-black text-white">Manual Company Setup</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      We only ask for these fields because QuickBooks was skipped or you chose to edit imported company details.
+                      We only ask for these fields because connected accounting was skipped or you chose to edit imported company details.
                     </p>
                     <div className="mt-5 grid gap-4 md:grid-cols-2">
                       <Field label="Company name" value={company.name} help={contextualHelp.companyName} onChange={(value) => updateCompany("name", value)} />
@@ -978,9 +2372,9 @@ function OnboardingContent() {
               <div className="grid gap-5">
                 {!needsSupplementalUploads ? (
                   <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                    <p className="text-sm font-black text-emerald-100">Reports discovered from QuickBooks</p>
+                    <p className="text-sm font-black text-emerald-100">Reports discovered from connected accounting</p>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
-                      No manual uploads are required. Advisacor will use the reports discovered during the QuickBooks connection.
+                      No manual uploads are required. Advisacor will use the reports discovered during the accounting connection.
                     </p>
                     <div className="mt-5">
                       <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} />
@@ -991,7 +2385,7 @@ function OnboardingContent() {
                     <p className="text-sm font-black text-white">Upload Financial Reports</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
                       {dataSourcePath === "connected"
-                        ? "QuickBooks did not provide every required financial report. Upload Balance Sheet and Income Statement to complete the first review."
+                        ? "Connected accounting did not provide every required financial report. Upload Balance Sheet and Income Statement to complete the first review."
                         : "Required uploads: Balance Sheet and Income Statement. Optional uploads: AR Aging, AP Aging, Payroll Reports, Fixed Asset Reports, and Budget Reports."}
                     </p>
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -1045,7 +2439,7 @@ function OnboardingContent() {
                       Pulse has identified 3 opportunities and 2 risks in your business.
                     </p>
                     <div className="mt-5 flex flex-wrap gap-3">
-                      <button type="button" onClick={downloadTrialReport} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+                      <button type="button" onClick={() => void downloadTrialReport()} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
                         Download Report
                       </button>
                       <button
@@ -1063,6 +2457,62 @@ function OnboardingContent() {
                     </div>
                   </div>
                 )}
+                <div className="rounded-3xl border border-cyan-300/25 bg-cyan-400/10 p-5 text-xs font-bold text-cyan-50">
+                  <p className="text-sm font-black uppercase tracking-[0.18em] text-cyan-100">Sync Lookup Debug</p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                      <p>ACTIVE PROVIDER: {selectedIntegration || "Not available"}</p>
+                      <p>ACTIVE CONNECTION ID: {activeAccountingContext?.connectionId || connectedConnectionId || packageContextSource?.connectionId || reportSummarySource?.connectionId || "Not available"}</p>
+                      <p>ACTIVE TENANT ID: {activeAccountingContext?.tenantId || packageContextSource?.tenantId || reportSummarySource?.tenantId || "Not available"}</p>
+                      <p>ACTIVE COMPANY ID: {activeAccountingContext?.companyId || reportPayloadCompanyId(packageContextSource?.payload || reportSummarySource?.payload || null) || "Not available"}</p>
+                      <p>Latest Sync Status: {packageLookupDebug.latestSyncStatus || activeAccountingContext?.latestSyncStatus || "Not available"}</p>
+                      <p>Latest Sync ID: {packageLookupDebug.latestSyncId || activeAccountingContext?.latestSyncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                      <p>CONNECTED REPORTS SUMMARY SOURCE</p>
+                      <p>syncId: {reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                      <p>connectionId: {reportSummarySource?.connectionId || activeAccountingContext?.connectionId || "Not available"}</p>
+                      <p>sourceSystem: {reportSummarySource?.sourceSystem || activeAccountingContext?.sourceSystem || "Not available"}</p>
+                      <p>tenantId: {reportSummarySource?.tenantId || activeAccountingContext?.tenantId || "Not available"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                      <p>PACKAGE GENERATOR LOOKUP</p>
+                      <p>syncId searched: {packageLookupDebug.syncIdSearched || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                      <p>connectionId searched: {packageLookupDebug.connectionIdSearched || activeAccountingContext?.connectionId || "Not available"}</p>
+                      <p>sourceSystem searched: {packageLookupDebug.sourceSystemSearched || activeAccountingContext?.sourceSystem || "Not available"}</p>
+                      <p>tenantId searched: {packageLookupDebug.tenantIdSearched || activeAccountingContext?.tenantId || "Not available"}</p>
+                      <p>Package Generator Expected Status: {packageLookupDebug.packageGeneratorExpectedStatus || activeAccountingContext?.packageGeneratorExpectedStatus || "SUCCESS"}</p>
+                      <p>Package Generator Found Status: {packageLookupDebug.packageGeneratorFoundStatus || activeAccountingContext?.packageGeneratorFoundStatus || "Not available"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                      <p>LATEST SUCCESSFUL SYNC FOUND?: {String(packageLookupDebug.latestSuccessfulSyncFound)}</p>
+                      {!packageLookupDebug.latestSuccessfulSyncFound && (
+                        <div className="mt-2">
+                          <p>Reason:</p>
+                          <ul className="mt-1 list-disc pl-5">
+                            {(packageLookupDebug.mismatchReasons.length ? packageLookupDebug.mismatchReasons : ["sync status mismatch"]).map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <p className="mt-2">Summary Sync ID: {reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                      <p>Package Sync ID: {packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                      <p>Match: {String(Boolean((reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) && (packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) && (reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) === (packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId)))}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                      <p>Persisted Sync Record:</p>
+                      <p>syncId: {activeAccountingContext?.persistedSyncRecord?.syncId || "Not available"}</p>
+                      <p>syncStatus: {activeAccountingContext?.persistedSyncRecord?.syncStatus || "Not available"}</p>
+                      <p>companyId: {activeAccountingContext?.persistedSyncRecord?.companyId || "Not available"}</p>
+                      <p>connectionId: {activeAccountingContext?.persistedSyncRecord?.connectionId || "Not available"}</p>
+                      <p>tenantId: {activeAccountingContext?.persistedSyncRecord?.tenantId || "Not available"}</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={promoteSummarySyncToPackageContext} className="mt-4 rounded-2xl border border-cyan-200/40 px-4 py-2 text-xs font-black text-cyan-50">
+                    Use Summary Sync
+                  </button>
+                </div>
                 <div className="rounded-3xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 p-5">
                   <p className="text-sm font-black text-white">Generate First Package</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
@@ -1094,14 +2544,24 @@ function OnboardingContent() {
                     </div>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void generateFirstPackage()}
-                  disabled={isSaving}
-                  className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isSaving ? "Generating First Package..." : "Generate First Package"}
-                </button>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void refreshActiveReportContext()}
+                    disabled={isSaving || !connectedConnectionId}
+                    className="rounded-2xl border border-cyan-300/30 px-5 py-3 text-sm font-black text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Refresh Context
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void generateFirstPackage()}
+                    disabled={isSaving}
+                    className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSaving ? "Generating First Package..." : "Generate First Package"}
+                  </button>
+                </div>
               </div>
             )}
 

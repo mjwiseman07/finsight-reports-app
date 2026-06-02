@@ -1,0 +1,33 @@
+{
+  "companyName": "QuickBooks Certification Company",
+  "accounts": [
+    { "Id": "1000", "Name": "Operating Cash", "AcctNum": "1000", "AccountType": "Bank", "Active": true },
+    { "Id": "4000", "Name": "Service Revenue", "AcctNum": "4000", "AccountType": "Income", "Active": true },
+    { "Id": "5000", "Name": "Cost of Goods Sold", "AcctNum": "5000", "AccountType": "Cost of Goods Sold", "Active": true }
+  ],
+  "trialBalance": [
+    { "accountId": "1000", "accountName": "Operating Cash", "debit": 125000, "credit": 0, "netAmount": 125000 },
+    { "accountId": "4000", "accountName": "Service Revenue", "debit": 0, "credit": 210000, "netAmount": -210000 },
+    { "accountId": "5000", "accountName": "Cost of Goods Sold", "debit": 78000, "credit": 0, "netAmount": 78000 }
+  ],
+  "balanceSheet": [
+    { "label": "Operating Cash", "amount": 125000, "section": "Assets" },
+    { "label": "Accounts Receivable", "amount": 82000, "section": "Assets" },
+    { "label": "Accounts Payable", "amount": 46000, "section": "Liabilities" }
+  ],
+  "profitAndLoss": [
+    { "label": "Service Revenue", "amount": 210000, "section": "Revenue" },
+    { "label": "Cost of Goods Sold", "amount": -78000, "section": "Cost of Sales" },
+    { "label": "Net Income", "amount": 54000, "section": "Net Income" }
+  ],
+  "transactions": [{ "Id": "txn-1", "Name": "Customer payment", "amount": 24000, "type": "ReceivePayment" }],
+  "arAging": [{ "Id": "ar-1", "Name": "Acme Customer", "amount": 18000, "type": "Current" }],
+  "apAging": [{ "Id": "ap-1", "Name": "Supply Vendor", "amount": 9000, "type": "Current" }],
+  "budgets": [{ "Id": "budget-1", "Name": "Revenue Budget", "amount": 225000, "type": "Monthly" }],
+  "departments": [{ "Id": "dept-1", "Name": "Operations", "amount": 0, "type": "Department" }],
+  "locations": [{ "Id": "loc-1", "Name": "Main Office", "amount": 0, "type": "Location" }],
+  "classes": [{ "Id": "class-1", "Name": "Advisory", "amount": 0, "type": "Class" }],
+  "projects": [{ "Id": "project-1", "Name": "Implementation", "amount": 42000, "type": "Project" }],
+  "vendors": [{ "Id": "vendor-1", "Name": "Supply Vendor", "amount": 9000, "type": "Vendor" }],
+  "customers": [{ "Id": "customer-1", "Name": "Acme Customer", "amount": 18000, "type": "Customer" }]
+}

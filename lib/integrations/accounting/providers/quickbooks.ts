@@ -1,4 +1,5 @@
 import { QuickBooksAdapter } from "../../../erp-adapters/quickbooks-adapter";
+import { buildCertificationFixtureReportBundle } from "../normalizers/certification-fixtures";
 import { normalizeAccounts } from "../normalizers/accounts";
 import { emptyReportBundle, normalizeTabularReportRows } from "../normalizers/reports";
 import type {
@@ -77,6 +78,16 @@ export class QuickBooksAccountingProvider implements AccountingProviderAdapter {
   }
 
   async getPrimaryFinancialReports(params: ProviderRequestParams) {
+    const fixture = params.connection.metadata_json?.certification_fixture;
+    if (fixture && typeof fixture === "object") {
+      return buildCertificationFixtureReportBundle({
+        provider: this.provider,
+        entity: await this.selectEntity(params),
+        dateRange: params.dateRange || { startDate: new Date().toISOString().slice(0, 10), endDate: new Date().toISOString().slice(0, 10) },
+        fixture,
+      });
+    }
+
     const userAdapter = this.adapter(params.connection.user_id);
     const dateRange = params.dateRange || { startDate: new Date().toISOString().slice(0, 10), endDate: new Date().toISOString().slice(0, 10) };
     const raw = await userAdapter.fetchReports({ start_date: dateRange.startDate, end_date: dateRange.endDate });

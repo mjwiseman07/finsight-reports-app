@@ -1,0 +1,33 @@
+{
+  "companyName": "Dynamics Certification Company",
+  "accounts": [
+    { "id": "bc-1000", "name": "Cash Account", "number": "1000", "type": "Asset", "active": true },
+    { "id": "bc-4010", "name": "Subscription Revenue", "number": "4010", "type": "Revenue", "active": true },
+    { "id": "bc-6200", "name": "Implementation Expense", "number": "6200", "type": "Expense", "active": true }
+  ],
+  "trialBalance": [
+    { "accountId": "bc-1000", "accountName": "Cash Account", "debit": 224000, "credit": 0, "netAmount": 224000 },
+    { "accountId": "bc-4010", "accountName": "Subscription Revenue", "debit": 0, "credit": 340000, "netAmount": -340000 },
+    { "accountId": "bc-6200", "accountName": "Implementation Expense", "debit": 96000, "credit": 0, "netAmount": 96000 }
+  ],
+  "balanceSheet": [
+    { "label": "Cash Account", "amount": 224000, "section": "Assets" },
+    { "label": "Trade Receivables", "amount": 118000, "section": "Assets" },
+    { "label": "Trade Payables", "amount": 73000, "section": "Liabilities" }
+  ],
+  "incomeStatement": [
+    { "label": "Subscription Revenue", "amount": 340000, "section": "Revenue" },
+    { "label": "Implementation Expense", "amount": -96000, "section": "Operating Expenses" },
+    { "label": "Net Operating Income", "amount": 104000, "section": "Operating Income" }
+  ],
+  "transactions": [{ "id": "bc-txn-1", "name": "Posted sales invoice", "amount": 31000, "type": "SalesInvoice" }],
+  "arAging": [{ "id": "bc-ar-1", "name": "Contoso Customer", "amount": 23000, "type": "Current" }],
+  "apAging": [{ "id": "bc-ap-1", "name": "Azure Vendor", "amount": 15000, "type": "Current" }],
+  "budgets": [{ "id": "bc-budget-1", "name": "Department Budget", "amount": 350000, "type": "Budget" }],
+  "departments": [{ "id": "bc-dept-1", "name": "Software", "type": "Dimension" }],
+  "locations": [{ "id": "bc-loc-1", "name": "Central", "type": "Dimension" }],
+  "classes": [{ "id": "bc-class-1", "name": "SaaS", "type": "Dimension" }],
+  "projects": [{ "id": "bc-project-1", "name": "Migration Project", "amount": 54000, "type": "Project" }],
+  "vendors": [{ "id": "bc-vendor-1", "name": "Azure Vendor", "amount": 15000, "type": "Vendor" }],
+  "customers": [{ "id": "bc-customer-1", "name": "Contoso Customer", "amount": 23000, "type": "Customer" }]
+}

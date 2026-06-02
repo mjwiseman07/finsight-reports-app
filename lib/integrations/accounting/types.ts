@@ -1,4 +1,12 @@
 export type AccountingProvider = "quickbooks" | "xero" | "sage" | "netsuite" | "dynamics365";
+export type AccountingSourceSystem = AccountingProvider | "dynamics";
+export type AccountingMappingAdapterName =
+  | "quickBooksAdapter"
+  | "xeroAdapter"
+  | "netSuiteAdapter"
+  | "dynamicsAdapter"
+  | "sageAdapter";
+export type AccountingSyncStatus = "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
 
 export type AccountingConnectionStatus = "pending" | "connected" | "needs_entity_selection" | "expired" | "disconnected" | "failed";
 
@@ -57,6 +65,9 @@ export interface CanonicalChartOfAccountsItem {
   name: string;
   accountNumber?: string;
   accountType?: string;
+  accountClass?: string;
+  status?: string;
+  currency?: string;
   parentId?: string;
   active: boolean;
   source: CanonicalSourceMetadata;
@@ -92,6 +103,57 @@ export interface CanonicalCashFlowRow {
   source: CanonicalSourceMetadata;
 }
 
+export interface AdvisacorNormalizedEntity {
+  id: string;
+  name: string;
+  type?: string;
+  balance?: number;
+  amount?: number;
+  metadata?: Record<string, unknown>;
+  source: CanonicalSourceMetadata;
+}
+
+export interface AdvisacorNormalizedFinancialData {
+  sourceSystem: AccountingProvider;
+  adapterName: AccountingMappingAdapterName;
+  companyId: string | null;
+  connectionId: string;
+  tenantId: string | null;
+  tenantName: string;
+  syncId: string;
+  reportPeriod: AccountingDateRange;
+  mappedAt: string;
+  rawReportsPulled: {
+    accounts: boolean;
+    trialBalance: boolean;
+    balanceSheet: boolean;
+    incomeStatement: boolean;
+    arAging: boolean;
+    apAging: boolean;
+  };
+  syncStatus: AccountingSyncStatus;
+  lastSyncedAt: string;
+  normalizedAccounts: CanonicalChartOfAccountsItem[];
+  normalizedTransactions: AdvisacorNormalizedEntity[];
+  normalizedTrialBalance: CanonicalTrialBalanceRow[];
+  normalizedBalanceSheet: CanonicalBalanceSheetRow[];
+  normalizedIncomeStatement: CanonicalPnLRow[];
+  normalizedARAging: AdvisacorNormalizedEntity[];
+  normalizedAPAging: AdvisacorNormalizedEntity[];
+  normalizedBudgets: AdvisacorNormalizedEntity[];
+  normalizedDepartments: AdvisacorNormalizedEntity[];
+  normalizedLocations: AdvisacorNormalizedEntity[];
+  normalizedClasses: AdvisacorNormalizedEntity[];
+  normalizedProjects: AdvisacorNormalizedEntity[];
+  normalizedVendors: AdvisacorNormalizedEntity[];
+  normalizedCustomers: AdvisacorNormalizedEntity[];
+  validation: {
+    readyForReporting: boolean;
+    missingObjects: string[];
+    warnings: string[];
+  };
+}
+
 export interface CanonicalReportBundle {
   provider: AccountingProvider;
   entity: ConnectedAccountingEntity | null;
@@ -101,6 +163,16 @@ export interface CanonicalReportBundle {
   profitAndLoss: CanonicalPnLRow[];
   balanceSheet: CanonicalBalanceSheetRow[];
   cashFlow: CanonicalCashFlowRow[];
+  normalizedTransactions?: AdvisacorNormalizedEntity[];
+  normalizedARAging?: AdvisacorNormalizedEntity[];
+  normalizedAPAging?: AdvisacorNormalizedEntity[];
+  normalizedBudgets?: AdvisacorNormalizedEntity[];
+  normalizedDepartments?: AdvisacorNormalizedEntity[];
+  normalizedLocations?: AdvisacorNormalizedEntity[];
+  normalizedClasses?: AdvisacorNormalizedEntity[];
+  normalizedProjects?: AdvisacorNormalizedEntity[];
+  normalizedVendors?: AdvisacorNormalizedEntity[];
+  normalizedCustomers?: AdvisacorNormalizedEntity[];
   missingReports: string[];
   sourceMetadata: CanonicalSourceMetadata;
 }
@@ -110,8 +182,66 @@ export interface AccountingSyncResult {
   provider: AccountingProvider;
   connectionId?: string;
   bundle?: CanonicalReportBundle;
+  normalizedData?: AdvisacorNormalizedFinancialData;
+  reportDataContext?: unknown;
+  syncId?: string;
+  diagnostics?: {
+    sourceSystem: AccountingProvider;
+    tenantName: string;
+    accountsCount: number;
+    trialBalanceCount: number;
+    balanceSheetCount: number;
+    incomeStatementCount: number;
+    xeroRawAccountsCount?: number;
+    xeroMappedAccountsCount?: number;
+    xeroRawTrialBalanceFlattenedRowsCount?: number;
+    xeroMappedTrialBalanceRowsCount?: number;
+    xeroRawBalanceSheetFlattenedRowsCount?: number;
+    xeroMappedBalanceSheetRowsCount?: number;
+    xeroRawProfitAndLossFlattenedRowsCount?: number;
+    xeroMappedIncomeStatementRowsCount?: number;
+  };
+  message?: string;
   missingReports: string[];
   warnings: string[];
+}
+
+export interface ConnectionResult {
+  url?: string;
+  state?: string;
+  provider?: AccountingProvider;
+  connectionId?: string;
+}
+
+export interface ProviderRawReports {
+  sourceSystem: AccountingProvider;
+  adapterName: AccountingMappingAdapterName;
+  bundle: CanonicalReportBundle;
+  rawReportsPulled: AdvisacorNormalizedFinancialData["rawReportsPulled"];
+}
+
+export interface ProviderValidationResult {
+  readyForReporting: boolean;
+  missingObjects: string[];
+  warnings: string[];
+}
+
+export interface AccountingProviderMappingAdapter {
+  sourceSystem: AccountingProvider;
+  adapterName: AccountingMappingAdapterName;
+  connect(): Promise<ConnectionResult>;
+  fetchRawReports(connection: AccountingConnectionRecord, reportPeriod: AccountingDateRange): Promise<ProviderRawReports>;
+  normalize(
+    rawReports: ProviderRawReports,
+    context: {
+      connection: AccountingConnectionRecord;
+      reportPeriod: AccountingDateRange;
+      syncId: string;
+      tenantId: string | null;
+      tenantName: string;
+    },
+  ): Promise<AdvisacorNormalizedFinancialData>;
+  validate(normalizedData: AdvisacorNormalizedFinancialData): ProviderValidationResult;
 }
 
 export interface ProviderCapabilities {

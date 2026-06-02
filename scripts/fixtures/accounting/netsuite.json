@@ -1,0 +1,33 @@
+{
+  "companyName": "NetSuite Certification Subsidiary",
+  "chartOfAccounts": [
+    { "id": "ns-1000", "name": "Main Cash", "number": "1000", "type": "Bank", "active": true },
+    { "id": "ns-4000", "name": "Product Revenue", "number": "4000", "type": "Income", "active": true },
+    { "id": "ns-5100", "name": "Fulfillment Costs", "number": "5100", "type": "Cost of Goods Sold", "active": true }
+  ],
+  "trialBalance": [
+    { "accountId": "ns-1000", "accountName": "Main Cash", "debit": 312000, "credit": 0, "netAmount": 312000 },
+    { "accountId": "ns-4000", "accountName": "Product Revenue", "debit": 0, "credit": 520000, "netAmount": -520000 },
+    { "accountId": "ns-5100", "accountName": "Fulfillment Costs", "debit": 198000, "credit": 0, "netAmount": 198000 }
+  ],
+  "balanceSheet": [
+    { "label": "Main Cash", "amount": 312000, "section": "Assets" },
+    { "label": "Accounts Receivable", "amount": 148000, "section": "Assets" },
+    { "label": "Accounts Payable", "amount": 91000, "section": "Liabilities" }
+  ],
+  "incomeStatement": [
+    { "label": "Product Revenue", "amount": 520000, "section": "Revenue" },
+    { "label": "Fulfillment Costs", "amount": -198000, "section": "Cost of Sales" },
+    { "label": "Operating Income", "amount": 126000, "section": "Operating Income" }
+  ],
+  "transactions": [{ "id": "ns-txn-1", "name": "Customer deposit", "amount": 64000, "type": "CustomerDeposit" }],
+  "arAging": [{ "id": "ns-ar-1", "name": "Enterprise Customer", "amount": 42000, "type": "Current" }],
+  "apAging": [{ "id": "ns-ap-1", "name": "Logistics Vendor", "amount": 26000, "type": "Current" }],
+  "budgets": [{ "id": "ns-budget-1", "name": "Subsidiary Budget", "amount": 560000, "type": "Budget" }],
+  "departments": [{ "id": "ns-dept-1", "name": "Distribution", "type": "Department" }],
+  "locations": [{ "id": "ns-loc-1", "name": "Warehouse East", "type": "Location" }],
+  "classes": [{ "id": "ns-class-1", "name": "Wholesale", "type": "Class" }],
+  "projects": [{ "id": "ns-project-1", "name": "ERP Rollout", "amount": 88000, "type": "Project" }],
+  "vendors": [{ "id": "ns-vendor-1", "name": "Logistics Vendor", "amount": 26000, "type": "Vendor" }],
+  "customers": [{ "id": "ns-customer-1", "name": "Enterprise Customer", "amount": 42000, "type": "Customer" }]
+}

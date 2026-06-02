@@ -1,3 +1,8 @@
+import type { AdvisacorNormalizedFinancialData } from "./integrations/accounting";
+import { buildMappedFinancialSummary } from "./integrations/accounting/normalizers/financial-statements";
+import { assertScheduleSource, type ReportDataContext } from "./integrations/accounting/report-data-context";
+import { assertReportPreflight } from "./reporting/report-preflight-validation";
+
 type FinancialPackagePdfOptions = {
   companyName?: string;
   industryType?: string;
@@ -12,6 +17,8 @@ type FinancialPackagePdfOptions = {
   filteringLogic?: "dollar" | "percentage" | "both";
   aiCommentaryEnabled?: boolean;
   commentaryOptions?: string[];
+  normalizedData?: AdvisacorNormalizedFinancialData;
+  reportDataContext?: ReportDataContext;
 };
 
 type PdfPage = {
@@ -22,6 +29,38 @@ type PdfPage = {
   table?: Array<[string, string]>;
   divider?: boolean;
   statement?: "balanceSheet" | "incomeStatement";
+};
+
+type FinancialStatementDisplayRow = {
+  label: string;
+  value?: string;
+  kind?: string;
+  level?: number;
+};
+
+export type FinancialPackageNormalizedInput = {
+  sourceSystem?: string;
+  connectionId?: string;
+  tenantName?: string;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  revenue: number;
+  expenses: number;
+  netIncome: number;
+  cashBalance: number;
+  balanceSheetRowsCount: number;
+  incomeStatementRowsCount: number;
+  balanceSheetRows: FinancialStatementDisplayRow[];
+  incomeStatementRows: FinancialStatementDisplayRow[];
+  normalizedData?: AdvisacorNormalizedFinancialData;
+  reportDataContext?: ReportDataContext;
+};
+
+type NormalizedFinancialPackagePdfOptions = Required<Omit<FinancialPackagePdfOptions, "normalizedData" | "reportDataContext">> & {
+  normalizedData?: AdvisacorNormalizedFinancialData;
+  reportDataContext?: ReportDataContext;
+  packageInput?: FinancialPackageNormalizedInput;
 };
 
 const balanceSheetTieOut = {
@@ -292,9 +331,78 @@ function tableRows(rows: Array<[string, string]>, startY: number) {
   });
 }
 
-function financialStatementRows(statement: "balanceSheet" | "incomeStatement", startY: number) {
+function sourceSafeTableRows(rows: Array<[string, string]>, options: NormalizedFinancialPackagePdfOptions) {
+  if (!options.reportDataContext || options.reportDataContext.sourceSystem === "quickbooks") return rows;
+  return rows.map(([label, value]) => [label, /[%x]|days|review|monitor|focus|action|priority/i.test(value) ? value : "$0"] as [string, string]);
+}
+
+function formatCurrencyValue(amount: number) {
+  const absoluteAmount = Math.abs(Number(amount) || 0);
+  const formatted = `$${Math.round(absoluteAmount).toLocaleString()}`;
+  return amount < 0 ? `(${formatted})` : formatted;
+}
+
+function sumNormalizedRows(rows: Array<{ label: string; section?: string; amount: number }>, pattern: RegExp) {
+  return rows.filter((row) => pattern.test(`${row.label} ${row.section || ""}`)).reduce((total, row) => total + Number(row.amount || 0), 0);
+}
+
+function normalizedStatementRows(statement: "balanceSheet" | "incomeStatement", normalizedData?: AdvisacorNormalizedFinancialData): FinancialStatementDisplayRow[] | null {
+  const sourceRows = statement === "balanceSheet" ? normalizedData?.normalizedBalanceSheet : normalizedData?.normalizedIncomeStatement;
+  if (!sourceRows?.length) return null;
+  const sectionRows: FinancialStatementDisplayRow[] = [];
+  let currentSection = "";
+  sourceRows.forEach((row) => {
+    const section = String(row.section || "").trim();
+    if (section && section !== currentSection) {
+      sectionRows.push({ label: section.toUpperCase(), kind: "major" });
+      currentSection = section;
+    }
+    sectionRows.push({
+      label: row.label,
+      value: formatCurrencyValue(Number(row.amount || 0)),
+      level: section ? 1 : 0,
+      kind: /total|net income|assets|liabilities|equity|revenue|expenses/i.test(row.label) ? "subtotal" : undefined,
+    });
+  });
+  return sectionRows;
+}
+
+export function buildFinancialPackageInputFromNormalizedData(context: ReportDataContext | { normalizedData?: AdvisacorNormalizedFinancialData; reportDataContext?: ReportDataContext } | null | undefined): FinancialPackageNormalizedInput {
+  const reportDataContext = "reportDataContext" in (context || {}) ? (context as { reportDataContext?: ReportDataContext }).reportDataContext : context as ReportDataContext | undefined;
+  const normalizedData =
+    reportDataContext?.normalizedData ||
+    ("normalizedData" in (context || {}) ? (context as { normalizedData?: AdvisacorNormalizedFinancialData }).normalizedData : undefined);
+  const balanceSheet = normalizedData?.normalizedBalanceSheet || [];
+  const incomeStatement = normalizedData?.normalizedIncomeStatement || [];
+  const mappedSummary = buildMappedFinancialSummary(balanceSheet, incomeStatement);
+  const input = {
+    sourceSystem: normalizedData?.sourceSystem || reportDataContext?.sourceSystem,
+    connectionId: normalizedData?.connectionId || reportDataContext?.connectionId,
+    tenantName: reportDataContext?.tenantName || normalizedData?.tenantName,
+    totalAssets: mappedSummary.totalAssets,
+    totalLiabilities: mappedSummary.totalLiabilities,
+    totalEquity: mappedSummary.totalEquity,
+    revenue: mappedSummary.revenue,
+    expenses: -(mappedSummary.cogs + mappedSummary.expenses + mappedSummary.otherExpenses - mappedSummary.otherIncome),
+    netIncome: mappedSummary.netIncome,
+    cashBalance: sumNormalizedRows(balanceSheet, /cash|bank|checking|savings/i),
+    balanceSheetRowsCount: balanceSheet.length,
+    incomeStatementRowsCount: incomeStatement.length,
+    balanceSheetRows: normalizedStatementRows("balanceSheet", normalizedData) || [],
+    incomeStatementRows: normalizedStatementRows("incomeStatement", normalizedData) || [],
+    normalizedData,
+    reportDataContext,
+  };
+  return input;
+}
+
+function financialStatementRows(statement: "balanceSheet" | "incomeStatement", startY: number, packageInput?: FinancialPackageNormalizedInput) {
+  const normalizedRows = statement === "balanceSheet" ? packageInput?.balanceSheetRows : packageInput?.incomeStatementRows;
   const rows =
-    statement === "balanceSheet"
+    normalizedRows?.length
+      ? normalizedRows
+      :
+    (statement === "balanceSheet"
       ? [
           { label: "ASSETS", kind: "major" },
           { label: "Current Assets", kind: "subheader" },
@@ -363,7 +471,7 @@ function financialStatementRows(statement: "balanceSheet" | "incomeStatement", s
           { label: "Other Income", value: "$0", level: 1 },
           { label: "Other Expense", value: "$0", level: 1 },
           { label: "NET INCOME", value: "$269,900", kind: "total" },
-        ];
+        ]);
 
   return rows.flatMap((row, index) => {
     const y = startY - index * 15;
@@ -389,7 +497,7 @@ function financialStatementRows(statement: "balanceSheet" | "incomeStatement", s
   });
 }
 
-function fixedAssetHorizontalSchedule(startY: number) {
+function fixedAssetHorizontalSchedule(startY: number, sourceSystem?: string) {
   const grossHeaders = [
     ["Category", 58],
     ["Beginning", 240],
@@ -422,6 +530,10 @@ function fixedAssetHorizontalSchedule(startY: number) {
     ["Leasehold Improvements", "($3,000)", "($200)", "$0", "$0", "($3,200)"],
     ["Total Accumulated Depreciation", "($117,000)", "($5,000)", "$8,000", "$0", "($114,000)"],
   ];
+  const useSourceSafeZeros = sourceSystem && sourceSystem !== "quickbooks";
+  const sourceSafeRow = (row: string[]) => (useSourceSafeZeros ? [row[0], ...row.slice(1).map(() => "$0")] : row);
+  const sourceSafeGrossRows = grossRows.map(sourceSafeRow);
+  const sourceSafeDepreciationRows = depreciationRows.map(sourceSafeRow);
   const scheduleRightEdge = 548;
   const drawHeader = (headers: typeof grossHeaders | typeof depreciationHeaders, y: number) =>
     headers.map(([label, x], index) => (index === 0 ? textLine(label, x, y, 6.5, "F2") : rightAlignedTextLine(label, x, y, 6.2, "F2")));
@@ -447,14 +559,14 @@ function fixedAssetHorizontalSchedule(startY: number) {
     "0.83 0.54 0.29 rg 58 " + (startY - 8) + " 150 2 re f",
     "0 0 0 rg",
     ...drawHeader(grossHeaders, startY - 30),
-    ...drawRows(grossRows, startY - 50, [240, 290, 340, 390, 440, 490, scheduleRightEdge]),
+    ...drawRows(sourceSafeGrossRows, startY - 50, [240, 290, 340, 390, 440, 490, scheduleRightEdge]),
     textLine("Accumulated Depreciation by Category", 58, startY - 160, 12, "F2"),
     "0.83 0.54 0.29 rg 58 " + (startY - 168) + " 170 2 re f",
     "0 0 0 rg",
     ...drawHeader(depreciationHeaders, startY - 190),
-    ...drawRows(depreciationRows, startY - 210, [258, 318, 378, 448, scheduleRightEdge]),
+    ...drawRows(sourceSafeDepreciationRows, startY - 210, [258, 318, 378, 448, scheduleRightEdge]),
     textLine("Net Book Value", 58, startY - 312, 10, "F2"),
-    rightAlignedTextLine("$565,000", scheduleRightEdge, startY - 312, 10, "F2"),
+    rightAlignedTextLine(useSourceSafeZeros ? "$0" : "$565,000", scheduleRightEdge, startY - 312, 10, "F2"),
     "430 " + (startY - 315) + " m " + scheduleRightEdge + " " + (startY - 315) + " l S",
     "430 " + (startY - 318) + " m " + scheduleRightEdge + " " + (startY - 318) + " l S",
     textLine("Advisory Focus", 58, startY - 342, 11, "F2"),
@@ -462,7 +574,7 @@ function fixedAssetHorizontalSchedule(startY: number) {
   ];
 }
 
-function buildPageContent(page: PdfPage, options: Required<FinancialPackagePdfOptions>, pageNumber: number, totalPages: number, tocRows: Array<[string, string]>) {
+function buildPageContent(page: PdfPage, options: NormalizedFinancialPackagePdfOptions, pageNumber: number, totalPages: number, tocRows: Array<[string, string]>) {
   const isCover = pageNumber === 1;
   const isDivider = Boolean(page.divider);
   const ops = isCover || isDivider
@@ -524,13 +636,18 @@ function buildPageContent(page: PdfPage, options: Required<FinancialPackagePdfOp
     });
 
     if (page.title === "Fixed Asset Analysis") {
-      ops.push(...fixedAssetHorizontalSchedule(520));
+      if (options.reportDataContext) assertScheduleSource("Fixed Asset Analysis", options.reportDataContext, options.normalizedData);
+      ops.push(...fixedAssetHorizontalSchedule(520, options.reportDataContext?.sourceSystem));
     } else if (page.table) {
       if (page.statement) {
-        ops.push(...financialStatementRows(page.statement, 606));
+        if (options.reportDataContext) {
+          assertScheduleSource(page.title, options.reportDataContext, page.statement === "balanceSheet" ? options.normalizedData?.normalizedBalanceSheet : options.normalizedData?.normalizedIncomeStatement);
+        }
+        ops.push(...financialStatementRows(page.statement, 606, options.packageInput));
       } else {
         ops.push(textLine("Line Item", 58, page.lines?.length ? 516 : 606, 9, "F2"), rightAlignedTextLine("Amount", 508, page.lines?.length ? 516 : 606, 9, "F2"));
-        ops.push(...tableRows(page.table, page.lines?.length ? 492 : 582));
+        if (options.reportDataContext) assertScheduleSource(page.title, options.reportDataContext, options.normalizedData);
+        ops.push(...tableRows(sourceSafeTableRows(page.table, options), page.lines?.length ? 492 : 582));
       }
     }
   }
@@ -544,7 +661,12 @@ function buildPageContent(page: PdfPage, options: Required<FinancialPackagePdfOp
   return ops.join("\n");
 }
 
-function normalizeOptions(options: FinancialPackagePdfOptions = {}): Required<FinancialPackagePdfOptions> {
+function normalizeOptions(options: FinancialPackagePdfOptions = {}): NormalizedFinancialPackagePdfOptions {
+  const normalizedData = options.normalizedData || options.reportDataContext?.normalizedData;
+  const packageInput = buildFinancialPackageInputFromNormalizedData({
+    normalizedData,
+    reportDataContext: options.reportDataContext,
+  });
   return {
     companyName: options.companyName || "QuickBooks Company",
     industryType: options.industryType || "Industry Intelligence",
@@ -558,6 +680,9 @@ function normalizeOptions(options: FinancialPackagePdfOptions = {}): Required<Fi
     percentageThreshold: options.percentageThreshold || "10%",
     filteringLogic: options.filteringLogic || "both",
     aiCommentaryEnabled: options.aiCommentaryEnabled ?? true,
+    normalizedData,
+    reportDataContext: options.reportDataContext,
+    packageInput,
     commentaryOptions: options.commentaryOptions?.length
       ? options.commentaryOptions
       : [
@@ -605,6 +730,30 @@ function buildPdfBlobFromContents(contents: string[]) {
   return new Blob([pdf], { type: "application/pdf" });
 }
 
+function resolveNormalizedPackageData(options: FinancialPackagePdfOptions) {
+  return options.normalizedData || null;
+}
+
+function logPdfPackageInputDiagnostics(options: NormalizedFinancialPackagePdfOptions) {
+  const input = options.packageInput;
+  const mappedSummary = buildMappedFinancialSummary(input?.normalizedData?.normalizedBalanceSheet || [], input?.normalizedData?.normalizedIncomeStatement || []);
+  console.info("PDF Package Input:", {
+    sourceSystem: input?.sourceSystem,
+    connectionId: input?.connectionId,
+    tenantName: input?.tenantName,
+    totalAssets: input?.totalAssets,
+    totalLiabilities: input?.totalLiabilities,
+    totalEquity: input?.totalEquity,
+    revenue: input?.revenue,
+    expenses: input?.expenses,
+    netIncome: input?.netIncome,
+    cashBalance: input?.cashBalance,
+    balanceSheetRowsCount: input?.balanceSheetRowsCount,
+    incomeStatementRowsCount: input?.incomeStatementRowsCount,
+    mappedFinancialSummary: mappedSummary,
+  });
+}
+
 function validateFixedAssetBalanceSheetTieOut() {
   const variances = {
     grossFixedAssets: fixedAssetTieOut.endingGrossAssets - balanceSheetTieOut.grossFixedAssets,
@@ -625,8 +774,24 @@ function validateFixedAssetBalanceSheetTieOut() {
 }
 
 export function buildFinancialPackagePdfBlob(options: FinancialPackagePdfOptions = {}) {
+  void resolveNormalizedPackageData(options);
   validateFixedAssetBalanceSheetTieOut();
   const normalizedOptions = normalizeOptions(options);
+  logPdfPackageInputDiagnostics(normalizedOptions);
+  if (normalizedOptions.reportDataContext) {
+    assertReportPreflight(normalizedOptions.reportDataContext, {
+      requiresLiveData: true,
+      schedules: [
+        {
+          name: "Financial package",
+          sourceSystem: normalizedOptions.reportDataContext.sourceSystem,
+          connectionId: normalizedOptions.reportDataContext.connectionId,
+          syncId: normalizedOptions.reportDataContext.syncId,
+          reportPeriod: normalizedOptions.reportDataContext.reportPeriod,
+        },
+      ],
+    });
+  }
   const pages: PdfPage[] = [
     { title: "Cover Page", category: "CONFIDENTIAL" },
     ...packageSections,
@@ -744,7 +909,7 @@ const fluxRows: Array<{
   },
 ];
 
-function buildFluxPageContent(title: string, options: Required<FinancialPackagePdfOptions>, rows: typeof fluxRows, pageNumber: number, totalPages: number) {
+function buildFluxPageContent(title: string, options: NormalizedFinancialPackagePdfOptions, rows: typeof fluxRows, pageNumber: number, totalPages: number) {
   const ops = [
     "0.04 0.06 0.13 rg 0 0 612 792 re f",
     "1 1 1 rg 32 32 548 728 re f",
@@ -793,7 +958,22 @@ function buildFluxPageContent(title: string, options: Required<FinancialPackageP
 }
 
 export function buildFluxAnalysisPdfBlob(options: FinancialPackagePdfOptions = {}) {
+  void resolveNormalizedPackageData(options);
   const normalizedOptions = normalizeOptions(options);
+  if (normalizedOptions.reportDataContext) {
+    assertReportPreflight(normalizedOptions.reportDataContext, {
+      requiresLiveData: true,
+      schedules: [
+        {
+          name: "Flux analysis",
+          sourceSystem: normalizedOptions.reportDataContext.sourceSystem,
+          connectionId: normalizedOptions.reportDataContext.connectionId,
+          syncId: normalizedOptions.reportDataContext.syncId,
+          reportPeriod: normalizedOptions.reportDataContext.reportPeriod,
+        },
+      ],
+    });
+  }
   const fluxTypeLabel =
     normalizedOptions.fluxType === "quarter-over-quarter"
       ? "Quarter-over-Quarter"

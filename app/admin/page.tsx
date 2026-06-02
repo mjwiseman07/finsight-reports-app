@@ -63,6 +63,14 @@ type SupportTicket = {
   createdAt: string;
 };
 
+type IntegrationValidation = {
+  ok: boolean;
+  checkedAt: string;
+  providers: string[];
+  summary: { total: number; passed: number; failed: number };
+  checks: Array<{ name: string; status: "pass" | "fail"; detail: string }>;
+};
+
 const adminWorkspaceCards = [
   {
     title: "Generate PDF Package",
@@ -114,6 +122,8 @@ export default function AdminPage() {
   const [supportSummary, setSupportSummary] = useState({ bugs: 0, supportIssues: 0, featureRequests: 0 });
   const [supportSearch, setSupportSearch] = useState("");
   const [supportMessage, setSupportMessage] = useState("");
+  const [integrationValidation, setIntegrationValidation] = useState<IntegrationValidation | null>(null);
+  const [isLoadingIntegrationValidation, setIsLoadingIntegrationValidation] = useState(false);
 
   const demoCompanies = useMemo(() => overview.demo_companies || [], [overview.demo_companies]);
   const selectedCompany = demoCompanies.find((company) => company.id === selectedCompanyId) || demoCompanies[0] || null;
@@ -226,6 +236,32 @@ export default function AdminPage() {
       setError("Super admin action failed.");
     } finally {
       setIsRunningAction(false);
+    }
+  };
+
+  const loadIntegrationValidation = async () => {
+    setError("");
+    setMessage("");
+    setIsLoadingIntegrationValidation(true);
+
+    try {
+      const token = window.localStorage.getItem("supabase_access_token") || "";
+      const response = await fetch("/api/admin/integration-validation", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await response.json();
+
+      if (!response.ok && !result?.checks) {
+        setError(result.error || "Unable to validate integrations.");
+        return;
+      }
+
+      setIntegrationValidation(result);
+      setMessage(result.ok ? "Integration validation passed." : "Integration validation found issues.");
+    } catch {
+      setError("Unable to validate integrations.");
+    } finally {
+      setIsLoadingIntegrationValidation(false);
     }
   };
 
@@ -519,6 +555,53 @@ export default function AdminPage() {
                 </button>
               </Panel>
             </section>
+
+            <Panel id="integration-validation" title="Integration Validation">
+              <div className="rounded-3xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 p-5">
+                <p className="text-sm font-black text-white">Unified ERP Data Engine</p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  Validate that QuickBooks, Xero, NetSuite, Sage Intacct, and Microsoft Dynamics flow through the same normalized Advisacor data model before dashboard, AI, PDF, PowerPoint, flux, and reporting outputs run.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadIntegrationValidation()}
+                  disabled={isLoadingIntegrationValidation}
+                  className="mt-4 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isLoadingIntegrationValidation ? "Running Validation..." : "Run Integration Validation"}
+                </button>
+              </div>
+
+              {integrationValidation && (
+                <div className="mt-5 grid gap-4">
+                  <div className={`rounded-3xl border p-5 ${
+                    integrationValidation.ok
+                      ? "border-emerald-300/30 bg-emerald-500/10"
+                      : "border-red-300/30 bg-red-500/10"
+                  }`}
+                  >
+                    <p className={`text-sm font-black ${integrationValidation.ok ? "text-emerald-100" : "text-red-100"}`}>
+                      {integrationValidation.ok ? "All integration checks passed." : "Integration validation requires attention."}
+                    </p>
+                    <p className="mt-2 text-xs font-bold text-slate-400">
+                      {integrationValidation.summary.passed} of {integrationValidation.summary.total} checks passed | Providers: {integrationValidation.providers.join(", ")}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">Checked at {integrationValidation.checkedAt}</p>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {integrationValidation.checks.map((check) => (
+                      <div key={check.name} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                        <p className={`text-sm font-black ${check.status === "pass" ? "text-emerald-200" : "text-red-200"}`}>
+                          {check.status === "pass" ? "PASS" : "FAIL"} | {check.name}
+                        </p>
+                        <p className="mt-2 text-xs leading-5 text-slate-500">{check.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Panel>
 
             <section className="grid gap-6 xl:grid-cols-2">
               {adminWorkspaceCards.map((card) => (

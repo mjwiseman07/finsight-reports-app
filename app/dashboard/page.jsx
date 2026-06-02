@@ -42,6 +42,8 @@ import {
   demoPulseInsightMemory,
 } from "../../lib/pulse-insight-memory";
 import { downloadFinancialPackagePdf, downloadFluxAnalysisPdf } from "../../lib/financial-package-pdf";
+import { assertReportDataContext } from "../../lib/integrations/accounting/report-data-context";
+import { assertReportPreflight, validateReportPreflight } from "../../lib/reporting/report-preflight-validation";
 
 const plans = getCheckoutTiers().map((tier) => ({
   key: tier.key,
@@ -91,6 +93,119 @@ const firstPackageMetrics = [
   ["Top Risk", "AR concentration", "Collections timing could pressure short-term cash."],
   ["Top Opportunity", "Margin expansion", "Pricing and expense discipline can improve operating leverage."],
 ];
+
+function safeReadJsonStorage(key) {
+  if (typeof window === "undefined") return null;
+  try {
+    return JSON.parse(window.localStorage.getItem(key) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function formatDashboardCurrency(amount) {
+  const numericAmount = Number(amount || 0);
+  const absoluteAmount = Math.abs(numericAmount);
+  const formatted =
+    absoluteAmount >= 1000000
+      ? `$${(absoluteAmount / 1000000).toFixed(1)}M`
+      : absoluteAmount >= 1000
+        ? `$${Math.round(absoluteAmount / 1000)}K`
+        : `$${Math.round(absoluteAmount).toLocaleString()}`;
+  return numericAmount < 0 ? `(${formatted})` : formatted;
+}
+
+function sumRows(rows = [], matcher = () => true) {
+  return rows.filter(matcher).reduce((total, row) => total + Number(row.amount || row.netAmount || 0), 0);
+}
+
+function buildActiveReportSummary(reportPayload) {
+  const context = reportPayload?.reportDataContext || reportPayload;
+  const normalizedData = context?.normalizedData;
+  if (!normalizedData?.sourceSystem) return null;
+  const revenue = sumRows(normalizedData.normalizedIncomeStatement, (row) => /revenue|income|sales/i.test(`${row.label} ${row.section}`));
+  const expenses = sumRows(normalizedData.normalizedIncomeStatement, (row) => /expense|cost|cogs|payroll|rent|utilities|materials/i.test(`${row.label} ${row.section}`));
+  const netIncomeRow = normalizedData.normalizedIncomeStatement.find((row) => /net income|net profit/i.test(row.label));
+  const netIncome = netIncomeRow ? Number(netIncomeRow.amount || 0) : revenue - expenses;
+  const assets = sumRows(normalizedData.normalizedBalanceSheet, (row) => /asset/i.test(`${row.label} ${row.section}`));
+  const liabilities = sumRows(normalizedData.normalizedBalanceSheet, (row) => /liabilit/i.test(`${row.label} ${row.section}`));
+  return {
+    sourceSystem: normalizedData.sourceSystem,
+    tenantName: context.tenantName || context.diagnostics?.tenantName || "",
+    lastSyncedAt: normalizedData.lastSyncedAt || context.lastSyncedAt || context.generatedAt,
+    diagnostics: context.diagnostics || {
+      sourceSystem: normalizedData.sourceSystem,
+      tenantName: reportPayload.tenantName || "",
+      accountsCount: normalizedData.normalizedAccounts?.length || 0,
+      trialBalanceCount: normalizedData.normalizedTrialBalance?.length || 0,
+      balanceSheetCount: normalizedData.normalizedBalanceSheet?.length || 0,
+      incomeStatementCount: normalizedData.normalizedIncomeStatement?.length || 0,
+    },
+    revenue,
+    expenses,
+    netIncome,
+    assets,
+    liabilities,
+    cash: sumRows(normalizedData.normalizedBalanceSheet, (row) => /cash|bank|checking|savings/i.test(`${row.label} ${row.section}`)),
+  };
+}
+
+function assertSingleSourcePayload(activeSourceSystem, reportPayload) {
+  if (!activeSourceSystem) return null;
+  const context = reportPayload?.reportDataContext || reportPayload;
+  if (context?.connectionId && context?.sourceSystem && context?.normalizedData) {
+    assertReportDataContext(context);
+  }
+  if (!context?.normalizedData?.sourceSystem) {
+    if (activeSourceSystem === "xero") {
+      throw new Error("Provider mismatch: active xero but normalized data is missing");
+    }
+    return null;
+  }
+  if (activeSourceSystem !== context.normalizedData.sourceSystem) {
+    throw new Error(`Provider mismatch: active ${activeSourceSystem} but normalized data is ${context.normalizedData.sourceSystem}`);
+  }
+  return context;
+}
+
+function assertReportPayloadSources(activeSourceSystem, reportPayload) {
+  if (!activeSourceSystem || !reportPayload) return;
+  const context = reportPayload.reportDataContext || reportPayload;
+  const mismatchedSources = [];
+  const visit = (value) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value.sourceSystem === "string" && value.sourceSystem !== activeSourceSystem) {
+      mismatchedSources.push(value.sourceSystem);
+    }
+    Object.values(value).forEach(visit);
+  };
+  visit(context);
+  if (mismatchedSources.length) {
+    throw new Error(`Provider mismatch: active ${activeSourceSystem} but normalized data is ${mismatchedSources[0]}`);
+  }
+}
+
+function preflightIssueText(error) {
+  const blockers = error?.preflight?.blockers || [];
+  if (!blockers.length) return error?.message || "We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.";
+  return [
+    error.message || "We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.",
+    ...blockers.map((issue) => {
+      const details = [
+        issue.affected ? `affected: ${issue.affected}` : "",
+        issue.expected !== undefined ? `expected: ${issue.expected}` : "",
+        issue.actual !== undefined ? `actual: ${issue.actual}` : "",
+        issue.variance !== undefined ? `variance: ${issue.variance}` : "",
+        issue.recommendedFix ? `fix: ${issue.recommendedFix}` : "",
+      ].filter(Boolean);
+      return `${issue.code}: ${issue.message}${details.length ? ` (${details.join("; ")})` : ""}`;
+    }),
+  ].join("\n");
+}
 
 const pulseInsights = [
   "Pulse identified slowing customer collections.",
@@ -552,6 +667,7 @@ export default function DashboardPage() {
     score: buildPulseMemoryScore(demoPulseInsightMemory),
     source: "fallback",
   });
+  const [activeReportPayload] = useState(() => safeReadJsonStorage("advisacor_active_report_payload"));
 
   const currentPlanKey = access?.subscription_plan || null;
   const currentProductTier = getProductTier(currentPlanKey);
@@ -565,6 +681,42 @@ export default function DashboardPage() {
   const readOnlyCustomerView = dashboardParams.get("readOnly") === "true";
   const onboardingCompanyName = dashboardParams.get("companyName") || accountBusinessName;
   const onboardingIndustryType = dashboardParams.get("industryType") || "Industry Intelligence";
+  const leadDashboardSession = safeReadJsonStorage("advisacor_lead_dashboard_session");
+  const activeReportContext = activeReportPayload?.reportDataContext || activeReportPayload;
+  const activeSourceSystem =
+    activeReportContext?.sourceSystem ||
+    leadDashboardSession?.accountingProvider ||
+    dashboardParams.get("sourceSystem") ||
+    "";
+  const activeReportSummary = buildActiveReportSummary(activeReportPayload);
+  const activeReportPreflight = activeReportContext?.normalizedData
+    ? validateReportPreflight(activeReportContext, { requiresLiveData: true })
+    : null;
+  const enforceReportPreflight = (scheduleName) => {
+    if (!activeReportContext?.normalizedData) return null;
+    return assertReportPreflight(activeReportContext, {
+      requiresLiveData: true,
+      schedules: [
+        {
+          name: scheduleName,
+          sourceSystem: activeReportContext.sourceSystem,
+          connectionId: activeReportContext.connectionId,
+          syncId: activeReportContext.syncId,
+          reportPeriod: activeReportContext.reportPeriod,
+        },
+      ],
+    });
+  };
+  const dashboardMetrics = activeReportSummary
+    ? [
+        ["Business Health Score", activeReportSummary.revenue || activeReportSummary.assets ? "82 / 100" : "0 / 100", "Healthy, with cash and margin items to watch."],
+        ["Cash Position", formatDashboardCurrency(activeReportSummary.cash), "Stable near-term liquidity."],
+        ["Revenue", formatDashboardCurrency(activeReportSummary.revenue), "Revenue is trending above the prior period."],
+        ["Profitability", activeReportSummary.revenue ? `${((activeReportSummary.netIncome / activeReportSummary.revenue) * 100).toFixed(1)}%` : "0.0%", "Margins are positive but labor and overhead need monitoring."],
+        ["Top Risk", activeReportSummary.revenue ? "AR concentration" : "No financial activity", "Collections timing could pressure short-term cash."],
+        ["Top Opportunity", activeReportSummary.revenue ? "Margin expansion" : "Import activity", "Pricing and expense discipline can improve operating leverage."],
+      ]
+    : firstPackageMetrics;
   const selectedPersonaMode = personaOutputModes.find((persona) => persona.id === deliveryPersona) || personaOutputModes[3];
   const selectedOwnerPackageScope = ownerPackageScopeRules.find((rule) => rule.packageKey === ownerPackageLevel) || ownerPackageScopeRules[0];
   const intelligenceRecommendation = buildIntelligenceRecommendation(quickBooksCapabilities, currentPlanKey);
@@ -572,13 +724,15 @@ export default function DashboardPage() {
     companyName: onboardingCompanyName,
     packageName: currentPlanName,
     industryType: onboardingIndustryType,
-    healthScore: "82 / 100",
-    cash: "$428K",
-    revenue: "$1.8M",
-    profitability: "14.6%",
-    currentMonthNetIncome: 269900,
-    currentMonthRevenue: 824000,
-    cashBalance: 428000,
+    sourceSystem: activeSourceSystem,
+    normalizedData: activeReportContext?.normalizedData || null,
+    healthScore: activeReportSummary ? dashboardMetrics[0][1] : "82 / 100",
+    cash: activeReportSummary ? formatDashboardCurrency(activeReportSummary.cash) : "$428K",
+    revenue: activeReportSummary ? formatDashboardCurrency(activeReportSummary.revenue) : "$1.8M",
+    profitability: activeReportSummary ? dashboardMetrics[3][1] : "14.6%",
+    currentMonthNetIncome: activeReportSummary ? activeReportSummary.netIncome : 269900,
+    currentMonthRevenue: activeReportSummary ? activeReportSummary.revenue : 824000,
+    cashBalance: activeReportSummary ? activeReportSummary.cash : 428000,
     currentFte: 57,
     priorFte: 52,
     payrollCostPerFte: 4250,
@@ -987,6 +1141,9 @@ export default function DashboardPage() {
         }
       })();
       if (authToken || leadId) {
+        assertSingleSourcePayload(activeSourceSystem, activeReportPayload);
+        assertReportPayloadSources(activeSourceSystem, activeReportPayload);
+        enforceReportPreflight("Pulse AI generation");
         const response = await fetch("/api/pulse/ask", {
           method: "POST",
           headers: {
@@ -1004,8 +1161,14 @@ export default function DashboardPage() {
                   companyName: onboardingCompanyName,
                   industryType: onboardingIndustryType,
                   packageName: currentPlanName,
+                  sourceSystem: activeSourceSystem,
+                  normalizedData: activeReportContext?.normalizedData || null,
+                  reportDataContext: activeReportContext || null,
                 }
               : null,
+            sourceSystem: activeSourceSystem,
+            normalizedData: activeReportContext?.normalizedData || null,
+            reportDataContext: activeReportContext || null,
           }),
         });
         const result = await response.json().catch(() => ({}));
@@ -1016,8 +1179,8 @@ export default function DashboardPage() {
           answer = `${answer}\n\nPulse API note: ${result.error}`;
         }
       }
-    } catch {
-      answer = `${answer}\n\nPulse API note: using local CFO-mode response because the server context engine is unavailable.`;
+    } catch (error) {
+      answer = `${answer}\n\nPulse API note: ${preflightIssueText(error)}`;
     }
 
     setAiMessages((current) => [
@@ -1041,12 +1204,21 @@ export default function DashboardPage() {
 
   const downloadTrialReport = () => {
     const isTrialReport = access?.reason === "lead_free_review" || access?.subscription_status === "free_review" || access?.reason === "trial";
-    downloadFinancialPackagePdf({
-      companyName: onboardingCompanyName || "QuickBooks Company",
-      industryType: onboardingIndustryType || "Industry Intelligence",
-      preparedBy: "Advisacor",
-      trial: isTrialReport,
-    });
+    try {
+      assertSingleSourcePayload(activeSourceSystem, activeReportPayload);
+      assertReportPayloadSources(activeSourceSystem, activeReportPayload);
+      enforceReportPreflight("PDF package generation");
+      downloadFinancialPackagePdf({
+        companyName: onboardingCompanyName || "QuickBooks Company",
+        industryType: onboardingIndustryType || "Industry Intelligence",
+        preparedBy: "Advisacor",
+        trial: isTrialReport,
+        normalizedData: activeReportContext?.normalizedData,
+        reportDataContext: activeReportContext,
+      });
+    } catch (error) {
+      setError(preflightIssueText(error));
+    }
   };
 
   const getExecutivePackagePeriodLabel = (config = executivePackageConfig) => {
@@ -1125,11 +1297,15 @@ export default function DashboardPage() {
 
       const reportPeriod = getExecutivePackagePeriodLabel({ ...executivePackageConfig, packageType: selectedPackageType });
       const isTrialReport = access?.reason === "lead_free_review" || access?.subscription_status === "free_review" || access?.reason === "trial";
+      assertSingleSourcePayload(activeSourceSystem, activeReportPayload);
+      assertReportPayloadSources(activeSourceSystem, activeReportPayload);
+      enforceReportPreflight(selectedPackageType === "powerpoint" ? "PowerPoint generation" : "PDF package generation");
+      const generatedAt = new Date().toISOString();
       const packageRecord = {
-        id: `executive-package-${Date.now()}`,
+        id: `executive-package-${generatedAt.replace(/[^0-9]/g, "")}`,
         title: selectedPackageType === "powerpoint" ? "Executive PowerPoint Package" : "Executive PDF Package",
         status: "generated",
-        generatedAt: new Date().toISOString(),
+        generatedAt,
         generatedLabel: new Date().toLocaleString(),
         reportPeriod,
       };
@@ -1139,6 +1315,8 @@ export default function DashboardPage() {
           companyName: onboardingCompanyName || "QuickBooks Company",
           reportPeriod,
           sections: executivePackageConfig.powerPointSections,
+          sourceSystem: activeSourceSystem,
+          normalizedData: activeReportContext?.normalizedData,
         });
       } else {
         downloadFinancialPackagePdf({
@@ -1147,11 +1325,15 @@ export default function DashboardPage() {
           preparedBy: "Advisacor",
           reportPeriod,
           trial: isTrialReport,
+          normalizedData: activeReportContext?.normalizedData,
+          reportDataContext: activeReportContext,
         });
       }
 
       setDashboardPackageHistory((current) => [packageRecord, ...current].slice(0, 5));
       setExecutivePackageMessage(`${packageRecord.title} generated for ${reportPeriod}.`);
+    } catch (error) {
+      setExecutivePackageMessage(preflightIssueText(error));
     } finally {
       setExecutivePackageGenerating(false);
     }
@@ -1183,6 +1365,14 @@ export default function DashboardPage() {
   const runFluxAnalysis = (outputFormat = fluxConfig.outputFormat) => {
     const isTrialReport = access?.reason === "lead_free_review" || access?.subscription_status === "free_review" || access?.reason === "trial";
     const selectedType = fluxTypeOptions.find((option) => option.key === fluxConfig.fluxType) || fluxTypeOptions[0];
+    try {
+      assertSingleSourcePayload(activeSourceSystem, activeReportPayload);
+      assertReportPayloadSources(activeSourceSystem, activeReportPayload);
+      enforceReportPreflight(outputFormat === "powerpoint" ? "Flux PowerPoint generation" : outputFormat === "dashboard" ? "Flux dashboard view" : "Flux PDF generation");
+    } catch (error) {
+      setFluxWorkspaceMessage(preflightIssueText(error));
+      return;
+    }
     const fluxOptions = {
       companyName: onboardingCompanyName || "QuickBooks Company",
       industryType: onboardingIndustryType || "Industry Intelligence",
@@ -1197,6 +1387,9 @@ export default function DashboardPage() {
       aiCommentaryEnabled: fluxConfig.aiCommentaryEnabled,
       commentaryOptions: fluxConfig.aiCommentaryEnabled ? fluxConfig.commentaryOptions : [],
       fluxTypeLabel: selectedType.label,
+      normalizedData: activeReportContext?.normalizedData,
+      reportDataContext: activeReportContext,
+      sourceSystem: activeSourceSystem,
     };
 
     if (outputFormat === "powerpoint") {
@@ -1220,11 +1413,13 @@ export default function DashboardPage() {
     setDashboardPackageReady(false);
     try {
       await new Promise((resolve) => setTimeout(resolve, 1200));
+      enforceReportPreflight("Dashboard package generation");
+      const generatedAt = new Date().toISOString();
       const packageRecord = {
-        id: `package-${Date.now()}`,
+        id: `package-${generatedAt.replace(/[^0-9]/g, "")}`,
         title: "Financial Package for Client to Review with AI",
         status: "generated",
-        generatedAt: new Date().toISOString(),
+        generatedAt,
         generatedLabel: new Date().toLocaleString(),
         trial: access?.reason === "lead_free_review" || access?.subscription_status === "free_review",
       };
@@ -1232,6 +1427,8 @@ export default function DashboardPage() {
       window.localStorage.setItem("advisacor_latest_dashboard_package", JSON.stringify(packageRecord));
       setDashboardPackageReady(true);
       downloadTrialReport();
+    } catch (error) {
+      setError(preflightIssueText(error));
     } finally {
       setDashboardPackageGenerating(false);
     }
@@ -1278,6 +1475,46 @@ export default function DashboardPage() {
 
           {!isLoading && access?.allowed === true && (
             <div className="grid gap-8">
+              {activeReportSummary && (
+                <div className="rounded-3xl border border-cyan-300/25 bg-cyan-400/10 p-5">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100">Report Source: {activeReportSummary.sourceSystem}</p>
+                  <div className="mt-3 grid gap-3 text-sm md:grid-cols-3 xl:grid-cols-6">
+                    {[
+                      ["Connection ID", activeReportContext?.connectionId || "Not available"],
+                      ["Adapter", activeReportContext?.adapterName || activeReportContext?.normalizedData?.adapterName || "Not available"],
+                      ["Sync ID", activeReportContext?.syncId || "Not available"],
+                      ["Tenant", activeReportSummary.tenantName || "Not selected"],
+                      ["Period", activeReportContext?.reportPeriod ? `${activeReportContext.reportPeriod.startDate} to ${activeReportContext.reportPeriod.endDate}` : "Not available"],
+                      ["Accounts Pulled", activeReportSummary.diagnostics?.accountsCount || 0],
+                      ["Balance Sheet Rows", activeReportSummary.diagnostics?.balanceSheetCount || 0],
+                      ["Income Statement Rows", activeReportSummary.diagnostics?.incomeStatementCount || 0],
+                      ["Trial Balance Rows", activeReportSummary.diagnostics?.trialBalanceCount || 0],
+                      ["Last Sync", activeReportSummary.lastSyncedAt ? new Date(activeReportSummary.lastSyncedAt).toLocaleString() : "Not synced"],
+                      ["Validation Status", activeReportPreflight?.passed ? "Passed" : activeReportPreflight ? "Blocked" : "Not available"],
+                      ["Blockers", activeReportPreflight?.blockers?.length || 0],
+                      ["Warnings", activeReportPreflight?.warnings?.length || 0],
+                      ["Cash per Balance Sheet", activeReportPreflight ? formatDashboardCurrency(activeReportPreflight.diagnostics.cashPerBalanceSheet) : "Not available"],
+                      ["Cash per Supporting Accounts", activeReportPreflight ? formatDashboardCurrency(activeReportPreflight.diagnostics.cashPerSupportingAccounts) : "Not available"],
+                      ["Cash Variance", activeReportPreflight ? formatDashboardCurrency(activeReportPreflight.diagnostics.cashVariance) : "Not available"],
+                      ["Generated At", activeReportContext?.generatedAt ? new Date(activeReportContext.generatedAt).toLocaleString() : "Not generated"],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100/70">{label}</p>
+                        <p className="mt-1 font-black text-white">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {activeReportPreflight && (activeReportPreflight.blockers.length > 0 || activeReportPreflight.warnings.length > 0) && (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-cyan-50">
+                      {[...activeReportPreflight.blockers, ...activeReportPreflight.warnings].map((issue) => (
+                        <p key={`${issue.severity}-${issue.code}-${issue.affected || "report"}`} className="mt-1">
+                          <span className="font-black">{issue.code}</span>: {issue.message}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {new URLSearchParams(window.location.search).get("superAdmin") === "true" && (
                 <div className="rounded-[2rem] border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 p-6">
                   <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Super Admin Test Journey</p>
@@ -1308,7 +1545,7 @@ export default function DashboardPage() {
                   </div>
 
                   <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {firstPackageMetrics.map(([label, value, detail]) => (
+                    {dashboardMetrics.map(([label, value, detail]) => (
                       <div key={label} className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
                         <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
                         <p className="mt-3 text-3xl font-black text-white">{value}</p>

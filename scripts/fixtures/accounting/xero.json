@@ -1,0 +1,33 @@
+{
+  "companyName": "Xero Certification Organization",
+  "Accounts": [
+    { "AccountID": "x-1000", "Name": "Business Bank", "Code": "1000", "Type": "BANK", "Status": "ACTIVE" },
+    { "AccountID": "x-4000", "Name": "Consulting Revenue", "Code": "4000", "Type": "REVENUE", "Status": "ACTIVE" },
+    { "AccountID": "x-6000", "Name": "Payroll Expense", "Code": "6000", "Type": "EXPENSE", "Status": "ACTIVE" }
+  ],
+  "TrialBalance": [
+    { "accountId": "x-1000", "accountName": "Business Bank", "debit": 98000, "credit": 0, "netAmount": 98000 },
+    { "accountId": "x-4000", "accountName": "Consulting Revenue", "debit": 0, "credit": 180000, "netAmount": -180000 },
+    { "accountId": "x-6000", "accountName": "Payroll Expense", "debit": 72000, "credit": 0, "netAmount": 72000 }
+  ],
+  "BalanceSheet": [
+    { "label": "Business Bank", "amount": 98000, "section": "Assets" },
+    { "label": "Accounts Receivable", "amount": 64000, "section": "Assets" },
+    { "label": "Accounts Payable", "amount": 38000, "section": "Liabilities" }
+  ],
+  "ProfitAndLoss": [
+    { "label": "Consulting Revenue", "amount": 180000, "section": "Revenue" },
+    { "label": "Payroll Expense", "amount": -72000, "section": "Operating Expenses" },
+    { "label": "Net Profit", "amount": 58000, "section": "Net Profit" }
+  ],
+  "Transactions": [{ "id": "x-txn-1", "name": "Bank receipt", "amount": 16000, "type": "BankTransaction" }],
+  "ARAging": [{ "id": "x-ar-1", "name": "Northwind Customer", "amount": 14000, "type": "Current" }],
+  "APAging": [{ "id": "x-ap-1", "name": "Cloud Supplier", "amount": 7000, "type": "Current" }],
+  "Budgets": [{ "id": "x-budget-1", "name": "Operating Budget", "amount": 190000, "type": "Budget" }],
+  "Departments": [{ "id": "x-dept-1", "name": "Client Services", "type": "TrackingCategory" }],
+  "Locations": [{ "id": "x-loc-1", "name": "Remote", "type": "TrackingCategory" }],
+  "Classes": [{ "id": "x-class-1", "name": "Retainer", "type": "TrackingOption" }],
+  "Projects": [{ "id": "x-project-1", "name": "Client Launch", "amount": 36000, "type": "Project" }],
+  "Vendors": [{ "id": "x-vendor-1", "name": "Cloud Supplier", "amount": 7000, "type": "Supplier" }],
+  "Customers": [{ "id": "x-customer-1", "name": "Northwind Customer", "amount": 14000, "type": "Customer" }]
+}
