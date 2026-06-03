@@ -37,6 +37,17 @@ function source(provider) {
   return { provider, providerFamily: provider, providerProduct: provider, sourceReport: "preflight_fixture" };
 }
 
+function scheduleEntity(provider, reportName, name, amount) {
+  return {
+    id: `${provider}:${reportName}:${name}`,
+    name,
+    type: reportName,
+    amount,
+    balance: amount,
+    source: source(provider),
+  };
+}
+
 function adapterName(provider) {
   return provider === "quickbooks" ? "quickBooksAdapter" : provider === "xero" ? "xeroAdapter" : `${provider}Adapter`;
 }
@@ -59,8 +70,8 @@ function validContext(provider = "quickbooks", connectionId = `${provider}-conne
       trialBalance: true,
       balanceSheet: true,
       incomeStatement: true,
-      arAging: false,
-      apAging: false,
+      arAging: true,
+      apAging: true,
     },
     syncStatus: "SUCCESS",
     lastSyncedAt: generatedAt,
@@ -94,8 +105,8 @@ function validContext(provider = "quickbooks", connectionId = `${provider}-conne
       { label: "Expenses", amount: -80, section: "Expenses", source: source(provider) },
       { label: "Net Income", amount: 120, section: "Net Income", source: source(provider) },
     ],
-    normalizedARAging: [],
-    normalizedAPAging: [],
+    normalizedARAging: [scheduleEntity(provider, "AR Aging", "Current", 50)],
+    normalizedAPAging: [scheduleEntity(provider, "AP Aging", "Current", 30)],
     normalizedBudgets: [],
     normalizedDepartments: [],
     normalizedLocations: [],
