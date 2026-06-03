@@ -276,7 +276,7 @@ function buildMetadataSyncRow({
   };
 }
 
-async function buildAndPersistLiveXeroSync({
+async function buildAndPersistLiveAccountingSync({
   connection,
   userId,
   sourceSystem,
@@ -285,13 +285,13 @@ async function buildAndPersistLiveXeroSync({
   userId: string;
   sourceSystem: string;
 }) {
-  if (sourceSystem !== "xero" || connection.provider !== "xero") return null;
+  if (!["quickbooks", "xero"].includes(sourceSystem) || connection.provider !== sourceSystem) return null;
   const reportPeriod = latestCompletedAccountingMonth();
   const syncId = crypto.randomUUID();
   const decryptedConnection = decryptConnectionTokens(connection);
   const tenantId = decryptedConnection.tenant_or_realm_id || decryptedConnection.external_entity_id || null;
-  const tenantName = decryptedConnection.external_entity_name || String(decryptedConnection.metadata_json?.tenant_name || "Xero Organization");
-  const mappingAdapter = getAccountingProviderMappingAdapter("xero");
+  const tenantName = decryptedConnection.external_entity_name || String(decryptedConnection.metadata_json?.tenant_name || decryptedConnection.metadata_json?.company_name || (sourceSystem === "xero" ? "Xero Organization" : "QuickBooks Company"));
+  const mappingAdapter = getAccountingProviderMappingAdapter(sourceSystem);
   const rawReports = await mappingAdapter.fetchRawReports(decryptedConnection, reportPeriod);
   const rawBundleDiagnostics = ((rawReports.bundle.sourceMetadata.raw as Record<string, unknown> | undefined)?.diagnostics as Record<string, unknown> | undefined) || {};
   const normalizedData = await mappingAdapter.normalize(rawReports, {
@@ -311,7 +311,7 @@ async function buildAndPersistLiveXeroSync({
   });
   const diagnostics = buildSyncDiagnostics(decryptedConnection, normalizedData, rawBundleDiagnostics);
   if (!normalizedPayloadHasCoreStatements(normalizedData)) {
-    const error = new Error("Xero sync did not return the required core financial statements. Please wait a moment and refresh context.");
+    const error = new Error(`${sourceSystem === "xero" ? "Xero" : "QuickBooks"} sync did not return the required core financial statements. Please wait a moment and refresh context.`);
     (error as Error & { diagnostics?: Record<string, unknown> }).diagnostics = diagnostics;
     throw error;
   }
@@ -322,7 +322,7 @@ async function buildAndPersistLiveXeroSync({
     reportPeriod,
     normalizedData,
     diagnostics,
-    sourceSystem: "xero",
+    sourceSystem: sourceSystem as AccountingProvider,
     adapterName: mappingAdapter.adapterName,
     tenantId,
     tenantName,
@@ -335,10 +335,10 @@ async function buildAndPersistLiveXeroSync({
       last_sync_id: syncId,
       latest_sync_by_source: {
         ...((decryptedConnection.metadata_json?.latest_sync_by_source as Record<string, unknown>) || {}),
-        xero: {
+        [sourceSystem]: {
           companyId: normalizedData.companyId || String(decryptedConnection.metadata_json?.company_id || decryptedConnection.user_id || ""),
           connectionId: decryptedConnection.id,
-          sourceSystem: "xero",
+          sourceSystem,
           adapterName: mappingAdapter.adapterName,
           syncId,
           tenantId,
@@ -355,7 +355,7 @@ async function buildAndPersistLiveXeroSync({
         },
       },
     },
-    sourceSystem: "xero",
+    sourceSystem,
     connection: decryptedConnection,
   });
 }
@@ -836,11 +836,13 @@ export async function getActiveAccountingContext({
   connectionId,
   sourceSystem,
   userId,
+  forceRefresh = false,
 }: {
   companyId?: string | null;
   connectionId?: string | null;
   sourceSystem?: string | null;
   userId: string;
+  forceRefresh?: boolean;
 }) {
   const supabase = requireSupabase();
   let connectionQuery = supabase
@@ -852,7 +854,18 @@ export async function getActiveAccountingContext({
   if (sourceSystem) connectionQuery = connectionQuery.eq("provider", sourceSystem);
   const { data: connections, error: connectionError } = await connectionQuery.limit(1);
   if (connectionError) throw connectionError;
-  const connection = connections?.[0] as AccountingConnectionRecord | undefined;
+  let connection = connections?.[0] as AccountingConnectionRecord | undefined;
+  if (!connection && connectionId && sourceSystem) {
+    const { data: fallbackConnections, error: fallbackConnectionError } = await supabase
+      .from("accounting_connections")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("provider", sourceSystem)
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    if (fallbackConnectionError) throw fallbackConnectionError;
+    connection = fallbackConnections?.[0] as AccountingConnectionRecord | undefined;
+  }
   if (!connection) return null;
 
   const metadata = connection.metadata_json || {};
@@ -896,17 +909,30 @@ export async function getActiveAccountingContext({
     row = latestError ? metadataSyncRow : await promoteSuccessfulSyncStatus(latestRows?.[0]);
   }
   if (!row && metadataSyncRow) row = metadataSyncRow;
-  if (!row && resolvedSourceSystem === "xero") {
-    console.info("Hydrated Context: no persisted sync found; attempting live Xero sync fallback", {
+  if ((forceRefresh && resolvedSourceSystem === "xero") || (!row && ["quickbooks", "xero"].includes(resolvedSourceSystem))) {
+    console.info("Hydrated Context: no persisted sync found; attempting live accounting sync fallback", {
       connectionId: connection.id,
       tenantId: resolvedTenantId || null,
       sourceSystem: resolvedSourceSystem,
+      forceRefresh,
     });
-    row = await buildAndPersistLiveXeroSync({
-      connection,
-      userId,
-      sourceSystem: resolvedSourceSystem,
-    });
+    try {
+      row = await buildAndPersistLiveAccountingSync({
+        connection,
+        userId,
+        sourceSystem: resolvedSourceSystem,
+      });
+    } catch (error) {
+      if (metadataSyncRow && resolvedSourceSystem === "quickbooks" && /429|rate limit|too many requests/i.test(String((error as Error)?.message || ""))) {
+        console.warn("Hydrated Context: QuickBooks live sync rate-limited; using metadata sync fallback", {
+          connectionId: connection.id,
+          sourceSystem: resolvedSourceSystem,
+        });
+        row = metadataSyncRow;
+      } else {
+        throw error;
+      }
+    }
   }
 
   const normalizedData = row?.normalized_payload as Awaited<ReturnType<typeof buildReportDataContext>>["normalizedData"] | undefined;

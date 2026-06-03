@@ -18,9 +18,12 @@ function emptyEntities(source: CanonicalSourceMetadata): AdvisacorNormalizedEnti
   return [
     {
       id: `${source.provider}:not_available`,
-      name: "Not available from current normalized sync",
+      name: "Not available from connected system",
       type: "not_available",
-      metadata: { source_note: "Connector did not provide this normalized object in the current sync." },
+      metadata: {
+        status: "not_available",
+        reason: "This connected system did not return this optional schedule for the selected period.",
+      },
       source,
     },
   ];
@@ -28,6 +31,10 @@ function emptyEntities(source: CanonicalSourceMetadata): AdvisacorNormalizedEnti
 
 function normalizedEntitiesOrUnavailable(rows: AdvisacorNormalizedEntity[] | undefined, source: CanonicalSourceMetadata) {
   return rows?.length ? rows : emptyEntities(source);
+}
+
+function hasRealEntities(rows: AdvisacorNormalizedEntity[] | undefined) {
+  return Boolean(rows?.some((row) => row.type !== "not_available" && !String(row.id || "").endsWith(":not_available")));
 }
 
 function sourceForBundle(bundle: CanonicalReportBundle): CanonicalSourceMetadata {
@@ -82,7 +89,7 @@ export function buildAdvisacorNormalizedFinancialData({
     xeroNormalizationErrors.length === 0 &&
     !bundle.chartOfAccounts?.length &&
     !bundle.trialBalance?.length &&
-    !bundle.normalizedTransactions?.length &&
+    !hasRealEntities(bundle.normalizedTransactions) &&
     !bundle.balanceSheet?.length &&
     !bundle.profitAndLoss?.length;
   const normalizedData: AdvisacorNormalizedFinancialData = {
@@ -110,6 +117,7 @@ export function buildAdvisacorNormalizedFinancialData({
     normalizedTrialBalance: bundle.trialBalance || [],
     normalizedBalanceSheet: isEmptyXeroFinancialActivity ? buildEmptyXeroBalanceSheetRows(source) : bundle.balanceSheet || [],
     normalizedIncomeStatement: isEmptyXeroFinancialActivity ? buildEmptyXeroIncomeStatementRows(source) : bundle.profitAndLoss || [],
+    normalizedIncomeStatementYtd: bundle.profitAndLossYtd || [],
     normalizedARAging: normalizedEntitiesOrUnavailable(bundle.normalizedARAging, source),
     normalizedAPAging: normalizedEntitiesOrUnavailable(bundle.normalizedAPAging, source),
     normalizedBudgets: normalizedEntitiesOrUnavailable(bundle.normalizedBudgets, source),
@@ -175,7 +183,7 @@ export function validateAdvisacorNormalizedFinancialData(data: AdvisacorNormaliz
   }
 
   return {
-    readyForReporting: missingObjects.length === 0 && mappedSummary.balanceSheetValid && mappedSummary.incomeStatementValid,
+    readyForReporting: missingObjects.length === 0,
     missingObjects,
     warnings,
   };

@@ -16,6 +16,7 @@ export async function POST(request) {
     const companyId = body.companyId || body.company_id || null;
     const connectionId = String(body.connectionId || body.connection_id || "");
     const sourceSystem = String(body.sourceSystem || body.source_system || "");
+    const forceRefresh = Boolean(body.forceRefresh || body.force_refresh);
 
     let userId = leadId;
     if (token) {
@@ -30,6 +31,7 @@ export async function POST(request) {
       connectionId,
       sourceSystem,
       userId,
+      forceRefresh,
     });
     if (!context) return NextResponse.json({ error: "No active accounting context found" }, { status: 404 });
     return NextResponse.json({ ok: true, activeContext: context, ...context });

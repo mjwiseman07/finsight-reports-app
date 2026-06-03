@@ -1,5 +1,6 @@
 import { buildCertificationFixtureReportBundle } from "../normalizers/certification-fixtures";
-import { buildMappedFinancialSummary, normalizeFinancialStatementRows } from "../normalizers/financial-statements";
+import { availabilityFromRows, notAvailableSchedule } from "../../../accounting/supporting-schedules/fetchSupportingSchedules";
+import { buildMappedFinancialSummary, normalizeXeroFinancialStatement } from "../normalizers/financial-statements";
 import { emptyReportBundle } from "../normalizers/reports";
 import type {
   AccountingDateRange,
@@ -54,6 +55,16 @@ type XeroFlattenedReportRow = {
   raw: unknown;
 };
 
+function withXeroHierarchyMetadata(raw: unknown, hierarchyPath: string[], sourceSection: string, depth: number, amount: number) {
+  return {
+    ...(raw as Record<string, unknown>),
+    __advisacorHierarchyPath: hierarchyPath,
+    __advisacorSourceSection: sourceSection,
+    __advisacorHierarchyDepth: depth,
+    __advisacorXeroReportAmount: amount,
+  };
+}
+
 function parseAmount(value: unknown): number {
   if (typeof value === "number") return value;
   const raw = String(value ?? "0").trim();
@@ -81,6 +92,25 @@ function cellValue(cell: unknown) {
   return String(record?.Value ?? record?.value ?? "");
 }
 
+function xeroCellAmountCandidates(cell: unknown) {
+  const record = cell as Record<string, unknown>;
+  const directValues = [record?.Value, record?.value, record?.Amount, record?.amount, record?.Balance, record?.balance, record?.Text, record?.text];
+  const attributeValues = cellAttributes(cell)
+    .map((attribute) => attribute.Value ?? attribute.value);
+  return [...directValues, ...attributeValues]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+}
+
+function xeroCellAmount(cell: unknown) {
+  for (const value of xeroCellAmountCandidates(cell)) {
+    if (!/^-?\(?\$?[\d,]+(\.\d+)?\)?$/.test(value.replace(/\s/g, ""))) continue;
+    const amount = parseAmount(value);
+    if (Number.isFinite(amount)) return amount;
+  }
+  return null;
+}
+
 function cellAttributes(cell: unknown) {
   const record = cell as Record<string, unknown>;
   return Array.isArray(record?.Attributes) ? record.Attributes as Array<Record<string, unknown>> : [];
@@ -96,15 +126,19 @@ function extractAccountCodeFromLabel(label: string) {
 }
 
 function numericCellValue(cells: unknown[]) {
-  const reversed = [...cells].reverse();
-  const match = reversed.find((cell) => Number.isFinite(parseAmount(cellValue(cell))) && cellValue(cell) !== "");
-  return match ? parseAmount(cellValue(match)) : 0;
+  const amountCells = cells.length > 1 ? cells.slice(1) : cells;
+  for (const cell of [...amountCells].reverse()) {
+    const amount = xeroCellAmount(cell);
+    if (amount !== null) return amount;
+  }
+  return 0;
 }
 
 function countXeroReportRows(rows: unknown[] = []): number {
   return rows.reduce<number>((count, row) => {
     const record = row as Record<string, unknown>;
-    return count + 1 + (Array.isArray(record.Rows) ? countXeroReportRows(record.Rows) : 0);
+    const childRows = Array.isArray(record.Rows) ? record.Rows : Array.isArray((record.Rows as Record<string, unknown> | undefined)?.Row) ? (record.Rows as Record<string, unknown>).Row as unknown[] : [];
+    return count + 1 + countXeroReportRows(childRows);
   }, 0);
 }
 
@@ -116,23 +150,29 @@ function reportRows(reportOrRows: unknown): unknown[] {
   return [];
 }
 
-function flattenXeroReportRows(report: unknown = [], section = "", depth = 0): XeroFlattenedReportRow[] {
+function flattenXeroReportRows(report: unknown = [], section = "", depth = 0, inheritedPath: string[] = []): XeroFlattenedReportRow[] {
   const rows = reportRows(report);
   return rows.flatMap((row) => {
     const record = row as Record<string, unknown>;
+    const summary = record.Summary as Record<string, unknown> | undefined;
     const cells = Array.isArray(record.Cells) ? record.Cells : [];
+    const summaryCells = Array.isArray(summary?.Cells) ? summary.Cells as unknown[] : [];
     const rowType = String(record.RowType || record.rowType || "");
     const title = String(record.Title || section || "");
-    const childRows = Array.isArray(record.Rows) ? flattenXeroReportRows(record.Rows, title, depth + 1) : [];
+    const sectionPath = title && inheritedPath[inheritedPath.length - 1] !== title ? [...inheritedPath, title] : inheritedPath;
+    const nestedRows = Array.isArray(record.Rows) ? record.Rows : Array.isArray((record.Rows as Record<string, unknown> | undefined)?.Row) ? (record.Rows as Record<string, unknown>).Row as unknown[] : [];
+    const childRows = nestedRows.length ? flattenXeroReportRows(nestedRows, title, depth + 1, sectionPath) : [];
     const firstCellValue = cellValue(cells[0]);
     const label = firstCellValue || title || rowType;
+    const rowPath = label && sectionPath[sectionPath.length - 1] !== label ? [...sectionPath, label] : sectionPath;
     const accountCode = attributeValue(cells[0], /accountcode|account_code|code/i) || extractAccountCodeFromLabel(label);
     const accountId = attributeValue(cells[0], /accountid|account_id/i) || accountCode;
+    const amount = numericCellValue(cells);
     const currentRow =
       label && cells.length
         ? [{
             label,
-            amount: numericCellValue(cells),
+            amount,
             section: title,
             title,
             cells,
@@ -141,11 +181,49 @@ function flattenXeroReportRows(report: unknown = [], section = "", depth = 0): X
             rowType,
             accountCode,
             accountId,
-            raw: row,
+            raw: withXeroHierarchyMetadata(row, rowPath, title || section, depth, amount),
           }]
         : [];
-    return [...currentRow, ...childRows];
+    const summaryLabel = cellValue(summaryCells[0]) || (title ? `Total ${title}` : "");
+    const summaryAmount = numericCellValue(summaryCells);
+    const summaryPath = summaryLabel && sectionPath[sectionPath.length - 1] !== summaryLabel ? [...sectionPath, summaryLabel] : sectionPath;
+    const summaryRow =
+      summaryLabel && summaryCells.length
+        ? [{
+            label: summaryLabel,
+            amount: summaryAmount,
+            section: title || section,
+            title,
+            cells: summaryCells,
+            numericValues: summaryCells.map((cell) => parseAmount(cellValue(cell))),
+            depth,
+            rowType: "SummaryRow",
+            accountCode: undefined,
+            accountId: undefined,
+            raw: withXeroHierarchyMetadata(summary, summaryPath, title || section, depth, summaryAmount),
+          }]
+        : [];
+    return [...currentRow, ...childRows, ...summaryRow];
   });
+}
+
+function xeroBalanceSheetSectionFromHierarchy(path: unknown, fallback = "") {
+  if (/current liabilities?|long.?term liabilities?|non.?current liabilities?|^equity$|current assets?|fixed assets?|non.?current assets?|property,? plant|plant and equipment|ppe/i.test(fallback)) {
+    return /non.?current assets?|property,? plant|plant and equipment|ppe/i.test(fallback) ? "Fixed Assets" : fallback;
+  }
+  const hierarchyPath = Array.isArray(path) ? path.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  const normalizedPath = [...hierarchyPath].reverse();
+  const match = (patterns: RegExp[]) => normalizedPath.find((part) => patterns.some((pattern) => pattern.test(part)));
+  return (
+    match([/^current liabilities$/i, /^current liability$/i]) ||
+    match([/^long.?term liabilities$/i, /^non.?current liabilities$/i]) ||
+    match([/^liabilities$/i, /^liabilities and equity$/i]) ||
+    match([/^equity$/i]) ||
+    match([/^current assets$/i, /^current asset$/i]) ||
+    match([/^fixed assets$/i, /^non.?current assets$/i, /^property,? plant and equipment$/i, /^plant and equipment$/i, /^ppe$/i]) ||
+    match([/^assets$/i]) ||
+    fallback
+  );
 }
 
 function flattenXeroTrialBalanceRows(rows: unknown[] = []): XeroFlattenedReportRow[] {
@@ -194,21 +272,227 @@ function normalizeXeroStatementRows<T extends CanonicalBalanceSheetRow | Canonic
   rows: XeroFlattenedReportRow[],
   externalEntityId?: string,
 ): T[] {
-  const mappedRows = rows
+  let mappedRows = rows
     .filter((row) => row.label && !/^header$/i.test(row.rowType))
-    .map((row) => ({
-      label: row.label,
-      amount: row.amount,
-      section: row.section,
-      source: source(sourceReport, row.raw, externalEntityId, row.accountId || row.accountCode || row.label),
-    })) as T[];
-  const normalizedRows = normalizeFinancialStatementRows(sourceReport === "BalanceSheet" ? "balanceSheet" : "incomeStatement", mappedRows) as T[];
+    .map((row) => {
+      const raw = row.raw as Record<string, unknown> | undefined;
+      const sourceSection =
+        sourceReport === "BalanceSheet"
+          ? xeroBalanceSheetSectionFromHierarchy(raw?.__advisacorHierarchyPath, row.section)
+          : row.section;
+      const rawWithSourceSection =
+        sourceReport === "BalanceSheet"
+          ? { ...(raw || {}), __advisacorSourceSection: sourceSection }
+          : row.raw;
+      return {
+        label: row.label,
+        amount: row.amount,
+        section: sourceSection,
+        source: source(sourceReport, rawWithSourceSection, externalEntityId, row.accountId || row.accountCode || row.label),
+      };
+    }) as T[];
+  if (sourceReport === "BalanceSheet") {
+    mappedRows = preserveXeroBalanceSheetControlAccountValues(mappedRows as CanonicalBalanceSheetRow[]) as T[];
+  }
+  const normalizedRows = normalizeXeroFinancialStatement(sourceReport, mappedRows) as T[];
   if (sourceReport !== "ProfitAndLoss") return normalizedRows;
   return withXeroIncomeStatementPreflightSubtotal(normalizedRows as CanonicalPnLRow[]) as T[];
 }
 
+function withXeroReportAmount(raw: unknown, amount: number, label?: string) {
+  const record = raw as Record<string, unknown>;
+  const existingPath = Array.isArray(record?.__advisacorHierarchyPath) ? record.__advisacorHierarchyPath as unknown[] : [];
+  const hierarchyPath =
+    label && existingPath.length
+      ? [...existingPath.slice(0, -1), label]
+      : existingPath;
+  return {
+    ...record,
+    ...(hierarchyPath.length ? { __advisacorHierarchyPath: hierarchyPath } : {}),
+    __advisacorXeroReportAmount: amount,
+  };
+}
+
+function xeroControlAmount(rows: CanonicalBalanceSheetRow[], patterns: RegExp[]) {
+  const candidates = rows.filter((row) => patterns.some((pattern) => pattern.test(`${row.label} ${row.section || ""}`)));
+  const nonZero = candidates.find((row) => Math.abs(Number(row.amount || 0)) > 0.005);
+  return nonZero ? Number(nonZero.amount || 0) : 0;
+}
+
+function preserveXeroControlAccountValue(
+  rows: CanonicalBalanceSheetRow[],
+  label: "Accounts Receivable" | "Accounts Payable",
+  patterns: RegExp[],
+  fallbackSection: string,
+) {
+  const amount = xeroControlAmount(rows, patterns);
+  if (Math.abs(amount) <= 0.005) return rows;
+  const exactIndex = rows.findIndex((row) => new RegExp(`^${label}$`, "i").test(row.label));
+  if (exactIndex >= 0) {
+    return rows.map((row, index) =>
+      index === exactIndex && Math.abs(Number(row.amount || 0)) <= 0.005
+        ? {
+            ...row,
+            amount,
+            source: {
+              ...row.source,
+              raw: withXeroReportAmount(row.source.raw, amount, label),
+            },
+          }
+        : row,
+    );
+  }
+  const sourceRow = rows.find((row) => patterns.some((pattern) => pattern.test(`${row.label} ${row.section || ""}`)) && Math.abs(Number(row.amount || 0)) > 0.005);
+  if (!sourceRow) return rows;
+  return [
+    ...rows,
+    {
+      label,
+      amount,
+      section: sourceRow.section || fallbackSection,
+      source: {
+        ...sourceRow.source,
+        raw: withXeroReportAmount(sourceRow.source.raw, amount, label),
+      },
+    },
+  ];
+}
+
+function preserveXeroBalanceSheetControlAccountValues(rows: CanonicalBalanceSheetRow[]) {
+  const withReceivables = preserveXeroControlAccountValue(
+    rows,
+    "Accounts Receivable",
+    [/accounts receivable/i, /\breceivables\b/i],
+    "Current Assets",
+  );
+  return preserveXeroControlAccountValue(
+    withReceivables,
+    "Accounts Payable",
+    [/accounts payable/i, /\bpayables\b/i],
+    "Current Liabilities",
+  );
+}
+
+function xeroEntityTotal(entities: AdvisacorNormalizedEntity[] = []) {
+  return entities.reduce((total, entity) => total + Number(entity.amount ?? entity.balance ?? 0), 0);
+}
+
+function xeroTrialBalanceControlAmount(rows: CanonicalTrialBalanceRow[] = [], patterns: RegExp[]) {
+  const row = rows.find((item) => patterns.some((pattern) => pattern.test(item.accountName)));
+  if (!row) return 0;
+  const netAmount = Number(row.netAmount ?? Number(row.debit || 0) - Number(row.credit || 0));
+  return Math.abs(netAmount);
+}
+
+function xeroControlFallbackSource(
+  label: "Accounts Receivable" | "Accounts Payable",
+  amount: number,
+  externalEntityId?: string,
+) {
+  const hierarchyPath =
+    label === "Accounts Receivable"
+      ? ["Assets", "Current Assets", label]
+      : ["Liabilities and Equity", "Liabilities", "Current Liabilities", label];
+  const raw = withXeroReportAmount(
+    {
+      RowType: "Row",
+      Cells: [{ Value: label }, { Value: String(amount) }],
+      __advisacorHierarchyPath: hierarchyPath,
+      __advisacorSourceSection: hierarchyPath[hierarchyPath.length - 2],
+      __advisacorDerivedFrom: "xero_control_account_fallback",
+    },
+    amount,
+    label,
+  );
+  return source("BalanceSheet", raw, externalEntityId, label);
+}
+
+function upsertXeroBalanceSheetControlAccount(
+  rows: CanonicalBalanceSheetRow[],
+  label: "Accounts Receivable" | "Accounts Payable",
+  amount: number,
+  section: "Current Assets" | "Current Liabilities",
+  externalEntityId?: string,
+) {
+  if (Math.abs(amount) <= 0.005) return rows;
+  const patterns = label === "Accounts Receivable" ? [/accounts receivable/i, /\breceivables\b/i] : [/accounts payable/i, /\bpayables\b/i];
+  const existingNonZero = rows.find((row) => patterns.some((pattern) => pattern.test(`${row.label} ${row.section || ""}`)) && Math.abs(Number(row.amount || 0)) > 0.005);
+  if (existingNonZero) return rows;
+  const exactIndex = rows.findIndex((row) => new RegExp(`^${label}$`, "i").test(row.label));
+  if (exactIndex >= 0) {
+    return rows.map((row, index) =>
+      index === exactIndex
+        ? {
+            ...row,
+            amount,
+            section,
+            source: xeroControlFallbackSource(label, amount, externalEntityId),
+          }
+        : row,
+    );
+  }
+  return [
+    ...rows,
+    {
+      label,
+      amount,
+      section,
+      source: xeroControlFallbackSource(label, amount, externalEntityId),
+    },
+  ];
+}
+
+function backfillXeroBalanceSheetControlAccounts({
+  rows,
+  arAging,
+  apAging,
+  trialBalance,
+  externalEntityId,
+}: {
+  rows: CanonicalBalanceSheetRow[];
+  arAging?: AdvisacorNormalizedEntity[];
+  apAging?: AdvisacorNormalizedEntity[];
+  trialBalance?: CanonicalTrialBalanceRow[];
+  externalEntityId?: string;
+}) {
+  const arAmount = xeroEntityTotal(arAging) || xeroTrialBalanceControlAmount(trialBalance, [/accounts receivable/i, /\breceivables\b/i]);
+  const apAmount = xeroEntityTotal(apAging) || xeroTrialBalanceControlAmount(trialBalance, [/accounts payable/i, /\bpayables\b/i]);
+  const withAr = upsertXeroBalanceSheetControlAccount(rows, "Accounts Receivable", arAmount, "Current Assets", externalEntityId);
+  return upsertXeroBalanceSheetControlAccount(withAr, "Accounts Payable", apAmount, "Current Liabilities", externalEntityId);
+}
+
 function isXeroTotalRow(label: string) {
   return /^total\b/i.test(label) || /gross profit|net (income|profit)/i.test(label);
+}
+
+function xeroBalanceSheetTotals(rows: CanonicalBalanceSheetRow[]) {
+  const amountFor = (patterns: RegExp[]) => rows.find((row) => patterns.some((pattern) => pattern.test(row.label)))?.amount ?? 0;
+  return {
+    totalCurrentAssets: amountFor([/total current assets/i]),
+    totalFixedAssets: amountFor([/total fixed assets/i, /net property and equipment/i]),
+    totalAssets: amountFor([/^total assets$/i]),
+    totalCurrentLiabilities: amountFor([/total current liabilities/i]),
+    totalLiabilities: amountFor([/^total liabilities$/i]),
+    totalEquity: amountFor([/^total equity$/i]),
+    totalLiabilitiesAndEquity: amountFor([/total liabilities (and|&) equity/i]),
+  };
+}
+
+function xeroBalanceSheetTraceRows(rows: Array<XeroFlattenedReportRow | CanonicalBalanceSheetRow>) {
+  const targetRows = /checking account|computer equipment|office equipment|total fixed assets|total current assets|total current liabilities/i;
+  return rows
+    .filter((row) => targetRows.test(String(row.label || "")))
+    .map((row) => {
+      const raw = ("source" in row ? row.source?.raw : row.raw) as Record<string, unknown> | undefined;
+      return {
+        label: row.label,
+        amount: row.amount,
+        section: row.section,
+        rowType: "rowType" in row ? row.rowType : undefined,
+        hierarchyPath: raw?.__advisacorHierarchyPath || null,
+        sourceSection: raw?.__advisacorSourceSection || null,
+      };
+    });
 }
 
 function xeroAmount(value: unknown) {
@@ -331,6 +615,22 @@ function normalizeXeroReportPeriod(dateRange?: AccountingDateRange): AccountingD
   const today = new Date().toISOString().slice(0, 10);
   if (dateRange.startDate > today || dateRange.endDate > today || dateRange.startDate > dateRange.endDate) return fallback;
   return dateRange;
+}
+
+function fiscalYearToDatePeriod(reportPeriod: AccountingDateRange, organization?: Record<string, unknown> | null): AccountingDateRange {
+  const end = new Date(`${reportPeriod.endDate}T00:00:00.000Z`);
+  const fallbackYear = /^\d{4}/.test(reportPeriod.endDate) ? reportPeriod.endDate.slice(0, 4) : new Date().getUTCFullYear().toString();
+  const financialYearEndMonth = Number(organization?.FinancialYearEndMonth || organization?.financialYearEndMonth);
+  const financialYearEndDay = Number(organization?.FinancialYearEndDay || organization?.financialYearEndDay || 31);
+  if (!Number.isFinite(end.getTime()) || !Number.isFinite(financialYearEndMonth) || financialYearEndMonth < 1 || financialYearEndMonth > 12) {
+    return { startDate: `${fallbackYear}-01-01`, endDate: reportPeriod.endDate };
+  }
+  const fiscalYearEnd = new Date(Date.UTC(end.getUTCFullYear(), financialYearEndMonth - 1, financialYearEndDay));
+  if (end > fiscalYearEnd) fiscalYearEnd.setUTCFullYear(fiscalYearEnd.getUTCFullYear() + 1);
+  const fiscalStart = new Date(fiscalYearEnd);
+  fiscalStart.setUTCFullYear(fiscalStart.getUTCFullYear() - 1);
+  fiscalStart.setUTCDate(fiscalStart.getUTCDate() + 1);
+  return { startDate: fiscalStart.toISOString().slice(0, 10), endDate: reportPeriod.endDate };
 }
 
 function logXeroDiagnostics(event: string, diagnostics: Record<string, unknown>) {
@@ -563,12 +863,28 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
     const rawRowCount = countXeroReportRows(payload.Reports?.[0]?.Rows || []);
     const rows = flattenXeroReportRows(payload.Reports?.[0]?.Rows || []);
     const mappedRows = normalizeXeroStatementRows<CanonicalBalanceSheetRow>("BalanceSheet", rows, params.connection.external_entity_id || undefined);
+    const rawTotals = xeroBalanceSheetTotals(mappedRows);
+    logXeroDiagnostics("balance_sheet_classification_trace", {
+      tenantId: params.connection.tenant_or_realm_id || params.connection.external_entity_id,
+      reportPeriod,
+      rows: mappedRows
+        .filter((row) => /cash|bank|checking|liabilit|asset|payable|receivable/i.test(`${row.label} ${row.section}`))
+        .map((row) => ({
+          label: row.label,
+          amount: row.amount,
+          section: row.section,
+          sourceSection: (row.source.raw as Record<string, unknown> | undefined)?.__advisacorSourceSection || null,
+          hierarchyPath: (row.source.raw as Record<string, unknown> | undefined)?.__advisacorHierarchyPath || null,
+        })),
+    });
     logXeroDiagnostics("balance_sheet_pulled", {
       tenantId: params.connection.tenant_or_realm_id || params.connection.external_entity_id,
       reportPeriod,
       xeroRawBalanceSheetRowsCount: rawRowCount,
       xeroRawBalanceSheetFlattenedRowsCount: rows.length,
       xeroMappedBalanceSheetRowsCount: mappedRows.length,
+      rawXeroBalanceSheetTotals: rawTotals,
+      normalizedXeroBalanceSheetTotals: rawTotals,
     });
     assertMappedWhenRawExists(rawRowCount, mappedRows.length, "Balance Sheet");
     return mappedRows;
@@ -615,6 +931,14 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
     const payload = await this.xeroGet(params.connection, `Reports/BudgetSummary?fromDate=${reportPeriod.startDate}&toDate=${reportPeriod.endDate}`);
     return flattenXeroReportRows(payload.Reports?.[0]?.Rows || []).map((row, index) =>
       normalizedEntity("BudgetSummary", row, params.connection.external_entity_id || undefined, `budget:${index}`),
+    );
+  }
+
+  async getBankSummary(params: ProviderRequestParams) {
+    const reportPeriod = normalizeXeroReportPeriod(params.dateRange);
+    const payload = await this.xeroGet(params.connection, `Reports/BankSummary?fromDate=${reportPeriod.startDate}&toDate=${reportPeriod.endDate}`);
+    return flattenXeroReportRows(payload.Reports?.[0]?.Rows || []).map((row, index) =>
+      normalizedEntity("BankSummary", row, params.connection.external_entity_id || undefined, `bank-summary:${index}`),
     );
   }
 
@@ -710,13 +1034,18 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
       }
     };
     const accountsPayload = await fetchCoreReport("Accounts", "Accounts");
+    const organizationPayload = await fetchCoreReport("Organisation", "Organisation");
     const trialBalancePayload = await fetchCoreReport("Trial Balance", `Reports/TrialBalance?date=${reportPeriod.endDate}`);
     const profitAndLossPayload = await fetchCoreReport("Profit and Loss", `Reports/ProfitAndLoss?fromDate=${reportPeriod.startDate}&toDate=${reportPeriod.endDate}`);
+    const organization = Array.isArray(organizationPayload?.Organisations) ? organizationPayload.Organisations[0] : null;
+    const ytdReportPeriod = fiscalYearToDatePeriod(reportPeriod, organization);
+    const profitAndLossYtdPayload = await fetchCoreReport("Profit and Loss YTD", `Reports/ProfitAndLoss?fromDate=${ytdReportPeriod.startDate}&toDate=${ytdReportPeriod.endDate}`);
     const balanceSheetPayload = await fetchCoreReport("Balance Sheet", `Reports/BalanceSheet?date=${reportPeriod.endDate}`);
-    const [arAging, apAging, budgets, trackingDimensions, contacts, transactions] = await Promise.all([
+    const [arAging, apAging, budgets, bankSummary, trackingDimensions, contacts, transactions] = await Promise.all([
       this.getAgingReport({ ...params, dateRange: reportPeriod }, "AgedReceivablesByContact").catch(() => []),
       this.getAgingReport({ ...params, dateRange: reportPeriod }, "AgedPayablesByContact").catch(() => []),
       this.getBudgetSummary({ ...params, dateRange: reportPeriod }).catch(() => []),
+      this.getBankSummary({ ...params, dateRange: reportPeriod }).catch(() => []),
       this.getTrackingDimensions({ ...params, dateRange: reportPeriod }).catch(() => ({ departments: [], locations: [], classes: [], projects: [] })),
       this.getContacts({ ...params, dateRange: reportPeriod }).catch(() => ({ vendors: [], customers: [] })),
       this.getTransactions({ ...params, dateRange: reportPeriod }).catch(() => []),
@@ -731,6 +1060,7 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
     let chartOfAccounts: CanonicalChartOfAccountsItem[] = [];
     let trialBalance: CanonicalTrialBalanceRow[] = [];
     let profitAndLoss: CanonicalPnLRow[] = [];
+    let profitAndLossYtd: CanonicalPnLRow[] = [];
     let balanceSheet: CanonicalBalanceSheetRow[] = [];
     try {
       chartOfAccounts = normalizeXeroAccounts(rawAccounts, params.connection.external_entity_id || undefined);
@@ -757,8 +1087,29 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
       logXeroNormalizationError("Profit and Loss", error, { phase: "normalize", rawCount: countXeroReportRows(rawProfitAndLossRows) });
     }
     try {
+      const rawProfitAndLossYtdRows = profitAndLossYtdPayload?.Reports?.[0]?.Rows || [];
+      profitAndLossYtd = normalizeXeroStatementRows<CanonicalPnLRow>("ProfitAndLoss", flattenXeroReportRows(rawProfitAndLossYtdRows), params.connection.external_entity_id || undefined);
+    } catch (error) {
+      const diagnostics = xeroErrorDiagnostics(error);
+      normalizationErrors.push({ report: "Profit and Loss YTD", phase: "normalize", ...diagnostics });
+      logXeroNormalizationError("Profit and Loss YTD", error, { phase: "normalize" });
+    }
+    try {
       flattenedBalanceSheetRows = flattenXeroReportRows(rawBalanceSheetRows);
       balanceSheet = normalizeXeroStatementRows<CanonicalBalanceSheetRow>("BalanceSheet", flattenedBalanceSheetRows, params.connection.external_entity_id || undefined);
+      const balanceSheetTotals = xeroBalanceSheetTotals(balanceSheet);
+      logXeroDiagnostics("balance_sheet_live_row_trace", {
+        tenantId: entity.tenantOrRealmId,
+        reportPeriod,
+        flattenedRows: xeroBalanceSheetTraceRows(flattenedBalanceSheetRows),
+        normalizedRows: xeroBalanceSheetTraceRows(balanceSheet),
+      });
+      logXeroDiagnostics("balance_sheet_normalized_totals", {
+        tenantId: entity.tenantOrRealmId,
+        reportPeriod,
+        rawXeroBalanceSheetTotals: balanceSheetTotals,
+        normalizedXeroBalanceSheetTotals: balanceSheetTotals,
+      });
     } catch (error) {
       const diagnostics = xeroErrorDiagnostics(error);
       normalizationErrors.push({ report: "Balance Sheet", phase: "normalize", ...diagnostics });
@@ -768,6 +1119,13 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
         firstRows: rawBalanceSheetRows.slice(0, 3),
       });
     }
+    balanceSheet = backfillXeroBalanceSheetControlAccounts({
+      rows: balanceSheet,
+      arAging,
+      apAging,
+      trialBalance,
+      externalEntityId: params.connection.external_entity_id || undefined,
+    });
     const reportMappingDiagnostics = {
       accounts: {
         rawCount: rawAccounts.length,
@@ -791,6 +1149,19 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
       },
     };
     const mappedFinancialSummary = buildMappedFinancialSummary(balanceSheet, profitAndLoss);
+    const reportAvailability = [
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Balance Sheet", attemptedEndpoint: "Reports/BalanceSheet", rows: balanceSheet, required: true, normalizedKey: "normalizedBalanceSheet" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Profit and Loss", attemptedEndpoint: "Reports/ProfitAndLoss", rows: profitAndLoss, required: true, normalizedKey: "normalizedIncomeStatement" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Trial Balance", attemptedEndpoint: "Reports/TrialBalance", rows: trialBalance, normalizedKey: "normalizedTrialBalance" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Aged Receivables", attemptedEndpoint: "Reports/AgedReceivablesByContact", rows: arAging, normalizedKey: "normalizedARAging" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Aged Payables", attemptedEndpoint: "Reports/AgedPayablesByContact", rows: apAging, normalizedKey: "normalizedAPAging" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Budget Summary", attemptedEndpoint: "Reports/BudgetSummary", rows: budgets, normalizedKey: "normalizedBudgets" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Bank Summary", attemptedEndpoint: "Reports/BankSummary", rows: bankSummary, normalizedKey: "normalizedTransactions" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Departments", attemptedEndpoint: "TrackingCategories", rows: trackingDimensions.departments, normalizedKey: "normalizedDepartments" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Classes", attemptedEndpoint: "TrackingCategories", rows: trackingDimensions.classes, normalizedKey: "normalizedClasses" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Locations", attemptedEndpoint: "TrackingCategories", rows: trackingDimensions.locations, normalizedKey: "normalizedLocations" }),
+      availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: reportPeriod, reportName: "Projects", attemptedEndpoint: "TrackingCategories", rows: trackingDimensions.projects, normalizedKey: "normalizedProjects" }),
+    ];
     const xeroFetchDiagnostics = {
       xeroRawAccountsCount: rawAccounts.length,
       xeroMappedAccountsCount: chartOfAccounts.length,
@@ -806,6 +1177,7 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
       xeroNormalizationErrors: normalizationErrors,
       xeroReportMappingDiagnostics: reportMappingDiagnostics,
       mappedFinancialSummary,
+      reportAvailability,
     };
     logXeroDiagnostics("accounts_pulled", {
       tenantId: entity.tenantOrRealmId,
@@ -837,11 +1209,12 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
     bundle.chartOfAccounts = chartOfAccounts;
     bundle.trialBalance = trialBalance;
     bundle.profitAndLoss = profitAndLoss;
+    bundle.profitAndLossYtd = profitAndLossYtd;
     bundle.balanceSheet = balanceSheet;
-    bundle.normalizedTransactions = transactions;
-    bundle.normalizedARAging = arAging;
-    bundle.normalizedAPAging = apAging;
-    bundle.normalizedBudgets = budgets;
+    bundle.normalizedTransactions = bankSummary.length ? bankSummary : transactions.length ? transactions : notAvailableSchedule(this.provider, "Bank Summary");
+    bundle.normalizedARAging = arAging.length ? arAging : notAvailableSchedule(this.provider, "Aged Receivables");
+    bundle.normalizedAPAging = apAging.length ? apAging : notAvailableSchedule(this.provider, "Aged Payables");
+    bundle.normalizedBudgets = budgets.length ? budgets : notAvailableSchedule(this.provider, "Budget Summary");
     bundle.normalizedDepartments = trackingDimensions.departments;
     bundle.normalizedLocations = trackingDimensions.locations;
     bundle.normalizedClasses = trackingDimensions.classes;

@@ -9,7 +9,7 @@ import type {
   CanonicalTrialBalanceRow,
   ConnectedAccountingEntity,
 } from "../types";
-import { normalizeStructuredReportRows } from "./financial-statements";
+import { normalizeQuickBooksFinancialStatement, normalizeStructuredReportRows } from "./financial-statements";
 
 function parseAmount(value: unknown): number {
   if (typeof value === "number") return value;
@@ -35,6 +35,9 @@ export function normalizeTabularReportRows<T extends CanonicalPnLRow | Canonical
   rows: unknown[] = [],
   externalEntityId?: string,
 ): T[] {
+  if (provider === "quickbooks") {
+    return normalizeQuickBooksFinancialStatement<T>(sourceReport, rows, externalEntityId);
+  }
   return normalizeStructuredReportRows<T>(provider, sourceReport, rows, externalEntityId);
 }
 

@@ -2,6 +2,75 @@ import { NextResponse } from "next/server";
 import { getERPAdapter } from "../../../../lib/erp-adapters";
 import { supabaseAdmin } from "../../../../lib/supabase";
 
+function getQuickBooksTokenExpiry(token) {
+  const expiresInSeconds = Number(token?.expires_in || 3600);
+  return new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+}
+
+async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, companyProfile }) {
+  const companyName = companyProfile.legal_name || companyProfile.company_name || "QuickBooks Company";
+  const now = new Date().toISOString();
+  const payload = {
+    user_id: leadId,
+    provider: "quickbooks",
+    provider_family: "intuit",
+    provider_product: "quickbooks_online",
+    external_entity_id: `qbo:${realmId}`,
+    external_entity_name: companyName,
+    access_token: token.access_token,
+    refresh_token: token.refresh_token,
+    token_expires_at: getQuickBooksTokenExpiry(token),
+    tenant_or_realm_id: realmId,
+    scopes: ["com.intuit.quickbooks.accounting"],
+    status: "connected",
+    metadata_json: {
+      lead_id: leadId,
+      realm_id: realmId,
+      company_name: companyName,
+      tenant_name: companyName,
+      source_system: "quickbooks",
+      active_provider: "quickbooks",
+      connected_at: now,
+      oauth_mode: "lead",
+    },
+    updated_at: now,
+  };
+
+  const { data: existing, error: lookupError } = await supabaseAdmin
+    .from("accounting_connections")
+    .select("id, metadata_json")
+    .eq("user_id", leadId)
+    .eq("provider", "quickbooks")
+    .eq("external_entity_id", `qbo:${realmId}`)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+
+  const result = existing?.id
+    ? await supabaseAdmin
+        .from("accounting_connections")
+        .update({
+          ...payload,
+          metadata_json: {
+            ...(existing.metadata_json || {}),
+            ...payload.metadata_json,
+          },
+        })
+        .eq("id", existing.id)
+        .select("id, user_id, provider, tenant_or_realm_id, external_entity_name, status")
+        .single()
+    : await supabaseAdmin
+        .from("accounting_connections")
+        .insert({
+          ...payload,
+          created_at: now,
+        })
+        .select("id, user_id, provider, tenant_or_realm_id, external_entity_name, status")
+        .single();
+
+  if (result.error) throw result.error;
+  return result.data;
+}
+
 export async function GET(request) {
   const url = new URL(request.url);
   const authCode = url.searchParams.get("code") || "";
@@ -95,6 +164,12 @@ export async function GET(request) {
 
     if (oauthMode === "lead") {
       const companyProfile = await adapter.getCompanyProfile(token.access_token, realmId).catch(() => ({}));
+      const savedAccountingConnection = await saveLeadQuickBooksAccountingConnection({
+        leadId,
+        realmId,
+        token,
+        companyProfile,
+      });
       const { error: leadError } = await supabaseAdmin
         .from("free_review_leads")
         .update({
@@ -105,7 +180,8 @@ export async function GET(request) {
               realm_id: realmId,
               company_profile: companyProfile,
               connected_at: new Date().toISOString(),
-              token_stored: false,
+              token_stored: true,
+              accounting_connection_id: savedAccountingConnection.id,
             },
           },
           updated_at: new Date().toISOString(),
@@ -119,8 +195,16 @@ export async function GET(request) {
         });
       }
 
+      console.log("[quickbooks/callback] lead accounting connection saved", {
+        connectionId: savedAccountingConnection.id,
+        leadId,
+        realmId,
+        status: savedAccountingConnection.status,
+      });
+
       redirectUrl.searchParams.set("quickBooksConnected", "true");
       redirectUrl.searchParams.set("leadId", leadId);
+      redirectUrl.searchParams.set("connectionId", savedAccountingConnection.id);
       const response = NextResponse.redirect(redirectUrl);
       response.cookies.delete("qb_oauth_state");
       response.cookies.delete("qb_oauth_mode");

@@ -138,6 +138,7 @@ export interface AdvisacorNormalizedFinancialData {
   normalizedTrialBalance: CanonicalTrialBalanceRow[];
   normalizedBalanceSheet: CanonicalBalanceSheetRow[];
   normalizedIncomeStatement: CanonicalPnLRow[];
+  normalizedIncomeStatementYtd?: CanonicalPnLRow[];
   normalizedARAging: AdvisacorNormalizedEntity[];
   normalizedAPAging: AdvisacorNormalizedEntity[];
   normalizedBudgets: AdvisacorNormalizedEntity[];
@@ -161,6 +162,7 @@ export interface CanonicalReportBundle {
   chartOfAccounts: CanonicalChartOfAccountsItem[];
   trialBalance: CanonicalTrialBalanceRow[];
   profitAndLoss: CanonicalPnLRow[];
+  profitAndLossYtd?: CanonicalPnLRow[];
   balanceSheet: CanonicalBalanceSheetRow[];
   cashFlow: CanonicalCashFlowRow[];
   normalizedTransactions?: AdvisacorNormalizedEntity[];
