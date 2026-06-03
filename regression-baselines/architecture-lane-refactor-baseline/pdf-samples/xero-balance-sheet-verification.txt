@@ -1,0 +1,1052 @@
+
+> advisacor@0.1.0 verify:xero-balance-sheet-pdf
+> node scripts/verify-xero-balance-sheet-pdf.js
+
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Total Current Assets',
+      amount: 9172.63,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Computer Equipment',
+      amount: -829.87,
+      section: 'Fixed Assets',
+      sourceSection: 'Fixed Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Office Equipment',
+      amount: 3628.91,
+      section: 'Fixed Assets',
+      sourceSection: 'Fixed Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Fixed Assets',
+      amount: 2799.04,
+      section: 'Fixed Assets',
+      sourceSection: 'Fixed Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Checking Account',
+      amount: 4569.98,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 22059.53,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Total Current Assets',
+      value: '$9,172.63',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Computer Equipment',
+      value: '($829.87)',
+      kind: undefined,
+      level: 1
+    },
+    {
+      label: 'Office Equipment',
+      value: '$3,628.91',
+      kind: undefined,
+      level: 1
+    },
+    {
+      label: 'Total Fixed Assets',
+      value: '$2,799.04',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Checking Account',
+      value: '$4,569.98',
+      kind: undefined,
+      level: 2
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$22,059.53',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PASS Xero Accounts Receivable is 9172.63
+PASS Xero Total Current Assets is 9172.63
+PASS Xero Computer Equipment is -829.87
+PASS Xero Office Equipment is 3628.91
+PASS Xero Total Fixed Assets is 2799.04
+PASS Xero Total Assets is 11971.67
+PASS Xero Accounts Payable is 10703.19
+PASS Xero Checking Account liability is 4569.98
+PASS Xero Historical Adjustment is 4130.98
+PASS Xero Sales Tax is 2655.38
+PASS Xero Total Current Liabilities is 22059.53
+PASS Xero Total Liabilities is 22059.53
+PASS Xero Current Year Earnings is -14370.87
+PASS Xero Retained Earnings is 4283.01
+PASS Xero Total Equity is -10087.86
+PASS Xero Total Liabilities and Equity is 11971.67
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Total Current Assets',
+      amount: 9172.63,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Computer Equipment',
+      amount: -829.87,
+      section: 'Fixed Assets',
+      sourceSection: 'Fixed Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Office Equipment',
+      amount: 3628.91,
+      section: 'Fixed Assets',
+      sourceSection: 'Fixed Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Fixed Assets',
+      amount: 2799.04,
+      section: 'Fixed Assets',
+      sourceSection: 'Fixed Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Checking Account',
+      amount: 4569.98,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 22059.53,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Total Current Assets',
+      value: '$9,172.63',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Computer Equipment',
+      value: '($829.87)',
+      kind: undefined,
+      level: 1
+    },
+    {
+      label: 'Office Equipment',
+      value: '$3,628.91',
+      kind: undefined,
+      level: 1
+    },
+    {
+      label: 'Total Fixed Assets',
+      value: '$2,799.04',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Checking Account',
+      value: '$4,569.98',
+      kind: undefined,
+      level: 2
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$22,059.53',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PASS Xero AR aging fallback fills zero Balance Sheet AR is 9172.63
+PASS Xero AP aging fallback fills zero Balance Sheet AP is 10703.19
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Checking Account',
+      amount: 4540.98,
+      section: 'Cash and Cash Equivalents',
+      sourceSection: 'Cash and Cash Equivalents',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Assets',
+      amount: 4540.98,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 4173.31,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Checking Account',
+      value: '$4,540.98',
+      kind: undefined,
+      level: 2
+    },
+    {
+      label: 'Total Current Assets',
+      value: '$13,713.61',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Total Fixed Assets',
+      value: '$0.00',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$14,876.50',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PASS Xero displayed Total Current Assets includes backfilled AR is 13713.61
+PASS Xero displayed Total Assets includes backfilled AR is 13713.61
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Checking Account',
+      amount: 4540.98,
+      section: 'Cash and Cash Equivalents',
+      sourceSection: 'Cash and Cash Equivalents',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Assets',
+      amount: 4540.98,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 4173.31,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Checking Account',
+      value: '$4,540.98',
+      kind: undefined,
+      level: 2
+    },
+    {
+      label: 'Total Current Assets',
+      value: '$13,713.61',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Total Fixed Assets',
+      value: '$0.00',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$14,876.50',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PDF Package Input: {
+  sourceSystem: 'xero',
+  connectionId: 'connection-1',
+  tenantName: 'Xero Demo Company US',
+  totalAssets: 4540.98,
+  totalLiabilities: 4173.31,
+  totalEquity: 367.67,
+  revenue: 0,
+  expenses: -0,
+  netIncome: -14370.87,
+  cashBalance: 4540.98,
+  balanceSheetRowsCount: 12,
+  incomeStatementRowsCount: 1,
+  mappedFinancialSummary: {
+    totalAssets: 4540.98,
+    totalLiabilities: 4173.31,
+    totalEquity: 367.67,
+    totalLiabilitiesAndEquity: 4540.98,
+    revenue: 0,
+    cogs: 0,
+    expenses: 0,
+    otherIncome: 0,
+    otherExpenses: 0,
+    grossProfit: 0,
+    netIncome: -14370.87,
+    balanceSheetValid: true,
+    incomeStatementValid: false
+  }
+}
+PDF Schedule Diagnostics: {
+  provider: 'xero',
+  companyId: 'company-1',
+  connectionId: 'connection-1',
+  selectedPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  schedules: [
+    {
+      name: 'AR Aging',
+      sourceReportName: 'Reports/AgedReceivablesByContact',
+      rawRows: 0,
+      normalizedRows: 0,
+      rowCount: 0,
+      totalAmount: 0,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'AP Aging',
+      sourceReportName: 'Reports/AgedPayablesByContact',
+      rawRows: 0,
+      normalizedRows: 0,
+      rowCount: 0,
+      totalAmount: 0,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'Inventory Analysis',
+      sourceReportName: 'Xero inventory/balance sheet fallback',
+      rawRows: 0,
+      normalizedRows: 0,
+      rowCount: 0,
+      totalAmount: 0,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'Fixed Asset Analysis',
+      sourceReportName: 'Balance Sheet fixed asset accounts',
+      rawRows: 0,
+      normalizedRows: 0,
+      rowCount: 0,
+      totalAmount: 0,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'Balance Sheet Ratios',
+      sourceReportName: 'Balance Sheet',
+      rawRows: 12,
+      normalizedRows: 15,
+      rowCount: 12,
+      totalAmount: 4540.98,
+      pdfPayload: [Object]
+    }
+  ],
+  failures: [
+    {
+      code: 'SCHEDULE_POPULATION_FAILURE',
+      schedule: 'AR Aging',
+      balanceSheetAmount: 9172.63,
+      scheduleAmount: 0,
+      message: 'AR Aging did not populate even though the Balance Sheet contains a related balance.'
+    },
+    {
+      code: 'SCHEDULE_POPULATION_FAILURE',
+      schedule: 'AP Aging',
+      balanceSheetAmount: 10703.19,
+      scheduleAmount: 0,
+      message: 'AP Aging did not populate even though the Balance Sheet contains a related balance.'
+    }
+  ]
+}
+PDF Inventory Analysis Diagnostics: {
+  provider: 'xero',
+  selectedReportDate: '2026-05-31',
+  inventoryReportAttempted: 'Xero tracked inventory / balance sheet fallback',
+  inventoryRowCount: 0,
+  inventoryValuationTotal: 0,
+  balanceSheetInventoryAsset: 0,
+  finalPdfInventoryTotal: 0
+}
+PDF Fixed Asset Analysis Diagnostics: {
+  provider: 'xero',
+  selectedPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  balanceSheetFixedAssetTotal: 0,
+  fixedAssetAccountsFound: [],
+  accumulatedDepreciationAccountsFound: [],
+  costRollForwardTotal: 0,
+  accumulatedDepreciationTotal: 0,
+  netBookValueTotal: 0,
+  tieOutStatus: 'No Balance Sheet Fixed Assets'
+}
+PDF Payroll & FTE Analysis Diagnostics: {
+  provider: 'xero',
+  companyId: 'company-1',
+  reportPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  payrollSourceUsed: 'Not available',
+  payrollAccountsFound: [],
+  payrollAccountBalances: [],
+  revenueUsedForRevenuePerFte: null,
+  currentFteSource: 'Not available',
+  priorFteSource: 'Not available',
+  finalPdfPayload: [
+    [ 'Current FTE', 'Not available' ],
+    [ 'Prior FTE', 'Not available' ],
+    [ 'Payroll Cost', 'Not available' ],
+    [ 'Payroll Cost per FTE', 'N/A' ],
+    [ 'Revenue per FTE', 'N/A' ],
+    [ 'Payroll Growth', 'N/A' ],
+    [ 'Source', 'Source: Not available' ]
+  ]
+}
+Xero PDF Balance Sheet totals: {
+  selectedReportDate: '2026-05-31',
+  rawXeroBalanceSheetTotals: {
+    totalCurrentAssets: 4540.98,
+    totalFixedAssets: 0,
+    totalAssets: 4540.98,
+    totalCurrentLiabilities: 4173.31,
+    totalLiabilities: 4173.31,
+    totalEquity: 367.67,
+    totalLiabilitiesAndEquity: 4540.98
+  },
+  normalizedXeroBalanceSheetTotals: {
+    totalCurrentAssets: 4540.98,
+    totalFixedAssets: 0,
+    totalAssets: 4540.98,
+    totalCurrentLiabilities: 4173.31,
+    totalLiabilities: 4173.31,
+    totalEquity: 367.67,
+    totalLiabilitiesAndEquity: 4540.98
+  },
+  finalPdfMappedTotals: {
+    totalCurrentAssets: 13713.61,
+    totalFixedAssets: 0,
+    totalAssets: 13713.61,
+    totalLiabilities: 14876.5,
+    totalEquity: 367.67,
+    totalLiabilitiesAndEquity: 15244.17
+  },
+  hasXeroDerivedControlFallback: true
+}
+Xero PDF AR/AP mapping: {
+  rawXeroArRowFound: true,
+  rawXeroArValue: 9172.63,
+  normalizedArValue: 9172.63,
+  finalPdfArValue: 9172.63,
+  rawXeroApRowFound: true,
+  rawXeroApValue: 10703.19,
+  normalizedApValue: 10703.19,
+  finalPdfApValue: 10703.19
+}
+PASS Xero PDF accepts recalculated totals when AR/AP control rows are derived from Xero fallback
+PASS Accounts Receivable stays under Current Assets
+PASS Xero equipment rows stay under Fixed Assets
+PASS Sales Tax stays under Current Liabilities
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Checking Account',
+      amount: 4569.98,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 4569.98,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Checking Account',
+      value: '$4,569.98',
+      kind: undefined,
+      level: 2
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$4,569.98',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Total Current Assets',
+      value: '$0.00',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Total Fixed Assets',
+      value: '$0.00',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PASS Xero section-only Checking Account remains under Current Liabilities
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Checking Account',
+      amount: 4569.98,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 4569.98,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Checking Account',
+      value: '$4,569.98',
+      kind: undefined,
+      level: 2
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$4,569.98',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PASS Xero source section overrides conflicting asset hierarchy for Checking Account
+Xero Balance Sheet bank/cash source-total classification override: {
+  rows: [
+    {
+      label: 'Checking Account',
+      amount: 4569.98,
+      forcedAmount: 4569.98,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      targetPath: [Array]
+    }
+  ],
+  totalCurrentAssets: 9172.63,
+  totalCurrentLiabilities: 22059.53
+}
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Total Current Assets',
+      amount: 9172.63,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Checking Account',
+      amount: 4569.98,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 22059.53,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Total Current Assets',
+      value: '$9,172.63',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Checking Account',
+      value: '$4,569.98',
+      kind: undefined,
+      level: 2
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$22,059.53',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PASS Xero source totals override stale asset-side cash hierarchy for Checking Account
+Xero Balance Sheet bank/cash source-total classification override: {
+  rows: [
+    {
+      label: 'Checking Account',
+      amount: -4569.98,
+      forcedAmount: 4569.98,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      targetPath: [Array]
+    }
+  ],
+  totalCurrentAssets: 9172.63,
+  totalCurrentLiabilities: 22059.53
+}
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Checking Account',
+      amount: -4569.98,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Assets',
+      amount: 9172.63,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 22059.53,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Total Current Assets',
+      value: '$9,172.63',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Checking Account',
+      value: '$4,569.98',
+      kind: undefined,
+      level: 2
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$22,059.53',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PASS Xero negative asset-side bank overdraft follows Balance Sheet liability classification
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Checking Account',
+      amount: 4569.98,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 4569.98,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Checking Account',
+      value: '$4,569.98',
+      kind: undefined,
+      level: 3
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$4,569.98',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PASS Xero PDF follows Balance Sheet hierarchy for cash/checking classification
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Computer Equipment',
+      amount: -829.87,
+      section: 'Assets',
+      sourceSection: 'Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Office Equipment',
+      amount: 3628.91,
+      section: 'Assets',
+      sourceSection: 'Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Fixed Assets',
+      amount: 2799.04,
+      section: 'Assets',
+      sourceSection: 'Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Computer Equipment',
+      value: '($829.87)',
+      kind: undefined,
+      level: 1
+    },
+    {
+      label: 'Office Equipment',
+      value: '$3,628.91',
+      kind: undefined,
+      level: 1
+    },
+    {
+      label: 'Total Fixed Assets',
+      value: '$2,799.04',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PASS Xero broad Assets Computer Equipment still renders source amount is -829.87
+PASS Xero broad Assets Office Equipment still renders source amount is 3628.91
+PASS Xero normalizer treats non-current asset equipment as Fixed Assets
+PASS Xero fixed asset schedule derives balance without explicit total row is 2799.04
+PASS Xero normalizer preserves Checking Account source liability section
+PASS Xero normalizer overrides stale asset section with source liability section
+PASS Xero normalizer uses Balance Sheet hierarchy before cash account-name classification
+PASS Xero normalizer uses Fixed Assets hierarchy before broad Assets section
+Xero PDF Balance Sheet row trace: {
+  inputRows: [
+    {
+      label: 'Total Current Assets',
+      amount: 9172.63,
+      section: 'Current Assets',
+      sourceSection: 'Current Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Computer Equipment',
+      amount: -829.87,
+      section: 'Fixed Assets',
+      sourceSection: 'Fixed Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Office Equipment',
+      amount: 3628.91,
+      section: 'Fixed Assets',
+      sourceSection: 'Fixed Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Fixed Assets',
+      amount: 2799.04,
+      section: 'Fixed Assets',
+      sourceSection: 'Fixed Assets',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Checking Account',
+      amount: 4569.98,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    },
+    {
+      label: 'Total Current Liabilities',
+      amount: 22059.53,
+      section: 'Current Liabilities',
+      sourceSection: 'Current Liabilities',
+      hierarchyPath: [Array],
+      computedPath: [Array]
+    }
+  ],
+  displayRows: [
+    {
+      label: 'Total Current Assets',
+      value: '$9,172.63',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Computer Equipment',
+      value: '($829.87)',
+      kind: undefined,
+      level: 1
+    },
+    {
+      label: 'Office Equipment',
+      value: '$3,628.91',
+      kind: undefined,
+      level: 1
+    },
+    {
+      label: 'Total Fixed Assets',
+      value: '$2,799.04',
+      kind: 'subtotal',
+      level: undefined
+    },
+    {
+      label: 'Checking Account',
+      value: '$4,569.98',
+      kind: undefined,
+      level: 2
+    },
+    {
+      label: 'Total Current Liabilities',
+      value: '$22,059.53',
+      kind: 'subtotal',
+      level: undefined
+    }
+  ]
+}
+PDF Package Input: {
+  sourceSystem: 'xero',
+  connectionId: 'connection-1',
+  tenantName: 'Xero Demo Company US',
+  totalAssets: 11971.67,
+  totalLiabilities: 22059.53,
+  totalEquity: -10087.86,
+  revenue: 0,
+  expenses: -0,
+  netIncome: -14370.87,
+  cashBalance: 4569.98,
+  balanceSheetRowsCount: 18,
+  incomeStatementRowsCount: 1,
+  mappedFinancialSummary: {
+    totalAssets: 11971.67,
+    totalLiabilities: 22059.53,
+    totalEquity: -10087.86,
+    totalLiabilitiesAndEquity: 11971.67,
+    revenue: 0,
+    cogs: 0,
+    expenses: 0,
+    otherIncome: 0,
+    otherExpenses: 0,
+    grossProfit: 0,
+    netIncome: -14370.87,
+    balanceSheetValid: true,
+    incomeStatementValid: false
+  }
+}
+PDF Schedule Diagnostics: {
+  provider: 'xero',
+  companyId: 'company-1',
+  connectionId: 'connection-1',
+  selectedPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  schedules: [
+    {
+      name: 'AR Aging',
+      sourceReportName: 'Reports/AgedReceivablesByContact',
+      rawRows: 0,
+      normalizedRows: 0,
+      rowCount: 0,
+      totalAmount: 0,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'AP Aging',
+      sourceReportName: 'Reports/AgedPayablesByContact',
+      rawRows: 0,
+      normalizedRows: 0,
+      rowCount: 0,
+      totalAmount: 0,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'Inventory Analysis',
+      sourceReportName: 'Xero inventory/balance sheet fallback',
+      rawRows: 0,
+      normalizedRows: 0,
+      rowCount: 0,
+      totalAmount: 0,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'Fixed Asset Analysis',
+      sourceReportName: 'Balance Sheet fixed asset accounts',
+      rawRows: 2,
+      normalizedRows: 2,
+      rowCount: 2,
+      totalAmount: 2799.04,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'Balance Sheet Ratios',
+      sourceReportName: 'Balance Sheet',
+      rawRows: 18,
+      normalizedRows: 15,
+      rowCount: 18,
+      totalAmount: 11971.67,
+      pdfPayload: [Object]
+    }
+  ],
+  failures: []
+}
+PDF Inventory Analysis Diagnostics: {
+  provider: 'xero',
+  selectedReportDate: '2026-05-31',
+  inventoryReportAttempted: 'Xero tracked inventory / balance sheet fallback',
+  inventoryRowCount: 0,
+  inventoryValuationTotal: 0,
+  balanceSheetInventoryAsset: 0,
+  finalPdfInventoryTotal: 0
+}
+PDF Fixed Asset Analysis Diagnostics: {
+  provider: 'xero',
+  selectedPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  balanceSheetFixedAssetTotal: 2799.04,
+  fixedAssetAccountsFound: [ 'Computer Equipment', 'Office Equipment' ],
+  accumulatedDepreciationAccountsFound: [],
+  costRollForwardTotal: 2799.04,
+  accumulatedDepreciationTotal: 0,
+  netBookValueTotal: 2799.04,
+  tieOutStatus: 'Ties to Balance Sheet'
+}
+PDF Payroll & FTE Analysis Diagnostics: {
+  provider: 'xero',
+  companyId: 'company-1',
+  reportPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  payrollSourceUsed: 'Not available',
+  payrollAccountsFound: [],
+  payrollAccountBalances: [],
+  revenueUsedForRevenuePerFte: null,
+  currentFteSource: 'Not available',
+  priorFteSource: 'Not available',
+  finalPdfPayload: [
+    [ 'Current FTE', 'Not available' ],
+    [ 'Prior FTE', 'Not available' ],
+    [ 'Payroll Cost', 'Not available' ],
+    [ 'Payroll Cost per FTE', 'N/A' ],
+    [ 'Revenue per FTE', 'N/A' ],
+    [ 'Payroll Growth', 'N/A' ],
+    [ 'Source', 'Source: Not available' ]
+  ]
+}
+Xero PDF Balance Sheet totals: {
+  selectedReportDate: '2026-05-31',
+  rawXeroBalanceSheetTotals: {
+    totalCurrentAssets: 9172.63,
+    totalFixedAssets: 2799.04,
+    totalAssets: 11971.67,
+    totalCurrentLiabilities: 22059.53,
+    totalLiabilities: 22059.53,
+    totalEquity: -10087.86,
+    totalLiabilitiesAndEquity: 11971.67
+  },
+  normalizedXeroBalanceSheetTotals: {
+    totalCurrentAssets: 9172.63,
+    totalFixedAssets: 2799.04,
+    totalAssets: 11971.67,
+    totalCurrentLiabilities: 22059.53,
+    totalLiabilities: 22059.53,
+    totalEquity: -10087.86,
+    totalLiabilitiesAndEquity: 11971.67
+  },
+  finalPdfMappedTotals: {
+    totalCurrentAssets: 9172.63,
+    totalFixedAssets: 2799.04,
+    totalAssets: 11971.67,
+    totalLiabilities: 22059.53,
+    totalEquity: -10087.86,
+    totalLiabilitiesAndEquity: 11971.67
+  },
+  hasXeroDerivedControlFallback: false
+}
+Xero PDF AR/AP mapping: {
+  rawXeroArRowFound: true,
+  rawXeroArValue: 9172.63,
+  normalizedArValue: 9172.63,
+  finalPdfArValue: 9172.63,
+  rawXeroApRowFound: true,
+  rawXeroApValue: 10703.19,
+  normalizedApValue: 10703.19,
+  finalPdfApValue: 10703.19
+}
+PASS Xero PDF pre-render totals validation passes
+PASS Xero onboarding and dashboard PDF generation force a fresh active context without stale fallback
+
+Xero Balance Sheet PDF verification passed.

@@ -1,0 +1,246 @@
+
+> advisacor@0.1.0 verify:quickbooks
+> node scripts/verify-accounting-connector.js --provider quickbooks
+
+QuickBooks Connector Certification
+[accounting/mapping] {
+  event: 'raw_provider_data',
+  sourceSystem: 'quickbooks',
+  adapterName: 'quickBooksAdapter',
+  connectionId: 'certification-quickbooks-connection',
+  reportPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  rawReportsPulled: {
+    accounts: true,
+    trialBalance: true,
+    balanceSheet: true,
+    incomeStatement: true,
+    arAging: true,
+    apAging: true
+  },
+  chartOfAccountsCount: 3,
+  trialBalanceCount: 3,
+  balanceSheetCount: 7,
+  incomeStatementCount: 7
+}
+[accounting/mapping] {
+  event: 'normalized_provider_data',
+  sourceSystem: 'quickbooks',
+  adapterName: 'quickBooksAdapter',
+  connectionId: 'certification-quickbooks-connection',
+  syncId: 'quickbooks-certification-sync',
+  normalizedAccountsCount: 3,
+  normalizedTrialBalanceCount: 3,
+  normalizedBalanceSheetCount: 7,
+  normalizedIncomeStatementCount: 7
+}
+[accounting/mapping] {
+  event: 'mapped_financial_summary',
+  sourceSystem: 'quickbooks',
+  adapterName: 'quickBooksAdapter',
+  accountsMapped: 3,
+  trialBalanceRowsMapped: 3,
+  balanceSheetRowsMapped: 7,
+  incomeStatementRowsMapped: 7,
+  balanceSheetTotalAssets: 207000,
+  balanceSheetTotalLiabilities: 46000,
+  balanceSheetTotalEquity: 0,
+  incomeStatementRevenue: 210000,
+  incomeStatementExpenses: 0,
+  incomeStatementNetIncome: 54000,
+  mappedFinancialSummary: {
+    totalAssets: 207000,
+    totalLiabilities: 46000,
+    totalEquity: 0,
+    totalLiabilitiesAndEquity: 46000,
+    revenue: 210000,
+    cogs: 78000,
+    expenses: 0,
+    otherIncome: 0,
+    otherExpenses: 0,
+    grossProfit: 132000,
+    netIncome: 54000,
+    balanceSheetValid: false,
+    incomeStatementValid: false
+  },
+  cashBalance: 125000
+}
+✓ Provider identity valid
+✓ Normalized accounts present
+✓ Trial balance present
+✓ Balance sheet present
+✓ Income statement present
+✓ Core reporting readiness passed
+✓ KPI engine readiness passed
+✓ Flux engine readiness passed
+✓ Pulse engine readiness passed
+PDF Package Input: {
+  sourceSystem: 'quickbooks',
+  connectionId: 'certification-quickbooks-connection',
+  tenantName: 'QuickBooks Certification Company',
+  totalAssets: 207000,
+  totalLiabilities: 46000,
+  totalEquity: 0,
+  revenue: 210000,
+  expenses: -78000,
+  netIncome: 54000,
+  cashBalance: 125000,
+  balanceSheetRowsCount: 7,
+  incomeStatementRowsCount: 7,
+  mappedFinancialSummary: {
+    totalAssets: 207000,
+    totalLiabilities: 46000,
+    totalEquity: 0,
+    totalLiabilitiesAndEquity: 46000,
+    revenue: 210000,
+    cogs: 78000,
+    expenses: 0,
+    otherIncome: 0,
+    otherExpenses: 0,
+    grossProfit: 132000,
+    netIncome: 54000,
+    balanceSheetValid: false,
+    incomeStatementValid: false
+  }
+}
+PDF Schedule Diagnostics: {
+  provider: 'quickbooks',
+  companyId: 'certification-company-quickbooks',
+  connectionId: 'certification-quickbooks-connection',
+  selectedPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  schedules: [
+    {
+      name: 'AR Aging',
+      sourceReportName: 'AccountsReceivableAgingSummary',
+      rawRows: 1,
+      normalizedRows: 1,
+      rowCount: 1,
+      totalAmount: 18000,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'AP Aging',
+      sourceReportName: 'AccountsPayableAgingSummary',
+      rawRows: 1,
+      normalizedRows: 1,
+      rowCount: 1,
+      totalAmount: 9000,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'Inventory Analysis',
+      sourceReportName: 'InventoryValuationSummary',
+      rawRows: 1,
+      normalizedRows: 0,
+      rowCount: 0,
+      totalAmount: 0,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'Fixed Asset Analysis',
+      sourceReportName: 'Balance Sheet fixed asset accounts',
+      rawRows: 0,
+      normalizedRows: 0,
+      rowCount: 0,
+      totalAmount: 0,
+      pdfPayload: [Object]
+    },
+    {
+      name: 'Balance Sheet Ratios',
+      sourceReportName: 'Balance Sheet',
+      rawRows: 7,
+      normalizedRows: 15,
+      rowCount: 7,
+      totalAmount: 207000,
+      pdfPayload: [Object]
+    }
+  ],
+  failures: []
+}
+PDF Inventory Analysis Diagnostics: {
+  provider: 'quickbooks',
+  selectedReportDate: '2026-05-31',
+  inventoryReportAttempted: 'InventoryValuationSummary / InventoryValuationDetail',
+  inventoryRowCount: 0,
+  inventoryValuationTotal: 0,
+  balanceSheetInventoryAsset: 0,
+  finalPdfInventoryTotal: 0
+}
+PDF Fixed Asset Analysis Diagnostics: {
+  provider: 'quickbooks',
+  selectedPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  balanceSheetFixedAssetTotal: 0,
+  fixedAssetAccountsFound: [],
+  accumulatedDepreciationAccountsFound: [],
+  costRollForwardTotal: 0,
+  accumulatedDepreciationTotal: 0,
+  netBookValueTotal: 0,
+  tieOutStatus: 'No Balance Sheet Fixed Assets'
+}
+PDF Payroll & FTE Analysis Diagnostics: {
+  provider: 'quickbooks',
+  companyId: 'certification-company-quickbooks',
+  reportPeriod: { startDate: '2026-05-01', endDate: '2026-05-31' },
+  payrollSourceUsed: 'Not available',
+  payrollAccountsFound: [],
+  payrollAccountBalances: [],
+  revenueUsedForRevenuePerFte: 210000,
+  currentFteSource: 'Not available',
+  priorFteSource: 'Not available',
+  finalPdfPayload: [
+    [ 'Current FTE', 'Not available' ],
+    [ 'Prior FTE', 'Not available' ],
+    [ 'Payroll Cost', 'Not available' ],
+    [ 'Payroll Cost per FTE', 'N/A' ],
+    [ 'Revenue per FTE', 'N/A' ],
+    [ 'Payroll Growth', 'N/A' ],
+    [ 'Source', 'Source: Not available' ]
+  ]
+}
+PDF Income Statement Detail Diagnostics: {
+  provider: 'quickbooks',
+  reportDate: '2026-05-31',
+  mtdStartDate: '2026-05-01',
+  mtdEndDate: '2026-05-31',
+  ytdStartDate: '2026-01-01',
+  ytdEndDate: '2026-05-31',
+  rawMtdRowCount: 7,
+  rawYtdRowCount: 0,
+  normalizedMergedRowCount: 6,
+  first25MergedRows: [
+    { depth: 0, label: 'INCOME', mtdAmount: null, ytdAmount: null },
+    {
+      depth: 1,
+      label: 'Service Revenue',
+      mtdAmount: '$210,000',
+      ytdAmount: 'N/A'
+    },
+    {
+      depth: 0,
+      label: 'COST OF GOODS SOLD',
+      mtdAmount: null,
+      ytdAmount: null
+    },
+    {
+      depth: 1,
+      label: 'Cost of Goods Sold',
+      mtdAmount: '($78,000)',
+      ytdAmount: 'N/A'
+    },
+    {
+      depth: 0,
+      label: 'NET INCOME',
+      mtdAmount: '$54,000',
+      ytdAmount: 'N/A'
+    },
+    {
+      depth: 0,
+      label: 'Total Expenses',
+      mtdAmount: '$0',
+      ytdAmount: 'N/A'
+    }
+  ]
+}
+✓ PDF package readiness passed
+✓ PowerPoint package readiness passed
+✓ Scheduled report workflow readiness passed
+Certification result: PASSED

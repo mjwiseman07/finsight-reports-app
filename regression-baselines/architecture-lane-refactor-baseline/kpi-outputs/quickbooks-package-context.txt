@@ -1,0 +1,16 @@
+
+> advisacor@0.1.0 verify:quickbooks-package-context
+> node scripts/verify-pdf-package-input.js --provider quickbooks
+
+PASS quickbooks PDF input totalAssets populated
+PASS quickbooks PDF input totalLiabilities populated
+PASS quickbooks PDF input totalEquity populated
+PASS quickbooks PDF input revenue populated
+PASS quickbooks PDF input expenses populated
+PASS quickbooks PDF input netIncome populated
+PASS quickbooks PDF input cashBalance populated
+PASS quickbooks PDF input sourceSystem preserved
+PASS quickbooks normalized rows reach PDF input
+PASS quickbooks PDF renderer receives common field names
+
+PDF package input verification passed.
