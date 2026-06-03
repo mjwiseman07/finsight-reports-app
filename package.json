@@ -30,6 +30,7 @@
     "verify:supporting-schedules": "node scripts/verify-supporting-schedules.js",
     "verify:provider-adapter-selection": "node scripts/verify-provider-adapter-selection.js",
     "verify:provider-isolation": "node scripts/verify-provider-isolation.js",
+    "verify:adapter-lane-equivalence": "node scripts/verify-adapter-lane-equivalence.js",
     "verify:quickbooks-xero-switching": "node scripts/verify-quickbooks-xero-switching.js",
     "verify:accounting-connector": "node scripts/verify-accounting-connector.js",
     "verify:quickbooks": "node scripts/verify-accounting-connector.js --provider quickbooks",
