@@ -190,6 +190,16 @@ function assertByteEquivalent(provider, oldData, newData) {
   pass(`${provider} normalized output byte-for-byte equivalent`);
 }
 
+async function assertQuickBooksProviderPathEquivalent(connection, reportPeriod) {
+  const oldPathProvider = require("../lib/integrations/accounting/providers/quickbooks.ts").quickBooksAccountingProvider;
+  const laneProvider = require("../lib/integrations/quickbooks/provider.ts").quickBooksAccountingProvider;
+  const oldBundle = await oldPathProvider.getPrimaryFinancialReports({ connection, dateRange: reportPeriod });
+  const laneBundle = await laneProvider.getPrimaryFinancialReports({ connection, dateRange: reportPeriod });
+  if (stableStringify(oldBundle) !== stableStringify(laneBundle)) throw new Error("quickbooks old provider path and lane provider path returned different bundles");
+  if (stableStringify(oldPathProvider.getCapabilities()) !== stableStringify(laneProvider.getCapabilities())) throw new Error("quickbooks old provider path and lane provider path returned different capabilities");
+  pass("quickbooks old provider path and lane provider path equivalent");
+}
+
 async function verifyProvider(provider) {
   const fixture = readJson(`scripts/fixtures/accounting/${provider}.json`);
   const { getAccountingProviderMappingAdapter } = require("../lib/integrations/accounting/provider-adapters.ts");
@@ -205,6 +215,10 @@ async function verifyProvider(provider) {
     tenantId: connection.tenant_or_realm_id,
     tenantName: connection.external_entity_name,
   };
+
+  if (provider === "quickbooks") {
+    await assertQuickBooksProviderPathEquivalent(connection, reportPeriod);
+  }
 
   const oldRawReports = await oldAdapter.fetchRawReports(connection, reportPeriod);
   const laneRawReports = await laneAdapter.fetchInitialPeriodData({ connection, reportPeriod });
