@@ -13,7 +13,8 @@
   "BalanceSheet": [
     { "label": "Business Bank", "amount": 98000, "section": "Assets" },
     { "label": "Accounts Receivable", "amount": 64000, "section": "Assets" },
-    { "label": "Accounts Payable", "amount": 38000, "section": "Liabilities" }
+    { "label": "Accounts Payable", "amount": 38000, "section": "Liabilities" },
+    { "label": "Retained Earnings", "amount": 124000, "section": "Equity" }
   ],
   "ProfitAndLoss": [
     { "label": "Consulting Revenue", "amount": 180000, "section": "Revenue" },

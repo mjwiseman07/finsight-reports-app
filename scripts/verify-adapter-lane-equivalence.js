@@ -190,6 +190,58 @@ function assertByteEquivalent(provider, oldData, newData) {
   pass(`${provider} normalized output byte-for-byte equivalent`);
 }
 
+function protectedXeroBucket(statement, row) {
+  const raw = row?.source?.raw && typeof row.source.raw === "object" ? row.source.raw : {};
+  const text = `${row?.section || ""} ${raw.__advisacorSourceSection || ""} ${(raw.__advisacorHierarchyPath || []).join(" ")} ${row?.label || ""}`;
+  if (statement === "balanceSheet") {
+    if (/current liabilities?|current liability/i.test(text)) return "Current Liabilities";
+    if (/non.?current liabilities?|long.?term liabilities?/i.test(text)) return "Non-current Liabilities";
+    if (/\bequity\b/i.test(text)) return "Equity";
+    if (/current assets?|current asset/i.test(text)) return "Current Assets";
+    if (/non.?current assets?|fixed assets?|property,? plant|plant and equipment|ppe/i.test(text)) return "Non-current Assets";
+    return "";
+  }
+  if (/cost of goods sold|cost of sales|\bcogs\b/i.test(text)) return "COGS";
+  if (/operating expenses?|expenses?/i.test(text)) return "Operating Expenses";
+  if (/revenue|income|sales/i.test(text)) return "Revenue";
+  return "";
+}
+
+function xeroClassificationSignature(statement, row) {
+  const raw = row?.source?.raw && typeof row.source.raw === "object" ? row.source.raw : {};
+  const hierarchyPath = raw.__advisacorHierarchyPath || raw.hierarchyPath || raw.hierarchy || [];
+  const bucket = protectedXeroBucket(statement, row);
+  if (!bucket) return null;
+  return {
+    key: [
+      row?.label || row?.name || "",
+      Number(row?.amount || row?.netAmount || 0),
+      raw.accountCode || raw.AccountCode || raw.accountId || raw.AccountID || "",
+      Array.isArray(hierarchyPath) ? hierarchyPath.join(" > ") : String(hierarchyPath || ""),
+    ].join("|"),
+    label: row?.label || row?.name || "",
+    amount: Number(row?.amount || row?.netAmount || 0),
+    bucket,
+    section: row?.section || "",
+    sourceSection: raw.__advisacorSourceSection || "",
+    hierarchyPath,
+  };
+}
+
+function assertXeroClassificationProtection(oldData, newData) {
+  const rows = [
+    ["balanceSheet", "normalizedBalanceSheet"],
+    ["incomeStatement", "normalizedIncomeStatement"],
+    ["incomeStatement", "normalizedIncomeStatementYtd"],
+  ];
+  for (const [statement, key] of rows) {
+    const oldSignatures = stableStringify((oldData[key] || []).map((row) => xeroClassificationSignature(statement, row)).filter(Boolean).sort((a, b) => a.key.localeCompare(b.key)));
+    const newSignatures = stableStringify((newData[key] || []).map((row) => xeroClassificationSignature(statement, row)).filter(Boolean).sort((a, b) => a.key.localeCompare(b.key)));
+    if (oldSignatures !== newSignatures) throw new Error(`xero ${key} protected classification bucket moved`);
+  }
+  pass("xero protected classification buckets unchanged");
+}
+
 async function assertQuickBooksProviderPathEquivalent(connection, reportPeriod) {
   const oldPathProvider = require("../lib/integrations/accounting/providers/quickbooks.ts").quickBooksAccountingProvider;
   const laneProvider = require("../lib/integrations/quickbooks/provider.ts").quickBooksAccountingProvider;
@@ -198,6 +250,16 @@ async function assertQuickBooksProviderPathEquivalent(connection, reportPeriod) 
   if (stableStringify(oldBundle) !== stableStringify(laneBundle)) throw new Error("quickbooks old provider path and lane provider path returned different bundles");
   if (stableStringify(oldPathProvider.getCapabilities()) !== stableStringify(laneProvider.getCapabilities())) throw new Error("quickbooks old provider path and lane provider path returned different capabilities");
   pass("quickbooks old provider path and lane provider path equivalent");
+}
+
+async function assertXeroProviderPathEquivalent(connection, reportPeriod) {
+  const oldPathProvider = require("../lib/integrations/accounting/providers/xero.ts").xeroAccountingProvider;
+  const laneProvider = require("../lib/integrations/xero/provider.ts").xeroAccountingProvider;
+  const oldBundle = await oldPathProvider.getPrimaryFinancialReports({ connection, dateRange: reportPeriod });
+  const laneBundle = await laneProvider.getPrimaryFinancialReports({ connection, dateRange: reportPeriod });
+  if (stableStringify(oldBundle) !== stableStringify(laneBundle)) throw new Error("xero old provider path and lane provider path returned different bundles");
+  if (stableStringify(oldPathProvider.getCapabilities()) !== stableStringify(laneProvider.getCapabilities())) throw new Error("xero old provider path and lane provider path returned different capabilities");
+  pass("xero old provider path and lane provider path equivalent");
 }
 
 async function verifyProvider(provider) {
@@ -219,6 +281,9 @@ async function verifyProvider(provider) {
   if (provider === "quickbooks") {
     await assertQuickBooksProviderPathEquivalent(connection, reportPeriod);
   }
+  if (provider === "xero") {
+    await assertXeroProviderPathEquivalent(connection, reportPeriod);
+  }
 
   const oldRawReports = await oldAdapter.fetchRawReports(connection, reportPeriod);
   const laneRawReports = await laneAdapter.fetchInitialPeriodData({ connection, reportPeriod });
@@ -230,6 +295,9 @@ async function verifyProvider(provider) {
   assertRowCounts(provider, oldData, newData);
   assertBalances(provider, oldData, newData);
   assertClassifications(provider, oldData, newData);
+  if (provider === "xero") {
+    assertXeroClassificationProtection(oldData, newData);
+  }
   assertByteEquivalent(provider, oldData, newData);
 }
 
