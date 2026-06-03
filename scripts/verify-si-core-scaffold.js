@@ -52,6 +52,7 @@ const expectedFiles = [
   "kpi-library/index.ts",
   "formula-registry/index.ts",
   "metric-series/index.ts",
+  "signal-engine/index.ts",
 ];
 
 const protectedImportPatterns = [
