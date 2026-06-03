@@ -17,6 +17,10 @@ function normalizedHost(request: NextRequest) {
   return (request.headers.get("x-forwarded-host") || request.headers.get("host") || "").split(":")[0].toLowerCase();
 }
 
+function isLocalDevHost(host: string) {
+  return host.includes("localhost") || host === "127.0.0.1";
+}
+
 function isStaticAsset(pathname: string) {
   return (
     pathname.startsWith("/_next/") ||
@@ -39,6 +43,12 @@ function isMarketingAllowed(pathname: string) {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = normalizedHost(request);
+
+  if (isLocalDevHost(host) && pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/landing-preview";
+    return NextResponse.rewrite(url);
+  }
 
   if (MARKETING_HOSTS.has(host) && !isStaticAsset(pathname) && !isMarketingAllowed(pathname)) {
     if (pathname.startsWith("/api/")) {

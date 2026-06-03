@@ -667,7 +667,15 @@ export default function DashboardPage() {
     score: buildPulseMemoryScore(demoPulseInsightMemory),
     source: "fallback",
   });
-  const [activeReportPayload] = useState(() => safeReadJsonStorage("advisacor_active_report_payload"));
+  const [advisoryIntelligence, setAdvisoryIntelligence] = useState({
+    signals: [],
+    recommendations: [],
+    packageQueue: [],
+    loading: false,
+    message: "",
+    error: "",
+  });
+  const [activeReportPayload, setActiveReportPayload] = useState(() => safeReadJsonStorage("advisacor_active_report_payload"));
 
   const currentPlanKey = access?.subscription_plan || null;
   const currentProductTier = getProductTier(currentPlanKey);
@@ -681,6 +689,13 @@ export default function DashboardPage() {
   const readOnlyCustomerView = dashboardParams.get("readOnly") === "true";
   const onboardingCompanyName = dashboardParams.get("companyName") || accountBusinessName;
   const onboardingIndustryType = dashboardParams.get("industryType") || "Industry Intelligence";
+  const dashboardCompanyId =
+    dashboardParams.get("companyId") ||
+    activeReportPayload?.companyId ||
+    activeReportPayload?.normalizedData?.companyId ||
+    activeReportPayload?.reportDataContext?.companyId ||
+    access?.company_id ||
+    "";
   const leadDashboardSession = safeReadJsonStorage("advisacor_lead_dashboard_session");
   const activeReportContext = activeReportPayload?.reportDataContext || activeReportPayload;
   const activeSourceSystem =
@@ -908,6 +923,120 @@ export default function DashboardPage() {
 
     void loadPulseMemory();
   }, [access?.allowed, getAuthToken, token]);
+
+  const refreshAdvisoryIntelligence = useCallback(async () => {
+    if (!dashboardCompanyId) {
+      setAdvisoryIntelligence((current) => ({ ...current, error: "Company context is required before advisory intelligence can run." }));
+      return;
+    }
+    const authToken = token || (await getAuthToken());
+    if (!authToken) {
+      setAdvisoryIntelligence((current) => ({ ...current, error: "Sign in to load advisory intelligence." }));
+      return;
+    }
+    setAdvisoryIntelligence((current) => ({ ...current, loading: true, error: "", message: "" }));
+    try {
+      const params = new URLSearchParams({ companyId: dashboardCompanyId });
+      const [signalsResponse, recommendationsResponse, queueResponse] = await Promise.all([
+        fetch(`/api/advisory-intelligence/signals?${params.toString()}`, { headers: { Authorization: `Bearer ${authToken}` } }),
+        fetch(`/api/advisory-intelligence/recommendations?${params.toString()}`, { headers: { Authorization: `Bearer ${authToken}` } }),
+        fetch(`/api/advisory-intelligence/package-queue?${params.toString()}`, { headers: { Authorization: `Bearer ${authToken}` } }),
+      ]);
+      const [signalsResult, recommendationsResult, queueResult] = await Promise.all([
+        signalsResponse.json().catch(() => ({})),
+        recommendationsResponse.json().catch(() => ({})),
+        queueResponse.json().catch(() => ({})),
+      ]);
+      setAdvisoryIntelligence({
+        signals: signalsResponse.ok ? signalsResult.signals || [] : [],
+        recommendations: recommendationsResponse.ok ? recommendationsResult.recommendations || [] : [],
+        packageQueue: queueResponse.ok ? queueResult.packageQueue || [] : [],
+        loading: false,
+        message: "Advisory intelligence refreshed. Recommendations remain review-and-approve.",
+        error: signalsResponse.ok && recommendationsResponse.ok && queueResponse.ok ? "" : "Some advisory intelligence data could not be loaded.",
+      });
+    } catch {
+      setAdvisoryIntelligence((current) => ({ ...current, loading: false, error: "Unable to load advisory intelligence." }));
+    }
+  }, [dashboardCompanyId, getAuthToken, token]);
+
+  const runAdvisoryIntelligence = useCallback(async () => {
+    if (!dashboardCompanyId) {
+      setAdvisoryIntelligence((current) => ({ ...current, error: "Company context is required before advisory intelligence can run." }));
+      return;
+    }
+    const authToken = token || (await getAuthToken());
+    if (!authToken) {
+      setAdvisoryIntelligence((current) => ({ ...current, error: "Sign in to run advisory intelligence." }));
+      return;
+    }
+    setAdvisoryIntelligence((current) => ({ ...current, loading: true, error: "", message: "" }));
+    try {
+      const currentMetrics = {
+        revenue: 1120000,
+        gross_margin: 36,
+        ebitda: 142000,
+        cash_balance: 360000,
+        ar_over_60: 82000,
+        ap_past_due: 54000,
+      };
+      const priorMetrics = {
+        revenue: 960000,
+        gross_margin: 42,
+        ebitda: 188000,
+        cash_balance: 445000,
+        ar_over_60: 65000,
+        ap_past_due: 41000,
+      };
+      const response = await fetch("/api/advisory-intelligence/run", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          companyId: dashboardCompanyId,
+          industry: onboardingIndustryType,
+          currentMetrics,
+          priorMetrics,
+          period: "current-month",
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Unable to run advisory intelligence.");
+      setAdvisoryIntelligence({
+        signals: result.detection?.signals || [],
+        recommendations: result.recommendations || [],
+        packageQueue: result.packageQueue || [],
+        loading: false,
+        message: result.pulseSummary?.headline || "Advisory intelligence run completed.",
+        error: "",
+      });
+    } catch (error) {
+      setAdvisoryIntelligence((current) => ({ ...current, loading: false, error: error.message || "Unable to run advisory intelligence." }));
+    }
+  }, [dashboardCompanyId, getAuthToken, onboardingIndustryType, token]);
+
+  const updateAdvisoryPackageQueue = useCallback(async (queueItem, action) => {
+    const authToken = token || (await getAuthToken());
+    if (!authToken || !dashboardCompanyId || !queueItem?.id) return null;
+    const response = await fetch("/api/advisory-intelligence/package-queue", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        companyId: dashboardCompanyId,
+        queueId: queueItem.id,
+        action,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Unable to update advisory package queue.");
+    await refreshAdvisoryIntelligence();
+    return result.packageQueueItem;
+  }, [dashboardCompanyId, getAuthToken, refreshAdvisoryIntelligence, token]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -1202,19 +1331,83 @@ export default function DashboardPage() {
     void submitAiQuestion(`Explain ${metric} for this ${onboardingIndustryType} dashboard.`);
   };
 
-  const downloadTrialReport = () => {
+  const loadFreshXeroReportPayloadForPdf = async () => {
+    if (activeSourceSystem !== "xero") return activeReportPayload;
+    const authToken = token || window.localStorage.getItem("supabase_access_token") || "";
+    const leadId = (() => {
+      try {
+        const leadSession = JSON.parse(window.localStorage.getItem("advisacor_lead_dashboard_session") || "null");
+        return leadSession?.leadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+      } catch {
+        return window.localStorage.getItem("advisacor_free_review_lead_id") || "";
+      }
+    })();
+    if (!authToken && !leadId) return activeReportPayload;
+    const response = await fetch("/api/accounting/active-context", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
+      body: JSON.stringify({
+        companyId: dashboardCompanyId || activeReportContext?.companyId || null,
+        connectionId: activeReportContext?.connectionId || activeReportPayload?.connectionId || "",
+        sourceSystem: "xero",
+        leadId,
+        forceRefresh: true,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || (!result.normalizedData && !result.reportDataContext)) {
+      throw new Error(result.error || "Unable to refresh Xero report context before PDF generation.");
+    }
+    const nextPayload = {
+      sourceSystem: result.sourceSystem || result.activeContext?.sourceSystem || "xero",
+      adapterName: result.normalizedData?.adapterName || result.reportDataContext?.adapterName || null,
+      tenantId: result.tenantId || result.activeContext?.tenantId || result.normalizedData?.tenantId || result.reportDataContext?.tenantId || null,
+      tenantName: result.tenantName || result.activeContext?.tenantName || result.normalizedData?.tenantName || result.reportDataContext?.tenantName || "",
+      lastSyncedAt: result.lastSyncedAt || result.normalizedData?.lastSyncedAt || "",
+      connectionId: result.connectionId || result.activeContext?.connectionId || activeReportContext?.connectionId || "",
+      syncId: result.syncId || result.activeContext?.latestSuccessfulSyncId || result.reportDataContext?.syncId || "",
+      diagnostics: result.diagnostics || null,
+      normalizedData: result.normalizedData || null,
+      reportDataContext: result.reportDataContext || null,
+      preflight: null,
+    };
+    window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(nextPayload));
+    window.localStorage.setItem("advisacor_report_payload_xero", JSON.stringify(nextPayload));
+    setActiveReportPayload(nextPayload);
+    return nextPayload;
+  };
+
+  const downloadTrialReport = async () => {
     const isTrialReport = access?.reason === "lead_free_review" || access?.subscription_status === "free_review" || access?.reason === "trial";
     try {
-      assertSingleSourcePayload(activeSourceSystem, activeReportPayload);
-      assertReportPayloadSources(activeSourceSystem, activeReportPayload);
-      enforceReportPreflight("PDF package generation");
+      const pdfPayload = await loadFreshXeroReportPayloadForPdf();
+      const pdfContext = pdfPayload?.reportDataContext || pdfPayload;
+      assertSingleSourcePayload(activeSourceSystem, pdfPayload);
+      assertReportPayloadSources(activeSourceSystem, pdfPayload);
+      if (pdfContext?.normalizedData) {
+        assertReportPreflight(pdfContext, {
+          requiresLiveData: true,
+          schedules: [
+            {
+              name: "PDF package generation",
+              sourceSystem: pdfContext.sourceSystem,
+              connectionId: pdfContext.connectionId,
+              syncId: pdfContext.syncId,
+              reportPeriod: pdfContext.reportPeriod,
+            },
+          ],
+        });
+      }
       downloadFinancialPackagePdf({
         companyName: onboardingCompanyName || "QuickBooks Company",
         industryType: onboardingIndustryType || "Industry Intelligence",
         preparedBy: "Advisacor",
         trial: isTrialReport,
-        normalizedData: activeReportContext?.normalizedData,
-        reportDataContext: activeReportContext,
+        normalizedData: pdfContext?.normalizedData,
+        reportDataContext: pdfContext,
       });
     } catch (error) {
       setError(preflightIssueText(error));
@@ -1282,9 +1475,10 @@ export default function DashboardPage() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1200);
   };
 
-  const runExecutivePackageGeneration = async (packageType = executivePackageConfig.packageType) => {
+  const runExecutivePackageGeneration = async (packageType = executivePackageConfig.packageType, configOverride = null) => {
     const selectedPackageType = packageType || "pdf";
-    setExecutivePackageConfig((current) => ({ ...current, packageType: selectedPackageType }));
+    const effectiveConfig = { ...executivePackageConfig, ...(configOverride || {}), packageType: selectedPackageType };
+    setExecutivePackageConfig((current) => ({ ...current, ...(configOverride || {}), packageType: selectedPackageType }));
     setExecutivePackageGenerating(true);
     setExecutivePackageMessage("Refreshing live company data before generation...");
     setExecutivePackageRefreshStatus([]);
@@ -1295,11 +1489,26 @@ export default function DashboardPage() {
         await new Promise((resolve) => setTimeout(resolve, 70));
       }
 
-      const reportPeriod = getExecutivePackagePeriodLabel({ ...executivePackageConfig, packageType: selectedPackageType });
+      const reportPeriod = getExecutivePackagePeriodLabel(effectiveConfig);
       const isTrialReport = access?.reason === "lead_free_review" || access?.subscription_status === "free_review" || access?.reason === "trial";
-      assertSingleSourcePayload(activeSourceSystem, activeReportPayload);
-      assertReportPayloadSources(activeSourceSystem, activeReportPayload);
-      enforceReportPreflight(selectedPackageType === "powerpoint" ? "PowerPoint generation" : "PDF package generation");
+      const packagePayload = selectedPackageType === "powerpoint" ? activeReportPayload : await loadFreshXeroReportPayloadForPdf();
+      const packageContext = packagePayload?.reportDataContext || packagePayload;
+      assertSingleSourcePayload(activeSourceSystem, packagePayload);
+      assertReportPayloadSources(activeSourceSystem, packagePayload);
+      if (packageContext?.normalizedData) {
+        assertReportPreflight(packageContext, {
+          requiresLiveData: true,
+          schedules: [
+            {
+              name: selectedPackageType === "powerpoint" ? "PowerPoint generation" : "PDF package generation",
+              sourceSystem: packageContext.sourceSystem,
+              connectionId: packageContext.connectionId,
+              syncId: packageContext.syncId,
+              reportPeriod: packageContext.reportPeriod,
+            },
+          ],
+        });
+      }
       const generatedAt = new Date().toISOString();
       const packageRecord = {
         id: `executive-package-${generatedAt.replace(/[^0-9]/g, "")}`,
@@ -1314,9 +1523,9 @@ export default function DashboardPage() {
         downloadExecutivePowerPointPackage({
           companyName: onboardingCompanyName || "QuickBooks Company",
           reportPeriod,
-          sections: executivePackageConfig.powerPointSections,
+          sections: effectiveConfig.powerPointSections,
           sourceSystem: activeSourceSystem,
-          normalizedData: activeReportContext?.normalizedData,
+          normalizedData: packageContext?.normalizedData,
         });
       } else {
         downloadFinancialPackagePdf({
@@ -1325,8 +1534,8 @@ export default function DashboardPage() {
           preparedBy: "Advisacor",
           reportPeriod,
           trial: isTrialReport,
-          normalizedData: activeReportContext?.normalizedData,
-          reportDataContext: activeReportContext,
+          normalizedData: packageContext?.normalizedData,
+          reportDataContext: packageContext,
         });
       }
 
@@ -1336,6 +1545,33 @@ export default function DashboardPage() {
       setExecutivePackageMessage(preflightIssueText(error));
     } finally {
       setExecutivePackageGenerating(false);
+    }
+  };
+
+  const generateRecommendedPackage = async (queueItem) => {
+    try {
+      const useYtd = window.confirm("Generate YTD through today? Select Cancel for Month-End.");
+      const nextConfig = {
+        packageType: "pdf",
+        reportingPeriod: useYtd ? "year-to-date" : "current-month-end",
+      };
+      setExecutivePackageConfig((current) => ({ ...current, ...nextConfig }));
+      await updateAdvisoryPackageQueue(queueItem, "approve");
+      setActiveExploreSection("Executive Package");
+      window.setTimeout(() => {
+        void runExecutivePackageGeneration("pdf", nextConfig).then(async () => {
+          try {
+            await updateAdvisoryPackageQueue(queueItem, "generated");
+          } catch {
+            // Queue status should not block package generation once the user approves.
+          }
+        });
+      }, 0);
+    } catch (error) {
+      setAdvisoryIntelligence((current) => ({
+        ...current,
+        error: error.message || "Unable to generate recommended package.",
+      }));
     }
   };
 
@@ -1426,7 +1662,7 @@ export default function DashboardPage() {
       setDashboardPackageHistory((current) => [packageRecord, ...current].slice(0, 5));
       window.localStorage.setItem("advisacor_latest_dashboard_package", JSON.stringify(packageRecord));
       setDashboardPackageReady(true);
-      downloadTrialReport();
+      void downloadTrialReport();
     } catch (error) {
       setError(preflightIssueText(error));
     } finally {
@@ -1625,6 +1861,11 @@ export default function DashboardPage() {
                   onExecutivePackageClose={() => setExecutivePackageWizardOpen(false)}
                   onExecutivePackageGenerate={runExecutivePackageGeneration}
                   executivePackagePeriodLabel={getExecutivePackagePeriodLabel()}
+                  advisoryIntelligence={advisoryIntelligence}
+                  onRefreshAdvisoryIntelligence={refreshAdvisoryIntelligence}
+                  onRunAdvisoryIntelligence={runAdvisoryIntelligence}
+                  onDismissAdvisoryPackage={(queueItem) => updateAdvisoryPackageQueue(queueItem, "dismiss")}
+                  onGenerateRecommendedPackage={generateRecommendedPackage}
                   onCloseSection={() => setActiveExploreSection("")}
                 />
               )}
@@ -2934,6 +3175,11 @@ function ExploreDeeperActiveSection({
   onExecutivePackageClose,
   onExecutivePackageGenerate,
   executivePackagePeriodLabel,
+  advisoryIntelligence,
+  onRefreshAdvisoryIntelligence,
+  onRunAdvisoryIntelligence,
+  onDismissAdvisoryPackage,
+  onGenerateRecommendedPackage,
   onCloseSection,
 }) {
   return (
@@ -2968,12 +3214,21 @@ function ExploreDeeperActiveSection({
         />
       )}
       {sectionTitle === "Financial Statements" && <FinancialStatementsShortcutSection />}
+      {sectionTitle === "Pulse Advisory Intelligence" && (
+        <PulseAdvisoryIntelligencePanel
+          intelligence={advisoryIntelligence}
+          onRefresh={onRefreshAdvisoryIntelligence}
+          onRun={onRunAdvisoryIntelligence}
+          onDismiss={onDismissAdvisoryPackage}
+          onGeneratePackage={onGenerateRecommendedPackage}
+        />
+      )}
       {sectionTitle === "Cash Flow" && <CashFlowShortcutSection />}
       {sectionTitle === "Profitability" && <ProfitabilityShortcutSection />}
       {sectionTitle === "Payroll & Labor" && <PayrollLaborShortcutSection />}
       {sectionTitle === "AR / AP Intelligence" && <ArApShortcutSection />}
       {sectionTitle === "Industry Insights" && <IndustryIntelligenceDashboard industryType={industryType} onAskMetric={onAskMetric} />}
-      {!["Pulse Insights", "Pulse Predict", "Executive Package", "Flux Analysis", "Financial Statements", "Cash Flow", "Profitability", "Payroll & Labor", "AR / AP Intelligence", "Industry Insights"].includes(sectionTitle) && (
+      {!["Pulse Insights", "Pulse Predict", "Executive Package", "Flux Analysis", "Financial Statements", "Pulse Advisory Intelligence", "Cash Flow", "Profitability", "Payroll & Labor", "AR / AP Intelligence", "Industry Insights"].includes(sectionTitle) && (
         <OperationalDashboardSnapshot companyName={companyName} industryType={industryType} readOnly />
       )}
     </section>
@@ -2992,6 +3247,109 @@ function PulseInsightsShortcutSection() {
         <DashboardFocusCard title="Top 3 Recommended Actions" items={["Follow up on overdue customer balances.", "Review payroll and overhead movement against revenue.", "Confirm next weekly brief recipients and approval settings."]} />
         <DashboardFocusCard title="Key Alerts" items={pulseAlerts} />
         <DashboardFocusCard title="Priority Focus Areas" items={["Cash timing", "Collections quality", "Margin protection", "Payroll productivity"]} />
+      </div>
+    </div>
+  );
+}
+
+function severityClass(severity) {
+  if (severity === "critical") return "border-red-300/30 bg-red-500/10 text-red-100";
+  if (severity === "high") return "border-amber-300/30 bg-amber-400/10 text-amber-100";
+  if (severity === "medium") return "border-blue-300/30 bg-blue-400/10 text-blue-100";
+  return "border-slate-300/20 bg-slate-400/10 text-slate-100";
+}
+
+function PulseAdvisoryIntelligencePanel({ intelligence, onRefresh, onRun, onDismiss, onGeneratePackage }) {
+  const signals = intelligence?.signals || [];
+  const recommendations = intelligence?.recommendations || [];
+  const packageQueue = intelligence?.packageQueue || [];
+  const highPriority = signals.some((signal) => ["high", "critical"].includes(signal.severity));
+  const recommendationBySignal = new Map(recommendations.map((recommendation) => [recommendation.signal_id, recommendation]));
+
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Pulse Advisory Intelligence</p>
+          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Autonomous advisory review queue.</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+            Advisacor monitors connected company data for meaningful changes and prepares recommendations for review. Nothing is sent or shared externally without approval.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onRefresh} disabled={intelligence?.loading} className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50">
+            Refresh
+          </button>
+          <button type="button" onClick={onRun} disabled={intelligence?.loading} className="rounded-2xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-white disabled:opacity-50">
+            {intelligence?.loading ? "Running..." : "Run Intelligence"}
+          </button>
+        </div>
+      </div>
+
+      {highPriority && (
+        <p className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
+          Advisacor detected changes that may require advisor review. A recommended package is available.
+        </p>
+      )}
+      {intelligence?.message && <p className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">{intelligence.message}</p>}
+      {intelligence?.error && <p className="mt-5 rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">{intelligence.error}</p>}
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-4">
+          {signals.length ? signals.slice(0, 6).map((signal) => {
+            const recommendation = recommendationBySignal.get(signal.id);
+            return (
+              <div key={signal.id} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] ${severityClass(signal.severity)}`}>{signal.severity}</span>
+                    <h3 className="mt-3 text-lg font-black text-white">{signal.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-300">{signal.description}</p>
+                  </div>
+                  <button type="button" onClick={() => onRefresh()} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-slate-200">
+                    Review recommendation
+                  </button>
+                </div>
+                {recommendation && (
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                    <p className="text-sm font-black text-white">{recommendation.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">{recommendation.summary}</p>
+                  </div>
+                )}
+              </div>
+            );
+          }) : (
+            <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+              <p className="text-sm font-black text-white">No new advisory signals loaded.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Run advisory intelligence or refresh after data sync to review signals.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Recommended Packages</p>
+          <div className="mt-4 grid gap-3">
+            {packageQueue.length ? packageQueue.slice(0, 5).map((item) => (
+              <div key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <p className="text-sm font-black text-white">{String(item.package_type || "").replaceAll("_", " ")}</p>
+                <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{item.status}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-400">Recommended period: {item.recommended_period || "review period"}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => onGeneratePackage(item)} className="rounded-2xl bg-[#FF7A1A] px-3 py-2 text-xs font-black text-white">
+                    Generate recommended package
+                  </button>
+                  <button type="button" onClick={() => onDismiss(item)} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-slate-200">
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )) : (
+              <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-400">
+                No package recommendations are pending review.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -3043,6 +3401,7 @@ function ShortcutMetricSection({ title, summary, cards }) {
 function SimplifiedFeatureCards({ onExploreSection }) {
   const cards = [
     ["Pulse Insights", "Review executive summary, risks, opportunities, alerts, and recommendations."],
+    ["Pulse Advisory Intelligence", "Review detected signals, recommendations, and package suggestions."],
     ["Pulse Predict", "Forecasts, scenarios, and what-if analysis."],
     ["Executive Package", "Generate PDF and PowerPoint reporting packages."],
     ["Flux Analysis", "Generate a separate variance report with account-level commentary."],

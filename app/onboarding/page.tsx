@@ -561,6 +561,19 @@ function OnboardingContent() {
   const payloadConnectionId = (payload: ActiveReportPayload | null) =>
     payload?.reportDataContext?.connectionId || payload?.normalizedData?.connectionId || payload?.connectionId || "";
 
+  const payloadTenantId = (payload: ActiveReportPayload | null) =>
+    payload?.reportDataContext?.tenantId || payload?.normalizedData?.tenantId || payload?.tenantId || "";
+
+  const payloadMatchesSelectedConnection = (provider: IntegrationProviderId, payload: ActiveReportPayload | null, expectedConnectionId = connectedConnectionId) => {
+    if (!payload || payloadSourceSystem(payload) !== provider) return false;
+    const actualConnectionId = payloadConnectionId(payload);
+    if (expectedConnectionId && actualConnectionId && expectedConnectionId !== actualConnectionId) return false;
+    const expectedTenantId = activeAccountingContext?.tenantId || "";
+    const actualTenantId = payloadTenantId(payload);
+    if (expectedTenantId && actualTenantId && expectedTenantId !== actualTenantId) return false;
+    return true;
+  };
+
   const clearReportContext = () => {
     window.localStorage.removeItem("advisacor_active_report_payload");
     window.sessionStorage.removeItem("advisacor_active_report_payload");
@@ -577,58 +590,60 @@ function OnboardingContent() {
   };
 
   const setReportContextForProvider = (provider: IntegrationProviderId, payload: ActiveReportPayload | null) => {
-    if (!payload || payloadSourceSystem(payload) !== provider) return null;
-    window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload));
-    window.localStorage.setItem(providerReportPayloadKey(provider), JSON.stringify(payload));
-    setSyncDiagnostics((payload.diagnostics as AccountingSyncDiagnostics | null) || null);
+    if (!payloadMatchesSelectedConnection(provider, payload)) return null;
+    const safePayload = payload as ActiveReportPayload;
+    window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(safePayload));
+    window.localStorage.setItem(providerReportPayloadKey(provider), JSON.stringify(safePayload));
+    setSyncDiagnostics((safePayload.diagnostics as AccountingSyncDiagnostics | null) || null);
     const nextSource = {
-      syncId: payload.syncId || payload.reportDataContext?.syncId,
-      connectionId: payload.connectionId || payload.reportDataContext?.connectionId,
-      sourceSystem: payload.sourceSystem || payload.reportDataContext?.sourceSystem,
-      tenantId: payload.tenantId || payload.reportDataContext?.tenantId || null,
-      payload,
+      syncId: safePayload.syncId || safePayload.reportDataContext?.syncId,
+      connectionId: safePayload.connectionId || safePayload.reportDataContext?.connectionId,
+      sourceSystem: safePayload.sourceSystem || safePayload.reportDataContext?.sourceSystem,
+      tenantId: safePayload.tenantId || safePayload.reportDataContext?.tenantId || null,
+      payload: safePayload,
     };
     setReportSummarySource(nextSource);
     setPackageContextSource(nextSource);
     setActiveAccountingContext({
-      companyId: payload.reportDataContext?.companyId || payload.normalizedData?.companyId || null,
+      companyId: safePayload.reportDataContext?.companyId || safePayload.normalizedData?.companyId || null,
       connectionId: nextSource.connectionId,
       sourceSystem: nextSource.sourceSystem,
       tenantId: nextSource.tenantId,
-      tenantName: payload.tenantName || payload.reportDataContext?.tenantName || payload.normalizedData?.tenantName,
+      tenantName: safePayload.tenantName || safePayload.reportDataContext?.tenantName || safePayload.normalizedData?.tenantName,
       latestSuccessfulSyncId: nextSource.syncId,
       latestSyncId: nextSource.syncId,
-      latestSyncStatus: payload.normalizedData?.syncStatus || "SUCCESS",
+      latestSyncStatus: safePayload.normalizedData?.syncStatus || "SUCCESS",
       packageGeneratorExpectedStatus: "SUCCESS",
-      packageGeneratorFoundStatus: payload.normalizedData?.syncStatus || "SUCCESS",
+      packageGeneratorFoundStatus: safePayload.normalizedData?.syncStatus || "SUCCESS",
     });
-    return payload;
+    return safePayload;
   };
 
   const setPackageContextForProvider = (provider: IntegrationProviderId, payload: ActiveReportPayload | null) => {
-    if (!payload || payloadSourceSystem(payload) !== provider) return null;
+    if (!payloadMatchesSelectedConnection(provider, payload)) return null;
+    const safePayload = payload as ActiveReportPayload;
     const nextSource = {
-      syncId: payload.syncId || payload.reportDataContext?.syncId,
-      connectionId: payload.connectionId || payload.reportDataContext?.connectionId,
-      sourceSystem: payload.sourceSystem || payload.reportDataContext?.sourceSystem,
-      tenantId: payload.tenantId || payload.reportDataContext?.tenantId || null,
-      payload,
+      syncId: safePayload.syncId || safePayload.reportDataContext?.syncId,
+      connectionId: safePayload.connectionId || safePayload.reportDataContext?.connectionId,
+      sourceSystem: safePayload.sourceSystem || safePayload.reportDataContext?.sourceSystem,
+      tenantId: safePayload.tenantId || safePayload.reportDataContext?.tenantId || null,
+      payload: safePayload,
     };
-    window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload));
+    window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(safePayload));
     setPackageContextSource(nextSource);
     setActiveAccountingContext((current) => ({
-      companyId: payload.reportDataContext?.companyId || payload.normalizedData?.companyId || current?.companyId || null,
+      companyId: safePayload.reportDataContext?.companyId || safePayload.normalizedData?.companyId || current?.companyId || null,
       connectionId: nextSource.connectionId,
       sourceSystem: nextSource.sourceSystem,
       tenantId: nextSource.tenantId,
-      tenantName: payload.tenantName || payload.reportDataContext?.tenantName || payload.normalizedData?.tenantName || current?.tenantName,
+      tenantName: safePayload.tenantName || safePayload.reportDataContext?.tenantName || safePayload.normalizedData?.tenantName || current?.tenantName,
       latestSuccessfulSyncId: nextSource.syncId,
       latestSyncId: nextSource.syncId || current?.latestSyncId,
-      latestSyncStatus: payload.normalizedData?.syncStatus || current?.latestSyncStatus,
+      latestSyncStatus: safePayload.normalizedData?.syncStatus || current?.latestSyncStatus,
       packageGeneratorExpectedStatus: "SUCCESS",
-      packageGeneratorFoundStatus: payload.normalizedData?.syncStatus || current?.packageGeneratorFoundStatus,
+      packageGeneratorFoundStatus: safePayload.normalizedData?.syncStatus || current?.packageGeneratorFoundStatus,
     }));
-    return payload;
+    return safePayload;
   };
 
   const reportPayloadCompanyId = (payload: ActiveReportPayload | null) =>
@@ -637,25 +652,43 @@ function OnboardingContent() {
   const reportPayloadReportPeriod = (payload: ActiveReportPayload | null) =>
     payload?.reportDataContext?.reportPeriod || payload?.normalizedData?.reportPeriod || null;
 
-  const hydrateActiveAccountingContext = async (provider: IntegrationProviderId = selectedIntegration, connectionId = connectedConnectionId) => {
+  const hydrateActiveAccountingContext = async (provider: IntegrationProviderId = selectedIntegration, connectionId = connectedConnectionId, options: { forceRefresh?: boolean } = {}) => {
     const token = await getAuthToken();
     const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
     if (!token && !leadId) return null;
-    const response = await fetch("/api/accounting/active-context", {
+    const buildRequestBody = (nextConnectionId = connectionId) => JSON.stringify({
+      companyId: activeAccountingContext?.companyId || null,
+      connectionId: nextConnectionId,
+      sourceSystem: provider,
+      leadId,
+      forceRefresh: provider === "xero" ? Boolean(options.forceRefresh) : false,
+    });
+    let response = await fetch("/api/accounting/active-context", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({
-        companyId: activeAccountingContext?.companyId || null,
-        connectionId,
-        sourceSystem: provider,
-        leadId,
-      }),
+      body: buildRequestBody(),
     });
-    const result = await response.json().catch(() => ({})) as ActiveAccountingContextResponse;
-    if (!response.ok) return null;
+    let result = await response.json().catch(() => ({})) as ActiveAccountingContextResponse & { error?: string };
+    if (!response.ok && response.status === 404 && provider !== "xero" && connectionId) {
+      response = await fetch("/api/accounting/active-context", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: buildRequestBody(""),
+      });
+      result = await response.json().catch(() => ({})) as ActiveAccountingContextResponse & { error?: string };
+    }
+    if (!response.ok) {
+      if (provider === "xero" && options.forceRefresh) {
+        throw new Error(result.error || "Unable to refresh Xero report context before PDF generation.");
+      }
+      return null;
+    }
     const context = result.activeContext || {
       companyId: result.companyId,
       connectionId: result.connectionId,
@@ -680,6 +713,7 @@ function OnboardingContent() {
       tenantId: context?.tenantId || null,
       syncId: context?.latestSuccessfulSyncId || null,
         latestSyncStatus: context?.latestSyncStatus || null,
+      forceRefresh: provider === "xero" ? Boolean(options.forceRefresh) : false,
     });
     const payload: ActiveReportPayload | null = result.normalizedData || result.reportDataContext
       ? {
@@ -970,6 +1004,7 @@ function OnboardingContent() {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (searchParams?.get("quickBooksConnected") !== "true") return;
+    const connectionId = searchParams?.get("connectionId") || "";
     const importedQuickBooksProfile = {
       ...company,
       name: company.name || "QuickBooks Company",
@@ -984,6 +1019,7 @@ function OnboardingContent() {
     setConnectionStatus("connected");
     setSelectedIntegration("quickbooks");
     setConnectedIntegration("quickbooks");
+    if (connectionId) setConnectedConnectionId(connectionId);
     setConnectedOrganizationName(importedQuickBooksProfile.name);
     setCompany(importedQuickBooksProfile);
     const discovery = buildReportDiscovery("QuickBooks Online");
@@ -994,6 +1030,7 @@ function OnboardingContent() {
     setConnectionValidationOpen(!hasRequiredReports);
     setStep(hasRequiredReports ? industryStep : uploadReportsStep);
     window.localStorage.setItem("advisacor_onboarding_quickbooks_connected", "true");
+    if (connectionId) window.localStorage.setItem("advisacor_onboarding_quickbooks_connection_id", connectionId);
     window.localStorage.setItem("advisacor_onboarding_quickbooks_profile", JSON.stringify(importedQuickBooksProfile));
     window.localStorage.setItem("advisacor_onboarding_quickbooks_reports", JSON.stringify(discovery));
     setMessage("QuickBooks connected successfully. We imported your available company profile and report data.");
@@ -1580,6 +1617,15 @@ function OnboardingContent() {
     return reportPayload?.reportDataContext?.tenantName || reportPayload?.normalizedData?.tenantName || reportPayload?.tenantName || "";
   };
 
+  const reportPayloadPeriodLabel = (reportPayload: ActiveReportPayload | null) => {
+    const reportPeriod = reportPayload?.reportDataContext?.reportPeriod || reportPayload?.normalizedData?.reportPeriod;
+    const endDate = typeof reportPeriod === "object" && reportPeriod && "endDate" in reportPeriod ? String(reportPeriod.endDate || "") : "";
+    if (!endDate) return undefined;
+    const parsed = new Date(`${endDate}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime())) return endDate;
+    return parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  };
+
   const isXeroPlaceholderPayload = (reportPayload: ActiveReportPayload | null) => {
     if (reportPayloadSourceSystem(reportPayload) !== "xero") return false;
     const counts = reportPayloadCounts(reportPayload);
@@ -1597,7 +1643,7 @@ function OnboardingContent() {
 
   const buildPayloadFromLatestSync = (result: LatestNormalizedResponse, connectionId: string, sourceSystem: string): ActiveReportPayload => {
     return {
-      sourceSystem,
+      sourceSystem: result.normalizedData?.sourceSystem || result.reportDataContext?.sourceSystem || sourceSystem,
       adapterName: result.normalizedData?.adapterName || result.reportDataContext?.adapterName || null,
       tenantId: result.tenantId || result.normalizedData?.tenantId || result.reportDataContext?.tenantId || null,
       tenantName: result.tenantName || result.normalizedData?.tenantName || connectedOrganizationName,
@@ -1646,8 +1692,18 @@ function OnboardingContent() {
 
   const loadLatestNormalizedReportPayload = async (currentPayload: ActiveReportPayload | null): Promise<ActiveReportPayload | null> => {
     const sourceSystem = selectedIntegration;
-    const activeContextPayload = await hydrateActiveAccountingContext(sourceSystem, connectedConnectionId || reportPayloadConnectionId(currentPayload));
-    if (!activeContextPayload && reportSummarySource?.payload && reportSummarySource.sourceSystem === sourceSystem) {
+    const activeContextPayload = await hydrateActiveAccountingContext(
+      sourceSystem,
+      connectedConnectionId || reportPayloadConnectionId(currentPayload),
+      { forceRefresh: sourceSystem === "xero" },
+    );
+    const expectedConnectionId = connectedConnectionId || reportPayloadConnectionId(currentPayload);
+    if (
+      !activeContextPayload &&
+      reportSummarySource?.payload &&
+      reportSummarySource.sourceSystem === sourceSystem &&
+      payloadMatchesSelectedConnection(sourceSystem, reportSummarySource.payload, expectedConnectionId)
+    ) {
       console.info("Connected Reports Summary Source:", {
         syncId: reportSummarySource.syncId || null,
         connectionId: reportSummarySource.connectionId || null,
@@ -1656,7 +1712,12 @@ function OnboardingContent() {
       });
       return promoteSummarySyncToPackageContext();
     }
-    if (!activeContextPayload) return null;
+    if (!activeContextPayload) {
+      if (sourceSystem === "xero") {
+        throw new Error("Unable to refresh Xero report context before PDF generation. Please reconnect or retry Xero sync.");
+      }
+      return null;
+    }
     const latestSync = activeContextPayload as LatestNormalizedResponse;
     const nextPayload = buildReportDataContextFromSync(latestSync, sourceSystem, connectedConnectionId);
     const previousSyncId = reportPayloadSyncId(currentPayload);
@@ -1747,11 +1808,15 @@ function OnboardingContent() {
   };
 
   const downloadTrialReport = async () => {
+    const latestPayload = await loadLatestNormalizedReportPayload(readActiveReportPayload());
     const summaryPayload =
-      reportSummarySource?.sourceSystem === selectedIntegration && reportSummarySource.payload
+      !latestPayload &&
+      reportSummarySource?.sourceSystem === selectedIntegration &&
+      reportSummarySource.payload &&
+      payloadMatchesSelectedConnection(selectedIntegration, reportSummarySource.payload)
         ? promoteSummarySyncToPackageContext()
         : null;
-    const reportPayload = summaryPayload || await loadLatestNormalizedReportPayload(null);
+    const reportPayload = latestPayload || summaryPayload;
     if (reportPayload) setPackageContextForProvider(selectedIntegration, reportPayload);
     logPackageGenerationInput(reportPayload);
     const activeProvider = selectedIntegration;
@@ -1783,6 +1848,7 @@ function OnboardingContent() {
       companyName: company.name || "QuickBooks Company",
       industryType: company.industry_type || "Industry Intelligence",
       preparedBy: "Advisacor",
+      reportPeriod: reportPayloadPeriodLabel(reportPayload),
       trial: true,
       normalizedData: (reportPayload?.normalizedData || undefined) as ReportDataContext["normalizedData"] | undefined,
       reportDataContext: (reportPayload?.reportDataContext || undefined) as ReportDataContext | undefined,

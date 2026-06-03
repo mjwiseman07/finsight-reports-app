@@ -253,8 +253,8 @@ export default function Home() {
             <Link href="/signin" className="hidden rounded-full px-4 py-2 text-sm font-bold text-[#111827] hover:bg-slate-100 sm:inline-flex">
               Login
             </Link>
-            <Link href="/signup" className="premium-button rounded-full px-5 py-2.5 text-sm font-black text-white">
-              Sign Up for Early Access
+            <Link href="/free-review?source=landing-header" className="premium-button rounded-full px-5 py-2.5 text-sm font-black text-white">
+              Generate My Free Financial Review
             </Link>
           </div>
         </nav>
@@ -272,8 +272,8 @@ export default function Home() {
               Generate board-ready financial packages in minutes. Upload statements for a free sample review, or connect accounting systems to unlock weekly briefs, monthly packages, Ask Advisacor, forecasting, budgeting, and industry intelligence.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link href="/signup" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
-                Sign Up for Early Access
+              <Link href="/free-review?source=landing-hero" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
+                Generate My Free Financial Review
               </Link>
               <a href="#videos" className="rounded-2xl border border-white/15 bg-white/[0.06] px-6 py-4 text-center text-sm font-black text-white backdrop-blur transition hover:bg-white/[0.1]">
                 Watch Advisacor In Action
@@ -429,8 +429,8 @@ export default function Home() {
               Bring executive reporting, PDF and PowerPoint packages, owner weekly briefs, Ask Advisacor, firm client management, support tickets, and industry-aware operational finance intelligence into one premium platform.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/signup" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
-                Sign Up for Early Access
+              <Link href="/free-review?source=landing-bottom" className="premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white">
+                Generate My Free Financial Review
               </Link>
               <a href="#videos" className="rounded-2xl border border-white/15 bg-white/[0.06] px-6 py-4 text-center text-sm font-black text-white">
                 Watch Advisacor In Action
