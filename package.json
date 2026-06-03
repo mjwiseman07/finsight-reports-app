@@ -24,6 +24,7 @@
     "verify:audit-logs": "node scripts/verify-audit-logs.js",
     "verify:advisory-intelligence": "node scripts/verify-advisory-intelligence.js",
     "verify:si-core-scaffold": "node scripts/verify-si-core-scaffold.js",
+    "verify:si-evidence-confidence": "node scripts/verify-si-evidence-confidence.js",
     "verify:client-briefings": "node scripts/verify-client-briefings.js",
     "verify:accounting-connections": "node scripts/verify-accounting-connections.js",
     "verify:accounting-data-engine": "node scripts/verify-accounting-data-engine.js",

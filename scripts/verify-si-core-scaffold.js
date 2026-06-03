@@ -68,8 +68,8 @@ const protectedImportPatterns = [
 ];
 
 const runtimeLogicPatterns = [
-  /\bexport\s+(async\s+)?function\b/,
   /\bfunction\s+(forecast|detect|generate|recommend|render|buildCommentary|buildPackage)\b/i,
+  /\bexport\s+(const|function)\s+\w*(forecast|detect|generate|recommend|render|buildCommentary|buildPackage)\w*/i,
   /\bclass\s+\w+/,
   /\bfetch\s*\(/,
   /\bsupabase\b/i,
