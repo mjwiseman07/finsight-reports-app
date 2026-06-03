@@ -15,6 +15,7 @@ const expectedFolders = [
   "historical-snapshots",
   "kpi-library",
   "formula-registry",
+  "metric-series",
   "trend-analysis",
   "seasonality",
   "forecasting",
@@ -50,6 +51,7 @@ const expectedFiles = [
   "historical-snapshots/index.ts",
   "kpi-library/index.ts",
   "formula-registry/index.ts",
+  "metric-series/index.ts",
 ];
 
 const protectedImportPatterns = [

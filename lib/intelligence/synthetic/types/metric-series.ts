@@ -1,3 +1,6 @@
+import type { SyntheticConfidenceScore } from "./confidence";
+import type { SyntheticEvidenceQualityFlag } from "./evidence";
+
 export interface SyntheticMetricSeriesPeriod {
   startDate: string;
   endDate: string;
@@ -16,7 +19,9 @@ export interface SyntheticMetricSeriesPoint {
   period: SyntheticMetricSeriesPeriod;
   value: number | null;
   source?: SyntheticMetricSeriesSource;
-  qualityFlags?: string[];
+  qualityFlags?: SyntheticEvidenceQualityFlag[];
+  evidenceId?: string;
+  calculationTraceId?: string;
 }
 
 export interface SyntheticMetricSeriesCoverage {
@@ -40,4 +45,11 @@ export interface SyntheticMetricSeries {
   unit?: "currency" | "percent" | "days" | "count" | "ratio" | "text";
   points: SyntheticMetricSeriesPoint[];
   coverage?: SyntheticMetricSeriesCoverage;
+  confidence?: SyntheticConfidenceScore;
+  evidenceIds?: string[];
+  calculationTraceIds?: string[];
+  kpiKey?: string;
+  formulaKey?: string;
+  parentMetricIds?: string[];
+  sourceMetricIds?: string[];
 }
