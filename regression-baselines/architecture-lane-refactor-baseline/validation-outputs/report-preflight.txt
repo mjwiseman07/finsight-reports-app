@@ -21,7 +21,7 @@
     actualProviderKey: 'quickbooks:quickbooks-tenant'
   }
 }
-FAIL Valid QuickBooks report passes: SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE
+PASS Valid QuickBooks report passes
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'xero',
@@ -41,7 +41,7 @@ FAIL Valid QuickBooks report passes: SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPUL
     actualProviderKey: 'xero:xero-tenant'
   }
 }
-FAIL Valid Xero report passes: SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE
+PASS Valid Xero report passes
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'xero',
@@ -101,7 +101,7 @@ PASS Xero selected but QuickBooks data appears is blocked
     actualProviderKey: 'xero:xero-demo-tenant'
   }
 }
-FAIL Xero UUID and legacy lead identity passes when tenant matches: SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE
+PASS Xero UUID and legacy lead identity passes when tenant matches
 PASS ReportDataContext accepts Xero UUID and legacy lead identity when tenant matches
 [report-preflight/provider-identity] {
   expected: {
@@ -162,7 +162,7 @@ PASS Balance sheet out of balance is blocked
     actualProviderKey: 'quickbooks:quickbooks-tenant'
   }
 }
-FAIL Trial balance out of balance creates support warning: expected warning TRIAL_BALANCE_OUT_OF_BALANCE, blockers=SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE, warnings=AR_AGING_MISSING, AP_AGING_MISSING, BUDGET_MISSING, DEPARTMENTS_MISSING, CLASSES_MISSING, LOCATIONS_MISSING, PROJECTS_MISSING, TRIAL_BALANCE_OUT_OF_BALANCE
+PASS Trial balance out of balance creates support warning
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'quickbooks',
@@ -182,7 +182,7 @@ FAIL Trial balance out of balance creates support warning: expected warning TRIA
     actualProviderKey: 'quickbooks:quickbooks-tenant'
   }
 }
-FAIL Cash mismatch creates support warning: expected warning CASH_SUPPORT_MISMATCH, blockers=SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE, warnings=AR_AGING_MISSING, AP_AGING_MISSING, BUDGET_MISSING, DEPARTMENTS_MISSING, CLASSES_MISSING, LOCATIONS_MISSING, PROJECTS_MISSING, CASH_SUPPORT_MISMATCH
+PASS Cash mismatch creates support warning
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'quickbooks',
@@ -222,7 +222,7 @@ PASS Non-blocking warnings do not use support ticket wording
     actualProviderKey: 'quickbooks:quickbooks-tenant'
   }
 }
-FAIL Cash mismatch is skipped when cash support is unavailable: unexpected warning CASH_SUPPORT_MISMATCH, blockers=SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE, warnings=ACCOUNTS_MISSING, TRIAL_BALANCE_MISSING, AR_AGING_MISSING, AP_AGING_MISSING, BUDGET_MISSING, DEPARTMENTS_MISSING, CLASSES_MISSING, LOCATIONS_MISSING, PROJECTS_MISSING
+PASS Cash mismatch is skipped when cash support is unavailable
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'quickbooks',
@@ -242,7 +242,7 @@ FAIL Cash mismatch is skipped when cash support is unavailable: unexpected warni
     actualProviderKey: 'quickbooks:quickbooks-tenant'
   }
 }
-FAIL Cash mismatch is skipped when cash support returns zero: unexpected warning CASH_SUPPORT_MISMATCH, blockers=SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE, warnings=AR_AGING_MISSING, AP_AGING_MISSING, BUDGET_MISSING, DEPARTMENTS_MISSING, CLASSES_MISSING, LOCATIONS_MISSING, PROJECTS_MISSING
+PASS Cash mismatch is skipped when cash support returns zero
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'quickbooks',
@@ -302,7 +302,7 @@ PASS Missing required statement is blocked
     actualProviderKey: 'quickbooks:quickbooks-tenant'
   }
 }
-FAIL Stale sync creates support warning: expected warning STALE_CONTEXT_SUSPECTED, blockers=SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE, warnings=AR_AGING_MISSING, AP_AGING_MISSING, BUDGET_MISSING, DEPARTMENTS_MISSING, CLASSES_MISSING, LOCATIONS_MISSING, PROJECTS_MISSING, STALE_CONTEXT_SUSPECTED
+PASS Stale sync creates support warning
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'quickbooks',
@@ -322,7 +322,7 @@ FAIL Stale sync creates support warning: expected warning STALE_CONTEXT_SUSPECTE
     actualProviderKey: 'quickbooks:quickbooks-tenant'
   }
 }
-FAIL Stale sync passes when explicitly approved: SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE
+PASS Stale sync passes when explicitly approved
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'quickbooks',
@@ -402,7 +402,7 @@ PASS Schedule source mismatch is blocked
     actualProviderKey: 'quickbooks:quickbooks-tenant'
   }
 }
-FAIL Report period mismatch creates support warning: expected warning REPORT_PERIOD_MISMATCH, blockers=SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE, warnings=AR_AGING_MISSING, AP_AGING_MISSING, BUDGET_MISSING, DEPARTMENTS_MISSING, CLASSES_MISSING, LOCATIONS_MISSING, PROJECTS_MISSING, REPORT_PERIOD_MISMATCH
+PASS Report period mismatch creates support warning
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'xero',
@@ -422,7 +422,7 @@ FAIL Report period mismatch creates support warning: expected warning REPORT_PER
     actualProviderKey: 'xero:xero-tenant'
   }
 }
-FAIL Missing accounts creates support warning: expected warning ACCOUNTS_MISSING, blockers=SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE, warnings=ACCOUNTS_MISSING, TRIAL_BALANCE_MISSING, AR_AGING_MISSING, AP_AGING_MISSING, BUDGET_MISSING, DEPARTMENTS_MISSING, CLASSES_MISSING, LOCATIONS_MISSING, PROJECTS_MISSING
+PASS Missing accounts creates support warning
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'xero',
@@ -442,7 +442,7 @@ FAIL Missing accounts creates support warning: expected warning ACCOUNTS_MISSING
     actualProviderKey: 'xero:xero-tenant'
   }
 }
-FAIL Missing trial balance creates support warning: expected warning TRIAL_BALANCE_MISSING, blockers=SCHEDULE_POPULATION_FAILURE, SCHEDULE_POPULATION_FAILURE, warnings=ACCOUNTS_MISSING, TRIAL_BALANCE_MISSING, AR_AGING_MISSING, AP_AGING_MISSING, BUDGET_MISSING, DEPARTMENTS_MISSING, CLASSES_MISSING, LOCATIONS_MISSING, PROJECTS_MISSING
+PASS Missing trial balance creates support warning
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'xero',
@@ -462,7 +462,7 @@ FAIL Missing trial balance creates support warning: expected warning TRIAL_BALAN
     actualProviderKey: 'xero:xero-tenant'
   }
 }
-FAIL Missing optional schedules still use support ticket wording or block generation
+PASS Missing optional schedules do not create support ticket wording
 [report-preflight/provider-identity] {
   expected: {
     sourceSystem: 'quickbooks',
@@ -482,7 +482,45 @@ FAIL Missing optional schedules still use support ticket wording or block genera
     actualProviderKey: 'quickbooks:quickbooks-tenant'
   }
 }
-FAIL QuickBooks/Xero switching assertion failed: We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.
+[report-preflight/provider-identity] {
+  expected: {
+    sourceSystem: 'xero',
+    connectionId: 'xero-connection',
+    tenantId: 'xero-tenant',
+    tenantName: 'xero Tenant'
+  },
+  actual: {
+    sourceSystem: 'xero',
+    connectionId: 'xero-connection',
+    tenantId: 'xero-tenant',
+    tenantName: 'xero Tenant'
+  },
+  resolvedProviderIdentity: {
+    providerKey: 'xero:xero-tenant',
+    expectedProviderKey: 'xero:xero-tenant',
+    actualProviderKey: 'xero:xero-tenant'
+  }
+}
+[report-preflight/provider-identity] {
+  expected: {
+    sourceSystem: 'quickbooks',
+    connectionId: 'qb-connection',
+    tenantId: 'quickbooks-tenant',
+    tenantName: 'quickbooks Tenant'
+  },
+  actual: {
+    sourceSystem: 'quickbooks',
+    connectionId: 'qb-connection',
+    tenantId: 'quickbooks-tenant',
+    tenantName: 'quickbooks Tenant'
+  },
+  resolvedProviderIdentity: {
+    providerKey: 'quickbooks:quickbooks-tenant',
+    expectedProviderKey: 'quickbooks:quickbooks-tenant',
+    actualProviderKey: 'quickbooks:quickbooks-tenant'
+  }
+}
+PASS QuickBooks still generates after Xero is connected and switched back
 PASS app/dashboard/page.jsx contains assertReportPreflight
 PASS app/dashboard/page.jsx contains validateReportPreflight
 PASS app/dashboard/page.jsx contains Validation Status
@@ -498,4 +536,4 @@ PASS lib/financial-package-pdf.ts contains Financial package
 PASS lib/background-jobs.js contains assertBackgroundJobPreflight
 PASS lib/background-jobs.js contains status = 422
 
-Report preflight verification failed.
+Report preflight verification passed.

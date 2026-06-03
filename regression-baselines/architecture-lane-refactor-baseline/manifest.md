@@ -34,7 +34,7 @@
 - `npm run verify:quickbooks`: PASS.
 - `npm run verify:xero-balance-sheet-pdf`: PASS.
 - `npm run verify:quickbooks-package-context`: PASS.
-- `npm run verify:report-preflight`: FAIL; output captured in `validation-outputs/report-preflight.txt`.
+- `npm run verify:report-preflight`: PASS after verifier fixture correction; output captured in `validation-outputs/report-preflight.txt`.
 - `npx tsc --noEmit --pretty false`: PASS.
 
 ## Missing Baselines
