@@ -155,6 +155,12 @@ function expectWarning(name, context, expectedCode, options = {}) {
   else fail(`${name}: expected warning ${expectedCode}, blockers=${result.blockers.map((issue) => issue.code).join(", ") || "none"}, warnings=${result.warnings.map((issue) => issue.code).join(", ") || "none"}`);
 }
 
+function expectNoWarning(name, context, unexpectedCode, options = {}) {
+  const result = validateReportPreflight(context, { requiresLiveData: true, ...options });
+  if (result.passed && !result.warnings.some((issue) => issue.code === unexpectedCode)) pass(name);
+  else fail(`${name}: unexpected warning ${unexpectedCode}, blockers=${result.blockers.map((issue) => issue.code).join(", ") || "none"}, warnings=${result.warnings.map((issue) => issue.code).join(", ") || "none"}`);
+}
+
 expectPass("Valid QuickBooks report passes", validContext("quickbooks", "qb-connection"));
 expectPass("Valid Xero report passes", validContext("xero", "xero-connection"));
 expectPass("Empty Xero company passes only as zero/empty Xero report", emptyXeroContext());
@@ -197,6 +203,20 @@ const badCash = validContext();
 badCash.normalizedData.normalizedBalanceSheet[0].amount = 90;
 badCash.normalizedData.normalizedBalanceSheet[1].amount = 60;
 expectWarning("Cash mismatch creates support warning", badCash, "CASH_SUPPORT_MISMATCH");
+const warningWordingResult = validateReportPreflight(badCash, { requiresLiveData: true });
+if (warningWordingResult.warnings.every((issue) => !/support ticket/i.test(issue.message))) pass("Non-blocking warnings do not use support ticket wording");
+else fail("A non-blocking warning still uses support ticket wording");
+
+const missingCashSupport = validContext();
+missingCashSupport.normalizedData.normalizedTrialBalance = [];
+missingCashSupport.normalizedData.normalizedAccounts = [];
+expectNoWarning("Cash mismatch is skipped when cash support is unavailable", missingCashSupport, "CASH_SUPPORT_MISMATCH");
+
+const zeroCashSupport = validContext();
+zeroCashSupport.normalizedData.normalizedTrialBalance = [
+  { accountId: "1000", accountName: "Operating Cash", debit: 0, credit: 0, netAmount: 0, source: source("quickbooks") },
+];
+expectNoWarning("Cash mismatch is skipped when cash support returns zero", zeroCashSupport, "CASH_SUPPORT_MISMATCH");
 
 const badIncomeStatement = validContext();
 badIncomeStatement.normalizedData.normalizedIncomeStatement[2].amount = 90;
@@ -232,6 +252,9 @@ missingSupport.normalizedData.normalizedAccounts = [];
 missingSupport.normalizedData.normalizedTrialBalance = [];
 expectWarning("Missing accounts creates support warning", missingSupport, "ACCOUNTS_MISSING");
 expectWarning("Missing trial balance creates support warning", missingSupport, "TRIAL_BALANCE_MISSING");
+const missingSupportResult = validateReportPreflight(missingSupport, { requiresLiveData: true });
+if (missingSupportResult.passed && missingSupportResult.warnings.every((issue) => !/support ticket/i.test(issue.message))) pass("Missing optional schedules do not create support ticket wording");
+else fail("Missing optional schedules still use support ticket wording or block generation");
 
 try {
   assertReportPreflight(validContext("quickbooks", "qb-connection"), { requiresLiveData: true });

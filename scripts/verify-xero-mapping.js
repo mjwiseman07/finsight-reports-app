@@ -53,6 +53,13 @@ function accountCell(value, accountId, accountCode) {
   ]);
 }
 
+function linkedAmountCell(amount) {
+  return xeroCell("", [
+    { Id: "account", Value: String(amount) },
+    { Id: "href", Value: "https://go.xero.com/Reports/AccountTransactions" },
+  ]);
+}
+
 function populatedReports() {
   return {
     Accounts: [
@@ -130,6 +137,8 @@ function populatedReports() {
         ],
       }],
     },
+    AgedReceivablesByContact: { Reports: [{ Rows: [] }] },
+    AgedPayablesByContact: { Reports: [{ Rows: [] }] },
     Contacts: { Contacts: [] },
     BankTransactions: { BankTransactions: [] },
     EmptyReport: { Reports: [{ Rows: [] }] },
@@ -144,12 +153,208 @@ function zeroReportsWithRows() {
   return reports;
 }
 
+function linkedBalanceSheetAmountReports() {
+  const reports = populatedReports();
+  reports.BalanceSheet = {
+    Reports: [{
+      Rows: [
+        {
+          RowType: "Section",
+          Title: "Assets",
+          Rows: [
+            {
+              RowType: "Section",
+              Title: "Current Assets",
+              Rows: [
+                { RowType: "Row", Cells: [accountCell("Accounts Receivable", "x-1100", "1100"), xeroCell("")] },
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Accounts Receivable"), linkedAmountCell("9,172.63")] },
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Current Assets"), linkedAmountCell("9,172.63")] },
+              ],
+            },
+            {
+              RowType: "Section",
+              Title: "Fixed Assets",
+              Rows: [
+                { RowType: "Row", Cells: [accountCell("Computer Equipment", "x-1500", "1500"), linkedAmountCell("(829.87)")] },
+                { RowType: "Row", Cells: [accountCell("Office Equipment", "x-1510", "1510"), linkedAmountCell("3,628.91")] },
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Fixed Assets"), linkedAmountCell("2,799.04")] },
+              ],
+            },
+            { RowType: "SummaryRow", Cells: [xeroCell("Total Assets"), linkedAmountCell("11,971.67")] },
+          ],
+        },
+        {
+          RowType: "Section",
+          Title: "Liabilities and Equity",
+          Rows: [
+            {
+              RowType: "Section",
+              Title: "Liabilities",
+              Rows: [
+                {
+                  RowType: "Section",
+                  Title: "Current Liabilities",
+                  Rows: [
+                    { RowType: "Row", Cells: [accountCell("Accounts Payable", "x-2000", "2000"), xeroCell("")] },
+                    { RowType: "SummaryRow", Cells: [xeroCell("Total Accounts Payable"), linkedAmountCell("10,703.19")] },
+                    { RowType: "Row", Cells: [accountCell("Sales Tax", "x-2050", "2050"), linkedAmountCell("2,655.38")] },
+                    { RowType: "SummaryRow", Cells: [xeroCell("Total Current Liabilities"), linkedAmountCell("22,059.53")] },
+                  ],
+                },
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Liabilities"), linkedAmountCell("22,059.53")] },
+              ],
+            },
+            {
+              RowType: "Section",
+              Title: "Equity",
+              Rows: [
+                { RowType: "Row", Cells: [accountCell("Current Year Earnings", "x-3000", "3000"), linkedAmountCell("(14,370.87)")] },
+                { RowType: "Row", Cells: [accountCell("Retained Earnings", "x-3010", "3010"), linkedAmountCell("4,283.01")] },
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Equity"), linkedAmountCell("(10,087.86)")] },
+              ],
+            },
+            { RowType: "SummaryRow", Cells: [xeroCell("Total Liabilities and Equity"), linkedAmountCell("11,971.67")] },
+          ],
+        },
+      ],
+    }],
+  };
+  return reports;
+}
+
+function sectionSummaryControlAccountReports() {
+  const reports = populatedReports();
+  reports.BalanceSheet = {
+    Reports: [{
+      Rows: [
+        {
+          RowType: "Section",
+          Title: "Assets",
+          Rows: [
+            {
+              RowType: "Section",
+              Title: "Current Assets",
+              Rows: [
+                {
+                  RowType: "Section",
+                  Title: "Accounts Receivable",
+                  Rows: [],
+                  Summary: { Cells: [xeroCell("Accounts Receivable"), linkedAmountCell("9,172.63")] },
+                },
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Current Assets"), linkedAmountCell("9,172.63")] },
+              ],
+            },
+            { RowType: "SummaryRow", Cells: [xeroCell("Total Assets"), linkedAmountCell("9,172.63")] },
+          ],
+        },
+        {
+          RowType: "Section",
+          Title: "Liabilities and Equity",
+          Rows: [
+            {
+              RowType: "Section",
+              Title: "Liabilities",
+              Rows: [
+                {
+                  RowType: "Section",
+                  Title: "Current Liabilities",
+                  Rows: [
+                    {
+                      RowType: "Section",
+                      Title: "Accounts Payable",
+                      Rows: [],
+                      Summary: { Cells: [xeroCell("Accounts Payable"), linkedAmountCell("10,703.19")] },
+                    },
+                    { RowType: "SummaryRow", Cells: [xeroCell("Total Current Liabilities"), linkedAmountCell("10,703.19")] },
+                  ],
+                },
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Liabilities"), linkedAmountCell("10,703.19")] },
+              ],
+            },
+            {
+              RowType: "Section",
+              Title: "Equity",
+              Rows: [
+                { RowType: "Row", Cells: [accountCell("Retained Earnings", "x-3010", "3010"), linkedAmountCell("(1,530.56)")] },
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Equity"), linkedAmountCell("(1,530.56)")] },
+              ],
+            },
+            { RowType: "SummaryRow", Cells: [xeroCell("Total Liabilities and Equity"), linkedAmountCell("9,172.63")] },
+          ],
+        },
+      ],
+    }],
+  };
+  return reports;
+}
+
+function balanceSheetMissingControlRowsWithAgingReports() {
+  const reports = populatedReports();
+  reports.BalanceSheet = {
+    Reports: [{
+      Rows: [
+        {
+          RowType: "Section",
+          Title: "Assets",
+          Rows: [
+            {
+              RowType: "Section",
+              Title: "Current Assets",
+              Rows: [
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Current Assets"), linkedAmountCell("9,172.63")] },
+              ],
+            },
+            { RowType: "SummaryRow", Cells: [xeroCell("Total Assets"), linkedAmountCell("9,172.63")] },
+          ],
+        },
+        {
+          RowType: "Section",
+          Title: "Liabilities and Equity",
+          Rows: [
+            {
+              RowType: "Section",
+              Title: "Liabilities",
+              Rows: [
+                {
+                  RowType: "Section",
+                  Title: "Current Liabilities",
+                  Rows: [
+                    { RowType: "SummaryRow", Cells: [xeroCell("Total Current Liabilities"), linkedAmountCell("10,703.19")] },
+                  ],
+                },
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Liabilities"), linkedAmountCell("10,703.19")] },
+              ],
+            },
+            {
+              RowType: "Section",
+              Title: "Equity",
+              Rows: [
+                { RowType: "SummaryRow", Cells: [xeroCell("Total Equity"), linkedAmountCell("(1,530.56)")] },
+              ],
+            },
+            { RowType: "SummaryRow", Cells: [xeroCell("Total Liabilities and Equity"), linkedAmountCell("9,172.63")] },
+          ],
+        },
+      ],
+    }],
+  };
+  reports.AgedReceivablesByContact = {
+    Reports: [{ Rows: [{ RowType: "Row", Cells: [xeroCell("Customer A"), linkedAmountCell("9,172.63")] }] }],
+  };
+  reports.AgedPayablesByContact = {
+    Reports: [{ Rows: [{ RowType: "Row", Cells: [xeroCell("Vendor A"), linkedAmountCell("10,703.19")] }] }],
+  };
+  return reports;
+}
+
 function emptyReports() {
   return {
     Accounts: [],
     BalanceSheet: { Reports: [{ Rows: [] }] },
     ProfitAndLoss: { Reports: [{ Rows: [] }] },
     TrialBalance: { Reports: [{ Rows: [] }] },
+    AgedReceivablesByContact: { Reports: [{ Rows: [] }] },
+    AgedPayablesByContact: { Reports: [{ Rows: [] }] },
     Contacts: { Contacts: [] },
     BankTransactions: { BankTransactions: [] },
     EmptyReport: { Reports: [{ Rows: [] }] },
@@ -184,6 +389,8 @@ function installXeroFetchMock(reports) {
     else if (requestUrl.includes("Reports/BalanceSheet")) payload = reports.BalanceSheet;
     else if (requestUrl.includes("Reports/ProfitAndLoss")) payload = reports.ProfitAndLoss;
     else if (requestUrl.includes("Reports/TrialBalance")) payload = reports.TrialBalance;
+    else if (requestUrl.includes("Reports/AgedReceivablesByContact")) payload = reports.AgedReceivablesByContact || reports.EmptyReport;
+    else if (requestUrl.includes("Reports/AgedPayablesByContact")) payload = reports.AgedPayablesByContact || reports.EmptyReport;
     else if (requestUrl.includes("Contacts")) payload = reports.Contacts;
     else if (requestUrl.includes("BankTransactions")) payload = reports.BankTransactions;
     return {
@@ -250,6 +457,36 @@ async function run() {
   const bankAccount = normalized.normalizedAccounts.find((account) => account.accountNumber === "1000");
   if (bankAccount?.accountType === "BANK" && bankAccount.accountClass === "ASSET" && bankAccount.status === "ACTIVE" && bankAccount.currency === "USD") pass("Xero Chart of Accounts maps account code/type/class/status/currency");
   else fail("Xero Chart of Accounts metadata is missing");
+
+  const linkedAmounts = await normalizeWithMockedXero(linkedBalanceSheetAmountReports());
+  const linkedAmount = (label) => linkedAmounts.normalizedBalanceSheet.find((row) => row.label === label)?.amount;
+  if (
+    linkedAmount("Accounts Receivable") === 9172.63 &&
+    linkedAmount("Accounts Payable") === 10703.19 &&
+    linkedAmount("Sales Tax") === 2655.38 &&
+    linkedAmount("Total Assets") === 11971.67 &&
+    linkedAmount("Total Liabilities and Equity") === 11971.67
+  ) {
+    pass("Xero linked Balance Sheet account rows map AR/AP/tax/totals from report attributes");
+  } else {
+    fail(`Xero linked Balance Sheet account rows are wrong: AR=${linkedAmount("Accounts Receivable")}, AP=${linkedAmount("Accounts Payable")}, tax=${linkedAmount("Sales Tax")}, assets=${linkedAmount("Total Assets")}, le=${linkedAmount("Total Liabilities and Equity")}`);
+  }
+
+  const sectionSummaryAmounts = await normalizeWithMockedXero(sectionSummaryControlAccountReports());
+  const sectionSummaryAmount = (label) => sectionSummaryAmounts.normalizedBalanceSheet.find((row) => row.label === label)?.amount;
+  if (sectionSummaryAmount("Accounts Receivable") === 9172.63 && sectionSummaryAmount("Accounts Payable") === 10703.19) {
+    pass("Xero section summary/control AR/AP rows map non-zero values");
+  } else {
+    fail(`Xero section summary/control AR/AP rows are wrong: AR=${sectionSummaryAmount("Accounts Receivable")}, AP=${sectionSummaryAmount("Accounts Payable")}`);
+  }
+
+  const missingControlRows = await normalizeWithMockedXero(balanceSheetMissingControlRowsWithAgingReports());
+  const missingControlAmount = (label) => missingControlRows.normalizedBalanceSheet.find((row) => row.label === label)?.amount;
+  if (missingControlAmount("Accounts Receivable") === 9172.63 && missingControlAmount("Accounts Payable") === 10703.19) {
+    pass("Xero aging reports create missing Balance Sheet AR/AP control rows");
+  } else {
+    fail(`Xero missing AR/AP Balance Sheet rows were not backfilled: AR=${missingControlAmount("Accounts Receivable")}, AP=${missingControlAmount("Accounts Payable")}`);
+  }
 
   const empty = await normalizeWithMockedXero(emptyReports());
   const emptyTotal = [
