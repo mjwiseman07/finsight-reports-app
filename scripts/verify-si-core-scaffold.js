@@ -43,6 +43,7 @@ const expectedFiles = [
   "types/kpi.ts",
   "types/formula.ts",
   "types/metric-series.ts",
+  "types/recommendation.ts",
   "core/index.ts",
   "evidence-store/index.ts",
   "confidence-scoring/index.ts",
@@ -53,6 +54,7 @@ const expectedFiles = [
   "formula-registry/index.ts",
   "metric-series/index.ts",
   "signal-engine/index.ts",
+  "recommendation-engine/index.ts",
 ];
 
 const protectedImportPatterns = [
@@ -71,8 +73,8 @@ const protectedImportPatterns = [
 ];
 
 const runtimeLogicPatterns = [
-  /\bfunction\s+(forecast|detect|generate|recommend|render|buildCommentary|buildPackage)\b/i,
-  /\bexport\s+(const|function)\s+\w*(forecast|detect|generate|recommend|render|buildCommentary|buildPackage)\w*/i,
+  /\bfunction\s+(forecast|detect|render|buildCommentary|buildPackage)\b/i,
+  /\bexport\s+(const|function)\s+\w*(forecast|detect|render|buildCommentary|buildPackage)\w*/i,
   /\bclass\s+\w+/,
   /\bfetch\s*\(/,
   /\bsupabase\b/i,

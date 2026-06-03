@@ -9,3 +9,4 @@ export type * from "./signal";
 export type * from "./kpi";
 export type * from "./formula";
 export type * from "./metric-series";
+export type * from "./recommendation";
