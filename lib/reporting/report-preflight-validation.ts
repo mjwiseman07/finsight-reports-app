@@ -1,5 +1,7 @@
 import { providerIdentitiesMatch } from "../integrations/accounting/report-data-context";
 import type { ReportDataContext } from "../integrations/accounting/report-data-context";
+import { OPTIONAL_SUPPORTING_SCHEDULE_MESSAGE, OPTIONAL_SUPPORTING_SCHEDULE_REASON } from "../accounting/supporting-schedules/fetchSupportingSchedules";
+import { agingBuckets, balanceSheetScheduleAmounts, schedulePopulationFailures } from "../accounting/supporting-schedules/scheduleDiagnostics";
 
 export type PreflightSeverity = "BLOCKER" | "WARNING" | "INFO";
 
@@ -113,6 +115,14 @@ function info(code: string, message: string, extra: Partial<PreflightIssue> = {}
   return { severity: "INFO", code, message, ...extra };
 }
 
+function optionalScheduleWarning(code: string, affected: string, actual: string | number): PreflightIssue {
+  return warning(code, OPTIONAL_SUPPORTING_SCHEDULE_MESSAGE, {
+    affected,
+    actual,
+    recommendedFix: OPTIONAL_SUPPORTING_SCHEDULE_REASON,
+  });
+}
+
 function isZeroCoreData(context: ReportDataContext | null | undefined) {
   const data = context?.normalizedData;
   if (!data) return false;
@@ -204,39 +214,19 @@ export function validateReportPreflight(context: ReportDataContext | null | unde
   }
   const supportWarningsAllowed = !noActivityConfirmed;
   if (supportWarningsAllowed && !hasRows(accounts)) {
-    add(warning("ACCOUNTS_MISSING", "Some supporting schedules could not be validated. A support ticket was created for review.", {
-      affected: "Chart of Accounts",
-      actual: `accounts=${accounts.length}`,
-      recommendedFix: "Review the connector account mapping and confirm whether the provider returned Chart of Accounts data.",
-    }), warnings);
+    add(optionalScheduleWarning("ACCOUNTS_MISSING", "Chart of Accounts", `accounts=${accounts.length}`), warnings);
   }
   if (supportWarningsAllowed && !hasRows(trialBalance)) {
-    add(warning("TRIAL_BALANCE_MISSING", "Some supporting schedules could not be validated. A support ticket was created for review.", {
-      affected: "Trial Balance",
-      actual: `trialBalance=${trialBalance.length}`,
-      recommendedFix: "Review the connector trial balance mapping and confirm whether the provider returned Trial Balance data.",
-    }), warnings);
+    add(optionalScheduleWarning("TRIAL_BALANCE_MISSING", "Trial Balance", `trialBalance=${trialBalance.length}`), warnings);
   }
   if (supportWarningsAllowed && !hasAvailableRows(data?.normalizedARAging)) {
-    add(warning("AR_AGING_MISSING", "Some supporting schedules could not be validated. A support ticket was created for review.", {
-      affected: "AR Aging",
-      actual: `arAging=${data?.normalizedARAging?.length || 0}`,
-      recommendedFix: "Review AR Aging availability and connector mapping.",
-    }), warnings);
+    add(optionalScheduleWarning("AR_AGING_MISSING", "AR Aging", `arAging=${data?.normalizedARAging?.length || 0}`), warnings);
   }
   if (supportWarningsAllowed && !hasAvailableRows(data?.normalizedAPAging)) {
-    add(warning("AP_AGING_MISSING", "Some supporting schedules could not be validated. A support ticket was created for review.", {
-      affected: "AP Aging",
-      actual: `apAging=${data?.normalizedAPAging?.length || 0}`,
-      recommendedFix: "Review AP Aging availability and connector mapping.",
-    }), warnings);
+    add(optionalScheduleWarning("AP_AGING_MISSING", "AP Aging", `apAging=${data?.normalizedAPAging?.length || 0}`), warnings);
   }
   if (supportWarningsAllowed && !hasAvailableRows(data?.normalizedBudgets)) {
-    add(warning("BUDGET_MISSING", "Some supporting schedules could not be validated. A support ticket was created for review.", {
-      affected: "Budget",
-      actual: `budget=${data?.normalizedBudgets?.length || 0}`,
-      recommendedFix: "Review budget report availability and connector mapping.",
-    }), warnings);
+    add(optionalScheduleWarning("BUDGET_MISSING", "Budget", `budget=${data?.normalizedBudgets?.length || 0}`), warnings);
   }
   for (const [code, affected, rows] of [
     ["DEPARTMENTS_MISSING", "Departments", data?.normalizedDepartments],
@@ -245,11 +235,7 @@ export function validateReportPreflight(context: ReportDataContext | null | unde
     ["PROJECTS_MISSING", "Projects", data?.normalizedProjects],
   ] as const) {
     if (supportWarningsAllowed && !hasAvailableRows(rows)) {
-      add(warning(code, "Some supporting schedules could not be validated. A support ticket was created for review.", {
-        affected,
-        actual: `${affected}=${rows?.length || 0}`,
-        recommendedFix: `Review ${affected.toLowerCase()} availability and connector mapping.`,
-      }), warnings);
+      add(optionalScheduleWarning(code, affected, `${affected}=${rows?.length || 0}`), warnings);
     }
   }
 
@@ -270,12 +256,12 @@ export function validateReportPreflight(context: ReportDataContext | null | unde
   const totalCredits = trialBalance.reduce((total, row) => total + amount(row.credit), 0);
   const trialVariance = absVariance(totalDebits, totalCredits);
   if (hasRows(trialBalance) && trialVariance > ROUNDING_TOLERANCE) {
-    add(warning("TRIAL_BALANCE_OUT_OF_BALANCE", "Some supporting schedules could not be validated. A support ticket was created for review.", {
+    add(warning("TRIAL_BALANCE_OUT_OF_BALANCE", "Trial Balance support was returned by the connected system, but debit and credit totals did not match for the selected period.", {
       affected: "Trial Balance",
       expected: totalCredits,
       actual: totalDebits,
       variance: trialVariance,
-      recommendedFix: "Review Trial Balance debit and credit mapping.",
+      recommendedFix: "Review Trial Balance debit and credit mapping when reconciling supporting schedules.",
     }), warnings);
   }
 
@@ -285,19 +271,56 @@ export function validateReportPreflight(context: ReportDataContext | null | unde
       .map((account) => account.id),
   );
   const cashPerBalanceSheet = sumRows(balanceSheet, (row) => sectionIncludes(row, /cash|bank|checking|savings/i));
-  const cashPerSupportingAccounts = trialBalance
-    .filter((row) => cashAccountIds.has(row.accountId) || /cash|bank|checking|savings/i.test(row.accountName))
-    .reduce((total, row) => total + Math.abs(amount(row.netAmount || row.debit - row.credit)), 0);
+  const hasCashSupport = hasRows(trialBalance) && (cashAccountIds.size > 0 || trialBalance.some((row) => /cash|bank|checking|savings/i.test(row.accountName)));
+  const cashPerSupportingAccounts = hasCashSupport
+    ? trialBalance
+        .filter((row) => cashAccountIds.has(row.accountId) || /cash|bank|checking|savings/i.test(row.accountName))
+        .reduce((total, row) => total + Math.abs(amount(row.netAmount || row.debit - row.credit)), 0)
+    : 0;
   diagnostics.cashPerBalanceSheet = cashPerBalanceSheet;
   diagnostics.cashPerSupportingAccounts = cashPerSupportingAccounts;
   diagnostics.cashVariance = absVariance(cashPerBalanceSheet, cashPerSupportingAccounts);
-  if ((cashPerBalanceSheet || cashPerSupportingAccounts) && diagnostics.cashVariance > ROUNDING_TOLERANCE) {
-    add(warning("CASH_SUPPORT_MISMATCH", "Some supporting schedules could not be validated. A support ticket was created for review.", {
+  if (hasCashSupport && cashPerSupportingAccounts > 0 && (cashPerBalanceSheet || cashPerSupportingAccounts) && diagnostics.cashVariance > ROUNDING_TOLERANCE) {
+    add(warning("CASH_SUPPORT_MISMATCH", "Cash support was returned by the connected system, but it did not match Balance Sheet cash for the selected period.", {
       affected: "Cash",
       expected: cashPerSupportingAccounts,
       actual: cashPerBalanceSheet,
       variance: diagnostics.cashVariance,
-      recommendedFix: "Review cash account classification and Trial Balance support.",
+      recommendedFix: "Review cash account classification and supporting cash report mapping.",
+    }), warnings);
+  }
+
+  const scheduleFailures = schedulePopulationFailures(data);
+  for (const failure of scheduleFailures) {
+    add(blocker("SCHEDULE_POPULATION_FAILURE", "Report blocked: supporting schedule population failure.", {
+      affected: failure.schedule,
+      expected: failure.balanceSheetAmount,
+      actual: failure.scheduleAmount,
+      variance: absVariance(failure.balanceSheetAmount, failure.scheduleAmount),
+      recommendedFix: failure.message,
+    }), blockers);
+  }
+  const balanceSheetSchedules = balanceSheetScheduleAmounts(data);
+  const arAgingTotal = agingBuckets(data?.normalizedARAging || []).total;
+  const apAgingTotal = agingBuckets(data?.normalizedAPAging || []).total;
+  const arVariancePercent = balanceSheetSchedules.accountsReceivable ? Math.abs(balanceSheetSchedules.accountsReceivable - arAgingTotal) / Math.abs(balanceSheetSchedules.accountsReceivable) : 0;
+  const apVariancePercent = balanceSheetSchedules.accountsPayable ? Math.abs(balanceSheetSchedules.accountsPayable - apAgingTotal) / Math.abs(balanceSheetSchedules.accountsPayable) : 0;
+  if (balanceSheetSchedules.accountsReceivable > 0 && arAgingTotal > 0 && arVariancePercent > 0.05) {
+    add(warning("AR_AGING_BALANCE_SHEET_MISMATCH", "AR Aging support was returned by the connected system, but it differs from Balance Sheet AR by more than 5%.", {
+      affected: "AR Aging",
+      expected: balanceSheetSchedules.accountsReceivable,
+      actual: arAgingTotal,
+      variance: arVariancePercent,
+      recommendedFix: "Review AR Aging report mapping and Balance Sheet AR classification.",
+    }), warnings);
+  }
+  if (balanceSheetSchedules.accountsPayable > 0 && apAgingTotal > 0 && apVariancePercent > 0.05) {
+    add(warning("AP_AGING_BALANCE_SHEET_MISMATCH", "AP Aging support was returned by the connected system, but it differs from Balance Sheet AP by more than 5%.", {
+      affected: "AP Aging",
+      expected: balanceSheetSchedules.accountsPayable,
+      actual: apAgingTotal,
+      variance: apVariancePercent,
+      recommendedFix: "Review AP Aging report mapping and Balance Sheet AP classification.",
     }), warnings);
   }
 
@@ -340,11 +363,7 @@ export function validateReportPreflight(context: ReportDataContext | null | unde
       }), warnings);
     }
     if (schedule.rows && schedule.rows.length === 0) {
-      add(warning("OPTIONAL_SCHEDULE_MISSING", "Some supporting schedules could not be validated. A support ticket was created for review.", {
-        affected: schedule.name,
-        actual: "rows=0",
-        recommendedFix: "Review optional schedule availability and connector mapping.",
-      }), warnings);
+      add(optionalScheduleWarning("OPTIONAL_SCHEDULE_MISSING", schedule.name, "rows=0"), warnings);
     }
     if (schedule.reportPeriod && !schedule.reportPeriod.comparative && (schedule.reportPeriod.startDate !== context?.reportPeriod.startDate || schedule.reportPeriod.endDate !== context?.reportPeriod.endDate)) {
       add(warning("REPORT_PERIOD_MISMATCH", "Some supporting schedules could not be validated. A support ticket was created for review.", {
