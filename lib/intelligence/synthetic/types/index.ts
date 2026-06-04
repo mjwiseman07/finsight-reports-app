@@ -11,3 +11,4 @@ export type * from "./formula";
 export type * from "./metric-series";
 export type * from "./recommendation";
 export type * from "./explanation";
+export type * from "./explanation-persistence";
