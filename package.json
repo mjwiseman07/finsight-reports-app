@@ -31,6 +31,7 @@
     "verify:si-ai-explanations": "node scripts/verify-si-ai-explanations.js",
     "verify:si-explanation-persistence": "node scripts/verify-si-explanation-persistence.js",
     "verify:si-historical-snapshots": "node scripts/verify-si-historical-snapshots.js",
+    "verify:industry-profiles": "node scripts/verify-industry-profiles.js",
     "verify:client-briefings": "node scripts/verify-client-briefings.js",
     "verify:accounting-connections": "node scripts/verify-accounting-connections.js",
     "verify:accounting-data-engine": "node scripts/verify-accounting-data-engine.js",

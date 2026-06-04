@@ -1,1 +1,11 @@
 export type * from "../types/industry-profile";
+export { syntheticIndustryProfileCatalog } from "./catalog";
+export { getIndustryProfile, listActiveIndustryProfiles } from "./getIndustryProfile";
+export { validateIndustryProfile, validateIndustryProfileCatalog } from "./validateIndustryProfile";
+export { healthcareProfile } from "./healthcare/profile";
+export { constructionProfile } from "./construction/profile";
+export { manufacturingProfile } from "./manufacturing/profile";
+export { retailProfile } from "./retail/profile";
+export { professionalServicesProfile } from "./professional-services/profile";
+export { cpaFirmProfile } from "./cpa-firm/profile";
+export { bookkeeperProfile } from "./bookkeeper/profile";
