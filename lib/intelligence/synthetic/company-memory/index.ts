@@ -1,1 +1,11 @@
 export type * from "../types/company-memory";
+export { buildAdvisorFeedback } from "./buildAdvisorFeedback";
+export { buildCompanyMemoryRecord } from "./buildCompanyMemoryRecord";
+export { buildEntityAlias } from "./buildEntityAlias";
+export { buildMemoryLineage } from "./buildMemoryLineage";
+export { buildRecommendationOutcome } from "./buildRecommendationOutcome";
+export { buildThresholdOverride } from "./buildThresholdOverride";
+export { scoreMemoryConfidence } from "./scoreMemoryConfidence";
+export { scoreMemoryFreshness } from "./scoreMemoryFreshness";
+export { stableMemoryHash } from "./stableMemoryHash";
+export { validateCompanyMemoryRecord } from "./validateCompanyMemoryRecord";
