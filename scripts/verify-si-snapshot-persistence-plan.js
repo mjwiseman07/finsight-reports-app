@@ -109,6 +109,11 @@ for (const eventType of retentionEvents) {
   assert(retentionSql.includes(`'${eventType}'`), `retention event type allows ${eventType}`);
 }
 
+const retrievalLogSql = migrations.create_si_snapshot_retrieval_log?.text || "";
+assert(/\bretrieval_window\s+integer\b/i.test(retrievalLogSql), "Retrieval log uses retrieval_window column");
+assert(!/\bwindow\s+integer\b/i.test(retrievalLogSql), "Retrieval log does not use reserved window column");
+assert(/retrieval_window\s+is\s+null\s+or\s+retrieval_window\s+in\s+\(12,\s*24,\s*36,\s*60\)/i.test(retrievalLogSql), "Retrieval window constraint uses retrieval_window");
+
 assert(/si_historical_snapshots_latest_finalized_idx/i.test(historicalSql), "Latest-finalized index exists");
 assert(/where\s+snapshot_status\s+=\s+'finalized'/i.test(historicalSql), "Latest-finalized index filters finalized snapshots");
 assert(/unique\s+\(company_id,\s*source_system,\s*tenant_id,\s*period_key,\s*snapshot_version\)/i.test(historicalSql), "Snapshot version uniqueness exists");

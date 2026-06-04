@@ -9,7 +9,7 @@ create table if not exists public.si_snapshot_retrieval_log (
   retrieval_type text not null,
   version_policy text not null,
   end_period text,
-  window integer,
+  retrieval_window integer,
   exact_version integer,
   include_superseded boolean not null default false,
   snapshot_ids text[] not null default array[]::text[],
@@ -18,7 +18,7 @@ create table if not exists public.si_snapshot_retrieval_log (
   constraint si_snapshot_retrieval_log_retrieval_id_unique unique (retrieval_id),
   constraint si_snapshot_retrieval_log_type_check check (retrieval_type in ('latest_finalized', 'exact_version', 'window')),
   constraint si_snapshot_retrieval_log_version_policy_check check (version_policy in ('latest_finalized', 'include_superseded', 'exact_version')),
-  constraint si_snapshot_retrieval_log_window_check check (window is null or window in (12, 24, 36, 60)),
+  constraint si_snapshot_retrieval_log_window_check check (retrieval_window is null or retrieval_window in (12, 24, 36, 60)),
   constraint si_snapshot_retrieval_log_exact_version_check check (exact_version is null or exact_version > 0),
   constraint si_snapshot_retrieval_log_result_count_check check (result_count >= 0)
 );
