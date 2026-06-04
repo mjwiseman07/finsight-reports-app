@@ -10,3 +10,4 @@ export type * from "./kpi";
 export type * from "./formula";
 export type * from "./metric-series";
 export type * from "./recommendation";
+export type * from "./explanation";

@@ -28,6 +28,7 @@
     "verify:si-metric-series": "node scripts/verify-si-metric-series.js",
     "verify:si-signals": "node scripts/verify-si-signals.js",
     "verify:si-recommendations": "node scripts/verify-si-recommendations.js",
+    "verify:si-ai-explanations": "node scripts/verify-si-ai-explanations.js",
     "verify:client-briefings": "node scripts/verify-client-briefings.js",
     "verify:accounting-connections": "node scripts/verify-accounting-connections.js",
     "verify:accounting-data-engine": "node scripts/verify-accounting-data-engine.js",

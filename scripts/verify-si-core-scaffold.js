@@ -26,6 +26,7 @@ const expectedFolders = [
   "industry-intelligence",
   "signal-engine",
   "recommendation-engine",
+  "explanation-engine",
   "healthcare",
 ];
 
@@ -44,6 +45,7 @@ const expectedFiles = [
   "types/formula.ts",
   "types/metric-series.ts",
   "types/recommendation.ts",
+  "types/explanation.ts",
   "core/index.ts",
   "evidence-store/index.ts",
   "confidence-scoring/index.ts",
@@ -55,6 +57,7 @@ const expectedFiles = [
   "metric-series/index.ts",
   "signal-engine/index.ts",
   "recommendation-engine/index.ts",
+  "explanation-engine/index.ts",
 ];
 
 const protectedImportPatterns = [
