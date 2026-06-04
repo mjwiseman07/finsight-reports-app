@@ -12,3 +12,4 @@ export type * from "./metric-series";
 export type * from "./recommendation";
 export type * from "./explanation";
 export type * from "./explanation-persistence";
+export type * from "./snapshot-storage";
