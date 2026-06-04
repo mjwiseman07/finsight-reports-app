@@ -34,6 +34,7 @@
     "verify:industry-profiles": "node scripts/verify-industry-profiles.js",
     "verify:company-memory": "node scripts/verify-company-memory.js",
     "verify:si-snapshot-persistence-plan": "node scripts/verify-si-snapshot-persistence-plan.js",
+    "verify:live-supabase-schema-readonly": "node scripts/verify-live-supabase-schema-readonly.js",
     "verify:client-briefings": "node scripts/verify-client-briefings.js",
     "verify:accounting-connections": "node scripts/verify-accounting-connections.js",
     "verify:accounting-data-engine": "node scripts/verify-accounting-data-engine.js",
@@ -87,6 +88,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "pg": "^8.21.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
