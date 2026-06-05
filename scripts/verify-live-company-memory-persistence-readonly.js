@@ -156,9 +156,6 @@ const requiredConstraints = [
   "company_memory_records_company_group_version_unique",
   "company_memory_records_record_input_hash_unique",
   "company_memory_records_persistence_hash_unique",
-  "company_memory_record_lineage_company_memory_lineage_hash_unique",
-  "company_memory_record_audit_company_event_hash_unique",
-  "company_memory_record_retention_events_company_event_hash_unique",
   "company_memory_record_versions_company_group_version_unique",
   "company_memory_records_record_version_check",
   "company_memory_records_confidence_score_check",
@@ -170,6 +167,12 @@ const requiredConstraints = [
   "company_memory_record_versions_version_status_check",
   "company_memory_record_audit_event_type_check",
   "company_memory_record_retention_events_event_type_check",
+];
+
+const requiredUniqueDefinitions = [
+  { tableName: "company_memory_record_lineage", columns: ["company_id", "memory_id", "lineage_hash"] },
+  { tableName: "company_memory_record_audit", columns: ["company_id", "event_hash"] },
+  { tableName: "company_memory_record_retention_events", columns: ["company_id", "event_hash"] },
 ];
 
 const requiredIndexes = [
@@ -423,6 +426,35 @@ async function verify() {
     for (const constraintName of requiredConstraints) {
       assert(foundConstraints.has(constraintName), `${constraintName} constraint exists`);
     }
+
+    const uniqueDefinitionResult = await select(
+      client,
+      `select rel.relname as table_name,
+              con.conname,
+              con.contype,
+              pg_catalog.pg_get_constraintdef(con.oid) as definition
+       from pg_catalog.pg_constraint con
+       join pg_catalog.pg_class rel on rel.oid = con.conrelid
+       join pg_catalog.pg_namespace nsp on nsp.oid = rel.relnamespace
+       where nsp.nspname = 'public'
+         and rel.relname = any($1::text[])
+         and con.contype = 'u'`,
+      [requiredUniqueDefinitions.map((definition) => definition.tableName)],
+    );
+
+    for (const { tableName, columns } of requiredUniqueDefinitions) {
+      const matchingConstraint = uniqueDefinitionResult.rows.find(
+        (row) =>
+          row.table_name === tableName &&
+          row.contype === "u" &&
+          columns.every((columnName) => includesText(row.definition, columnName)),
+      );
+      assert(
+        Boolean(matchingConstraint),
+        `${tableName} has UNIQUE constraint on ${columns.join(", ")} regardless of PostgreSQL-truncated constraint name`,
+      );
+    }
+
     assert(
       [...foundConstraints.values()].every((definition) => !includesText(definition, "cascade")),
       "Company Memory Persistence foreign key constraints do not use cascade delete",
