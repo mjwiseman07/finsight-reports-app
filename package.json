@@ -34,6 +34,7 @@
     "verify:industry-profiles": "node scripts/verify-industry-profiles.js",
     "verify:company-memory": "node scripts/verify-company-memory.js",
     "verify:si-snapshot-persistence-plan": "node scripts/verify-si-snapshot-persistence-plan.js",
+    "verify:si-snapshot-retrieval": "node scripts/verify-si-snapshot-retrieval.js",
     "verify:live-supabase-schema-readonly": "node scripts/verify-live-supabase-schema-readonly.js",
     "verify:client-briefings": "node scripts/verify-client-briefings.js",
     "verify:accounting-connections": "node scripts/verify-accounting-connections.js",
