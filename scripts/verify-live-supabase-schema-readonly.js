@@ -1,5 +1,33 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 
+function loadReadonlyDatabaseUrlFromEnvLocal() {
+  if (process.env.SUPABASE_READONLY_DATABASE_URL) return;
+
+  try {
+    require("dotenv").config({ path: ".env.local" });
+    return;
+  } catch {
+    // dotenv is optional for this verifier; fall back to reading only the key we need.
+  }
+
+  const fs = require("fs");
+  const envPath = ".env.local";
+  if (!fs.existsSync(envPath)) return;
+
+  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+  const line = lines.find((entry) => /^\s*SUPABASE_READONLY_DATABASE_URL\s*=/.test(entry));
+  if (!line) return;
+
+  let value = line.replace(/^\s*SUPABASE_READONLY_DATABASE_URL\s*=\s*/, "").trim();
+  const isDoubleQuoted = value.startsWith('"') && value.endsWith('"');
+  const isSingleQuoted = value.startsWith("'") && value.endsWith("'");
+  if (isDoubleQuoted || isSingleQuoted) value = value.slice(1, -1);
+
+  process.env.SUPABASE_READONLY_DATABASE_URL = value;
+}
+
+loadReadonlyDatabaseUrlFromEnvLocal();
+
 const databaseUrl = process.env.SUPABASE_READONLY_DATABASE_URL;
 
 const requiredTables = [
@@ -121,6 +149,16 @@ function includesText(value, expected) {
   return String(value || "").toLowerCase().includes(expected.toLowerCase());
 }
 
+function buildVerifierConnectionString(value) {
+  try {
+    const parsed = new URL(value);
+    parsed.searchParams.delete("sslmode");
+    return parsed.toString();
+  } catch {
+    return value;
+  }
+}
+
 async function verify() {
   if (!databaseUrl) {
     throw new Error("SUPABASE_READONLY_DATABASE_URL is missing.");
@@ -128,8 +166,9 @@ async function verify() {
 
   const Client = loadPgClient();
   const client = new Client({
-    connectionString: databaseUrl,
-    ssl: databaseUrl.includes("localhost") ? undefined : { rejectUnauthorized: false },
+    connectionString: buildVerifierConnectionString(databaseUrl),
+    // Scoped to this read-only Supabase pooler schema verifier; do not change app runtime TLS behavior.
+    ssl: { rejectUnauthorized: false },
   });
 
   await client.connect();
@@ -138,10 +177,12 @@ async function verify() {
     for (const tableName of requiredTables) {
       const tableResult = await select(
         client,
-        `select table_name
-         from information_schema.tables
-         where table_schema = 'public'
-           and table_name = $1`,
+        `select c.relname
+         from pg_catalog.pg_class c
+         join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = 'public'
+           and c.relname = $1
+           and c.relkind in ('r', 'p')`,
         [tableName],
       );
       assert(tableResult.rowCount === 1, `${tableName} table exists`);
@@ -196,11 +237,15 @@ async function verify() {
     for (const { tableName, columnName } of requiredColumns) {
       const columnResult = await select(
         client,
-        `select column_name
-         from information_schema.columns
-         where table_schema = 'public'
-           and table_name = $1
-           and column_name = $2`,
+        `select a.attname
+         from pg_catalog.pg_attribute a
+         join pg_catalog.pg_class c on c.oid = a.attrelid
+         join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = 'public'
+           and c.relname = $1
+           and a.attname = $2
+           and a.attnum > 0
+           and not a.attisdropped`,
         [tableName, columnName],
       );
       assert(columnResult.rowCount === 1, `${tableName}.${columnName} exists`);
@@ -208,11 +253,15 @@ async function verify() {
 
     const oldWindowResult = await select(
       client,
-      `select column_name
-       from information_schema.columns
-       where table_schema = 'public'
-         and table_name = 'si_snapshot_retrieval_log'
-         and column_name = 'window'`,
+      `select a.attname
+       from pg_catalog.pg_attribute a
+       join pg_catalog.pg_class c on c.oid = a.attrelid
+       join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public'
+         and c.relname = 'si_snapshot_retrieval_log'
+         and a.attname = 'window'
+         and a.attnum > 0
+         and not a.attisdropped`,
     );
     assert(oldWindowResult.rowCount === 0, "si_snapshot_retrieval_log.window does not exist");
 
