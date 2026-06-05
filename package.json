@@ -40,6 +40,7 @@
     "verify:si-company-memory-record-input": "node scripts/verify-si-company-memory-record-input.js",
     "verify:si-company-memory-persistence-plan": "node scripts/verify-si-company-memory-persistence-plan.js",
     "verify:live-supabase-schema-readonly": "node scripts/verify-live-supabase-schema-readonly.js",
+    "verify:live-company-memory-persistence-readonly": "node scripts/verify-live-company-memory-persistence-readonly.js",
     "verify:client-briefings": "node scripts/verify-client-briefings.js",
     "verify:accounting-connections": "node scripts/verify-accounting-connections.js",
     "verify:accounting-data-engine": "node scripts/verify-accounting-data-engine.js",
