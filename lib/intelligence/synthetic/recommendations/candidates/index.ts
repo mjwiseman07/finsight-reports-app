@@ -3,6 +3,7 @@ export {
   type BuildRecommendationCandidateInput,
   type BuildRecommendationCandidateResult,
   type SyntheticRecommendationCandidateFocus,
+  type SyntheticRecommendationCandidateRiskMetadata,
   type SyntheticStructuredRecommendationCandidate,
 } from "./buildRecommendationCandidate";
 export {
