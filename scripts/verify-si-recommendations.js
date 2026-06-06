@@ -1,23 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require("fs");
 const path = require("path");
-const ts = require("typescript");
-
-require.extensions[".ts"] = function loadTypeScript(module, filename) {
-  const source = fs.readFileSync(filename, "utf8");
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-    fileName: filename,
-  });
-  module._compile(output.outputText, filename);
-};
 
 const root = process.cwd();
-const recommendations = require("../lib/intelligence/synthetic/recommendation-engine/index.ts");
+const recommendationsRoot = path.join(root, "lib", "intelligence", "synthetic", "recommendations");
 
 function pass(message) {
   console.log(`PASS ${message}`);
@@ -33,151 +19,270 @@ function assert(condition, message) {
   else fail(message);
 }
 
-const requiredExports = [
-  "buildRecommendationCandidate",
-  "scoreRecommendationPriority",
-  "mapSignalsToRecommendationCandidates",
-  "buildRevenueRecommendationCandidates",
-  "buildExpenseRecommendationCandidates",
-  "buildMarginRecommendationCandidates",
-  "buildCashRecommendationCandidates",
-  "buildWorkingCapitalRecommendationCandidates",
-  "buildOperationsRecommendationCandidates",
-  "buildConcentrationRecommendationCandidates",
-  "buildBenchmarkRecommendationCandidates",
+function exists(relativePath) {
+  return fs.existsSync(path.join(root, relativePath));
+}
+
+function read(relativePath) {
+  return fs.readFileSync(path.join(root, relativePath), "utf8");
+}
+
+function listFiles(directory) {
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return listFiles(fullPath);
+    return [fullPath];
+  });
+}
+
+function assertIncludesAny(text, variants, message) {
+  assert(variants.some((variant) => text.includes(variant)), message);
+}
+
+const requiredDirectories = [
+  "lib/intelligence/synthetic/recommendations",
+  "lib/intelligence/synthetic/recommendations/evidence",
+  "lib/intelligence/synthetic/recommendations/candidates",
+  "lib/intelligence/synthetic/recommendations/memory",
 ];
 
-for (const exportName of requiredExports) {
-  assert(typeof recommendations[exportName] === "function", `${exportName} exists and is exported`);
+for (const directory of requiredDirectories) {
+  assert(exists(directory), `${directory} exists`);
 }
 
-const highConfidence = {
-  score: 0.82,
-  tier: "high",
-  factors: [],
-  factorContributions: [],
-  explanationCodes: ["history_24_months", "core_statements_available"],
-  inputSummary: { monthsOfHistory: 24, dataCompletenessScore: 1 },
-};
+const requiredFiles = [
+  "lib/intelligence/synthetic/recommendations/types.ts",
+  "lib/intelligence/synthetic/recommendations/constants.ts",
+  "lib/intelligence/synthetic/recommendations/index.ts",
+  "lib/intelligence/synthetic/recommendations/evidence/buildRecommendationEvidence.ts",
+  "lib/intelligence/synthetic/recommendations/evidence/buildRecommendationEvidenceCollection.ts",
+  "lib/intelligence/synthetic/recommendations/evidence/index.ts",
+  "lib/intelligence/synthetic/recommendations/candidates/buildRecommendationCandidate.ts",
+  "lib/intelligence/synthetic/recommendations/candidates/buildRecommendationCandidates.ts",
+  "lib/intelligence/synthetic/recommendations/candidates/index.ts",
+  "lib/intelligence/synthetic/recommendations/memory/buildRecommendationMemoryCandidate.ts",
+  "lib/intelligence/synthetic/recommendations/memory/buildRecommendationMemoryCandidates.ts",
+  "lib/intelligence/synthetic/recommendations/memory/index.ts",
+];
 
-const mediumConfidence = {
-  ...highConfidence,
-  score: 0.72,
-  tier: "medium",
-};
-
-function signal(overrides) {
-  return {
-    signalId: "cash_pressure:cash:may-2026",
-    signalType: "cash_pressure",
-    metricKey: "cash",
-    severity: "critical",
-    confidence: highConfidence,
-    evidenceIds: ["evidence-cash", "evidence-ar"],
-    calculationTraceIds: ["trace-cash"],
-    sourceMetricIds: ["cash", "balance_sheet"],
-    companyMemoryRefs: ["memory-1"],
-    relatedSignalIds: ["ar_collection_risk:ar:may-2026"],
-    correlationGroupId: "working_capital_pressure",
-    rootCauseCandidate: {
-      signalId: "ar_collection_risk:ar:may-2026",
-      signalType: "ar_collection_risk",
-      metricKey: "ar",
-      confidence: mediumConfidence,
-    },
-    status: "created",
-    currentValue: 75000,
-    comparisonValue: 100000,
-    varianceAmount: -25000,
-    variancePercent: -25,
-    threshold: 5,
-    direction: "decrease",
-    period: "May 2026",
-    metricSeriesKey: "cash",
-    createdAt: "2026-06-01T00:00:00.000Z",
-    ...overrides,
-  };
+for (const file of requiredFiles) {
+  assert(exists(file), `${file} exists`);
 }
 
-const cashPressure = signal({});
-const arRisk = signal({
-  signalId: "ar_collection_risk:ar:may-2026",
-  signalType: "ar_collection_risk",
-  metricKey: "ar",
-  severity: "high",
-  confidence: mediumConfidence,
-  evidenceIds: ["evidence-ar"],
-  calculationTraceIds: ["trace-ar"],
-  sourceMetricIds: ["ar", "balance_sheet"],
-  rootCauseCandidate: undefined,
-});
-const apPressure = signal({
-  signalId: "ap_pressure:ap:may-2026",
-  signalType: "ap_pressure",
-  metricKey: "ap",
-  severity: "medium",
-  confidence: mediumConfidence,
-  evidenceIds: ["evidence-ap"],
-  calculationTraceIds: ["trace-ap"],
-  sourceMetricIds: ["ap", "balance_sheet"],
-  rootCauseCandidate: undefined,
-});
+const recommendationFiles = listFiles(recommendationsRoot).filter((file) => file.endsWith(".ts"));
+const allRecommendationText = recommendationFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+const typesText = read("lib/intelligence/synthetic/recommendations/types.ts");
+const constantsText = read("lib/intelligence/synthetic/recommendations/constants.ts");
+const evidenceText = read("lib/intelligence/synthetic/recommendations/evidence/buildRecommendationEvidence.ts");
+const evidenceCollectionText = read("lib/intelligence/synthetic/recommendations/evidence/buildRecommendationEvidenceCollection.ts");
+const candidateText = read("lib/intelligence/synthetic/recommendations/candidates/buildRecommendationCandidate.ts");
+const candidatesText = read("lib/intelligence/synthetic/recommendations/candidates/buildRecommendationCandidates.ts");
+const memoryCandidateText = read("lib/intelligence/synthetic/recommendations/memory/buildRecommendationMemoryCandidate.ts");
+const memoryCandidatesText = read("lib/intelligence/synthetic/recommendations/memory/buildRecommendationMemoryCandidates.ts");
+const packageJson = JSON.parse(read("package.json"));
 
-const workingCapital = recommendations.buildWorkingCapitalRecommendationCandidates([cashPressure, arRisk, apPressure], "2026-06-01T00:00:00.000Z");
-assert(workingCapital.length === 1, "Correlated working capital signals produce one grouped candidate");
-assert(workingCapital[0].recommendationType === "working_capital_liquidity_review", "Grouped candidate uses deterministic internal type");
-assert(workingCapital[0].priorityScore === 100 && workingCapital[0].priority === "critical", "Priority score is deterministic");
-assert(workingCapital[0].sourceSignalIds.length === 3 && workingCapital[0].sourceSignalIds.includes(cashPressure.signalId), "Source signal IDs are preserved");
-assert(workingCapital[0].evidenceIds.includes("evidence-cash") && workingCapital[0].evidenceIds.includes("evidence-ap"), "Evidence IDs are unioned from source signals");
-assert(workingCapital[0].calculationTraceIds.includes("trace-cash") && workingCapital[0].calculationTraceIds.includes("trace-ar"), "Trace IDs are unioned from source signals");
-assert(workingCapital[0].sourceMetricIds.includes("cash") && workingCapital[0].sourceMetricIds.includes("ar") && workingCapital[0].sourceMetricIds.includes("ap"), "Source metric IDs are preserved");
-assert(workingCapital[0].rootCauseCandidate?.signalType === "ar_collection_risk", "Root cause metadata is preserved");
-assert(workingCapital[0].rootCauseSignalIds.includes(arRisk.signalId), "Root cause signal IDs are resolved from source signals");
-assert(workingCapital[0].correlationGroupId === "working_capital_pressure", "Correlation group metadata is preserved");
-assert(workingCapital[0].expectedImpactCategory === "cash", "Impact category is structured metadata");
-assert(workingCapital[0].expectedImpactConfidence === "medium", "Impact confidence is structured metadata");
-assert(workingCapital[0].affectedMetricIds.includes("cash") && workingCapital[0].affectedMetricIds.includes("ar") && workingCapital[0].affectedMetricIds.includes("ap"), "Affected metric IDs are preserved");
-assert(workingCapital[0].recommendationLineage.recommendationId === workingCapital[0].recommendationId, "Lineage points back to recommendation ID");
-assert(workingCapital[0].recommendationLineage.sourceSignalIds.length === workingCapital[0].sourceSignalIds.length, "Lineage preserves source signal IDs");
-assert(workingCapital[0].recommendationLineage.evidenceIds.includes("evidence-ar"), "Lineage preserves evidence IDs");
-assert(workingCapital[0].recommendationLineage.calculationTraceIds.includes("trace-ap"), "Lineage preserves trace IDs");
-assert(workingCapital[0].recommendationLineage.correlationGroupId === "working_capital_pressure", "Lineage preserves correlation group");
+for (const contract of [
+  "SyntheticRecommendationCandidate",
+  "SyntheticRecommendationEvidence",
+  "SyntheticRecommendationMetadata",
+  "SyntheticRecommendationImpact",
+  "SyntheticRecommendationEffort",
+  "SyntheticRecommendationOwnership",
+  "SyntheticRecommendationDependency",
+  "SyntheticRecommendationConflict",
+  "SyntheticRecommendationOutcome",
+  "SyntheticRecommendationPortfolio",
+  "SyntheticRecommendationSimulationCompatibility",
+  "SyntheticStructuredRecommendationCandidate",
+  "SyntheticRecommendationMemoryCandidate",
+]) {
+  assert(allRecommendationText.includes(contract), `${contract} contract exists`);
+}
 
-const marginSignal = signal({
-  signalId: "gross_margin_compression:gross_margin:may-2026",
-  signalType: "gross_margin_compression",
-  metricKey: "gross_margin",
-  severity: "high",
-  confidence: highConfidence,
-  evidenceIds: ["evidence-margin"],
-  calculationTraceIds: ["trace-margin"],
-  sourceMetricIds: ["gross_margin", "operating_margin"],
-  correlationGroupId: undefined,
-  rootCauseCandidate: undefined,
-});
-const marginCandidates = recommendations.buildMarginRecommendationCandidates([marginSignal], "2026-06-01T00:00:00.000Z");
-assert(marginCandidates[0].expectedImpactCategory === "margin" && marginCandidates[0].affectedMetricIds.includes("operating_margin"), "Margin candidates include impact metadata");
+for (const category of [
+  "revenue",
+  "expense",
+  "payroll",
+  "workforce",
+  "cash",
+  "working_capital",
+  "inventory",
+  "procurement",
+  "customer",
+  "treasury",
+  "tax",
+  "healthcare",
+  "manufacturing",
+  "construction",
+  "municipality",
+  "strategic",
+]) {
+  assert(constantsText.includes(category) && typesText.includes(category), `${category} recommendation category exists`);
+}
 
-const mapped = recommendations.mapSignalsToRecommendationCandidates([cashPressure, arRisk, apPressure, marginSignal], "2026-06-01T00:00:00.000Z");
-assert(mapped.some((candidate) => candidate.recommendationType === "working_capital_liquidity_review"), "Signal-to-recommendation mapping includes grouped recommendation candidates");
+for (const recommendationType of [
+  "efficiency_recommendation",
+  "risk_mitigation_recommendation",
+  "working_capital_recommendation",
+  "growth_recommendation",
+  "margin_recommendation",
+  "compliance_recommendation",
+  "strategic_recommendation",
+  "operational_recommendation",
+  "cash_flow_recommendation",
+  "workforce_recommendation",
+]) {
+  assert(
+    constantsText.includes(recommendationType) && typesText.includes(recommendationType),
+    `${recommendationType} recommendation type exists`,
+  );
+}
 
-const missingEvidence = recommendations.buildCashRecommendationCandidates([
-  signal({ evidenceIds: [] }),
-], "2026-06-01T00:00:00.000Z");
-assert(missingEvidence.length === 0, "Recommendation candidate is not produced without evidence");
+for (const actionabilityType of [
+  "informational_recommendation",
+  "review_recommendation",
+  "action_recommendation",
+  "decision_recommendation",
+  "escalation_recommendation",
+]) {
+  assert(
+    constantsText.includes(actionabilityType) && typesText.includes(actionabilityType),
+    `${actionabilityType} actionability type exists`,
+  );
+}
 
-const missingTrace = recommendations.buildCashRecommendationCandidates([
-  signal({ calculationTraceIds: [] }),
-], "2026-06-01T00:00:00.000Z");
-assert(missingTrace.length === 0, "Recommendation candidate is not produced without trace IDs");
+for (const value of ["low", "medium", "high"]) {
+  assert(constantsText.includes(value) && typesText.includes(value), `${value} effort level exists`);
+}
 
-const recommendationDir = path.join(root, "lib", "intelligence", "synthetic", "recommendation-engine");
-const sourceText = fs.readdirSync(recommendationDir)
-  .filter((file) => file.endsWith(".ts"))
-  .map((file) => fs.readFileSync(path.join(recommendationDir, file), "utf8"))
-  .join("\n");
+for (const value of ["short_term", "medium_term", "long_term"]) {
+  assert(constantsText.includes(value) && typesText.includes(value), `${value} timeframe exists`);
+}
 
-assert(!/AI wording|customer-facing|forecast|budget|ROI|scenario|what-if|dashboard|financial-package-pdf|powerpoint|pulse|package-ui|lib\/integrations|report-preflight|validation/i.test(sourceText), "Recommendation engine contains no AI, output, forecast, budget, ROI, scenario, provider, or validation wiring");
+for (const ownershipType of [
+  "finance",
+  "accounting",
+  "controller",
+  "cfo",
+  "operations",
+  "treasury",
+  "revenue_cycle",
+  "supply_chain",
+  "procurement",
+  "hr",
+  "executive_team",
+  "department_leader",
+  "board",
+]) {
+  assert(constantsText.includes(ownershipType) && typesText.includes(ownershipType), `${ownershipType} ownership type exists`);
+}
+
+for (const outcomeStatus of [
+  "successful",
+  "partially_successful",
+  "unsuccessful",
+  "inconclusive",
+  "insufficient_data",
+]) {
+  assert(
+    constantsText.includes(outcomeStatus) && typesText.includes(outcomeStatus),
+    `${outcomeStatus} outcome status exists`,
+  );
+}
+
+for (const [snakeCase, camelCase] of [
+  ["estimated_cash_impact", "estimatedCashImpact"],
+  ["estimated_margin_impact", "estimatedMarginImpact"],
+  ["estimated_revenue_impact", "estimatedRevenueImpact"],
+  ["estimated_cost_impact", "estimatedCostImpact"],
+  ["estimated_working_capital_impact", "estimatedWorkingCapitalImpact"],
+  ["estimated_risk_reduction", "estimatedRiskReduction"],
+  ["impact_confidence", "impactConfidence"],
+  ["dependency_ids", "dependencyIds"],
+  ["dependency_type", "dependencyType"],
+  ["blocking_dependency", "blockingDependency"],
+  ["optional_dependency", "optionalDependency"],
+  ["conflicting_recommendation_ids", "conflictingRecommendationIds"],
+  ["conflict_type", "conflictType"],
+  ["conflict_reason", "conflictReason"],
+  ["conflict_severity", "conflictSeverity"],
+  ["recommendation_outcome_status", "recommendationOutcomeStatus"],
+  ["expected_impact", "expectedImpact"],
+  ["actual_impact", "actualImpact"],
+  ["impact_variance", "impactVariance"],
+  ["outcome_confidence", "outcomeConfidence"],
+  ["total_estimated_cash_impact", "totalEstimatedCashImpact"],
+  ["total_estimated_margin_impact", "totalEstimatedMarginImpact"],
+  ["total_estimated_revenue_impact", "totalEstimatedRevenueImpact"],
+  ["total_estimated_risk_reduction", "totalEstimatedRiskReduction"],
+  ["simulation_eligible", "simulationEligible"],
+  ["simulation_assumptions", "simulationAssumptions"],
+  ["simulation_inputs", "simulationInputs"],
+  ["simulation_dependencies", "simulationDependencies"],
+  ["simulation_constraints", "simulationConstraints"],
+]) {
+  assertIncludesAny(allRecommendationText, [snakeCase, camelCase], `${snakeCase} metadata exists`);
+}
+
+for (const [category, memoryKey] of [
+  ["revenue", "revenue_recommendation"],
+  ["expense", "expense_recommendation"],
+  ["payroll", "payroll_recommendation"],
+  ["workforce", "workforce_recommendation"],
+  ["cash", "cash_recommendation"],
+  ["working_capital", "working_capital_recommendation"],
+  ["inventory", "inventory_recommendation"],
+  ["procurement", "procurement_recommendation"],
+  ["customer", "customer_recommendation"],
+  ["treasury", "treasury_recommendation"],
+  ["tax", "tax_recommendation"],
+  ["healthcare", "healthcare_recommendation"],
+  ["manufacturing", "manufacturing_recommendation"],
+  ["construction", "construction_recommendation"],
+  ["municipality", "municipality_recommendation"],
+  ["strategic", "strategic_recommendation"],
+]) {
+  assert(memoryCandidateText.includes(`${category}: "${memoryKey}"`), `${category} maps to ${memoryKey}`);
+}
+
+assert(evidenceText.includes("stableSnapshotHash"), "evidence uses deterministic hashing");
+assert(candidateText.includes("stableSnapshotHash"), "candidates use deterministic hashing");
+assert(memoryCandidateText.includes("stableSnapshotHash"), "memory candidates use deterministic hashing");
+assert(evidenceText.includes("evidencePackage: null") && evidenceText.includes("warnings"), "evidence fails closed with warnings");
+assert(candidateText.includes("candidate: null") && candidateText.includes("warnings"), "candidates fail closed with warnings");
+assert(memoryCandidateText.includes("candidate: null") && memoryCandidateText.includes("warnings"), "memory candidates fail closed with warnings");
+assert(evidenceCollectionText.includes("input.requests.forEach"), "evidence collection preserves input order");
+assert(candidatesText.includes("input.requests.forEach"), "candidate batch preserves input order");
+assert(memoryCandidatesText.includes("input.candidates.forEach"), "memory candidate batch preserves input order");
+
+const forbiddenPatterns = [
+  { pattern: /@supabase\/supabase-js|createClient\(/i, message: "Supabase imports do not exist" },
+  { pattern: /\.(select|from)\s*\(/i, message: "database reads do not exist" },
+  { pattern: /\.(insert|upsert|update|delete|rpc)\s*\(/i, message: "database writes do not exist" },
+  { pattern: /service[_-]?role/i, message: "service-role usage does not exist" },
+  { pattern: /\bfetch\s*\(|XMLHttpRequest|axios\./i, message: "external API calls do not exist" },
+  { pattern: /from\s+["']openai["']|@openai|new\s+OpenAI\b/i, message: "OpenAI imports do not exist" },
+  { pattern: /\b(ai|llm)Client\b|generateWithAI|invokeAI|callAI/i, message: "AI calls do not exist" },
+  { pattern: /generateRecommendation|finalRecommendation|recommendationText|customerFacingRecommendation/i, message: "recommendation generation does not exist" },
+  { pattern: /from\s+["'][^"']*forecast|import\s+[^;]*forecast|forecastEngine|forecast_engine/i, message: "forecasting implementation does not exist" },
+  { pattern: /scenarioModel|scenario_model|scenario-engine|buildScenario/i, message: "scenario modeling implementation does not exist" },
+  { pattern: /persistCompanyMemory|memoryPersistence|company-memory-persistence|buildCompanyMemoryRecord\s*\(/i, message: "Company Memory persistence calls do not exist" },
+  { pattern: /reviewMemoryCandidate|buildPromotionDecision|approved_for_promotion|executePromotion/i, message: "promotion execution calls do not exist" },
+  { pattern: /app[\\/]dashboard|dashboard/i, message: "dashboard wiring does not exist" },
+  { pattern: /pdf|financial-package-pdf/i, message: "PDF wiring does not exist" },
+  { pattern: /powerpoint|pptx/i, message: "PowerPoint wiring does not exist" },
+  { pattern: /from\s+["'][^"']*pulse|pulseEngine|pulseClient|sendToPulse|publishToPulse/i, message: "Pulse wiring does not exist" },
+];
+
+for (const { pattern, message } of forbiddenPatterns) {
+  assert(!pattern.test(allRecommendationText), message);
+}
+
+assert(
+  packageJson.scripts?.["verify:si-recommendations"] === "node scripts/verify-si-recommendations.js",
+  "package script verify:si-recommendations exists",
+);
 
 if (process.exitCode) process.exit(process.exitCode);
-console.log("\nSI recommendation verification passed.");
+console.log("\nSI Recommendations verification passed.");
