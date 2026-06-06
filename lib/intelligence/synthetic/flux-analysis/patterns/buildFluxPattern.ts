@@ -78,11 +78,14 @@ function getDriverCategories(input: BuildFluxPatternInput): SyntheticFluxDriverC
 function getFluxCategory(input: BuildFluxPatternInput): SyntheticFluxCategory | null {
   if (input.fluxCategory) return input.fluxCategory;
 
-  const categories = uniqueInOrder(
-    (input.supportingObservations ?? []).map((observation) => observation.fluxCategory),
-  );
+  const categories: SyntheticFluxCategory[] = [];
+  for (const observation of input.supportingObservations ?? []) {
+    if (!categories.includes(observation.fluxCategory)) {
+      categories.push(observation.fluxCategory);
+    }
+  }
 
-  return categories.length === 1 ? categories[0] : null;
+  return categories.length === 1 ? categories[0] ?? null : null;
 }
 
 function getSourceReferences(input: BuildFluxPatternInput): SyntheticFluxSourceReference[] {
