@@ -209,6 +209,7 @@ export interface SyntheticFluxPattern {
   dataCompletenessScore: number;
   governanceStatus: SyntheticFluxGovernanceStatus;
   refreshStatus: SyntheticFluxRefreshStatus;
+  sourceReferences: SyntheticFluxSourceReference[];
   lineage: SyntheticFluxLineage;
 }
 
