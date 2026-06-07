@@ -129,3 +129,128 @@ export type SyntheticCommandCenterRoutingCategory =
   | "decision_queue"
   | "portfolio_view"
   | "governance_review";
+
+export type SyntheticCommandCenterValidationStatus =
+  | "not_evaluated"
+  | "valid"
+  | "needs_review"
+  | "invalid"
+  | "not_applicable";
+
+export type SyntheticCommandCenterScopeLevel =
+  | "company"
+  | "firm"
+  | "client"
+  | "firm_portfolio"
+  | "client_portfolio"
+  | "user"
+  | "role";
+
+export type SyntheticCommandCenterCashReconciliationHealthCategory =
+  | "excellent"
+  | "good"
+  | "watch"
+  | "needs_attention"
+  | "critical";
+
+export interface SyntheticCommandCenterVersionMetadata {
+  schemaVersion: number;
+  taxonomyVersion: number;
+  contractVersion: number;
+  compatibilityVersion: number;
+}
+
+export interface SyntheticCommandCenterScope {
+  scopeLevel: SyntheticCommandCenterScopeLevel;
+  companyId: string;
+  firmId?: string;
+  clientId?: string;
+  portfolioId?: string;
+  entityId?: string;
+  userId?: string;
+  roleCategory?: SyntheticCommandCenterRoleCategory;
+  clientIsolationRequired: boolean;
+  clientScopeIds: string[];
+}
+
+export interface SyntheticCommandCenterPriority {
+  priorityLevel: SyntheticCommandCenterPriorityLevel;
+  attentionCategory: SyntheticCommandCenterAttentionCategory;
+  attentionRequired: boolean;
+  priorityReason?: string;
+}
+
+export type SyntheticCommandCenterPriorityMetadata = SyntheticCommandCenterPriority;
+
+export interface SyntheticCommandCenterMetadata {
+  commandCenterItemId: string;
+  companyId: string;
+  surfaceCategory: SyntheticCommandCenterSurfaceCategory;
+  intelligenceSourceCategory: SyntheticCommandCenterIntelligenceSourceCategory;
+  decisionSurfaceCategory: SyntheticCommandCenterDecisionSurfaceCategory;
+  briefingCategory?: SyntheticCommandCenterBriefingCategory;
+  cadenceCategory?: SyntheticCommandCenterCadenceCategory;
+  routingCategory?: SyntheticCommandCenterRoutingCategory;
+  governanceStatus: SyntheticCommandCenterGovernanceStatus;
+  trustCategory: SyntheticCommandCenterTrustCategory;
+  confidenceCategory: SyntheticCommandCenterConfidenceCategory;
+  degradationCategory: SyntheticCommandCenterDegradationCategory;
+  version: SyntheticCommandCenterVersionMetadata;
+}
+
+export interface SyntheticCommandCenterRoleCompatibility {
+  primaryRoleCategories: SyntheticCommandCenterRoleCategory[];
+  secondaryRoleCategories: SyntheticCommandCenterRoleCategory[];
+  excludedRoleCategories: SyntheticCommandCenterRoleCategory[];
+  requiresHumanReview: boolean;
+  governanceStatus: SyntheticCommandCenterGovernanceStatus;
+}
+
+export interface SyntheticCommandCenterSurface {
+  primarySurfaceCategory: SyntheticCommandCenterSurfaceCategory;
+  compatibleSurfaceCategories: SyntheticCommandCenterSurfaceCategory[];
+  decisionSurfaceCategories: SyntheticCommandCenterDecisionSurfaceCategory[];
+  routingCategories: SyntheticCommandCenterRoutingCategory[];
+  supportsSinglePaneSummary: boolean;
+  supportsDrillDownReference: boolean;
+}
+
+export type SyntheticCommandCenterSurfaceCompatibility = SyntheticCommandCenterSurface;
+
+export interface SyntheticCommandCenterValidationMetadata {
+  validationStatus: SyntheticCommandCenterValidationStatus;
+  validationReason?: string;
+  requiredMetadataFields: string[];
+  missingMetadataFields: string[];
+  warningCodes: string[];
+}
+
+export interface SyntheticCommandCenterCashReconciliationAgingCompatibility {
+  cashReconciliationItemIds: string[];
+  cashReconciliationAccountIds: string[];
+  cashReconciliationAgeDays?: number;
+  cashReconciliationStatus?: string;
+  oldestCashReconcilingItemDate?: string;
+  staleCashReconcilingItemCount?: number;
+  staleCashReconcilingItemAmount?: number;
+  cashReconciliationRiskScore?: number;
+  cashReconciliationHealthScore?: number;
+  cashReconciliationHealthCategory?: SyntheticCommandCenterCashReconciliationHealthCategory;
+  cashReconciliationAttentionRequired?: boolean;
+  cashReconciliationEvidenceIds: string[];
+  firmPortfolioCompatible: boolean;
+  clientIsolationRequired: boolean;
+}
+
+export interface SyntheticCommandCenterCandidate {
+  commandCenterItemId: string;
+  companyId: string;
+  metadata: SyntheticCommandCenterMetadata;
+  scope: SyntheticCommandCenterScope;
+  priority: SyntheticCommandCenterPriority;
+  roleCompatibility: SyntheticCommandCenterRoleCompatibility;
+  surfaceCompatibility: SyntheticCommandCenterSurface;
+  validationMetadata: SyntheticCommandCenterValidationMetadata;
+  cashReconciliationAgingCompatibility?: SyntheticCommandCenterCashReconciliationAgingCompatibility;
+  warnings: string[];
+}
