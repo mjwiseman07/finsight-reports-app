@@ -309,6 +309,83 @@ export interface SyntheticCommandCenterRecoveryMetadata {
   recoveryReviewRequired: boolean;
 }
 
+export interface SyntheticCommandCenterAttentionMetadata {
+  attentionCategory: SyntheticCommandCenterAttentionCategory;
+  attentionRequired: boolean;
+  attentionReason?: string;
+  attentionSourceReferenceIds: string[];
+  attentionEvidenceIds: string[];
+  attentionRoleCategories: SyntheticCommandCenterRoleCategory[];
+}
+
+export interface SyntheticCommandCenterRoutingDescriptor {
+  routingCategory: SyntheticCommandCenterRoutingCategory;
+  sourceSurfaceCategory: SyntheticCommandCenterSurfaceCategory;
+  targetSurfaceCategory: SyntheticCommandCenterSurfaceCategory;
+  routingReason?: string;
+  routingSourceReferenceIds: string[];
+  routingEvidenceIds: string[];
+}
+
+export interface SyntheticCommandCenterPrimarySurfaceCompatibility {
+  surfaceCategory: SyntheticCommandCenterSurfaceCategory;
+  decisionSurfaceCategory: SyntheticCommandCenterDecisionSurfaceCategory;
+  routingCategories: SyntheticCommandCenterRoutingCategory[];
+  roleCategories: SyntheticCommandCenterRoleCategory[];
+  sourceReferenceIds: string[];
+}
+
+export interface SyntheticCommandCenterSecondarySurfaceCompatibility {
+  surfaceCategories: SyntheticCommandCenterSurfaceCategory[];
+  decisionSurfaceCategories: SyntheticCommandCenterDecisionSurfaceCategory[];
+  routingCategories: SyntheticCommandCenterRoutingCategory[];
+  roleCategories: SyntheticCommandCenterRoleCategory[];
+  sourceReferenceIds: string[];
+}
+
+export interface SyntheticCommandCenterDeepSurfaceCompatibility {
+  drillDownSurfaceCategories: SyntheticCommandCenterSurfaceCategory[];
+  drillDownRoutingCategories: SyntheticCommandCenterRoutingCategory[];
+  drillDownSourceReferenceIds: string[];
+  drillDownEvidenceIds: string[];
+  supportsDeepSurfaceReference: boolean;
+}
+
+export interface SyntheticCommandCenterValidationStatusMetadata {
+  validationStatus: SyntheticCommandCenterValidationStatus;
+  validationStatusReason?: string;
+  validationSourceReferenceIds: string[];
+  validationEvidenceIds: string[];
+  validationWarningCodes: string[];
+}
+
+export interface SyntheticCommandCenterDecisionQueueCompatibility {
+  decisionQueueCompatible: boolean;
+  decisionSurfaceCategories: SyntheticCommandCenterDecisionSurfaceCategory[];
+  priorityLevel: SyntheticCommandCenterPriorityLevel;
+  roleCategories: SyntheticCommandCenterRoleCategory[];
+  decisionQueueSourceReferenceIds: string[];
+  decisionQueueEvidenceIds: string[];
+}
+
+export interface SyntheticCommandCenterWatchlistCompatibility {
+  watchlistCompatible: boolean;
+  watchlistSurfaceCategories: SyntheticCommandCenterSurfaceCategory[];
+  watchlistReason?: string;
+  watchlistSourceReferenceIds: string[];
+  watchlistEvidenceIds: string[];
+  watchlistRoleCategories: SyntheticCommandCenterRoleCategory[];
+}
+
+export interface SyntheticCommandCenterRoleVisibilityDescriptor {
+  visibleRoleCategories: SyntheticCommandCenterRoleCategory[];
+  hiddenRoleCategories: SyntheticCommandCenterRoleCategory[];
+  reviewRoleCategories: SyntheticCommandCenterRoleCategory[];
+  visibilityReason?: string;
+  visibilitySourceReferenceIds: string[];
+  visibilityEvidenceIds: string[];
+}
+
 export interface SyntheticCommandCenterCandidate {
   commandCenterItemId: string;
   companyId: string;
