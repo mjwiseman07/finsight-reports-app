@@ -386,6 +386,58 @@ export interface SyntheticCommandCenterRoleVisibilityDescriptor {
   visibilityEvidenceIds: string[];
 }
 
+export interface SyntheticCommandCenterMemoryCompatibility {
+  memoryReferenceIds: string[];
+  companyMemoryIds: string[];
+  historicalMemoryIds: string[];
+  memorySourceReferenceIds: string[];
+  memoryEvidenceIds: string[];
+  memoryCompatibilityVersion: number;
+}
+
+export interface SyntheticCommandCenterOnboardingCompatibility {
+  onboardingReferenceIds: string[];
+  onboardingStepIds: string[];
+  onboardingSourceReferenceIds: string[];
+  onboardingEvidenceIds: string[];
+  onboardingRoleCategories: SyntheticCommandCenterRoleCategory[];
+  onboardingCompatibilityVersion: number;
+}
+
+export interface SyntheticCommandCenterPortfolioCompatibility {
+  portfolioReferenceIds: string[];
+  firmPortfolioIds: string[];
+  clientPortfolioIds: string[];
+  portfolioSourceReferenceIds: string[];
+  portfolioEvidenceIds: string[];
+  portfolioScopeLevel: SyntheticCommandCenterScopeLevel;
+  portfolioCompatibilityVersion: number;
+}
+
+export interface SyntheticCommandCenterFirmCompatibility {
+  firmId?: string;
+  firmScopeLevel: SyntheticCommandCenterScopeLevel;
+  firmRoleCategories: SyntheticCommandCenterRoleCategory[];
+  firmSourceReferenceIds: string[];
+  firmEvidenceIds: string[];
+  clientScopeIds: string[];
+  clientIsolationRequired: boolean;
+}
+
+export interface SyntheticCommandCenterGovernanceMetadata {
+  governanceStatus: SyntheticCommandCenterGovernanceStatus;
+  governanceBoundaryIds: string[];
+  governanceBoundaryReason?: string;
+  auditReferenceIds: string[];
+  auditSourceReferenceIds: string[];
+  auditEvidenceIds: string[];
+  userControlReferenceIds: string[];
+  userControlRequired: boolean;
+  isolationBoundaryIds: string[];
+  clientIsolationRequired: boolean;
+  firmIsolationRequired: boolean;
+}
+
 export interface SyntheticCommandCenterCandidate {
   commandCenterItemId: string;
   companyId: string;
