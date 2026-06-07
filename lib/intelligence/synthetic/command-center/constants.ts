@@ -18,6 +18,39 @@ export const SYNTHETIC_COMMAND_CENTER_SCHEMA_VERSION = 1;
 export const SYNTHETIC_COMMAND_CENTER_TAXONOMY_VERSION = 1;
 export const SYNTHETIC_COMMAND_CENTER_CONTRACT_VERSION = 1;
 export const SYNTHETIC_COMMAND_CENTER_COMPATIBILITY_VERSION = 1;
+export const SYNTHETIC_COMMAND_CENTER_SCORE_MIN = 0;
+export const SYNTHETIC_COMMAND_CENTER_SCORE_MAX = 1;
+export const SYNTHETIC_COMMAND_CENTER_CONFIDENCE_MIN = 0;
+export const SYNTHETIC_COMMAND_CENTER_CONFIDENCE_MAX = 1;
+
+export const SYNTHETIC_COMMAND_CENTER_FUTURE_VERIFIER_CHECKLIST = [
+  "schema_version_exports_present",
+  "taxonomy_version_exports_present",
+  "contract_version_exports_present",
+  "compatibility_version_exports_present",
+  "taxonomy_constants_match_type_unions",
+  "core_contract_exports_present",
+  "evidence_lineage_contract_exports_present",
+  "routing_validation_contract_exports_present",
+  "memory_governance_contract_exports_present",
+  "barrel_exports_types_and_constants",
+] as const;
+
+export const SYNTHETIC_COMMAND_CENTER_REPOSITORY_SAFETY_EXCLUSIONS = [
+  "no_verifier_script",
+  "no_npm_script",
+  "no_package_json_changes",
+  "no_runtime_validation",
+  "no_validation_engine",
+  "no_builders",
+  "no_calculations",
+  "no_routing_engines",
+  "no_scoring_engines",
+  "no_ui",
+  "no_persistence",
+  "no_workflows",
+  "no_dependencies",
+] as const;
 
 export const SYNTHETIC_COMMAND_CENTER_SURFACE_CATEGORIES: SyntheticCommandCenterSurfaceCategory[] = [
   "executive_briefing",
