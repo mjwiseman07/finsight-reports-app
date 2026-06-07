@@ -242,6 +242,73 @@ export interface SyntheticCommandCenterCashReconciliationAgingCompatibility {
   clientIsolationRequired: boolean;
 }
 
+export interface SyntheticCommandCenterLineage {
+  commandCenterItemId: string;
+  sourceReferenceIds: string[];
+  evidenceIds: string[];
+  supportingForecastIds: string[];
+  supportingScenarioIds: string[];
+  supportingRecommendationIds: string[];
+  supportingCommentaryIds: string[];
+  supportingMemoryIds: string[];
+  supportingSignalIds: string[];
+  supportingMetricSeriesIds: string[];
+  supportingSnapshotIds: string[];
+  supportingIndustryProfileIds: string[];
+}
+
+export interface SyntheticCommandCenterEvidence {
+  evidenceIds: string[];
+  sourceReferenceIds: string[];
+  supportingIntelligenceIds: string[];
+  supportingForecastIds: string[];
+  supportingScenarioIds: string[];
+  supportingRecommendationIds: string[];
+  supportingCommentaryIds: string[];
+  supportingMemoryIds: string[];
+  supportingSignalIds: string[];
+  supportingMetricSeriesIds: string[];
+  supportingSnapshotIds: string[];
+  supportingIndustryProfileIds: string[];
+  lineage: SyntheticCommandCenterLineage;
+}
+
+export interface SyntheticCommandCenterTrustMetadata {
+  trustCategory: SyntheticCommandCenterTrustCategory;
+  trustReason?: string;
+  trustSourceReferenceIds: string[];
+  trustEvidenceIds: string[];
+  trustGovernanceStatus: SyntheticCommandCenterGovernanceStatus;
+  trustReviewRequired: boolean;
+}
+
+export interface SyntheticCommandCenterConfidenceMetadata {
+  confidenceCategory: SyntheticCommandCenterConfidenceCategory;
+  confidenceReason?: string;
+  confidenceSourceReferenceIds: string[];
+  confidenceEvidenceIds: string[];
+  confidenceSupportingIntelligenceIds: string[];
+  confidenceReviewRequired: boolean;
+}
+
+export interface SyntheticCommandCenterDegradationMetadata {
+  degradationCategory: SyntheticCommandCenterDegradationCategory;
+  degradationReason?: string;
+  degradationSourceReferenceIds: string[];
+  degradationEvidenceIds: string[];
+  degradedFieldNames: string[];
+  degradationReviewRequired: boolean;
+}
+
+export interface SyntheticCommandCenterRecoveryMetadata {
+  recoveryStatus: SyntheticCommandCenterValidationStatus;
+  recoveryReason?: string;
+  recoverySourceReferenceIds: string[];
+  recoveryEvidenceIds: string[];
+  recoveryRequiredFieldNames: string[];
+  recoveryReviewRequired: boolean;
+}
+
 export interface SyntheticCommandCenterCandidate {
   commandCenterItemId: string;
   companyId: string;
