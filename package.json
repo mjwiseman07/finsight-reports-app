@@ -45,6 +45,7 @@
     "verify:si-recommendations": "node scripts/verify-si-recommendations.js",
     "verify:si-forecasting": "node scripts/verify-si-forecasting.js",
     "verify:si-scenarios": "node scripts/verify-si-scenarios.js",
+    "verify:si-command-center": "node scripts/verify-si-command-center.js",
     "verify:live-supabase-schema-readonly": "node scripts/verify-live-supabase-schema-readonly.js",
     "verify:live-company-memory-persistence-readonly": "node scripts/verify-live-company-memory-persistence-readonly.js",
     "verify:client-briefings": "node scripts/verify-client-briefings.js",
