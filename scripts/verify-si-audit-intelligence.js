@@ -178,6 +178,14 @@ const builderPhases = [
     nullToken: "missingActivityObservation: null",
     identityToken: "missingActivityObservationId",
     upstreamTokens: [
+      "SyntheticExpectedActivityObservation",
+      "expectedActivityObservations",
+      "expectedActivityObservationIds",
+      "expectedActivityCategories",
+      "recurringPatternObservationIds",
+      "recurringPatternObservationKeys",
+      "recurringPatternCategories",
+      "auditContractReferenceIds",
       "auditCandidateIds",
       "auditEvidencePackageIds",
       "auditFindingArtifactIds",
@@ -443,7 +451,10 @@ for (const token of [
   "auditWatchlistIds",
   "auditBriefingIds",
   "recurringPatternObservationIds",
+  "recurringPatternObservationKeys",
+  "recurringPatternCategories",
   "expectedActivityObservationIds",
+  "expectedActivityCategories",
   "missingActivityObservationIds",
   "materialityObservationIds",
   "surfacingObservationIds",
@@ -471,6 +482,10 @@ const briefingGenerationText = readIfExists(
 
 assertIncludes(recurringPatternText, "SyntheticRecurringPatternObservation", "pipeline starts with recurring pattern observations");
 assertIncludes(expectedActivityText, "SyntheticRecurringPatternObservation", "expected activity consumes recurring patterns");
+assertIncludes(missingActivityText, "SyntheticExpectedActivityObservation", "missing activity consumes expected activity observations");
+assertIncludes(missingActivityText, "expectedActivityObservationIds", "missing activity preserves expected activity references");
+assertIncludes(missingActivityText, "expectedActivityCategories", "missing activity preserves expected activity categories");
+assertIncludes(missingActivityText, "recurringPatternObservationIds", "missing activity preserves recurring pattern references from expected activity");
 assertIncludes(materialityText, "SyntheticMissingActivityObservation", "materiality consumes missing activity observations");
 assertIncludes(materialityText, "SyntheticExpectedActivityObservation", "materiality consumes expected activity observations");
 assertIncludes(materialityText, "SyntheticRecurringPatternObservation", "materiality consumes recurring pattern observations");
