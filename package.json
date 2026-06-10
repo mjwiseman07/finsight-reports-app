@@ -48,6 +48,7 @@
     "verify:si-command-center": "node scripts/verify-si-command-center.js",
     "verify:si-command-center-surfaces": "node scripts/verify-si-command-center-surfaces.js",
     "verify:si-outcomes": "node scripts/verify-si-outcomes.js",
+    "verify:si-audit-intelligence": "node scripts/verify-si-audit-intelligence.js",
     "verify:live-supabase-schema-readonly": "node scripts/verify-live-supabase-schema-readonly.js",
     "verify:live-company-memory-persistence-readonly": "node scripts/verify-live-company-memory-persistence-readonly.js",
     "verify:client-briefings": "node scripts/verify-client-briefings.js",
