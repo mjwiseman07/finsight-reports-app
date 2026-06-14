@@ -352,6 +352,35 @@ const modules = [
       "evidenceReviewPackageIds",
     ],
   },
+  {
+    phase: "36M",
+    module: "enterprise-memory-package",
+    singularName: "EnterpriseMemoryPackage",
+    pluralName: "EnterpriseMemoryPackages",
+    artifact: "SyntheticEnterpriseMemoryPackage",
+    idToken: "enterpriseMemoryPackageId",
+    keyToken: "enterpriseMemoryPackageKey",
+    nullToken: "enterpriseMemoryPackage: null",
+    resultToken: "enterpriseMemoryPackage",
+    collectionResultToken: "enterpriseMemoryPackages",
+    collectionInputToken: "enterpriseMemoryInputs",
+    extraMarkers: [
+      "packageCategory",
+      "organizationalMemoryGraphIds",
+      "organizationalMemoryPackageIds",
+      "crossPeriodMemoryPackageIds",
+      "crossEntityMemoryPackageIds",
+      "crossFunctionMemoryPackageIds",
+      "historicalOutcomePackageIds",
+      "historicalDecisionPackageIds",
+      "historicalAuditPackageIds",
+      "historicalControllerPackageIds",
+      "clientPortfolioPackageIds",
+      "firmAuditPackageIds",
+      "firmControllerPackageIds",
+      "multiClientRiskReadinessPackageIds",
+    ],
+  },
 ];
 
 const commonBuilderMarkers = [
@@ -407,9 +436,13 @@ const prohibitedPatterns = [
   [/\bsimilarity search\b|\bsimilaritySearch\b/i, "no similarity search"],
   [/\bmethodology learning\b/i, "no methodology learning"],
   [/\bknowledge extraction\b/i, "no knowledge extraction"],
+  [/\brecommendation\b|\brecommendations\b|\brecommend\b/i, "no recommendations"],
   [/\bscore\b|\bscoring\b/i, "no scoring"],
   [/\brank\b|\branking\b/i, "no ranking"],
   [/\bworkflow execution\b|\bexecuteWorkflow\b|\bworkflowEngine\b/i, "no workflow execution"],
+  [/\bapproval\b|\bapprovals\b|\bapprove\b/i, "no approvals"],
+  [/\btask assignment\b|\bassignTask\b|\btaskAssignment\b/i, "no task assignment"],
+  [/\bpersist\b|\bpersistence\b|\bpersistent store\b/i, "no persistence"],
   [/\bERP\b|\berpIntegration\b|\bsyncToErp\b/i, "no ERP integrations"],
   [/\bPrismaClient\b|@prisma\/client|\bprisma\.|\bcreateClient\s*\(|@supabase\/supabase-js|\bsupabase\./, "no database clients"],
   [/\.(insert|update|upsert|delete)\s*\(/, "no database writes"],
@@ -499,7 +532,7 @@ for (const marker of wave3ArtifactMarkers) {
   assertIncludes(allImplementedText, marker, `Phase 36 implemented modules preserve ${marker}`);
 }
 
-assert(!implementedModules.includes("enterprise-memory-package"), "enterprise memory package is not implemented before verifier checkpoint");
+assert(implementedModules.includes("enterprise-memory-package"), "enterprise memory package is implemented and verified in Wave 4");
 assert(!implementedModules.includes("portfolio-memory-package"), "portfolio memory package is not implemented before verifier checkpoint");
 assert(!implementedModules.includes("organizational-memory-archive"), "organizational memory archive is not implemented before verifier checkpoint");
 assert(!implementedModules.includes("memory-preservation-package"), "memory preservation package is not implemented before verifier checkpoint");
