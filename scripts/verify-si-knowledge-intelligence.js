@@ -325,6 +325,98 @@ const modules = [
       "methodologyObservationIds",
     ],
   },
+  {
+    phase: "37O",
+    module: "portfolio-knowledge-package",
+    singularName: "PortfolioKnowledgePackage",
+    pluralName: "PortfolioKnowledgePackages",
+    artifact: "SyntheticPortfolioKnowledgePackage",
+    idToken: "portfolioKnowledgePackageId",
+    keyToken: "portfolioKnowledgePackageKey",
+    nullToken: "portfolioKnowledgePackage: null",
+    resultToken: "portfolioKnowledgePackage",
+    collectionResultToken: "portfolioKnowledgePackages",
+    extraMarkers: [
+      "portfolioKnowledgePackageId",
+      "portfolioKnowledgePackageKey",
+      "packageCategory",
+      "companyId",
+      "scope",
+      "customerIsolation",
+      "firmIsolation",
+      "clientIsolation",
+      "enterpriseKnowledgePackageIds",
+      "crossEntityKnowledgePackageIds",
+      "crossPeriodKnowledgePackageIds",
+      "crossFunctionKnowledgePackageIds",
+      "organizationalKnowledgeGraphIds",
+      "organizationalKnowledgePackageIds",
+      "historicalKnowledgePackageIds",
+      "historicalMethodologyPackageIds",
+      "auditKnowledgePackageIds",
+      "controllerKnowledgePackageIds",
+      "portfolioMemoryPackageIds",
+      "enterpriseMemoryPackageIds",
+      "organizationalMemoryGraphIds",
+      "organizationalMemoryPackageIds",
+      "derivationLineageIds",
+      "derivationMethod",
+      "derivationHash",
+      "knowledgeValidityWindow",
+      "sourceMemorySnapshotIds",
+      "supersedesKnowledgeIds",
+      "supersededByKnowledgeIds",
+      "staleMarker",
+      "stalenessReasonReferenceIds",
+      "methodologyVersion",
+      "methodologyAncestryIds",
+      "methodologyDerivationMethod",
+      "methodologyDerivationHash",
+      "supersedesMethodologyIds",
+      "supersededByMethodologyIds",
+      "methodologyStaleMarker",
+      "methodologyStalenessReasonReferenceIds",
+      "confidenceFloorMetadata",
+      "sourceConfidenceReferenceIds",
+      "evidenceReferenceIds",
+      "sourceReferenceIds",
+      "lineageReferenceIds",
+      "upstreamObservationIds",
+      "upstreamPackageIds",
+      "auditContractReferenceIds",
+      "auditCandidateIds",
+      "auditEvidencePackageIds",
+      "auditFindingArtifactIds",
+      "auditConfidenceIds",
+      "auditSurfaceIds",
+      "auditWatchlistIds",
+      "auditBriefingIds",
+      "trustMetadata",
+      "confidenceMetadata",
+      "governanceMetadata",
+      "materialityMetadata",
+      "personaCompatibility",
+      "packageCompatibility",
+      "memoryCompatibility",
+      "learningCompatibility",
+      "surfaceCompatibility",
+      "executable",
+      "actionReady",
+      "workflowReady",
+      "phase38Required",
+      "knowledgePackageHandle",
+      "methodologyPackageHandle",
+      "knowledgeGraphSnapshotHash",
+      "methodologySnapshotHash",
+      "sourceKnowledgeObjectIds",
+      "sourceMethodologyObjectIds",
+      "sourceMemoryObjectIds",
+      "sourceEvidenceLineageGraphIds",
+      "healthcarePpdObservationIds",
+      "payrollObservationIds",
+      "methodologyObservationIds",
+    ],
+  },
 ];
 
 const requiredContractExports = [
@@ -493,7 +585,6 @@ const forbiddenRuntimePatterns = [
 ];
 
 const wave4CheckpointModules = [
-  "portfolio-knowledge-package",
   "organizational-methodology-archive",
   "methodology-preservation-package",
 ];
@@ -548,6 +639,8 @@ for (const module of modules) {
   assertIncludes(indexText, `Build${module.singularName}Input`, `${label} index exports input type`);
   assertIncludes(indexText, `Build${module.singularName}Result`, `${label} index exports result type`);
   assertIncludes(indexText, module.artifact, `${label} index exports artifact type`);
+  assertIncludes(indexText, `Build${module.pluralName}Input`, `${label} index exports collection input type`);
+  assertIncludes(indexText, `Build${module.pluralName}Result`, `${label} index exports collection result type`);
 
   assertIncludes(builderText, 'import { stableSnapshotHash } from "../../../core/hash";', `${label} imports stableSnapshotHash from core/hash`);
   assertNotIncludes(builderText, "../synthetic/historical-snapshots", `${label} does not import hash from historical snapshots`);
@@ -573,7 +666,7 @@ for (const module of modules) {
     assertIncludes(builderText, marker, `${label} preserves ${marker}`);
   }
 
-  if (["37D", "37E", "37G", "37J", "37K", "37L", "37M", "37N"].includes(module.phase)) {
+  if (["37D", "37E", "37G", "37J", "37K", "37L", "37M", "37N", "37O"].includes(module.phase)) {
     for (const marker of methodologyMarkers) {
       assertIncludes(builderText, marker, `${label} preserves methodology marker ${marker}`);
     }
