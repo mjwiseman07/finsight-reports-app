@@ -381,6 +381,36 @@ const modules = [
       "multiClientRiskReadinessPackageIds",
     ],
   },
+  {
+    phase: "36N",
+    module: "portfolio-memory-package",
+    singularName: "PortfolioMemoryPackage",
+    pluralName: "PortfolioMemoryPackages",
+    artifact: "SyntheticPortfolioMemoryPackage",
+    idToken: "portfolioMemoryPackageId",
+    keyToken: "portfolioMemoryPackageKey",
+    nullToken: "portfolioMemoryPackage: null",
+    resultToken: "portfolioMemoryPackage",
+    collectionResultToken: "portfolioMemoryPackages",
+    collectionInputToken: "portfolioMemoryInputs",
+    extraMarkers: [
+      "packageCategory",
+      "enterpriseMemoryPackageIds",
+      "crossEntityMemoryPackageIds",
+      "crossPeriodMemoryPackageIds",
+      "crossFunctionMemoryPackageIds",
+      "organizationalMemoryGraphIds",
+      "organizationalMemoryPackageIds",
+      "historicalOutcomePackageIds",
+      "historicalDecisionPackageIds",
+      "historicalAuditPackageIds",
+      "historicalControllerPackageIds",
+      "clientPortfolioPackageIds",
+      "firmAuditPackageIds",
+      "firmControllerPackageIds",
+      "multiClientRiskReadinessPackageIds",
+    ],
+  },
 ];
 
 const commonBuilderMarkers = [
@@ -437,8 +467,11 @@ const prohibitedPatterns = [
   [/\bmethodology learning\b/i, "no methodology learning"],
   [/\bknowledge extraction\b/i, "no knowledge extraction"],
   [/\brecommendation\b|\brecommendations\b|\brecommend\b/i, "no recommendations"],
+  [/\bbenchmark\b|\bbenchmarking\b|\bbenchmarkEntity\b/i, "no benchmarking"],
   [/\bscore\b|\bscoring\b/i, "no scoring"],
   [/\brank\b|\branking\b/i, "no ranking"],
+  [/\brisk calculation\b|\brisk calculations\b|\bcalculateRisk\b|\briskCalculation\b/i, "no risk calculations"],
+  [/\breadiness calculation\b|\breadiness calculations\b|\bcalculateReadiness\b|\breadinessCalculation\b/i, "no readiness calculations"],
   [/\bworkflow execution\b|\bexecuteWorkflow\b|\bworkflowEngine\b/i, "no workflow execution"],
   [/\bapproval\b|\bapprovals\b|\bapprove\b/i, "no approvals"],
   [/\btask assignment\b|\bassignTask\b|\btaskAssignment\b/i, "no task assignment"],
@@ -533,6 +566,6 @@ for (const marker of wave3ArtifactMarkers) {
 }
 
 assert(implementedModules.includes("enterprise-memory-package"), "enterprise memory package is implemented and verified in Wave 4");
-assert(!implementedModules.includes("portfolio-memory-package"), "portfolio memory package is not implemented before verifier checkpoint");
+assert(implementedModules.includes("portfolio-memory-package"), "portfolio memory package is implemented and verified in Wave 4");
 assert(!implementedModules.includes("organizational-memory-archive"), "organizational memory archive is not implemented before verifier checkpoint");
 assert(!implementedModules.includes("memory-preservation-package"), "memory preservation package is not implemented before verifier checkpoint");
