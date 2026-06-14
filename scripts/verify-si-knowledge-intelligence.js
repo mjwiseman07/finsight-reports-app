@@ -417,6 +417,79 @@ const modules = [
       "methodologyObservationIds",
     ],
   },
+  {
+    phase: "37P",
+    module: "organizational-methodology-archive",
+    singularName: "OrganizationalMethodologyArchive",
+    pluralName: "OrganizationalMethodologyArchives",
+    artifact: "SyntheticOrganizationalMethodologyArchive",
+    idToken: "organizationalMethodologyArchiveId",
+    keyToken: "organizationalMethodologyArchiveKey",
+    nullToken: "organizationalMethodologyArchive: null",
+    resultToken: "organizationalMethodologyArchive",
+    collectionResultToken: "organizationalMethodologyArchives",
+    extraMarkers: [
+      "organizationalMethodologyArchiveId",
+      "organizationalMethodologyArchiveKey",
+      "archiveCategory",
+      "archiveStatus",
+      "companyId",
+      "scope",
+      "customerIsolation",
+      "firmIsolation",
+      "clientIsolation",
+      "methodologyObjectIds",
+      "methodologyRelationshipIds",
+      "historicalMethodologyPackageIds",
+      "organizationalKnowledgePackageIds",
+      "organizationalKnowledgeGraphIds",
+      "enterpriseKnowledgePackageIds",
+      "portfolioKnowledgePackageIds",
+      "organizationalMemoryArchiveIds",
+      "methodologyVersion",
+      "methodologyAncestryIds",
+      "methodologyDerivationMethod",
+      "methodologyDerivationHash",
+      "supersedesMethodologyIds",
+      "supersededByMethodologyIds",
+      "methodologyStaleMarker",
+      "methodologyStalenessReasonReferenceIds",
+      "derivationLineageIds",
+      "derivationMethod",
+      "derivationHash",
+      "confidenceFloorMetadata",
+      "sourceConfidenceReferenceIds",
+      "evidenceReferenceIds",
+      "sourceReferenceIds",
+      "lineageReferenceIds",
+      "upstreamObservationIds",
+      "upstreamPackageIds",
+      "trustMetadata",
+      "confidenceMetadata",
+      "governanceMetadata",
+      "materialityMetadata",
+      "personaCompatibility",
+      "packageCompatibility",
+      "memoryCompatibility",
+      "learningCompatibility",
+      "surfaceCompatibility",
+      "executable",
+      "actionReady",
+      "workflowReady",
+      "phase38Required",
+      "knowledgePackageHandle",
+      "methodologyPackageHandle",
+      "knowledgeGraphSnapshotHash",
+      "methodologySnapshotHash",
+      "sourceKnowledgeObjectIds",
+      "sourceMethodologyObjectIds",
+      "sourceMemoryObjectIds",
+      "sourceEvidenceLineageGraphIds",
+      "healthcarePpdObservationIds",
+      "payrollObservationIds",
+      "methodologyObservationIds",
+    ],
+  },
 ];
 
 const requiredContractExports = [
@@ -585,7 +658,6 @@ const forbiddenRuntimePatterns = [
 ];
 
 const wave4CheckpointModules = [
-  "organizational-methodology-archive",
   "methodology-preservation-package",
 ];
 
@@ -656,7 +728,7 @@ for (const module of modules) {
     assertIncludes(builderText, marker, `${label} preserves ${marker}`);
   }
 
-  if (!["37D", "37G"].includes(module.phase)) {
+  if (!["37D", "37G", "37P"].includes(module.phase)) {
     for (const marker of knowledgeSupersessionMarkers) {
       assertIncludes(builderText, marker, `${label} preserves knowledge supersession marker ${marker}`);
     }
@@ -666,7 +738,7 @@ for (const module of modules) {
     assertIncludes(builderText, marker, `${label} preserves ${marker}`);
   }
 
-  if (["37D", "37E", "37G", "37J", "37K", "37L", "37M", "37N", "37O"].includes(module.phase)) {
+  if (["37D", "37E", "37G", "37J", "37K", "37L", "37M", "37N", "37O", "37P"].includes(module.phase)) {
     for (const marker of methodologyMarkers) {
       assertIncludes(builderText, marker, `${label} preserves methodology marker ${marker}`);
     }
