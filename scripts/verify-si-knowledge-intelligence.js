@@ -490,6 +490,94 @@ const modules = [
       "methodologyObservationIds",
     ],
   },
+  {
+    phase: "37S",
+    module: "methodology-preservation-package",
+    singularName: "MethodologyPreservationPackage",
+    pluralName: "MethodologyPreservationPackages",
+    artifact: "SyntheticMethodologyPreservationPackage",
+    idToken: "methodologyPreservationPackageId",
+    keyToken: "methodologyPreservationPackageKey",
+    nullToken: "methodologyPreservationPackage: null",
+    resultToken: "methodologyPreservationPackage",
+    collectionResultToken: "methodologyPreservationPackages",
+    extraMarkers: [
+      "methodologyPreservationPackageId",
+      "methodologyPreservationPackageKey",
+      "packageCategory",
+      "preservationCategory",
+      "companyId",
+      "scope",
+      "customerIsolation",
+      "firmIsolation",
+      "clientIsolation",
+      "methodologyObjectIds",
+      "methodologyRelationshipIds",
+      "organizationalMethodologyArchiveIds",
+      "historicalMethodologyPackageIds",
+      "organizationalKnowledgePackageIds",
+      "organizationalKnowledgeGraphIds",
+      "enterpriseKnowledgePackageIds",
+      "portfolioKnowledgePackageIds",
+      "organizationalMemoryArchiveIds",
+      "memoryPreservationPackageIds",
+      "methodologyVersion",
+      "methodologyAncestryIds",
+      "methodologyDerivationMethod",
+      "methodologyDerivationHash",
+      "supersedesMethodologyIds",
+      "supersededByMethodologyIds",
+      "methodologyStaleMarker",
+      "methodologyStalenessReasonReferenceIds",
+      "preservationReferenceIds",
+      "preservationLineageReferenceIds",
+      "continuityReferenceIds",
+      "continuityEventReferenceIds",
+      "methodologyContinuityReferenceIds",
+      "methodologyArchiveContinuityReferenceIds",
+      "methodologyVersionContinuityReferenceIds",
+      "methodologyAncestryContinuityReferenceIds",
+      "methodologySupersessionContinuityReferenceIds",
+      "systemMigrationReferenceIds",
+      "staffingTurnoverReferenceIds",
+      "departmentRestructureReferenceIds",
+      "fiscalPeriodTransitionReferenceIds",
+      "derivationLineageIds",
+      "derivationMethod",
+      "derivationHash",
+      "confidenceFloorMetadata",
+      "sourceConfidenceReferenceIds",
+      "evidenceReferenceIds",
+      "sourceReferenceIds",
+      "lineageReferenceIds",
+      "upstreamObservationIds",
+      "upstreamPackageIds",
+      "trustMetadata",
+      "confidenceMetadata",
+      "governanceMetadata",
+      "materialityMetadata",
+      "personaCompatibility",
+      "packageCompatibility",
+      "memoryCompatibility",
+      "learningCompatibility",
+      "surfaceCompatibility",
+      "executable",
+      "actionReady",
+      "workflowReady",
+      "phase38Required",
+      "knowledgePackageHandle",
+      "methodologyPackageHandle",
+      "knowledgeGraphSnapshotHash",
+      "methodologySnapshotHash",
+      "sourceKnowledgeObjectIds",
+      "sourceMethodologyObjectIds",
+      "sourceMemoryObjectIds",
+      "sourceEvidenceLineageGraphIds",
+      "healthcarePpdObservationIds",
+      "payrollObservationIds",
+      "methodologyObservationIds",
+    ],
+  },
 ];
 
 const requiredContractExports = [
@@ -618,6 +706,11 @@ const phase38HandoffMarkers = [
 
 const prohibitedPatterns = [
   [/\bworkflow execution\b|\bexecuteWorkflow\b|\bworkflowEngine\b/i, "no workflow execution"],
+  [/\bmethodology execution\b|\bexecuteMethodology\b|\bmethodologyExecution\b/i, "no methodology execution"],
+  [/\bprocedure execution\b|\bexecuteProcedure\b|\bprocedureExecution\b/i, "no procedure execution"],
+  [/\bgovernance execution\b|\bexecuteGovernance\b|\bgovernanceExecution\b/i, "no governance execution"],
+  [/\bdata migration\b|\bdataMigration\b|\bmigrateData\b/i, "no data migration"],
+  [/\bretention automation\b|\bretentionAutomation\b/i, "no retention automation"],
   [/\bapproval\b|\bapprovals\b|\bapprove\b/i, "no approvals"],
   [/\btask assignment\b|\bassignTask\b|\btaskAssignment\b/i, "no task assignment"],
   [/\bautomation\b|\bautomate\b|\bautomated\b/i, "no automation"],
@@ -657,9 +750,7 @@ const forbiddenRuntimePatterns = [
   [/\bcrypto\.random/i, "no random crypto runtime dependency"],
 ];
 
-const wave4CheckpointModules = [
-  "methodology-preservation-package",
-];
+const wave4CheckpointModules = [];
 
 assert(exists("lib/intelligence/synthetic/knowledge/contracts/knowledgeContracts.ts"), "37A knowledgeContracts.ts exists");
 assert(exists("lib/intelligence/synthetic/knowledge/contracts/index.ts"), "37A contracts index.ts exists");
@@ -728,7 +819,7 @@ for (const module of modules) {
     assertIncludes(builderText, marker, `${label} preserves ${marker}`);
   }
 
-  if (!["37D", "37G", "37P"].includes(module.phase)) {
+  if (!["37D", "37G", "37P", "37S"].includes(module.phase)) {
     for (const marker of knowledgeSupersessionMarkers) {
       assertIncludes(builderText, marker, `${label} preserves knowledge supersession marker ${marker}`);
     }
@@ -738,7 +829,7 @@ for (const module of modules) {
     assertIncludes(builderText, marker, `${label} preserves ${marker}`);
   }
 
-  if (["37D", "37E", "37G", "37J", "37K", "37L", "37M", "37N", "37O", "37P"].includes(module.phase)) {
+  if (["37D", "37E", "37G", "37J", "37K", "37L", "37M", "37N", "37O", "37P", "37S"].includes(module.phase)) {
     for (const marker of methodologyMarkers) {
       assertIncludes(builderText, marker, `${label} preserves methodology marker ${marker}`);
     }
