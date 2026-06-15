@@ -10,7 +10,7 @@ import type {
 } from "../../audit/types";
 import type { SyntheticKnowledgeConfidenceFloorMetadata } from "../../knowledge/contracts";
 import type { SyntheticMemoryObjectIsolationDimension } from "../../organizational-memory/memory-object";
-import type { SyntheticRoleType } from "../contracts";
+import type { SyntheticAdHocRequestIntakeType, SyntheticRoleType } from "../contracts";
 
 export type SyntheticRoleTemplateOutputType =
   | "reconciliation_package"
@@ -52,7 +52,24 @@ export type SyntheticRoleTemplateOutputType =
   | "partner_review_notes"
   | "engagement_status_memo"
   | "quality_control_package"
-  | "management_letter_draft";
+  | "management_letter_draft"
+  | "realization_sheet_update"
+  | "firm_wide_realization_summary";
+
+export type SyntheticRoleTemplateRealizationSheetDeliveryMethod =
+  | "drive_placement"
+  | "email"
+  | "both"
+  | "not_applicable";
+
+export type SyntheticRoleTemplateTimekeepingSourceType =
+  | "system_pull"
+  | "excel_upload"
+  | "csv_export"
+  | "not_applicable";
+
+const AD_HOC_REQUEST_SUPPORTED = true;
+const AD_HOC_REQUEST_INTAKE_TYPES: SyntheticAdHocRequestIntakeType = "both";
 
 interface RoleTemplateDefinition {
   roleTemplateName: string;
@@ -65,6 +82,10 @@ interface RoleTemplateDefinition {
   overnightSchedulingSupported: boolean;
   pulseQueueSupported: boolean;
   driveOutputSupported: boolean;
+  realizationSheetSupported: boolean;
+  realizationSheetDeliveryMethod: SyntheticRoleTemplateRealizationSheetDeliveryMethod;
+  timekeepingSourceSupported: boolean;
+  timekeepingSourceTypes: SyntheticRoleTemplateTimekeepingSourceType[];
   defaultOutputTypes: SyntheticRoleTemplateOutputType[];
   defaultReviewLevel: string;
 }
@@ -144,6 +165,12 @@ export interface SyntheticRoleTemplate {
   overnightSchedulingSupported: boolean;
   pulseQueueSupported: boolean;
   driveOutputSupported: boolean;
+  adHocRequestSupported: true;
+  adHocRequestIntakeTypes: SyntheticAdHocRequestIntakeType;
+  realizationSheetSupported: boolean;
+  realizationSheetDeliveryMethod: SyntheticRoleTemplateRealizationSheetDeliveryMethod;
+  timekeepingSourceSupported: boolean;
+  timekeepingSourceTypes: SyntheticRoleTemplateTimekeepingSourceType[];
   boundPhase38SnapshotHash: string;
   boundPhase37SnapshotHash: string;
   phase39StaleMarker: SyntheticPhase38StaleMarker;
@@ -187,6 +214,10 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
     overnightSchedulingSupported: true,
     pulseQueueSupported: true,
     driveOutputSupported: true,
+    realizationSheetSupported: false,
+    realizationSheetDeliveryMethod: "not_applicable",
+    timekeepingSourceSupported: false,
+    timekeepingSourceTypes: ["not_applicable"],
     defaultOutputTypes: [
       "reconciliation_package",
       "draft_journal_entry",
@@ -208,6 +239,10 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
     overnightSchedulingSupported: true,
     pulseQueueSupported: true,
     driveOutputSupported: true,
+    realizationSheetSupported: false,
+    realizationSheetDeliveryMethod: "not_applicable",
+    timekeepingSourceSupported: false,
+    timekeepingSourceTypes: ["not_applicable"],
     defaultOutputTypes: [
       "reviewed_reconciliation",
       "revenue_memo",
@@ -228,6 +263,10 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
     overnightSchedulingSupported: true,
     pulseQueueSupported: true,
     driveOutputSupported: true,
+    realizationSheetSupported: false,
+    realizationSheetDeliveryMethod: "not_applicable",
+    timekeepingSourceSupported: false,
+    timekeepingSourceTypes: ["not_applicable"],
     defaultOutputTypes: [
       "close_status_summary",
       "management_summary",
@@ -247,6 +286,10 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
     overnightSchedulingSupported: true,
     pulseQueueSupported: true,
     driveOutputSupported: true,
+    realizationSheetSupported: false,
+    realizationSheetDeliveryMethod: "not_applicable",
+    timekeepingSourceSupported: false,
+    timekeepingSourceTypes: ["not_applicable"],
     defaultOutputTypes: [
       "controller_review_package",
       "flux_analysis_draft",
@@ -267,6 +310,10 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
     overnightSchedulingSupported: true,
     pulseQueueSupported: true,
     driveOutputSupported: true,
+    realizationSheetSupported: true,
+    realizationSheetDeliveryMethod: "drive_placement",
+    timekeepingSourceSupported: false,
+    timekeepingSourceTypes: ["not_applicable"],
     defaultOutputTypes: [
       "board_package_draft",
       "investor_summary",
@@ -274,6 +321,7 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
       "variance_analysis",
       "covenant_compliance_summary",
       "morning_summary",
+      "firm_wide_realization_summary",
     ],
     defaultReviewLevel: "executive_review",
   },
@@ -288,6 +336,10 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
     overnightSchedulingSupported: true,
     pulseQueueSupported: true,
     driveOutputSupported: true,
+    realizationSheetSupported: false,
+    realizationSheetDeliveryMethod: "not_applicable",
+    timekeepingSourceSupported: false,
+    timekeepingSourceTypes: ["not_applicable"],
     defaultOutputTypes: [
       "audit_workpaper",
       "evidence_package",
@@ -308,6 +360,10 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
     overnightSchedulingSupported: true,
     pulseQueueSupported: true,
     driveOutputSupported: true,
+    realizationSheetSupported: false,
+    realizationSheetDeliveryMethod: "not_applicable",
+    timekeepingSourceSupported: false,
+    timekeepingSourceTypes: ["not_applicable"],
     defaultOutputTypes: ["reviewed_workpaper", "audit_review_notes", "escalation_memo"],
     defaultReviewLevel: "audit_senior_review",
   },
@@ -322,12 +378,17 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
     overnightSchedulingSupported: true,
     pulseQueueSupported: true,
     driveOutputSupported: true,
+    realizationSheetSupported: true,
+    realizationSheetDeliveryMethod: "both",
+    timekeepingSourceSupported: true,
+    timekeepingSourceTypes: ["system_pull", "excel_upload", "csv_export"],
     defaultOutputTypes: [
       "workpaper_review_notes",
       "audit_status_update",
       "fieldwork_summary",
       "issues_memo_draft",
       "morning_summary",
+      "realization_sheet_update",
     ],
     defaultReviewLevel: "audit_manager_review",
   },
@@ -342,12 +403,18 @@ const ROLE_TEMPLATE_DEFINITIONS: Record<SyntheticRoleType, RoleTemplateDefinitio
     overnightSchedulingSupported: true,
     pulseQueueSupported: true,
     driveOutputSupported: true,
+    realizationSheetSupported: true,
+    realizationSheetDeliveryMethod: "both",
+    timekeepingSourceSupported: true,
+    timekeepingSourceTypes: ["system_pull", "excel_upload", "csv_export"],
     defaultOutputTypes: [
       "partner_review_notes",
       "engagement_status_memo",
       "quality_control_package",
       "management_letter_draft",
       "morning_summary",
+      "realization_sheet_update",
+      "firm_wide_realization_summary",
     ],
     defaultReviewLevel: "partner_review",
   },
@@ -453,6 +520,12 @@ function buildDerivationHash(input: BuildRoleTemplateInput, definition: RoleTemp
     defaultMaterialityThresholdReferenceIds: getInputArray(input.defaultMaterialityThresholdReferenceIds),
     defaultEscalationRules: getInputArray(input.defaultEscalationRules),
     defaultReviewLevel: input.defaultReviewLevel ?? definition.defaultReviewLevel,
+    adHocRequestSupported: AD_HOC_REQUEST_SUPPORTED,
+    adHocRequestIntakeTypes: AD_HOC_REQUEST_INTAKE_TYPES,
+    realizationSheetSupported: definition.realizationSheetSupported,
+    realizationSheetDeliveryMethod: definition.realizationSheetDeliveryMethod,
+    timekeepingSourceSupported: definition.timekeepingSourceSupported,
+    timekeepingSourceTypes: definition.timekeepingSourceTypes,
     boundPhase38SnapshotHash: getBoundPhase38SnapshotHash(input),
     boundPhase37SnapshotHash: getBoundPhase37SnapshotHash(input),
     derivationLineageIds: getInputArray(input.derivationLineageIds),
@@ -538,6 +611,12 @@ export function buildRoleTemplate(input: BuildRoleTemplateInput): BuildRoleTempl
       overnightSchedulingSupported: input.overnightSchedulingSupported ?? definition.overnightSchedulingSupported,
       pulseQueueSupported: input.pulseQueueSupported ?? definition.pulseQueueSupported,
       driveOutputSupported: input.driveOutputSupported ?? definition.driveOutputSupported,
+      adHocRequestSupported: AD_HOC_REQUEST_SUPPORTED,
+      adHocRequestIntakeTypes: AD_HOC_REQUEST_INTAKE_TYPES,
+      realizationSheetSupported: definition.realizationSheetSupported,
+      realizationSheetDeliveryMethod: definition.realizationSheetDeliveryMethod,
+      timekeepingSourceSupported: definition.timekeepingSourceSupported,
+      timekeepingSourceTypes: definition.timekeepingSourceTypes,
       boundPhase38SnapshotHash,
       boundPhase37SnapshotHash,
       phase39StaleMarker: getPhase39StaleMarker(input),

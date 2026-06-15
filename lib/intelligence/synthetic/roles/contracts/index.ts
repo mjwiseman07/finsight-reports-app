@@ -1,4 +1,9 @@
 export type {
+  SyntheticAdHocComplexityLevel,
+  SyntheticAdHocExecutionStatus,
+  SyntheticAdHocRequestIntakeType,
+  SyntheticAdHocRequestMetadataContract,
+  SyntheticAdHocRequestSource,
   SyntheticCapabilityTaxonomyEntryContract,
   SyntheticDocumentCheckingMode,
   SyntheticDocumentConnectorType,

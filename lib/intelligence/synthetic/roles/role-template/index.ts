@@ -4,6 +4,8 @@ export {
   type BuildRoleTemplateResult,
   type SyntheticRoleTemplate,
   type SyntheticRoleTemplateOutputType,
+  type SyntheticRoleTemplateRealizationSheetDeliveryMethod,
+  type SyntheticRoleTemplateTimekeepingSourceType,
 } from "./buildRoleTemplate";
 export {
   buildRoleTemplates,

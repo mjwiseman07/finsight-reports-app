@@ -17,6 +17,14 @@ export type SyntheticRoleStatus = "inactive" | "activating" | "active" | "suspen
 
 export type SyntheticRoleTaskSourceType = "email" | "workflow" | "scheduled" | "manual" | "pulse_queue";
 
+export type SyntheticAdHocRequestSource = "email" | "pulse_quick_request";
+
+export type SyntheticAdHocRequestIntakeType = "email" | "pulse_quick_request" | "both";
+
+export type SyntheticAdHocComplexityLevel = "immediate" | "overnight";
+
+export type SyntheticAdHocExecutionStatus = "pending" | "executing" | "completed" | "declined" | "flagged_for_review";
+
 export type SyntheticRoleErpConnectionType = "quickbooks" | "xero" | "netsuite" | "sage" | "dynamics" | "csv" | "other";
 
 export type SyntheticRoleErpConnectionStatus = "pending" | "connected" | "failed";
@@ -66,6 +74,8 @@ export interface SyntheticRoleTemplateContract extends SyntheticRoleBaseContract
   roleTemplateKey: string;
   roleType: SyntheticRoleType;
   roleDisplayName: string;
+  adHocRequestSupported: true;
+  adHocRequestIntakeTypes: SyntheticAdHocRequestIntakeType;
 }
 
 export interface SyntheticRoleInstanceContract extends SyntheticRoleBaseContract {
@@ -150,6 +160,33 @@ export interface SyntheticRoleExecutionAuditLogMetadataContract extends Syntheti
   clientEmailsSent: string[];
   driveOutputPlacements: string[];
   auditLogCreatedAt: string;
+}
+
+export interface SyntheticAdHocRequestMetadataContract extends SyntheticRoleBaseContract {
+  adHocRequestId: string;
+  adHocRequestKey: string;
+  adHocRequestSource: SyntheticAdHocRequestSource;
+  adHocRequestContent: string;
+  adHocRequesterId: string;
+  adHocRequesterEmail: string;
+  adHocRequestTimestamp: string;
+  adHocClassificationResult: string;
+  adHocCapabilityMatch: boolean;
+  adHocRestrictionCheck: boolean;
+  adHocAuthorizationCheck: boolean;
+  adHocComplexityLevel: SyntheticAdHocComplexityLevel;
+  adHocJournalEntryRequired: boolean;
+  adHocExecutionStatus: SyntheticAdHocExecutionStatus;
+  adHocDeclineReason: string;
+  adHocSuggestedAlternativeRoleType: SyntheticRoleType;
+  adHocOutputReferenceIds: string[];
+  adHocAuditLogReferenceId: string;
+  adHocRestrictionOverrideProhibited: true;
+  adHocGovernanceBypassProhibited: true;
+  adHocPermissionGrantProhibited: true;
+  adHocPermanentAuditLoggingRequired: true;
+  adHocDeclineReasonPreservationRequired: true;
+  adHocMaterialRequestHumanReviewRequired: true;
 }
 
 export interface SyntheticRapidOnboardingRoleActivationMetadataContract extends SyntheticRoleBaseContract {
