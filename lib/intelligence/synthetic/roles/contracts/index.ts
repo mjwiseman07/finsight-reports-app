@@ -1,6 +1,7 @@
 export type {
   SyntheticAdHocComplexityLevel,
   SyntheticAdHocExecutionStatus,
+  SyntheticAdHocRequestContract,
   SyntheticAdHocRequestIntakeType,
   SyntheticAdHocRequestMetadataContract,
   SyntheticAdHocRequestSource,
@@ -19,6 +20,9 @@ export type {
   SyntheticPulseOvernightQueueMetadataContract,
   SyntheticPulseQueueStatus,
   SyntheticRapidOnboardingRoleActivationMetadataContract,
+  SyntheticRealizationSheetContract,
+  SyntheticRealizationSheetDeliveryMethod,
+  SyntheticRealizationSheetTimekeepingSourceType,
   SyntheticRoleActivationType,
   SyntheticRoleApprovalPolicyMetadataContract,
   SyntheticRoleBaseContract,

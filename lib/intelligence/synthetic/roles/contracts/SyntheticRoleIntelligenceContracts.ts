@@ -25,6 +25,14 @@ export type SyntheticAdHocComplexityLevel = "immediate" | "overnight";
 
 export type SyntheticAdHocExecutionStatus = "pending" | "executing" | "completed" | "declined" | "flagged_for_review";
 
+export type SyntheticRealizationSheetTimekeepingSourceType =
+  | "system_pull"
+  | "excel_upload"
+  | "csv_export"
+  | "not_applicable";
+
+export type SyntheticRealizationSheetDeliveryMethod = "drive_placement" | "email" | "both" | "not_applicable";
+
 export type SyntheticRoleErpConnectionType = "quickbooks" | "xero" | "netsuite" | "sage" | "dynamics" | "csv" | "other";
 
 export type SyntheticRoleErpConnectionStatus = "pending" | "connected" | "failed";
@@ -162,7 +170,33 @@ export interface SyntheticRoleExecutionAuditLogMetadataContract extends Syntheti
   auditLogCreatedAt: string;
 }
 
-export interface SyntheticAdHocRequestMetadataContract extends SyntheticRoleBaseContract {
+export interface SyntheticRealizationSheetContract extends SyntheticRoleBaseContract {
+  realizationSheetId: string;
+  realizationSheetKey: string;
+  engagementId: string;
+  realizationPeriod: string;
+  budgetHoursBySection: Record<string, number>;
+  actualHoursBySection: Record<string, number>;
+  budgetHoursByStaffLevel: Record<string, number>;
+  actualHoursByStaffLevel: Record<string, number>;
+  realizationPercentageBySection: Record<string, number>;
+  realizationPercentageByStaffLevel: Record<string, number>;
+  overallRealizationPercentage: number;
+  feeRealization: number;
+  overBudgetSectionIds: string[];
+  underBudgetSectionIds: string[];
+  overBudgetStaffIds: string[];
+  varianceSummaryReferenceId: string;
+  timekeepingSourceType: SyntheticRealizationSheetTimekeepingSourceType;
+  timekeepingSourceReferenceId: string;
+  realizationSheetUpdatedAt: string;
+  realizationSheetDeliveredAt: string;
+  deliveryMethod: SyntheticRealizationSheetDeliveryMethod;
+  realizationSheetSupported: boolean;
+  timekeepingSourceSupported: boolean;
+}
+
+export interface SyntheticAdHocRequestContract extends SyntheticRoleBaseContract {
   adHocRequestId: string;
   adHocRequestKey: string;
   adHocRequestSource: SyntheticAdHocRequestSource;
@@ -181,6 +215,9 @@ export interface SyntheticAdHocRequestMetadataContract extends SyntheticRoleBase
   adHocSuggestedAlternativeRoleType: SyntheticRoleType;
   adHocOutputReferenceIds: string[];
   adHocAuditLogReferenceId: string;
+}
+
+export interface SyntheticAdHocRequestMetadataContract extends SyntheticAdHocRequestContract {
   adHocRestrictionOverrideProhibited: true;
   adHocGovernanceBypassProhibited: true;
   adHocPermissionGrantProhibited: true;
