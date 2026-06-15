@@ -29,6 +29,8 @@ export type SyntheticErpTargetSystem =
   | "xml"
   | "generic_import";
 
+export type SyntheticErpActionCandidateStatus = "candidate" | "review_ready" | "approved" | "rejected" | "withdrawn";
+
 export const SYNTHETIC_ERP_TARGET_SYSTEMS: SyntheticErpTargetSystem[] = [
   "quickbooks",
   "netsuite",
@@ -39,6 +41,14 @@ export const SYNTHETIC_ERP_TARGET_SYSTEMS: SyntheticErpTargetSystem[] = [
   "xls",
   "xml",
   "generic_import",
+];
+
+export const SYNTHETIC_ERP_ACTION_CANDIDATE_STATUSES: SyntheticErpActionCandidateStatus[] = [
+  "candidate",
+  "review_ready",
+  "approved",
+  "rejected",
+  "withdrawn",
 ];
 
 export const SYNTHETIC_ERP_REVERSIBILITY_CLASSES: SyntheticActionReversibilityClass[] = [
@@ -55,6 +65,7 @@ export interface BuildErpActionCandidatePackageInput {
   automationGovernancePackages?: SyntheticAutomationGovernancePackage[];
   erpTargetSystem: SyntheticErpTargetSystem;
   erpActionType: string;
+  erpActionCandidateStatus?: SyntheticErpActionCandidateStatus;
   erpActionCandidateIds?: string[];
   actionCandidateIds?: string[];
   workflowCandidateIds?: string[];
@@ -92,6 +103,7 @@ export interface SyntheticErpActionCandidatePackage {
   erpActionCandidatePackageKey: string;
   erpTargetSystem: SyntheticErpTargetSystem;
   erpActionType: string;
+  erpActionCandidateStatus: SyntheticErpActionCandidateStatus;
   erpActionCandidateIds: string[];
   actionCandidateIds: string[];
   workflowCandidateIds: string[];
@@ -164,6 +176,10 @@ function getStringArrayProperty(value: object, propertyName: string): string[] {
 
 function isSupportedErpTargetSystem(erpTargetSystem: SyntheticErpTargetSystem): boolean {
   return SYNTHETIC_ERP_TARGET_SYSTEMS.includes(erpTargetSystem);
+}
+
+function getErpActionCandidateStatus(input: BuildErpActionCandidatePackageInput): SyntheticErpActionCandidateStatus {
+  return input.erpActionCandidateStatus ?? "candidate";
 }
 
 function isSupportedReversibilityClass(reversibilityClass: SyntheticActionReversibilityClass): boolean {
@@ -455,6 +471,7 @@ export function buildErpActionCandidatePackage(
       erpActionCandidatePackageKey: buildErpActionCandidatePackageKey(input),
       erpTargetSystem: input.erpTargetSystem,
       erpActionType: input.erpActionType,
+      erpActionCandidateStatus: getErpActionCandidateStatus(input),
       erpActionCandidateIds: getErpActionCandidateIds(input),
       actionCandidateIds: getActionCandidateIds(input),
       workflowCandidateIds: getWorkflowCandidateIds(input),

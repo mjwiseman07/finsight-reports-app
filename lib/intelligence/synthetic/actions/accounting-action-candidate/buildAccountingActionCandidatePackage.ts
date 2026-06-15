@@ -38,6 +38,8 @@ export type SyntheticAccountingActionType =
   | "allocation"
   | "intercompany";
 
+export type SyntheticAccountingActionCandidateStatus = "candidate" | "review_ready" | "approved" | "rejected" | "withdrawn";
+
 export const SYNTHETIC_ACCOUNTING_ACTION_TYPES: SyntheticAccountingActionType[] = [
   "reconciliation",
   "journal_entry",
@@ -58,6 +60,14 @@ export const SYNTHETIC_ACCOUNTING_ACTION_TYPES: SyntheticAccountingActionType[] 
   "intercompany",
 ];
 
+export const SYNTHETIC_ACCOUNTING_ACTION_CANDIDATE_STATUSES: SyntheticAccountingActionCandidateStatus[] = [
+  "candidate",
+  "review_ready",
+  "approved",
+  "rejected",
+  "withdrawn",
+];
+
 export const SYNTHETIC_ACCOUNTING_REVERSIBILITY_CLASSES: SyntheticActionReversibilityClass[] = [
   "reversible",
   "compensatable",
@@ -71,6 +81,7 @@ export interface BuildAccountingActionCandidatePackageInput {
   approvalGovernancePackages?: SyntheticApprovalGovernance[];
   erpActionCandidatePackages?: SyntheticErpActionCandidatePackage[];
   accountingActionType: SyntheticAccountingActionType;
+  accountingActionCandidateStatus?: SyntheticAccountingActionCandidateStatus;
   actionCandidateIds?: string[];
   workflowCandidateIds?: string[];
   approvalGovernanceIds?: string[];
@@ -113,6 +124,7 @@ export interface SyntheticAccountingActionCandidatePackage {
   accountingActionCandidatePackageId: string;
   accountingActionCandidatePackageKey: string;
   accountingActionType: SyntheticAccountingActionType;
+  accountingActionCandidateStatus: SyntheticAccountingActionCandidateStatus;
   actionCandidateIds: string[];
   workflowCandidateIds: string[];
   approvalGovernanceIds: string[];
@@ -191,6 +203,10 @@ function getStringArrayProperty(value: object, propertyName: string): string[] {
 
 function isSupportedAccountingActionType(accountingActionType: SyntheticAccountingActionType): boolean {
   return SYNTHETIC_ACCOUNTING_ACTION_TYPES.includes(accountingActionType);
+}
+
+function getAccountingActionCandidateStatus(input: BuildAccountingActionCandidatePackageInput): SyntheticAccountingActionCandidateStatus {
+  return input.accountingActionCandidateStatus ?? "candidate";
 }
 
 function isSupportedReversibilityClass(reversibilityClass: SyntheticActionReversibilityClass): boolean {
@@ -509,6 +525,7 @@ export function buildAccountingActionCandidatePackage(
       accountingActionCandidatePackageId: buildAccountingActionCandidatePackageId(input),
       accountingActionCandidatePackageKey: buildAccountingActionCandidatePackageKey(input),
       accountingActionType: input.accountingActionType,
+      accountingActionCandidateStatus: getAccountingActionCandidateStatus(input),
       actionCandidateIds: getActionCandidateIds(input),
       workflowCandidateIds: getWorkflowCandidateIds(input),
       approvalGovernanceIds: getApprovalGovernanceIds(input),
