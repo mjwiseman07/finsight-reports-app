@@ -27,6 +27,13 @@ const builderModules = [
   { directory: "action-handoff-package", artifactName: "ActionHandoffPackage" },
 ];
 
+const lockArtifactModules = [
+  {
+    directory: "phase38-audit",
+    requiredFiles: ["buildPhase38AuditPackage.ts", "index.ts"],
+  },
+];
+
 const contractFiles = [
   path.join("contracts", "SyntheticActionIntelligenceContracts.ts"),
   path.join("contracts", "index.ts"),
@@ -182,6 +189,21 @@ function checkRequiredStructure() {
       const filePath = path.join(directoryPath, fileName);
       if (!exists(filePath)) {
         addViolation(filePath, "required Phase 38 module file is missing");
+      }
+    }
+  }
+
+  for (const module of lockArtifactModules) {
+    const directoryPath = path.join(actionsRoot, module.directory);
+    if (!exists(directoryPath)) {
+      addViolation(directoryPath, "required Phase 38 lock artifact directory is missing");
+      continue;
+    }
+
+    for (const fileName of module.requiredFiles) {
+      const filePath = path.join(directoryPath, fileName);
+      if (!exists(filePath)) {
+        addViolation(filePath, "required Phase 38 lock artifact file is missing");
       }
     }
   }
