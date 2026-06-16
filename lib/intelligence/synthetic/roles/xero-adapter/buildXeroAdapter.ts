@@ -14,6 +14,16 @@ import type { SyntheticErpSupportedPostingMode } from "../erp-adapter-framework"
 
 export type SyntheticXeroMappingValidationStatus = "not_run" | "passed" | "failed";
 
+export type SyntheticXeroBalanceSignAtClassification = "positive" | "negative" | "zero" | "not_evaluated";
+
+export type SyntheticXeroPresentationClassification =
+  | "asset"
+  | "liability"
+  | "equity"
+  | "income"
+  | "expense"
+  | "reclassified_from_source";
+
 export interface BuildXeroAdapterInput {
   phase38Handoff: SyntheticActionHandoffPackage | null;
   erpAdapterContractReferenceId?: string;
@@ -39,6 +49,11 @@ export interface BuildXeroAdapterInput {
   canFetchPostingStatus?: boolean;
   mappingValidationStatus?: SyntheticXeroMappingValidationStatus;
   mappingValidationFailureReason?: string;
+  sourceClassificationReferenceId?: string;
+  signAwareClassificationRuleReferenceIds?: string[];
+  balanceSignAtClassification?: SyntheticXeroBalanceSignAtClassification;
+  presentationClassification?: SyntheticXeroPresentationClassification;
+  reclassificationReason?: string;
   importFileFallbackAvailable?: boolean;
   formattedEmailFallbackAvailable?: boolean;
   adapterConfigurationComplete?: boolean;
@@ -100,6 +115,16 @@ export interface SyntheticXeroAdapter {
   failClosedOnConnectionFailure: true;
   failClosedOnMappingValidationFailure: true;
   failClosedOnClassificationMappingFailure: true;
+  respectsSourceSystemClassification: true;
+  signAwareClassificationRequired: true;
+  negativeCashReclassToLiabilityRequired: true;
+  contraAccountSignAwareHandlingRequired: true;
+  classificationOverrideRequiresDocumentedRule: true;
+  sourceClassificationReferenceId: string;
+  signAwareClassificationRuleReferenceIds: string[];
+  balanceSignAtClassification: SyntheticXeroBalanceSignAtClassification;
+  presentationClassification: SyntheticXeroPresentationClassification;
+  reclassificationReason: string;
   importFileFallbackAvailable: boolean;
   formattedEmailFallbackAvailable: boolean;
   adapterConfigurationComplete: boolean;
@@ -184,6 +209,14 @@ function getMappingValidationStatus(input: BuildXeroAdapterInput): SyntheticXero
 
 function getAccountClassificationValidationStatus(input: BuildXeroAdapterInput): SyntheticXeroMappingValidationStatus {
   return input.accountClassificationValidationStatus ?? "not_run";
+}
+
+function getBalanceSignAtClassification(input: BuildXeroAdapterInput): SyntheticXeroBalanceSignAtClassification {
+  return input.balanceSignAtClassification ?? "not_evaluated";
+}
+
+function getPresentationClassification(input: BuildXeroAdapterInput): SyntheticXeroPresentationClassification {
+  return input.presentationClassification ?? "reclassified_from_source";
 }
 
 function getAdapterConfigurationComplete(input: BuildXeroAdapterInput): boolean {
@@ -275,6 +308,16 @@ function buildDerivationHash(input: BuildXeroAdapterInput): string {
     failClosedOnConnectionFailure: true,
     failClosedOnMappingValidationFailure: true,
     failClosedOnClassificationMappingFailure: true,
+    respectsSourceSystemClassification: true,
+    signAwareClassificationRequired: true,
+    negativeCashReclassToLiabilityRequired: true,
+    contraAccountSignAwareHandlingRequired: true,
+    classificationOverrideRequiresDocumentedRule: true,
+    sourceClassificationReferenceId: input.sourceClassificationReferenceId ?? "",
+    signAwareClassificationRuleReferenceIds: getInputArray(input.signAwareClassificationRuleReferenceIds),
+    balanceSignAtClassification: getBalanceSignAtClassification(input),
+    presentationClassification: getPresentationClassification(input),
+    reclassificationReason: input.reclassificationReason ?? "",
     importFileFallbackAvailable: input.importFileFallbackAvailable === true,
     formattedEmailFallbackAvailable: input.formattedEmailFallbackAvailable === true,
     adapterConfigurationComplete: getAdapterConfigurationComplete(input),
@@ -311,6 +354,8 @@ export function buildXeroAdapter(input: BuildXeroAdapterInput): BuildXeroAdapter
   const clientIsolation = getClientIsolation(input);
   const mappingValidationStatus = getMappingValidationStatus(input);
   const accountClassificationValidationStatus = getAccountClassificationValidationStatus(input);
+  const balanceSignAtClassification = getBalanceSignAtClassification(input);
+  const presentationClassification = getPresentationClassification(input);
   const adapterConfigurationComplete = getAdapterConfigurationComplete(input);
   const derivationHash = buildDerivationHash(input);
   const xeroAdapterKey = stableSnapshotHash({
@@ -370,6 +415,16 @@ export function buildXeroAdapter(input: BuildXeroAdapterInput): BuildXeroAdapter
       failClosedOnConnectionFailure: true,
       failClosedOnMappingValidationFailure: true,
       failClosedOnClassificationMappingFailure: true,
+      respectsSourceSystemClassification: true,
+      signAwareClassificationRequired: true,
+      negativeCashReclassToLiabilityRequired: true,
+      contraAccountSignAwareHandlingRequired: true,
+      classificationOverrideRequiresDocumentedRule: true,
+      sourceClassificationReferenceId: input.sourceClassificationReferenceId ?? "",
+      signAwareClassificationRuleReferenceIds: getInputArray(input.signAwareClassificationRuleReferenceIds),
+      balanceSignAtClassification,
+      presentationClassification,
+      reclassificationReason: input.reclassificationReason ?? "",
       importFileFallbackAvailable: input.importFileFallbackAvailable === true,
       formattedEmailFallbackAvailable: input.formattedEmailFallbackAvailable === true,
       adapterConfigurationComplete,
