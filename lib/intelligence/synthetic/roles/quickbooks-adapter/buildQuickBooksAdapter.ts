@@ -20,6 +20,8 @@ export interface BuildQuickBooksAdapterInput {
   canonicalModelReferenceId?: string;
   companyConnectionReferenceId?: string;
   chartOfAccountsMappingReferenceId?: string;
+  accountClassificationMappingReferenceId?: string;
+  classificationMappingFailureReason?: string;
   dimensionMappingReferenceId?: string;
   classMappingReferenceId?: string;
   locationMappingReferenceId?: string;
@@ -69,6 +71,8 @@ export interface SyntheticQuickBooksAdapter {
   canonicalModelReferenceId: string;
   companyConnectionReferenceId: string;
   chartOfAccountsMappingReferenceId: string;
+  accountClassificationMappingReferenceId: string;
+  classificationMappingFailureReason: string;
   dimensionMappingReferenceId: string;
   classMappingReferenceId: string;
   locationMappingReferenceId: string;
@@ -89,6 +93,11 @@ export interface SyntheticQuickBooksAdapter {
   mappingValidationFailureReason: string;
   failClosedOnConnectionFailure: true;
   failClosedOnMappingValidationFailure: true;
+  failClosedOnClassificationMappingFailure: true;
+  respectsSourceSystemClassification: true;
+  signAwareClassificationRequired: true;
+  negativeCashReclassToLiabilityRequired: true;
+  contraAccountSignAwareHandlingRequired: true;
   importFileFallbackAvailable: boolean;
   formattedEmailFallbackAvailable: boolean;
   adapterConfigurationComplete: boolean;
@@ -179,7 +188,8 @@ function getAdapterConfigurationComplete(input: BuildQuickBooksAdapterInput): bo
   return (
     hasValue(input.erpAdapterContractReferenceId) &&
     hasValue(input.companyConnectionReferenceId) &&
-    hasValue(input.chartOfAccountsMappingReferenceId)
+    hasValue(input.chartOfAccountsMappingReferenceId) &&
+    hasValue(input.accountClassificationMappingReferenceId)
   );
 }
 
@@ -233,6 +243,8 @@ function buildDerivationHash(input: BuildQuickBooksAdapterInput): string {
     canonicalModelReferenceId: input.canonicalModelReferenceId ?? "",
     companyConnectionReferenceId: input.companyConnectionReferenceId ?? "",
     chartOfAccountsMappingReferenceId: input.chartOfAccountsMappingReferenceId ?? "",
+    accountClassificationMappingReferenceId: input.accountClassificationMappingReferenceId ?? "",
+    classificationMappingFailureReason: input.classificationMappingFailureReason ?? "",
     dimensionMappingReferenceId: input.dimensionMappingReferenceId ?? "",
     classMappingReferenceId: input.classMappingReferenceId ?? "",
     locationMappingReferenceId: input.locationMappingReferenceId ?? "",
@@ -253,6 +265,11 @@ function buildDerivationHash(input: BuildQuickBooksAdapterInput): string {
     mappingValidationFailureReason: input.mappingValidationFailureReason ?? "",
     failClosedOnConnectionFailure: true,
     failClosedOnMappingValidationFailure: true,
+    failClosedOnClassificationMappingFailure: true,
+    respectsSourceSystemClassification: true,
+    signAwareClassificationRequired: true,
+    negativeCashReclassToLiabilityRequired: true,
+    contraAccountSignAwareHandlingRequired: true,
     importFileFallbackAvailable: input.importFileFallbackAvailable === true,
     formattedEmailFallbackAvailable: input.formattedEmailFallbackAvailable === true,
     adapterConfigurationComplete: getAdapterConfigurationComplete(input),
@@ -298,6 +315,7 @@ export function buildQuickBooksAdapter(input: BuildQuickBooksAdapterInput): Buil
     companyConnectionReferenceId,
     canonicalModelReferenceId: input.canonicalModelReferenceId ?? "",
     chartOfAccountsMappingReferenceId: input.chartOfAccountsMappingReferenceId ?? "",
+    accountClassificationMappingReferenceId: input.accountClassificationMappingReferenceId ?? "",
     mappingValidationStatus,
     adapterConfigurationComplete,
     boundPhase38SnapshotHash,
@@ -319,6 +337,8 @@ export function buildQuickBooksAdapter(input: BuildQuickBooksAdapterInput): Buil
       canonicalModelReferenceId: input.canonicalModelReferenceId ?? "",
       companyConnectionReferenceId,
       chartOfAccountsMappingReferenceId: input.chartOfAccountsMappingReferenceId ?? "",
+      accountClassificationMappingReferenceId: input.accountClassificationMappingReferenceId ?? "",
+      classificationMappingFailureReason: input.classificationMappingFailureReason ?? "",
       dimensionMappingReferenceId: input.dimensionMappingReferenceId ?? "",
       classMappingReferenceId: input.classMappingReferenceId ?? "",
       locationMappingReferenceId: input.locationMappingReferenceId ?? "",
@@ -339,6 +359,11 @@ export function buildQuickBooksAdapter(input: BuildQuickBooksAdapterInput): Buil
       mappingValidationFailureReason: input.mappingValidationFailureReason ?? "",
       failClosedOnConnectionFailure: true,
       failClosedOnMappingValidationFailure: true,
+      failClosedOnClassificationMappingFailure: true,
+      respectsSourceSystemClassification: true,
+      signAwareClassificationRequired: true,
+      negativeCashReclassToLiabilityRequired: true,
+      contraAccountSignAwareHandlingRequired: true,
       importFileFallbackAvailable: input.importFileFallbackAvailable === true,
       formattedEmailFallbackAvailable: input.formattedEmailFallbackAvailable === true,
       adapterConfigurationComplete,

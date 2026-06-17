@@ -95,6 +95,7 @@ export interface SyntheticReasonablenessResult {
   advanceAuthorized: boolean;
   failClosedOnAnyFlag: true;
   triggersDeclineAndWarnOnFlag: true;
+  neverSilentlyPasses: true;
   reasonablenessRunAt: string;
   auditLogReferenceId: string;
   boundPhase38SnapshotHash: string;
@@ -299,6 +300,7 @@ function buildDerivationHash(input: BuildReasonablenessResultInput): string {
     advanceAuthorized: getAdvanceAuthorized(input),
     failClosedOnAnyFlag: true,
     triggersDeclineAndWarnOnFlag: true,
+    neverSilentlyPasses: true,
     reasonablenessRunAt: input.reasonablenessRunAt ?? "",
     auditLogReferenceId: input.auditLogReferenceId ?? "",
     boundPhase38SnapshotHash: getBoundPhase38SnapshotHash(input),
@@ -377,6 +379,7 @@ export function buildReasonablenessResult(
       advanceAuthorized,
       failClosedOnAnyFlag: true,
       triggersDeclineAndWarnOnFlag: true,
+      neverSilentlyPasses: true,
       reasonablenessRunAt: input.reasonablenessRunAt ?? "",
       auditLogReferenceId: input.auditLogReferenceId ?? "",
       boundPhase38SnapshotHash,
