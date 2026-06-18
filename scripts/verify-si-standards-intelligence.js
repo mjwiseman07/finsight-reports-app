@@ -387,30 +387,52 @@ const checks = [
   checkFourEntityTopologyStatic,
 ];
 
-const results = checks.map((check) => check());
-const failures = results.filter((result) => !result.passed);
-const passedChecks = results.filter((result) => result.passed);
-
-for (const result of passedChecks) {
-  if (result.note) {
-    console.log(`OK ${result.name}: ${result.note}`);
-  }
+if (require.main === module) {
+  runVerifier();
 }
 
-if (failures.length > 0) {
-  console.error("FAIL");
-  for (const failure of failures) {
-    console.error(`- ${failure.name}: ${failure.reason}`);
-  }
-  process.exit(1);
-}
+module.exports = {
+  checks,
+  resolveRetrievalOutcome,
+  classifyMemoryCategory,
+  filterRetrievableArtifacts,
+  canRetrieveArtifact,
+  simulateTreatmentActiveGate,
+  simulateDisclosureActiveGate,
+  simulateDifferenceReviewedGate,
+  evaluateContainsCopyrightedTextViolation,
+  evaluateExecutableTrueViolation,
+  evaluateRoleAdapterPhase39Violation,
+  evaluateFrameworkSelectabilityViolation,
+  checkBannedPatternsInSource,
+};
 
-console.log("PASS");
-console.log("VERIFY_EXIT:0");
-console.log(
-  "Note: framework segregation and four-entity topology tests are static/structural only; live retrieval segregation is validated on the real-data test register.",
-);
-process.exit(0);
+function runVerifier() {
+  const results = checks.map((check) => check());
+  const failures = results.filter((result) => !result.passed);
+  const passedChecks = results.filter((result) => result.passed);
+
+  for (const result of passedChecks) {
+    if (result.note) {
+      console.log(`OK ${result.name}: ${result.note}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    console.error("FAIL");
+    for (const failure of failures) {
+      console.error(`- ${failure.name}: ${failure.reason}`);
+    }
+    process.exit(1);
+  }
+
+  console.log("PASS");
+  console.log("VERIFY_EXIT:0");
+  console.log(
+    "Note: framework segregation and four-entity topology tests are static/structural only; live retrieval segregation is validated on the real-data test register.",
+  );
+  process.exit(0);
+}
 
 function libraryMarkers() {
   return [
@@ -888,6 +910,71 @@ function checkLibraryActiveRequiresAttestation() {
   };
 }
 
+function filterRetrievableArtifacts(artifacts, request) {
+  return artifacts.filter((artifact) => {
+    const outcome = resolveRetrievalOutcome({
+      memoryCategory: artifact.category,
+      requestedFrameworks: request.requestedFrameworks,
+      artifactFramework: artifact.framework,
+      retrievedReferenceIds: [artifact.id],
+    });
+    return outcome.retrievalStatus === "scoped" && outcome.retrievedReferenceIds.includes(artifact.id);
+  });
+}
+
+function canRetrieveArtifact(artifact, request) {
+  if (artifact.customerId !== request.customerId) {
+    return false;
+  }
+
+  const outcome = resolveRetrievalOutcome({
+    memoryCategory: artifact.category,
+    requestedFrameworks: request.requestedFrameworks,
+    artifactFramework: artifact.framework || undefined,
+    retrievedReferenceIds: [artifact.id],
+  });
+
+  if (outcome.retrievalStatus === "shared") {
+    return true;
+  }
+
+  if (outcome.retrievalStatus !== "scoped") {
+    return false;
+  }
+
+  if (request.book && artifact.book !== "shared" && request.book !== artifact.book) {
+    return false;
+  }
+
+  return outcome.retrievedReferenceIds.includes(artifact.id);
+}
+
+function evaluateContainsCopyrightedTextViolation(source) {
+  return source.includes("containsCopyrightedText: true");
+}
+
+function evaluateExecutableTrueViolation(source) {
+  return /\bexecutable:\s*true\b/.test(source);
+}
+
+function evaluateRoleAdapterPhase39Violation(source) {
+  const violations = [];
+  if (/from\s+["'][^"']*\/roles\//.test(source)) {
+    violations.push("imports from Phase 39 roles namespace");
+  }
+  if (/from\s+["'][^"']*synthetic\/roles/.test(source)) {
+    violations.push("imports from synthetic/roles namespace");
+  }
+  return violations;
+}
+
+function evaluateFrameworkSelectabilityViolation(frameworkStatus, isSelectable) {
+  if (frameworkStatus !== "active" && isSelectable === true) {
+    return ["non-active framework marked selectable"];
+  }
+  return [];
+}
+
 function checkFrameworkSegregationStatic() {
   const notes = [];
   const violations = [];
@@ -898,17 +985,9 @@ function checkFrameworkSegregationStatic() {
     { id: "mem-ifrs-iasb", framework: "ifrs_iasb", category: "inventory_measurement" },
   ];
 
-  const scopedRetained = artifacts
-    .filter((artifact) => {
-      const outcome = resolveRetrievalOutcome({
-        memoryCategory: artifact.category,
-        requestedFrameworks: ["us_gaap"],
-        artifactFramework: artifact.framework,
-        retrievedReferenceIds: [artifact.id],
-      });
-      return outcome.retrievalStatus === "scoped" && outcome.retrievedReferenceIds.includes(artifact.id);
-    })
-    .map((artifact) => artifact.id);
+  const scopedRetained = filterRetrievableArtifacts(artifacts, { requestedFrameworks: ["us_gaap"] }).map(
+    (artifact) => artifact.id,
+  );
   if (!scopedRetained.includes("mem-us-gaap") || scopedRetained.length !== 1) {
     violations.push(`us_gaap scoped retrieval retained unexpected artifacts: ${scopedRetained.join(", ") || "none"}`);
   }
@@ -980,87 +1059,60 @@ function checkFourEntityTopologyStatic() {
     { id: "other-customer", entityId: "entity-X", customerId: customerB, framework: "us_gaap", category: "revenue_recognition", book: "primary" },
   ];
 
-  function canRetrieve(artifact, request) {
-    if (artifact.customerId !== request.customerId) {
-      return false;
-    }
-
-    const outcome = resolveRetrievalOutcome({
-      memoryCategory: artifact.category,
-      requestedFrameworks: request.requestedFrameworks,
-      artifactFramework: artifact.framework || undefined,
-      retrievedReferenceIds: [artifact.id],
-    });
-
-    if (outcome.retrievalStatus === "shared") {
-      return true;
-    }
-
-    if (outcome.retrievalStatus !== "scoped") {
-      return false;
-    }
-
-    if (request.book && artifact.book !== "shared" && request.book !== artifact.book) {
-      return false;
-    }
-
-    return outcome.retrievedReferenceIds.includes(artifact.id);
-  }
-
-  const checks = [
+  const topologyChecks = [
     {
       label: "A us_gaap retrievable for D",
-      pass: canRetrieve(artifacts[0], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
+      pass: canRetrieveArtifact(artifacts[0], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
     },
     {
       label: "A us_gaap retrievable for C primary",
-      pass: canRetrieve(artifacts[0], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
+      pass: canRetrieveArtifact(artifacts[0], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
     },
     {
       label: "A us_gaap NOT retrievable for B",
-      pass: !canRetrieve(artifacts[0], { customerId: customerA, requestedFrameworks: ["ifrs_for_smes"], book: "primary" }),
+      pass: !canRetrieveArtifact(artifacts[0], { customerId: customerA, requestedFrameworks: ["ifrs_for_smes"], book: "primary" }),
     },
     {
       label: "A us_gaap NOT retrievable for C secondary ifrs_iasb",
-      pass: !canRetrieve(artifacts[0], { customerId: customerA, requestedFrameworks: ["ifrs_iasb"], book: "secondary" }),
+      pass: !canRetrieveArtifact(artifacts[0], { customerId: customerA, requestedFrameworks: ["ifrs_iasb"], book: "secondary" }),
     },
     {
       label: "B ifrs_for_smes NOT retrievable for A",
-      pass: !canRetrieve(artifacts[1], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
+      pass: !canRetrieveArtifact(artifacts[1], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
     },
     {
       label: "B ifrs_for_smes NOT retrievable for D",
-      pass: !canRetrieve(artifacts[1], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
+      pass: !canRetrieveArtifact(artifacts[1], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
     },
     {
       label: "B ifrs_for_smes NOT retrievable for C primary",
-      pass: !canRetrieve(artifacts[1], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
+      pass: !canRetrieveArtifact(artifacts[1], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
     },
     {
       label: "B ifrs_for_smes NOT retrievable for C secondary",
-      pass: !canRetrieve(artifacts[1], { customerId: customerA, requestedFrameworks: ["ifrs_iasb"], book: "secondary" }),
+      pass: !canRetrieveArtifact(artifacts[1], { customerId: customerA, requestedFrameworks: ["ifrs_iasb"], book: "secondary" }),
     },
     {
       label: "C primary not visible in secondary book",
-      pass: !canRetrieve(artifacts[2], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "secondary" }),
+      pass: !canRetrieveArtifact(artifacts[2], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "secondary" }),
     },
     {
       label: "C secondary not visible in primary book",
-      pass: !canRetrieve(artifacts[3], { customerId: customerA, requestedFrameworks: ["ifrs_iasb"], book: "primary" }),
+      pass: !canRetrieveArtifact(artifacts[3], { customerId: customerA, requestedFrameworks: ["ifrs_iasb"], book: "primary" }),
     },
     {
       label: "framework-agnostic retrievable for all four entities",
-      pass: ["entity-A", "entity-B", "entity-C", "entity-D"].every((entityId) =>
-        canRetrieve(artifacts[5], { customerId: customerA, requestedFrameworks: [], book: "shared" }),
+      pass: ["entity-A", "entity-B", "entity-C", "entity-D"].every(() =>
+        canRetrieveArtifact(artifacts[5], { customerId: customerA, requestedFrameworks: [], book: "shared" }),
       ),
     },
     {
       label: "no cross-customerIsolation leakage",
-      pass: !canRetrieve(artifacts[6], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
+      pass: !canRetrieveArtifact(artifacts[6], { customerId: customerA, requestedFrameworks: ["us_gaap"], book: "primary" }),
     },
   ];
 
-  for (const topologyCheck of checks) {
+  for (const topologyCheck of topologyChecks) {
     notes.push(`${topologyCheck.label}: ${topologyCheck.pass ? "pass" : "fail"}`);
     if (!topologyCheck.pass) {
       violations.push(topologyCheck.label);
