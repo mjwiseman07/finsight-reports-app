@@ -1,4 +1,19 @@
-export const GENERIC_TREATMENT_11_TOPIC_IDENTIFIER = "generic_smb_ar_allowance_cecl" as const;
+export const GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER = "generic_smb_ar_allowance_cecl" as const;
+export const GENERIC_TREATMENT_11_IFRS_IASB_TOPIC_IDENTIFIER = "generic_smb_ar_allowance_ecl" as const;
+
+/** @deprecated Use GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER */
+export const GENERIC_TREATMENT_11_TOPIC_IDENTIFIER = GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER;
+
+export const GENERIC_TREATMENT_11_AR_ALLOWANCE_TOPIC_IDENTIFIERS = [
+  GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER,
+  GENERIC_TREATMENT_11_IFRS_IASB_TOPIC_IDENTIFIER,
+] as const;
+
+export function isGenericTreatment11ArAllowanceTopic(topicIdentifier: string): boolean {
+  return (GENERIC_TREATMENT_11_AR_ALLOWANCE_TOPIC_IDENTIFIERS as readonly string[]).includes(
+    topicIdentifier,
+  );
+}
 
 export interface GenericTreatmentApplicabilityGuardRequiresAttestation {
   poolName: "string";

@@ -1,12 +1,13 @@
 export {
   GENERIC_BASELINE_LAUNCH_FRAMEWORKS,
   GENERIC_BASELINE_TOPIC_IDENTIFIERS,
+  GENERIC_BASELINE_TOPIC_ORDER,
   GENERIC_LAUNCH_FRAMEWORKS,
-  GENERIC_TREATMENT_11_TOPIC_IDENTIFIER,
   PHASE_42I_GENERIC_TREATMENT_BLUEPRINT,
   buildGenericIndustryTreatment,
   type BuildGenericIndustryTreatmentInput,
   type BuildGenericIndustryTreatmentResult,
+  type GenericBaselineFramework,
   type GenericBaselineLaunchFramework,
   type GenericBaselineTopicIdentifier,
   type GenericLaunchFramework,
@@ -15,12 +16,22 @@ export {
 } from "./buildGenericIndustryTreatment";
 export {
   GENERIC_TREATMENT_11_APPLICABILITY_GUARD,
+  GENERIC_TREATMENT_11_AR_ALLOWANCE_TOPIC_IDENTIFIERS,
   GENERIC_TREATMENT_11_EXECUTION_CONSTRAINTS,
+  GENERIC_TREATMENT_11_IFRS_IASB_TOPIC_IDENTIFIER,
+  GENERIC_TREATMENT_11_TOPIC_IDENTIFIER,
+  GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER,
+  isGenericTreatment11ArAllowanceTopic,
   type GenericTreatmentApplicabilityGuard,
   type GenericTreatmentExecutionConstraints,
 } from "./genericTreatment11Metadata";
 export {
-  GENERIC_BASELINE_TOPIC_ORDER,
+  GENERIC_BASELINE_FRAMEWORKS,
+  GENERIC_IFRS_IASB_BASELINE_FILENAME,
+  GENERIC_SHARED_BASELINE_TOPIC_ORDER,
+  GENERIC_TREATMENT_11_TOPIC_BY_FRAMEWORK,
+  GENERIC_US_GAAP_BASELINE_FILENAME,
+  getGenericBaselineTopicOrder,
   getGenericLibraryHeaderContent,
   getGenericTreatment11BaselineRecord,
   getGenericTreatmentBaselineRecord,

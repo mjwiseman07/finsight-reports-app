@@ -9,17 +9,21 @@ import type {
   ReviewerAttestation,
 } from "../../contracts";
 import {
-  GENERIC_TREATMENT_11_TOPIC_IDENTIFIER,
+  GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER,
   type GenericTreatmentApplicabilityGuard,
   type GenericTreatmentExecutionConstraints,
 } from "./genericTreatment11Metadata";
 import {
-  GENERIC_BASELINE_TOPIC_ORDER,
+  GENERIC_BASELINE_FRAMEWORKS,
+  GENERIC_BASELINE_TOPIC_IDENTIFIERS,
+  getGenericBaselineTopicOrder,
   getGenericTreatmentBaselineRecord,
+  type GenericBaselineFramework,
   type GenericBaselineTopicIdentifier,
 } from "./loadGenericTreatmentBaseline";
 
-export const GENERIC_BASELINE_TOPIC_IDENTIFIERS = GENERIC_BASELINE_TOPIC_ORDER;
+export const GENERIC_BASELINE_TOPIC_ORDER = getGenericBaselineTopicOrder("us_gaap");
+export { GENERIC_BASELINE_TOPIC_IDENTIFIERS };
 
 export const GENERIC_LAUNCH_FRAMEWORKS = [
   "us_gaap",
@@ -28,7 +32,7 @@ export const GENERIC_LAUNCH_FRAMEWORKS = [
   "ifrs_eu",
 ] as const;
 
-export const GENERIC_BASELINE_LAUNCH_FRAMEWORKS = ["us_gaap"] as const;
+export const GENERIC_BASELINE_LAUNCH_FRAMEWORKS = GENERIC_BASELINE_FRAMEWORKS;
 
 export type GenericLaunchFramework = (typeof GENERIC_LAUNCH_FRAMEWORKS)[number];
 export type GenericBaselineLaunchFramework = (typeof GENERIC_BASELINE_LAUNCH_FRAMEWORKS)[number];
@@ -66,7 +70,6 @@ const GENERIC_BASELINE_CONTRACT_DEFAULTS = {
   boundPhase40_5SnapshotHash: "phase40-5-baseline-handoff",
   boundPhase41_5SnapshotHash: "phase41-5-baseline-handoff",
   boundPhase39SnapshotHash: "phase39-baseline-handoff",
-  reportingFramework: "us_gaap",
   industryClassification: "generic",
   industryStatus: "active",
   containsPHI: false,
@@ -100,13 +103,15 @@ function buildBlankReviewerAttestation(): ReviewerAttestation {
 }
 
 function buildGenericBaselineTreatmentInput(
-  topicIdentifier: GenericBaselineTopicIdentifier,
+  topicIdentifier: string,
+  reportingFramework: GenericBaselineFramework,
 ): BuildGenericIndustryTreatmentInput {
-  const baselineRecord = getGenericTreatmentBaselineRecord(topicIdentifier);
+  const baselineRecord = getGenericTreatmentBaselineRecord(topicIdentifier, reportingFramework);
 
   return {
     ...GENERIC_BASELINE_CONTRACT_DEFAULTS,
     topicIdentifier,
+    reportingFramework,
     industrySubClassification: "generic.default",
     requiresSpecialistReview: false,
     treatmentSummaryAuthored: baselineRecord.treatmentSummaryAuthored,
@@ -184,8 +189,10 @@ export interface BuildGenericIndustryTreatmentResult {
 }
 
 export const PHASE_42I_GENERIC_TREATMENT_BLUEPRINT: ReadonlyArray<BuildGenericIndustryTreatmentInput> =
-  GENERIC_BASELINE_TOPIC_IDENTIFIERS.map((topicIdentifier) =>
-    buildGenericBaselineTreatmentInput(topicIdentifier),
+  GENERIC_BASELINE_LAUNCH_FRAMEWORKS.flatMap((reportingFramework) =>
+    getGenericBaselineTopicOrder(reportingFramework).map((topicIdentifier) =>
+      buildGenericBaselineTreatmentInput(topicIdentifier, reportingFramework),
+    ),
   );
 
 const OUTPUT_CLASSIFICATION: RecommendationOutputClassification = "recommendation_for_human_review";
@@ -539,6 +546,6 @@ export function buildGenericIndustryTreatment(
   };
 }
 
-export { GENERIC_TREATMENT_11_TOPIC_IDENTIFIER };
+export { GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER };
 
-export type { GenericBaselineTopicIdentifier } from "./loadGenericTreatmentBaseline";
+export type { GenericBaselineFramework, GenericBaselineTopicIdentifier } from "./loadGenericTreatmentBaseline";
