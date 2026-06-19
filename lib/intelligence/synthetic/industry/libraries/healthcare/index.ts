@@ -6,6 +6,7 @@ export {
   HEALTHCARE_SCOPE_BOUNDARY_ROUTING_RULES,
   HEALTHCARE_SPECIALIST_TOPIC_IDENTIFIERS,
   HEALTHCARE_SUB_CLASSIFICATIONS,
+  PHASE_42M_HEALTHCARE_LIBRARY_HEADER,
   PHASE_42M_HEALTHCARE_TREATMENT_BLUEPRINT,
   buildHealthcareIndustryTreatment,
   type BuildHealthcareIndustryTreatmentInput,
@@ -15,8 +16,16 @@ export {
   type HealthcareLaunchTopicIdentifier,
   type HealthcareSpecialistTopicIdentifier,
   type HealthcareSubClassification,
+  type HealthcareTreatmentCompositionOutcome,
   type SyntheticIndustryTreatment,
 } from "./buildHealthcareIndustryTreatment";
+export {
+  getHealthcareLibraryHeaderContent,
+  getHealthcareTreatmentBaselineRecord,
+  loadHealthcareTreatmentBaseline,
+  type HealthcareTreatmentBaselineLoadResult,
+  type HealthcareTreatmentBaselineRecord,
+} from "./loadHealthcareTreatmentBaseline";
 export {
   buildHealthcareIndustryTreatments,
   type BuildHealthcareIndustryTreatmentsInput,

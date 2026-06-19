@@ -1,4 +1,6 @@
 import { stableSnapshotHash } from "../../../../core/hash";
+import type { SyntheticAuditScope } from "../../../audit/types";
+import type { SyntheticMemoryObjectIsolationDimension } from "../../../organizational-memory/memory-object";
 import type {
   IndustryBaseContract,
   IndustryTreatmentStatus,
@@ -7,6 +9,10 @@ import type {
   ReviewerAttestation,
   SpecialistReviewOptOutJustification,
 } from "../../contracts";
+import {
+  getHealthcareLibraryHeaderContent,
+  getHealthcareTreatmentBaselineRecord,
+} from "./loadHealthcareTreatmentBaseline";
 
 export const HEALTHCARE_SUB_CLASSIFICATIONS = [
   "healthcare.acute_care_hospital",
@@ -88,6 +94,80 @@ export type HealthcareLaunchTopicIdentifier = (typeof HEALTHCARE_LAUNCH_TOPIC_ID
 export type HealthcareLaunchFramework = (typeof HEALTHCARE_LAUNCH_FRAMEWORKS)[number];
 
 const TOPIC_340B = "drug_pricing_program_340b";
+const TOPIC_DENIAL_BOUNDARY = "denial_reserves_and_credit_loss_boundary";
+
+export type HealthcareTreatmentCompositionOutcome = "extendsFrameworkDefault";
+
+export const PHASE_42M_HEALTHCARE_LIBRARY_HEADER = getHealthcareLibraryHeaderContent();
+
+const HEALTHCARE_BASELINE_SCOPE: SyntheticAuditScope = {
+  companyId: "advisacor-healthcare-baseline",
+  customerIsolationRequired: true,
+  firmIsolationRequired: true,
+  clientIsolationRequired: true,
+  isolationBoundaryIds: ["advisacor-healthcare-baseline"],
+};
+
+const HEALTHCARE_BASELINE_CUSTOMER_ISOLATION: SyntheticMemoryObjectIsolationDimension = {
+  required: true,
+  referenceIds: ["advisacor-healthcare-baseline"],
+};
+
+const HEALTHCARE_BASELINE_FIRM_ISOLATION: SyntheticMemoryObjectIsolationDimension = {
+  required: true,
+  referenceIds: ["advisacor-firm-baseline"],
+};
+
+const HEALTHCARE_BASELINE_CLIENT_ISOLATION: SyntheticMemoryObjectIsolationDimension = {
+  required: true,
+  referenceIds: ["advisacor-client-baseline"],
+};
+
+const HEALTHCARE_BASELINE_CONTRACT_DEFAULTS = {
+  scope: HEALTHCARE_BASELINE_SCOPE,
+  customerIsolation: HEALTHCARE_BASELINE_CUSTOMER_ISOLATION,
+  firmIsolation: HEALTHCARE_BASELINE_FIRM_ISOLATION,
+  clientIsolation: HEALTHCARE_BASELINE_CLIENT_ISOLATION,
+  boundPhase40SnapshotHash: "phase40-baseline-handoff",
+  boundPhase40_5SnapshotHash: "phase40-5-baseline-handoff",
+  boundPhase41_5SnapshotHash: "phase41-5-baseline-handoff",
+  boundPhase39SnapshotHash: "phase39-baseline-handoff",
+  reportingFramework: "us_gaap",
+  industryClassification: "healthcare",
+  industryStatus: "active",
+  containsPHI: false,
+  phiDerivationStatus: "containsNoPHI",
+  version: "1.0.0-recommended-baseline",
+  effectiveFromDate: "2026-01-01",
+  treatmentStatus: "in_review",
+  advisacorRecommendedBaseline: true,
+  customerFinalizesAtImplementation: true,
+  customerControllerOwnsSignedModel: true,
+  compositionOutcome: "extendsFrameworkDefault",
+  displacementLineage: null,
+  industryTreatmentComplete: false,
+  priorVersionReferenceId: "",
+} as const satisfies Partial<BuildHealthcareIndustryTreatmentInput>;
+
+const GENERALIST_SPECIALIST_OPT_OUT_BY_TOPIC: Record<
+  HealthcareGeneralistTopicIdentifier,
+  SpecialistReviewOptOutJustification
+> = {
+  healthcare_specific_fixed_assets: {
+    justification:
+      "Standard ASC 360 PP&E accounting; healthcare specificity limited to useful-life conventions which are entity policy, not specialized standard interpretation",
+    attestor: "",
+    attestationDate: "",
+    reviewSampleEligible: true,
+  },
+  healthcare_specific_lease_considerations: {
+    justification:
+      "Consumes Phase 41.5 framework ASC 842 lease treatment; healthcare content limited to application notes, not specialized standard interpretation",
+    attestor: "",
+    attestationDate: "",
+    reviewSampleEligible: true,
+  },
+};
 
 const DEFAULT_REQUIRES_SPECIALIST_BY_TOPIC: Record<HealthcareLaunchTopicIdentifier, boolean> = {
   net_patient_service_revenue: true,
@@ -104,6 +184,64 @@ const DEFAULT_REQUIRES_SPECIALIST_BY_TOPIC: Record<HealthcareLaunchTopicIdentifi
   healthcare_specific_lease_considerations: false,
 };
 
+function buildBlankReviewerAttestation(
+  requiresSpecialistReview: boolean,
+  specialistReviewOptOutJustification: SpecialistReviewOptOutJustification | null = null,
+): ReviewerAttestation {
+  return {
+    primaryReviewer: {
+      identity: "",
+      credentials: [],
+      reviewDate: "",
+      scope: "",
+    },
+    specialistReviewRequired: requiresSpecialistReview,
+    specialistReviewer: null,
+    attestationStatement: "",
+    reviewedAgainstAuthoritativeSources: [],
+    specialistReviewOptOutJustification,
+  };
+}
+
+function buildHealthcareBaselineTreatmentInput(
+  topicIdentifier: HealthcareLaunchTopicIdentifier,
+  industrySubClassification: HealthcareSubClassification,
+): BuildHealthcareIndustryTreatmentInput {
+  const baselineRecord = getHealthcareTreatmentBaselineRecord(topicIdentifier);
+  const requiresSpecialistReview = DEFAULT_REQUIRES_SPECIALIST_BY_TOPIC[topicIdentifier];
+  const specialistReviewOptOutJustification = requiresSpecialistReview
+    ? null
+    : GENERALIST_SPECIALIST_OPT_OUT_BY_TOPIC[topicIdentifier as HealthcareGeneralistTopicIdentifier];
+
+  return {
+    ...HEALTHCARE_BASELINE_CONTRACT_DEFAULTS,
+    topicIdentifier,
+    industrySubClassification,
+    requiresSpecialistReview,
+    treatmentSummaryAuthored: baselineRecord.treatmentSummaryAuthored,
+    citationReference: baselineRecord.citationReference,
+    verificationChecklistFlags: baselineRecord.verificationChecklistFlags,
+    reviewerAttestation: buildBlankReviewerAttestation(
+      requiresSpecialistReview,
+      specialistReviewOptOutJustification,
+    ),
+    ...(topicIdentifier === TOPIC_DENIAL_BOUNDARY
+      ? {
+          boundaryPolicyRequiredBeforeCompose: true,
+          noConformantDefault: true,
+        }
+      : {}),
+    ...(topicIdentifier === TOPIC_340B
+      ? {
+          requiresExternal340BReviewer: true,
+          requiresCustomer340BReviewer: true,
+          revenueRecognitionBlockedUntil340BComplete: true,
+          externalSpecialistReviewPending: true,
+        }
+      : {}),
+  };
+}
+
 export interface BuildHealthcareIndustryTreatmentInput extends Partial<IndustryBaseContract> {
   topicIdentifier?: string;
   treatmentSummaryAuthored?: string;
@@ -116,6 +254,18 @@ export interface BuildHealthcareIndustryTreatmentInput extends Partial<IndustryB
   treatmentStatus?: IndustryTreatmentStatus;
   priorVersionReferenceId?: string;
   industryTreatmentComplete?: boolean;
+  advisacorRecommendedBaseline?: boolean;
+  customerFinalizesAtImplementation?: boolean;
+  customerControllerOwnsSignedModel?: boolean;
+  compositionOutcome?: HealthcareTreatmentCompositionOutcome;
+  displacementLineage?: null;
+  verificationChecklistFlags?: string[];
+  boundaryPolicyRequiredBeforeCompose?: boolean;
+  noConformantDefault?: boolean;
+  requiresExternal340BReviewer?: boolean;
+  requiresCustomer340BReviewer?: boolean;
+  revenueRecognitionBlockedUntil340BComplete?: boolean;
+  externalSpecialistReviewPending?: boolean;
 }
 
 export interface SyntheticIndustryTreatment extends IndustryBaseContract {
@@ -144,6 +294,18 @@ export interface SyntheticIndustryTreatment extends IndustryBaseContract {
   priorVersionReferenceId: string;
   launchScope: "path_b";
   industryTreatmentComplete: boolean;
+  advisacorRecommendedBaseline: boolean;
+  customerFinalizesAtImplementation: boolean;
+  customerControllerOwnsSignedModel: boolean;
+  compositionOutcome: HealthcareTreatmentCompositionOutcome;
+  displacementLineage: null;
+  verificationChecklistFlags: string[];
+  boundaryPolicyRequiredBeforeCompose?: boolean;
+  noConformantDefault?: boolean;
+  requiresExternal340BReviewer?: boolean;
+  requiresCustomer340BReviewer?: boolean;
+  revenueRecognitionBlockedUntil340BComplete?: boolean;
+  externalSpecialistReviewPending?: boolean;
 }
 
 export interface BuildHealthcareIndustryTreatmentResult {
@@ -154,19 +316,9 @@ export interface BuildHealthcareIndustryTreatmentResult {
 
 export const PHASE_42M_HEALTHCARE_TREATMENT_BLUEPRINT: ReadonlyArray<BuildHealthcareIndustryTreatmentInput> =
   HEALTHCARE_LAUNCH_TOPIC_IDENTIFIERS.flatMap((topicIdentifier) =>
-    HEALTHCARE_SUB_CLASSIFICATIONS.map((industrySubClassification) => ({
-      topicIdentifier,
-      reportingFramework: "us_gaap" as HealthcareLaunchFramework,
-      industryClassification: "healthcare",
-      industrySubClassification,
-      requiresSpecialistReview: DEFAULT_REQUIRES_SPECIALIST_BY_TOPIC[topicIdentifier],
-      version: "0.0.0-draft",
-      effectiveFromDate: "2026-01-01",
-      treatmentStatus: "draft" as IndustryTreatmentStatus,
-      citationReference: "",
-      treatmentSummaryAuthored: "",
-      priorVersionReferenceId: "",
-    })),
+    HEALTHCARE_SUB_CLASSIFICATIONS.map((industrySubClassification) =>
+      buildHealthcareBaselineTreatmentInput(topicIdentifier, industrySubClassification),
+    ),
   );
 
 const OUTPUT_CLASSIFICATION: RecommendationOutputClassification = "recommendation_for_human_review";
@@ -587,6 +739,21 @@ function getWarnings(
     ...(namedCredential340B
       ? ["drug_pricing_program_340b covers accounting for participation only; eligibility and operational controls are out of scope"]
       : []),
+    ...(input.boundaryPolicyRequiredBeforeCompose
+      ? [
+          "denial_reserves_and_credit_loss_boundary has no conformant default; composition fails closed without customer boundary_policy and attestation",
+        ]
+      : []),
+    ...(input.revenueRecognitionBlockedUntil340BComplete
+      ? [
+          "340B revenue recognition blocked until external and customer 340B-credentialed reviewer attestations complete",
+        ]
+      : []),
+    ...(input.advisacorRecommendedBaseline
+      ? [
+          "advisacor recommended baseline remains in_review on Advisacor side; customer controller finalizes at implementation",
+        ]
+      : []),
     ...getScopeBoundaryWarnings(),
     "specialist attestation identity and credentials are internal governance provenance and are not customer-facing",
     ...(treatmentStatus !== "active"
@@ -719,6 +886,27 @@ export function buildHealthcareIndustryTreatment(
       requiresSpecialistReview,
       topicIdentifier,
     ),
+    advisacorRecommendedBaseline: input.advisacorRecommendedBaseline ?? false,
+    customerFinalizesAtImplementation: input.customerFinalizesAtImplementation ?? false,
+    customerControllerOwnsSignedModel: input.customerControllerOwnsSignedModel ?? false,
+    compositionOutcome: input.compositionOutcome ?? "extendsFrameworkDefault",
+    displacementLineage: null,
+    verificationChecklistFlags: input.verificationChecklistFlags ?? [],
+    ...(input.boundaryPolicyRequiredBeforeCompose
+      ? {
+          boundaryPolicyRequiredBeforeCompose: true,
+          noConformantDefault: input.noConformantDefault ?? true,
+        }
+      : {}),
+    ...(input.requiresExternal340BReviewer
+      ? {
+          requiresExternal340BReviewer: true,
+          requiresCustomer340BReviewer: input.requiresCustomer340BReviewer ?? true,
+          revenueRecognitionBlockedUntil340BComplete:
+            input.revenueRecognitionBlockedUntil340BComplete ?? true,
+          externalSpecialistReviewPending: input.externalSpecialistReviewPending ?? true,
+        }
+      : {}),
   };
 
   return {
