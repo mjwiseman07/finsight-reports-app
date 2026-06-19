@@ -299,6 +299,11 @@ let healthcareTreatmentModule;
 let genericTreatmentModule;
 let genericReasonablenessModule;
 let healthcareReasonablenessModule;
+let phiTaggingModule;
+let industryResolverModule;
+let healthcareOperationalKpiModule;
+let healthcareDisclosureVariantModule;
+let healthcareRevenueCycleKpiModule;
 
 function ensureTypeScriptLoader() {
   if (typeScriptLoaderRegistered) {
@@ -367,6 +372,46 @@ function loadHealthcareReasonableness() {
     healthcareReasonablenessModule = require(path.join(industryRoot, "reasonableness", "healthcare", "index.ts"));
   }
   return healthcareReasonablenessModule;
+}
+
+function loadPhiTagging() {
+  if (!phiTaggingModule) {
+    ensureTypeScriptLoader();
+    phiTaggingModule = require(path.join(industryRoot, "phi-tagging", "index.ts"));
+  }
+  return phiTaggingModule;
+}
+
+function loadIndustryResolver() {
+  if (!industryResolverModule) {
+    ensureTypeScriptLoader();
+    industryResolverModule = require(path.join(industryRoot, "industry-resolver", "index.ts"));
+  }
+  return industryResolverModule;
+}
+
+function loadHealthcareOperationalKpi() {
+  if (!healthcareOperationalKpiModule) {
+    ensureTypeScriptLoader();
+    healthcareOperationalKpiModule = require(path.join(industryRoot, "kpi", "healthcare-operational", "index.ts"));
+  }
+  return healthcareOperationalKpiModule;
+}
+
+function loadHealthcareDisclosureVariant() {
+  if (!healthcareDisclosureVariantModule) {
+    ensureTypeScriptLoader();
+    healthcareDisclosureVariantModule = require(path.join(industryRoot, "disclosure-variants", "healthcare", "index.ts"));
+  }
+  return healthcareDisclosureVariantModule;
+}
+
+function loadHealthcareRevenueCycleKpi() {
+  if (!healthcareRevenueCycleKpiModule) {
+    ensureTypeScriptLoader();
+    healthcareRevenueCycleKpiModule = require(path.join(industryRoot, "kpi", "healthcare-revenue-cycle", "index.ts"));
+  }
+  return healthcareRevenueCycleKpiModule;
 }
 
 function evaluateTopologyFixtureExpectation(expectation) {
@@ -810,6 +855,455 @@ function verifyReasonablenessPathScopeRejection(pathScope) {
   };
 }
 
+function buildPhiTagBaseInput(overrides = {}) {
+  return {
+    ...SYNTHETIC_BASE_FIXTURE,
+    artifactReferenceId: "artifact-poison-phi-tag",
+    industryClassification: "generic",
+    industrySubClassification: "generic.default",
+    redactionMetadataReferenceId: "redaction-ref-1",
+    hipaaCompliantAuditStoreInterfaceReferenceId: "hipaa-audit-store-ref-1",
+    ...overrides,
+  };
+}
+
+function buildIndustryResolutionBaseInput(overrides = {}) {
+  return {
+    ...SYNTHETIC_BASE_FIXTURE,
+    queryTopicIdentifier: "net_patient_service_revenue",
+    queryIndustry: "insurance",
+    querySubClassification: "insurance.commercial",
+    queryFramework: "us_gaap",
+    queryEffectiveDate: "2026-06-01",
+    entityId: "entity-c-primary",
+    industryRegistryReferenceId: "registry-ref-1",
+    industryIsActive: false,
+    subClassificationIsDeclared: true,
+    frameworkIsActive: true,
+    tupleIsPopulated: true,
+    resolutionStatus: "resolved",
+    resolvedTreatmentReferenceId: "generic-treatment-silent-fallback-poison",
+    resolvedTreatmentVersion: "1.0.0",
+    resolvedTreatmentEffectiveFromDate: "2026-01-01",
+    resolvedCitationReference: "citation-ref-1",
+    ...overrides,
+  };
+}
+
+function buildOperationalKpiBaseInput(overrides = {}) {
+  return {
+    ...SYNTHETIC_BASE_FIXTURE,
+    kpiTopicIdentifier: "average_daily_census",
+    reportingFramework: "us_gaap",
+    industryClassification: "healthcare",
+    industrySubClassification: "healthcare.acute_care_hospital",
+    version: "1.0.0",
+    effectiveFromDate: "2026-01-01",
+    priorVersionReferenceId: "",
+    ...overrides,
+  };
+}
+
+function buildHealthcareDisclosureBaseInput(overrides = {}) {
+  return {
+    ...SYNTHETIC_BASE_FIXTURE,
+    topicIdentifier: "community_benefit_for_for_profit_healthcare",
+    reportingFramework: "us_gaap",
+    industryClassification: "healthcare",
+    industrySubClassification: "healthcare.acute_care_hospital",
+    version: "1.0.0",
+    effectiveFromDate: "2026-01-01",
+    linkedTreatmentReferenceId: "treatment-ref-1",
+    linkedFrameworkDisclosureRequirementReferenceId: "framework-disclosure-ref-1",
+    priorVersionReferenceId: "",
+    ...overrides,
+  };
+}
+
+function buildHealthcareRevenueCycleKpiBaseInput(overrides = {}) {
+  return {
+    ...SYNTHETIC_BASE_FIXTURE,
+    kpiTopicIdentifier: "net_patient_service_revenue_metric",
+    reportingFramework: "us_gaap",
+    industryClassification: "healthcare",
+    industrySubClassification: "healthcare.acute_care_hospital",
+    version: "1.0.0",
+    effectiveFromDate: "2026-01-01",
+    kpiDefinitionAuthored: "human-authored KPI definition",
+    citationReference: "citation-ref-1",
+    priorVersionReferenceId: "",
+    ...overrides,
+  };
+}
+
+function buildInternalResearchPoisonBaselineSource(overrides = {}) {
+  return {
+    sourceType: "internal_research",
+    methodologyDescription: "",
+    sampleDescription: "",
+    statisticalBasis: "",
+    limitations: "",
+    ...overrides,
+  };
+}
+
+function verifyPhiTriggerContainsPhiRejected(poisonInput = {}) {
+  const { buildPHITag } = loadPhiTagging();
+  const input = buildPhiTagBaseInput({
+    triggeringCharacteristics: ["patient_identifier_field"],
+    containsPHI: false,
+    ...poisonInput,
+  });
+  const result = buildPHITag(input);
+  const rejected = result.skipped === true || result.phiTag === null;
+
+  return {
+    rejected,
+    passed: rejected,
+    reason: rejected
+      ? "PHI trigger with containsPHI false rejected by buildPHITag"
+      : "buildPHITag emitted PHI tag despite triggering characteristic with containsPHI false",
+    detail: result,
+  };
+}
+
+function verifyIndustryResolutionFailClosedRejected(poisonInput = {}) {
+  const { buildIndustryResolution } = loadIndustryResolver();
+  const result = buildIndustryResolution(buildIndustryResolutionBaseInput(poisonInput));
+  const resolution = result.industryResolution;
+  const silentGenericFallback =
+    !result.skipped &&
+    resolution !== null &&
+    resolution.resolutionStatus === "resolved" &&
+    resolution.failClosedReason === "none" &&
+    hasValue(resolution.resolvedTreatmentReferenceId);
+  const rejected = !silentGenericFallback;
+
+  return {
+    rejected,
+    passed: rejected,
+    reason: rejected
+      ? "non-active industry resolution fails closed without Generic treatment substitution"
+      : "buildIndustryResolution silently returned resolved Generic treatment for non-active industry",
+    detail: result,
+  };
+}
+
+function verifyContradictionResolvedTreatmentRejected(poisonInput = {}) {
+  const { buildComposedTreatment } = loadCompositionEngine();
+  const result = buildComposedTreatment(
+    buildCompositionBaseInput({
+      compositionOutcome: "contradiction",
+      conflictReportReferenceId: "conflict-report-poison",
+      frameworkChangeGovernanceReferenceId: "framework-change-governance-poison",
+      resolvedTreatmentReferenceId: "resolved-treatment-poison",
+      composedTreatmentComplete: true,
+      ...poisonInput,
+    }),
+  );
+  const treatment = result.composedTreatment;
+  const resolvedTreatmentLeaked =
+    !result.skipped &&
+    treatment !== null &&
+    treatment.compositionOutcome === "contradiction" &&
+    hasValue(treatment.resolvedTreatmentReferenceId);
+  const rejected = result.skipped === true || treatment === null || !resolvedTreatmentLeaked;
+
+  return {
+    rejected,
+    passed: rejected,
+    reason: rejected
+      ? "contradiction with resolvedTreatmentReferenceId rejected (no resolved treatment emitted)"
+      : "contradiction outcome leaked resolvedTreatmentReferenceId",
+    detail: result,
+  };
+}
+
+function verifyAuditTrailPhiInheritanceRejected(poisonInput = {}) {
+  const { buildPHITag } = loadPhiTagging();
+  const result = buildPHITag(
+    buildPhiTagBaseInput({
+      triggeringCharacteristics: ["patient_identifier_field"],
+      containsPHI: true,
+      phiDerivationStatus: "containsPHI",
+      ...poisonInput,
+    }),
+  );
+  const tag = result.phiTag;
+  const inheritanceViolation =
+    !result.skipped &&
+    tag !== null &&
+    tag.containsPHI === true &&
+    tag.auditTrailEntriesInheritPhiTag !== true;
+  const rejected = result.skipped === true || tag === null || !inheritanceViolation;
+
+  return {
+    rejected,
+    passed: rejected,
+    reason: rejected
+      ? "PHI-tagged artifact enforces auditTrailEntriesInheritPhiTag (poison inheritance violation rejected)"
+      : "buildPHITag emitted PHI-tagged artifact without auditTrailEntriesInheritPhiTag",
+    detail: result,
+  };
+}
+
+function verifyReasonablenessInternalResearchFieldsRejected(poisonInput = {}) {
+  const { buildGenericReasonablenessBaseline } = loadGenericReasonableness();
+  const { buildHealthcareReasonablenessBaseline } = loadHealthcareReasonableness();
+  const genericResult = buildGenericReasonablenessBaseline(
+    buildReasonablenessBaseInput({
+      baselineTopicIdentifier: "gross_margin_ranges_by_smb_segment",
+      industryClassification: "generic",
+      industrySubClassification: "generic.default",
+      consumedByKpiFamily: "gross_margin_percent",
+      baselineStatus: "active",
+      baselineSource: buildInternalResearchPoisonBaselineSource(poisonInput.baselineSource),
+      ...poisonInput,
+    }),
+  );
+  const healthcareResult = buildHealthcareReasonablenessBaseline(
+    buildReasonablenessBaseInput({
+      baselineTopicIdentifier: "dso_ranges",
+      industryClassification: "healthcare",
+      industrySubClassification: "healthcare.acute_care_hospital",
+      consumedByKpiFamily: "days_in_accounts_receivable_healthcare_convention",
+      baselineStatus: "active",
+      baselineSource: buildInternalResearchPoisonBaselineSource(poisonInput.baselineSource),
+      ...poisonInput,
+    }),
+  );
+  const genericRejected = genericResult.skipped === true || genericResult.industryReasonableness === null;
+  const healthcareRejected =
+    healthcareResult.skipped === true || healthcareResult.industryReasonableness === null;
+  const rejected = genericRejected && healthcareRejected;
+
+  return {
+    rejected,
+    passed: rejected,
+    reason: rejected
+      ? "internal_research baseline missing required sourcing fields rejected (42L and 42P)"
+      : `internal_research poison accepted: genericRejected=${genericRejected}, healthcareRejected=${healthcareRejected}`,
+    detail: {
+      genericResult,
+      healthcareResult,
+    },
+  };
+}
+
+function verifyPhiDerivedLearningBrightLineRejected(poisonInput = {}) {
+  const { buildPHITag } = loadPhiTagging();
+  const result = buildPHITag(
+    buildPhiTagBaseInput({
+      triggeringCharacteristics: ["patient_identifier_field"],
+      phiDerivationStatus: "derivedFromPHIThroughSafeHarbor",
+      ...poisonInput,
+    }),
+  );
+  const tag = result.phiTag;
+  const brightLine = tag?.phiDerivedLearningBrightLine;
+  const brightLineViolation =
+    !result.skipped &&
+    tag !== null &&
+    brightLine !== undefined &&
+    (brightLine.mayNotEnterCrossCustomerSharedIntelligence !== true ||
+      brightLine.crossCustomerRequiresExpertDeterminationDeidentification !== true);
+  const rejected = result.skipped === true || tag === null || !brightLineViolation;
+
+  return {
+    rejected,
+    passed: rejected,
+    reason: rejected
+      ? "phiDerivedLearningBrightLine blocks cross-customer shared intelligence without Expert Determination"
+      : "buildPHITag emitted PHI tag without phiDerivedLearningBrightLine cross-customer guard",
+    detail: result,
+  };
+}
+
+function verifyOperationalKpiActiveAtLockRejected(poisonInput = {}) {
+  const { buildHealthcareOperationalKPI } = loadHealthcareOperationalKpi();
+  const result = buildHealthcareOperationalKPI(
+    buildOperationalKpiBaseInput({
+      kpiStatus: "active",
+      industryKpiComplete: true,
+      ...poisonInput,
+    }),
+  );
+  const kpi = result.industryKpi;
+  const activeAtLockLeaked =
+    !result.skipped && kpi !== null && (kpi.kpiStatus === "active" || kpi.kpiStatus === "in_review");
+  const rejected = result.skipped === true || kpi === null || !activeAtLockLeaked;
+
+  return {
+    rejected,
+    passed: rejected,
+    reason: rejected
+      ? "operational KPI marked active at lock forced to deferred / rejected"
+      : "buildHealthcareOperationalKPI leaked active operational KPI at lock",
+    detail: result,
+  };
+}
+
+function verifyNfpCommunityBenefitActiveRejected(poisonInput = {}) {
+  const { buildHealthcareDisclosureVariant } = loadHealthcareDisclosureVariant();
+  const result = buildHealthcareDisclosureVariant(
+    buildHealthcareDisclosureBaseInput({
+      nfpBoundaryTest: {
+        requiresEntityToBe501c3OrApplyAsc958: true,
+      },
+      disclosureStatus: "active",
+      industryDisclosureComplete: true,
+      reviewerAttestation: {
+        primaryReviewer: {
+          identity: "primary-reviewer-1",
+          credentials: ["CPA"],
+          reviewDate: "2026-06-01",
+          scope: "disclosure review",
+        },
+        specialistReviewRequired: true,
+        specialistReviewer: {
+          identity: "specialist-1",
+          credentials: ["Healthcare compliance"],
+          reviewDate: "2026-06-01",
+          scope: "disclosure review",
+          specialization: "healthcare_compliance",
+        },
+        attestationStatement: "attested",
+        reviewedAgainstAuthoritativeSources: ["asc-958"],
+        specialistReviewOptOutJustification: null,
+      },
+      ...poisonInput,
+    }),
+  );
+  const disclosure = result.industryDisclosure;
+  const activeNfpLeaked =
+    !result.skipped &&
+    disclosure !== null &&
+    disclosure.disclosureStatus === "active" &&
+    disclosure.nfpBoundaryTest?.requiresEntityToBe501c3OrApplyAsc958 === true;
+  const rejected = result.skipped === true || disclosure === null || !activeNfpLeaked;
+
+  return {
+    rejected,
+    passed: rejected,
+    reason: rejected
+      ? "NFP/ASC 958 community-benefit variant marked active rejected"
+      : "buildHealthcareDisclosureVariant leaked active NFP community-benefit variant",
+    detail: result,
+  };
+}
+
+function verifyHealthcareKpiMinimumCellSizeRejected(poisonInput = {}) {
+  const { buildHealthcareRevenueCycleKPI } = loadHealthcareRevenueCycleKpi();
+  const result = buildHealthcareRevenueCycleKPI(
+    buildHealthcareRevenueCycleKpiBaseInput({
+      minimumCellSize: 1,
+      kpiStatus: "active",
+      industryKpiComplete: true,
+      ...poisonInput,
+    }),
+  );
+  const rejected = result.skipped === true || result.industryKpi === null;
+
+  return {
+    rejected,
+    passed: rejected,
+    reason: rejected
+      ? "healthcare KPI with minimumCellSize 1 (below Safe Harbor default) rejected"
+      : "buildHealthcareRevenueCycleKPI accepted minimumCellSize below Safe Harbor default",
+    detail: result,
+  };
+}
+
+function checkPhiTriggerContainsPhiPoisonRejected() {
+  const result = verifyPhiTriggerContainsPhiRejected();
+  return {
+    name: "42H poison PHI trigger with containsPHI false rejected",
+    passed: result.rejected,
+    reason: result.reason,
+    detail: result.detail,
+  };
+}
+
+function checkIndustryResolutionFailClosedPoisonRejected() {
+  const result = verifyIndustryResolutionFailClosedRejected();
+  return {
+    name: "42D poison silent Generic fallback for non-active industry rejected",
+    passed: result.rejected,
+    reason: result.reason,
+    detail: result.detail,
+  };
+}
+
+function checkContradictionResolvedTreatmentPoisonRejected() {
+  const result = verifyContradictionResolvedTreatmentRejected();
+  return {
+    name: "42F poison contradiction with resolvedTreatmentReferenceId rejected",
+    passed: result.rejected,
+    reason: result.reason,
+    detail: result.detail,
+  };
+}
+
+function checkAuditTrailPhiInheritancePoisonRejected() {
+  const result = verifyAuditTrailPhiInheritanceRejected();
+  return {
+    name: "42H poison audit-trail PHI inheritance violation rejected",
+    passed: result.rejected,
+    reason: result.reason,
+    detail: result.detail,
+  };
+}
+
+function checkReasonablenessInternalResearchFieldsPoisonRejected() {
+  const result = verifyReasonablenessInternalResearchFieldsRejected();
+  return {
+    name: "42L/42P poison internal-research baseline missing sourcing fields rejected",
+    passed: result.rejected,
+    reason: result.reason,
+    detail: result.detail,
+  };
+}
+
+function checkPhiDerivedLearningBrightLinePoisonRejected() {
+  const result = verifyPhiDerivedLearningBrightLineRejected();
+  return {
+    name: "42H poison PHI-derived-learning bright-line violation rejected",
+    passed: result.rejected,
+    reason: result.reason,
+    detail: result.detail,
+  };
+}
+
+function checkOperationalKpiActiveAtLockPoisonRejected() {
+  const result = verifyOperationalKpiActiveAtLockRejected();
+  return {
+    name: "42N2 poison operational KPI active at lock rejected",
+    passed: result.rejected,
+    reason: result.reason,
+    detail: result.detail,
+  };
+}
+
+function checkNfpCommunityBenefitActivePoisonRejected() {
+  const result = verifyNfpCommunityBenefitActiveRejected();
+  return {
+    name: "42O poison NFP community-benefit variant active rejected",
+    passed: result.rejected,
+    reason: result.reason,
+    detail: result.detail,
+  };
+}
+
+function checkHealthcareKpiMinimumCellSizePoisonRejected() {
+  const result = verifyHealthcareKpiMinimumCellSizeRejected();
+  return {
+    name: "42N1 poison healthcare KPI minimumCellSize below Safe Harbor rejected",
+    passed: result.rejected,
+    reason: result.reason,
+    detail: result.detail,
+  };
+}
+
 const checks = [
   checkMemoryReservationDirectoryExists,
   checkIndustryMemoryDimensionFileExists,
@@ -844,6 +1338,15 @@ const checks = [
   checkTopologyFixtureTest,
   checkAttestationCredentialTests,
   checkReasonablenessPathScopeTests,
+  checkPhiTriggerContainsPhiPoisonRejected,
+  checkIndustryResolutionFailClosedPoisonRejected,
+  checkContradictionResolvedTreatmentPoisonRejected,
+  checkAuditTrailPhiInheritancePoisonRejected,
+  checkReasonablenessInternalResearchFieldsPoisonRejected,
+  checkPhiDerivedLearningBrightLinePoisonRejected,
+  checkOperationalKpiActiveAtLockPoisonRejected,
+  checkNfpCommunityBenefitActivePoisonRejected,
+  checkHealthcareKpiMinimumCellSizePoisonRejected,
 ];
 
 if (require.main === module) {
@@ -906,6 +1409,30 @@ module.exports = {
   verify340BCredentialGate,
   verifyGenericPrimaryAttestationGate,
   verifyReasonablenessPathScopeRejection,
+  verifyPhiTriggerContainsPhiRejected,
+  verifyIndustryResolutionFailClosedRejected,
+  verifyContradictionResolvedTreatmentRejected,
+  verifyAuditTrailPhiInheritanceRejected,
+  verifyReasonablenessInternalResearchFieldsRejected,
+  verifyPhiDerivedLearningBrightLineRejected,
+  verifyOperationalKpiActiveAtLockRejected,
+  verifyNfpCommunityBenefitActiveRejected,
+  verifyHealthcareKpiMinimumCellSizeRejected,
+  buildPhiTagBaseInput,
+  buildIndustryResolutionBaseInput,
+  buildOperationalKpiBaseInput,
+  buildHealthcareDisclosureBaseInput,
+  buildHealthcareRevenueCycleKpiBaseInput,
+  buildInternalResearchPoisonBaselineSource,
+  checkPhiTriggerContainsPhiPoisonRejected,
+  checkIndustryResolutionFailClosedPoisonRejected,
+  checkContradictionResolvedTreatmentPoisonRejected,
+  checkAuditTrailPhiInheritancePoisonRejected,
+  checkReasonablenessInternalResearchFieldsPoisonRejected,
+  checkPhiDerivedLearningBrightLinePoisonRejected,
+  checkOperationalKpiActiveAtLockPoisonRejected,
+  checkNfpCommunityBenefitActivePoisonRejected,
+  checkHealthcareKpiMinimumCellSizePoisonRejected,
   checkBannedPatternsInSource,
   listTypeScriptFiles,
   readFile,
