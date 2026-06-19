@@ -1,4 +1,6 @@
 import { stableSnapshotHash } from "../../../../core/hash";
+import type { SyntheticAuditScope } from "../../../audit/types";
+import type { SyntheticMemoryObjectIsolationDimension } from "../../../organizational-memory/memory-object";
 import type {
   IndustryBaseContract,
   IndustryTreatmentStatus,
@@ -6,19 +8,18 @@ import type {
   RecommendationOutputClassification,
   ReviewerAttestation,
 } from "../../contracts";
+import {
+  GENERIC_TREATMENT_11_TOPIC_IDENTIFIER,
+  type GenericTreatmentApplicabilityGuard,
+  type GenericTreatmentExecutionConstraints,
+} from "./genericTreatment11Metadata";
+import {
+  GENERIC_BASELINE_TOPIC_ORDER,
+  getGenericTreatmentBaselineRecord,
+  type GenericBaselineTopicIdentifier,
+} from "./loadGenericTreatmentBaseline";
 
-export const GENERIC_BASELINE_TOPIC_IDENTIFIERS = [
-  "professional_services_revenue_recognition",
-  "generic_smb_inventory",
-  "light_manufacturing_cost_accounting",
-  "small_distributor_inventory_and_freight",
-  "holding_company_treatment",
-  "generic_smb_payroll_and_benefits_accruals",
-  "generic_smb_fixed_asset_categories",
-  "generic_smb_prepaid_and_accrual_conventions",
-  "generic_smb_deferred_revenue_basic",
-  "generic_smb_lease_classification",
-] as const;
+export const GENERIC_BASELINE_TOPIC_IDENTIFIERS = GENERIC_BASELINE_TOPIC_ORDER;
 
 export const GENERIC_LAUNCH_FRAMEWORKS = [
   "us_gaap",
@@ -27,8 +28,99 @@ export const GENERIC_LAUNCH_FRAMEWORKS = [
   "ifrs_eu",
 ] as const;
 
-export type GenericBaselineTopicIdentifier = (typeof GENERIC_BASELINE_TOPIC_IDENTIFIERS)[number];
+export const GENERIC_BASELINE_LAUNCH_FRAMEWORKS = ["us_gaap"] as const;
+
 export type GenericLaunchFramework = (typeof GENERIC_LAUNCH_FRAMEWORKS)[number];
+export type GenericBaselineLaunchFramework = (typeof GENERIC_BASELINE_LAUNCH_FRAMEWORKS)[number];
+export type GenericTreatmentCompositionOutcome = "extendsFrameworkDefault";
+
+const GENERIC_BASELINE_SCOPE: SyntheticAuditScope = {
+  companyId: "advisacor-generic-baseline",
+  customerIsolationRequired: true,
+  firmIsolationRequired: true,
+  clientIsolationRequired: true,
+  isolationBoundaryIds: ["advisacor-generic-baseline"],
+};
+
+const GENERIC_BASELINE_CUSTOMER_ISOLATION: SyntheticMemoryObjectIsolationDimension = {
+  required: true,
+  referenceIds: ["advisacor-generic-baseline"],
+};
+
+const GENERIC_BASELINE_FIRM_ISOLATION: SyntheticMemoryObjectIsolationDimension = {
+  required: true,
+  referenceIds: ["advisacor-firm-baseline"],
+};
+
+const GENERIC_BASELINE_CLIENT_ISOLATION: SyntheticMemoryObjectIsolationDimension = {
+  required: true,
+  referenceIds: ["advisacor-client-baseline"],
+};
+
+const GENERIC_BASELINE_CONTRACT_DEFAULTS = {
+  scope: GENERIC_BASELINE_SCOPE,
+  customerIsolation: GENERIC_BASELINE_CUSTOMER_ISOLATION,
+  firmIsolation: GENERIC_BASELINE_FIRM_ISOLATION,
+  clientIsolation: GENERIC_BASELINE_CLIENT_ISOLATION,
+  boundPhase40SnapshotHash: "phase40-baseline-handoff",
+  boundPhase40_5SnapshotHash: "phase40-5-baseline-handoff",
+  boundPhase41_5SnapshotHash: "phase41-5-baseline-handoff",
+  boundPhase39SnapshotHash: "phase39-baseline-handoff",
+  reportingFramework: "us_gaap",
+  industryClassification: "generic",
+  industryStatus: "active",
+  containsPHI: false,
+  phiDerivationStatus: "containsNoPHI",
+  version: "1.0.0-recommended-baseline",
+  effectiveFromDate: "2026-01-01",
+  treatmentStatus: "in_review",
+  advisacorRecommendedBaseline: true,
+  customerFinalizesAtImplementation: true,
+  customerControllerOwnsSignedModel: true,
+  compositionOutcome: "extendsFrameworkDefault",
+  displacementLineage: null,
+  industryTreatmentComplete: false,
+  priorVersionReferenceId: "",
+} as const satisfies Partial<BuildGenericIndustryTreatmentInput>;
+
+function buildBlankReviewerAttestation(): ReviewerAttestation {
+  return {
+    primaryReviewer: {
+      identity: "",
+      credentials: [],
+      reviewDate: "",
+      scope: "",
+    },
+    specialistReviewRequired: false,
+    specialistReviewer: null,
+    attestationStatement: "",
+    reviewedAgainstAuthoritativeSources: [],
+    specialistReviewOptOutJustification: null,
+  };
+}
+
+function buildGenericBaselineTreatmentInput(
+  topicIdentifier: GenericBaselineTopicIdentifier,
+): BuildGenericIndustryTreatmentInput {
+  const baselineRecord = getGenericTreatmentBaselineRecord(topicIdentifier);
+
+  return {
+    ...GENERIC_BASELINE_CONTRACT_DEFAULTS,
+    topicIdentifier,
+    industrySubClassification: "generic.default",
+    requiresSpecialistReview: false,
+    treatmentSummaryAuthored: baselineRecord.treatmentSummaryAuthored,
+    citationReference: baselineRecord.citationReference,
+    verificationChecklistFlags: baselineRecord.verificationChecklistFlags,
+    reviewerAttestation: buildBlankReviewerAttestation(),
+    ...(baselineRecord.applicabilityGuard
+      ? { applicabilityGuard: baselineRecord.applicabilityGuard }
+      : {}),
+    ...(baselineRecord.executionConstraints
+      ? { executionConstraints: baselineRecord.executionConstraints }
+      : {}),
+  };
+}
 
 export interface BuildGenericIndustryTreatmentInput extends Partial<IndustryBaseContract> {
   topicIdentifier?: string;
@@ -42,6 +134,14 @@ export interface BuildGenericIndustryTreatmentInput extends Partial<IndustryBase
   treatmentStatus?: IndustryTreatmentStatus;
   priorVersionReferenceId?: string;
   industryTreatmentComplete?: boolean;
+  verificationChecklistFlags?: string[];
+  applicabilityGuard?: GenericTreatmentApplicabilityGuard;
+  executionConstraints?: GenericTreatmentExecutionConstraints;
+  advisacorRecommendedBaseline?: boolean;
+  customerFinalizesAtImplementation?: boolean;
+  customerControllerOwnsSignedModel?: boolean;
+  compositionOutcome?: GenericTreatmentCompositionOutcome;
+  displacementLineage?: null;
 }
 
 export interface SyntheticIndustryTreatment extends IndustryBaseContract {
@@ -65,8 +165,16 @@ export interface SyntheticIndustryTreatment extends IndustryBaseContract {
   builderNeverAuthorsContent: true;
   appendOnlyHistory: true;
   priorVersionReferenceId: string;
-  launchScope: "path_a";
+  launchScope: "path_b";
   industryTreatmentComplete: boolean;
+  verificationChecklistFlags: string[];
+  advisacorRecommendedBaseline: boolean;
+  customerFinalizesAtImplementation: boolean;
+  customerControllerOwnsSignedModel: boolean;
+  compositionOutcome: GenericTreatmentCompositionOutcome;
+  displacementLineage: null;
+  applicabilityGuard?: GenericTreatmentApplicabilityGuard;
+  executionConstraints?: GenericTreatmentExecutionConstraints;
 }
 
 export interface BuildGenericIndustryTreatmentResult {
@@ -76,26 +184,15 @@ export interface BuildGenericIndustryTreatmentResult {
 }
 
 export const PHASE_42I_GENERIC_TREATMENT_BLUEPRINT: ReadonlyArray<BuildGenericIndustryTreatmentInput> =
-  GENERIC_BASELINE_TOPIC_IDENTIFIERS.flatMap((topicIdentifier) =>
-    GENERIC_LAUNCH_FRAMEWORKS.map((reportingFramework) => ({
-      topicIdentifier,
-      reportingFramework,
-      industryClassification: "generic",
-      industrySubClassification: "generic.default",
-      requiresSpecialistReview: false,
-      version: "0.0.0-draft",
-      effectiveFromDate: "2026-01-01",
-      treatmentStatus: "draft" as IndustryTreatmentStatus,
-      citationReference: "",
-      treatmentSummaryAuthored: "",
-      priorVersionReferenceId: "",
-    })),
+  GENERIC_BASELINE_TOPIC_IDENTIFIERS.map((topicIdentifier) =>
+    buildGenericBaselineTreatmentInput(topicIdentifier),
   );
 
 const OUTPUT_CLASSIFICATION: RecommendationOutputClassification = "recommendation_for_human_review";
 const DEFAULT_PHI_DERIVATION_STATUS: PhiDerivationStatus = "containsPHI";
 const GENERIC_INDUSTRY_CLASSIFICATION = "generic";
 const GENERIC_INDUSTRY_SUB_CLASSIFICATION = "generic.default";
+const GENERIC_BASELINE_LAUNCH_SCOPE = "path_b" as const;
 
 function hasValue(value: unknown): boolean {
   return value !== undefined && value !== null && value !== "";
@@ -131,21 +228,7 @@ function isGenericLaunchFramework(
 }
 
 function getReviewerAttestation(input: BuildGenericIndustryTreatmentInput): ReviewerAttestation {
-  return (
-    input.reviewerAttestation ?? {
-      primaryReviewer: {
-        identity: "",
-        credentials: [],
-        reviewDate: "",
-        scope: "",
-      },
-      specialistReviewRequired: input.requiresSpecialistReview === true,
-      specialistReviewer: null,
-      attestationStatement: "",
-      reviewedAgainstAuthoritativeSources: [],
-      specialistReviewOptOutJustification: null,
-    }
-  );
+  return input.reviewerAttestation ?? buildBlankReviewerAttestation();
 }
 
 function hasPrimaryReviewerAttestation(reviewerAttestation: ReviewerAttestation): boolean {
@@ -306,7 +389,7 @@ function buildGenericIndustryTreatmentKey(
     primaryReviewerIdentity: reviewerAttestation.primaryReviewer.identity,
     primaryReviewerReviewDate: reviewerAttestation.primaryReviewer.reviewDate,
     requiresSpecialistReview: input.requiresSpecialistReview === true,
-    launchScope: "path_a",
+    launchScope: GENERIC_BASELINE_LAUNCH_SCOPE,
   });
 }
 
@@ -332,7 +415,7 @@ function buildDerivationHash(
     composesWithFrameworkTreatment: true,
     moduleSpecialistReviewDefaultIsFalseForGeneric: true,
     appendOnlyHistory: true,
-    launchScope: "path_a",
+    launchScope: GENERIC_BASELINE_LAUNCH_SCOPE,
     treatmentStatus,
   });
 }
@@ -365,6 +448,21 @@ function getWarnings(
     !reviewerAttestation.specialistReviewer &&
     !reviewerAttestation.specialistReviewOptOutJustification
       ? ["requiresSpecialistReview opt-in present without specialist reviewer or attested opt-out"]
+      : []),
+    ...(input.applicabilityGuard
+      ? [
+          "applicabilityGuard is a metadata declaration only; resolver enforcement is not implemented in Phase 42",
+        ]
+      : []),
+    ...(input.executionConstraints
+      ? [
+          "executionConstraints are metadata declarations only; no watcher, state machine, or period-close behavior is implemented in Phase 42",
+        ]
+      : []),
+    ...(input.advisacorRecommendedBaseline
+      ? [
+          "advisacor recommended baseline remains in_review on Advisacor side; customer controller finalizes at implementation",
+        ]
       : []),
     ...(treatmentStatus !== "active"
       ? ["treatment remains draft or in_review until primary reviewer attestation is complete"]
@@ -416,7 +514,7 @@ export function buildGenericIndustryTreatment(
     builderNeverAuthorsContent: true,
     appendOnlyHistory: true,
     priorVersionReferenceId: input.priorVersionReferenceId ?? "",
-    launchScope: "path_a",
+    launchScope: GENERIC_BASELINE_LAUNCH_SCOPE,
     executable: false,
     derivationHash: buildDerivationHash(input, industryTreatmentKey, treatmentStatus),
     warnings: getWarnings(input, treatmentStatus, reviewerAttestation),
@@ -424,6 +522,14 @@ export function buildGenericIndustryTreatment(
       input.industryTreatmentComplete === true &&
       treatmentStatus === "active" &&
       hasPrimaryReviewerAttestation(reviewerAttestation),
+    advisacorRecommendedBaseline: input.advisacorRecommendedBaseline ?? false,
+    customerFinalizesAtImplementation: input.customerFinalizesAtImplementation ?? false,
+    customerControllerOwnsSignedModel: input.customerControllerOwnsSignedModel ?? false,
+    compositionOutcome: input.compositionOutcome ?? "extendsFrameworkDefault",
+    displacementLineage: null,
+    verificationChecklistFlags: input.verificationChecklistFlags ?? [],
+    ...(input.applicabilityGuard ? { applicabilityGuard: input.applicabilityGuard } : {}),
+    ...(input.executionConstraints ? { executionConstraints: input.executionConstraints } : {}),
   };
 
   return {
@@ -432,3 +538,7 @@ export function buildGenericIndustryTreatment(
     warnings: industryTreatment.warnings,
   };
 }
+
+export { GENERIC_TREATMENT_11_TOPIC_IDENTIFIER };
+
+export type { GenericBaselineTopicIdentifier } from "./loadGenericTreatmentBaseline";
