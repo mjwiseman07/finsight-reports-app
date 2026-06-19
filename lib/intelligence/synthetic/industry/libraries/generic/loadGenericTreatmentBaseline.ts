@@ -13,8 +13,9 @@ import {
 
 export const GENERIC_US_GAAP_BASELINE_FILENAME = "PHASE_42I_GENERIC_TREATMENTS_BASELINE.md";
 export const GENERIC_IFRS_IASB_BASELINE_FILENAME = "PHASE_42I_GENERIC_TREATMENTS_IFRS_IASB_BASELINE.md";
+export const GENERIC_IFRS_EU_BASELINE_FILENAME = "PHASE_42I_GENERIC_TREATMENTS_IFRS_EU_BASELINE.md";
 
-export const GENERIC_BASELINE_FRAMEWORKS = ["us_gaap", "ifrs_iasb"] as const;
+export const GENERIC_BASELINE_FRAMEWORKS = ["us_gaap", "ifrs_iasb", "ifrs_eu"] as const;
 export type GenericBaselineFramework = (typeof GENERIC_BASELINE_FRAMEWORKS)[number];
 
 export const GENERIC_SHARED_BASELINE_TOPIC_ORDER = [
@@ -33,6 +34,7 @@ export const GENERIC_SHARED_BASELINE_TOPIC_ORDER = [
 export const GENERIC_TREATMENT_11_TOPIC_BY_FRAMEWORK: Record<GenericBaselineFramework, string> = {
   us_gaap: GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER,
   ifrs_iasb: GENERIC_TREATMENT_11_IFRS_IASB_TOPIC_IDENTIFIER,
+  ifrs_eu: GENERIC_TREATMENT_11_IFRS_IASB_TOPIC_IDENTIFIER,
 };
 
 export function getGenericBaselineTopicOrder(
@@ -75,6 +77,7 @@ export interface GenericTreatmentBaselineLoadResult {
 const BASELINE_FILENAME_BY_FRAMEWORK: Record<GenericBaselineFramework, string> = {
   us_gaap: GENERIC_US_GAAP_BASELINE_FILENAME,
   ifrs_iasb: GENERIC_IFRS_IASB_BASELINE_FILENAME,
+  ifrs_eu: GENERIC_IFRS_EU_BASELINE_FILENAME,
 };
 
 function resolveGenericBaselinePath(reportingFramework: GenericBaselineFramework): string {
