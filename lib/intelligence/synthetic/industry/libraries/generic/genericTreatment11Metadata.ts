@@ -1,18 +1,39 @@
 export const GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER = "generic_smb_ar_allowance_cecl" as const;
 export const GENERIC_TREATMENT_11_IFRS_IASB_TOPIC_IDENTIFIER = "generic_smb_ar_allowance_ecl" as const;
+export const GENERIC_TREATMENT_11_IFRS_FOR_SMES_TOPIC_IDENTIFIER =
+  "generic_smb_ar_allowance_incurred_loss" as const;
 
 /** @deprecated Use GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER */
 export const GENERIC_TREATMENT_11_TOPIC_IDENTIFIER = GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER;
 
-export const GENERIC_TREATMENT_11_AR_ALLOWANCE_TOPIC_IDENTIFIERS = [
+export const GENERIC_TREATMENT_11_ECL_TOPIC_IDENTIFIERS = [
   GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER,
   GENERIC_TREATMENT_11_IFRS_IASB_TOPIC_IDENTIFIER,
 ] as const;
 
+export const GENERIC_TREATMENT_11_HEALTHCARE_GUARD_TOPIC_IDENTIFIERS = [
+  GENERIC_TREATMENT_11_US_GAAP_TOPIC_IDENTIFIER,
+  GENERIC_TREATMENT_11_IFRS_IASB_TOPIC_IDENTIFIER,
+  GENERIC_TREATMENT_11_IFRS_FOR_SMES_TOPIC_IDENTIFIER,
+] as const;
+
+/** @deprecated Use isGenericTreatment11HealthcareGuardTopic */
+export const GENERIC_TREATMENT_11_AR_ALLOWANCE_TOPIC_IDENTIFIERS =
+  GENERIC_TREATMENT_11_ECL_TOPIC_IDENTIFIERS;
+
+/** @deprecated Use isGenericTreatment11HealthcareGuardTopic */
 export function isGenericTreatment11ArAllowanceTopic(topicIdentifier: string): boolean {
-  return (GENERIC_TREATMENT_11_AR_ALLOWANCE_TOPIC_IDENTIFIERS as readonly string[]).includes(
+  return isGenericTreatment11HealthcareGuardTopic(topicIdentifier);
+}
+
+export function isGenericTreatment11HealthcareGuardTopic(topicIdentifier: string): boolean {
+  return (GENERIC_TREATMENT_11_HEALTHCARE_GUARD_TOPIC_IDENTIFIERS as readonly string[]).includes(
     topicIdentifier,
   );
+}
+
+export function isGenericTreatment11EclExecutionConstraintsTopic(topicIdentifier: string): boolean {
+  return (GENERIC_TREATMENT_11_ECL_TOPIC_IDENTIFIERS as readonly string[]).includes(topicIdentifier);
 }
 
 export interface GenericTreatmentApplicabilityGuardRequiresAttestation {
