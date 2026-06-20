@@ -1,6 +1,6 @@
 # ADVISACOR — HEALTHCARE DISCLOSURE REQUIREMENTS LIBRARY (42O)
 ## Recommended / In-Review Reference | Industry Intelligence
-## Industry: healthcare
+## Industry: healthcare | v1.1 — citation corrections VER-O-1..VER-O-3
 
 OPERATING MODEL: These disclosure requirements are recommended
 in-review reference baselines on Advisacor's side — never final. The
@@ -30,6 +30,13 @@ financial assets. Pre/post-2018 comparisons require reconciliation.
 Connects to treatments T1 net_patient_service_revenue, T2
 contractual_allowance_reserves, T3 implicit_price_concessions, T5
 charity_care_and_community_benefit, T8 drug_pricing_program_340b.
+
+EFFECTIVE-DATE / KEY TRANSITIONS:
+ASU 2011-07 (2012): Reclassified the provision for bad debts
+associated with patient service revenue from an operating expense to
+a deduction from patient service revenue (contra-revenue) for certain
+health care entities; superseded for ASC 606 adopters by the IPC model
+in ASU 2014-09.
 
 ## SECTION A — REVENUE & RECEIVABLES (ASC 606)
 
@@ -61,6 +68,9 @@ may elect reduced disclosure (606-10-50-7) but must still meet the
 50-5 objective.
 PROVIDER APPLICABILITY: All; hospitals/systems most complex (multiple
 payers, service lines); SNF/HH/practice often simpler.
+NOTE: The Deloitte "ASC 606 Is Here" analysis found approximately 90%
+of adopters across all industries surveyed (not healthcare-specific)
+used two or fewer categories of tabular disaggregation.
 
 ### A.3 — CONTRACTUAL ALLOWANCES POLICY
 id: disc_contractual_allowances | requiredVsVoluntary: REQUIRED
@@ -92,9 +102,13 @@ PROVIDER APPLICABILITY: All; most material for hospitals/SNFs with
 significant uninsured/high-deductible populations. HFMA P&P Board
 Statement 15 (June 2019) governs the IPC-vs-bad-debt-vs-charity
 distinction.
-ASC 606 TRANSITION: IPC introduced by ASU 2014-09. The intermediate
-ASU 2011-07 (bad debt as operating expense, 2012-2018) is now moot
-under ASC 606. Links to treatment T3.
+ASC 606 TRANSITION: IPC introduced by ASU 2014-09. ASU 2011-07 (ASC
+954-310) had previously required certain health care entities to
+reclassify the provision for bad debts associated with patient
+service revenue from an operating expense to a deduction from patient
+service revenue (contra-revenue) — a net-presentation precursor
+relevant during 2012-2018, effectively superseded by ASU 2014-09's
+IPC-embedded-in-transaction-price model. Links to treatment T3.
 
 ### A.5 — PORTFOLIO APPROACH
 id: disc_portfolio_approach | requiredVsVoluntary: PERMITTED EXPEDIENT (use requires disclosure as significant judgment)
@@ -117,13 +131,21 @@ ASC: 310-10-45-4; 954-310-50-1; 606-10-32-11 through 32-16; 310-20; 326-20-45-1
 WHAT MUST BE DISCLOSED: Gross patient AR and the allowance(s)
 reducing it to net: (1) allowance for contractual adjustments; (2)
 allowance for IPC; (3) allowance for credit losses (ASC 326,
-non-patient financial assets). Write-off policy.
+non-patient financial assets). Write-off policy. Historical
+presentation note: ASU 2011-07 required certain entities to present
+the provision for doubtful accounts associated with patient service
+revenue as a deduction from patient service revenue (contra-revenue),
+rather than as an operating expense.
 PROVIDER APPLICABILITY: All; hospitals with large self-pay/uninsured
 have material IPC allowances; SNF/HH differ on write-off timing.
 ASC 606 TRANSITION: The legacy "provision for bad debts" as a
 deduction from gross patient revenue is eliminated for entities fully
-applying the IPC model. ASU 2011-07 intermediate presentation
-superseded. Links to treatments T3 and T4
+applying the IPC model. ASU 2011-07 (effective 2012) required certain
+entities to reclassify the provision for bad debts associated with
+patient service revenue from an operating expense to a deduction from
+patient service revenue (contra-revenue) — an intermediate net-
+presentation step now superseded for ASC 606 adopters by the IPC-
+embedded-in-transaction-price model. Links to treatments T3 and T4
 denial_reserves_and_credit_loss_boundary.
 
 ### A.7 — CONTRACT ASSETS, CONTRACT LIABILITIES, REMAINING PERFORMANCE OBLIGATIONS
