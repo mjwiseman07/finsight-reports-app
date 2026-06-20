@@ -1,3 +1,5 @@
+const path = require("path");
+
 const verifier = require("./verify-ii-industry-intelligence");
 
 const {
@@ -17,8 +19,181 @@ const {
   verifyOperationalKpiActiveAtLockRejected,
   verifyNfpCommunityBenefitActiveRejected,
   verifyHealthcareKpiMinimumCellSizeRejected,
+  buildIndustryResolutionBaseInput,
+  hasValue,
   sourceHasOutputClassificationMarker,
 } = verifier;
+
+const industryRoot = path.join(path.resolve(__dirname, ".."), "lib", "intelligence", "synthetic", "industry");
+
+const TREATMENT_11_HEALTHCARE_GUARD_TOPICS = [
+  "generic_smb_ar_allowance_cecl",
+  "generic_smb_ar_allowance_ecl",
+  "generic_smb_ar_allowance_incurred_loss",
+];
+
+function loadTreatment11GuardProbeDeps() {
+  verifyIndustryResolutionFailClosedRejected();
+  return {
+    buildIndustryResolution: require(path.join(industryRoot, "industry-resolver", "index.ts")).buildIndustryResolution,
+    GENERIC_TREATMENT_11_APPLICABILITY_GUARD: require(path.join(
+      industryRoot,
+      "libraries",
+      "generic",
+      "genericTreatment11Metadata.ts",
+    )).GENERIC_TREATMENT_11_APPLICABILITY_GUARD,
+  };
+}
+
+function buildTreatment11HealthcareGuardBaseInput(topicIdentifier, overrides = {}) {
+  return buildIndustryResolutionBaseInput({
+    queryTopicIdentifier: topicIdentifier,
+    queryIndustry: "healthcare",
+    querySubClassification: "healthcare.acute_care_hospital",
+    industryIsActive: true,
+    subClassificationIsDeclared: true,
+    frameworkIsActive: true,
+    tupleIsPopulated: true,
+    resolutionStatus: "resolved",
+    resolvedTreatmentReferenceId: "generic-treatment-11-poison",
+    resolvedTreatmentVersion: "1.0.0",
+    resolvedTreatmentEffectiveFromDate: "2026-01-01",
+    resolvedCitationReference: "citation-ref-1",
+    resolvedReviewerAttestationReference: "reviewer-attestation-ref-1",
+    resolvedSpecialistReviewerReference: "specialist-reviewer-ref-1",
+    ...overrides,
+  });
+}
+
+function resolvedTreatmentFieldsEmitted(resolution) {
+  if (!resolution) {
+    return false;
+  }
+
+  return (
+    hasValue(resolution.resolvedTreatmentReferenceId) ||
+    hasValue(resolution.resolvedTreatmentVersion) ||
+    hasValue(resolution.resolvedTreatmentEffectiveFromDate) ||
+    hasValue(resolution.resolvedCitationReference) ||
+    hasValue(resolution.resolvedReviewerAttestationReference) ||
+    hasValue(resolution.resolvedSpecialistReviewerReference)
+  );
+}
+
+function evaluateTreatment11HealthcareGuardPoison() {
+  const { buildIndustryResolution, GENERIC_TREATMENT_11_APPLICABILITY_GUARD } = loadTreatment11GuardProbeDeps();
+  const detail = {
+    inputA: [],
+    inputB: [],
+    inputC: [],
+    inputD: [],
+  };
+
+  for (const topicIdentifier of TREATMENT_11_HEALTHCARE_GUARD_TOPICS) {
+    const resultA = buildIndustryResolution(
+      buildTreatment11HealthcareGuardBaseInput(topicIdentifier, {
+        resolvedTreatmentApplicabilityGuard: GENERIC_TREATMENT_11_APPLICABILITY_GUARD,
+        nonPatientPoolExceptionAttestationPresent: false,
+      }),
+    );
+    const resolutionA = resultA.industryResolution;
+    const inputAPassed =
+      !resultA.skipped &&
+      resolutionA !== null &&
+      resolutionA.resolutionStatus === "fail_closed" &&
+      resolutionA.failClosedReason === "specialist_attestation_missing" &&
+      !resolvedTreatmentFieldsEmitted(resolutionA);
+    detail.inputA.push({
+      topicIdentifier,
+      resolutionStatus: resolutionA?.resolutionStatus,
+      failClosedReason: resolutionA?.failClosedReason,
+      resolvedTreatmentFieldsEmitted: resolvedTreatmentFieldsEmitted(resolutionA),
+      passed: inputAPassed,
+    });
+    if (!inputAPassed) {
+      return { caught: false, detail };
+    }
+
+    for (const malformedGuard of [null, { blockedIndustries: ["healthcare_provider"] }]) {
+      const resultB = buildIndustryResolution(
+        buildTreatment11HealthcareGuardBaseInput(topicIdentifier, {
+          resolvedTreatmentApplicabilityGuard: malformedGuard,
+        }),
+      );
+      const resolutionB = resultB.industryResolution;
+      const inputBPassed =
+        !resultB.skipped &&
+        resolutionB !== null &&
+        resolutionB.resolutionStatus === "fail_closed" &&
+        resolutionB.failClosedReason === "tuple_unpopulated" &&
+        !resolvedTreatmentFieldsEmitted(resolutionB);
+      detail.inputB.push({
+        topicIdentifier,
+        malformedGuard,
+        resolutionStatus: resolutionB?.resolutionStatus,
+        failClosedReason: resolutionB?.failClosedReason,
+        resolvedTreatmentFieldsEmitted: resolvedTreatmentFieldsEmitted(resolutionB),
+        passed: inputBPassed,
+      });
+      if (!inputBPassed) {
+        return { caught: false, detail };
+      }
+    }
+
+    for (const attestationPresent of [undefined, false]) {
+      const resultC = buildIndustryResolution(
+        buildTreatment11HealthcareGuardBaseInput(topicIdentifier, {
+          resolvedTreatmentApplicabilityGuard: GENERIC_TREATMENT_11_APPLICABILITY_GUARD,
+          ...(attestationPresent === false ? { nonPatientPoolExceptionAttestationPresent: false } : {}),
+        }),
+      );
+      const resolutionC = resultC.industryResolution;
+      const inputCPassed =
+        !resultC.skipped &&
+        resolutionC !== null &&
+        resolutionC.resolutionStatus === "fail_closed" &&
+        resolutionC.failClosedReason === "specialist_attestation_missing" &&
+        !resolvedTreatmentFieldsEmitted(resolutionC);
+      detail.inputC.push({
+        topicIdentifier,
+        nonPatientPoolExceptionAttestationPresent: attestationPresent ?? "absent",
+        resolutionStatus: resolutionC?.resolutionStatus,
+        failClosedReason: resolutionC?.failClosedReason,
+        resolvedTreatmentFieldsEmitted: resolvedTreatmentFieldsEmitted(resolutionC),
+        passed: inputCPassed,
+      });
+      if (!inputCPassed) {
+        return { caught: false, detail };
+      }
+    }
+
+    const resultD = buildIndustryResolution(
+      buildTreatment11HealthcareGuardBaseInput(topicIdentifier, {
+        resolvedTreatmentApplicabilityGuard: GENERIC_TREATMENT_11_APPLICABILITY_GUARD,
+        nonPatientPoolExceptionAttestationPresent: true,
+      }),
+    );
+    const resolutionD = resultD.industryResolution;
+    const inputDPassed =
+      !resultD.skipped &&
+      resolutionD !== null &&
+      resolutionD.resolutionStatus === "resolved" &&
+      resolutionD.failClosedReason === "none" &&
+      resolvedTreatmentFieldsEmitted(resolutionD);
+    detail.inputD.push({
+      topicIdentifier,
+      resolutionStatus: resolutionD?.resolutionStatus,
+      failClosedReason: resolutionD?.failClosedReason,
+      resolvedTreatmentFieldsEmitted: resolvedTreatmentFieldsEmitted(resolutionD),
+      passed: inputDPassed,
+    });
+    if (!inputDPassed) {
+      return { caught: false, detail };
+    }
+  }
+
+  return { caught: true, detail };
+}
 
 const TOPOLOGY_CUSTOMER_ISOLATION = "customer-topology-001";
 
@@ -337,6 +512,12 @@ const poisonCases = [
     "21 healthcare KPI shipped with minimumCellSize of 1 (below Safe Harbor default)",
     "healthcare KPI rejects minimumCellSize below Safe Harbor default",
     () => verifyHealthcareKpiMinimumCellSizeRejected().rejected,
+  ),
+
+  runPoisonCase(
+    "22 Treatment-11 healthcare applicabilityGuard bind refused without pool attestation",
+    "generic Treatment-11 healthcare_provider bind fails closed unless pool-level non-patient attestation present",
+    () => evaluateTreatment11HealthcareGuardPoison(),
   ),
 ];
 

@@ -6,6 +6,10 @@ import type {
   PhiDerivationStatus,
   RecommendationOutputClassification,
 } from "../contracts";
+import {
+  isGenericTreatment11HealthcareGuardTopic,
+  type GenericTreatmentApplicabilityGuard,
+} from "../libraries/generic/genericTreatment11Metadata";
 
 export interface BuildIndustryResolutionInput extends Partial<IndustryBaseContract> {
   queryTopicIdentifier?: string;
@@ -21,6 +25,8 @@ export interface BuildIndustryResolutionInput extends Partial<IndustryBaseContra
   resolvedCitationReference?: string;
   resolvedReviewerAttestationReference?: string;
   resolvedSpecialistReviewerReference?: string;
+  resolvedTreatmentApplicabilityGuard?: GenericTreatmentApplicabilityGuard | null;
+  nonPatientPoolExceptionAttestationPresent?: boolean;
   resolutionStatus?: IndustryResolutionStatus;
   failClosedReason?: IndustryResolutionFailClosedReason;
   industryIsActive?: boolean;
@@ -58,6 +64,7 @@ export interface SyntheticIndustryResolution extends IndustryBaseContract {
   failsClosedOnNonActiveFramework: true;
   failsClosedOnUnpopulatedTuple: true;
   failsClosedOnSpecialistAttestationMissing: true;
+  failsClosedOnTreatmentApplicabilityGuardBlocked: true;
   neverSilentlyFallsBackToGeneric: true;
   historicalResolutionByEffectiveDate: true;
   industryRegistryReferenceId: string;
@@ -102,6 +109,55 @@ function requiresSpecialistAttestation(input: BuildIndustryResolutionInput): boo
   return false;
 }
 
+function isHealthcareProviderEntity(queryIndustry: string): boolean {
+  return queryIndustry === "healthcare" || queryIndustry === "healthcare_provider";
+}
+
+function isWellFormedTreatment11ApplicabilityGuard(
+  guard: GenericTreatmentApplicabilityGuard | null | undefined,
+): guard is GenericTreatmentApplicabilityGuard {
+  if (!guard) {
+    return false;
+  }
+
+  return (
+    Array.isArray(guard.blockedIndustries) &&
+    guard.blockedIndustries.includes("healthcare_provider") &&
+    guard.overrideAllowed === false &&
+    guard.bypassRequiresEngineering === true &&
+    guard.nonPatientPoolException.allowed === true &&
+    guard.nonPatientPoolException.poolLevelOnly === true &&
+    guard.nonPatientPoolException.requiresAttestation != null
+  );
+}
+
+function getTreatment11ApplicabilityGuardFailReason(
+  input: BuildIndustryResolutionInput,
+): IndustryResolutionFailClosedReason | "none" {
+  const queryTopicIdentifier = input.queryTopicIdentifier ?? "";
+  if (!isGenericTreatment11HealthcareGuardTopic(queryTopicIdentifier)) {
+    return "none";
+  }
+
+  if (!isWellFormedTreatment11ApplicabilityGuard(input.resolvedTreatmentApplicabilityGuard)) {
+    return "tuple_unpopulated";
+  }
+
+  if (!isHealthcareProviderEntity(input.queryIndustry ?? "")) {
+    return "none";
+  }
+
+  if (
+    input.resolvedTreatmentApplicabilityGuard.nonPatientPoolException.allowed === true &&
+    input.resolvedTreatmentApplicabilityGuard.nonPatientPoolException.poolLevelOnly === true &&
+    input.nonPatientPoolExceptionAttestationPresent === true
+  ) {
+    return "none";
+  }
+
+  return "specialist_attestation_missing";
+}
+
 function getFailClosedReason(input: BuildIndustryResolutionInput): IndustryResolutionFailClosedReason {
   if (input.industryIsActive !== true) {
     return "industry_not_active";
@@ -117,6 +173,11 @@ function getFailClosedReason(input: BuildIndustryResolutionInput): IndustryResol
 
   if (input.tupleIsPopulated !== true) {
     return "tuple_unpopulated";
+  }
+
+  const treatment11GuardFailReason = getTreatment11ApplicabilityGuardFailReason(input);
+  if (treatment11GuardFailReason !== "none") {
+    return treatment11GuardFailReason;
   }
 
   if (requiresSpecialistAttestation(input) && input.specialistAttestationPresent !== true) {
@@ -272,6 +333,7 @@ function buildDerivationHash(input: BuildIndustryResolutionInput): string {
     failsClosedOnNonActiveFramework: true,
     failsClosedOnUnpopulatedTuple: true,
     failsClosedOnSpecialistAttestationMissing: true,
+    failsClosedOnTreatmentApplicabilityGuardBlocked: true,
     neverSilentlyFallsBackToGeneric: true,
     historicalResolutionByEffectiveDate: true,
   });
@@ -282,9 +344,23 @@ function getWarnings(
   resolutionStatus: IndustryResolutionStatus,
   failClosedReason: IndustryResolutionFailClosedReason,
 ): string[] {
+  const queryTopicIdentifier = input.queryTopicIdentifier ?? "";
+
   return [
     ...getInputArray(input.warnings),
     ...(resolutionStatus === "fail_closed" ? [`industry resolution failed closed: ${failClosedReason}`] : []),
+    ...(failClosedReason === "specialist_attestation_missing" &&
+    isGenericTreatment11HealthcareGuardTopic(queryTopicIdentifier) &&
+    isHealthcareProviderEntity(input.queryIndustry ?? "")
+      ? [
+          "generic Treatment-11 applicabilityGuard blocks healthcare_provider bind unless pool-level non-patient exception specialist attestation is present",
+        ]
+      : []),
+    ...(failClosedReason === "tuple_unpopulated" &&
+    isGenericTreatment11HealthcareGuardTopic(queryTopicIdentifier) &&
+    !isWellFormedTreatment11ApplicabilityGuard(input.resolvedTreatmentApplicabilityGuard)
+      ? ["generic Treatment-11 bind refused because applicabilityGuard metadata is missing or malformed"]
+      : []),
     ...(failClosedReason === "specialist_attestation_missing"
       ? ["specialist-required topic cannot be served without specialist attestation reference"]
       : []),
@@ -344,6 +420,7 @@ export function buildIndustryResolution(input: BuildIndustryResolutionInput): Bu
     failsClosedOnNonActiveFramework: true,
     failsClosedOnUnpopulatedTuple: true,
     failsClosedOnSpecialistAttestationMissing: true,
+    failsClosedOnTreatmentApplicabilityGuardBlocked: true,
     neverSilentlyFallsBackToGeneric: true,
     historicalResolutionByEffectiveDate: true,
     industryRegistryReferenceId: requiredIndustryRegistryReferenceId,
