@@ -50,6 +50,21 @@ export {
   type BuildHealthcareDisclosureRequirementsResult,
 } from "./buildHealthcareDisclosureRequirements";
 export {
+  PHASE_42P_HEALTHCARE_BENCHMARK_LIBRARY_HEADER,
+  PHASE_42P_HEALTHCARE_REASONABLENESS_BENCHMARK_BLUEPRINT,
+  buildHealthcareReasonablenessBenchmark,
+  type BuildHealthcareReasonablenessBenchmarkInput,
+  type BuildHealthcareReasonablenessBenchmarkResult,
+  type HealthcareReasonablenessBenchmarkModuleType,
+  type HealthcareReasonablenessBenchmarkStatus,
+  type SyntheticHealthcareReasonablenessBenchmark,
+} from "./buildHealthcareReasonablenessBenchmark";
+export {
+  buildHealthcareReasonablenessBenchmarks,
+  type BuildHealthcareReasonablenessBenchmarksInput,
+  type BuildHealthcareReasonablenessBenchmarksResult,
+} from "./buildHealthcareReasonablenessBenchmarks";
+export {
   getHealthcareLibraryHeaderContent,
   getHealthcareTreatmentBaselineRecord,
   loadHealthcareTreatmentBaseline,
@@ -81,6 +96,17 @@ export {
   type HealthcareDisclosureCitationFlag,
   type HealthcareDisclosureSection,
 } from "./loadHealthcareDisclosureBaseline";
+export {
+  HEALTHCARE_BENCHMARK_BASELINE_IDENTIFIER_ORDER,
+  getHealthcareBenchmarkBaselineRecord,
+  getHealthcareBenchmarkLibraryHeaderContent,
+  loadHealthcareBenchmarkBaseline,
+  type HealthcareBenchmarkBaselineIdentifier,
+  type HealthcareBenchmarkBaselineLoadResult,
+  type HealthcareBenchmarkBaselineRecord,
+  type HealthcareBenchmarkCitationFlag,
+  type HealthcareBenchmarkRangeBySubClassification,
+} from "./loadHealthcareBenchmarkBaseline";
 export {
   buildHealthcareIndustryTreatments,
   type BuildHealthcareIndustryTreatmentsInput,
