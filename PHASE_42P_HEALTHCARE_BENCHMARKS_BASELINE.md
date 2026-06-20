@@ -1,6 +1,6 @@
 # ADVISACOR — HEALTHCARE REASONABLENESS BENCHMARK LIBRARY (42P)
 ## Recommended / In-Review Reference | Industry Intelligence
-## Industry: healthcare
+## Industry: healthcare | v1.1 — citation correction VER-P-1
 CRITICAL — BENCHMARKS, NOT TARGETS (applies to EVERY entry): These
 are benchmarks, not targets. They reflect industry median/typical
 ranges from published surveys, association reports, and federal data,
@@ -101,7 +101,15 @@ RANGES (typical industry | top quartile/well-managed):
   (HFMA well-managed; MAP winners 50th pct 3.2%).
 - acute_care_hospital (Medicare Advantage / commercial): 13-16% MA /
   13-15% commercial | <8%. MA 15.7%, commercial 13.9%.
-- critical_access_hospital: 8-12% | <5%. MAP CAH winners 50th pct 3.2%.
+- critical_access_hospital: 8-12% (directional only; extrapolated from
+  community-hospital denial-rate patterns, not separately published for
+  CAHs) | <5% (well-managed figure inferred from acute-care-hospital
+  benchmark, not CAH-specific). HFMA MAP Award 2024 PDF records Initial
+  Denial Rate as "not stated" for the CAH winner cohort (FY2022-FY2024);
+  the 3.2% / 2.4% percentile figures in that publication apply to the
+  physician-practice winner cohort (n=3), not CAHs. CAH-specific denial
+  rates are not benchmarked separately at scale in publicly available
+  data.
 - ambulatory_surgery_center: 4-12% (avg ~8%) | <4%. Top centers 8->4%
   2024-2025; prior-auth-driven.
 - skilled_nursing_facility: 6-12% | <5%. Not separately benchmarked
