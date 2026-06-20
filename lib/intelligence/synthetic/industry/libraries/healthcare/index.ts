@@ -20,12 +20,41 @@ export {
   type SyntheticIndustryTreatment,
 } from "./buildHealthcareIndustryTreatment";
 export {
+  PHASE_42N1_HEALTHCARE_KPI_DEFINITION_BLUEPRINT,
+  PHASE_42N1_HEALTHCARE_KPI_LIBRARY_HEADER,
+  buildHealthcareKpiDefinition,
+  type BuildHealthcareKpiDefinitionInput,
+  type BuildHealthcareKpiDefinitionResult,
+  type HealthcareKpiDefinitionModuleType,
+  type HealthcareKpiDefinitionStatus,
+  type SyntheticHealthcareKpiDefinition,
+} from "./buildHealthcareKpiDefinition";
+export {
+  buildHealthcareKpiDefinitions,
+  type BuildHealthcareKpiDefinitionsInput,
+  type BuildHealthcareKpiDefinitionsResult,
+} from "./buildHealthcareKpiDefinitions";
+export {
   getHealthcareLibraryHeaderContent,
   getHealthcareTreatmentBaselineRecord,
   loadHealthcareTreatmentBaseline,
   type HealthcareTreatmentBaselineLoadResult,
   type HealthcareTreatmentBaselineRecord,
 } from "./loadHealthcareTreatmentBaseline";
+export {
+  HEALTHCARE_KPI_BASELINE_IDENTIFIER_ORDER,
+  getHealthcareKpiBaselineRecord,
+  getHealthcareKpiLibraryHeaderContent,
+  loadHealthcareKpiBaseline,
+  type HealthcareKpiBaselineIdentifier,
+  type HealthcareKpiBaselineLoadResult,
+  type HealthcareKpiBaselineRecord,
+  type HealthcareKpiCitationFlag,
+  type HealthcareKpiDomain,
+  type HealthcareKpiStandardVsVariable,
+  type HealthcareKpiSubTypeApplicabilityMatrix,
+  type HealthcareKpiSubTypeApplicabilityValue,
+} from "./loadHealthcareKpiBaseline";
 export {
   buildHealthcareIndustryTreatments,
   type BuildHealthcareIndustryTreatmentsInput,
