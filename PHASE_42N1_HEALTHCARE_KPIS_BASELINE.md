@@ -1,6 +1,6 @@
 # ADVISACOR — HEALTHCARE KPI DEFINITION LIBRARY (42N1)
 ## Recommended / In-Review Reasonableness Reference | Industry Intelligence
-## Industry: healthcare
+## Industry: healthcare | v1.1 — citation corrections VER-1..VER-4
 OPERATING MODEL: These KPI definitions are recommended in-review
 reference baselines on Advisacor's side — never final. The customer's
 controller reviews each definition, confirms or adapts the formula to
@@ -72,12 +72,14 @@ FM-2: revenue cycle's ability to convert NPSR into cash (cash
 collected vs net revenue; can exceed 100% on timing). MGMA Adjusted
 FFS Collection %: cash collected vs adjusted/expected charges (true
 collection effectiveness; should approach 100%).
-FORMULA: HFMA FM-2 — Total Patient Service Cash Collected / Average
-Monthly NPSR x 100. MGMA — Net FFS Revenue x 100 / Adjusted FFS
-Charges (gross charges minus contractual allowances).
+FORMULA: HFMA FM-2 — Total Patient Service Cash Collected / average
+monthly net patient service revenue x 100. (HFMA P&P Statement 16's
+three-month rolling-average guidance applies to FM-1 Net Days in AR
+internal reporting, not to FM-2.) MGMA — Net FFS Revenue x 100 /
+Adjusted FFS Charges (gross charges minus contractual allowances).
 DATA SOURCE: GL (cash collected, incl bad-debt recoveries); income
-statement (NPSR three-month avg) or patient financial system
-(adjusted FFS charges, MGMA variant).
+statement (average monthly net patient service revenue) or patient
+financial system (adjusted FFS charges, MGMA variant).
 SUB-TYPE APPLICABILITY: H applicable | A applicable | S applicable |
 P applicable | HH applicable
 STANDARD vs VARIABLE: VARIABLE — one of the most commonly misdefined
@@ -105,10 +107,12 @@ CITATION: MGMA DataDive Definitions Glossary 2025.
 id: kpi_denial_rate | HFMA MAP Keys AR-5 (remittance), AR-6 (write-offs) | domain: financial_revenue_cycle
 DEFINITION: AR-5 — percentage of claims denied at adjudication,
 defined by HFMA as ACTIONABLE denials (correctable, may yield
-reimbursement); excludes non-covered (PR group code),
-patient-responsibility, RAC recoupment, and duplicate denials. AR-6 —
-financial impact of denials ultimately written off, as % of average
-monthly NPSR.
+reimbursement); excludes (a) non-covered service denials (group code
+PR), (b) patient responsibility denials, (c) RAC recoupments, (d)
+duplicate claim denials, and (e) shadow / encounter claims
+(informational submissions for capitated patients; not payment-bearing).
+AR-6 — financial impact of denials ultimately written off, as % of
+average monthly NPSR.
 FORMULA: AR-5 — Claims Denied / Claims Remitted x 100. AR-6 — Net
 Dollars Written Off as Denials / Average Monthly NPSR x 100.
 DATA SOURCE: AR system (835 remittance files / denial codes) for
@@ -243,10 +247,12 @@ CITATION: CMS Medicare Cost Report (Form 2552); AHRQ HCUP CCR
 Methodology Report #2021-05.
 ### KPI 12 — AR AGING BUCKETS (>90 / >120 DAYS AS % OF TOTAL)
 id: kpi_ar_aging_buckets | HFMA MAP Keys AR-1 (billed), AR-3 (incl unbilled) | domain: financial_revenue_cycle
-DEFINITION: Stratifies AR by elapsed time since discharge (inpatient)
-or date of service (outpatient/ambulatory/physician/post-acute). HFMA
-standard buckets: 0-30, 31-60, 61-90, 91-120, >120 days. The >90 and
->120 buckets are the common write-off-risk leading indicators.
+DEFINITION: Stratifies AR by elapsed time since discharge (inpatient;
+HFMA AR-1) or date of service (outpatient/ambulatory/physician/post-
+acute; MGMA / practice-management standard — HFMA AR-1 does not
+specify the outpatient convention). HFMA standard buckets: 0-30, 31-60,
+61-90, 91-120, >120 days. The >90 and >120 buckets are the common
+write-off-risk leading indicators.
 FORMULA: Billed AR in Aging Category / Total Billed AR x 100. Buckets
 mutually exclusive, sum to 100% of billed AR.
 DATA SOURCE: Aged trial balance (month-end snapshot); active billed
@@ -255,9 +261,12 @@ excluded).
 SUB-TYPE APPLICABILITY: H applicable | A applicable | S applicable |
 P applicable | HH applicable
 STANDARD vs VARIABLE: STANDARDIZED (HFMA AR-1/AR-3). Variation: aging
-start point (discharge vs billing vs service date) differs; HFMA
-specifies discharge (inpatient) / date of service (outpatient).
-Including unbilled (DNFB) is HFMA AR-3, separate from AR-1.
+start point (discharge vs billing vs service date) differs; HFMA AR-1
+specifies discharge date for inpatient only; outpatient/ambulatory/
+physician/post-acute date-of-service convention follows MGMA /
+practice-management standard (HFMA AR-1 does not specify the outpatient
+convention). Including unbilled (DNFB) is HFMA AR-3, separate from
+AR-1.
 CITATION: HFMA MAP Keys AR-1, AR-3.
 ### KPI 13 — DAYS IN DISCHARGED-NOT-FINAL-BILLED (DNFB)
 id: kpi_dnfb_days | HFMA MAP Key PB-1 | domain: financial_revenue_cycle
@@ -314,8 +323,10 @@ SUB-TYPE APPLICABILITY: H applicable | A not_applicable | S
 not_applicable | P not_applicable | HH not_applicable (hospital
 inpatient only; SNFs use PDPM acuity — see KPI 24)
 STANDARD vs VARIABLE: STANDARDIZED (HFMA FM-5 / CMS IPPS). Variation:
-separate CMIs by payer, service line, or population; HFMA FM-5
-excludes normal newborns and IPPS-exempt units.
+separate CMIs by payer, service line, or population; normal-newborn
+and Medicare IPPS-exempt-unit exclusions derive from CMS IPPS rules,
+which FM-5 inherits by applying CMS MS-DRG weights to all inpatients
+(FM-5 adopts the CMS treatment by reference rather than restating it).
 CITATION: HFMA MAP Key FM-5; CMS IPPS MS-DRG Relative Weights.
 ### KPI 16 — AVERAGE LENGTH OF STAY (ALOS)
 id: kpi_alos | AHA / CMS | domain: operational_clinical
