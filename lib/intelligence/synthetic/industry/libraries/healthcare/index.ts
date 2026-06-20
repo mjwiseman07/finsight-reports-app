@@ -35,6 +35,21 @@ export {
   type BuildHealthcareKpiDefinitionsResult,
 } from "./buildHealthcareKpiDefinitions";
 export {
+  PHASE_42O_HEALTHCARE_DISCLOSURE_LIBRARY_HEADER,
+  PHASE_42O_HEALTHCARE_DISCLOSURE_REQUIREMENT_BLUEPRINT,
+  buildHealthcareDisclosureRequirement,
+  type BuildHealthcareDisclosureRequirementInput,
+  type BuildHealthcareDisclosureRequirementResult,
+  type HealthcareDisclosureRequirementModuleType,
+  type HealthcareDisclosureRequirementStatus,
+  type SyntheticHealthcareDisclosureRequirement,
+} from "./buildHealthcareDisclosureRequirement";
+export {
+  buildHealthcareDisclosureRequirements,
+  type BuildHealthcareDisclosureRequirementsInput,
+  type BuildHealthcareDisclosureRequirementsResult,
+} from "./buildHealthcareDisclosureRequirements";
+export {
   getHealthcareLibraryHeaderContent,
   getHealthcareTreatmentBaselineRecord,
   loadHealthcareTreatmentBaseline,
@@ -55,6 +70,17 @@ export {
   type HealthcareKpiSubTypeApplicabilityMatrix,
   type HealthcareKpiSubTypeApplicabilityValue,
 } from "./loadHealthcareKpiBaseline";
+export {
+  HEALTHCARE_DISCLOSURE_BASELINE_IDENTIFIER_ORDER,
+  getHealthcareDisclosureBaselineRecord,
+  getHealthcareDisclosureLibraryHeaderContent,
+  loadHealthcareDisclosureBaseline,
+  type HealthcareDisclosureBaselineIdentifier,
+  type HealthcareDisclosureBaselineLoadResult,
+  type HealthcareDisclosureBaselineRecord,
+  type HealthcareDisclosureCitationFlag,
+  type HealthcareDisclosureSection,
+} from "./loadHealthcareDisclosureBaseline";
 export {
   buildHealthcareIndustryTreatments,
   type BuildHealthcareIndustryTreatmentsInput,
