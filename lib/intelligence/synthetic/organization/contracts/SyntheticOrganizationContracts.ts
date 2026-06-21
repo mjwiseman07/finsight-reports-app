@@ -182,8 +182,10 @@ export type SyntheticAuthorityOutcome =
 
 export type SyntheticAuthorityRoutingOutcome =
   | "routed_to_target"
+  | "routed_to_source"
   | "held_in_source"
   | "advise_to_deploy"
+  | "advise_to_deploy_required"
   | "human_escalation"
   | "forbidden";
 
