@@ -243,6 +243,185 @@ Allocation recommendations are explainable. Every Assignment Candidate records w
 
 Rules: No automatic assignment. No execution. Only recommendations. `isRecommendationOnly: true` and `noAutomaticAssignment: true`. A human approves every allocation.
 
+## Ad-Hoc Authority Routing (Path A) — LOCKED
+
+**Status:** LOCKED — founder redline complete; folded from [`PHASE_40_AD_HOC_AUTHORITY_ROUTING_ADDENDUM.md`](PHASE_40_AD_HOC_AUTHORITY_ROUTING_ADDENDUM.md) on 2026-06-18.  
+**Track:** Path A (build now). Path B deferred — see Deliberately Dormant / Deferred below.  
+**Namespace extensions:** `organization/work-allocation/` (evaluator, tier config, widening gate/ticket, routing, advise-to-deploy), `organization/workforce-registry/deployment-index/`  
+**Verifier extension:** `scripts/verify-si-organizational-operating-system.js` — poison cases PC-AAR-01..19 (add-only discipline)
+
+### Founder decision summary
+
+Path A creates and routes **artifacts** (evaluations, routing packages, handoff refs, queue-assignment metadata, notifications). It does **not** lift `executable: false`, does **not** relax `noAutonomousEscalation` on escalation packages, and does **not** run an execution loop or AI-to-AI completion. Human governance gates remain on all outputs.
+
+| Track | Scope |
+|-------|-------|
+| **Path A (locked, built)** | Authority evaluator + tier-configurable authority + widening gate/ticket + routing orchestrator + advise-to-deploy |
+| **Path B (deferred)** | In-lane autonomous execution depth; fully-autonomous AI-to-AI **completion** — separate gated phase |
+
+**Deployment-index sequencing (founder decision — option 3):** Contract + fail-closed stub resolver now (`resolveRoleDeployment` → `not_deployed` unless explicit record passes deployed predicate). Live tenant-scoped lookup and index **writers** deferred post–Phase 42.5 D0. Advise-to-deploy notification builder is wired but **production-dormant** until writers land.
+
+### Problem statement
+
+Phase 39 declares lanes (`allowedTaskFamilies` / `forbiddenTaskFamilies`), escalation targets, and governance gates — but nothing evaluates an ad-hoc task against the acting role or routes above-authority work. Phase 40E/40F core modules produce **recommendations** only. This extension closes the **ad-hoc authority routing** gap while preserving Phase 40 non-execution guardrails.
+
+### Four-outcome authority evaluator (40E-EXT-A)
+
+Classifies each ad-hoc task (pure classifier; `executable: false`). Reads Phase 39 restriction, capability, and governance defs plus optional fraud/reasonableness status. Consumes `RoleAuthorityTierConfig` (default builder when none supplied).
+
+| Outcome | Rule |
+|---------|------|
+| `forbidden` | Task family ∈ acting role's `forbiddenTaskFamilies`, or fail-closed on missing/ambiguous inputs |
+| `in_lane` | Task family allowed AND capability `reviewLevel` ≤ acting role tier AND no fraud/reasonableness flag |
+| `above_authority` | Task family allowed but `reviewLevel` exceeds acting role tier |
+| `requires_human` | Fraud or reasonableness **flagged** — hard stop (see bright line below) |
+
+**Non-goals:** no new materiality engine; no new authority tiers; no `executable: true`.
+
+**Module:** `organization/work-allocation/authority-evaluation/` — `buildAuthorityEvaluation()`, `classifyAuthority()`.
+
+### Tier-configurable authority (RoleAuthorityTierConfig)
+
+Default 9-role tier map (`configSource: "default"`; `customer_override` reserved for future writer). Builder: `buildDefaultRoleAuthorityTierConfig()`.
+
+**Non-configurable floor:** fraud/reasonableness → `human_controller` is **not** representable as a `maxReviewLevel` value and cannot be widened by customer override. Evaluator enforces this bright line **before** tier config is consulted.
+
+**Module:** `organization/work-allocation/authority-tier-config/`.
+
+### Tier-widening request gate + review ticket
+
+Pure classifiers; no config mutation, no approval/resolution logic in these modules.
+
+**Gate rule (auto_allow is the narrow, must-be-proven path; ticket is the safe default):**
+
+- **AUTO_ALLOWED** only if ALL: (a) requested tier is exactly one rank above current (adjacent), AND (b) requested tier is **below** controller.
+- **REQUIRES_TICKET** if EITHER: (a) requested tier is controller or above, OR (b) jump is more than one tier.
+- **Fail-closed:** ambiguous, unparseable, non-widening, or missing fields → `requires_ticket`. Never `auto_allowed` on doubt.
+
+**Ticket generator:** emits open `TierWideningReviewTicket` **only** when gate outcome is `requires_ticket`. Never on `auto_allowed`.
+
+**Modules:** `organization/work-allocation/tier-widening-gate/`, `organization/work-allocation/tier-widening-ticket/`.
+
+**Deferred (not built):** human-review workflow / UI ("pulse box"); writer that turns an **approved** ticket into a `customer_override` `RoleAuthorityTierConfig` — future modules.
+
+### Routing orchestrator (40E-EXT-B)
+
+Consumes `AuthorityEvaluationResult` + deployment resolver result. Emits `AuthorityRoutingPackage` only — **no queue mutation, no task-state writes, no notifications, no execution loop**.
+
+**Routing outcomes** (`SyntheticAuthorityRoutingOutcome` — additive union members preserved):
+
+| Evaluation | Deployment | Routing outcome | Behavior |
+|------------|--------------|-----------------|----------|
+| `in_lane` | n/a | `routed_to_source` | Task stays at acting role's source queue |
+| `above_authority` | target deployed | `routed_to_target` | Artifact references target queue ref (auto-route = artifact creation only) |
+| `above_authority` | target not deployed | `advise_to_deploy_required` | Held in source; signals 40E-EXT-C (no notification built here) |
+| `requires_human` | any | `human_escalation` | `human_controller`; never AI target; never advise-to-deploy |
+| `forbidden` | n/a | `forbidden` | No route |
+| fail-closed (missing target, ambiguous deployment) | n/a | `held_in_source` | Never `routed_to_target` on doubt |
+
+**"Auto-route" means:** deterministic creation of handoff + queue-assignment **artifacts** only. Target role **prepares** under existing human gates; completion remains human-gated.
+
+**Module:** `organization/work-allocation/authority-routing/` — `buildAuthorityRoutingPackage()`, `classifyAuthorityRouting()`.
+
+### Advise-to-deploy notification (40E-EXT-C)
+
+Emits `AdviseToDeployNotification` **only** when routing outcome is `advise_to_deploy_required`. Factual, non-pushy `adviseReason`. **Never** fires on `human_escalation` (fraud bright line — mutually exclusive by construction).
+
+**Production-dormant:** under option 3, orchestrator yields `advise_to_deploy_required` only when resolver returns `not_deployed`; live index population deferred post–42.5. Fires in tests with explicit not-deployed records only until writers land.
+
+**Module:** `organization/work-allocation/advise-to-deploy/` — `buildAdviseToDeployNotification()`.
+
+### Fraud / reasonableness bright line (non-negotiable)
+
+- Flagged fraud or reasonableness → evaluator `requires_human`, target `human_controller`, **regardless** of task family or tier config.
+- Orchestrator → `human_escalation` to `human_controller`, **regardless** of deployment state.
+- Advise-to-deploy → **null/skipped** on `human_escalation`. Never convert fraud path to advise-to-deploy.
+- Tier config and widening gate → `human_controller` is type-level non-representable as a widening target or tier value.
+
+### Customer role deployment index (40C-EXT — stub)
+
+**Gap addressed:** no pre-existing `(customer, roleType) → deployed?` query. Stub: `resolveRoleDeployment(scope, roleType, explicitRecord?)` fail-closed → `not_deployed` unless explicit record passes deployed predicate.
+
+**Module:** `organization/workforce-registry/deployment-index/`.
+
+Writers and live resolver deferred post–Phase 42.5 D0 (option 3).
+
+### Preserved boundaries (Path A)
+
+| Guardrail | Status |
+|-----------|--------|
+| `executable: false` on all outputs | **Preserved** |
+| `noAutonomousEscalation: true` on escalation packages | **Preserved** (routing module does not emit escalation packages) |
+| Phase 40 non-goal: live execution of coordination decisions | **Preserved** |
+| Human final decision on material items | **Preserved** |
+| Phase 42.5 control spine | Separate layer; index inherits isolation fields from Phase 39/40 contracts |
+
+### Built + verified status
+
+**Commits:** `cd82319`..`5c6ac13` on `architecture-lane-refactor-baseline` (9 commits, 11 module/delivery units).
+
+| # | Module / delivery unit | Commit | Namespace |
+|---|------------------------|--------|-----------|
+| 1 | 40A — initial AAR contracts | `cd82319` | `organization/contracts/` |
+| 2 | 40C-EXT deployment index (stub) | `64fe407` | `workforce-registry/deployment-index/` |
+| 3 | Role authority tier config | `d611c40` | `work-allocation/authority-tier-config/` |
+| 4 | 40E-EXT-A authority evaluator | `e7d55dd` | `work-allocation/authority-evaluation/` |
+| 5 | Tier-widening request gate + contracts | `a415456` | `work-allocation/tier-widening-gate/` |
+| 6 | Tier-widening review ticket + contract | `030974c` | `work-allocation/tier-widening-ticket/` |
+| 7 | 40E-EXT-B routing orchestrator | `e81afcc` | `work-allocation/authority-routing/` |
+| 8 | 40A — routing union amendment (`routed_to_source`, `advise_to_deploy_required`) | `e81afcc` | `organization/contracts/` |
+| 9 | 40E-EXT-C advise-to-deploy notification | `2142645` | `work-allocation/advise-to-deploy/` |
+| 10 | 40A — tier-widening + tier-config contract deltas (across gate/ticket/config commits) | `d611c40`..`030974c` | `organization/contracts/` |
+| 11 | 40V verifier — PC-AAR-01..19 | `5c6ac13` | `scripts/verify-si-organizational-operating-system.js` |
+
+**Verifier:** `scripts/verify-si-organizational-operating-system.js` — 19 add-only poison cases PC-AAR-01..19; **exit 0**. Proves fraud/reasonableness→human at all layers, fail-closed paths, gate logic, distinct routing outcomes, `executable: false` across all AAR module outputs, deployment stub fail-closed.
+
+**TypeScript:** clean (`npx tsc --noEmit`).
+
+### Deliberately dormant / deferred (do not lose)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Advise-to-deploy **production** firing | **Dormant** | Wired builder; production-dormant until post–42.5 deployment-index **writers** (option 3) |
+| Live `resolveRoleDeployment` tenant lookup | **Deferred** | Stub fail-closed only; replace after 42.5 D0 without changing result shape |
+| Tier-widening ticket **review workflow** + UI | **Future module** | Open ticket artifact only; no pulse-box surfacing or resolution |
+| Approved-ticket → `customer_override` config writer | **Future module** | Not built; gate/ticket classify only |
+| 40F-EXT fraud/reasonableness human escalation bridge | **Not built** | Evaluator + orchestrator enforce bright line; dedicated bridge deferred |
+| Path B — autonomous in-lane execution / AI-to-AI completion | **Separate gated phase** | Explicitly prohibited in Path A; `executable: true` never |
+
+### Path A vs Path B (reference)
+
+| Capability | Path A (locked) | Path B (deferred) |
+|------------|-----------------|-------------------|
+| Authority evaluation | Built | Reuse evaluator |
+| Handoff artifact on above-authority | Auto-create (artifact) | Same + optional live dispatch |
+| Queue routing metadata | Auto-populate refs | Same + dequeue/enqueue runtime |
+| In-lane work execution | Human-gated prepare only | Autonomous in-lane depth TBD |
+| AI-to-AI completion | **Prohibited** | TBD — separate lock + guardrails |
+| `executable: true` | **Never** | Separate phase decision |
+| Advise-to-deploy | Built (production-dormant) | Unchanged when live |
+
+### Wiring to Phase 39 consumers (reference)
+
+| Phase 39 module | Path A wiring |
+|-----------------|---------------|
+| `email-intake` | Orchestrator supplies `restrictionCheckResult`, `capabilityMatch` from evaluator |
+| `email-task-mapper` | Orchestrator supplies `approvalRoutingTargetRoleType` from 39E |
+| `role-task-queue` | Routing package references target `taskQueueReferenceId` |
+| `role-response` | `responseType: "escalated"` when routed; fraud → `human_controller` |
+| `controller-notification` | Fraud/reasonableness → escalation refs (bridge module deferred) |
+| `role-execution-audit-log` | Every evaluation + routing decision logged |
+
+### References
+
+- Addendum source (superseded): [`PHASE_40_AD_HOC_AUTHORITY_ROUTING_ADDENDUM.md`](PHASE_40_AD_HOC_AUTHORITY_ROUTING_ADDENDUM.md)
+- Phase 39 restriction: `lib/intelligence/synthetic/roles/role-restriction/buildRoleRestriction.ts`
+- Phase 39 capability: `lib/intelligence/synthetic/roles/role-capability/buildRoleCapability.ts`
+- Phase 40 escalation: `lib/intelligence/synthetic/organization/escalation/buildEscalationPackage.ts`
+- Phase 42.5 planning: [`PHASE_42_5_PLANNING_DOCUMENT.md`](PHASE_42_5_PLANNING_DOCUMENT.md)
+
+---
+
 ## Phase 40F - Escalation Intelligence
 
 Purpose: Manage escalation chain recommendations.
@@ -476,8 +655,9 @@ Reject and fail on:
 - Any artifact marked `containsPHI: true` that lacks tenant isolation fields.
 - Any artifact that mixes PHI-marked and non-PHI-marked content in the same payload.
 - Banned runtime imports.
+- Ad-hoc authority routing poison cases PC-AAR-01..19 (add-only; bright-line cases 1–5 and fail-closed cases 6–10 must never be weakened).
 
-Built incrementally. Skeleton created early, expanded by 40V, exits 0 on PASS and 1 on FAIL, Node built-ins only.
+Built incrementally. Skeleton created early, expanded by 40V (including Path A extension), exits 0 on PASS and 1 on FAIL, Node built-ins only.
 
 ## Phase 40W - Final Phase 40 Audit and Lock
 
@@ -492,7 +672,7 @@ Read-only comprehensive audit verifying against the Phase 40 Exit Criteria:
 - Cross-isolation test passes.
 - Every recommendation produces a `RecommendationAuditEntry`.
 
-Also verify workforce intelligence, capacity intelligence, organizational governance, simulation, and digital departments.
+Also verify workforce intelligence, capacity intelligence, organizational governance, simulation, digital departments, and **Ad-Hoc Authority Routing (Path A)** poison cases PC-AAR-01..19.
 
 If any area is PARTIAL or FAIL, report gaps and do not lock.
 
