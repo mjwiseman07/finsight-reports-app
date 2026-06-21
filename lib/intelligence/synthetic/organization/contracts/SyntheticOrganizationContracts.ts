@@ -247,3 +247,23 @@ export interface RoleAuthorityTierConfig extends SyntheticPhase39RoleHandoffCons
   configSource: SyntheticRoleAuthorityTierConfigSource;
   maxReviewLevelByRoleType: SyntheticRoleAuthorityTierMaxReviewLevelByRoleType;
 }
+
+export type SyntheticTierWideningGateOutcome = "auto_allowed" | "requires_ticket";
+
+export interface TierWideningRequest extends SyntheticPhase39RoleHandoffConsumptionContract {
+  tierWideningRequestId: string;
+  tierWideningRequestKey: string;
+  companyId: string;
+  roleType: SyntheticRoleType;
+  currentMaxReviewLevel: SyntheticRoleCapabilityReviewLevel;
+  requestedMaxReviewLevel: SyntheticRoleCapabilityReviewLevel;
+  requestReason: string;
+}
+
+export interface TierWideningGateResult extends SyntheticPhase39RoleHandoffConsumptionContract {
+  tierWideningGateResultId: string;
+  tierWideningGateResultKey: string;
+  tierWideningRequestId: string;
+  gateOutcome: SyntheticTierWideningGateOutcome;
+  gateReason: string;
+}

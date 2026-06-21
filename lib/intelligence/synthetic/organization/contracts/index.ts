@@ -22,7 +22,10 @@ export type {
   SyntheticPhase39RoleHandoffConsumptionContract,
   SyntheticRoleAuthorityTierConfigSource,
   SyntheticRoleAuthorityTierMaxReviewLevelByRoleType,
+  SyntheticTierWideningGateOutcome,
   TeamContract,
+  TierWideningGateResult,
+  TierWideningRequest,
   WorkforceAssignmentContract,
   WorkforceHealthContract,
 } from "./SyntheticOrganizationContracts";
