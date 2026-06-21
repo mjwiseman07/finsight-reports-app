@@ -7,6 +7,7 @@ import type {
 } from "../../audit/types";
 import type { SyntheticKnowledgeConfidenceFloorMetadata } from "../../knowledge/contracts";
 import type { SyntheticMemoryObjectIsolationDimension } from "../../organizational-memory/memory-object";
+import type { SyntheticRoleType } from "../../roles/contracts";
 
 export type SyntheticOrganizationUnitType =
   | "finance"
@@ -170,4 +171,64 @@ export interface RecommendationAuditEntry extends SyntheticPhase39RoleHandoffCon
   priorEntryReferenceId: string;
   appendOnly: true;
   immutableRecord: true;
+}
+
+export type SyntheticAuthorityOutcome =
+  | "in_lane"
+  | "above_authority"
+  | "forbidden"
+  | "requires_human";
+
+export type SyntheticAuthorityRoutingOutcome =
+  | "routed_to_target"
+  | "held_in_source"
+  | "advise_to_deploy"
+  | "human_escalation"
+  | "forbidden";
+
+export type SyntheticCustomerRoleDeploymentStatus =
+  | "not_deployed"
+  | "activating"
+  | "deployed"
+  | "deactivated";
+
+export interface AuthorityEvaluationResult extends SyntheticPhase39RoleHandoffConsumptionContract {
+  authorityEvaluationResultId: string;
+  authorityEvaluationResultKey: string;
+  authorityOutcome: SyntheticAuthorityOutcome;
+  escalationTargetRoleType: string;
+  restrictionCheckResult: boolean;
+  capabilityMatch: boolean;
+  approvalRoutingTargetRoleType: string;
+}
+
+export interface AuthorityRoutingPackage extends SyntheticPhase39RoleHandoffConsumptionContract {
+  authorityRoutingPackageId: string;
+  authorityRoutingPackageKey: string;
+  routingOutcome: SyntheticAuthorityRoutingOutcome;
+  sourceQueueRef: string;
+  targetQueueRef: string;
+  handoffRefs: string[];
+  escalationTargetRoleType: string;
+}
+
+export interface CustomerRoleDeploymentRecord extends SyntheticPhase39RoleHandoffConsumptionContract {
+  customerRoleDeploymentRecordId: string;
+  customerRoleDeploymentRecordKey: string;
+  companyId: string;
+  roleType: SyntheticRoleType;
+  deploymentStatus: SyntheticCustomerRoleDeploymentStatus;
+  roleInstanceId: string;
+  roleActivationReferenceId: string;
+  workforceMemberReferenceId: string;
+  taskQueueReferenceId: string;
+  deploymentResolvedAt: string;
+}
+
+export interface AdviseToDeployNotification extends SyntheticPhase39RoleHandoffConsumptionContract {
+  adviseToDeployNotificationId: string;
+  adviseToDeployNotificationKey: string;
+  requiredRoleType: SyntheticRoleType;
+  triggeringTaskRef: string;
+  adviseReason: string;
 }
