@@ -267,3 +267,16 @@ export interface TierWideningGateResult extends SyntheticPhase39RoleHandoffConsu
   gateOutcome: SyntheticTierWideningGateOutcome;
   gateReason: string;
 }
+
+export interface TierWideningReviewTicket extends SyntheticPhase39RoleHandoffConsumptionContract {
+  tierWideningReviewTicketId: string;
+  tierWideningReviewTicketKey: string;
+  tierWideningGateResultId: string;
+  tierWideningRequestId: string;
+  ticketStatus: "open";
+  roleType: SyntheticRoleType;
+  currentMaxReviewLevel: SyntheticRoleCapabilityReviewLevel;
+  requestedMaxReviewLevel: SyntheticRoleCapabilityReviewLevel;
+  requestReason: string;
+  gateReason: string;
+}

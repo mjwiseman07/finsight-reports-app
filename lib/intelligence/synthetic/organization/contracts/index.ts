@@ -26,6 +26,7 @@ export type {
   TeamContract,
   TierWideningGateResult,
   TierWideningRequest,
+  TierWideningReviewTicket,
   WorkforceAssignmentContract,
   WorkforceHealthContract,
 } from "./SyntheticOrganizationContracts";
