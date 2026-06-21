@@ -1,4 +1,4 @@
-# Phase 42.5 Planning Document — Ready for Review (v1.7.3)
+# Phase 42.5 Planning Document — Ready for Review (v1.8)
 
 ## Enterprise Trust & Compliance — Universal Control Layer + Pluggable Compliance Overlays
 
@@ -15,6 +15,10 @@
 **Probe:** `scripts/probe-ops-control-spine.js` (D0 red-team; calls exported verifier logic only)
 
 ---
+
+## v1.8 Deltas from v1.7.3
+
+> v1.8 — Operating-posture decision (founder, Q6/Q8 partial resolution): full control spine built to HIPAA + SOC 2 Type II grade for ALL customers from day one (no tiering); SOC evidence collection begins at launch so the Type II observation window accrues from the start; HIPAA overlay built and ready-to-attach (not deferred); year-1 launch is non-healthcare, with healthcare onboarding possible within months if demand appears. Q8 resolved (generic-baseline go-live). Q6 narrowed (evidence-from-day-one; auditor engagement after demand).
 
 ## v1.7.3 Deltas from v1.7.2
 
@@ -113,6 +117,20 @@ Advisacor is a MULTI-INDUSTRY financial-automation platform. Healthcare is one s
 **What 42.5 is NOT:** not the per-vertical knowledge stacks; not healthcare-only; not ISO 27001 / FedRAMP / PCI-DSS pursuit; not a final-rule HIPAA build; not a clinical-data platform.
 
 Redline this section before reviewing the rest if the framing is wrong.
+
+---
+
+## Operating Posture (FOUNDER DECISION — binding)
+
+**UNIFORM HIGH-GRADE SPINE.** The control spine is built and operated to HIPAA + SOC 2 Type II grade for EVERY customer from day one — encryption, isolation, audit logging, RBAC/persona access, key management. There is NO tiered "non-healthcare-grade now, healthcare-grade later." One standard, maximal, for all tenants. A non-healthcare customer's data is well-protected non-PHI data — not lesser-protected data.
+
+**SOC EVIDENCE FROM LAUNCH.** Because a Type II report attests controls OPERATING over a past window, audit-logging (42.5D) and retention (42.5T) run from launch so the observation window accrues from day one. Formal CPA engagement happens AFTER initial demand is validated, but the evidence machinery is live at launch — compressing time-to-issued-Type-II rather than starting a cold clock later. This makes 42.5D and 42.5T launch-critical, and conceptually starts the 42.5Z observation window's EVIDENCE collection at GL-3, with formal window-start recorded when the CPA engages (LOCK-42.5.4).
+
+**HIPAA OVERLAY: BUILT, READY-TO-ATTACH.** The HIPAA overlay (Wave 2: 42.5H–L) is built during 42.5, NOT deferred. Year-1 launch is non-healthcare (single-business + accounting firms), but healthcare may onboard within months if demand appears (founder has hospital/management connections). When a PHI customer arrives, the overlay ATTACHES onto already-HIPAA-grade controls — the overlay is the legal/regulatory wrapper (BAA, 45 CFR 164 scope statement, PHI-path routing), NOT a security upgrade. The security is already there; the overlay adds the legal regime that applies where PHI exists.
+
+**THE ONE CONDITIONAL EDGE.** Controls = uniform maximal grade for all. HIPAA OVERLAY (BAA + regulatory scope) = attaches only to the PHI path, because HIPAA is a legal regime tied to PHI, not a security tier. A bakery's data does not become PHI by being well-protected. GL-4 (healthcare onboarding) still requires the overlay live + BAA signed before any PHI flows — controls-before-customers holds.
+
+**CONSEQUENCE FOR BUILD ORDER:** nothing is built "light." Full spine (Wave 1) to max grade; audit-logging + retention live from launch for SOC evidence; HIPAA overlay (Wave 2) built ready-to-attach; full D0 (Wave 3) including PHI cases; SOC packs (Wave 4) built early so the window can formalize on engagement. Only the auditor ENGAGEMENT and report ISSUANCE wait for demand — the evidence collection does not.
 
 ---
 
@@ -1542,11 +1560,11 @@ From 42M/42I (in revision): final namespace → SOC system-description boundary.
 - **Q7 Workforce:** two owners, no data-touching contractors; compensating controls.
 - **CONTROL ARCH:** ONE shared spine for all verticals + pluggable overlays.
 - **KNOWLEDGE ROADMAP:** 42.51 mfg / 42.52 retail / 42.53 fund / 42.54 muni (a-d each); fund+muni carry a GASB/fund framework-baseline prerequisite; sequence by demand.
+- **Q8 Per-vertical go-live:** non-healthcare verticals go live at GL-3 on the generic baseline; healthcare overlay built ready-to-attach; knowledge stacks follow demand.
 
 ### Open — Founder Decision
 
-- **Q6 Launch timing:** FULLY OPEN (no default). Path A (straight Type II, later) vs Path B (Type I first, earlier) + window length. Decide once early-buyer mix is known (mid-market non-healthcare favors B; enterprise/healthcare-first favors A).
-- **Q8 Per-vertical go-live:** non-healthcare verticals live at GL-3 on generic baseline (knowledge stack later), or knowledge stack first? (Lean: generic-baseline go-live fine; knowledge stacks follow demand.)
+- **Q6 Launch timing:** narrowed: SOC evidence collected from launch (window accrues from day one); formal auditor engagement after initial demand. Path A-vs-B and window length still open pending early-buyer mix, but the evidence-from-day-one posture means either path benefits from an already-running window.
 
 ### Open — Defer to Engaged Professional (do NOT decide in-house)
 
@@ -1598,4 +1616,4 @@ Benchmark-not-target framing from 42P governs all public-facing 42.5 wording. SO
 
 ---
 
-*End of Phase 42.5 Planning Document v1.7.3*
+*End of Phase 42.5 Planning Document v1.8*
