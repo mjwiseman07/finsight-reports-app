@@ -7,6 +7,7 @@ import type {
 } from "../../audit/types";
 import type { SyntheticKnowledgeConfidenceFloorMetadata } from "../../knowledge/contracts";
 import type { SyntheticMemoryObjectIsolationDimension } from "../../organizational-memory/memory-object";
+import type { SyntheticRoleCapabilityReviewLevel } from "../../roles/role-capability";
 import type { SyntheticRoleType } from "../../roles/contracts";
 
 export type SyntheticOrganizationUnitType =
@@ -231,4 +232,18 @@ export interface AdviseToDeployNotification extends SyntheticPhase39RoleHandoffC
   requiredRoleType: SyntheticRoleType;
   triggeringTaskRef: string;
   adviseReason: string;
+}
+
+export type SyntheticRoleAuthorityTierConfigSource = "default" | "customer_override";
+
+export type SyntheticRoleAuthorityTierMaxReviewLevelByRoleType = Record<
+  SyntheticRoleType,
+  SyntheticRoleCapabilityReviewLevel
+>;
+
+export interface RoleAuthorityTierConfig extends SyntheticPhase39RoleHandoffConsumptionContract {
+  roleAuthorityTierConfigId: string;
+  roleAuthorityTierConfigKey: string;
+  configSource: SyntheticRoleAuthorityTierConfigSource;
+  maxReviewLevelByRoleType: SyntheticRoleAuthorityTierMaxReviewLevelByRoleType;
 }
