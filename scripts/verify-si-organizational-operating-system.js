@@ -1,11 +1,24 @@
 const fs = require("fs");
+const Module = require("module");
 const path = require("path");
+const ts = require("typescript");
 
 const root = path.resolve(__dirname, "..");
 const organizationDirectory = path.join(root, "lib", "intelligence", "synthetic", "organization");
 const contractsDirectory = path.join(organizationDirectory, "contracts");
 const contractsSourcePath = path.join(contractsDirectory, "SyntheticOrganizationContracts.ts");
 const contractsIndexPath = path.join(contractsDirectory, "index.ts");
+
+const aarVerifierState = {
+  typeScriptLoaderRegistered: false,
+  authorityEvaluationModule: null,
+  authorityTierConfigModule: null,
+  tierWideningGateModule: null,
+  tierWideningTicketModule: null,
+  authorityRoutingModule: null,
+  adviseToDeployModule: null,
+  deploymentIndexModule: null,
+};
 
 const moduleSpecs = [
   {
@@ -225,22 +238,8 @@ const checks = [
   checkNoBannedRuntimePatterns,
   checkRejectListPatterns,
   checkCrossIsolation,
+  checkAdHocAuthorityRoutingPoisonCases,
 ];
-
-const results = checks.map((check) => check());
-const failures = results.filter((result) => !result.passed);
-
-if (failures.length > 0) {
-  console.error("FAIL");
-  for (const failure of failures) {
-    console.error(`- ${failure.name}: ${failure.reason}`);
-  }
-  process.exit(1);
-}
-
-console.log("PASS");
-console.log("VERIFY_EXIT:0");
-process.exit(0);
 
 function checkOrganizationDirectoryExists() {
   return {
@@ -655,6 +654,701 @@ function checkCrossIsolation() {
   };
 }
 
+/**
+ * POISON-CASE DISCIPLINE (40V Ad-Hoc Authority Routing extension):
+ * Cases PC-AAR-01..PC-AAR-19 may only be ADDED, never swapped or removed.
+ * Bright-line cases (1-5) and fail-closed cases (6-10) are highest-priority and must
+ * never be weakened by a future edit.
+ */
+function checkAdHocAuthorityRoutingPoisonCases() {
+  const poisonCaseResults = runAdHocAuthorityRoutingPoisonCases();
+  const failures = poisonCaseResults.filter((result) => !result.passed);
+
+  for (const result of poisonCaseResults) {
+    console.log(`${result.id} | ${result.passed ? "PASS" : "FAIL"} | ${result.name}`);
+    if (!result.passed) {
+      console.error(`  reason: ${result.reason}`);
+    }
+  }
+
+  return {
+    name: "ad-hoc authority routing poison cases (40V extension)",
+    passed: failures.length === 0,
+    reason: failures.map((failure) => `${failure.id}: ${failure.reason}`).join("; "),
+  };
+}
+
+const AAR_COMPANY_ID = "company-aar-verify";
+const AAR_SCOPE = {
+  companyId: AAR_COMPANY_ID,
+  customerIsolationRequired: true,
+  firmIsolationRequired: true,
+  clientIsolationRequired: true,
+  isolationBoundaryIds: ["boundary-aar"],
+};
+const AAR_ISOLATION = {
+  customerIsolation: { required: true, referenceIds: [AAR_COMPANY_ID] },
+  firmIsolation: { required: true, referenceIds: ["firm-aar"] },
+  clientIsolation: { required: true, referenceIds: ["client-aar"] },
+};
+const AAR_HANDOFF_FIXTURE = {
+  phase39RoleHandoffHandle: "handoff-aar-verify",
+  boundPhase39SnapshotHash: "bound-phase39-aar",
+  boundPhase38SnapshotHash: "bound-phase38-aar",
+  scope: AAR_SCOPE,
+  customerIsolation: AAR_ISOLATION.customerIsolation,
+  firmIsolation: AAR_ISOLATION.firmIsolation,
+  clientIsolation: AAR_ISOLATION.clientIsolation,
+  phase39RoleInstanceReferenceIds: [],
+  warnings: [],
+};
+
+function ensureTypeScriptLoader() {
+  if (aarVerifierState.typeScriptLoaderRegistered) {
+    return;
+  }
+
+  require.extensions[".ts"] = function loadTypeScript(module, filename) {
+    const source = fs.readFileSync(filename, "utf8");
+    const output = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020,
+        esModuleInterop: true,
+      },
+      fileName: filename,
+    });
+    module._compile(output.outputText, filename);
+  };
+
+  aarVerifierState.typeScriptLoaderRegistered = true;
+}
+
+function loadAuthorityEvaluationModule() {
+  if (!aarVerifierState.authorityEvaluationModule) {
+    ensureTypeScriptLoader();
+    aarVerifierState.authorityEvaluationModule = require(path.join(
+      organizationDirectory,
+      "work-allocation",
+      "authority-evaluation",
+      "index.ts",
+    ));
+  }
+  return aarVerifierState.authorityEvaluationModule;
+}
+
+function loadAuthorityTierConfigModule() {
+  if (!aarVerifierState.authorityTierConfigModule) {
+    ensureTypeScriptLoader();
+    aarVerifierState.authorityTierConfigModule = require(path.join(
+      organizationDirectory,
+      "work-allocation",
+      "authority-tier-config",
+      "index.ts",
+    ));
+  }
+  return aarVerifierState.authorityTierConfigModule;
+}
+
+function loadTierWideningGateModule() {
+  if (!aarVerifierState.tierWideningGateModule) {
+    ensureTypeScriptLoader();
+    aarVerifierState.tierWideningGateModule = require(path.join(
+      organizationDirectory,
+      "work-allocation",
+      "tier-widening-gate",
+      "index.ts",
+    ));
+  }
+  return aarVerifierState.tierWideningGateModule;
+}
+
+function loadTierWideningTicketModule() {
+  if (!aarVerifierState.tierWideningTicketModule) {
+    ensureTypeScriptLoader();
+    aarVerifierState.tierWideningTicketModule = require(path.join(
+      organizationDirectory,
+      "work-allocation",
+      "tier-widening-ticket",
+      "index.ts",
+    ));
+  }
+  return aarVerifierState.tierWideningTicketModule;
+}
+
+function loadAuthorityRoutingModule() {
+  if (!aarVerifierState.authorityRoutingModule) {
+    ensureTypeScriptLoader();
+    aarVerifierState.authorityRoutingModule = require(path.join(
+      organizationDirectory,
+      "work-allocation",
+      "authority-routing",
+      "index.ts",
+    ));
+  }
+  return aarVerifierState.authorityRoutingModule;
+}
+
+function loadAdviseToDeployModule() {
+  if (!aarVerifierState.adviseToDeployModule) {
+    ensureTypeScriptLoader();
+    aarVerifierState.adviseToDeployModule = require(path.join(
+      organizationDirectory,
+      "work-allocation",
+      "advise-to-deploy",
+      "index.ts",
+    ));
+  }
+  return aarVerifierState.adviseToDeployModule;
+}
+
+function loadDeploymentIndexModule() {
+  if (!aarVerifierState.deploymentIndexModule) {
+    ensureTypeScriptLoader();
+    aarVerifierState.deploymentIndexModule = require(path.join(
+      organizationDirectory,
+      "workforce-registry",
+      "deployment-index",
+      "index.ts",
+    ));
+  }
+  return aarVerifierState.deploymentIndexModule;
+}
+
+function hasAarValue(value) {
+  return value !== undefined && value !== null && value !== "";
+}
+
+function mockRoleRestriction(overrides = {}) {
+  return {
+    restrictionId: "restriction-staff-aar",
+    roleType: "staff_accountant",
+    allowedTaskFamilies: ["journal_entries"],
+    forbiddenTaskFamilies: ["review_and_approval"],
+    escalationTargetRoleType: "senior_accountant",
+    ...overrides,
+  };
+}
+
+function mockRoleCapability(reviewLevel, overrides = {}) {
+  return {
+    capabilityId: "capability-aar",
+    taskFamily: "journal_entries",
+    reviewLevel,
+    roleApplicability: ["staff_accountant"],
+    ...overrides,
+  };
+}
+
+function buildEvaluatorInput(overrides = {}) {
+  return {
+    roleType: "staff_accountant",
+    roleInstanceId: "role-instance-staff-aar",
+    taskFamily: "journal_entries",
+    fraudStatus: "not_run",
+    reasonablenessStatus: "not_run",
+    roleRestriction: mockRoleRestriction(),
+    roleCapability: mockRoleCapability("senior"),
+    ...AAR_HANDOFF_FIXTURE,
+    ...overrides,
+  };
+}
+
+function mockAuthorityEvaluationResult(overrides = {}) {
+  return {
+    ...AAR_HANDOFF_FIXTURE,
+    authorityEvaluationResultId: "authority-eval-aar",
+    authorityEvaluationResultKey: "authority-eval-key-aar",
+    authorityOutcome: "in_lane",
+    escalationTargetRoleType: "",
+    restrictionCheckResult: true,
+    capabilityMatch: true,
+    approvalRoutingTargetRoleType: "",
+    executable: false,
+    executionReady: false,
+    containsPHI: true,
+    derivationLineageIds: [],
+    derivationMethod: "handoff_metadata_preservation",
+    derivationHash: "derivation-aar",
+    confidenceFloorMetadata: [],
+    sourceConfidenceReferenceIds: [],
+    evidenceReferenceIds: [],
+    lineageReferenceIds: [],
+    trustMetadata: [],
+    confidenceMetadata: [],
+    governanceMetadata: [],
+    skippedIndexes: [],
+    ...overrides,
+  };
+}
+
+function mockTierWideningRequest(overrides = {}) {
+  return {
+    ...AAR_HANDOFF_FIXTURE,
+    tierWideningRequestId: "tier-widening-request-aar",
+    tierWideningRequestKey: "tier-widening-request-key-aar",
+    companyId: AAR_COMPANY_ID,
+    roleType: "staff_accountant",
+    currentMaxReviewLevel: "senior",
+    requestedMaxReviewLevel: "controller",
+    requestReason: "verify widening",
+    executable: false,
+    executionReady: false,
+    containsPHI: true,
+    derivationLineageIds: [],
+    derivationMethod: "handoff_metadata_preservation",
+    derivationHash: "derivation-aar",
+    confidenceFloorMetadata: [],
+    sourceConfidenceReferenceIds: [],
+    evidenceReferenceIds: [],
+    lineageReferenceIds: [],
+    trustMetadata: [],
+    confidenceMetadata: [],
+    governanceMetadata: [],
+    skippedIndexes: [],
+    ...overrides,
+  };
+}
+
+function mockTierWideningGateResult(overrides = {}) {
+  return {
+    ...AAR_HANDOFF_FIXTURE,
+    tierWideningGateResultId: "tier-widening-gate-aar",
+    tierWideningGateResultKey: "tier-widening-gate-key-aar",
+    tierWideningRequestId: "tier-widening-request-aar",
+    gateOutcome: "requires_ticket",
+    gateReason: "widening_at_or_above_controller_tier",
+    executable: false,
+    executionReady: false,
+    containsPHI: true,
+    derivationLineageIds: [],
+    derivationMethod: "handoff_metadata_preservation",
+    derivationHash: "derivation-aar",
+    confidenceFloorMetadata: [],
+    sourceConfidenceReferenceIds: [],
+    evidenceReferenceIds: [],
+    lineageReferenceIds: [],
+    trustMetadata: [],
+    confidenceMetadata: [],
+    governanceMetadata: [],
+    skippedIndexes: [],
+    ...overrides,
+  };
+}
+
+function mockAuthorityRoutingPackage(overrides = {}) {
+  return {
+    ...AAR_HANDOFF_FIXTURE,
+    authorityRoutingPackageId: "routing-package-aar",
+    authorityRoutingPackageKey: "routing-package-key-aar",
+    routingOutcome: "advise_to_deploy_required",
+    sourceQueueRef: "queue-staff-aar",
+    targetQueueRef: "",
+    handoffRefs: [],
+    escalationTargetRoleType: "senior_accountant",
+    executable: false,
+    executionReady: false,
+    containsPHI: true,
+    derivationLineageIds: [],
+    derivationMethod: "handoff_metadata_preservation",
+    derivationHash: "derivation-aar",
+    confidenceFloorMetadata: [],
+    sourceConfidenceReferenceIds: [],
+    evidenceReferenceIds: [],
+    lineageReferenceIds: [],
+    trustMetadata: [],
+    confidenceMetadata: [],
+    governanceMetadata: [],
+    skippedIndexes: [],
+    ...overrides,
+  };
+}
+
+function buildDeployedSeniorRecord(taskQueueReferenceId = "queue-senior-aar") {
+  const { buildCustomerRoleDeploymentRecord } = loadDeploymentIndexModule();
+  const result = buildCustomerRoleDeploymentRecord({
+    ...AAR_HANDOFF_FIXTURE,
+    companyId: AAR_COMPANY_ID,
+    roleType: "senior_accountant",
+    deploymentStatus: "deployed",
+    roleInstanceId: "role-instance-senior-aar",
+    roleActivationReferenceId: "activation-senior-aar",
+    workforceMemberReferenceId: "workforce-senior-aar",
+    taskQueueReferenceId,
+    deploymentResolvedAt: "2026-06-18T00:00:00.000Z",
+  });
+
+  if (!result.customerRoleDeploymentRecord) {
+    throw new Error("failed to build deployed senior deployment record fixture");
+  }
+
+  return result.customerRoleDeploymentRecord;
+}
+
+function runAdHocAuthorityRoutingPoisonCases() {
+  const { classifyAuthority } = loadAuthorityEvaluationModule();
+  const { DEFAULT_ROLE_AUTHORITY_TIER_MAX_REVIEW_LEVEL_BY_ROLE_TYPE } = loadAuthorityTierConfigModule();
+  const { classifyTierWideningGate, buildTierWideningGateResult } = loadTierWideningGateModule();
+  const { buildTierWideningReviewTicket } = loadTierWideningTicketModule();
+  const { classifyAuthorityRouting, buildAuthorityRoutingPackage } = loadAuthorityRoutingModule();
+  const { buildAdviseToDeployNotification } = loadAdviseToDeployModule();
+  const { resolveRoleDeployment, buildCustomerRoleDeploymentRecord } = loadDeploymentIndexModule();
+  const roleCapabilitySource = readFile(
+    path.join(root, "lib", "intelligence", "synthetic", "roles", "role-capability", "buildRoleCapability.ts"),
+  );
+  const routingSource = readFile(
+    path.join(organizationDirectory, "work-allocation", "authority-routing", "buildAuthorityRoutingPackage.ts"),
+  );
+
+  const deployedSeniorRecord = buildDeployedSeniorRecord();
+
+  return [
+    {
+      id: "PC-AAR-01",
+      name: "evaluator fraud flagged => requires_human human_controller regardless of tier",
+      passed:
+        classifyAuthority({ ...buildEvaluatorInput(), fraudStatus: "flagged", roleCapability: mockRoleCapability("manager") })
+          .authorityOutcome === "requires_human" &&
+        classifyAuthority({ ...buildEvaluatorInput(), fraudStatus: "flagged" }).escalationTargetRoleType === "human_controller",
+      reason: "fraud flagged must force requires_human -> human_controller",
+    },
+    {
+      id: "PC-AAR-02",
+      name: "evaluator reasonableness flagged => requires_human human_controller",
+      passed:
+        classifyAuthority({ ...buildEvaluatorInput(), reasonablenessStatus: "flagged" }).authorityOutcome === "requires_human" &&
+        classifyAuthority({ ...buildEvaluatorInput(), reasonablenessStatus: "flagged" }).escalationTargetRoleType ===
+          "human_controller",
+      reason: "reasonableness flagged must force requires_human -> human_controller",
+    },
+    {
+      id: "PC-AAR-03",
+      name: "orchestrator requires_human => human_escalation regardless of deployment",
+      passed: (() => {
+        const routing = classifyAuthorityRouting({
+          authorityEvaluationResult: mockAuthorityEvaluationResult({
+            authorityOutcome: "requires_human",
+            escalationTargetRoleType: "human_controller",
+          }),
+          sourceQueueRef: "queue-staff-aar",
+          companyId: AAR_COMPANY_ID,
+          customerRoleDeploymentRecord: deployedSeniorRecord,
+          deploymentScope: {
+            companyId: AAR_COMPANY_ID,
+            ...AAR_ISOLATION,
+            scope: AAR_SCOPE,
+          },
+        });
+        return routing.routingOutcome === "human_escalation" && routing.escalationTargetRoleType === "human_controller";
+      })(),
+      reason: "requires_human must route human_escalation even when target role is deployed",
+    },
+    {
+      id: "PC-AAR-04",
+      name: "advise-to-deploy never emits on human_escalation routing",
+      passed: (() => {
+        const result = buildAdviseToDeployNotification({
+          authorityRoutingPackage: mockAuthorityRoutingPackage({
+            routingOutcome: "human_escalation",
+            escalationTargetRoleType: "human_controller",
+          }),
+          triggeringTaskRef: "task-aar-fraud",
+        });
+        return result.adviseToDeployNotification === null && result.skipped === true;
+      })(),
+      reason: "human_escalation routing must not produce advise-to-deploy notification",
+    },
+    {
+      id: "PC-AAR-05",
+      name: "tier config excludes human_controller as representable maxReviewLevel",
+      passed:
+        !Object.values(DEFAULT_ROLE_AUTHORITY_TIER_MAX_REVIEW_LEVEL_BY_ROLE_TYPE).includes("human_controller") &&
+        /export type SyntheticRoleCapabilityReviewLevel[\s\S]*?\| "human_required"/.test(roleCapabilitySource) &&
+        !/"human_controller"/.test(
+          roleCapabilitySource.slice(
+            roleCapabilitySource.indexOf("export type SyntheticRoleCapabilityReviewLevel"),
+            roleCapabilitySource.indexOf("export type SyntheticRoleCapabilityMaterialitySensitivity"),
+          ),
+        ),
+      reason: "human_controller must not appear in default tier map or review-level union",
+    },
+    {
+      id: "PC-AAR-06",
+      name: "evaluator missing/ambiguous inputs => forbidden or requires_human, never in_lane",
+      passed: (() => {
+        const missingTaskFamily = classifyAuthority({
+          ...buildEvaluatorInput(),
+          taskFamily: "",
+        }).authorityOutcome;
+        const missingRestriction = classifyAuthority({
+          ...buildEvaluatorInput(),
+          roleRestriction: null,
+        }).authorityOutcome;
+        const capabilityMismatch = classifyAuthority({
+          ...buildEvaluatorInput(),
+          roleCapability: mockRoleCapability("senior", { taskFamily: "reconciliations" }),
+        }).authorityOutcome;
+        const outcomes = [missingTaskFamily, missingRestriction, capabilityMismatch];
+        return outcomes.every((outcome) => outcome === "forbidden" || outcome === "requires_human") &&
+          !outcomes.includes("in_lane");
+      })(),
+      reason: "missing taskFamily, restriction, or capability mismatch must not classify in_lane",
+    },
+    {
+      id: "PC-AAR-07",
+      name: "orchestrator above_authority missing target => held_in_source not routed_to_target",
+      passed: (() => {
+        const routing = classifyAuthorityRouting({
+          authorityEvaluationResult: mockAuthorityEvaluationResult({
+            authorityOutcome: "above_authority",
+            escalationTargetRoleType: "",
+          }),
+          sourceQueueRef: "queue-staff-aar",
+          companyId: AAR_COMPANY_ID,
+          deploymentScope: {
+            companyId: AAR_COMPANY_ID,
+            ...AAR_ISOLATION,
+            scope: AAR_SCOPE,
+          },
+        });
+        return routing.routingOutcome === "held_in_source" && routing.routingOutcome !== "routed_to_target";
+      })(),
+      reason: "missing escalation target must fail-closed to held_in_source",
+    },
+    {
+      id: "PC-AAR-08",
+      name: "orchestrator ambiguous deployment => held_in_source not routed_to_target",
+      passed: (() => {
+        const emptyQueueRouting = classifyAuthorityRouting({
+          authorityEvaluationResult: mockAuthorityEvaluationResult({
+            authorityOutcome: "above_authority",
+            escalationTargetRoleType: "senior_accountant",
+          }),
+          sourceQueueRef: "queue-staff-aar",
+          companyId: AAR_COMPANY_ID,
+          customerRoleDeploymentRecord: buildDeployedSeniorRecord(""),
+          deploymentScope: {
+            companyId: AAR_COMPANY_ID,
+            ...AAR_ISOLATION,
+            scope: AAR_SCOPE,
+          },
+        });
+        const hasAmbiguousBranch = routingSource.includes('failClosedHold(sourceQueueRef, "ambiguous_deployment_status")');
+        return emptyQueueRouting.routingOutcome === "held_in_source" && hasAmbiguousBranch;
+      })(),
+      reason: "ambiguous deployment must fail-closed to held_in_source",
+    },
+    {
+      id: "PC-AAR-09",
+      name: "widening gate malformed/missing requested level => requires_ticket never auto_allowed",
+      passed: (() => {
+        const missingRequested = classifyTierWideningGate({
+          companyId: AAR_COMPANY_ID,
+          roleType: "staff_accountant",
+          currentMaxReviewLevel: "senior",
+          requestReason: "verify",
+        });
+        return missingRequested.gateOutcome === "requires_ticket" && missingRequested.gateOutcome !== "auto_allowed";
+      })(),
+      reason: "missing requestedMaxReviewLevel must require ticket",
+    },
+    {
+      id: "PC-AAR-10",
+      name: "ticket and advise-to-deploy skip on non-required outcomes",
+      passed: (() => {
+        const ticket = buildTierWideningReviewTicket({
+          tierWideningGateResult: mockTierWideningGateResult({ gateOutcome: "auto_allowed", gateReason: "adjacent_widening_below_controller" }),
+          tierWideningRequest: mockTierWideningRequest(),
+        });
+        const advise = buildAdviseToDeployNotification({
+          authorityRoutingPackage: mockAuthorityRoutingPackage({ routingOutcome: "routed_to_target", targetQueueRef: "queue-senior-aar" }),
+          triggeringTaskRef: "task-aar",
+        });
+        return ticket.tierWideningReviewTicket === null && ticket.skipped === true && advise.adviseToDeployNotification === null &&
+          advise.skipped === true;
+      })(),
+      reason: "non-requires_ticket gate and non-advise_to_deploy_required routing must skip artifact creation",
+    },
+    {
+      id: "PC-AAR-11",
+      name: "widening gate adjacent below controller => auto_allowed",
+      passed:
+        classifyTierWideningGate({
+          companyId: AAR_COMPANY_ID,
+          roleType: "staff_accountant",
+          currentMaxReviewLevel: "senior",
+          requestedMaxReviewLevel: "manager",
+          requestReason: "verify adjacent widening",
+        }).gateOutcome === "auto_allowed",
+      reason: "senior -> manager must auto_allow",
+    },
+    {
+      id: "PC-AAR-12",
+      name: "widening gate controller-or-above => requires_ticket",
+      passed:
+        classifyTierWideningGate({
+          companyId: AAR_COMPANY_ID,
+          roleType: "staff_accountant",
+          currentMaxReviewLevel: "senior",
+          requestedMaxReviewLevel: "controller",
+          requestReason: "verify controller widening",
+        }).gateOutcome === "requires_ticket",
+      reason: "requested controller tier must require ticket",
+    },
+    {
+      id: "PC-AAR-13",
+      name: "widening gate jump > 1 tier => requires_ticket",
+      passed:
+        classifyTierWideningGate({
+          companyId: AAR_COMPANY_ID,
+          roleType: "staff_accountant",
+          currentMaxReviewLevel: "senior",
+          requestedMaxReviewLevel: "partner",
+          requestReason: "verify multi-tier jump",
+        }).gateOutcome === "requires_ticket",
+      reason: "jump greater than one tier must require ticket",
+    },
+    {
+      id: "PC-AAR-14",
+      name: "in_lane => routed_to_source",
+      passed:
+        classifyAuthorityRouting({
+          authorityEvaluationResult: mockAuthorityEvaluationResult({ authorityOutcome: "in_lane" }),
+          sourceQueueRef: "queue-staff-aar",
+        }).routingOutcome === "routed_to_source",
+      reason: "in_lane evaluation must route to source queue outcome",
+    },
+    {
+      id: "PC-AAR-15",
+      name: "above_authority + deployed senior => routed_to_target with target queue ref",
+      passed: (() => {
+        const routing = classifyAuthorityRouting({
+          authorityEvaluationResult: mockAuthorityEvaluationResult({
+            authorityOutcome: "above_authority",
+            escalationTargetRoleType: "senior_accountant",
+          }),
+          sourceQueueRef: "queue-staff-aar",
+          companyId: AAR_COMPANY_ID,
+          customerRoleDeploymentRecord: deployedSeniorRecord,
+          deploymentScope: {
+            companyId: AAR_COMPANY_ID,
+            ...AAR_ISOLATION,
+            scope: AAR_SCOPE,
+          },
+        });
+        return routing.routingOutcome === "routed_to_target" && routing.targetQueueRef === "queue-senior-aar";
+      })(),
+      reason: "deployed target must routed_to_target with queue ref",
+    },
+    {
+      id: "PC-AAR-16",
+      name: "above_authority + not deployed => advise_to_deploy_required held in source",
+      passed: (() => {
+        const routing = classifyAuthorityRouting({
+          authorityEvaluationResult: mockAuthorityEvaluationResult({
+            authorityOutcome: "above_authority",
+            escalationTargetRoleType: "senior_accountant",
+          }),
+          sourceQueueRef: "queue-staff-aar",
+          companyId: AAR_COMPANY_ID,
+          deploymentScope: {
+            companyId: AAR_COMPANY_ID,
+            ...AAR_ISOLATION,
+            scope: AAR_SCOPE,
+          },
+        });
+        return routing.routingOutcome === "advise_to_deploy_required" && routing.sourceQueueRef === "queue-staff-aar" &&
+          routing.targetQueueRef === "";
+      })(),
+      reason: "not deployed target must advise_to_deploy_required and hold in source",
+    },
+    {
+      id: "PC-AAR-17",
+      name: "forbidden => forbidden routing outcome",
+      passed:
+        classifyAuthorityRouting({
+          authorityEvaluationResult: mockAuthorityEvaluationResult({ authorityOutcome: "forbidden" }),
+          sourceQueueRef: "queue-staff-aar",
+        }).routingOutcome === "forbidden",
+      reason: "forbidden evaluation must emit forbidden routing outcome",
+    },
+    {
+      id: "PC-AAR-18",
+      name: "executable false literal on all AAR module outputs",
+      passed: (() => {
+        const { buildAuthorityEvaluation } = loadAuthorityEvaluationModule();
+        const { buildDefaultRoleAuthorityTierConfig } = loadAuthorityTierConfigModule();
+        const evaluator = buildAuthorityEvaluation(buildEvaluatorInput());
+        const tierConfig = buildDefaultRoleAuthorityTierConfig({ ...AAR_HANDOFF_FIXTURE, companyId: AAR_COMPANY_ID });
+        const gate = buildTierWideningGateResult({
+          ...AAR_HANDOFF_FIXTURE,
+          companyId: AAR_COMPANY_ID,
+          roleType: "staff_accountant",
+          currentMaxReviewLevel: "senior",
+          requestedMaxReviewLevel: "controller",
+          requestReason: "verify executable false",
+        });
+        const gateResult = gate.tierWideningGateResult;
+        const ticket = buildTierWideningReviewTicket({
+          tierWideningGateResult: gateResult,
+          tierWideningRequest: mockTierWideningRequest({ tierWideningRequestId: gateResult?.tierWideningRequestId }),
+        });
+        const evaluation = evaluator.authorityEvaluationResult;
+        const routing = buildAuthorityRoutingPackage({
+          authorityEvaluationResult: evaluation,
+          sourceQueueRef: "queue-staff-aar",
+          companyId: AAR_COMPANY_ID,
+          customerRoleDeploymentRecord: deployedSeniorRecord,
+        });
+        const routingPackage = routing.authorityRoutingPackage;
+        const advise = buildAdviseToDeployNotification({
+          authorityRoutingPackage: mockAuthorityRoutingPackage({
+            routingOutcome: "advise_to_deploy_required",
+            escalationTargetRoleType: "senior_accountant",
+          }),
+          triggeringTaskRef: "task-aar",
+        });
+        const deployment = buildCustomerRoleDeploymentRecord({
+          ...AAR_HANDOFF_FIXTURE,
+          companyId: AAR_COMPANY_ID,
+          roleType: "senior_accountant",
+          deploymentStatus: "deployed",
+          roleInstanceId: "role-instance-senior-aar",
+          roleActivationReferenceId: "activation-senior-aar",
+          workforceMemberReferenceId: "workforce-senior-aar",
+          taskQueueReferenceId: "queue-senior-aar",
+          deploymentResolvedAt: "2026-06-18T00:00:00.000Z",
+        });
+        const artifacts = [
+          evaluation,
+          tierConfig.roleAuthorityTierConfig,
+          gateResult,
+          ticket.tierWideningReviewTicket,
+          routingPackage,
+          advise.adviseToDeployNotification,
+          deployment.customerRoleDeploymentRecord,
+        ];
+        return artifacts.every((artifact) => artifact !== null && artifact.executable === false);
+      })(),
+      reason: "every built AAR artifact must carry executable: false",
+    },
+    {
+      id: "PC-AAR-19",
+      name: "deployment stub without explicit record => not_deployed fail-closed",
+      passed:
+        resolveRoleDeployment(
+          {
+            companyId: AAR_COMPANY_ID,
+            ...AAR_ISOLATION,
+            scope: AAR_SCOPE,
+          },
+          "senior_accountant",
+        ).deploymentStatus === "not_deployed",
+      reason: "resolveRoleDeployment must fail-closed to not_deployed without explicit record",
+    },
+  ];
+}
+
 function createSyntheticTenant(prefix) {
   return {
     customerIsolation: `${prefix}-customer-isolation`,
@@ -766,3 +1460,18 @@ function relativePath(filePath) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+const results = checks.map((check) => check());
+const failures = results.filter((result) => !result.passed);
+
+if (failures.length > 0) {
+  console.error("FAIL");
+  for (const failure of failures) {
+    console.error(`- ${failure.name}: ${failure.reason}`);
+  }
+  process.exit(1);
+}
+
+console.log("PASS");
+console.log("VERIFY_EXIT:0");
+process.exit(0);
