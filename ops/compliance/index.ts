@@ -4,3 +4,4 @@ export * from "./overlay-attachment";
 export * from "./soc/soc1";
 export * from "./soc/soc2";
 export * from "./retention";
+export * from "./vendors";

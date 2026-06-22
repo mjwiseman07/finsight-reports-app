@@ -1,0 +1,46 @@
+{
+  "generatedAtIso": "2026-06-20T18:00:00.000Z",
+  "module": "42.5U",
+  "totalFlows": 19,
+  "compliantFlowCount": 14,
+  "violationCount": 0,
+  "attackFlowCount": 3,
+  "attacksBlocked": true,
+  "expectedDenyOk": true,
+  "pass": true,
+  "compliantProof": {
+    "pass": true,
+    "totalFlows": 14,
+    "violations": []
+  },
+  "attackResults": [
+    {
+      "flowId": "attack:unknown-vendor",
+      "subprocessorId": "unknown-vendor-not-in-inventory",
+      "denied": true,
+      "reason": "subprocessor_not_in_inventory"
+    },
+    {
+      "flowId": "attack:expired-baa",
+      "subprocessorId": "synthetic-probe-expired-baa",
+      "denied": true,
+      "reason": "baa_expired"
+    },
+    {
+      "flowId": "attack:openai-phi-pending",
+      "subprocessorId": "openai-api",
+      "denied": true,
+      "reason": "baa_pending_phi_blocked"
+    }
+  ],
+  "expectedDenyResults": [
+    {
+      "flowId": "flow:openai-phi-blocked-test",
+      "denied": true
+    },
+    {
+      "flowId": "flow:anthropic-phi-blocked-test",
+      "denied": true
+    }
+  ]
+}

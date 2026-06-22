@@ -1,0 +1,25 @@
+{
+  "compliantFlows": [
+    { "flowId": "flow:vercel-non-phi", "subprocessorId": "vercel-hosting", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:supabase-db-non-phi", "subprocessorId": "supabase-database", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:supabase-auth-non-phi", "subprocessorId": "supabase-auth", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:resend-non-phi", "subprocessorId": "resend-email", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:vercel-obs-non-phi", "subprocessorId": "vercel-observability", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:sentry-non-phi", "subprocessorId": "sentry-error-tracking", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:backup-non-phi", "subprocessorId": "supabase-backup-dr", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:stripe-non-phi", "subprocessorId": "stripe-payments", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:openai-non-phi", "subprocessorId": "openai-api", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:anthropic-non-phi", "subprocessorId": "anthropic-api", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:elevenlabs-non-phi", "subprocessorId": "elevenlabs-api", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:github-no-flow", "subprocessorId": "github-source-hosting", "tenantId": "tenant:non-healthcare", "overlayActive": [], "payloadTags": [] },
+    { "flowId": "flow:quickbooks-non-phi", "subprocessorId": "quickbooks-api", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:xero-non-phi", "subprocessorId": "xero-api", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "financial-summary", "phi": false }] },
+    { "flowId": "flow:openai-phi-blocked-test", "subprocessorId": "openai-api", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "patient-identifier", "phi": true }], "expectDeny": true },
+    { "flowId": "flow:anthropic-phi-blocked-test", "subprocessorId": "anthropic-api", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "patient-identifier", "phi": true }], "expectDeny": true }
+  ],
+  "attackFlows": [
+    { "flowId": "attack:unknown-vendor", "subprocessorId": "unknown-vendor-not-in-inventory", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "patient-identifier", "phi": true }] },
+    { "flowId": "attack:expired-baa", "subprocessorId": "synthetic-probe-expired-baa", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "patient-identifier", "phi": true }] },
+    { "flowId": "attack:openai-phi-pending", "subprocessorId": "openai-api", "tenantId": "tenant:hipaa-overlay", "overlayActive": ["hipaa"], "payloadTags": [{ "taxonomy": "patient-identifier", "phi": true }] }
+  ]
+}

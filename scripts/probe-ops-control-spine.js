@@ -207,8 +207,23 @@ const poisonCaseRunners = {
     };
   },
   "PC-12"() {
-    const pc = mandatoryPoisonCases.find((p) => p.id === "PC-12");
-    return LOCK_MODE ? buildViolationFromSkip(pc, "awaiting 42.5U") : buildSkippedResult(pc, "awaiting 42.5U");
+    const result = subprocessorRegistry.assertBaaOnFile({
+      subprocessorId: "openai-api",
+      tenantId: fixtures.TENANT_A.customerTenantId,
+      overlayActive: ["hipaa"],
+      payloadTags: [{ taxonomy: fixtures.SYNTHETIC_PHI_TAG.taxonomy, phi: true }],
+    });
+    const actual = result.denied ? "DENY" : "ALLOW";
+    return {
+      actual,
+      status: actual === "DENY" ? "PASS" : "VIOLATION",
+      detail: result.reason ?? "subprocessor without BAA did not deny PHI",
+      fixture: {
+        subprocessorId: "openai-api",
+        baaStatus: result.evidence?.baaStatus,
+        tag: fixtures.SYNTHETIC_PHI_TAG,
+      },
+    };
   },
   "PC-13"() {
     const result = encryption.assertPhiKeyScope();

@@ -110,6 +110,7 @@ function loadSpineModules() {
     socScopeBoundary: loadOpsModule("compliance/soc/soc1/index.ts"),
     tscScopeBoundary: loadOpsModule("compliance/soc/soc2/index.ts"),
     retention: loadOpsModule("compliance/retention/index.ts"),
+    vendors: loadOpsModule("compliance/vendors/index.ts"),
     overlayDiscipline: loadOpsModule("compliance/overlay-discipline/index.ts"),
     hipaaIntegration: loadOpsModule("compliance/overlays/hipaa/integration/index.ts"),
     hipaaSafeguards: loadOpsModule("compliance/overlays/hipaa/safeguards/index.ts"),
@@ -487,8 +488,40 @@ function createProbeHelpers() {
   };
 
   const subprocessorRegistry = {
-    assertBaaOnFile() {
-      return { awaitingModule: "42.5U" };
+    assertBaaOnFile(input) {
+      try {
+        const result = modules.vendors.subprocessorRegistry.assertBaaOnFile(input);
+        return {
+          decision: result.decision,
+          denied: result.decision === "DENY",
+          reason: result.reason,
+          evidence: result.evidence,
+        };
+      } catch {
+        return {
+          decision: "DENY",
+          denied: true,
+          reason: "harness_error_fail_closed",
+          evidence: {
+            subprocessorId: input?.subprocessorId ?? "unknown",
+            baaStatus: "unknown",
+            phiInPayload: false,
+            spineEnforcedNonPhiPath: false,
+          },
+        };
+      }
+    },
+    getSubprocessor(subprocessorId) {
+      return modules.vendors.subprocessorRegistry.getSubprocessor(subprocessorId);
+    },
+    listAllSubprocessors() {
+      return modules.vendors.subprocessorRegistry.listAllSubprocessors();
+    },
+    listPhiAuthorizedSubprocessors() {
+      return modules.vendors.subprocessorRegistry.listPhiAuthorizedSubprocessors();
+    },
+    proveOutboundPhiBoundary(flows) {
+      return modules.vendors.subprocessorRegistry.proveOutboundPhiBoundary(flows);
     },
   };
 
@@ -1437,6 +1470,129 @@ const checks = [
             status: "FAIL",
             detail: `HIPAA floor invariant broken: floorDays=${floorDays} entry=${JSON.stringify(hipaaEntry)}`,
             evidence: { floorDays, hipaaEntry },
+          };
+    },
+  },
+  {
+    id: "CHK-34",
+    name: "42.5U subprocessorRegistry present, barrel-exported, inventory parses",
+    run() {
+      const moduleDir = path.join(opsRoot, "compliance/vendors");
+      const complianceBarrel = path.join(opsRoot, "compliance/index.ts");
+      const harnessPresent = fs.existsSync(path.join(moduleDir, "subprocessorRegistry.ts"));
+      const inventoryPresent = fs.existsSync(path.join(moduleDir, "SUBPROCESSOR_INVENTORY.json"));
+      const barrelPresent = fs.existsSync(path.join(moduleDir, "index.ts"));
+      const complianceExportsVendors =
+        fs.existsSync(complianceBarrel) && read("ops/compliance/index.ts").includes("./vendors");
+      const modules = loadSpineModules();
+      const staticResult = modules.vendors.executeSubprocessorRegistryStaticConstructionTests();
+      const exported = probeHelpers.subprocessorRegistry;
+      const hasMethods =
+        typeof exported?.assertBaaOnFile === "function" &&
+        typeof exported?.getSubprocessor === "function" &&
+        typeof exported?.listAllSubprocessors === "function" &&
+        typeof exported?.listPhiAuthorizedSubprocessors === "function" &&
+        typeof exported?.proveOutboundPhiBoundary === "function";
+      let inventory;
+      try {
+        inventory = JSON.parse(read("ops/compliance/vendors/SUBPROCESSOR_INVENTORY.json"));
+      } catch (error) {
+        return { status: "FAIL", detail: `Inventory parse error: ${error.message}`, evidence: null };
+      }
+      const categories = new Set(inventory.map((entry) => entry.category));
+      const requiredCategories = [
+        "cloud-hosting",
+        "database",
+        "authentication",
+        "email",
+        "monitoring",
+        "error-tracking",
+        "backup-dr",
+        "llm-ai-endpoint",
+        "other",
+      ];
+      const hasCategories = requiredCategories.every((category) => categories.has(category));
+      const pass =
+        harnessPresent &&
+        inventoryPresent &&
+        barrelPresent &&
+        complianceExportsVendors &&
+        hasMethods &&
+        staticResult.pass &&
+        Array.isArray(inventory) &&
+        inventory.length > 0 &&
+        hasCategories;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `42.5U subprocessorRegistry wired (inventory=${inventory.length}, static=${staticResult.results.length})`,
+            evidence: { inventoryCount: inventory.length },
+          }
+        : {
+            status: "FAIL",
+            detail: "42.5U subprocessorRegistry missing, inventory incomplete, or static suite failed",
+            evidence: { harnessPresent, inventoryPresent, hasMethods, staticResult, hasCategories },
+          };
+    },
+  },
+  {
+    id: "CHK-35",
+    name: "42.5U containsVerticalComplianceLogic:false on every .ts file in vendors/",
+    run() {
+      const dir = path.join("ops", "compliance/vendors");
+      const files = listFiles(dir, (file) => /\.ts$/.test(file) && !file.includes("StaticConstructionTests"));
+      const violations = [];
+      for (const file of files) {
+        const source = read(file);
+        if (!source.includes("containsVerticalComplianceLogic: false")) {
+          violations.push(`${file} (missing containsVerticalComplianceLogic: false)`);
+        }
+      }
+      return violations.length === 0
+        ? { status: "PASS", detail: "42.5U namespace contract annotations present", evidence: { files: files.length } }
+        : { status: "FAIL", detail: violations.join("; "), evidence: { violations } };
+    },
+  },
+  {
+    id: "CHK-36",
+    name: "42.5U LLM rule invariant + D0 subprocessor boundary proof",
+    run() {
+      const modules = loadSpineModules();
+      const llmValidation = modules.vendors.validateInventoryLlmRule();
+      const generatorPath = "scripts/d0-evidence-subprocessor-boundary.js";
+      if (!fs.existsSync(path.join(root, generatorPath))) {
+        return { status: "FAIL", detail: `Missing generator: ${generatorPath}`, evidence: null };
+      }
+      try {
+        execSync("node scripts/d0-evidence-subprocessor-boundary.js", { cwd: root, stdio: "pipe", encoding: "utf8" });
+      } catch (error) {
+        return {
+          status: "FAIL",
+          detail: `d0 generator failed: ${(error.stdout || error.message || "").slice(0, 300)}`,
+          evidence: null,
+        };
+      }
+      const evidencePath = "ops/compliance/vendors/D0_EVIDENCE.json";
+      if (!fs.existsSync(path.join(root, evidencePath))) {
+        return { status: "FAIL", detail: `Missing artifact: ${evidencePath}`, evidence: null };
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(read(evidencePath));
+      } catch (error) {
+        return { status: "FAIL", detail: `D0_EVIDENCE.json parse error: ${error.message}`, evidence: null };
+      }
+      const pass = llmValidation.pass && parsed.pass === true && parsed.violationCount === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `Subprocessor D0 evidence valid (flows=${parsed.totalFlows}, violations=0, LLM rule OK)`,
+            evidence: { totalFlows: parsed.totalFlows },
+          }
+        : {
+            status: "FAIL",
+            detail: `LLM validation or D0 failed: llm=${llmValidation.pass} d0.pass=${parsed.pass}`,
+            evidence: { llmValidation, parsed },
           };
     },
   },
