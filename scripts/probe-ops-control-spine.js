@@ -231,8 +231,23 @@ const poisonCaseRunners = {
     };
   },
   "PC-15"() {
-    const pc = mandatoryPoisonCases.find((p) => p.id === "PC-15");
-    return LOCK_MODE ? buildViolationFromSkip(pc, "awaiting 42.5Q") : buildSkippedResult(pc, "awaiting 42.5Q");
+    const result = socScopeBoundary.assertPhiFlagged({
+      diagramId: "diagram:probe-pc15-poison",
+      nodes: [
+        {
+          nodeId: "node:hipaa-unflagged-phi",
+          namespace: "ops/compliance/overlays/hipaa/integration",
+          dataTags: [{ taxonomy: "patient-identifier", phi: true, socScopeFlagged: false }],
+        },
+      ],
+    });
+    const actual = result.denied ? "DENY" : "ALLOW";
+    return {
+      actual,
+      status: actual === "DENY" ? "PASS" : "VIOLATION",
+      detail: result.reason ?? "PHI not flagged for SOC scope",
+      fixture: { diagramId: "diagram:probe-pc15-poison", unflagged: result.evidence?.unflaggedPhiNodes },
+    };
   },
   "PC-16"() {
     const result = isolationEvaluator.evaluate({

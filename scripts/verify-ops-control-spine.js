@@ -107,6 +107,7 @@ function loadSpineModules() {
     phiBoundary: loadOpsModule("control-spine/verification/phi-boundary/index.ts"),
     panelDataPaths: loadOpsModule("control-spine/verification/panel-data-paths/index.ts"),
     overlayAttachment: loadOpsModule("compliance/overlay-attachment/index.ts"),
+    socScopeBoundary: loadOpsModule("compliance/soc/soc1/index.ts"),
     overlayDiscipline: loadOpsModule("compliance/overlay-discipline/index.ts"),
     hipaaIntegration: loadOpsModule("compliance/overlays/hipaa/integration/index.ts"),
     hipaaSafeguards: loadOpsModule("compliance/overlays/hipaa/safeguards/index.ts"),
@@ -490,8 +491,26 @@ function createProbeHelpers() {
   };
 
   const socScopeBoundary = {
-    assertPhiFlagged() {
-      return { awaitingModule: "42.5Q" };
+    assertPhiFlagged(input) {
+      try {
+        const result = modules.socScopeBoundary.socScopeBoundary.assertPhiFlagged(input);
+        return {
+          decision: result.decision,
+          denied: result.decision === "DENY",
+          reason: result.reason,
+          evidence: result.evidence,
+        };
+      } catch {
+        return {
+          decision: "DENY",
+          denied: true,
+          reason: "harness_error_fail_closed",
+          evidence: { diagramId: input?.diagramId ?? "unknown", unflaggedPhiNodes: [] },
+        };
+      }
+    },
+    getDeclaredBoundary() {
+      return modules.socScopeBoundary.socScopeBoundary.getDeclaredBoundary();
     },
   };
 
@@ -1071,6 +1090,109 @@ const checks = [
         : {
             status: "FAIL",
             detail: `D0_EVIDENCE.json totalViolations=${parsed.totalViolations}`,
+            evidence: { parsed },
+          };
+    },
+  },
+  {
+    id: "CHK-25",
+    name: "42.5Q socScopeBoundary exported via compliance barrel and 42.5O re-export",
+    run() {
+      const moduleDir = path.join(opsRoot, "compliance/soc/soc1");
+      const complianceBarrel = path.join(opsRoot, "compliance/index.ts");
+      const harnessPresent = fs.existsSync(path.join(moduleDir, "socScopeBoundary.ts"));
+      const barrelPresent = fs.existsSync(path.join(moduleDir, "index.ts"));
+      const complianceExportsSoc =
+        fs.existsSync(complianceBarrel) && read("ops/compliance/index.ts").includes("soc/soc1");
+      const modules = loadSpineModules();
+      const staticResult = modules.socScopeBoundary.executeSocScopeBoundaryStaticConstructionTests();
+      const exported = probeHelpers.socScopeBoundary;
+      const hasMethods =
+        typeof exported?.assertPhiFlagged === "function" &&
+        typeof exported?.getDeclaredBoundary === "function";
+      const pass =
+        harnessPresent && barrelPresent && complianceExportsSoc && hasMethods && staticResult.pass;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "42.5Q socScopeBoundary wired through compliance barrel and 42.5O re-export",
+            evidence: { staticCases: staticResult.results.length },
+          }
+        : {
+            status: "FAIL",
+            detail: "42.5Q socScopeBoundary missing or static suite failed",
+            evidence: { harnessPresent, barrelPresent, complianceExportsSoc, hasMethods, staticResult },
+          };
+    },
+  },
+  {
+    id: "CHK-26",
+    name: "42.5Q containsVerticalComplianceLogic:false on every .ts file in soc/soc1/",
+    run() {
+      const dir = path.join("ops", "compliance/soc/soc1");
+      const files = listFiles(dir, (file) => /\.ts$/.test(file) && !file.includes("StaticConstructionTests"));
+      const violations = [];
+      for (const file of files) {
+        const source = read(file);
+        if (!source.includes("containsVerticalComplianceLogic: false")) {
+          violations.push(`${file} (missing containsVerticalComplianceLogic: false)`);
+        }
+      }
+      return violations.length === 0
+        ? { status: "PASS", detail: "42.5Q namespace contract annotations present", evidence: { files: files.length } }
+        : { status: "FAIL", detail: violations.join("; "), evidence: { violations } };
+    },
+  },
+  {
+    id: "CHK-27",
+    name: "42.5Q D0_EVIDENCE.json present; boundary diagram parses; d0 generator exits 0",
+    run() {
+      const evidencePath = "ops/compliance/soc/soc1/D0_EVIDENCE.json";
+      const diagramPath = "docs/trust/soc1/BOUNDARY_DIAGRAM_INPUT.json";
+      const generatorPath = "scripts/d0-evidence-soc-scope-boundary.js";
+      if (!fs.existsSync(path.join(root, generatorPath))) {
+        return { status: "FAIL", detail: `Missing generator: ${generatorPath}`, evidence: null };
+      }
+      if (!fs.existsSync(path.join(root, diagramPath))) {
+        return { status: "FAIL", detail: `Missing boundary diagram: ${diagramPath}`, evidence: null };
+      }
+      let diagramInput;
+      try {
+        diagramInput = JSON.parse(read(diagramPath));
+      } catch (error) {
+        return { status: "FAIL", detail: `BOUNDARY_DIAGRAM_INPUT.json parse error: ${error.message}`, evidence: null };
+      }
+      if (!diagramInput.diagramId || !Array.isArray(diagramInput.nodes)) {
+        return { status: "FAIL", detail: "BOUNDARY_DIAGRAM_INPUT.json missing diagramId or nodes", evidence: null };
+      }
+      try {
+        execSync("node scripts/d0-evidence-soc-scope-boundary.js", { cwd: root, stdio: "pipe", encoding: "utf8" });
+      } catch (error) {
+        return {
+          status: "FAIL",
+          detail: `d0 generator failed: ${(error.stdout || error.message || "").slice(0, 300)}`,
+          evidence: null,
+        };
+      }
+      if (!fs.existsSync(path.join(root, evidencePath))) {
+        return { status: "FAIL", detail: `Missing artifact: ${evidencePath}`, evidence: null };
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(read(evidencePath));
+      } catch (error) {
+        return { status: "FAIL", detail: `D0_EVIDENCE.json parse error: ${error.message}`, evidence: null };
+      }
+      const pass = parsed.decision === "ALLOW" && parsed.unflaggedCount === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `SOC scope D0 evidence valid (nodes=${parsed.totalNodes}, unflagged=0)`,
+            evidence: { totalNodes: parsed.totalNodes },
+          }
+        : {
+            status: "FAIL",
+            detail: `D0_EVIDENCE.json decision=${parsed.decision} unflagged=${parsed.unflaggedCount}`,
             evidence: { parsed },
           };
     },

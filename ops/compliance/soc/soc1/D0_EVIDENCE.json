@@ -1,0 +1,11 @@
+{
+  "generatedAtIso": "2026-06-20T14:00:00.000Z",
+  "module": "42.5Q",
+  "diagramId": "diagram:soc1-system-boundary-v1",
+  "decision": "ALLOW",
+  "reason": "all_phi_nodes_soc_scope_flagged",
+  "totalNodes": 17,
+  "unflaggedCount": 0,
+  "unflaggedPhiNodes": [],
+  "pass": true
+}

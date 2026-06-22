@@ -1,0 +1,90 @@
+{
+  "diagramId": "diagram:soc1-system-boundary-v1",
+  "nodes": [
+    {
+      "nodeId": "node:42-5a-contracts",
+      "namespace": "ops/control-spine/contracts",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5b-isolation",
+      "namespace": "ops/control-spine/isolation",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5c-rbac",
+      "namespace": "ops/control-spine/rbac",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5d-audit",
+      "namespace": "ops/control-spine/audit",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5e-encryption",
+      "namespace": "ops/control-spine/encryption",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5f-auth",
+      "namespace": "ops/control-spine/auth",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5g-tenant-attributes",
+      "namespace": "ops/control-spine/tenant-attributes",
+      "dataTags": [{ "taxonomy": "firm-internal-note", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5j-hipaa-contracts",
+      "namespace": "ops/compliance/overlays/hipaa/contracts",
+      "dataTags": [{ "taxonomy": "electronic-phi-marker", "phi": true, "socScopeFlagged": true }]
+    },
+    {
+      "nodeId": "node:42-5k-hipaa-safeguards",
+      "namespace": "ops/compliance/overlays/hipaa/safeguards",
+      "dataTags": [{ "taxonomy": "patient-identifier", "phi": true, "socScopeFlagged": true }]
+    },
+    {
+      "nodeId": "node:42-5l-hipaa-integration",
+      "namespace": "ops/compliance/overlays/hipaa/integration",
+      "dataTags": [{ "taxonomy": "patient-identifier", "phi": true, "socScopeFlagged": true }]
+    },
+    {
+      "nodeId": "node:42n1-healthcare-kpis",
+      "namespace": "lib/intelligence/synthetic/industry/healthcare-kpis",
+      "dataTags": [{ "taxonomy": "patient-identifier", "phi": true, "socScopeFlagged": true }]
+    },
+    {
+      "nodeId": "node:42-5q-soc1",
+      "namespace": "ops/compliance/soc/soc1",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5r-soc2",
+      "namespace": "ops/compliance/soc/soc2",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5s-operational",
+      "namespace": "ops/compliance/operational",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5t-retention",
+      "namespace": "ops/compliance/retention",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5u-vendors",
+      "namespace": "ops/compliance/vendors",
+      "dataTags": [{ "taxonomy": "financial-summary", "phi": false, "socScopeFlagged": false }]
+    },
+    {
+      "nodeId": "node:42-5v-hipaa-pack",
+      "namespace": "ops/compliance/overlays/hipaa/pack",
+      "dataTags": [{ "taxonomy": "electronic-phi-marker", "phi": true, "socScopeFlagged": true }]
+    }
+  ]
+}
