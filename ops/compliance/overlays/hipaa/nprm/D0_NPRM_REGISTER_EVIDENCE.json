@@ -1,0 +1,117 @@
+{
+  "evidenceVersion": "42.5W-1",
+  "generatedAt": "2026-06-22T23:31:08.239Z",
+  "totalCases": 9,
+  "passCount": 9,
+  "failCount": 0,
+  "staticTestsPass": true,
+  "cases": [
+    {
+      "id": "NGRE-01",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "register_schema_valid_all_rows_owned_primary_sourced",
+      "violations": []
+    },
+    {
+      "id": "NGRE-02",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "register_schema_violations",
+      "violations": [
+        {
+          "rowId": "NGR-D0-01",
+          "violation": "unowned-gap-row"
+        }
+      ]
+    },
+    {
+      "id": "NGRE-03",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "register_schema_violations",
+      "violations": [
+        {
+          "rowId": "NGR-D0-01",
+          "violation": "unowned-gap-row"
+        }
+      ]
+    },
+    {
+      "id": "NGRE-04",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "register_schema_violations",
+      "violations": [
+        {
+          "rowId": "NGR-D0-01",
+          "violation": "non-primary-source"
+        }
+      ]
+    },
+    {
+      "id": "NGRE-05",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "register_schema_valid_all_rows_owned_primary_sourced",
+      "violations": []
+    },
+    {
+      "id": "NGRE-06",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "register_schema_violations",
+      "violations": [
+        {
+          "rowId": "NGR-D0-01",
+          "violation": "invalid-gap-size"
+        }
+      ]
+    },
+    {
+      "id": "NGRE-07",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "register_schema_violations",
+      "violations": [
+        {
+          "rowId": "NGR-D0-01",
+          "violation": "mitigation-claim-against-missing-control"
+        }
+      ]
+    },
+    {
+      "id": "NGRE-08",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "register_schema_violations",
+      "violations": [
+        {
+          "rowId": "NGR-D0-01",
+          "violation": "duplicate-row-id"
+        }
+      ]
+    },
+    {
+      "id": "NGRE-09",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "lock_time_status_is_final",
+      "violations": [
+        {
+          "rowId": "lock-time-status",
+          "violation": "nprm-final-obsolescence-guard"
+        }
+      ]
+    }
+  ]
+}

@@ -113,6 +113,8 @@ function loadSpineModules() {
     vendors: loadOpsModule("compliance/vendors/index.ts"),
     hipaaPack: loadOpsModule("compliance/overlays/hipaa/pack/index.ts"),
     hipaaPackStaticTests: loadOpsModule("compliance/overlays/hipaa/pack/hipaaPackScopeBoundary.staticTests.ts"),
+    nprmRegister: loadOpsModule("compliance/overlays/hipaa/nprm/index.ts"),
+    nprmRegisterStaticTests: loadOpsModule("compliance/overlays/hipaa/nprm/nprmGapRegister.staticTests.ts"),
     overlayDiscipline: loadOpsModule("compliance/overlay-discipline/index.ts"),
     hipaaIntegration: loadOpsModule("compliance/overlays/hipaa/integration/index.ts"),
     hipaaSafeguards: loadOpsModule("compliance/overlays/hipaa/safeguards/index.ts"),
@@ -619,6 +621,30 @@ function createProbeHelpers() {
     },
   };
 
+  const nprmGapRegister = {
+    assertRegisterSchemaValid(rows) {
+      try {
+        const result = modules.nprmRegister.nprmGapRegister.assertRegisterSchemaValid(rows);
+        return {
+          decision: result.decision,
+          denied: result.decision === "DENY",
+          reason: result.reason,
+          violations: result.violations,
+        };
+      } catch {
+        return {
+          decision: "DENY",
+          denied: true,
+          reason: "harness_error_fail_closed",
+          violations: [{ rowId: "unknown", violation: "harness_error" }],
+        };
+      }
+    },
+    getLockTimeStatus() {
+      return modules.nprmRegister.nprmGapRegister.getLockTimeStatus();
+    },
+  };
+
   return {
     isolationEvaluator,
     rbacEvaluator,
@@ -634,6 +660,7 @@ function createProbeHelpers() {
     tscScopeBoundary,
     retentionBaseline,
     hipaaPackScopeBoundary,
+    nprmGapRegister,
     modules,
     integrationBinding,
     emptyRegistry,
@@ -1766,6 +1793,160 @@ const checks = [
           };
     },
   },
+  {
+    id: "CHK-40",
+    name: "42.5W NPRM register present; docs with DRAFT + NPRM STATUS banners; NGR-01..08",
+    run() {
+      const nprmDir = path.join(opsRoot, "compliance/overlays/hipaa/nprm");
+      const docsDir = path.join(root, "docs/trust/hipaa/nprm");
+      const requiredNprmFiles = [
+        "nprmGapRegister.ts",
+        "nprmGapRegister.staticTests.ts",
+        "index.ts",
+        "NPRM_LOCK_TIME_STATUS.json",
+        "D0_NPRM_REGISTER_EVIDENCE.json",
+      ];
+      const requiredDocs = [
+        "NPRM_GAP_REGISTER_README.md",
+        "NPRM_GAP_REGISTER.md",
+        "CONTINGENCY_TRIGGER_RUNBOOK.md",
+        "SECONDARY_SOURCE_DISCARD_LOG.md",
+      ];
+      const draftHeader =
+        "> **DRAFT — FOUNDER-AUTHORED. NOT COUNSEL-REVIEWED. NOT A CERTIFICATION.**";
+      const draftFooter =
+        "> **END DRAFT.** Counsel review and HIPAA legal sign-off required before this gap register may inform any external positioning, customer commitment, or compliance representation.";
+      const nprmStatusBanner =
+        "> **NPRM STATUS — NOT FINAL.** The HIPAA Security Rule Notice of Proposed Rulemaking (RIN 0945-AA22, 90 FR 800, published Jan 6 2025) is a PROPOSED rule.";
+      const nprmMissing = requiredNprmFiles.filter((file) => !fs.existsSync(path.join(nprmDir, file)));
+      const docsMissing = requiredDocs.filter((file) => !fs.existsSync(path.join(docsDir, file)));
+      const bannerViolations = [];
+      for (const doc of requiredDocs) {
+        const content = read(`docs/trust/hipaa/nprm/${doc}`);
+        if (!content.includes(draftHeader) || !content.includes(draftFooter) || !content.includes(nprmStatusBanner)) {
+          bannerViolations.push(`${doc} missing DRAFT or NPRM STATUS banner`);
+        }
+      }
+      const registerMd = read("docs/trust/hipaa/nprm/NPRM_GAP_REGISTER.md");
+      const mandatoryRows = ["NGR-01", "NGR-02", "NGR-03", "NGR-04", "NGR-05", "NGR-06", "NGR-07", "NGR-08"];
+      const missingRows = mandatoryRows.filter((rowId) => !registerMd.includes(rowId));
+      const pass =
+        nprmMissing.length === 0 && docsMissing.length === 0 && bannerViolations.length === 0 && missingRows.length === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "42.5W NPRM register and documentation present with banners and mandatory rows",
+            evidence: { docCount: requiredDocs.length },
+          }
+        : {
+            status: "FAIL",
+            detail: `42.5W incomplete: nprm=${nprmMissing.join(",")} docs=${docsMissing.join(",")} banners=${bannerViolations.join("; ")} rows=${missingRows.join(",")}`,
+            evidence: { nprmMissing, docsMissing, bannerViolations, missingRows },
+          };
+    },
+  },
+  {
+    id: "CHK-41",
+    name: "42.5W nprmGapRegister static tests + D0 evidence + annotations",
+    run() {
+      const modules = loadSpineModules();
+      const staticResult = modules.nprmRegisterStaticTests.executeNprmGapRegisterStaticConstructionTests();
+      const helperSource = read("ops/compliance/overlays/hipaa/nprm/nprmGapRegister.ts");
+      const hasAnnotations =
+        helperSource.includes("executable: false") &&
+        helperSource.includes("containsVerticalComplianceLogic: false");
+      const generatorPath = "scripts/d0-evidence-nprm-register.js";
+      if (!fs.existsSync(path.join(root, generatorPath))) {
+        return { status: "FAIL", detail: `Missing generator: ${generatorPath}`, evidence: null };
+      }
+      try {
+        execSync("node scripts/d0-evidence-nprm-register.js", { cwd: root, stdio: "pipe", encoding: "utf8" });
+      } catch (error) {
+        return {
+          status: "FAIL",
+          detail: `d0 generator failed: ${(error.stdout || error.message || "").slice(0, 300)}`,
+          evidence: null,
+        };
+      }
+      const evidencePath = "ops/compliance/overlays/hipaa/nprm/D0_NPRM_REGISTER_EVIDENCE.json";
+      if (!fs.existsSync(path.join(root, evidencePath))) {
+        return { status: "FAIL", detail: `Missing artifact: ${evidencePath}`, evidence: null };
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(read(evidencePath));
+      } catch (error) {
+        return { status: "FAIL", detail: `D0 evidence parse error: ${error.message}`, evidence: null };
+      }
+      const pass =
+        staticResult.pass &&
+        hasAnnotations &&
+        parsed.totalCases === 9 &&
+        parsed.passCount === 9 &&
+        parsed.failCount === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `NPRM register D0 evidence valid (cases=9, static=${staticResult.results.length})`,
+            evidence: { passCount: parsed.passCount },
+          }
+        : {
+            status: "FAIL",
+            detail: `Static or D0 failed: static=${staticResult.pass} d0=${parsed.passCount}/${parsed.totalCases}`,
+            evidence: { staticResult, parsed, hasAnnotations },
+          };
+    },
+  },
+  {
+    id: "CHK-42",
+    name: "42.5W NPRM not-final invariant + EXIT-54.5 ownership invariant",
+    run() {
+      const modules = loadSpineModules();
+      const lockStatus = modules.nprmRegister.nprmGapRegister.getLockTimeStatus();
+      const lockJson = JSON.parse(read("ops/compliance/overlays/hipaa/nprm/NPRM_LOCK_TIME_STATUS.json"));
+      const expectedFrUrl =
+        "https://www.federalregister.gov/documents/2025/01/06/2024-30983/hipaa-security-rule-to-strengthen-the-cybersecurity-of-electronic-protected-health-information";
+      const isFinalOk = lockStatus.isFinal === false && lockJson.isFinal === false;
+      const frUrlOk = lockJson.federalRegisterUrl === expectedFrUrl;
+      const registerMd = read("docs/trust/hipaa/nprm/NPRM_GAP_REGISTER.md");
+      const rowLines = registerMd.split("\n").filter((line) => /^\| NGR-\d{2} \|/.test(line.trim()));
+      const ownershipViolations = [];
+      const urlViolations = [];
+      for (const line of rowLines) {
+        const cells = line.split("|").map((cell) => cell.trim());
+        const rowId = cells[1];
+        const owner = cells[8] ?? "";
+        const primarySourceUrl = cells[5] ?? "";
+        if (!owner || owner.length === 0) {
+          ownershipViolations.push(rowId);
+        }
+        const urlOk =
+          primarySourceUrl.includes("federalregister.gov") ||
+          primarySourceUrl.includes("reginfo.gov") ||
+          /hhs\.gov\/hipaa/i.test(primarySourceUrl);
+        if (!urlOk) {
+          urlViolations.push(rowId);
+        }
+      }
+      const pass =
+        isFinalOk &&
+        frUrlOk &&
+        rowLines.length >= 8 &&
+        ownershipViolations.length === 0 &&
+        urlViolations.length === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `NPRM not-final invariant OK; ${rowLines.length} register rows all owned with primary URLs`,
+            evidence: { rowCount: rowLines.length, verifiedAtBuildTime: lockJson.verifiedAtBuildTime },
+          }
+        : {
+            status: "FAIL",
+            detail: `NPRM invariant broken: isFinal=${isFinalOk} frUrl=${frUrlOk} rows=${rowLines.length} unowned=${ownershipViolations.join(",")} badUrl=${urlViolations.join(",")}`,
+            evidence: { lockStatus, lockJson, ownershipViolations, urlViolations },
+          };
+    },
+  },
 ];
 
 function runAllChecks() {
@@ -1808,6 +1989,7 @@ module.exports = {
   tscScopeBoundary: probeHelpers.tscScopeBoundary,
   retentionBaseline: probeHelpers.retentionBaseline,
   hipaaPackScopeBoundary: probeHelpers.hipaaPackScopeBoundary,
+  nprmGapRegister: probeHelpers.nprmGapRegister,
 };
 
 if (require.main === module) {

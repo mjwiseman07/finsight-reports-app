@@ -1,0 +1,14 @@
+{
+  "capturedAt": "2026-06-22T23:28:57.102Z",
+  "federalRegisterUrl": "https://www.federalregister.gov/documents/2025/01/06/2024-30983/hipaa-security-rule-to-strengthen-the-cybersecurity-of-electronic-protected-health-information",
+  "reginfoRinUrl": "https://www.reginfo.gov/public/do/eAgendaViewRule?pubId=&RIN=0945-AA22",
+  "isFinal": false,
+  "finalizationTargetMissed": true,
+  "finalizationTargetOriginal": "May 2026",
+  "publicCommentsCount": 4700,
+  "withdrawalRequestsCount": 100,
+  "verifiedAtBuildTime": true,
+  "frApiType": "Proposed Rule",
+  "frPublicationDate": "2025-01-06",
+  "notes": "Federal Register API reachable (type=Proposed Rule, publication_date=2025-01-06). API document type indicates proposed rule publication; no final-rule signal observed in API payload. reginfo.gov RIN 0945-AA22 page reachable at build time. Build-time live check completed: NPRM remains proposed; current Security Rule (42.5V scope) in effect."
+}
