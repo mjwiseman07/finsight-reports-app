@@ -108,6 +108,7 @@ function loadSpineModules() {
     panelDataPaths: loadOpsModule("control-spine/verification/panel-data-paths/index.ts"),
     overlayAttachment: loadOpsModule("compliance/overlay-attachment/index.ts"),
     socScopeBoundary: loadOpsModule("compliance/soc/soc1/index.ts"),
+    tscScopeBoundary: loadOpsModule("compliance/soc/soc2/index.ts"),
     overlayDiscipline: loadOpsModule("compliance/overlay-discipline/index.ts"),
     hipaaIntegration: loadOpsModule("compliance/overlays/hipaa/integration/index.ts"),
     hipaaSafeguards: loadOpsModule("compliance/overlays/hipaa/safeguards/index.ts"),
@@ -514,6 +515,34 @@ function createProbeHelpers() {
     },
   };
 
+  const tscScopeBoundary = {
+    assertTscBoundaryAligned(input) {
+      try {
+        const result = modules.tscScopeBoundary.tscScopeBoundary.assertTscBoundaryAligned(input);
+        return {
+          decision: result.decision,
+          denied: result.decision === "DENY",
+          reason: result.reason,
+          evidence: result.evidence,
+        };
+      } catch {
+        return {
+          decision: "DENY",
+          denied: true,
+          reason: "harness_error_fail_closed",
+          evidence: {
+            scopeId: input?.scopeId ?? "unknown",
+            soc1DeclaredBoundary: modules.socScopeBoundary.socScopeBoundary.getDeclaredBoundary(),
+            namespacesOutsideSoc1: [],
+          },
+        };
+      }
+    },
+    getDeclaredTscScope() {
+      return modules.tscScopeBoundary.tscScopeBoundary.getDeclaredTscScope();
+    },
+  };
+
   return {
     isolationEvaluator,
     rbacEvaluator,
@@ -526,6 +555,7 @@ function createProbeHelpers() {
     encryption,
     subprocessorRegistry,
     socScopeBoundary,
+    tscScopeBoundary,
     modules,
     integrationBinding,
     emptyRegistry,
@@ -1197,6 +1227,124 @@ const checks = [
           };
     },
   },
+  {
+    id: "CHK-28",
+    name: "42.5R tscScopeBoundary exported via compliance barrel and 42.5O re-export",
+    run() {
+      const moduleDir = path.join(opsRoot, "compliance/soc/soc2");
+      const complianceBarrel = path.join(opsRoot, "compliance/index.ts");
+      const harnessPresent = fs.existsSync(path.join(moduleDir, "tscScopeBoundary.ts"));
+      const barrelPresent = fs.existsSync(path.join(moduleDir, "index.ts"));
+      const complianceExportsSoc2 =
+        fs.existsSync(complianceBarrel) && read("ops/compliance/index.ts").includes("soc/soc2");
+      const modules = loadSpineModules();
+      const staticResult = modules.tscScopeBoundary.executeTscScopeBoundaryStaticConstructionTests();
+      const exported = probeHelpers.tscScopeBoundary;
+      const hasMethods =
+        typeof exported?.assertTscBoundaryAligned === "function" &&
+        typeof exported?.getDeclaredTscScope === "function";
+      const pass =
+        harnessPresent && barrelPresent && complianceExportsSoc2 && hasMethods && staticResult.pass;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "42.5R tscScopeBoundary wired through compliance barrel and 42.5O re-export",
+            evidence: { staticCases: staticResult.results.length },
+          }
+        : {
+            status: "FAIL",
+            detail: "42.5R tscScopeBoundary missing or static suite failed",
+            evidence: { harnessPresent, barrelPresent, complianceExportsSoc2, hasMethods, staticResult },
+          };
+    },
+  },
+  {
+    id: "CHK-29",
+    name: "42.5R containsVerticalComplianceLogic:false on every .ts file in soc/soc2/",
+    run() {
+      const dir = path.join("ops", "compliance/soc/soc2");
+      const files = listFiles(dir, (file) => /\.ts$/.test(file) && !file.includes("StaticConstructionTests"));
+      const violations = [];
+      for (const file of files) {
+        const source = read(file);
+        if (!source.includes("containsVerticalComplianceLogic: false")) {
+          violations.push(`${file} (missing containsVerticalComplianceLogic: false)`);
+        }
+      }
+      return violations.length === 0
+        ? { status: "PASS", detail: "42.5R namespace contract annotations present", evidence: { files: files.length } }
+        : { status: "FAIL", detail: violations.join("; "), evidence: { violations } };
+    },
+  },
+  {
+    id: "CHK-30",
+    name: "42.5R D0_EVIDENCE.json present; TSC scope declaration parses; d0 generator exits 0; aligned with SOC 1 boundary",
+    run() {
+      const evidencePath = "ops/compliance/soc/soc2/D0_EVIDENCE.json";
+      const declarationPath = "docs/trust/soc2/TSC_SCOPE_DECLARATION.json";
+      const generatorPath = "scripts/d0-evidence-tsc-scope-boundary.js";
+      if (!fs.existsSync(path.join(root, generatorPath))) {
+        return { status: "FAIL", detail: `Missing generator: ${generatorPath}`, evidence: null };
+      }
+      if (!fs.existsSync(path.join(root, declarationPath))) {
+        return { status: "FAIL", detail: `Missing TSC scope declaration: ${declarationPath}`, evidence: null };
+      }
+      let declarationInput;
+      try {
+        declarationInput = JSON.parse(read(declarationPath));
+      } catch (error) {
+        return { status: "FAIL", detail: `TSC_SCOPE_DECLARATION.json parse error: ${error.message}`, evidence: null };
+      }
+      if (
+        !declarationInput.scopeId ||
+        !Array.isArray(declarationInput.criteriaInScope) ||
+        !Array.isArray(declarationInput.namespacesInScope)
+      ) {
+        return {
+          status: "FAIL",
+          detail: "TSC_SCOPE_DECLARATION.json missing scopeId, criteriaInScope, or namespacesInScope",
+          evidence: null,
+        };
+      }
+      try {
+        execSync("node scripts/d0-evidence-tsc-scope-boundary.js", { cwd: root, stdio: "pipe", encoding: "utf8" });
+      } catch (error) {
+        return {
+          status: "FAIL",
+          detail: `d0 generator failed: ${(error.stdout || error.message || "").slice(0, 300)}`,
+          evidence: null,
+        };
+      }
+      if (!fs.existsSync(path.join(root, evidencePath))) {
+        return { status: "FAIL", detail: `Missing artifact: ${evidencePath}`, evidence: null };
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(read(evidencePath));
+      } catch (error) {
+        return { status: "FAIL", detail: `D0_EVIDENCE.json parse error: ${error.message}`, evidence: null };
+      }
+      const liveAssertion = probeHelpers.tscScopeBoundary.assertTscBoundaryAligned(declarationInput);
+      const aligned =
+        parsed.decision === "ALLOW" &&
+        parsed.namespacesOutsideCount === 0 &&
+        liveAssertion.decision === "ALLOW" &&
+        declarationInput.criteriaInScope.includes("security") &&
+        !declarationInput.criteriaInScope.includes("processing-integrity") &&
+        !declarationInput.criteriaInScope.includes("privacy");
+      return aligned
+        ? {
+            status: "PASS",
+            detail: `TSC scope D0 evidence valid (criteria=${parsed.criteriaCount}, outside=0, SOC1-aligned)`,
+            evidence: { criteriaCount: parsed.criteriaCount },
+          }
+        : {
+            status: "FAIL",
+            detail: `D0_EVIDENCE.json decision=${parsed.decision} outside=${parsed.namespacesOutsideCount} live=${liveAssertion.decision}`,
+            evidence: { parsed, liveAssertion },
+          };
+    },
+  },
 ];
 
 function runAllChecks() {
@@ -1236,6 +1384,7 @@ module.exports = {
   encryption: probeHelpers.encryption,
   subprocessorRegistry: probeHelpers.subprocessorRegistry,
   socScopeBoundary: probeHelpers.socScopeBoundary,
+  tscScopeBoundary: probeHelpers.tscScopeBoundary,
 };
 
 if (require.main === module) {

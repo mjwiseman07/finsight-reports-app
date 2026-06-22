@@ -1,0 +1,13 @@
+{
+  "scopeId": "soc2-tsc-scope-v1-draft",
+  "criteriaInScope": ["security", "availability", "confidentiality"],
+  "namespacesInScope": [
+    "ops/control-spine/",
+    "ops/compliance/overlays/hipaa/",
+    "ops/compliance/soc/",
+    "ops/compliance/operational/"
+  ],
+  "namespacesOutOfScope": [
+    "lib/intelligence/synthetic/industry/"
+  ]
+}
