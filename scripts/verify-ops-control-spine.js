@@ -115,6 +115,8 @@ function loadSpineModules() {
     hipaaPackStaticTests: loadOpsModule("compliance/overlays/hipaa/pack/hipaaPackScopeBoundary.staticTests.ts"),
     nprmRegister: loadOpsModule("compliance/overlays/hipaa/nprm/index.ts"),
     nprmRegisterStaticTests: loadOpsModule("compliance/overlays/hipaa/nprm/nprmGapRegister.staticTests.ts"),
+    trustPackage: loadOpsModule("compliance/trust-package/index.ts"),
+    trustPackageStaticTests: loadOpsModule("compliance/trust-package/trustPackagePublishGate.staticTests.ts"),
     overlayDiscipline: loadOpsModule("compliance/overlay-discipline/index.ts"),
     hipaaIntegration: loadOpsModule("compliance/overlays/hipaa/integration/index.ts"),
     hipaaSafeguards: loadOpsModule("compliance/overlays/hipaa/safeguards/index.ts"),
@@ -645,6 +647,36 @@ function createProbeHelpers() {
     },
   };
 
+  const trustPackagePublishGate = {
+    assertDraftIntegrity(input) {
+      try {
+        const result = modules.trustPackage.trustPackagePublishGate.assertDraftIntegrity(input);
+        return {
+          decision: result.decision,
+          denied: result.decision === "DENY",
+          reason: result.reason,
+          evidence: result.evidence,
+        };
+      } catch {
+        return {
+          decision: "DENY",
+          denied: true,
+          reason: "harness_error_fail_closed",
+          evidence: {
+            artifactId: input?.artifactId ?? "unknown",
+            pathNamespaceValid: false,
+            d0PathsResolvedCount: 0,
+            d0PathsUnresolved: [],
+            publishReadyFlagDetected: false,
+          },
+        };
+      }
+    },
+    getDeclaredArtifacts() {
+      return modules.trustPackage.trustPackagePublishGate.getDeclaredArtifacts();
+    },
+  };
+
   return {
     isolationEvaluator,
     rbacEvaluator,
@@ -661,6 +693,7 @@ function createProbeHelpers() {
     retentionBaseline,
     hipaaPackScopeBoundary,
     nprmGapRegister,
+    trustPackagePublishGate,
     modules,
     integrationBinding,
     emptyRegistry,
@@ -1947,6 +1980,183 @@ const checks = [
           };
     },
   },
+  {
+    id: "CHK-43",
+    name: "42.5X trust-package present; public-drafts docs; no docs/trust/public/ content",
+    run() {
+      const packageDir = path.join(opsRoot, "compliance/trust-package");
+      const docsDir = path.join(root, "docs/trust/public-drafts");
+      const publicDir = path.join(root, "docs/trust/public");
+      const requiredPackageFiles = [
+        "trustPackagePublishGate.ts",
+        "trustPackagePublishGate.staticTests.ts",
+        "index.ts",
+        "D0_TRUST_PACKAGE_EVIDENCE.json",
+      ];
+      const requiredDocs = [
+        "README.md",
+        "TRUST_PAGE_DRAFT.md",
+        "SIG_LITE_ANSWERS_DRAFT.md",
+        "CAIQ_ANSWERS_DRAFT.md",
+        "DATA_RESIDENCY_STATEMENT_DRAFT.md",
+        "HIPAA_ATTESTATION_LETTER_DRAFT.md",
+      ];
+      const draftHeader = "> **DRAFT — NOT PUBLISHED. PUBLISH PROHIBITED UNTIL PHASE 42.6J (GL-5).**";
+      const draftFooter =
+        "> **END DRAFT.** Trust package publication occurs ONLY at Phase 42.6J after (a) SOC reports issued at 42.6C, (b) HIPAA counsel sign-off at 42.6E, and (c) GL-5 full-launch gate satisfied.";
+      const packageMissing = requiredPackageFiles.filter((file) => !fs.existsSync(path.join(packageDir, file)));
+      const docsMissing = requiredDocs.filter((file) => !fs.existsSync(path.join(docsDir, file)));
+      const bannerViolations = [];
+      for (const doc of requiredDocs) {
+        const content = read(`docs/trust/public-drafts/${doc}`);
+        if (!content.includes(draftHeader) || !content.includes(draftFooter)) {
+          bannerViolations.push(`${doc} missing DRAFT + PUBLISH-PROHIBITED banner`);
+        }
+      }
+      let publicDirViolation = false;
+      if (fs.existsSync(publicDir)) {
+        const publicEntries = fs.readdirSync(publicDir);
+        publicDirViolation = publicEntries.length > 0;
+      }
+      const pass =
+        packageMissing.length === 0 &&
+        docsMissing.length === 0 &&
+        bannerViolations.length === 0 &&
+        !publicDirViolation;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "42.5X trust package drafts present; docs/trust/public/ empty or absent",
+            evidence: { docCount: requiredDocs.length },
+          }
+        : {
+            status: "FAIL",
+            detail: `42.5X incomplete: pkg=${packageMissing.join(",")} docs=${docsMissing.join(",")} banners=${bannerViolations.join("; ")} public=${publicDirViolation}`,
+            evidence: { packageMissing, docsMissing, bannerViolations, publicDirViolation },
+          };
+    },
+  },
+  {
+    id: "CHK-44",
+    name: "42.5X trustPackagePublishGate static tests + D0 evidence + annotations",
+    run() {
+      const modules = loadSpineModules();
+      const staticResult = modules.trustPackageStaticTests.executeTrustPackagePublishGateStaticConstructionTests();
+      const helperSource = read("ops/compliance/trust-package/trustPackagePublishGate.ts");
+      const hasAnnotations =
+        helperSource.includes("executable: false") &&
+        helperSource.includes("containsVerticalComplianceLogic: false");
+      const generatorPath = "scripts/d0-evidence-trust-package.js";
+      if (!fs.existsSync(path.join(root, generatorPath))) {
+        return { status: "FAIL", detail: `Missing generator: ${generatorPath}`, evidence: null };
+      }
+      try {
+        execSync("node scripts/d0-evidence-trust-package.js", { cwd: root, stdio: "pipe", encoding: "utf8" });
+      } catch (error) {
+        return {
+          status: "FAIL",
+          detail: `d0 generator failed: ${(error.stdout || error.message || "").slice(0, 300)}`,
+          evidence: null,
+        };
+      }
+      const evidencePath = "ops/compliance/trust-package/D0_TRUST_PACKAGE_EVIDENCE.json";
+      if (!fs.existsSync(path.join(root, evidencePath))) {
+        return { status: "FAIL", detail: `Missing artifact: ${evidencePath}`, evidence: null };
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(read(evidencePath));
+      } catch (error) {
+        return { status: "FAIL", detail: `D0 evidence parse error: ${error.message}`, evidence: null };
+      }
+      const pass =
+        staticResult.pass &&
+        hasAnnotations &&
+        parsed.totalCases === 9 &&
+        parsed.passCount === 9 &&
+        parsed.failCount === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `Trust package D0 evidence valid (cases=9, static=${staticResult.results.length})`,
+            evidence: { passCount: parsed.passCount },
+          }
+        : {
+            status: "FAIL",
+            detail: `Static or D0 failed: static=${staticResult.pass} d0=${parsed.passCount}/${parsed.totalCases}`,
+            evidence: { staticResult, parsed, hasAnnotations },
+          };
+    },
+  },
+  {
+    id: "CHK-45",
+    name: "42.5X benchmark-not-target invariant + placeholder gate whitelist (LOCK-42.5.9)",
+    run() {
+      const requiredDocs = [
+        "README.md",
+        "TRUST_PAGE_DRAFT.md",
+        "SIG_LITE_ANSWERS_DRAFT.md",
+        "CAIQ_ANSWERS_DRAFT.md",
+        "DATA_RESIDENCY_STATEMENT_DRAFT.md",
+        "HIPAA_ATTESTATION_LETTER_DRAFT.md",
+      ];
+      const forbiddenBenchmarkPhrases = [
+        "target threshold",
+        "pass/fail threshold",
+        "compliance commitment",
+        "guaranteed SLA",
+        "we will achieve",
+        "certified to",
+      ];
+      const forbiddenNprmPhrases = ["PROPOSED", "would require", "if finalized"];
+      const allowedFillGates = new Set(["42.6C", "42.6E", "42.6J"]);
+      const violations = [];
+      for (const doc of requiredDocs) {
+        const content = read(`docs/trust/public-drafts/${doc}`);
+        for (const phrase of forbiddenBenchmarkPhrases) {
+          if (content.toLowerCase().includes(phrase.toLowerCase())) {
+            violations.push(`${doc}: forbidden phrase "${phrase}"`);
+          }
+        }
+        for (const phrase of forbiddenNprmPhrases) {
+          if (content.includes(phrase)) {
+            violations.push(`${doc}: nprm-domain phrase "${phrase}"`);
+          }
+        }
+        const placeholders = content.match(/\[([^\]]*FILL AT 42\.6[^\]]*)\]/g) ?? [];
+        for (const token of placeholders) {
+          const gateMatch = token.match(/FILL AT (42\.6[A-Z0-9]+)/);
+          if (!gateMatch || !allowedFillGates.has(gateMatch[1])) {
+            violations.push(`${doc}: invalid placeholder gate in ${token}`);
+          }
+        }
+      }
+      const trustPage = read("docs/trust/public-drafts/TRUST_PAGE_DRAFT.md");
+      const requiredPlaceholders = [
+        "[REPORT_ISSUANCE_DATE — FILL AT 42.6J]",
+        "[OBSERVATION_WINDOW_START_DATE — FILL AT 42.6J]",
+        "[OBSERVATION_WINDOW_END_DATE — FILL AT 42.6J]",
+        "[ATTESTATION_LETTER_DATE — FILL AT 42.6E]",
+        "[SECURITY_CONTACT — FILL AT 42.6J]",
+      ];
+      const missingPlaceholders = requiredPlaceholders.filter((token) => !trustPage.includes(token));
+      if (missingPlaceholders.length > 0) {
+        violations.push(`TRUST_PAGE missing placeholders: ${missingPlaceholders.join(", ")}`);
+      }
+      const pass = violations.length === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "Benchmark-not-target and placeholder invariants satisfied across public-drafts",
+            evidence: { docCount: requiredDocs.length },
+          }
+        : {
+            status: "FAIL",
+            detail: violations.join("; "),
+            evidence: { violations },
+          };
+    },
+  },
 ];
 
 function runAllChecks() {
@@ -1990,6 +2200,7 @@ module.exports = {
   retentionBaseline: probeHelpers.retentionBaseline,
   hipaaPackScopeBoundary: probeHelpers.hipaaPackScopeBoundary,
   nprmGapRegister: probeHelpers.nprmGapRegister,
+  trustPackagePublishGate: probeHelpers.trustPackagePublishGate,
 };
 
 if (require.main === module) {

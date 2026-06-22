@@ -1,0 +1,73 @@
+{
+  "evidenceVersion": "42.5X-1",
+  "generatedAt": "2026-06-22T23:54:10.851Z",
+  "totalCases": 9,
+  "passCount": 9,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "TPSE-01",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "trust_package_draft_integrity_valid"
+    },
+    {
+      "id": "TPSE-02",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "path-namespace-violation"
+    },
+    {
+      "id": "TPSE-03",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "path-namespace-violation"
+    },
+    {
+      "id": "TPSE-04",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "publish-ready-flag-detected"
+    },
+    {
+      "id": "TPSE-05",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "publish-ready-flag-detected"
+    },
+    {
+      "id": "TPSE-06",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "d0_evidence_path_unresolved"
+    },
+    {
+      "id": "TPSE-07",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "duplicate-artifact-id"
+    },
+    {
+      "id": "TPSE-08",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "trust_package_draft_integrity_valid"
+    },
+    {
+      "id": "TPSE-09",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "declared_artifacts_frozen",
+      "mutationRejected": true
+    }
+  ]
+}
