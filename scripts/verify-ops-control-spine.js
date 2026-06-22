@@ -117,6 +117,10 @@ function loadSpineModules() {
     nprmRegisterStaticTests: loadOpsModule("compliance/overlays/hipaa/nprm/nprmGapRegister.staticTests.ts"),
     trustPackage: loadOpsModule("compliance/trust-package/index.ts"),
     trustPackageStaticTests: loadOpsModule("compliance/trust-package/trustPackagePublishGate.staticTests.ts"),
+    overlayExtensibility: loadOpsModule("compliance/overlay-extensibility/index.ts"),
+    overlayExtensibilityStaticTests: loadOpsModule(
+      "compliance/overlay-extensibility/overlayExtensibilitySpecGate.staticTests.ts",
+    ),
     overlayDiscipline: loadOpsModule("compliance/overlay-discipline/index.ts"),
     hipaaIntegration: loadOpsModule("compliance/overlays/hipaa/integration/index.ts"),
     hipaaSafeguards: loadOpsModule("compliance/overlays/hipaa/safeguards/index.ts"),
@@ -2154,6 +2158,171 @@ const checks = [
             status: "FAIL",
             detail: violations.join("; "),
             evidence: { violations },
+          };
+    },
+  },
+  {
+    id: "CHK-46",
+    name: "42.5Y overlay-extensibility present; spec doc with LOCK-42.5.10 banner",
+    run() {
+      const packageDir = path.join(opsRoot, "compliance/overlay-extensibility");
+      const specDoc = path.join(root, "docs/trust/overlay-extensibility.md");
+      const requiredPackageFiles = [
+        "overlayExtensibilitySpecGate.ts",
+        "overlayExtensibilitySpecGate.staticTests.ts",
+        "index.ts",
+        "D0_OVERLAY_EXTENSIBILITY_EVIDENCE.json",
+      ];
+      const specHeader = "> **SPEC — NOT A BUILT OVERLAY. Spine modification forbidden for overlay attachment.**";
+      const specFooter =
+        "> **END SPEC.** Overlay extensibility is documented; PCI-DSS remains illustration-only until a future phase explicitly scopes implementation.";
+      const packageMissing = requiredPackageFiles.filter((file) => !fs.existsSync(path.join(packageDir, file)));
+      const docMissing = !fs.existsSync(specDoc);
+      let bannerViolation = false;
+      let requiredSectionsOk = false;
+      if (!docMissing) {
+        const content = read("docs/trust/overlay-extensibility.md");
+        bannerViolation = !content.includes(specHeader) || !content.includes(specFooter);
+        const requiredSections = [
+          "## Attachment interface (extends 42.5I)",
+          "## Per-tenant activation pattern",
+          "## Evidence pattern for new overlay audit",
+          "## FM-2 precedence gate (before second overlay ships)",
+          "## PCI-DSS overlay attachment outline (illustration only — NOT BUILT)",
+        ];
+        requiredSectionsOk = requiredSections.every((section) => content.includes(section));
+      }
+      const pass =
+        packageMissing.length === 0 && !docMissing && !bannerViolation && requiredSectionsOk;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "42.5Y overlay-extensibility package and spec doc present",
+            evidence: { packageFileCount: requiredPackageFiles.length },
+          }
+        : {
+            status: "FAIL",
+            detail: `42.5Y incomplete: pkg=${packageMissing.join(",")} doc=${docMissing} banner=${bannerViolation} sections=${requiredSectionsOk}`,
+            evidence: { packageMissing, docMissing, bannerViolation, requiredSectionsOk },
+          };
+    },
+  },
+  {
+    id: "CHK-47",
+    name: "42.5Y overlayExtensibilitySpecGate static tests + D0 evidence + annotations",
+    run() {
+      const modules = loadSpineModules();
+      const staticResult =
+        modules.overlayExtensibilityStaticTests.executeOverlayExtensibilitySpecGateStaticConstructionTests();
+      const helperSource = read("ops/compliance/overlay-extensibility/overlayExtensibilitySpecGate.ts");
+      const hasAnnotations =
+        helperSource.includes("executable: false") &&
+        helperSource.includes("containsVerticalComplianceLogic: false");
+      const generatorPath = "scripts/d0-evidence-overlay-extensibility.js";
+      if (!fs.existsSync(path.join(root, generatorPath))) {
+        return { status: "FAIL", detail: `Missing generator: ${generatorPath}`, evidence: null };
+      }
+      try {
+        execSync("node scripts/d0-evidence-overlay-extensibility.js", { cwd: root, stdio: "pipe", encoding: "utf8" });
+      } catch (error) {
+        return {
+          status: "FAIL",
+          detail: `d0 generator failed: ${(error.stdout || error.message || "").slice(0, 300)}`,
+          evidence: null,
+        };
+      }
+      const evidencePath = "ops/compliance/overlay-extensibility/D0_OVERLAY_EXTENSIBILITY_EVIDENCE.json";
+      if (!fs.existsSync(path.join(root, evidencePath))) {
+        return { status: "FAIL", detail: `Missing artifact: ${evidencePath}`, evidence: null };
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(read(evidencePath));
+      } catch (error) {
+        return { status: "FAIL", detail: `D0 evidence parse error: ${error.message}`, evidence: null };
+      }
+      const pass =
+        staticResult.pass &&
+        hasAnnotations &&
+        parsed.totalCases === 9 &&
+        parsed.passCount === 9 &&
+        parsed.failCount === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `Overlay extensibility D0 evidence valid (cases=9, static=${staticResult.results.length})`,
+            evidence: { passCount: parsed.passCount },
+          }
+        : {
+            status: "FAIL",
+            detail: `Static or D0 failed: static=${staticResult.pass} d0=${parsed.passCount}/${parsed.totalCases}`,
+            evidence: { staticResult, parsed, hasAnnotations },
+          };
+    },
+  },
+  {
+    id: "CHK-48",
+    name: "42.5Y FM-2 + spine-modification + PCI-not-built invariants (LOCK-42.5.10)",
+    run() {
+      const modules = loadSpineModules();
+      const catalog = modules.overlayExtensibility.overlayExtensibilitySpecGate.getDeclaredOverlayCatalog();
+      const hipaa = catalog.find((entry) => entry.overlayRegistryKey.includes("hipaa"));
+      const pci = catalog.find((entry) => entry.overlayRegistryKey.includes("pci-dss"));
+      const pciBuiltDir = path.join(opsRoot, "compliance/overlays/pci-dss");
+      const pciBuiltDirAbsent = !fs.existsSync(pciBuiltDir);
+      const catalogOk =
+        hipaa?.illustrationStatus === "built" &&
+        pci?.illustrationStatus === "spec_only" &&
+        hipaa?.spineModificationAttempted === false &&
+        pci?.spineModificationAttempted === false;
+      const fm2Deny = modules.overlayExtensibility.overlayExtensibilitySpecGate.assertSecondOverlayFm2Gate({
+        activeOverlayRegistryKeys: ["overlay:hipaa:42.5J"],
+        proposedOverlay: {
+          overlayRegistryKey: "overlay:pci-dss:illustration-42.5Y",
+          targetSlotReferenceId: "slot:regulated_compliant_audit_store_interface",
+          activationScopeReferenceId: "scope:pci-dss:illustration-only",
+          regulatoryScopeStatementReferenceId: "pci-dss-scope-statement:illustration-42.5Y",
+          precedenceConfigurationReferenceId: "scope:precedence:invalid",
+          overlayNamespace: "ops/compliance/overlays/pci-dss/",
+          spineModificationAttempted: false,
+          verticalComplianceLogicInSpine: false,
+          citedD0EvidencePaths: ["ops/control-spine/verification/panel-data-paths/D0_EVIDENCE.json"],
+          illustrationStatus: "spec_only",
+        },
+        fm2PrecedenceGateDeclared: false,
+        precedencePolicy: "other_policy",
+      });
+      const spineModDeny = modules.overlayExtensibility.overlayExtensibilitySpecGate.assertAttachmentSpecValid({
+        overlayRegistryKey: "overlay:bad:spine-mod",
+        targetSlotReferenceId: "slot:test",
+        activationScopeReferenceId: "scope:test",
+        regulatoryScopeStatementReferenceId: "scope-statement:test",
+        precedenceConfigurationReferenceId: "scope:precedence:test",
+        overlayNamespace: "ops/compliance/overlays/bad/",
+        spineModificationAttempted: true,
+        verticalComplianceLogicInSpine: false,
+        citedD0EvidencePaths: ["ops/control-spine/verification/panel-data-paths/D0_EVIDENCE.json"],
+        illustrationStatus: "spec_only",
+      });
+      const specDoc = read("docs/trust/overlay-extensibility.md");
+      const mostRestrictiveDocOk =
+        specDoc.includes("most-restrictive-wins") && specDoc.includes("LOCK-42.5.10");
+      const pass =
+        catalogOk &&
+        pciBuiltDirAbsent &&
+        fm2Deny.decision === "DENY" &&
+        spineModDeny.decision === "DENY" &&
+        mostRestrictiveDocOk;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "FM-2 gate, spine-modification prohibition, and PCI spec-only invariants satisfied",
+            evidence: { catalogSize: catalog.length, pciBuiltDirAbsent },
+          }
+        : {
+            status: "FAIL",
+            detail: `Invariant broken: catalog=${catalogOk} pciDir=${pciBuiltDirAbsent} fm2=${fm2Deny.decision} spine=${spineModDeny.decision} doc=${mostRestrictiveDocOk}`,
+            evidence: { catalog, fm2Deny, spineModDeny, pciBuiltDirAbsent, mostRestrictiveDocOk },
           };
     },
   },

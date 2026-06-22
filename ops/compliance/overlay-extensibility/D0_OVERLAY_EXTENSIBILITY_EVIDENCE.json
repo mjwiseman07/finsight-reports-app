@@ -1,0 +1,73 @@
+{
+  "evidenceVersion": "42.5Y-1",
+  "generatedAt": "2026-06-22T23:56:35.688Z",
+  "totalCases": 9,
+  "passCount": 9,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "OESE-01",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "overlay_extensibility_spec_valid"
+    },
+    {
+      "id": "OESE-02",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "spine-modification-forbidden"
+    },
+    {
+      "id": "OESE-03",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "vertical-compliance-logic-in-spine-forbidden"
+    },
+    {
+      "id": "OESE-04",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "overlay-namespace-violation"
+    },
+    {
+      "id": "OESE-05",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "d0_evidence_path_unresolved"
+    },
+    {
+      "id": "OESE-06",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "fm2-precedence-gate-required-before-second-overlay"
+    },
+    {
+      "id": "OESE-07",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "overlay_extensibility_spec_valid"
+    },
+    {
+      "id": "OESE-08",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "catalog_built_vs_spec_only"
+    },
+    {
+      "id": "OESE-09",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "declared_catalog_frozen",
+      "mutationRejected": true
+    }
+  ]
+}
