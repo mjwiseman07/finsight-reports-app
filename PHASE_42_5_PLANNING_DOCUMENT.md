@@ -1,20 +1,25 @@
-# Phase 42.5 Planning Document — Ready for Review (v1.8)
+# Phase 42.5 Planning Document — Ready for Review (v1.9)
 
 ## Enterprise Trust & Compliance — Universal Control Layer + Pluggable Compliance Overlays
 
 **Document Owner:** Matthew Wiseman  
 **Company:** Wiseman Financial Technologies LLC  
 **Product:** Advisacor  
-**Phase:** Phase 42.5 — Enterprise Trust & Compliance  
+**Phase:** Phase 42.5 — Enterprise Trust & Compliance (internal control layer + readiness drafts)  
 **Status:** Planning — Ready for Review. NOT a light phase.  
 **Depends On:** Phase 40 locked; Phase 40.5 locked; Phase 41.5 locked; Phase 42 LOCKED (`b11adcd`); 42N1/42O/42P VERIFIED v1.1  
-**Blocks:** Phase 54 (Commercial Launch) — HARD BLOCKER (PHI customers = legal floor; all customers = procurement/trust floor)  
+**Blocks:** Phase 54 **partial** at 42.5 LOCK (EXIT-54.0, EXIT-54.8, GL-3 non-healthcare); Phase 54 **full** clearance requires Phase 42.6 ([`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md))  
+**Related:** [`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md) — external attestations & engagements (CPA, counsel, pentest, publish)  
 **Date:** June 20, 2026  
 **Namespace:** `ops/control-spine/`, `ops/compliance/`, `ops/compliance/overlays/`, `docs/trust/`  
 **Verifier:** `scripts/verify-ops-control-spine.js`  
 **Probe:** `scripts/probe-ops-control-spine.js` (D0 red-team; calls exported verifier logic only)
 
 ---
+
+## v1.9 Deltas from v1.8
+
+> v1.9 — **42.5 / 42.6 planning split** (founder-approved): Phase 42.5 retains all Wave 1–3 spine code (42.5A–P), **42.5O D0 / LOCK-42.5.3** (internal proof — non-negotiable), Wave 4–5 **readiness artifact drafts** (42.5Q–Y), and founder-signable LOCK gates **LOCK-42.5.1, .2, .3, .9, .10, .11**. External attestation work moves to **Phase 42.6**: former **42.5Z**, **42.5AA**, and external halves of LOCK-42.5.4–.8 → **LOCK-42.6.1–.6**. Wave 6 removed from 42.5; **42.5AB** is sole final module (26-step build sequence). **GL-3 non-healthcare** achievable at **42.5 LOCK** without CPA engagement. Committed modules **42.5A/B unchanged** — no git history rewrite.
 
 ## v1.8 Deltas from v1.7.3
 
@@ -98,7 +103,7 @@ The command center shows industry-specific panels (manufacturing variances; PPD 
 
 ## Scope Boundaries (READ FIRST — REDLINE EXPECTED)
 
-THIS IS NOT A LIGHT PHASE. It builds and PROVES real controls, obtains third-party attestation (SOC 1 + SOC 2 Type II), and stands up a HIPAA compliance pack. External auditors and HIPAA counsel are required.
+THIS IS NOT A LIGHT PHASE. It builds and PROVES real controls, produces SOC/HIPAA **readiness drafts** (42.5), and stands up the HIPAA overlay code. **Third-party attestation** (SOC 1 + SOC 2 Type II issuance, counsel sign-offs, pen-test execution) is **Phase 42.6** — external auditors and HIPAA counsel are required before Phase 54 full clearance.
 
 **TWO-PERSON-SHOP RIGHT-SIZING:** "NOT a light phase" refers to the AUDIT and PROOF effort, not the operational footprint. Some standard SOC 2 controls (segregation of duties, change-management peer review, incident-response on-call) scale awkwardly to a two-owner shop and require documented COMPENSATING CONTROLS rather than headcount. D8 (vuln + pentest), D9 (BCP/DR), and D10 (change management) are sized to a two-person operation with compensating-control documentation, not enterprise staffing. The auditor and HIPAA counsel will pressure-test these compensating-control documents; that is expected.
 
@@ -124,11 +129,11 @@ Redline this section before reviewing the rest if the framing is wrong.
 
 **UNIFORM HIGH-GRADE SPINE.** The control spine is built and operated to HIPAA + SOC 2 Type II grade for EVERY customer from day one — encryption, isolation, audit logging, RBAC/persona access, key management. There is NO tiered "non-healthcare-grade now, healthcare-grade later." One standard, maximal, for all tenants. A non-healthcare customer's data is well-protected non-PHI data — not lesser-protected data.
 
-**SOC EVIDENCE FROM LAUNCH.** Because a Type II report attests controls OPERATING over a past window, audit-logging (42.5D) and retention (42.5T) run from launch so the observation window accrues from day one. Formal CPA engagement happens AFTER initial demand is validated, but the evidence machinery is live at launch — compressing time-to-issued-Type-II rather than starting a cold clock later. This makes 42.5D and 42.5T launch-critical, and conceptually starts the 42.5Z observation window's EVIDENCE collection at GL-3, with formal window-start recorded when the CPA engages (LOCK-42.5.4).
+**SOC EVIDENCE FROM LAUNCH.** Because a Type II report attests controls OPERATING over a past window, audit-logging (42.5D) and retention (42.5T) run from launch so the observation window accrues from day one. Formal CPA engagement happens AFTER initial demand is validated (**Phase 42.6**, **LOCK-42.6.1**), but the evidence machinery is live at launch — compressing time-to-issued-Type-II rather than starting a cold clock later. This makes 42.5D and 42.5T launch-critical, and conceptually starts evidence collection at **GL-3**, with formal window-start recorded in **42.6B** when the CPA engages.
 
 **HIPAA OVERLAY: BUILT, READY-TO-ATTACH.** The HIPAA overlay (Wave 2: 42.5H–L) is built during 42.5, NOT deferred. Year-1 launch is non-healthcare (single-business + accounting firms), but healthcare may onboard within months if demand appears (founder has hospital/management connections). When a PHI customer arrives, the overlay ATTACHES onto already-HIPAA-grade controls — the overlay is the legal/regulatory wrapper (BAA, 45 CFR 164 scope statement, PHI-path routing), NOT a security upgrade. The security is already there; the overlay adds the legal regime that applies where PHI exists.
 
-**THE ONE CONDITIONAL EDGE.** Controls = uniform maximal grade for all. HIPAA OVERLAY (BAA + regulatory scope) = attaches only to the PHI path, because HIPAA is a legal regime tied to PHI, not a security tier. A bakery's data does not become PHI by being well-protected. GL-4 (healthcare onboarding) still requires the overlay live + BAA signed before any PHI flows — controls-before-customers holds.
+**THE ONE CONDITIONAL EDGE.** Controls = uniform maximal grade for all. HIPAA OVERLAY (BAA + regulatory scope) = attaches only to the PHI path, because HIPAA is a legal regime tied to PHI, not a security tier. A bakery's data does not become PHI by being well-protected. **GL-4** (healthcare onboarding) requires overlay code live at 42.5 LOCK + **BAA signed** (**Phase 42.6F**) before any PHI flows — controls-before-customers holds.
 
 **CONSEQUENCE FOR BUILD ORDER:** nothing is built "light." Full spine (Wave 1) to max grade; audit-logging + retention live from launch for SOC evidence; HIPAA overlay (Wave 2) built ready-to-attach; full D0 (Wave 3) including PHI cases; SOC packs (Wave 4) built early so the window can formalize on engagement. Only the auditor ENGAGEMENT and report ISSUANCE wait for demand — the evidence collection does not.
 
@@ -144,8 +149,8 @@ Phase 42 (locked `b11adcd`) made Advisacor industry-aware and proved the healthc
 
 1. **G1.** Build ONE universal control spine (isolation, RBAC/personas, audit, encryption + key management, auth) serving all verticals identically.
 2. **G2.** PROVE the spine holds (D0) before any auditor spend.
-3. **G3.** Issue SOC 1 + SOC 2 Type II, platform-wide, one CPA firm.
-4. **G4.** Stand up the HIPAA overlay (45 CFR 164 Subparts A/C) for the healthcare path; BAA-ready.
+3. **G3.** SOC 1 + SOC 2 Type II **readiness packs drafted** at 42.5 (42.5Q/R); **reports issued** at Phase 42.6 (42.6C), platform-wide, one CPA firm.
+4. **G4.** Stand up the HIPAA overlay (45 CFR 164 Subparts A/C) for the healthcare path; BAA **templates/inventory drafted** at 42.5 (42.5U/V); counsel sign-off + legal review at Phase 42.6.
 5. **G5.** Hold a HIPAA NPRM-readiness gap analysis (sized, owned, primary-source verified).
 6. **G6.** Architect overlays as pluggable so future regulated verticals attach to the same spine without rebuilding it.
 
@@ -153,21 +158,22 @@ Phase 42 (locked `b11adcd`) made Advisacor industry-aware and proved the healthc
 
 ## Exit Criteria
 
-Phase 42.5 is complete and lockable only when all are true:
+Phase 42.5 is complete and lockable only when all are true (**no external attestation required**):
 
-- Control-spine verifier exits `0`; D0 red-team probe exits `0`.
+- Control-spine verifier exits `0`; D0 red-team probe exits `0` (**LOCK-42.5.3**).
 - TypeScript is clean across `ops/control-spine/`, `ops/compliance/`, and `docs/trust/`.
-- **LOCK-42.5.1** through **LOCK-42.5.11** satisfied (see Lock Conditions).
-- **EXIT-54.0** through **EXIT-54.8** satisfied for Phase 54 hard-blocker clearance (see Hard-Blocker Exit Criteria).
-- D0 control-spine verification COMPLETE before any auditor engagement spend (**LOCK-42.5.3**).
+- **LOCK-42.5.1**, **LOCK-42.5.2**, **LOCK-42.5.3**, **LOCK-42.5.9**, **LOCK-42.5.10**, **LOCK-42.5.11** satisfied (see Lock Conditions).
+- Waves 1–3 code complete (42.5A–P); Waves 4–5 readiness **drafts** complete (42.5Q–Y).
+- **EXIT-54.0** and **EXIT-54.8** satisfied at 42.5 LOCK (see Hard-Blocker Exit Criteria — 42.5 column).
 - Spine contains NO vertical-specific compliance logic; HIPAA lives in overlay only (Overlay Discipline FM-1/2/3).
-- Phase 42 HIPAA integration points from 42Q implemented (`auditLoggingEventInterfaceReferenceId`, `breachDetectionSignalInterfaceReferenceId`, `hipaaCompliantAuditStoreInterfaceReferenceId`).
-- GL-3 PHI-contamination gate in place before non-healthcare customer onboarding (EXIT-54.8).
-- Public trust page follows true-claims-only discipline; no premature SOC/HIPAA badges.
-- SOC 1 + SOC 2 reports issued per Q6 path (Type II under Path A; Type I + Type II underway under Path B).
-- Professional hand-offs completed where required (CPA firm, HIPAA counsel, pentest firm — not substitutable by AI verification).
+- Phase 42 HIPAA integration points from 42Q implemented in 42.5L (overlay code).
+- GL-3 PHI-contamination gate in place before non-healthcare customer onboarding.
+- Trust page **drafted** + founder-reviewed (LOCK-42.5.9); **not published** until Phase 42.6J.
+- **42.5AB carry-forward table** documents EXIT-54.1, 54.2, 54.3 (complete), 54.4 (legal-reviewed), 54.6 (public), 54.7 deferred to Phase 42.6 with owner module IDs.
 
-**Build cadence:** one module at a time; no per-module time targets. Sequence is authoritative; time estimates are non-binding. SOC observation window is the long pole and may run in parallel with later waves once GL-2 is reached.
+**Deferred to Phase 42.6:** SOC reports issued, CPA engagement, counsel sign-offs, pen-test execution, observation window formal start, trust page **publish**, EXIT-54.1/54.2/54.3 complete/54.4 legal/54.6 public/54.7 — see [`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md).
+
+**Build cadence:** one module at a time; no per-module time targets. Sequence is authoritative. SOC observation window formal start is Phase 42.6 (**GL-2**).
 
 ---
 
@@ -203,8 +209,9 @@ Evidence
 -> Integration (Phase 40.5)
 -> Standards Intelligence (Phase 41.5)
 -> Industry Intelligence (Phase 42)
--> Universal Control Spine + Compliance Overlays (Phase 42.5)   <-- THIS PHASE
--> Knowledge Stacks per vertical (42.51+; AFTER 42.5) ──defines panels──▶ Command Center (consumer; panel selection = config, panel data = spine-gated)
+-> Universal Control Spine + Compliance Overlays (Phase 42.5)   <-- THIS PHASE (code + D0 + drafts)
+-> External Attestations & Engagements (Phase 42.6)
+-> Knowledge Stacks per vertical (42.51+; AFTER 42.5/42.6) ──defines panels──▶ Command Center (consumer; panel selection = config, panel data = spine-gated)
 ```
 
 Phase 42.5 owns the **control layer** — not industry intelligence content, not command-center layout logic. The command center is a consumer: industry configuration selects panels; panel data ALWAYS flows through the spine (+ overlay where applicable). Phase 42 declared PHI tagging discipline and HIPAA integration **points**; Phase 42.5 **implements** the spine and HIPAA overlay those points attach to.
@@ -261,22 +268,22 @@ Phased go-live gates (**GL-1** through **GL-5**) track operational rollout; modu
 - **42.5T** Log-Retention Configuration Baseline
 - **42.5U** Subprocessor / Vendor + BAA Stack
 
-**Wave 5 — HIPAA Pack, NPRM Register & Trust Artifacts**
+**Wave 5 — HIPAA Pack, NPRM Register & Trust Artifacts (drafts)**
 
-- **42.5V** HIPAA Compliance Pack
+- **42.5V** HIPAA Compliance Pack (**draft**)
 - **42.5W** NPRM Gap Register
-- **42.5X** Trust Package Drafts
+- **42.5X** Trust Package Drafts (draft only — publish → Phase 42.6J)
 - **42.5Y** Overlay-Extensibility Spec
 
-**Decision Fork (after Wave 3 PASS, before Wave 6)**
+**Decision Fork (after Wave 3 PASS, before Wave 4)**
 
-→ **LOCK-42.5.2 — Q6:** Path A (straight Type II) vs Path B (Type I first, Type II in-flight)
+→ **LOCK-42.5.2 — Q6:** Path A (straight Type II) vs Path B (Type I first, Type II in-flight) — founder decision; **executed** in Phase 42.6
 
-**Wave 6 — Observation Window, Engagements & Lock**
+**Final module — Phase 42.5 Lock**
 
-- **42.5Z** SOC Observation Window Start
-- **42.5AA** Professional Engagements Coordination
 - **42.5AB** Phase 42.5 Final Audit and Lock
+
+> **Moved to Phase 42.6:** former Wave 6 modules **42.5Z** → **42.6B**, **42.5AA** → **42.6I**; external LOCK halves **LOCK-42.5.4–.8** → **LOCK-42.6.1–.5** (+ **LOCK-42.6.6** pentest). See [`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md).
 
 ---
 
@@ -664,17 +671,17 @@ Implement the three 42Q-declared interfaces. Phase 42 tagged PHI; Phase 42.5 own
 
 **Maps to:** Dependencies on 42Q; D3 incident response; GL-4.
 
-**Wave 2 complete gate:** HIPAA overlay attachable per tenant; 42Q interfaces wired; FM discipline enforced. GL-4 not yet open (needs Wave 3 D0 + Wave 5 D3/BAA).
+**Wave 2 complete gate:** HIPAA overlay attachable per tenant; 42Q interfaces wired; FM discipline enforced. **GL-4** opens in Phase 42.6 when BAA signed (**42.6F**); overlay **code** ready at 42.5 LOCK.
 
 ---
 
 ### Wave 3 — Verification & Panel Data Paths (D0)
 
-**Gate:** Wave 3 must PASS before auditor engagement. This is the 42.5 analogue of Phase 42's 22-poison probe.
+**Gate:** Wave 3 must PASS before Phase 42.5 LOCK. This is the 42.5 analogue of Phase 42's 22-poison probe. CPA engagement deferred to Phase 42.6.
 
-**LOCK-42.5.3 — D0 Control-Spine + PHI-Boundary Proof Lock.** D0 is locked when: (a) 42.5O verifier passes on the production spine + HIPAA overlay configuration at lock time; (b) 42.5O probe script returns zero violations across all 20 mandatory poison cases (PC-01 through PC-20, numbered in Verifier Design); (c) 42.5N harness confirms PHI-boundary AND PHI-derived-learning bright-line behavior under the documented test matrix; (d) 42.5P panel-data-path proof shows no PHI in non-HIPAA-overlay panels AND no cross-tenant non-PHI leak in any rendered panel. LOCK-42.5.3 does NOT certify future tenants or future overlay/spine changes — any change to the control spine, HIPAA overlay, or addition of a new industry overlay requires re-running 42.5O verifier + probe + 20 poison cases and re-locking. Re-lock obligation is enforced by GL-2.
+**LOCK-42.5.3 — D0 Control-Spine + PHI-Boundary Proof Lock.** D0 is locked when: (a) 42.5O verifier passes on the production spine + HIPAA overlay configuration at lock time; (b) 42.5O probe script returns zero violations across all 20 mandatory poison cases (PC-01 through PC-20, numbered in Verifier Design); (c) 42.5N harness confirms PHI-boundary AND PHI-derived-learning bright-line behavior under the documented test matrix; (d) 42.5P panel-data-path proof shows no PHI in non-HIPAA-overlay panels AND no cross-tenant non-PHI leak in any rendered panel. LOCK-42.5.3 does NOT certify future tenants or future overlay/spine changes — any change to the control spine, HIPAA overlay, or addition of a new industry overlay requires re-running 42.5O verifier + probe + 20 poison cases and re-locking. Re-lock obligation after CPA engagement is enforced by **LOCK-42.6.1** (Phase 42.6).
 
-Auditor engagement (**LOCK-42.5.4**) is permitted only after LOCK-42.5.3 is satisfied. Any spine or overlay change after LOCK-42.5.4 engagement requires re-running 42.5O verifier + probe + 20 poison cases before continued audit reliance.
+CPA engagement (**LOCK-42.6.1**, Phase 42.6) is permitted only after Phase 42.5 LOCK with LOCK-42.5.3 satisfied. Any spine or overlay change after LOCK-42.6.1 engagement requires re-running 42.5O verifier + probe + 20 poison cases before continued audit reliance.
 
 #### 42.5M PHI Ingestion Detection/Refusal Gate
 
@@ -803,7 +810,7 @@ Prove rendered command-center panels respect tenant/persona/PHI boundary. Panels
 
 **Maps to:** D0 panel data paths; Command Center invariant.
 
-**Wave 3 complete gate:** D0 PASS (`VERIFY_EXIT:0`, `PROBE_EXIT:0`). **LOCK-42.5.3 satisfied.** Auditor engagement permitted (**LOCK-42.5.4**). EXIT-54.0 satisfied.
+**Wave 3 complete gate:** D0 PASS (`VERIFY_EXIT:0`, `PROBE_EXIT:0`). **LOCK-42.5.3 satisfied.** **EXIT-54.0 satisfied.** CPA engagement deferred to Phase 42.6 (**LOCK-42.6.1**).
 
 ---
 
@@ -817,7 +824,7 @@ SOC 1 Type II readiness artifacts for ICFR/financial-reporting assertions.
 
 **Outputs:**
 
-- System description (platform boundary vs Phase 42/42M/42I namespace per LOCK-42.5.8)
+- System description **draft** (platform boundary vs Phase 42/42M/42I namespace — external review → Phase 42.6D / LOCK-42.6.2)
 - Control objectives → financial-reporting assertions matrix
 - Control matrix with evidence references to D0
 - Engagement readiness checklist
@@ -825,20 +832,20 @@ SOC 1 Type II readiness artifacts for ICFR/financial-reporting assertions.
 
 **Guardrails:**
 
-- System description reviewed vs finalized 42/42M/42I namespace
+- System description **draft** must be ready for external review; CPA review → Phase 42.6D
 - No benchmark-as-target language (42P posture)
 - Evidence references D0 proofs, not assertions
 
 **Build steps:**
 
-1. Draft system description boundary (LOCK-42.5.8).
+1. Draft system description boundary (founder/code — external review → **42.6D** / **LOCK-42.6.2**).
 2. Map control objectives to financial-reporting assertions.
 3. Build control matrix referencing D0 evidence.
 4. Incorporate 42O disclosure boundaries into ICFR scope.
-5. Prepare engagement readiness checklist for CPA firm.
+5. Prepare engagement readiness checklist for CPA firm (consumed at **42.6A**).
 6. Audit module → PASS; commit.
 
-**Maps to:** D1; LOCK-42.5.4 prerequisite (readiness pack consumed at engagement); LOCK-42.5.8.
+**Maps to:** D1 draft; engagement readiness for **LOCK-42.6.1** (Phase 42.6).
 
 #### 42.5S Operational Control Programs
 
@@ -868,6 +875,8 @@ Vulnerability management, BCP/DR, and change management — sized for two-person
 5. Create tested-restoration log template.
 6. Audit module → PASS; commit.
 
+**External step (Phase 42.6):** pen-test scope + execution → **42.6H** / **LOCK-42.6.6** (H-4).
+
 **Maps to:** D8, D9, D10; LOCK-42.5.11.
 
 #### 42.5R SOC 2 Readiness Pack
@@ -889,7 +898,7 @@ SOC 2 Type II readiness for Security + Availability + Confidentiality (Processin
 
 - Security is required; Availability and Confidentiality included at launch
 - Processing Integrity TBD with auditor (Q2) — do not assume in-house
-- Window evidence cadence starts at GL-2 (42.5Z)
+- Window evidence cadence **plan** documented (activation → Phase 42.6B / **GL-2**)
 
 **Build steps:**
 
@@ -897,10 +906,10 @@ SOC 2 Type II readiness for Security + Availability + Confidentiality (Processin
 2. Map Availability to D9 BCP/DR (42.5S).
 3. Map Confidentiality to encryption + isolation proofs.
 4. Document window evidence cadence and deviation-log discipline.
-5. Add Processing Integrity placeholder for Q2 resolution.
+5. Add Processing Integrity placeholder for Q2 resolution (CPA decision → **42.6C** / **42.6D**).
 6. Audit module → PASS; commit.
 
-**Maps to:** D2; LOCK-42.5.4 prerequisite (readiness pack consumed at engagement); EXIT-54.2 precursor.
+**Maps to:** D2 draft; readiness for **LOCK-42.6.1**; EXIT-54.2 precursor (issuance → **42.6C**).
 
 #### 42.5T Log-Retention Configuration Baseline
 
@@ -959,13 +968,13 @@ Inventory every subprocessor; BAA/DPA stack for PHI-touching vendors including a
 1. Inventory all subprocessors touching data or ePHI.
 2. Classify PHI-touching vs non-PHI paths per tenant overlay status.
 3. Document LLM endpoint BAA requirements and spine-enforced non-PHI proof paths.
-4. Draft BAA/DPA templates for counsel review (H-3, H-7).
+4. Draft BAA/DPA templates (founder/code draft — counsel review → **42.6F** / **LOCK-42.6.4**).
 5. Map to CC9.2 and 164.308(b)/164.314(a).
 6. Audit module → PASS; commit.
 
-**Maps to:** D7; EXIT-54.4; LOCK-42.5.6.
+**Maps to:** D7 draft; EXIT-54.4 draft at 42.5 LOCK; legal-reviewed → **42.6F**.
 
-**Wave 4 complete gate:** SOC readiness packs draft-complete; operational programs documented; subprocessor stack inventoried. GL-2 (SOC readiness gate) is **declared eligible** at the end of Wave 4 once 42.5Q–U are complete. GL-2 **fires** (becomes a hard gate) when 42.5Z (SOC window start, Wave 6) initiates. Wave 5 may proceed in parallel after Wave 4 completes without waiting for GL-2 to fire.
+**Wave 4 complete gate:** SOC readiness packs **draft-complete**; operational programs documented; subprocessor stack **inventoried + draft templates**. Wave 5 may proceed in parallel. **GL-2 fires** in Phase 42.6 (**42.6B**) — not at 42.5 LOCK.
 
 ---
 
@@ -991,13 +1000,13 @@ Written HIPAA current-rule compliance pack for healthcare overlay — policies, 
 - Written risk analysis (PHI path; 42N1 field inventory + minimumCellSize + field classification from 42.5K)
 - Risk management plan
 - Full policy set across safeguards with two-owner compensating-control documentation
-- BAA template + subcontractor BAA (counsel-reviewed per H-3)
+- BAA template + subcontractor BAA (**draft** for counsel — review → **42.6F**)
 - Two-owner training + attestation log
 - Incident response runbook: HIPAA breach-notification AND SOC 2 operational program (CC7.3/CC7.4)
 
 **Guardrails:**
 
-- HIPAA counsel sign-off required (LOCK-42.5.5) — not substitutable by AI
+- HIPAA counsel sign-off deferred to Phase 42.6 (**42.6E** / **LOCK-42.6.3**) — not substitutable by AI
 - Risk analysis informed by 42N1 field inventory, minimumCellSize, and 42.5K field classification
 - HIPAA Pack scope bounded by 42.5Q SOC system description
 
@@ -1010,10 +1019,11 @@ Written HIPAA current-rule compliance pack for healthcare overlay — policies, 
 5. Draft BAA template + subcontractor BAA for counsel (H-3).
 6. Create training + attestation log for two owners.
 7. Write incident response runbook covering HIPAA + SOC 2 CC7.3/CC7.4.
-8. HIPAA counsel review engagement (LOCK-42.5.5).
-9. Audit module → PASS; commit.
+8. Audit module → PASS; commit.
 
-**Maps to:** D3; EXIT-54.3; LOCK-42.5.5; GL-4.
+**External step (Phase 42.6):** step 8 former counsel review → **42.6E** / **LOCK-42.6.3**.
+
+**Maps to:** D3 **draft** at 42.5 LOCK; EXIT-54.3 complete → **42.6E**; GL-4 precursor (overlay code ready at 42.5 LOCK).
 
 #### 42.5W NPRM Gap Register
 
@@ -1040,10 +1050,11 @@ HIPAA NPRM-readiness gap analysis — sized, owned, primary-source verified. NOT
 2. Build gap register rows from NPRM provisions (primary-source verified).
 3. Size each gap S/M/L with effort and owner.
 4. Attach 5-business-day contingency trigger runbook.
-5. HIPAA counsel review for Q4 posture (deferred, not in-house).
-6. Audit module → PASS; commit.
+5. Audit module → PASS; commit.
 
-**Maps to:** D4; EXIT-54.5; LOCK-42.5.7; G5.
+**External step (Phase 42.6):** former step 5 counsel Q4 posture review → **42.6G** / **LOCK-42.6.5**.
+
+**Maps to:** D4; EXIT-54.5 at 42.5 LOCK (register populated); counsel validation → **42.6G**; G5.
 
 #### 42.5X Trust Package Drafts
 
@@ -1056,7 +1067,7 @@ Procurement-ready trust artifacts in **draft** form. NOT published until reports
 - Vendor questionnaire library (SIG Lite, CAIQ) from D0–D3 evidence
 - Trust page **draft** with benchmark-not-target wording (42P posture)
 - Data-residency statement draft
-- Report issuance date + observation window placeholders (filled at GL-5 only)
+- Report issuance date + observation window placeholders (filled at **42.6J** / GL-5 only)
 - HIPAA attestation letter draft referencing D3
 
 **Guardrails:**
@@ -1072,10 +1083,10 @@ Procurement-ready trust artifacts in **draft** form. NOT published until reports
 2. Draft trust page with benchmark-not-target + data-residency language.
 3. Add report date/window placeholders (unfilled until issuance).
 4. Draft HIPAA attestation letter referencing D3.
-5. Founder + counsel review vs LOCK-42.5.9 discipline.
-6. Audit module → PASS; commit. **Do NOT publish until GL-5.**
+5. Founder review vs LOCK-42.5.9 discipline (draft + benchmark-not-target).
+6. Audit module → PASS; commit. **Do NOT publish until 42.6J (GL-5).**
 
-**Maps to:** D5 draft; LOCK-42.5.9; EXIT-54.6 (draft ready).
+**Maps to:** D5 draft; LOCK-42.5.9 (draft half); EXIT-54.6 **draft** at 42.5 LOCK; **publish** → **42.6J**.
 
 #### 42.5Y Overlay-Extensibility Spec
 
@@ -1108,89 +1119,30 @@ Document how a future regulated vertical attaches a new overlay without modifyin
 
 **Maps to:** D6; LOCK-42.5.10; G6.
 
-**Wave 5 complete gate:** HIPAA pack draft-complete; NPRM register populated; trust drafts ready (unpublished). GL-4 eligible when BAA execution-ready (LOCK-42.5.6).
+**Wave 5 complete gate:** HIPAA pack **draft-complete**; NPRM register populated; trust drafts ready (unpublished). **GL-4** requires **42.6E/F** (BAA counsel sign-off); overlay **code** ready at 42.5 LOCK.
 
 ---
 
-### Decision Fork (after Wave 3 PASS, before Wave 6)
+### Decision Fork (after Wave 3 PASS, before Wave 4)
 
-→ **LOCK-42.5.2 — Q6 launch timing (founder-owned, FULLY OPEN):**
+→ **LOCK-42.5.2 — Q6 launch timing (founder-owned):**
 
 | Path | SOC posture | Launch implication |
 |---|---|---|
 | **Path A — Straight to Type II** | Wait for issued Type II | Strongest report; ~9–18 mo end-to-end depending on window |
 | **Path B — Type I first, Type II in-flight** | Type I unblocks earlier; Type II during Phase 54 | Faster to market; EXIT-54.7 explicit gate |
 
-No default. Decide once early-buyer mix is known.
+No default. Decide once early-buyer mix is known. **Execution** of observation + issuance → Phase 42.6 (see [`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md) Q6 timeline).
 
-### Wave 6 — Observation Window, Engagements & Lock
+---
 
-#### 42.5Z SOC Observation Window Start
+### Phase 42.5 Final Module — Lock Audit
 
-Begin SOC 2 Type II observation window. Long pole — start as early as Wave 4 readiness allows.
-
-**Namespace:** `ops/compliance/soc/observation/`
-
-**Outputs:**
-
-- Observation window start date recorded
-- Evidence collection cadence activated per 42.5R plan
-- Deviation-log discipline live
-- GL-2 gate satisfied
-
-**Guardrails:**
-
-- LOCK-42.5.4 (CPA engagement) must be executed before observation window date is recorded. 42.5Z cannot begin without a signed CPA engagement letter — the window is meaningless without an engaged auditor receiving evidence.
-- Window starts only after SOC-relevant technical controls verified (Wave 4)
-- Under Path B: EXIT-54.7 is explicit gate (window must be started)
-- Under Path A: EXIT-54.7 implied by issued Type II at EXIT-54.2
-- Renewal cadence after first report: 12 months rolling
-
-**Build steps:**
-
-1. Confirm Wave 4 SOC readiness artifacts complete.
-2. Record observation window start date with CPA firm.
-3. Activate evidence collection cadence.
-4. Enable deviation-log discipline.
-5. Document GL-2 gate satisfaction.
-6. Audit module → PASS; commit.
-
-**Maps to:** GL-2; EXIT-54.7; SOC Type II Timeline.
-
-#### 42.5AA Professional Engagements Coordination
-
-Coordinate licensed professional engagements required for attestation — not substitutable by AI verification.
-
-**Namespace:** `docs/trust/engagements/`
-
-**Outputs:**
-
-- CPA firm engagement letter for SOC 1 + SOC 2 (LOCK-42.5.4)
-- HIPAA counsel engagement for D3/D4/D7 sign-off (LOCK-42.5.5)
-- Pentest firm scope engagement (H-4)
-- Reports issued per Q6 path (Path A: Type II; Path B: Type I then Type II in-flight)
-- Professional Hand-Off List completion tracking
-
-**Guardrails:**
-
-- Licensed CPA firm required for SOC attestation — not optional
-- HIPAA counsel required for BAA terms and NPRM posture
-- AI verification does not substitute for any professional sign-off
-
-**Build steps:**
-
-1. Engage one CPA firm; execute SOC 1 + SOC 2 engagement letter.
-2. Engage HIPAA counsel for D3/D4/D7 review.
-3. Engage qualified pentest firm; define scope (H-4).
-4. Execute Q6 path (Path A or B per LOCK-42.5.2).
-5. Track report issuance toward EXIT-54.1 and EXIT-54.2.
-6. Audit module → PASS; commit.
-
-**Maps to:** EXIT-54.1, EXIT-54.2; LOCK-42.5.4, LOCK-42.5.5; Professional Hand-Off List.
+> **Former Wave 6 (42.5Z, 42.5AA) moved to Phase 42.6** as **42.6B** (observation window), **42.6I** (engagements coordination), and related LOCK/EXIT gates. See [`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md).
 
 #### 42.5AB Phase 42.5 Final Audit and Lock
 
-Read-only comprehensive audit against Exit Criteria and LOCK-42.5.1–11. Phase 42.5 lock attestation.
+Read-only comprehensive audit against Phase 42.5 Exit Criteria and **LOCK-42.5.1, .2, .3, .9, .10, .11**. Phase 42.5 lock attestation — **does not require external attestation**.
 
 **Namespace:** `PHASE_42_5_LOCK.md` (created at lock time only)
 
@@ -1199,14 +1151,16 @@ Read-only comprehensive audit against Exit Criteria and LOCK-42.5.1–11. Phase 
 - Comprehensive audit report: PASS / PARTIAL / FAIL per area
 - `VERIFY_EXIT:0` and `PROBE_EXIT:0` re-confirmed
 - TypeScript clean across all 42.5 namespaces
-- Phase 54 EXIT-54.0–54.8 clearance assessment
+- Phase 54 **partial** clearance assessment (EXIT-54.0, EXIT-54.8 at 42.5 LOCK)
+- **42.5AB carry-forward table** (mandatory) documenting EXIT-54.1, 54.2, 54.3 (complete), 54.4 (legal-reviewed), 54.6 (public), 54.7 → Phase 42.6 module IDs
 - Lock attestation document (if all PASS)
 
 **Guardrails:**
 
-- Lock only when every area PASS; PARTIAL or FAIL → report gaps, do not lock
+- Lock only when every **42.5** area PASS; PARTIAL or FAIL → report gaps, do not lock
 - LOCK-42.5.1 scope redline must be confirmed by founder (no silent acceptance)
-- Trust page published only at GL-5 with true claims
+- Trust page **publish** deferred to Phase 42.6J (GL-5) — draft only at 42.5 LOCK
+- No requirement for CPA engagement, counsel sign-off, or issued SOC reports at 42.5 LOCK
 
 **Build steps:**
 
@@ -1214,27 +1168,46 @@ Read-only comprehensive audit against Exit Criteria and LOCK-42.5.1–11. Phase 
 2. Re-run `scripts/probe-ops-control-spine.js` → `PROBE_EXIT:0`.
 3. Re-run `scripts/verify-ii-industry-intelligence.js` regression → `VERIFY_EXIT:0`.
 4. Run `npx tsc --noEmit` across 42.5 namespaces.
-5. Audit each LOCK-42.5.1–11 condition.
-6. Audit each EXIT-54.0–54.8 criterion.
-7. If all PASS: create `PHASE_42_5_LOCK.md` and journal entry.
-8. If any FAIL: report gaps; do not lock.
-9. **Build step (final):** Founder reviews and signs LOCK-42.5.1 (Phase 42.5 scope lock) attesting that (a) all 11 LOCK-42.5.* items are individually locked, (b) all 20 poison cases (PC-01 to PC-20) passed at lock time, (c) D0 through D10 are present and verified, (d) EXIT-54.0 through EXIT-54.8 are satisfied or have founder-acknowledged carry-forwards documented. Founder signature timestamped in `PHASE_42_5_LOCK.md`.
+5. Audit each **LOCK-42.5.1, .2, .3, .9, .10, .11** condition.
+6. Audit **EXIT-54.0** and **EXIT-54.8**; confirm readiness **drafts** for deferred EXIT items.
+7. Complete **42.5AB carry-forward table** (see below).
+8. If all PASS: create `PHASE_42_5_LOCK.md` and journal entry.
+9. If any FAIL: report gaps; do not lock.
+10. **Build step (final):** Founder reviews and signs LOCK-42.5.1 attesting that (a) LOCK-42.5.1, .2, .3, .9, .10, .11 are locked, (b) all 20 poison cases (PC-01 to PC-20) passed at lock time, (c) D0 through D10 **artifacts present and verified**, (d) EXIT-54.0 and EXIT-54.8 satisfied, (e) deferred EXIT items documented in carry-forward table with Phase 42.6 owner modules. Founder signature timestamped in `PHASE_42_5_LOCK.md`.
 
-**Maps to:** Phase 42.5 lock; Phase 54 hard-blocker clearance; GL-5.
+**42.5AB mandatory carry-forward table (template):**
 
-**Wave 6 complete gate:** Phase 42.5 LOCKED. Phase 54 hard-blockers cleared per EXIT-54.x. GL-5: reports issued, trust page live with true claims.
+| EXIT / Gate | Status at 42.5 LOCK | Owner phase / module |
+|-------------|---------------------|-------------------|
+| EXIT-54.0 | **Satisfied** (LOCK-42.5.3) | 42.5O |
+| EXIT-54.1 | Deferred — draft readiness only | **42.6C** |
+| EXIT-54.2 | Deferred — draft readiness only | **42.6C** |
+| EXIT-54.3 | Deferred — pack **draft** at 42.5 LOCK | **42.6E** (counsel complete) |
+| EXIT-54.4 | Deferred — inventory + draft templates | **42.6F** (legal-reviewed) |
+| EXIT-54.5 | **Satisfied** (register populated at 42.5 LOCK) | **42.6G** (counsel validation) |
+| EXIT-54.6 | Deferred — **draft** at 42.5 LOCK | **42.6J** (publish) |
+| EXIT-54.7 | Deferred — evidence machinery live | **42.6B** |
+| EXIT-54.8 | **Satisfied** (42.5M) | 42.5M |
+| GL-2 | Deferred | **42.6B** |
+| GL-3 | **Achievable at 42.5 LOCK** (non-healthcare) | 42.5AB |
+| GL-4 | Deferred — overlay code at 42.5 LOCK | **42.6E/F** |
+| GL-5 | Deferred | **42.6C/J** |
+
+**Maps to:** Phase 42.5 lock; Phase 54 **partial** clearance; **GL-3** non-healthcare path.
+
+**Phase 42.5 complete gate:** Phase 42.5 LOCKED. Proceed to [`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md) for external attestations.
 
 ---
 
 ### Go-Live Sequence (operational; maps to modules)
 
-| Gate | When | Customer access |
-|---|---|---|
-| **GL-1** | Wave 1 modules verified via sub-proofs for 42.5A–G | Internal only; no customers |
-| **GL-2** | Wave 4 complete + 42.5Z window started | Internal; observation running |
-| **GL-3** | D0 PASS + EXIT-54.8 + window running | Non-healthcare customers on generic baseline |
-| **GL-4** | Wave 5 HIPAA pack + BAA ready | Healthcare providers after BAA signed |
-| **GL-5** | Reports issued + trust page live (true claims) | Full Phase 54 motion |
+| Gate | When | Customer access | Phase |
+|---|---|---|---|
+| **GL-1** | Wave 1 modules verified via sub-proofs for 42.5A–G | Internal only; no customers | 42.5 |
+| **GL-2** | SOC observation window started (**42.6B**) | Internal; observation running | **42.6** |
+| **GL-3** | **42.5 LOCK**: D0 PASS (LOCK-42.5.3) + EXIT-54.8 + readiness drafts | **Non-healthcare customers** on generic baseline | **42.5** |
+| **GL-4** | HIPAA overlay code at 42.5 LOCK + BAA signed (**42.6F**) | Healthcare providers after BAA signed | **42.6** |
+| **GL-5** | Reports issued + trust page live (**42.6C/J**) | Full Phase 54 motion | **42.6** |
 
 ---
 
@@ -1322,15 +1295,13 @@ Then build in sequence:
 19. **42.5R** SOC 2 Readiness Pack
 20. **42.5T** Log-Retention Configuration Baseline
 21. **42.5U** Subprocessor / Vendor + BAA Stack
-22. **42.5V** HIPAA Compliance Pack
+22. **42.5V** HIPAA Compliance Pack (draft)
 23. **42.5W** NPRM Gap Register
 24. **42.5X** Trust Package Drafts (draft only — do not publish)
 25. **42.5Y** Overlay-Extensibility Spec
-26. **42.5Z** SOC Observation Window Start
-27. **42.5AA** Professional Engagements Coordination
-28. **42.5AB** Phase 42.5 Final Audit and Lock
+26. **42.5AB** Phase 42.5 Final Audit and Lock
 
-Build the spine and prove it (Waves 1–3) before auditor spend. Populate compliance artifacts (Waves 4–5) in parallel with observation window where possible. Lock only at 42.5AB when every EXIT and LOCK condition passes.
+Build the spine and prove it (Waves 1–3) before Phase 42.5 LOCK. Populate readiness **drafts** (Waves 4–5). Lock at **42.5AB** without external attestation. Proceed to [`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md) for CPA/counsel/pentest/publish.
 
 ---
 
@@ -1368,7 +1339,7 @@ HHS OCR; 45 CFR 164 Subparts A/C (164.306 general; 164.308 Admin; 164.310 Physic
 **NPRM STATUS (verified June 18 2026):** the Jan 6 2025 NPRM (RIN 0945-AA22, 90 FR 800) is NOT FINAL — no final rule published, current Security Rule in effect, OCR still reviewing ~4,745 comments, 100+ provider systems requested withdrawal; finalize / narrow / delay / withdraw all possible. ("Already finalized" secondary claims were content-marketing overstatement, discarded.) D4 remains a GAP ANALYSIS with:
 
 - **(a)** LOCK-time PRIMARY-SOURCE check vs Federal Register + reginfo.gov RIN 0945-AA22, recording date checked and FR issue; AND
-- **(b)** CONTINGENCY TRIGGER PROCEDURE: within 5 BUSINESS DAYS of Federal Register publication of a final HIPAA Security Rule, founder must (i) lock the FR issue + effective dates into D4, (ii) re-engage HIPAA counsel for D3 re-scope, (iii) re-baseline the 42.5 schedule against the 240-day compliance window (180 CE + 60 BA), (iv) update LOCK-42.5.7. A runbook, not a hope.
+- **(b)** CONTINGENCY TRIGGER PROCEDURE: within 5 BUSINESS DAYS of Federal Register publication of a final HIPAA Security Rule, founder must (i) lock the FR issue + effective dates into D4, (ii) re-engage HIPAA counsel for D3 re-scope (**42.6E**), (iii) re-baseline the schedule against the 240-day compliance window (180 CE + 60 BA), (iv) update **LOCK-42.6.5**. A runbook, not a hope.
 
 **WORKFORCE (Q7):** two owners (Matthew + Janice), no data-touching contractors. Safeguards minimal but DOCUMENTED; small-org segregation-of-duties via documented compensating controls. Janice has direct medical-company PHI-handling experience (feeds D3). **TRAINING GROWTH-TRIGGER:** expand training/access/sanction program when workforce exceeds 2, or first data-touching contractor/employee is added.
 
@@ -1453,7 +1424,7 @@ SOC 2 CC8.1: documented change-request flow, peer review (peer = the other found
 
 **Q5:** PUBLIC trust page, published ONLY when compliance is real and reports issued.
 
-**HARD RULE:** no SOC/HIPAA claim on any public page until the report is ISSUED / controls in place. No "in progress"/"coming soon" badges. Bare placeholder OK interim; premature claim is a misrepresentation with legal exposure. Page goes live at end of 42.5. Public summary (badges, "SOC 1 + SOC 2 Type II", benchmark-not-target language, data-residency statement, each report's issuance date + observation window); full reports on request. Reversible to gated later.
+**HARD RULE:** no SOC/HIPAA claim on any public page until the report is ISSUED. Page **draft** at 42.5 LOCK; **publish** at Phase 42.6J (GL-5).
 
 ---
 
@@ -1464,10 +1435,10 @@ Founder intent: turn the control layer on incrementally, ~weekly, not all at onc
 **CRITICAL PRINCIPLE:** controls LEAD customers, never trail them. No customer onto an isolation boundary not yet PROVEN (D0). For PHI, controls-before-customers is a legal floor.
 
 - **GL-1 (internal):** spine components go live in dependency order, verified as each lights up — isolation, then RBAC/personas, then audit logging, then encryption + key management. Each sub-proof verified before the next. No customer access.
-- **GL-2 (internal):** SOC-relevant technical controls complete + verified. SOC 2 Type II OBSERVATION WINDOW can start here — the long pole; start early.
-- **GL-3 (non-healthcare customers):** once spine PROVEN (D0) and window running, NON-HEALTHCARE verticals may onboard on the generic knowledge baseline. EARLIEST safe revenue.
-- **GL-4 (healthcare customers):** HIPAA overlay live + verified + BAA execution-ready. Only then do healthcare providers onboard; PHI flows only after BAA signed.
-- **GL-5 (full launch):** reports ISSUED, public trust page live (true claims), full Phase 54 motion.
+- **GL-2 (observation):** SOC 2 Type II observation window formal start — **Phase 42.6** (**42.6B**). Evidence machinery live from 42.5D/T at GL-3.
+- **GL-3 (non-healthcare customers):** achievable at **42.5 LOCK** once spine PROVEN (D0 / LOCK-42.5.3) and EXIT-54.8 in place. **Does not require** CPA engagement or issued SOC reports. EARLIEST safe revenue.
+- **GL-4 (healthcare customers):** HIPAA overlay **code** at 42.5 LOCK + BAA signed (**42.6F**). PHI flows only after BAA signed.
+- **GL-5 (full launch):** reports ISSUED (**42.6C**), public trust page live (**42.6J**), full Phase 54 motion.
 
 ### GL-3 Caveats
 
@@ -1520,33 +1491,40 @@ From 42M/42I (in revision): final namespace → SOC system-description boundary.
 
 ## Hard-Blocker Exit Criteria for Phase 54
 
-- **EXIT-54.0** D0 control-spine verification COMPLETE/passing (isolation, PHI boundary, role-based access, panel data paths, key management proven).
-- **EXIT-54.1** SOC 1 ISSUED (Type II under Path A; Type I + Type II underway under Path B).
-- **EXIT-54.2** SOC 2 ISSUED, >= Security + Availability + Confidentiality (Type II under Path A; Type I + Type II underway under Path B).
-- **EXIT-54.3** HIPAA pack (D3) complete for healthcare overlay.
-- **EXIT-54.4** BAA template legal-reviewed + execution-ready; subprocessor stack (D7) inventoried with BAAs/DPAs for any PHI-touching vendor (incl LLM endpoints).
-- **EXIT-54.5** NPRM gap register (D4) populated, sized, owned, primary-source verified (open OK, unassigned not OK).
-- **EXIT-54.6** Public trust page ready (true claims only, dated) + questionnaire library.
-- **EXIT-54.7** SOC 2 Type II observation window STARTED. Path interpretation depends on LOCK-42.5.2 being satisfied first (Q6 Path A vs Path B decided). Under Path B this is an explicit gate. Under Path A it is IMPLIED by EXIT-54.2 (an issued Type II proves the window ran) and need not be separately attested.
-- **EXIT-54.8** GL-3 PHI-contamination gate in place (ingestion control or contract clause).
+| EXIT | Description | **42.5 LOCK** | **42.6 LOCK** |
+|------|-------------|---------------|---------------|
+| **EXIT-54.0** | D0 control-spine verification COMPLETE/passing | **Yes** (LOCK-42.5.3) | Re-run on spine change only |
+| **EXIT-54.1** | SOC 1 ISSUED | Draft readiness (42.5Q) | **Yes** (**42.6C**) |
+| **EXIT-54.2** | SOC 2 ISSUED (≥ Sec+Avail+Conf) | Draft readiness (42.5R) | **Yes** (**42.6C**) |
+| **EXIT-54.3** | HIPAA pack complete for healthcare overlay | **Draft** (42.5V) | **Yes** (**42.6E**) |
+| **EXIT-54.4** | BAA legal-reviewed + execution-ready; subprocessor stack | Draft inventory/templates (42.5U) | **Yes** (**42.6F**) |
+| **EXIT-54.5** | NPRM gap register populated, sized, owned, primary-source verified | **Yes** (42.5W) | Counsel validation (**42.6G**) |
+| **EXIT-54.6** | Public trust page + questionnaire library | **Draft** (42.5X) | **Publish** (**42.6J**) |
+| **EXIT-54.7** | SOC 2 Type II observation window STARTED | Evidence machinery live (42.5D/T) | **Formal start** (**42.6B**) |
+| **EXIT-54.8** | GL-3 PHI-contamination gate in place | **Yes** (42.5M) | — |
 
-**NOTE:** non-healthcare verticals may go live at GL-3 before EXIT-54.3/54.4 (healthcare-only gates), provided EXIT-54.0, EXIT-54.8, and the SOC posture hold.
+**NOTE:** non-healthcare verticals may go live at **GL-3** at **42.5 LOCK** before EXIT-54.3/54.4/54.1/54.2, provided **EXIT-54.0** and **EXIT-54.8** are satisfied. Healthcare (**GL-4**) requires Phase 42.6 counsel/BAA gates.
 
 ---
 
 ## Lock Conditions for Phase 42.5
 
 - **LOCK-42.5.1** Scope-boundaries reviewed, confirmed/redlined by founder. No silent acceptance.
-- **LOCK-42.5.2** Q6 launch-timing decision made (Path A vs B; window length), once early-buyer mix is known.
-- **LOCK-42.5.3** D0 control-spine verification complete + passing (incl cross-tenant isolation, panel data paths, PHI-derived-learning bright line, key management). Before auditor spend. D0 is locked when: (a) 42.5O verifier passes on production spine + HIPAA overlay at lock time; (b) 42.5O probe returns zero violations across PC-01 through PC-20; (c) 42.5N harness confirms PHI-boundary + bright-line behavior; (d) 42.5P shows no PHI in non-HIPAA-overlay panels AND no cross-tenant non-PHI panel leak. Does NOT certify future tenants or spine/overlay changes — re-run 42.5O verifier + probe + 20 poison cases and re-lock on any change. Re-lock obligation enforced by GL-2.
-- **LOCK-42.5.4** One CPA firm engaged; engagement letter for SOC 1 + SOC 2. Prerequisite: LOCK-42.5.3 satisfied. Any change to control spine, HIPAA overlay, or new industry overlay after engagement requires re-running 42.5O verifier + probe + 20 poison cases (PC-01 through PC-20) before continued audit reliance.
-- **LOCK-42.5.5** HIPAA counsel/qualified consultant engaged for D3 + D4 sign-off.
-- **LOCK-42.5.6** BAA template + subprocessor BAA/DPA stack (D7) drafted, legal-reviewed, counterparty-ready.
-- **LOCK-42.5.7** D4 populated end-to-end + primary-source verified, WITH dated Federal Register / reginfo.gov status check recorded AND the contingency trigger procedure attached (cross-ref the 5-business-day runbook).
-- **LOCK-42.5.8** SOC system-description boundary written + reviewed vs finalized 42/42M/42I namespace.
-- **LOCK-42.5.9** Public trust-page wording drafted, reviewed vs benchmark-not-target AND no-premature-claim discipline AND report-freshness/data-residency.
+- **LOCK-42.5.2** Q6 launch-timing decision made (Path A vs B; window length), once early-buyer mix is known. **Execution** → Phase 42.6.
+- **LOCK-42.5.3** D0 control-spine verification complete + passing (incl cross-tenant isolation, panel data paths, PHI-derived-learning bright line, key management). **Internal proof — stays in 42.5.** D0 is locked when: (a) 42.5O verifier passes on production spine + HIPAA overlay at lock time; (b) 42.5O probe returns zero violations across PC-01 through PC-20; (c) 42.5N harness confirms PHI-boundary + bright-line behavior; (d) 42.5P shows no PHI in non-HIPAA-overlay panels AND no cross-tenant non-PHI panel leak. Re-run 42.5O on spine/overlay change. Post-CPA re-lock rules → **LOCK-42.6.1**.
+- **LOCK-42.5.9** Public trust-page wording **drafted**, founder-reviewed vs benchmark-not-target AND no-premature-claim discipline AND report-freshness/data-residency. **Publish** → Phase 42.6J.
 - **LOCK-42.5.10** Overlay-extensibility spec (D6) + Overlay Discipline (FM-1/2/3) documented.
-- **LOCK-42.5.11** D8 (vuln/pen-test), D9 (BCP/DR + RPO/RTO), D10 (change mgmt), and log-retention durations documented and right-sized.
+- **LOCK-42.5.11** D8 (vuln/pen-test **program documented**), D9 (BCP/DR + RPO/RTO), D10 (change mgmt), and log-retention durations documented and right-sized. Pen-test **execution** → **LOCK-42.6.6**.
+
+**Moved to Phase 42.6** (see [`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md)):
+
+| Former LOCK | Phase 42.6 |
+|-------------|------------|
+| LOCK-42.5.4 CPA engaged | **LOCK-42.6.1** |
+| LOCK-42.5.5 HIPAA counsel engaged | **LOCK-42.6.3** |
+| LOCK-42.5.6 BAA legal-reviewed | **LOCK-42.6.4** |
+| LOCK-42.5.7 NPRM counsel posture | **LOCK-42.6.5** |
+| LOCK-42.5.8 SOC description reviewed | **LOCK-42.6.2** |
 
 ---
 
@@ -1582,19 +1560,9 @@ From 42M/42I (in revision): final namespace → SOC system-description boundary.
 
 ---
 
-## Professional Hand-Off List (The Reality Check on This Phase)
+## Professional Hand-Off List
 
-The plan can be written in-house; the EXECUTION requires engaged professionals. NOT decidable by founder + AI verification:
-
-- SOC 2 category selection beyond Security/Availability/Confidentiality (CPA auditor)
-- SOC 1 + SOC 2 attestation itself (licensed CPA firm — required, not optional)
-- NPRM compliance posture given regulatory ambiguity (HIPAA counsel)
-- BAA template terms + subprocessor BAA negotiation (HIPAA counsel)
-- Penetration-test scope and methodology (qualified pentest firm)
-- FIPS-validated encryption module selection (security architect)
-- Log-retention durations vs jurisdiction-specific requirements (counsel + CPA)
-
-No AI verification pass substitutes for these. The lock conditions require engaging them.
+**Moved to Phase 42.6.** See [`PHASE_42_6_PLANNING_DOCUMENT.md`](PHASE_42_6_PLANNING_DOCUMENT.md) — Professional Hand-Off List. Phase 42.5 produces **drafts and readiness artifacts**; external parties execute attestations in 42.6.
 
 ---
 
@@ -1616,4 +1584,4 @@ Benchmark-not-target framing from 42P governs all public-facing 42.5 wording. SO
 
 ---
 
-*End of Phase 42.5 Planning Document v1.8*
+*End of Phase 42.5 Planning Document v1.9*
