@@ -109,6 +109,7 @@ function loadSpineModules() {
     overlayAttachment: loadOpsModule("compliance/overlay-attachment/index.ts"),
     socScopeBoundary: loadOpsModule("compliance/soc/soc1/index.ts"),
     tscScopeBoundary: loadOpsModule("compliance/soc/soc2/index.ts"),
+    retention: loadOpsModule("compliance/retention/index.ts"),
     overlayDiscipline: loadOpsModule("compliance/overlay-discipline/index.ts"),
     hipaaIntegration: loadOpsModule("compliance/overlays/hipaa/integration/index.ts"),
     hipaaSafeguards: loadOpsModule("compliance/overlays/hipaa/safeguards/index.ts"),
@@ -543,6 +544,15 @@ function createProbeHelpers() {
     },
   };
 
+  const retentionBaseline = {
+    get RETENTION_BASELINE() {
+      return modules.retention.RETENTION_BASELINE;
+    },
+    get retentionBaselineLookup() {
+      return modules.retention.retentionBaselineLookup;
+    },
+  };
+
   return {
     isolationEvaluator,
     rbacEvaluator,
@@ -556,6 +566,7 @@ function createProbeHelpers() {
     subprocessorRegistry,
     socScopeBoundary,
     tscScopeBoundary,
+    retentionBaseline,
     modules,
     integrationBinding,
     emptyRegistry,
@@ -1345,6 +1356,90 @@ const checks = [
           };
     },
   },
+  {
+    id: "CHK-31",
+    name: "42.5T retention baseline present, barrel-exported, and 42.5O re-export wired",
+    run() {
+      const moduleDir = path.join(opsRoot, "compliance/retention");
+      const complianceBarrel = path.join(opsRoot, "compliance/index.ts");
+      const harnessPresent = fs.existsSync(path.join(moduleDir, "retentionBaseline.ts"));
+      const barrelPresent = fs.existsSync(path.join(moduleDir, "index.ts"));
+      const complianceExportsRetention =
+        fs.existsSync(complianceBarrel) && read("ops/compliance/index.ts").includes("./retention");
+      const modules = loadSpineModules();
+      const categories = modules.retention.RETENTION_BASELINE.map((entry) => entry.category);
+      const expected = [
+        "hipaa-documentation",
+        "soc2-evidence-logs",
+        "security-incident-logs",
+        "application-system-logs",
+      ];
+      const hasAllCategories = expected.every((category) => categories.includes(category));
+      const exported = probeHelpers.retentionBaseline;
+      const hasExports =
+        Array.isArray(exported?.RETENTION_BASELINE) &&
+        typeof exported?.retentionBaselineLookup?.getBaseline === "function" &&
+        typeof exported?.retentionBaselineLookup?.getHipaaDocumentationFloorDays === "function";
+      const pass =
+        harnessPresent && barrelPresent && complianceExportsRetention && hasAllCategories && hasExports;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "42.5T retention baseline wired through compliance barrel and 42.5O re-export",
+            evidence: { categories: categories.length },
+          }
+        : {
+            status: "FAIL",
+            detail: "42.5T retention baseline missing or categories incomplete",
+            evidence: { harnessPresent, barrelPresent, complianceExportsRetention, hasAllCategories, hasExports },
+          };
+    },
+  },
+  {
+    id: "CHK-32",
+    name: "42.5T FM-1 resolver binding tests pass against existing 42.5D + 42.5H resolver",
+    run() {
+      const modules = loadSpineModules();
+      const bindingResult = modules.retention.executeRetentionBaselineFM1BindingTests();
+      return bindingResult.pass
+        ? {
+            status: "PASS",
+            detail: `FM-1 binding suite green (${bindingResult.results.length} cases)`,
+            evidence: { cases: bindingResult.results.length },
+          }
+        : {
+            status: "FAIL",
+            detail: "FM-1 resolver binding tests failed",
+            evidence: { bindingResult },
+          };
+    },
+  },
+  {
+    id: "CHK-33",
+    name: "42.5T HIPAA 6-year floor invariant (2191 days, regulatoryFloor, citation)",
+    run() {
+      const modules = loadSpineModules();
+      const lookup = modules.retention.retentionBaselineLookup;
+      const floorDays = lookup.getHipaaDocumentationFloorDays();
+      const hipaaEntry = lookup.getBaseline("hipaa-documentation");
+      const pass =
+        floorDays === 2191 &&
+        hipaaEntry.durationDays === 2191 &&
+        hipaaEntry.regulatoryFloor === true &&
+        hipaaEntry.regulatoryCitation === "45 CFR 164.316(b)(2)(i)";
+      return pass
+        ? {
+            status: "PASS",
+            detail: "HIPAA 6-year floor invariant holds (2191 days, 45 CFR 164.316(b)(2)(i))",
+            evidence: { floorDays },
+          }
+        : {
+            status: "FAIL",
+            detail: `HIPAA floor invariant broken: floorDays=${floorDays} entry=${JSON.stringify(hipaaEntry)}`,
+            evidence: { floorDays, hipaaEntry },
+          };
+    },
+  },
 ];
 
 function runAllChecks() {
@@ -1385,6 +1480,7 @@ module.exports = {
   subprocessorRegistry: probeHelpers.subprocessorRegistry,
   socScopeBoundary: probeHelpers.socScopeBoundary,
   tscScopeBoundary: probeHelpers.tscScopeBoundary,
+  retentionBaseline: probeHelpers.retentionBaseline,
 };
 
 if (require.main === module) {
