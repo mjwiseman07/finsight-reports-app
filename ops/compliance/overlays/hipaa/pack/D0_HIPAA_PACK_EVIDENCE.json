@@ -1,0 +1,73 @@
+{
+  "evidenceVersion": "42.5V-1",
+  "generatedAt": "2026-06-22T23:15:20.527Z",
+  "totalCases": 9,
+  "passCount": 9,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "HPSE-01",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "hipaa_pack_scope_aligned_with_soc1_and_overlay_contract"
+    },
+    {
+      "id": "HPSE-02",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "subpart_b_out_of_pack_scope"
+    },
+    {
+      "id": "HPSE-03",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "subpart_e_out_of_pack_scope"
+    },
+    {
+      "id": "HPSE-04",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "subpart_d_full_out_of_pack_scope_incident_only_layering"
+    },
+    {
+      "id": "HPSE-05",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "missing_explicit_out_of_scope_disclaimer:B"
+    },
+    {
+      "id": "HPSE-06",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "namespace_outside_soc1_declared_boundary"
+    },
+    {
+      "id": "HPSE-07",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "nprm_anticipation_detected_in_scope_metadata"
+    },
+    {
+      "id": "HPSE-08",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "excludes_nprm_anticipation_must_be_literal_true"
+    },
+    {
+      "id": "HPSE-09",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "hipaa_pack_scope_aligned_with_soc1_and_overlay_contract",
+      "mutationRejected": true
+    }
+  ]
+}

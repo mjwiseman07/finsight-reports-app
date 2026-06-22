@@ -111,6 +111,8 @@ function loadSpineModules() {
     tscScopeBoundary: loadOpsModule("compliance/soc/soc2/index.ts"),
     retention: loadOpsModule("compliance/retention/index.ts"),
     vendors: loadOpsModule("compliance/vendors/index.ts"),
+    hipaaPack: loadOpsModule("compliance/overlays/hipaa/pack/index.ts"),
+    hipaaPackStaticTests: loadOpsModule("compliance/overlays/hipaa/pack/hipaaPackScopeBoundary.staticTests.ts"),
     overlayDiscipline: loadOpsModule("compliance/overlay-discipline/index.ts"),
     hipaaIntegration: loadOpsModule("compliance/overlays/hipaa/integration/index.ts"),
     hipaaSafeguards: loadOpsModule("compliance/overlays/hipaa/safeguards/index.ts"),
@@ -586,6 +588,37 @@ function createProbeHelpers() {
     },
   };
 
+  const hipaaPackScopeBoundary = {
+    assertPackScopeAligned(input) {
+      try {
+        const result = modules.hipaaPack.hipaaPackScopeBoundary.assertPackScopeAligned(input);
+        return {
+          decision: result.decision,
+          denied: result.decision === "DENY",
+          reason: result.reason,
+          evidence: result.evidence,
+        };
+      } catch {
+        return {
+          decision: "DENY",
+          denied: true,
+          reason: "harness_error_fail_closed",
+          evidence: {
+            packScopeId: input?.packScopeId ?? "unknown",
+            soc1DeclaredBoundary: modules.socScopeBoundary.socScopeBoundary.getDeclaredBoundary(),
+            hipaaOverlayScopeContract: null,
+            subpartsOutOfBoundsAttempted: [],
+            namespacesOutsideSoc1: [],
+            nprmAnticipationDetected: false,
+          },
+        };
+      }
+    },
+    getDeclaredPackScope() {
+      return modules.hipaaPack.hipaaPackScopeBoundary.getDeclaredPackScope();
+    },
+  };
+
   return {
     isolationEvaluator,
     rbacEvaluator,
@@ -600,6 +633,7 @@ function createProbeHelpers() {
     socScopeBoundary,
     tscScopeBoundary,
     retentionBaseline,
+    hipaaPackScopeBoundary,
     modules,
     integrationBinding,
     emptyRegistry,
@@ -1596,6 +1630,142 @@ const checks = [
           };
     },
   },
+  {
+    id: "CHK-37",
+    name: "42.5V HIPAA pack present; docs with DRAFT banners; RISK_ANALYSIS 42.5K-PENDING",
+    run() {
+      const packDir = path.join(opsRoot, "compliance/overlays/hipaa/pack");
+      const docsDir = path.join(root, "docs/trust/hipaa");
+      const requiredPackFiles = [
+        "hipaaPackScopeBoundary.ts",
+        "hipaaPackScopeBoundary.staticTests.ts",
+        "index.ts",
+      ];
+      const requiredDocs = [
+        "HIPAA_PACK_README.md",
+        "RISK_ANALYSIS.md",
+        "RISK_MANAGEMENT_PLAN.md",
+        "POLICY_SET.md",
+        "BAA_TEMPLATE_REFERENCE.md",
+        "SUBCONTRACTOR_BAA_DRAFT.md",
+        "TRAINING_ATTESTATION_LOG.md",
+        "INCIDENT_RESPONSE_RUNBOOK.md",
+        "SCOPE_STATEMENT.md",
+      ];
+      const draftHeader =
+        "> **DRAFT — FOUNDER-AUTHORED. NOT COUNSEL-REVIEWED. NOT A CERTIFICATION.**";
+      const draftFooter =
+        "> **END DRAFT.** Counsel review and HIPAA legal sign-off required before this document may be presented to a regulator, an auditor, a customer, a Business Associate, or any external party.";
+      const packMissing = requiredPackFiles.filter((file) => !fs.existsSync(path.join(packDir, file)));
+      const docsMissing = requiredDocs.filter((file) => !fs.existsSync(path.join(docsDir, file)));
+      const bannerViolations = [];
+      for (const doc of requiredDocs) {
+        const content = read(`docs/trust/hipaa/${doc}`);
+        if (!content.includes(draftHeader) || !content.includes(draftFooter)) {
+          bannerViolations.push(`${doc} missing DRAFT banner header or footer`);
+        }
+      }
+      const riskAnalysis = read("docs/trust/hipaa/RISK_ANALYSIS.md");
+      const has42_5KPending = riskAnalysis.includes("42.5K-PENDING");
+      const pass =
+        packMissing.length === 0 && docsMissing.length === 0 && bannerViolations.length === 0 && has42_5KPending;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "42.5V HIPAA pack and documentation present with DRAFT banners",
+            evidence: { docCount: requiredDocs.length },
+          }
+        : {
+            status: "FAIL",
+            detail: `42.5V pack/docs incomplete: pack=${packMissing.join(",")} docs=${docsMissing.join(",")} banners=${bannerViolations.join("; ")} 42.5K-PENDING=${has42_5KPending}`,
+            evidence: { packMissing, docsMissing, bannerViolations, has42_5KPending },
+          };
+    },
+  },
+  {
+    id: "CHK-38",
+    name: "42.5V hipaaPackScopeBoundary static tests + D0 evidence + annotations",
+    run() {
+      const modules = loadSpineModules();
+      const staticResult = modules.hipaaPackStaticTests.executeHipaaPackScopeBoundaryStaticConstructionTests();
+      const helperSource = read("ops/compliance/overlays/hipaa/pack/hipaaPackScopeBoundary.ts");
+      const hasAnnotations =
+        helperSource.includes("executable: false") &&
+        helperSource.includes("containsVerticalComplianceLogic: false");
+      const generatorPath = "scripts/d0-evidence-hipaa-pack.js";
+      if (!fs.existsSync(path.join(root, generatorPath))) {
+        return { status: "FAIL", detail: `Missing generator: ${generatorPath}`, evidence: null };
+      }
+      try {
+        execSync("node scripts/d0-evidence-hipaa-pack.js", { cwd: root, stdio: "pipe", encoding: "utf8" });
+      } catch (error) {
+        return {
+          status: "FAIL",
+          detail: `d0 generator failed: ${(error.stdout || error.message || "").slice(0, 300)}`,
+          evidence: null,
+        };
+      }
+      const evidencePath = "ops/compliance/overlays/hipaa/pack/D0_HIPAA_PACK_EVIDENCE.json";
+      if (!fs.existsSync(path.join(root, evidencePath))) {
+        return { status: "FAIL", detail: `Missing artifact: ${evidencePath}`, evidence: null };
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(read(evidencePath));
+      } catch (error) {
+        return { status: "FAIL", detail: `D0 evidence parse error: ${error.message}`, evidence: null };
+      }
+      const pass =
+        staticResult.pass &&
+        hasAnnotations &&
+        parsed.totalCases === 9 &&
+        parsed.passCount === 9 &&
+        parsed.failCount === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `HIPAA pack D0 evidence valid (cases=9, static=${staticResult.results.length})`,
+            evidence: { passCount: parsed.passCount },
+          }
+        : {
+            status: "FAIL",
+            detail: `Static or D0 failed: static=${staticResult.pass} d0=${parsed.passCount}/${parsed.totalCases}`,
+            evidence: { staticResult, parsed, hasAnnotations },
+          };
+    },
+  },
+  {
+    id: "CHK-39",
+    name: "42.5V scope-alignment invariant on getDeclaredPackScope",
+    run() {
+      const modules = loadSpineModules();
+      const scope = modules.hipaaPack.hipaaPackScopeBoundary.getDeclaredPackScope();
+      const soc1 = modules.socScopeBoundary.socScopeBoundary.getDeclaredBoundary();
+      const expectedInScope = ["A", "C", "D-incident-only"];
+      const expectedOutOfScope = ["B", "D-full", "E"];
+      const subpartsOk =
+        expectedInScope.every((subpart) => scope.subpartsInScope.includes(subpart)) &&
+        scope.subpartsInScope.length === expectedInScope.length;
+      const outOfScopeOk = expectedOutOfScope.every((subpart) => scope.subpartsOutOfScope.includes(subpart));
+      const counselOk = scope.counselReviewStatus === "pending-42.6E";
+      const allowedPrefixes = [...soc1.spineNamespaces, ...soc1.overlayNamespaces];
+      const namespacesAligned = [...scope.spineNamespaces, ...scope.overlayNamespaces].every((namespace) =>
+        allowedPrefixes.some((prefix) => namespace === prefix || namespace.startsWith(prefix)),
+      );
+      const pass = subpartsOk && outOfScopeOk && counselOk && namespacesAligned;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "HIPAA pack declared scope aligned with SOC1 boundary and overlay contract",
+            evidence: { subpartsInScope: scope.subpartsInScope },
+          }
+        : {
+            status: "FAIL",
+            detail: `Scope invariant broken: subparts=${subpartsOk} out=${outOfScopeOk} counsel=${counselOk} ns=${namespacesAligned}`,
+            evidence: { scope, soc1 },
+          };
+    },
+  },
 ];
 
 function runAllChecks() {
@@ -1637,6 +1807,7 @@ module.exports = {
   socScopeBoundary: probeHelpers.socScopeBoundary,
   tscScopeBoundary: probeHelpers.tscScopeBoundary,
   retentionBaseline: probeHelpers.retentionBaseline,
+  hipaaPackScopeBoundary: probeHelpers.hipaaPackScopeBoundary,
 };
 
 if (require.main === module) {
