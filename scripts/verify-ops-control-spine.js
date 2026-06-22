@@ -34,6 +34,7 @@ const WAVE2_MODULES = [
 const WAVE3_MODULES = [
   { id: "42.5M", dir: "control-spine/phi-ingestion-gate", barrel: "index.ts" },
   { id: "42.5N", dir: "control-spine/verification/phi-boundary", barrel: "index.ts" },
+  { id: "42.5P", dir: "control-spine/verification/panel-data-paths", barrel: "index.ts" },
 ];
 
 const SPINE_SCAN_DIRS = [
@@ -46,6 +47,7 @@ const SPINE_SCAN_DIRS = [
   "control-spine/tenant-attributes",
   "control-spine/phi-ingestion-gate",
   "control-spine/verification/phi-boundary",
+  "control-spine/verification/panel-data-paths",
 ];
 
 const HIPAA_OVERLAY_DIRS = [
@@ -103,6 +105,7 @@ function loadSpineModules() {
     auth: loadOpsModule("control-spine/auth/index.ts"),
     phiIngestionGate: loadOpsModule("control-spine/phi-ingestion-gate/index.ts"),
     phiBoundary: loadOpsModule("control-spine/verification/phi-boundary/index.ts"),
+    panelDataPaths: loadOpsModule("control-spine/verification/panel-data-paths/index.ts"),
     overlayAttachment: loadOpsModule("compliance/overlay-attachment/index.ts"),
     overlayDiscipline: loadOpsModule("compliance/overlay-discipline/index.ts"),
     hipaaIntegration: loadOpsModule("compliance/overlays/hipaa/integration/index.ts"),
@@ -446,15 +449,37 @@ function createProbeHelpers() {
     },
   };
 
+  function mapPanelHarnessResult(result) {
+    return {
+      decision: result.decision,
+      denied: result.decision === "DENY",
+      reason: result.reason,
+      evidence: result.evidence,
+    };
+  }
+
+  function wrapPanelHarnessMethod(methodName) {
+    return (input) => {
+      try {
+        const result = modules.panelDataPaths.panelDataPathHarness[methodName](input);
+        return mapPanelHarnessResult(result);
+      } catch {
+        return {
+          decision: "DENY",
+          denied: true,
+          reason: "harness_error_fail_closed",
+          evidence: { panelId: input?.panelId ?? "unknown", deniedFields: [] },
+        };
+      }
+    };
+  }
+
   const panelDataPathHarness = {
-    assertNoPhiOutsideOverlay() {
-      return { awaitingModule: "42.5P" };
-    },
-    assertPanelOverlayScope() {
-      return { awaitingModule: "42.5P" };
-    },
-    assertTenantScope() {
-      return { awaitingModule: "42.5P" };
+    assertNoPhiOutsideOverlay: wrapPanelHarnessMethod("assertNoPhiOutsideOverlay"),
+    assertPanelOverlayScope: wrapPanelHarnessMethod("assertPanelOverlayScope"),
+    assertTenantScope: wrapPanelHarnessMethod("assertTenantScope"),
+    proveRenderedPanelBoundary(input) {
+      return modules.panelDataPaths.panelDataPathHarness.proveRenderedPanelBoundary(input);
     },
   };
 
@@ -520,7 +545,7 @@ function scanSpineVerticalComplianceLogicFalse() {
 
 function scanSpineHipaaSymbols() {
   const pattern = /\b(HIPAA|45_cfr_164|Hipaa[A-Z][a-zA-Z]+Contract)\b/;
-  const allowedSubpaths = ["phi-ingestion-gate", "verification/phi-boundary"];
+  const allowedSubpaths = ["phi-ingestion-gate", "verification/phi-boundary", "verification/panel-data-paths"];
   const hits = [];
   const spineFiles = listFiles("ops/control-spine", (file) =>
     file.endsWith(".ts") && !file.includes("StaticConstructionTests"),
@@ -547,7 +572,7 @@ function scanExecutableTrueDrift() {
 
 function scanSpineContractImports() {
   const violations = [];
-  const allowedComplianceImportPaths = ["phi-ingestion-gate", "verification/phi-boundary"];
+  const allowedComplianceImportPaths = ["phi-ingestion-gate", "verification/phi-boundary", "verification/panel-data-paths"];
   const spineFiles = listFiles("ops/control-spine", (file) =>
     file.endsWith(".ts") && !file.endsWith("index.ts") && !file.includes("StaticConstructionTests"),
   );
@@ -630,7 +655,7 @@ const checks = [
     run() {
       const result = verifyModuleWave(WAVE3_MODULES, "Wave3");
       return result.missing.length === 0
-        ? { status: "PASS", detail: "42.5M and 42.5N present", evidence: { count: WAVE3_MODULES.length } }
+        ? { status: "PASS", detail: "42.5M, 42.5N, and 42.5P present", evidence: { count: WAVE3_MODULES.length } }
         : { status: "FAIL", detail: `Missing: ${result.missing.join(", ")}`, evidence: { missing: result.missing } };
     },
   },
@@ -950,6 +975,103 @@ const checks = [
             status: "FAIL",
             detail: `EXISTING_42H_STORE_LITERAL in test file = "${testLiteralValue}", but 42.5L canonical = "${canonical}". Update test fixture.`,
             evidence: { canonical, testLiteralValue, testPath },
+          };
+    },
+  },
+  {
+    id: "CHK-22",
+    name: "42.5P panel-data-path harness exported via verification barrel and verifier re-export",
+    run() {
+      const moduleDir = path.join(opsRoot, "control-spine/verification/panel-data-paths");
+      const barrelPath = path.join(moduleDir, "index.ts");
+      const verificationBarrel = path.join(opsRoot, "control-spine/verification/index.ts");
+      const harnessPresent = fs.existsSync(path.join(moduleDir, "panelDataPathHarness.ts"));
+      const barrelPresent = fs.existsSync(barrelPath);
+      const verificationBarrelExportsPanel =
+        fs.existsSync(verificationBarrel) &&
+        read("ops/control-spine/verification/index.ts").includes("panel-data-paths");
+      const modules = loadSpineModules();
+      const staticResult = modules.panelDataPaths.executePanelDataPathStaticConstructionTests();
+      const exportedHarness = probeHelpers.panelDataPathHarness;
+      const hasMethods =
+        typeof exportedHarness?.assertNoPhiOutsideOverlay === "function" &&
+        typeof exportedHarness?.assertPanelOverlayScope === "function" &&
+        typeof exportedHarness?.assertTenantScope === "function";
+      const pass =
+        harnessPresent &&
+        barrelPresent &&
+        verificationBarrelExportsPanel &&
+        hasMethods &&
+        staticResult.pass;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "42.5P panelDataPathHarness wired through verification barrel and 42.5O re-export",
+            evidence: { staticCases: staticResult.results.length },
+          }
+        : {
+            status: "FAIL",
+            detail: "42.5P harness missing or static suite failed",
+            evidence: { harnessPresent, barrelPresent, verificationBarrelExportsPanel, hasMethods, staticResult },
+          };
+    },
+  },
+  {
+    id: "CHK-23",
+    name: "42.5P containsVerticalComplianceLogic:false on every harness file",
+    run() {
+      const dir = path.join("ops", "control-spine/verification/panel-data-paths");
+      const files = listFiles(dir, (file) => /\.ts$/.test(file) && !file.includes("StaticConstructionTests"));
+      const violations = [];
+      for (const file of files) {
+        const source = read(file);
+        if (!source.includes("containsVerticalComplianceLogic: false")) {
+          violations.push(`${file} (missing containsVerticalComplianceLogic: false)`);
+        }
+      }
+      return violations.length === 0
+        ? { status: "PASS", detail: "42.5P namespace spine-side annotations present", evidence: { files: files.length } }
+        : { status: "FAIL", detail: violations.join("; "), evidence: { violations } };
+    },
+  },
+  {
+    id: "CHK-24",
+    name: "42.5P D0_EVIDENCE.json present, parses, and d0 generator exits 0",
+    run() {
+      const evidencePath = "ops/control-spine/verification/panel-data-paths/D0_EVIDENCE.json";
+      const generatorPath = "scripts/d0-evidence-panel-data-paths.js";
+      if (!fs.existsSync(path.join(root, generatorPath))) {
+        return { status: "FAIL", detail: `Missing generator: ${generatorPath}`, evidence: null };
+      }
+      try {
+        execSync("node scripts/d0-evidence-panel-data-paths.js", { cwd: root, stdio: "pipe", encoding: "utf8" });
+      } catch (error) {
+        return {
+          status: "FAIL",
+          detail: `d0 generator failed: ${(error.stdout || error.message || "").slice(0, 300)}`,
+          evidence: null,
+        };
+      }
+      if (!fs.existsSync(path.join(root, evidencePath))) {
+        return { status: "FAIL", detail: `Missing artifact: ${evidencePath}`, evidence: null };
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(read(evidencePath));
+      } catch (error) {
+        return { status: "FAIL", detail: `D0_EVIDENCE.json parse error: ${error.message}`, evidence: null };
+      }
+      const pass = parsed.totalViolations === 0 && parsed.pass === true;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `D0 panel evidence artifact valid (panels=${parsed.totalPanels}, violations=0)`,
+            evidence: { totalPanels: parsed.totalPanels },
+          }
+        : {
+            status: "FAIL",
+            detail: `D0_EVIDENCE.json totalViolations=${parsed.totalViolations}`,
+            evidence: { parsed },
           };
     },
   },

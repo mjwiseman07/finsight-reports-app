@@ -71,12 +71,26 @@ const poisonCaseRunners = {
     };
   },
   "PC-02"() {
-    if (mandatoryPoisonCases.find((p) => p.id === "PC-02")?.awaitingModule) {
-      const skip = buildSkippedResult(mandatoryPoisonCases.find((p) => p.id === "PC-02"), "awaiting 42.5P");
-      return LOCK_MODE ? buildViolationFromSkip(mandatoryPoisonCases.find((p) => p.id === "PC-02"), "awaiting 42.5P") : skip;
-    }
-    const result = panelDataPathHarness.assertNoPhiOutsideOverlay();
-    return { actual: "SKIPPED", status: "SKIPPED", detail: "awaiting 42.5P", fixture: {} };
+    const result = panelDataPathHarness.assertNoPhiOutsideOverlay({
+      panelId: "panel:export:non-overlay",
+      tenantId: fixtures.NON_OVERLAY_TENANT.customerTenantId,
+      persona: "firm-staff",
+      overlayActive: [],
+      fieldTaxonomy: [
+        {
+          taxonomy: "patient-identifier",
+          phi: true,
+          sourceTenantId: fixtures.NON_OVERLAY_TENANT.customerTenantId,
+        },
+      ],
+    });
+    const actual = result.denied ? "DENY" : "ALLOW";
+    return {
+      actual,
+      status: actual === "DENY" ? "PASS" : "VIOLATION",
+      detail: result.reason ?? "PHI reached non-overlay panel path",
+      fixture: { target: fixtures.NON_OVERLAY_TENANT, tag: fixtures.SYNTHETIC_PHI_TAG },
+    };
   },
   "PC-03"() {
     const result = auditSpine.assertRetentionTier();
@@ -135,11 +149,27 @@ const poisonCaseRunners = {
     };
   },
   "PC-08"() {
-    const pc = mandatoryPoisonCases.find((p) => p.id === "PC-08");
-    if (pc?.awaitingModule) {
-      return LOCK_MODE ? buildViolationFromSkip(pc, "awaiting 42.5P") : buildSkippedResult(pc, "awaiting 42.5P");
-    }
-    return { actual: "SKIPPED", status: "SKIPPED", detail: "awaiting 42.5P", fixture: {} };
+    const result = panelDataPathHarness.assertPanelOverlayScope({
+      panelId: "panel:command-center:healthcare-ppd",
+      tenantId: fixtures.NON_OVERLAY_TENANT.customerTenantId,
+      persona: "firm-staff",
+      overlayActive: [],
+      fieldTaxonomy: [
+        {
+          taxonomy: "patient-identifier",
+          phi: true,
+          sourceTenantId: fixtures.NON_OVERLAY_TENANT.customerTenantId,
+        },
+      ],
+      phi: true,
+    });
+    const actual = result.denied ? "DENY" : "ALLOW";
+    return {
+      actual,
+      status: actual === "DENY" ? "PASS" : "VIOLATION",
+      detail: result.reason ?? "PHI panel outside overlay scope",
+      fixture: { panel: "command-center", tag: fixtures.SYNTHETIC_PHI_TAG },
+    };
   },
   "PC-09"() {
     const result = auditSpine.assertPhiRetentionFloor();
@@ -252,8 +282,27 @@ const poisonCaseRunners = {
     };
   },
   "PC-19"() {
-    const pc = mandatoryPoisonCases.find((p) => p.id === "PC-19");
-    return LOCK_MODE ? buildViolationFromSkip(pc, "awaiting 42.5P") : buildSkippedResult(pc, "awaiting 42.5P");
+    const result = panelDataPathHarness.assertTenantScope({
+      panelId: "panel:command-center:generic-summary",
+      tenantId: fixtures.TENANT_B.customerTenantId,
+      persona: "firm-staff",
+      overlayActive: [],
+      fieldTaxonomy: [
+        {
+          taxonomy: "financial-summary",
+          phi: false,
+          sourceTenantId: fixtures.TENANT_A.customerTenantId,
+        },
+      ],
+      phi: false,
+    });
+    const actual = result.denied ? "DENY" : "ALLOW";
+    return {
+      actual,
+      status: actual === "DENY" ? "PASS" : "VIOLATION",
+      detail: result.reason ?? "cross-tenant panel leak not denied",
+      fixture: { requester: fixtures.TENANT_B, source: fixtures.TENANT_A },
+    };
   },
   "PC-20"() {
     const result = phiBoundaryHarness.assertDerivedLearningBrightLine();

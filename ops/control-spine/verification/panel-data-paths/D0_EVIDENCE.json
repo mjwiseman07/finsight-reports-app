@@ -1,0 +1,33 @@
+{
+  "generatedAtIso": "2026-06-20T12:00:00.000Z",
+  "module": "42.5P",
+  "pass": true,
+  "totalPanels": 3,
+  "totalViolations": 0,
+  "panelResults": [
+    {
+      "panelId": "panel:command-center:healthcare-ppd",
+      "tenantId": "tenant-d0-healthcare-a",
+      "persona": "firm-staff",
+      "pass": true,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "panelId": "panel:command-center:generic-summary",
+      "tenantId": "tenant-d0-generic-b",
+      "persona": "firm-admin",
+      "pass": true,
+      "violationCount": 0,
+      "violations": []
+    },
+    {
+      "panelId": "panel:command-center:client-ledger",
+      "tenantId": "tenant-d0-client-c",
+      "persona": "client-side",
+      "pass": true,
+      "violationCount": 0,
+      "violations": []
+    }
+  ]
+}
