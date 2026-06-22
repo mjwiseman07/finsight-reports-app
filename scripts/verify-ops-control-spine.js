@@ -576,6 +576,33 @@ function scanSpineContractImports() {
   return violations;
 }
 
+const HIPAA_INTEGRATION_REFERENCE_ID_DECLARATION_DIR =
+  "ops/compliance/overlays/hipaa/integration/";
+
+const PHASE_42_5_INTERFACE_REFERENCE_ID_DECLARATION_PATTERN =
+  /export const PHASE_42_5_[A-Z0-9_]*INTERFACE_REFERENCE_ID\b/g;
+
+function scanHipaaIntegrationReferenceIdDeclarationSites() {
+  const violations = [];
+  const allowedPrefix = HIPAA_INTEGRATION_REFERENCE_ID_DECLARATION_DIR.replace(/\\/g, "/");
+  const files = listFiles(".", (file) => /\.(ts|js|mts|cts)$/.test(file)).filter(
+    (file) => !file.replace(/\\/g, "/").includes("node_modules/"),
+  );
+
+  for (const file of files) {
+    const normalized = file.replace(/\\/g, "/");
+    if (normalized.startsWith(allowedPrefix)) continue;
+
+    const source = read(file);
+    const matches = source.match(PHASE_42_5_INTERFACE_REFERENCE_ID_DECLARATION_PATTERN);
+    if (matches && matches.length > 0) {
+      violations.push(`${normalized}: ${matches.join(", ")}`);
+    }
+  }
+
+  return violations;
+}
+
 const checks = [
   {
     id: "CHK-01",
@@ -802,6 +829,128 @@ const checks = [
       return pass
         ? { status: "PASS", detail: "Q7a table structure present with PENDING marker", evidence: { pendingInputMarker: classification.pendingInputMarker } }
         : { status: "FAIL", detail: "42.5K Q7a classification structure missing", evidence: { classification } };
+    },
+  },
+  {
+    id: "CHK-19",
+    name: "42.5L is sole declaration site for HIPAA integration reference ID values",
+    run() {
+      const violations = scanHipaaIntegrationReferenceIdDeclarationSites();
+      const soleSite = path.join(
+        root,
+        HIPAA_INTEGRATION_REFERENCE_ID_DECLARATION_DIR,
+        "buildPhase42HipaaIntegrationBinding.ts",
+      );
+      const soleSiteExists = fs.existsSync(soleSite);
+      const pass = violations.length === 0 && soleSiteExists;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "PHASE_42_5_*_INTERFACE_REFERENCE_ID declared only in 42.5L integration bind layer",
+            evidence: { soleDeclarationSite: HIPAA_INTEGRATION_REFERENCE_ID_DECLARATION_DIR },
+          }
+        : {
+            status: "FAIL",
+            detail:
+              violations.length > 0
+                ? `Duplicate declarations outside 42.5L: ${violations.join("; ")}`
+                : "42.5L buildPhase42HipaaIntegrationBinding.ts missing",
+            evidence: { violations, soleSiteExists },
+          };
+    },
+  },
+  {
+    id: "CHK-20",
+    name: "Phase 42 buildPHITag.ts inline literal matches 42.5L canonical audit-store ID",
+    run() {
+      const bindingModule = loadOpsModule(
+        "compliance/overlays/hipaa/integration/buildPhase42HipaaIntegrationBinding.ts",
+      );
+      const canonical = bindingModule.PHASE_42_5_HIPAA_COMPLIANT_AUDIT_STORE_INTERFACE_REFERENCE_ID;
+      if (typeof canonical !== "string" || canonical.length === 0) {
+        return {
+          status: "FAIL",
+          detail:
+            "42.5L canonical PHASE_42_5_HIPAA_COMPLIANT_AUDIT_STORE_INTERFACE_REFERENCE_ID is missing or empty",
+          evidence: { canonical },
+        };
+      }
+
+      const phitagPath = "lib/intelligence/synthetic/industry/phi-tagging/buildPHITag.ts";
+      if (!fs.existsSync(path.join(root, phitagPath))) {
+        return {
+          status: "FAIL",
+          detail: `Phase 42 source file not found: ${phitagPath}`,
+          evidence: null,
+        };
+      }
+
+      const phitagSrc = read(phitagPath);
+      const hasCanonicalLiteral =
+        phitagSrc.includes(`"${canonical}"`) || phitagSrc.includes(`'${canonical}'`);
+
+      return hasCanonicalLiteral
+        ? {
+            status: "PASS",
+            detail: `Phase 42 buildPHITag.ts fallback literal matches 42.5L canonical: "${canonical}".`,
+            evidence: { canonical, phitagPath },
+          }
+        : {
+            status: "FAIL",
+            detail: `Phase 42 buildPHITag.ts does not contain canonical literal "${canonical}". Either Phase 42 fallback was renamed (would require Phase 42 lock amendment) OR 42.5L canonical was changed without coordinating Phase 42.`,
+            evidence: { canonical, phitagPath },
+          };
+    },
+  },
+  {
+    id: "CHK-21",
+    name: "Static construction test EXISTING_42H_STORE_LITERAL matches 42.5L canonical audit-store ID",
+    run() {
+      const bindingModule = loadOpsModule(
+        "compliance/overlays/hipaa/integration/buildPhase42HipaaIntegrationBinding.ts",
+      );
+      const canonical = bindingModule.PHASE_42_5_HIPAA_COMPLIANT_AUDIT_STORE_INTERFACE_REFERENCE_ID;
+      if (typeof canonical !== "string" || canonical.length === 0) {
+        return {
+          status: "FAIL",
+          detail:
+            "42.5L canonical PHASE_42_5_HIPAA_COMPLIANT_AUDIT_STORE_INTERFACE_REFERENCE_ID is missing or empty",
+          evidence: { canonical },
+        };
+      }
+
+      const testPath = "ops/compliance/overlays/hipaa/integration/phase42HipaaIntegrationStaticConstructionTests.ts";
+      if (!fs.existsSync(path.join(root, testPath))) {
+        return {
+          status: "FAIL",
+          detail: `Test file not found: ${testPath}`,
+          evidence: null,
+        };
+      }
+
+      const testSrc = read(testPath);
+      const match = testSrc.match(/const\s+EXISTING_42H_STORE_LITERAL\s*=\s*["']([^"']+)["']/);
+      if (!match) {
+        return {
+          status: "FAIL",
+          detail:
+            "EXISTING_42H_STORE_LITERAL declaration not found in test file. Test fixture may have been refactored.",
+          evidence: { testPath },
+        };
+      }
+
+      const testLiteralValue = match[1];
+      return testLiteralValue === canonical
+        ? {
+            status: "PASS",
+            detail: `Test file EXISTING_42H_STORE_LITERAL matches 42.5L canonical: "${canonical}".`,
+            evidence: { canonical, testPath, testLiteralValue },
+          }
+        : {
+            status: "FAIL",
+            detail: `EXISTING_42H_STORE_LITERAL in test file = "${testLiteralValue}", but 42.5L canonical = "${canonical}". Update test fixture.`,
+            evidence: { canonical, testLiteralValue, testPath },
+          };
     },
   },
 ];
