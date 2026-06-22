@@ -512,6 +512,8 @@ Industry classification is a sensitive tenant attribute. Industry-config storage
 
 **Wave 1 complete gate:** All Wave 1 modules audited PASS. GL-1 internal spine components verified via sub-proofs for 42.5A–G. No customer access.
 
+**GL-1 (Wave 1 structural soundness) CLEARED** by founder review at **`1682ceb`**. Basis: 7 modules present + barrel-exported, 32/32 static cases pass, tsc clean, composition deny-dominant (isolation floor; RBAC/config/auth cannot bypass), no vertical compliance logic, fail-closed consistent. **STRUCTURAL clearance only** — NOT the D0 adversarial proof (PC-01..20), which remains **42.5O / LOCK-42.5.3** in Wave 3.
+
 > Note: "Sub-proof" denotes per-module evidence of correct implementation. "D0" is reserved for the Wave 3 system-wide PHI-boundary proof (42.5O). The two are not interchangeable.
 
 ---
@@ -1162,6 +1164,11 @@ Read-only comprehensive audit against Phase 42.5 Exit Criteria and **LOCK-42.5.1
 - Trust page **publish** deferred to Phase 42.6J (GL-5) — draft only at 42.5 LOCK
 - No requirement for CPA engagement, counsel sign-off, or issued SOC reports at 42.5 LOCK
 
+**Pre-lock carry items (must resolve before 42.5 LOCK):**
+
+1. **AUDIT-PATH CONSOLIDATION** — 42.5B and 42.5C emit audit-shaped records inline; refactor to call **42.5D `buildAuditEvent()`** so there is ONE canonical audit shape before lock.
+2. **FULL-STACK PROBE COVERAGE** — GL-1 verified composition module-local only; **42.5O** must exercise the end-to-end **F→B→C→G** composed stack, and **42.5AB** must confirm it did.
+
 **Build steps:**
 
 1. Re-run `scripts/verify-ops-control-spine.js` → `VERIFY_EXIT:0`.
@@ -1171,9 +1178,10 @@ Read-only comprehensive audit against Phase 42.5 Exit Criteria and **LOCK-42.5.1
 5. Audit each **LOCK-42.5.1, .2, .3, .9, .10, .11** condition.
 6. Audit **EXIT-54.0** and **EXIT-54.8**; confirm readiness **drafts** for deferred EXIT items.
 7. Complete **42.5AB carry-forward table** (see below).
-8. If all PASS: create `PHASE_42_5_LOCK.md` and journal entry.
-9. If any FAIL: report gaps; do not lock.
-10. **Build step (final):** Founder reviews and signs LOCK-42.5.1 attesting that (a) LOCK-42.5.1, .2, .3, .9, .10, .11 are locked, (b) all 20 poison cases (PC-01 to PC-20) passed at lock time, (c) D0 through D10 **artifacts present and verified**, (d) EXIT-54.0 and EXIT-54.8 satisfied, (e) deferred EXIT items documented in carry-forward table with Phase 42.6 owner modules. Founder signature timestamped in `PHASE_42_5_LOCK.md`.
+8. Confirm **pre-lock carry items** satisfied: (a) audit-path consolidation — 42.5B/C refactored to **42.5D `buildAuditEvent()`**; (b) full-stack probe coverage — **42.5O** exercised **F→B→C→G** composed stack and **42.5AB** attests it.
+9. If all PASS: create `PHASE_42_5_LOCK.md` and journal entry.
+10. If any FAIL: report gaps; do not lock.
+11. **Build step (final):** Founder reviews and signs LOCK-42.5.1 attesting that (a) LOCK-42.5.1, .2, .3, .9, .10, .11 are locked, (b) all 20 poison cases (PC-01 to PC-20) passed at lock time, (c) D0 through D10 **artifacts present and verified**, (d) EXIT-54.0 and EXIT-54.8 satisfied, (e) deferred EXIT items documented in carry-forward table with Phase 42.6 owner modules, (f) **pre-lock carry items** (audit-path consolidation + full-stack probe coverage) confirmed. Founder signature timestamped in `PHASE_42_5_LOCK.md`.
 
 **42.5AB mandatory carry-forward table (template):**
 
