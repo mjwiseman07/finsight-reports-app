@@ -97,8 +97,8 @@ record of when this attestation was made.
 Signed:    Matthew Wiseman
 Title:     Founder
 Date:      2026-06-22
-Commit:    [COMMIT_HASH — filled by reference after the commit lands]
-GPG state: [GPG_STATE — "signed-by-key-fingerprint:<fp>" OR "unsigned" — filled by reference after the commit lands]
+Commit:    97ecb752ccd15d46e71ba86eb85f237cb680ed73
+GPG state: unsigned
 ---END FOUNDER ATTESTATION---
 
 ## Addendum protocol
