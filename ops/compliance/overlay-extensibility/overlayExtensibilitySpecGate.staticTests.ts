@@ -144,6 +144,26 @@ export const OVERLAY_EXTENSIBILITY_SPEC_GATE_STATIC_CASES: OverlayExtensibilityS
       };
     },
   },
+  {
+    caseId: "OESS-10-MISSING-42.5I-REFERENCE-ID",
+    description:
+      "DENY when targetSlotReferenceId is empty — exercises missing-42.5I-reference-id branch",
+    expectedDecision: "DENY",
+    run() {
+      return assertAttachmentSpecValid(
+        baseSpec({
+          overlayRegistryKey: "overlay:hipaa:42.5J-test-missing-ref",
+          targetSlotReferenceId: "",
+          activationScopeReferenceId: "scope:hipaa:tenant-activation",
+          regulatoryScopeStatementReferenceId: "hipaa-scope-coverage:42.5J",
+          precedenceConfigurationReferenceId: "scope:precedence:default-most-restrictive",
+          overlayNamespace: "ops/compliance/overlays/hipaa/",
+          citedD0EvidencePaths: ["ops/compliance/overlays/hipaa/pack/D0_HIPAA_PACK_EVIDENCE.json"],
+          illustrationStatus: "built",
+        }),
+      );
+    },
+  },
 ];
 
 export function executeOverlayExtensibilitySpecGateStaticConstructionTests(): {

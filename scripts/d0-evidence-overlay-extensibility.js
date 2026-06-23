@@ -170,12 +170,31 @@ function generateD0Evidence() {
       };
     }, "ALLOW"),
   );
+  cases.push(
+    runCase(
+      "OESE-10",
+      () =>
+        overlayExtensibilitySpecGate.assertAttachmentSpecValid({
+          overlayRegistryKey: "overlay:hipaa:42.5J-test-missing-ref",
+          targetSlotReferenceId: "",
+          activationScopeReferenceId: "scope:hipaa:tenant-activation",
+          regulatoryScopeStatementReferenceId: "hipaa-scope-coverage:42.5J",
+          precedenceConfigurationReferenceId: "scope:precedence:default-most-restrictive",
+          overlayNamespace: "ops/compliance/overlays/hipaa/",
+          spineModificationAttempted: false,
+          verticalComplianceLogicInSpine: false,
+          citedD0EvidencePaths: ["ops/compliance/overlays/hipaa/pack/D0_HIPAA_PACK_EVIDENCE.json"],
+          illustrationStatus: "built",
+        }),
+      "DENY",
+    ),
+  );
 
   const passCount = cases.filter((entry) => entry.outcome === "PASS").length;
   const failCount = cases.filter((entry) => entry.outcome === "FAIL").length;
 
   return {
-    evidenceVersion: "42.5Y-1",
+    evidenceVersion: "42.5Y-2",
     generatedAt: new Date().toISOString(),
     totalCases: cases.length,
     passCount,

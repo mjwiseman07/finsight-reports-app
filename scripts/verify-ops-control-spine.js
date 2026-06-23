@@ -2244,13 +2244,14 @@ const checks = [
       const pass =
         staticResult.pass &&
         hasAnnotations &&
-        parsed.totalCases === 9 &&
-        parsed.passCount === 9 &&
+        typeof parsed.totalCases === "number" &&
+        parsed.totalCases >= 9 &&
+        parsed.passCount === parsed.totalCases &&
         parsed.failCount === 0;
       return pass
         ? {
             status: "PASS",
-            detail: `Overlay extensibility D0 evidence valid (cases=9, static=${staticResult.results.length})`,
+            detail: `Overlay extensibility D0 evidence valid (cases=${parsed.totalCases}, static=${staticResult.results.length})`,
             evidence: { passCount: parsed.passCount },
           }
         : {
@@ -2323,6 +2324,154 @@ const checks = [
             status: "FAIL",
             detail: `Invariant broken: catalog=${catalogOk} pciDir=${pciBuiltDirAbsent} fm2=${fm2Deny.decision} spine=${spineModDeny.decision} doc=${mostRestrictiveDocOk}`,
             evidence: { catalog, fm2Deny, spineModDeny, pciBuiltDirAbsent, mostRestrictiveDocOk },
+          };
+    },
+  },
+  {
+    id: "CHK-49",
+    name: "42.5Y v1.1 banner-context allowlist + overlay-catalog/disk parity (corrective patch)",
+    run() {
+      const violations = [];
+
+      const publicDraftsDir = "docs/trust/public-drafts";
+      const requiredDocs = [
+        "README.md",
+        "TRUST_PAGE_DRAFT.md",
+        "SIG_LITE_ANSWERS_DRAFT.md",
+        "CAIQ_ANSWERS_DRAFT.md",
+        "DATA_RESIDENCY_STATEMENT_DRAFT.md",
+        "HIPAA_ATTESTATION_LETTER_DRAFT.md",
+      ];
+      const forbiddenBenchmarkPhrases = [
+        "target threshold",
+        "pass/fail threshold",
+        "compliance commitment",
+        "guaranteed SLA",
+        "we will achieve",
+        "certified to",
+      ];
+      const forbiddenNprmPhrases = ["PROPOSED", "would require", "if finalized"];
+
+      function extractBodyExcludingBanners(content) {
+        const lines = content.split("\n");
+        const blockSpans = [];
+        let inBlock = false;
+        let start = -1;
+        for (let i = 0; i < lines.length; i++) {
+          const isBlockLine = /^>\s/.test(lines[i]) || /^>\s*$/.test(lines[i]);
+          if (isBlockLine && !inBlock) {
+            inBlock = true;
+            start = i;
+          } else if (!isBlockLine && inBlock) {
+            inBlock = false;
+            blockSpans.push([start, i - 1]);
+          }
+        }
+        if (inBlock) blockSpans.push([start, lines.length - 1]);
+        if (blockSpans.length < 2) return content;
+        const headerEnd = blockSpans[0][1];
+        const footerStart = blockSpans[blockSpans.length - 1][0];
+        return lines.slice(headerEnd + 1, footerStart).join("\n");
+      }
+
+      for (const doc of requiredDocs) {
+        const fullPath = `${publicDraftsDir}/${doc}`;
+        if (!fs.existsSync(path.join(root, fullPath))) {
+          violations.push(`CHK-49a:${doc}:unreadable`);
+          continue;
+        }
+        const content = read(fullPath);
+        const body = extractBodyExcludingBanners(content);
+        for (const phrase of forbiddenBenchmarkPhrases) {
+          if (body.toLowerCase().includes(phrase.toLowerCase())) {
+            violations.push(`CHK-49a:${doc}:body-contains-benchmark-target:"${phrase}"`);
+          }
+        }
+        for (const phrase of forbiddenNprmPhrases) {
+          if (body.includes(phrase)) {
+            violations.push(`CHK-49a:${doc}:body-contains-nprm-domain:"${phrase}"`);
+          }
+        }
+      }
+
+      const overlaysRoot = path.join(opsRoot, "compliance/overlays");
+      let onDiskDirs = [];
+      try {
+        onDiskDirs = fs
+          .readdirSync(overlaysRoot, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => entry.name);
+      } catch (err) {
+        violations.push(`CHK-49b:overlays-root-unreadable:${err.message}`);
+      }
+
+      let catalog = [];
+      try {
+        const modules = loadSpineModules();
+        catalog = modules.overlayExtensibility.overlayExtensibilitySpecGate.getDeclaredOverlayCatalog();
+      } catch (err) {
+        violations.push(`CHK-49b:catalog-load-failed:${err.message}`);
+      }
+
+      const catalogDirs = new Set(
+        catalog
+          .map((entry) => {
+            const ns = entry.overlayNamespace || "";
+            const match = ns.match(/^ops\/compliance\/overlays\/([^/]+)\/$/);
+            return match ? match[1] : null;
+          })
+          .filter(Boolean),
+      );
+
+      const builtCatalogDirs = new Set(
+        catalog
+          .filter((entry) => entry.illustrationStatus === "built")
+          .map((entry) => {
+            const match = (entry.overlayNamespace || "").match(/^ops\/compliance\/overlays\/([^/]+)\/$/);
+            return match ? match[1] : null;
+          })
+          .filter(Boolean),
+      );
+
+      const specOnlyCatalogDirs = new Set(
+        catalog
+          .filter((entry) => entry.illustrationStatus === "spec_only")
+          .map((entry) => {
+            const match = (entry.overlayNamespace || "").match(/^ops\/compliance\/overlays\/([^/]+)\/$/);
+            return match ? match[1] : null;
+          })
+          .filter(Boolean),
+      );
+
+      for (const dir of onDiskDirs) {
+        if (!catalogDirs.has(dir)) {
+          violations.push(`CHK-49b:on-disk-overlay-not-in-catalog:${dir}`);
+        }
+      }
+
+      for (const dir of builtCatalogDirs) {
+        if (!onDiskDirs.includes(dir)) {
+          violations.push(`CHK-49b:built-catalog-entry-missing-on-disk-directory:${dir}`);
+        }
+      }
+
+      for (const dir of specOnlyCatalogDirs) {
+        if (onDiskDirs.includes(dir)) {
+          violations.push(`CHK-49b:spec_only-catalog-entry-has-on-disk-directory:${dir}`);
+        }
+      }
+
+      const pass = violations.length === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "Banner-context body scan clean; overlay catalog/disk parity satisfied",
+            evidence: { onDiskDirs, catalogDirCount: catalogDirs.size },
+          }
+        : {
+            status: "FAIL",
+            detail: violations.join("; "),
+            evidence: { violations, onDiskDirs, catalogDirs: [...catalogDirs] },
           };
     },
   },
