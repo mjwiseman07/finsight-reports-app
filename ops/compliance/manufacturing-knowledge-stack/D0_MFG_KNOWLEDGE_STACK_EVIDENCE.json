@@ -1,0 +1,212 @@
+{
+  "evidenceVersion": "MFG-K-I-1",
+  "generatedAt": "2026-06-23T04:57:30.011Z",
+  "totalCases": 29,
+  "passCount": 29,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "CHK-MFG-PC-01",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "contract_kpi_v01"
+    },
+    {
+      "id": "CHK-MFG-PC-02",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "contract_kpi_v08"
+    },
+    {
+      "id": "CHK-MFG-PC-03",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "contract_kpi_fv01"
+    },
+    {
+      "id": "CHK-MFG-PC-04",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-05",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-06",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-07",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-08",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-09",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-10",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-11",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-12",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-13",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-MFG-PC-14",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "ima_register_row"
+    },
+    {
+      "id": "CHK-MFG-PC-15",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "ias2_register_row"
+    },
+    {
+      "id": "CHK-MFG-PC-16",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "subsegment_matrix_complete"
+    },
+    {
+      "id": "CHK-MFG-PC-17",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "no_fda_overlay"
+    },
+    {
+      "id": "CHK-MFG-PC-18",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "no_itar_overlay"
+    },
+    {
+      "id": "CHK-MFG-PC-19",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "no_tsca_overlay"
+    },
+    {
+      "id": "CHK-MFG-PC-20",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "spine_export_only"
+    },
+    {
+      "id": "CHK-MFG-PC-21",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "no_overlay_namespace"
+    },
+    {
+      "id": "CHK-MFG-PC-22",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "basis_of_ifrs_binary"
+    },
+    {
+      "id": "CHK-MFG-PC-23",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "ifrs_inventory_excludes_lifo"
+    },
+    {
+      "id": "CHK-MFG-PC-24",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "lease_guard_bidirectional"
+    },
+    {
+      "id": "CHK-MFG-PC-25",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "no_healthcare_import"
+    },
+    {
+      "id": "CHK-MFG-PC-26",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "d0_written"
+    },
+    {
+      "id": "CHK-MFG-PC-27",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "panel_context_exported"
+    },
+    {
+      "id": "CHK-MFG-PC-28",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "applicable_basis_present"
+    },
+    {
+      "id": "CHK-MFG-PC-29",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "spine_barrel_reexport_only"
+    }
+  ]
+}

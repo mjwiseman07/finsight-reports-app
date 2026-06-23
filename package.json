@@ -32,6 +32,7 @@
     "verify:si-explanation-persistence": "node scripts/verify-si-explanation-persistence.js",
     "verify:si-historical-snapshots": "node scripts/verify-si-historical-snapshots.js",
     "verify:industry-profiles": "node scripts/verify-industry-profiles.js",
+    "verify:manufacturing-knowledge-stack": "node scripts/verify-manufacturing-knowledge-stack.js",
     "verify:company-memory": "node scripts/verify-company-memory.js",
     "verify:si-snapshot-persistence-plan": "node scripts/verify-si-snapshot-persistence-plan.js",
     "verify:si-snapshot-retrieval": "node scripts/verify-si-snapshot-retrieval.js",

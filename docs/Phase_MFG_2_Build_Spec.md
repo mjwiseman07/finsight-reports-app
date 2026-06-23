@@ -305,7 +305,7 @@ Include all CHK-MFG-PC cases from Section 9.5. `passCount + failCount === totalC
 
 **Path:** `docs/manufacturing/wave2/MFG_K_I_Verifier_Spec.md` — may be split from this document at implementation time; PC enumeration below is authoritative for MFG-K-I.
 
-### 9.5 — Amendment 5: CHK-MFG PC enumeration (24 cases; floor ≥ 20)
+### 9.5 — Amendment 5: CHK-MFG PC enumeration (29 cases; floor ≥ 20)
 
 | PC ID | Category | Expected | Description |
 |---|---|---|---|
@@ -337,8 +337,9 @@ Include all CHK-MFG-PC cases from Section 9.5. `passCount + failCount === totalC
 | CHK-MFG-PC-26 | D0 artifact | ALLOW | D0 JSON written to `ops/compliance/manufacturing-knowledge-stack/` on run |
 | CHK-MFG-PC-27 | Panel context | ALLOW | `ManufacturingPanelContext` exported with required fields |
 | CHK-MFG-PC-28 | CC guard | ALLOW | `applicableBasis` present on Command Center surface candidate input |
+| CHK-MFG-PC-29 | Spine barrel | ALLOW | `lib/intelligence/synthetic/spine/index.ts` contains re-exports only — no inline logic |
 
-**Count:** 28 PC cases (exceeds floor of 20).
+**Count:** 29 PC cases (exceeds floor of 20).
 
 ---
 
