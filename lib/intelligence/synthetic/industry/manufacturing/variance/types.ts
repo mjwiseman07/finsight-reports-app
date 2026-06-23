@@ -13,10 +13,13 @@ import type { ReportingBasis } from "../../../standards/contracts/ReportingBasis
 export type ManufacturingEvaluatorError =
   | "MISSING_STANDARD_COST"
   | "MISSING_ACTUAL_RESULT"
+  | "MISSING_FORECAST_INPUTS"
   | "NEGATIVE_PRODUCTION_VOLUME"
   | "SUB_SEGMENT_MIX_YIELD_UNAVAILABLE"
   | "IFRS_LIFO_INPUT_REJECTED"
-  | "BASIS_MISMATCH";
+  | "BASIS_MISMATCH"
+  | "UNAUTHORIZED"
+  | "SURFACE_CANDIDATE_BUILD_FAILED";
 
 export type ManufacturingEvaluatorResult<T> =
   | { ok: true; value: T }

@@ -14,18 +14,13 @@ function buildForecastSection(
   inputs: ManufacturingEvaluatorInputs,
 ): ManufacturingEvaluatorResult<ManufacturingForecastVarianceSection> {
   if (!inputs.forecast) {
-    return { ok: false, error: "MISSING_ACTUAL_RESULT" };
+    return { ok: false, error: "MISSING_FORECAST_INPUTS" };
   }
 
-  const forecastInputs = {
+  const standardPriceResult = resolveStandardMaterialPrice({
     ...inputs,
     directMaterials: inputs.forecast.directMaterials,
-    directLabor: inputs.forecast.directLabor,
-    variableOverhead: inputs.forecast.variableOverhead,
-    fixedOverhead: inputs.forecast.fixedOverhead,
-  };
-
-  const standardPriceResult = resolveStandardMaterialPrice(forecastInputs);
+  });
   if (!standardPriceResult.ok) return standardPriceResult;
 
   const fv01 = forecastDmPrice(inputs.forecast.directMaterials, standardPriceResult.value, inputs.unitOfMeasure);
