@@ -2546,6 +2546,127 @@ const checks = [
           };
     },
   },
+  {
+    id: "CHK-51",
+    name: "42.5 LOCK-42.5.1 founder attestation document structural integrity",
+    run() {
+      const violations = [];
+      const lockDocPath = "docs/audit/phase-42.5-final/PHASE_42_5_LOCK.md";
+      if (!fs.existsSync(path.join(root, lockDocPath))) {
+        return {
+          status: "FAIL",
+          detail: `CHK-51:${lockDocPath}:missing-or-unreadable`,
+          evidence: null,
+        };
+      }
+      const content = read(lockDocPath);
+      const requiredHeaderTokens = [
+        "INTERNAL FOUNDER ATTESTATION — PHASE 42.5 LOCK-42.5.1. NOT FOR PUBLICATION.",
+        "This is a founder attestation that the Phase 42.5 internal audit ledger has been read and accepted.",
+        "NOT a commercial claim, NOT counsel sign-off, NOT CPA sign-off, NOT a Type II attestation",
+        "External engagement opens in Phase 42.6.",
+      ];
+      for (const token of requiredHeaderTokens) {
+        if (!content.includes(token)) {
+          violations.push(`CHK-51:missing-header-token:"${token.slice(0, 60)}..."`);
+        }
+      }
+      const requiredFooterTokens = [
+        "END INTERNAL FOUNDER ATTESTATION.",
+        "Real commercial locking requires",
+        "Phase 42.5 LOCK-42.5.1.",
+      ];
+      for (const token of requiredFooterTokens) {
+        if (!content.includes(token)) {
+          violations.push(`CHK-51:missing-footer-token:"${token.slice(0, 60)}..."`);
+        }
+      }
+      if (!content.includes("---BEGIN FOUNDER ATTESTATION---")) {
+        violations.push("CHK-51:missing-signature-block-begin-marker");
+      }
+      if (!content.includes("---END FOUNDER ATTESTATION---")) {
+        violations.push("CHK-51:missing-signature-block-end-marker");
+      }
+      const sigFields = ["SIGNATORY_FULL_LEGAL_NAME", "SIGNATORY_TITLE", "SIGNATURE_DATE"];
+      const placeholderStates = sigFields.map((field) =>
+        content.includes(`[${field} — placeholder until signed]`),
+      );
+      const allPlaceholder = placeholderStates.every((s) => s === true);
+      const noPlaceholder = placeholderStates.every((s) => s === false);
+      if (!allPlaceholder && !noPlaceholder) {
+        violations.push(
+          "CHK-51:signature-state-mixed (some fields filled, some still placeholder; half-signed is worse than unsigned)",
+        );
+      }
+      const forbiddenClaimPhrases = [
+        "SOC 2 Type II compliant",
+        "SOC 1 certified",
+        "HIPAA-certified",
+        "audit complete",
+        "attestation issued",
+        "we are certified",
+        "launch-ready",
+      ];
+      const section3Marker = "## What this attestation does NOT cover";
+      const section4Marker = "## Open items handed forward to Phase 42.6";
+      const section3Start = content.indexOf(section3Marker);
+      const section3End = content.indexOf(section4Marker);
+      const section3Body =
+        section3Start >= 0 && section3End > section3Start
+          ? content.slice(section3Start, section3End)
+          : "";
+      function extractBodyExcludingBannersAndSection3(c) {
+        const lines = c.split("\n");
+        const blockSpans = [];
+        let inBlock = false;
+        let start = -1;
+        for (let i = 0; i < lines.length; i++) {
+          const isBlockLine = /^>\s/.test(lines[i]) || /^>\s*$/.test(lines[i]);
+          if (isBlockLine && !inBlock) {
+            inBlock = true;
+            start = i;
+          } else if (!isBlockLine && inBlock) {
+            inBlock = false;
+            blockSpans.push([start, i - 1]);
+          }
+        }
+        if (inBlock) blockSpans.push([start, lines.length - 1]);
+        let bodyText = c;
+        if (blockSpans.length >= 2) {
+          const headerEnd = blockSpans[0][1];
+          const footerStart = blockSpans[blockSpans.length - 1][0];
+          bodyText = lines.slice(headerEnd + 1, footerStart).join("\n");
+        }
+        if (section3Body) {
+          bodyText = bodyText.split(section3Body).join("");
+        }
+        return bodyText;
+      }
+      const scannableBody = extractBodyExcludingBannersAndSection3(content);
+      for (const phrase of forbiddenClaimPhrases) {
+        if (scannableBody.toLowerCase().includes(phrase.toLowerCase())) {
+          violations.push(`CHK-51:forbidden-commercial-claim-in-body:"${phrase}"`);
+        }
+      }
+      const signatureState = allPlaceholder
+        ? "placeholder_intact"
+        : noPlaceholder
+          ? "signed"
+          : "mixed";
+      const pass = violations.length === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: `LOCK-42.5.1 founder attestation structurally intact (${signatureState})`,
+            evidence: { signatureState },
+          }
+        : {
+            status: "FAIL",
+            detail: violations.join("; "),
+            evidence: { violations, signatureState },
+          };
+    },
+  },
 ];
 
 function runAllChecks() {
