@@ -5,7 +5,7 @@ containsVerticalComplianceLogic: true
 phase: Retail Vertical Knowledge Stack — Wave 2 / Phase RTL-6 / Build Spec
 artifact: Agent Build Specification
 locked: false
-mode: SPEC AUTHORING — NO WAVE 2 CODE UNTIL FOUNDER APPROVES THIS DOCUMENT
+mode: FOUNDER APPROVED — SUB-SPECS MAY BEGIN (K-0 → K-F → K-G → K-H → K-I); NO WAVE 2 CODE UNTIL SUB-SPECS LAND
 ---
 
 # Phase RTL-6 — Retail Wave 2 Build Specification
@@ -14,7 +14,7 @@ mode: SPEC AUTHORING — NO WAVE 2 CODE UNTIL FOUNDER APPROVES THIS DOCUMENT
 **Baseline peer:** Manufacturing Wave 2 locked at `9d3afb5` (29/29 verifier PASS)  
 **Upstream authority:** [`Retail_Vertical_Planning_Doc.md`](../wave1/Retail_Vertical_Planning_Doc.md), [`docs/manufacturing/wave2/`](../manufacturing/wave2/) (structural peer)
 
-**DRAFT / SPEC ONLY — DO NOT EXECUTE BUILDS.** Founder approval mandatory before Wave 2 retail code.
+**FOUNDER APPROVED** at `1531c38` (v1.2 cross-blend PC additions). Sub-spec authoring may begin; Wave 2 code remains blocked until sub-specs land.
 
 ---
 
@@ -44,7 +44,8 @@ Wave 2 delivers the retail knowledge stack **runtime layer**: reporting-basis re
 | Version | Date | Change |
 |---|---|---|
 | RTL-6 v1.0 (draft) | 2026-06-23 | Initial build spec; proposed `phase` / `verifiedAt` / `checks[]` D0 schema |
-| **RTL-6 v1.1 (this document)** | 2026-06-23 | **Merged MFG-parity D0 schema** — supersedes v1.0 §3/§5 field names only |
+| RTL-6 v1.1 | 2026-06-23 | **Merged MFG-parity D0 schema** — supersedes v1.0 §3/§5 field names only |
+| **RTL-6 v1.2 (this document)** | 2026-06-23 | Founder approval at `1531c38`; +2 cross-blend PCs (store-CGU, fiscal calendar); count 32→34; LOCK-06 → `CHK-RTL-PC-34` |
 
 **Historical record:** [`Phase_RTL_6_v1_1_Schema_Parity_Patch.md`](./Phase_RTL_6_v1_1_Schema_Parity_Patch.md) documents *why* retail D0 field names were aligned to manufacturing (`9d3afb5`). That patch is **not** a separate applied amendment; this build spec is the canonical source.
 
@@ -70,12 +71,12 @@ These six keys **must** appear with the same names as manufacturing D0. Values a
 |---|---|---|
 | `evidenceVersion` | string | **`'RTL-K-I-1'`** — NOT `phase` |
 | `generatedAt` | string | ISO-8601 timestamp — NOT `verifiedAt` |
-| `totalCases` | number | **`32`** at full enumeration — NOT `totalChecks` |
+| `totalCases` | number | **`34`** at full enumeration — NOT `totalChecks` |
 | `passCount` | number | Count of cases with `outcome: 'PASS'` |
 | `failCount` | number | Count of cases with `outcome: 'FAIL'` |
 | `cases` | array | `VerifierCaseResult[]` — NOT `checks` |
 
-**Invariant:** `passCount + failCount === totalCases`. `totalCases === 32` when all PCs enumerated in §6 are active.
+**Invariant:** `passCount + failCount === totalCases`. `totalCases === 34` when all PCs enumerated in §6 are active.
 
 ### 3.2 — Retail-only additive top-level keys (permitted)
 
@@ -168,7 +169,7 @@ Each element of `cases[]` **must** use exactly these five keys — verified agai
 
 | Field | Type | Rule |
 |---|---|---|
-| `id` | string | Format **`CHK-RTL-PC-NN`** (zero-padded two digits, e.g. `CHK-RTL-PC-01` … `CHK-RTL-PC-32`) |
+| `id` | string | Format **`CHK-RTL-PC-NN`** (zero-padded two digits, e.g. `CHK-RTL-PC-01` … `CHK-RTL-PC-34`) |
 | `decision` | `"ALLOW" \| "DENY"` | Actual routing decision exercised by the check |
 | `expected` | `"ALLOW" \| "DENY"` | Spec expectation from §6 |
 | `outcome` | `"PASS" \| "FAIL"` | `PASS` iff `decision` matches `expected` |
@@ -212,9 +213,9 @@ function serializeCaseToMfgParitySchema(result: VerifierResult): VerifierCaseRes
 
 ---
 
-## 6. CHK-RTL PC enumeration (32 cases)
+## 6. CHK-RTL PC enumeration (34 cases)
 
-**Count:** 32 PC cases (floor ≥ 20). Includes **PC-RTL-VERIFY-LOCK-06** as `CHK-RTL-PC-32`.
+**Count:** 34 PC cases (floor ≥ 20). Includes **PC-RTL-VERIFY-LOCK-06** as `CHK-RTL-PC-34`.
 
 | PC ID | Category | Expected | Description |
 |---|---|---|---|
@@ -231,7 +232,7 @@ function serializeCaseToMfgParitySchema(result: VerifierResult): VerifierCaseRes
 | CHK-RTL-PC-11 | Formula parity | ALLOW | RTL-FV-01 forecast formula mirrors RTL-K-01 |
 | CHK-RTL-PC-12 | Citation register | ALLOW | Register row exists for primary NRF SSS citation |
 | CHK-RTL-PC-13 | Citation register | ALLOW | Register row exists for IAS 2 LIFO prohibition citation |
-| CHK-RTL-PC-14 | Sub-segment matrix | ALLOW | No blank applicability cells for RTL-K-01..16 (B/E/O/G/S) |
+| CHK-RTL-PC-14 | Sub-segment matrix | ALLOW | No blank applicability cells for RTL-K-01..16 (B/E/O/G/S). *Wave 3 (RTL-K-J): per-cell value assertions deferred to D0 panel probe.* |
 | CHK-RTL-PC-15 | Overlay absence | ALLOW | No cannabis overlay import in retail lane |
 | CHK-RTL-PC-16 | Overlay absence | ALLOW | No firearms/ATF overlay import in retail lane |
 | CHK-RTL-PC-17 | Overlay absence | ALLOW | No `ops/compliance/overlays` import in retail lane |
@@ -249,9 +250,11 @@ function serializeCaseToMfgParitySchema(result: VerifierResult): VerifierCaseRes
 | CHK-RTL-PC-29 | RIM routing | ALLOW | RIM/LCM path gated to US_GAAP inventory branch only |
 | CHK-RTL-PC-30 | Gift card routing | ALLOW | Gift card breakage branches via `USGAAPGiftCardLiability` / `IFRSGiftCardLiability` |
 | CHK-RTL-PC-31 | Loyalty routing | ALLOW | Loyalty material-right treatment uses shared interface; basis on disclosure only |
-| CHK-RTL-PC-32 | **Schema parity** | ALLOW | **PC-RTL-VERIFY-LOCK-06:** shared D0 keys match MFG-K-I (`9d3afb5`) |
+| CHK-RTL-PC-32 | Cross-blend trap | ALLOW | Store-CGU impairment routing: `IFRSStoreCGU` reached only when `basisOf() === 'IFRS'`; `ASC360StoreImpairment` reached only on US_GAAP trigger path. Reason slug: `store_cgu_basis_routed` |
+| CHK-RTL-PC-33 | Cross-blend trap | ALLOW | Fiscal calendar routing: `fiscalCalendar === '4-5-4'` uses NRF week boundaries, `'calendar'` uses ISO month boundaries; same-store comparison enforces matching boundary type on both periods. Reason slug: `fiscal_calendar_routed` |
+| CHK-RTL-PC-34 | **Schema parity** | ALLOW | **PC-RTL-VERIFY-LOCK-06:** shared D0 keys match MFG-K-I (`9d3afb5`) |
 
-### 6.1 — PC-RTL-VERIFY-LOCK-06 (CHK-RTL-PC-32) — implementation
+### 6.1 — PC-RTL-VERIFY-LOCK-06 (CHK-RTL-PC-34) — implementation
 
 **Priority:** HIGH
 
@@ -316,11 +319,11 @@ Wave 2 RTL lane is **build-complete** when:
 
 - ✅ RTL-K-0 through RTL-K-I delivered per §4
 - ✅ `npm run verify:retail-knowledge-stack` exits **0**
-- ✅ **32/32 PASS** (`passCount === 32`, `failCount === 0`, `totalCases === 32`)
+- ✅ **34/34 PASS** (`passCount === 34`, `failCount === 0`, `totalCases === 34`)
 - ✅ D0 shared top-level fields match manufacturing: `evidenceVersion`, `generatedAt`, `totalCases`, `passCount`, `failCount`, `cases`
 - ✅ Per-case keys exactly: `id`, `decision`, `expected`, `outcome`, `reason`
 - ✅ Retail extensions present: `commitHash`, `registerHash`, `waveOneDocsHashes`
-- ✅ **CHK-RTL-PC-32 / PC-RTL-VERIFY-LOCK-06 PASS**
+- ✅ **CHK-RTL-PC-34 / PC-RTL-VERIFY-LOCK-06 PASS**
 - ✅ Phase 42 healthcare paths untouched post-`b11adcd`
 - ✅ No `panels/registry.ts` edits
 
@@ -352,4 +355,4 @@ Wave 2 RTL lane is **build-complete** when:
 
 ---
 
-**END — Phase RTL-6 Retail Wave 2 Build Specification (v1.1 merged)**
+**END — Phase RTL-6 Retail Wave 2 Build Specification (v1.2 founder-approved)**
