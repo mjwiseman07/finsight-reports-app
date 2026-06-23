@@ -85,18 +85,18 @@ enforced overlay catalog/disk parity) are the operating discipline for
 all future modules in this lane and any successor lane.
 
 ---BEGIN FOUNDER ATTESTATION---
-I, [SIGNATORY_FULL_LEGAL_NAME — placeholder until signed], serving as
-[SIGNATORY_TITLE — placeholder until signed] of Wiseman Financial Technologies LLC,
+I, Matthew Wiseman, serving as
+Founder of Wiseman Financial Technologies LLC,
 attest that the statements in Sections 2 through 5 of this document are true
-to the best of my knowledge as of [SIGNATURE_DATE — placeholder until signed].
+to the best of my knowledge as of 2026-06-22.
 I commit this attestation to the Git history of the repository at
 github.com/mjwiseman07/finsight-reports-app on branch
 architecture-lane-refactor-baseline. The commit author, committer,
 timestamp, and (if configured) GPG signature serve as the cryptographic
 record of when this attestation was made.
-Signed:    [SIGNATORY_FULL_LEGAL_NAME — placeholder until signed]
-Title:     [SIGNATORY_TITLE — placeholder until signed]
-Date:      [SIGNATURE_DATE — placeholder until signed]
+Signed:    Matthew Wiseman
+Title:     Founder
+Date:      2026-06-22
 Commit:    [COMMIT_HASH — filled by reference after the commit lands]
 GPG state: [GPG_STATE — "signed-by-key-fingerprint:<fp>" OR "unsigned" — filled by reference after the commit lands]
 ---END FOUNDER ATTESTATION---
