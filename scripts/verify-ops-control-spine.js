@@ -2475,6 +2475,77 @@ const checks = [
           };
     },
   },
+  {
+    id: "CHK-50",
+    name: "42.5AB final audit ledger integrity — six audit documents present with INTERNAL-LOCK banner verbatim",
+    run() {
+      const violations = [];
+      const auditDocs = [
+        "docs/audit/phase-42.5-final/MODULE_INVENTORY.md",
+        "docs/audit/phase-42.5-final/CHK_ROW_INVENTORY.md",
+        "docs/audit/phase-42.5-final/D0_EVIDENCE_INVENTORY.md",
+        "docs/audit/phase-42.5-final/LOCK_ANCHOR_CROSSREF.md",
+        "docs/audit/phase-42.5-final/PHASE_42_6_HANDOFF_LEDGER.md",
+        "docs/audit/phase-42.5-final/WAVE_5_DISCIPLINE_LEDGER.md",
+      ];
+      const requiredHeaderTokens = [
+        "INTERNAL AUDIT LEDGER — PHASE 42.5 FINAL CLOSE. NOT FOR PUBLICATION.",
+        "This is internal planning-doc closure, not commercial locking, not counsel sign-off, not Type II attestation.",
+        "No SOC / HIPAA / certification claim is current.",
+        "Phase 42.5 lane is internally consistent — that is the only claim of this ledger.",
+      ];
+      const requiredFooterTokens = [
+        "END INTERNAL AUDIT LEDGER.",
+        "Real commercial locking requires",
+        "Phase 42.5AB (Wave 5+1 closeout).",
+      ];
+      const forbiddenClaimPhrases = [
+        "SOC 2 Type II compliant",
+        "SOC 1 certified",
+        "HIPAA-certified",
+        "HIPAA compliant",
+        "audit complete",
+        "attestation issued",
+        "we are certified",
+        "launch-ready",
+      ];
+      for (const docPath of auditDocs) {
+        if (!fs.existsSync(path.join(root, docPath))) {
+          violations.push(`CHK-50:${docPath}:missing-or-unreadable`);
+          continue;
+        }
+        const content = read(docPath);
+        for (const token of requiredHeaderTokens) {
+          if (!content.includes(token)) {
+            violations.push(`CHK-50:${docPath}:missing-header-token:"${token.slice(0, 60)}..."`);
+          }
+        }
+        for (const token of requiredFooterTokens) {
+          if (!content.includes(token)) {
+            violations.push(`CHK-50:${docPath}:missing-footer-token:"${token.slice(0, 60)}..."`);
+          }
+        }
+        for (const phrase of forbiddenClaimPhrases) {
+          if (content.toLowerCase().includes(phrase.toLowerCase())) {
+            if (docPath.endsWith("WAVE_5_DISCIPLINE_LEDGER.md")) continue;
+            violations.push(`CHK-50:${docPath}:forbidden-commercial-claim:"${phrase}"`);
+          }
+        }
+      }
+      const pass = violations.length === 0;
+      return pass
+        ? {
+            status: "PASS",
+            detail: "Six audit-ledger documents present with INTERNAL-LOCK banner discipline",
+            evidence: { docCount: auditDocs.length },
+          }
+        : {
+            status: "FAIL",
+            detail: violations.join("; "),
+            evidence: { violations },
+          };
+    },
+  },
 ];
 
 function runAllChecks() {
