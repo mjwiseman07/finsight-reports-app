@@ -1,3 +1,5 @@
+import { basisOf } from "../../standards/contracts/ReportingBasis";
+import type { StandardsReportingFramework } from "../../standards/contracts/StandardsContracts";
 import { stableSnapshotHash } from "../../historical-snapshots";
 import type { SyntheticAuditBriefing } from "../briefings";
 import type { SyntheticAuditCandidate } from "../candidates";
@@ -38,7 +40,8 @@ export type SyntheticLeaseIntelligenceCategory =
   | "lease_balance_change"
   | "lease_relationship_candidate"
   | "lease_reconciliation_risk"
-  | "asc842_candidate";
+  | "asc842_candidate"
+  | "ifrs16_lessee_candidate";
 
 export const SYNTHETIC_LEASE_INTELLIGENCE_CATEGORIES: SyntheticLeaseIntelligenceCategory[] = [
   "lease_classification",
@@ -53,12 +56,14 @@ export const SYNTHETIC_LEASE_INTELLIGENCE_CATEGORIES: SyntheticLeaseIntelligence
   "lease_relationship_candidate",
   "lease_reconciliation_risk",
   "asc842_candidate",
+  "ifrs16_lessee_candidate",
 ];
 
 export interface BuildLeaseIntelligenceObservationInput {
   auditContract: SyntheticAuditContract | null;
   leaseIntelligenceObservationKey: string;
   leaseIntelligenceCategory: SyntheticLeaseIntelligenceCategory;
+  reportingFramework?: StandardsReportingFramework;
   auditCandidates?: SyntheticAuditCandidate[];
   auditEvidencePackages?: SyntheticAuditEvidencePackage[];
   auditFindings?: SyntheticAuditFinding[];
@@ -146,6 +151,23 @@ function compactDefined<T>(values: Array<T | undefined>): T[] {
 
 function isSupportedLeaseIntelligenceCategory(category: SyntheticLeaseIntelligenceCategory): boolean {
   return SYNTHETIC_LEASE_INTELLIGENCE_CATEGORIES.includes(category);
+}
+
+function resolveLeaseIntelligenceCategory(
+  category: SyntheticLeaseIntelligenceCategory,
+  reportingFramework: StandardsReportingFramework,
+): SyntheticLeaseIntelligenceCategory {
+  const basis = basisOf(reportingFramework);
+
+  if (category === "asc842_candidate") {
+    return basis === "US_GAAP" ? "asc842_candidate" : "ifrs16_lessee_candidate";
+  }
+
+  if (category === "ifrs16_lessee_candidate") {
+    return basis === "IFRS" ? "ifrs16_lessee_candidate" : "asc842_candidate";
+  }
+
+  return category;
 }
 
 function getAuditCategory(auditContract: SyntheticAuditContract): SyntheticAuditCategory | undefined {
@@ -262,10 +284,13 @@ function getLeaseReferenceIds(input: BuildLeaseIntelligenceObservationInput): st
   ]);
 }
 
-function buildLeaseIntelligenceObservationId(input: BuildLeaseIntelligenceObservationInput): string {
+function buildLeaseIntelligenceObservationId(
+  input: BuildLeaseIntelligenceObservationInput,
+  resolvedCategory: SyntheticLeaseIntelligenceCategory,
+): string {
   return `synthetic-lease-intelligence-observation:${stableSnapshotHash({
     leaseIntelligenceObservationKey: input.leaseIntelligenceObservationKey,
-    leaseIntelligenceCategory: input.leaseIntelligenceCategory,
+    leaseIntelligenceCategory: resolvedCategory,
     companyId: input.auditContract?.scope.companyId ?? null,
     auditCategory: input.auditContract ? getAuditCategory(input.auditContract) ?? null : null,
     auditContractReferenceIds: getAuditContractReferenceIds(input.auditContract),
@@ -357,6 +382,11 @@ export function buildLeaseIntelligenceObservation(
   }
 
   const auditContract = input.auditContract;
+  const reportingFramework = input.reportingFramework ?? "us_gaap";
+  const resolvedLeaseIntelligenceCategory = resolveLeaseIntelligenceCategory(
+    input.leaseIntelligenceCategory,
+    reportingFramework,
+  );
   const auditCandidates = getAuditCandidates(input);
   const auditEvidencePackages = getAuditEvidencePackages(input);
   const auditFindings = getAuditFindings(input);
@@ -368,9 +398,9 @@ export function buildLeaseIntelligenceObservation(
 
   return {
     leaseIntelligenceObservation: {
-      leaseIntelligenceObservationId: buildLeaseIntelligenceObservationId(input),
+      leaseIntelligenceObservationId: buildLeaseIntelligenceObservationId(input, resolvedLeaseIntelligenceCategory),
       leaseIntelligenceObservationKey: input.leaseIntelligenceObservationKey,
-      leaseIntelligenceCategory: input.leaseIntelligenceCategory,
+      leaseIntelligenceCategory: resolvedLeaseIntelligenceCategory,
       companyId: auditContract.scope.companyId,
       auditCategory: getAuditCategory(auditContract),
       scope: auditContract.scope,

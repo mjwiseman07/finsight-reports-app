@@ -1,3 +1,4 @@
+import type { ReportingBasis } from "../../standards/contracts/ReportingBasis";
 import { stableSnapshotHash } from "../../historical-snapshots";
 import type { SyntheticCommandCenterPrioritizationPackage } from "../prioritization";
 import type {
@@ -7,6 +8,8 @@ import type {
   SyntheticCommandCenterSurfaceCategory,
   SyntheticCommandCenterValidationStatus,
 } from "../types";
+
+export const DEFAULT_COMMAND_CENTER_APPLICABLE_BASIS: ReportingBasis[] = ["US_GAAP", "IFRS"];
 
 export type SyntheticCommandCenterSurfaceArtifactCategory =
   | "executive_summary"
@@ -58,6 +61,7 @@ export interface BuildCommandCenterSurfaceCandidateInput {
   outcomeReferenceIds?: string[];
   briefingCategory?: SyntheticCommandCenterBriefingCategory;
   validationStatus?: SyntheticCommandCenterValidationStatus;
+  applicableBasis?: ReportingBasis[];
 }
 
 export interface SyntheticStructuredCommandCenterSurfaceCandidate {
@@ -79,6 +83,7 @@ export interface SyntheticStructuredCommandCenterSurfaceCandidate {
   outcomeReferenceIds: string[];
   briefingCategory?: SyntheticCommandCenterBriefingCategory;
   validationStatus?: SyntheticCommandCenterValidationStatus;
+  applicableBasis: ReportingBasis[];
   prioritizationPackage: SyntheticCommandCenterPrioritizationPackage;
   warnings: string[];
 }
@@ -119,6 +124,7 @@ function buildSurfaceCandidateId(input: BuildCommandCenterSurfaceCandidateInput)
     briefingCategory: input.briefingCategory ?? null,
     validationStatus:
       input.validationStatus ?? prioritizationPackage?.validationStatusMetadata?.validationStatus ?? null,
+    applicableBasis: input.applicableBasis ?? DEFAULT_COMMAND_CENTER_APPLICABLE_BASIS,
   })}`;
 }
 
@@ -214,6 +220,7 @@ export function buildCommandCenterSurfaceCandidate(
       outcomeReferenceIds: input.outcomeReferenceIds ?? [],
       briefingCategory: input.briefingCategory,
       validationStatus: input.validationStatus ?? prioritizationPackage.validationStatusMetadata?.validationStatus,
+      applicableBasis: input.applicableBasis ?? DEFAULT_COMMAND_CENTER_APPLICABLE_BASIS,
       prioritizationPackage,
       warnings: [],
     },

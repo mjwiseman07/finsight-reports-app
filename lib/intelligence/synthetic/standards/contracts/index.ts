@@ -1,3 +1,5 @@
+export { basisOf } from "./ReportingBasis";
+export type { ReportingBasis } from "./ReportingBasis";
 export type {
   ConsolidationMethod,
   ConversionAdjustmentContract,
