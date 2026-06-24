@@ -1,3 +1,4 @@
+export { getResolverCacheMetrics } from "./resolveTreatment";
 export { resolveTreatment } from "./resolveTreatment";
 export { resolveTreatmentPure } from "./resolveTreatmentPure";
 export { fetchTreatmentContext } from "./fetchTreatmentContext";
@@ -11,6 +12,14 @@ export type {
   OrgEdgeDecision,
 } from "./org-edge/types";
 export { NullOrgElectionReader, SyncRegistryOrgElectionReader, detectDisagreement } from "./org-edge";
+export * from "./memory";
+export {
+  FileAppendAuditLogWriter,
+  InMemoryAuditLogWriter,
+  verifyAuditChain,
+  DEFAULT_RETENTION_POLICY,
+} from "../audit";
+export type { AuditLogWriter, AuditEntry, RetentionPolicy } from "../audit";
 export type {
   ResolveTreatmentInput,
   TreatmentResolution,

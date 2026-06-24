@@ -136,6 +136,13 @@ export interface UnresolvedConflict {
 // ============================================================================
 
 import type { OrgElectionReader } from "./org-edge/OrgElectionReader";
+import type { AuditLogWriter } from "../audit/types";
+import type {
+  ActorRef,
+  ResolverMemoCache,
+  ResolverMemoCacheConfig,
+  TenantClassifier,
+} from "./memory/types";
 
 export interface CompanyMemoryReader {
   queryLatestMemoryRecord(params: {
@@ -154,4 +161,11 @@ export interface TreatmentResolverDeps {
   precedenceTableLoader: PrecedenceTableLoader;
   clock: () => string;
   orgElectionReader?: OrgElectionReader;
+  /** Phase 42.7E — optional memo cache + audit + tenant classification */
+  memoCache?: ResolverMemoCache<TreatmentResolution>;
+  memoCacheConfig?: ResolverMemoCacheConfig;
+  auditLogWriter?: AuditLogWriter;
+  tenantClassifier?: TenantClassifier;
+  actor?: ActorRef;
+  clockMs?: () => number;
 }

@@ -86,6 +86,8 @@
     "verify:treatment-resolver": "node scripts/run-resolver-tests.js",
     "verify:org-edge": "node scripts/run-org-edge-tests.js",
     "verify:panel-consumer": "node scripts/run-panel-consumer-tests.js",
+    "verify:memory-cache": "node scripts/run-memory-cache-tests.js",
+    "verify:audit-log": "node scripts/run-audit-log-tests.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
