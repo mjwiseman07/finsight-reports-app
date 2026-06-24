@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "worker-job-descriptions.schema.json",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "attestation",
+    "isNotReplacementForHuman",
+    "humanWorkerParityDoctrine",
+    "personas"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "42.7C.1" },
+    "attestation": {
+      "type": "object",
+      "required": ["attestedBy", "attestedAt", "attestationVersion", "governanceNote"],
+      "properties": {
+        "attestedBy": { "const": "mwiseman@advisacor.com" },
+        "attestedAt": { "type": "string" },
+        "attestationVersion": { "type": "string" },
+        "governanceNote": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "isNotReplacementForHuman": { "const": true },
+    "humanWorkerParityDoctrine": { "const": true },
+    "personas": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": { "$ref": "#/$defs/persona" }
+    }
+  },
+  "$defs": {
+    "personaId": {
+      "enum": [
+        "ai-staff-accountant",
+        "ai-senior-accountant",
+        "ai-accounting-manager",
+        "ai-controller-helper",
+        "ai-cfo-helper",
+        "ai-staff-auditor",
+        "ai-senior-auditor",
+        "ai-audit-manager-helper",
+        "ai-partner-helper"
+      ]
+    },
+    "humanParity": {
+      "type": "object",
+      "required": ["parityClaim", "humanOnlyForNow", "competencyFrameworkRef"],
+      "properties": {
+        "parityClaim": { "type": "string" },
+        "humanOnlyForNow": { "type": "boolean" },
+        "gapReason": { "type": "string" },
+        "roadmapPointer": { "type": "string" },
+        "competencyFrameworkRef": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "capability": {
+      "type": "object",
+      "required": [
+        "capabilityId",
+        "summary",
+        "phase39ModuleRefs",
+        "citationHandles",
+        "humanParity",
+        "externalIO"
+      ],
+      "properties": {
+        "capabilityId": { "type": "string" },
+        "summary": { "type": "string" },
+        "phase39ModuleRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer" }
+        },
+        "citationHandles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "humanParity": { "$ref": "#/$defs/humanParity" },
+        "externalIO": { "enum": ["none", "phase38-only"] }
+      },
+      "additionalProperties": false
+    },
+    "restriction": {
+      "type": "object",
+      "required": [
+        "restrictionId",
+        "summary",
+        "phase39ModuleRefs",
+        "citationHandles",
+        "hardStop"
+      ],
+      "properties": {
+        "restrictionId": { "type": "string" },
+        "summary": { "type": "string" },
+        "phase39ModuleRefs": {
+          "type": "array",
+          "contains": { "const": 4 },
+          "items": { "type": "integer" }
+        },
+        "citationHandles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "hardStop": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "escalationTrigger": {
+      "type": "object",
+      "required": ["triggerId", "condition", "targetScope", "citationHandles"],
+      "properties": {
+        "triggerId": { "type": "string" },
+        "condition": { "type": "string" },
+        "targetScope": {
+          "oneOf": [
+            { "const": "universal" },
+            { "$ref": "#/$defs/personaId" }
+          ]
+        },
+        "citationHandles": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "persona": {
+      "type": "object",
+      "required": [
+        "personaId",
+        "displayName",
+        "tier",
+        "isNotReplacementForHuman",
+        "revenueNote",
+        "capabilities",
+        "restrictions",
+        "escalationTriggers"
+      ],
+      "properties": {
+        "personaId": { "$ref": "#/$defs/personaId" },
+        "displayName": { "type": "string" },
+        "tier": { "const": 1 },
+        "isNotReplacementForHuman": { "const": true },
+        "revenueNote": { "type": "string" },
+        "capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability" }
+        },
+        "restrictions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restriction" }
+        },
+        "escalationTriggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/escalationTrigger" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

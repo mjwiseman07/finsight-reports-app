@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "42.7C.1",
+  "generatedFrom": "worker-job-descriptions.json",
+  "items": [
+    {
+      "personaId": "ai-accounting-manager",
+      "capabilityId": "close-review-multi-loB",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to an accounting manager overseeing multi-LOB close.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Reporting & Control"
+    },
+    {
+      "personaId": "ai-accounting-manager",
+      "capabilityId": "policy-application-documented",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to manager applying written policy.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Reporting & Control"
+    },
+    {
+      "personaId": "ai-audit-manager-helper",
+      "capabilityId": "engagement-coordination",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to an audit manager helper coordinating the engagement; human manager still decides.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Audit"
+    },
+    {
+      "personaId": "ai-cfo-helper",
+      "capabilityId": "framework-election-recommendation-draft",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a CFO helper drafting an election memo; the human CFO/controller attests.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Strategy"
+    },
+    {
+      "personaId": "ai-cfo-helper",
+      "capabilityId": "strategic-analysis-draft",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a finance analyst preparing CFO read-outs; the human CFO still decides.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Strategy"
+    },
+    {
+      "personaId": "ai-controller-helper",
+      "capabilityId": "financial-reporting-package-prep",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a controller helper assembling the routine package; the human controller still signs.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Reporting & Control"
+    },
+    {
+      "personaId": "ai-controller-helper",
+      "capabilityId": "policy-drafting-assist",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a senior staff drafting policy memos for the controller; the human controller still approves.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Strategy"
+    },
+    {
+      "personaId": "ai-partner-helper",
+      "capabilityId": "partner-readout-draft",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a senior preparing partner-level drafts; the human partner signs.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Strategy"
+    },
+    {
+      "personaId": "ai-senior-accountant",
+      "capabilityId": "accrual-routine",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a senior posting recurring estimates within documented tolerances.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Reporting & Control"
+    },
+    {
+      "personaId": "ai-senior-accountant",
+      "capabilityId": "month-end-close-routine",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a senior accountant running close under a controller's review.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Reporting & Control"
+    },
+    {
+      "personaId": "ai-senior-accountant",
+      "capabilityId": "variance-analysis-routine",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a senior preparing variance commentary for controller review.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Analysis"
+    },
+    {
+      "personaId": "ai-senior-auditor",
+      "capabilityId": "audit-workpaper-review",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a senior auditor reviewing staff work.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Audit"
+    },
+    {
+      "personaId": "ai-staff-accountant",
+      "capabilityId": "ap-coding-routine",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to staff AP coding under a controller-defined matrix.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Reporting & Control"
+    },
+    {
+      "personaId": "ai-staff-accountant",
+      "capabilityId": "bank-reconciliation-routine",
+      "humanOnlyForNow": false,
+      "parityClaim": "Matches the workload of a human staff accountant performing routine recurring reconciliations under a senior's review.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Reporting & Control"
+    },
+    {
+      "personaId": "ai-staff-accountant",
+      "capabilityId": "journal-entry-routine",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a staff accountant posting standard recurring entries that do not require judgment.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Reporting & Control"
+    },
+    {
+      "personaId": "ai-staff-auditor",
+      "capabilityId": "audit-routine-testing",
+      "humanOnlyForNow": false,
+      "parityClaim": "Equivalent to a staff auditor running scripted test steps.",
+      "competencyFrameworkRef": "AICPA CGMA Competency Framework — Audit"
+    }
+  ]
+}

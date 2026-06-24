@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "overlay.schema.json",
+  "type": "object",
+  "required": ["companyId", "personaId", "tier", "narrows", "companyAttestation"],
+  "additionalProperties": false,
+  "properties": {
+    "companyId": { "type": "string" },
+    "personaId": {
+      "enum": [
+        "ai-staff-accountant",
+        "ai-senior-accountant",
+        "ai-accounting-manager",
+        "ai-controller-helper",
+        "ai-cfo-helper",
+        "ai-staff-auditor",
+        "ai-senior-auditor",
+        "ai-audit-manager-helper",
+        "ai-partner-helper"
+      ]
+    },
+    "tier": { "const": 2 },
+    "narrows": {
+      "type": "object",
+      "required": ["disabledCapabilityIds", "addedRestrictions", "tightenedEscalationTriggers"],
+      "additionalProperties": false,
+      "properties": {
+        "disabledCapabilityIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "addedRestrictions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/restriction" }
+        },
+        "tightenedEscalationTriggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/escalationTrigger" }
+        }
+      }
+    },
+    "companyAttestation": {
+      "type": "object",
+      "required": ["attestedBy", "attestedAt", "note"],
+      "properties": {
+        "attestedBy": { "type": "string" },
+        "attestedAt": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "restriction": {
+      "type": "object",
+      "required": ["restrictionId", "summary", "phase39ModuleRefs", "citationHandles", "hardStop"],
+      "properties": {
+        "restrictionId": { "type": "string" },
+        "summary": { "type": "string" },
+        "phase39ModuleRefs": {
+          "type": "array",
+          "contains": { "const": 4 },
+          "items": { "type": "integer" }
+        },
+        "citationHandles": { "type": "array", "items": { "type": "string" } },
+        "hardStop": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "escalationTrigger": {
+      "type": "object",
+      "required": ["triggerId", "condition", "targetScope", "citationHandles"],
+      "properties": {
+        "triggerId": { "type": "string" },
+        "condition": { "type": "string" },
+        "targetScope": {
+          "oneOf": [
+            { "const": "universal" },
+            {
+              "enum": [
+                "ai-staff-accountant",
+                "ai-senior-accountant",
+                "ai-accounting-manager",
+                "ai-controller-helper",
+                "ai-cfo-helper",
+                "ai-staff-auditor",
+                "ai-senior-auditor",
+                "ai-audit-manager-helper",
+                "ai-partner-helper"
+              ]
+            }
+          ]
+        },
+        "citationHandles": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  }
+}
