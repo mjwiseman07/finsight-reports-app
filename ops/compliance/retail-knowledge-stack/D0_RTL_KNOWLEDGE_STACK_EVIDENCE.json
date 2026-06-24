@@ -1,0 +1,258 @@
+{
+  "evidenceVersion": "RTL-K-I-1",
+  "generatedAt": "2026-06-24T00:10:36.082Z",
+  "commitHash": "3e9c5365884c384eed401b0a85527d8f3763302b",
+  "totalCases": 34,
+  "passCount": 34,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "CHK-RTL-PC-01",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "contract_kpi_rtl_k01"
+    },
+    {
+      "id": "CHK-RTL-PC-02",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "contract_kpi_rtl_k16"
+    },
+    {
+      "id": "CHK-RTL-PC-03",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "contract_kpi_rtl_fv01"
+    },
+    {
+      "id": "CHK-RTL-PC-04",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-RTL-PC-05",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-RTL-PC-06",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-RTL-PC-07",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-RTL-PC-08",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-RTL-PC-09",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-RTL-PC-10",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_parity"
+    },
+    {
+      "id": "CHK-RTL-PC-11",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "formula_rtl_fv01"
+    },
+    {
+      "id": "CHK-RTL-PC-12",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "citation_nrf_sss"
+    },
+    {
+      "id": "CHK-RTL-PC-13",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "citation_ias2_lifo"
+    },
+    {
+      "id": "CHK-RTL-PC-14",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "subsegment_matrix_complete"
+    },
+    {
+      "id": "CHK-RTL-PC-15",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "no_cannabis_overlay"
+    },
+    {
+      "id": "CHK-RTL-PC-16",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "no_firearms_overlay"
+    },
+    {
+      "id": "CHK-RTL-PC-17",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "no_overlay_namespace"
+    },
+    {
+      "id": "CHK-RTL-PC-18",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "spine_public_barrel_only"
+    },
+    {
+      "id": "CHK-RTL-PC-19",
+      "decision": "DENY",
+      "expected": "DENY",
+      "outcome": "PASS",
+      "reason": "overlay_import_denied"
+    },
+    {
+      "id": "CHK-RTL-PC-20",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "basis_of_alias_equivalent"
+    },
+    {
+      "id": "CHK-RTL-PC-21",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "ifrs_gift_card_no_escheat"
+    },
+    {
+      "id": "CHK-RTL-PC-22",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "lease_basis_routed"
+    },
+    {
+      "id": "CHK-RTL-PC-23",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "phase42_healthcare_absent"
+    },
+    {
+      "id": "CHK-RTL-PC-24",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "d0_artifact_written"
+    },
+    {
+      "id": "CHK-RTL-PC-25",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "retail_panel_context_exported"
+    },
+    {
+      "id": "CHK-RTL-PC-26",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "applicable_basis_present"
+    },
+    {
+      "id": "CHK-RTL-PC-27",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "spine_barrel_reexport_only"
+    },
+    {
+      "id": "CHK-RTL-PC-28",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "asc606_returns_reserve"
+    },
+    {
+      "id": "CHK-RTL-PC-29",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "rim_us_gaap_only"
+    },
+    {
+      "id": "CHK-RTL-PC-30",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "gift_card_basis_routed"
+    },
+    {
+      "id": "CHK-RTL-PC-31",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "loyalty_basis_routed"
+    },
+    {
+      "id": "CHK-RTL-PC-32",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "store_cgu_basis_routed"
+    },
+    {
+      "id": "CHK-RTL-PC-33",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "fiscal_calendar_routed"
+    },
+    {
+      "id": "CHK-RTL-PC-34",
+      "decision": "ALLOW",
+      "expected": "ALLOW",
+      "outcome": "PASS",
+      "reason": "schema_parity_verified"
+    }
+  ],
+  "registerHash": "498b5b4984b6bd8d08f84df943adab24d1592ee3cec2f34ef6dcc5cd45e340f3",
+  "waveOneDocsHashes": {
+    "docs/retail/wave1/Retail_ASC606_Sources.md": "5b440622fd96f2f7f45faedecbe22649a47588bf22b986e0d44f8b4f5dbe4174",
+    "docs/retail/wave1/Retail_Benchmarks_Sources.md": "c1a4e617cafaa494d874c3af467ef5364f3a20ee2ab5e34dca7b454d9b5f722a",
+    "docs/retail/wave1/Retail_Citation_Verification_Register.xlsx": "498b5b4984b6bd8d08f84df943adab24d1592ee3cec2f34ef6dcc5cd45e340f3",
+    "docs/retail/wave1/Retail_Disclosures_Sources.md": "b1014f8d604a7d38fefc74ad698e49fe84ba4f47d7fda5f5aadd99e4faeb8e0d",
+    "docs/retail/wave1/Retail_IFRS_Sources.md": "0201a563abe74994713d0261973d64426597e93f9db02a7dd30f6ca302cdb114",
+    "docs/retail/wave1/Retail_KPIs_Sources.md": "d3070e27ff9ad1cd50b7be22388315908cc329a469a89bc674e70ccb54bb29a2",
+    "docs/retail/wave1/Retail_Vertical_Planning_Doc.md": "2cf6c3a9a97f391940ddff9a18eeab3d22b6fd8da1749f5df9dbb039f3f55bb1"
+  }
+}
