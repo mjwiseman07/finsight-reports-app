@@ -148,6 +148,34 @@ function main() {
     failures += 1;
   }
 
+  try {
+    const roleAdapterRoot = path.join(root, "lib/intelligence/synthetic/role-adapter/__tests__");
+    const escalation = runTest(
+      path.join(roleAdapterRoot, "escalationRegistry.test.ts"),
+      "runEscalationRegistryTests",
+    );
+    const adapter = runTest(
+      path.join(roleAdapterRoot, "treatmentRoleAdapter.test.ts"),
+      "runTreatmentRoleAdapterTests",
+    );
+    const adapterPassed = escalation.passed + adapter.passed;
+    const adapterFailed = escalation.failed + adapter.failed;
+    goldenAndHashTests += adapterPassed;
+
+    console.log(
+      `PASS role adapter (${adapterPassed} tests) ` +
+        `(escalation=${escalation.passed}/${escalation.passed + escalation.failed}, ` +
+        `adapter=${adapter.passed}/${adapter.passed + adapter.failed})`,
+    );
+
+    if (adapterFailed > 0) {
+      failures += 1;
+    }
+  } catch (error) {
+    console.error("FAIL role adapter:", error);
+    failures += 1;
+  }
+
   if (failures > 0) {
     process.exit(1);
   }

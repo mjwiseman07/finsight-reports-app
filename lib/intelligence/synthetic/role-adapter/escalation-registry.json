@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedBy": "human_curated",
+  "curatedAt": "2026-06-23T23:50:00Z",
+  "registryDoctrine": "Every escalation entry projects a governance-attested human escalation target into the role-adapter code path. Adding an entry requires (1) attestedBy userId, (2) attestedAt ISO-8601 timestamp, (3) role label, (4) scope (universal | industry | jurisdiction | company), (5) a stable contactRef (email or governance handle), (6) a founder-authored commit. Cursor and AI workers MUST NOT append entries. The starter entry below is the universal founder fallback — every more specific entry overrides it for the matching scope.",
+  "selectionDoctrine": "Adapter selects the most specific matching entry: company > jurisdiction > industry > universal. If multiple entries tie on specificity, the most recently attested wins. If no entry matches, the adapter returns outcome=fail_closed.",
+  "entries": [
+    {
+      "attestedBy": "mwiseman",
+      "attestedAt": "2026-06-23T23:50:00Z",
+      "role": "founder",
+      "scope": "universal",
+      "scopeFilter": {},
+      "contactRef": "mwiseman@advisacor.com",
+      "citationHandle": null,
+      "notes": "Universal founder fallback. Catch-all escalation target for any framework disambiguation conflict not covered by a more specific entry. Wiseman Financial Technologies LLC founder of record."
+    }
+  ]
+}
