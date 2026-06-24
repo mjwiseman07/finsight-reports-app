@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedBy": "human_curated",
+  "curatedAt": "2026-06-23T23:30:00Z",
+  "registryDoctrine": "Every election entry projects a Phase 40 governance-attested OrgFrameworkElection into the sync code path. Adding an entry requires (1) a real electionEvidenceRef into Phase 40 governance, (2) electedAt ISO-8601 timestamp, (3) electedBy user id, (4) an electionScope, (5) a founder-authored commit. Cursor and AI workers MUST NOT append entries. Empty arrays are the correct ship state until the founder has governance evidence in hand.",
+  "citationDoctrine": "Eligibility for IFRS-SME (FrameworkCode IFRS_SME) is governed by IFRS for SMEs Section 1: an entity must (a) not have public accountability, and (b) publish general-purpose financial statements (IFRS Foundation, IFRS for SMEs Section 1, paragraphs 1.2 and 1.5). Ineligible entries (e.g. a public filer electing IFRS_SME) MUST be rejected by the loader.",
+  "citationRefs": {
+    "IFRS_FOR_SMES_S1": "https://www.ifrs.org/issued-standards/ifrs-for-smes/"
+  },
+  "elections": []
+}

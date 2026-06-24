@@ -14,6 +14,7 @@
 import type { ReportingBasis } from "../contracts/ReportingBasis";
 import type { StandardsReportingFramework } from "../contracts/StandardsContracts";
 import precedenceTableJson from "./treatment-precedence-table.json";
+import { lookupSyncElection } from "./syncElectionRegistry";
 import type {
   FrameworkCode,
   IndustryHandle,
@@ -81,6 +82,7 @@ export function frameworkCodeToStandardsReportingFramework(
 export function buildShimTreatmentContext(args: {
   reportingBasis: LegacyReportingBasis;
   industry: IndustryHandle["industryCode"];
+  companyId?: string;
 }): TreatmentContext {
   const country = LEGACY_BASIS_TO_COUNTRY[args.reportingBasis];
   if (!country) {
@@ -89,10 +91,12 @@ export function buildShimTreatmentContext(args: {
     );
   }
 
+  const orgElection = lookupSyncElection(args.companyId);
+
   const input: ResolveTreatmentInput = {
-    orgElection: null,
+    orgElection,
     companyMemoryHandle: {
-      companyId: "00000000-0000-0000-0000-000000000000",
+      companyId: args.companyId ?? "00000000-0000-0000-0000-000000000000",
       asOfPeriodKey: SHIM_PERIOD_KEY,
       memoryGroupId: "shim",
       snapshotDeterminismHash: "shim-no-memory",
@@ -116,6 +120,6 @@ export function buildShimTreatmentContext(args: {
     historicalAttestedFramework: null,
     historicalInferredFramework: null,
     historicalInferredConfidence: "unknown",
-    contextDeterminismHash: `shim:${args.industry}:${args.reportingBasis}`,
+    contextDeterminismHash: `shim:${args.industry}:${args.reportingBasis}:${args.companyId ?? "no-company"}`,
   };
 }

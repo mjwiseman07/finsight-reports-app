@@ -130,6 +130,24 @@ function main() {
     failures += 1;
   }
 
+  try {
+    const electionReg = runTest(
+      path.join(resolverTestsRoot, "syncElectionRegistry.test.ts"),
+      "runSyncElectionRegistryTests",
+    );
+    goldenAndHashTests += electionReg.passed;
+    console.log(
+      `PASS sync election registry (${electionReg.passed} tests) ` +
+        `(${electionReg.passed}/${electionReg.passed + electionReg.failed})`,
+    );
+    if (electionReg.failed > 0) {
+      failures += 1;
+    }
+  } catch (error) {
+    console.error("FAIL sync election registry:", error);
+    failures += 1;
+  }
+
   if (failures > 0) {
     process.exit(1);
   }

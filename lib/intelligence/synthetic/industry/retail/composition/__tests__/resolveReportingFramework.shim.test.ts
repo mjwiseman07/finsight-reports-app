@@ -22,6 +22,24 @@ export function runRtlShimTests(): { passed: number; failed: number } {
     }
   }
 
+  try {
+    const got = resolveReportingFramework("us_gaap_fasb", "rtl-co-1");
+    assert.equal(got, "us_gaap");
+    passed += 1;
+  } catch (error) {
+    failed += 1;
+    console.error("RTL shim FAIL [companyId-passthrough-us]:", (error as Error).message);
+  }
+
+  try {
+    const got = resolveReportingFramework("ifrs_sme", "rtl-co-2");
+    assert.equal(got, "ifrs_iasb");
+    passed += 1;
+  } catch (error) {
+    failed += 1;
+    console.error("RTL shim FAIL [companyId-passthrough-sme-empty-registry]:", (error as Error).message);
+  }
+
   return { passed, failed };
 }
 

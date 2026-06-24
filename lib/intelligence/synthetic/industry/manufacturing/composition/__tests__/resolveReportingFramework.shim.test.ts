@@ -22,6 +22,24 @@ export function runMfgShimTests(): { passed: number; failed: number } {
     }
   }
 
+  try {
+    const got = resolveReportingFramework("us_gaap_fasb", "any-company-id");
+    assert.equal(got, "us_gaap");
+    passed += 1;
+  } catch (error) {
+    failed += 1;
+    console.error("MFG shim FAIL [companyId-passthrough-us]:", (error as Error).message);
+  }
+
+  try {
+    const got = resolveReportingFramework("ifrs_iasb", "another-company-id");
+    assert.equal(got, "ifrs_iasb");
+    passed += 1;
+  } catch (error) {
+    failed += 1;
+    console.error("MFG shim FAIL [companyId-passthrough-ifrs]:", (error as Error).message);
+  }
+
   return { passed, failed };
 }
 

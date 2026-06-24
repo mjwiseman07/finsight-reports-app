@@ -47,6 +47,70 @@ export function runShimContextBuilderTests(): { passed: number; failed: number }
     passed += 1;
   }
 
+  try {
+    const context = buildShimTreatmentContext({
+      reportingBasis: "ifrs_sme",
+      industry: "RETAIL",
+      companyId: "company-with-no-registry-entry",
+    });
+    assert.equal(context.input.orgElection, null);
+    assert.equal(context.input.companyMemoryHandle.companyId, "company-with-no-registry-entry");
+    assert.ok(context.contextDeterminismHash.includes("company-with-no-registry-entry"));
+    passed += 1;
+  } catch (error) {
+    failed += 1;
+    console.error("shimContextBuilder FAIL [companyId-no-entry]:", (error as Error).message);
+  }
+
+  try {
+    const context = buildShimTreatmentContext({
+      reportingBasis: "us_gaap_fasb",
+      industry: "MANUFACTURING",
+    });
+    assert.equal(context.input.orgElection, null);
+    assert.ok(context.contextDeterminismHash.endsWith(":no-company"));
+    passed += 1;
+  } catch (error) {
+    failed += 1;
+    console.error("shimContextBuilder FAIL [no-companyId]:", (error as Error).message);
+  }
+
+  try {
+    const contextA = buildShimTreatmentContext({
+      reportingBasis: "ifrs_iasb",
+      industry: "RETAIL",
+      companyId: "co-a",
+    });
+    const contextB = buildShimTreatmentContext({
+      reportingBasis: "ifrs_iasb",
+      industry: "RETAIL",
+      companyId: "co-b",
+    });
+    assert.notEqual(contextA.contextDeterminismHash, contextB.contextDeterminismHash);
+    passed += 1;
+  } catch (error) {
+    failed += 1;
+    console.error("shimContextBuilder FAIL [hash-diverges-per-company]:", (error as Error).message);
+  }
+
+  try {
+    const contextA = buildShimTreatmentContext({
+      reportingBasis: "ifrs_iasb",
+      industry: "RETAIL",
+      companyId: "co-stable",
+    });
+    const contextB = buildShimTreatmentContext({
+      reportingBasis: "ifrs_iasb",
+      industry: "RETAIL",
+      companyId: "co-stable",
+    });
+    assert.equal(contextA.contextDeterminismHash, contextB.contextDeterminismHash);
+    passed += 1;
+  } catch (error) {
+    failed += 1;
+    console.error("shimContextBuilder FAIL [hash-stable-per-company]:", (error as Error).message);
+  }
+
   return { passed, failed };
 }
 

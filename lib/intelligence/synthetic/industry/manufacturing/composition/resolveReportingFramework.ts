@@ -18,10 +18,12 @@ import {
 
 export function resolveReportingFramework(
   reportingBasis: LegacyReportingBasis | ReportingBasis,
+  companyId?: string,
 ): StandardsReportingFramework {
   const context = buildShimTreatmentContext({
     reportingBasis: normalizeToLegacyBasis(reportingBasis),
     industry: "MANUFACTURING",
+    companyId,
   });
   const resolution = resolveTreatmentPure(context);
   if (resolution.chosenFramework === null) {
