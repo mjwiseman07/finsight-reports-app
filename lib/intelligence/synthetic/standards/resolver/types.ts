@@ -2,6 +2,8 @@
 // Inputs
 // ============================================================================
 
+import type { OrgElectionDisagreement } from "./org-edge/types";
+
 export type FrameworkCode =
   | "US_GAAP"
   | "IFRS"
@@ -63,6 +65,8 @@ export interface ResolveTreatmentInput {
     periodKey: string;
     fiscalYearEnd: string;
   };
+  /** Phase 42.7D — consolidated walks deferred to 42.7D.1; fail-loud if present. */
+  consolidationContext?: unknown;
 }
 
 // ============================================================================
@@ -113,6 +117,11 @@ export interface TreatmentResolution {
   matchedRules: string[];
   unresolvedConflicts: UnresolvedConflict[];
   generatedAt: string;
+  /** Phase 42.7D — optional additive fields */
+  resolvedBy?: "curated-rules" | "org-edge" | "fallback";
+  citationHandle?: string;
+  advisories?: readonly OrgElectionDisagreement[];
+  election?: { orgId: string; attestedBy: string; attestedAt: string };
 }
 
 export interface UnresolvedConflict {
@@ -125,6 +134,8 @@ export interface UnresolvedConflict {
 // ============================================================================
 // Resolver dependencies (injected I/O)
 // ============================================================================
+
+import type { OrgElectionReader } from "./org-edge/OrgElectionReader";
 
 export interface CompanyMemoryReader {
   queryLatestMemoryRecord(params: {
@@ -142,4 +153,5 @@ export interface TreatmentResolverDeps {
   memoryReader: CompanyMemoryReader;
   precedenceTableLoader: PrecedenceTableLoader;
   clock: () => string;
+  orgElectionReader?: OrgElectionReader;
 }
