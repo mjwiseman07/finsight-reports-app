@@ -6,7 +6,7 @@ function assert(condition: boolean, message: string): void {
   }
 }
 
-export function runTreatmentDeterminismHashTests(): boolean {
+export function runTreatmentDeterminismHashTests(): number {
   const inputA = {
     contextDeterminismHash: "ctx-abc",
     chosenFramework: "US_GAAP",
@@ -32,7 +32,7 @@ export function runTreatmentDeterminismHashTests(): boolean {
 
   assert(/^[a-f0-9]{64}$/.test(hashA), "Hash should be SHA-256 hex-encoded");
 
-  return true;
+  return 3;
 }
 
 if (require.main === module) {

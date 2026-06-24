@@ -1,6 +1,109 @@
 {
-  "schemaVersion": "0.1.0-placeholder",
+  "schemaVersion": "0.2.0-mfg-rtl-starter",
   "generatedBy": "human_curated",
-  "curatedAt": "2026-06-23T00:00:00Z",
-  "rules": []
+  "curatedAt": "2026-06-23T23:11:00Z",
+  "rules": [
+    {
+      "ruleId": "RULE-001",
+      "industryFilter": "ANY",
+      "jurisdictionFilter": { "countries": ["US"] },
+      "orgElectionRequired": false,
+      "produces": "US_GAAP",
+      "precedenceWeight": 900,
+      "citationRef": "SEC_REG_S_X",
+      "reason": "SEC-registered U.S. public filers (non-FPI) are required by Regulation S-X Article 4 (17 CFR Part 210, §210.4-01) to present financial statements in accordance with U.S. GAAP."
+    },
+    {
+      "ruleId": "RULE-002",
+      "industryFilter": "ANY",
+      "jurisdictionFilter": { "countries": ["US"] },
+      "orgElectionRequired": false,
+      "produces": "US_GAAP",
+      "precedenceWeight": 500,
+      "citationRef": "ASC_105_10_05_1",
+      "reason": "Per ASC 105-10-05-1, the FASB Accounting Standards Codification is the source of authoritative GAAP for nongovernmental U.S. entities. Default treatment when no other framework is elected."
+    },
+    {
+      "ruleId": "RULE-003",
+      "industryFilter": "ANY",
+      "jurisdictionFilter": {
+        "countries": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"]
+      },
+      "orgElectionRequired": false,
+      "produces": "IFRS",
+      "precedenceWeight": 900,
+      "citationRef": "IAS_1_PRESENTATION",
+      "reason": "EU Regulation 1606/2002 requires listed companies in EU member states to prepare consolidated financial statements in accordance with IFRS (IAS 1 Presentation of Financial Statements)."
+    },
+    {
+      "ruleId": "RULE-004",
+      "industryFilter": "ANY",
+      "jurisdictionFilter": { "countries": ["GB"] },
+      "orgElectionRequired": false,
+      "produces": "IFRS",
+      "precedenceWeight": 850,
+      "citationRef": "IAS_1_PRESENTATION",
+      "reason": "U.K.-adopted international accounting standards (substantively IFRS) apply to U.K. listed entities post-Brexit. IAS 1 governs presentation."
+    },
+    {
+      "ruleId": "RULE-005",
+      "industryFilter": "ANY",
+      "jurisdictionFilter": "ANY",
+      "orgElectionRequired": true,
+      "produces": "IFRS_SME",
+      "precedenceWeight": 400,
+      "citationRef": "IFRS_FOR_SMES_S1",
+      "reason": "IFRS for SMEs Section 1 permits use by entities that (a) do not have public accountability and (b) publish general purpose financial statements. Org-election required to activate."
+    },
+    {
+      "ruleId": "RULE-006",
+      "industryFilter": ["MANUFACTURING","RETAIL"],
+      "jurisdictionFilter": { "countries": ["US"] },
+      "orgElectionRequired": false,
+      "produces": "US_GAAP",
+      "precedenceWeight": 300,
+      "citationRef": "SEC_REG_S_X",
+      "reason": "For MFG and RTL entities filing with the SEC, Regulation S-X Article 4 governs presentation form (financial statements must follow U.S. GAAP)."
+    },
+    {
+      "ruleId": "RULE-007",
+      "industryFilter": "ANY",
+      "jurisdictionFilter": { "countries": ["US"] },
+      "orgElectionRequired": true,
+      "produces": "IFRS",
+      "precedenceWeight": 700,
+      "citationRef": "SEC_FORM_20F_FPI",
+      "reason": "SEC Form 20-F General Instruction G permits foreign private issuers to file IFRS financial statements without U.S. GAAP reconciliation when an explicit unreserved statement of IFRS compliance is made. Org-election required to claim FPI status."
+    },
+    {
+      "ruleId": "RULE-008",
+      "industryFilter": ["MANUFACTURING"],
+      "jurisdictionFilter": { "countries": ["US"] },
+      "orgElectionRequired": false,
+      "produces": "US_GAAP",
+      "precedenceWeight": 50,
+      "citationRef": "ASC_105_10_05_1",
+      "reason": "Fallback: U.S. manufacturing entities default to U.S. GAAP under ASC 105-10-05-1 when no jurisdiction-mandated or elected framework applies."
+    },
+    {
+      "ruleId": "RULE-009",
+      "industryFilter": ["RETAIL"],
+      "jurisdictionFilter": { "countries": ["US"] },
+      "orgElectionRequired": false,
+      "produces": "US_GAAP",
+      "precedenceWeight": 50,
+      "citationRef": "ASC_105_10_05_1",
+      "reason": "Fallback: U.S. retail entities default to U.S. GAAP under ASC 105-10-05-1 when no jurisdiction-mandated or elected framework applies."
+    },
+    {
+      "ruleId": "RULE-010",
+      "industryFilter": ["MANUFACTURING","RETAIL"],
+      "jurisdictionFilter": { "countries": ["CA"] },
+      "orgElectionRequired": false,
+      "produces": "IFRS",
+      "precedenceWeight": 300,
+      "citationRef": "IAS_1_PRESENTATION",
+      "reason": "Canadian publicly accountable enterprises follow IFRS per CPA Canada Handbook Part I; private enterprises may elect ASPE (handled by org-election in future rule). This rule intentionally produces a non-US framework to validate the resolver's cross-jurisdiction handling."
+    }
+  ]
 }

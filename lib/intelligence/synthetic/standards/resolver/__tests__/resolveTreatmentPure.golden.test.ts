@@ -1,11 +1,23 @@
 import { hashTreatmentDeterminism } from "../hashTreatmentDeterminism";
 import { resolveTreatmentPure } from "../resolveTreatmentPure";
+import curatedPrecedenceTable from "../treatment-precedence-table.json";
 import type {
   ResolveTreatmentInput,
   TreatmentContext,
   TreatmentPrecedenceTable,
   TreatmentResolution,
 } from "../types";
+
+const REQUIRED_RULE_FIELDS = [
+  "ruleId",
+  "industryFilter",
+  "jurisdictionFilter",
+  "orgElectionRequired",
+  "produces",
+  "precedenceWeight",
+  "citationRef",
+  "reason",
+] as const;
 
 function canonicalJson(value: unknown): string {
   const canonicalize = (entry: unknown): unknown => {
@@ -36,9 +48,7 @@ function assertEqualJson(actual: unknown, expected: unknown, label: string): voi
   const actualJson = canonicalJson(actual);
   const expectedJson = canonicalJson(expected);
   if (actualJson !== expectedJson) {
-    throw new Error(
-      `${label}\nExpected: ${expectedJson}\nActual:   ${actualJson}`,
-    );
+    throw new Error(`${label}\nExpected: ${expectedJson}\nActual:   ${actualJson}`);
   }
 }
 
@@ -122,13 +132,20 @@ function runGoldenFixture(
   assertEqualJson(actual, expectedFull, fixtureId);
 }
 
-export function runResolveTreatmentPureGoldenTests(): boolean {
+export function runResolveTreatmentPureGoldenTests(): number {
   const emptyTable: TreatmentPrecedenceTable = {
     schemaVersion: "0.1.0-placeholder",
     generatedBy: "human_curated",
     curatedAt: "2026-06-23T00:00:00Z",
     rules: [],
   };
+
+  const realRulesFromJson = curatedPrecedenceTable as TreatmentPrecedenceTable;
+  const rule001 = realRulesFromJson.rules.find((rule) => rule.ruleId === "RULE-001");
+  const rule010 = realRulesFromJson.rules.find((rule) => rule.ruleId === "RULE-010");
+  if (!rule001 || !rule010) {
+    throw new Error("Curated precedence table missing RULE-001 or RULE-010");
+  }
 
   const g01Input = baseInput();
   const g01Context = buildContext(g01Input, emptyTable);
@@ -160,6 +177,7 @@ export function runResolveTreatmentPureGoldenTests(): boolean {
         produces: "US_GAAP",
         precedenceWeight: 100,
         citationRef: "cite:rule-001",
+        reason: "",
       },
     ],
   };
@@ -185,6 +203,7 @@ export function runResolveTreatmentPureGoldenTests(): boolean {
         produces: "IFRS",
         precedenceWeight: 100,
         citationRef: "cite:ifrs-default",
+        reason: "",
       },
       {
         ruleId: "RULE-002",
@@ -194,6 +213,7 @@ export function runResolveTreatmentPureGoldenTests(): boolean {
         produces: "US_GAAP",
         precedenceWeight: 100,
         citationRef: "cite:us-gaap-election",
+        reason: "",
       },
     ],
   };
@@ -228,6 +248,7 @@ export function runResolveTreatmentPureGoldenTests(): boolean {
         produces: "US_GAAP",
         precedenceWeight: 200,
         citationRef: "cite:gaap",
+        reason: "",
       },
       {
         ruleId: "RULE-002",
@@ -237,6 +258,7 @@ export function runResolveTreatmentPureGoldenTests(): boolean {
         produces: "IFRS",
         precedenceWeight: 200,
         citationRef: "cite:ifrs",
+        reason: "",
       },
     ],
   };
@@ -269,6 +291,7 @@ export function runResolveTreatmentPureGoldenTests(): boolean {
         produces: "US_GAAP",
         precedenceWeight: 150,
         citationRef: "cite:gaap-b",
+        reason: "",
       },
       {
         ruleId: "RULE-001",
@@ -278,6 +301,7 @@ export function runResolveTreatmentPureGoldenTests(): boolean {
         produces: "US_GAAP",
         precedenceWeight: 150,
         citationRef: "cite:gaap-a",
+        reason: "",
       },
     ],
   };
@@ -303,6 +327,7 @@ export function runResolveTreatmentPureGoldenTests(): boolean {
         produces: "IFRS",
         precedenceWeight: 100,
         citationRef: "cite:eu-ifrs",
+        reason: "",
       },
     ],
   };
@@ -324,14 +349,46 @@ export function runResolveTreatmentPureGoldenTests(): boolean {
     generatedAt: "2026-06-30",
   });
 
-  return true;
+  const g07Input = baseInput({
+    industry: { industryCode: "MANUFACTURING", subIndustryCode: null },
+    jurisdiction: { country: "US", region: null },
+    orgElection: null,
+  });
+  const g07Context = buildContext(g07Input, realRulesFromJson);
+  runGoldenFixture("G07_populated_table_us_mfg", g07Context, {
+    chosenFramework: "US_GAAP",
+    applicableBasisRef: "basisOf:US_GAAP:2026-Q2",
+    effectiveDate: "2026-06-30",
+    precedenceReasoning: rule001.reason,
+    matchedRules: ["RULE-001"],
+    unresolvedConflicts: [],
+    generatedAt: "2026-06-30",
+  });
+
+  const g08Input = baseInput({
+    industry: { industryCode: "MANUFACTURING", subIndustryCode: null },
+    jurisdiction: { country: "CA", region: null },
+    orgElection: null,
+  });
+  const g08Context = buildContext(g08Input, realRulesFromJson);
+  runGoldenFixture("G08_populated_table_ca_mfg", g08Context, {
+    chosenFramework: "IFRS",
+    applicableBasisRef: "basisOf:IFRS:2026-Q2",
+    effectiveDate: "2026-06-30",
+    precedenceReasoning: rule010.reason,
+    matchedRules: ["RULE-010"],
+    unresolvedConflicts: [],
+    generatedAt: "2026-06-30",
+  });
+
+  return 8;
 }
 
 if (require.main === module) {
   try {
-    const pass = runResolveTreatmentPureGoldenTests();
-    console.log(pass ? "PASS resolveTreatmentPure.golden" : "FAIL resolveTreatmentPure.golden");
-    process.exit(pass ? 0 : 1);
+    const count = runResolveTreatmentPureGoldenTests();
+    console.log(`PASS resolveTreatmentPure.golden (${count} fixtures)`);
+    process.exit(0);
   } catch (error) {
     console.error(error);
     process.exit(1);

@@ -52,6 +52,10 @@ function filterCandidates(context: TreatmentContext): WeightedRule[] {
     });
 }
 
+function rulePrecedenceReasoning(rule: TreatmentPrecedenceRule): string {
+  return rule.reason.length > 0 ? rule.reason : rule.citationRef;
+}
+
 function buildApplicableBasisRef(
   chosenFramework: FrameworkCode | null,
   periodKey: string,
@@ -182,5 +186,5 @@ export function resolveTreatmentPure(context: TreatmentContext): TreatmentResolu
     left.rule.ruleId.localeCompare(right.rule.ruleId),
   )[0].rule;
 
-  return buildSuccessResolution(context, chosenFramework, matchedRules, topRule.citationRef);
+  return buildSuccessResolution(context, chosenFramework, matchedRules, rulePrecedenceReasoning(topRule));
 }

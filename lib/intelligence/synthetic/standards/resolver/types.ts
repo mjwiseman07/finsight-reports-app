@@ -97,6 +97,7 @@ export interface TreatmentPrecedenceRule {
   produces: FrameworkCode;
   precedenceWeight: number;
   citationRef: string;
+  reason: string;
 }
 
 // ============================================================================
