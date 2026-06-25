@@ -1,0 +1,30 @@
+# Architecture-Lane Locks — Master Registry
+
+This directory is the authoritative registry of every LOCK-* annotated tag in this repository. Each entry below corresponds to a single annotated tag. Tag is on the LOCK commit (Commit 3 of the three-commit chain), NEVER on the SHA-fill follow-up commit.
+
+## Registry entries
+
+### LOCK-GC-1 — GovCon/DCAA Wave 1 Reconnaissance Lock
+
+| Field | Value |
+|---|---|
+| Lock ID | LOCK-GC-1 |
+| Vertical | Government Contracting / DCAA-Compliant |
+| Wave | 1 (Reconnaissance) |
+| Date | 2026-06-25 |
+| Baseline SHA | 5814c8d (LOCK-HC-2 SHA-fill) |
+| Lock SHA | PENDING_SHA_FILL |
+| Attestation | [LOCK-GC-1-Attestation.md](./LOCK-GC-1-Attestation.md) |
+| Founder approval | "Approve all defaults" (2026-06-25 02:17 EDT) + "I will go with what you recommend" (2026-06-25 02:27 EDT) |
+| Overdelivery | +60% (64 / 40 cases) |
+
+## Retrofit backlog (housekeeping — out of GC-1 scope)
+
+These prior locks pre-date this `locks/` registry pattern. They will be back-filled into INDEX.md in a future Phase 42.7H housekeeping commit:
+
+- LOCK-41.5 (Standards Intelligence, 88b4771)
+- LOCK-42.7 (Architecture lane, fc0cb43)
+- LOCK-FA-2 (Fund Accounting, d19a4b4, +80%)
+- LOCK-HC-2 (Healthcare/PHI, ee64120, +97%, SHA-fill 5814c8d)
+
+Until retrofit, the canonical record for these locks is the REGISTRY_CHANGE_LOG entries and their respective root-level attestation files (where present).
