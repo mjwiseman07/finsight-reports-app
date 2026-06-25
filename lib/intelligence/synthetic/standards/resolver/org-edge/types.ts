@@ -1,3 +1,6 @@
+import type { AuditLogWriter } from "../../audit/types";
+import type { TenantClassifier } from "../memory/types";
+
 export type FrameworkId =
   | "US_GAAP"
   | "IFRS"
@@ -59,6 +62,13 @@ export class OrgElectionConsolidationNotSupportedError extends Error {
     );
     this.name = "OrgElectionConsolidationNotSupportedError";
   }
+}
+
+export interface OrgEdgeOptions {
+  readonly auditLogWriter?: AuditLogWriter;
+  readonly tenantClassifier?: TenantClassifier;
+  readonly clockMs?: () => number;
+  readonly knownTenantIds?: ReadonlySet<string>;
 }
 
 export type { OrgElectionReader } from "./OrgElectionReader";

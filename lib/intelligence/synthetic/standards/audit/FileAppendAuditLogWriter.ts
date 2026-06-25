@@ -72,7 +72,7 @@ export class FileAppendAuditLogWriter implements AuditLogWriter {
     if (!["human", "ai-worker", "system", "cron"].includes(actor.kind)) {
       throw new Error(`AuditEntry actor.kind invalid: ${actor.kind}`);
     }
-    if (!["panel-consumer", "role-adapter", "direct-api", "admin-script"].includes(actor.via)) {
+    if (!["panel-consumer", "role-adapter", "org-edge", "direct-api", "admin-script"].includes(actor.via)) {
       throw new Error(`AuditEntry actor.via invalid: ${actor.via}`);
     }
   }

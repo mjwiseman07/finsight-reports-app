@@ -92,6 +92,8 @@
     "verify:phase-42-7b-1": "node scripts/verify-phase-42-7b-1.js",
     "verify:panel-decision-audit": "node scripts/run-panel-decision-audit-tests.js",
     "verify:phase-42-7c-2": "node scripts/verify-phase-42-7c-2.js",
+    "verify:org-edge-audit": "node scripts/run-org-edge-audit-tests.js",
+    "verify:phase-42-7d-1-audit": "node scripts/verify-phase-42-7d-1-audit.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

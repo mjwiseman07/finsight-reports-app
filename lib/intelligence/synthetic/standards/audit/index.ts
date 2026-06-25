@@ -22,3 +22,16 @@ export type {
   TenantClassification,
 } from "./types";
 export { validateEscalationEvaluatedEntry } from "./types";
+export {
+  validateOrgEdgeReconciliationEntry,
+  validateCallerIdentity,
+} from "./validators";
+export type {
+  CallerIdentity,
+  OrgEdgeReconciliationEntry,
+  AttestationLink,
+  ReconciliationDiff,
+  OrgEdgeReconciliationContext,
+  PanelDecisionEntry,
+  PanelAdvisorySummary,
+} from "./types";

@@ -18,6 +18,7 @@ export type AuditEventKind =
   | "panel.decision"
   | "org-edge.override.applied"
   | "org-edge.disagreement.emitted"
+  | "orgEdge.reconciliation"
   | "escalation.evaluated";
 
 export interface AuditEntry {
@@ -279,4 +280,51 @@ export function validatePanelDecisionEntry(entry: PanelDecisionEntry): void {
     }
   }
 }
+
+/**
+ * Phase 42.7D.1-audit — Org-Edge Reconciliation Audit Retrofit
+ * Doctrine:
+ *  - builderNeverAuthorsContent: true
+ *  - failClosedOnAuditWriteFailure: true (inherited from 42.7E E7)
+ *  - complianceClass: SOC1 + SOC2-T2 + HIPAA
+ */
+export interface CallerIdentity {
+  readonly personaHandle: string;
+  readonly tenantId: string;
+  readonly tenantClassification: TenantClassification;
+  readonly invocationContext: {
+    readonly requestId: string;
+    readonly parentRequestId: string | null;
+    readonly invokedAt: string;
+  };
+}
+
+export interface AttestationLink {
+  readonly attestedBy: string;
+  readonly attestedAt: string;
+  readonly attestationHandle: string;
+}
+
+export type ReconciliationDiff =
+  | { readonly kind: "none" }
+  | {
+      readonly kind: "override-applied";
+      readonly orgPolicyHandle: string;
+      readonly panelFrameworkHandle: string;
+      readonly resolvedFrameworkHandle: string;
+      readonly attestationChain: readonly AttestationLink[];
+      readonly resolutionRule: string;
+    };
+
+export interface OrgEdgeReconciliationEntry {
+  readonly event: "orgEdge.reconciliation";
+  readonly version: 1;
+  readonly tenantClassification: TenantClassification;
+  readonly callerIdentity: CallerIdentity;
+  readonly outcome: "agreement" | "disagreement";
+  readonly diff: ReconciliationDiff;
+  readonly citationHandles: readonly string[];
+}
+
+export type OrgEdgeReconciliationContext = OrgEdgeReconciliationEntry;
 
