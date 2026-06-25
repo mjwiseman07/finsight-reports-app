@@ -136,7 +136,7 @@ Final LOCK-42.7 gate: generates D0 wiring evidence rollup (48/48 pass), freezes 
 
 ## [2026-06-24] Atlas + Inventory structural reconcile — LOCK-42.7 post-LOCK chore
 
-**Commit SHA**: `<sha>` (filled post-merge)
+**Commit SHA**: `989e204`
 **Author**: Matthew Wiseman <mwiseman@advisacor.com>
 **Reviewer**: mwiseman@advisacor.com
 **Change class**: modify
@@ -168,6 +168,44 @@ Promotes workspace-canonical Atlas v1.2.8 and Compliance Inventory v1.6 to repo 
 
 **Founder attestation**:
 > I attest that workspace-canonical and frozen Atlas/Inventory copies are reconciled and byte-identical at v1.2.8 / v1.6.
+>
+> Signed: mwiseman@advisacor.com
+> Date: 2026-06-24
+
+---
+
+## [2026-06-24] Compliance Inventory v1.6 authoritative content reconcile
+
+**Commit SHA**: `<sha>` (filled post-merge)
+**Author**: Matthew Wiseman <mwiseman@advisacor.com>
+**Reviewer**: mwiseman@advisacor.com
+**Change class**: modify
+**Affected files**:
+- `Phase_42_7_Compliance_Inventory.md` (workspace canonical)
+- `docs/_compliance/Phase_42_7_Compliance_Inventory.md` (frozen copy)
+- `architecture-lane/registries/REGISTRY_CHANGE_LOG.md`
+
+**Affected tenant population**:
+- No live tenants; pre-production. SOC examination map update only; no runtime tenant behavior change.
+
+**Rationale**:
+Replaces synthesized stub Inventory with authoritative v1.6 content from `Compliance_Inventory_v1_6_authoritative_for_lock_42_7_recon2.md`. Workspace and frozen copies byte-identical; version string remains 1.6.
+
+**Citation / authoritative source**:
+- Source name: Phase 42.7 Compliance Inventory v1.6 (authoritative recon2)
+- URL or document handle: Compliance_Inventory_v1_6_authoritative_for_lock_42_7_recon2.md
+
+**Risk impact**:
+- SOC 1 control(s) affected: CO-5 (change management) — attested registry update
+- SOC 2 TSC(s) affected: CC2 (communication & information) — full examination map now repo-resident
+- HIPAA safeguard(s) affected: §164.308/.310/.312 mapping expanded per authoritative register
+
+**Verification**:
+- Verifiers re-run after change: verify:lock-42-7
+- Cumulative test count post-change: LOCK verifier 8/8
+
+**Founder attestation**:
+> I attest that workspace and frozen Compliance Inventory v1.6 copies match the authoritative recon2 source.
 >
 > Signed: mwiseman@advisacor.com
 > Date: 2026-06-24
