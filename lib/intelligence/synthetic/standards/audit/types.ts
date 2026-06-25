@@ -15,6 +15,7 @@ export type AuditEventKind =
   | "panel.decision.execute"
   | "panel.decision.hire-up"
   | "panel.decision.escalate"
+  | "panel.decision"
   | "org-edge.override.applied"
   | "org-edge.disagreement.emitted"
   | "escalation.evaluated";
@@ -142,6 +143,140 @@ export function validateEscalationEvaluatedEntry(entry: EscalationEvaluatedEntry
   }
   if (!Array.isArray(entry.unresolvedConflicts)) {
     throw new Error("EscalationEvaluatedEntry unresolvedConflicts must be array");
+  }
+}
+
+export type PanelAdvisorySeverityTier = "informational" | "caution" | "blocking";
+
+/**
+ * Phase 42.7C.2 — Panel Decision Audit Retrofit
+ * Doctrine:
+ *  - builderNeverAuthorsContent: true
+ *  - failClosedOnAuditWriteFailure: true (inherited from 42.7E E7)
+ *  - advisoryBundlingDoctrine: true (one panel call = one audit entry; advisories bundled)
+ *  - complianceClass: SOC1 + SOC2-T2 + HIPAA
+ */
+
+/**
+ * Per-advisory summary embedded inside a PanelDecisionEntry.
+ * All anchors are source-name citation handles from the 5 locked set (C2.D9).
+ */
+export interface PanelAdvisorySummary {
+  readonly advisoryHandle: string;
+  readonly severityTier: PanelAdvisorySeverityTier;
+  readonly citationHandle: string;
+  readonly matchedRule: string;
+}
+
+const LOCKED_PANEL_CITATION_HANDLES = new Set([
+  "ASC_105_10_05_1",
+  "IAS_1_PRESENTATION",
+  "IFRS_FOR_SMES_S1",
+  "SEC_REG_S_X",
+  "SEC_FORM_20F_FPI",
+]);
+
+/**
+ * Emitted by the industry panel consumer on every decision call.
+ * One invocation = one entry (C2.D2). Advisories derived during the
+ * invocation are bundled in advisoriesGenerated; they are NOT emitted
+ * as separate entries.
+ */
+export interface PanelDecisionEntry {
+  readonly event: "panel.decision";
+  readonly callerPersonaHandle: string;
+  readonly callerTenantId: string;
+  readonly callerSessionId: string;
+  readonly callerOrgHandle: string;
+  readonly industryHandle: string;
+  readonly panelHandle: string;
+  readonly topicHandle: string;
+  readonly treatmentRequestId: string;
+  readonly matchedRules: readonly string[];
+  readonly citationHandlesConsulted: readonly string[];
+  readonly unresolvedConflicts: readonly string[];
+  readonly resolvedBy: string | null;
+  readonly election: string | null;
+  readonly advisoryCount: number;
+  readonly advisoriesGenerated: readonly PanelAdvisorySummary[];
+  readonly tenantClassification: TenantClassification;
+}
+
+export function validatePanelDecisionEntry(entry: PanelDecisionEntry): void {
+  const requiredStrings: Array<keyof PanelDecisionEntry> = [
+    "event",
+    "callerPersonaHandle",
+    "callerTenantId",
+    "callerSessionId",
+    "callerOrgHandle",
+    "industryHandle",
+    "panelHandle",
+    "topicHandle",
+    "treatmentRequestId",
+    "tenantClassification",
+  ];
+  for (const field of requiredStrings) {
+    const value = entry[field];
+    if (typeof value !== "string" || value.length === 0) {
+      throw new Error(`PanelDecisionEntry missing or empty field: ${field}`);
+    }
+  }
+  if (entry.event !== "panel.decision") {
+    throw new Error(`PanelDecisionEntry invalid event: ${entry.event}`);
+  }
+  if (!Object.prototype.hasOwnProperty.call(entry, "resolvedBy")) {
+    throw new Error("PanelDecisionEntry missing resolvedBy");
+  }
+  if (!Object.prototype.hasOwnProperty.call(entry, "election")) {
+    throw new Error("PanelDecisionEntry missing election");
+  }
+  if (typeof entry.advisoryCount !== "number" || entry.advisoryCount < 0) {
+    throw new Error("PanelDecisionEntry advisoryCount must be a non-negative number");
+  }
+  if (!Array.isArray(entry.matchedRules)) {
+    throw new Error("PanelDecisionEntry matchedRules must be array");
+  }
+  if (!Array.isArray(entry.citationHandlesConsulted)) {
+    throw new Error("PanelDecisionEntry citationHandlesConsulted must be array");
+  }
+  if (!Array.isArray(entry.unresolvedConflicts)) {
+    throw new Error("PanelDecisionEntry unresolvedConflicts must be array");
+  }
+  if (!Array.isArray(entry.advisoriesGenerated)) {
+    throw new Error("PanelDecisionEntry advisoriesGenerated must be array");
+  }
+  if (entry.advisoriesGenerated.length !== entry.advisoryCount) {
+    throw new Error(
+      "PanelDecisionEntry advisoriesGenerated.length must equal advisoryCount",
+    );
+  }
+  for (const handle of entry.citationHandlesConsulted) {
+    if (!LOCKED_PANEL_CITATION_HANDLES.has(handle)) {
+      throw new Error(`PanelDecisionEntry citation handle outside locked set: ${handle}`);
+    }
+  }
+  for (const advisory of entry.advisoriesGenerated) {
+    if (
+      typeof advisory.advisoryHandle !== "string" ||
+      advisory.advisoryHandle.length === 0
+    ) {
+      throw new Error("PanelAdvisorySummary missing advisoryHandle");
+    }
+    if (
+      advisory.severityTier !== "informational" &&
+      advisory.severityTier !== "caution" &&
+      advisory.severityTier !== "blocking"
+    ) {
+      throw new Error(`PanelAdvisorySummary invalid severityTier: ${advisory.severityTier}`);
+    }
+    if (!LOCKED_PANEL_CITATION_HANDLES.has(advisory.citationHandle)) {
+      throw new Error(
+        `PanelAdvisorySummary citation handle outside locked set: ${advisory.citationHandle}`,
+      );
+    }
+    if (typeof advisory.matchedRule !== "string" || advisory.matchedRule.length === 0) {
+      throw new Error("PanelAdvisorySummary missing matchedRule");
+    }
   }
 }
 

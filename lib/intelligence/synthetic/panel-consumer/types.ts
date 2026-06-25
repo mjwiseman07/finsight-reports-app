@@ -1,3 +1,6 @@
+import type { AuditLogWriter } from "../standards/audit/types";
+import type { TenantClassifier } from "../standards/resolver/memory/types";
+
 // ---------- Persona identity ----------
 export type AIPersonaId =
   | "ai-staff-accountant"
@@ -186,4 +189,11 @@ export interface WorkerJobDescriptionsDocument {
   readonly isNotReplacementForHuman: true;
   readonly humanWorkerParityDoctrine: true;
   readonly personas: readonly BaselineJobDescription[];
+}
+
+export interface PanelConsumerOptions {
+  readonly auditLogWriter?: AuditLogWriter;
+  readonly tenantClassifier?: TenantClassifier;
+  readonly clockMs?: () => number;
+  readonly knownTenantIds?: ReadonlySet<string>;
 }
