@@ -42,6 +42,7 @@ export interface IndustryHandle {
     | "MANUFACTURING"
     | "RETAIL"
     | "FUND_ACCOUNTING"
+    | "HEALTHCARE"
     | "CONSTRUCTION"
     | "PROFESSIONAL_SERVICES"
     | "NONPROFIT"
