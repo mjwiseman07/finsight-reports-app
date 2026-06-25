@@ -247,3 +247,47 @@ Replaces synthesized stub Atlas with authoritative v1.2.8 content from `Atlas_v1
 >
 > Signed: mwiseman@advisacor.com
 > Date: 2026-06-24
+
+---
+
+## [2026-06-25] Fund Accounting Wave 2 — Phase FA.2.K-LOCK industry vertical lock
+
+**Phase ID**: FA.2.K-LOCK
+**Change type**: industry_vertical_lock
+**Commit SHA**: `<sha>` (filled in post-merge by founder)
+**Author**: cursor-agent
+**Reviewer**: mwiseman@advisacor.com
+**Change class**: add
+**Affected files**:
+- `lib/intelligence/synthetic/industry/fund-accounting/**`
+- `lib/intelligence/synthetic/industry/contracts/fund-accounting/FABasisContracts.ts`
+- `lib/dashboard/panels/fund-performance/contract.ts`
+- `scripts/verify-fa-wave-2.js`
+- `evidence/fa-wave-2-d0.json`
+- `FA_WAVE_2_ATTESTATION.md`
+- `architecture-lane/registries/REGISTRY_CHANGE_LOG.md`
+
+**Affected tenant population**:
+- No live tenants; pre-production. First fund-accounting vertical knowledge stack under post-LOCK-42.7 architecture.
+
+**Rationale**:
+Lock Fund Accounting Wave 2 — industry isolation contract, framework-aware capabilities (ASC 946 / IFRS 10 routing), M/E/H/P/C sub-segment governance, hedge/PE controls, 42.7 audit wiring, 41.5 treatment-resolver consumption, 6 cross-blend trap defenses, 15 red-team poison cases. 63 D0 cases PASS, zero failures.
+
+**Citation / authoritative source**:
+- Source name: Phase FA-2 Fund Accounting Wave 2 Build Spec
+- URL or document handle: ASC_946_INVESTMENT_COMPANIES, IFRS_10_CONSOLIDATION, FORM_PF, FORM_N_CSR
+
+**Risk impact**:
+- SOC 1 control(s) affected: CO-2 (monitoring), CO-5 (change authorization)
+- SOC 2 TSC(s) affected: CC4 (monitoring), CC5 (control activities), PI1.1–PI1.5 (processing integrity, all-C)
+- HIPAA safeguard(s) affected: §164.312(b) audit controls — cross-phase verified
+
+**Verification**:
+- Verifiers re-run after change: verify:fa-wave-2
+- Cumulative test count post-change: 63/63 PASS (FA-2 D0)
+
+**Founder attestation**:
+> I, Matthew Wiseman, founder of Wiseman Financial Technologies LLC, attest that Fund Accounting Wave 2 satisfies the FA-2 Build Spec, consumes LOCK-41.5 and LOCK-42.7 without degraded modes, and all verifier cases pass.
+>
+> Signed: mwiseman@advisacor.com
+> Date: 2026-06-25
