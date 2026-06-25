@@ -131,3 +131,43 @@ Final LOCK-42.7 gate: generates D0 wiring evidence rollup (48/48 pass), freezes 
 >
 > Signed: mwiseman@advisacor.com
 > Date: 2026-06-24
+
+---
+
+## [2026-06-24] Atlas + Inventory structural reconcile — LOCK-42.7 post-LOCK chore
+
+**Commit SHA**: `<sha>` (filled post-merge)
+**Author**: Matthew Wiseman <mwiseman@advisacor.com>
+**Reviewer**: mwiseman@advisacor.com
+**Change class**: modify
+**Affected files**:
+- `Advisacor_Phase_Atlas_v1.md` (workspace canonical, promoted)
+- `Phase_42_7_Compliance_Inventory.md` (workspace canonical, promoted)
+- `docs/_atlas/Advisacor_Phase_Atlas_v1.md` (frozen copy reconciled)
+- `docs/_compliance/Phase_42_7_Compliance_Inventory.md` (frozen copy reconciled)
+- `architecture-lane/registries/REGISTRY_CHANGE_LOG.md`
+
+**Affected tenant population**:
+- No live tenants; pre-production. Governance artifact pairing only; no runtime tenant behavior change.
+
+**Rationale**:
+Promotes workspace-canonical Atlas v1.2.8 and Compliance Inventory v1.6 to repo root per CODEOWNERS, and reconciles frozen `docs/_atlas/` + `docs/_compliance/` copies to byte-identical workspace versions. Structural reconcile only (no version-string change).
+
+**Citation / authoritative source**:
+- Source name: Phase 42.7G LOCK Commit Build Spec (G3 pairing requirement)
+- URL or document handle: Phase_42_7G_LOCK_Commit_Build_Spec.md
+
+**Risk impact**:
+- SOC 1 control(s) affected: CO-5 (change management) — attested reconcile entry
+- SOC 2 TSC(s) affected: CC2 (communication & information) — workspace/frozen pairing restored
+- HIPAA safeguard(s) affected: none (governance artifacts only)
+
+**Verification**:
+- Verifiers re-run after change: verify:lock-42-7
+- Cumulative test count post-change: LOCK verifier 8/8; no content regression
+
+**Founder attestation**:
+> I attest that workspace-canonical and frozen Atlas/Inventory copies are reconciled and byte-identical at v1.2.8 / v1.6.
+>
+> Signed: mwiseman@advisacor.com
+> Date: 2026-06-24
