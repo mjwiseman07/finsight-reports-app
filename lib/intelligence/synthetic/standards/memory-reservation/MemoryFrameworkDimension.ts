@@ -4,6 +4,9 @@ import type { SyntheticMemoryObjectIsolationDimension } from "../../organization
 
 export type ReportingFrameworkIdentifier = "us_gaap";
 
+/** GovCon vertical — no IFRS applicability (LOCK-GC-1 / GAP-1). */
+export type FrameworkScopedMemoryDimension = ReportingFrameworkIdentifier | "US_GAAP_ONLY";
+
 export type TreatmentScopedMemoryCategory =
   | "revenue_recognition"
   | "lease_accounting"

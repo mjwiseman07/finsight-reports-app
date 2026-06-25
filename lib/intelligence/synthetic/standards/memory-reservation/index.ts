@@ -2,6 +2,7 @@ export type {
   FrameworkAgnosticCategoryList,
   FrameworkAgnosticMemoryCategory,
   FrameworkDimensionReservation,
+  FrameworkScopedMemoryDimension,
   MemoryKeySchemaReservation,
   ReportingFrameworkIdentifier,
   StandardsMemoryReservationBase,

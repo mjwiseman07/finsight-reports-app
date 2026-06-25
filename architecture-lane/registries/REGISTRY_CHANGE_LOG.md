@@ -333,3 +333,61 @@ Lock Healthcare Wave 2 — industry isolation contract, framework-aware capabili
 >
 > Signed: mwiseman@advisacor.com
 > Date: 2026-06-25
+
+---
+
+## [2026-06-25] GovCon/DCAA Wave 1 — LOCK-GC-1 reconnaissance lock
+
+**Phase ID**: GC-1
+**Change type**: industry_vertical_recon_lock
+**Commit SHA**: `PENDING_SHA_FILL`
+**Author**: cursor-agent
+**Reviewer**: mwiseman@advisacor.com
+**Change class**: add
+**Affected files**:
+- `lib/intelligence/synthetic/standards/govcon/**`
+- `lib/intelligence/synthetic/standards/memory-reservation/MemoryFrameworkDimension.ts`
+- `docs/govcon/wave1/**`
+- `scripts/verify-gc-1.js`
+- `scripts/gen-govcon-handles-registry.js`
+- `architecture-lane/locks/**`
+- `architecture-lane/registries/REGISTRY_CHANGE_LOG.md`
+
+**Source libraries (audit evidence)**:
+- FAR Part 31: `docs/govcon/wave1/GovCon_FAR31_Sources.md`
+- Cost Accounting Standards: `docs/govcon/wave1/GovCon_CAS_Sources.md`
+- DCAA (CAM / MAARs / ICE / SF 1408 / DFARS): `docs/govcon/wave1/GovCon_DCAA_Sources.md`
+- Disclosures (ICS / FPRA / PBR / DS-1 / DS-2): `docs/govcon/wave1/GovCon_Disclosures_Sources.md`
+- Benchmarks (exec comp / reasonableness / travel / small biz): `docs/govcon/wave1/GovCon_Benchmarks_Sources.md`
+- Citation register: `docs/govcon/wave1/GovCon_Citation_Verification_Register.xlsx`
+
+**Doctrine**:
+- New scattered flag: `containsGovernmentContractData` (`govcon/doctrine.ts`, HC-2 `containsPHI` parity per GAP-2=A)
+- New framework-scoped-memory dimension: `US_GAAP_ONLY` (no IFRS applicability for GovCon vertical)
+
+**Audit-evidence directory**: `docs/govcon/wave1/` (README + 5 source docs + xlsx register)
+
+**Affected tenant population**:
+- No live tenants; pre-production. First Government Contracting / DCAA reconnaissance knowledge spine.
+
+**Rationale**:
+LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kernel (C/N/S/R/F/T), citation handle registry (URL-only), exec comp cap registry, 5 structural verifier gates (64 cases, +60% over 40-case floor), locks/ registry pattern (GAP-3=A).
+
+**Citation / authoritative source**:
+- Source name: Phase GC-1 Recon Spec v1.1
+- URL or document handle: `docs/govcon/wave1/`
+
+**Risk impact**:
+- SOC 1 control(s) affected: CO-2 (monitoring), CO-5 (change authorization)
+- SOC 2 TSC(s) affected: CC4 (monitoring), CC5 (control activities)
+- DCAA readiness: SF 1408 pre-award survey citation spine
+
+**Verification**:
+- Verifiers re-run after change: verify:gc-1
+- Cumulative test count post-change: 64/64 PASS (GC-1 Gates A–E)
+
+**Founder attestation**:
+> I, Matthew Wiseman, founder of Wiseman Financial Technologies LLC, attest that GovCon Wave 1 reconnaissance satisfies Phase_GC_1_Recon_Spec.md v1.1, consumes LOCK-HC-2 baseline without degraded modes, and all verifier cases pass.
+>
+> Signed: mwiseman@advisacor.com
+> Date: 2026-06-25
