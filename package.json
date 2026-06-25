@@ -98,6 +98,8 @@
     "verify:phase-42-7f": "node scripts/verify-phase-42-7f.js",
     "verify:phase-42-7f:self": "node scripts/verify-phase-42-7f-self.js",
     "verify:phase-42-7f:all": "node scripts/verify-phase-42-7f-self.js && node scripts/verify-phase-42-7f.js",
+    "d0:wiring-evidence": "node scripts/generate-d0-wiring-evidence.js",
+    "verify:lock-42-7": "node scripts/verify-lock-42-7.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

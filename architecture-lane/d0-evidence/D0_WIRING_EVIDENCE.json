@@ -1,0 +1,345 @@
+{
+  "evidenceVersion": "42.7.G1.0",
+  "generatedAt": "2026-06-24T23:59:00Z",
+  "totalCases": 48,
+  "passCount": 48,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "WV-001",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-002",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-003",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-004",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-005",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-006",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-007",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-008",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-009",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-010",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-011",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-012",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-013",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-014",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-015",
+      "decision": "gate-blocked",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-016",
+      "decision": "degraded-confidence",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-017",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-018",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-019",
+      "decision": "gate-blocked",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-020",
+      "decision": "degraded-confidence",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-021",
+      "decision": "no-escalation",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-022",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-023",
+      "decision": "gate-blocked",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-024",
+      "decision": "degraded-confidence",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-025",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-026",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-027",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-028",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-029",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-030",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-031",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-032",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-033",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-034",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-035",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-036",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-037",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-038",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-039",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-040",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-041",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-042",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-043",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-044",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-045",
+      "decision": "escalated",
+      "expected": "cross-phase-pass",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-FC1",
+      "decision": "fail-closed:escalation",
+      "expected": "fail-closed-threw",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-FC2",
+      "decision": "fail-closed:panel",
+      "expected": "fail-closed-threw",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    },
+    {
+      "id": "WV-FC3",
+      "decision": "fail-closed:org-edge",
+      "expected": "fail-closed-threw",
+      "outcome": "pass",
+      "reason": "all wiring assertions passed"
+    }
+  ]
+}
