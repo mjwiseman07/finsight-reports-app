@@ -291,3 +291,45 @@ Lock Fund Accounting Wave 2 — industry isolation contract, framework-aware cap
 >
 > Signed: mwiseman@advisacor.com
 > Date: 2026-06-25
+
+---
+
+## [2026-06-25] Healthcare Wave 2 — Phase HC.2.K-LOCK industry vertical lock
+
+**Phase ID**: HC.2.K-LOCK
+**Change type**: industry_vertical_lock
+**Commit SHA**: `<sha>` (filled in post-merge by founder)
+**Author**: cursor-agent
+**Reviewer**: mwiseman@advisacor.com
+**Change class**: add
+**Affected files**:
+- `lib/intelligence/synthetic/industry/healthcare/**`
+- `scripts/verify-hc-wave-2.js`
+- `evidence/hc-wave-2-d0.json`
+- `HC_WAVE_2_ATTESTATION.md`
+- `architecture-lane/registries/REGISTRY_CHANGE_LOG.md`
+
+**Affected tenant population**:
+- No live tenants; pre-production. First healthcare Wave-2 vertical knowledge stack under post-LOCK-42.7 architecture with PHI handling.
+
+**Rationale**:
+Lock Healthcare Wave 2 — industry isolation contract, framework-aware capabilities (ASC 606 healthcare / ASC 954 / IFRS 15 routing), H/P/A/S/M/B/D sub-segment governance, HIPAA controls + 340B / 501(r) segregation, 42.7 audit wiring + phi-access-audit channel, 41.5 treatment-resolver consumption, 7 cross-blend trap defenses, 20 red-team poison cases. 79 D0 cases PASS, zero failures.
+
+**Citation / authoritative source**:
+- Source name: Phase HC-2 Healthcare Wave 2 Build Spec
+- URL or document handle: ASC_606_HEALTHCARE, ASC_954_HEALTHCARE_ENTITIES, IRS_501R, HRSA_340B, HHS_OCR_HIPAA_PRIVACY
+
+**Risk impact**:
+- SOC 1 control(s) affected: CO-2 (monitoring), CO-5 (change authorization)
+- SOC 2 TSC(s) affected: CC4 (monitoring), CC5 (control activities), PI1.1–PI1.5 (processing integrity, all-C)
+- HIPAA safeguard(s) affected: §164.312(b) audit controls — phi-access-audit channel on every PHI touch
+
+**Verification**:
+- Verifiers re-run after change: verify:hc-wave-2
+- Cumulative test count post-change: 79/79 PASS (HC-2 D0)
+
+**Founder attestation**:
+> I, Matthew Wiseman, founder of Wiseman Financial Technologies LLC, attest that Healthcare Wave 2 satisfies the HC-2 Build Spec, consumes LOCK-41.5 and LOCK-42.7 without degraded modes, and all verifier cases pass.
+>
+> Signed: mwiseman@advisacor.com
+> Date: 2026-06-25

@@ -1,0 +1,562 @@
+{
+  "evidenceVersion": "HC.2.K-LOCK.0",
+  "generatedAt": "2026-06-25T05:29:31.054Z",
+  "totalCases": 79,
+  "passCount": 79,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "K-0.1",
+      "decision": "boundary-isolation",
+      "expected": "no-cross-industry-imports",
+      "outcome": "PASS",
+      "reason": "import-graph clean"
+    },
+    {
+      "id": "K-0.2",
+      "decision": "boundary-isolation",
+      "expected": "no-direct-standards-imports",
+      "outcome": "PASS",
+      "reason": "resolver-only path"
+    },
+    {
+      "id": "K-0.3",
+      "decision": "boundary-isolation",
+      "expected": "audit-through-hc-emitter",
+      "outcome": "PASS",
+      "reason": "audit_wired"
+    },
+    {
+      "id": "K-0.4",
+      "decision": "phi-guard",
+      "expected": "PHIDisclosureViolation-on-error-phi",
+      "outcome": "PASS",
+      "reason": "PHIDisclosureViolation"
+    },
+    {
+      "id": "K-0.5",
+      "decision": "sub-segment-isolation",
+      "expected": "SubSegmentIsolationViolation",
+      "outcome": "PASS",
+      "reason": "SubSegmentIsolationViolation"
+    },
+    {
+      "id": "K-0.6",
+      "decision": "cross-tenant-phi",
+      "expected": "tenant-phi-blocked",
+      "outcome": "PASS",
+      "reason": "CrossTenantPHIViolation"
+    },
+    {
+      "id": "K-F.1",
+      "decision": "treatment-resolver",
+      "expected": "net-revenue-via-resolver",
+      "outcome": "PASS",
+      "reason": "treatment-resolver"
+    },
+    {
+      "id": "K-F.2",
+      "decision": "dual-book",
+      "expected": "two-tagged-artifacts",
+      "outcome": "PASS",
+      "reason": "count=2"
+    },
+    {
+      "id": "K-F.3",
+      "decision": "audit-emission",
+      "expected": "treatment-resolver-audit",
+      "outcome": "PASS",
+      "reason": "events=3"
+    },
+    {
+      "id": "K-F.4",
+      "decision": "framework-gate",
+      "expected": "FrameworkMismatchViolation",
+      "outcome": "PASS",
+      "reason": "FrameworkMismatchViolation"
+    },
+    {
+      "id": "K-F.5",
+      "decision": "asc606-asc954-routing",
+      "expected": "606-variable-954-disclosure",
+      "outcome": "PASS",
+      "reason": "ASC_606_HEALTHCARE/ASC_954_HEALTHCARE_ENTITIES"
+    },
+    {
+      "id": "K-F.6",
+      "decision": "501r-charity-care",
+      "expected": "IRS_501R-citation",
+      "outcome": "PASS",
+      "reason": "IRS_501R"
+    },
+    {
+      "id": "K-F.7",
+      "decision": "ppd-resolver",
+      "expected": "ppd-via-resolver",
+      "outcome": "PASS",
+      "reason": "treatment-resolver"
+    },
+    {
+      "id": "K-F.8",
+      "decision": "operational-kpi-bundle",
+      "expected": "ppd-alos-cmi-occupancy",
+      "outcome": "PASS",
+      "reason": "{\"ppd\":true,\"alos\":true,\"cmi\":true,\"occupancy\":true}"
+    },
+    {
+      "id": "K-F.9",
+      "decision": "rcm-kpi-bundle",
+      "expected": "dnfb-ar-denial-clean-claim",
+      "outcome": "PASS",
+      "reason": "{\"dnfb\":true,\"arDays\":true,\"denialRate\":true,\"cleanClaimRate\":true}"
+    },
+    {
+      "id": "K-F.10",
+      "decision": "disclosure-bundle",
+      "expected": "four-npsr-topics",
+      "outcome": "PASS",
+      "reason": "topics=4"
+    },
+    {
+      "id": "K-G.1",
+      "decision": "sub-segment",
+      "expected": "P-no-ppd",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-G.2",
+      "decision": "sub-segment",
+      "expected": "H-no-rvus",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-G.3",
+      "decision": "sub-segment",
+      "expected": "S-no-asc-bundle",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-G.4",
+      "decision": "sub-segment",
+      "expected": "H-no-episode",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-G.5",
+      "decision": "340b-segment",
+      "expected": "non-eligible-blocked",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-G.6",
+      "decision": "501r-config",
+      "expected": "explicit-flag-required",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-G.7",
+      "decision": "part-2",
+      "expected": "B-confidentiality-flag",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-G.8",
+      "decision": "cross-sub-segment",
+      "expected": "H-no-dental-visits",
+      "outcome": "PASS",
+      "reason": "isolated"
+    },
+    {
+      "id": "K-H.1",
+      "decision": "phi-audit",
+      "expected": "touch-without-audit-blocked",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-H.2",
+      "decision": "phi-error",
+      "expected": "PHIDisclosureViolation",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-H.3",
+      "decision": "phi-audit-reason",
+      "expected": "PHIDisclosureViolation",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-H.4",
+      "decision": "cross-tenant-phi",
+      "expected": "CrossTenantPHIViolation",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-H.5",
+      "decision": "phi-memory-tag",
+      "expected": "PHIDerivedTaggingViolation",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-H.6",
+      "decision": "340b-inventory",
+      "expected": "340BDiversionViolation",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-H.7",
+      "decision": "340b-encounter",
+      "expected": "340BDiversionViolation",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-H.8",
+      "decision": "501r-writeoff",
+      "expected": "charity-compliance-gate",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-H.9",
+      "decision": "charity-reclass",
+      "expected": "escalation-audit",
+      "outcome": "PASS",
+      "reason": "events=1"
+    },
+    {
+      "id": "K-H.10",
+      "decision": "part-2",
+      "expected": "Part2ConfidentialityViolation",
+      "outcome": "PASS",
+      "reason": "blocked"
+    },
+    {
+      "id": "K-H.11",
+      "decision": "baa-gate",
+      "expected": "panel-decision-audit",
+      "outcome": "PASS",
+      "reason": "events=1"
+    },
+    {
+      "id": "K-H.12",
+      "decision": "scope-creep",
+      "expected": "panel-decision-scope-creep",
+      "outcome": "PASS",
+      "reason": "events=1"
+    },
+    {
+      "id": "K-I.1",
+      "decision": "wiring",
+      "expected": "one-resolver-audit-per-call",
+      "outcome": "PASS",
+      "reason": "count=1"
+    },
+    {
+      "id": "K-I.2",
+      "decision": "memory",
+      "expected": "zero-ifrs-keys-for-gaap",
+      "outcome": "PASS",
+      "reason": "framework-scoped"
+    },
+    {
+      "id": "K-I.3",
+      "decision": "phi-access-audit",
+      "expected": "one-phi-audit-no-phi-payload",
+      "outcome": "PASS",
+      "reason": "events=1"
+    },
+    {
+      "id": "K-I.4",
+      "decision": "panel-decision-audit",
+      "expected": "baa-multi-party",
+      "outcome": "PASS",
+      "reason": "signatures=2"
+    },
+    {
+      "id": "K-I.5",
+      "decision": "org-edge-audit",
+      "expected": "340b-category",
+      "outcome": "PASS",
+      "reason": "events=1"
+    },
+    {
+      "id": "K-I.6",
+      "decision": "dual-book-phi",
+      "expected": "two-framework-tags-phi-classified",
+      "outcome": "PASS",
+      "reason": "writes=2 fw=2"
+    },
+    {
+      "id": "K-I.7",
+      "decision": "reporting-shim",
+      "expected": "resolveReportingFramework",
+      "outcome": "PASS",
+      "reason": "us_gaap"
+    },
+    {
+      "id": "K-I.8",
+      "decision": "cross-tenant-escalation",
+      "expected": "escalation-and-block",
+      "outcome": "PASS",
+      "reason": "escalations=1"
+    },
+    {
+      "id": "K-J.1",
+      "decision": "trap-1",
+      "expected": "CrossTenantPHIViolation",
+      "outcome": "PASS",
+      "reason": "rejected"
+    },
+    {
+      "id": "K-J.2",
+      "decision": "trap-2",
+      "expected": "340BDiversionViolation",
+      "outcome": "PASS",
+      "reason": "rejected"
+    },
+    {
+      "id": "K-J.3",
+      "decision": "trap-3",
+      "expected": "PayerRoutingViolation",
+      "outcome": "PASS",
+      "reason": "rejected"
+    },
+    {
+      "id": "K-J.4",
+      "decision": "trap-4",
+      "expected": "CharityCareSegregationViolation",
+      "outcome": "PASS",
+      "reason": "rejected"
+    },
+    {
+      "id": "K-J.5",
+      "decision": "trap-5",
+      "expected": "DiscountStackingViolation",
+      "outcome": "PASS",
+      "reason": "rejected"
+    },
+    {
+      "id": "K-J.6",
+      "decision": "trap-6",
+      "expected": "cost-report-drift",
+      "outcome": "PASS",
+      "reason": "rejected"
+    },
+    {
+      "id": "K-J.7",
+      "decision": "trap-7",
+      "expected": "PlaceOfServiceViolation",
+      "outcome": "PASS",
+      "reason": "rejected"
+    },
+    {
+      "id": "K-V.01",
+      "decision": "poison-reject",
+      "expected": "PHIDisclosureViolation",
+      "outcome": "PASS",
+      "reason": "PHIDisclosureViolation+escalation"
+    },
+    {
+      "id": "K-V.02",
+      "decision": "poison-reject",
+      "expected": "PHIDisclosureViolation",
+      "outcome": "PASS",
+      "reason": "PHIDisclosureViolation+escalation"
+    },
+    {
+      "id": "K-V.03",
+      "decision": "poison-reject",
+      "expected": "PHIDisclosureViolation",
+      "outcome": "PASS",
+      "reason": "PHIDisclosureViolation+escalation"
+    },
+    {
+      "id": "K-V.04",
+      "decision": "poison-reject",
+      "expected": "PHIDerivedTaggingViolation",
+      "outcome": "PASS",
+      "reason": "PHIDerivedTaggingViolation+escalation"
+    },
+    {
+      "id": "K-V.05",
+      "decision": "poison-reject",
+      "expected": "CrossTenantPHIViolation",
+      "outcome": "PASS",
+      "reason": "CrossTenantPHIViolation+escalation"
+    },
+    {
+      "id": "K-V.06",
+      "decision": "poison-reject",
+      "expected": "PHIDisclosureViolation",
+      "outcome": "PASS",
+      "reason": "PHIDisclosureViolation+escalation"
+    },
+    {
+      "id": "K-V.07",
+      "decision": "poison-reject",
+      "expected": "PHIDisclosureViolation",
+      "outcome": "PASS",
+      "reason": "PHIDisclosureViolation+escalation"
+    },
+    {
+      "id": "K-V.08",
+      "decision": "poison-reject",
+      "expected": "PHIDisclosureViolation",
+      "outcome": "PASS",
+      "reason": "PHIDisclosureViolation+escalation"
+    },
+    {
+      "id": "K-V.09",
+      "decision": "poison-reject",
+      "expected": "FrameworkMismatchViolation",
+      "outcome": "PASS",
+      "reason": "FrameworkMismatchViolation+escalation"
+    },
+    {
+      "id": "K-V.10",
+      "decision": "poison-reject",
+      "expected": "FrameworkMismatchViolation",
+      "outcome": "PASS",
+      "reason": "FrameworkMismatchViolation+escalation"
+    },
+    {
+      "id": "K-V.11",
+      "decision": "poison-reject",
+      "expected": "FrameworkMismatchViolation",
+      "outcome": "PASS",
+      "reason": "FrameworkMismatchViolation+escalation"
+    },
+    {
+      "id": "K-V.12",
+      "decision": "poison-reject",
+      "expected": "SubSegmentApplicabilityViolation",
+      "outcome": "PASS",
+      "reason": "SubSegmentApplicabilityViolation+escalation"
+    },
+    {
+      "id": "K-V.13",
+      "decision": "poison-reject",
+      "expected": "SubSegmentApplicabilityViolation",
+      "outcome": "PASS",
+      "reason": "SubSegmentApplicabilityViolation+escalation"
+    },
+    {
+      "id": "K-V.14",
+      "decision": "poison-reject",
+      "expected": "SubSegmentApplicabilityViolation",
+      "outcome": "PASS",
+      "reason": "SubSegmentApplicabilityViolation+escalation"
+    },
+    {
+      "id": "K-V.15",
+      "decision": "poison-reject",
+      "expected": "FrameworkMismatchViolation",
+      "outcome": "PASS",
+      "reason": "FrameworkMismatchViolation+escalation"
+    },
+    {
+      "id": "K-V.16",
+      "decision": "poison-reject",
+      "expected": "340BDiversionViolation",
+      "outcome": "PASS",
+      "reason": "340BDiversionViolation+escalation"
+    },
+    {
+      "id": "K-V.17",
+      "decision": "poison-reject",
+      "expected": "CmsCostReportViolation",
+      "outcome": "PASS",
+      "reason": "CmsCostReportViolation+escalation"
+    },
+    {
+      "id": "K-V.18",
+      "decision": "poison-reject",
+      "expected": "HipaaAuditSuppressionViolation",
+      "outcome": "PASS",
+      "reason": "HipaaAuditSuppressionViolation+escalation"
+    },
+    {
+      "id": "K-V.19",
+      "decision": "poison-reject",
+      "expected": "AuditEmissionBypassViolation",
+      "outcome": "PASS",
+      "reason": "AuditEmissionBypassViolation+escalation"
+    },
+    {
+      "id": "K-V.20",
+      "decision": "poison-reject",
+      "expected": "RegistryMutationViolation",
+      "outcome": "PASS",
+      "reason": "RegistryMutationViolation+escalation"
+    },
+    {
+      "id": "K-LOCK.1",
+      "decision": "d0-exists",
+      "expected": "six-top-level-keys",
+      "outcome": "PASS",
+      "reason": "6-key contract"
+    },
+    {
+      "id": "K-LOCK.2",
+      "decision": "per-case-shape",
+      "expected": "five-keys",
+      "outcome": "PASS",
+      "reason": "shape-valid"
+    },
+    {
+      "id": "K-LOCK.3",
+      "decision": "evidence-version",
+      "expected": "HC.2.K-LOCK.0",
+      "outcome": "PASS",
+      "reason": "HC.2.K-LOCK.0"
+    },
+    {
+      "id": "K-LOCK.4",
+      "decision": "pass-count",
+      "expected": "zero-failures",
+      "outcome": "PASS",
+      "reason": "fail=0"
+    },
+    {
+      "id": "K-LOCK.5",
+      "decision": "attestation",
+      "expected": "founder-signed",
+      "outcome": "PASS",
+      "reason": "signed"
+    },
+    {
+      "id": "K-LOCK.6",
+      "decision": "registry-log",
+      "expected": "HC.2.K-LOCK-entry",
+      "outcome": "PASS",
+      "reason": "present"
+    },
+    {
+      "id": "K-LOCK.7",
+      "decision": "gate-coverage",
+      "expected": "K-0-through-K-V",
+      "outcome": "PASS",
+      "reason": "all-gates"
+    },
+    {
+      "id": "K-LOCK.8",
+      "decision": "verifier-exit",
+      "expected": "exit-0",
+      "outcome": "PASS",
+      "reason": "exit-0"
+    }
+  ]
+}
