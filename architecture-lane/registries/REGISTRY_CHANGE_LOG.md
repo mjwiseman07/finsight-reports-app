@@ -209,3 +209,41 @@ Replaces synthesized stub Inventory with authoritative v1.6 content from `Compli
 >
 > Signed: mwiseman@advisacor.com
 > Date: 2026-06-24
+
+---
+
+## [2026-06-24] Phase Atlas v1.2.8 authoritative content reconcile
+
+**Commit SHA**: `<sha>` (filled post-merge)
+**Author**: Matthew Wiseman <mwiseman@advisacor.com>
+**Reviewer**: mwiseman@advisacor.com
+**Change class**: modify
+**Affected files**:
+- `Advisacor_Phase_Atlas_v1.md` (workspace canonical)
+- `docs/_atlas/Advisacor_Phase_Atlas_v1.md` (frozen copy)
+- `architecture-lane/registries/REGISTRY_CHANGE_LOG.md`
+
+**Affected tenant population**:
+- No live tenants; pre-production. Governance synthesis document update only; no runtime tenant behavior change.
+
+**Rationale**:
+Replaces synthesized stub Atlas with authoritative v1.2.8 content from `Atlas_v1_2_8_authoritative_for_lock_42_7_recon2.md`. Workspace and frozen copies byte-identical; version header remains v1.2.8.
+
+**Citation / authoritative source**:
+- Source name: Advisacor Phase Atlas v1.2.8 (authoritative recon2)
+- URL or document handle: Atlas_v1_2_8_authoritative_for_lock_42_7_recon2.md
+
+**Risk impact**:
+- SOC 1 control(s) affected: CO-5 (change management) — attested registry update
+- SOC 2 TSC(s) affected: CC2 (communication & information) — full phase atlas now repo-resident
+- HIPAA safeguard(s) affected: none (governance artifact only)
+
+**Verification**:
+- Verifiers re-run after change: verify:lock-42-7
+- Cumulative test count post-change: LOCK verifier 8/8
+
+**Founder attestation**:
+> I attest that workspace and frozen Phase Atlas v1.2.8 copies match the authoritative recon2 source.
+>
+> Signed: mwiseman@advisacor.com
+> Date: 2026-06-24
