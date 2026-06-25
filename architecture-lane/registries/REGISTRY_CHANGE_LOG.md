@@ -298,7 +298,7 @@ Lock Fund Accounting Wave 2 — industry isolation contract, framework-aware cap
 
 **Phase ID**: HC.2.K-LOCK
 **Change type**: industry_vertical_lock
-**Commit SHA**: `<sha>` (filled in post-merge by founder)
+**Commit SHA**: `ee64120`
 **Author**: cursor-agent
 **Reviewer**: mwiseman@advisacor.com
 **Change class**: add

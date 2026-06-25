@@ -3,7 +3,7 @@
 ```yaml
 attestedBy: mwiseman@advisacor.com
 attestationDate: 2026-06-25
-lockSHA: <sha>  # follow-up commit per LOCK-FA-2 / LOCK-42.7 c1cbfbd pattern
+lockSHA: ee64120
 verifierResult: 79/79 PASS (+97% vs 40-case floor)
 overdelivery: 79 vs 40 floor (+97%; session high — prior FA-2 was +80%)
 predecessors:
