@@ -34,6 +34,7 @@
     "verify:industry-profiles": "node scripts/verify-industry-profiles.js",
     "verify:manufacturing-knowledge-stack": "node scripts/verify-manufacturing-knowledge-stack.js",
     "verify:retail-knowledge-stack": "node scripts/verify-retail-knowledge-stack.js",
+    "verify:fa-wave-2": "node scripts/verify-fa-wave-2.js",
     "verify:company-memory": "node scripts/verify-company-memory.js",
     "verify:si-snapshot-persistence-plan": "node scripts/verify-si-snapshot-persistence-plan.js",
     "verify:si-snapshot-retrieval": "node scripts/verify-si-snapshot-retrieval.js",
