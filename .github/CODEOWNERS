@@ -1,0 +1,12 @@
+# Registry change management — Phase 42.7A.5
+# All changes to the following paths require founder review.
+# Authority: mwiseman@advisacor.com
+
+architecture-lane/registries/**           @mjwiseman07
+lib/intelligence/synthetic/panel-consumer/locked-citation-handles.ts  @mjwiseman07
+lib/intelligence/synthetic/standards/audit/types.ts          @mjwiseman07
+lib/intelligence/synthetic/standards/resolver/**               @mjwiseman07
+/Phase_42_*.md                            @mjwiseman07
+/Phase_*_Build_Spec.md                    @mjwiseman07
+/Phase_42_7_Compliance_Inventory.md       @mjwiseman07
+/Advisacor_Phase_Atlas_v1.md              @mjwiseman07
