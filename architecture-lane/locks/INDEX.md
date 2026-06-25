@@ -13,7 +13,7 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Wave | 1 (Reconnaissance) |
 | Date | 2026-06-25 |
 | Baseline SHA | 5814c8d (LOCK-HC-2 SHA-fill) |
-| Lock SHA | PENDING_SHA_FILL |
+| Lock SHA | ca5f35f |
 | Attestation | [LOCK-GC-1-Attestation.md](./LOCK-GC-1-Attestation.md) |
 | Founder approval | "Approve all defaults" (2026-06-25 02:17 EDT) + "I will go with what you recommend" (2026-06-25 02:27 EDT) |
 | Overdelivery | +60% (64 / 40 cases) |
