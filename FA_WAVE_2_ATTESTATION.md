@@ -3,7 +3,7 @@
 ```yaml
 attestedBy: mwiseman@advisacor.com
 attestationDate: 2026-06-25
-lockSHA: <sha>  # follow-up commit per LOCK-42.7 c1cbfbd pattern
+lockSHA: d19a4b4
 verifierResult: 63/63 PASS
 predecessors:
   - LOCK-41.5 (88b4771)

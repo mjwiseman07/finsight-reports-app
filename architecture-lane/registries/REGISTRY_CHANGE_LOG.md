@@ -254,7 +254,7 @@ Replaces synthesized stub Atlas with authoritative v1.2.8 content from `Atlas_v1
 
 **Phase ID**: FA.2.K-LOCK
 **Change type**: industry_vertical_lock
-**Commit SHA**: `<sha>` (filled in post-merge by founder)
+**Commit SHA**: `d19a4b4`
 **Author**: cursor-agent
 **Reviewer**: mwiseman@advisacor.com
 **Change class**: add
