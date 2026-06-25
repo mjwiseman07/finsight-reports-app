@@ -45,3 +45,46 @@ Establishes enforceable SOC 2 CC8 and SOC 1 CO-5 change-management controls: fou
 >
 > Signed: mwiseman@advisacor.com
 > Date: 2026-06-24
+
+---
+
+## [2026-06-24] Cross-phase wiring verifier — Phase 42.7F (LOCK-42.7 G7)
+
+**Commit SHA**: `<sha>` (filled in post-merge by founder)
+**Author**: cursor-agent
+**Reviewer**: mwiseman@advisacor.com
+**Change class**: add
+**Affected files**:
+- `architecture-lane/verifier-42-7f/runWiredTraversal.ts`
+- `architecture-lane/verifier-42-7f/caseMatrix.ts`
+- `architecture-lane/verifier-42-7f/expectedHopManifest.ts`
+- `architecture-lane/verifier-42-7f/ThrowingAuditLogWriter.ts`
+- `architecture-lane/verifier-42-7f/__tests__/wiringVerifier.test.ts`
+- `scripts/verify-phase-42-7f.js`
+- `scripts/verify-phase-42-7f-self.js`
+- `architecture-lane/registries/REGISTRY_CHANGE_LOG.md`
+
+**Affected tenant population**:
+- No live tenants; pre-production. Verifier covers all six persona × tenant-classification × industry combinations that future tenants will traverse through escalation → panel → org-edge wiring.
+
+**Rationale**:
+Single canonical cross-phase traversal runner exercises the full 42.7B→42.7D chain with real `FileAppendAuditLogWriter`, expected-hop manifests, hash-chain verification on every traversal, PHI segregation, citation allow-list enforcement, and three fail-closed cases (FC1–FC3). Closes LOCK-42.7 gate G7.
+
+**Citation / authoritative source**:
+- Source name: Phase 42.7F Cross-Phase Wiring Verifier Build Spec
+- URL or document handle: Phase_42_7F_Cross_Phase_Wiring_Verifier_Build_Spec.md
+
+**Risk impact**:
+- SOC 1 control(s) affected: CO-2 (monitoring completeness) — R→C
+- SOC 2 TSC(s) affected: CC4 (monitoring), CC5 (control activities cross-phase), PI1.1–PI1.5 (processing integrity, all-C)
+- HIPAA safeguard(s) affected: §164.312(b) audit controls, §164.312(c)(1) integrity — cross-phase verified
+
+**Verification**:
+- Verifiers re-run after change: verify:phase-42-7f:all, full 42.7 regression suite
+- Cumulative test count post-change: 147 / 147 wiring assertions, 48 / 48 matrix cases, 6 / 6 meta-checks; prior 476 / 476 regression floor retained
+
+**Founder attestation**:
+> I, Matthew Wiseman, founder of Wiseman Financial Technologies LLC, attest that the above change was reviewed, the affected tenant population was correctly identified, and the cited authoritative source was verified.
+>
+> Signed: mwiseman@advisacor.com
+> Date: 2026-06-24
