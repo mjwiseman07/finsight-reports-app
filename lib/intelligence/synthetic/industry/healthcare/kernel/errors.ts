@@ -110,3 +110,11 @@ export function DiscountStackingViolation(message: string): HCViolationError {
 export function PlaceOfServiceViolation(message: string): HCViolationError {
   return createViolation("PlaceOfServiceViolation", "PlaceOfServiceViolation", message);
 }
+
+export function CmsCostReportViolation(message: string): HCViolationError {
+  return createViolation("CmsCostReportViolation", "CmsCostReportViolation", message);
+}
+
+export function HipaaAuditSuppressionViolation(message: string): HCViolationError {
+  return createViolation("HipaaAuditSuppressionViolation", "HipaaAuditSuppressionViolation", message);
+}
