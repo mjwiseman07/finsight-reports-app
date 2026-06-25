@@ -88,6 +88,8 @@
     "verify:panel-consumer": "node scripts/run-panel-consumer-tests.js",
     "verify:memory-cache": "node scripts/run-memory-cache-tests.js",
     "verify:audit-log": "node scripts/run-audit-log-tests.js",
+    "verify:escalation-audit": "node scripts/run-escalation-audit-tests.js",
+    "verify:phase-42-7b-1": "node scripts/verify-phase-42-7b-1.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

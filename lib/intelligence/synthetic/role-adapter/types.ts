@@ -1,5 +1,8 @@
 import type { FrameworkCode, TreatmentResolution } from "../standards/resolver/types";
 
+import type { AuditLogWriter } from "../standards/audit/types";
+import type { TenantClassifier } from "../standards/resolver/memory/types";
+
 export type RoleHandle =
   | "ai-staff-accountant"
   | "ai-senior-accountant"
@@ -76,3 +79,10 @@ export interface EscalationTarget {
 }
 
 export type { TreatmentResolution } from "../standards/resolver/types";
+
+export interface RoleAdapterOptions {
+  readonly auditLogWriter?: AuditLogWriter;
+  readonly tenantClassifier?: TenantClassifier;
+  readonly clockMs?: () => number;
+  readonly knownTenantIds?: ReadonlySet<string>;
+}

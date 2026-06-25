@@ -14,3 +14,11 @@ export { InMemoryAuditLogWriter } from "./InMemoryAuditLogWriter";
 export { hashAuditEntryBase, verifyAuditChain } from "./hash-chain";
 export { DEFAULT_RETENTION_POLICY, validateRetentionPolicy } from "./retention-policy";
 export { redactPayload, redactCacheKey } from "./redaction";
+export type {
+  EscalationEvaluatedEntry,
+  EscalationDecisionOutcome,
+  MaterialityTier,
+  ComplexityTier,
+  TenantClassification,
+} from "./types";
+export { validateEscalationEvaluatedEntry } from "./types";
