@@ -5,7 +5,7 @@
 **Attester GitHub:** @mjwiseman07
 **Date (UTC):** 2026-06-24T23:59:00Z
 **Repo:** finsight-reports (architecture-lane-refactor-baseline)
-**LOCK commit SHA:** `<LOCK-42.7-SHA>`
+**LOCK commit SHA:** `fc0cb43`
 
 ## 1. Scope of this attestation
 
@@ -103,4 +103,4 @@ I, Matthew Wiseman, founder of Wiseman Financial Technologies LLC, attest that t
 
 Signed: **mwiseman@advisacor.com**
 Date: 2026-06-24
-LOCK commit SHA: `<LOCK-42.7-SHA>`
+LOCK commit SHA: `fc0cb43`

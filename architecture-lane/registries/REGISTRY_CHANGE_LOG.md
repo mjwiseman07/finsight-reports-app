@@ -93,7 +93,7 @@ Single canonical cross-phase traversal runner exercises the full 42.7B→42.7D c
 
 ## [2026-06-24] D0 rollup + LOCK commit — Phase 42.7G (LOCK-42.7 G8)
 
-**Commit SHA**: `<LOCK-42.7-SHA>` (filled at LOCK tag time)
+**Commit SHA**: `fc0cb43`
 **Author**: Matthew Wiseman <mwiseman@advisacor.com>
 **Reviewer**: mwiseman@advisacor.com
 **Change class**: add

@@ -28,7 +28,7 @@ Doctrine bindings preserved verbatim across all forward work:
 |---|---|---|---|
 | LOCK-42 | Phase 42 Industry Intelligence | `b11adcd` | Healthcare + 8 content baselines |
 | LOCK-42.5 | Phase 42.5 Enterprise Trust | `4576683` | Control spine + readiness drafts |
-| LOCK-42.7 | Cross-phase 42.7 architecture | *(this LOCK commit)* | TreatmentResolver → role → panel → org-edge → memory/audit |
+| LOCK-42.7 | Cross-phase 42.7 architecture | `fc0cb43` | TreatmentResolver → role → panel → org-edge → memory/audit |
 
 ---
 
@@ -46,7 +46,7 @@ Doctrine bindings preserved verbatim across all forward work:
 | 8 | 42.7D.1-audit Org-edge audit retrofit | LOCKED | `36919c8` |
 | 9 | 42.7A.5 Registry change-management | LOCKED | `2c8a5e5` |
 | 10 | 42.7F Cross-phase wiring verifier | LOCKED | `0032bf1` |
-| 11 | 42.7G D0 rollup + LOCK commit | LOCKED | *(this LOCK commit)* |
+| 11 | 42.7G D0 rollup + LOCK commit | LOCKED | `fc0cb43` |
 
 ---
 
