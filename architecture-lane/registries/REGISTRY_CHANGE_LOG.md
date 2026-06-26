@@ -391,3 +391,43 @@ LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kerne
 >
 > Signed: mwiseman@advisacor.com
 > Date: 2026-06-25
+
+---
+
+## [2026-06-26] GovCon/DCAA Wave 2 — LOCK-GC-2 strong build
+
+**Phase ID**: GC-2
+**Change type**: industry_vertical_strong_build_lock
+**Commit SHA**: `PENDING_SHA_FILL`
+**Author**: cursor-agent
+**Reviewer**: mwiseman@advisacor.com
+**Change class**: add
+**Affected files**:
+- `lib/intelligence/synthetic/audit/channels/**`
+- `lib/intelligence/synthetic/industry/govcon/**`
+- `lib/intelligence/synthetic/standards/govcon/handles-wave2-supplement.ts`
+- `docs/govcon/wave2/**`
+- `scripts/verify-gc-2.js`
+- `scripts/gen-govcon-wave2-scaffold.js`
+- `architecture-lane/locks/**`
+- `architecture-lane/registries/REGISTRY_CHANGE_LOG.md`
+
+**Highlights**:
+- 7th audit channel `dcaa-rate-audit` (default-ON, 7y retention, GC.2.K-LOCK.0)
+- FAR 31.205 structural enforcement (50 modules) + CAS (8 in-scope) + DS-1 reconciliation
+- FPRA → PBR → Final → ICS rate-state machine (4 pools)
+- MAAR 6 timekeeping (URL handle only per Q3=A)
+- Exec comp cap structural refuse + CY-boundary handling
+- `containsGovernmentContractData` structurally asserted (HC-2 containsPHI precedent)
+- TINA + subcontract flow-down URL handles only (enforcement deferred GC-3)
+- Audit evidence: `docs/govcon/wave2/`
+
+**Verification**:
+- Verifiers: verify:gc-2
+- Cumulative test count: 121/121 PASS (79 structural + 30 K-V + 12 anti-pattern)
+
+**Founder attestation**:
+> I, Matthew Wiseman, founder of Wiseman Financial Technologies LLC, attest that GovCon Wave 2 strong build satisfies Phase_GC_2_Build_Spec.md v1.0 and all 121 verifier cases pass.
+>
+> Signed: mwiseman@advisacor.com
+> Date: 2026-06-26

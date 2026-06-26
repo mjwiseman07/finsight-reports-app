@@ -18,6 +18,7 @@ import {
 import { GovConHandleNotResolvable, GovConIfrsHandleRejected } from "./errors";
 
 export { GOVCON_CITATION_HANDLE_COUNT, GOVCON_CITATION_HANDLE_REGISTRY, GOVCON_CITATION_LIBRARIES };
+export { GC2_WAVE2_HANDLE_SUPPLEMENT, resolveGc2Wave2Handle } from "./handles-wave2-supplement";
 
 const IFRS_HANDLE_PREFIX = /^IFRS_/;
 
