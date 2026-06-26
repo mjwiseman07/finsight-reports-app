@@ -27,7 +27,7 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Wave | 2 (Strong Build) |
 | Date | 2026-06-26 |
 | Baseline SHA | 14edb99 (LOCK-GC-1 SHA-fill) |
-| Lock SHA | PENDING_SHA_FILL |
+| Lock SHA | d6ea0ffd3cb9faa9036843c9b02e0cdf341b45d0 |
 | Attestation | [LOCK-GC-2-Attestation.md](./LOCK-GC-2-Attestation.md) |
 | Founder approval | "Approved" (2026-06-26 19:05 EDT — all 18 §15 defaults) |
 | Overdelivery | +97% structural (79/40), +20% K-V (30/25), +50% anti-pattern (12/8), 121 total |

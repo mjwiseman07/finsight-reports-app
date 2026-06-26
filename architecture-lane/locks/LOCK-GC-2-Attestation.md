@@ -5,7 +5,7 @@
 **Wave:** 2 (Strong Build)
 **Branch:** architecture-lane-refactor-baseline
 **Baseline SHA (pre-Commit 1):** 14edb99 (LOCK-GC-1 SHA-fill)
-**Commit 3 SHA:** PENDING_SHA_FILL (populated by SHA-fill follow-up commit)
+**Commit 3 SHA:** d6ea0ffd3cb9faa9036843c9b02e0cdf341b45d0 (populated by SHA-fill follow-up commit)
 **Annotated tag:** LOCK-GC-2 (on Commit 3, NOT on SHA-fill)
 **Authored:** 2026-06-26
 **Lock owner:** Matthew Wiseman / Wiseman Financial Technologies LLC
