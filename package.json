@@ -37,6 +37,7 @@
     "verify:fa-wave-2": "node scripts/verify-fa-wave-2.js",
     "verify:hc-wave-2": "node scripts/verify-hc-wave-2.js",
     "verify:gc-1": "node scripts/verify-gc-1.js",
+    "verify:gc-2": "node scripts/verify-gc-2.js",
     "verify:company-memory": "node scripts/verify-company-memory.js",
     "verify:si-snapshot-persistence-plan": "node scripts/verify-si-snapshot-persistence-plan.js",
     "verify:si-snapshot-retrieval": "node scripts/verify-si-snapshot-retrieval.js",
