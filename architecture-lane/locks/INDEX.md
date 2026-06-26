@@ -18,6 +18,20 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Founder approval | "Approve all defaults" (2026-06-25 02:17 EDT) + "I will go with what you recommend" (2026-06-25 02:27 EDT) |
 | Overdelivery | +60% (64 / 40 cases) |
 
+### LOCK-GC-2 — GovCon/DCAA Wave 2 Strong-Build Lock
+
+| Field | Value |
+|---|---|
+| Lock ID | LOCK-GC-2 |
+| Vertical | Government Contracting / DCAA-Compliant |
+| Wave | 2 (Strong Build) |
+| Date | 2026-06-26 |
+| Baseline SHA | 14edb99 (LOCK-GC-1 SHA-fill) |
+| Lock SHA | PENDING_SHA_FILL |
+| Attestation | [LOCK-GC-2-Attestation.md](./LOCK-GC-2-Attestation.md) |
+| Founder approval | "Approved" (2026-06-26 19:05 EDT — all 18 §15 defaults) |
+| Overdelivery | +97% structural (79/40), +20% K-V (30/25), +50% anti-pattern (12/8), 121 total |
+
 ## Retrofit backlog (housekeeping — out of GC-1 scope)
 
 These prior locks pre-date this `locks/` registry pattern. They will be back-filled into INDEX.md in a future Phase 42.7H housekeeping commit:
