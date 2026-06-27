@@ -155,6 +155,7 @@ function runGateD() {
 
 function runGateE() {
   const channelsMod = loadTsModule(`${CHANNELS_DIR}/index.ts`);
+  const engagementMod = loadTsModule(`${CHANNELS_DIR}/engagement-letter-audit/index.ts`);
   const channelCount = channelsMod.AUDIT_CHANNEL_COUNT;
   const registry = channelsMod.AUDIT_CHANNEL_REGISTRY || [];
   const hasEngagementChannel = registry.includes("engagement-letter-audit");
@@ -162,18 +163,23 @@ function runGateE() {
   const profile = read(PROFILE_PATH);
   const reservedFile = read(`${PS_ROOT}/audit/channels/_reserved-engagement-letter.ts`);
   return [
-    makeCase("E-1", "E", channelCount === 8, `audit channel registry count ${channelCount} (expect 8)`),
+    makeCase("E-1", "E", channelCount === 11, `audit channel registry count ${channelCount} (expect 11)`),
     makeCase(
       "E-2",
       "E",
-      !hasEngagementChannel && !channelFiles.some((f) => f.includes("engagement-letter-audit")),
-      "engagement-letter-audit channel not created in PS-1",
+      hasEngagementChannel &&
+        engagementMod.engagementLetterAuditChannel.defaultOn === true &&
+        engagementMod.engagementLetterAuditChannel.retentionYears === 7 &&
+        engagementMod.engagementLetterAuditChannel.hashChain === true,
+      "engagement-letter-audit default-ON 7yr hash-chained",
     ),
     makeCase(
       "E-3",
       "E",
-      profile.includes("engagement-letter-audit") && reservedFile.includes("engagement-letter-audit"),
-      "channel surface reserved in profile + placeholder",
+      profile.includes("engagement-letter-audit") &&
+        reservedFile.includes("engagement-letter-audit") &&
+        channelFiles.some((f) => f.includes("engagement-letter-audit")),
+      "engagement-letter-audit reserved in profile + channel surface present",
     ),
   ];
 }

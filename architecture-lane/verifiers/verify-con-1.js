@@ -155,15 +155,29 @@ function runGateD() {
 
 function runGateE() {
   const channelsMod = loadTsModule(`${CHANNELS_DIR}/index.ts`);
+  const pocMod = loadTsModule(`${CHANNELS_DIR}/poc-progress-audit/index.ts`);
   const channelCount = channelsMod.AUDIT_CHANNEL_COUNT;
   const registry = channelsMod.AUDIT_CHANNEL_REGISTRY || [];
   const hasPocChannel = registry.includes("poc-progress-audit");
   const channelFiles = listFiles(CHANNELS_DIR, (f) => f.endsWith(".ts") && !f.endsWith("index.ts"));
   const profile = read(PROFILE_PATH);
   return [
-    makeCase("E-1", "E", channelCount === 7, `audit channel registry count ${channelCount} (expect 7)`),
-    makeCase("E-2", "E", !hasPocChannel && !channelFiles.some((f) => f.includes("poc-progress-audit")), "poc-progress-audit channel not created in CON-1"),
-    makeCase("E-3", "E", profile.includes("poc-progress-audit"), "channel surface reserved in profile"),
+    makeCase("E-1", "E", channelCount === 11, `audit channel registry count ${channelCount} (expect 11)`),
+    makeCase(
+      "E-2",
+      "E",
+      hasPocChannel &&
+        pocMod.pocProgressAuditChannel.defaultOn === true &&
+        pocMod.pocProgressAuditChannel.retentionYears === 7 &&
+        pocMod.pocProgressAuditChannel.hashChain === true,
+      "poc-progress-audit default-ON 7yr hash-chained",
+    ),
+    makeCase(
+      "E-3",
+      "E",
+      profile.includes("poc-progress-audit") && channelFiles.some((f) => f.includes("poc-progress-audit")),
+      "poc-progress-audit reserved in profile + channel surface present",
+    ),
   ];
 }
 
