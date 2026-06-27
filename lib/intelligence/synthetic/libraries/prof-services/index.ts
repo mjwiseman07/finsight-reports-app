@@ -42,13 +42,13 @@ export function assertProfServicesHandleCountFloor(floor: number): boolean {
 }
 
 export { resolveProfServicesCitationHandle, PROF_SERVICES_CITATION_HANDLE_COUNT };
-export * from "./asc606/over-time-criteria";
-export * from "./asc606/retainer-series";
-export * from "./asc606/contingent-success-fees";
-export * from "./asc606/multi-element-ssp";
-export * from "./asc606/principal-vs-agent";
-export * from "./specialized/pe-seal";
-export * from "./specialized/engagement-letter";
-export * from "./ifrs/ias38-internally-generated";
-export * from "./ifrs/ifrs15-prof-services";
-export * from "./ifrs/ifrs16-office-leases";
+export { evaluateOverTimeCriteria } from "./asc606/over-time-criteria";
+export { evaluateRetainerSeries } from "./asc606/retainer-series";
+export { evaluateContingentFee } from "./asc606/contingent-success-fees";
+export { allocateMultiElement } from "./asc606/multi-element-ssp";
+export { classifyPrincipalVsAgent } from "./asc606/principal-vs-agent";
+export { assertPeSealPresent } from "./specialized/pe-seal";
+export { validateEngagementLetter } from "./specialized/engagement-letter";
+export { evaluateIas38Capitalization } from "./ifrs/ias38-internally-generated";
+export { resolveIfrs15ProfServicesHandles } from "./ifrs/ifrs15-prof-services";
+export { resolveIfrs16OfficeLeaseHandles } from "./ifrs/ifrs16-office-leases";

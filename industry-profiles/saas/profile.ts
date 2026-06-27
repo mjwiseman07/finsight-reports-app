@@ -7,6 +7,7 @@
  */
 
 import type { SaasSubSegmentId } from "../../lib/intelligence/synthetic/libraries/saas/types";
+import { classifySaaSSubSegment } from "../../lib/intelligence/synthetic/industry/saas/sub-segment-classifier";
 
 export const SAAS_SUB_SEGMENTS: SaasSubSegmentId[] = ["P", "H", "U", "F", "V"];
 export const SAAS_FRAMEWORKS = ["US_GAAP", "IFRS"] as const;
@@ -29,9 +30,6 @@ export const saasWave1Profile = {
   },
 };
 
-
-import { classifySaaSSubSegment } from "../../lib/intelligence/synthetic/industry/saas/sub-segment-classifier";
-
 /** Back-compat shim — new consumers use runtime classifier (SAAS-2). */
 export function resolveSaasSubSegment(input: {
   naicsCode: string;
@@ -40,9 +38,6 @@ export function resolveSaasSubSegment(input: {
 }) {
   return classifySaaSSubSegment({ ...input, containsSaaSARRData: true });
 }
-
-
-import { classifySaaSSubSegment } from "../../lib/intelligence/synthetic/industry/saas/sub-segment-classifier";
 
 /** Back-compat shim — new consumers use runtime classifier (SAAS-2). */
 export function resolveSaaSSubSegment(input: {

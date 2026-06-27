@@ -41,20 +41,20 @@ export function assertSaasHandleCountFloor(floor: number): boolean {
 }
 
 export { resolveSaasCitationHandle, SAAS_CITATION_HANDLE_COUNT, SAAS_KF_DISCRIMINATED_POINTS };
-export * from "./asc606/subscription-over-time";
-export * from "./asc606/hosting-vs-license";
-export * from "./asc606/material-right-renewal";
-export * from "./asc606/commission-amortization";
-export * from "./asc606/multi-element-ssp";
-export * from "./asc606/usage-stand-ready";
-export * from "./asc606/contract-mods";
-export * from "./classifiers/saas-sub-segment-classifier";
-export * from "./frameworks/k-f-switch";
-export * from "./specialized/soc2/common-criteria";
-export * from "./specialized/soc2/processing-integrity";
-export * from "./ifrs/ifrs15-saas";
-export * from "./ifrs/ifric-march-2019-config-customization";
-export * from "./ifrs/ifric-april-2021-cloud-customer";
-export * from "./ifrs/ias38-internally-generated";
+export { evaluateSubscriptionOverTime } from "./asc606/subscription-over-time";
+export { classifyHostingVsLicense } from "./asc606/hosting-vs-license";
+export { evaluateMaterialRight } from "./asc606/material-right-renewal";
+export { evaluateCommissionAmortization } from "./asc606/commission-amortization";
+export { allocateHybridSSP } from "./asc606/multi-element-ssp";
+export { evaluateUsageStandReady } from "./asc606/usage-stand-ready";
+export { routeSaasContractModification } from "./asc606/contract-mods";
+export { classifySaasSubSegment } from "./classifiers/saas-sub-segment-classifier";
+export { switchSaasFramework } from "./frameworks/k-f-switch";
+export { evaluateSoc2CommonCriteria } from "./specialized/soc2/common-criteria";
+export { evaluateSoc2ProcessingIntegrity } from "./specialized/soc2/processing-integrity";
+export { evaluateIfrs15SaasConstraint } from "./ifrs/ifrs15-saas";
+export { evaluateIfricMarch2019 } from "./ifrs/ifric-march-2019-config-customization";
+export { evaluateIfricApril2021 } from "./ifrs/ifric-april-2021-cloud-customer";
+export { evaluateIas38Capitalization } from "./ifrs/ias38-internally-generated";
 export * from "./asc985-605-legacy-lens";
 export * from "./asc350-40-customer-side";
