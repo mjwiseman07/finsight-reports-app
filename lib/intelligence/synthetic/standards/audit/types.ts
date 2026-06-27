@@ -151,12 +151,8 @@ export type PanelAdvisorySeverityTier = "informational" | "caution" | "blocking"
 
 /**
  * Phase 42.7C.2 — Panel Decision Audit Retrofit
- * Doctrine:
- *  - builderNeverAuthorsContent: true
- *  - failClosedOnAuditWriteFailure: true (inherited from 42.7E E7)
- *  - advisoryBundlingDoctrine: true (one panel call = one audit entry; advisories bundled)
- *  - complianceClass: SOC1 + SOC2-T2 + HIPAA
  */
+import type { VerticalContext } from "./vertical-decision-discriminators";
 
 /**
  * Per-advisory summary embedded inside a PanelDecisionEntry.
@@ -201,6 +197,7 @@ export interface PanelDecisionEntry {
   readonly advisoryCount: number;
   readonly advisoriesGenerated: readonly PanelAdvisorySummary[];
   readonly tenantClassification: TenantClassification;
+  readonly verticalContext: VerticalContext;
 }
 
 export function validatePanelDecisionEntry(entry: PanelDecisionEntry): void {
@@ -230,6 +227,15 @@ export function validatePanelDecisionEntry(entry: PanelDecisionEntry): void {
   }
   if (!Object.prototype.hasOwnProperty.call(entry, "election")) {
     throw new Error("PanelDecisionEntry missing election");
+  }
+  if (!entry.verticalContext) {
+    throw new Error("PanelDecisionEntry missing verticalContext");
+  }
+  if (
+    typeof entry.verticalContext.reportingBasis !== "string" ||
+    typeof entry.verticalContext.vertical !== "string"
+  ) {
+    throw new Error("PanelDecisionEntry verticalContext requires reportingBasis and vertical");
   }
   if (typeof entry.advisoryCount !== "number" || entry.advisoryCount < 0) {
     throw new Error("PanelDecisionEntry advisoryCount must be a non-negative number");

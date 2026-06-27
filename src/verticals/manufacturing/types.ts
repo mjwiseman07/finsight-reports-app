@@ -1,5 +1,7 @@
 export type ReportingBasis = "US_GAAP" | "IFRS";
 
+export type ManufacturingCostingMethod = "Standard" | "Actual" | "Process" | "JobOrder";
+
 export type InventoryEvaluationGranularity = "ITEM" | "GROUPED";
 
 export interface USGAAPInventory {

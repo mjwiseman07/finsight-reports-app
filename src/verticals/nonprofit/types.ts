@@ -12,6 +12,8 @@ export type NonprofitSubSegment =
 
 export type AccountingFramework = "US_GAAP" | "IFRS" | "IPSAS" | "NON_GAAP";
 
+export type NonprofitRestrictionType = "Unrestricted" | "TempRestricted" | "PermRestricted";
+
 export type IpsasVintage =
   | { active: "IPSAS_47_48"; effectiveFrom: "2026-01-01" }
   | { active: "IPSAS_23"; effectiveUntil: "2025-12-31"; legacyJurisdiction: string };

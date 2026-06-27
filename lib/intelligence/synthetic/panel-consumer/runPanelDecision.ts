@@ -14,6 +14,10 @@ import {
   validatePanelDecisionEntry,
   type PanelDecisionEntry,
 } from "../standards/audit/types";
+import {
+  buildDefaultVerticalContext,
+  type VerticalContext,
+} from "../standards/audit/vertical-decision-discriminators";
 import type { TenantClassification } from "../standards/resolver/memory/types";
 import {
   derivePanelAdvisoriesPure,
@@ -40,6 +44,7 @@ export interface PanelDecisionInput {
   readonly workItem: WorkItem;
   readonly currentPersonaId: AIPersonaId;
   readonly gateDeps: CapabilityGateDeps;
+  readonly verticalContext?: Partial<VerticalContext>;
 }
 
 export interface PanelDecisionResult {
@@ -88,6 +93,10 @@ function buildAuditPayload(
     advisoryCount: advisories.length,
     advisoriesGenerated: [...advisories],
     tenantClassification,
+    verticalContext: buildDefaultVerticalContext(
+      input.industryHandle,
+      input.verticalContext,
+    ),
   };
   validatePanelDecisionEntry(entry);
   return entry;
