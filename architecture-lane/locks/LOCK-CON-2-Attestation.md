@@ -1,7 +1,7 @@
 # LOCK-CON-2 Attestation
 
 **Phase:** CON-2 — Construction Wave 2 Strong Build  
-**Lock SHA:** PENDING_SHA_FILL  
+**Lock SHA:** 928a377e24a4211754d7aa0201323f5dd1600670  
 **Tag:** LOCK-CON-2  
 **Date:** 2026-06-26  
 **Founder:** mwiseman@advisacor.com  

@@ -4,7 +4,7 @@
   "totalCases": 121,
   "passCount": 121,
   "failCount": 0,
-  "lockSHA": "PENDING_SHA_FILL",
+  "lockSHA": "928a377e24a4211754d7aa0201323f5dd1600670",
   "perCategory": {
     "structuralGates": { "floor": 40, "actual": 79, "overdelivery": "+98%" },
     "kvPoison": { "floor": 25, "actual": 30, "overdelivery": "+20%" },

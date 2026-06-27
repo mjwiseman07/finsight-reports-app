@@ -453,7 +453,7 @@ LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kerne
 ## CON-2 / LOCK-CON-2
 
 1. Phase: CON-2 (Construction Wave 2 Strong Build)
-2. Lock SHA: PENDING_SHA_FILL
+2. Lock SHA: 928a377e24a4211754d7aa0201323f5dd1600670
 3. Tag: LOCK-CON-2
 4. Date: 2026-06-26
 5. Founder: mwiseman@advisacor.com

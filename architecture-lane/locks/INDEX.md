@@ -55,7 +55,7 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Wave | 2 (Strong Build) |
 | Date | 2026-06-26 |
 | Baseline SHA | 17bdde4 (LOCK-CON-1 SHA-fill) |
-| Lock SHA | PENDING_SHA_FILL |
+| Lock SHA | 928a377e24a4211754d7aa0201323f5dd1600670 |
 | Attestation | [LOCK-CON-2-Attestation.md](./LOCK-CON-2-Attestation.md) |
 | Founder approval | "Approved" (2026-06-26 21:58 EDT — all 20 §15 defaults at A) |
 | Verifier | verify-con-2.js 121/121 |
