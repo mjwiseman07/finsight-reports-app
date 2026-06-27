@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "AD-annual",
+  "vertical": "rtl",
+  "framework": "ifrs",
+  "entityName": "Koninklijke Ahold Delhaize N.V.",
+  "topics": [
+    {
+      "topicIdentifier": "inventory-lcnrv",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "inventory-lcnrv disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "retail-revenue",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "retail-revenue disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "lease-disclosures",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "lease-disclosures disclosure surface for ifrs (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [],
+  "frameworkBinding": {
+    "primary": "ifrs",
+    "prohibitsLifo": true
+  }
+}

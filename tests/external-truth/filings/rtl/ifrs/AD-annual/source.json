@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "AD-annual",
+  "vertical": "rtl",
+  "framework": "ifrs",
+  "formType": "Annual Report",
+  "sourceUrl": "https://www.aholddelhaize.com/investors/annual-reports/",
+  "fetchedAt": "2026-06-27T22:27:23.646Z",
+  "sha256": "7a4386db1d0772a499690f51ad70cae8e5dcb10857c92ace1bfc8f28533a63fb",
+  "licenseTerms": "Ahold Delhaize investor relations — public annual report (manual archival)",
+  "synthesized": false,
+  "manualArchive": true,
+  "notes": "EU IFRS retailer annual report manually archived for G7"
+}

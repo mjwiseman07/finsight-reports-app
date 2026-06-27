@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SAP-20f",
+  "vertical": "saas",
+  "framework": "ifrs",
+  "entityName": "SAP SE",
+  "cik": "0001000184",
+  "formType": "20-F",
+  "numericFacts": [],
+  "narrativeSnippets": [
+    "SAP SE annual filing metadata"
+  ],
+  "rawFrameworkSignals": [
+    "ifrs-full"
+  ]
+}

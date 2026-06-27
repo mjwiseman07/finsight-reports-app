@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "NOW-10k",
+  "vertical": "saas",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0001373715.json",
+  "fetchedAt": "2026-06-27T22:26:58.455Z",
+  "sha256": "da406cb3895c46098997bb0d60cc8f4a41b6973ab11f5ffd55e0059f99387654",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001373715-26-000007; filingDate=2026-01-29; ticker=NOW"
+}

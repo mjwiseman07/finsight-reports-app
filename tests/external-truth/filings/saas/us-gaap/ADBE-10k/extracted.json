@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "ADBE-10k",
+  "vertical": "saas",
+  "framework": "us-gaap",
+  "entityName": "ADOBE INC.",
+  "cik": "0000796343",
+  "formType": "10-K",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 13016000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-29"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 29933000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-29"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 9068000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-29"
+    }
+  ],
+  "narrativeSnippets": [
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. For classified balance s",
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Amount, after allowance for credit loss, of right to consideration from customer for product sold and service rendered in normal course of business, classified as current.",
+    "Carrying value as of the balance sheet date of obligations incurred through that date and payable for advertising of the entity's goods and services. Used to reflect the current portion of the liabilities (due within one year or within the ",
+    "Carrying value as of the balance sheet date of obligations incurred and payable for incentive compensation awarded to employees and directors or earned by them based on the terms of one or more relevant arrangements. Used to reflect the cur"
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

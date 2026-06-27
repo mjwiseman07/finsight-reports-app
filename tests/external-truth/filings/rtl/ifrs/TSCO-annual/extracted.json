@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "TSCO-annual",
+  "vertical": "rtl",
+  "framework": "ifrs",
+  "entityName": "Tesco PLC",
+  "formType": "Annual Report",
+  "numericFacts": [],
+  "narrativeSnippets": [
+    "IFRS retailer; inventory measured at lower of cost and NRV"
+  ],
+  "rawFrameworkSignals": [
+    "ifrs"
+  ]
+}

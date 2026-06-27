@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "COST-10k",
+  "vertical": "rtl",
+  "framework": "us-gaap",
+  "entityName": "COSTCO WHOLESALE CORP /NEW",
+  "cik": "0000909832",
+  "formType": "10-K",
+  "inventoryMethod": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 136904000000,
+      "unit": "USD",
+      "periodEnd": "2026-02-15"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 207431000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-10"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 95020000000,
+      "unit": "USD",
+      "periodEnd": "2018-05-13"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 86430000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-10"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 45177000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-10"
+    }
+  ],
+  "narrativeSnippets": [
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Carrying value as of the balance sheet date of obligations incurred through that date and payable to insurance entities to mitigate potential loss from various risks or to satisfy a promise to provide certain coverage's to employees.",
+    "Carrying value as of the balance sheet date of obligations incurred and payable, pertaining to costs that are statutory in nature, are incurred on contractual obligations, or accumulate over time and for which invoices have not yet been rec",
+    "Carrying value as of the balance sheet date of the liability for outstanding gift cards. Retail customers purchase gift cards or gift certificates that can be redeemed at a later date for merchandise or services; those unredeemed represent ",
+    "Amount of accumulated depreciation, depletion and amortization for physical assets used in the normal conduct of business to produce goods and services."
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

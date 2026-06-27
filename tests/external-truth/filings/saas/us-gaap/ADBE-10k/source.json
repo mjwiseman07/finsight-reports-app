@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "ADBE-10k",
+  "vertical": "saas",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000796343.json",
+  "fetchedAt": "2026-06-27T22:26:58.981Z",
+  "sha256": "f9d26fbe49124617563af5f27bdbed471596433c72d25c2a30a9b823218eb09b",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000796343-26-000003; filingDate=2026-01-15; ticker=ADBE"
+}

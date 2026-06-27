@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "ADBE-10k",
+  "vertical": "saas",
+  "framework": "us-gaap",
+  "entityName": "ADOBE INC.",
+  "topics": [
+    {
+      "topicIdentifier": "asc606-revenue",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "asc606-revenue disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "deferred-revenue",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "deferred-revenue disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "arr-mrr-metrics",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "arr-mrr-metrics disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 13016000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-29"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 29933000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-29"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 9068000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-29"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

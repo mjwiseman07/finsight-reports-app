@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SAP-20f",
+  "vertical": "saas",
+  "framework": "ifrs",
+  "entityName": "SAP SE",
+  "topics": [
+    {
+      "topicIdentifier": "asc606-revenue",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "asc606-revenue disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "deferred-revenue",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "deferred-revenue disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "arr-mrr-metrics",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "arr-mrr-metrics disclosure surface for ifrs (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [],
+  "frameworkBinding": {
+    "primary": "ifrs",
+    "prohibitsLifo": true
+  }
+}

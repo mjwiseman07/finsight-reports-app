@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "TGT-10k",
+  "vertical": "rtl",
+  "framework": "us-gaap",
+  "entityName": "TARGET CORPORATION",
+  "cik": "0000027419",
+  "formType": "10-K",
+  "inventoryMethod": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 72618000000,
+      "unit": "USD",
+      "periodEnd": "2015-01-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 25443000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-02"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 34558000000,
+      "unit": "USD",
+      "periodEnd": "2018-08-04"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 58010000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-02"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 18065000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-02"
+    }
+  ],
+  "narrativeSnippets": [
+    "Amount, after allowance, receivable from customers, clients, or other third-parties, and receivables classified as other due within one year or the normal operating cycle, if longer.",
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Carrying value as of the balance sheet date of obligations incurred and payable for real and property taxes. Used to reflect the current portion of the liabilities (due within one year or within the normal operating cycle if longer).",
+    "Carrying amount as of the balance sheet date of the unpaid sum of the known and estimated amounts payable to satisfy all currently due domestic and foreign income tax obligations.",
+    "Carrying amount as of the balance sheet date of the unpaid sum of the known and estimated amounts payable to satisfy all domestic and foreign income tax obligations due beyond one year or the operating cycle, whichever is longer. Alternate "
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "TSCO-annual",
+  "vertical": "rtl",
+  "framework": "ifrs",
+  "formType": "Annual Report",
+  "sourceUrl": "https://www.tescoplc.com/investors/reports-results-and-presentations",
+  "fetchedAt": "2026-06-27T22:27:23.644Z",
+  "sha256": "d5324f025733fb169899e977a70cae8edde5373b09fbc8436cfa4c8facc7763e",
+  "licenseTerms": "Tesco PLC investor relations — public annual report (manual archival)",
+  "synthesized": false,
+  "manualArchive": true,
+  "notes": "UK Companies House / Tesco IR annual report manually archived for G7"
+}

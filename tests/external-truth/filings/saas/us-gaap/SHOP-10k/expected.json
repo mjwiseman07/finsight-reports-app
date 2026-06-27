@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SHOP-10k",
+  "vertical": "saas",
+  "framework": "us-gaap",
+  "entityName": "Shopify Inc.",
+  "topics": [
+    {
+      "topicIdentifier": "asc606-revenue",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "asc606-revenue disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "deferred-revenue",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "deferred-revenue disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "arr-mrr-metrics",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "arr-mrr-metrics disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 3170000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 7060000000,
+      "unit": "USD",
+      "periodEnd": "2023-12-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 14121000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 8495000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

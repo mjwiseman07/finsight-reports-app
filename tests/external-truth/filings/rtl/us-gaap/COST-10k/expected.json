@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "COST-10k",
+  "vertical": "rtl",
+  "framework": "us-gaap",
+  "entityName": "COSTCO WHOLESALE CORP /NEW",
+  "topics": [
+    {
+      "topicIdentifier": "inventory-lcnrv",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "inventory-lcnrv disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "retail-revenue",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "retail-revenue disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "lease-disclosures",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "lease-disclosures disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 136904000000,
+      "unit": "USD",
+      "periodEnd": "2026-02-15"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 207431000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-10"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 95020000000,
+      "unit": "USD",
+      "periodEnd": "2018-05-13"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 86430000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-10"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 45177000000,
+      "unit": "USD",
+      "periodEnd": "2026-05-10"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

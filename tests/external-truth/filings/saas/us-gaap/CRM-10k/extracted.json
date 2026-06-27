@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "CRM-10k",
+  "vertical": "saas",
+  "framework": "us-gaap",
+  "entityName": "Salesforce, Inc.",
+  "cik": "0001108524",
+  "formType": "10-K",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 8391984000,
+      "unit": "USD",
+      "periodEnd": "2017-01-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 11133000000,
+      "unit": "USD",
+      "periodEnd": "2026-04-30"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Including Assessed Tax",
+      "value": 10540000000,
+      "unit": "USD",
+      "periodEnd": "2018-01-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 106680000000,
+      "unit": "USD",
+      "periodEnd": "2026-04-30"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 21613000000,
+      "unit": "USD",
+      "periodEnd": "2026-04-30"
+    }
+  ],
+  "narrativeSnippets": [
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. For classified balance s",
+    "Amount of liabilities incurred to vendors for goods and services received, and accrued liabilities classified as other, payable within one year or the normal operating cycle, if longer.",
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Amount, after allowance for credit loss, of right to consideration from customer for product sold and service rendered in normal course of business, classified as current.",
+    "Carrying amount as of the balance sheet date of the unpaid sum of the known and estimated amounts payable to satisfy all currently due domestic and foreign income tax obligations."
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

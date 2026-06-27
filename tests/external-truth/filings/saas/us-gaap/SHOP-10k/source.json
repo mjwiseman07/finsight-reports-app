@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SHOP-10k",
+  "vertical": "saas",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0001594805.json",
+  "fetchedAt": "2026-06-27T22:26:59.301Z",
+  "sha256": "5ea87eb6c2405447628f52673ead39c68d5718be065cd79810421d4c732bbff3",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001594805-26-000007; filingDate=2026-02-11; ticker=SHOP"
+}
