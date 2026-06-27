@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "UNICEF-annual",
+  "vertical": "npo",
+  "framework": "ipsas",
+  "entityName": "UNICEF",
+  "topics": [
+    {
+      "topicIdentifier": "restricted-net-assets",
+      "reportingFramework": "ipsas",
+      "disclosureSummaryAuthored": "restricted-net-assets disclosure surface for ipsas (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "functional-expenses",
+      "reportingFramework": "ipsas",
+      "disclosureSummaryAuthored": "functional-expenses disclosure surface for ipsas (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "form-990-summary",
+      "reportingFramework": "ipsas",
+      "disclosureSummaryAuthored": "form-990-summary disclosure surface for ipsas (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [],
+  "frameworkBinding": {
+    "primary": "ipsas",
+    "prohibitsLifo": true
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "CVS-10k",
+  "vertical": "hc",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000064803.json",
+  "fetchedAt": "2026-06-27T22:27:01.706Z",
+  "sha256": "c943cc15ce879f964c8f85bff2b33dd586fc427671c4c61154174033de86da70",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000064803-26-000010; filingDate=2026-02-10; ticker=CVS"
+}

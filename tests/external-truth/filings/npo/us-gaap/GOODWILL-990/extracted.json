@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "GOODWILL-990",
+  "vertical": "npo",
+  "framework": "us-gaap",
+  "entityName": "Medstar Health Visiting Nurse Association Inc",
+  "formType": "990",
+  "numericFacts": [
+    {
+      "tag": "totrevenue",
+      "label": "Total revenue",
+      "value": 61269484,
+      "unit": "USD",
+      "periodEnd": "2023"
+    },
+    {
+      "tag": "totassetsend",
+      "label": "Total assets (EOY)",
+      "value": 13552998,
+      "unit": "USD",
+      "periodEnd": "2023"
+    }
+  ],
+  "narrativeSnippets": [
+    "nonprofit operating charity"
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

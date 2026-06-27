@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "CVS-10k",
+  "vertical": "hc",
+  "framework": "us-gaap",
+  "entityName": "CVS HEALTH Corp",
+  "topics": [
+    {
+      "topicIdentifier": "healthcare-revenue-cycle",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "healthcare-revenue-cycle disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "charity-care",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "charity-care disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "phi-segregation",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "phi-segregation disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 100426000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 189082000000,
+      "unit": "USD",
+      "periodEnd": "2019-09-30"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 252974000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 74817000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

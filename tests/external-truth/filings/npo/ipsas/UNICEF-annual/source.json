@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "UNICEF-annual",
+  "vertical": "npo",
+  "framework": "ipsas",
+  "formType": "Financial Statements",
+  "sourceUrl": "https://www.unicef.org/reports/financial-report-executive-board",
+  "fetchedAt": "2026-06-27T22:27:23.654Z",
+  "sha256": "83ad611d91121a6df5d2e328b9f94e7777a22401b16bde1e22b239b5e2e7e2b8",
+  "licenseTerms": "UNICEF executive board financial report — IPSAS public disclosure",
+  "synthesized": false,
+  "manualArchive": true,
+  "notes": "IPSAS-reporting UN agency annual financial statements manually archived"
+}

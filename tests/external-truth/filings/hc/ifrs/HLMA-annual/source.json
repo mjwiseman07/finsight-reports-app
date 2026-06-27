@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "HLMA-annual",
+  "vertical": "hc",
+  "framework": "ifrs",
+  "formType": "Annual Report",
+  "sourceUrl": "https://www.halma.com/investors/annual-report",
+  "fetchedAt": "2026-06-27T22:27:23.648Z",
+  "sha256": "d5324f025733fb169899e977a70cae8edde5373b09fbc8436cfa4c8facc7763e",
+  "licenseTerms": "Halma plc investor relations — UK healthcare/industrial supplier (manual archival)",
+  "synthesized": false,
+  "manualArchive": true,
+  "notes": "UK IFRS healthcare technology supplier selected as HC IFRS anchor"
+}

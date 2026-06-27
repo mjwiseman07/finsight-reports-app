@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "HCA-10k",
+  "vertical": "hc",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000860730.json",
+  "fetchedAt": "2026-06-27T22:27:00.835Z",
+  "sha256": "92fe3ce4dc6bd3454ae5d4e5dee0ef97601b1f948c282c1072ba9e0253ad962e",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001193125-26-044769; filingDate=2026-02-10; ticker=HCA"
+}

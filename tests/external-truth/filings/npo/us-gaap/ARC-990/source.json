@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "ARC-990",
+  "vertical": "npo",
+  "framework": "us-gaap",
+  "formType": "990",
+  "sourceUrl": "https://projects.propublica.org/nonprofits/api/v2/organizations/530196605.json",
+  "fetchedAt": "2026-06-27T22:27:23.232Z",
+  "sha256": "4da6f20587c99b0d9c7a1f8899882b7e679fdd144d8a91f663df3b83161f6230",
+  "licenseTerms": "IRS Form 990 public disclosure + ProPublica Nonprofit Explorer API (research use)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "ein=530196605"
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "HABITAT-990",
+  "vertical": "npo",
+  "framework": "us-gaap",
+  "formType": "990",
+  "sourceUrl": "https://projects.propublica.org/nonprofits/api/v2/organizations/911914868.json",
+  "fetchedAt": "2026-06-27T22:27:23.330Z",
+  "sha256": "9b79c192fcef5c175339c6a37a09481365a5f6a9564e51101cae3caadc070f85",
+  "licenseTerms": "IRS Form 990 public disclosure + ProPublica Nonprofit Explorer API (research use)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "ein=911914868"
+}

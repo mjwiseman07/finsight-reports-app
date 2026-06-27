@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "HCA-10k",
+  "vertical": "hc",
+  "framework": "us-gaap",
+  "entityName": "HCA Healthcare, Inc.",
+  "topics": [
+    {
+      "topicIdentifier": "healthcare-revenue-cycle",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "healthcare-revenue-cycle disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "charity-care",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "charity-care disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "phi-segregation",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "phi-segregation disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 19109000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Including Assessed Tax",
+      "value": 43688000000,
+      "unit": "USD",
+      "periodEnd": "2021-09-30"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 61450000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 16052000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

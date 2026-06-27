@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "HLMA-annual",
+  "vertical": "hc",
+  "framework": "ifrs",
+  "entityName": "Halma plc",
+  "topics": [
+    {
+      "topicIdentifier": "healthcare-revenue-cycle",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "healthcare-revenue-cycle disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "charity-care",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "charity-care disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "phi-segregation",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "phi-segregation disclosure surface for ifrs (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [],
+  "frameworkBinding": {
+    "primary": "ifrs",
+    "prohibitsLifo": true
+  }
+}

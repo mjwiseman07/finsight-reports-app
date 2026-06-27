@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "HLMA-annual",
+  "vertical": "hc",
+  "framework": "ifrs",
+  "entityName": "Halma plc",
+  "formType": "Annual Report",
+  "numericFacts": [],
+  "narrativeSnippets": [
+    "IFRS UK-listed healthcare and environmental technology group"
+  ],
+  "rawFrameworkSignals": [
+    "ifrs"
+  ]
+}

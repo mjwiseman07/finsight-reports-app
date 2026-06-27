@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "GOODWILL-990",
+  "vertical": "npo",
+  "framework": "us-gaap",
+  "formType": "990",
+  "sourceUrl": "https://projects.propublica.org/nonprofits/api/v2/organizations/530196597.json",
+  "fetchedAt": "2026-06-27T22:27:23.495Z",
+  "sha256": "4e92acf262c6a2e50e13f1e36d380bfcc483c927bce2df04d91c1a57af8c9221",
+  "licenseTerms": "IRS Form 990 public disclosure + ProPublica Nonprofit Explorer API (research use)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "ein=530196597"
+}

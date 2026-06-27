@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "THC-10k",
+  "vertical": "hc",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000070318.json",
+  "fetchedAt": "2026-06-27T22:27:02.235Z",
+  "sha256": "334fdc01681ce0c4425e69214bf46b960f75bfc460e606a1e87b05eeda95f663",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000070318-26-000012; filingDate=2026-02-17; ticker=THC"
+}

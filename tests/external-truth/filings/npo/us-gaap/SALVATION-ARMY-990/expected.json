@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SALVATION-ARMY-990",
+  "vertical": "npo",
+  "framework": "us-gaap",
+  "entityName": "The Salvation Army",
+  "topics": [
+    {
+      "topicIdentifier": "restricted-net-assets",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "restricted-net-assets disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "functional-expenses",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "functional-expenses disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "form-990-summary",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "form-990-summary disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

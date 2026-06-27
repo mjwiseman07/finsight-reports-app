@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "HABITAT-990",
+  "vertical": "npo",
+  "framework": "us-gaap",
+  "entityName": "Habitat For Humanity International Inc",
+  "formType": "990",
+  "numericFacts": [
+    {
+      "tag": "totrevenue",
+      "label": "Total revenue",
+      "value": 329195153,
+      "unit": "USD",
+      "periodEnd": "2023"
+    },
+    {
+      "tag": "totassetsend",
+      "label": "Total assets (EOY)",
+      "value": 565862638,
+      "unit": "USD",
+      "periodEnd": "2023"
+    }
+  ],
+  "narrativeSnippets": [
+    "Q330"
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

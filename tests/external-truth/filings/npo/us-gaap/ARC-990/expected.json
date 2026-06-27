@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "ARC-990",
+  "vertical": "npo",
+  "framework": "us-gaap",
+  "entityName": "American National Red Cross",
+  "topics": [
+    {
+      "topicIdentifier": "restricted-net-assets",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "restricted-net-assets disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "functional-expenses",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "functional-expenses disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "form-990-summary",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "form-990-summary disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "totrevenue",
+      "label": "Total revenue",
+      "value": 3217077611,
+      "unit": "USD",
+      "periodEnd": "2023"
+    },
+    {
+      "tag": "totassetsend",
+      "label": "Total assets (EOY)",
+      "value": 4028321133,
+      "unit": "USD",
+      "periodEnd": "2023"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

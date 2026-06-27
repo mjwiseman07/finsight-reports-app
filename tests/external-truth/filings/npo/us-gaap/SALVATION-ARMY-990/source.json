@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SALVATION-ARMY-990",
+  "vertical": "npo",
+  "framework": "us-gaap",
+  "formType": "990",
+  "sourceUrl": "https://projects.propublica.org/nonprofits/api/v2/organizations/135562351.json",
+  "fetchedAt": "2026-06-27T22:27:23.638Z",
+  "sha256": "5847ded4d850329da5117e577b47f76634e561c4f74af69fc848bfa91fd8cba7",
+  "licenseTerms": "IRS Form 990 public disclosure + ProPublica Nonprofit Explorer API (research use)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "ein=135562351"
+}

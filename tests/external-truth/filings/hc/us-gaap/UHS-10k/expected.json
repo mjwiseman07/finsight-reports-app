@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "UHS-10k",
+  "vertical": "hc",
+  "framework": "us-gaap",
+  "entityName": "UNIVERSAL HEALTH SERVICES, INC.",
+  "topics": [
+    {
+      "topicIdentifier": "healthcare-revenue-cycle",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "healthcare-revenue-cycle disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "charity-care",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "charity-care disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "phi-segregation",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "phi-segregation disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 4495182000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 2687516000,
+      "unit": "USD",
+      "periodEnd": "2018-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 15681142000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 3499701000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

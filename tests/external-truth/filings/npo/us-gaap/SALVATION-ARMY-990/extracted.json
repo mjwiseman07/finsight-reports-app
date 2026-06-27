@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SALVATION-ARMY-990",
+  "vertical": "npo",
+  "framework": "us-gaap",
+  "entityName": "The Salvation Army",
+  "formType": "990",
+  "numericFacts": [],
+  "narrativeSnippets": [
+    "nonprofit operating charity"
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

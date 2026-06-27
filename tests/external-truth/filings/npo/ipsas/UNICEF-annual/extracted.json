@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "UNICEF-annual",
+  "vertical": "npo",
+  "framework": "ipsas",
+  "entityName": "UNICEF",
+  "formType": "Financial Statements",
+  "numericFacts": [],
+  "narrativeSnippets": [
+    "IPSAS accrual basis; multilateral NGO financial statements"
+  ],
+  "rawFrameworkSignals": [
+    "ipsas"
+  ]
+}
