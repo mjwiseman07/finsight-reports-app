@@ -20,6 +20,7 @@ import {
   validatePanelDecisionEntry,
   type PanelDecisionEntry,
 } from "../../standards/audit/types";
+import { LEGACY_VERTICAL_CONTEXT } from "../../standards/audit/vertical-decision-discriminators";
 import { StaticTenantClassifier } from "../../standards/resolver/memory";
 import type { AIPersonaId, WorkItem } from "../types";
 
@@ -157,6 +158,7 @@ function samplePanelDecisionEntry(
     advisoryCount: 0,
     advisoriesGenerated: [],
     tenantClassification: "standard",
+    verticalContext: LEGACY_VERTICAL_CONTEXT,
     ...overrides,
   };
 }
@@ -546,7 +548,14 @@ async function executeGroupC(
   const sessionIds = writerSession
     .getEntries()
     .filter((e) => e.kind === "panel.decision")
-    .map((e) => (e.payload as PanelDecisionEntry).callerSessionId);
+    .map((e) =>
+      e.payload &&
+      typeof e.payload === "object" &&
+      "callerSessionId" in e.payload &&
+      typeof (e.payload as { callerSessionId: unknown }).callerSessionId === "string"
+        ? (e.payload as { callerSessionId: string }).callerSessionId
+        : "",
+    );
   pushCase(cases, counters, {
     id: "C.caller-identity.05",
     decision: "same-session-two-entries",

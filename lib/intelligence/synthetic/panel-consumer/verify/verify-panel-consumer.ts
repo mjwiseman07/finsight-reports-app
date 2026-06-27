@@ -21,7 +21,7 @@ export function verifyPanelConsumer(repoRoot: string): VerifyPanelConsumerResult
   const errors: string[] = [];
 
   try {
-    validateWorkerJobDescriptionsDocument(workerJobDescriptions as WorkerJobDescriptionsDocument);
+    validateWorkerJobDescriptionsDocument(workerJobDescriptions as unknown as WorkerJobDescriptionsDocument);
   } catch (error) {
     errors.push(`worker-job-descriptions validation failed: ${String(error)}`);
   }

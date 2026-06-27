@@ -2,6 +2,7 @@
  * VC-5a — matrix cases for 6 verticals not in the original 42.7F scope.
  * Original 48 cases (WV-001..WV-045 + WV-FC1..3) are unchanged in caseMatrix.ts.
  */
+import type { TreatmentResolution } from "../../../lib/intelligence/synthetic/standards/resolver/types";
 import { evaluateEscalationPure } from "../../../lib/intelligence/synthetic/role-adapter/evaluateEscalationPure";
 import type { EscalationEvaluationInput } from "../../../lib/intelligence/synthetic/role-adapter/evaluateEscalationPure";
 import type { RoleEnvelope } from "../../../lib/intelligence/synthetic/role-adapter/types";
@@ -38,37 +39,47 @@ const ESCALATION_OUTCOMES: EscalationOutcomeClass[] = [
   "degraded-confidence",
 ];
 
-function mkResolutionForOutcome(outcome: EscalationOutcomeClass) {
+const VERIFIER_FIXTURE_META = {
+  effectiveDate: "2026-06-24",
+  treatmentDeterminismHash: "wiring-verifier-fixture",
+  generatedAt: FROZEN_ISO,
+} as const;
+
+function mkResolutionForOutcome(outcome: EscalationOutcomeClass): TreatmentResolution {
   if (outcome === "no-escalation") {
     return {
+      ...VERIFIER_FIXTURE_META,
       chosenFramework: "US_GAAP",
       applicableBasisRef: "basisOf:US_GAAP",
       precedenceReasoning: "RULE-001 selected at weight 900.",
       matchedRules: ["RULE-001"],
       unresolvedConflicts: [],
-      citationHandlesConsulted: ["ASC_105_10_05_1"],
     };
   }
   if (outcome === "escalated" || outcome === "degraded-confidence") {
     return {
+      ...VERIFIER_FIXTURE_META,
       chosenFramework: null,
       applicableBasisRef: "basisOf:UNRESOLVED",
       precedenceReasoning: "RULE-006 tied with RULE-010.",
       matchedRules: ["RULE-006", "RULE-010"],
-      citationHandlesConsulted: ["SEC_REG_S_X", "IAS_1_PRESENTATION"],
       unresolvedConflicts: [
-        { ruleId: "RULE-006", producedFramework: "US_GAAP", citationRef: "SEC_REG_S_X" },
-        { ruleId: "RULE-010", producedFramework: "IFRS", citationRef: "IAS_1_PRESENTATION" },
+        {
+          conflictId: "RULE-006",
+          competingFrameworks: ["US_GAAP", "IFRS"],
+          reason: "RULE-006 tied with RULE-010.",
+          escalationRequired: true,
+        },
       ],
     };
   }
   return {
+    ...VERIFIER_FIXTURE_META,
     chosenFramework: null,
     applicableBasisRef: "basisOf:OUT_OF_SCOPE",
     precedenceReasoning: "Out of scope for role envelope.",
     matchedRules: ["RULE-OOS"],
     unresolvedConflicts: [],
-    citationHandlesConsulted: ["ASC_105_10_05_1"],
   };
 }
 
@@ -89,7 +100,7 @@ function resolveExpectedEscalationOutcome(input: TraversalInput): string {
     topicHandle: "framework-disambiguation",
     industryHandle: input.industry.toUpperCase(),
     jurisdictionCountry: "US",
-    resolution: mkResolutionForOutcome(input.escalationOutcome) as EscalationEvaluationInput["resolution"],
+    resolution: mkResolutionForOutcome(input.escalationOutcome),
     envelope,
   };
   return evaluateEscalationPure(escalationInput).decisionOutcome;

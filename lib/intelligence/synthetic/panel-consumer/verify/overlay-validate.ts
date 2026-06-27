@@ -4,10 +4,10 @@ export function validateCompanyOverlayDocument(overlay: CompanyJobDescriptionOve
   if (overlay.tier !== 2) {
     throw new Error("overlay tier must be 2");
   }
-  if ("addedCapabilities" in (overlay as Record<string, unknown>)) {
+  if ("addedCapabilities" in overlay) {
     throw new Error("overlay may not contain addedCapabilities");
   }
-  if ("removedRestrictionIds" in (overlay as Record<string, unknown>)) {
+  if ("removedRestrictionIds" in overlay) {
     throw new Error("overlay may not contain removedRestrictionIds");
   }
 }

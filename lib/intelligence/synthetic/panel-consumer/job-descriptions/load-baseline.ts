@@ -36,7 +36,7 @@ function deriveParityChecklist(doc: WorkerJobDescriptionsDocument): ParityCheckl
 }
 
 export function loadBaseline(): readonly BaselineJobDescription[] {
-  const doc = workerJobDescriptions as WorkerJobDescriptionsDocument;
+  const doc = workerJobDescriptions as unknown as WorkerJobDescriptionsDocument;
   validateWorkerJobDescriptionsDocument(doc);
 
   const ids = doc.personas.map((persona) => persona.personaId);
@@ -78,7 +78,7 @@ export function loadBaseline(): readonly BaselineJobDescription[] {
 }
 
 export function buildParityChecklist(): ParityChecklist {
-  const doc = workerJobDescriptions as WorkerJobDescriptionsDocument;
+  const doc = workerJobDescriptions as unknown as WorkerJobDescriptionsDocument;
   validateWorkerJobDescriptionsDocument(doc);
   return deriveParityChecklist(doc);
 }

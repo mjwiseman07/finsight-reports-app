@@ -62,7 +62,7 @@ export function extractPanelDecisionMetadata(decision: RoutingDecision): PanelDe
   });
 }
 
-export function derivePanelAdvisoriesPure(decision: RoutingDecision): PanelAdvisorySummary[] {
+export function derivePanelAdvisoriesPure(decision: RoutingDecision): readonly PanelAdvisorySummary[] {
   if (decision.kind === "execute") {
     return [];
   }
