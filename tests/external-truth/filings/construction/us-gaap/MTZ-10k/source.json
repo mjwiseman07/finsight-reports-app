@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "MTZ-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000019617.json",
+  "fetchedAt": "2026-06-27T22:27:06.404Z",
+  "sha256": "20616b3c1709a9262a1837e25ebe6a36351633cfaa5ddbed9b342f9157633830",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001628280-26-008131; filingDate=2026-02-13; ticker=MTZ"
+}

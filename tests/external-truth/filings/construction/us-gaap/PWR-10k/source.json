@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "PWR-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0001050915.json",
+  "fetchedAt": "2026-06-27T22:27:05.080Z",
+  "sha256": "40e8ba89fc64813cc17eb6448b57f2cae406b9faaf3c4eff74481c7aa415ffbe",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001050915-26-000006; filingDate=2026-02-19; ticker=PWR"
+}

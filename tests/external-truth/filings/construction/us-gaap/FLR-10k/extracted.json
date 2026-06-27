@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "FLR-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "entityName": "FLUOR CORPORATION",
+  "cik": "0001124198",
+  "formType": "10-K",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 3663000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 14365522000,
+      "unit": "USD",
+      "periodEnd": "2018-09-30"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 7920000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 6083000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "narrativeSnippets": [
+    "Amount, after allowance for credit loss, of accounts and financing receivables, classified as current. Includes, but is not limited to, notes and loan receivable.",
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. For classified balance s",
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Amount of accumulated depreciation, depletion and amortization for physical assets used in the normal conduct of business to produce goods and services.",
+    "Amount, after tax, of accumulated unrealized gain (loss) on investment in debt security measured at fair value with change in fair value recognized in other comprehensive income (available-for-sale)."
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

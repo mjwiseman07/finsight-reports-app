@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "MTZ-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "entityName": "JPMORGAN CHASE & CO",
+  "topics": [
+    {
+      "topicIdentifier": "wip-progress",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "wip-progress disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "poc-revenue",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "poc-revenue disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "retention-bonding",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "retention-bonding disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 182447000000,
+      "unit": "USD",
+      "periodEnd": "2025-12-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 4900475000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

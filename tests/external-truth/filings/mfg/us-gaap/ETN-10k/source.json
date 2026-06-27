@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "ETN-10k",
+  "vertical": "mfg",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0001551182.json",
+  "fetchedAt": "2026-06-27T22:27:04.103Z",
+  "sha256": "538ace6e128bc9bad484fe8f7e537b68a1db4d020f456fbbcbf20142aacf20e9",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001551182-26-000007; filingDate=2026-02-26; ticker=ETN"
+}

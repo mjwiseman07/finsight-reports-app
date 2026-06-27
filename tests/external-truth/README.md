@@ -16,6 +16,9 @@ tests/external-truth/filings/
 
 Vertical keys: `saas`, `rtl`, `hc`, `npo`, `mfg`, `con`, `gc`, `ps`, `fa`.
 
+On disk, construction filings live under `construction/` (not `con/`) because `CON` is a
+reserved Windows device name and cannot be committed via Git on Windows hosts.
+
 ## Per-filing artifacts
 
 | File | Purpose |

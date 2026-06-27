@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "GVA-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "entityName": "MATRIX SERVICE CO",
+  "cik": "0000866273",
+  "formType": "10-K",
+  "inventoryMethod": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 629101000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Including Assessed Tax",
+      "value": 629101000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 616550000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 412034000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "narrativeSnippets": [
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Amount, after allowance for credit loss, of right to consideration from customer for product sold and service rendered in normal course of business, classified as current.",
+    "The total amount of accounts receivable from customers under long-term contracts or programs associated with unapproved change orders or other similar items subject to uncertainty concerning their determination or ultimate realization.",
+    "Carrying amount as of the balance sheet date of the unpaid sum of the known and estimated amounts payable to satisfy all currently due domestic and foreign income tax obligations.",
+    "Carrying value as of the balance sheet date of obligations incurred through that date and payable to insurance entities to mitigate potential loss from various risks or to satisfy a promise to provide certain coverage's to employees. Used t"
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

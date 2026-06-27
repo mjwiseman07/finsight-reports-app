@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "ETN-10k",
+  "vertical": "mfg",
+  "framework": "us-gaap",
+  "entityName": "EATON CORPORATION plc",
+  "topics": [
+    {
+      "topicIdentifier": "inventory-variance",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "inventory-variance disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "manufacturing-cost",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "manufacturing-cost disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "lease-pp-e",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "lease-pp-e disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 0,
+      "unit": "USD",
+      "periodEnd": "2016-12-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 7451000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 10738000000,
+      "unit": "USD",
+      "periodEnd": "2018-06-30"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 55085000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 14005000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "GVA-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "entityName": "MATRIX SERVICE CO",
+  "topics": [
+    {
+      "topicIdentifier": "wip-progress",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "wip-progress disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "poc-revenue",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "poc-revenue disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "retention-bonding",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "retention-bonding disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 629101000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Including Assessed Tax",
+      "value": 629101000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 616550000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 412034000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

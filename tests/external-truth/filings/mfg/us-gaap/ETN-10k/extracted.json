@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "ETN-10k",
+  "vertical": "mfg",
+  "framework": "us-gaap",
+  "entityName": "EATON CORPORATION plc",
+  "cik": "0001551182",
+  "formType": "10-K",
+  "inventoryMethod": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 0,
+      "unit": "USD",
+      "periodEnd": "2016-12-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 7451000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 10738000000,
+      "unit": "USD",
+      "periodEnd": "2018-06-30"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 55085000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 14005000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "narrativeSnippets": [
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Total costs accrued as of the balance sheet date for environmental loss contingencies.",
+    "Amount of accumulated depreciation, depletion and amortization for physical assets used in the normal conduct of business to produce goods and services.",
+    "Accumulated change in equity from transactions and other events and circumstances from non-owner sources, net of tax effect, at period end. Excludes Net Income (Loss), and accumulated changes in equity from transactions resulting from inves",
+    "Excess of issue price over par or stated value of the entity's capital stock and amounts received from other transactions involving the entity's stock or stockholders. Includes adjustments to additional paid in capital. Some examples of suc"
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

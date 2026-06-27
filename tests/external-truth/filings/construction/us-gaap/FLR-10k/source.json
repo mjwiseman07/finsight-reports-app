@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "FLR-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0001124198.json",
+  "fetchedAt": "2026-06-27T22:27:04.596Z",
+  "sha256": "f383b3ab7c7f68c58fce63330fc7ee41790dfc46f584d6e49a9a896bd7663e58",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001124198-26-000007; filingDate=2026-02-17; ticker=FLR"
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "PWR-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "entityName": "Quanta Services, Inc.",
+  "cik": "0001050915",
+  "formType": "10-K",
+  "inventoryMethod": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 23672795000,
+      "unit": "USD",
+      "periodEnd": "2024-12-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 7874787000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 25746618000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 10652637000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "narrativeSnippets": [
+    "The amount needed to adjust previously recorded stockholders' equity balances to the actual aggregate amounts paid, whether in cash or other consideration, to acquire all of the shares purchased under an Accelerated Share Repurchase arrange",
+    "Sum of the carrying values as of the balance sheet date of obligations incurred through that date and due within one year (or the operating cycle, if longer), including liabilities incurred (and for which invoices have typically been receiv",
+    "Carrying value as of the balance sheet date of obligations incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Amount, after allowance for credit loss, of right to consideration from customer for product sold and service rendered in normal course of business.",
+    "Amount, after allowance for credit loss, of right to consideration from customer for product sold and service rendered in normal course of business, classified as current."
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

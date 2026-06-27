@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SIE-annual",
+  "vertical": "mfg",
+  "framework": "ifrs",
+  "entityName": "Siemens Aktiengesellschaft",
+  "formType": "Annual Report",
+  "inventoryMethod": "FIFO",
+  "numericFacts": [],
+  "narrativeSnippets": [
+    "IFRS manufacturing conglomerate; FIFO/weighted-average inventory"
+  ],
+  "rawFrameworkSignals": [
+    "ifrs"
+  ]
+}

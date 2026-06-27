@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "GE-10k",
+  "vertical": "mfg",
+  "framework": "us-gaap",
+  "entityName": "GENERAL ELECTRIC COMPANY",
+  "topics": [
+    {
+      "topicIdentifier": "inventory-variance",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "inventory-variance disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "manufacturing-cost",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "manufacturing-cost disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "lease-pp-e",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "lease-pp-e disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 12392000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 9879000000,
+      "unit": "USD",
+      "periodEnd": "2024-12-31"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 26874000000,
+      "unit": "USD",
+      "periodEnd": "2018-03-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Including Assessed Tax",
+      "value": 25342000000,
+      "unit": "USD",
+      "periodEnd": "2019-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 128445000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 40361000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

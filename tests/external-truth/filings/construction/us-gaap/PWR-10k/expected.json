@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "PWR-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "entityName": "Quanta Services, Inc.",
+  "topics": [
+    {
+      "topicIdentifier": "wip-progress",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "wip-progress disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "poc-revenue",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "poc-revenue disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "retention-bonding",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "retention-bonding disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 23672795000,
+      "unit": "USD",
+      "periodEnd": "2024-12-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 7874787000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 25746618000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 10652637000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

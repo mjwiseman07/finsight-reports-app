@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "BBY-annual",
+  "vertical": "con",
+  "framework": "ifrs",
+  "formType": "Annual Report",
+  "sourceUrl": "https://www.balfourbeatty.com/investors/annual-report/",
+  "fetchedAt": "2026-06-27T22:27:23.650Z",
+  "sha256": "d5324f025733fb169899e977a70cae8edde5373b09fbc8436cfa4c8facc7763e",
+  "licenseTerms": "Balfour Beatty investor relations — IFRS construction (manual archival)",
+  "synthesized": false,
+  "manualArchive": true,
+  "notes": "UK IFRS construction filer manually archived for G7"
+}

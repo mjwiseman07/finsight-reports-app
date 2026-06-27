@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "BBY-annual",
+  "vertical": "con",
+  "framework": "ifrs",
+  "entityName": "Balfour Beatty plc",
+  "topics": [
+    {
+      "topicIdentifier": "wip-progress",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "wip-progress disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "poc-revenue",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "poc-revenue disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "retention-bonding",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "retention-bonding disclosure surface for ifrs (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [],
+  "frameworkBinding": {
+    "primary": "ifrs",
+    "prohibitsLifo": true
+  }
+}

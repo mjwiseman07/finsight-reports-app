@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "GVA-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000866273.json",
+  "fetchedAt": "2026-06-27T22:27:05.455Z",
+  "sha256": "b3f4540d825c5ce2c783b212ef7986897da8c0592d7b6b1ced875ea87bf5cd23",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000866273-25-000069; filingDate=2025-09-10; ticker=GVA"
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "GE-10k",
+  "vertical": "mfg",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000040545.json",
+  "fetchedAt": "2026-06-27T22:27:02.715Z",
+  "sha256": "19b306724fb35a8ca70ca56033858dfefb3ebebb29f79f4e84442cf5189e2b3b",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000040545-26-000008; filingDate=2026-01-29; ticker=GE"
+}

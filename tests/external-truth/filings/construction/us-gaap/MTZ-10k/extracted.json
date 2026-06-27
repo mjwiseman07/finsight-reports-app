@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "MTZ-10k",
+  "vertical": "con",
+  "framework": "us-gaap",
+  "entityName": "JPMORGAN CHASE & CO",
+  "cik": "0000019617",
+  "formType": "10-K",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 182447000000,
+      "unit": "USD",
+      "periodEnd": "2025-12-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 4900475000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "narrativeSnippets": [
+    "Sum of the carrying values as of the balance sheet date of obligations incurred through that date, including liabilities incurred and payable to vendors for goods and services received, taxes, interest, rent and utilities, compensation cost",
+    "Amount of liabilities incurred and payable to vendors for goods and services received, and accrued liabilities classified as other.",
+    "Accumulated change in equity from transactions and other events and circumstances from non-owner sources, net of tax effect, at period end. Excludes Net Income (Loss), and accumulated changes in equity from transactions resulting from inves",
+    "Accumulated other comprehensive loss related to portion of other than temporary impairment (OTTI) due to factors other than credit losses on debt securities categorized as available-for-sale that an entity does not intend to sell and which ",
+    "Excess of issue price over par or stated value of the entity's capital stock and amounts received from other transactions involving the entity's stock or stockholders. Includes adjustments to additional paid in capital. Some examples of suc"
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

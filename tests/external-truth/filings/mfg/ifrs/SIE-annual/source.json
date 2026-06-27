@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SIE-annual",
+  "vertical": "mfg",
+  "framework": "ifrs",
+  "formType": "Annual Report",
+  "sourceUrl": "https://www.siemens.com/global/en/company/investor-relations.html",
+  "fetchedAt": "2026-06-27T22:27:23.649Z",
+  "sha256": "b339b3f4070e36ccf09e3f80dc6035030d68dfea45b6dab1e4da6692512e4b8d",
+  "licenseTerms": "Siemens AG investor relations — IFRS annual report (manual archival)",
+  "synthesized": false,
+  "manualArchive": true,
+  "notes": "EU IFRS manufacturer; LIFO prohibited under IAS 2"
+}
