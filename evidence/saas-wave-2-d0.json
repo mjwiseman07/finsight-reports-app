@@ -1,0 +1,75 @@
+{
+  "evidenceVersion": "SAAS.2.K-LOCK.0",
+  "phaseHandle": "SAAS.2.K-LOCK",
+  "totalCases": 121,
+  "passCount": 121,
+  "failCount": 0,
+  "lockSHA": "PENDING_SHA_FILL",
+  "cascadeStatus": "COMPLETE-8-VERTICAL",
+  "lockLedger": {
+    "FA-2": "d19a4b4",
+    "HC-2": "ee64120 / 5814c8d",
+    "GC-2": "d6ea0ff / 5432ea0",
+    "CON-2": "928a377 / 66960c9",
+    "PS-2": "c2b685e / c32fe91",
+    "MFG-2": "atlas-v2.2",
+    "RTL-2": "atlas-v2.2",
+    "SAAS-2": "PENDING_SHA_FILL"
+  },
+  "perCategory": {
+    "structuralGates": { "floor": 40, "actual": 81, "overdelivery": "+102%" },
+    "kvPoison": { "floor": 25, "actual": 30, "overdelivery": "+20%" },
+    "antiPattern": { "floor": 8, "actual": 10, "overdelivery": "+25%" }
+  },
+  "channels": {
+    "newChannel": "arr-mrr-audit",
+    "totalChannels": 10,
+    "retentionYears": 7,
+    "failureOutcomes": 26,
+    "merkleHashChained": true
+  },
+  "framework": {
+    "dualFrameworkSwitch": true,
+    "switchPoints": 5,
+    "switchAuditOutcome": "framework-switched"
+  },
+  "subSegments": {
+    "runtimeClassifier": true,
+    "subSegments": ["P", "H", "U", "F", "V"],
+    "ambiguityThrows": true
+  },
+  "soc2TSC": {
+    "ccAlwaysOn": true,
+    "availabilityDefaultOn": true,
+    "confidentialityDefaultOn": true,
+    "processingIntegrityConditional": true,
+    "privacyConditional": true,
+    "aicpa_tsp_section_100_2017_revised_2022": true
+  },
+  "verticalSaaSOverlay": {
+    "active": true,
+    "hipaaBAA": true,
+    "soc1": true,
+    "aicpaCode": true,
+    "uplUpa": true
+  },
+  "runtimeGuardsLifted": {
+    "commission-amortization-period-guard": "structural",
+    "material-right-detector": "structural",
+    "ssp-multi-element-saas-guard": "structural",
+    "usage-based-stand-ready-classifier": "structural",
+    "ias-38-cloud-customer-cost-gate": "structural"
+  },
+  "doctrineMatrix": {
+    "flagsStructurallyComplete": 7,
+    "flags": [
+      "containsPHI",
+      "containsGovernmentContractData",
+      "containsConstructionContractData",
+      "containsFundAccountingData",
+      "containsHealthcareOtherSensitiveData",
+      "containsProfessionalEngagementData",
+      "containsSaaSARRData"
+    ]
+  }
+}
