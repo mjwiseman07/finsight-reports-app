@@ -443,7 +443,7 @@ LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kerne
 - **Sub-segments:** G / S / R / C / H / D
 - **Citation handles:** 109 across 6 domains
 - **Verifier:** `verify-con-1.js` (5 gates A–E, 15 cases — `npm run verify:con-1`)
-- **LOCK commit:** PENDING_SHA_FILL → filled by follow-up commit
+- **LOCK commit:** 813b96d80f4585653ca4ed7808601119989d059b
 - **Annotated tag:** `LOCK-CON-1` on Commit 3
 - **Predecessor:** LOCK-GC-2 (`d6ea0ff` / SHA-fill `5432ea0`)
 - **Founder approval:** "Approved" (2026-06-26 21:14 EDT) — all 18 §15 defaults at A
