@@ -111,7 +111,7 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Wave | 2 (Strong Build) |
 | Date | 2026-06-27 |
 | Baseline SHA | 12f6684 (LOCK-SAAS-1 SHA-fill) |
-| Lock SHA | PENDING_SHA_FILL |
+| Lock SHA | 23e27772bb1ec2a9697e10421ecebb4688f4f303 |
 | Attestation | [LOCK-SAAS-2-Attestation.md](./LOCK-SAAS-2-Attestation.md) |
 | Founder approval | "approved" (2026-06-27 00:27 EDT — all 21 §15 defaults at A) |
 | Verifier | verify-saas-2.js 121/121 |
