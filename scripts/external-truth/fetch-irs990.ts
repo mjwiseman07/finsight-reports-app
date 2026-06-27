@@ -1,9 +1,10 @@
 /**
- * Phase G7 — IRS 990 fetch + extract (public e-file index).
+ * Phase G7 — IRS 990 fetch-only (public e-file index).
  */
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ExternalTruthVertical, FilingManifestEntry, NumericFact } from "./types";
+import type { ExternalTruthVertical, FilingManifestEntry } from "./types";
+import { extract990FilingDir, extract990Payload } from "./extract-990";
 import {
   RateLimiter,
   ensureDir,
@@ -12,8 +13,6 @@ import {
   sha256Hex,
   writeJson,
 } from "./utils";
-import { extractFromManualJson } from "./extract-xbrl";
-import { writeExpected } from "./generate-expected";
 
 const limiter = new RateLimiter(150);
 
@@ -42,44 +41,6 @@ export async function fetchIrs990Organization(ein: string): Promise<unknown> {
   return response.json();
 }
 
-export function extract990Payload(
-  orgJson: Record<string, unknown>,
-  entry: Irs990ManifestEntry,
-): { numericFacts: NumericFact[]; narrativeSnippets: string[]; entityName: string } {
-  const org = (orgJson.organization ?? orgJson) as Record<string, unknown>;
-  const filings = (orgJson.filings_with_data ?? orgJson.filings ?? []) as Array<Record<string, unknown>>;
-  const latest = filings[0] ?? {};
-  const revenue = Number(latest.totrevenue ?? latest.total_revenue ?? 0);
-  const assets = Number(latest.totassetsend ?? latest.total_assets ?? 0);
-  const entityName = String(org.name ?? org.organization_name ?? entry.filingId);
-
-  const numericFacts: NumericFact[] = [];
-  if (Number.isFinite(revenue) && revenue > 0) {
-    numericFacts.push({
-      tag: "totrevenue",
-      label: "Total revenue",
-      value: revenue,
-      unit: "USD",
-      periodEnd: String(latest.tax_prd_yr ?? latest.tax_prd ?? ""),
-    });
-  }
-  if (Number.isFinite(assets) && assets > 0) {
-    numericFacts.push({
-      tag: "totassetsend",
-      label: "Total assets (EOY)",
-      value: assets,
-      unit: "USD",
-      periodEnd: String(latest.tax_prd_yr ?? latest.tax_prd ?? ""),
-    });
-  }
-
-  return {
-    entityName,
-    numericFacts,
-    narrativeSnippets: [String(org.mission ?? org.ntee_code ?? "nonprofit operating charity")],
-  };
-}
-
 export async function ingestIrs990Filing(entry: Irs990ManifestEntry): Promise<boolean> {
   const orgJson = (await fetchIrs990Organization(entry.ein)) as Record<string, unknown>;
   const dir = filingDir(entry.vertical, entry.framework, entry.filingId);
@@ -104,18 +65,7 @@ export async function ingestIrs990Filing(entry: Irs990ManifestEntry): Promise<bo
     notes: `ein=${entry.ein}`,
   });
 
-  const extractedBits = extract990Payload(orgJson, entry);
-  const extracted = extractFromManualJson(dir, {
-    filingId: entry.filingId,
-    vertical: entry.vertical,
-    framework: entry.framework,
-    formType: entry.formType,
-    entityName: extractedBits.entityName,
-    numericFacts: extractedBits.numericFacts,
-    narrativeSnippets: extractedBits.narrativeSnippets,
-  });
-  writeExpected(dir, extracted);
-  return true;
+  return extract990FilingDir(dir);
 }
 
 export async function ingestIrs990Manifest(
@@ -134,3 +84,6 @@ export async function ingestIrs990Manifest(
   }
   return results;
 }
+
+/** Re-export for validator/tests that need payload shape without fetch. */
+export { extract990Payload };

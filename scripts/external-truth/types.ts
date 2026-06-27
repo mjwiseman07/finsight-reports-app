@@ -76,6 +76,12 @@ export interface ExtractedFiling {
   numericFacts: NumericFact[];
   narrativeSnippets: string[];
   rawFrameworkSignals: string[];
+  form990?: {
+    partI: Record<string, number | string>;
+    partVIII: Record<string, number>;
+    partIX: Record<string, number>;
+    partX: Record<string, number>;
+  };
 }
 
 export interface ExpectedDisclosureTopic {

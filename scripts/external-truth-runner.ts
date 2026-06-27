@@ -8,6 +8,7 @@ import { G7_IRS990_MANIFEST, ingestIrs990Manifest } from "./external-truth/fetch
 import { ingestAllManualArchives } from "./external-truth/manual-archive";
 import { ingestDcaaSamples } from "./external-truth/dcaa-synthesized";
 import { extractFilingDir } from "./external-truth/extract-xbrl";
+import { extract990FilingDir } from "./external-truth/extract-990";
 import { writeExpected } from "./external-truth/generate-expected";
 import type {
   ExternalTruthVertical,
@@ -134,6 +135,10 @@ async function runIngest(
 
 function runExtractAndExpected(filingPaths: string[]): void {
   for (const path of filingPaths) {
+    if (existsSync(join(path, "raw/organization.json"))) {
+      extract990FilingDir(path);
+      continue;
+    }
     let extracted = extractFilingDir(path);
     if (!extracted && existsSync(join(path, "extracted.json"))) {
       extracted = JSON.parse(readFileSync(join(path, "extracted.json"), "utf8"));
