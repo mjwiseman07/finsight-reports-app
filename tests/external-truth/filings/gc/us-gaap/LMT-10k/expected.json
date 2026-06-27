@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "LMT-10k",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "entityName": "LOCKHEED MARTIN CORPORATION",
+  "topics": [
+    {
+      "topicIdentifier": "far-cost-principles",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "far-cost-principles disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "dcaa-rate-audit",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "dcaa-rate-audit disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "contract-type",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "contract-type disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 18021000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-29"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 59812000000,
+      "unit": "USD",
+      "periodEnd": "2019-12-31"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 11635000000,
+      "unit": "USD",
+      "periodEnd": "2018-03-25"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 59238000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-29"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 25080000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-29"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

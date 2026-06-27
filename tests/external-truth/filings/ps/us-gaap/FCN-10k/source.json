@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "FCN-10k",
+  "vertical": "ps",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000887936.json",
+  "fetchedAt": "2026-06-27T22:27:09.627Z",
+  "sha256": "200dad4d32014403d6cbca68e4c4a76f690f05dabee300f2c76339a3fbd2bf95",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000887936-26-000013; filingDate=2026-02-26; ticker=FCN"
+}

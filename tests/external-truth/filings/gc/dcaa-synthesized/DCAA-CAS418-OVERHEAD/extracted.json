@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "DCAA-CAS418-OVERHEAD",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "entityName": "Synthesized DCAA Sample — CAS 418 allocation of indirect costs",
+  "formType": "DCAA-SYNTH",
+  "numericFacts": [
+    {
+      "tag": "indirect-pool",
+      "label": "Indirect cost pool",
+      "value": 8200000,
+      "unit": "USD",
+      "periodEnd": "2025-12-31"
+    },
+    {
+      "tag": "allocation-rate",
+      "label": "Provisional indirect rate",
+      "value": 0.142,
+      "unit": "rate",
+      "periodEnd": "2025-12-31"
+    }
+  ],
+  "narrativeSnippets": [
+    "CAS 418 indirect cost allocation per DCAA guidance"
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

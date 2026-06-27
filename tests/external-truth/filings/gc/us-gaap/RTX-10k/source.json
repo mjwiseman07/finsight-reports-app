@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "RTX-10k",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000101829.json",
+  "fetchedAt": "2026-06-27T22:27:07.474Z",
+  "sha256": "2fdbb59f653304dfd7fd983cb1a47ad09e901499d7490a1615bc7657354b9186",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000101829-26-000006; filingDate=2026-02-06; ticker=RTX"
+}

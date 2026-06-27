@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "DCAA-CAS410-GNA",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "entityName": "Synthesized DCAA Sample — CAS 410 allocation of G&A expense pools",
+  "topics": [
+    {
+      "topicIdentifier": "far-cost-principles",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "far-cost-principles disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "dcaa-rate-audit",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "dcaa-rate-audit disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "contract-type",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "contract-type disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "ga-pool-total",
+      "label": "G&A pool base",
+      "value": 12500000,
+      "unit": "USD",
+      "periodEnd": "2025-12-31"
+    },
+    {
+      "tag": "allocation-base",
+      "label": "CAS 410 allocation base",
+      "value": 48000000,
+      "unit": "USD",
+      "periodEnd": "2025-12-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

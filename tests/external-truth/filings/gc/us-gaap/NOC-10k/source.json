@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "NOC-10k",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0001133421.json",
+  "fetchedAt": "2026-06-27T22:27:08.438Z",
+  "sha256": "c9536c099c070812c0fef68266d4f8e936a1d13ebe3859b80788de9a7add7b53",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001133421-26-000003; filingDate=2026-01-27; ticker=NOC"
+}

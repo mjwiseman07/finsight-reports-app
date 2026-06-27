@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "DLTE-UK-annual",
+  "vertical": "ps",
+  "framework": "ifrs",
+  "entityName": "Deloitte LLP (UK public disclosures)",
+  "formType": "Annual Report",
+  "numericFacts": [],
+  "narrativeSnippets": [
+    "UK partnership transparency; professional services engagement governance"
+  ],
+  "rawFrameworkSignals": [
+    "ifrs"
+  ]
+}

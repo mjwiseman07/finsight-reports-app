@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "GD-10k",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000040533.json",
+  "fetchedAt": "2026-06-27T22:27:07.957Z",
+  "sha256": "d62ebb1ce7aceb54e612580e413df0bf66fd33f69fbf6418b6c51d1c7fea6303",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000040533-26-000006; filingDate=2026-01-30; ticker=GD"
+}

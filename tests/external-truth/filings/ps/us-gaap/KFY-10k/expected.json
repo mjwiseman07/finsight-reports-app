@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "KFY-10k",
+  "vertical": "ps",
+  "framework": "us-gaap",
+  "entityName": "KORN FERRY",
+  "topics": [
+    {
+      "topicIdentifier": "engagement-letter",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "engagement-letter disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "revenue-recognition",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "revenue-recognition disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "utilization",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "utilization disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 1819519000,
+      "unit": "USD",
+      "periodEnd": "2018-04-30"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 2938641000,
+      "unit": "USD",
+      "periodEnd": "2026-04-30"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 4064776000,
+      "unit": "USD",
+      "periodEnd": "2026-04-30"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 1905977000,
+      "unit": "USD",
+      "periodEnd": "2026-04-30"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

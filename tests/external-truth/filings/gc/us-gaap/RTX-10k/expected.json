@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "RTX-10k",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "entityName": "RTX CORPORATION",
+  "topics": [
+    {
+      "topicIdentifier": "far-cost-principles",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "far-cost-principles disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "dcaa-rate-audit",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "dcaa-rate-audit disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "contract-type",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "contract-type disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 80738000000,
+      "unit": "USD",
+      "periodEnd": "2024-12-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 22076000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 15242000000,
+      "unit": "USD",
+      "periodEnd": "2018-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 170431000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 60009000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

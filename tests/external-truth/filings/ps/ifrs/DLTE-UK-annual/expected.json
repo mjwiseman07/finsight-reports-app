@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "DLTE-UK-annual",
+  "vertical": "ps",
+  "framework": "ifrs",
+  "entityName": "Deloitte LLP (UK public disclosures)",
+  "topics": [
+    {
+      "topicIdentifier": "engagement-letter",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "engagement-letter disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "revenue-recognition",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "revenue-recognition disclosure surface for ifrs (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "utilization",
+      "reportingFramework": "ifrs",
+      "disclosureSummaryAuthored": "utilization disclosure surface for ifrs (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [],
+  "frameworkBinding": {
+    "primary": "ifrs",
+    "prohibitsLifo": true
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "filingId": "DCAA-CAS418-OVERHEAD",
+  "scenario": "CAS 418 allocation of indirect costs",
+  "methodologyUrl": "https://www.dcaa.mil/Portals/88/CAS_418.pdf",
+  "notes": "Synthesized DCAA CAS 418 indirect cost allocation scenario",
+  "numericFacts": [
+    {
+      "tag": "indirect-pool",
+      "label": "Indirect cost pool",
+      "value": 8200000,
+      "unit": "USD",
+      "periodEnd": "2025-12-31"
+    },
+    {
+      "tag": "allocation-rate",
+      "label": "Provisional indirect rate",
+      "value": 0.142,
+      "unit": "rate",
+      "periodEnd": "2025-12-31"
+    }
+  ],
+  "narrativeSnippets": [
+    "CAS 418 indirect cost allocation per DCAA guidance"
+  ]
+}

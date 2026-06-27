@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "DCAA-CAS418-OVERHEAD",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "formType": "DCAA-SYNTH",
+  "sourceUrl": "https://www.dcaa.mil/Portals/88/CAS_418.pdf",
+  "fetchedAt": "2026-06-27T22:27:23.641Z",
+  "sha256": "e7530a96fbaf0a72956147bb2ceebdf3281fdd6dd19b3d95df01ab5a00156aed",
+  "licenseTerms": "Synthesized from public FAR/CAS/DCAA guidance + USAspending public data",
+  "synthesized": true,
+  "manualArchive": false,
+  "notes": "Synthesized DCAA CAS 418 indirect cost allocation scenario"
+}

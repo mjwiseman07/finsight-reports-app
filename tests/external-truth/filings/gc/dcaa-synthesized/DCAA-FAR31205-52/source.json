@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "DCAA-FAR31205-52",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "formType": "DCAA-SYNTH",
+  "sourceUrl": "https://www.acquisition.gov/far/subpart-31.2",
+  "fetchedAt": "2026-06-27T22:27:23.643Z",
+  "sha256": "dd0e9cd7674d23c782b600dd3cadae60162eb40b0b24078b07a902f67098dffa",
+  "licenseTerms": "Synthesized from public FAR/CAS/DCAA guidance + USAspending public data",
+  "synthesized": true,
+  "manualArchive": false,
+  "notes": "Synthesized FAR 31.205-52 depreciation allowability check"
+}

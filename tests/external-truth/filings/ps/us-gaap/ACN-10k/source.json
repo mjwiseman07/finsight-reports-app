@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "ACN-10k",
+  "vertical": "ps",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0001467373.json",
+  "fetchedAt": "2026-06-27T22:27:08.847Z",
+  "sha256": "90dd67b3c7dfd0c2076e369f12c3a8bfa2b3a1cbec7a30da5142c7c49d9575f4",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001467373-25-000217; filingDate=2025-10-10; ticker=ACN"
+}

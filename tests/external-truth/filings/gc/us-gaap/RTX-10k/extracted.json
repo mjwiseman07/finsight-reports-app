@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "RTX-10k",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "entityName": "RTX CORPORATION",
+  "cik": "0000101829",
+  "formType": "10-K",
+  "inventoryMethod": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 80738000000,
+      "unit": "USD",
+      "periodEnd": "2024-12-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 22076000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 15242000000,
+      "unit": "USD",
+      "periodEnd": "2018-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 170431000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 60009000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "narrativeSnippets": [
+    "Final price paid per share for the purchase of the targeted number of shares, determined by an average market price over a fixed period of time.",
+    "The price paid per share to immediately purchase the targeted number of shares on the date of executing the accelerated share repurchase agreement.",
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Amount, before allowance for credit loss, of right to consideration from customer for product sold and service rendered in normal course of business.",
+    "Amount, after allowance for credit loss, of right to consideration from customer for product sold and service rendered in normal course of business."
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

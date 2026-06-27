@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "DCAA-FAR31205-52",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "entityName": "Synthesized DCAA Sample — FAR 31.205-52 depreciation",
+  "topics": [
+    {
+      "topicIdentifier": "far-cost-principles",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "far-cost-principles disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "dcaa-rate-audit",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "dcaa-rate-audit disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "contract-type",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "contract-type disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "depreciation-expense",
+      "label": "Depreciation expense tested",
+      "value": 1150000,
+      "unit": "USD",
+      "periodEnd": "2025-12-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

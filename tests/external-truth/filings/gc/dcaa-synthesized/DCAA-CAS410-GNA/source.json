@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "DCAA-CAS410-GNA",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "formType": "DCAA-SYNTH",
+  "sourceUrl": "https://www.acquisition.gov/dfars/252.242-7006-Accounting-system-criteria.",
+  "fetchedAt": "2026-06-27T22:27:23.640Z",
+  "sha256": "ba697ba9202b61942ad71d4bdb924cff9bd05ba83d5b59babfeff2cdc658e291",
+  "licenseTerms": "Synthesized from public FAR/CAS/DCAA guidance + USAspending public data",
+  "synthesized": true,
+  "manualArchive": false,
+  "notes": "Synthesized from public FAR 31.203 + CAS 410 criteria; USAspending award anchors"
+}

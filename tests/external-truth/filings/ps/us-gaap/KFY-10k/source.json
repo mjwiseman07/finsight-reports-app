@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "KFY-10k",
+  "vertical": "ps",
+  "framework": "us-gaap",
+  "formType": "10-K",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000056679.json",
+  "fetchedAt": "2026-06-27T22:27:09.261Z",
+  "sha256": "511717f8fee59ff8718290b259cb96fa4eba82e815da168c9278f73ad534fa91",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000056679-26-000021; filingDate=2026-06-26; ticker=KFY"
+}

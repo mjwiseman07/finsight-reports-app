@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "DLTE-UK-annual",
+  "vertical": "ps",
+  "framework": "ifrs",
+  "formType": "Annual Report",
+  "sourceUrl": "https://www.deloitte.com/uk/en/about/governance/annual-review.html",
+  "fetchedAt": "2026-06-27T22:27:23.652Z",
+  "sha256": "d5324f025733fb169899e977a70cae8edde5373b09fbc8436cfa4c8facc7763e",
+  "licenseTerms": "Deloitte UK transparency report — publicly disclosed partnership information",
+  "synthesized": false,
+  "manualArchive": true,
+  "notes": "Big-4 UK partnership transparency report as PS IFRS-adjacent anchor"
+}

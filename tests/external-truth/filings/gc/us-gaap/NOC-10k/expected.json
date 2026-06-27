@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "NOC-10k",
+  "vertical": "gc",
+  "framework": "us-gaap",
+  "entityName": "NORTHROP GRUMMAN CORP /DE/",
+  "topics": [
+    {
+      "topicIdentifier": "far-cost-principles",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "far-cost-principles disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "dcaa-rate-audit",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "dcaa-rate-audit disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "contract-type",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "contract-type disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 9881000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "SalesRevenueNet",
+      "label": "Revenue, Net (Deprecated 2018-01-31)",
+      "value": 13854000000,
+      "unit": "USD",
+      "periodEnd": "2018-06-30"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 50007000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 14770000000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

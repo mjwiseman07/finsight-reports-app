@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "FCN-10k",
+  "vertical": "ps",
+  "framework": "us-gaap",
+  "entityName": "FTI CONSULTING, INC",
+  "cik": "0000887936",
+  "formType": "10-K",
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 3788857000,
+      "unit": "USD",
+      "periodEnd": "2025-12-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 983345000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 3506530000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 1556889000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "narrativeSnippets": [
+    "Final price paid per share for the purchase of the targeted number of shares, determined by an average market price over a fixed period of time.",
+    "Amount of cash receipt from (payment to) bank; or stock received from (issuance to) bank in the settlement of the accelerated share repurchase agreement.",
+    "Sum of the carrying values as of the balance sheet date of obligations incurred through that date and due within one year (or the operating cycle, if longer), including liabilities incurred (and for which invoices have typically been receiv",
+    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
+    "Amount, before allowance for credit loss, of right to consideration from customer for product sold and service rendered in normal course of business, classified as current."
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

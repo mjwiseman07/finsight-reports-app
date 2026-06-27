@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "FCN-10k",
+  "vertical": "ps",
+  "framework": "us-gaap",
+  "entityName": "FTI CONSULTING, INC",
+  "topics": [
+    {
+      "topicIdentifier": "engagement-letter",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "engagement-letter disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "revenue-recognition",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "revenue-recognition disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "utilization",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "utilization disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [
+    {
+      "tag": "Revenues",
+      "label": "Revenues",
+      "value": 3788857000,
+      "unit": "USD",
+      "periodEnd": "2025-12-31"
+    },
+    {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+      "value": 983345000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "Assets",
+      "label": "Assets",
+      "value": 3506530000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    },
+    {
+      "tag": "AssetsCurrent",
+      "label": "Assets, Current",
+      "value": 1556889000,
+      "unit": "USD",
+      "periodEnd": "2026-03-31"
+    }
+  ],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}
