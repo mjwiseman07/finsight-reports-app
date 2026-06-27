@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "FXAIX-NCSR",
+  "vertical": "fa",
+  "framework": "us-gaap",
+  "entityName": "FIDELITY DEVONSHIRE TRUST",
+  "topics": [
+    {
+      "topicIdentifier": "asc946-nav",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "asc946-nav disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "expense-ratio",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "expense-ratio disclosure surface for us-gaap (metadata-only router output)"
+    },
+    {
+      "topicIdentifier": "fee-waivers",
+      "reportingFramework": "us-gaap",
+      "disclosureSummaryAuthored": "fee-waivers disclosure surface for us-gaap (metadata-only router output)"
+    }
+  ],
+  "numericFacts": [],
+  "frameworkBinding": {
+    "primary": "us-gaap",
+    "prohibitsLifo": false
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "VFIAX-NCSR",
+  "vertical": "fa",
+  "framework": "us-gaap",
+  "formType": "N-CSR",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000036405.json",
+  "fetchedAt": "2026-06-27T22:27:14.357Z",
+  "sha256": "8a7691618c93a4bb2b7bf6d4d4fb0e7d045f82133f83c9342f94ed05ce9cefd3",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001104659-26-021519; filingDate=2026-02-27; ticker=VFINX"
+}

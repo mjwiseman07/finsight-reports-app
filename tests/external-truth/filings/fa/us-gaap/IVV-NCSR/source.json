@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "IVV-NCSR",
+  "vertical": "fa",
+  "framework": "us-gaap",
+  "formType": "N-CSR",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0001100663.json",
+  "fetchedAt": "2026-06-27T22:27:23.141Z",
+  "sha256": "c28ba48488952add0d9b9e381e8b5bf5ff9c1dfbce7fcec1285efa92174f1593",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0001193125-26-257130; filingDate=2026-06-04; ticker=IVV"
+}

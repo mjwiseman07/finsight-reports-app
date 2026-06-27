@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SPY-NQ",
+  "vertical": "fa",
+  "framework": "us-gaap",
+  "entityName": "SPDR S&P 500 ETF TRUST",
+  "formType": "N-CSR",
+  "numericFacts": [],
+  "narrativeSnippets": [
+    "SPDR S&P 500 ETF TRUST N-CSR"
+  ],
+  "rawFrameworkSignals": [
+    "us-gaap"
+  ]
+}

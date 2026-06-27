@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "FXAIX-NCSR",
+  "vertical": "fa",
+  "framework": "us-gaap",
+  "formType": "N-CSR",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000035341.json",
+  "fetchedAt": "2026-06-27T22:27:22.905Z",
+  "sha256": "76b3424b8d41c3b4d29dd73d74beddb3d7fcabc47cd5bd74c0c461147b33eb76",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000035341-26-000083; filingDate=2026-03-25; ticker=FXAIX"
+}

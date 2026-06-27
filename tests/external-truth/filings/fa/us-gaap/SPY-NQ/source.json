@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "filingId": "SPY-NQ",
+  "vertical": "fa",
+  "framework": "us-gaap",
+  "formType": "N-CSR",
+  "sourceUrl": "https://data.sec.gov/submissions/CIK0000884394.json",
+  "fetchedAt": "2026-06-27T22:27:18.613Z",
+  "sha256": "f81d59a453264c6437eb0b19e66bce7af7d922d0fa3c41b4331cbcc7dcf1862f",
+  "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
+  "synthesized": false,
+  "manualArchive": false,
+  "notes": "accession=0000950135-04-005558; filingDate=2004-12-03; ticker=SPY"
+}
