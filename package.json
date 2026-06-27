@@ -41,6 +41,7 @@
     "verify:con-1": "node architecture-lane/verifiers/verify-con-1.js",
     "verify:con-2": "node scripts/verify-con-2.js",
     "verify:ps-1": "node architecture-lane/verifiers/verify-ps-1.js",
+    "verify:ps-2": "node scripts/verify-ps-2.js",
     "verify:company-memory": "node scripts/verify-company-memory.js",
     "verify:si-snapshot-persistence-plan": "node scripts/verify-si-snapshot-persistence-plan.js",
     "verify:si-snapshot-retrieval": "node scripts/verify-si-snapshot-retrieval.js",
