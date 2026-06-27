@@ -9,6 +9,7 @@ import {
   TOTAL_CASE_COUNT,
 } from "./lib/extendedVerticalCases";
 import { assertVerticalApplicabilityRegistryComplete } from "./lib/vertical-applicability";
+import { runAllLockVcTraversals } from "./lib/lock-vc-traversals";
 import {
   EXTENDED_CASES_PER_VERTICAL,
   EXTENDED_VERIFIER_VERTICALS,
@@ -226,6 +227,14 @@ export function runMetaVerifierSteps(): readonly MetaVerifierStepResult[] {
       }
       return "extended block starts at WV-049";
     }),
+    ...runAllLockVcTraversals().map(({ id, result }) =>
+      step(`LOCK-VC-${id}`, `LOCK-VC traversal ${id}`, () => {
+        if (!result.passed) {
+          throw new Error(`missing: ${result.missing.join(", ")}`);
+        }
+        return `${id} cleared (${result.missing.length} missing)`;
+      }),
+    ),
   ];
 }
 
