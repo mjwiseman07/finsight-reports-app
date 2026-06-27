@@ -1,4 +1,4 @@
-# Advisacor Phase Atlas — v2.11
+# Advisacor Phase Atlas — v2.12
 
 > **DRAFT — INTERNAL SYNTHESIS DOCUMENT. Not for publication.**
 > **This is a Perplexity-side synthesis of the Tier 1 inventory exported from Cursor on 2026-06-23 (`tmp-phase-inventory.txt`, 221KB, 2,877 lines) PLUS the Phases 1–39 master inventory pasted into this session on 2026-06-23.**
@@ -11,9 +11,15 @@
 **Generated:** 2026-06-23 v1.0 → revised same day to v1.1
 **Sourced from:** Tier 1 inventory (Phases 40+) + Phases 1–39 Master Inventory (pasted) + active session memory of Fund Accounting Wave 1
 **Repository:** `C:\Users\mattj\finsight-reports` (Windows, Alienware)
-**Most recent commit at atlas time:** `3bfdc02` (LOCK-G6, 2026-06-18) — **CASCADE RUNNER v1.0.0 — 15-stage `pnpm test:cascade`**
+**Most recent commit at atlas time:** `0d7ae14` (LOCK-G3, 2026-06-18) — **INTEGRATION HARNESS — 18 scenarios × 7 categories; cascade 22 stages**
 
-## CASCADE RUNNER — `pnpm test:cascade` v1.0.0 (LOCK-G6 @ `3bfdc02`)
+## INTEGRATION WIRED — 18 scenarios × 7 categories (LOCK-G3 @ `0d7ae14`)
+
+Cross-vertical integration harness v1.0.0: consolidation, audit routing, disclosure, panel, memory, org-standards, registry change-mgmt  
+`integrationHarnessInstalled: true` · `integrationScenarioCount: 18` · `cascadeRunnerStages: 22` · `cascadeReportSchemaVersion: 1.1.0`  
+**lockAcceptanceGates:** `verifier-42-7f` · `tsc-noEmit` · `test-cascade` · `test-cascade-integration`
+
+## CASCADE RUNNER — `pnpm test:cascade` v1.1.0 (LOCK-G6 → extended LOCK-G3)
 
 15-stage fail-fast runner: tsc → verifier → 9× K-V verticals → control → doctrine → audit → lint (advisory)  
 `cascadeRunnerInstalled: true` · `cascadeRunnerVersion: 1.0.0` · `cascadeRunnerStages: 15`  
@@ -220,6 +226,14 @@ The `command-center/surface-candidates/` directory is where industry vertical pa
 | Tag | C1 | C2 | C3 | C4 | C5 | C6 (tag anchor) | Notes |
 |---|---|---|---|---|---|---|---|
 | LOCK-VC | `dcc0d91` | `6a788b7` | `b75bd5e` | `fa4a72d` | `b532cba` | `4607aa3` | 39 V-C findings cleared; Meta 26/26; Main 435/435 |
+
+**LOCK commit ledger (G3 chain — integration harness):**
+
+| Tag | SHA | Notes |
+|---|---|---|
+| LOCK-G3 | `0d7ae14` | 18 scenarios / 7 categories; cascade 22 stages; report schema v1.1.0; 0 new deps |
+
+**lockAcceptanceGates (post-G3):** `verifier-42-7f` · `tsc-noEmit` · `test-cascade` · `test-cascade-integration`
 
 **LOCK commit ledger (G6 chain — cascade runner):**
 
@@ -1062,6 +1076,7 @@ Paste this atlas + the following companion docs as context block at the start of
 
 | v1.2.4 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7B.1 LOCKED at `8ee3286` in §10.0.1 build sequence (376/376 total: 159 prior regression + 131 from 42.7E + 48 new escalation-audit tests + 38 verifier checks; pure-core preserved via rename-only extraction with byte-identity verified). Added §10.0.7 Phase 42.7B.1 — Escalation Audit Retrofit detail block (7 locked decisions B1.D1–D7, 4 first-class decision outcomes, Cursor net-positive adds: dual pure-core separation + `knownTenantIds` option + `validateEscalationEvaluatedEntry()` helper + 60% test overdelivery 30→48). Four-cell gap closure on 42.7B row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, HIPAA §164.312(b) G→C, HIPAA §164.312(d) G→C. LOCK-42.7 retrofit 1 of 3 complete; 2 retrofits remaining (42.7C.2, 42.7D.1-audit) before 42.7F can run. Build sequence row 9 updated: Unblocked → ✅ `8ee3286`. |
 | v1.2.5 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7C.2 LOCKED at `ea23461` in §10.0.1 build sequence (regression floor 428/428: 87 + 48 + 50 + 90 + 41 + 60 + 52 new panel-decision-audit tests; phase verifiers 30/30: 10 + 12 + 8; pure-core preserved via rename-only extraction with SHA-256 `8ca0891fab6e6e90db478468f7f765fa9fdb0bd0d34565029e4df551055bf242`). Added §10.0.8 Phase 42.7C.2 — Panel Decision Audit Retrofit detail block (9 locked decisions C2.D1–D9 including advisory-bundling doctrine and locked-5-handle citation whitelist; Cursor net-positive adds: separate `derivePanelDecisionContextPure.ts` + dedicated `locked-citation-handles.ts` constant module + `validatePanelDecisionEntry()` helper + 30% test overdelivery 40→52 + 8-group test taxonomy A–H). Four-cell gap closure on 42.7C row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, SOC 2 PI1.5 G→C, HIPAA §164.312(b) G→C. LOCK-42.7 retrofit 2 of 3 complete; 1 retrofit remaining (42.7D.1-audit) before 42.7F can run. Build sequence row 10 updated: Unblocked → ✅ `ea23461`. |
+| v2.12 | 2026-06-18 | Cursor | **LOCK-G3** (`0d7ae14`) — integration harness v1.0.0; 18 scenarios / 7 categories; cascade 22 stages; JSON schema v1.1.0; `test-cascade-integration` gate; `cascadeStatus: COMPLETE-9-VERTICAL-W2-ALL-TSC-CLEAN-INTEGRATION-WIRED`. |
 | v2.11 | 2026-06-18 | Cursor | **LOCK-G6** (`3bfdc02`) — cascade runner v1.0.0 installed; `pnpm test:cascade` 15 stages; JSON report; fail-fast default; lint advisory; `test-cascade` added to lockAcceptanceGates; 0 new deps. |
 | v2.10 | 2026-06-18 | Cursor | **LOCK-G1** (`c5c0890`) — TSC clean sweep; 271 errors cleared (audit `025b5b8`); 6 fix commits C1–C6; 0 type-bridge markers; `repoCompilesClean: true`; new hard gate `tsc-noEmit` in lockAcceptanceGates; Meta 26/26; Main 435/435 preserved. |
 | v2.9 | 2026-06-27 | Cursor / Perplexity | **LOCK-VC** (`4607aa3`) — control layer wired to 9 verticals; 39 V-C findings cleared (V-C-1..7 + OTHER); registry elections + panel routes + role permissions + decision audit metadata + memory persistence + org standards override; Meta 26/26. |
@@ -1078,4 +1093,4 @@ Paste this atlas + the following companion docs as context block at the start of
 
 ---
 
-*End of Advisacor_Phase_Atlas_v1.md (v2.11 — CASCADE RUNNER; LOCK-G6)*
+*End of Advisacor_Phase_Atlas_v1.md (v2.12 — INTEGRATION WIRED; LOCK-G3)*
