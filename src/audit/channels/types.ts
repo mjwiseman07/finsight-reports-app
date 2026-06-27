@@ -3,3 +3,8 @@ export interface AuditChannelHandler {
   status: string;
   invoke: () => { status: string };
 }
+
+export interface AuditChannelInvocationResult {
+  status: string;
+  applicability?: "APPLICABLE" | "NOT_APPLICABLE_BY_DESIGN";
+}

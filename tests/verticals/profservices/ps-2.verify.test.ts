@@ -7,4 +7,9 @@ describe("PS-2 cascade channel-count regression (10→11)", () => {
     );
     expect(idx.AUDIT_CHANNEL_COUNT).toBe(11);
   });
+
+  it("src audit channel count is 11 post LOCK-NPO-2", async () => {
+    const registry = await import("../../../src/audit/channel-registry.ts");
+    expect(registry.AUDIT_CHANNEL_COUNT).toBe(11);
+  });
 });

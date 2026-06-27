@@ -117,12 +117,13 @@ describe("NPO-1 recon matrix (15 cells)", () => {
     expect(profile.containsRestrictedNetAssetData).toBe(true);
   });
 
-  it("cell 13 — 11th audit channel reserved + D0 COMPLETE-9-VERTICAL", () => {
+  it("cell 13 — 11th audit channel structural + D0 W2-NPO sealed", () => {
     expect(restrictedNetAssetAuditHandler.channel).toBe("restricted-net-asset-audit");
-    expect(restrictedNetAssetAuditHandler.invoke().status).toBe("reserved-for-NPO-2");
+    expect(restrictedNetAssetAuditHandler.invoke().status).toBe("structural");
     expect(AUDIT_CHANNEL_COUNT).toBe(11);
-    expect(D0.cascadeStatus).toBe("COMPLETE-9-VERTICAL");
+    expect(D0.cascadeStatus).toBe("COMPLETE-9-VERTICAL-W2-NPO");
     expect(D0.verticalCount).toBe(9);
+    expect(D0.verticalWaveStatus?.NPO).toBe("W2");
   });
 
   it("cell 14 — UG_2024_HHS_PARTIAL + entity flags advisory (Q6/Q9/Q11/Q14)", () => {
