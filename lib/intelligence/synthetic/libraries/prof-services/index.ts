@@ -1,11 +1,11 @@
 /**
- * @doctrine containsProfessionalEngagementData: true
  * @audit-channel engagement-letter-audit (introduced in PS-2 — emitted via factory once channel exists)
  * @framework us-gaap | ifrs (resolved at runtime via LOCK-41.5 treatment-resolver — switch wired in PS-2)
  * @sub-segments L | A | M | I | E | K
  * @last-verified 2026-06-26
  * @spec Phase_PS_1_Recon_Spec.md v1.0
  */
+import { assertContainsProfessionalEngagementData } from "../../standards/doctrine/containsProfessionalEngagementData";
 
 import type { ProfServicesSubSegmentId, ProfServicesSubSegmentKernel } from "./types";
 import { ProfServicesViolation } from "./errors";
@@ -24,7 +24,9 @@ export function listProfServicesSubSegmentIds(): ProfServicesSubSegmentId[] {
   return Object.keys(PROF_SERVICES_SUB_SEGMENT_KERNELS) as ProfServicesSubSegmentId[];
 }
 
-export function getProfServicesSubSegment(id: ProfServicesSubSegmentId) {
+export function getProfServicesSubSegment(ctx: { containsProfessionalEngagementData?: boolean }, id: ProfServicesSubSegmentId) {
+  assertContainsProfessionalEngagementData(ctx);
+
   const k = PROF_SERVICES_SUB_SEGMENT_KERNELS[id];
   if (!k) throw ProfServicesViolation("PS_SUBSEGMENT_NOT_FOUND", `Unknown sub-segment ${id}`);
   return k;
@@ -47,3 +49,6 @@ export * from "./asc606/multi-element-ssp";
 export * from "./asc606/principal-vs-agent";
 export * from "./specialized/pe-seal";
 export * from "./specialized/engagement-letter";
+export * from "./ifrs/ias38-internally-generated";
+export * from "./ifrs/ifrs15-prof-services";
+export * from "./ifrs/ifrs16-office-leases";

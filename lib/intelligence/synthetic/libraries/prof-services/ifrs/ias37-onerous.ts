@@ -1,11 +1,13 @@
 /**
- * @doctrine containsProfessionalEngagementData: true
  * @audit-channel engagement-letter-audit (introduced in PS-2 — emitted via factory once channel exists)
  * @framework us-gaap | ifrs (resolved at runtime via LOCK-41.5 treatment-resolver — switch wired in PS-2)
  * @sub-segments L | A | M | I | E | K
  * @last-verified 2026-06-26
  * @spec Phase_PS_1_Recon_Spec.md v1.0
  */
+import { assertContainsProfessionalEngagementData } from "../../../standards/doctrine/containsProfessionalEngagementData";
 
 import { resolveProfServicesCitationHandle } from "../handles";
-export function referenceIas37Onerous() { return resolveProfServicesCitationHandle("IAS37.Page"); }
+export function referenceIas37Onerous(ctx: { containsProfessionalEngagementData?: boolean }) {
+  assertContainsProfessionalEngagementData(ctx);
+ return resolveProfServicesCitationHandle("IAS37.Page"); }

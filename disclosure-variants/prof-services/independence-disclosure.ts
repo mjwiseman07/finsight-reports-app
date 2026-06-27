@@ -1,0 +1,5 @@
+import { assertContainsProfessionalEngagementData } from "../../lib/intelligence/synthetic/standards/doctrine/containsProfessionalEngagementData";
+export function build(ctx: { containsProfessionalEngagementData?: boolean }) {
+  assertContainsProfessionalEngagementData(ctx);
+  return { variant: "independence-disclosure", frameworks: ["US_GAAP", "IFRS"] };
+}

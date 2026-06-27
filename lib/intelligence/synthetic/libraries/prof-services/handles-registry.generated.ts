@@ -1,5 +1,4 @@
 /**
- * @doctrine containsProfessionalEngagementData: true
  * @audit-channel engagement-letter-audit (introduced in PS-2 — emitted via factory once channel exists)
  * @framework us-gaap | ifrs (resolved at runtime via LOCK-41.5 treatment-resolver — switch wired in PS-2)
  * @sub-segments L | A | M | I | E | K

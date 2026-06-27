@@ -31,3 +31,15 @@ export const profServicesWave1Profile = {
     K: { engagementLetter: true, workForHire: true },
   },
 };
+
+
+import { classifyProfServicesSubSegment } from "../../lib/intelligence/synthetic/industry/prof-services/sub-segment-classifier";
+
+/** Back-compat shim — new consumers use runtime classifier (PS-2). */
+export function resolveProfServicesSubSegment(input: {
+  naicsCode: string;
+  revenueMix?: Partial<Record<"L" | "A" | "M" | "I" | "E" | "K", number>>;
+  containsProfessionalEngagementData?: boolean;
+}) {
+  return classifyProfServicesSubSegment({ ...input, containsProfessionalEngagementData: true });
+}

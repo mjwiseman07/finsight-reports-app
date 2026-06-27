@@ -28,6 +28,7 @@ export type SyntheticCommandCenterSurfaceArtifactCategory =
   | "industry_item"
   | "govcon_item"
   | "construction_item"
+  /** prof_services_item — routed via PS-2 industry kernel (LOCK-PS-2). */
   | "prof_services_item"
   | "healthcare_item"
   | "inventory_item";
