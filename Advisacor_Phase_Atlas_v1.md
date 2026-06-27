@@ -1,4 +1,4 @@
-# Advisacor Phase Atlas — v2.13
+# Advisacor Phase Atlas — v2.14
 
 > **DRAFT — INTERNAL SYNTHESIS DOCUMENT. Not for publication.**
 > **This is a Perplexity-side synthesis of the Tier 1 inventory exported from Cursor on 2026-06-23 (`tmp-phase-inventory.txt`, 221KB, 2,877 lines) PLUS the Phases 1–39 master inventory pasted into this session on 2026-06-23.**
@@ -11,7 +11,14 @@
 **Generated:** 2026-06-23 v1.0 → revised same day to v1.1
 **Sourced from:** Tier 1 inventory (Phases 40+) + Phases 1–39 Master Inventory (pasted) + active session memory of Fund Accounting Wave 1
 **Repository:** `C:\Users\mattj\finsight-reports` (Windows, Alienware)
-**Most recent commit at atlas time:** `2b19a58` (LOCK-G2.0, 2026-06-27) — **STUB INVENTORY — AST scanner v1.0.0; 0 hard / 13 soft across 1,894 files**
+**Most recent commit at atlas time:** LOCK-G2-CLOSED — **G2 CLOSED — 0 hard stubs; soft review complete; STUB-CLEAN**
+
+## G2 CLOSED — NO STUBS FOUND (LOCK-G2-CLOSED)
+
+`atlasVersion: 2.14` · `g2Status: CLOSED-NO-STUBS-FOUND` · `g2DecisionEvidenceSha: 2b19a58` · `g2DecisionEvidencePath: docs/decisions/Phase_G2_0_Soft_Review_Findings.md`  
+`g2HardStubsFound: 0` · `g2SoftSignalsFound: 13` · `g2SoftSignalsClassified: STUB-CONFIRMED=0 · INTENTIONAL-PATTERN=12 · FALSE-POSITIVE=1 · UNCLEAR=0`  
+`cascadeStatus: COMPLETE-9-VERTICAL-W2-ALL-TSC-CLEAN-INTEGRATION-WIRED-STUB-CLEAN`  
+**Sequencing:** G7 → G10 (G2 removed from path)
 
 ## STUB INVENTORY — `pnpm stub:inventory` v1.0.0 (LOCK-G2.0 @ `2b19a58`)
 
@@ -1083,6 +1090,7 @@ Paste this atlas + the following companion docs as context block at the start of
 
 | v1.2.4 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7B.1 LOCKED at `8ee3286` in §10.0.1 build sequence (376/376 total: 159 prior regression + 131 from 42.7E + 48 new escalation-audit tests + 38 verifier checks; pure-core preserved via rename-only extraction with byte-identity verified). Added §10.0.7 Phase 42.7B.1 — Escalation Audit Retrofit detail block (7 locked decisions B1.D1–D7, 4 first-class decision outcomes, Cursor net-positive adds: dual pure-core separation + `knownTenantIds` option + `validateEscalationEvaluatedEntry()` helper + 60% test overdelivery 30→48). Four-cell gap closure on 42.7B row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, HIPAA §164.312(b) G→C, HIPAA §164.312(d) G→C. LOCK-42.7 retrofit 1 of 3 complete; 2 retrofits remaining (42.7C.2, 42.7D.1-audit) before 42.7F can run. Build sequence row 9 updated: Unblocked → ✅ `8ee3286`. |
 | v1.2.5 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7C.2 LOCKED at `ea23461` in §10.0.1 build sequence (regression floor 428/428: 87 + 48 + 50 + 90 + 41 + 60 + 52 new panel-decision-audit tests; phase verifiers 30/30: 10 + 12 + 8; pure-core preserved via rename-only extraction with SHA-256 `8ca0891fab6e6e90db478468f7f765fa9fdb0bd0d34565029e4df551055bf242`). Added §10.0.8 Phase 42.7C.2 — Panel Decision Audit Retrofit detail block (9 locked decisions C2.D1–D9 including advisory-bundling doctrine and locked-5-handle citation whitelist; Cursor net-positive adds: separate `derivePanelDecisionContextPure.ts` + dedicated `locked-citation-handles.ts` constant module + `validatePanelDecisionEntry()` helper + 30% test overdelivery 40→52 + 8-group test taxonomy A–H). Four-cell gap closure on 42.7C row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, SOC 2 PI1.5 G→C, HIPAA §164.312(b) G→C. LOCK-42.7 retrofit 2 of 3 complete; 1 retrofit remaining (42.7D.1-audit) before 42.7F can run. Build sequence row 10 updated: Unblocked → ✅ `ea23461`. |
+| v2.14 | 2026-06-27 | Cursor | **LOCK-G2-CLOSED** — G2 formally closed; 0 hard stubs; soft review 13/13 (12 INTENTIONAL-PATTERN, 1 FALSE-POSITIVE); evidence `docs/decisions/Phase_G2_0_Soft_Review_Findings.md`; `g2Status: CLOSED-NO-STUBS-FOUND`; `cascadeStatus` gains STUB-CLEAN suffix; sequencing G7 → G10. |
 | v2.13 | 2026-06-27 | Cursor | **LOCK-G2.0** (`2b19a58`) — AST stub inventory scanner v1.0.0; `pnpm stub:inventory`; 1,894 files; 0 hard / 13 soft; `stubInventoryGeneratedAtSha: 2b19a58`; diagnostic only. |
 | v2.12 | 2026-06-18 | Cursor | **LOCK-G3** (`0d7ae14`) — integration harness v1.0.0; 18 scenarios / 7 categories; cascade 22 stages; JSON schema v1.1.0; `test-cascade-integration` gate; `cascadeStatus: COMPLETE-9-VERTICAL-W2-ALL-TSC-CLEAN-INTEGRATION-WIRED`. |
 | v2.11 | 2026-06-18 | Cursor | **LOCK-G6** (`3bfdc02`) — cascade runner v1.0.0 installed; `pnpm test:cascade` 15 stages; JSON report; fail-fast default; lint advisory; `test-cascade` added to lockAcceptanceGates; 0 new deps. |
@@ -1101,4 +1109,4 @@ Paste this atlas + the following companion docs as context block at the start of
 
 ---
 
-*End of Advisacor_Phase_Atlas_v1.md (v2.13 — STUB INVENTORY; LOCK-G2.0)*
+*End of Advisacor_Phase_Atlas_v1.md (v2.14 — G2 CLOSED; LOCK-G2-CLOSED — STUB-CLEAN)*
