@@ -1,4 +1,4 @@
-# Advisacor Phase Atlas — v2.6
+# Advisacor Phase Atlas — v2.7
 
 > **DRAFT — INTERNAL SYNTHESIS DOCUMENT. Not for publication.**
 > **This is a Perplexity-side synthesis of the Tier 1 inventory exported from Cursor on 2026-06-23 (`tmp-phase-inventory.txt`, 221KB, 2,877 lines) PLUS the Phases 1–39 master inventory pasted into this session on 2026-06-23.**
@@ -11,7 +11,13 @@
 **Generated:** 2026-06-23 v1.0 → revised same day to v1.1
 **Sourced from:** Tier 1 inventory (Phases 40+) + Phases 1–39 Master Inventory (pasted) + active session memory of Fund Accounting Wave 1
 **Repository:** `C:\Users\mattj\finsight-reports` (Windows, Alienware)
-**Most recent commit at atlas time:** `dce1d6f` (LOCK-MFG-2 C3, 2026-06-27) — **9-vertical cascade COMPLETE-9-VERTICAL-W2-MFG**
+**Most recent commit at atlas time:** `c3e671c` (LOCK-RTL-2 C3, 2026-06-27) — **CASCADE CLOSED — 9 of 9 verticals at W2**
+
+## CASCADE CLOSED — 9 of 9 verticals at W2 (LOCK-RTL-2 @ `c3e671c`)
+
+Sealed verticals: FA, HC, GC, CON, PS, SAAS, NPO, MFG, RTL  
+`cascadeStatus: COMPLETE-9-VERTICAL-W2-ALL` · `cascadeClosureSealedAt: LOCK-RTL-2`  
+Next: `CASCADE_W2_CLOSURE_REPORT.md` retrospective
 
 ---
 
@@ -178,18 +184,24 @@ The `command-center/surface-candidates/` directory is where industry vertical pa
 | Wave 2 | `<V>`-K-H | Spine composition (panel composition with tenant-elected `applicableBasis` on surface candidate; public barrel imports only) | TS module |
 | Wave 2 | `<V>`-K-I | Verifier + D0 emission (CHK-`<V>`-PC-01..NN cases; schema parity lock against ALL prior vertical D0s; npm script) | JS verifier + D0 JSON |
 
-### §4.2 Cascade status (9 verticals — COMPLETE-9-VERTICAL-W2-MFG)
+### §4.2 Cascade status (9 verticals — COMPLETE-9-VERTICAL-W2-ALL · CASCADE CLOSED)
 | # | Vertical | Wave 1 | Wave 2 Lock SHA | D0 Path | Evidence Version | Sub-segments |
 |---|---|---|---|---|---|---|
 | 1 | Manufacturing | ✅ | ✅ W2 **`dce1d6f`** (132/132 PASS) | `src/registry/d0.ts` | `MFG.2.K-LOCK.0` | D/P/H/J/E |
-| 2 | Retail | ✅ | **`d09b31c`** (34/34 PASS) | `ops/compliance/retail-knowledge-stack/D0_RTL_KNOWLEDGE_STACK_EVIDENCE.json` | `RTL-K-I-1` | B/E/O/G/S |
+| 2 | Retail | ✅ W1 **`d09b31c`** | ✅ W2 **`c3e671c`** (132/132 PASS) | `src/registry/d0.ts` | `RTL.2.K-LOCK.0` | B/E/O/G/S |
 | 3 | Fund Accounting | ✅ | **`d19a4b4`** (63/63 PASS) | `evidence/fa-wave-2-d0.json` | `FA.2.K-LOCK.0` | M/E/H/P/C |
 | 4 | Construction | ✅ | **`17bdde4`** (121/121 PASS) | `evidence/con-wave-2-d0.json` | `CON.2.K-LOCK.0` | G/B/I/E/S |
 | 5 | Professional Services | ✅ | **`6c79b0f`** (121/121 PASS) | `evidence/ps-wave-2-d0.json` | `PS.2.K-LOCK.0` | A/C/L/T/M |
 | 6 | Nonprofit | ✅ W1 **`b4c31ed`** | ✅ W2 **`c9ed928`** (121/121 PASS) | `src/registry/d0.ts` | `NPO.2.K-LOCK.0` | P / F / H / R / A1 / A2 |
 | 7 | GovCon / DCAA | ✅ | **`5432ea0`** (121/121 PASS) | `evidence/gc-wave-2-d0.json` | `GC.2.K-LOCK.0` | C/N/S/R/F/T |
 | 8 | SaaS | ✅ | **`23e2777`** (121/121 PASS) | `evidence/saas-wave-2-d0.json` | `SAAS.2.K-LOCK.0` | P/H/U/F/V |
-| 9 | *(cascade closure)* | — | LOCK-MFG-2 | `src/registry/d0.ts` | `MFG.2.K-LOCK.0` | **8 of 9 at W2** (`verticalsW2Sealed: 8`, `verticalsW2Pending: 1`) |
+| 9 | *(cascade closure)* | — | **LOCK-RTL-2** | `src/registry/d0.ts` | `RTL.2.K-LOCK.0` | **9 of 9 at W2** (`verticalsW2Sealed: 9`, `verticalsW2Pending: 0`) |
+
+**LOCK commit ledger (RTL-2 chain — CASCADE CLOSER):**
+
+| Tag | C1 SHA | C2 SHA | C3 SHA (tag anchor) | Notes |
+|---|---|---|---|---|
+| LOCK-RTL-2 | `de7f663` | `36c92a1` | `c3e671c` | 9th W2-sealed vertical; **CASCADE CLOSED** |
 
 **LOCK commit ledger (MFG-2 chain):**
 
@@ -1006,6 +1018,7 @@ Paste this atlas + the following companion docs as context block at the start of
 
 | v1.2.4 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7B.1 LOCKED at `8ee3286` in §10.0.1 build sequence (376/376 total: 159 prior regression + 131 from 42.7E + 48 new escalation-audit tests + 38 verifier checks; pure-core preserved via rename-only extraction with byte-identity verified). Added §10.0.7 Phase 42.7B.1 — Escalation Audit Retrofit detail block (7 locked decisions B1.D1–D7, 4 first-class decision outcomes, Cursor net-positive adds: dual pure-core separation + `knownTenantIds` option + `validateEscalationEvaluatedEntry()` helper + 60% test overdelivery 30→48). Four-cell gap closure on 42.7B row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, HIPAA §164.312(b) G→C, HIPAA §164.312(d) G→C. LOCK-42.7 retrofit 1 of 3 complete; 2 retrofits remaining (42.7C.2, 42.7D.1-audit) before 42.7F can run. Build sequence row 9 updated: Unblocked → ✅ `8ee3286`. |
 | v1.2.5 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7C.2 LOCKED at `ea23461` in §10.0.1 build sequence (regression floor 428/428: 87 + 48 + 50 + 90 + 41 + 60 + 52 new panel-decision-audit tests; phase verifiers 30/30: 10 + 12 + 8; pure-core preserved via rename-only extraction with SHA-256 `8ca0891fab6e6e90db478468f7f765fa9fdb0bd0d34565029e4df551055bf242`). Added §10.0.8 Phase 42.7C.2 — Panel Decision Audit Retrofit detail block (9 locked decisions C2.D1–D9 including advisory-bundling doctrine and locked-5-handle citation whitelist; Cursor net-positive adds: separate `derivePanelDecisionContextPure.ts` + dedicated `locked-citation-handles.ts` constant module + `validatePanelDecisionEntry()` helper + 30% test overdelivery 40→52 + 8-group test taxonomy A–H). Four-cell gap closure on 42.7C row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, SOC 2 PI1.5 G→C, HIPAA §164.312(b) G→C. LOCK-42.7 retrofit 2 of 3 complete; 1 retrofit remaining (42.7D.1-audit) before 42.7F can run. Build sequence row 10 updated: Unblocked → ✅ `ea23461`. |
+| v2.7 | 2026-06-27 | Cursor / Perplexity | **LOCK-RTL-2** (`c3e671c`) — 9th W2-sealed vertical; **CASCADE CLOSED**; 132-cell K-V (12×11); NRF 4-5-4 calendar; 5 ASC 606 surfaces; RIM/LCNRV/LCM; IAS 36 vs ASC 360; 16 KPIs + forecast variance; `cascadeStatus: COMPLETE-9-VERTICAL-W2-ALL` (`verticalsW2Sealed: 9`). |
 | v2.6 | 2026-06-27 | Cursor / Perplexity | **LOCK-MFG-2** (`dce1d6f`) — 8th W2-sealed vertical; 132-cell K-V (12×11); MFG-only `manufacturing-cost-audit` 12th column; inventory LCNRV/LIFO/IFRS + 6-variance + lease/PP&E + Reg S-K/conflict minerals; `cascadeStatus: COMPLETE-9-VERTICAL-W2-MFG` (`verticalsW2Sealed: 8`, `verticalsW2Pending: 1`). |
 | v2.5 | 2026-06-27 | Cursor / Perplexity | **LOCK-NPO-2** (`c9ed928`) — 7th W2-sealed vertical; 121-cell K-V matrix; restriction release + ASU 2018-08/2020-07 + UBIT §512(a)(6) + §501(r) CHNA + UPMIFA 50-state + IPSAS registry + benchmarks; `restricted-net-asset-audit` promoted; `cascadeStatus: COMPLETE-9-VERTICAL-W2-NPO` (`verticalsW2Sealed: 7`, `verticalsW2Pending: 2`). |
 | v2.4 | 2026-06-27 | Cursor / Perplexity | **LOCK-NPO-1** (`b4c31ed`) — 9th vertical Wave 1 recon; K-F-3 + NON_GAAP lane; 8th doctrine flag `containsRestrictedNetAssetData`; 11th audit channel `restricted-net-asset-audit` (reserved-for-NPO-2); 297 citation handles; `cascadeStatus: COMPLETE-9-VERTICAL`; founder checkpoint Q15=D before NPO-2. **9-vertical cascade COMPLETE.** |
@@ -1013,8 +1026,8 @@ Paste this atlas + the following companion docs as context block at the start of
 | v1.2.7 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7A.5 LOCKED at `2c8a5e5` in §10.0.1 build sequence row 12 (8/8 verifier checks; no runtime code, governance scaffold only). Added §10.0.10 Phase 42.7A.5 — Registry Change-Management Controls detail block (9 locked decisions A5.D1–D9 including 4-artifact scope, CODEOWNERS routing to `@mjwiseman07` confirmed by founder dashboard screenshot, PR template 6 mandatory checks, 11-section change log entry schema with founder attestation signed `mwiseman@advisacor.com`, forward-only discipline, dogfooding by 42.7F at `0032bf1`). Three-cell gap closure on 42.7A row of Compliance Inventory §2 master matrix: SOC 1 CO-5 G→C, SOC 2 CC8 G→C, SOC 2 CC3 G→C. **LOCK-42.7 gate G6 ✅** (registry change-management controls in place); 7 of 8 LOCK gates satisfied. Only G7 (42.7F wiring verifier — also shipped this session at `0032bf1`) and G8 (42.7G D0 rollup + LOCK commit) remain. |
 | v1.2.6 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7D.1-audit LOCKED at `36919c8` in §10.0.1 build sequence (cumulative regression 476/476: 50 + 87 + 60 + 90 + 41 + 48 + 52 + 48 new org-edge-audit tests; phase verifiers 40/40: 10 + 12 + 8 + 10; pure-core preserved via rename-only extraction of `disagreement-detector.ts` → `orgStandardsEdgePure.ts` with SHA-256 `cb7d9474c98f239676c802c58813b1117e756c07002d92efbc6adc7dfe0311ad`; `disagreement-detector.ts` retained as thin re-export shim). Added §10.0.9 Phase 42.7D.1-audit — Org-Edge Reconciliation Audit Retrofit detail block (9 locked decisions D1.D1–D9 including discriminated `ReconciliationDiff` union with `none`/`override-applied` variants, every-reconciliation logging incl. agreement and no-election cases, citation-handle reuse from 42.7C.2's `locked-citation-handles.ts`; Cursor net-positive adds: separate `deriveOrgEdgeReconciliationContextPure.ts` + `validateOrgEdgeReconciliationEntry()` helper + `org-edge` actor.via wiring + 20% test overdelivery 40→48 + 10-group test taxonomy A–J). Four-cell gap closure on 42.7D row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, SOC 2 PI1.5 G→C, HIPAA §164.312(b) G→C. **LOCK-42.7 retrofit 3 of 3 complete — audit retrofit sequence is closed; every audit emission point now exists.** Build sequence row 11 updated: Unblocked → ✅ `36919c8`. Consistent Cursor overdelivery pattern documented across all three retrofits (42.7B.1: 48 vs 30 floor, 8 vs 8; 42.7C.2: 52 vs 40, 10 vs 8; 42.7D.1-audit: 48 vs 40, 10 vs 8) — strengthens SOC 2 CC5 control-activities narrative. LOCK-42.7 gates G3/G4/G5 ✅ (6 of 8 LOCK gates satisfied); only G6 (42.7A.5 change-mgmt, parallel-pending), G7 (42.7F wiring verifier — now unblocked, becomes next phase), and G8 (42.7G D0 rollup + LOCK commit) remain. |
 
-**Next atlas version:** v2.7 after LOCK-RTL-2 (Q-Z1=A).
+**Next atlas version:** v2.8 after Phase 42.8 or Wave 3 planning gate.
 
 ---
 
-*End of Advisacor_Phase_Atlas_v1.md (v2.6 — COMPLETE-9-VERTICAL-W2-MFG; LOCK-MFG-2)*
+*End of Advisacor_Phase_Atlas_v1.md (v2.7 — CASCADE CLOSED; LOCK-RTL-2)*
