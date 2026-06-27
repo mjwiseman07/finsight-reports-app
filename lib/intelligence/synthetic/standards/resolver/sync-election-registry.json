@@ -7,5 +7,109 @@
   "citationRefs": {
     "IFRS_FOR_SMES_S1": "https://www.ifrs.org/issued-standards/ifrs-for-smes/"
   },
-  "elections": []
+  "elections": [],
+  "verticalElections": {
+    "schemaVersion": "1.0",
+    "establishedAt": "LOCK-VC",
+    "verticalElections": {
+      "RTL": {
+        "FiscalCalendar": {
+          "type": "enum",
+          "values": ["4_5_4_NRF", "GREGORIAN_CALENDAR", "52_53_WEEK_RETAIL"],
+          "default": "4_5_4_NRF",
+          "lockedAtFirstClose": true,
+          "qXRef": "Q-A1"
+        },
+        "ReturnsReserveBasis": {
+          "type": "enum",
+          "values": ["HISTORICAL", "ROLLING_AVERAGE_12_MONTH", "FORECAST_ADJUSTED"],
+          "default": "ROLLING_AVERAGE_12_MONTH",
+          "lockedAtFirstClose": false,
+          "qXRef": "Q-D1"
+        },
+        "breakageMethodology": {
+          "type": "enum",
+          "values": ["PROPORTIONAL", "REMOTE"],
+          "default": "PROPORTIONAL",
+          "perProgram": true,
+          "qXRef": "Q-B1"
+        },
+        "principalAgentThreshold": {
+          "type": "const",
+          "value": 2,
+          "qXRef": "Q-E1"
+        },
+        "comparableStorePolicy": {
+          "rule": {
+            "type": "enum",
+            "values": ["NRF_13_MONTH", "FOUNDER_DEFINED_MONTHS"],
+            "default": "NRF_13_MONTH",
+            "qXRef": "Q-G1"
+          }
+        },
+        "subSegmentDeclaration": {
+          "type": "discriminator",
+          "values": ["B", "E", "O", "G", "S"],
+          "lockedAtFirstClose": true,
+          "qXRef": "Q-I1"
+        }
+      },
+      "MFG": {
+        "CostingMethod": {
+          "type": "enum",
+          "values": ["Standard", "Actual", "Process", "JobOrder"],
+          "lockedAtFirstClose": true
+        },
+        "LifoReserveTracking": {
+          "type": "boolean",
+          "default": true,
+          "applicableWhenBasisIs": "US_GAAP"
+        },
+        "varianceDecomposition": {
+          "type": "const",
+          "value": 6
+        }
+      },
+      "NPO": {
+        "restrictionType": {
+          "type": "enum",
+          "values": ["Unrestricted", "TempRestricted", "PermRestricted"],
+          "lockedPerNetAssetPool": true
+        },
+        "religiousDenomination": {
+          "type": "enum-deferred",
+          "deferredToW3": true,
+          "qXRef": "NPO-Q-R"
+        },
+        "chnaCycleYearsRemaining": {
+          "type": "integer",
+          "min": 0,
+          "max": 3
+        }
+      },
+      "HC": {
+        "provider340BStatus": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "CROSS_VERTICAL": {
+        "reportingBasis": {
+          "type": "enum",
+          "values": ["US_GAAP", "IFRS"],
+          "required": true,
+          "appliesTo": "all-9-verticals",
+          "lockedAtFirstClose": true,
+          "qXRef": "Q-A2"
+        },
+        "fiscalYearEnd": {
+          "type": "iso-month-day",
+          "default": "12-31",
+          "required": true,
+          "appliesTo": "all-9-verticals",
+          "qXRef": "Q-CROSS-1"
+        }
+      }
+    }
+  }
 }

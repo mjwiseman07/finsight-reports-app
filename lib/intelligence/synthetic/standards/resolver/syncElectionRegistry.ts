@@ -5,6 +5,8 @@
 
 import registryJson from "./sync-election-registry.json";
 import type { FrameworkCode, OrgFrameworkElection } from "./types";
+import type { VerticalElectionsRegistry } from "./election-schema";
+import { validateVerticalElectionsRegistry } from "./election-validators";
 
 interface EligibilityAttestation {
   noPublicAccountability: boolean;
@@ -32,6 +34,7 @@ interface SyncElectionRegistryShape {
   citationDoctrine: string;
   citationRefs: Record<string, string>;
   elections: SyncElectionEntry[];
+  verticalElections?: VerticalElectionsRegistry;
 }
 
 const ISO_8601 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
@@ -111,6 +114,24 @@ function loadRegistry(): Map<string, SyncElectionEntry> {
 }
 
 const REGISTRY: Map<string, SyncElectionEntry> = loadRegistry();
+
+const VERTICAL_ELECTIONS_DOCUMENT: SyncElectionRegistryDocument = (() => {
+  const raw = registryJson as SyncElectionRegistryShape;
+  if (!raw.verticalElections) {
+    throw new Error("syncElectionRegistry: verticalElections section required (LOCK-VC)");
+  }
+  validateVerticalElectionsRegistry(raw.verticalElections);
+  return Object.freeze({
+    ...raw.verticalElections,
+    verticalElections: Object.freeze({ ...raw.verticalElections.verticalElections }),
+  });
+})();
+
+export type SyncElectionRegistryDocument = VerticalElectionsRegistry;
+
+export function getVerticalElectionsRegistry(): SyncElectionRegistryDocument {
+  return VERTICAL_ELECTIONS_DOCUMENT;
+}
 
 export function lookupSyncElection(
   companyId: string | undefined,
