@@ -8,23 +8,49 @@
   "numericFacts": [
     {
       "tag": "totrevenue",
-      "label": "Total revenue",
+      "label": "Form 990 Part VIII — Total revenue",
       "value": 329195153,
       "unit": "USD",
       "periodEnd": "2023"
     },
     {
+      "tag": "totfuncexpns",
+      "label": "Form 990 Part IX — Total functional expenses",
+      "value": 330613285,
+      "unit": "USD",
+      "periodEnd": "2023"
+    },
+    {
       "tag": "totassetsend",
-      "label": "Total assets (EOY)",
+      "label": "Form 990 Part X — Total assets (EOY)",
       "value": 565862638,
       "unit": "USD",
       "periodEnd": "2023"
     }
   ],
   "narrativeSnippets": [
-    "Q330"
+    "Q330",
+    "990 filing rows: 13"
   ],
   "rawFrameworkSignals": [
     "us-gaap"
-  ]
+  ],
+  "form990": {
+    "partI": {
+      "organizationName": "Habitat For Humanity International Inc",
+      "ein": "911914868",
+      "taxPeriod": "2023",
+      "totalRevenue": 329195153,
+      "totalAssets": 565862638
+    },
+    "partVIII": {
+      "totalRevenue": 329195153
+    },
+    "partIX": {
+      "totalFunctionalExpenses": 330613285
+    },
+    "partX": {
+      "totalAssetsEnd": 565862638
+    }
+  }
 }

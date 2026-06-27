@@ -8,22 +8,46 @@
     {
       "topicIdentifier": "wip-progress",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "wip-progress disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "wip-progress router surface for ifrs | entity=Balfour Beatty plc | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "poc-revenue",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "poc-revenue disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "poc-revenue router surface for ifrs | entity=Balfour Beatty plc | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "retention-bonding",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "retention-bonding disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "retention-bonding router surface for ifrs | entity=Balfour Beatty plc | facts=0 | narratives=1 | tags=none"
     }
   ],
   "numericFacts": [],
   "frameworkBinding": {
     "primary": "ifrs",
     "prohibitsLifo": true
+  },
+  "routerRunAt": "2026-06-27T23:24:49.696Z",
+  "routerSurfaces": {
+    "wip-progress": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "poc-revenue": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "retention-bonding": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

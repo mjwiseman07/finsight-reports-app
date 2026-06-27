@@ -38,11 +38,11 @@
     }
   ],
   "narrativeSnippets": [
-    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
-    "Amount, after allowance for credit loss, of right to consideration from customer for product sold and service rendered in normal course of business, classified as current.",
-    "Carrying value as of the balance sheet date of obligations incurred and payable for real and property taxes. Used to reflect the current portion of the liabilities (due within one year or within the normal operating cycle if longer).",
-    "Carrying value as of the balance sheet date of obligations incurred and payable, pertaining to costs that are statutory in nature, are incurred on contractual obligations, or accumulate over time and for which invoices have not yet been rec",
-    "Carrying value as of the balance sheet date of the obligations incurred through that date and payable for employees' services provided. Used to reflect the current portion of the liabilities (due within one year or within the normal operati"
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obta",
+    "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable, classified as current.",
+    "Present value of lessee's discounted obligation for lease payments from finance lease.",
+    "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer."
   ],
   "rawFrameworkSignals": [
     "us-gaap"

@@ -8,22 +8,49 @@
     {
       "topicIdentifier": "asc946-nav",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "asc946-nav disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "asc946-nav router surface for us-gaap | entity=iSHARES TRUST | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "expense-ratio",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "expense-ratio disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "expense-ratio router surface for us-gaap | entity=iSHARES TRUST | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "fee-waivers",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "fee-waivers disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "fee-waivers router surface for us-gaap | entity=iSHARES TRUST | facts=0 | narratives=1 | tags=none"
     }
   ],
   "numericFacts": [],
   "frameworkBinding": {
     "primary": "us-gaap",
     "prohibitsLifo": false
+  },
+  "routerRunAt": "2026-06-27T23:24:49.709Z",
+  "routerSurfaces": {
+    "asc946-nav": {
+      "status": "partial",
+      "fields": [
+        "topic",
+        "framework",
+        "nav"
+      ]
+    },
+    "expense-ratio": {
+      "status": "partial",
+      "fields": [
+        "topic",
+        "framework",
+        "expenseRatio"
+      ]
+    },
+    "fee-waivers": {
+      "status": "partial",
+      "fields": [
+        "topic",
+        "framework",
+        "feeWaivers"
+      ]
+    }
   }
 }

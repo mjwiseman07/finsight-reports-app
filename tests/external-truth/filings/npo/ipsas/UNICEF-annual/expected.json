@@ -8,22 +8,49 @@
     {
       "topicIdentifier": "restricted-net-assets",
       "reportingFramework": "ipsas",
-      "disclosureSummaryAuthored": "restricted-net-assets disclosure surface for ipsas (metadata-only router output)"
+      "disclosureSummaryAuthored": "restricted-net-assets router surface for ipsas | entity=UNICEF | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "functional-expenses",
       "reportingFramework": "ipsas",
-      "disclosureSummaryAuthored": "functional-expenses disclosure surface for ipsas (metadata-only router output)"
+      "disclosureSummaryAuthored": "functional-expenses router surface for ipsas | entity=UNICEF | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "form-990-summary",
       "reportingFramework": "ipsas",
-      "disclosureSummaryAuthored": "form-990-summary disclosure surface for ipsas (metadata-only router output)"
+      "disclosureSummaryAuthored": "form-990-summary router surface for ipsas | entity=UNICEF | facts=0 | narratives=1 | tags=none"
     }
   ],
   "numericFacts": [],
   "frameworkBinding": {
     "primary": "ipsas",
     "prohibitsLifo": true
+  },
+  "routerRunAt": "2026-06-27T23:24:49.733Z",
+  "routerSurfaces": {
+    "restricted-net-assets": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "functional-expenses": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "form-990-summary": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework",
+        "partVIII",
+        "partIX",
+        "partX"
+      ]
+    }
   }
 }

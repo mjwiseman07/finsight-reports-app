@@ -8,22 +8,56 @@
     {
       "topicIdentifier": "asc606-revenue",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "asc606-revenue disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "asc606-revenue router surface for ifrs | entity=SAP SE | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "deferred-revenue",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "deferred-revenue disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "deferred-revenue router surface for ifrs | entity=SAP SE | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "arr-mrr-metrics",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "arr-mrr-metrics disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "arr-mrr-metrics router surface for ifrs | entity=SAP SE | facts=0 | narratives=1 | tags=none"
     }
   ],
   "numericFacts": [],
   "frameworkBinding": {
     "primary": "ifrs",
     "prohibitsLifo": true
+  },
+  "routerRunAt": "2026-06-27T23:24:49.751Z",
+  "routerSurfaces": {
+    "asc606-revenue": {
+      "status": "partial",
+      "fields": [
+        "topic",
+        "framework",
+        "revenueTags"
+      ]
+    },
+    "deferred-revenue": {
+      "status": "partial",
+      "fields": [
+        "topic",
+        "framework",
+        "contractLiability"
+      ]
+    },
+    "arr-mrr-metrics": {
+      "status": "partial",
+      "fields": [
+        "topic",
+        "framework",
+        "saasMetrics"
+      ]
+    },
+    "asc606-revenue-surface": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

@@ -7,9 +7,27 @@
   "formType": "990",
   "numericFacts": [],
   "narrativeSnippets": [
-    "nonprofit operating charity"
+    "990 organization profile"
   ],
   "rawFrameworkSignals": [
     "us-gaap"
-  ]
+  ],
+  "form990": {
+    "partI": {
+      "organizationName": "The Salvation Army",
+      "ein": "135562351",
+      "taxPeriod": "",
+      "totalRevenue": 0,
+      "totalAssets": 0
+    },
+    "partVIII": {
+      "totalRevenue": 0
+    },
+    "partIX": {
+      "totalFunctionalExpenses": 0
+    },
+    "partX": {
+      "totalAssetsEnd": 0
+    }
+  }
 }

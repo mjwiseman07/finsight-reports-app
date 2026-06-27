@@ -8,17 +8,17 @@
     {
       "topicIdentifier": "far-cost-principles",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "far-cost-principles disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "far-cost-principles router surface for us-gaap | entity=Synthesized DCAA Sample — CAS 410 allocation of G&A expense pools | facts=2 | narratives=1 | tags=ga-pool-total, allocation-base"
     },
     {
       "topicIdentifier": "dcaa-rate-audit",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "dcaa-rate-audit disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "dcaa-rate-audit router surface for us-gaap | entity=Synthesized DCAA Sample — CAS 410 allocation of G&A expense pools | facts=2 | narratives=1 | tags=ga-pool-total, allocation-base"
     },
     {
       "topicIdentifier": "contract-type",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "contract-type disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "contract-type router surface for us-gaap | entity=Synthesized DCAA Sample — CAS 410 allocation of G&A expense pools | facts=2 | narratives=1 | tags=ga-pool-total, allocation-base"
     }
   ],
   "numericFacts": [
@@ -40,5 +40,29 @@
   "frameworkBinding": {
     "primary": "us-gaap",
     "prohibitsLifo": false
+  },
+  "routerRunAt": "2026-06-27T23:24:49.713Z",
+  "routerSurfaces": {
+    "far-cost-principles": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "dcaa-rate-audit": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "contract-type": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

@@ -8,30 +8,37 @@
     {
       "topicIdentifier": "restricted-net-assets",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "restricted-net-assets disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "restricted-net-assets router surface for us-gaap | entity=Medstar Health Visiting Nurse Association Inc | facts=3 | narratives=1 | tags=totrevenue, totfuncexpns, totassetsend"
     },
     {
       "topicIdentifier": "functional-expenses",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "functional-expenses disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "functional-expenses router surface for us-gaap | entity=Medstar Health Visiting Nurse Association Inc | facts=3 | narratives=1 | tags=totrevenue, totfuncexpns, totassetsend"
     },
     {
       "topicIdentifier": "form-990-summary",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "form-990-summary disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "form-990-summary router surface for us-gaap | entity=Medstar Health Visiting Nurse Association Inc | facts=3 | narratives=1 | tags=totrevenue, totfuncexpns, totassetsend"
     }
   ],
   "numericFacts": [
     {
       "tag": "totrevenue",
-      "label": "Total revenue",
+      "label": "Form 990 Part VIII — Total revenue",
       "value": 61269484,
       "unit": "USD",
       "periodEnd": "2023"
     },
     {
+      "tag": "totfuncexpns",
+      "label": "Form 990 Part IX — Total functional expenses",
+      "value": 64785663,
+      "unit": "USD",
+      "periodEnd": "2023"
+    },
+    {
       "tag": "totassetsend",
-      "label": "Total assets (EOY)",
+      "label": "Form 990 Part X — Total assets (EOY)",
       "value": 13552998,
       "unit": "USD",
       "periodEnd": "2023"
@@ -40,5 +47,32 @@
   "frameworkBinding": {
     "primary": "us-gaap",
     "prohibitsLifo": false
+  },
+  "routerRunAt": "2026-06-27T23:24:49.737Z",
+  "routerSurfaces": {
+    "restricted-net-assets": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "functional-expenses": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "form-990-summary": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework",
+        "partVIII",
+        "partIX",
+        "partX"
+      ]
+    }
   }
 }

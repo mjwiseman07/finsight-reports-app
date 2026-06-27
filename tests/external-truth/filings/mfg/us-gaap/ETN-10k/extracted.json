@@ -45,11 +45,11 @@
     }
   ],
   "narrativeSnippets": [
-    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
-    "Total costs accrued as of the balance sheet date for environmental loss contingencies.",
-    "Amount of accumulated depreciation, depletion and amortization for physical assets used in the normal conduct of business to produce goods and services.",
-    "Accumulated change in equity from transactions and other events and circumstances from non-owner sources, net of tax effect, at period end. Excludes Net Income (Loss), and accumulated changes in equity from transactions resulting from inves",
-    "Excess of issue price over par or stated value of the entity's capital stock and amounts received from other transactions involving the entity's stock or stockholders. Includes adjustments to additional paid in capital. Some examples of suc"
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obta",
+    "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable.",
+    "The aggregate cost of goods produced and sold and services rendered during the reporting period.",
+    "Amount of deferred income and obligation to transfer product and service to customer for which consideration has been received or is receivable."
   ],
   "rawFrameworkSignals": [
     "us-gaap"

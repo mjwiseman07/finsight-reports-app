@@ -23,11 +23,9 @@
     }
   ],
   "narrativeSnippets": [
-    "Sum of the carrying values as of the balance sheet date of obligations incurred through that date, including liabilities incurred and payable to vendors for goods and services received, taxes, interest, rent and utilities, compensation cost",
-    "Amount of liabilities incurred and payable to vendors for goods and services received, and accrued liabilities classified as other.",
-    "Accumulated change in equity from transactions and other events and circumstances from non-owner sources, net of tax effect, at period end. Excludes Net Income (Loss), and accumulated changes in equity from transactions resulting from inves",
-    "Accumulated other comprehensive loss related to portion of other than temporary impairment (OTTI) due to factors other than credit losses on debt securities categorized as available-for-sale that an entity does not intend to sell and which ",
-    "Excess of issue price over par or stated value of the entity's capital stock and amounts received from other transactions involving the entity's stock or stockholders. Includes adjustments to additional paid in capital. Some examples of suc"
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+    "Present value of lessee's discounted obligation for lease payments from operating lease.",
+    "Amount of revenue recognized from goods sold, services rendered, insurance premiums, or other activities that constitute an earning process. Includes, but is not limited to, investment and interest income before deduction of interest expens"
   ],
   "rawFrameworkSignals": [
     "us-gaap"

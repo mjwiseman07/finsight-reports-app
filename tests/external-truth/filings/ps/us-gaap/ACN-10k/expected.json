@@ -8,17 +8,17 @@
     {
       "topicIdentifier": "engagement-letter",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "engagement-letter disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "engagement-letter router surface for us-gaap | entity=Accenture plc | facts=3 | narratives=5 | tags=Revenues, Assets, AssetsCurrent"
     },
     {
       "topicIdentifier": "revenue-recognition",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "revenue-recognition disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "revenue-recognition router surface for us-gaap | entity=Accenture plc | facts=3 | narratives=5 | tags=Revenues, Assets, AssetsCurrent"
     },
     {
       "topicIdentifier": "utilization",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "utilization disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "utilization router surface for us-gaap | entity=Accenture plc | facts=3 | narratives=5 | tags=Revenues, Assets, AssetsCurrent"
     }
   ],
   "numericFacts": [
@@ -47,5 +47,29 @@
   "frameworkBinding": {
     "primary": "us-gaap",
     "prohibitsLifo": false
+  },
+  "routerRunAt": "2026-06-27T23:24:49.742Z",
+  "routerSurfaces": {
+    "engagement-letter": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "revenue-recognition": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "utilization": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

@@ -8,17 +8,17 @@
     {
       "topicIdentifier": "asc606-revenue",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "asc606-revenue disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "asc606-revenue router surface for us-gaap | entity=Salesforce, Inc. | facts=5 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, RevenueFromContractWithCustomerIncludingAssessedTax"
     },
     {
       "topicIdentifier": "deferred-revenue",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "deferred-revenue disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "deferred-revenue router surface for us-gaap | entity=Salesforce, Inc. | facts=5 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, RevenueFromContractWithCustomerIncludingAssessedTax"
     },
     {
       "topicIdentifier": "arr-mrr-metrics",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "arr-mrr-metrics disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "arr-mrr-metrics router surface for us-gaap | entity=Salesforce, Inc. | facts=5 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, RevenueFromContractWithCustomerIncludingAssessedTax"
     }
   ],
   "numericFacts": [
@@ -61,5 +61,39 @@
   "frameworkBinding": {
     "primary": "us-gaap",
     "prohibitsLifo": false
+  },
+  "routerRunAt": "2026-06-27T23:24:49.754Z",
+  "routerSurfaces": {
+    "asc606-revenue": {
+      "status": "partial",
+      "fields": [
+        "topic",
+        "framework",
+        "revenueTags"
+      ]
+    },
+    "deferred-revenue": {
+      "status": "partial",
+      "fields": [
+        "topic",
+        "framework",
+        "contractLiability"
+      ]
+    },
+    "arr-mrr-metrics": {
+      "status": "partial",
+      "fields": [
+        "topic",
+        "framework",
+        "saasMetrics"
+      ]
+    },
+    "asc606-revenue-surface": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

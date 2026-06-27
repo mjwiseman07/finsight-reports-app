@@ -8,23 +8,48 @@
   "numericFacts": [
     {
       "tag": "totrevenue",
-      "label": "Total revenue",
+      "label": "Form 990 Part VIII — Total revenue",
       "value": 61269484,
       "unit": "USD",
       "periodEnd": "2023"
     },
     {
+      "tag": "totfuncexpns",
+      "label": "Form 990 Part IX — Total functional expenses",
+      "value": 64785663,
+      "unit": "USD",
+      "periodEnd": "2023"
+    },
+    {
       "tag": "totassetsend",
-      "label": "Total assets (EOY)",
+      "label": "Form 990 Part X — Total assets (EOY)",
       "value": 13552998,
       "unit": "USD",
       "periodEnd": "2023"
     }
   ],
   "narrativeSnippets": [
-    "nonprofit operating charity"
+    "990 filing rows: 13"
   ],
   "rawFrameworkSignals": [
     "us-gaap"
-  ]
+  ],
+  "form990": {
+    "partI": {
+      "organizationName": "Medstar Health Visiting Nurse Association Inc",
+      "ein": "530196597",
+      "taxPeriod": "2023",
+      "totalRevenue": 61269484,
+      "totalAssets": 13552998
+    },
+    "partVIII": {
+      "totalRevenue": 61269484
+    },
+    "partIX": {
+      "totalFunctionalExpenses": 64785663
+    },
+    "partX": {
+      "totalAssetsEnd": 13552998
+    }
+  }
 }

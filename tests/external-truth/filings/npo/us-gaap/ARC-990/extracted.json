@@ -8,23 +8,49 @@
   "numericFacts": [
     {
       "tag": "totrevenue",
-      "label": "Total revenue",
+      "label": "Form 990 Part VIII — Total revenue",
       "value": 3217077611,
       "unit": "USD",
       "periodEnd": "2023"
     },
     {
+      "tag": "totfuncexpns",
+      "label": "Form 990 Part IX — Total functional expenses",
+      "value": 2971106889,
+      "unit": "USD",
+      "periodEnd": "2023"
+    },
+    {
       "tag": "totassetsend",
-      "label": "Total assets (EOY)",
+      "label": "Form 990 Part X — Total assets (EOY)",
       "value": 4028321133,
       "unit": "USD",
       "periodEnd": "2023"
     }
   ],
   "narrativeSnippets": [
-    "P210"
+    "P210",
+    "990 filing rows: 13"
   ],
   "rawFrameworkSignals": [
     "us-gaap"
-  ]
+  ],
+  "form990": {
+    "partI": {
+      "organizationName": "American National Red Cross",
+      "ein": "530196605",
+      "taxPeriod": "2023",
+      "totalRevenue": 3217077611,
+      "totalAssets": 4028321133
+    },
+    "partVIII": {
+      "totalRevenue": 3217077611
+    },
+    "partIX": {
+      "totalFunctionalExpenses": 2971106889
+    },
+    "partX": {
+      "totalAssetsEnd": 4028321133
+    }
+  }
 }

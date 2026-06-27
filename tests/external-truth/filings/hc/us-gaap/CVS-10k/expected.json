@@ -8,17 +8,17 @@
     {
       "topicIdentifier": "healthcare-revenue-cycle",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "healthcare-revenue-cycle disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "healthcare-revenue-cycle router surface for us-gaap | entity=CVS HEALTH Corp | facts=4 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, Assets"
     },
     {
       "topicIdentifier": "charity-care",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "charity-care disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "charity-care router surface for us-gaap | entity=CVS HEALTH Corp | facts=4 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, Assets"
     },
     {
       "topicIdentifier": "phi-segregation",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "phi-segregation disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "phi-segregation router surface for us-gaap | entity=CVS HEALTH Corp | facts=4 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, Assets"
     }
   ],
   "numericFacts": [
@@ -54,5 +54,29 @@
   "frameworkBinding": {
     "primary": "us-gaap",
     "prohibitsLifo": false
+  },
+  "routerRunAt": "2026-06-27T23:24:49.722Z",
+  "routerSurfaces": {
+    "healthcare-revenue-cycle": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "charity-care": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "phi-segregation": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

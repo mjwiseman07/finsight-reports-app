@@ -8,22 +8,46 @@
     {
       "topicIdentifier": "engagement-letter",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "engagement-letter disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "engagement-letter router surface for ifrs | entity=Deloitte LLP (UK public disclosures) | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "revenue-recognition",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "revenue-recognition disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "revenue-recognition router surface for ifrs | entity=Deloitte LLP (UK public disclosures) | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "utilization",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "utilization disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "utilization router surface for ifrs | entity=Deloitte LLP (UK public disclosures) | facts=0 | narratives=1 | tags=none"
     }
   ],
   "numericFacts": [],
   "frameworkBinding": {
     "primary": "ifrs",
     "prohibitsLifo": true
+  },
+  "routerRunAt": "2026-06-27T23:24:49.741Z",
+  "routerSurfaces": {
+    "engagement-letter": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "revenue-recognition": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "utilization": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

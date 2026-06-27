@@ -45,11 +45,11 @@
     }
   ],
   "narrativeSnippets": [
-    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
-    "Carrying value as of the balance sheet date of obligations incurred through that date and payable to insurance entities to mitigate potential loss from various risks or to satisfy a promise to provide certain coverage's to employees.",
-    "Carrying value as of the balance sheet date of obligations incurred and payable, pertaining to costs that are statutory in nature, are incurred on contractual obligations, or accumulate over time and for which invoices have not yet been rec",
-    "Carrying value as of the balance sheet date of the liability for outstanding gift cards. Retail customers purchase gift cards or gift certificates that can be redeemed at a later date for merchandise or services; those unredeemed represent ",
-    "Amount of accumulated depreciation, depletion and amortization for physical assets used in the normal conduct of business to produce goods and services."
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obta",
+    "Total costs related to goods produced and sold during the reporting period.",
+    "Amount of deferred income and obligation to transfer product and service to customer for which consideration has been received or is receivable.",
+    "Present value of lessee's discounted obligation for lease payments from finance lease."
   ],
   "rawFrameworkSignals": [
     "us-gaap"

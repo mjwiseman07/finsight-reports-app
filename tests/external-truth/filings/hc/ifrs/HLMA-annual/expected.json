@@ -8,22 +8,46 @@
     {
       "topicIdentifier": "healthcare-revenue-cycle",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "healthcare-revenue-cycle disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "healthcare-revenue-cycle router surface for ifrs | entity=Halma plc | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "charity-care",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "charity-care disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "charity-care router surface for ifrs | entity=Halma plc | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "phi-segregation",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "phi-segregation disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "phi-segregation router surface for ifrs | entity=Halma plc | facts=0 | narratives=1 | tags=none"
     }
   ],
   "numericFacts": [],
   "frameworkBinding": {
     "primary": "ifrs",
     "prohibitsLifo": true
+  },
+  "routerRunAt": "2026-06-27T23:24:49.721Z",
+  "routerSurfaces": {
+    "healthcare-revenue-cycle": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "charity-care": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "phi-segregation": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

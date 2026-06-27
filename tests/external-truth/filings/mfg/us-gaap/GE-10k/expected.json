@@ -8,17 +8,17 @@
     {
       "topicIdentifier": "inventory-variance",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "inventory-variance disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "inventory-variance router surface for us-gaap | entity=GENERAL ELECTRIC COMPANY | facts=6 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, SalesRevenueNet"
     },
     {
       "topicIdentifier": "manufacturing-cost",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "manufacturing-cost disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "manufacturing-cost router surface for us-gaap | entity=GENERAL ELECTRIC COMPANY | facts=6 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, SalesRevenueNet"
     },
     {
       "topicIdentifier": "lease-pp-e",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "lease-pp-e disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "lease-pp-e router surface for us-gaap | entity=GENERAL ELECTRIC COMPANY | facts=6 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, SalesRevenueNet"
     }
   ],
   "numericFacts": [
@@ -68,5 +68,29 @@
   "frameworkBinding": {
     "primary": "us-gaap",
     "prohibitsLifo": false
+  },
+  "routerRunAt": "2026-06-27T23:24:49.731Z",
+  "routerSurfaces": {
+    "inventory-variance": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "manufacturing-cost": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "lease-pp-e": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

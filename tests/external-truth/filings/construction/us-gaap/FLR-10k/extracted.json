@@ -37,11 +37,11 @@
     }
   ],
   "narrativeSnippets": [
-    "Amount, after allowance for credit loss, of accounts and financing receivables, classified as current. Includes, but is not limited to, notes and loan receivable.",
-    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. For classified balance s",
-    "Carrying value as of the balance sheet date of liabilities incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
-    "Amount of accumulated depreciation, depletion and amortization for physical assets used in the normal conduct of business to produce goods and services.",
-    "Amount, after tax, of accumulated unrealized gain (loss) on investment in debt security measured at fair value with change in fair value recognized in other comprehensive income (available-for-sale)."
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obta",
+    "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable.",
+    "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable, classified as current.",
+    "Present value of lessee's discounted obligation for lease payments from finance lease."
   ],
   "rawFrameworkSignals": [
     "us-gaap"

@@ -8,22 +8,49 @@
     {
       "topicIdentifier": "restricted-net-assets",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "restricted-net-assets disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "restricted-net-assets router surface for us-gaap | entity=The Salvation Army | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "functional-expenses",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "functional-expenses disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "functional-expenses router surface for us-gaap | entity=The Salvation Army | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "form-990-summary",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "form-990-summary disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "form-990-summary router surface for us-gaap | entity=The Salvation Army | facts=0 | narratives=1 | tags=none"
     }
   ],
   "numericFacts": [],
   "frameworkBinding": {
     "primary": "us-gaap",
     "prohibitsLifo": false
+  },
+  "routerRunAt": "2026-06-27T23:24:49.740Z",
+  "routerSurfaces": {
+    "restricted-net-assets": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "functional-expenses": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "form-990-summary": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework",
+        "partVIII",
+        "partIX",
+        "partX"
+      ]
+    }
   }
 }

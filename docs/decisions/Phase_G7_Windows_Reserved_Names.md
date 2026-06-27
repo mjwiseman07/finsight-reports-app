@@ -30,4 +30,4 @@ Same pattern as npm packages renaming `con` folders on Windows CI. Advisacor app
 
 ## SHA placeholder
 
-Parent commit for this decision: see `git log -1` on G7-C5.5e.
+Parent commit for this decision: `4387413` (G7-C5.5e).

@@ -8,22 +8,46 @@
     {
       "topicIdentifier": "inventory-variance",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "inventory-variance disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "inventory-variance router surface for ifrs | entity=Siemens Aktiengesellschaft | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "manufacturing-cost",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "manufacturing-cost disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "manufacturing-cost router surface for ifrs | entity=Siemens Aktiengesellschaft | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "lease-pp-e",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "lease-pp-e disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "lease-pp-e router surface for ifrs | entity=Siemens Aktiengesellschaft | facts=0 | narratives=1 | tags=none"
     }
   ],
   "numericFacts": [],
   "frameworkBinding": {
     "primary": "ifrs",
     "prohibitsLifo": true
+  },
+  "routerRunAt": "2026-06-27T23:24:49.727Z",
+  "routerSurfaces": {
+    "inventory-variance": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "manufacturing-cost": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "lease-pp-e": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

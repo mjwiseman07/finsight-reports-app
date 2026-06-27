@@ -8,22 +8,46 @@
     {
       "topicIdentifier": "inventory-lcnrv",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "inventory-lcnrv disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "inventory-lcnrv router surface for ifrs | entity=Tesco PLC | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "retail-revenue",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "retail-revenue disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "retail-revenue router surface for ifrs | entity=Tesco PLC | facts=0 | narratives=1 | tags=none"
     },
     {
       "topicIdentifier": "lease-disclosures",
       "reportingFramework": "ifrs",
-      "disclosureSummaryAuthored": "lease-disclosures disclosure surface for ifrs (metadata-only router output)"
+      "disclosureSummaryAuthored": "lease-disclosures router surface for ifrs | entity=Tesco PLC | facts=0 | narratives=1 | tags=none"
     }
   ],
   "numericFacts": [],
   "frameworkBinding": {
     "primary": "ifrs",
     "prohibitsLifo": true
+  },
+  "routerRunAt": "2026-06-27T23:24:49.746Z",
+  "routerSurfaces": {
+    "inventory-lcnrv": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "retail-revenue": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "lease-disclosures": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }

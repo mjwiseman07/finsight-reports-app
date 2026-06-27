@@ -38,11 +38,11 @@
     }
   ],
   "narrativeSnippets": [
-    "Amount, after allowance, receivable from customers, clients, or other third-parties, and receivables classified as other due within one year or the normal operating cycle, if longer.",
-    "Sum of the carrying values as of the balance sheet date of obligations incurred through that date and due within one year (or the operating cycle, if longer), including liabilities incurred (and for which invoices have typically been receiv",
-    "Carrying value as of the balance sheet date of obligations incurred (and for which invoices have typically been received) and payable to vendors for goods and services received that are used in an entity's business. Used to reflect the curr",
-    "Carrying amount as of the balance sheet date of the unpaid sum of the known and estimated amounts payable to satisfy all currently due domestic and foreign income tax obligations.",
-    "Amount of expenses incurred but not yet paid nor invoiced, and liabilities classified as other."
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+    "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obta",
+    "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable.",
+    "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable, classified as current.",
+    "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer."
   ],
   "rawFrameworkSignals": [
     "us-gaap"

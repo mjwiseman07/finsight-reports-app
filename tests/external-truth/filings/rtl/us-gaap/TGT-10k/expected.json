@@ -8,17 +8,17 @@
     {
       "topicIdentifier": "inventory-lcnrv",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "inventory-lcnrv disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "inventory-lcnrv router surface for us-gaap | entity=TARGET CORPORATION | facts=5 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, SalesRevenueNet"
     },
     {
       "topicIdentifier": "retail-revenue",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "retail-revenue disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "retail-revenue router surface for us-gaap | entity=TARGET CORPORATION | facts=5 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, SalesRevenueNet"
     },
     {
       "topicIdentifier": "lease-disclosures",
       "reportingFramework": "us-gaap",
-      "disclosureSummaryAuthored": "lease-disclosures disclosure surface for us-gaap (metadata-only router output)"
+      "disclosureSummaryAuthored": "lease-disclosures router surface for us-gaap | entity=TARGET CORPORATION | facts=5 | narratives=5 | tags=Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, SalesRevenueNet"
     }
   ],
   "numericFacts": [
@@ -61,5 +61,29 @@
   "frameworkBinding": {
     "primary": "us-gaap",
     "prohibitsLifo": false
+  },
+  "routerRunAt": "2026-06-27T23:24:49.748Z",
+  "routerSurfaces": {
+    "inventory-lcnrv": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "retail-revenue": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    },
+    "lease-disclosures": {
+      "status": "present",
+      "fields": [
+        "topic",
+        "framework"
+      ]
+    }
   }
 }
