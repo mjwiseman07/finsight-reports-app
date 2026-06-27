@@ -14,6 +14,8 @@
 /coverage
 /scripts/output/
 /reports/cascade-*.json
+/reports/integration-*.json
+/reports/cascade-upstream.json
 
 # next.js
 /.next/

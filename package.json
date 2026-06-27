@@ -118,7 +118,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:resolver": "node scripts/run-resolver-tests.js",
-    "test:cascade": "npx tsx scripts/cascade-runner.ts"
+    "test:cascade": "npx tsx scripts/cascade-runner.ts",
+    "test:integration": "npx tsx scripts/integration-harness.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",

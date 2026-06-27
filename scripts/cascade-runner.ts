@@ -16,7 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const RUNNER = "advisacor-cascade-runner";
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const EXPECTED_BRANCH = "architecture-lane-refactor-baseline";
 const MAX_CAPTURE_BYTES = 1024 * 1024;
 const TAIL_LINE_COUNT = 20;
@@ -54,6 +54,18 @@ interface StageReport {
   stderrTail: string;
 }
 
+interface IntegrationReportBlock {
+  totalScenarios: number;
+  passed: number;
+  failed: number;
+  notRunDependencyFailed: number;
+  skippedIntentional: number;
+  totalDurationMs: number;
+  budgetMs: number;
+  budgetUtilizationPct: number;
+  scenarios: unknown[];
+}
+
 interface CascadeReport {
   runner: string;
   version: string;
@@ -73,6 +85,7 @@ interface CascadeReport {
     skippedMissingPath: number;
   };
   stages: StageReport[];
+  integration?: IntegrationReportBlock;
 }
 
 interface CliOptions {
@@ -174,6 +187,48 @@ const STAGES: StageDefinition[] = [
     requiredPath: null,
     advisory: true,
   },
+  {
+    name: "integration-c1",
+    command: "node",
+    args: ["scripts/run-integration-harness.js", "--category", "consolidation-non-comingled"],
+    requiredPath: "scripts/integration-harness.ts",
+  },
+  {
+    name: "integration-c2",
+    command: "node",
+    args: ["scripts/run-integration-harness.js", "--category", "audit-channel-routing"],
+    requiredPath: "scripts/integration-harness.ts",
+  },
+  {
+    name: "integration-c3",
+    command: "node",
+    args: ["scripts/run-integration-harness.js", "--category", "disclosure-handoff"],
+    requiredPath: "scripts/integration-harness.ts",
+  },
+  {
+    name: "integration-c4",
+    command: "node",
+    args: ["scripts/run-integration-harness.js", "--category", "panel-decision"],
+    requiredPath: "scripts/integration-harness.ts",
+  },
+  {
+    name: "integration-c5",
+    command: "node",
+    args: ["scripts/run-integration-harness.js", "--category", "memory-framework"],
+    requiredPath: "scripts/integration-harness.ts",
+  },
+  {
+    name: "integration-c6",
+    command: "node",
+    args: ["scripts/run-integration-harness.js", "--category", "org-standards"],
+    requiredPath: "scripts/integration-harness.ts",
+  },
+  {
+    name: "integration-c7",
+    command: "node",
+    args: ["scripts/run-integration-harness.js", "--category", "registry-change-mgmt"],
+    requiredPath: "scripts/integration-harness.ts",
+  },
 ];
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -219,6 +274,21 @@ function resolveInvocation(command: string, args: string[]): { command: string; 
     }
   }
 
+  if (command === "tsx") {
+    const candidates = [
+      join(repoRoot, "node_modules/tsx/dist/cli.mjs"),
+      join(repoRoot, "node_modules/tsx/dist/cli.cjs"),
+    ];
+    const cli = candidates.find((path) => existsSync(path));
+    if (cli) {
+      return { command: node, args: [cli, ...args] };
+    }
+    return {
+      command: node,
+      args: ["--import", "tsx", ...args.map((arg) => (arg.startsWith("scripts/") ? join(repoRoot, arg) : arg))],
+    };
+  }
+
   return { command: executableName(command), args };
 }
 
@@ -249,6 +319,71 @@ function expandInvocations(
   }
 
   return [resolveInvocation(command, args)];
+}
+
+function writeUpstreamState(failedStages: readonly string[]): void {
+  const reportsDir = join(repoRoot, "reports");
+  mkdirSync(reportsDir, { recursive: true });
+  writeFileSync(
+    join(reportsDir, "cascade-upstream.json"),
+    `${JSON.stringify({ failedStages, writtenAt: new Date().toISOString() }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+function aggregateIntegrationReports(): IntegrationReportBlock | undefined {
+  const reportsDir = join(repoRoot, "reports");
+  if (!existsSync(reportsDir)) {
+    return undefined;
+  }
+  const files = readdirSync(reportsDir)
+    .filter((name) => name.startsWith("integration-") && name.endsWith(".json"))
+    .map((name) => join(reportsDir, name));
+  if (files.length === 0) {
+    return undefined;
+  }
+  let totalScenarios = 0;
+  let passed = 0;
+  let failed = 0;
+  let notRunDependencyFailed = 0;
+  let skippedIntentional = 0;
+  let totalDurationMs = 0;
+  const scenarios: unknown[] = [];
+  for (const file of files) {
+    try {
+      const report = JSON.parse(readFileSync(file, "utf8")) as {
+        totalScenarios?: number;
+        passed?: number;
+        failed?: number;
+        notRunDependencyFailed?: number;
+        skippedIntentional?: number;
+        totalDurationMs?: number;
+        scenarios?: unknown[];
+      };
+      totalScenarios += report.totalScenarios ?? 0;
+      passed += report.passed ?? 0;
+      failed += report.failed ?? 0;
+      notRunDependencyFailed += report.notRunDependencyFailed ?? 0;
+      skippedIntentional += report.skippedIntentional ?? 0;
+      totalDurationMs += report.totalDurationMs ?? 0;
+      if (report.scenarios) {
+        scenarios.push(...report.scenarios);
+      }
+    } catch {
+      // ignore malformed integration report
+    }
+  }
+  return {
+    totalScenarios,
+    passed,
+    failed,
+    notRunDependencyFailed,
+    skippedIntentional,
+    totalDurationMs,
+    budgetMs: 300_000,
+    budgetUtilizationPct: Math.round((totalDurationMs / 300_000) * 1000) / 10,
+    scenarios,
+  };
 }
 
 function readAtlasVersion(): string {
@@ -339,7 +474,7 @@ Options:
   --skip <stage>                repeatable
   --strict-lint                 default: lint advisory
   --json <path> | --no-json     default: ./reports/cascade-<ISO8601>.json
-  --quiet | --verbose           default: captured + summarized
+  --quiet | --verbose             default: captured + summarized
   --help
 
 Stages: ${STAGES.map((s) => s.name).join(", ")}`);
@@ -697,6 +832,7 @@ async function main(): Promise<void> {
 
   const stageReports: StageReport[] = [];
   let interrupted = false;
+  const failedUpstreamStages: string[] = [];
   const plannedStages = STAGES.filter((stage) => {
     const decision = shouldRunStage(stage, options);
     return decision !== "skip-filter";
@@ -741,6 +877,15 @@ async function main(): Promise<void> {
     }
 
     stageReports.push(report);
+
+    if (report.result === "FAIL" && stage.name.startsWith("kv-")) {
+      failedUpstreamStages.push(stage.name);
+      writeUpstreamState(failedUpstreamStages);
+    }
+
+    if (stage.name === "audit" && report.result === "PASS") {
+      writeUpstreamState(failedUpstreamStages);
+    }
 
     if (!options.quiet) {
       printStageLine(
@@ -811,6 +956,7 @@ async function main(): Promise<void> {
     result: overall,
     summary,
     stages: stageReports,
+    integration: aggregateIntegrationReports(),
   };
 
   if (options.writeJson) {
