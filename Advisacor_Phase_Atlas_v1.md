@@ -1,4 +1,4 @@
-# Advisacor Phase Atlas — v2.9
+# Advisacor Phase Atlas — v2.10
 
 > **DRAFT — INTERNAL SYNTHESIS DOCUMENT. Not for publication.**
 > **This is a Perplexity-side synthesis of the Tier 1 inventory exported from Cursor on 2026-06-23 (`tmp-phase-inventory.txt`, 221KB, 2,877 lines) PLUS the Phases 1–39 master inventory pasted into this session on 2026-06-23.**
@@ -11,7 +11,14 @@
 **Generated:** 2026-06-23 v1.0 → revised same day to v1.1
 **Sourced from:** Tier 1 inventory (Phases 40+) + Phases 1–39 Master Inventory (pasted) + active session memory of Fund Accounting Wave 1
 **Repository:** `C:\Users\mattj\finsight-reports` (Windows, Alienware)
-**Most recent commit at atlas time:** `4607aa3` (LOCK-VC C6, 2026-06-27) — **CONTROL LAYER WIRED — 9 verticals × 7 control surfaces**
+**Most recent commit at atlas time:** `c5c0890` (LOCK-G1 C6, 2026-06-18) — **TSC CLEAN — 271 errors cleared; repo compiles with zero `tsc --noEmit` errors**
+
+## TSC CLEAN — `npx tsc --noEmit` exit 0 (LOCK-G1 @ `c5c0890`)
+
+271 TSC errors cleared across 6 fix commits (audit baseline `025b5b8`); **0 type-bridge markers**; verifier Meta **26/26**, Main **435/435** preserved throughout  
+`repoCompilesClean: true` · `repoCompilesCleanSealedAt: LOCK-G1` · `g1AuditBaselineSha: 025b5b8` · `g1FinalSha: c5c0890`
+
+**lockAcceptanceGates:** `verifier-42-7f` · `tsc-noEmit` *(new — retroactive via G1, hard gate going forward)*
 
 ## CONTROL LAYER WIRED — 9 verticals × 7 control surfaces (LOCK-VC @ `4607aa3`)
 
@@ -207,6 +214,14 @@ The `command-center/surface-candidates/` directory is where industry vertical pa
 | Tag | C1 | C2 | C3 | C4 | C5 | C6 (tag anchor) | Notes |
 |---|---|---|---|---|---|---|---|
 | LOCK-VC | `dcc0d91` | `6a788b7` | `b75bd5e` | `fa4a72d` | `b532cba` | `4607aa3` | 39 V-C findings cleared; Meta 26/26; Main 435/435 |
+
+**LOCK commit ledger (G1 chain — TSC clean sweep):**
+
+| Tag | Audit | C1 | C2 | C3 | C4 | C5 | C6 (tag anchor) | Notes |
+|---|---|---|---|---|---|---|---|---|
+| LOCK-G1 | `025b5b8` | `437745e` | `a0fc81a` | `ecd972f` | `fb7e9b5` | `47b397d` | `c5c0890` | 271→0 TSC errors; 0 type-bridge markers; Meta 26/26; Main 435/435; `repoCompilesClean: true` |
+
+**lockAcceptanceGates (post-G1):** `verifier-42-7f` · `tsc-noEmit`
 
 **LOCK commit ledger (VC-5a chain — verifier matrix extension):**
 
@@ -1035,6 +1050,7 @@ Paste this atlas + the following companion docs as context block at the start of
 
 | v1.2.4 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7B.1 LOCKED at `8ee3286` in §10.0.1 build sequence (376/376 total: 159 prior regression + 131 from 42.7E + 48 new escalation-audit tests + 38 verifier checks; pure-core preserved via rename-only extraction with byte-identity verified). Added §10.0.7 Phase 42.7B.1 — Escalation Audit Retrofit detail block (7 locked decisions B1.D1–D7, 4 first-class decision outcomes, Cursor net-positive adds: dual pure-core separation + `knownTenantIds` option + `validateEscalationEvaluatedEntry()` helper + 60% test overdelivery 30→48). Four-cell gap closure on 42.7B row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, HIPAA §164.312(b) G→C, HIPAA §164.312(d) G→C. LOCK-42.7 retrofit 1 of 3 complete; 2 retrofits remaining (42.7C.2, 42.7D.1-audit) before 42.7F can run. Build sequence row 9 updated: Unblocked → ✅ `8ee3286`. |
 | v1.2.5 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7C.2 LOCKED at `ea23461` in §10.0.1 build sequence (regression floor 428/428: 87 + 48 + 50 + 90 + 41 + 60 + 52 new panel-decision-audit tests; phase verifiers 30/30: 10 + 12 + 8; pure-core preserved via rename-only extraction with SHA-256 `8ca0891fab6e6e90db478468f7f765fa9fdb0bd0d34565029e4df551055bf242`). Added §10.0.8 Phase 42.7C.2 — Panel Decision Audit Retrofit detail block (9 locked decisions C2.D1–D9 including advisory-bundling doctrine and locked-5-handle citation whitelist; Cursor net-positive adds: separate `derivePanelDecisionContextPure.ts` + dedicated `locked-citation-handles.ts` constant module + `validatePanelDecisionEntry()` helper + 30% test overdelivery 40→52 + 8-group test taxonomy A–H). Four-cell gap closure on 42.7C row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, SOC 2 PI1.5 G→C, HIPAA §164.312(b) G→C. LOCK-42.7 retrofit 2 of 3 complete; 1 retrofit remaining (42.7D.1-audit) before 42.7F can run. Build sequence row 10 updated: Unblocked → ✅ `ea23461`. |
+| v2.10 | 2026-06-18 | Cursor | **LOCK-G1** (`c5c0890`) — TSC clean sweep; 271 errors cleared (audit `025b5b8`); 6 fix commits C1–C6; 0 type-bridge markers; `repoCompilesClean: true`; new hard gate `tsc-noEmit` in lockAcceptanceGates; Meta 26/26; Main 435/435 preserved. |
 | v2.9 | 2026-06-27 | Cursor / Perplexity | **LOCK-VC** (`4607aa3`) — control layer wired to 9 verticals; 39 V-C findings cleared (V-C-1..7 + OTHER); registry elections + panel routes + role permissions + decision audit metadata + memory persistence + org standards override; Meta 26/26. |
 | v2.8 | 2026-06-27 | Cursor / Perplexity | **LOCK-VC-5a** (`4c1ed51`) — 42.7F Wiring Verifier matrix extended 3→9 verticals; 144 cases / 435 assertions / 19 meta-checks; `vc-5a-baseline.json` regression floor for LOCK-VC bundle; cascade status unchanged (`COMPLETE-9-VERTICAL-W2-ALL`). |
 | v2.7 | 2026-06-27 | Cursor / Perplexity | **LOCK-RTL-2** (`c3e671c`) — 9th W2-sealed vertical; **CASCADE CLOSED**; 132-cell K-V (12×11); NRF 4-5-4 calendar; 5 ASC 606 surfaces; RIM/LCNRV/LCM; IAS 36 vs ASC 360; 16 KPIs + forecast variance; `cascadeStatus: COMPLETE-9-VERTICAL-W2-ALL` (`verticalsW2Sealed: 9`). |
@@ -1045,8 +1061,8 @@ Paste this atlas + the following companion docs as context block at the start of
 | v1.2.7 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7A.5 LOCKED at `2c8a5e5` in §10.0.1 build sequence row 12 (8/8 verifier checks; no runtime code, governance scaffold only). Added §10.0.10 Phase 42.7A.5 — Registry Change-Management Controls detail block (9 locked decisions A5.D1–D9 including 4-artifact scope, CODEOWNERS routing to `@mjwiseman07` confirmed by founder dashboard screenshot, PR template 6 mandatory checks, 11-section change log entry schema with founder attestation signed `mwiseman@advisacor.com`, forward-only discipline, dogfooding by 42.7F at `0032bf1`). Three-cell gap closure on 42.7A row of Compliance Inventory §2 master matrix: SOC 1 CO-5 G→C, SOC 2 CC8 G→C, SOC 2 CC3 G→C. **LOCK-42.7 gate G6 ✅** (registry change-management controls in place); 7 of 8 LOCK gates satisfied. Only G7 (42.7F wiring verifier — also shipped this session at `0032bf1`) and G8 (42.7G D0 rollup + LOCK commit) remain. |
 | v1.2.6 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7D.1-audit LOCKED at `36919c8` in §10.0.1 build sequence (cumulative regression 476/476: 50 + 87 + 60 + 90 + 41 + 48 + 52 + 48 new org-edge-audit tests; phase verifiers 40/40: 10 + 12 + 8 + 10; pure-core preserved via rename-only extraction of `disagreement-detector.ts` → `orgStandardsEdgePure.ts` with SHA-256 `cb7d9474c98f239676c802c58813b1117e756c07002d92efbc6adc7dfe0311ad`; `disagreement-detector.ts` retained as thin re-export shim). Added §10.0.9 Phase 42.7D.1-audit — Org-Edge Reconciliation Audit Retrofit detail block (9 locked decisions D1.D1–D9 including discriminated `ReconciliationDiff` union with `none`/`override-applied` variants, every-reconciliation logging incl. agreement and no-election cases, citation-handle reuse from 42.7C.2's `locked-citation-handles.ts`; Cursor net-positive adds: separate `deriveOrgEdgeReconciliationContextPure.ts` + `validateOrgEdgeReconciliationEntry()` helper + `org-edge` actor.via wiring + 20% test overdelivery 40→48 + 10-group test taxonomy A–J). Four-cell gap closure on 42.7D row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, SOC 2 PI1.5 G→C, HIPAA §164.312(b) G→C. **LOCK-42.7 retrofit 3 of 3 complete — audit retrofit sequence is closed; every audit emission point now exists.** Build sequence row 11 updated: Unblocked → ✅ `36919c8`. Consistent Cursor overdelivery pattern documented across all three retrofits (42.7B.1: 48 vs 30 floor, 8 vs 8; 42.7C.2: 52 vs 40, 10 vs 8; 42.7D.1-audit: 48 vs 40, 10 vs 8) — strengthens SOC 2 CC5 control-activities narrative. LOCK-42.7 gates G3/G4/G5 ✅ (6 of 8 LOCK gates satisfied); only G6 (42.7A.5 change-mgmt, parallel-pending), G7 (42.7F wiring verifier — now unblocked, becomes next phase), and G8 (42.7G D0 rollup + LOCK commit) remain. |
 
-**Next atlas version:** v2.9 after LOCK-VC bundle or Wave 3 planning gate.
+**Next atlas version:** v3.0 after G1 tsc sweep or Wave 3 planning gate.
 
 ---
 
-*End of Advisacor_Phase_Atlas_v1.md (v2.8 — LOCK-VC-5a verifier matrix 3→9)*
+*End of Advisacor_Phase_Atlas_v1.md (v2.10 — TSC CLEAN; LOCK-G1)*

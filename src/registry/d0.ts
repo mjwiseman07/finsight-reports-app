@@ -20,4 +20,6 @@ export const D0 = {
     rtlOnly: [] as const,
   },
   cascadeClosureSealedAt: "LOCK-RTL-2" as const,
+  repoCompilesClean: true as const,
+  repoCompilesCleanSealedAt: "LOCK-G1" as const,
 };
