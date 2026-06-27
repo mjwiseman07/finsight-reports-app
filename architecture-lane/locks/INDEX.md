@@ -97,7 +97,7 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Wave | 1 (Reconnaissance) |
 | Date | 2026-06-27 |
 | Baseline SHA | c32fe91 (LOCK-PS-2 SHA-fill) |
-| Lock SHA | PENDING_SHA_FILL |
+| Lock SHA | f9ad1b48d99045fb60e47f1b92cd7623db3497d6 |
 | Attestation | [LOCK-SAAS-1-Attestation.md](./LOCK-SAAS-1-Attestation.md) |
 | Founder approval | "approved" (2026-06-27 00:00 EDT — all 15 §15 defaults at recommended answer; Q10 at B, all other 14 at A) |
 | Verifier | verify-saas-1.js 15/15 |

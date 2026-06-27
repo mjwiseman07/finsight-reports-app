@@ -533,7 +533,7 @@ CC1.1-CC9.2 always-on; A1/C1 default-ON; PI1/P conditional-ON (Q5=A — AICPA TS
 `verify-saas-1.js` (5 gates A–E, 15 cases — `npm run verify:saas-1` per Q13=A); recon-level — Wave 2 target 121/121
 
 ### §11 Lock Bookkeeping
-- **LOCK commit:** PENDING_SHA_FILL → filled by follow-up commit
+- **LOCK commit:** f9ad1b48d99045fb60e47f1b92cd7623db3497d6 → filled by follow-up commit
 - **Annotated tag:** `LOCK-SAAS-1` on Commit 3
 - **Predecessor:** LOCK-PS-2 (c2b685e / SHA-fill `c32fe91`)
 - **Founder approval:** "approved" (2026-06-27 00:00 EDT) — all 15 §15 defaults at recommended answer (Q10 at B, all other 14 at A)
