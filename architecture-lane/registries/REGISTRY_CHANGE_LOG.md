@@ -477,7 +477,7 @@ LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kerne
 - **Citation handles:** 142 across 6 domain libraries (ASC 606+340-40 / Specialized / IFRS / Benchmarks / FederalRegulatory / Index)
 - **Verifier:** `verify-ps-1.js` (5 gates A–E, 15 cases — `npm run verify:ps-1`)
 - **9th audit channel surface reserved:** `engagement-letter-audit` (structural channel created in PS-2)
-- **LOCK commit:** PENDING_SHA_FILL → filled by follow-up commit
+- **LOCK commit:** 15666ab3251b62665fe765034b8cd2b80e132462
 - **Annotated tag:** `LOCK-PS-1` on Commit 3
 - **Predecessor:** LOCK-CON-2 (`928a377` / SHA-fill `66960c9`)
 - **Founder approval:** "approved" (2026-06-26 23:03 EDT) — all 20 §15 defaults at A

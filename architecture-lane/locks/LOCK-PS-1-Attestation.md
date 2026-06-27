@@ -5,7 +5,7 @@
 **Wave:** 1 (Reconnaissance)
 **Branch:** architecture-lane-refactor-baseline
 **Baseline SHA (pre-Commit 1):** 66960c9 (LOCK-CON-2 SHA-fill)
-**Commit 3 SHA:** PENDING_SHA_FILL (populated by SHA-fill follow-up commit)
+**Commit 3 SHA:** 15666ab3251b62665fe765034b8cd2b80e132462 (populated by SHA-fill follow-up commit)
 **Annotated tag:** LOCK-PS-1 (on Commit 3, NOT on SHA-fill)
 **Authored:** 2026-06-26
 **Lock owner:** Matthew Wiseman / Wiseman Financial Technologies LLC

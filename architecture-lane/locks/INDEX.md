@@ -69,7 +69,7 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Wave | 1 (Reconnaissance) |
 | Date | 2026-06-26 |
 | Baseline SHA | 66960c9 (LOCK-CON-2 SHA-fill) |
-| Lock SHA | PENDING_SHA_FILL |
+| Lock SHA | 15666ab3251b62665fe765034b8cd2b80e132462 |
 | Attestation | [LOCK-PS-1-Attestation.md](./LOCK-PS-1-Attestation.md) |
 | Founder approval | "approved" (2026-06-26 23:03 EDT — all 20 §15 defaults at A) |
 | Verifier | verify-ps-1.js 15/15 |
