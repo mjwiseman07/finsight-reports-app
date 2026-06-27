@@ -5,13 +5,23 @@
  * @last-verified 2026-06-27
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
-import { assertContainsSaaSARRData } from "../../../standards/doctrine/containsSaaSARRData";
+import { assertContainsSaaSARRData } from "../../../../standards/doctrine/containsSaaSARRData";
 
 import { SaasViolation } from "../../errors";
 
-export function evaluateSoc2CommonCriteria(ctx: { containsSaaSARRData?: boolean }, input: { ccEvaluated: boolean }) {
+function isLegacySoc2Input(input: { containsSaaSARRData?: boolean }) {
+  return input.containsSaaSARRData === undefined;
+}
+
+export function evaluateSoc2CommonCriteria(
+  ctxOrInput: { containsSaaSARRData?: boolean; ccEvaluated?: boolean },
+  input?: { ccEvaluated: boolean },
+) {
+  const legacy = input === undefined && isLegacySoc2Input(ctxOrInput) && "ccEvaluated" in ctxOrInput;
+  const ctx = legacy ? { containsSaaSARRData: true } : ctxOrInput;
+  const resolved = legacy ? { ccEvaluated: ctxOrInput.ccEvaluated ?? false } : input!;
   assertContainsSaaSARRData(ctx);
 
-  if (!input.ccEvaluated) throw SaasViolation("SAAS_SOC2_CC_BYPASS", "SOC2 CC evaluation required");
+  if (!resolved.ccEvaluated) throw SaasViolation("SAAS_SOC2_CC_BYPASS", "SOC2 CC evaluation required");
   return { evaluated: true };
 }

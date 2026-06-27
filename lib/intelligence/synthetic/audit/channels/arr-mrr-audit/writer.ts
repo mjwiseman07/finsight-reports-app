@@ -18,12 +18,25 @@ export interface FileArrMrrAuditWriterDeps {
 export class FileArrMrrAuditWriter {
   private headHash = "GENESIS";
   private sequence = 0;
+  private initialized = false;
 
   constructor(private readonly deps: FileArrMrrAuditWriterDeps) {
     fs.mkdirSync(deps.baseDir, { recursive: true });
+    this.initialized = true;
   }
 
   append(outcome: ArrMrrAuditOutcome, evidence: Record<string, unknown>): ArrMrrAuditEntry {
+    if (!this.initialized) {
+      throw Object.assign(new Error("ARR_MRR_AUDIT_UNINITIALIZED"), {
+        escalationAudits: [
+          {
+            channel: "escalation-audit",
+            code: "SAAS_ARR_MRR_AUDIT_UNINITIALIZED",
+            message: "writer not initialized",
+          },
+        ],
+      });
+    }
     const ctx = deriveArrMrrAuditContextPure({ outcome, evidence });
     const entry: ArrMrrAuditEntry = {
       channelId: ARR_MRR_AUDIT_CHANNEL_ID,

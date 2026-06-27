@@ -154,7 +154,7 @@ function runGateE() {
   const profile = read(PROFILE_PATH);
   const wireFile = read(`${SAAS_ROOT}/audit/channels/arr-mrr-audit.ts`);
   return [
-    makeCase("E-1", "E", channelCount === 10, `audit channel registry count ${channelCount} (expect 10)`),
+    makeCase("E-1", "E", channelCount === 11, `audit channel registry count ${channelCount} (expect 11)`),
     makeCase(
       "E-2",
       "E",

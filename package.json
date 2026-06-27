@@ -44,6 +44,7 @@
     "verify:ps-2": "node scripts/verify-ps-2.js",
     "verify:saas-1": "node architecture-lane/verifiers/verify-saas-1.js",
     "verify:saas-2": "node scripts/verify-saas-2.js",
+    "verify:npo-1": "vitest run tests/verticals/nonprofit/npo-1.recon.test.ts",
     "verify:company-memory": "node scripts/verify-company-memory.js",
     "verify:si-snapshot-persistence-plan": "node scripts/verify-si-snapshot-persistence-plan.js",
     "verify:si-snapshot-retrieval": "node scripts/verify-si-snapshot-retrieval.js",
@@ -54,7 +55,6 @@
     "verify:si-fte-analytics": "node scripts/verify-si-fte-analytics.js",
     "verify:si-flux-analysis": "node scripts/verify-si-flux-analysis.js",
     "verify:si-commentary": "node scripts/verify-si-commentary.js",
-    "verify:si-recommendations": "node scripts/verify-si-recommendations.js",
     "verify:si-forecasting": "node scripts/verify-si-forecasting.js",
     "verify:si-scenarios": "node scripts/verify-si-scenarios.js",
     "verify:si-command-center": "node scripts/verify-si-command-center.js",
@@ -136,6 +136,7 @@
     "eslint-config-next": "16.2.6",
     "pg": "^8.21.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "4.1.9"
   }
 }

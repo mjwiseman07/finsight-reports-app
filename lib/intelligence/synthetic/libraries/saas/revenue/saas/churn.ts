@@ -1,4 +1,5 @@
 /**
+ * @doctrine containsSaaSARRData: true
  * @audit-channel arr-mrr-audit
  * @framework us-gaap | ifrs
  * @sub-segments P | H | U | F | V
@@ -6,7 +7,7 @@
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
 
-import { assertContainsSaaSARRData } from "../../../standards/doctrine/containsSaaSARRData";
+import { assertContainsSaaSARRData } from "../../../../standards/doctrine/containsSaaSARRData";
 
 export const REVENUE_METRIC_KEY = "churn";
 

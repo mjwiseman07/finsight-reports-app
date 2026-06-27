@@ -124,7 +124,7 @@ function runGateA() {
     cases.push(makeCase("A-10", "A", true, "validator rejects"));
   }
   const idx = loadTs("lib/intelligence/synthetic/audit/channels/index.ts");
-  cases.push(makeCase("A-11", "A", idx.AUDIT_CHANNEL_COUNT === 10, "10 channels"));
+  cases.push(makeCase("A-11", "A", idx.AUDIT_CHANNEL_COUNT === 11, "11 channels"));
   cases.push(makeCase("A-12", "A", idx.AUDIT_CHANNEL_REGISTRY.includes("arr-mrr-audit"), "channel registered"));
   cases.push(makeCase("A-13", "A", ch.arrMrrAuditChannel.id === "arr-mrr-audit", "10th channel id"));
   cases.push(makeCase("A-14", "A", read("lib/intelligence/synthetic/audit/channels/arr-mrr-audit/locked-citation-handles.ts").includes("SAAS2_LOCKED"), "SAAS2 handle lock"));

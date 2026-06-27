@@ -124,7 +124,7 @@ function runGateA() {
     cases.push(makeCase("A-10", "A", true, "validator rejects"));
   }
   const idx = loadTs("lib/intelligence/synthetic/audit/channels/index.ts");
-  cases.push(makeCase("A-11", "A", idx.AUDIT_CHANNEL_COUNT === 10, "10 channels"));
+  cases.push(makeCase("A-11", "A", idx.AUDIT_CHANNEL_COUNT === 11, "11 channels"));
   cases.push(makeCase("A-12", "A", idx.AUDIT_CHANNEL_REGISTRY.includes("engagement-letter-audit"), "channel registered"));
   cases.push(makeCase("A-13", "A", ch.engagementLetterAuditChannel.id === "engagement-letter-audit", "9th channel id"));
   return cases.slice(0, 13);
