@@ -74,6 +74,20 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Founder approval | "approved" (2026-06-26 23:03 EDT — all 20 §15 defaults at A) |
 | Verifier | verify-ps-1.js 15/15 |
 
+### LOCK-PS-2 — Professional Services Wave 2 Strong-Build Lock
+
+| Field | Value |
+|---|---|
+| Lock ID | LOCK-PS-2 |
+| Vertical | Professional Services |
+| Wave | 2 (Strong Build) |
+| Date | 2026-06-26 |
+| Baseline SHA | 01b3fe5 (LOCK-PS-1 SHA-fill) |
+| Lock SHA | PENDING_SHA_FILL |
+| Attestation | [LOCK-PS-2-Attestation.md](./LOCK-PS-2-Attestation.md) |
+| Founder approval | "approved" (2026-06-26 23:24 EDT — all 20 §15 defaults at A) |
+| Verifier | verify-ps-2.js 121/121 |
+
 ## Retrofit backlog (housekeeping — out of GC-1 scope)
 
 These prior locks pre-date this `locks/` registry pattern. They will be back-filled into INDEX.md in a future Phase 42.7H housekeeping commit:

@@ -1,0 +1,35 @@
+{
+  "evidenceVersion": "PS.2.K-LOCK.0",
+  "phaseHandle": "PS.2.K-LOCK",
+  "totalCases": 121,
+  "passCount": 121,
+  "failCount": 0,
+  "lockSHA": "PENDING_SHA_FILL",
+  "perCategory": {
+    "structuralGates": { "floor": 40, "actual": 79, "overdelivery": "+98%" },
+    "kvPoison": { "floor": 25, "actual": 30, "overdelivery": "+20%" },
+    "antiPattern": { "floor": 8, "actual": 12, "overdelivery": "+50%" }
+  },
+  "channels": {
+    "newChannel": "engagement-letter-audit",
+    "totalChannels": 9,
+    "retentionYears": 7
+  },
+  "framework": {
+    "dualFrameworkSwitch": true,
+    "switchPoints": 5,
+    "div2RuntimeRouted": true,
+    "switchAuditOutcome": "framework-switched"
+  },
+  "subSegments": {
+    "runtimeClassifier": true,
+    "subSegments": ["L", "A", "M", "I", "E", "K"],
+    "ambiguityThrows": true
+  },
+  "regulatoryStack": {
+    "soc1": true,
+    "soc2Type2": true,
+    "hipaaBAA": true,
+    "gdprArt28": true
+  }
+}

@@ -481,3 +481,19 @@ LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kerne
 - **Annotated tag:** `LOCK-PS-1` on Commit 3
 - **Predecessor:** LOCK-CON-2 (`928a377` / SHA-fill `66960c9`)
 - **Founder approval:** "approved" (2026-06-26 23:03 EDT) — all 20 §15 defaults at A
+
+---
+
+## PS-2 / LOCK-PS-2
+
+1. Phase: PS-2 (Professional Services Wave 2 Strong Build)
+2. Lock SHA: PENDING_SHA_FILL
+3. Tag: LOCK-PS-2
+4. Date: 2026-06-26
+5. Founder: mattjanice07@yahoo.com
+6. Atlas version: v2.0 → v2.1
+7. Predecessor: LOCK-PS-1 (`15666ab` / SHA-fill `01b3fe5`)
+8. Verifier: `npm run verify:ps-2` exits 0 (121/121 PASS)
+9. D0 evidence: `evidence/ps-wave-2-d0.json` (`PS.2.K-LOCK.0`)
+10. Compliance impact: SOC 2 CC4/CC5/CC7/PI1.1–PI1.5 + SOC 1 CO-2 + HIPAA §164.312(b)/(c)(1)/(d) BAA runtime-active on I + PHI + GDPR Art 28 processor-controller binding runtime-active on I + EU subject
+11. Strategic significance: 6-flag doctrine matrix structurally complete (PS structurally added); 9th audit channel default-ON; K-F dual-framework runtime switch with 5 discriminated switch points (DIV-2 runtime-routed); K-G L/A/M/I/E/K runtime classifier; 6 new structural runtime guards (principal-vs-agent / retainer / SSP / variable-consideration / PE-seal / COI registry); IT-Services regulatory stack runtime-enforced; IAS 38 full 6-criterion gate replaces PS-1 stub
