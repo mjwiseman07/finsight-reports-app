@@ -497,3 +497,44 @@ LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kerne
 9. D0 evidence: `evidence/ps-wave-2-d0.json` (`PS.2.K-LOCK.0`)
 10. Compliance impact: SOC 2 CC4/CC5/CC7/PI1.1–PI1.5 + SOC 1 CO-2 + HIPAA §164.312(b)/(c)(1)/(d) BAA runtime-active on I + PHI + GDPR Art 28 processor-controller binding runtime-active on I + EU subject
 11. Strategic significance: 6-flag doctrine matrix structurally complete (PS structurally added); 9th audit channel default-ON; K-F dual-framework runtime switch with 5 discriminated switch points (DIV-2 runtime-routed); K-G L/A/M/I/E/K runtime classifier; 6 new structural runtime guards (principal-vs-agent / retainer / SSP / variable-consideration / PE-seal / COI registry); IT-Services regulatory stack runtime-enforced; IAS 38 full 6-criterion gate replaces PS-1 stub
+
+---
+
+## 2026-06-27 — LOCK-SAAS-1
+
+### §1 Vertical
+SaaS (Software as a Service) Wave 1 reconnaissance — vertical 8 of 8 (terminal vertical of 8-vertical cascade)
+
+### §2 Modules Added
+~50 under `lib/intelligence/synthetic/libraries/saas/`, `kpi/saas-*/`, `disclosure-variants/saas/`, `reasonableness/saas/`, `industry-profiles/saas/`, `classifiers/`, `frameworks/`, `guards/`, `audit/channels/arr-mrr-audit.ts`, `doctrine/flags/contains-saas-arr-data.ts`
+
+### §3 Surface Category Added
+`saas_item` (mirrors construction_item / prof_services_item precedent)
+
+### §4 Doctrine Flag Introduced (Scattered — 7th and Final Flag)
+`containsSaaSARRData` — completes 7-flag doctrine matrix (PHI / GovCon / Construction / FundAccounting / HealthcareOther / ProfessionalEngagement / SaaSARR)
+
+### §5 Audit Channel Introduced (10th Channel)
+`arr-mrr-audit` — default-ON (Q1=A), 7-yr retention (Q2=A), Merkle hash-chained append-only, fail-closed on uninitialization, 26 discriminated outcomes enumerated (Wave 1 fires outcomes 1-5)
+
+### §6 Frameworks
+US GAAP + IFRS (3rd K-F live vertical — CON, PS, SAAS); K-F switch wired at 5 discriminated points; US-GAAP default per Q6=A
+
+### §7 Sub-Segments
+P / H / U / F / V (Pure-SaaS / Hybrid / Usage-Based / Freemium-PLG / Vertical-SaaS)
+
+### §8 SOC 2 TSC Runtime Stack (First-Ever)
+CC1.1-CC9.2 always-on; A1/C1 default-ON; PI1/P conditional-ON (Q5=A — AICPA TSP Section 100, 2017 TSC revised 2022); `SOC2TSCViolation` exception throws with criterion code
+
+### §9 Runtime Guards Added (5)
+`commission-amortization-period-guard` (Q7=A), `material-right-detector` (Q8=A 10% threshold), `ssp-multi-element-saas-guard`, `usage-based-stand-ready-classifier` (Q9=A all-3-strict), `ias-38-cloud-customer-cost-gate` (Q10=B 6-criterion attempt)
+
+### §10 Verifier + Cases
+`verify-saas-1.js` (5 gates A–E, 15 cases — `npm run verify:saas-1` per Q13=A); recon-level — Wave 2 target 121/121
+
+### §11 Lock Bookkeeping
+- **LOCK commit:** PENDING_SHA_FILL → filled by follow-up commit
+- **Annotated tag:** `LOCK-SAAS-1` on Commit 3
+- **Predecessor:** LOCK-PS-2 (c2b685e / SHA-fill `c32fe91`)
+- **Founder approval:** "approved" (2026-06-27 00:00 EDT) — all 15 §15 defaults at recommended answer (Q10 at B, all other 14 at A)
+- **Cascade status:** Vertical 8 of 8 — terminal vertical recon complete; SAAS-2 strong-build wrapper closes the 8-vertical cascade

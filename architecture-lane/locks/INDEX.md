@@ -88,6 +88,20 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Founder approval | "approved" (2026-06-26 23:24 EDT — all 20 §15 defaults at A) |
 | Verifier | verify-ps-2.js 121/121 |
 
+### LOCK-SAAS-1 — SaaS Wave 1 Reconnaissance Lock
+
+| Field | Value |
+|---|---|
+| Lock ID | LOCK-SAAS-1 |
+| Vertical | SaaS (Software as a Service) — vertical 8 of 8 |
+| Wave | 1 (Reconnaissance) |
+| Date | 2026-06-27 |
+| Baseline SHA | c32fe91 (LOCK-PS-2 SHA-fill) |
+| Lock SHA | PENDING_SHA_FILL |
+| Attestation | [LOCK-SAAS-1-Attestation.md](./LOCK-SAAS-1-Attestation.md) |
+| Founder approval | "approved" (2026-06-27 00:00 EDT — all 15 §15 defaults at recommended answer; Q10 at B, all other 14 at A) |
+| Verifier | verify-saas-1.js 15/15 |
+
 ## Retrofit backlog (housekeeping — out of GC-1 scope)
 
 These prior locks pre-date this `locks/` registry pattern. They will be back-filled into INDEX.md in a future Phase 42.7H housekeeping commit:
