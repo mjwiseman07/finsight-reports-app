@@ -1,34 +1,30 @@
 /**
- * Phase 42.7F — Cross-Phase Wiring Verifier case matrix (stable IDs WV-001..).
+ * VC-5a — matrix cases for 6 verticals not in the original 42.7F scope.
+ * Original 48 cases (WV-001..WV-045 + WV-FC1..3) are unchanged in caseMatrix.ts.
  */
-import { evaluateEscalationPure } from "../../lib/intelligence/synthetic/role-adapter/evaluateEscalationPure";
-import type { EscalationEvaluationInput } from "../../lib/intelligence/synthetic/role-adapter/evaluateEscalationPure";
-import type { RoleEnvelope } from "../../lib/intelligence/synthetic/role-adapter/types";
+import { evaluateEscalationPure } from "../../../lib/intelligence/synthetic/role-adapter/evaluateEscalationPure";
+import type { EscalationEvaluationInput } from "../../../lib/intelligence/synthetic/role-adapter/evaluateEscalationPure";
+import type { RoleEnvelope } from "../../../lib/intelligence/synthetic/role-adapter/types";
 import {
   expectedCacheAccessHop,
   expectedEscalationHop,
   expectedOrgEdgeHop,
   expectedPanelHop,
-} from "./expectedHopManifest";
+} from "../expectedHopManifest";
 import type {
   EscalationOutcomeClass,
   OrgElectionState,
   TraversalInput,
   WiringVerifierCase,
-} from "./runWiredTraversal";
+} from "../runWiredTraversal";
+import {
+  EXTENDED_CASES_PER_VERTICAL,
+  EXTENDED_VERIFIER_VERTICALS,
+  type VerifierVertical,
+} from "./vertical-registry";
 
 const FROZEN_ISO = "2026-06-24T00:00:00.000Z";
 
-const PERSONAS = [
-  "ai-staff-accountant",
-  "ai-senior-accountant",
-  "ai-accounting-manager",
-  "ai-controller-helper",
-  "ai-cfo-helper",
-  "ai-staff-auditor",
-] as const;
-
-const INDUSTRIES = ["healthcare", "manufacturing", "fund-accounting"] as const;
 const TENANT_CLASSES = ["standard", "phi-covered"] as const;
 const ELECTION_STATES: OrgElectionState[] = [
   "no-election",
@@ -76,9 +72,7 @@ function mkResolutionForOutcome(outcome: EscalationOutcomeClass) {
   };
 }
 
-function resolveExpectedEscalationOutcome(
-  input: TraversalInput,
-): string {
+function resolveExpectedEscalationOutcome(input: TraversalInput): string {
   const envelope: RoleEnvelope = {
     role: input.persona,
     companyId: input.orgId,
@@ -103,9 +97,9 @@ function resolveExpectedEscalationOutcome(
 
 function buildCase(
   id: string,
-  persona: (typeof PERSONAS)[number],
+  persona: TraversalInput["persona"],
   tenantClassification: (typeof TENANT_CLASSES)[number],
-  industry: (typeof INDUSTRIES)[number],
+  industry: VerifierVertical,
   orgElectionState: OrgElectionState,
   escalationOutcome: EscalationOutcomeClass,
   overrides: Partial<TraversalInput> = {},
@@ -144,40 +138,26 @@ function buildCase(
   });
 }
 
-function buildRepresentativeMatrix(): WiringVerifierCase[] {
+function buildExtendedCasesForVertical(
+  industry: VerifierVertical,
+  startIndex: number,
+): { cases: WiringVerifierCase[]; nextIndex: number } {
   const cases: WiringVerifierCase[] = [];
-  let index = 1;
+  let index = startIndex;
 
-  for (const persona of PERSONAS) {
+  for (const tenantClassification of TENANT_CLASSES) {
     const id = `WV-${String(index).padStart(3, "0")}`;
     cases.push(
       buildCase(
         id,
-        persona,
-        "standard",
-        "manufacturing",
-        "agreement-with-panel",
+        "ai-staff-accountant",
+        tenantClassification,
+        industry,
+        "no-election",
         "no-escalation",
       ),
     );
     index += 1;
-  }
-
-  for (const tenantClassification of TENANT_CLASSES) {
-    for (const industry of INDUSTRIES) {
-      const id = `WV-${String(index).padStart(3, "0")}`;
-      cases.push(
-        buildCase(
-          id,
-          "ai-staff-accountant",
-          tenantClassification,
-          industry,
-          "no-election",
-          "no-escalation",
-        ),
-      );
-      index += 1;
-    }
   }
 
   for (const orgElectionState of ELECTION_STATES) {
@@ -188,7 +168,7 @@ function buildRepresentativeMatrix(): WiringVerifierCase[] {
           id,
           "ai-senior-accountant",
           "standard",
-          "manufacturing",
+          industry,
           orgElectionState,
           escalationOutcome,
         ),
@@ -197,108 +177,78 @@ function buildRepresentativeMatrix(): WiringVerifierCase[] {
     }
   }
 
-  while (cases.length < 45) {
+  const personaCases: Array<{
+    persona: TraversalInput["persona"];
+    tenantClassification: (typeof TENANT_CLASSES)[number];
+    orgElectionState: OrgElectionState;
+    escalationOutcome: EscalationOutcomeClass;
+  }> = [
+    {
+      persona: "ai-controller-helper",
+      tenantClassification: "standard",
+      orgElectionState: "agreement-with-panel",
+      escalationOutcome: "no-escalation",
+    },
+    {
+      persona: "ai-cfo-helper",
+      tenantClassification: "phi-covered",
+      orgElectionState: "override-applied",
+      escalationOutcome: "escalated",
+    },
+  ];
+
+  for (const personaCase of personaCases) {
     const id = `WV-${String(index).padStart(3, "0")}`;
     cases.push(
       buildCase(
         id,
-        "ai-controller-helper",
-        "phi-covered",
-        "healthcare",
-        "override-applied",
-        "escalated",
+        personaCase.persona,
+        personaCase.tenantClassification,
+        industry,
+        personaCase.orgElectionState,
+        personaCase.escalationOutcome,
       ),
     );
     index += 1;
   }
 
-  return cases;
+  if (cases.length !== EXTENDED_CASES_PER_VERTICAL) {
+    throw new Error(
+      `extended case builder for ${industry}: expected ${EXTENDED_CASES_PER_VERTICAL}, got ${cases.length}`,
+    );
+  }
+
+  return { cases, nextIndex: index };
 }
 
-function buildFailClosedCases(): WiringVerifierCase[] {
-  const tenantClassification = "standard" as const;
-  const fc1Input: TraversalInput = Object.freeze({
-    caseId: "WV-FC1",
-    persona: "ai-staff-accountant",
-    tenantClassification,
-    tenantId: "tenant-std-manufacturing",
-    orgId: "org-manufacturing",
-    industry: "manufacturing",
-    orgElectionState: "agreement-with-panel",
-    escalationOutcome: "no-escalation",
-    failClosedHop: "escalation",
-  });
-  const fc1: WiringVerifierCase = Object.freeze({
-    id: "WV-FC1",
-    input: fc1Input,
-    expectedHops: Object.freeze([expectedCacheAccessHop(tenantClassification, "cache.miss")]),
-    isFailClosed: true,
-    expectedOutcome: Object.freeze({ resolutionReturned: false, chainValid: true }),
-  });
+export function buildExtendedVerticalMatrix(): WiringVerifierCase[] {
+  const allCases: WiringVerifierCase[] = [];
+  let index = 49;
 
-  const fc2Input: TraversalInput = Object.freeze({
-    caseId: "WV-FC2",
-    persona: "ai-senior-accountant",
-    tenantClassification,
-    tenantId: "tenant-std-manufacturing",
-    orgId: "org-manufacturing",
-    industry: "manufacturing",
-    orgElectionState: "agreement-with-panel",
-    escalationOutcome: "no-escalation",
-    failClosedHop: "panel",
-  });
-  const fc2: WiringVerifierCase = Object.freeze({
-    id: "WV-FC2",
-    input: fc2Input,
-    expectedHops: Object.freeze([
-      expectedCacheAccessHop(tenantClassification, "cache.miss"),
-      expectedEscalationHop(tenantClassification, "no-escalation"),
-    ]),
-    isFailClosed: true,
-    expectedOutcome: Object.freeze({ resolutionReturned: false, chainValid: true }),
-  });
+  for (const industry of EXTENDED_VERIFIER_VERTICALS) {
+    const { cases, nextIndex } = buildExtendedCasesForVertical(industry, index);
+    allCases.push(...cases);
+    index = nextIndex;
+  }
 
-  const fc3Input: TraversalInput = Object.freeze({
-    caseId: "WV-FC3",
-    persona: "ai-accounting-manager",
-    tenantClassification: "phi-covered",
-    tenantId: "tenant-phi-healthcare",
-    orgId: "org-healthcare",
-    industry: "healthcare",
-    orgElectionState: "override-applied",
-    escalationOutcome: "escalated",
-    failClosedHop: "org-edge",
-  });
-  const fc3: WiringVerifierCase = Object.freeze({
-    id: "WV-FC3",
-    input: fc3Input,
-    expectedHops: Object.freeze([
-      expectedCacheAccessHop("phi-covered", "cache.miss"),
-      expectedEscalationHop(
-        "phi-covered",
-        resolveExpectedEscalationOutcome(fc3Input),
-      ),
-      expectedPanelHop("phi-covered", 0),
-    ]),
-    isFailClosed: true,
-    expectedOutcome: Object.freeze({ resolutionReturned: false, chainValid: true }),
-  });
-
-  return [fc1, fc2, fc3];
+  return allCases;
 }
 
-import { EXTENDED_VERTICAL_CASES } from "./lib/extendedVerticalCases";
+export const EXTENDED_VERTICAL_CASES: readonly WiringVerifierCase[] = Object.freeze(
+  buildExtendedVerticalMatrix(),
+);
 
-export const LEGACY_WIRING_CASES: readonly WiringVerifierCase[] = Object.freeze([
-  ...buildRepresentativeMatrix(),
-  ...buildFailClosedCases(),
-]);
+export const EXTENDED_CASE_COUNT_BY_VERTICAL: Readonly<Record<VerifierVertical, number>> =
+  Object.freeze(
+    EXTENDED_VERIFIER_VERTICALS.reduce(
+      (acc, vertical) => {
+        acc[vertical] = EXTENDED_CASES_PER_VERTICAL;
+        return acc;
+      },
+      {} as Record<VerifierVertical, number>,
+    ),
+  );
 
-export const WIRING_CASES: readonly WiringVerifierCase[] = Object.freeze([
-  ...LEGACY_WIRING_CASES,
-  ...EXTENDED_VERTICAL_CASES,
-]);
-
-export function getWiringCaseById(id: string): WiringVerifierCase | undefined {
-  return WIRING_CASES.find((entry) => entry.id === id);
-}
+export const LEGACY_CASE_COUNT = 48 as const;
+export const EXTENDED_CASE_COUNT = EXTENDED_VERTICAL_CASES.length;
+export const TOTAL_CASE_COUNT = LEGACY_CASE_COUNT + EXTENDED_CASE_COUNT;
