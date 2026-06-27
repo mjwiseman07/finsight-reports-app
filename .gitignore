@@ -16,6 +16,7 @@
 /reports/cascade-*.json
 /reports/integration-*.json
 /reports/cascade-upstream.json
+# G2.0 stub inventory artifacts are committed at LOCK-G2.0 (not ephemeral)
 
 # next.js
 /.next/

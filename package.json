@@ -119,7 +119,8 @@
     "test": "vitest run",
     "test:resolver": "node scripts/run-resolver-tests.js",
     "test:cascade": "npx tsx scripts/cascade-runner.ts",
-    "test:integration": "npx tsx scripts/integration-harness.ts"
+    "test:integration": "npx tsx scripts/integration-harness.ts",
+    "stub:inventory": "npx tsx scripts/stub-inventory.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
