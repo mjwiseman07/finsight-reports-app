@@ -5,6 +5,7 @@
  * @last-verified 2026-06-27
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
+import { assertContainsSaaSARRData } from "../../../standards/doctrine/containsSaaSARRData";
 
 export const SAAS_KF_DISCRIMINATED_POINTS = [
   { pointId: "KF-1", usGaapHandle: "ASC.606-10-25-27", ifrsHandle: "IFRS15.Page", topic: "over-time" },

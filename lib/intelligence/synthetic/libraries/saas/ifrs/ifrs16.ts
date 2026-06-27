@@ -5,6 +5,9 @@
  * @last-verified 2026-06-27
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
+import { assertContainsSaaSARRData } from "../../../standards/doctrine/containsSaaSARRData";
 
 import { resolveSaasCitationHandle } from "../handles";
-export function referenceIfrs16() { return resolveSaasCitationHandle("IFRS16.Page"); }
+export function referenceIfrs16(ctx: { containsSaaSARRData?: boolean }) {
+  assertContainsSaaSARRData(ctx);
+ return resolveSaasCitationHandle("IFRS16.Page"); }

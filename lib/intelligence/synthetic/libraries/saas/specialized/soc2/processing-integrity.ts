@@ -5,10 +5,13 @@
  * @last-verified 2026-06-27
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
+import { assertContainsSaaSARRData } from "../../../standards/doctrine/containsSaaSARRData";
 
 import { SaasViolation } from "../../errors";
 
-export function evaluateSoc2ProcessingIntegrity(input: { piTriggered: boolean; paymentFlow?: boolean }) {
+export function evaluateSoc2ProcessingIntegrity(ctx: { containsSaaSARRData?: boolean }, input: { piTriggered: boolean; paymentFlow?: boolean }) {
+  assertContainsSaaSARRData(ctx);
+
   if (input.paymentFlow && !input.piTriggered) {
     throw SaasViolation("SAAS_SOC2_PI_PAYMENTS", "SOC2 PI required on payment flows");
   }

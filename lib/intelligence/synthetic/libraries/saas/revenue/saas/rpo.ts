@@ -1,5 +1,4 @@
 /**
- * @doctrine containsSaaSARRData: true
  * @audit-channel arr-mrr-audit
  * @framework us-gaap | ifrs
  * @sub-segments P | H | U | F | V

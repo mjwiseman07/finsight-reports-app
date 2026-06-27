@@ -28,3 +28,30 @@ export const saasWave1Profile = {
     V: { vertical: true },
   },
 };
+
+
+import { classifySaaSSubSegment } from "../../lib/intelligence/synthetic/industry/saas/sub-segment-classifier";
+
+/** Back-compat shim — new consumers use runtime classifier (SAAS-2). */
+export function resolveSaasSubSegment(input: {
+  naicsCode: string;
+  revenueMix?: Partial<Record<"P" | "H" | "U" | "F" | "V", number>>;
+  containsSaaSARRData?: boolean;
+}) {
+  return classifySaaSSubSegment({ ...input, containsSaaSARRData: true });
+}
+
+
+import { classifySaaSSubSegment } from "../../lib/intelligence/synthetic/industry/saas/sub-segment-classifier";
+
+/** Back-compat shim — new consumers use runtime classifier (SAAS-2). */
+export function resolveSaaSSubSegment(input: {
+  naicsCode?: string;
+  hostingOnly?: boolean;
+  subscriptionPricing?: boolean;
+  onPremLicense?: boolean;
+  revenueMix?: Partial<Record<"P" | "H" | "U" | "F" | "V", number>>;
+  containsSaaSARRData?: boolean;
+}) {
+  return classifySaaSSubSegment({ ...input, containsSaaSARRData: true });
+}

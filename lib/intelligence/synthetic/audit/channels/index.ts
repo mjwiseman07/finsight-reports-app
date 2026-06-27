@@ -1,5 +1,5 @@
 /**
- * Audit channel registry — 10 channels after LOCK-SAAS-1.
+ * Audit channel registry — 10 channels after LOCK-SAAS-2.
  */
 
 export {

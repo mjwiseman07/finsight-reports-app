@@ -5,10 +5,13 @@
  * @last-verified 2026-06-27
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
+import { assertContainsSaaSARRData } from "../../../standards/doctrine/containsSaaSARRData";
 
 import { SaasViolation } from "../../errors";
 
-export function evaluateSoc2Availability(input: { aEvaluated: boolean }) {
+export function evaluateSoc2Availability(ctx: { containsSaaSARRData?: boolean }, input: { aEvaluated: boolean }) {
+  assertContainsSaaSARRData(ctx);
+
   if (!input.aEvaluated) throw SaasViolation("SAAS_SOC2_A_BYPASS", "SOC2 A evaluation required");
   return { evaluated: true };
 }

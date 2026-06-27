@@ -30,7 +30,7 @@ export type SyntheticCommandCenterSurfaceArtifactCategory =
   | "construction_item"
   /** prof_services_item — routed via PS-2 industry kernel (LOCK-PS-2). */
   | "prof_services_item"
-  /** saas_item — routed via SAAS-1 industry kernel (LOCK-SAAS-1). */
+  /** saas_item — routed via SAAS-2 industry kernel (LOCK-SAAS-2). */
   | "saas_item"
   | "healthcare_item"
   | "inventory_item";

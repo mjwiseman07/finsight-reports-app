@@ -1,8 +1,6 @@
-/**
- * @audit-channel arr-mrr-audit
- * @last-verified 2026-06-27
- * @spec Phase_SAAS_1_Recon_Spec.md v1.0
- */
-
-export const BENCHMARK_HANDLE = "KeyBanc.SaaS.Survey";
-export function getRange() { return { handle: BENCHMARK_HANDLE, source: "SaaS_Benchmarks_Sources.md", urlOnly: true }; }
+import { assertContainsSaaSARRData } from "../../lib/intelligence/synthetic/standards/doctrine/containsSaaSARRData";
+export const BENCHMARK_HANDLE = "KeyBanc.SaaSSurvey";
+export function bounds(ctx: { containsSaaSARRData?: boolean }) {
+  assertContainsSaaSARRData(ctx);
+  return { handle: BENCHMARK_HANDLE, source: "SaaS_Benchmarks_Sources.md" };
+}
