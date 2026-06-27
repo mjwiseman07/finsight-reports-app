@@ -39,8 +39,8 @@ export function createFAAuditEmitter(
 ): FAAuditEmitter {
   const entries: AuditEntryPartial[] = [];
   const defaultActor: ActorRef = actor ?? {
-    actorId: "fa-wave-2-verifier",
-    actorType: "system",
+    kind: "system",
+    id: "fa-wave-2-verifier",
     via: "org-edge",
   };
 

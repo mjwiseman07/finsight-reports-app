@@ -27,9 +27,12 @@ export interface VerticalElectionFieldDefinition {
   readonly min?: number;
   readonly max?: number;
   readonly qXRef?: string;
+  readonly rule?: VerticalElectionFieldDefinition;
 }
 
-export type VerticalElectionGroup = Readonly<Record<string, VerticalElectionFieldDefinition>>;
+export type VerticalElectionGroup = Readonly<
+  Record<string, VerticalElectionFieldDefinition | { readonly rule: VerticalElectionFieldDefinition }>
+>;
 
 export interface VerticalElectionsRegistry {
   readonly schemaVersion: string;

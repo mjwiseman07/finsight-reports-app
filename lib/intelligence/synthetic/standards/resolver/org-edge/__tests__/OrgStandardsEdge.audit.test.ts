@@ -507,7 +507,23 @@ function executeGroupD(
   const requestIds = writerSession
     .getEntries()
     .filter((e) => e.kind === "orgEdge.reconciliation")
-    .map((e) => (e.payload as OrgEdgeReconciliationEntry).callerIdentity.invocationContext.requestId);
+    .map((e) => {
+      const payload = e.payload;
+      if (
+        payload &&
+        typeof payload === "object" &&
+        "callerIdentity" in payload &&
+        typeof (payload as { callerIdentity: unknown }).callerIdentity === "object" &&
+        (payload as { callerIdentity: { invocationContext?: { requestId?: unknown } } }).callerIdentity
+          ?.invocationContext?.requestId
+      ) {
+        return String(
+          (payload as { callerIdentity: { invocationContext: { requestId: string } } }).callerIdentity
+            .invocationContext.requestId,
+        );
+      }
+      return "";
+    });
   pushCase(cases, counters, {
     id: "D.caller-identity.04",
     decision: "same-request-two-entries",

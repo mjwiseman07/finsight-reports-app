@@ -98,7 +98,7 @@ export function validateSyncElectionRegistryDocument(parsed: unknown): void {
 
 export function citationHandleForFramework(
   framework: FrameworkId,
-  eligibilityAttestation?: EligibilityAttestation,
+  eligibilityAttestation?: { citationHandle?: string },
 ): CitationHandle {
   if (eligibilityAttestation?.citationHandle) {
     return eligibilityAttestation.citationHandle as CitationHandle;

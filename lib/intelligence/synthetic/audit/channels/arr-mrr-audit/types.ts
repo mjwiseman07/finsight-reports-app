@@ -3,6 +3,11 @@ export const ARR_MRR_AUDIT_EVIDENCE_VERSION = "SAAS.2.K-LOCK.0" as const;
 export const ARR_MRR_AUDIT_RETENTION_YEARS = 7 as const;
 
 export type ArrMrrAuditOutcome =
+  | "arr-evaluated"
+  | "soc2-pi-evaluated"
+  | "soc2-cc-evaluated"
+  | "soc2-p-evaluated"
+  | `ias38-criterion-${number}-fail`
   | "commission-expensed-no-justification"
   | "commission-amortization-period-mismatch"
   | "material-right-not-detected"

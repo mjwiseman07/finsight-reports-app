@@ -101,7 +101,11 @@ export interface EscalationEvaluatedEntry {
   readonly tenantClassification: TenantClassification;
 }
 
-export function validateEscalationEvaluatedEntry(entry: EscalationEvaluatedEntry): void {
+export function validateEscalationEvaluatedEntry(entry: unknown): asserts entry is EscalationEvaluatedEntry {
+  if (!entry || typeof entry !== "object") {
+    throw new Error("EscalationEvaluatedEntry must be an object");
+  }
+  const record = entry as EscalationEvaluatedEntry;
   const requiredStrings: Array<keyof EscalationEvaluatedEntry> = [
     "event",
     "callerPersonaHandle",
@@ -116,15 +120,15 @@ export function validateEscalationEvaluatedEntry(entry: EscalationEvaluatedEntry
     "tenantClassification",
   ];
   for (const field of requiredStrings) {
-    const value = entry[field];
+    const value = record[field];
     if (typeof value !== "string" || value.length === 0) {
       throw new Error(`EscalationEvaluatedEntry missing or empty field: ${field}`);
     }
   }
-  if (entry.event !== "escalation-evaluated") {
-    throw new Error(`EscalationEvaluatedEntry invalid event: ${entry.event}`);
+  if (record.event !== "escalation-evaluated") {
+    throw new Error(`EscalationEvaluatedEntry invalid event: ${record.event}`);
   }
-  if (!Object.prototype.hasOwnProperty.call(entry, "targetPersonaHandle")) {
+  if (!Object.prototype.hasOwnProperty.call(record, "targetPersonaHandle")) {
     throw new Error("EscalationEvaluatedEntry missing targetPersonaHandle");
   }
   const outcomes: EscalationDecisionOutcome[] = [
@@ -133,16 +137,16 @@ export function validateEscalationEvaluatedEntry(entry: EscalationEvaluatedEntry
     "escalate-to-founder",
     "decline-out-of-scope",
   ];
-  if (!outcomes.includes(entry.decisionOutcome)) {
-    throw new Error(`EscalationEvaluatedEntry invalid decisionOutcome: ${entry.decisionOutcome}`);
+  if (!outcomes.includes(record.decisionOutcome)) {
+    throw new Error(`EscalationEvaluatedEntry invalid decisionOutcome: ${record.decisionOutcome}`);
   }
-  if (!Array.isArray(entry.citationHandlesConsulted)) {
+  if (!Array.isArray(record.citationHandlesConsulted)) {
     throw new Error("EscalationEvaluatedEntry citationHandlesConsulted must be array");
   }
-  if (!Array.isArray(entry.matchedRules)) {
+  if (!Array.isArray(record.matchedRules)) {
     throw new Error("EscalationEvaluatedEntry matchedRules must be array");
   }
-  if (!Array.isArray(entry.unresolvedConflicts)) {
+  if (!Array.isArray(record.unresolvedConflicts)) {
     throw new Error("EscalationEvaluatedEntry unresolvedConflicts must be array");
   }
 }

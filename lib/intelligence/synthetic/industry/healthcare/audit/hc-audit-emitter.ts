@@ -43,8 +43,8 @@ export function createHCAuditEmitter(
 ): HCAuditEmitter {
   const entries: AuditEntryPartial[] = [];
   const defaultActor: ActorRef = actor ?? {
-    actorId: "hc-wave-2-verifier",
-    actorType: "system",
+    kind: "system",
+    id: "hc-wave-2-verifier",
     via: "org-edge",
   };
 

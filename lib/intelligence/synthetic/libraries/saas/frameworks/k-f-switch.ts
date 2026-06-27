@@ -19,7 +19,7 @@ export function switchSaasFramework(
   emitter?: { emit: (outcome: string, evidence: Record<string, unknown>) => void },
 ) {
   assertContainsSaaSARRData(ctx);
-  const framework = ctx.framework ?? "US_GAAP";
+  const framework = ("framework" in ctx ? ctx.framework : undefined) ?? "US_GAAP";
   const point = SAAS_KF_DISCRIMINATED_POINTS.find((p) => p.pointId === pointId);
   if (!point) throw SaasViolation("SAAS_KF_POINT_NOT_FOUND", pointId);
   const handleId = framework === "IFRS" ? point.ifrsHandle : point.usGaapHandle;

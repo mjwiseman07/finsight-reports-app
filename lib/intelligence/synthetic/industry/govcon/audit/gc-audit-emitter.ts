@@ -43,7 +43,7 @@ export function createGcAuditEmitter(writer?: AuditLogWriter): GcAuditEmitter {
       dcaaEvents.push(event);
       const entry: AuditEntryPartial = {
         kind: "orgEdge.reconciliation",
-        actor: { actorId: "gc-wave-2", actorType: "system", via: "org-edge" },
+        actor: { kind: "system", id: "gc-wave-2", via: "org-edge" },
         subject: {},
         payload: { ...event, gcAuditChannel: DCAA_RATE_AUDIT_CHANNEL_ID },
       };
@@ -53,7 +53,7 @@ export function createGcAuditEmitter(writer?: AuditLogWriter): GcAuditEmitter {
       escalationEvents.push({ channel: "escalation-audit", ...params });
       const entry: AuditEntryPartial = {
         kind: "role.escalation.created",
-        actor: { actorId: "gc-wave-2", actorType: "system", via: "org-edge" },
+        actor: { kind: "system", id: "gc-wave-2", via: "org-edge" },
         subject: {},
         payload: { channel: "escalation-audit", ...params },
       };

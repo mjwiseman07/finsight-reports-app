@@ -352,11 +352,13 @@ function executeGroupB(
     reason: "Audit kind is escalation.evaluated.",
   });
 
-  const payload = writer.getEntries()[0]?.payload as Record<string, unknown>;
+  const payload = writer.getEntries()[0]?.payload;
   let shapeValid = "invalid";
   try {
-    validateEscalationEvaluatedEntry(payload as EscalationEvaluatedEntry);
-    shapeValid = "valid";
+    if (payload && typeof payload === "object") {
+      validateEscalationEvaluatedEntry(payload);
+      shapeValid = "valid";
+    }
   } catch {
     shapeValid = "invalid";
   }
@@ -539,7 +541,7 @@ function executeGroupC(
   try {
     const incomplete = { ...sampleEscalationEntry() } as Record<string, unknown>;
     delete incomplete.callerTenantId;
-    validateEscalationEvaluatedEntry(incomplete as EscalationEvaluatedEntry);
+    validateEscalationEvaluatedEntry(incomplete);
     missingField = "no-throw";
   } catch {
     missingField = "throws";

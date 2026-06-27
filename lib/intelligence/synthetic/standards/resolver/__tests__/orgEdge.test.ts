@@ -982,7 +982,7 @@ async function executeS10(cases: OrgEdgeCaseRecord[], counters: { passCount: num
     IAS_1_PRESENTATION: "IFRS",
     IFRS_FOR_SMES_S1: "IFRS_SME",
     SEC_REG_S_X: "SEC_REGS_X",
-    SEC_FORM_20F: "SEC_FORM_20F",
+    SEC_FORM_20F_FPI: "SEC_FORM_20F",
   };
 
   for (let index = 0; index < handles.length; index += 1) {

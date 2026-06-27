@@ -46,7 +46,6 @@ export const SAAS_CITATION_HANDLE_REGISTRY: Record<string, { handleId: string; l
   "ASC.606-10-45-3": { handleId: "ASC.606-10-45-3", library: "ASC_606_340", url: "https://asc.fasb.org/xbrl/2024/elts/ref?DocPart=Section&Section=606-10-45-3" },
   "ASC.606-10-50-1": { handleId: "ASC.606-10-50-1", library: "ASC_606_340", url: "https://asc.fasb.org/xbrl/2024/elts/ref?DocPart=Section&Section=606-10-50-1" },
   "ASC.606-10-50-14": { handleId: "ASC.606-10-50-14", library: "ASC_606_340", url: "https://asc.fasb.org/xbrl/2024/elts/ref?DocPart=Section&Section=606-10-50-14" },
-  "ASC.606-10-55-36": { handleId: "ASC.606-10-55-36", library: "ASC_606_340", url: "https://asc.fasb.org/xbrl/2024/elts/ref?DocPart=Section&Section=606-10-55-36" },
   "ASC.606-10-55-37": { handleId: "ASC.606-10-55-37", library: "ASC_606_340", url: "https://asc.fasb.org/xbrl/2024/elts/ref?DocPart=Section&Section=606-10-55-37" },
   "ASC.606-10-55-38": { handleId: "ASC.606-10-55-38", library: "ASC_606_340", url: "https://asc.fasb.org/xbrl/2024/elts/ref?DocPart=Section&Section=606-10-55-38" },
   "ASC.606-10-55-40": { handleId: "ASC.606-10-55-40", library: "ASC_606_340", url: "https://asc.fasb.org/xbrl/2024/elts/ref?DocPart=Section&Section=606-10-55-40" },

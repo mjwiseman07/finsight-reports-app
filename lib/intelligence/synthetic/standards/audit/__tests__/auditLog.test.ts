@@ -428,7 +428,7 @@ async function executeSuitesA1ThroughA9(
   // A5 in-memory-writer-prod-guard (2)
   {
     const savedEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "production";
+    Object.defineProperty(process.env, "NODE_ENV", { value: "production", writable: true, configurable: true });
     let prodThrows = false;
     try {
       // eslint-disable-next-line no-new
@@ -436,7 +436,7 @@ async function executeSuitesA1ThroughA9(
     } catch {
       prodThrows = true;
     }
-    process.env.NODE_ENV = savedEnv;
+    Object.defineProperty(process.env, "NODE_ENV", { value: savedEnv, writable: true, configurable: true });
     pushCase(cases, counters, {
       id: "A5-01",
       decision: "prod-guard",

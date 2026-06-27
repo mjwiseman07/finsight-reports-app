@@ -55,7 +55,7 @@ export { RESOLVER_INTERNAL };
 export interface ActorRef {
   readonly kind: "human" | "ai-worker" | "system" | "cron";
   readonly id: string;
-  readonly via: "panel-consumer" | "role-adapter" | "direct-api" | "admin-script";
+  readonly via: "panel-consumer" | "role-adapter" | "direct-api" | "admin-script" | "org-edge";
 }
 
 export interface ResolverMemoCache<V> {
