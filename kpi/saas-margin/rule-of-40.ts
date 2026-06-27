@@ -1,4 +1,4 @@
-import { assertContainsSaaSARRData } from "../lib/intelligence/synthetic/standards/doctrine/containsSaaSARRData";
+import { assertContainsSaaSARRData } from "../../lib/intelligence/synthetic/standards/doctrine/containsSaaSARRData";
 export const KPI_KEY = "rule-of-40";
 export function compute(ctx: { containsSaaSARRData?: boolean }, input: Record<string, number>) {
   assertContainsSaaSARRData(ctx);

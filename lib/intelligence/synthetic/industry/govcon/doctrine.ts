@@ -13,7 +13,7 @@
 import {
   GOVCON_DOCTRINE_FLAGS,
   assertGovConDoctrineFlag,
-} from "../../../standards/govcon/doctrine";
+} from "../../standards/govcon/doctrine";
 
 export const INDUSTRY_GOVCON_DOCTRINE = {
   ...GOVCON_DOCTRINE_FLAGS,

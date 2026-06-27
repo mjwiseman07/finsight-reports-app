@@ -1,4 +1,4 @@
-import { assertContainsProfessionalEngagementData } from "../lib/intelligence/synthetic/standards/doctrine/containsProfessionalEngagementData";
+import { assertContainsProfessionalEngagementData } from "../../lib/intelligence/synthetic/standards/doctrine/containsProfessionalEngagementData";
 export const KPI_KEY = "engagement-letter-compliance";
 export function compute(ctx: { containsProfessionalEngagementData?: boolean }, input: Record<string, number>) {
   assertContainsProfessionalEngagementData(ctx);

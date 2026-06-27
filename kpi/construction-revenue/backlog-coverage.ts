@@ -1,4 +1,4 @@
-import { assertContainsConstructionContractData } from "../lib/intelligence/synthetic/standards/doctrine/containsConstructionContractData";
+import { assertContainsConstructionContractData } from "../../lib/intelligence/synthetic/standards/doctrine/containsConstructionContractData";
 export const KPI_KEY = "backlog-coverage";
 export function compute(ctx: { containsConstructionContractData?: boolean }, input: Record<string, number>) {
   assertContainsConstructionContractData(ctx);

@@ -1,9 +1,9 @@
 /**
  * LOCK-VC C5 — memory framework persistence schema (42.7E extension).
  */
-import type { FiscalCalendarPolicy, RetailSubSegment } from "../../../../../src/verticals/retail/types";
-import type { ManufacturingCostingMethod } from "../../../../../src/verticals/manufacturing/types";
-import type { NonprofitRestrictionType } from "../../../../../src/verticals/nonprofit/types";
+import type { FiscalCalendarPolicy, RetailSubSegment } from "../../../../../../src/verticals/retail/types";
+import type { ManufacturingCostingMethod } from "../../../../../../src/verticals/manufacturing/types";
+import type { NonprofitRestrictionType } from "../../../../../../src/verticals/nonprofit/types";
 
 export interface MemoryFrameworkVerticalState {
   readonly RTL?: {

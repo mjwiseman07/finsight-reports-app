@@ -9,7 +9,7 @@
  * Wave 2 URL-only handles (TINA + subcontract flow-down per Q7/Q8=A — enforcement deferred GC-3).
  */
 
-import type { GovConCitationHandle } from "../../../standards/govcon/__init__/types";
+import type { GovConCitationHandle } from "./__init__/types";
 
 export const GC2_WAVE2_HANDLE_SUPPLEMENT: Record<string, GovConCitationHandle> = {
   TINA_41_USC_3501: {

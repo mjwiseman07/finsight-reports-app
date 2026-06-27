@@ -6,8 +6,8 @@
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
 
-import { resolveSaasCitationHandle } from "../handles";
-import { SaasViolation } from "../errors";
+import { resolveSaasCitationHandle } from "../../handles";
+import { SaasViolation } from "../../errors";
 
 export const MODULE_HANDLES = ["SaaS.Metrics.RPO", "ASC.606-10-50-13"] as const;
 

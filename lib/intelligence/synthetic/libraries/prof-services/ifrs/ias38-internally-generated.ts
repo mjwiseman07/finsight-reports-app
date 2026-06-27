@@ -1,7 +1,7 @@
 import { assertContainsProfessionalEngagementData } from "../../../standards/doctrine/containsProfessionalEngagementData";
 import { resolveProfServicesCitationHandle } from "../handles";
-import { createPsAuditEmitter } from "../../industry/prof-services/audit/ps-audit-emitter";
-import type { PsAuditEmitter } from "../../industry/prof-services/audit/ps-audit-emitter";
+import { createPsAuditEmitter } from "../../../industry/prof-services/audit/ps-audit-emitter";
+import type { PsAuditEmitter } from "../../../industry/prof-services/audit/ps-audit-emitter";
 
 export const IAS38_SIX_CRITERIA = [
   "identifiable",

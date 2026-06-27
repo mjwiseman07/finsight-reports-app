@@ -7,7 +7,7 @@
  * containsGovernmentContractData: true
  */
 
-import type { GovConSubSegmentId } from "../../../standards/govcon/__init__/types";
+import type { GovConSubSegmentId } from "../../standards/govcon/__init__/types";
 
 export interface AllowabilityInput {
   subSegmentId: GovConSubSegmentId;

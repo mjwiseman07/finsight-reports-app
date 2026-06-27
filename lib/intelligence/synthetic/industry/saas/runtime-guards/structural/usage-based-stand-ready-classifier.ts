@@ -1,4 +1,4 @@
-import { assertContainsSaaSARRData } from "../../../standards/doctrine/containsSaaSARRData";
+import { assertContainsSaaSARRData } from "../../../../standards/doctrine/containsSaaSARRData";
 import { createSaasAuditEmitter } from "../../audit/saas-audit-emitter";
 
 export function runUsageBasedStandReadyClassifier(

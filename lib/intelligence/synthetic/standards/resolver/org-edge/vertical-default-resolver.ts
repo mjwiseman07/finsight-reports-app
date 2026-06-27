@@ -1,7 +1,7 @@
 /**
  * LOCK-VC C6 — entity > org > vertical-default precedence resolver.
  */
-import type { ReportingBasis } from "../../../../../src/verticals/manufacturing/types";
+import type { ReportingBasis } from "../../../../../../src/verticals/manufacturing/types";
 import type { OrgDefaults } from "./org-defaults";
 import { DEFAULT_ORG_DEFAULTS } from "./org-defaults";
 
