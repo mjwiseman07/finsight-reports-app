@@ -11,19 +11,9 @@ export const FILINGS_ROOT = join(ROOT, "tests/external-truth/filings");
 export const GAP_REGISTER_PATH = join(ROOT, "reports/g7-gap-register.json");
 export const MISSING_CORPUS_PATH = join(ROOT, "reports/g7-missing-corpus.json");
 
-/** Windows reserves CON/PRN/AUX/NUL — map vertical id to a safe on-disk folder name. */
-const VERTICAL_FOLDER_ALIASES: Record<string, string> = {
-  con: "construction",
-};
+import { verticalFolderName, verticalFromFolderName } from "./lib/verticalFolderName";
 
-export function verticalFolderName(vertical: string): string {
-  return VERTICAL_FOLDER_ALIASES[vertical] ?? vertical;
-}
-
-export function verticalFromFolderName(folder: string): string {
-  const match = Object.entries(VERTICAL_FOLDER_ALIASES).find(([, alias]) => alias === folder);
-  return match?.[0] ?? folder;
-}
+export { verticalFolderName, verticalFromFolderName };
 
 export const SEC_USER_AGENT =
   process.env.SEC_EDGAR_USER_AGENT ?? "Advisacor G7 advisacor-external-truth@wisemanft.com";

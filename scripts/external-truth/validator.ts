@@ -1,19 +1,23 @@
 /**
- * Phase G7 — three-tier external-truth validator (structural + numeric + narrative).
+ * Phase G7 — three-tier external-truth validator + per-vertical assertion packs.
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { runFrameworkAssertions, runVerticalAssertions } from "./assertions/registry";
+import type { AssertionResult, ValidatorContext } from "./assertions/types";
+import { DEFAULT_TOLERANCES } from "./lib/tolerances";
 import type {
   ExpectedFiling,
   ExtractedFiling,
   GapEntry,
   GapRegister,
+  SourceJson,
   ValidationResult,
 } from "./types";
 import { nextGapId } from "./utils";
 
 /** SEC SAB 99 materiality default for numeric tier (5%). */
-const NUMERIC_TOLERANCE_PCT = 0.05;
+const NUMERIC_TOLERANCE_PCT = DEFAULT_TOLERANCES.sab99Materiality;
 
 function withinTolerance(observed: number, expected: number): boolean {
   if (!Number.isFinite(observed) || !Number.isFinite(expected)) {
@@ -40,6 +44,45 @@ function makeGap(
   };
   register.gaps.push(gap);
   return gap;
+}
+
+function assertionToGap(ctx: ValidatorContext, assertion: AssertionResult): Omit<
+  GapEntry,
+  "id" | "triage" | "triageDecisionSha" | "triageNote" | "createdAt"
+> {
+  return {
+    filingId: ctx.filingId,
+    vertical: ctx.vertical,
+    framework: ctx.framework,
+    tier: assertion.tier,
+    severity: assertion.severity ?? "medium",
+    classification: assertion.classification ?? "missing-field",
+    message: `${assertion.pack}/${assertion.id}: ${assertion.message}`,
+    observed: assertion.observed ?? "",
+    expected: assertion.expected ?? "",
+  };
+}
+
+function buildContext(
+  filingPath: string,
+  extracted: ExtractedFiling,
+  expected: ExpectedFiling,
+): ValidatorContext {
+  const sourcePath = join(filingPath, "source.json");
+  const source = existsSync(sourcePath)
+    ? (JSON.parse(readFileSync(sourcePath, "utf8")) as SourceJson)
+    : null;
+  return {
+    filingPath,
+    filingId: extracted.filingId,
+    vertical: extracted.vertical,
+    framework: extracted.framework,
+    extracted,
+    expected,
+    source,
+    tolerances: DEFAULT_TOLERANCES,
+    materialityThreshold: DEFAULT_TOLERANCES.sab99Materiality,
+  };
 }
 
 export function validateFiling(
@@ -70,6 +113,7 @@ export function validateFiling(
 
   const extracted = JSON.parse(readFileSync(extractedPath, "utf8")) as ExtractedFiling;
   const expected = JSON.parse(readFileSync(expectedPath, "utf8")) as ExpectedFiling;
+  const ctx = buildContext(filingPath, extracted, expected);
 
   // --- Tier 1: structural ---
   if (extracted.framework !== expected.framework) {
@@ -156,7 +200,7 @@ export function validateFiling(
           framework: extracted.framework,
           tier: "numeric",
           severity: "medium",
-          classification: "numeric-drift",
+          classification: "tolerance-exceeded",
           message: `Numeric drift on ${observed.tag} exceeds SAB 99 ${NUMERIC_TOLERANCE_PCT * 100}% band`,
           observed: String(observed.value),
           expected: String(golden.value),
@@ -200,6 +244,14 @@ export function validateFiling(
     );
   }
 
+  // --- Per-vertical + framework assertion packs ---
+  const packResults = [...runVerticalAssertions(ctx), ...runFrameworkAssertions(ctx)];
+  for (const assertion of packResults) {
+    if (!assertion.passed) {
+      gaps.push(makeGap(register, assertionToGap(ctx, assertion)));
+    }
+  }
+
   return {
     filingId: extracted.filingId,
     passed: gaps.length === 0,
@@ -211,8 +263,5 @@ export function validateAllFilings(
   filingPaths: string[],
   register: GapRegister,
 ): ValidationResult[] {
-  return filingPaths.map((path) => {
-    const result = validateFiling(path, register);
-    return result;
-  });
+  return filingPaths.map((path) => validateFiling(path, register));
 }

@@ -25,7 +25,9 @@ export type GapClassification =
   | "narrative-gap"
   | "comingling-suspect"
   | "fetch-failure"
-  | "parse-failure";
+  | "parse-failure"
+  | "missing-router-output"
+  | "tolerance-exceeded";
 
 export type TriageDecision =
   | "fix-now"
@@ -46,6 +48,10 @@ export interface SourceJson {
   synthesized: boolean;
   manualArchive: boolean;
   notes: string;
+  originalSha256?: string;
+  prunedSha256?: string;
+  pruningRule?: string;
+  prunedElements?: string[];
 }
 
 export interface NumericFact {
@@ -78,6 +84,11 @@ export interface ExpectedDisclosureTopic {
   disclosureSummaryAuthored: string;
 }
 
+export interface RouterSurface {
+  status: "present" | "partial" | "missing";
+  fields: string[];
+}
+
 export interface ExpectedFiling {
   schemaVersion: "1.0.0";
   filingId: string;
@@ -90,6 +101,8 @@ export interface ExpectedFiling {
     primary: ReportingFramework;
     prohibitsLifo: boolean;
   };
+  routerRunAt?: string;
+  routerSurfaces?: Record<string, RouterSurface>;
 }
 
 export interface GapEntry {
