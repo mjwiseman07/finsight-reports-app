@@ -431,3 +431,19 @@ LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kerne
 >
 > Signed: mwiseman@advisacor.com
 > Date: 2026-06-26
+
+---
+
+## 2026-06-26 — LOCK-CON-1
+
+- **Vertical:** Construction Wave 1 reconnaissance
+- **Modules added:** ~46 under `lib/intelligence/synthetic/libraries/construction/`, `kpi/construction-*/`, `disclosure-variants/construction/`, `reasonableness/construction/`, `industry-profiles/construction/`
+- **Doctrine flag introduced (scattered):** `containsConstructionContractData`
+- **Frameworks:** US GAAP + IFRS (first vertical to require dual-framework structural support at Wave 1)
+- **Sub-segments:** G / S / R / C / H / D
+- **Citation handles:** 109 across 6 domains
+- **Verifier:** `verify-con-1.js` (5 gates A–E, 15 cases — `npm run verify:con-1`)
+- **LOCK commit:** PENDING_SHA_FILL → filled by follow-up commit
+- **Annotated tag:** `LOCK-CON-1` on Commit 3
+- **Predecessor:** LOCK-GC-2 (`d6ea0ff` / SHA-fill `5432ea0`)
+- **Founder approval:** "Approved" (2026-06-26 21:14 EDT) — all 18 §15 defaults at A

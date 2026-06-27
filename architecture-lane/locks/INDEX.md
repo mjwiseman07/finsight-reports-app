@@ -32,6 +32,20 @@ This directory is the authoritative registry of every LOCK-* annotated tag in th
 | Founder approval | "Approved" (2026-06-26 19:05 EDT — all 18 §15 defaults) |
 | Overdelivery | +97% structural (79/40), +20% K-V (30/25), +50% anti-pattern (12/8), 121 total |
 
+### LOCK-CON-1 — Construction Wave 1 Reconnaissance Lock
+
+| Field | Value |
+|---|---|
+| Lock ID | LOCK-CON-1 |
+| Vertical | Construction |
+| Wave | 1 (Reconnaissance) |
+| Date | 2026-06-26 |
+| Baseline SHA | 5432ea0 (LOCK-GC-2 SHA-fill) |
+| Lock SHA | PENDING_SHA_FILL |
+| Attestation | [LOCK-CON-1-Attestation.md](./LOCK-CON-1-Attestation.md) |
+| Founder approval | "Approved" (2026-06-26 21:14 EDT — all 18 §15 defaults at A) |
+| Verifier | verify-con-1.js 15/15 |
+
 ## Retrofit backlog (housekeeping — out of GC-1 scope)
 
 These prior locks pre-date this `locks/` registry pattern. They will be back-filled into INDEX.md in a future Phase 42.7H housekeeping commit:

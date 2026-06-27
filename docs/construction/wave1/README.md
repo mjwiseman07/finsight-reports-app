@@ -1,6 +1,6 @@
 # Construction Wave 1 (LOCK-CON-1) — Audit Evidence
 
-**Lock:** LOCK-CON-1 (pending)
+**Lock:** LOCK-CON-1
 **Sealed:** 2026-06-26
 **Spec authority:** `Phase_CON_1_Recon_Spec.md` v1.0
 **Owner:** Matthew Wiseman / Wiseman Financial Technologies LLC
