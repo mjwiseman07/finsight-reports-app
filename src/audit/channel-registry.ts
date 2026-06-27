@@ -11,4 +11,7 @@ export type AuditChannel =
   | "construction-contract-audit"
   | "restricted-net-asset-audit";
 
+export type MfgOnlyAuditChannel = "manufacturing-cost-audit";
+
 export const AUDIT_CHANNEL_COUNT = 11;
+export const MFG_AUDIT_CHANNEL_COUNT = 12;
