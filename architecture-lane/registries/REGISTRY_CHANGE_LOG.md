@@ -447,3 +447,19 @@ LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kerne
 - **Annotated tag:** `LOCK-CON-1` on Commit 3
 - **Predecessor:** LOCK-GC-2 (`d6ea0ff` / SHA-fill `5432ea0`)
 - **Founder approval:** "Approved" (2026-06-26 21:14 EDT) — all 18 §15 defaults at A
+
+---
+
+## CON-2 / LOCK-CON-2
+
+1. Phase: CON-2 (Construction Wave 2 Strong Build)
+2. Lock SHA: PENDING_SHA_FILL
+3. Tag: LOCK-CON-2
+4. Date: 2026-06-26
+5. Founder: mwiseman@advisacor.com
+6. Atlas version: v1.8 → v1.9
+7. Predecessor: LOCK-CON-1 (`813b96d` / SHA-fill `17bdde4`)
+8. Verifier: `npm run verify:con-2` exits 0 (121/121 PASS)
+9. D0 evidence: `evidence/con-wave-2-d0.json` (`CON.2.K-LOCK.0`)
+10. Compliance impact: SOC 2 CC4/CC5/CC7/PI1.1–PI1.5 + SOC 1 CO-2 + HIPAA §164.312(b)/(c)(1)/(d) (defensive pattern preservation)
+11. Strategic significance: First vertical with live dual-framework K-F runtime switch; 8th audit channel default-ON; doctrine flag structural lift; 4 new structural runtime guards (JV / CO+claim / retention maturity / uninstalled-materials)

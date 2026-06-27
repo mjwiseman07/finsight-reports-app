@@ -1,0 +1,22 @@
+{
+  "evidenceVersion": "CON.2.K-LOCK.0",
+  "phaseHandle": "CON.2.K-LOCK",
+  "totalCases": 121,
+  "passCount": 121,
+  "failCount": 0,
+  "lockSHA": "PENDING_SHA_FILL",
+  "perCategory": {
+    "structuralGates": { "floor": 40, "actual": 79, "overdelivery": "+98%" },
+    "kvPoison": { "floor": 25, "actual": 30, "overdelivery": "+20%" },
+    "antiPattern": { "floor": 8, "actual": 12, "overdelivery": "+50%" }
+  },
+  "channels": {
+    "newChannel": "poc-progress-audit",
+    "totalChannels": 8,
+    "retentionYears": 7
+  },
+  "framework": {
+    "dualFrameworkSwitch": true,
+    "switchAuditOutcome": "framework-switched"
+  }
+}
