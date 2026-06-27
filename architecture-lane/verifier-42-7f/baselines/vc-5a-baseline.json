@@ -1,0 +1,35 @@
+{
+  "phase": "VC-5a",
+  "headSha": "47bc8df",
+  "metaVerifier": {
+    "expected": 19,
+    "actual": 19,
+    "status": "PASS"
+  },
+  "mainVerifier": {
+    "expected": 435,
+    "actual": 435,
+    "status": "PASS"
+  },
+  "matrixCases": {
+    "legacy": 48,
+    "extended": 96,
+    "total": 144,
+    "extendedPerVertical": 16
+  },
+  "verticals": [
+    "healthcare",
+    "manufacturing",
+    "fund-accounting",
+    "govcon",
+    "construction",
+    "professional-services",
+    "saas",
+    "nonprofit",
+    "retail"
+  ],
+  "auditChannels": 12,
+  "cascadeStatus": "COMPLETE-9-VERTICAL-W2-ALL",
+  "establishedAt": "LOCK-VC-5a",
+  "purpose": "Baseline for LOCK-VC bundle (VC-1..VC-7) regression detection"
+}
