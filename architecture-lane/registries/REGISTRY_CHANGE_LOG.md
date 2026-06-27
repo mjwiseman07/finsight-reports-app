@@ -463,3 +463,21 @@ LOCK-GC-1 establishes Wave 1 reconnaissance for GovCon/DCAA: 6 sub-segment kerne
 9. D0 evidence: `evidence/con-wave-2-d0.json` (`CON.2.K-LOCK.0`)
 10. Compliance impact: SOC 2 CC4/CC5/CC7/PI1.1–PI1.5 + SOC 1 CO-2 + HIPAA §164.312(b)/(c)(1)/(d) (defensive pattern preservation)
 11. Strategic significance: First vertical with live dual-framework K-F runtime switch; 8th audit channel default-ON; doctrine flag structural lift; 4 new structural runtime guards (JV / CO+claim / retention maturity / uninstalled-materials)
+
+---
+
+## 2026-06-26 — LOCK-PS-1
+
+- **Vertical:** Professional Services Wave 1 reconnaissance
+- **Modules added:** ~50 under `lib/intelligence/synthetic/libraries/prof-services/`, `kpi/prof-services-*/`, `disclosure-variants/prof-services/`, `reasonableness/prof-services/`, `industry-profiles/prof-services/`
+- **Surface category added:** `prof_services_item` (Q19=A — mirrors construction_item / govcon_item)
+- **Doctrine flag introduced (scattered):** `containsProfessionalEngagementData` (6th flag in inventory)
+- **Frameworks:** US GAAP + IFRS (2nd vertical to require dual-framework structural support at Wave 1)
+- **Sub-segments:** L / A / M / I / E / K (Law / Accounting-Advisory / Mgmt-Consulting / IT-Services / Engineering-Architecture / Marketing-Creative)
+- **Citation handles:** 142 across 6 domain libraries (ASC 606+340-40 / Specialized / IFRS / Benchmarks / FederalRegulatory / Index)
+- **Verifier:** `verify-ps-1.js` (5 gates A–E, 15 cases — `npm run verify:ps-1`)
+- **9th audit channel surface reserved:** `engagement-letter-audit` (structural channel created in PS-2)
+- **LOCK commit:** PENDING_SHA_FILL → filled by follow-up commit
+- **Annotated tag:** `LOCK-PS-1` on Commit 3
+- **Predecessor:** LOCK-CON-2 (`928a377` / SHA-fill `66960c9`)
+- **Founder approval:** "approved" (2026-06-26 23:03 EDT) — all 20 §15 defaults at A
