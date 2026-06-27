@@ -13,9 +13,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0001",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.759Z"
     },
     {
@@ -29,9 +29,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0002",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.759Z"
     },
     {
@@ -45,9 +45,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0003",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.759Z"
     },
     {
@@ -61,9 +61,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0004",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.759Z"
     },
     {
@@ -77,9 +77,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0005",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.759Z"
     },
     {
@@ -93,9 +93,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0006",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.761Z"
     },
     {
@@ -109,9 +109,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0007",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.761Z"
     },
     {
@@ -125,9 +125,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0008",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.761Z"
     },
     {
@@ -141,9 +141,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0009",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.761Z"
     },
     {
@@ -157,9 +157,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0010",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.761Z"
     },
     {
@@ -173,9 +173,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0011",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.761Z"
     },
     {
@@ -189,9 +189,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0012",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.762Z"
     },
     {
@@ -205,9 +205,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0013",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.762Z"
     },
     {
@@ -221,9 +221,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0014",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.762Z"
     },
     {
@@ -237,9 +237,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0015",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.762Z"
     },
     {
@@ -253,9 +253,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0016",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.762Z"
     },
     {
@@ -269,9 +269,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0017",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.762Z"
     },
     {
@@ -285,9 +285,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0018",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.764Z"
     },
     {
@@ -301,9 +301,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0019",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.764Z"
     },
     {
@@ -317,9 +317,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0020",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.764Z"
     },
     {
@@ -333,9 +333,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0021",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.764Z"
     },
     {
@@ -349,9 +349,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0022",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.764Z"
     },
     {
@@ -365,9 +365,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0023",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.764Z"
     },
     {
@@ -381,9 +381,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0024",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.765Z"
     },
     {
@@ -397,9 +397,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0025",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.765Z"
     },
     {
@@ -413,9 +413,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0026",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.766Z"
     },
     {
@@ -429,9 +429,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0027",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.766Z"
     },
     {
@@ -445,9 +445,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0028",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.766Z"
     },
     {
@@ -461,9 +461,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0029",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.766Z"
     },
     {
@@ -477,9 +477,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0030",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.768Z"
     },
     {
@@ -493,9 +493,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0031",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.768Z"
     },
     {
@@ -509,9 +509,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0032",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.768Z"
     },
     {
@@ -525,9 +525,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0033",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.768Z"
     },
     {
@@ -541,9 +541,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0034",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.768Z"
     },
     {
@@ -557,9 +557,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0035",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.768Z"
     },
     {
@@ -573,9 +573,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0036",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.768Z"
     },
     {
@@ -589,9 +589,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0037",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.769Z"
     },
     {
@@ -605,9 +605,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0038",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.769Z"
     },
     {
@@ -621,9 +621,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0039",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.769Z"
     },
     {
@@ -637,9 +637,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0040",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.769Z"
     },
     {
@@ -653,9 +653,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0041",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.769Z"
     },
     {
@@ -669,9 +669,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0042",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.769Z"
     },
     {
@@ -685,9 +685,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0043",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.769Z"
     },
     {
@@ -701,9 +701,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0044",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.771Z"
     },
     {
@@ -717,9 +717,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0045",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.771Z"
     },
     {
@@ -733,9 +733,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0046",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.771Z"
     },
     {
@@ -749,9 +749,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0047",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.771Z"
     },
     {
@@ -765,9 +765,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0048",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.771Z"
     },
     {
@@ -781,9 +781,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0049",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.771Z"
     },
     {
@@ -797,9 +797,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0050",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.771Z"
     },
     {
@@ -813,9 +813,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0051",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.772Z"
     },
     {
@@ -829,9 +829,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0052",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.772Z"
     },
     {
@@ -845,9 +845,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0053",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.772Z"
     },
     {
@@ -861,9 +861,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0054",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.772Z"
     },
     {
@@ -877,9 +877,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0055",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.772Z"
     },
     {
@@ -893,9 +893,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0056",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.772Z"
     },
     {
@@ -909,9 +909,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0057",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.772Z"
     },
     {
@@ -925,9 +925,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0058",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Contract-type mix is disclosed in MD&A tables; not available in pruned companyfacts numeric slice.",
       "createdAt": "2026-06-27T23:24:49.773Z"
     },
     {
@@ -941,9 +941,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0059",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.773Z"
     },
     {
@@ -957,9 +957,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0060",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Contract-type mix is disclosed in MD&A tables; not available in pruned companyfacts numeric slice.",
       "createdAt": "2026-06-27T23:24:49.774Z"
     },
     {
@@ -973,9 +973,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0061",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.774Z"
     },
     {
@@ -989,9 +989,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0062",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Contract-type mix is disclosed in MD&A tables; not available in pruned companyfacts numeric slice.",
       "createdAt": "2026-06-27T23:24:49.775Z"
     },
     {
@@ -1005,9 +1005,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0063",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.775Z"
     },
     {
@@ -1021,9 +1021,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0064",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.776Z"
     },
     {
@@ -1037,9 +1037,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0065",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.776Z"
     },
     {
@@ -1053,9 +1053,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0066",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Contract-type mix is disclosed in MD&A tables; not available in pruned companyfacts numeric slice.",
       "createdAt": "2026-06-27T23:24:49.776Z"
     },
     {
@@ -1069,9 +1069,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0067",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.776Z"
     },
     {
@@ -1085,9 +1085,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0068",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.777Z"
     },
     {
@@ -1101,9 +1101,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0069",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.777Z"
     },
     {
@@ -1117,9 +1117,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0070",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Contract-type mix is disclosed in MD&A tables; not available in pruned companyfacts numeric slice.",
       "createdAt": "2026-06-27T23:24:49.777Z"
     },
     {
@@ -1133,9 +1133,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0071",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.777Z"
     },
     {
@@ -1149,9 +1149,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0072",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.778Z"
     },
     {
@@ -1165,9 +1165,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0073",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.778Z"
     },
     {
@@ -1181,9 +1181,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0074",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Contract-type mix is disclosed in MD&A tables; not available in pruned companyfacts numeric slice.",
       "createdAt": "2026-06-27T23:24:49.778Z"
     },
     {
@@ -1197,9 +1197,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0075",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.778Z"
     },
     {
@@ -1213,9 +1213,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0076",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.779Z"
     },
     {
@@ -1229,9 +1229,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0077",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.779Z"
     },
     {
@@ -1245,9 +1245,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0078",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Contract-type mix is disclosed in MD&A tables; not available in pruned companyfacts numeric slice.",
       "createdAt": "2026-06-27T23:24:49.779Z"
     },
     {
@@ -1261,9 +1261,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0079",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.779Z"
     },
     {
@@ -1277,9 +1277,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0080",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.781Z"
     },
     {
@@ -1293,9 +1293,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0081",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.781Z"
     },
     {
@@ -1309,9 +1309,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0082",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.781Z"
     },
     {
@@ -1325,9 +1325,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0083",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.781Z"
     },
     {
@@ -1341,9 +1341,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0084",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.781Z"
     },
     {
@@ -1357,9 +1357,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0085",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: §501(r) CHNA cycle requires full 10-K narrative/HTML parse beyond companyfacts API.",
       "createdAt": "2026-06-27T23:24:49.783Z"
     },
     {
@@ -1373,9 +1373,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0086",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.783Z"
     },
     {
@@ -1389,9 +1389,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0087",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.783Z"
     },
     {
@@ -1405,9 +1405,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0088",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.783Z"
     },
     {
@@ -1421,9 +1421,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0089",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.783Z"
     },
     {
@@ -1437,9 +1437,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0090",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: §501(r) CHNA cycle requires full 10-K narrative/HTML parse beyond companyfacts API.",
       "createdAt": "2026-06-27T23:24:49.784Z"
     },
     {
@@ -1453,9 +1453,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0091",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.784Z"
     },
     {
@@ -1469,9 +1469,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0092",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.784Z"
     },
     {
@@ -1485,9 +1485,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0093",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.784Z"
     },
     {
@@ -1501,9 +1501,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0094",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.784Z"
     },
     {
@@ -1517,9 +1517,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0095",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: §501(r) CHNA cycle requires full 10-K narrative/HTML parse beyond companyfacts API.",
       "createdAt": "2026-06-27T23:24:49.785Z"
     },
     {
@@ -1533,9 +1533,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0096",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.785Z"
     },
     {
@@ -1549,9 +1549,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0097",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.785Z"
     },
     {
@@ -1565,9 +1565,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0098",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.785Z"
     },
     {
@@ -1581,9 +1581,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0099",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.785Z"
     },
     {
@@ -1597,9 +1597,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0100",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: §501(r) CHNA cycle requires full 10-K narrative/HTML parse beyond companyfacts API.",
       "createdAt": "2026-06-27T23:24:49.786Z"
     },
     {
@@ -1613,9 +1613,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0101",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.786Z"
     },
     {
@@ -1629,9 +1629,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0102",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.786Z"
     },
     {
@@ -1645,9 +1645,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0103",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.786Z"
     },
     {
@@ -1661,9 +1661,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0104",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.786Z"
     },
     {
@@ -1677,9 +1677,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0105",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.788Z"
     },
     {
@@ -1693,9 +1693,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0106",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.788Z"
     },
     {
@@ -1709,9 +1709,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0107",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.788Z"
     },
     {
@@ -1725,9 +1725,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0108",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.788Z"
     },
     {
@@ -1741,9 +1741,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0109",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.788Z"
     },
     {
@@ -1757,9 +1757,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0110",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
       "createdAt": "2026-06-27T23:24:49.790Z"
     },
     {
@@ -1773,9 +1773,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0111",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
       "createdAt": "2026-06-27T23:24:49.790Z"
     },
     {
@@ -1789,9 +1789,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0112",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.790Z"
     },
     {
@@ -1805,9 +1805,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0113",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.790Z"
     },
     {
@@ -1821,9 +1821,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0114",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.790Z"
     },
     {
@@ -1837,9 +1837,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0115",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
       "createdAt": "2026-06-27T23:24:49.791Z"
     },
     {
@@ -1853,9 +1853,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0116",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
       "createdAt": "2026-06-27T23:24:49.791Z"
     },
     {
@@ -1869,9 +1869,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0117",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.791Z"
     },
     {
@@ -1885,9 +1885,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0118",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.791Z"
     },
     {
@@ -1901,9 +1901,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0119",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.791Z"
     },
     {
@@ -1917,9 +1917,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0120",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
       "createdAt": "2026-06-27T23:24:49.792Z"
     },
     {
@@ -1933,9 +1933,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0121",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
       "createdAt": "2026-06-27T23:24:49.792Z"
     },
     {
@@ -1949,9 +1949,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0122",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.792Z"
     },
     {
@@ -1965,9 +1965,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0123",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.792Z"
     },
     {
@@ -1981,9 +1981,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0124",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.792Z"
     },
     {
@@ -1997,9 +1997,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0125",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
       "createdAt": "2026-06-27T23:24:49.793Z"
     },
     {
@@ -2013,9 +2013,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0126",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "defer-to-future",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
       "createdAt": "2026-06-27T23:24:49.793Z"
     },
     {
@@ -2029,9 +2029,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0127",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.793Z"
     },
     {
@@ -2045,9 +2045,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0128",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.793Z"
     },
     {
@@ -2061,9 +2061,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0129",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.793Z"
     },
     {
@@ -2077,9 +2077,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0130",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.795Z"
     },
     {
@@ -2093,9 +2093,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0131",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.795Z"
     },
     {
@@ -2109,9 +2109,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0132",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.795Z"
     },
     {
@@ -2125,9 +2125,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0133",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.795Z"
     },
     {
@@ -2141,9 +2141,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0134",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.796Z"
     },
     {
@@ -2157,9 +2157,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0135",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.796Z"
     },
     {
@@ -2173,9 +2173,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0136",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.796Z"
     },
     {
@@ -2189,9 +2189,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0137",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.797Z"
     },
     {
@@ -2205,9 +2205,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0138",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.797Z"
     },
     {
@@ -2221,9 +2221,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0139",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.797Z"
     },
     {
@@ -2237,9 +2237,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0140",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.799Z"
     },
     {
@@ -2253,9 +2253,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0141",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.799Z"
     },
     {
@@ -2269,9 +2269,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0142",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.799Z"
     },
     {
@@ -2285,9 +2285,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0143",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.800Z"
     },
     {
@@ -2301,9 +2301,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0144",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Medium narrative assertions require prose sections beyond XBRL fact descriptions.",
       "createdAt": "2026-06-27T23:24:49.800Z"
     },
     {
@@ -2317,9 +2317,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0145",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.800Z"
     },
     {
@@ -2333,9 +2333,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0146",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.800Z"
     },
     {
@@ -2349,9 +2349,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0147",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.801Z"
     },
     {
@@ -2365,9 +2365,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0148",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.801Z"
     },
     {
@@ -2381,9 +2381,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0149",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.801Z"
     },
     {
@@ -2397,9 +2397,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0150",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.801Z"
     },
     {
@@ -2413,9 +2413,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0151",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.802Z"
     },
     {
@@ -2429,9 +2429,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0152",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.802Z"
     },
     {
@@ -2445,9 +2445,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0153",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.802Z"
     },
     {
@@ -2461,9 +2461,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0154",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.802Z"
     },
     {
@@ -2477,9 +2477,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0155",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.802Z"
     },
     {
@@ -2493,9 +2493,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0156",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.803Z"
     },
     {
@@ -2509,9 +2509,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0157",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.804Z"
     },
     {
@@ -2525,9 +2525,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0158",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.804Z"
     },
     {
@@ -2541,9 +2541,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0159",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.804Z"
     },
     {
@@ -2557,9 +2557,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0160",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.804Z"
     },
     {
@@ -2573,9 +2573,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0161",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.804Z"
     },
     {
@@ -2589,9 +2589,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0162",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.805Z"
     },
     {
@@ -2605,9 +2605,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0163",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.805Z"
     },
     {
@@ -2621,9 +2621,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0164",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.806Z"
     },
     {
@@ -2637,9 +2637,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0165",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.806Z"
     },
     {
@@ -2653,9 +2653,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0166",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.806Z"
     },
     {
@@ -2669,9 +2669,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0167",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.806Z"
     },
     {
@@ -2685,9 +2685,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0168",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.807Z"
     },
     {
@@ -2701,9 +2701,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0169",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.807Z"
     },
     {
@@ -2717,9 +2717,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0170",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.807Z"
     },
     {
@@ -2733,9 +2733,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0171",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.807Z"
     },
     {
@@ -2749,9 +2749,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0172",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.808Z"
     },
     {
@@ -2765,9 +2765,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0173",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.808Z"
     },
     {
@@ -2781,9 +2781,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0174",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.808Z"
     },
     {
@@ -2797,9 +2797,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0175",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.809Z"
     },
     {
@@ -2813,9 +2813,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0176",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.809Z"
     },
     {
@@ -2829,9 +2829,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0177",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.809Z"
     },
     {
@@ -2845,9 +2845,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0178",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.810Z"
     },
     {
@@ -2861,9 +2861,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0179",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.810Z"
     },
     {
@@ -2877,9 +2877,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0180",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.810Z"
     },
     {
@@ -2893,9 +2893,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0181",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.812Z"
     },
     {
@@ -2909,9 +2909,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0182",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.812Z"
     },
     {
@@ -2925,9 +2925,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0183",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.812Z"
     },
     {
@@ -2941,9 +2941,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0184",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
       "createdAt": "2026-06-27T23:24:49.812Z"
     },
     {
@@ -2957,9 +2957,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0185",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.812Z"
     },
     {
@@ -2973,9 +2973,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0186",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.813Z"
     },
     {
@@ -2989,9 +2989,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0187",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.813Z"
     },
     {
@@ -3005,9 +3005,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0188",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.813Z"
     },
     {
@@ -3021,9 +3021,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0189",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.813Z"
     },
     {
@@ -3037,9 +3037,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0190",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.814Z"
     },
     {
@@ -3053,9 +3053,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0191",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.814Z"
     },
     {
@@ -3069,9 +3069,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0192",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.814Z"
     },
     {
@@ -3085,9 +3085,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0193",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.814Z"
     },
     {
@@ -3101,9 +3101,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0194",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.815Z"
     },
     {
@@ -3117,9 +3117,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0195",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.815Z"
     },
     {
@@ -3133,9 +3133,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0196",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.815Z"
     },
     {
@@ -3149,9 +3149,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0197",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.815Z"
     },
     {
@@ -3165,9 +3165,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0198",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.816Z"
     },
     {
@@ -3181,9 +3181,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0199",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.816Z"
     },
     {
@@ -3197,9 +3197,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0200",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "fix-now",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
       "createdAt": "2026-06-27T23:24:49.816Z"
     },
     {
@@ -3213,9 +3213,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0201",
-      "triage": null,
-      "triageDecisionSha": null,
-      "triageNote": null,
+      "triage": "document-limitation",
+      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
+      "triageNote": "reason: Narrative/optional disclosure assertions require full filing text; companyfacts metadata extract is insufficient.",
       "createdAt": "2026-06-27T23:24:49.816Z"
     }
   ]
