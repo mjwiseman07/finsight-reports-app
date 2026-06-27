@@ -1,4 +1,4 @@
-# Advisacor Phase Atlas — v1.2.8
+# Advisacor Phase Atlas — v2.4
 
 > **DRAFT — INTERNAL SYNTHESIS DOCUMENT. Not for publication.**
 > **This is a Perplexity-side synthesis of the Tier 1 inventory exported from Cursor on 2026-06-23 (`tmp-phase-inventory.txt`, 221KB, 2,877 lines) PLUS the Phases 1–39 master inventory pasted into this session on 2026-06-23.**
@@ -11,7 +11,7 @@
 **Generated:** 2026-06-23 v1.0 → revised same day to v1.1
 **Sourced from:** Tier 1 inventory (Phases 40+) + Phases 1–39 Master Inventory (pasted) + active session memory of Fund Accounting Wave 1
 **Repository:** `C:\Users\mattj\finsight-reports` (Windows, Alienware)
-**Most recent commit at atlas time:** `0032bf1` (Phase 42.7F, 2026-06-24)
+**Most recent commit at atlas time:** `b4c31ed` (LOCK-NPO-1 C3, 2026-06-27) — **9-vertical cascade COMPLETE**
 
 ---
 
@@ -178,7 +178,7 @@ The `command-center/surface-candidates/` directory is where industry vertical pa
 | Wave 2 | `<V>`-K-H | Spine composition (panel composition with tenant-elected `applicableBasis` on surface candidate; public barrel imports only) | TS module |
 | Wave 2 | `<V>`-K-I | Verifier + D0 emission (CHK-`<V>`-PC-01..NN cases; schema parity lock against ALL prior vertical D0s; npm script) | JS verifier + D0 JSON |
 
-### §4.2 Cascade status (8 verticals decided)
+### §4.2 Cascade status (9 verticals — COMPLETE)
 | # | Vertical | Wave 1 | Wave 2 Lock SHA | D0 Path | Evidence Version | Sub-segments |
 |---|---|---|---|---|---|---|
 | 1 | Manufacturing | ✅ | **`9d3afb5`** (29/29 PASS) | `ops/compliance/manufacturing-knowledge-stack/D0_MFG_KNOWLEDGE_STACK_EVIDENCE.json` | `MFG-K-I-1` | D/P/H/J/E (Discrete/Process/Hybrid/JobShop/Engineer-to-order) |
@@ -186,9 +186,10 @@ The `command-center/surface-candidates/` directory is where industry vertical pa
 | 3 | Fund Accounting | ✅ (uncommitted) | Wave 2 next | TBD `ops/compliance/fund-accounting-knowledge-stack/D0_FA_KNOWLEDGE_STACK_EVIDENCE.json` | `FA-K-I-1` (planned) | M/E/H/P/C (Mutual 40-Act/ETF/Hedge/PE-VC/Closed-End) |
 | 4 | Construction | pending | — | — | — | TBD |
 | 5 | Professional Services | pending | — | — | — | TBD |
-| 6 | Nonprofit | pending | — | — | — | TBD |
+| 6 | Nonprofit | ✅ Wave 1 LOCKED | **`b4c31ed`** (15/15 PASS) | `src/registry/d0.ts` | `NPO.1.K-LOCK.0` | P / F / H / R / A1 / A2 |
 | 7 | GovCon / DCAA | pending | — | — | — | Forward Pricing / Provisional Billing / Final Indirect; FAR Part 31; CAS 401–420; ICS |
 | 8 | SaaS | pending | — | — | — | ARR/NRR/Magic Number/Rule of 40; ASC 606 + 340-40 + 350-40 |
+| 9 | *(cascade closure)* | — | LOCK-SAAS-2 + LOCK-NPO-1 | `evidence/saas-wave-2-d0.json` + `src/registry/d0.ts` | `SAAS.2.K-LOCK.0` | 8-vertical + NPO = **9-vertical COMPLETE** |
 
 ### §4.3 Cross-blend trap registry (per vertical)
 | Vertical | Traps |
@@ -198,7 +199,7 @@ The `command-center/surface-candidates/` directory is where industry vertical pa
 | FA | (1) investment entity consolidation (IFRS 10 exception vs ASC 946), (2) fair value Level 3, (3) side pockets (H/P), (4) HWM / incentive fee (H), (5) capital commitment (P), (6) in-kind create/redeem (E) |
 | Construction | TBD — likely percentage-of-completion vs ASC 606 over-time, CIP/POC, joint ventures |
 | Prof Services | TBD — likely WIP, retainer revenue, contingent fees |
-| Nonprofit | TBD — likely net-asset classification (FASB ASC 958), donor-restricted, functional expense allocation |
+| Nonprofit | **LOCK-NPO-1 (Wave 1)** — 5 sub-segments P/F/H/R/A1/A2 (A split); K-F-3 expanded to US_GAAP/IFRS/IPSAS/NON_GAAP (explicit framework required); 8th doctrine flag `containsRestrictedNetAssetData`; 11th audit channel `restricted-net-asset-audit` (W1 reserved); dual-doctrine H (PHI explicit, restricted-net-asset auto); IPSAS 47/48 + legacy open whitelist; UG dual vintage + HHS partial; entity flags `upmifaJurisdictionOverride?`, `scheduleATippingStatus?`, `hasUbit?` advisory; W2 deferred: UBIT routing, R denominational, §501(r) cycle, UPMIFA 50-state |
 | GovCon | TBD — likely FPRA, PBR, CAS-covered vs non-CAS, allowable/unallowable per FAR 31.205 |
 | SaaS | TBD — likely contract cost amortization vs customer life, capitalized software vs expense, multi-element |
 
@@ -995,12 +996,13 @@ Paste this atlas + the following companion docs as context block at the start of
 
 | v1.2.4 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7B.1 LOCKED at `8ee3286` in §10.0.1 build sequence (376/376 total: 159 prior regression + 131 from 42.7E + 48 new escalation-audit tests + 38 verifier checks; pure-core preserved via rename-only extraction with byte-identity verified). Added §10.0.7 Phase 42.7B.1 — Escalation Audit Retrofit detail block (7 locked decisions B1.D1–D7, 4 first-class decision outcomes, Cursor net-positive adds: dual pure-core separation + `knownTenantIds` option + `validateEscalationEvaluatedEntry()` helper + 60% test overdelivery 30→48). Four-cell gap closure on 42.7B row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, HIPAA §164.312(b) G→C, HIPAA §164.312(d) G→C. LOCK-42.7 retrofit 1 of 3 complete; 2 retrofits remaining (42.7C.2, 42.7D.1-audit) before 42.7F can run. Build sequence row 9 updated: Unblocked → ✅ `8ee3286`. |
 | v1.2.5 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7C.2 LOCKED at `ea23461` in §10.0.1 build sequence (regression floor 428/428: 87 + 48 + 50 + 90 + 41 + 60 + 52 new panel-decision-audit tests; phase verifiers 30/30: 10 + 12 + 8; pure-core preserved via rename-only extraction with SHA-256 `8ca0891fab6e6e90db478468f7f765fa9fdb0bd0d34565029e4df551055bf242`). Added §10.0.8 Phase 42.7C.2 — Panel Decision Audit Retrofit detail block (9 locked decisions C2.D1–D9 including advisory-bundling doctrine and locked-5-handle citation whitelist; Cursor net-positive adds: separate `derivePanelDecisionContextPure.ts` + dedicated `locked-citation-handles.ts` constant module + `validatePanelDecisionEntry()` helper + 30% test overdelivery 40→52 + 8-group test taxonomy A–H). Four-cell gap closure on 42.7C row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, SOC 2 PI1.5 G→C, HIPAA §164.312(b) G→C. LOCK-42.7 retrofit 2 of 3 complete; 1 retrofit remaining (42.7D.1-audit) before 42.7F can run. Build sequence row 10 updated: Unblocked → ✅ `ea23461`. |
+| v2.4 | 2026-06-27 | Cursor / Perplexity | **LOCK-NPO-1** (`b4c31ed`) — 9th vertical Wave 1 recon; K-F-3 + NON_GAAP lane; 8th doctrine flag `containsRestrictedNetAssetData`; 11th audit channel `restricted-net-asset-audit` (reserved-for-NPO-2); 297 citation handles; `cascadeStatus: COMPLETE-9-VERTICAL`; founder checkpoint Q15=D before NPO-2. **9-vertical cascade COMPLETE.** |
 | v1.2.8 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7F LOCKED at `0032bf1` in §10.0.1 build sequence row 13 (48 cases / 147 assertions / 6 meta-checks; single canonical `runWiredTraversal.ts` with real `FileAppendAuditLogWriter`; org-edge `actor.via` additive change rode in on `36919c8` and is exercised here through the cross-phase chain rather than re-touched). Added §10.0.11 Phase 42.7F — Cross-Phase Wiring Verifier detail block (9 locked decisions F1–F9 strong-stance per founder direction: 42.7 surface only, hard-fail on silent path, exhaustive matrix ≥ 40, single canonical runner, expected-hop manifest, hash chain on every traversal, PHI segregation, citation allow-list restricted to locked-5, 3 fail-closed cases). 9 files committed including first non-self `REGISTRY_CHANGE_LOG.md` entry that dogfoods 42.7A.5 framework. Compliance impact on 42.7F row of §2 master matrix: SOC 1 CO-2 R→C, SOC 2 CC4/CC5 cross-phase verified, PI1.1–PI1.5 all-C end-to-end, HIPAA §164.312(b)/(c)(1) cross-phase verified. **LOCK-42.7 gate G7 ✅** (cross-phase wiring verifier passes); **8 of 8 LOCK runtime gates satisfied** — only G8 (42.7G D0_WIRING_EVIDENCE rollup + LOCK commit) remains. Cursor overdelivery pattern continues: 48 vs 40 floor (+20%). Strategic significance: first phase whose tests can structurally pass only because all three audit retrofits exist; pairs with 42.7A.5 governance scaffold via dogfooded change-log entry. |
 | v1.2.7 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7A.5 LOCKED at `2c8a5e5` in §10.0.1 build sequence row 12 (8/8 verifier checks; no runtime code, governance scaffold only). Added §10.0.10 Phase 42.7A.5 — Registry Change-Management Controls detail block (9 locked decisions A5.D1–D9 including 4-artifact scope, CODEOWNERS routing to `@mjwiseman07` confirmed by founder dashboard screenshot, PR template 6 mandatory checks, 11-section change log entry schema with founder attestation signed `mwiseman@advisacor.com`, forward-only discipline, dogfooding by 42.7F at `0032bf1`). Three-cell gap closure on 42.7A row of Compliance Inventory §2 master matrix: SOC 1 CO-5 G→C, SOC 2 CC8 G→C, SOC 2 CC3 G→C. **LOCK-42.7 gate G6 ✅** (registry change-management controls in place); 7 of 8 LOCK gates satisfied. Only G7 (42.7F wiring verifier — also shipped this session at `0032bf1`) and G8 (42.7G D0 rollup + LOCK commit) remain. |
 | v1.2.6 | 2026-06-24 | Perplexity Computer | Marked Phase 42.7D.1-audit LOCKED at `36919c8` in §10.0.1 build sequence (cumulative regression 476/476: 50 + 87 + 60 + 90 + 41 + 48 + 52 + 48 new org-edge-audit tests; phase verifiers 40/40: 10 + 12 + 8 + 10; pure-core preserved via rename-only extraction of `disagreement-detector.ts` → `orgStandardsEdgePure.ts` with SHA-256 `cb7d9474c98f239676c802c58813b1117e756c07002d92efbc6adc7dfe0311ad`; `disagreement-detector.ts` retained as thin re-export shim). Added §10.0.9 Phase 42.7D.1-audit — Org-Edge Reconciliation Audit Retrofit detail block (9 locked decisions D1.D1–D9 including discriminated `ReconciliationDiff` union with `none`/`override-applied` variants, every-reconciliation logging incl. agreement and no-election cases, citation-handle reuse from 42.7C.2's `locked-citation-handles.ts`; Cursor net-positive adds: separate `deriveOrgEdgeReconciliationContextPure.ts` + `validateOrgEdgeReconciliationEntry()` helper + `org-edge` actor.via wiring + 20% test overdelivery 40→48 + 10-group test taxonomy A–J). Four-cell gap closure on 42.7D row of Compliance Inventory §2 master matrix: SOC 2 CC4 G→C, SOC 2 CC7 G→C, SOC 2 PI1.5 G→C, HIPAA §164.312(b) G→C. **LOCK-42.7 retrofit 3 of 3 complete — audit retrofit sequence is closed; every audit emission point now exists.** Build sequence row 11 updated: Unblocked → ✅ `36919c8`. Consistent Cursor overdelivery pattern documented across all three retrofits (42.7B.1: 48 vs 30 floor, 8 vs 8; 42.7C.2: 52 vs 40, 10 vs 8; 42.7D.1-audit: 48 vs 40, 10 vs 8) — strengthens SOC 2 CC5 control-activities narrative. LOCK-42.7 gates G3/G4/G5 ✅ (6 of 8 LOCK gates satisfied); only G6 (42.7A.5 change-mgmt, parallel-pending), G7 (42.7F wiring verifier — now unblocked, becomes next phase), and G8 (42.7G D0 rollup + LOCK commit) remain. |
 
-**Next atlas version:** v1.3 after Phase 42.7 LOCK (will record 42.7 LOCK SHA, Phase 41.5 graduation to LOCKED, FA Wave 2 unblock, the first `D0_WIRING_EVIDENCE.json` shape baseline, and the frozen Compliance Inventory commit SHA).
+**Next atlas version:** v2.5 after LOCK-NPO-2 or founder-declared Phase 42.8 (Q15=D checkpoint — no auto-start).
 
 ---
 
-*End of Advisacor_Phase_Atlas_v1.md (v1.2.8)*
+*End of Advisacor_Phase_Atlas_v1.md (v2.4 — 9-vertical cascade COMPLETE; LOCK-NPO-1)*
