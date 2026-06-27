@@ -1,8 +1,8 @@
 export const D0 = {
-  cascadeStatus: "COMPLETE-9-VERTICAL-W2-MFG" as const,
+  cascadeStatus: "COMPLETE-9-VERTICAL-W2-ALL" as const,
   verticalCount: 9,
-  verticalsW2Sealed: 8,
-  verticalsW2Pending: 1,
+  verticalsW2Sealed: 9,
+  verticalsW2Pending: 0,
   verticalWaveStatus: {
     FA: "W2",
     HC: "W2",
@@ -12,10 +12,12 @@ export const D0 = {
     SAAS: "W2",
     NPO: "W2",
     MFG: "W2",
-    RTL: "W1",
+    RTL: "W2",
   },
   auditChannelInventory: {
     base: 11,
     mfgOnly: ["manufacturing-cost-audit"] as const,
+    rtlOnly: [] as const,
   },
+  cascadeClosureSealedAt: "LOCK-RTL-2" as const,
 };

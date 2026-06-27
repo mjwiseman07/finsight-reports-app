@@ -47,6 +47,7 @@
     "verify:npo-1": "vitest run tests/verticals/nonprofit/npo-1.recon.test.ts",
     "verify:npo-2": "vitest run tests/verticals/nonprofit/npo-2.kv.test.ts",
     "verify:mfg-2": "vitest run tests/verticals/manufacturing/mfg-2.kv.test.ts",
+    "verify:rtl-2": "vitest run tests/verticals/retail/rtl-2.kv.test.ts",
     "verify:company-memory": "node scripts/verify-company-memory.js",
     "verify:si-snapshot-persistence-plan": "node scripts/verify-si-snapshot-persistence-plan.js",
     "verify:si-snapshot-retrieval": "node scripts/verify-si-snapshot-retrieval.js",
