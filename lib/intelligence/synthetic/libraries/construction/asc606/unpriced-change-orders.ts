@@ -2,7 +2,13 @@ import { assertContainsConstructionContractData } from "../../../standards/doctr
 import { createConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
 import type { ConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
 
-export function evaluateUnpricedChangeOrder(ctx, input, emitter) {
+type ConstructionCtx = { containsConstructionContractData?: boolean };
+
+export function evaluateUnpricedChangeOrder(
+  ctx: ConstructionCtx,
+  input: { enforceableRight: boolean; constraintPass: boolean },
+  emitter: ConAuditEmitter = createConAuditEmitter(),
+) {
   assertContainsConstructionContractData(ctx);
   if (!input.enforceableRight || !input.constraintPass) {
     emitter.emitEscalation("CON_UNPRICED_CO_REFUSED", "unpriced CO");
@@ -14,4 +20,3 @@ export function evaluateUnpricedChangeOrder(ctx, input, emitter) {
   emitter.emitPocProgress("change-order-evaluated", { input });
   return { recognized: true };
 }
-

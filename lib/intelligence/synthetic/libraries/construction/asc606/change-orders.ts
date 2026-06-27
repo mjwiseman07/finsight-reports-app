@@ -2,7 +2,13 @@ import { assertContainsConstructionContractData } from "../../../standards/doctr
 import { createConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
 import type { ConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
 
-export function evaluateChangeOrder(ctx, input, emitter) {
+type ConstructionCtx = { containsConstructionContractData?: boolean };
+
+export function evaluateChangeOrder(
+  ctx: ConstructionCtx,
+  input: { separateContract: boolean; remainingDistinct: boolean },
+  emitter: ConAuditEmitter = createConAuditEmitter(),
+) {
   assertContainsConstructionContractData(ctx);
   if (input.separateContract) {
     emitter.emitPocProgress("change-order-evaluated", { path: "separate-contract", reasoning: input });
@@ -15,4 +21,3 @@ export function evaluateChangeOrder(ctx, input, emitter) {
   emitter.emitPocProgress("change-order-evaluated", { path: "cumulative-catch-up", reasoning: input });
   return { path: "cumulative-catch-up" };
 }
-

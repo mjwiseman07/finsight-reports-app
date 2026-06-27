@@ -17,10 +17,10 @@ import {
 import type {
   CacheEntry,
   CacheKey,
-  Clock,
   ResolverMemoCacheConfig,
   TenantClassifier,
 } from "../memory/types";
+import type { Clock } from "../memory/ttl-clock";
 import type { AttestedElection, FrameworkId, OrgElectionReader } from "../org-edge/types";
 import { resolveTreatment } from "../resolveTreatment";
 import { resolveTreatmentPure } from "../resolveTreatmentPure";
@@ -225,11 +225,12 @@ function createTestCache<V>(
   });
 }
 
-function sampleEntry(
-  overrides: Partial<CacheEntry<{ value: string }>> = {},
-): CacheEntry<{ value: string }> {
+function sampleEntry<V>(
+  overrides: Partial<CacheEntry<V>> = {},
+): CacheEntry<V> {
+  const value = overrides.value ?? ("payload" as V);
   return Object.freeze({
-    value: { value: "payload" },
+    value,
     writtenAt: FROZEN_MS,
     expiresAt: FROZEN_MS + 60_000,
     classification: "standard" as const,
@@ -446,7 +447,7 @@ async function executeSuitesS1ThroughS13(
     const clock = createFakeClock();
     const cache = createTestCache<{ v: number }>({ clock, config: { standardTTLMs: 1000, phiCoveredTTLMs: 500 } });
     const key = cacheKeyFor("ttl-org", "US_GAAP");
-    cache.set(key, sampleEntry({ expiresAt: clock.nowMs() + 1000, value: { v: 1 } }), RESOLVER_INTERNAL);
+    cache.set(key, sampleEntry<{ v: number }>({ expiresAt: clock.nowMs() + 1000, value: { v: 1 } }), RESOLVER_INTERNAL);
     pushCase(cases, counters, {
       id: "S3-01",
       decision: "hit-before-expiry",
@@ -478,10 +479,10 @@ async function executeSuitesS1ThroughS13(
     const phiKey = cacheKeyFor("phi-org", "US_GAAP", "phi-covered");
     phiCache.set(
       phiKey,
-      sampleEntry({
+      sampleEntry<number>({
         classification: "phi-covered",
         expiresAt: phiClock.nowMs() + 1000,
-        value: { value: "phi" },
+        value: 1,
       }),
       RESOLVER_INTERNAL,
     );
@@ -505,7 +506,7 @@ async function executeSuitesS1ThroughS13(
     const skewKey = cacheKeyFor("skew-org", "IFRS");
     skewCache.set(
       skewKey,
-      sampleEntry({ expiresAt: skewClock.nowMs() + 500, value: { value: "x" } }),
+      sampleEntry<number>({ expiresAt: skewClock.nowMs() + 500, value: 1 }),
       RESOLVER_INTERNAL,
     );
     skewClock.set(skewClock.nowMs() + 499);
@@ -538,8 +539,8 @@ async function executeSuitesS1ThroughS13(
     const cache = createTestCache<string>({ config: { maxSize: 4 } });
     const stdKey = cacheKeyFor("seg-org", "US_GAAP", "standard");
     const phiKey = cacheKeyFor("seg-org", "US_GAAP", "phi-covered");
-    cache.set(stdKey, sampleEntry({ classification: "standard", value: { value: "std" } }), RESOLVER_INTERNAL);
-    cache.set(phiKey, sampleEntry({ classification: "phi-covered", value: { value: "phi" } }), RESOLVER_INTERNAL);
+    cache.set(stdKey, sampleEntry<string>({ classification: "standard", value: "std" }), RESOLVER_INTERNAL);
+    cache.set(phiKey, sampleEntry<string>({ classification: "phi-covered", value: "phi" }), RESOLVER_INTERNAL);
     const metrics = cache.getCacheMetrics();
     pushCase(cases, counters, {
       id: "S4-01",
@@ -574,7 +575,7 @@ async function executeSuitesS1ThroughS13(
       actual: cache.get(stdKey, RESOLVER_INTERNAL) ? "hit" : "miss",
       reason: "Standard entry survives phi purge",
     });
-    cache.set(phiKey, sampleEntry({ classification: "phi-covered", value: { value: "phi2" } }), RESOLVER_INTERNAL);
+    cache.set(phiKey, sampleEntry<string>({ classification: "phi-covered", value: "phi2" }), RESOLVER_INTERNAL);
     const invCount = cache.invalidateOrg("seg-org", "election-change", {
       kind: "human",
       id: "mwiseman@advisacor.com",
@@ -592,7 +593,7 @@ async function executeSuitesS1ThroughS13(
       const key = cacheKeyFor(`phi-cap-${index}`, "US_GAAP", "phi-covered");
       smallCache.set(
         key,
-        sampleEntry({ classification: "phi-covered", value: { value: String(index) } }),
+        sampleEntry<string>({ classification: "phi-covered", value: String(index) }),
         RESOLVER_INTERNAL,
       );
     }
@@ -649,7 +650,7 @@ async function executeSuitesS1ThroughS13(
     });
     let unauthorizedSetThrows = false;
     try {
-      cache.set(key, sampleEntry(), Symbol("fake") as typeof RESOLVER_INTERNAL);
+      cache.set(key, sampleEntry<string>(), Symbol("fake") as typeof RESOLVER_INTERNAL);
     } catch {
       unauthorizedSetThrows = true;
     }
@@ -660,7 +661,7 @@ async function executeSuitesS1ThroughS13(
       actual: unauthorizedSetThrows ? "throws" : "allowed",
       reason: "set without RESOLVER_INTERNAL throws",
     });
-    cache.set(key, sampleEntry(), RESOLVER_INTERNAL);
+    cache.set(key, sampleEntry<string>(), RESOLVER_INTERNAL);
     pushCase(cases, counters, {
       id: "S5-03",
       decision: "authorized-access",
@@ -682,7 +683,7 @@ async function executeSuitesS1ThroughS13(
     const cache = createTestCache<string>();
     const key = cacheKeyFor("metrics-org", "US_GAAP");
     cache.get(key, RESOLVER_INTERNAL);
-    cache.set(key, sampleEntry(), RESOLVER_INTERNAL);
+    cache.set(key, sampleEntry<string>(), RESOLVER_INTERNAL);
     cache.get(key, RESOLVER_INTERNAL);
     const metrics = cache.getCacheMetrics();
     pushCase(cases, counters, {
@@ -707,8 +708,8 @@ async function executeSuitesS1ThroughS13(
       reason: "Hit counted",
     });
     const tiny = createTestCache<string>({ config: { maxSize: 1 } });
-    tiny.set(cacheKeyFor("m1", "US_GAAP"), sampleEntry({ value: { value: "1" } }), RESOLVER_INTERNAL);
-    tiny.set(cacheKeyFor("m2", "US_GAAP"), sampleEntry({ value: { value: "2" } }), RESOLVER_INTERNAL);
+    tiny.set(cacheKeyFor("m1", "US_GAAP"), sampleEntry<string>({ value: "1" }), RESOLVER_INTERNAL);
+    tiny.set(cacheKeyFor("m2", "US_GAAP"), sampleEntry<string>({ value: "2" }), RESOLVER_INTERNAL);
     pushCase(cases, counters, {
       id: "S6-04",
       decision: "lru-eviction-count",
@@ -754,9 +755,9 @@ async function executeSuitesS1ThroughS13(
     const cache = createTestCache<string>();
     const orgId = "inv-org-1";
     const otherOrg = "other-org";
-    cache.set(cacheKeyFor(orgId, "US_GAAP"), sampleEntry(), RESOLVER_INTERNAL);
-    cache.set(cacheKeyFor(orgId, "IFRS"), sampleEntry({ framework: "IFRS" }), RESOLVER_INTERNAL);
-    cache.set(cacheKeyFor(otherOrg, "US_GAAP"), sampleEntry(), RESOLVER_INTERNAL);
+    cache.set(cacheKeyFor(orgId, "US_GAAP"), sampleEntry<string>(), RESOLVER_INTERNAL);
+    cache.set(cacheKeyFor(orgId, "IFRS"), sampleEntry<string>({ framework: "IFRS" }), RESOLVER_INTERNAL);
+    cache.set(cacheKeyFor(otherOrg, "US_GAAP"), sampleEntry<string>(), RESOLVER_INTERNAL);
     const count = cache.invalidateOrg(orgId, "registry-change", {
       kind: "human",
       id: "mwiseman@advisacor.com",
@@ -785,7 +786,7 @@ async function executeSuitesS1ThroughS13(
     });
     const auditWriter = new InMemoryAuditLogWriter();
     const auditedCache = createTestCache<string>({ auditLog: auditWriter });
-    auditedCache.set(cacheKeyFor("audit-org", "US_GAAP"), sampleEntry(), RESOLVER_INTERNAL);
+    auditedCache.set(cacheKeyFor("audit-org", "US_GAAP"), sampleEntry<string>(), RESOLVER_INTERNAL);
     auditedCache.invalidateOrg("audit-org", "reason-x", {
       kind: "human",
       id: "admin@test.com",
@@ -823,8 +824,8 @@ async function executeSuitesS1ThroughS13(
     const tenant = "phi-purge-tenant";
     const stdKey = cacheKeyFor(tenant, "US_GAAP", "standard");
     const phiKey = cacheKeyFor(tenant, "US_GAAP", "phi-covered");
-    cache.set(stdKey, sampleEntry(), RESOLVER_INTERNAL);
-    cache.set(phiKey, sampleEntry({ classification: "phi-covered" }), RESOLVER_INTERNAL);
+    cache.set(stdKey, sampleEntry<string>(), RESOLVER_INTERNAL);
+    cache.set(phiKey, sampleEntry<string>({ classification: "phi-covered" }), RESOLVER_INTERNAL);
     const purged = cache.purgePHIForTenant(tenant, "hipaa-request", {
       kind: "human",
       id: "mwiseman@advisacor.com",
@@ -877,7 +878,7 @@ async function executeSuitesS1ThroughS13(
       actual: String(cache.getCacheMetrics().approxBytes),
       reason: "approxBytes zero initially",
     });
-    cache.set(cacheKeyFor("bytes-org", "US_GAAP"), sampleEntry({ value: { value: "payload-data" } }), RESOLVER_INTERNAL);
+    cache.set(cacheKeyFor("bytes-org", "US_GAAP"), sampleEntry<string>({ value: "payload-data" }), RESOLVER_INTERNAL);
     pushCase(cases, counters, {
       id: "S9-02",
       decision: "bytes-nonzero",
@@ -899,7 +900,7 @@ async function executeSuitesS1ThroughS13(
   {
     const auditWriter = new InMemoryAuditLogWriter();
     const cache = createTestCache<string>({ auditLog: auditWriter });
-    cache.set(cacheKeyFor("dispose-org", "US_GAAP"), sampleEntry(), RESOLVER_INTERNAL);
+    cache.set(cacheKeyFor("dispose-org", "US_GAAP"), sampleEntry<string>(), RESOLVER_INTERNAL);
     await cache.dispose();
     const hasDispose = auditWriter.getEntries().some((entry) => entry.kind === "cache.dispose");
     pushCase(cases, counters, {
@@ -923,7 +924,7 @@ async function executeSuitesS1ThroughS13(
       actual: twiceOk,
       reason: "Second dispose is safe",
     });
-    cache.set(cacheKeyFor("dispose-org-2", "US_GAAP"), sampleEntry(), RESOLVER_INTERNAL);
+    cache.set(cacheKeyFor("dispose-org-2", "US_GAAP"), sampleEntry<string>(), RESOLVER_INTERNAL);
     pushCase(cases, counters, {
       id: "S10-03",
       decision: "writes-after-dispose",
@@ -968,7 +969,7 @@ async function executeSuitesS1ThroughS13(
       id: "S11-02",
       decision: "framework-cache-miss",
       expected: "IFRS",
-      actual: ifrs.chosenFramework,
+      actual: ifrs.chosenFramework ?? "null",
       reason: "Different framework key causes separate cache entry",
     });
     const orgId = "fp-change-org";
@@ -1121,7 +1122,7 @@ async function executeSuitesS1ThroughS13(
       id: "S11-10",
       decision: "curated-rules-behavior",
       expected: "US_GAAP",
-      actual: noEdge.chosenFramework,
+      actual: noEdge.chosenFramework ?? "null",
       reason: "Curated-rules path unchanged with cache enabled",
     });
     const edgeOrg = "edge-cache-org";
@@ -1144,7 +1145,7 @@ async function executeSuitesS1ThroughS13(
       id: "S11-11",
       decision: "org-edge-behavior",
       expected: "IFRS",
-      actual: edgeResolution.chosenFramework,
+      actual: edgeResolution.chosenFramework ?? "null",
       reason: "Org-edge override preserved with cache",
     });
     pushCase(cases, counters, {

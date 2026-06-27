@@ -2,7 +2,13 @@ import { assertContainsConstructionContractData } from "../../../standards/doctr
 import { createConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
 import type { ConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
 
-export function evaluateClaimConstraint(ctx, input, emitter) {
+type ConstructionCtx = { containsConstructionContractData?: boolean };
+
+export function evaluateClaimConstraint(
+  ctx: ConstructionCtx,
+  input: { probable: boolean; reliablyEstimable: boolean; collectionProbable: boolean },
+  emitter: ConAuditEmitter = createConAuditEmitter(),
+) {
   assertContainsConstructionContractData(ctx);
   const pass = input.probable && input.reliablyEstimable && input.collectionProbable;
   if (!pass) {
@@ -15,4 +21,3 @@ export function evaluateClaimConstraint(ctx, input, emitter) {
   emitter.emitPocProgress("claim-evaluated", { reasoning: input });
   return { recognized: true };
 }
-

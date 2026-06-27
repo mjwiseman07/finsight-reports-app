@@ -2,7 +2,6 @@ import { assertContainsConstructionContractData } from "../../../standards/doctr
 import type { ConstructionClassifierInput, ConstructionSubSegment } from "./types";
 import { classifyConstructionSubSegmentPure } from "./pure-core";
 import { createConAuditEmitter } from "../audit/con-audit-emitter";
-import { assertContainsConstructionContractData } from "../../../standards/doctrine/containsConstructionContractData";
 
 export function classifyConstructionSubSegment(
   ctx: ConstructionClassifierInput,

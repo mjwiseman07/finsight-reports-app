@@ -1,7 +1,14 @@
 import { assertContainsConstructionContractData } from "../../../standards/doctrine/containsConstructionContractData";
 import { createConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
+import type { ConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
 
-export function evaluateFinancingComponent(ctx, input, emitter = createConAuditEmitter()) {
+type ConstructionCtx = { containsConstructionContractData?: boolean };
+
+export function evaluateFinancingComponent(
+  ctx: ConstructionCtx,
+  input: { retentionMonths: number; interestRate: number; treasuryYield: number },
+  emitter: ConAuditEmitter = createConAuditEmitter(),
+) {
   assertContainsConstructionContractData(ctx);
   if (input.retentionMonths > 12 && input.interestRate > input.treasuryYield) {
     emitter.emitEscalation("CON_FINANCING_COMPONENT_FAIL", "significant financing");

@@ -2,7 +2,13 @@ import { assertContainsConstructionContractData } from "../../../standards/doctr
 import { createConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
 import type { ConAuditEmitter } from "../../../industry/construction/audit/con-audit-emitter";
 
-export function evaluateUninstalledMaterialsRuntime(ctx, input, emitter = createConAuditEmitter()) {
+type ConstructionCtx = { containsConstructionContractData?: boolean };
+
+export function evaluateUninstalledMaterialsRuntime(
+  ctx: ConstructionCtx,
+  input: { claimCarveOut: boolean; customized: boolean; customerControlledBeforeInstall?: boolean; transferDistinctFromInstall?: boolean },
+  emitter: ConAuditEmitter = createConAuditEmitter(),
+) {
   assertContainsConstructionContractData(ctx);
   if (input.claimCarveOut && input.customized) {
     emitter.emitEscalation("CON_UNINSTALLED_ABUSE", "customized materials treated as carve-out");
@@ -19,4 +25,3 @@ export function evaluateUninstalledMaterialsRuntime(ctx, input, emitter = create
   emitter.emitPocProgress("uninstalled-materials-evaluated", { includedInPoc: false, carveOut: true, input });
   return { includedInPoc: false, carveOut: true };
 }
-
