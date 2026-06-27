@@ -26,3 +26,16 @@ export const constructionWave1Profile = {
   staticOnly: true,
   auditChannelReserved: "poc-progress-audit",
 };
+
+
+import { classifyConstructionSubSegment } from "../../lib/intelligence/synthetic/industry/construction/sub-segment-classifier";
+
+/** Back-compat shim — new consumers use runtime classifier (CON-2). */
+export function resolveConstructionSubSegment(input: {
+  naicsCode: string;
+  backlogUsd?: number;
+  designBuildEngagement?: boolean;
+  containsConstructionContractData?: boolean;
+}) {
+  return classifyConstructionSubSegment({ ...input, containsConstructionContractData: true });
+}

@@ -27,6 +27,7 @@ export type SyntheticCommandCenterSurfaceArtifactCategory =
   | "workforce_item"
   | "industry_item"
   | "govcon_item"
+  | "construction_item"
   | "healthcare_item"
   | "inventory_item";
 

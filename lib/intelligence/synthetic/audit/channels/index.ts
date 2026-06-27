@@ -1,5 +1,5 @@
 /**
- * Audit channel registry — 7 channels after LOCK-GC-2.
+ * Audit channel registry — 8 channels after LOCK-CON-2.
  */
 
 export {
@@ -14,7 +14,9 @@ export type {
   DcaaRateAuditOutcome,
 } from "./dcaa-rate-audit";
 
-/** Prior 6 channels (HC-2 / 42.7) + dcaa-rate-audit */
+export { pocProgressAuditChannel } from "./poc-progress-audit";
+export * from "./poc-progress-audit";
+
 export const AUDIT_CHANNEL_REGISTRY = [
   "treatment-resolver-audit",
   "memory-framework-dimension",
@@ -23,10 +25,10 @@ export const AUDIT_CHANNEL_REGISTRY = [
   "org-edge-audit",
   "phi-access-audit",
   "dcaa-rate-audit",
+  "poc-progress-audit",
 ] as const;
 
 export type RegisteredAuditChannel = (typeof AUDIT_CHANNEL_REGISTRY)[number];
-
 export const AUDIT_CHANNEL_COUNT = AUDIT_CHANNEL_REGISTRY.length;
 
 export function assertAuditChannelCount(expected: number): boolean {
