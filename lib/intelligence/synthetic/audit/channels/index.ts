@@ -1,5 +1,5 @@
 /**
- * Audit channel registry — 10 channels after LOCK-SAAS-2.
+ * Audit channel registry — 11 channels after LOCK-NPO-1.
  */
 
 export {
@@ -23,6 +23,9 @@ export * from "./engagement-letter-audit";
 export { arrMrrAuditChannel } from "./arr-mrr-audit";
 export * from "./arr-mrr-audit";
 
+export { restrictedNetAssetAuditChannel } from "./restricted-net-asset-audit";
+export * from "./restricted-net-asset-audit";
+
 export const AUDIT_CHANNEL_REGISTRY = [
   "treatment-resolver-audit",
   "memory-framework-dimension",
@@ -34,6 +37,7 @@ export const AUDIT_CHANNEL_REGISTRY = [
   "poc-progress-audit",
   "engagement-letter-audit",
   "arr-mrr-audit",
+  "restricted-net-asset-audit",
 ] as const;
 
 export type RegisteredAuditChannel = (typeof AUDIT_CHANNEL_REGISTRY)[number];
