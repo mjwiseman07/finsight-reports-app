@@ -2,13 +2,14 @@
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
 import { classifySaasSubSegment } from "../../../lib/intelligence/synthetic/libraries/saas/classifiers/saas-sub-segment-classifier";
+import { extractEscalationAudits } from "../_helpers/kv-case-helpers";
 
 export function runCase() {
   try {
     classifySaasSubSegment({ containsSaaSARRData: true, naicsCode: "511210" });
     return { id: "KV-SEG-1", pass: false, reason: "silent rejection" };
   } catch (err) {
-    const audits = err.escalationAudits || [];
+    const audits = extractEscalationAudits(err);
     return {
       id: "KV-SEG-1",
       pass: audits.length > 0,

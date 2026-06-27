@@ -3,13 +3,17 @@
  * @spec Phase_PS_1_Recon_Spec.md v1.0
  */
 import { allocateMultiElement } from "../../../lib/intelligence/synthetic/libraries/prof-services/asc606/multi-element-ssp";
+import { extractEscalationAudits, PROF_SERVICES_KV_CTX } from "../_helpers/kv-case-helpers";
 
-function runPoison(id, input) {
+function runPoison(
+  id: string,
+  input: { residualOnly?: boolean; observable?: number; adjustedMarket?: number },
+) {
   try {
-    allocateMultiElement(input);
+    allocateMultiElement(PROF_SERVICES_KV_CTX, input);
     return { id, pass: false, reason: "silent rejection" };
   } catch (err) {
-    const audits = err.escalationAudits || [];
+    const audits = extractEscalationAudits(err);
     return {
       id,
       pass: audits.length > 0,

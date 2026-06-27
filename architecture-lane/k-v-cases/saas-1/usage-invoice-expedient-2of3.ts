@@ -2,13 +2,14 @@
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
 import { evaluateUsageStandReady } from "../../../lib/intelligence/synthetic/libraries/saas/asc606/usage-stand-ready";
+import { extractEscalationAudits } from "../_helpers/kv-case-helpers";
 
 export function runCase() {
   try {
     evaluateUsageStandReady({ containsSaaSARRData: true }, { c1: true, c2: true, c3: false });
     return { id: "KV-USAGE-1", pass: false, reason: "silent rejection" };
   } catch (err) {
-    const audits = err.escalationAudits || [];
+    const audits = extractEscalationAudits(err);
     return {
       id: "KV-USAGE-1",
       pass: audits.length > 0,

@@ -2,13 +2,14 @@
  * @spec Phase_SAAS_1_Recon_Spec.md v1.0
  */
 import { evaluateSoc2CommonCriteria } from "../../../lib/intelligence/synthetic/libraries/saas/specialized/soc2/common-criteria";
+import { extractEscalationAudits } from "../_helpers/kv-case-helpers";
 
 export function runCase() {
   try {
     evaluateSoc2CommonCriteria({ ccEvaluated: false });
     return { id: "KV-SOC2-CC-1", pass: false, reason: "silent rejection" };
   } catch (err) {
-    const audits = err.escalationAudits || [];
+    const audits = extractEscalationAudits(err);
     return {
       id: "KV-SOC2-CC-1",
       pass: audits.length > 0,

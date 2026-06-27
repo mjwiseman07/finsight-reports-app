@@ -3,10 +3,11 @@
  * @spec Phase_PS_1_Recon_Spec.md v1.0
  */
 import { classifyPrincipalVsAgent } from "../../../lib/intelligence/synthetic/libraries/prof-services/asc606/principal-vs-agent";
+import { PROF_SERVICES_KV_CTX } from "../_helpers/kv-case-helpers";
 
 export function runCases() {
-  const gross = classifyPrincipalVsAgent({ positiveControlEvidence: true, amount: 1000 });
-  const net = classifyPrincipalVsAgent({ positiveControlEvidence: false, amount: 1000 });
+  const gross = classifyPrincipalVsAgent(PROF_SERVICES_KV_CTX, { positiveControlEvidence: true, amount: 1000 });
+  const net = classifyPrincipalVsAgent(PROF_SERVICES_KV_CTX, { positiveControlEvidence: false, amount: 1000 });
   return [
     {
       id: "KV-PVA-1",

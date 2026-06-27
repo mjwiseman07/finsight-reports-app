@@ -3,13 +3,14 @@
  * @spec Phase_CON_1_Recon_Spec.md v1.0
  */
 import { evaluateOverTimeCriteria } from "../../../lib/intelligence/synthetic/libraries/construction/asc606/over-time-criteria";
+import { extractEscalationAudits } from "../_helpers/kv-case-helpers";
 
-function runPoison(id, criteria) {
+function runPoison(id: string, criteria: { c1: boolean; c2: boolean; c3: boolean }) {
   try {
     evaluateOverTimeCriteria(criteria);
     return { id, pass: false, reason: "silent rejection" };
   } catch (err) {
-    const audits = err.escalationAudits || [];
+    const audits = extractEscalationAudits(err);
     return {
       id,
       pass: audits.length > 0,

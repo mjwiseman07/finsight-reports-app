@@ -3,13 +3,14 @@
  * @spec Phase_PS_1_Recon_Spec.md v1.0
  */
 import { evaluateIfrsConstraint } from "../../../lib/intelligence/synthetic/libraries/prof-services/ifrs/ifrs15";
+import { extractEscalationAudits, PROF_SERVICES_KV_CTX } from "../_helpers/kv-case-helpers";
 
 export function runCases() {
   try {
-    evaluateIfrsConstraint({ highlyProbable: false, usProbableOnly: true });
+    evaluateIfrsConstraint(PROF_SERVICES_KV_CTX, { highlyProbable: false, usProbableOnly: true });
     return [{ id: "KV-IFRS-1", pass: false, reason: "silent rejection" }];
   } catch (err) {
-    const audits = err.escalationAudits || [];
+    const audits = extractEscalationAudits(err);
     return [
       {
         id: "KV-IFRS-1",

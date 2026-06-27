@@ -3,13 +3,14 @@
  * @spec Phase_CON_1_Recon_Spec.md v1.0
  */
 import { evaluateAmortizationMatch } from "../../../lib/intelligence/synthetic/libraries/construction/asc340-40/contract-costs";
+import { extractEscalationAudits } from "../_helpers/kv-case-helpers";
 
 export function runCases() {
   try {
     evaluateAmortizationMatch(100000, 150000, "milestone");
     return [{ id: "KV-340-1", pass: false, reason: "silent rejection" }];
   } catch (err) {
-    const audits = err.escalationAudits || [];
+    const audits = extractEscalationAudits(err);
     return [{
       id: "KV-340-1",
       pass: audits.length > 0,

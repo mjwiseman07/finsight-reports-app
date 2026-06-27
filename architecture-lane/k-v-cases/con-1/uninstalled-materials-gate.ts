@@ -3,13 +3,17 @@
  * @spec Phase_CON_1_Recon_Spec.md v1.0
  */
 import { evaluateUninstalledMaterialsGate } from "../../../lib/intelligence/synthetic/libraries/construction/asc606/uninstalled-materials";
+import { extractEscalationAudits } from "../_helpers/kv-case-helpers";
 
-function runPoison(id, input) {
+function runPoison(
+  id: string,
+  input: { isCustomerOwned: boolean; costEqualsSellingPrice: boolean; notCustomForContract: boolean },
+) {
   try {
     evaluateUninstalledMaterialsGate(input);
     return { id, pass: false, reason: "silent rejection" };
   } catch (err) {
-    const audits = err.escalationAudits || [];
+    const audits = extractEscalationAudits(err);
     return {
       id,
       pass: audits.length > 0,

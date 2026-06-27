@@ -3,13 +3,14 @@
  * @spec Phase_PS_1_Recon_Spec.md v1.0
  */
 import { validateEngagementLetter } from "../../../lib/intelligence/synthetic/libraries/prof-services/specialized/engagement-letter";
+import { extractEscalationAudits, PROF_SERVICES_KV_CTX } from "../_helpers/kv-case-helpers";
 
 export function runCases() {
   try {
-    validateEngagementLetter({ subSegment: "L", fieldsPresent: ["parties"] });
+    validateEngagementLetter(PROF_SERVICES_KV_CTX, { subSegment: "L", fieldsPresent: ["parties"] });
     return [{ id: "KV-EL-1", pass: false, reason: "silent rejection" }];
   } catch (err) {
-    const audits = err.escalationAudits || [];
+    const audits = extractEscalationAudits(err);
     return [
       {
         id: "KV-EL-1",
