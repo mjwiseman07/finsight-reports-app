@@ -138,7 +138,10 @@ function gaapDeiDate(facts: CompanyFactsFile): CompanyFactsTag | undefined {
 }
 
 export function extractFilingDir(filingPath: string): ExtractedFiling | null {
-  const factsPath = join(filingPath, "raw/companyfacts.json");
+  const slimPath = join(filingPath, "raw/companyfacts.slim.json");
+  const factsPath = existsSync(slimPath)
+    ? slimPath
+    : join(filingPath, "raw/companyfacts.json");
   const submissionsPath = join(filingPath, "raw/submissions.json");
   const sourcePath = join(filingPath, "source.json");
   if (!existsSync(sourcePath)) {

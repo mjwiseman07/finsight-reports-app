@@ -1,0 +1,210 @@
+{
+  "cik": 27419,
+  "entityName": "TARGET CORPORATION",
+  "facts": {
+    "dei": {
+      "EntityCommonStockSharesOutstanding": {
+        "label": "Entity Common Stock, Shares Outstanding",
+        "description": "Indicate number of shares or other units outstanding of each of registrant's classes of capital or common stock or other ownership interests, if and as stated on cover of related periodic report. Where multiple classes or units exist define each class/interest by adding class of stock items such as Common Class A [Member], Common Class B [Member] or Partnership Interest [Member] onto the Instrument [Domain] of the Entity Listings, Instrument.",
+        "units": {
+          "shares": [
+            {
+              "end": "2026-05-22",
+              "val": 454191112,
+              "accn": "0000027419-26-000022",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-29",
+              "frame": "CY2026Q2I"
+            }
+          ]
+        }
+      }
+    },
+    "us-gaap": {
+      "Assets": {
+        "label": "Assets",
+        "description": "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-05-02",
+              "val": 58010000000,
+              "accn": "0000027419-26-000022",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-29",
+              "frame": "CY2026Q1I"
+            }
+          ]
+        }
+      },
+      "AssetsCurrent": {
+        "label": "Assets, Current",
+        "description": "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-05-02",
+              "val": 18065000000,
+              "accn": "0000027419-26-000022",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-29",
+              "frame": "CY2026Q1I"
+            }
+          ]
+        }
+      },
+      "ContractWithCustomerLiability": {
+        "label": "Contract with Customer, Liability",
+        "description": "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-05-02",
+              "val": 1015000000,
+              "accn": "0000027419-26-000022",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-29",
+              "frame": "CY2026Q1I"
+            }
+          ]
+        }
+      },
+      "ContractWithCustomerLiabilityCurrent": {
+        "label": "Contract with Customer, Liability, Current",
+        "description": "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable, classified as current.",
+        "units": {
+          "USD": [
+            {
+              "end": "2020-02-01",
+              "val": 935000000,
+              "accn": "0000027419-20-000008",
+              "fy": 2019,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2020-03-11",
+              "frame": "CY2019Q4I"
+            }
+          ]
+        }
+      },
+      "FinanceLeaseLiability": {
+        "label": "Finance Lease, Liability",
+        "description": "Present value of lessee's discounted obligation for lease payments from finance lease.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-01-31",
+              "val": 2113000000,
+              "accn": "0000027419-26-000016",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2026-03-11",
+              "frame": "CY2025Q4I"
+            }
+          ]
+        }
+      },
+      "InventoryNet": {
+        "label": "Inventory, Net",
+        "description": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-05-02",
+              "val": 12317000000,
+              "accn": "0000027419-26-000022",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-29",
+              "frame": "CY2026Q1I"
+            }
+          ]
+        }
+      },
+      "OperatingLeaseLiability": {
+        "label": "Operating Lease, Liability",
+        "description": "Present value of lessee's discounted obligation for lease payments from operating lease.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-01-31",
+              "val": 3834000000,
+              "accn": "0000027419-26-000016",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2026-03-11",
+              "frame": "CY2025Q4I"
+            }
+          ]
+        }
+      },
+      "RevenueFromContractWithCustomerExcludingAssessedTax": {
+        "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+        "description": "Amount, excluding tax collected from customer, of revenue from satisfaction of performance obligation by transferring promised good or service to customer. Tax collected from customer is tax assessed by governmental authority that is both imposed on and concurrent with specific revenue-producing transaction, including, but not limited to, sales, use, value added and excise.",
+        "units": {
+          "USD": [
+            {
+              "start": "2026-02-01",
+              "end": "2026-05-02",
+              "val": 25443000000,
+              "accn": "0000027419-26-000022",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-29",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      },
+      "Revenues": {
+        "label": "Revenues",
+        "description": "Amount of revenue recognized from goods sold, services rendered, insurance premiums, or other activities that constitute an earning process. Includes, but is not limited to, investment and interest income before deduction of interest expense when recognized as a component of revenue, and sales and trading gain (loss).",
+        "units": {
+          "USD": [
+            {
+              "start": "2014-02-02",
+              "end": "2015-01-31",
+              "val": 72618000000,
+              "accn": "0000027419-15-000012",
+              "fy": 2014,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2015-03-13",
+              "frame": "CY2014"
+            }
+          ]
+        }
+      },
+      "SalesRevenueNet": {
+        "label": "Revenue, Net (Deprecated 2018-01-31)",
+        "description": "Total revenue from sale of goods and services rendered during the reporting period, in the normal course of business, reduced by sales returns and allowances, and sales discounts.",
+        "units": {
+          "USD": [
+            {
+              "start": "2018-02-04",
+              "end": "2018-08-04",
+              "val": 34558000000,
+              "accn": "0000027419-18-000027",
+              "fy": 2018,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2018-08-27"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

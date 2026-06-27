@@ -6,9 +6,26 @@
   "formType": "10-K",
   "sourceUrl": "https://data.sec.gov/submissions/CIK0001050915.json",
   "fetchedAt": "2026-06-27T22:27:05.080Z",
-  "sha256": "40e8ba89fc64813cc17eb6448b57f2cae406b9faaf3c4eff74481c7aa415ffbe",
+  "sha256": "45073eb65ca4ac51960ef410652b2381368f2ac08b24209132c0ea6bdc2aaa4a",
   "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
   "synthesized": false,
   "manualArchive": false,
-  "notes": "accession=0001050915-26-000006; filingDate=2026-02-19; ticker=PWR"
+  "notes": "accession=0001050915-26-000006; filingDate=2026-02-19; ticker=PWR",
+  "originalSha256": "1840802d1056e9b624a084daaaedd3b4ec09495e1d04e77143bbe2cd2b091351",
+  "prunedSha256": "45073eb65ca4ac51960ef410652b2381368f2ac08b24209132c0ea6bdc2aaa4a",
+  "pruningRule": "subset-of-original-by-xbrl-element-set",
+  "prunedElements": [
+    "EntityCommonStockSharesOutstanding",
+    "Assets",
+    "AssetsCurrent",
+    "ContractWithCustomerLiability",
+    "ContractWithCustomerLiabilityCurrent",
+    "DeferredRevenue",
+    "FinanceLeaseLiability",
+    "InventoryNet",
+    "OperatingLeaseLiability",
+    "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "Revenues",
+    "InventoryFinishedGoods"
+  ]
 }

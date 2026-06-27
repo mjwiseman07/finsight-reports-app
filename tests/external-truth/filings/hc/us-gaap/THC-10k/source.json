@@ -6,9 +6,24 @@
   "formType": "10-K",
   "sourceUrl": "https://data.sec.gov/submissions/CIK0000070318.json",
   "fetchedAt": "2026-06-27T22:27:02.235Z",
-  "sha256": "334fdc01681ce0c4425e69214bf46b960f75bfc460e606a1e87b05eeda95f663",
+  "sha256": "62e1014ac1d8025dd5bdb8f90b3b062dad7d227d122daa0a50b3aac0f95acd68",
   "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
   "synthesized": false,
   "manualArchive": false,
-  "notes": "accession=0000070318-26-000012; filingDate=2026-02-17; ticker=THC"
+  "notes": "accession=0000070318-26-000012; filingDate=2026-02-17; ticker=THC",
+  "originalSha256": "21a2bd19b9cc80074f543bf93b1ec316394b061d886093ad6e7bf81bb24edb3c",
+  "prunedSha256": "62e1014ac1d8025dd5bdb8f90b3b062dad7d227d122daa0a50b3aac0f95acd68",
+  "pruningRule": "subset-of-original-by-xbrl-element-set",
+  "prunedElements": [
+    "EntityCommonStockSharesOutstanding",
+    "Assets",
+    "AssetsCurrent",
+    "ContractWithCustomerLiabilityCurrent",
+    "DeferredRevenue",
+    "FinanceLeaseLiability",
+    "InventoryNet",
+    "OperatingLeaseLiability",
+    "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "Revenues"
+  ]
 }

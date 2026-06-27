@@ -6,9 +6,23 @@
   "formType": "10-K",
   "sourceUrl": "https://data.sec.gov/submissions/CIK0001124198.json",
   "fetchedAt": "2026-06-27T22:27:04.596Z",
-  "sha256": "f383b3ab7c7f68c58fce63330fc7ee41790dfc46f584d6e49a9a896bd7663e58",
+  "sha256": "e756f6730875a5f144124c241312eaf8a8535f7a29dfe13b74306c47da5d0bcc",
   "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
   "synthesized": false,
   "manualArchive": false,
-  "notes": "accession=0001124198-26-000007; filingDate=2026-02-17; ticker=FLR"
+  "notes": "accession=0001124198-26-000007; filingDate=2026-02-17; ticker=FLR",
+  "originalSha256": "7d859509e2d2f643d5285bc4913ce1908ee22c4c13425c30e88fb93f0efe2c74",
+  "prunedSha256": "e756f6730875a5f144124c241312eaf8a8535f7a29dfe13b74306c47da5d0bcc",
+  "pruningRule": "subset-of-original-by-xbrl-element-set",
+  "prunedElements": [
+    "EntityCommonStockSharesOutstanding",
+    "Assets",
+    "AssetsCurrent",
+    "ContractWithCustomerLiability",
+    "ContractWithCustomerLiabilityCurrent",
+    "FinanceLeaseLiability",
+    "OperatingLeaseLiability",
+    "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "Revenues"
+  ]
 }

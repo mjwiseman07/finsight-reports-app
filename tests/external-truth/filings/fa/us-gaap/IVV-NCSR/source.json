@@ -6,9 +6,13 @@
   "formType": "N-CSR",
   "sourceUrl": "https://data.sec.gov/submissions/CIK0001100663.json",
   "fetchedAt": "2026-06-27T22:27:23.141Z",
-  "sha256": "c28ba48488952add0d9b9e381e8b5bf5ff9c1dfbce7fcec1285efa92174f1593",
+  "sha256": "1a6e09a46ec0fa9b733df29cda4dbaacc9c772307394f2745f124d6320773957",
   "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
   "synthesized": false,
   "manualArchive": false,
-  "notes": "accession=0001193125-26-257130; filingDate=2026-06-04; ticker=IVV"
+  "notes": "accession=0001193125-26-257130; filingDate=2026-06-04; ticker=IVV",
+  "originalSha256": "2fedc2b2161a86f8d0712ba60f0e0baef8c208252ee032649949f63637670ed1",
+  "prunedSha256": "1a6e09a46ec0fa9b733df29cda4dbaacc9c772307394f2745f124d6320773957",
+  "pruningRule": "subset-of-original-by-xbrl-element-set",
+  "prunedElements": []
 }

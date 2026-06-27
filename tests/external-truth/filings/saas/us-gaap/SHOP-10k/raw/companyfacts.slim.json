@@ -1,0 +1,154 @@
+{
+  "cik": 1594805,
+  "entityName": "Shopify Inc.",
+  "facts": {
+    "us-gaap": {
+      "Assets": {
+        "label": "Assets",
+        "description": "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-03-31",
+              "val": 14121000000,
+              "accn": "0001594805-26-000019",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-05",
+              "frame": "CY2026Q1I"
+            }
+          ]
+        }
+      },
+      "AssetsCurrent": {
+        "label": "Assets, Current",
+        "description": "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-03-31",
+              "val": 8495000000,
+              "accn": "0001594805-26-000019",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-05",
+              "frame": "CY2026Q1I"
+            }
+          ]
+        }
+      },
+      "ContractWithCustomerLiability": {
+        "label": "Contract with Customer, Liability",
+        "description": "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-03-31",
+              "val": 407000000,
+              "accn": "0001594805-26-000019",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-05",
+              "frame": "CY2026Q1I"
+            }
+          ]
+        }
+      },
+      "ContractWithCustomerLiabilityCurrent": {
+        "label": "Contract with Customer, Liability, Current",
+        "description": "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable, classified as current.",
+        "units": {
+          "USD": [
+            {
+              "end": "2026-03-31",
+              "val": 321000000,
+              "accn": "0001594805-26-000019",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-05",
+              "frame": "CY2026Q1I"
+            }
+          ]
+        }
+      },
+      "InventoryNet": {
+        "label": "Inventory, Net",
+        "description": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+        "units": {
+          "USD": [
+            {
+              "end": "2025-12-31",
+              "val": 21000000,
+              "accn": "0001594805-26-000007",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2026-02-11",
+              "frame": "CY2025Q4I"
+            }
+          ]
+        }
+      },
+      "OperatingLeaseLiability": {
+        "label": "Operating Lease, Liability",
+        "description": "Present value of lessee's discounted obligation for lease payments from operating lease.",
+        "units": {
+          "USD": [
+            {
+              "end": "2022-12-31",
+              "val": 483296000,
+              "accn": "0001594805-23-000011",
+              "fy": 2022,
+              "fp": "FY",
+              "form": "40-F",
+              "filed": "2023-02-16",
+              "frame": "CY2022Q4I"
+            }
+          ]
+        }
+      },
+      "RevenueFromContractWithCustomerExcludingAssessedTax": {
+        "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+        "description": "Amount, excluding tax collected from customer, of revenue from satisfaction of performance obligation by transferring promised good or service to customer. Tax collected from customer is tax assessed by governmental authority that is both imposed on and concurrent with specific revenue-producing transaction, including, but not limited to, sales, use, value added and excise.",
+        "units": {
+          "USD": [
+            {
+              "start": "2023-01-01",
+              "end": "2023-12-31",
+              "val": 7060000000,
+              "accn": "0001594805-24-000007",
+              "fy": 2022,
+              "fp": "FY",
+              "form": "40-F",
+              "filed": "2024-02-13",
+              "frame": "CY2023"
+            }
+          ]
+        }
+      },
+      "Revenues": {
+        "label": "Revenues",
+        "description": "Amount of revenue recognized from goods sold, services rendered, insurance premiums, or other activities that constitute an earning process. Includes, but is not limited to, investment and interest income before deduction of interest expense when recognized as a component of revenue, and sales and trading gain (loss).",
+        "units": {
+          "USD": [
+            {
+              "start": "2026-01-01",
+              "end": "2026-03-31",
+              "val": 3170000000,
+              "accn": "0001594805-26-000019",
+              "fy": 2026,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2026-05-05",
+              "frame": "CY2026Q1"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

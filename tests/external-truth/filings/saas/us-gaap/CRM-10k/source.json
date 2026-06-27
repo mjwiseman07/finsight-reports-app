@@ -6,9 +6,26 @@
   "formType": "10-K",
   "sourceUrl": "https://data.sec.gov/submissions/CIK0001108524.json",
   "fetchedAt": "2026-06-27T22:26:58.036Z",
-  "sha256": "2c725ec3bc295b2d89882b05cf718298f2624ce35a95d29bf0ac8f7182da772d",
+  "sha256": "8f9442ef73510fb024bee69d355a3a93e2f51690405f6c8fd7546eabe03d85de",
   "licenseTerms": "SEC EDGAR — public domain (17 CFR §200.80)",
   "synthesized": false,
   "manualArchive": false,
-  "notes": "accession=0001108524-26-000060; filingDate=2026-03-02; ticker=CRM"
+  "notes": "accession=0001108524-26-000060; filingDate=2026-03-02; ticker=CRM",
+  "originalSha256": "fe2768792df372a974058107fe38ffb76cc6a55f00a17b104c4b50e3544b361f",
+  "prunedSha256": "8f9442ef73510fb024bee69d355a3a93e2f51690405f6c8fd7546eabe03d85de",
+  "pruningRule": "subset-of-original-by-xbrl-element-set",
+  "prunedElements": [
+    "EntityCommonStockSharesOutstanding",
+    "Assets",
+    "AssetsCurrent",
+    "ContractWithCustomerLiabilityCurrent",
+    "CostOfRevenue",
+    "DeferredRevenue",
+    "DeferredSalesCommission",
+    "FinanceLeaseLiability",
+    "OperatingLeaseLiability",
+    "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "RevenueFromContractWithCustomerIncludingAssessedTax",
+    "Revenues"
+  ]
 }
