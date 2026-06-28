@@ -16,10 +16,10 @@ export function SiteNav() {
         <Image
           src={heroLogo}
           alt="Advisacor"
-          width={1600}
-          height={800}
+          width={1510}
+          height={839}
           priority
-          className="pointer-events-none h-auto w-[480px] select-none md:w-[760px] lg:w-[880px] xl:w-[960px]"
+          className="pointer-events-none h-auto w-[240px] select-none sm:w-[280px] md:w-[320px] lg:w-[360px] xl:w-[400px]"
         />
       </Link>
       <nav className="absolute top-6 right-8 z-30">
