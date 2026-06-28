@@ -102,6 +102,22 @@ export interface ExtractedFiling {
     by_program: Record<string, number>;
     allocation_basis: string;
   };
+  contract_revenue?: {
+    contract_asset?: { current: number; noncurrent?: number };
+    contract_liability?: { current: number; noncurrent?: number };
+    deferred_revenue_rollforward?: {
+      beginning_balance: number;
+      revenue_deferred: number;
+      revenue_recognized: number;
+      ending_balance: number;
+    };
+    revenue_by_category?: Record<string, number>;
+    cost_to_obtain?: { capitalized: number; amortization: number };
+    transaction_price_allocation?: Array<{ obligation: string; amount: number }>;
+    remaining_performance_obligation?: { total: number; within_twelve_months: number };
+    variable_consideration?: { constrained_amount: number; constraint_rationale: string };
+    principal_or_agent?: "principal" | "agent";
+  };
 }
 
 export interface ExpectedDisclosureTopic {

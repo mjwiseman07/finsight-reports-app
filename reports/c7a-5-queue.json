@@ -1,0 +1,146 @@
+[
+  {
+    "id": "GAP-0181",
+    "filingId": "SAP-20f",
+    "vertical": "saas",
+    "framework": "ifrs",
+    "triage": "fix-now",
+    "assertion": "deferred-revenue-rollforward",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0182",
+    "filingId": "SAP-20f",
+    "vertical": "saas",
+    "framework": "ifrs",
+    "triage": "fix-now",
+    "assertion": "contract-asset-liability-split",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0183",
+    "filingId": "SAP-20f",
+    "vertical": "saas",
+    "framework": "ifrs",
+    "triage": "fix-now",
+    "assertion": "revenue-disaggregation",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0184",
+    "filingId": "SAP-20f",
+    "vertical": "saas",
+    "framework": "ifrs",
+    "triage": "fix-now",
+    "assertion": "cost-to-obtain-contract",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0186",
+    "filingId": "ADBE-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "deferred-revenue-rollforward",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0187",
+    "filingId": "ADBE-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "contract-asset-liability-split",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0188",
+    "filingId": "ADBE-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cost-to-obtain-contract",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0190",
+    "filingId": "CRM-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "deferred-revenue-rollforward",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0191",
+    "filingId": "CRM-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "contract-asset-liability-split",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0192",
+    "filingId": "CRM-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cost-to-obtain-contract",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0194",
+    "filingId": "NOW-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "deferred-revenue-rollforward",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0195",
+    "filingId": "NOW-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "contract-asset-liability-split",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0196",
+    "filingId": "NOW-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cost-to-obtain-contract",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0198",
+    "filingId": "SHOP-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "deferred-revenue-rollforward",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0199",
+    "filingId": "SHOP-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "contract-asset-liability-split",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0200",
+    "filingId": "SHOP-10k",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cost-to-obtain-contract",
+    "closed_in": null
+  }
+]

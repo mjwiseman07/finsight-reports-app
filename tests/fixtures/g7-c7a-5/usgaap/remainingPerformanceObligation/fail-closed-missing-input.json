@@ -1,0 +1,55 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "FAIL-CLOSED",
+    "vertical": "saas",
+    "framework": "us-gaap",
+    "entityName": "Fail Closed Entity",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "contract_revenue": {
+      "contract_asset": {
+        "current": 500000000,
+        "noncurrent": 200000000
+      },
+      "contract_liability": {
+        "current": 1200000000,
+        "noncurrent": 800000000
+      },
+      "deferred_revenue_rollforward": {
+        "beginning_balance": 1100000000,
+        "revenue_deferred": 4500000000,
+        "revenue_recognized": 4200000000,
+        "ending_balance": 1400000000
+      },
+      "revenue_by_category": {
+        "subscription": 10000000000,
+        "professional_services": 1500000000,
+        "usage_based": 500000000
+      },
+      "cost_to_obtain": {
+        "capitalized": 800000000,
+        "amortization": 650000000
+      },
+      "transaction_price_allocation": [
+        {
+          "obligation": "subscription license",
+          "amount": 9000000000
+        },
+        {
+          "obligation": "support services",
+          "amount": 3000000000
+        }
+      ],
+      "variable_consideration": {
+        "constrained_amount": 120000000,
+        "constraint_rationale": "highly probable threshold applied to usage-based fees"
+      },
+      "principal_or_agent": "principal"
+    }
+  }
+}

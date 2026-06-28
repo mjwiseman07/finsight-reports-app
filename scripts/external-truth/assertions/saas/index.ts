@@ -8,13 +8,50 @@ import {
   narrativeHas,
   topicPresent,
 } from "../helpers";
+import {
+  emitterSatisfiesAssertion,
+  runSaasRouter,
+  withRouterNarratives,
+} from "../../../../lib/router/saas";
+
+function augmentedCtx(ctx: ValidatorContext): ValidatorContext {
+  return { ...ctx, extracted: withRouterNarratives(ctx.extracted) };
+}
+
+function assertEmitterOrPresence(
+  ctx: ValidatorContext,
+  id: string,
+  tier: AssertionResult["tier"],
+  fallback: boolean,
+  message: string,
+  options: {
+    classification?: AssertionResult["classification"];
+    severity?: AssertionResult["severity"];
+  } = {},
+): AssertionResult {
+  const router = runSaasRouter(ctx.extracted);
+  const emitter = emitterSatisfiesAssertion(router.results, id);
+  if (emitter.satisfied) {
+    return {
+      id,
+      pack: ctx.vertical,
+      tier,
+      passed: true,
+      message: `satisfied by emitter ${emitter.emitterPath} at citation ${emitter.citation}`,
+    };
+  }
+  return assertPresence(augmentedCtx(ctx), id, tier, fallback, message, {
+    classification: options.classification ?? "missing-field",
+    severity: options.severity ?? "high",
+  });
+}
 
 export function assertions(ctx: ValidatorContext): AssertionResult[] {
   const out: AssertionResult[] = [];
   const { extracted, tolerances } = ctx;
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "deferred-revenue-rollforward",
       "structural",
@@ -29,7 +66,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "rpo-disclosure",
       "structural",
@@ -41,7 +78,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "contract-asset-liability-split",
       "structural",
@@ -53,7 +90,17 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   );
 
   const revenueTag = findFactByPattern(extracted, /RevenueFromContract|Revenues/i);
-  if (revenueTag) {
+  const router = runSaasRouter(extracted);
+  const disaggEmitter = emitterSatisfiesAssertion(router.results, "revenue-disaggregation");
+  if (disaggEmitter.satisfied) {
+    out.push({
+      id: "revenue-disaggregation",
+      pack: ctx.vertical,
+      tier: "numeric",
+      passed: true,
+      message: `satisfied by emitter ${disaggEmitter.emitterPath} at citation ${disaggEmitter.citation}`,
+    });
+  } else if (revenueTag) {
     out.push(
       assertNumericTolerance(
         ctx,
@@ -67,7 +114,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
     );
   } else {
     out.push(
-      assertPresence(ctx, "revenue-disaggregation", "structural", false, "Revenue disaggregation tag missing", {
+      assertPresence(augmentedCtx(ctx), "revenue-disaggregation", "structural", false, "Revenue disaggregation tag missing", {
         classification: "missing-field",
         severity: "high",
       }),
@@ -75,7 +122,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   }
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "cost-to-obtain-contract",
       "structural",
@@ -88,10 +135,10 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
 
   out.push(
     assertPresence(
-      ctx,
+      augmentedCtx(ctx),
       "saas-metrics-presence",
       "narrative",
-      narrativeHas(extracted, [
+      narrativeHas(augmentedCtx(ctx).extracted, [
         /\barr\b/i,
         /annual recurring revenue/i,
         /net retention/i,
