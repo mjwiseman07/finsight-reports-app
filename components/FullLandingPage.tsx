@@ -488,20 +488,22 @@ export default function FullLandingPage() {
       <header
         className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
           navScrolled
-            ? "border-b border-white/10 bg-[#0A1020]/80 shadow-lg shadow-black/20 backdrop-blur-md"
+            ? "border-b border-white/10 bg-[#0A1020]/85 shadow-lg shadow-black/20 backdrop-blur-md"
             : "bg-transparent"
         }`}
       >
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <Link href="/" className={`shrink-0 ${focusRing("rounded-lg")}`} aria-label="Advisacor home">
-            <Image
-              src="/advisacor-logo-full.png"
-              alt="Advisacor"
-              width={680}
-              height={340}
-              priority
-              className="h-14 w-auto md:h-16"
-            />
+          <Link href="/" className={`shrink-0 ${focusRing("rounded-2xl")}`} aria-label="Advisacor home">
+            <div className="relative rounded-2xl bg-[radial-gradient(ellipse_at_center,_rgba(226,232,240,0.85)_0%,_rgba(203,213,225,0.45)_40%,_rgba(148,163,184,0.15)_70%,_transparent_100%)] px-6 py-3 shadow-[inset_0_0_20px_rgba(255,255,255,0.15)]">
+              <Image
+                src="/advisacor-logo-full.png"
+                alt="Advisacor"
+                width={680}
+                height={340}
+                priority
+                className="h-14 w-auto md:h-16"
+              />
+            </div>
           </Link>
           <div className="hidden items-center gap-8 md:flex">
             <a href="#what-it-does" className={navLinkClass}>
