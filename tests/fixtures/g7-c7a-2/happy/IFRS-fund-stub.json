@@ -1,0 +1,18 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "IFRS-FUND",
+    "vertical": "fa",
+    "framework": "ifrs",
+    "entityName": "IFRS Fund",
+    "formType": "Annual Report",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "IFRS fund financial statements"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs"
+    ]
+  },
+  "scenario": "happy"
+}

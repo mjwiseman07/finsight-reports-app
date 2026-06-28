@@ -521,10 +521,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0030",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.768Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "3e959d06e5f84ff82a1f4d92a9890768fde59370",
+      "triageNote": "satisfied by emitter lib/router/fund-accounting/usgaap/navPerShareRollforward.ts at citation ASC 946 946-205-45-1, 946-205-50-1",
+      "createdAt": "2026-06-27T23:24:49.768Z",
+      "closed_in": "C7a-2",
+      "emitter_path": "lib/router/fund-accounting/usgaap/navPerShareRollforward.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-2/happy/FXAIX-NCSR-usgaap.json",
+      "citation_resolved": "ASC 946 946-205-45-1, 946-205-50-1"
     },
     {
       "filingId": "FXAIX-NCSR",
@@ -537,10 +541,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0031",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.768Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "3e959d06e5f84ff82a1f4d92a9890768fde59370",
+      "triageNote": "satisfied by emitter lib/router/fund-accounting/usgaap/expenseRatioDisclosure.ts at citation ASC 946 946-205-50-15",
+      "createdAt": "2026-06-27T23:24:49.768Z",
+      "closed_in": "C7a-2",
+      "emitter_path": "lib/router/fund-accounting/usgaap/expenseRatioDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-2/happy/FXAIX-NCSR-usgaap.json",
+      "citation_resolved": "ASC 946 946-205-50-15"
     },
     {
       "filingId": "FXAIX-NCSR",
@@ -569,10 +577,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0033",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.768Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "3e959d06e5f84ff82a1f4d92a9890768fde59370",
+      "triageNote": "satisfied by emitter lib/router/fund-accounting/usgaap/investmentScheduleSummary.ts at citation ASC 946 946-210-45-4",
+      "createdAt": "2026-06-27T23:24:49.768Z",
+      "closed_in": "C7a-2",
+      "emitter_path": "lib/router/fund-accounting/usgaap/investmentScheduleSummary.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-2/happy/FXAIX-NCSR-usgaap.json",
+      "citation_resolved": "ASC 946 946-210-45-4"
     },
     {
       "filingId": "FXAIX-NCSR",
@@ -601,10 +613,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0035",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.768Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "3e959d06e5f84ff82a1f4d92a9890768fde59370",
+      "triageNote": "satisfied by emitter lib/router/fund-accounting/usgaap/realizedUnrealizedGains.ts at citation ASC 946 946-225-45-5",
+      "createdAt": "2026-06-27T23:24:49.768Z",
+      "closed_in": "C7a-2",
+      "emitter_path": "lib/router/fund-accounting/usgaap/realizedUnrealizedGains.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-2/happy/FXAIX-NCSR-usgaap.json",
+      "citation_resolved": "ASC 946 946-225-45-5"
     },
     {
       "filingId": "FXAIX-NCSR",
@@ -633,10 +649,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0037",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.769Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "3e959d06e5f84ff82a1f4d92a9890768fde59370",
+      "triageNote": "satisfied by emitter lib/router/fund-accounting/usgaap/navPerShareRollforward.ts at citation ASC 946 946-205-45-1, 946-205-50-1",
+      "createdAt": "2026-06-27T23:24:49.769Z",
+      "closed_in": "C7a-2",
+      "emitter_path": "lib/router/fund-accounting/usgaap/navPerShareRollforward.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-2/happy/IVV-NCSR-usgaap.json",
+      "citation_resolved": "ASC 946 946-205-45-1, 946-205-50-1"
     },
     {
       "filingId": "IVV-NCSR",
@@ -649,10 +669,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0038",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.769Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "3e959d06e5f84ff82a1f4d92a9890768fde59370",
+      "triageNote": "satisfied by emitter lib/router/fund-accounting/usgaap/expenseRatioDisclosure.ts at citation ASC 946 946-205-50-15",
+      "createdAt": "2026-06-27T23:24:49.769Z",
+      "closed_in": "C7a-2",
+      "emitter_path": "lib/router/fund-accounting/usgaap/expenseRatioDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-2/happy/IVV-NCSR-usgaap.json",
+      "citation_resolved": "ASC 946 946-205-50-15"
     },
     {
       "filingId": "IVV-NCSR",
@@ -681,10 +705,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0040",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.769Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "3e959d06e5f84ff82a1f4d92a9890768fde59370",
+      "triageNote": "satisfied by emitter lib/router/fund-accounting/usgaap/investmentScheduleSummary.ts at citation ASC 946 946-210-45-4",
+      "createdAt": "2026-06-27T23:24:49.769Z",
+      "closed_in": "C7a-2",
+      "emitter_path": "lib/router/fund-accounting/usgaap/investmentScheduleSummary.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-2/happy/IVV-NCSR-usgaap.json",
+      "citation_resolved": "ASC 946 946-210-45-4"
     },
     {
       "filingId": "IVV-NCSR",
@@ -713,10 +741,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0042",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.769Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "3e959d06e5f84ff82a1f4d92a9890768fde59370",
+      "triageNote": "satisfied by emitter lib/router/fund-accounting/usgaap/realizedUnrealizedGains.ts at citation ASC 946 946-225-45-5",
+      "createdAt": "2026-06-27T23:24:49.769Z",
+      "closed_in": "C7a-2",
+      "emitter_path": "lib/router/fund-accounting/usgaap/realizedUnrealizedGains.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-2/happy/IVV-NCSR-usgaap.json",
+      "citation_resolved": "ASC 946 946-225-45-5"
     },
     {
       "filingId": "IVV-NCSR",

@@ -1,0 +1,19 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "IVV-NCSR",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "entityName": "iSHARES TRUST",
+    "cik": "0001100663",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "iSHARES TRUST N-CSR"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ]
+  },
+  "scenario": "happy"
+}

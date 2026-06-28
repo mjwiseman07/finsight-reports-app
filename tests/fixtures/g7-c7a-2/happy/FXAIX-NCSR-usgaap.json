@@ -1,0 +1,18 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "FXAIX-NCSR",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "entityName": "FIDELITY DEVONSHIRE TRUST",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "FIDELITY DEVONSHIRE TRUST N-CSR"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ]
+  },
+  "scenario": "happy"
+}
