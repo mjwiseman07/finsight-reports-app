@@ -197,10 +197,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0011",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.761Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "32b4b60cb1cc3615993fda4166d150b0f37b0f13",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/unitsOfDeliveryOutputMeasure.ts at citation ASC 606 606-10-25-31, 606-10-55-17, 606-10-55-19",
+      "createdAt": "2026-06-27T23:24:49.761Z",
+      "closed_in": "C7a-1b",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/construction/usgaap/unitsOfDeliveryOutputMeasure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1b/happy/flr-10k-units.json",
+      "citation_resolved": "ASC 606 606-10-25-31, 606-10-55-17, 606-10-55-19"
     },
     {
       "filingId": "GVA-10k",
@@ -305,10 +310,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0017",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.762Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "32b4b60cb1cc3615993fda4166d150b0f37b0f13",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/milestoneOutputMeasure.ts at citation ASC 606 606-10-55-17, 606-10-55-19, 606-10-25-31",
+      "createdAt": "2026-06-27T23:24:49.762Z",
+      "closed_in": "C7a-1b",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/construction/usgaap/milestoneOutputMeasure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1b/happy/gva-10k-milestones.json",
+      "citation_resolved": "ASC 606 606-10-55-17, 606-10-55-19, 606-10-25-31"
     },
     {
       "filingId": "MTZ-10k",
@@ -361,10 +371,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0020",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.764Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "32b4b60cb1cc3615993fda4166d150b0f37b0f13",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/contractBalanceRollforward.ts at citation ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9",
+      "createdAt": "2026-06-27T23:24:49.764Z",
+      "closed_in": "C7a-1b",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/construction/usgaap/contractBalanceRollforward.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1b/happy/mtz-10k-balances.json",
+      "citation_resolved": "ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9"
     },
     {
       "filingId": "MTZ-10k",
@@ -409,10 +424,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0023",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.764Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "32b4b60cb1cc3615993fda4166d150b0f37b0f13",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/milestoneOutputMeasure.ts at citation ASC 606 606-10-55-17, 606-10-55-19, 606-10-25-31",
+      "createdAt": "2026-06-27T23:24:49.764Z",
+      "closed_in": "C7a-1b",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/construction/usgaap/milestoneOutputMeasure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1b/happy/mtz-10k-milestones.json",
+      "citation_resolved": "ASC 606 606-10-55-17, 606-10-55-19, 606-10-25-31"
     },
     {
       "filingId": "PWR-10k",
@@ -425,10 +445,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0024",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.765Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "32b4b60cb1cc3615993fda4166d150b0f37b0f13",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/milestoneOutputMeasure.ts at citation ASC 606 606-10-55-17, 606-10-55-19, 606-10-25-31",
+      "createdAt": "2026-06-27T23:24:49.765Z",
+      "closed_in": "C7a-1b",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/construction/usgaap/milestoneOutputMeasure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1b/happy/pwr-10k-milestones.json",
+      "citation_resolved": "ASC 606 606-10-55-17, 606-10-55-19, 606-10-25-31"
     },
     {
       "filingId": "PWR-10k",
@@ -441,10 +466,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0025",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.765Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "32b4b60cb1cc3615993fda4166d150b0f37b0f13",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/postCompletionAdjustments.ts at citation ASC 606 606-10-32-10, 606-10-55-20",
+      "createdAt": "2026-06-27T23:24:49.765Z",
+      "closed_in": "C7a-1b",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/construction/usgaap/postCompletionAdjustments.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1b/happy/pwr-10k-post-completion.json",
+      "citation_resolved": "ASC 606 606-10-32-10, 606-10-55-20"
     },
     {
       "filingId": "PWR-10k",
@@ -457,10 +487,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0026",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.766Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "32b4b60cb1cc3615993fda4166d150b0f37b0f13",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/postCompletionAdjustments.ts at citation ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9",
+      "createdAt": "2026-06-27T23:24:49.766Z",
+      "closed_in": "C7a-1b",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/construction/usgaap/postCompletionAdjustments.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1b/happy/pwr-10k-post-completion.json",
+      "citation_resolved": "ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9"
     },
     {
       "filingId": "PWR-10k",
@@ -505,10 +540,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0029",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.766Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "32b4b60cb1cc3615993fda4166d150b0f37b0f13",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/milestoneOutputMeasure.ts at citation ASC 606 606-10-55-17, 606-10-55-19, 606-10-25-31",
+      "createdAt": "2026-06-27T23:24:49.766Z",
+      "closed_in": "C7a-1b",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/construction/usgaap/milestoneOutputMeasure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1b/happy/pwr-10k-milestones.json",
+      "citation_resolved": "ASC 606 606-10-55-17, 606-10-55-19, 606-10-25-31"
     },
     {
       "filingId": "FXAIX-NCSR",

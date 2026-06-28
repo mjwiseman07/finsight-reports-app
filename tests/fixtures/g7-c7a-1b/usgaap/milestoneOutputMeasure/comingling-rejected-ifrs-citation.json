@@ -1,0 +1,38 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "numericFacts": [
+      {
+        "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "label": "Revenue from Contract with Customer",
+        "value": 5200000000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      }
+    ],
+    "narrativeSnippets": [
+      "Prefilled IFRS 15.B16 must not appear in US GAAP output"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "COMINGLING-MILE",
+    "construction": {
+      "output_measure": {
+        "method": "milestones",
+        "milestones_defined": [
+          "foundation complete",
+          "superstructure complete",
+          "final inspection"
+        ],
+        "milestones_achieved": [
+          "foundation complete",
+          "superstructure complete"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "GAP-0011",
+    "filingId": "FLR-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "asc606-over-time",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0017",
+    "filingId": "GVA-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "asc606-over-time",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0020",
+    "filingId": "MTZ-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "contract-balances-rollforward",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0023",
+    "filingId": "MTZ-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "asc606-over-time",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0024",
+    "filingId": "PWR-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "poc-method-declared",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0025",
+    "filingId": "PWR-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cost-to-cost-ratio",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0026",
+    "filingId": "PWR-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "contract-balances-rollforward",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0029",
+    "filingId": "PWR-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "asc606-over-time",
+    "closed_in": null
+  }
+]

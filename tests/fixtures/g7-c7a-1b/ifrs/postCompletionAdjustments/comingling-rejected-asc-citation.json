@@ -1,0 +1,35 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "con",
+    "framework": "ifrs",
+    "formType": "10-K",
+    "numericFacts": [
+      {
+        "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "label": "Revenue from Contract with Customer",
+        "value": 5200000000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      }
+    ],
+    "narrativeSnippets": [
+      "Prefilled ASC 606-10-32-10 must not appear in IFRS output"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "filingId": "COMINGLING-IFRS-P",
+    "construction": {
+      "post_completion": {
+        "warranty_obligation": "two-year structural warranty provision",
+        "retainage_balance": 48500000,
+        "adjustment_history": "post-completion cost true-up using incurred cost relative to estimated total cost"
+      },
+      "contract_balances": {
+        "contract_assets": 320000000,
+        "contract_liabilities": 95000000
+      }
+    }
+  }
+}

@@ -17,7 +17,9 @@ export const CITATION_RESOLVED = citationResolved(CITATION);
 assertUsgaapCitationNonComingling(CITATION_RESOLVED);
 
 export function emitContractBalanceRollforward(input: ConstructionEmitterInput): EmitterResult {
+  const balances = input.extracted.construction?.contract_balances;
   const hasSignal =
+    Boolean(balances) ||
     input.hasContractLiabilityNarrative ||
     input.hasContractRevenueTag ||
     /contract asset|contract liability|billings in excess/i.test(input.narrativeHaystack);
@@ -32,6 +34,9 @@ export function emitContractBalanceRollforward(input: ConstructionEmitterInput):
     };
   }
 
+  const balanceDetail = balances
+    ? ` Contract assets $${balances.contract_assets}; contract liabilities $${balances.contract_liabilities}.`
+    : "";
   return {
     emitterId: "contract-balances-rollforward",
     emitterPath: EMITTER_PATH,
@@ -40,7 +45,7 @@ export function emitContractBalanceRollforward(input: ConstructionEmitterInput):
       {
         assertionId: "contract-balances-rollforward",
         citation: CITATION,
-        text: `Contract assets and contract liabilities rollforward disclosed per ${CITATION_RESOLVED}, including billings in excess of costs.`,
+        text: `Contract assets and contract liabilities rollforward disclosed per ${CITATION_RESOLVED}, including billings in excess of costs.${balanceDetail}`,
       },
     ],
   };

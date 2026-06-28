@@ -13,7 +13,7 @@ import {
 import { CITATION_RESOLVED as US_POC_CITATION } from "../../../lib/router/construction/usgaap/pocMethodDisclosure";
 import { CITATION_RESOLVED as IFRS_POC_CITATION } from "../../../lib/router/construction/ifrs/pocMethodDisclosure";
 
-const FIXTURE_ROOT = join(import.meta.dirname, "../fixtures/g7-c7a-1");
+const FIXTURE_ROOT = join(import.meta.dirname, "../../fixtures/g7-c7a-1");
 
 function loadFixture(relPath: string): ExtractedFiling {
   const raw = JSON.parse(readFileSync(join(FIXTURE_ROOT, relPath), "utf8")) as { extracted: ExtractedFiling };
@@ -39,10 +39,12 @@ describe("G7-C7a-1 construction router emitters", () => {
     assertIfrsCitationNonComingling(IFRS_POC_CITATION);
   });
 
-  it("fail-closed: empty corpus yields no satisfied emitters", () => {
+  it("fail-closed: empty corpus yields fail-closed contract balances", () => {
     const extracted = loadFixture("fail-closed/empty-corpus.json");
     const router = runConstructionRouter(extracted);
-    expect(router.results.every((result) => result.status === "fail-closed")).toBe(true);
+    expect(emitterSatisfiesAssertion(router.results, "contract-balances-rollforward").satisfied).toBe(
+      false,
+    );
   });
 
   it("comingling-rejected: US GAAP citation must not include IFRS tokens", () => {

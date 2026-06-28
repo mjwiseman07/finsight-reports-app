@@ -165,6 +165,24 @@ export interface ExtractedFiling {
       true_up_methodology: string;
     };
   };
+  construction?: {
+    output_measure?: {
+      method: "cost-to-cost" | "units-of-delivery" | "milestones";
+      unit_definition?: string;
+      unit_progress?: number;
+      milestones_defined?: string[];
+      milestones_achieved?: string[];
+    };
+    post_completion?: {
+      warranty_obligation: string;
+      retainage_balance: number;
+      adjustment_history: string;
+    };
+    contract_balances?: {
+      contract_assets: number;
+      contract_liabilities: number;
+    };
+  };
 }
 
 export interface ExpectedDisclosureTopic {
