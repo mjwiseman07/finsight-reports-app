@@ -686,15 +686,31 @@ export default function FullLandingPage() {
             >
               MW
             </div>
-            <div className="space-y-5 text-base leading-8 text-slate-600">
-              <p>
-                Advisacor™ is being built by Matthew Wiseman, founder of Wiseman Financial Technologies LLC. With years
-                of hands-on accounting experience — managing teams of eight, closing thirteen lines of business, and
-                running the day-to-day work of senior accountants and controllers — Matthew designed Advisacor to solve
-                the problems generic AI tools can&apos;t: framework discipline, audit defensibility, and the operational
-                nuance only a working accountant recognizes.
+            <div>
+              <p className="mb-4 leading-relaxed text-slate-600">
+                Advisacor™ is being built by Matthew Wiseman, founder of Wiseman Financial Technologies LLC and an
+                accounting professional with over a decade of experience inside the books of major public and private
+                companies, supporting accounting operations for revenues of up to $8.3 billion.
               </p>
-              <p className="font-semibold text-[#0A1020]">Headquartered in Clifton Forge, Virginia.</p>
+              <p className="mb-4 leading-relaxed text-slate-600">
+                His career spans Fortune 500 accounting, ERP implementation, SOX documentation and controls, and the
+                full library of revenue and consolidation standards — ASC 606, ASC 805, ASC 810, and ASC 842. He began
+                his career in public accounting and holds a Bachelor&apos;s and Master&apos;s in Accounting from Liberty
+                University.
+              </p>
+              <p className="mb-4 leading-relaxed text-slate-600">
+                Matthew built Advisacor™ to solve the problems generic AI tools can&apos;t: framework discipline, audit
+                defensibility, and the operational nuance only a working accountant recognizes.
+              </p>
+              <p className="text-sm font-medium text-slate-500">Headquartered in Clifton Forge, Virginia.</p>
+              <a
+                href="https://www.linkedin.com/in/matthew-wiseman-807bb155"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`mt-4 inline-flex text-sm font-semibold text-[#FF7A1A] transition hover:text-[#e56a10] ${focusRing("rounded")}`}
+              >
+                Connect on LinkedIn →
+              </a>
             </div>
           </div>
         </div>
@@ -747,7 +763,12 @@ export default function FullLandingPage() {
                   </a>
                 </li>
                 <li>
-                  <a href="#" className={`text-[#0A1020] hover:text-[#FF7A1A] ${focusRing("rounded")}`}>
+                  <a
+                    href="https://www.linkedin.com/in/matthew-wiseman-807bb155"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`text-[#0A1020] hover:text-[#FF7A1A] ${focusRing("rounded")}`}
+                  >
                     LinkedIn
                   </a>
                 </li>
