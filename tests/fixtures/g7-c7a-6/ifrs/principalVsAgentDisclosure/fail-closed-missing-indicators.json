@@ -1,0 +1,25 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "FAIL",
+    "vertical": "ps",
+    "framework": "ifrs",
+    "entityName": "Fail Entity",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Professional services engagement"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "receivables": {
+      "billed": 95000000,
+      "unbilled": 42000000
+    },
+    "contract_assets": {
+      "opening": 38000000,
+      "closing": 42000000
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "FAIL",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "entityName": "Fail Entity",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Professional services engagement"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "receivables": {
+      "billed": 420000000,
+      "unbilled": 180000000
+    },
+    "engagement": {
+      "classification": "principal",
+      "indicators": [
+        "controls service delivery",
+        "bears delivery risk",
+        "pricing discretion"
+      ]
+    },
+    "revenue": {
+      "by_fee_structure": {
+        "hourly": 8500000000,
+        "fixed_fee": 12200000000,
+        "retainer": 1100000000
+      }
+    }
+  }
+}

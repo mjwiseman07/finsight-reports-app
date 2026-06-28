@@ -2482,10 +2482,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0147",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
-      "createdAt": "2026-06-27T23:24:49.801Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/ifrs/unbilledReceivablesDisclosure.ts at citation IFRS 15 105, 116",
+      "createdAt": "2026-06-27T23:24:49.801Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/ifrs/unbilledReceivablesDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/dlte-uk-annual.json",
+      "citation_resolved": "IFRS 15 105, 116"
     },
     {
       "filingId": "DLTE-UK-annual",
@@ -2530,10 +2535,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0150",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
-      "createdAt": "2026-06-27T23:24:49.801Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/ifrs/principalVsAgentDisclosure.ts at citation IFRS 15 B34, B35, B38",
+      "createdAt": "2026-06-27T23:24:49.801Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/ifrs/principalVsAgentDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/dlte-uk-annual.json",
+      "citation_resolved": "IFRS 15 B34, B35, B38"
     },
     {
       "filingId": "ACN-10k",
@@ -2546,10 +2556,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0151",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.802Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/usgaap/unbilledReceivablesDisclosure.ts at citation ASC 606 606-10-45-1, 606-10-50-9",
+      "createdAt": "2026-06-27T23:24:49.802Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/usgaap/unbilledReceivablesDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/acn-10k.json",
+      "citation_resolved": "ASC 606 606-10-45-1, 606-10-50-9"
     },
     {
       "filingId": "ACN-10k",
@@ -2578,10 +2593,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0153",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.802Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/usgaap/feeStructureDisclosure.ts at citation ASC 606 606-10-50-5",
+      "createdAt": "2026-06-27T23:24:49.802Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/usgaap/feeStructureDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/acn-10k.json",
+      "citation_resolved": "ASC 606 606-10-50-5"
     },
     {
       "filingId": "ACN-10k",
@@ -2610,10 +2630,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0155",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.802Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/usgaap/principalVsAgentDisclosure.ts at citation ASC 606 606-10-55-36, 606-10-55-40",
+      "createdAt": "2026-06-27T23:24:49.802Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/usgaap/principalVsAgentDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/acn-10k.json",
+      "citation_resolved": "ASC 606 606-10-55-36, 606-10-55-40"
     },
     {
       "filingId": "FCN-10k",
@@ -2626,10 +2651,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0156",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.803Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/usgaap/unbilledReceivablesDisclosure.ts at citation ASC 606 606-10-45-1, 606-10-50-9",
+      "createdAt": "2026-06-27T23:24:49.803Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/usgaap/unbilledReceivablesDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/fcn-10k.json",
+      "citation_resolved": "ASC 606 606-10-45-1, 606-10-50-9"
     },
     {
       "filingId": "FCN-10k",
@@ -2642,10 +2672,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0157",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.804Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/usgaap/feeStructureDisclosure.ts at citation ASC 606 606-10-50-5",
+      "createdAt": "2026-06-27T23:24:49.804Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/usgaap/feeStructureDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/fcn-10k.json",
+      "citation_resolved": "ASC 606 606-10-50-5"
     },
     {
       "filingId": "FCN-10k",
@@ -2674,10 +2709,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0159",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.804Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/usgaap/principalVsAgentDisclosure.ts at citation ASC 606 606-10-55-36, 606-10-55-40",
+      "createdAt": "2026-06-27T23:24:49.804Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/usgaap/principalVsAgentDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/fcn-10k.json",
+      "citation_resolved": "ASC 606 606-10-55-36, 606-10-55-40"
     },
     {
       "filingId": "KFY-10k",
@@ -2690,10 +2730,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0160",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.804Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/usgaap/unbilledReceivablesDisclosure.ts at citation ASC 606 606-10-45-1, 606-10-50-9",
+      "createdAt": "2026-06-27T23:24:49.804Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/usgaap/unbilledReceivablesDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/kfy-10k.json",
+      "citation_resolved": "ASC 606 606-10-45-1, 606-10-50-9"
     },
     {
       "filingId": "KFY-10k",
@@ -2706,10 +2751,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0161",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.804Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/usgaap/feeStructureDisclosure.ts at citation ASC 606 606-10-50-5",
+      "createdAt": "2026-06-27T23:24:49.804Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/usgaap/feeStructureDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/kfy-10k.json",
+      "citation_resolved": "ASC 606 606-10-50-5"
     },
     {
       "filingId": "KFY-10k",
@@ -2738,10 +2788,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0163",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.805Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "14d49d698d9d5d12cc3b01de034bdcd8f7410b5e",
+      "triageNote": "satisfied by emitter lib/router/professional-services/usgaap/principalVsAgentDisclosure.ts at citation ASC 606 606-10-55-36, 606-10-55-40",
+      "createdAt": "2026-06-27T23:24:49.805Z",
+      "closed_in": "C7a-6",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/professional-services/usgaap/principalVsAgentDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-6/happy/kfy-10k.json",
+      "citation_resolved": "ASC 606 606-10-55-36, 606-10-55-40"
     },
     {
       "filingId": "AD-annual",

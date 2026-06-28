@@ -1,21 +1,53 @@
 import type { AssertionResult, ValidatorContext } from "../types";
+import { assertPresence, narrativeHas } from "../helpers";
 import {
-  assertPresence,
-  findFactByPattern,
-  narrativeHas,
-} from "../helpers";
+  emitterSatisfiesAssertion,
+  runProfessionalServicesRouter,
+  withRouterNarratives,
+} from "../../../../lib/router/professional-services";
+
+function augmentedCtx(ctx: ValidatorContext): ValidatorContext {
+  return { ...ctx, extracted: withRouterNarratives(ctx.extracted) };
+}
+
+function assertEmitterOrPresence(
+  ctx: ValidatorContext,
+  id: string,
+  tier: AssertionResult["tier"],
+  fallback: boolean,
+  message: string,
+  options: {
+    classification?: AssertionResult["classification"];
+    severity?: AssertionResult["severity"];
+  } = {},
+): AssertionResult {
+  const router = runProfessionalServicesRouter(ctx.extracted);
+  const emitter = emitterSatisfiesAssertion(router.results, id);
+  if (emitter.satisfied) {
+    return {
+      id,
+      pack: ctx.vertical,
+      tier,
+      passed: true,
+      message: `satisfied by emitter ${emitter.emitterPath} at citation ${emitter.citation}`,
+    };
+  }
+  return assertPresence(augmentedCtx(ctx), id, tier, fallback, message, {
+    classification: options.classification ?? "missing-field",
+    severity: options.severity ?? "high",
+  });
+}
 
 export function assertions(ctx: ValidatorContext): AssertionResult[] {
   const out: AssertionResult[] = [];
   const { extracted } = ctx;
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "unbilled-receivables",
       "structural",
-      findFactByPattern(extracted, /ContractWithCustomerAsset|Unbilled/i) !== undefined ||
-        narrativeHas(extracted, [/unbilled/i, /contract asset/i]),
+      narrativeHas(extracted, [/unbilled/i, /contract asset/i]),
       "Unbilled receivables (contract assets) not evidenced",
       { classification: "missing-field", severity: "high" },
     ),
@@ -23,17 +55,17 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
 
   out.push(
     assertPresence(
-      ctx,
+      augmentedCtx(ctx),
       "receivables-aging",
       "narrative",
-      narrativeHas(extracted, [/aging/i, /days outstanding/i, /receivable/i]),
+      narrativeHas(augmentedCtx(ctx).extracted, [/aging/i, /days outstanding/i, /receivable/i]),
       "Billed receivables aging not present",
       { classification: "narrative-gap", severity: "low" },
     ),
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "revenue-mix-tm-fixed",
       "structural",
@@ -45,17 +77,17 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
 
   out.push(
     assertPresence(
-      ctx,
+      augmentedCtx(ctx),
       "utilization-rate",
       "structural",
-      narrativeHas(extracted, [/utilization/i, /billable hours/i, /chargeable hours/i]),
+      narrativeHas(augmentedCtx(ctx).extracted, [/utilization/i, /billable hours/i, /chargeable hours/i]),
       "Utilization rate not disclosed",
       { classification: "missing-field", severity: "low" },
     ),
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "principal-agent-pass-through",
       "structural",

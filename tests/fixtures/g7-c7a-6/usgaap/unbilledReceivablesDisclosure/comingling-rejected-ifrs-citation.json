@@ -1,0 +1,40 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "COMINGLING",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "entityName": "Comingling",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Prefilled IFRS 15.105 citation must not appear in US GAAP output"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "receivables": {
+      "billed": 420000000,
+      "unbilled": 180000000
+    },
+    "contract_assets": {
+      "opening": 150000000,
+      "closing": 180000000
+    },
+    "engagement": {
+      "classification": "principal",
+      "indicators": [
+        "controls service delivery",
+        "bears delivery risk",
+        "pricing discretion"
+      ]
+    },
+    "revenue": {
+      "by_fee_structure": {
+        "hourly": 8500000000,
+        "fixed_fee": 12200000000,
+        "retainer": 1100000000
+      }
+    }
+  }
+}

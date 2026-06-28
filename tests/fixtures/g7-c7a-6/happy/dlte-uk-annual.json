@@ -1,0 +1,33 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "DLTE-UK-annual",
+    "vertical": "ps",
+    "framework": "ifrs",
+    "entityName": "Deloitte UK",
+    "formType": "annual",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Professional services engagement"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "receivables": {
+      "billed": 95000000,
+      "unbilled": 42000000
+    },
+    "contract_assets": {
+      "opening": 38000000,
+      "closing": 42000000
+    },
+    "engagement": {
+      "classification": "agent",
+      "indicators": [
+        "pass-through reimbursable costs",
+        "no control of specialist delivery",
+        "commission fee"
+      ]
+    }
+  }
+}

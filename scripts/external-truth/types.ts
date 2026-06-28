@@ -118,6 +118,21 @@ export interface ExtractedFiling {
     variable_consideration?: { constrained_amount: number; constraint_rationale: string };
     principal_or_agent?: "principal" | "agent";
   };
+  receivables?: {
+    billed: number;
+    unbilled: number;
+  };
+  contract_assets?: {
+    opening: number;
+    closing: number;
+  };
+  engagement?: {
+    classification: "principal" | "agent";
+    indicators: string[];
+  };
+  revenue?: {
+    by_fee_structure: Record<string, number>;
+  };
 }
 
 export interface ExpectedDisclosureTopic {

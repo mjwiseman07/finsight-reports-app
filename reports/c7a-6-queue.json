@@ -1,0 +1,101 @@
+[
+  {
+    "id": "GAP-0147",
+    "filingId": "DLTE-UK-annual",
+    "vertical": "ps",
+    "framework": "ifrs",
+    "triage": "fix-now",
+    "assertion": "unbilled-receivables",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0150",
+    "filingId": "DLTE-UK-annual",
+    "vertical": "ps",
+    "framework": "ifrs",
+    "triage": "fix-now",
+    "assertion": "principal-agent-pass-through",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0151",
+    "filingId": "ACN-10k",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "unbilled-receivables",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0153",
+    "filingId": "ACN-10k",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "revenue-mix-tm-fixed",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0155",
+    "filingId": "ACN-10k",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "principal-agent-pass-through",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0156",
+    "filingId": "FCN-10k",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "unbilled-receivables",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0157",
+    "filingId": "FCN-10k",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "revenue-mix-tm-fixed",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0159",
+    "filingId": "FCN-10k",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "principal-agent-pass-through",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0160",
+    "filingId": "KFY-10k",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "unbilled-receivables",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0161",
+    "filingId": "KFY-10k",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "revenue-mix-tm-fixed",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0163",
+    "filingId": "KFY-10k",
+    "vertical": "ps",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "principal-agent-pass-through",
+    "closed_in": null
+  }
+]

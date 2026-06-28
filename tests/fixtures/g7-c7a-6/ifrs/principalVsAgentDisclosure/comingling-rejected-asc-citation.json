@@ -1,0 +1,33 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "COMINGLING",
+    "vertical": "ps",
+    "framework": "ifrs",
+    "entityName": "Comingling",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Prefilled ASC 606-10-55-36 citation must not appear in IFRS output"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "receivables": {
+      "billed": 95000000,
+      "unbilled": 42000000
+    },
+    "contract_assets": {
+      "opening": 38000000,
+      "closing": 42000000
+    },
+    "engagement": {
+      "classification": "agent",
+      "indicators": [
+        "pass-through reimbursable costs",
+        "no control of specialist delivery",
+        "commission fee"
+      ]
+    }
+  }
+}
