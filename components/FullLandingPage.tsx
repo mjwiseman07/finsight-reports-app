@@ -9,6 +9,9 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const headingFont = "[font-family:var(--font-geologica)]";
 
+const primaryCtaClass =
+  "bg-[#C9A961] font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A]";
+
 const pillars = [
   {
     title: "Reports That Defend Themselves",
@@ -86,7 +89,7 @@ const badges = [
 ] as const;
 
 function focusRing(className = "") {
-  return `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7A1A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A1020] ${className}`;
+  return `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A961] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A1020] ${className}`;
 }
 
 function IconBase({ children, ...props }: SVGProps<SVGSVGElement> & { children: ReactNode }) {
@@ -244,7 +247,7 @@ function DashboardPreview() {
       <div className="relative">
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FFB36F]">Executive Workspace</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#C9A961]">Executive Workspace</p>
             <p className={`mt-1 text-xl font-black text-white ${headingFont}`}>Financial Intelligence Command Center</p>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white">
@@ -259,13 +262,18 @@ function DashboardPreview() {
             ["Runway", "21 wks", "stable"],
             ["AR 90+", "$48K", "review"],
             ["Margin", "34.6%", "+2.1 pts"],
-          ].map(([label, value, tag]) => (
+          ].map(([label, value, tag]) => {
+            const tagClass =
+              tag === "stable" ? "text-slate-500" : tag === "review" ? "text-amber-500" : "text-[#C9A961]";
+
+            return (
             <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{label}</p>
               <p className={`mt-3 text-2xl font-black text-white ${headingFont}`}>{value}</p>
-              <p className="mt-2 text-xs font-bold text-[#FFB36F]">{tag}</p>
+              <p className={`mt-2 text-xs font-bold ${tagClass}`}>{tag}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-[#060E22] p-5">
@@ -276,7 +284,7 @@ function DashboardPreview() {
           <div className="mt-5 rounded-2xl border border-white/10 p-4 shadow-inner shadow-black/30">
             <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#040918] p-4" aria-label="Sample liquidity forecast chart">
               <svg viewBox="0 0 420 178" className="h-56 w-full" preserveAspectRatio="none" role="img">
-                <rect x="267" y="18" width="116" height="124" fill="#D78342" opacity="0.07" />
+                <rect x="267" y="18" width="116" height="124" fill="#C9A961" opacity="0.07" />
                 <text x="326" y="28" textAnchor="middle" fill="#94A3B8" fontSize="8" fontWeight="700" letterSpacing="1.2">
                   FORECAST
                 </text>
@@ -284,8 +292,8 @@ function DashboardPreview() {
                   <line key={y} x1="34" x2="382" y1={y} y2={y} stroke="rgba(148,163,184,0.16)" strokeWidth="0.8" />
                 ))}
                 <line x1="34" x2="382" y1="142" y2="142" stroke="rgba(148,163,184,0.3)" strokeWidth="1" />
-                <path d={forecastAreaPath} fill="#C8A46A" opacity="0.08" />
-                <polyline points={chartPoints} fill="none" stroke="#C8A46A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d={forecastAreaPath} fill="#C9A961" opacity="0.08" />
+                <polyline points={chartPoints} fill="none" stroke="#C9A961" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                 <polyline
                   points="34,130 92,124 150,116 208,111 266,103 324,94 382,88"
                   fill="none"
@@ -298,12 +306,12 @@ function DashboardPreview() {
                 {liquidityForecast.map((point, index) => {
                   const x = 34 + index * 58;
                   const y = 134 - (point.cash / maxCash) * 86;
-                  return <circle key={point.week} cx={x} cy={y} r="2.8" fill="#060A12" stroke="#C8A46A" strokeWidth="1.4" />;
+                  return <circle key={point.week} cx={x} cy={y} r="2.8" fill="#060A12" stroke="#C9A961" strokeWidth="1.4" />;
                 })}
                 <text x="34" y="22" fill="#CBD5E1" fontSize="9" fontWeight="800" letterSpacing="1">
                   CASH BALANCE ($M)
                 </text>
-                <text x="348" y="44" fill="#D78342" fontSize="9" fontWeight="900">
+                <text x="348" y="44" fill="#C9A961" fontSize="9" fontWeight="900">
                   +18.6%
                 </text>
                 {liquidityForecast.map((point, index) => (
@@ -315,12 +323,12 @@ function DashboardPreview() {
             </div>
             <div className="mt-3 grid gap-2 text-xs font-bold text-slate-400 sm:grid-cols-3">
               <span>
-                <span className="text-[#C8A46A]">●</span> Treasury cash forecast
+                <span className="text-[#C9A961]">●</span> Treasury cash forecast
               </span>
               <span>
                 <span className="text-slate-500">●</span> Baseline scenario
               </span>
-              <span className="text-[#FFB36F]">Ending cash: $1.63M</span>
+              <span className="text-[#C9A961]">Ending cash: $1.63M</span>
             </div>
           </div>
         </div>
@@ -337,12 +345,12 @@ function VideoTile({ title, src }: { title: string; src: string }) {
       <div className="relative aspect-video bg-[#070B16]">
         {failed ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#FF7A1A]/40 bg-[#FF7A1A]/10 text-[#FFB36F]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 text-[#C9A961]">
               <span className="text-lg font-black" aria-hidden="true">
                 ▶
               </span>
             </div>
-            <p className="text-sm font-bold text-slate-400">Video coming soon</p>
+            <p className="text-sm font-bold text-slate-500">Video coming soon</p>
           </div>
         ) : (
           <video
@@ -416,7 +424,7 @@ function EarlyAccessForm() {
             <path d="m5 12 5 5L20 7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <p className={`mt-6 text-xl font-black text-white ${headingFont}`}>You&apos;re on the list. We&apos;ll be in touch.</p>
+        <p className={`mt-6 text-xl font-black text-[#C9A961] ${headingFont}`}>You&apos;re on the list. We&apos;ll be in touch.</p>
       </div>
     );
   }
@@ -454,11 +462,11 @@ function EarlyAccessForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className={`premium-button w-full rounded-2xl px-5 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 ${focusRing()}`}
+        className={`w-full rounded-full px-6 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${primaryCtaClass} ${focusRing()}`}
       >
         {isSubmitting ? (
           <span className="inline-flex items-center justify-center gap-2">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true" />
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0A1530]/30 border-t-[#0A1530]" aria-hidden="true" />
             Submitting...
           </span>
         ) : (
@@ -475,7 +483,7 @@ function EarlyAccessForm() {
 }
 
 export default function FullLandingPage() {
-  const navLinkClass = `${focusRing("ring-offset-slate-300")} text-sm font-bold text-slate-900 transition hover:text-orange-600`;
+  const navLinkClass = `${focusRing("ring-offset-slate-300")} text-sm font-bold text-slate-900 transition hover:text-[#C9A961]`;
 
   return (
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
@@ -514,14 +522,14 @@ export default function FullLandingPage() {
                 </a>
                 <a
                   href="#early-access"
-                  className={`premium-button rounded-full px-5 py-2.5 text-sm font-black text-white ${focusRing()}`}
+                  className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-sm ${primaryCtaClass} ${focusRing()}`}
                 >
                   Request Early Access
                 </a>
               </div>
               <a
                 href="#early-access"
-                className={`premium-button rounded-full px-4 py-2 text-xs font-black text-white md:hidden ${focusRing()}`}
+                className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs md:hidden ${primaryCtaClass} ${focusRing()}`}
               >
                 Early Access
               </a>
@@ -531,7 +539,7 @@ export default function FullLandingPage() {
 
         <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 pt-32 md:pt-40 lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)]">
           <div className="max-w-3xl">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-600">Early Access · Patent Pending</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]">Early Access · Patent Pending</p>
             <h1 className={`mt-5 text-4xl font-black leading-[1.06] tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-6xl ${headingFont}`}>
               The first accounting platform that audits its own work.
             </h1>
@@ -542,15 +550,15 @@ export default function FullLandingPage() {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
                 href="#early-access"
-                className={`premium-button inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-white ${focusRing()}`}
+                className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-sm ${primaryCtaClass} ${focusRing()}`}
               >
                 Request Early Access
               </a>
               <a
                 href="#what-it-does"
-                className={`inline-flex items-center gap-2 rounded-full border-2 border-slate-900 bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 ${focusRing()}`}
+                className={`inline-flex items-center gap-2 rounded-full border-2 border-[#0A1530] bg-[#0A1530] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#060E22] ${focusRing()}`}
               >
-                See What It Does ↓
+                See What It Does <span className="text-[#C9A961]">↓</span>
               </a>
             </div>
           </div>
@@ -561,24 +569,31 @@ export default function FullLandingPage() {
       </section>
 
       {/* SECTION C — Patent strip */}
-      <section className="border-y border-white/5 bg-[#0A1020] px-6 py-5">
-        <p className="mx-auto max-w-5xl text-center text-xs italic leading-6 text-slate-400 md:text-sm">
-          Three U.S. Provisional Patents Filed · June 2026 · Memory Substrate · AI Workforce · Disclosure Validation ·
-          Wiseman Financial Technologies LLC
+      <section className="border-y border-white/5 bg-[#0A1530] px-6 py-5">
+        <p className="mx-auto max-w-5xl text-center text-xs leading-6 md:text-sm">
+          <span className="font-semibold text-[#C9A961]">Three U.S. Provisional Patents Filed · June 2026</span>
+          <span className="text-[#C9A961]/60"> · </span>
+          <span className="text-white">Memory Substrate</span>
+          <span className="text-[#C9A961]/60"> · </span>
+          <span className="text-white">AI Workforce</span>
+          <span className="text-[#C9A961]/60"> · </span>
+          <span className="text-white">Disclosure Validation</span>
+          <span className="text-[#C9A961]/60"> · </span>
+          <span className="text-white/70">Wiseman Financial Technologies LLC</span>
         </p>
       </section>
 
       {/* SECTION D — Four Pillars */}
       <section id="what-it-does" className="scroll-mt-24 bg-[#F5F7FA] px-6 py-24">
         <div className="mx-auto max-w-7xl">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FF7A1A]">What Advisacor Does</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">What Advisacor Does</p>
           <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
             Four things generic AI accounting tools can&apos;t do.
           </h2>
           <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {pillars.map((pillar) => (
               <article key={pillar.title} className="enterprise-card rounded-[2rem] p-7">
-                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0A1020] text-[#FF7A1A]">
+                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#C9A961]/20 bg-[#0A1020] text-[#C9A961]">
                   <pillar.icon className="h-6 w-6" />
                 </div>
                 <h3 className={`text-xl font-black tracking-[-0.02em] text-[#0A1020] ${headingFont}`}>{pillar.title}</h3>
@@ -592,7 +607,7 @@ export default function FullLandingPage() {
       {/* SECTION E — Video Showcase */}
       <section id="see-it" className="scroll-mt-24 bg-[#0A1020] px-6 py-24 text-white">
         <div className="mx-auto max-w-7xl">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">See It In Action</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">See It In Action</p>
           <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] md:text-5xl ${headingFont}`}>Sixty seconds is all it takes.</h2>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-300">
             Short segments showing Advisacor™ doing the work it was designed to do.
@@ -609,17 +624,17 @@ export default function FullLandingPage() {
       {/* SECTION F — Nine Industries */}
       <section id="industries" className="scroll-mt-24 bg-[#F5F7FA] px-6 py-24">
         <div className="mx-auto max-w-7xl">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FF7A1A]">Built For The Industries That Need It Most</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Built For The Industries That Need It Most</p>
           <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
             Nine industries. Each one built from the inside out.
           </h2>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             {industries.map((industry) => (
-              <article key={industry.name} className="enterprise-card rounded-2xl p-6">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A1020] text-[#FF7A1A]">
+              <article key={industry.name} className="enterprise-card group rounded-2xl border border-transparent p-6 transition hover:border-[#C9A961]">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A1020] text-[#C9A961] transition group-hover:text-[#D9BE7B]">
                   <industry.icon className="h-5 w-5" />
                 </div>
-                <h3 className={`text-lg font-black text-[#0A1020] ${headingFont}`}>{industry.name}</h3>
+                <h3 className={`text-lg font-black text-[#0A1020] transition group-hover:text-[#C9A961] ${headingFont}`}>{industry.name}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{industry.descriptor}</p>
               </article>
             ))}
@@ -634,14 +649,18 @@ export default function FullLandingPage() {
       {/* SECTION G — How It Works */}
       <section id="how-it-works" className="scroll-mt-24 bg-[#0A1020] px-6 py-24 text-white">
         <div className="mx-auto max-w-7xl">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">How It Works</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">How It Works</p>
           <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] md:text-5xl ${headingFont}`}>
             Three steps. No migration. No magic.
           </h2>
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
             {steps.map((step) => (
               <article key={step.number} className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 backdrop-blur">
-                <p className={`text-5xl font-black text-[#FF7A1A] ${headingFont}`}>{step.number}</p>
+                <p
+                  className={`flex h-14 w-14 items-center justify-center rounded-full bg-[#C9A961] text-lg font-black text-[#0A1530] ${headingFont}`}
+                >
+                  {step.number}
+                </p>
                 <h3 className={`mt-4 text-2xl font-black text-white ${headingFont}`}>{step.title}</h3>
                 <p className="mt-4 text-sm leading-7 text-slate-300">{step.description}</p>
               </article>
@@ -653,15 +672,28 @@ export default function FullLandingPage() {
       {/* SECTION H — Built On */}
       <section className="bg-[#F5F7FA] px-6 py-24">
         <div className="mx-auto max-w-7xl">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FF7A1A]">Built On</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Built On</p>
           <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
             The standards that matter.
           </h2>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {badges.map((badge) => (
-              <div key={badge.title} className="enterprise-card rounded-2xl p-6 text-center">
-                <p className={`text-lg font-black text-[#0A1020] ${headingFont}`}>{badge.title}</p>
-                <p className="mt-2 text-sm text-slate-600">{badge.subtitle}</p>
+              <div
+                key={badge.title}
+                className={
+                  badge.title === "Patent Pending"
+                    ? "rounded-2xl border border-[#C9A961] bg-[#0A1530] p-6 text-center"
+                    : "enterprise-card rounded-2xl p-6 text-center"
+                }
+              >
+                <p
+                  className={`text-lg font-black ${badge.title === "Patent Pending" ? "text-[#C9A961]" : "text-[#0A1020]"} ${headingFont}`}
+                >
+                  {badge.title}
+                </p>
+                <p className={`mt-2 text-sm ${badge.title === "Patent Pending" ? "text-white/70" : "text-slate-600"}`}>
+                  {badge.subtitle}
+                </p>
               </div>
             ))}
           </div>
@@ -675,7 +707,7 @@ export default function FullLandingPage() {
       {/* SECTION I — About / Founder */}
       <section id="about" className="scroll-mt-24 bg-[#F5F7FA] px-6 pb-24">
         <div className="mx-auto max-w-7xl">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FF7A1A]">Built By Accountants For Accountants</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Built By Accountants For Accountants</p>
           <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
             Designed by someone who&apos;s actually closed the books.
           </h2>
@@ -711,7 +743,7 @@ export default function FullLandingPage() {
                 href="https://www.linkedin.com/in/matthew-wiseman-807bb155"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`mt-4 inline-flex text-sm font-semibold text-[#FF7A1A] transition hover:text-[#e56a10] ${focusRing("rounded")}`}
+                className={`mt-4 inline-flex text-sm font-semibold text-[#0A1530] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
               >
                 Connect on LinkedIn →
               </a>
@@ -723,7 +755,7 @@ export default function FullLandingPage() {
       {/* SECTION J — Early Access */}
       <section id="early-access" className="scroll-mt-24 bg-[#0A1020] px-6 py-24 text-white">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Early Access</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Early Access</p>
           <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] md:text-5xl ${headingFont}`}>
             Be first when Advisacor™ opens.
           </h2>
@@ -753,12 +785,12 @@ export default function FullLandingPage() {
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Contact</p>
               <ul className="mt-3 space-y-2 text-sm font-semibold">
                 <li>
-                  <a href="mailto:sales@advisacor.com" className={`text-[#0A1020] hover:text-[#FF7A1A] ${focusRing("rounded")}`}>
+                  <a href="mailto:sales@advisacor.com" className={`text-[#0A1020] hover:text-[#C9A961] ${focusRing("rounded")}`}>
                     sales@advisacor.com
                   </a>
                 </li>
                 <li>
-                  <a href="mailto:contact@advisacor.com" className={`text-[#0A1020] hover:text-[#FF7A1A] ${focusRing("rounded")}`}>
+                  <a href="mailto:contact@advisacor.com" className={`text-[#0A1020] hover:text-[#C9A961] ${focusRing("rounded")}`}>
                     contact@advisacor.com
                   </a>
                 </li>
@@ -768,7 +800,7 @@ export default function FullLandingPage() {
               <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Company</p>
               <ul className="mt-3 space-y-2 text-sm font-semibold">
                 <li>
-                  <a href="#" className={`text-[#0A1020] hover:text-[#FF7A1A] ${focusRing("rounded")}`}>
+                  <a href="#" className={`text-[#0A1020] hover:text-[#C9A961] ${focusRing("rounded")}`}>
                     Privacy Policy
                   </a>
                 </li>
@@ -777,7 +809,7 @@ export default function FullLandingPage() {
                     href="https://www.linkedin.com/in/matthew-wiseman-807bb155"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`text-[#0A1020] hover:text-[#FF7A1A] ${focusRing("rounded")}`}
+                    className={`text-[#0A1020] hover:text-[#C9A961] ${focusRing("rounded")}`}
                   >
                     LinkedIn
                   </a>
@@ -787,8 +819,11 @@ export default function FullLandingPage() {
           </div>
 
           <div className="mt-12 space-y-2 border-t border-slate-200 pt-8 text-xs leading-6 text-slate-500">
-            <p>Advisacor™ is a trademark of Wiseman Financial Technologies LLC. Trademark application pending.</p>
-            <p>Patent Pending. Three U.S. provisional patent applications filed June 2026.</p>
+            <p>
+              Advisacor™ is a trademark of Wiseman Financial Technologies LLC.{" "}
+              <span className="text-[#C9A961]">Trademark application pending.</span>
+            </p>
+            <p className="text-[#C9A961]">Patent Pending. Three U.S. provisional patent applications filed June 2026.</p>
             <p>© 2026 Wiseman Financial Technologies LLC. All rights reserved.</p>
           </div>
         </div>
