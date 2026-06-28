@@ -1,0 +1,20 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "US-PHYSICIAN",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "entityName": "US Physician Group",
+    "formType": "10-K",
+    "tax_status": "501(c)(3)",
+    "entity_type": "physician_group",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Physician group services"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ]
+  },
+  "scenario": "happy"
+}

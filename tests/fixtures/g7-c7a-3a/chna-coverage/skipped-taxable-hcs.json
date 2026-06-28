@@ -1,39 +1,39 @@
 {
   "extracted": {
     "schemaVersion": "1.0.0",
-    "filingId": "THC-10k",
+    "filingId": "HCA-10k",
     "vertical": "hc",
     "framework": "us-gaap",
-    "entityName": "TENET HEALTHCARE CORP",
-    "cik": "0000070318",
+    "entityName": "HCA Healthcare, Inc.",
+    "cik": "0000860730",
     "formType": "10-K",
     "inventoryMethod": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
     "numericFacts": [
       {
         "tag": "Revenues",
         "label": "Revenues",
-        "value": 4520000000,
-        "unit": "USD",
-        "periodEnd": "2020-03-31"
-      },
-      {
-        "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
-        "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
-        "value": 5368000000,
+        "value": 19109000000,
         "unit": "USD",
         "periodEnd": "2026-03-31"
       },
       {
+        "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+        "label": "Revenue from Contract with Customer, Including Assessed Tax",
+        "value": 43688000000,
+        "unit": "USD",
+        "periodEnd": "2021-09-30"
+      },
+      {
         "tag": "Assets",
         "label": "Assets",
-        "value": 31203000000,
+        "value": 61450000000,
         "unit": "USD",
         "periodEnd": "2026-03-31"
       },
       {
         "tag": "AssetsCurrent",
         "label": "Assets, Current",
-        "value": 8356000000,
+        "value": 16052000000,
         "unit": "USD",
         "periodEnd": "2026-03-31"
       }
@@ -42,8 +42,10 @@
       "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
       "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obta",
       "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable, classified as current.",
-      "Amount of deferred income and obligation to transfer product and service to customer for which consideration has been received or is receivable.",
-      "Present value of lessee's discounted obligation for lease payments from finance lease."
+      "Present value of lessee's discounted obligation for lease payments from finance lease.",
+      "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+      "Reportable segment operating results",
+      "Allowance for doubtful accounts and expected credit losses"
     ],
     "rawFrameworkSignals": [
       "us-gaap"

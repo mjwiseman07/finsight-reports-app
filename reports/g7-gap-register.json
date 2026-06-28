@@ -1441,10 +1441,16 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0085",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 A — HC CHNA scope: HC CHNA scope correction: hospital §501(r) CHNA cycle is fix-now for G7-C7a SEC XBRL tag harvest (G10 defer retracted for programmatic 10-K filers).",
-      "createdAt": "2026-06-27T23:24:49.783Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "591f8efdd5a3730d6db372454386b9e6dc0ac84d",
+      "triageNote": "satisfied by assertion-pack scope precondition: CHNA scope: §501(r) IRC applies only to §501(c)(3) hospitals",
+      "createdAt": "2026-06-27T23:24:49.783Z",
+      "closed_in": "C7a-3a",
+      "closure_mechanism": "assertion-pack-scope-precondition",
+      "scope_precondition": "tax_status === 501(c)(3) AND entity_type === hospital",
+      "emitter_path": null,
+      "verification_fixture": "tests/fixtures/g7-c7a-3a/taxable-hc-disclosure-coverage/happy-cvs-10k.json",
+      "citation_resolved": "IRC §501(r)(3) — applicability scope; assertion pack chna-coverage precondition gates §501(c)(3) hospitals only"
     },
     {
       "filingId": "CVS-10k",
@@ -1521,10 +1527,16 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0090",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 A — HC CHNA scope: HC CHNA scope correction: hospital §501(r) CHNA cycle is fix-now for G7-C7a SEC XBRL tag harvest (G10 defer retracted for programmatic 10-K filers).",
-      "createdAt": "2026-06-27T23:24:49.784Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "591f8efdd5a3730d6db372454386b9e6dc0ac84d",
+      "triageNote": "satisfied by assertion-pack scope precondition: CHNA scope: §501(r) IRC applies only to §501(c)(3) hospitals",
+      "createdAt": "2026-06-27T23:24:49.784Z",
+      "closed_in": "C7a-3a",
+      "closure_mechanism": "assertion-pack-scope-precondition",
+      "scope_precondition": "tax_status === 501(c)(3) AND entity_type === hospital",
+      "emitter_path": null,
+      "verification_fixture": "tests/fixtures/g7-c7a-3a/taxable-hc-disclosure-coverage/happy-hca-10k.json",
+      "citation_resolved": "IRC §501(r)(3) — applicability scope; assertion pack chna-coverage precondition gates §501(c)(3) hospitals only"
     },
     {
       "filingId": "HCA-10k",
@@ -1601,10 +1613,16 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0095",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 A — HC CHNA scope: HC CHNA scope correction: hospital §501(r) CHNA cycle is fix-now for G7-C7a SEC XBRL tag harvest (G10 defer retracted for programmatic 10-K filers).",
-      "createdAt": "2026-06-27T23:24:49.785Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "591f8efdd5a3730d6db372454386b9e6dc0ac84d",
+      "triageNote": "satisfied by assertion-pack scope precondition: CHNA scope: §501(r) IRC applies only to §501(c)(3) hospitals",
+      "createdAt": "2026-06-27T23:24:49.785Z",
+      "closed_in": "C7a-3a",
+      "closure_mechanism": "assertion-pack-scope-precondition",
+      "scope_precondition": "tax_status === 501(c)(3) AND entity_type === hospital",
+      "emitter_path": null,
+      "verification_fixture": "tests/fixtures/g7-c7a-3a/taxable-hc-disclosure-coverage/happy-thc-10k.json",
+      "citation_resolved": "IRC §501(r)(3) — applicability scope; assertion pack chna-coverage precondition gates §501(c)(3) hospitals only"
     },
     {
       "filingId": "THC-10k",
@@ -1681,10 +1699,16 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0100",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 A — HC CHNA scope: HC CHNA scope correction: hospital §501(r) CHNA cycle is fix-now for G7-C7a SEC XBRL tag harvest (G10 defer retracted for programmatic 10-K filers).",
-      "createdAt": "2026-06-27T23:24:49.786Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "591f8efdd5a3730d6db372454386b9e6dc0ac84d",
+      "triageNote": "satisfied by assertion-pack scope precondition: CHNA scope: §501(r) IRC applies only to §501(c)(3) hospitals",
+      "createdAt": "2026-06-27T23:24:49.786Z",
+      "closed_in": "C7a-3a",
+      "closure_mechanism": "assertion-pack-scope-precondition",
+      "scope_precondition": "tax_status === 501(c)(3) AND entity_type === hospital",
+      "emitter_path": null,
+      "verification_fixture": "tests/fixtures/g7-c7a-3a/taxable-hc-disclosure-coverage/happy-uhs-10k.json",
+      "citation_resolved": "IRC §501(r)(3) — applicability scope; assertion pack chna-coverage precondition gates §501(c)(3) hospitals only"
     },
     {
       "filingId": "UHS-10k",

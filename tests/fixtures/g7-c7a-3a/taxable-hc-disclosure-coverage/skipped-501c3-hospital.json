@@ -1,0 +1,21 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "US-HOSPITAL",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "entityName": "US Charity Hospital",
+    "formType": "10-K",
+    "tax_status": "501(c)(3)",
+    "entity_type": "hospital",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Community health needs assessment implementation strategy",
+      "Charity care financial assistance policy"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ]
+  },
+  "scenario": "happy"
+}

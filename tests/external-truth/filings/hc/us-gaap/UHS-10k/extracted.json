@@ -45,5 +45,7 @@
   ],
   "rawFrameworkSignals": [
     "us-gaap"
-  ]
+  ],
+  "tax_status": "taxable",
+  "entity_type": "hospital_system"
 }

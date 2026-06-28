@@ -46,5 +46,7 @@
   ],
   "rawFrameworkSignals": [
     "us-gaap"
-  ]
+  ],
+  "tax_status": "taxable",
+  "entity_type": "pharmacy_chain"
 }

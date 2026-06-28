@@ -134,9 +134,11 @@ export interface GapEntry {
   ifrs_citation?: string;
   framework_non_comingling_note?: string;
   closed_in?: string;
-  emitter_path?: string;
+  emitter_path?: string | null;
   verification_fixture?: string;
   citation_resolved?: string;
+  closure_mechanism?: string;
+  scope_precondition?: string;
 }
 
 export interface GapRegister {
