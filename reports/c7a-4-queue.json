@@ -1,0 +1,47 @@
+[
+  {
+    "id": "GAP-0135",
+    "filingId": "ARC-990",
+    "vertical": "npo",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "functional-expense-allocation",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0138",
+    "filingId": "GOODWILL-990",
+    "vertical": "npo",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "functional-expense-allocation",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0141",
+    "filingId": "HABITAT-990",
+    "vertical": "npo",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "functional-expense-allocation",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0143",
+    "filingId": "SALVATION-ARMY-990",
+    "vertical": "npo",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "part9-part10-cross-tie",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0145",
+    "filingId": "SALVATION-ARMY-990",
+    "vertical": "npo",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "functional-expense-allocation",
+    "closed_in": null
+  }
+]

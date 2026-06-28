@@ -85,6 +85,23 @@ export interface ExtractedFiling {
     partIX: Record<string, number>;
     partX: Record<string, number>;
   };
+  expenses?: {
+    by_function?: {
+      program: number;
+      management_general: number;
+      fundraising: number;
+    };
+    by_nature?: Record<string, number>;
+    allocation_basis?: string;
+  };
+  allocation_methodology?: {
+    method: string;
+    rationale: string;
+  };
+  service_costs?: {
+    by_program: Record<string, number>;
+    allocation_basis: string;
+  };
 }
 
 export interface ExpectedDisclosureTopic {

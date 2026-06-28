@@ -1,0 +1,83 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "GOODWILL-990",
+    "vertical": "npo",
+    "framework": "us-gaap",
+    "entityName": "Medstar Health Visiting Nurse Association Inc",
+    "formType": "990",
+    "numericFacts": [
+      {
+        "tag": "totrevenue",
+        "label": "Form 990 Part VIII — Total revenue",
+        "value": 61269484,
+        "unit": "USD",
+        "periodEnd": "2023"
+      },
+      {
+        "tag": "totfuncexpns",
+        "label": "Form 990 Part IX — Total functional expenses",
+        "value": 64785663,
+        "unit": "USD",
+        "periodEnd": "2023"
+      },
+      {
+        "tag": "totassetsend",
+        "label": "Form 990 Part X — Total assets (EOY)",
+        "value": 13552998,
+        "unit": "USD",
+        "periodEnd": "2023"
+      }
+    ],
+    "narrativeSnippets": [
+      "990 filing rows: 13"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "form990": {
+      "partI": {
+        "organizationName": "Medstar Health Visiting Nurse Association Inc",
+        "ein": "530196597",
+        "taxPeriod": "2023",
+        "totalRevenue": 61269484,
+        "totalAssets": 13552998
+      },
+      "partVIII": {
+        "totalRevenue": 61269484
+      },
+      "partIX": {
+        "totalFunctionalExpenses": 64785663
+      },
+      "partX": {
+        "totalAssetsEnd": 13552998
+      }
+    },
+    "expenses": {
+      "by_function": {
+        "program": 2100000,
+        "management_general": 450000,
+        "fundraising": 180000
+      },
+      "by_nature": {
+        "salaries": 1500000,
+        "occupancy": 320000,
+        "depreciation": 210000,
+        "professional_fees": 95000
+      },
+      "allocation_basis": "direct identification with time studies for shared costs"
+    },
+    "allocation_methodology": {
+      "method": "time study",
+      "rationale": "Shared costs allocated using periodic FTE time studies and direct identification where observable."
+    },
+    "service_costs": {
+      "by_program": {
+        "health": 1200000,
+        "education": 800000
+      },
+      "allocation_basis": "direct service tracing with IPSAS 1.115 service costing"
+    }
+  },
+  "scenario": "happy"
+}

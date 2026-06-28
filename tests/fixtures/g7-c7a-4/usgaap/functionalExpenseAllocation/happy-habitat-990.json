@@ -1,0 +1,84 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "HABITAT-990",
+    "vertical": "npo",
+    "framework": "us-gaap",
+    "entityName": "Habitat For Humanity International Inc",
+    "formType": "990",
+    "numericFacts": [
+      {
+        "tag": "totrevenue",
+        "label": "Form 990 Part VIII — Total revenue",
+        "value": 329195153,
+        "unit": "USD",
+        "periodEnd": "2023"
+      },
+      {
+        "tag": "totfuncexpns",
+        "label": "Form 990 Part IX — Total functional expenses",
+        "value": 330613285,
+        "unit": "USD",
+        "periodEnd": "2023"
+      },
+      {
+        "tag": "totassetsend",
+        "label": "Form 990 Part X — Total assets (EOY)",
+        "value": 565862638,
+        "unit": "USD",
+        "periodEnd": "2023"
+      }
+    ],
+    "narrativeSnippets": [
+      "Q330",
+      "990 filing rows: 13"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "form990": {
+      "partI": {
+        "organizationName": "Habitat For Humanity International Inc",
+        "ein": "911914868",
+        "taxPeriod": "2023",
+        "totalRevenue": 329195153,
+        "totalAssets": 565862638
+      },
+      "partVIII": {
+        "totalRevenue": 329195153
+      },
+      "partIX": {
+        "totalFunctionalExpenses": 330613285
+      },
+      "partX": {
+        "totalAssetsEnd": 565862638
+      }
+    },
+    "expenses": {
+      "by_function": {
+        "program": 2100000,
+        "management_general": 450000,
+        "fundraising": 180000
+      },
+      "by_nature": {
+        "salaries": 1500000,
+        "occupancy": 320000,
+        "depreciation": 210000,
+        "professional_fees": 95000
+      },
+      "allocation_basis": "direct identification with time studies for shared costs"
+    },
+    "allocation_methodology": {
+      "method": "time study",
+      "rationale": "Shared costs allocated using periodic FTE time studies and direct identification where observable."
+    },
+    "service_costs": {
+      "by_program": {
+        "health": 1200000,
+        "education": 800000
+      },
+      "allocation_basis": "direct service tracing with IPSAS 1.115 service costing"
+    }
+  },
+  "scenario": "happy"
+}

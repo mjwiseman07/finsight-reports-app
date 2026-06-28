@@ -1,0 +1,44 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "UNICEF-annual",
+    "vertical": "npo",
+    "framework": "ipsas",
+    "entityName": "UNICEF",
+    "formType": "Financial Statements",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "IPSAS accrual basis; multilateral NGO financial statements"
+    ],
+    "rawFrameworkSignals": [
+      "ipsas"
+    ],
+    "expenses": {
+      "by_function": {
+        "program": 2100000,
+        "management_general": 450000,
+        "fundraising": 180000
+      },
+      "by_nature": {
+        "salaries": 1500000,
+        "occupancy": 320000,
+        "depreciation": 210000,
+        "professional_fees": 95000
+      },
+      "allocation_basis": "direct identification with time studies for shared costs"
+    },
+    "allocation_methodology": {
+      "method": "time study",
+      "rationale": "Shared costs allocated using periodic FTE time studies and direct identification where observable."
+    },
+    "service_costs": {
+      "by_program": {
+        "health": 1200000,
+        "education": 800000
+      },
+      "allocation_basis": "direct service tracing with IPSAS 1.115 service costing"
+    },
+    "prefilledCitation": "ASC 958-205-45-6"
+  },
+  "scenario": "comingling-rejected"
+}
