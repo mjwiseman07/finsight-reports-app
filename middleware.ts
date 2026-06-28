@@ -6,6 +6,7 @@ const APP_HOSTS = new Set(["app.advisacor.com"]);
 
 const PUBLIC_MARKETING_PATHS = new Set([
   "/",
+  "/about",
   "/coming-soon",
 ]);
 
