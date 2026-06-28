@@ -1,0 +1,23 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Prefilled IFRS 7 must not appear in US GAAP output"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "COMINGLING-TURNOVER",
+    "fund_accounting": {
+      "portfolio_turnover": {
+        "numerator": 420000000,
+        "denominator": 8500000000,
+        "methodology": "lesser of purchases or sales divided by average net assets"
+      }
+    }
+  }
+}

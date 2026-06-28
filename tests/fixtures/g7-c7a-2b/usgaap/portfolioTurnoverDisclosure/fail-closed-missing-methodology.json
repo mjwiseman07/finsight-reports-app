@@ -1,0 +1,22 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Registered investment company filing"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "FAIL-TURNOVER",
+    "fund_accounting": {
+      "portfolio_turnover": {
+        "numerator": 1,
+        "denominator": 10
+      }
+    }
+  }
+}

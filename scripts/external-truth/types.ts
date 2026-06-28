@@ -183,6 +183,35 @@ export interface ExtractedFiling {
       contract_liabilities: number;
     };
   };
+  fund_accounting?: {
+    holdings?: {
+      top_n: number;
+      as_of_date: string;
+      entries: Array<{ issuer: string; fair_value: number; pct_of_net_assets: number }>;
+    };
+    derivatives?: {
+      contracts: Array<{
+        type: string;
+        counterparty: string;
+        notional: number;
+        fair_value: number;
+        expiration: string;
+      }>;
+    };
+    brokerage?: {
+      commissions_by_broker: Array<{ broker: string; amount: number }>;
+      soft_dollar_arrangements?: string;
+    };
+    portfolio_turnover?: {
+      numerator: number;
+      denominator: number;
+      methodology: string;
+    };
+    nav?: {
+      net_assets: number;
+      shares_outstanding: number;
+    };
+  };
 }
 
 export interface ExpectedDisclosureTopic {

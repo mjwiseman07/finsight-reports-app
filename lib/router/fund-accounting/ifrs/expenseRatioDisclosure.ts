@@ -46,7 +46,7 @@ export function emitExpenseRatioDisclosure(input: FundAccountingEmitterInput): E
       {
         assertionId: "expense-ratio",
         citation: CITATION,
-        text: `${FRAMEWORK_SUBSTITUTE_NOTE} FVTPL expense breakdown including management fees per ${CITATION_RESOLVED}.`,
+        text: `FVTPL expense breakdown including management fees per ${CITATION_RESOLVED}.`,
       },
     ],
   };

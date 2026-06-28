@@ -1,0 +1,29 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Prefilled IFRS 7.31 must not appear in US GAAP output"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "COMINGLING-DERIV",
+    "fund_accounting": {
+      "derivatives": {
+        "contracts": [
+          {
+            "type": "index futures",
+            "counterparty": "CME Clearing",
+            "notional": 500000000,
+            "fair_value": 2400000,
+            "expiration": "2026-06-30"
+          }
+        ]
+      }
+    }
+  }
+}

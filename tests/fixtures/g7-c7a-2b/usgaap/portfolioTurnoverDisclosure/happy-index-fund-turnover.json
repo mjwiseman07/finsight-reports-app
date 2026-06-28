@@ -1,0 +1,23 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Registered investment company filing"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "TURNOVER",
+    "fund_accounting": {
+      "portfolio_turnover": {
+        "numerator": 420000000,
+        "denominator": 8500000000,
+        "methodology": "lesser of purchases or sales divided by average net assets"
+      }
+    }
+  }
+}

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "GAP-0034",
+    "filingId": "FXAIX-NCSR",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "top-holdings",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0041",
+    "filingId": "IVV-NCSR",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "top-holdings",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0044",
+    "filingId": "SPY-NQ",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "nav-computation",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0045",
+    "filingId": "SPY-NQ",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "expense-ratio",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0047",
+    "filingId": "SPY-NQ",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "portfolio-composition",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0048",
+    "filingId": "SPY-NQ",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "top-holdings",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0049",
+    "filingId": "SPY-NQ",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "realized-unrealized-gains",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0051",
+    "filingId": "VFIAX-NCSR",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "nav-computation",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0052",
+    "filingId": "VFIAX-NCSR",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "expense-ratio",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0054",
+    "filingId": "VFIAX-NCSR",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "portfolio-composition",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0055",
+    "filingId": "VFIAX-NCSR",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "top-holdings",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0056",
+    "filingId": "VFIAX-NCSR",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "realized-unrealized-gains",
+    "closed_in": null
+  }
+]

@@ -1,0 +1,31 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Registered investment company filing"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "BROKER",
+    "fund_accounting": {
+      "brokerage": {
+        "commissions_by_broker": [
+          {
+            "broker": "Goldman Sachs",
+            "amount": 125000
+          },
+          {
+            "broker": "Morgan Stanley",
+            "amount": 98500
+          }
+        ],
+        "soft_dollar_arrangements": "research services under soft-dollar policy"
+      }
+    }
+  }
+}

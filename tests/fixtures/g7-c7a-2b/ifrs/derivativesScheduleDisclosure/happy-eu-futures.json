@@ -1,0 +1,29 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "ifrs",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Registered investment company filing"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "filingId": "EU-DERIV",
+    "fund_accounting": {
+      "derivatives": {
+        "contracts": [
+          {
+            "type": "index futures",
+            "counterparty": "CME Clearing",
+            "notional": 500000000,
+            "fair_value": 2400000,
+            "expiration": "2026-06-30"
+          }
+        ]
+      }
+    }
+  }
+}

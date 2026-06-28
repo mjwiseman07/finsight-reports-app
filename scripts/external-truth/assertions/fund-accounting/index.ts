@@ -103,11 +103,11 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   );
 
   out.push(
-    assertPresence(
-      routed,
+    assertEmitterOrNarrative(
+      ctx,
       "top-holdings",
       "structural",
-      narrativeHas(routed.extracted, [/top \d+ holdings/i, /schedule of investments/i, /portfolio holdings/i]),
+      [/top \d+ holdings/i, /schedule of investments/i, /portfolio holdings/i],
       "Top holdings disclosure not present",
       { classification: "missing-field", severity: "medium" },
     ),

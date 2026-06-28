@@ -1,0 +1,35 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Registered investment company filing"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "FXAIX-TOP",
+    "entityName": "Fidelity 500 Index",
+    "fund_accounting": {
+      "holdings": {
+        "top_n": 10,
+        "as_of_date": "2026-03-31",
+        "entries": [
+          {
+            "issuer": "Apple Inc",
+            "fair_value": 1250000000,
+            "pct_of_net_assets": 7.2
+          },
+          {
+            "issuer": "Microsoft Corp",
+            "fair_value": 1100000000,
+            "pct_of_net_assets": 6.4
+          }
+        ]
+      }
+    }
+  }
+}

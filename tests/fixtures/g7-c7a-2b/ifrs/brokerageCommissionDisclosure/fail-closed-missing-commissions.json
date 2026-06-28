@@ -1,0 +1,17 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "ifrs",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Registered investment company filing"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "filingId": "FAIL-IFRS-BROKER",
+    "fund_accounting": {}
+  }
+}

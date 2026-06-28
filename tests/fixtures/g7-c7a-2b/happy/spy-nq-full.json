@@ -1,0 +1,68 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "formType": "N-Q",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Registered investment company filing"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "SPY-NQ",
+    "entityName": "SPDR S&P 500 ETF TRUST",
+    "fund_accounting": {
+      "holdings": {
+        "top_n": 10,
+        "as_of_date": "2026-03-31",
+        "entries": [
+          {
+            "issuer": "Apple Inc",
+            "fair_value": 1250000000,
+            "pct_of_net_assets": 7.2
+          },
+          {
+            "issuer": "Microsoft Corp",
+            "fair_value": 1100000000,
+            "pct_of_net_assets": 6.4
+          }
+        ]
+      },
+      "derivatives": {
+        "contracts": [
+          {
+            "type": "index futures",
+            "counterparty": "CME Clearing",
+            "notional": 500000000,
+            "fair_value": 2400000,
+            "expiration": "2026-06-30"
+          }
+        ]
+      },
+      "brokerage": {
+        "commissions_by_broker": [
+          {
+            "broker": "Goldman Sachs",
+            "amount": 125000
+          },
+          {
+            "broker": "Morgan Stanley",
+            "amount": 98500
+          }
+        ],
+        "soft_dollar_arrangements": "research services under soft-dollar policy"
+      },
+      "portfolio_turnover": {
+        "numerator": 420000000,
+        "denominator": 8500000000,
+        "methodology": "lesser of purchases or sales divided by average net assets"
+      },
+      "nav": {
+        "net_assets": 17500000000,
+        "shares_outstanding": 850000000
+      }
+    }
+  }
+}

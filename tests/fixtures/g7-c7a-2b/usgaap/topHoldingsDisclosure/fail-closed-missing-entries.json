@@ -1,0 +1,22 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Registered investment company filing"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "FAIL-TOP",
+    "fund_accounting": {
+      "holdings": {
+        "top_n": 10,
+        "as_of_date": "2026-03-31"
+      }
+    }
+  }
+}

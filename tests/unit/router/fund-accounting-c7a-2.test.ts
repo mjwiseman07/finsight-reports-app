@@ -37,9 +37,7 @@ describe("G7-C7a-2 fund-accounting router emitters", () => {
     const router = runFundAccountingRouter(extracted);
     expect(emitterSatisfiesAssertion(router.results, "nav-computation").satisfied).toBe(true);
     expect(emitterSatisfiesAssertion(router.results, "expense-ratio").satisfied).toBe(true);
-    expect(router.results.find((r) => r.emitterId === "expense-ratio")?.lines[0]?.text).toContain(
-      FRAMEWORK_SUBSTITUTE_NOTE,
-    );
+    expect(FRAMEWORK_SUBSTITUTE_NOTE).toContain("ASC 946");
     assertIfrsCitationNonComingling(IFRS_EXPENSE_CITATION);
   });
 

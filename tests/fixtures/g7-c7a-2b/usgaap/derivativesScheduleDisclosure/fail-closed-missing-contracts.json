@@ -1,0 +1,21 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "fa",
+    "framework": "us-gaap",
+    "formType": "N-CSR",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Registered investment company filing"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "FAIL-DERIV",
+    "fund_accounting": {
+      "derivatives": {
+        "contracts": []
+      }
+    }
+  }
+}
