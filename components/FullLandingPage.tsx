@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, type ReactNode, type SVGProps } from "react";
+import heroLogo from "../public/advisacor-logo-full-transparent.png";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -490,10 +491,8 @@ export default function FullLandingPage() {
             aria-label="Advisacor home"
           >
             <Image
-              src="/advisacor-logo-full-transparent.png"
+              src={heroLogo}
               alt="Advisacor"
-              width={680}
-              height={340}
               priority
               className="h-auto w-[220px] md:w-[300px] lg:w-[320px]"
             />
