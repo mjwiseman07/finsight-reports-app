@@ -490,7 +490,7 @@ export default function FullLandingPage() {
             aria-label="Advisacor home"
           >
             <Image
-              src="/advisacor-logo-full.png"
+              src="/advisacor-logo-full-transparent.png"
               alt="Advisacor"
               width={680}
               height={340}
