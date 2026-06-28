@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode, type SVGProps } from "react";
+import { useState, type ReactNode, type SVGProps } from "react";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -246,7 +246,10 @@ function DashboardPreview() {
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FFB36F]">Executive Workspace</p>
             <p className={`mt-1 text-xl font-black text-white ${headingFont}`}>Financial Intelligence Command Center</p>
           </div>
-          <span className="rounded-full bg-[#3BB273]/15 px-3 py-1 text-xs font-black text-[#B9F4D2]">Live</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" aria-hidden="true" />
+            Live
+          </span>
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -471,94 +474,82 @@ function EarlyAccessForm() {
 }
 
 export default function FullLandingPage() {
-  const [navScrolled, setNavScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setNavScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const navLinkClass = `${focusRing()} text-sm font-bold text-slate-300 transition hover:text-white`;
+  const navLinkClass = `${focusRing("ring-offset-slate-300")} text-sm font-bold text-slate-900 transition hover:text-orange-600`;
 
   return (
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
-      {/* SECTION A — Navigation */}
-      <header
-        className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-          navScrolled
-            ? "border-b border-white/10 bg-[#0A1020]/85 shadow-lg shadow-black/20 backdrop-blur-md"
-            : "bg-transparent"
-        }`}
+      {/* SECTION A + B — Navigation + Hero */}
+      <section
+        id="top"
+        className="relative isolate overflow-hidden bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 px-6 pb-16 md:pb-20"
       >
-        <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <Link href="/" className={`shrink-0 ${focusRing("rounded-2xl")}`} aria-label="Advisacor home">
-            <div className="relative rounded-2xl bg-[radial-gradient(ellipse_at_center,_rgba(226,232,240,0.85)_0%,_rgba(203,213,225,0.45)_40%,_rgba(148,163,184,0.15)_70%,_transparent_100%)] px-6 py-3 shadow-[inset_0_0_20px_rgba(255,255,255,0.15)]">
-              <Image
-                src="/advisacor-logo-full.png"
-                alt="Advisacor"
-                width={680}
-                height={340}
-                priority
-                className="h-14 w-auto md:h-16"
-              />
-            </div>
-          </Link>
-          <div className="hidden items-center gap-8 md:flex">
-            <a href="#what-it-does" className={navLinkClass}>
-              What It Does
-            </a>
-            <a href="#how-it-works" className={navLinkClass}>
-              How It Works
-            </a>
-            <a href="#industries" className={navLinkClass}>
-              Industries
-            </a>
-            <a href="#about" className={navLinkClass}>
-              About
-            </a>
-            <a
-              href="#early-access"
-              className={`premium-button rounded-full px-5 py-2.5 text-sm font-black text-white ${focusRing()}`}
-            >
-              Request Early Access
-            </a>
-          </div>
-          <a
-            href="#early-access"
-            className={`premium-button rounded-full px-4 py-2 text-xs font-black text-white md:hidden ${focusRing()}`}
+        <header className="relative z-20">
+          <Link
+            href="/"
+            className={`absolute top-4 left-6 z-20 md:top-6 md:left-8 ${focusRing("rounded-lg")}`}
+            aria-label="Advisacor home"
           >
-            Early Access
-          </a>
-        </nav>
-      </header>
+            <Image
+              src="/advisacor-logo-full.png"
+              alt="Advisacor"
+              width={680}
+              height={340}
+              priority
+              className="h-auto w-[220px] md:w-[300px] lg:w-[320px]"
+            />
+          </Link>
+          <nav className="relative mx-auto flex max-w-7xl justify-end px-0 pt-4 md:pt-6">
+            <div className="ml-auto flex items-center gap-4 rounded-full bg-white/40 px-4 py-2 backdrop-blur-sm md:gap-8 md:px-6 md:py-3">
+              <div className="hidden items-center gap-8 md:flex">
+                <a href="#what-it-does" className={navLinkClass}>
+                  What It Does
+                </a>
+                <a href="#how-it-works" className={navLinkClass}>
+                  How It Works
+                </a>
+                <a href="#industries" className={navLinkClass}>
+                  Industries
+                </a>
+                <a href="#about" className={navLinkClass}>
+                  About
+                </a>
+                <a
+                  href="#early-access"
+                  className={`premium-button rounded-full px-5 py-2.5 text-sm font-black text-white ${focusRing()}`}
+                >
+                  Request Early Access
+                </a>
+              </div>
+              <a
+                href="#early-access"
+                className={`premium-button rounded-full px-4 py-2 text-xs font-black text-white md:hidden ${focusRing()}`}
+              >
+                Early Access
+              </a>
+            </div>
+          </nav>
+        </header>
 
-      <div id="top" />
-
-      {/* SECTION B — Hero */}
-      <section className="relative isolate overflow-hidden bg-[#0A1020] px-6 pb-16 pt-28 text-white md:pb-20 md:pt-32">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(30,107,255,0.2),transparent_30%),radial-gradient(circle_at_88%_14%,rgba(255,122,26,0.12),transparent_28%),linear-gradient(180deg,#0A1020_0%,#0D1426_100%)]" />
-        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)]">
+        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 pt-32 md:pt-40 lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)]">
           <div className="max-w-3xl">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#FF7A1A]">Early Access · Patent Pending</p>
-            <h1 className={`mt-5 text-4xl font-black leading-[1.06] tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl ${headingFont}`}>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-orange-600">Early Access · Patent Pending</p>
+            <h1 className={`mt-5 text-4xl font-black leading-[1.06] tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-6xl ${headingFont}`}>
               The first accounting platform that audits its own work.
             </h1>
-            <p className="mt-6 max-w-[640px] text-lg leading-8 text-slate-300">
+            <p className="mt-6 max-w-[640px] text-lg leading-8 text-slate-700">
               Advisacor™ turns financial data into audit-ready reports across nine industries — with framework discipline,
               real-filing benchmarks, and a 29-stage validation cascade built in by design.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
                 href="#early-access"
-                className={`premium-button rounded-2xl px-6 py-4 text-center text-sm font-black text-white ${focusRing()}`}
+                className={`premium-button inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-white ${focusRing()}`}
               >
                 Request Early Access
               </a>
               <a
                 href="#what-it-does"
-                className={`rounded-2xl border border-white/20 bg-transparent px-6 py-4 text-center text-sm font-black text-white transition hover:bg-white/[0.06] ${focusRing()}`}
+                className={`inline-flex items-center gap-2 rounded-full border-2 border-slate-900 bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 ${focusRing()}`}
               >
                 See What It Does ↓
               </a>
