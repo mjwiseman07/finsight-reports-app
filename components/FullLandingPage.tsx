@@ -238,8 +238,8 @@ function DashboardPreview() {
   const forecastAreaPath = `M ${chartPoints.replaceAll(" ", " L ")} L 382 142 L 34 142 Z`;
 
   return (
-    <div className="dark-enterprise-card relative overflow-hidden rounded-[2rem] p-5">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(30,107,255,0.22),transparent_30%),radial-gradient(circle_at_90%_20%,rgba(255,122,26,0.16),transparent_28%)]" />
+    <div className="relative overflow-hidden rounded-[2rem] bg-[#0A1530] p-5 ring-1 ring-white/5 shadow-2xl shadow-blue-950/40">
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0A1530] via-[#0B1838] to-[#091226]" />
       <div className="relative">
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div>
@@ -259,7 +259,7 @@ function DashboardPreview() {
             ["AR 90+", "$48K", "review"],
             ["Margin", "34.6%", "+2.1 pts"],
           ].map(([label, value, tag]) => (
-            <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+            <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{label}</p>
               <p className={`mt-3 text-2xl font-black text-white ${headingFont}`}>{value}</p>
               <p className="mt-2 text-xs font-bold text-[#FFB36F]">{tag}</p>
@@ -267,13 +267,13 @@ function DashboardPreview() {
           ))}
         </div>
 
-        <div className="mt-4 rounded-2xl border border-white/10 bg-[#070B16]/80 p-5">
+        <div className="mt-4 rounded-2xl border border-white/10 bg-[#060E22] p-5">
           <div className="flex items-center justify-between">
             <p className={`font-black text-white ${headingFont}`}>Liquidity Forecast</p>
             <p className="text-xs font-bold text-slate-500">13-week view</p>
           </div>
-          <div className="mt-5 rounded-2xl border border-white/10 bg-[#050915] p-4 shadow-inner shadow-black/30">
-            <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#060A12] p-4" aria-label="Sample liquidity forecast chart">
+          <div className="mt-5 rounded-2xl border border-white/10 p-4 shadow-inner shadow-black/30">
+            <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#040918] p-4" aria-label="Sample liquidity forecast chart">
               <svg viewBox="0 0 420 178" className="h-56 w-full" preserveAspectRatio="none" role="img">
                 <rect x="267" y="18" width="116" height="124" fill="#D78342" opacity="0.07" />
                 <text x="326" y="28" textAnchor="middle" fill="#94A3B8" fontSize="8" fontWeight="700" letterSpacing="1.2">
