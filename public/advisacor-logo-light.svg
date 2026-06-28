@@ -1,0 +1,24 @@
+<svg width="765" height="185" viewBox="0 0 765 185" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Advisacor Financial Intelligence</title>
+  <desc id="desc">Advisacor logo light variant for dark backgrounds.</desc>
+
+  <g transform="translate(120 35)">
+    <path d="M50 0L104 89H88L50 24L16 89H0L50 0Z" fill="#FFFFFF"/>
+    <path d="M50 0L31 37L42 51L50 35L88 89H104L50 0Z" fill="#D28A4A"/>
+    <path d="M30 65H44V89H30V65Z" fill="#FFFFFF"/>
+    <path d="M53 49H68V89H53V49Z" fill="#FFFFFF"/>
+    <path d="M8 89H104" stroke="#C29A62" stroke-width="3" stroke-linecap="round"/>
+    <path d="M11 76L31 40" stroke="#2146CF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M50 24L42 51L31 37L50 0L69 31H56L50 24Z" fill="#D28A4A"/>
+  </g>
+
+  <line x1="248" y1="40" x2="248" y2="113" stroke="#FFFFFF" stroke-width="2.5" opacity="0.45"/>
+
+  <text x="276" y="80" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="800" letter-spacing="10">
+    ADVISACOR
+  </text>
+  <text x="281" y="111" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="5.4">
+    FINANCIAL INTELLIGENCE
+  </text>
+  <path d="M598 104H636" stroke="#D28A4A" stroke-width="2.5" stroke-linecap="square"/>
+</svg>

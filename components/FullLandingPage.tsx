@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState, type ReactNode, type SVGProps } from "react";
 import { AdvisacorLogo } from "./AdvisacorLogo";
 
@@ -492,8 +493,8 @@ export default function FullLandingPage() {
         }`}
       >
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <a href="#top" className={`block w-[140px] shrink-0 ${focusRing("rounded-lg")}`} aria-label="Advisacor home">
-            <AdvisacorLogo priority className="w-full" />
+          <a href="#top" className={`block w-[160px] shrink-0 ${focusRing("rounded-lg")}`} aria-label="Advisacor home">
+            <AdvisacorLogo priority variant="light" className="w-full max-w-[170px]" />
           </a>
           <div className="hidden items-center gap-8 md:flex">
             <a href="#what-it-does" className={navLinkClass}>
@@ -679,12 +680,16 @@ export default function FullLandingPage() {
           <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
             Designed by someone who&apos;s actually closed the books.
           </h2>
-          <div className="mt-12 grid items-center gap-10 lg:grid-cols-[220px_1fr]">
-            <div
-              className={`mx-auto flex h-40 w-40 items-center justify-center rounded-full bg-[#0A1020] text-4xl font-black text-[#FF7A1A] ${headingFont}`}
-              aria-label="Matthew Wiseman initials"
-            >
-              MW
+          <div className="mt-12 grid items-center gap-10 lg:grid-cols-[minmax(0,16rem)_1fr]">
+            <div className="mx-auto h-56 w-56 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 shadow-lg lg:h-64 lg:w-64">
+              <Image
+                src="/matthew-wiseman-headshot.png"
+                alt="Matthew Wiseman, founder of Wiseman Financial Technologies LLC"
+                width={280}
+                height={280}
+                priority={false}
+                className="h-full w-full object-cover"
+              />
             </div>
             <div>
               <p className="mb-4 leading-relaxed text-slate-600">
@@ -735,7 +740,7 @@ export default function FullLandingPage() {
       {/* SECTION K — Footer */}
       <footer className="border-t border-slate-200 bg-white px-6 py-14">
         <div className="mx-auto max-w-7xl">
-          <AdvisacorLogo className="w-[200px]" />
+          <AdvisacorLogo variant="dark" className="w-[200px]" />
           <p className="mt-4 text-sm font-semibold text-slate-600">A product of Wiseman Financial Technologies LLC.</p>
 
           <div className="mt-10 grid gap-8 sm:grid-cols-2 md:max-w-xl">
