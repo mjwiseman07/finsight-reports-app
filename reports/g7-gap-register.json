@@ -1277,10 +1277,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0080",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
-      "createdAt": "2026-06-27T23:24:49.781Z"
+      "triage": "fix-now",
+      "triageDecisionSha": "0e422f201ac0c504dd2ce23c123e1afde8fccd19",
+      "triageNote": "G7-C6.2 Group D: IFRS community-benefit equivalent for hc/ifrs/chna-cycle (US §501(r) has no IFRS analog; neutral IFRS-bound emitter required).",
+      "createdAt": "2026-06-27T23:24:49.781Z",
+      "reclassified_in": "G7-C6.2",
+      "c7a_sub_commit": "C7a-3",
+      "ifrs_citation": "IFRS for SMEs §27 + EU 2014/95/EU + UK Charities SORP module 3",
+      "framework_non_comingling_note": "Forbidden under IFRS path: \"§501(r)\" / \"Community Health Needs Assessment\" literal. Neutral language only: \"community benefit assessment cycle\" / \"public benefit purpose evaluation\"."
     },
     {
       "filingId": "HLMA-annual",
@@ -2909,10 +2913,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0182",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
-      "createdAt": "2026-06-27T23:24:49.812Z"
+      "triage": "fix-now",
+      "triageDecisionSha": "0e422f201ac0c504dd2ce23c123e1afde8fccd19",
+      "triageNote": "G7-C6.2 Group D: IFRS parity for saas/ifrs/contract-asset-liability-split (US GAAP partner fix-now).",
+      "createdAt": "2026-06-27T23:24:49.812Z",
+      "reclassified_in": "G7-C6.2",
+      "c7a_sub_commit": "C7a-5",
+      "ifrs_citation": "IFRS 15.105–.109",
+      "framework_non_comingling_note": "Forbidden: ASC 606-10-45-* refs under IFRS path."
     },
     {
       "filingId": "SAP-20f",
@@ -2925,10 +2933,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0183",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
-      "createdAt": "2026-06-27T23:24:49.812Z"
+      "triage": "fix-now",
+      "triageDecisionSha": "0e422f201ac0c504dd2ce23c123e1afde8fccd19",
+      "triageNote": "G7-C6.2 Group D: IFRS parity for saas/ifrs/revenue-disaggregation (US GAAP partner fix-now).",
+      "createdAt": "2026-06-27T23:24:49.812Z",
+      "reclassified_in": "G7-C6.2",
+      "c7a_sub_commit": "C7a-5",
+      "ifrs_citation": "IFRS 15.114 + B87–B89",
+      "framework_non_comingling_note": "Forbidden: ASC 606-10-50-5 under IFRS path."
     },
     {
       "filingId": "SAP-20f",
@@ -2941,10 +2953,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0184",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
-      "createdAt": "2026-06-27T23:24:49.812Z"
+      "triage": "fix-now",
+      "triageDecisionSha": "0e422f201ac0c504dd2ce23c123e1afde8fccd19",
+      "triageNote": "G7-C6.2 Group D: IFRS parity for saas/ifrs/cost-to-obtain-contract (US GAAP partner fix-now).",
+      "createdAt": "2026-06-27T23:24:49.812Z",
+      "reclassified_in": "G7-C6.2",
+      "c7a_sub_commit": "C7a-5",
+      "ifrs_citation": "IFRS 15.91–.94",
+      "framework_non_comingling_note": "Forbidden: ASC 340-40-25-1 under IFRS path."
     },
     {
       "filingId": "SAP-20f",
