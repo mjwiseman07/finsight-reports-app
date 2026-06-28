@@ -1,10 +1,37 @@
+import { assertPresence, narrativeHas } from "../helpers";
 import type { AssertionResult, ValidatorContext } from "../types";
 import {
-  assertPresence,
-  findFactByPattern,
-  hasFactTag,
-  narrativeHas,
-} from "../helpers";
+  emitterSatisfiesAssertion,
+  runManufacturingRouter,
+} from "../../../../lib/router/manufacturing";
+
+function assertEmitterOrNarrative(
+  ctx: ValidatorContext,
+  id: string,
+  tier: AssertionResult["tier"],
+  patterns: RegExp[],
+  message: string,
+  options: {
+    classification?: AssertionResult["classification"];
+    severity?: AssertionResult["severity"];
+  } = {},
+): AssertionResult {
+  const router = runManufacturingRouter(ctx.extracted);
+  const emitter = emitterSatisfiesAssertion(router.results, id);
+  if (emitter.satisfied) {
+    return {
+      id,
+      pack: ctx.vertical,
+      tier,
+      passed: true,
+      message: `satisfied by emitter ${emitter.emitterPath} at citation ${emitter.citation}`,
+    };
+  }
+  return assertPresence(ctx, id, tier, narrativeHas(ctx.extracted, patterns), message, {
+    classification: options.classification ?? "missing-field",
+    severity: options.severity ?? "medium",
+  });
+}
 
 export function assertions(ctx: ValidatorContext): AssertionResult[] {
   const out: AssertionResult[] = [];
@@ -27,24 +54,22 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   }
 
   out.push(
-    assertPresence(
+    assertEmitterOrNarrative(
       ctx,
       "inventory-decomposition",
       "structural",
-      hasFactTag(extracted, ["InventoryRawMaterials", "InventoryWorkInProcess", "InventoryFinishedGoods"]) ||
-        narrativeHas(extracted, [/raw materials/i, /work in process/i, /finished goods/i]),
+      [/raw materials/i, /work in process/i, /work in progress/i, /finished goods/i],
       "Raw materials / WIP / finished goods decomposition not evidenced",
       { classification: "missing-field", severity: "medium" },
     ),
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrNarrative(
       ctx,
       "cogm-rollforward",
       "structural",
-      narrativeHas(extracted, [/cost of goods manufactured/i, /work in process/i, /manufacturing overhead/i]) ||
-        Boolean(findFactByPattern(extracted, /CostOfGoods|CostOfRevenue/i)),
+      [/cost of goods manufactured/i, /work in process/i, /manufacturing overhead/i],
       "COGM rollforward not evidenced",
       { classification: "missing-field", severity: "medium" },
     ),

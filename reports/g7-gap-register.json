@@ -1976,10 +1976,16 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0105",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 B-bonus — MFG IFRS inventory: MFG IFRS inventory-decomposition parity with US GAAP inventory cluster now fix-now.",
-      "createdAt": "2026-06-27T23:24:49.788Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "4b6c1389a9b485be0678b30885b117333eae0763",
+      "triageNote": "satisfied by emitter lib/router/lanes/manufacturing/emitters/ifrs/inventoryDecompositionIAS2.ts at citation IAS 2 25, 33, 34, 36(b)",
+      "createdAt": "2026-06-27T23:24:49.788Z",
+      "closed_in": "C7a-15",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/manufacturing/emitters/ifrs/inventoryDecompositionIAS2.ts",
+      "verification_fixture": "tests/fixtures/manufacturing/inventory/ifrs/happy-sie-annual-full.json",
+      "citation_resolved": "IAS 2 25, 33, 34, 36(b)",
+      "framework_substitute_note": "GAP-0106 (mfg/ifrs/cogm-rollforward): IAS 2 does not require a cost-of-goods-manufactured rollforward; US GAAP ASC 330 filers present COGM as a supplementary schedule. IAS 2.33 permits reversal of inventory NRV writedowns when criteria are met; ASC 330 does not permit writedown reversal — substantive IFRS-vs-US-GAAP difference."
     },
     {
       "filingId": "SIE-annual",
@@ -2056,10 +2062,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0110",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
-      "createdAt": "2026-06-27T23:24:49.790Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "4b6c1389a9b485be0678b30885b117333eae0763",
+      "triageNote": "satisfied by emitter lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts at citation ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B",
+      "createdAt": "2026-06-27T23:24:49.790Z",
+      "closed_in": "C7a-15",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts",
+      "verification_fixture": "tests/fixtures/manufacturing/inventory/happy-cat-10k-full.json",
+      "citation_resolved": "ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B"
     },
     {
       "filingId": "CAT-10k",
@@ -2072,10 +2083,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0111",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
-      "createdAt": "2026-06-27T23:24:49.790Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "4b6c1389a9b485be0678b30885b117333eae0763",
+      "triageNote": "satisfied by emitter lib/router/lanes/manufacturing/emitters/cogmRollforward.ts at citation ASC 330 COGM supplementary schedule",
+      "createdAt": "2026-06-27T23:24:49.790Z",
+      "closed_in": "C7a-15",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/manufacturing/emitters/cogmRollforward.ts",
+      "verification_fixture": "tests/fixtures/manufacturing/inventory/happy-cat-10k-full.json",
+      "citation_resolved": "ASC 330 COGM supplementary schedule"
     },
     {
       "filingId": "CAT-10k",
@@ -2136,10 +2152,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0115",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
-      "createdAt": "2026-06-27T23:24:49.791Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "4b6c1389a9b485be0678b30885b117333eae0763",
+      "triageNote": "satisfied by emitter lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts at citation ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B",
+      "createdAt": "2026-06-27T23:24:49.791Z",
+      "closed_in": "C7a-15",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts",
+      "verification_fixture": "tests/fixtures/manufacturing/inventory/happy-etn-10k-full.json",
+      "citation_resolved": "ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B"
     },
     {
       "filingId": "ETN-10k",
@@ -2152,10 +2173,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0116",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
-      "createdAt": "2026-06-27T23:24:49.791Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "4b6c1389a9b485be0678b30885b117333eae0763",
+      "triageNote": "satisfied by emitter lib/router/lanes/manufacturing/emitters/cogmRollforward.ts at citation ASC 330 COGM supplementary schedule",
+      "createdAt": "2026-06-27T23:24:49.791Z",
+      "closed_in": "C7a-15",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/manufacturing/emitters/cogmRollforward.ts",
+      "verification_fixture": "tests/fixtures/manufacturing/inventory/happy-etn-10k-full.json",
+      "citation_resolved": "ASC 330 COGM supplementary schedule"
     },
     {
       "filingId": "ETN-10k",
@@ -2216,10 +2242,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0120",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
-      "createdAt": "2026-06-27T23:24:49.792Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "4b6c1389a9b485be0678b30885b117333eae0763",
+      "triageNote": "satisfied by emitter lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts at citation ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B",
+      "createdAt": "2026-06-27T23:24:49.792Z",
+      "closed_in": "C7a-15",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts",
+      "verification_fixture": "tests/fixtures/manufacturing/inventory/happy-ge-10k-full.json",
+      "citation_resolved": "ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B"
     },
     {
       "filingId": "GE-10k",
@@ -2232,10 +2263,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0121",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
-      "createdAt": "2026-06-27T23:24:49.792Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "4b6c1389a9b485be0678b30885b117333eae0763",
+      "triageNote": "satisfied by emitter lib/router/lanes/manufacturing/emitters/cogmRollforward.ts at citation ASC 330 COGM supplementary schedule",
+      "createdAt": "2026-06-27T23:24:49.792Z",
+      "closed_in": "C7a-15",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/manufacturing/emitters/cogmRollforward.ts",
+      "verification_fixture": "tests/fixtures/manufacturing/inventory/happy-ge-10k-full.json",
+      "citation_resolved": "ASC 330 COGM supplementary schedule"
     },
     {
       "filingId": "GE-10k",
@@ -2296,10 +2332,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0125",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
-      "createdAt": "2026-06-27T23:24:49.793Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "4b6c1389a9b485be0678b30885b117333eae0763",
+      "triageNote": "satisfied by emitter lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts at citation ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B",
+      "createdAt": "2026-06-27T23:24:49.793Z",
+      "closed_in": "C7a-15",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts",
+      "verification_fixture": "tests/fixtures/manufacturing/inventory/happy-hon-10k-full.json",
+      "citation_resolved": "ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B"
     },
     {
       "filingId": "HON-10k",
@@ -2312,10 +2353,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0126",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
-      "createdAt": "2026-06-27T23:24:49.793Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "4b6c1389a9b485be0678b30885b117333eae0763",
+      "triageNote": "satisfied by emitter lib/router/lanes/manufacturing/emitters/cogmRollforward.ts at citation ASC 330 COGM supplementary schedule",
+      "createdAt": "2026-06-27T23:24:49.793Z",
+      "closed_in": "C7a-15",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/manufacturing/emitters/cogmRollforward.ts",
+      "verification_fixture": "tests/fixtures/manufacturing/inventory/happy-hon-10k-full.json",
+      "citation_resolved": "ASC 330 COGM supplementary schedule"
     },
     {
       "filingId": "HON-10k",

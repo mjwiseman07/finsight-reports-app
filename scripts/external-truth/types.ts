@@ -309,6 +309,45 @@ export interface ExtractedFiling {
       };
     };
   };
+  manufacturing_inventory?: {
+    asc330?: {
+      decomposition?: {
+        raw_materials: number;
+        work_in_process: number;
+        finished_goods: number;
+        supplies?: number;
+        total_inventories: number;
+        costing_method: "FIFO" | "LIFO" | "weighted_average" | "specific_identification";
+        lifo_reserve?: number;
+        lcm_writedown?: number;
+      };
+      cogm_rollforward?: {
+        beginning_raw_materials: number;
+        raw_materials_purchased: number;
+        ending_raw_materials: number;
+        direct_labor: number;
+        manufacturing_overhead: number;
+        beginning_wip: number;
+        ending_wip: number;
+        beginning_finished_goods: number;
+        ending_finished_goods: number;
+        income_statement_cogs: number;
+      };
+    };
+    ias2?: {
+      decomposition?: {
+        raw_materials: number;
+        work_in_progress: number;
+        finished_goods: number;
+        merchandise?: number;
+        total_inventories: number;
+        costing_method: "FIFO" | "weighted_average" | "LIFO";
+        nrv_writedown?: number;
+        nrv_writedown_reversal?: number;
+        work_in_process?: number;
+      };
+    };
+  };
   fund_accounting?: {
     holdings?: {
       top_n: number;

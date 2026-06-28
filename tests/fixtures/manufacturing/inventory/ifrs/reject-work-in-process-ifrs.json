@@ -1,0 +1,28 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "mfg",
+    "framework": "ifrs",
+    "formType": "annual-report",
+    "filingId": "SIE-annual",
+    "entityName": "SIE",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "ifrs-full"
+      ]
+    ],
+    "manufacturing_inventory": {
+      "ias2": {
+        "decomposition": {
+          "raw_materials": 1,
+          "work_in_process": 2,
+          "finished_goods": 3,
+          "total_inventories": 6,
+          "costing_method": "FIFO"
+        }
+      }
+    }
+  }
+}

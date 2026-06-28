@@ -1,0 +1,26 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "mfg",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "CAT-10k",
+    "entityName": "CAT",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "us-gaap"
+      ]
+    ],
+    "manufacturing_inventory": {
+      "asc330": {
+        "decomposition": {
+          "raw_materials": 100,
+          "total_inventories": 100,
+          "costing_method": "FIFO"
+        }
+      }
+    }
+  }
+}

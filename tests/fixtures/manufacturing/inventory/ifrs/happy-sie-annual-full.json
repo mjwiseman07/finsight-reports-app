@@ -1,0 +1,30 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "mfg",
+    "framework": "ifrs",
+    "formType": "annual-report",
+    "filingId": "SIE-annual",
+    "entityName": "Siemens AG",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "ifrs-full"
+      ]
+    ],
+    "manufacturing_inventory": {
+      "ias2": {
+        "decomposition": {
+          "raw_materials": 4100000000,
+          "work_in_progress": 1500000000,
+          "finished_goods": 2800000000,
+          "total_inventories": 8400000000,
+          "costing_method": "FIFO",
+          "nrv_writedown": 50000000,
+          "nrv_writedown_reversal": 10000000
+        }
+      }
+    }
+  }
+}

@@ -5,6 +5,27 @@ import { describe, expect, it } from "vitest";
 /** Locked baseline at G7-C7a-9 (wiring verifier main passCount). */
 export const EMITTER_MATRIX_BASELINE_COUNT = 435;
 
+export const C7A_15_MFG_INVENTORY_EMITTER_ROWS = [
+  {
+    id: "mfg-inventory-decomposition",
+    emitterPath: "lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts",
+    framework: "US_GAAP_ASC330",
+    gapId: "GAP-0110",
+  },
+  {
+    id: "mfg-cogm-rollforward",
+    emitterPath: "lib/router/lanes/manufacturing/emitters/cogmRollforward.ts",
+    framework: "US_GAAP_ASC330",
+    gapId: "GAP-0111",
+  },
+  {
+    id: "mfg-ifrs-inventory-decomposition-ias2",
+    emitterPath: "lib/router/lanes/manufacturing/emitters/ifrs/inventoryDecompositionIAS2.ts",
+    framework: "IAS2_IFRS",
+    gapId: "GAP-0105",
+  },
+] as const;
+
 export const C7A_11_HC_REVENUE_EMITTER_ROWS = [
   {
     id: "hc-payor-mix-disaggregation",
@@ -88,6 +109,26 @@ describe("verifier emitter matrix (B4 healthcare revenue rows)", () => {
   });
 
   for (const row of C7A_11_HC_REVENUE_EMITTER_ROWS) {
+    it(`${row.id} emitter file exists with ${row.framework} framework gate`, () => {
+      const abs = join(ROOT, row.emitterPath);
+      expect(existsSync(abs)).toBe(true);
+      const source = readFileSync(abs, "utf8");
+      expect(source).toContain(row.framework);
+    });
+  }
+});
+
+describe("verifier emitter matrix (B4 manufacturing inventory rows)", () => {
+  it("extends baseline 435 to 446 with C7a-15 MFG inventory emitter paths", () => {
+    const total =
+      EMITTER_MATRIX_BASELINE_COUNT +
+      C7A_10_IFRS_LEASE_EMITTER_ROWS.length +
+      C7A_11_HC_REVENUE_EMITTER_ROWS.length +
+      C7A_15_MFG_INVENTORY_EMITTER_ROWS.length;
+    expect(total).toBe(446);
+  });
+
+  for (const row of C7A_15_MFG_INVENTORY_EMITTER_ROWS) {
     it(`${row.id} emitter file exists with ${row.framework} framework gate`, () => {
       const abs = join(ROOT, row.emitterPath);
       expect(existsSync(abs)).toBe(true);

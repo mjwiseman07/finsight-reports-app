@@ -1,0 +1,56 @@
+[
+  {
+    "id": "GAP-0105",
+    "filingId": "SIE-annual",
+    "framework": "ifrs",
+    "assertion": "inventory-decomposition"
+  },
+  {
+    "id": "GAP-0110",
+    "filingId": "CAT-10k",
+    "framework": "us-gaap",
+    "assertion": "inventory-decomposition"
+  },
+  {
+    "id": "GAP-0111",
+    "filingId": "CAT-10k",
+    "framework": "us-gaap",
+    "assertion": "cogm-rollforward"
+  },
+  {
+    "id": "GAP-0115",
+    "filingId": "ETN-10k",
+    "framework": "us-gaap",
+    "assertion": "inventory-decomposition"
+  },
+  {
+    "id": "GAP-0116",
+    "filingId": "ETN-10k",
+    "framework": "us-gaap",
+    "assertion": "cogm-rollforward"
+  },
+  {
+    "id": "GAP-0120",
+    "filingId": "GE-10k",
+    "framework": "us-gaap",
+    "assertion": "inventory-decomposition"
+  },
+  {
+    "id": "GAP-0121",
+    "filingId": "GE-10k",
+    "framework": "us-gaap",
+    "assertion": "cogm-rollforward"
+  },
+  {
+    "id": "GAP-0125",
+    "filingId": "HON-10k",
+    "framework": "us-gaap",
+    "assertion": "inventory-decomposition"
+  },
+  {
+    "id": "GAP-0126",
+    "filingId": "HON-10k",
+    "framework": "us-gaap",
+    "assertion": "cogm-rollforward"
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "mfg",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "CAT-10k",
+    "entityName": "CAT",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "us-gaap"
+      ]
+    ],
+    "manufacturing_inventory": {
+      "asc330": {
+        "decomposition": {
+          "raw_materials": 5200000000,
+          "work_in_process": 1800000000,
+          "finished_goods": 3400000000,
+          "supplies": 200000000,
+          "total_inventories": 10600000000,
+          "lcm_writedown": 120000000,
+          "costing_method": "LIFO"
+        }
+      }
+    }
+  }
+}

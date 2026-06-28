@@ -1,0 +1,42 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "mfg",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "GE-10k",
+    "entityName": "GE Aerospace",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "us-gaap"
+      ]
+    ],
+    "manufacturing_inventory": {
+      "asc330": {
+        "decomposition": {
+          "raw_materials": 5200000000,
+          "work_in_process": 1800000000,
+          "finished_goods": 3400000000,
+          "supplies": 200000000,
+          "total_inventories": 10600000000,
+          "lcm_writedown": 120000000,
+          "costing_method": "weighted_average"
+        },
+        "cogm_rollforward": {
+          "beginning_raw_materials": 5000000000,
+          "raw_materials_purchased": 18000000000,
+          "ending_raw_materials": 5200000000,
+          "direct_labor": 3200000000,
+          "manufacturing_overhead": 2100000000,
+          "beginning_wip": 1600000000,
+          "ending_wip": 1800000000,
+          "beginning_finished_goods": 3200000000,
+          "ending_finished_goods": 3400000000,
+          "income_statement_cogs": 22700000000
+        }
+      }
+    }
+  }
+}
