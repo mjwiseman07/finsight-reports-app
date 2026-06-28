@@ -1,8 +1,17 @@
 # G7-C7a-1b — CON Over-Time + PWR Cluster (dispatch slot)
 
-**Status:** Planned — insert **before C7a-9** in execution sequence  
-**Predecessor:** C7a-8  
+**Status:** Planned — batch-execute after C7a-8, **before C7a-9**  
+**Predecessor:** C7a-8 (first slot in dispatch batch)  
+**Successor:** C7a-2b (FA remainder)  
 **Does not expand C7a-1** — CON remainder mopped in dedicated dispatch sub-commit
+
+## Dispatch batch sequence (C7a-8 → C7a-9)
+
+```
+C7a-8 → C7a-1b (CON) → C7a-2b (FA) → C7a-9 → … → C7a-15
+```
+
+See `C7a-2b.md` for the `-b` remainder slot convention (document each `C7a-Nb` as primary sub-commits surface vertical remainders; batch all `-b` slots here).
 
 ## Scope
 
