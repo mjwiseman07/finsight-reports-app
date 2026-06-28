@@ -749,6 +749,49 @@ export default function FullLandingPage() {
               </a>
             </div>
           </div>
+
+          <div className="mt-20 grid items-center gap-10 lg:grid-cols-[minmax(0,16rem)_1fr]">
+            <div className="mx-auto h-56 w-56 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 shadow-lg lg:h-64 lg:w-64">
+              <Image
+                src="/janice-wiseman-headshot.jpg"
+                alt="Janice Wiseman, Healthcare Advisor at Advisacor"
+                width={400}
+                height={400}
+                priority={false}
+                className="h-full w-full object-cover object-center"
+              />
+            </div>
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Healthcare Advisor</p>
+              <h3 className={`mt-4 max-w-3xl text-3xl font-black tracking-[-0.04em] text-[#0A1020] md:text-4xl ${headingFont}`}>
+                Designed with the people who actually bill the care.
+              </h3>
+              <p className="mb-4 mt-6 leading-relaxed text-slate-600">
+                Advisacor&apos;s™ healthcare vertical is shaped by Janice Wiseman, who brings deep operational expertise
+                in healthcare revenue cycle, accounts receivable, and patient financial services.
+              </p>
+              <p className="mb-4 leading-relaxed text-slate-600">
+                She currently manages AR, collections, and revenue cycle workflows across eight clinical facilities —
+                overseeing third-party billing, patient billing disputes, medical records coordination, and serving as
+                the cross-departmental subject matter expert on credit and collections.
+              </p>
+              <p className="mb-4 leading-relaxed text-slate-600">
+                Janice holds a Bachelor of Science in Healthcare Management and Administration from Liberty University.
+                Her firsthand knowledge of how providers actually bill, collect, and reconcile revenue is what gives
+                Advisacor&apos;s™ healthcare module its operational fidelity — the kind of detail that doesn&apos;t exist in
+                generic AI tools.
+              </p>
+              <p className="text-sm font-medium text-slate-500">Healthcare operations across multi-facility clinic networks.</p>
+              <a
+                href="https://www.linkedin.com/in/janice-wiseman-a13850161"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`mt-4 inline-flex text-sm font-semibold text-[#0A1530] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
+              >
+                Connect on LinkedIn →
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 
