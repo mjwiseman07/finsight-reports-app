@@ -77,6 +77,8 @@ export interface ExtractedFiling {
   numericFacts: NumericFact[];
   narrativeSnippets: string[];
   rawFrameworkSignals: string[];
+  tax_status?: string;
+  entity_type?: string;
   form990?: {
     partI: Record<string, number | string>;
     partVIII: Record<string, number>;

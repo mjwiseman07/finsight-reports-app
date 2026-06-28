@@ -1,0 +1,16 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "RTL",
+    "vertical": "rtl",
+    "framework": "us-gaap",
+    "entityName": "Retail Co",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ]
+  },
+  "scenario": "fail-closed"
+}

@@ -1,0 +1,20 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "IFRS-HOSPITAL",
+    "vertical": "hc",
+    "framework": "ifrs",
+    "entityName": "IFRS Charity Hospital",
+    "formType": "Annual Report",
+    "tax_status": "501(c)(3)",
+    "entity_type": "hospital",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "IFRS charity hospital community benefit programs"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs"
+    ]
+  },
+  "scenario": "happy"
+}

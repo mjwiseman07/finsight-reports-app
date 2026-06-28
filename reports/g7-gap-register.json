@@ -1353,14 +1353,18 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0080",
-      "triage": "fix-now",
-      "triageDecisionSha": "0e422f201ac0c504dd2ce23c123e1afde8fccd19",
-      "triageNote": "G7-C6.2 Group D: IFRS community-benefit equivalent for hc/ifrs/chna-cycle (US §501(r) has no IFRS analog; neutral IFRS-bound emitter required).",
+      "triage": "satisfied",
+      "triageDecisionSha": "50d41083c4c66ead65de7b05fa69dff7d5a6152e",
+      "triageNote": "satisfied by emitter lib/router/healthcare/ifrs/communityBenefitPurposeDisclosure.ts at citation IFRS for SMEs §27, EU Directive 2014/95/EU, UK Charities SORP module 3",
       "createdAt": "2026-06-27T23:24:49.781Z",
       "reclassified_in": "G7-C6.2",
       "c7a_sub_commit": "C7a-3",
       "ifrs_citation": "IFRS for SMEs §27 + EU 2014/95/EU + UK Charities SORP module 3",
-      "framework_non_comingling_note": "Forbidden under IFRS path: \"§501(r)\" / \"Community Health Needs Assessment\" literal. Neutral language only: \"community benefit assessment cycle\" / \"public benefit purpose evaluation\"."
+      "framework_non_comingling_note": "Forbidden under IFRS path: \"§501(r)\" / \"Community Health Needs Assessment\" literal. Neutral language only: \"community benefit assessment cycle\" / \"public benefit purpose evaluation\".",
+      "closed_in": "C7a-3",
+      "emitter_path": "lib/router/healthcare/ifrs/communityBenefitPurposeDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-3/happy/HLMA-annual-ifrs.json",
+      "citation_resolved": "IFRS for SMEs §27, EU Directive 2014/95/EU, UK Charities SORP module 3"
     },
     {
       "filingId": "HLMA-annual",

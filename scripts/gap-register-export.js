@@ -20,6 +20,15 @@ function parseArgs(argv) {
       const [key, value] = argv[i + 1].split("=");
       filters[key] = value;
       i += 1;
+    } else if (argv[i] === "--vertical" && argv[i + 1]) {
+      filters.vertical = argv[i + 1];
+      i += 1;
+    } else if (argv[i] === "--cluster" && argv[i + 1]) {
+      filters.cluster = argv[i + 1];
+      i += 1;
+    } else if (argv[i] === "--framework" && argv[i + 1]) {
+      filters.framework = argv[i + 1];
+      i += 1;
     } else if (argv[i] === "--remaining-after" && argv[i + 1]) {
       remainingAfter = argv[i + 1];
       i += 1;
@@ -36,10 +45,24 @@ function verticalAlias(vertical) {
   return map[vertical.toUpperCase()] ?? vertical.toLowerCase();
 }
 
+const CLUSTER_ASSERTIONS = {
+  "community-benefit": ["chna-cycle"],
+};
+
+function assertionFromMessage(message) {
+  const head = (message || "").split(":")[0];
+  return head.split("/").pop();
+}
+
 function matches(gap, filters) {
   for (const [key, value] of Object.entries(filters)) {
     if (key === "vertical") {
       if (gap.vertical !== verticalAlias(value)) return false;
+      continue;
+    }
+    if (key === "cluster") {
+      const allowed = CLUSTER_ASSERTIONS[value];
+      if (!allowed || !allowed.includes(assertionFromMessage(gap.message))) return false;
       continue;
     }
     if (key === "framework") {
