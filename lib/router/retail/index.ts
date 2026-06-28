@@ -1,0 +1,118 @@
+import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import { citationResolved, type EmitterResult } from "../types";
+import { FrameworkViolationError } from "../errors/FrameworkViolationError";
+import { MissingDisclosureInputError } from "./errors";
+import { assertRetailIfrsSupported, buildRetailEmitterInput } from "./types";
+import * as ifrsInventory from "./ifrs/inventoryMethodDeclaration";
+
+export interface RetailFrameworkViolation {
+  framework: string;
+  violation: string;
+  citation: string;
+  remediation: string;
+  message: string;
+}
+
+export interface RetailRouterOutput {
+  frameworkLane: ExtractedFiling["framework"];
+  results: EmitterResult[];
+  augmentedNarratives: string[];
+  frameworkViolation?: RetailFrameworkViolation;
+}
+
+function wrapEmit(emitterId: string, emitterPath: string, fn: () => EmitterResult): EmitterResult {
+  try {
+    return fn();
+  } catch (error) {
+    if (error instanceof FrameworkViolationError) {
+      throw error;
+    }
+    if (error instanceof MissingDisclosureInputError) {
+      return {
+        emitterId,
+        emitterPath,
+        lines: [],
+        status: "fail-closed",
+        failureReason: error.message,
+      };
+    }
+    throw error;
+  }
+}
+
+export function runRetailRouter(extracted: ExtractedFiling): RetailRouterOutput {
+  if (extracted.framework !== "ifrs") {
+    return {
+      frameworkLane: extracted.framework,
+      results: [],
+      augmentedNarratives: extracted.narrativeSnippets,
+    };
+  }
+
+  assertRetailIfrsSupported(extracted);
+  const input = buildRetailEmitterInput(extracted);
+
+  try {
+    const results = [
+      wrapEmit("inventory-method-declaration", ifrsInventory.EMITTER_PATH, () =>
+        ifrsInventory.emitInventoryMethodDeclaration(input),
+      ),
+    ];
+    const augmentedNarratives = [
+      ...extracted.narrativeSnippets,
+      ...results.flatMap((result) =>
+        result.status === "satisfied" ? result.lines.map((line) => line.text) : [],
+      ),
+    ];
+    return { frameworkLane: extracted.framework, results, augmentedNarratives };
+  } catch (error) {
+    if (error instanceof FrameworkViolationError) {
+      return {
+        frameworkLane: extracted.framework,
+        results: [],
+        augmentedNarratives: extracted.narrativeSnippets,
+        frameworkViolation: {
+          framework: error.framework,
+          violation: error.violation,
+          citation: error.citation,
+          remediation: error.remediation,
+          message: error.message,
+        },
+      };
+    }
+    throw error;
+  }
+}
+
+export function emitterSatisfiesAssertion(
+  results: EmitterResult[],
+  assertionId: string,
+): { satisfied: boolean; emitterPath?: string; citation?: string } {
+  for (const result of results) {
+    if (result.status !== "satisfied") {
+      continue;
+    }
+    const line = result.lines.find((entry) => entry.assertionId === assertionId);
+    if (line) {
+      return {
+        satisfied: true,
+        emitterPath: result.emitterPath,
+        citation: citationResolved(line.citation),
+      };
+    }
+  }
+  return { satisfied: false };
+}
+
+export function withRouterNarratives(extracted: ExtractedFiling): ExtractedFiling {
+  const router = runRetailRouter(extracted);
+  return { ...extracted, narrativeSnippets: router.augmentedNarratives };
+}
+
+export function ifrsRetailEmitterOutputText(extracted: ExtractedFiling): string {
+  const router = runRetailRouter({ ...extracted, framework: "ifrs", rawFrameworkSignals: ["ifrs-full"] });
+  return router.results
+    .filter((result) => result.status === "satisfied")
+    .flatMap((result) => result.lines.map((line) => line.text))
+    .join("\n");
+}

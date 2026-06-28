@@ -1,0 +1,22 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "HAPPY-FIFO",
+    "vertical": "rtl",
+    "framework": "ifrs",
+    "entityName": "Fixture Entity",
+    "formType": "annual",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "inventory": {
+      "cost_formula": "FIFO",
+      "carrying_amounts": {
+        "finished_goods": 1200000000,
+        "merchandise": 800000000
+      }
+    }
+  }
+}

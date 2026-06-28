@@ -6,44 +6,90 @@ import {
   hasFactTag,
   narrativeHas,
 } from "../helpers";
+import {
+  emitterSatisfiesAssertion,
+  runRetailRouter,
+  withRouterNarratives,
+} from "../../../../lib/router/retail";
+
+function augmentedCtx(ctx: ValidatorContext): ValidatorContext {
+  return { ...ctx, extracted: withRouterNarratives(ctx.extracted) };
+}
+
+function assertInventoryMethodDeclared(ctx: ValidatorContext): AssertionResult {
+  const router = runRetailRouter(ctx.extracted);
+  if (router.frameworkViolation) {
+    return {
+      id: "inventory-method-declared",
+      pack: ctx.vertical,
+      tier: "structural",
+      passed: false,
+      message: router.frameworkViolation.message,
+      classification: "framework-mismatch",
+      severity: "critical",
+    };
+  }
+  const emitter = emitterSatisfiesAssertion(router.results, "inventory-method-declared");
+  if (emitter.satisfied) {
+    return {
+      id: "inventory-method-declared",
+      pack: ctx.vertical,
+      tier: "structural",
+      passed: true,
+      message: `satisfied by emitter ${emitter.emitterPath} at citation ${emitter.citation}`,
+    };
+  }
+  const inventoryDeclared =
+    Boolean(ctx.extracted.inventory?.cost_formula) ||
+    Boolean(ctx.extracted.inventoryMethod) ||
+    narrativeHas(ctx.extracted, [/fifo/i, /lifo/i, /weighted average/i, /inventory method/i]);
+  return assertPresence(
+    augmentedCtx(ctx),
+    "inventory-method-declared",
+    "structural",
+    inventoryDeclared,
+    "Inventory measurement method not declared in filing extract",
+    { classification: "missing-field", severity: "high" },
+  );
+}
 
 export function assertions(ctx: ValidatorContext): AssertionResult[] {
   const out: AssertionResult[] = [];
   const { extracted, tolerances } = ctx;
 
-  const inventoryDeclared =
-    Boolean(extracted.inventoryMethod) ||
-    narrativeHas(extracted, [/fifo/i, /lifo/i, /weighted average/i, /inventory method/i]);
-  out.push(
-    assertPresence(
-      ctx,
-      "inventory-method-declared",
-      "structural",
-      inventoryDeclared,
-      "Inventory measurement method not declared in filing extract",
-      { classification: "missing-field", severity: "high" },
-    ),
-  );
+  out.push(assertInventoryMethodDeclared(ctx));
 
   if (ctx.framework === "ifrs" || ctx.framework === "ipsas") {
-    const lifoSuspect =
-      extracted.inventoryMethod?.toUpperCase().includes("LIFO") ||
-      narrativeHas(extracted, [/\blifo\b/i]);
-    out.push(
-      assertPresence(
-        ctx,
-        "ifrs-lifo-prohibition",
-        "structural",
-        !lifoSuspect,
-        "IFRS retail filing shows LIFO inventory (comingling suspect)",
-        {
-          classification: "comingling-suspect",
-          severity: "critical",
-          observed: extracted.inventoryMethod ?? "LIFO signal in narrative",
-          expected: "FIFO or weighted-average only",
-        },
-      ),
-    );
+    const router = runRetailRouter(extracted);
+    if (router.frameworkViolation) {
+      out.push({
+        id: "ifrs-lifo-prohibition",
+        pack: ctx.vertical,
+        tier: "structural",
+        passed: true,
+        message: `framework violation surfaced: ${router.frameworkViolation.citation} — ${router.frameworkViolation.remediation}`,
+      });
+    } else {
+      const lifoSuspect =
+        extracted.inventory?.cost_formula === "LIFO" ||
+        extracted.inventoryMethod?.toUpperCase().includes("LIFO") ||
+        narrativeHas(extracted, [/\blifo\b/i]);
+      out.push(
+        assertPresence(
+          ctx,
+          "ifrs-lifo-prohibition",
+          "structural",
+          !lifoSuspect,
+          "IFRS retail filing shows LIFO inventory (comingling suspect)",
+          {
+            classification: "comingling-suspect",
+            severity: "critical",
+            observed: extracted.inventoryMethod ?? "LIFO signal in narrative",
+            expected: "FIFO or weighted-average only",
+          },
+        ),
+      );
+    }
   }
 
   const cogs = findFactByPattern(extracted, /CostOfGoods|CostOfRevenue|CostOfSales/i);
@@ -63,10 +109,10 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
 
   out.push(
     assertPresence(
-      ctx,
+      augmentedCtx(ctx),
       "comp-sales-presence",
       "narrative",
-      narrativeHas(extracted, [/comparable store/i, /same store/i, /comp sales/i]),
+      narrativeHas(augmentedCtx(ctx).extracted, [/comparable store/i, /same store/i, /comp sales/i]),
       "Same-store / comparable sales disclosure not present",
       { classification: "narrative-gap", severity: "low" },
     ),
@@ -86,10 +132,10 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
 
   out.push(
     assertPresence(
-      ctx,
+      augmentedCtx(ctx),
       "channel-disaggregation",
       "structural",
-      narrativeHas(extracted, [/e-?commerce/i, /online/i, /in-?store/i, /digital/i]),
+      narrativeHas(augmentedCtx(ctx).extracted, [/e-?commerce/i, /online/i, /in-?store/i, /digital/i]),
       "E-commerce vs in-store disaggregation not present when expected for retail",
       { classification: "narrative-gap", severity: "low" },
     ),

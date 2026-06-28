@@ -1,0 +1,21 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "LIFO-E2E",
+    "vertical": "rtl",
+    "framework": "ifrs",
+    "entityName": "LIFO Retailer",
+    "formType": "annual",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "inventory": {
+      "cost_formula": "LIFO",
+      "carrying_amounts": {
+        "merchandise": 100
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "GAP-0164",
+    "assertionId": "inventory-method-declared",
+    "fixture": "tests/fixtures/g7-c7a-7/happy/ad-annual.json",
+    "emitterPath": "lib/router/retail/ifrs/inventoryMethodDeclaration.ts",
+    "framework_violation_handling": "LIFO declaration triggers FrameworkViolationError per IAS 2.25; no silent emission"
+  },
+  {
+    "id": "GAP-0168",
+    "assertionId": "inventory-method-declared",
+    "fixture": "tests/fixtures/g7-c7a-7/happy/tsco-annual.json",
+    "emitterPath": "lib/router/retail/ifrs/inventoryMethodDeclaration.ts",
+    "framework_violation_handling": "LIFO declaration triggers FrameworkViolationError per IAS 2.25; no silent emission"
+  }
+]

@@ -2809,10 +2809,17 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0164",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
-      "createdAt": "2026-06-27T23:24:49.806Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "a3c3eb54871a383fefd013608e8472ef5e28cb09",
+      "triageNote": "satisfied by emitter lib/router/retail/ifrs/inventoryMethodDeclaration.ts at citation IAS 2 25, 36",
+      "createdAt": "2026-06-27T23:24:49.806Z",
+      "reclassified_in": "C7a-7",
+      "closed_in": "C7a-7",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/retail/ifrs/inventoryMethodDeclaration.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-7/happy/ad-annual.json",
+      "citation_resolved": "IAS 2 25, 36",
+      "framework_violation_handling": "LIFO declaration triggers FrameworkViolationError per IAS 2.25; no silent emission"
     },
     {
       "filingId": "AD-annual",
@@ -2873,10 +2880,17 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0168",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
-      "createdAt": "2026-06-27T23:24:49.807Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "a3c3eb54871a383fefd013608e8472ef5e28cb09",
+      "triageNote": "satisfied by emitter lib/router/retail/ifrs/inventoryMethodDeclaration.ts at citation IAS 2 25, 36",
+      "createdAt": "2026-06-27T23:24:49.807Z",
+      "reclassified_in": "C7a-7",
+      "closed_in": "C7a-7",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/retail/ifrs/inventoryMethodDeclaration.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-7/happy/tsco-annual.json",
+      "citation_resolved": "IAS 2 25, 36",
+      "framework_violation_handling": "LIFO declaration triggers FrameworkViolationError per IAS 2.25; no silent emission"
     },
     {
       "filingId": "TSCO-annual",

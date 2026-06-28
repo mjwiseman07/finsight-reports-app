@@ -133,6 +133,10 @@ export interface ExtractedFiling {
   revenue?: {
     by_fee_structure: Record<string, number>;
   };
+  inventory?: {
+    cost_formula?: "FIFO" | "weighted_average" | "LIFO";
+    carrying_amounts?: Record<string, number>;
+  };
 }
 
 export interface ExpectedDisclosureTopic {
@@ -187,6 +191,7 @@ export interface GapEntry {
   citation_resolved?: string;
   closure_mechanism?: string;
   scope_precondition?: string;
+  framework_violation_handling?: string;
 }
 
 export interface GapRegister {

@@ -47,6 +47,7 @@ function verticalAlias(vertical) {
 
 const CLUSTER_ASSERTIONS = {
   "community-benefit": ["chna-cycle"],
+  "ifrs-inventory": ["inventory-method-declared"],
 };
 
 function assertionFromMessage(message) {

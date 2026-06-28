@@ -1,0 +1,22 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "AD-annual",
+    "vertical": "rtl",
+    "framework": "ifrs",
+    "entityName": "Ahold Delhaize",
+    "formType": "annual",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "inventory": {
+      "cost_formula": "FIFO",
+      "carrying_amounts": {
+        "finished_goods": 1200000000,
+        "merchandise": 800000000
+      }
+    }
+  }
+}

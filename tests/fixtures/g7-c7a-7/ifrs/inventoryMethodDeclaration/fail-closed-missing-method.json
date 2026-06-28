@@ -1,0 +1,20 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "FAIL-CLOSED-MISSING-METHOD",
+    "vertical": "rtl",
+    "framework": "ifrs",
+    "entityName": "Fixture Entity",
+    "formType": "annual",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "inventory": {
+      "carrying_amounts": {
+        "merchandise": 1
+      }
+    }
+  }
+}

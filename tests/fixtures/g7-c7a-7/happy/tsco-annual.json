@@ -1,0 +1,22 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "TSCO-annual",
+    "vertical": "rtl",
+    "framework": "ifrs",
+    "entityName": "Tesco PLC",
+    "formType": "annual",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "inventory": {
+      "cost_formula": "weighted_average",
+      "carrying_amounts": {
+        "finished_goods": 950000000,
+        "merchandise": 620000000
+      }
+    }
+  }
+}
