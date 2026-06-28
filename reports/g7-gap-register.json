@@ -13,9 +13,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0001",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
       "createdAt": "2026-06-27T23:24:49.759Z"
     },
     {
@@ -29,9 +29,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0002",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
       "createdAt": "2026-06-27T23:24:49.759Z"
     },
     {
@@ -45,9 +45,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0003",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
       "createdAt": "2026-06-27T23:24:49.759Z"
     },
     {
@@ -1309,9 +1309,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0082",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
       "createdAt": "2026-06-27T23:24:49.781Z"
     },
     {
@@ -1325,9 +1325,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0083",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
       "createdAt": "2026-06-27T23:24:49.781Z"
     },
     {
@@ -1357,9 +1357,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0085",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: §501(r) CHNA cycle requires full 10-K narrative/HTML parse beyond companyfacts API.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 A — HC CHNA scope: HC CHNA scope correction: hospital §501(r) CHNA cycle is fix-now for G7-C7a SEC XBRL tag harvest (G10 defer retracted for programmatic 10-K filers).",
       "createdAt": "2026-06-27T23:24:49.783Z"
     },
     {
@@ -1437,9 +1437,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0090",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: §501(r) CHNA cycle requires full 10-K narrative/HTML parse beyond companyfacts API.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 A — HC CHNA scope: HC CHNA scope correction: hospital §501(r) CHNA cycle is fix-now for G7-C7a SEC XBRL tag harvest (G10 defer retracted for programmatic 10-K filers).",
       "createdAt": "2026-06-27T23:24:49.784Z"
     },
     {
@@ -1517,9 +1517,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0095",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: §501(r) CHNA cycle requires full 10-K narrative/HTML parse beyond companyfacts API.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 A — HC CHNA scope: HC CHNA scope correction: hospital §501(r) CHNA cycle is fix-now for G7-C7a SEC XBRL tag harvest (G10 defer retracted for programmatic 10-K filers).",
       "createdAt": "2026-06-27T23:24:49.785Z"
     },
     {
@@ -1597,9 +1597,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0100",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: §501(r) CHNA cycle requires full 10-K narrative/HTML parse beyond companyfacts API.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 A — HC CHNA scope: HC CHNA scope correction: hospital §501(r) CHNA cycle is fix-now for G7-C7a SEC XBRL tag harvest (G10 defer retracted for programmatic 10-K filers).",
       "createdAt": "2026-06-27T23:24:49.786Z"
     },
     {
@@ -1677,9 +1677,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0105",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 B-bonus — MFG IFRS inventory: MFG IFRS inventory-decomposition parity with US GAAP inventory cluster now fix-now.",
       "createdAt": "2026-06-27T23:24:49.788Z"
     },
     {
@@ -1757,9 +1757,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0110",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
       "createdAt": "2026-06-27T23:24:49.790Z"
     },
     {
@@ -1773,9 +1773,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0111",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
       "createdAt": "2026-06-27T23:24:49.790Z"
     },
     {
@@ -1837,9 +1837,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0115",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
       "createdAt": "2026-06-27T23:24:49.791Z"
     },
     {
@@ -1853,9 +1853,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0116",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
       "createdAt": "2026-06-27T23:24:49.791Z"
     },
     {
@@ -1917,9 +1917,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0120",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
       "createdAt": "2026-06-27T23:24:49.792Z"
     },
     {
@@ -1933,9 +1933,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0121",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
       "createdAt": "2026-06-27T23:24:49.792Z"
     },
     {
@@ -1997,9 +1997,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0125",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
       "createdAt": "2026-06-27T23:24:49.793Z"
     },
     {
@@ -2013,9 +2013,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0126",
-      "triage": "defer-to-future",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "target: G10 | reason: Manufacturing inventory/COGM rollforward needs instance-document or full 10-K note extraction.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 B — MFG inventory US GAAP: MFG inventory scope correction: inventory decomposition and COGM rollforward achievable via expanded XBRL tags in G7-C7a (G10 defer retracted).",
       "createdAt": "2026-06-27T23:24:49.793Z"
     },
     {
@@ -2349,9 +2349,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0147",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
       "createdAt": "2026-06-27T23:24:49.801Z"
     },
     {
@@ -2397,9 +2397,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0150",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
       "createdAt": "2026-06-27T23:24:49.801Z"
     },
     {
@@ -2893,9 +2893,9 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0181",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
+      "triage": "fix-now",
+      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
+      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
       "createdAt": "2026-06-27T23:24:49.812Z"
     },
     {
