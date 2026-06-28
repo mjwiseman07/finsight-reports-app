@@ -16,7 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const RUNNER = "advisacor-cascade-runner";
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const EXPECTED_BRANCH = "architecture-lane-refactor-baseline";
 const MAX_CAPTURE_BYTES = 1024 * 1024;
 const TAIL_LINE_COUNT = 20;
@@ -228,6 +228,50 @@ const STAGES: StageDefinition[] = [
     command: "node",
     args: ["scripts/run-integration-harness.js", "--category", "registry-change-mgmt"],
     requiredPath: "scripts/integration-harness.ts",
+  },
+  {
+    name: "framework_consistency",
+    command: "node",
+    args: ["scripts/crossover/run-stage.js", "framework_consistency"],
+    requiredPath: "lib/router/crossover/frameworkConsistencyValidator.ts",
+  },
+  {
+    name: "emitter_path_integrity",
+    command: "node",
+    args: ["scripts/crossover/run-stage.js", "emitter_path_integrity"],
+    requiredPath: "lib/router/crossover/emitterPathValidator.ts",
+  },
+  {
+    name: "crossover_footing",
+    command: "node",
+    args: ["scripts/crossover/run-stage.js", "crossover_footing"],
+    requiredPath: "lib/router/crossover/crossoverFootingValidator.ts",
+  },
+  {
+    name: "lessor_gap_surveillance",
+    command: "node",
+    args: ["scripts/crossover/run-stage.js", "lessor_gap_surveillance"],
+    requiredPath: "lib/router/crossover/lessorGapSurveillance.ts",
+    advisory: true,
+  },
+  {
+    name: "register_classification",
+    command: "node",
+    args: ["scripts/crossover/run-stage.js", "register_classification"],
+    requiredPath: "lib/router/crossover/registerClassificationValidator.ts",
+  },
+  {
+    name: "timestamp_drift_normalization",
+    command: "node",
+    args: ["scripts/crossover/run-stage.js", "timestamp_drift_normalization"],
+    requiredPath: "lib/router/crossover/timestampDriftValidator.ts",
+    advisory: true,
+  },
+  {
+    name: "collapse_step_documentation",
+    command: "node",
+    args: ["scripts/crossover/run-stage.js", "collapse_step_documentation"],
+    requiredPath: "lib/router/crossover/collapseStepValidator.ts",
   },
 ];
 

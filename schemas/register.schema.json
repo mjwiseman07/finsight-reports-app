@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "G7 Gap Register",
+  "version": "1.2.0",
+  "type": "object",
+  "required": ["version", "schemaVersion", "gaps"],
+  "properties": {
+    "version": { "type": "string" },
+    "schemaVersion": { "const": "1.2.0" },
+    "gaps": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/gapEntry" }
+    }
+  },
+  "definitions": {
+    "gapEntry": {
+      "type": "object",
+      "required": [
+        "id",
+        "filingId",
+        "vertical",
+        "framework",
+        "tier",
+        "severity",
+        "classification",
+        "message",
+        "observed",
+        "expected",
+        "triage",
+        "createdAt"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "filingId": { "type": "string" },
+        "vertical": { "type": "string" },
+        "framework": { "type": "string" },
+        "tier": { "type": "string" },
+        "severity": { "type": "string" },
+        "classification": { "type": "string" },
+        "message": { "type": "string" },
+        "observed": { "type": "string" },
+        "expected": { "type": "string" },
+        "triage": {
+          "enum": ["fix-now", "document-limitation", "defer-to-future", "satisfied"]
+        },
+        "triageDecisionSha": { "type": ["string", "null"] },
+        "triageNote": { "type": ["string", "null"] },
+        "createdAt": { "type": "string" },
+        "reclassified_in": { "type": "string" },
+        "patched_in": { "type": "string" },
+        "closed_in": { "type": "string" },
+        "emitter_path": { "type": ["string", "null"] },
+        "verification_fixture": { "type": "string" },
+        "citation_resolved": { "type": "string" },
+        "closure_mechanism": { "type": "string" },
+        "scope_precondition": { "type": "string" },
+        "framework_violation_handling": { "type": "string" },
+        "framework_substitute_note": { "type": "string" },
+        "assertion_hook": { "type": "string" },
+        "collapse_step": { "type": "boolean" },
+        "lessor_scope": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "triage": { "const": "satisfied" },
+              "closure_mechanism": { "const": "emitter-satisfaction" }
+            }
+          },
+          "then": { "required": ["emitter_path", "closed_in"] }
+        }
+      ]
+    }
+  }
+}

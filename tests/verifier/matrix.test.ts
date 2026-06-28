@@ -5,6 +5,51 @@ import { describe, expect, it } from "vitest";
 /** Locked baseline at G7-C7a-9 (wiring verifier main passCount). */
 export const EMITTER_MATRIX_BASELINE_COUNT = 435;
 
+export const C7B_CROSSOVER_VALIDATOR_ROWS = [
+  {
+    id: "crossover-framework-consistency",
+    emitterPath: "lib/router/crossover/frameworkConsistencyValidator.ts",
+    framework: "CROSSOVER",
+    gapId: null,
+  },
+  {
+    id: "crossover-emitter-path",
+    emitterPath: "lib/router/crossover/emitterPathValidator.ts",
+    framework: "CROSSOVER",
+    gapId: null,
+  },
+  {
+    id: "crossover-footing",
+    emitterPath: "lib/router/crossover/crossoverFootingValidator.ts",
+    framework: "CROSSOVER",
+    gapId: null,
+  },
+  {
+    id: "crossover-lessor-surveillance",
+    emitterPath: "lib/router/crossover/lessorGapSurveillance.ts",
+    framework: "CROSSOVER",
+    gapId: null,
+  },
+  {
+    id: "crossover-register-classification",
+    emitterPath: "lib/router/crossover/registerClassificationValidator.ts",
+    framework: "CROSSOVER",
+    gapId: null,
+  },
+  {
+    id: "crossover-timestamp-drift",
+    emitterPath: "lib/router/crossover/timestampDriftValidator.ts",
+    framework: "CROSSOVER",
+    gapId: null,
+  },
+  {
+    id: "crossover-collapse-step",
+    emitterPath: "lib/router/crossover/collapseStepValidator.ts",
+    framework: "CROSSOVER",
+    gapId: null,
+  },
+] as const;
+
 export const C7A_15_MFG_INVENTORY_EMITTER_ROWS = [
   {
     id: "mfg-inventory-decomposition",
@@ -134,6 +179,27 @@ describe("verifier emitter matrix (B4 manufacturing inventory rows)", () => {
       expect(existsSync(abs)).toBe(true);
       const source = readFileSync(abs, "utf8");
       expect(source).toContain(row.framework);
+    });
+  }
+});
+
+describe("verifier emitter matrix (B5 crossover validator rows)", () => {
+  it("extends baseline 435 to 453 with C7b crossover validator paths", () => {
+    const total =
+      EMITTER_MATRIX_BASELINE_COUNT +
+      C7A_10_IFRS_LEASE_EMITTER_ROWS.length +
+      C7A_11_HC_REVENUE_EMITTER_ROWS.length +
+      C7A_15_MFG_INVENTORY_EMITTER_ROWS.length +
+      C7B_CROSSOVER_VALIDATOR_ROWS.length;
+    expect(total).toBe(453);
+  });
+
+  for (const row of C7B_CROSSOVER_VALIDATOR_ROWS) {
+    it(`${row.id} validator file exists`, () => {
+      const abs = join(ROOT, row.emitterPath);
+      expect(existsSync(abs)).toBe(true);
+      const source = readFileSync(abs, "utf8");
+      expect(source).toContain("VALIDATOR_NAME");
     });
   }
 });

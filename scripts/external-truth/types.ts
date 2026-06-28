@@ -433,6 +433,10 @@ export interface GapEntry {
   scope_precondition?: string;
   framework_violation_handling?: string;
   framework_substitute_note?: string;
+  assertion_hook?: string;
+  collapse_step?: boolean;
+  lessor_scope?: boolean;
+  patched_in?: string;
 }
 
 export interface GapRegister {
