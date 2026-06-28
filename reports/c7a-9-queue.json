@@ -1,0 +1,29 @@
+[
+  {
+    "id": "GAP-0173",
+    "filingId": "COST-10k",
+    "vertical": "rtl",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "lease-obligations",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0176",
+    "filingId": "TGT-10k",
+    "vertical": "rtl",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "lease-obligations",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0179",
+    "filingId": "WMT-10k",
+    "vertical": "rtl",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "lease-obligations",
+    "closed_in": null
+  }
+]

@@ -53,6 +53,38 @@ function assertInventoryMethodDeclared(ctx: ValidatorContext): AssertionResult {
   );
 }
 
+function assertLeaseObligations(ctx: ValidatorContext): AssertionResult {
+  const router = runRetailRouter(ctx.extracted);
+  if (router.frameworkViolation && ctx.extracted.framework === "ifrs") {
+    return {
+      id: "lease-obligations",
+      pack: ctx.vertical,
+      tier: "structural",
+      passed: true,
+      message: `framework rejection surfaced: ${router.frameworkViolation.citation} — ${router.frameworkViolation.remediation}`,
+    };
+  }
+  const emitter = emitterSatisfiesAssertion(router.results, "lease-obligations");
+  if (emitter.satisfied) {
+    return {
+      id: "lease-obligations",
+      pack: ctx.vertical,
+      tier: "structural",
+      passed: true,
+      message: `satisfied by emitter ${emitter.emitterPath} at citation ${emitter.citation}`,
+    };
+  }
+  return assertPresence(
+    augmentedCtx(ctx),
+    "lease-obligations",
+    "structural",
+    hasFactTag(ctx.extracted, ["OperatingLeaseLiability", "FinanceLeaseLiability"]) ||
+      narrativeHas(augmentedCtx(ctx).extracted, [/lease obligation/i, /asc 842/i, /ifrs 16/i]),
+    "Lease obligations (ASC 842 / IFRS 16) not evidenced",
+    { classification: "missing-field", severity: "medium" },
+  );
+}
+
 export function assertions(ctx: ValidatorContext): AssertionResult[] {
   const out: AssertionResult[] = [];
   const { extracted, tolerances } = ctx;
@@ -118,17 +150,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
     ),
   );
 
-  out.push(
-    assertPresence(
-      ctx,
-      "lease-obligations",
-      "structural",
-      hasFactTag(extracted, ["OperatingLeaseLiability", "FinanceLeaseLiability"]) ||
-        narrativeHas(extracted, [/lease obligation/i, /asc 842/i, /ifrs 16/i]),
-      "Lease obligations (ASC 842 / IFRS 16) not evidenced",
-      { classification: "missing-field", severity: "medium" },
-    ),
-  );
+  out.push(assertLeaseObligations(ctx));
 
   out.push(
     assertPresence(

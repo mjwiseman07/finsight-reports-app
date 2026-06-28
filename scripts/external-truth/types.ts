@@ -63,6 +63,18 @@ export interface NumericFact {
   periodEnd: string;
 }
 
+export interface LeaseMaturitySchedule {
+  year_1: number;
+  year_2: number;
+  year_3: number;
+  year_4: number;
+  year_5: number;
+  thereafter: number;
+  total_undiscounted: number;
+  imputed_interest: number;
+  present_value: number;
+}
+
 export interface ExtractedFiling {
   schemaVersion: "1.0.0";
   filingId: string;
@@ -181,6 +193,29 @@ export interface ExtractedFiling {
     contract_balances?: {
       contract_assets: number;
       contract_liabilities: number;
+    };
+  };
+  leases?: {
+    asc842?: {
+      cost_breakdown?: {
+        operating_lease_cost: number;
+        variable_lease_cost: number;
+        short_term_lease_cost: number;
+        sublease_income?: number;
+        total_lease_cost: number;
+      };
+      weighted_averages?: {
+        operating: { remaining_term_years: number; discount_rate_pct: number };
+        finance: { remaining_term_years: number; discount_rate_pct: number };
+      };
+      maturity?: {
+        operating: LeaseMaturitySchedule;
+        finance: LeaseMaturitySchedule;
+        balance_sheet?: {
+          operating_lease_liability: number;
+          finance_lease_liability: number;
+        };
+      };
     };
   };
   fund_accounting?: {

@@ -1,0 +1,22 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "rtl",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "COST-10k",
+    "entityName": "Costco Wholesale Corporation",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": ["us-gaap"],
+    "leases": {
+      "asc842": {
+        "cost_breakdown": {
+          "variable_lease_cost": 89000000,
+          "short_term_lease_cost": 12000000,
+          "total_lease_cost": 101000000
+        }
+      }
+    }
+  }
+}

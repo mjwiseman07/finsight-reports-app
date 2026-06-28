@@ -1,0 +1,30 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "rtl",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "WMT-10k",
+    "entityName": "Walmart Inc.",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": ["us-gaap"],
+    "leases": {
+      "asc842": {
+        "maturity": {
+          "operating": {
+            "year_1": 2100000000,
+            "year_2": 1980000000,
+            "year_3": 1850000000,
+            "year_4": 1720000000,
+            "year_5": 1600000000,
+            "thereafter": 8900000000,
+            "total_undiscounted": 18150000000,
+            "imputed_interest": 4200000000,
+            "present_value": 13950000000
+          }
+        }
+      }
+    }
+  }
+}

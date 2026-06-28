@@ -1,0 +1,21 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "rtl",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "TGT-10k",
+    "entityName": "Target Corporation",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": ["us-gaap"],
+    "leases": {
+      "asc842": {
+        "weighted_averages": {
+          "operating": { "remaining_term_years": 8.4, "discount_rate_pct": 4.25 },
+          "finance": { "remaining_term_years": 12.7, "discount_rate_pct": 3.85 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "rtl",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "TGT-10K-LEASE",
+    "entityName": "Target Corporation",
+    "numericFacts": [],
+    "narrativeSnippets": ["Retail lease footnote disclosures"],
+    "rawFrameworkSignals": ["us-gaap"],
+    "leases": {
+      "asc842": {
+        "cost_breakdown": {
+          "operating_lease_cost": 298000000,
+          "variable_lease_cost": 54000000,
+          "short_term_lease_cost": 8000000,
+          "total_lease_cost": 360000000
+        },
+        "weighted_averages": {
+          "operating": { "remaining_term_years": 8.4, "discount_rate_pct": 4.25 },
+          "finance": { "remaining_term_years": 12.7, "discount_rate_pct": 3.85 }
+        },
+        "maturity": {
+          "operating": {
+            "year_1": 980000000,
+            "year_2": 920000000,
+            "year_3": 860000000,
+            "year_4": 810000000,
+            "year_5": 760000000,
+            "thereafter": 4200000000,
+            "total_undiscounted": 8530000000,
+            "imputed_interest": 1980000000,
+            "present_value": 6550000000
+          },
+          "finance": {
+            "year_1": 145000000,
+            "year_2": 132000000,
+            "year_3": 118000000,
+            "year_4": 105000000,
+            "year_5": 92000000,
+            "thereafter": 410000000,
+            "total_undiscounted": 1002000000,
+            "imputed_interest": 175000000,
+            "present_value": 827000000
+          },
+          "balance_sheet": {
+            "operating_lease_liability": 6550000000,
+            "finance_lease_liability": 827000000
+          }
+        }
+      }
+    }
+  }
+}

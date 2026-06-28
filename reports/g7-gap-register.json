@@ -3107,10 +3107,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0173",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.808Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "aa942aa50790ef8225d369bb3029e7562903d5ce",
+      "triageNote": "satisfied by emitter lib/router/lanes/retail/emitters/leaseCostBreakdown.ts at citation ASC 842 842-20-50-4(a), 842-20-50-4(b), 842-20-50-4(c)",
+      "createdAt": "2026-06-27T23:24:49.808Z",
+      "closed_in": "C7a-9",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/retail/emitters/leaseCostBreakdown.ts",
+      "verification_fixture": "tests/fixtures/retail/leases/leaseCostBreakdown/happy-cost-10k.json",
+      "citation_resolved": "ASC 842 842-20-50-4(a), 842-20-50-4(b), 842-20-50-4(c)"
     },
     {
       "filingId": "COST-10k",
@@ -3155,10 +3160,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0176",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.809Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "aa942aa50790ef8225d369bb3029e7562903d5ce",
+      "triageNote": "satisfied by emitter lib/router/lanes/retail/emitters/leaseWeightedAverages.ts at citation ASC 842 842-20-50-4(g)(1), 842-20-50-4(g)(2)",
+      "createdAt": "2026-06-27T23:24:49.809Z",
+      "closed_in": "C7a-9",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/retail/emitters/leaseWeightedAverages.ts",
+      "verification_fixture": "tests/fixtures/retail/leases/leaseWeightedAverages/happy-tgt-10k.json",
+      "citation_resolved": "ASC 842 842-20-50-4(g)(1), 842-20-50-4(g)(2)"
     },
     {
       "filingId": "TGT-10k",
@@ -3203,10 +3213,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0179",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.810Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "aa942aa50790ef8225d369bb3029e7562903d5ce",
+      "triageNote": "satisfied by emitter lib/router/lanes/retail/emitters/leaseMaturityReconciliation.ts at citation ASC 842 842-20-50-6",
+      "createdAt": "2026-06-27T23:24:49.810Z",
+      "closed_in": "C7a-9",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/retail/emitters/leaseMaturityReconciliation.ts",
+      "verification_fixture": "tests/fixtures/retail/leases/leaseMaturityReconciliation/happy-wmt-10k.json",
+      "citation_resolved": "ASC 842 842-20-50-6"
     },
     {
       "filingId": "WMT-10k",

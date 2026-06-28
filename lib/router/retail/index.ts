@@ -4,6 +4,16 @@ import { FrameworkViolationError } from "../errors/FrameworkViolationError";
 import { MissingDisclosureInputError } from "./errors";
 import { assertRetailIfrsSupported, buildRetailEmitterInput } from "./types";
 import * as ifrsInventory from "./ifrs/inventoryMethodDeclaration";
+import {
+  buildRetailLeaseEmitterInput,
+  hasAnyLeaseAsc842Input,
+  hasLeaseCostBreakdownInput,
+  hasLeaseMaturityInput,
+  hasLeaseWeightedAveragesInput,
+} from "../lanes/retail/types";
+import * as leaseCost from "../lanes/retail/emitters/leaseCostBreakdown";
+import * as leaseWeighted from "../lanes/retail/emitters/leaseWeightedAverages";
+import * as leaseMaturity from "../lanes/retail/emitters/leaseMaturityReconciliation";
 
 export interface RetailFrameworkViolation {
   framework: string;
@@ -40,12 +50,19 @@ function wrapEmit(emitterId: string, emitterPath: string, fn: () => EmitterResul
   }
 }
 
-export function runRetailRouter(extracted: ExtractedFiling): RetailRouterOutput {
-  if (extracted.framework !== "ifrs") {
+function runRetailIfrsLane(extracted: ExtractedFiling): RetailRouterOutput {
+  if (hasAnyLeaseAsc842Input(extracted)) {
     return {
       frameworkLane: extracted.framework,
       results: [],
       augmentedNarratives: extracted.narrativeSnippets,
+      frameworkViolation: {
+        framework: "IFRS",
+        violation: "US GAAP ASC 842 lease emitters not applicable under IFRS 16 lane",
+        citation: "IFRS 16",
+        remediation: "Route lease-obligations to IFRS 16 right-of-use emitters (C7a-10).",
+        message: "IFRS retail filing cannot use US GAAP ASC 842 lease emitters.",
+      },
     };
   }
 
@@ -84,6 +101,73 @@ export function runRetailRouter(extracted: ExtractedFiling): RetailRouterOutput 
   }
 }
 
+function runRetailUsgaapLane(extracted: ExtractedFiling): RetailRouterOutput {
+  const input = buildRetailLeaseEmitterInput(extracted);
+  const results: EmitterResult[] = [];
+
+  try {
+    if (hasLeaseCostBreakdownInput(extracted)) {
+      results.push(
+        wrapEmit("lease-cost-breakdown", leaseCost.EMITTER_PATH, () =>
+          leaseCost.emitLeaseCostBreakdown(input),
+        ),
+      );
+    }
+    if (hasLeaseWeightedAveragesInput(extracted)) {
+      results.push(
+        wrapEmit("lease-weighted-averages", leaseWeighted.EMITTER_PATH, () =>
+          leaseWeighted.emitLeaseWeightedAverages(input),
+        ),
+      );
+    }
+    if (hasLeaseMaturityInput(extracted)) {
+      results.push(
+        wrapEmit("lease-maturity-reconciliation", leaseMaturity.EMITTER_PATH, () =>
+          leaseMaturity.emitLeaseMaturityReconciliation(input),
+        ),
+      );
+    }
+
+    const augmentedNarratives = [
+      ...extracted.narrativeSnippets,
+      ...results.flatMap((result) =>
+        result.status === "satisfied" ? result.lines.map((line) => line.text) : [],
+      ),
+    ];
+    return { frameworkLane: extracted.framework, results, augmentedNarratives };
+  } catch (error) {
+    if (error instanceof FrameworkViolationError) {
+      return {
+        frameworkLane: extracted.framework,
+        results: [],
+        augmentedNarratives: extracted.narrativeSnippets,
+        frameworkViolation: {
+          framework: error.framework,
+          violation: error.violation,
+          citation: error.citation,
+          remediation: error.remediation,
+          message: error.message,
+        },
+      };
+    }
+    throw error;
+  }
+}
+
+export function runRetailRouter(extracted: ExtractedFiling): RetailRouterOutput {
+  if (extracted.framework === "ifrs") {
+    return runRetailIfrsLane(extracted);
+  }
+  if (extracted.framework === "us-gaap") {
+    return runRetailUsgaapLane(extracted);
+  }
+  return {
+    frameworkLane: extracted.framework,
+    results: [],
+    augmentedNarratives: extracted.narrativeSnippets,
+  };
+}
+
 export function emitterSatisfiesAssertion(
   results: EmitterResult[],
   assertionId: string,
@@ -111,6 +195,14 @@ export function withRouterNarratives(extracted: ExtractedFiling): ExtractedFilin
 
 export function ifrsRetailEmitterOutputText(extracted: ExtractedFiling): string {
   const router = runRetailRouter({ ...extracted, framework: "ifrs", rawFrameworkSignals: ["ifrs-full"] });
+  return router.results
+    .filter((result) => result.status === "satisfied")
+    .flatMap((result) => result.lines.map((line) => line.text))
+    .join("\n");
+}
+
+export function usgaapRetailLeaseOutputText(extracted: ExtractedFiling): string {
+  const router = runRetailRouter({ ...extracted, framework: "us-gaap", rawFrameworkSignals: ["us-gaap"] });
   return router.results
     .filter((result) => result.status === "satisfied")
     .flatMap((result) => result.lines.map((line) => line.text))
