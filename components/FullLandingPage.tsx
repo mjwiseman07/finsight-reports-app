@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState, type ReactNode, type SVGProps } from "react";
-import { AdvisacorLogo } from "./AdvisacorLogo";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -488,14 +488,21 @@ export default function FullLandingPage() {
       <header
         className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
           navScrolled
-            ? "border-b border-white/10 bg-[#0A1020]/95 shadow-lg shadow-black/20 backdrop-blur-md"
+            ? "border-b border-white/10 bg-[#0A1020]/80 shadow-lg shadow-black/20 backdrop-blur-md"
             : "bg-transparent"
         }`}
       >
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <a href="#top" className={`block w-[160px] shrink-0 ${focusRing("rounded-lg")}`} aria-label="Advisacor home">
-            <AdvisacorLogo priority variant="light" className="w-full max-w-[170px]" />
-          </a>
+          <Link href="/" className={`shrink-0 ${focusRing("rounded-lg")}`} aria-label="Advisacor home">
+            <Image
+              src="/advisacor-logo-full.png"
+              alt="Advisacor"
+              width={680}
+              height={340}
+              priority
+              className="h-14 w-auto md:h-16"
+            />
+          </Link>
           <div className="hidden items-center gap-8 md:flex">
             <a href="#what-it-does" className={navLinkClass}>
               What It Does
@@ -685,10 +692,10 @@ export default function FullLandingPage() {
               <Image
                 src="/matthew-wiseman-headshot.png"
                 alt="Matthew Wiseman, founder of Wiseman Financial Technologies LLC"
-                width={280}
-                height={280}
+                width={1023}
+                height={1537}
                 priority={false}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover object-[center_28%]"
               />
             </div>
             <div>
@@ -740,7 +747,13 @@ export default function FullLandingPage() {
       {/* SECTION K — Footer */}
       <footer className="border-t border-slate-200 bg-white px-6 py-14">
         <div className="mx-auto max-w-7xl">
-          <AdvisacorLogo variant="dark" className="w-[200px]" />
+          <Image
+            src="/advisacor-logo-full.png"
+            alt="Advisacor"
+            width={680}
+            height={340}
+            className="h-20 w-auto"
+          />
           <p className="mt-4 text-sm font-semibold text-slate-600">A product of Wiseman Financial Technologies LLC.</p>
 
           <div className="mt-10 grid gap-8 sm:grid-cols-2 md:max-w-xl">
