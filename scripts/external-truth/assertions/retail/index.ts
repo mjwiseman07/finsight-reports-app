@@ -11,6 +11,10 @@ import {
   runRetailRouter,
   withRouterNarratives,
 } from "../../../../lib/router/retail";
+import {
+  hasAnyLeaseAsc842Input,
+  hasAnyLeaseIfrs16Input,
+} from "../../../../lib/router/lanes/retail/types";
 
 function augmentedCtx(ctx: ValidatorContext): ValidatorContext {
   return { ...ctx, extracted: withRouterNarratives(ctx.extracted) };
@@ -55,7 +59,11 @@ function assertInventoryMethodDeclared(ctx: ValidatorContext): AssertionResult {
 
 function assertLeaseObligations(ctx: ValidatorContext): AssertionResult {
   const router = runRetailRouter(ctx.extracted);
-  if (router.frameworkViolation && ctx.extracted.framework === "ifrs") {
+  if (
+    router.frameworkViolation &&
+    ((ctx.extracted.framework === "ifrs" && hasAnyLeaseAsc842Input(ctx.extracted)) ||
+      (ctx.extracted.framework === "us-gaap" && hasAnyLeaseIfrs16Input(ctx.extracted)))
+  ) {
     return {
       id: "lease-obligations",
       pack: ctx.vertical,

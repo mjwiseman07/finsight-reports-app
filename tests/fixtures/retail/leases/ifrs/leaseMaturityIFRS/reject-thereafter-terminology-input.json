@@ -1,0 +1,31 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "rtl",
+    "framework": "ifrs",
+    "formType": "annual-report",
+    "filingId": "TSCO-annual",
+    "entityName": "Tesco PLC",
+    "numericFacts": [],
+    "narrativeSnippets": ["Maturity band thereafter should not appear in IFRS output"],
+    "rawFrameworkSignals": ["ifrs-full"],
+    "leases": {
+      "ifrs16": {
+        "maturity": {
+          "bands": {
+            "within_one_year": 100,
+            "one_to_two_years": 100,
+            "two_to_three_years": 100,
+            "three_to_four_years": 100,
+            "four_to_five_years": 100,
+            "beyond_five_years": 100
+          },
+          "total_undiscounted": 600,
+          "lease_liability_carrying_amount": 500,
+          "weighted_average_ibr_pct": 3.5,
+          "reject_output_contains": "Thereafter"
+        }
+      }
+    }
+  }
+}

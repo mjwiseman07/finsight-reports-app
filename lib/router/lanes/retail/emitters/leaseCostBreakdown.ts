@@ -7,7 +7,7 @@ import {
 import { LeaseCostIncompleteError } from "../errors";
 import { assertUsgaapRtlLeaseOutputNonComingling } from "../forbidden";
 import {
-  FOOTING_TOLERANCE_USD,
+  FOOTING_TOLERANCE_UNITS,
   US_GAAP_ASC842,
   type RetailLeaseEmitterInput,
 } from "../types";
@@ -53,7 +53,7 @@ export function emitLeaseCostBreakdown(input: RetailLeaseEmitterInput): EmitterR
     breakdown.variable_lease_cost +
     breakdown.short_term_lease_cost -
     subleaseIncome;
-  if (Math.abs(computedTotal - breakdown.total_lease_cost) > FOOTING_TOLERANCE_USD) {
+  if (Math.abs(computedTotal - breakdown.total_lease_cost) > FOOTING_TOLERANCE_UNITS) {
     throw new LeaseCostIncompleteError("total lease cost footing");
   }
 

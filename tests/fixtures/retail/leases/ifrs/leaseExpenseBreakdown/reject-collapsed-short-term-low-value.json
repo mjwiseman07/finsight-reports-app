@@ -1,0 +1,26 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "rtl",
+    "framework": "ifrs",
+    "formType": "annual-report",
+    "filingId": "AD-annual",
+    "entityName": "Koninklijke Ahold Delhaize N.V.",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": ["ifrs-full"],
+    "leases": {
+      "ifrs16": {
+        "expense_breakdown": {
+          "depreciation_rou_by_class": {
+            "retail_properties": 412000000
+          },
+          "interest_on_lease_liabilities": 156000000,
+          "short_term_lease_expense": 15000000,
+          "low_value_lease_expense": 15000000,
+          "variable_lease_payments": 34000000
+        }
+      }
+    }
+  }
+}

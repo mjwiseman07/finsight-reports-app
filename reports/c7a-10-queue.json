@@ -1,0 +1,15 @@
+[
+  {
+    "id": "GAP-0166",
+    "assertionId": "lease-obligations",
+    "fixture": "tests/fixtures/retail/leases/ifrs/leaseExpenseBreakdown/happy-ad-annual.json",
+    "emitterPath": "lib/router/lanes/retail/emitters/ifrs/leaseExpenseBreakdown.ts",
+    "framework_substitute_note": "IFRS 16.53(c) and 16.53(d) require short-term and low-value lease expense disclosed separately; US GAAP ASC 842-20-50-4 collapses short-term only."
+  },
+  {
+    "id": "GAP-0170",
+    "assertionId": "lease-obligations",
+    "fixture": "tests/fixtures/retail/leases/ifrs/leaseMaturityIFRS/happy-tsco-annual.json",
+    "emitterPath": "lib/router/lanes/retail/emitters/ifrs/leaseMaturityIFRS.ts"
+  }
+]

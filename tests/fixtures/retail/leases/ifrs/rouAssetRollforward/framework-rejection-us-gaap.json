@@ -1,0 +1,46 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "rtl",
+    "framework": "us-gaap",
+    "formType": "annual-report",
+    "filingId": "TSCO-annual",
+    "entityName": "Tesco PLC",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": ["us-gaap"],
+    "leases": {
+      "ifrs16": {
+        "rou_rollforward": {
+          "classes": [
+            {
+              "class_name": "Superstores",
+              "opening": 5200000000,
+              "additions": 310000000,
+              "depreciation": 420000000,
+              "impairment_losses": 15000000,
+              "impairment_reversals": 0,
+              "disposals": 85000000,
+              "fx_translation": 12000000,
+              "other_movements": 5000000,
+              "closing": 5027000000
+            },
+            {
+              "class_name": "Distribution properties",
+              "opening": 980000000,
+              "additions": 45000000,
+              "depreciation": 72000000,
+              "impairment_losses": 0,
+              "impairment_reversals": 2000000,
+              "disposals": 12000000,
+              "fx_translation": 3000000,
+              "other_movements": 1000000,
+              "closing": 947000000
+            }
+          ],
+          "balance_sheet_rou_total": 5974000000
+        }
+      }
+    }
+  }
+}

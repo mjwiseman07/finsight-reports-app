@@ -8,7 +8,7 @@ import {
 import { LeaseMaturityReconciliationError } from "../errors";
 import { assertUsgaapRtlLeaseOutputNonComingling } from "../forbidden";
 import {
-  FOOTING_TOLERANCE_USD,
+  FOOTING_TOLERANCE_UNITS,
   US_GAAP_ASC842,
   type RetailLeaseEmitterInput,
 } from "../types";
@@ -37,11 +37,11 @@ function formatSchedule(label: "Operating" | "Finance", schedule: LeaseMaturityS
     schedule.year_4 +
     schedule.year_5 +
     schedule.thereafter;
-  if (Math.abs(undiscountedSum - schedule.total_undiscounted) > FOOTING_TOLERANCE_USD) {
+  if (Math.abs(undiscountedSum - schedule.total_undiscounted) > FOOTING_TOLERANCE_UNITS) {
     throw new LeaseMaturityReconciliationError(`${label} undiscounted maturity footing`);
   }
   const pvCheck = schedule.total_undiscounted - schedule.imputed_interest;
-  if (Math.abs(pvCheck - schedule.present_value) > FOOTING_TOLERANCE_USD) {
+  if (Math.abs(pvCheck - schedule.present_value) > FOOTING_TOLERANCE_UNITS) {
     throw new LeaseMaturityReconciliationError(`${label} present value footing`);
   }
 
@@ -70,7 +70,7 @@ export function emitLeaseMaturityReconciliation(input: RetailLeaseEmitterInput):
     const bsTotal =
       maturity.balance_sheet.operating_lease_liability + maturity.balance_sheet.finance_lease_liability;
     const diff = Math.abs(bsTotal - totalPv);
-    if (diff > FOOTING_TOLERANCE_USD) {
+    if (diff > FOOTING_TOLERANCE_UNITS) {
       throw new LeaseMaturityReconciliationError(
         `balance sheet lease liability reconciliation diff $${diff.toLocaleString("en-US")}`,
       );

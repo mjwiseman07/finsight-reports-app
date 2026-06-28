@@ -217,6 +217,46 @@ export interface ExtractedFiling {
         };
       };
     };
+    ifrs16?: {
+      expense_breakdown?: {
+        depreciation_rou_by_class: Record<string, number>;
+        interest_on_lease_liabilities: number;
+        short_term_lease_expense: number;
+        low_value_lease_expense: number;
+        variable_lease_payments: number;
+        sublease_income?: number;
+      };
+      maturity?: {
+        bands: {
+          within_one_year: number;
+          one_to_two_years: number;
+          two_to_three_years: number;
+          three_to_four_years: number;
+          four_to_five_years: number;
+          beyond_five_years: number;
+        };
+        total_undiscounted: number;
+        lease_liability_carrying_amount: number;
+        weighted_average_ibr_pct: number;
+        presentation_currency?: string;
+      };
+      rou_rollforward?: {
+        classes: Array<{
+          class_name: string;
+          opening: number;
+          additions: number;
+          depreciation: number;
+          impairment_losses: number;
+          impairment_reversals: number;
+          disposals: number;
+          fx_translation: number;
+          other_movements: number;
+          closing: number;
+        }>;
+        balance_sheet_rou_total: number;
+        presentation_currency?: string;
+      };
+    };
   };
   fund_accounting?: {
     holdings?: {

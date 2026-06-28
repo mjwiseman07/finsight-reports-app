@@ -1,0 +1,31 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "rtl",
+    "framework": "ifrs",
+    "formType": "annual-report",
+    "filingId": "TSCO-annual",
+    "entityName": "Tesco PLC",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": ["ifrs-full"],
+    "leases": {
+      "ifrs16": {
+        "maturity": {
+          "bands": {
+            "within_one_year": 890000000,
+            "one_to_two_years": 820000000,
+            "two_to_three_years": 760000000,
+            "three_to_four_years": 710000000,
+            "four_to_five_years": 660000000,
+            "beyond_five_years": 3200000000
+          },
+          "total_undiscounted": 7040000005,
+          "lease_liability_carrying_amount": 5980000000,
+          "weighted_average_ibr_pct": 4.15,
+          "presentation_currency": "GBP"
+        }
+      }
+    }
+  }
+}

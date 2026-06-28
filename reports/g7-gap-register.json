@@ -2988,10 +2988,17 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0166",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
-      "createdAt": "2026-06-27T23:24:49.806Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "d83da05ca611c14f2e0a8ef0b5a347cd709e978a",
+      "triageNote": "satisfied by emitter lib/router/lanes/retail/emitters/ifrs/leaseExpenseBreakdown.ts at citation IFRS 16 53(a), 53(b), 53(c), 53(d), 53(e)",
+      "createdAt": "2026-06-27T23:24:49.806Z",
+      "reclassified_in": "C7a-10",
+      "closed_in": "C7a-10",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/retail/emitters/ifrs/leaseExpenseBreakdown.ts",
+      "verification_fixture": "tests/fixtures/retail/leases/ifrs/leaseExpenseBreakdown/happy-ad-annual.json",
+      "citation_resolved": "IFRS 16 53(a), 53(b), 53(c), 53(d), 53(e)",
+      "framework_substitute_note": "IFRS 16.53(c) and 16.53(d) require short-term and low-value lease expense disclosed separately; US GAAP ASC 842-20-50-4 collapses short-term only."
     },
     {
       "filingId": "AD-annual",
@@ -3059,10 +3066,16 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0170",
-      "triage": "document-limitation",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Manual IFRS/IPSAS archive stub — full annual report text not ingested in G7 corpus.",
-      "createdAt": "2026-06-27T23:24:49.807Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "d83da05ca611c14f2e0a8ef0b5a347cd709e978a",
+      "triageNote": "satisfied by emitter lib/router/lanes/retail/emitters/ifrs/leaseMaturityIFRS.ts at citation IFRS 16 58, IFRS 7.39",
+      "createdAt": "2026-06-27T23:24:49.807Z",
+      "reclassified_in": "C7a-10",
+      "closed_in": "C7a-10",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/retail/emitters/ifrs/leaseMaturityIFRS.ts",
+      "verification_fixture": "tests/fixtures/retail/leases/ifrs/leaseMaturityIFRS/happy-tsco-annual.json",
+      "citation_resolved": "IFRS 16 58, IFRS 7.39"
     },
     {
       "filingId": "TSCO-annual",

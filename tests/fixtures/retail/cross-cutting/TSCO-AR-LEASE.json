@@ -1,0 +1,72 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "rtl",
+    "framework": "ifrs",
+    "formType": "annual-report",
+    "filingId": "TSCO-AR-LEASE",
+    "entityName": "Tesco PLC",
+    "numericFacts": [],
+    "narrativeSnippets": ["IFRS 16 lessee lease footnote disclosures"],
+    "rawFrameworkSignals": ["ifrs-full"],
+    "leases": {
+      "ifrs16": {
+        "expense_breakdown": {
+          "depreciation_rou_by_class": {
+            "superstores": 420000000,
+            "distribution": 98000000
+          },
+          "interest_on_lease_liabilities": 156000000,
+          "short_term_lease_expense": 22000000,
+          "low_value_lease_expense": 8500000,
+          "variable_lease_payments": 34000000,
+          "sublease_income": 2000000
+        },
+        "maturity": {
+          "bands": {
+            "within_one_year": 890000000,
+            "one_to_two_years": 820000000,
+            "two_to_three_years": 760000000,
+            "three_to_four_years": 710000000,
+            "four_to_five_years": 660000000,
+            "beyond_five_years": 3200000000
+          },
+          "total_undiscounted": 7040000000,
+          "lease_liability_carrying_amount": 5980000000,
+          "weighted_average_ibr_pct": 4.15,
+          "presentation_currency": "GBP"
+        },
+        "rou_rollforward": {
+          "classes": [
+            {
+              "class_name": "Superstores",
+              "opening": 5220000000,
+              "additions": 310000000,
+              "depreciation": 420000000,
+              "impairment_losses": 15000000,
+              "impairment_reversals": 0,
+              "disposals": 85000000,
+              "fx_translation": 12000000,
+              "other_movements": 5000000,
+              "closing": 5027000000
+            },
+            {
+              "class_name": "Distribution properties",
+              "opening": 980000000,
+              "additions": 45000000,
+              "depreciation": 72000000,
+              "impairment_losses": 0,
+              "impairment_reversals": 2000000,
+              "disposals": 12000000,
+              "fx_translation": 3000000,
+              "other_movements": 1000000,
+              "closing": 947000000
+            }
+          ],
+          "balance_sheet_rou_total": 5974000000,
+          "presentation_currency": "GBP"
+        }
+      }
+    }
+  }
+}
