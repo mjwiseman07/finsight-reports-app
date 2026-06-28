@@ -1,0 +1,29 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "CVS-10k",
+    "entityName": "CVS Health Corporation",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "us-gaap"
+      ]
+    ],
+    "healthcare_revenue": {
+      "asc606": {
+        "allowance_rollforward": {
+          "opening_balance": 200000000,
+          "additions_bad_debt_expense": 2800000000,
+          "write_offs": 280000000,
+          "recoveries": 15000000,
+          "closing_balance": 2735000000,
+          "net_patient_service_revenue": 44900000000
+        }
+      }
+    }
+  }
+}

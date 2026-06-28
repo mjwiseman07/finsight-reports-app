@@ -1,0 +1,64 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "hc",
+    "framework": "ifrs",
+    "formType": "annual-report",
+    "filingId": "HLMA-annual",
+    "entityName": "HCA Healthcare UK",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "ifrs-full"
+      ]
+    ],
+    "healthcare_revenue": {
+      "ifrs": {
+        "payor_mix": {
+          "payors": [
+            {
+              "class": "NHS England",
+              "revenue": 8200000000
+            },
+            {
+              "class": "Private medical insurers",
+              "revenue": 1200000000
+            },
+            {
+              "class": "Overseas patients",
+              "revenue": 400000000
+            }
+          ],
+          "total_revenue": 9800000000
+        },
+        "receivables_ecl": {
+          "stages": {
+            "stage_1": {
+              "opening": 120000000,
+              "closing": 135000000,
+              "ecl_12_month": 135000000
+            },
+            "stage_2": {
+              "opening": 45000000,
+              "closing": 52000000,
+              "ecl_lifetime": 52000000
+            },
+            "stage_3": {
+              "opening": 18000000,
+              "closing": 22000000,
+              "ecl_lifetime": 22000000
+            }
+          },
+          "forward_looking_inputs": [
+            "UK GDP growth",
+            "NHS funding trajectory",
+            "unemployment rate"
+          ],
+          "total_closing_allowance": 209000000,
+          "presentation_currency": "GBP"
+        }
+      }
+    }
+  }
+}

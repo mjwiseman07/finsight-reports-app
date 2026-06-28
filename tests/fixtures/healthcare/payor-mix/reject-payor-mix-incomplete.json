@@ -1,0 +1,61 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "THC-10k",
+    "entityName": "Tenet",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "us-gaap"
+      ]
+    ],
+    "healthcare_revenue": {
+      "asc606": {
+        "payor_mix": {
+          "payors": [
+            {
+              "class": "medicare_traditional",
+              "gross_charges": 28000000000,
+              "contractual_adjustments": 12000000000,
+              "implicit_price_concessions": 2000000000,
+              "net_patient_service_revenue": 14000000000
+            },
+            {
+              "class": "medicare_advantage",
+              "gross_charges": 18000000000,
+              "contractual_adjustments": 7000000000,
+              "implicit_price_concessions": 1000000000,
+              "net_patient_service_revenue": 10000000000
+            },
+            {
+              "class": "medicaid",
+              "gross_charges": 12000000000,
+              "contractual_adjustments": 5000000000,
+              "implicit_price_concessions": 500000000,
+              "net_patient_service_revenue": 6500000000
+            },
+            {
+              "class": "managed_care",
+              "gross_charges": 15000000000,
+              "contractual_adjustments": 6000000000,
+              "implicit_price_concessions": 800000000,
+              "net_patient_service_revenue": 8200000000
+            },
+            {
+              "class": "other",
+              "gross_charges": 4000000000,
+              "contractual_adjustments": 1500000000,
+              "implicit_price_concessions": 300000000,
+              "net_patient_service_revenue": 2200000000
+            }
+          ],
+          "total_net_patient_service_revenue": 40900000000
+        }
+      }
+    }
+  }
+}

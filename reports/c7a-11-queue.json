@@ -1,0 +1,92 @@
+[
+  {
+    "id": "GAP-0082",
+    "filingId": "HLMA-annual",
+    "vertical": "hc",
+    "framework": "ifrs",
+    "triage": "fix-now",
+    "assertion": "bad-debt-vs-charity",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0083",
+    "filingId": "HLMA-annual",
+    "vertical": "hc",
+    "framework": "ifrs",
+    "triage": "fix-now",
+    "assertion": "payor-mix",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0087",
+    "filingId": "CVS-10k",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "bad-debt-vs-charity",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0088",
+    "filingId": "CVS-10k",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "payor-mix",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0092",
+    "filingId": "HCA-10k",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "bad-debt-vs-charity",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0093",
+    "filingId": "HCA-10k",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "payor-mix",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0097",
+    "filingId": "THC-10k",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "bad-debt-vs-charity",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0098",
+    "filingId": "THC-10k",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "payor-mix",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0102",
+    "filingId": "UHS-10k",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "bad-debt-vs-charity",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0103",
+    "filingId": "UHS-10k",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "payor-mix",
+    "closed_in": null
+  }
+]

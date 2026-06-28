@@ -1,0 +1,44 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "HCA-10k",
+    "entityName": "HCA",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "us-gaap"
+      ]
+    ],
+    "healthcare_revenue": {
+      "ifrs": {
+        "receivables_ecl": {
+          "stages": {
+            "stage_1": {
+              "opening": 1,
+              "closing": 1,
+              "ecl_12_month": 1
+            },
+            "stage_2": {
+              "opening": 1,
+              "closing": 1,
+              "ecl_lifetime": 1
+            },
+            "stage_3": {
+              "opening": 1,
+              "closing": 1,
+              "ecl_lifetime": 1
+            }
+          },
+          "forward_looking_inputs": [
+            "GDP"
+          ],
+          "total_closing_allowance": 3
+        }
+      }
+    }
+  }
+}

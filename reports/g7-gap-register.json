@@ -1533,10 +1533,16 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0082",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
-      "createdAt": "2026-06-27T23:24:49.781Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/ifrs/receivablesECL.ts at citation IFRS 9 5.5.17, 5.5.5",
+      "createdAt": "2026-06-27T23:24:49.781Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/ifrs/receivablesECL.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/ifrs/happy-hlma-annual-full.json",
+      "citation_resolved": "IFRS 9 5.5.17, 5.5.5",
+      "framework_substitute_note": "US GAAP ASC 606 implicit price concession at contract inception has no direct IFRS 15 analog; IFRS uses variable consideration constraint (IFRS 15.56–58) plus IFRS 9 ECL post-recognition."
     },
     {
       "filingId": "HLMA-annual",
@@ -1549,10 +1555,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0083",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
-      "createdAt": "2026-06-27T23:24:49.781Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/ifrs/payorMixIFRS.ts at citation IFRS 15 114, 115",
+      "createdAt": "2026-06-27T23:24:49.781Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/ifrs/payorMixIFRS.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/ifrs/happy-hlma-annual-full.json",
+      "citation_resolved": "IFRS 15 114, 115"
     },
     {
       "filingId": "HLMA-annual",
@@ -1619,10 +1630,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0087",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.783Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/allowanceRollforward.ts at citation ASC 326 326-20-50-4, 606 residual collectibility",
+      "createdAt": "2026-06-27T23:24:49.783Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/allowanceRollforward.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/happy-cvs-10k-full.json",
+      "citation_resolved": "ASC 326 326-20-50-4, 606 residual collectibility"
     },
     {
       "filingId": "CVS-10k",
@@ -1635,10 +1651,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0088",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.783Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts at citation ASC 606 606-10-50-5",
+      "createdAt": "2026-06-27T23:24:49.783Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/happy-cvs-10k-full.json",
+      "citation_resolved": "ASC 606 606-10-50-5"
     },
     {
       "filingId": "CVS-10k",
@@ -1705,10 +1726,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0092",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.784Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/implicitPriceConcession.ts at citation ASC 606 606-10-32-7, 606-10-50-12, ASU 2014-09",
+      "createdAt": "2026-06-27T23:24:49.784Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/implicitPriceConcession.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/happy-hca-10k-full.json",
+      "citation_resolved": "ASC 606 606-10-32-7, 606-10-50-12, ASU 2014-09"
     },
     {
       "filingId": "HCA-10k",
@@ -1721,10 +1747,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0093",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.784Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts at citation ASC 606 606-10-50-5",
+      "createdAt": "2026-06-27T23:24:49.784Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/happy-hca-10k-full.json",
+      "citation_resolved": "ASC 606 606-10-50-5"
     },
     {
       "filingId": "HCA-10k",
@@ -1791,10 +1822,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0097",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.785Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/allowanceRollforward.ts at citation ASC 326 326-20-50-4, 606 residual collectibility",
+      "createdAt": "2026-06-27T23:24:49.785Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/allowanceRollforward.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/happy-thc-10k-full.json",
+      "citation_resolved": "ASC 326 326-20-50-4, 606 residual collectibility"
     },
     {
       "filingId": "THC-10k",
@@ -1807,10 +1843,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0098",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.785Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts at citation ASC 606 606-10-50-5",
+      "createdAt": "2026-06-27T23:24:49.785Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/happy-thc-10k-full.json",
+      "citation_resolved": "ASC 606 606-10-50-5"
     },
     {
       "filingId": "THC-10k",
@@ -1877,10 +1918,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0102",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.786Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/implicitPriceConcession.ts at citation ASC 606 606-10-32-7, 606-10-50-12, ASU 2014-09",
+      "createdAt": "2026-06-27T23:24:49.786Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/implicitPriceConcession.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/happy-uhs-10k-full.json",
+      "citation_resolved": "ASC 606 606-10-32-7, 606-10-50-12, ASU 2014-09"
     },
     {
       "filingId": "UHS-10k",
@@ -1893,10 +1939,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0103",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.786Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "be22c730895e393129558de469f7b9c09507abd2",
+      "triageNote": "satisfied by emitter lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts at citation ASC 606 606-10-50-5",
+      "createdAt": "2026-06-27T23:24:49.786Z",
+      "closed_in": "C7a-11",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts",
+      "verification_fixture": "tests/fixtures/healthcare/payor-mix/happy-uhs-10k-full.json",
+      "citation_resolved": "ASC 606 606-10-50-5"
     },
     {
       "filingId": "UHS-10k",

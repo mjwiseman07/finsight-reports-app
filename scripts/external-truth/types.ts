@@ -258,6 +258,57 @@ export interface ExtractedFiling {
       };
     };
   };
+  healthcare_revenue?: {
+    asc606?: {
+      payor_mix?: {
+        payors: Array<{
+          class:
+            | "medicare_traditional"
+            | "medicare_advantage"
+            | "medicaid"
+            | "managed_care"
+            | "self_pay"
+            | "other";
+          label?: string;
+          gross_charges: number;
+          contractual_adjustments: number;
+          implicit_price_concessions: number;
+          net_patient_service_revenue: number;
+        }>;
+        total_net_patient_service_revenue: number;
+      };
+      implicit_price_concession?: {
+        methodology: "portfolio" | "individual";
+        lookback_months: number;
+        collection_rates_by_payor: Record<string, number>;
+        total_ipc: number;
+      };
+      allowance_rollforward?: {
+        opening_balance: number;
+        additions_bad_debt_expense: number;
+        write_offs: number;
+        recoveries: number;
+        closing_balance: number;
+        net_patient_service_revenue: number;
+      };
+    };
+    ifrs?: {
+      payor_mix?: {
+        payors: Array<{ class: string; revenue: number }>;
+        total_revenue: number;
+      };
+      receivables_ecl?: {
+        stages: {
+          stage_1: { opening: number; closing: number; ecl_12_month: number };
+          stage_2: { opening: number; closing: number; ecl_lifetime: number };
+          stage_3: { opening: number; closing: number; ecl_lifetime: number };
+        };
+        forward_looking_inputs: string[];
+        total_closing_allowance: number;
+        presentation_currency?: string;
+      };
+    };
+  };
   fund_accounting?: {
     holdings?: {
       top_n: number;

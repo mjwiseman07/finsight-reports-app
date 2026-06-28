@@ -1,0 +1,29 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "hc",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "filingId": "HCA-10k",
+    "entityName": "HCA",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "us-gaap"
+      ]
+    ],
+    "healthcare_revenue": {
+      "asc606": {
+        "implicit_price_concession": {
+          "methodology": "portfolio",
+          "lookback_months": 0,
+          "collection_rates_by_payor": {
+            "medicare": 0.9
+          },
+          "total_ipc": 100
+        }
+      }
+    }
+  }
+}

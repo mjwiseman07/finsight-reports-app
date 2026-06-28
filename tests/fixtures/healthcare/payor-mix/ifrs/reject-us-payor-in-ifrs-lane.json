@@ -1,0 +1,30 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "hc",
+    "framework": "ifrs",
+    "formType": "annual-report",
+    "filingId": "HLMA-annual",
+    "entityName": "Test",
+    "numericFacts": [],
+    "narrativeSnippets": [],
+    "rawFrameworkSignals": [
+      [
+        "ifrs-full"
+      ]
+    ],
+    "healthcare_revenue": {
+      "ifrs": {
+        "payor_mix": {
+          "payors": [
+            {
+              "class": "Medicare Advantage",
+              "revenue": 100
+            }
+          ],
+          "total_revenue": 100
+        }
+      }
+    }
+  }
+}

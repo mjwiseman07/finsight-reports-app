@@ -5,6 +5,39 @@ import { describe, expect, it } from "vitest";
 /** Locked baseline at G7-C7a-9 (wiring verifier main passCount). */
 export const EMITTER_MATRIX_BASELINE_COUNT = 435;
 
+export const C7A_11_HC_REVENUE_EMITTER_ROWS = [
+  {
+    id: "hc-payor-mix-disaggregation",
+    emitterPath: "lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts",
+    framework: "US_GAAP_ASC606",
+    gapId: "GAP-0093",
+  },
+  {
+    id: "hc-implicit-price-concession",
+    emitterPath: "lib/router/lanes/healthcare/emitters/implicitPriceConcession.ts",
+    framework: "US_GAAP_ASC606",
+    gapId: "GAP-0092",
+  },
+  {
+    id: "hc-allowance-rollforward",
+    emitterPath: "lib/router/lanes/healthcare/emitters/allowanceRollforward.ts",
+    framework: "US_GAAP_ASC606",
+    gapId: "GAP-0087",
+  },
+  {
+    id: "hc-ifrs-receivables-ecl",
+    emitterPath: "lib/router/lanes/healthcare/emitters/ifrs/receivablesECL.ts",
+    framework: "IFRS_9",
+    gapId: "GAP-0082",
+  },
+  {
+    id: "hc-ifrs-payor-mix",
+    emitterPath: "lib/router/lanes/healthcare/emitters/ifrs/payorMixIFRS.ts",
+    framework: "IFRS_15",
+    gapId: "GAP-0083",
+  },
+] as const;
+
 export const C7A_10_IFRS_LEASE_EMITTER_ROWS = [
   {
     id: "rtl-ifrs-lease-expense-breakdown",
@@ -41,6 +74,25 @@ describe("verifier emitter matrix (B4 retail IFRS lease rows)", () => {
       const source = readFileSync(abs, "utf8");
       expect(source).toContain("IFRS_16");
       expect(source).toContain(row.emitterPath.replace(/\//g, "/"));
+    });
+  }
+});
+
+describe("verifier emitter matrix (B4 healthcare revenue rows)", () => {
+  it("extends baseline 435 to 443 with C7a-11 HC payor/IPC/ECL emitter paths", () => {
+    const total =
+      EMITTER_MATRIX_BASELINE_COUNT +
+      C7A_10_IFRS_LEASE_EMITTER_ROWS.length +
+      C7A_11_HC_REVENUE_EMITTER_ROWS.length;
+    expect(total).toBe(443);
+  });
+
+  for (const row of C7A_11_HC_REVENUE_EMITTER_ROWS) {
+    it(`${row.id} emitter file exists with ${row.framework} framework gate`, () => {
+      const abs = join(ROOT, row.emitterPath);
+      expect(existsSync(abs)).toBe(true);
+      const source = readFileSync(abs, "utf8");
+      expect(source).toContain(row.framework);
     });
   }
 });
