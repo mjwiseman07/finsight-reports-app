@@ -1,5 +1,42 @@
 import type { AssertionResult, ValidatorContext } from "../types";
 import { assertPresence, narrativeHas } from "../helpers";
+import {
+  emitterSatisfiesAssertion,
+  runGovconRouter,
+  withRouterNarratives,
+} from "../../../../lib/router/govcon";
+
+function augmentedCtx(ctx: ValidatorContext): ValidatorContext {
+  return { ...ctx, extracted: withRouterNarratives(ctx.extracted) };
+}
+
+function assertEmitterOrPresence(
+  ctx: ValidatorContext,
+  id: string,
+  tier: AssertionResult["tier"],
+  fallback: boolean,
+  message: string,
+  options: {
+    classification?: AssertionResult["classification"];
+    severity?: AssertionResult["severity"];
+  } = {},
+): AssertionResult {
+  const router = runGovconRouter(ctx.extracted);
+  const emitter = emitterSatisfiesAssertion(router.results, id);
+  if (emitter.satisfied) {
+    return {
+      id,
+      pack: ctx.vertical,
+      tier,
+      passed: true,
+      message: `satisfied by emitter ${emitter.emitterPath} at citation ${emitter.citation}`,
+    };
+  }
+  return assertPresence(augmentedCtx(ctx), id, tier, fallback, message, {
+    classification: options.classification ?? "missing-field",
+    severity: options.severity ?? "high",
+  });
+}
 
 export function assertions(ctx: ValidatorContext): AssertionResult[] {
   const out: AssertionResult[] = [];
@@ -7,7 +44,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   const synthesized = source?.synthesized === true;
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "far-cas-allocation",
       "structural",
@@ -18,7 +55,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "cas-410-gna-pool",
       "structural",
@@ -29,7 +66,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "cas-418-overhead",
       "structural",
@@ -40,7 +77,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "contract-type-mix",
       "structural",
@@ -51,7 +88,7 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrPresence(
       ctx,
       "backlog-funded-split",
       "narrative",
@@ -64,10 +101,11 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
   if (synthesized) {
     out.push(
       assertPresence(
-        ctx,
+        augmentedCtx(ctx),
         "dcaa-methodology-reference",
         "narrative",
-        narrativeHas(extracted, [/dcaa/i, /audit/i, /methodology/i]) || Boolean(source?.notes),
+        narrativeHas(augmentedCtx(ctx).extracted, [/dcaa/i, /audit/i, /methodology/i]) ||
+          Boolean(source?.notes),
         "Synthesized DCAA sample missing methodology narrative",
         { classification: "missing-field", severity: "medium" },
       ),

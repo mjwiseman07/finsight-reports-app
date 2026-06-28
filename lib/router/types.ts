@@ -58,6 +58,8 @@ export const US_GAAP_REQUIRED_CITATION_SUBSTRINGS = [
   "IRC ",
   "Form 990",
   "Form 1023",
+  "FAR ",
+  "CAS ",
 ] as const;
 
 export function citationResolved(citation: EmitterCitation): string {

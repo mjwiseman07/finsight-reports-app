@@ -1,0 +1,31 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "FIXTURE",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "entityName": "Fixture Entity",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Prefilled IFRS 15.114 citation must not appear in US GAAP output"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "govcon": {
+      "contracts": {
+        "by_type": {
+          "FFP": 42,
+          "CPFF": 18,
+          "CPIF": 12,
+          "T_AND_M": 8,
+          "IDIQ": 20
+        }
+      },
+      "customer_concentration": {
+        "us_government_pct": 72
+      }
+    }
+  }
+}

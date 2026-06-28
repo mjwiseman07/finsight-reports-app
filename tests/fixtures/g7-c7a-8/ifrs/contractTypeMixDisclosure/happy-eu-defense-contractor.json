@@ -1,0 +1,30 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "FIXTURE",
+    "vertical": "gc",
+    "framework": "ifrs",
+    "entityName": "BAE Systems equivalent",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Government contractor disclosure"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs-full"
+    ],
+    "govcon": {
+      "contracts": {
+        "by_type": {
+          "fixed_price": 45,
+          "cost_reimbursable": 30,
+          "incentive": 15,
+          "service": 10
+        }
+      },
+      "customer_concentration": {
+        "us_government_pct": 0
+      }
+    }
+  }
+}

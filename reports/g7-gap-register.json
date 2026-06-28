@@ -1097,10 +1097,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0064",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.776Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "dbcf2b6e4944ec6b2dfcf142a3dfdeda94a09b2e",
+      "triageNote": "satisfied by emitter lib/router/govcon/usgaap/indirectRateStructure.ts at citation CAS 410 G&A pool composition, FAR 42.7 indirect cost rates",
+      "createdAt": "2026-06-27T23:24:49.776Z",
+      "closed_in": "C7a-8",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/govcon/usgaap/indirectRateStructure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-8/happy/gd-10k.json",
+      "citation_resolved": "CAS 410 G&A pool composition, FAR 42.7 indirect cost rates"
     },
     {
       "filingId": "GD-10k",
@@ -1113,10 +1118,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0065",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.776Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "dbcf2b6e4944ec6b2dfcf142a3dfdeda94a09b2e",
+      "triageNote": "satisfied by emitter lib/router/govcon/usgaap/indirectRateStructure.ts at citation CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up",
+      "createdAt": "2026-06-27T23:24:49.776Z",
+      "closed_in": "C7a-8",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/govcon/usgaap/indirectRateStructure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-8/happy/gd-10k.json",
+      "citation_resolved": "CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up"
     },
     {
       "filingId": "GD-10k",
@@ -1161,10 +1171,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0068",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.777Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "dbcf2b6e4944ec6b2dfcf142a3dfdeda94a09b2e",
+      "triageNote": "satisfied by emitter lib/router/govcon/usgaap/indirectRateStructure.ts at citation CAS 410 G&A pool composition, FAR 42.7 indirect cost rates",
+      "createdAt": "2026-06-27T23:24:49.777Z",
+      "closed_in": "C7a-8",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/govcon/usgaap/indirectRateStructure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-8/happy/lmt-10k.json",
+      "citation_resolved": "CAS 410 G&A pool composition, FAR 42.7 indirect cost rates"
     },
     {
       "filingId": "LMT-10k",
@@ -1177,10 +1192,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0069",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.777Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "dbcf2b6e4944ec6b2dfcf142a3dfdeda94a09b2e",
+      "triageNote": "satisfied by emitter lib/router/govcon/usgaap/indirectRateStructure.ts at citation CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up",
+      "createdAt": "2026-06-27T23:24:49.777Z",
+      "closed_in": "C7a-8",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/govcon/usgaap/indirectRateStructure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-8/happy/lmt-10k.json",
+      "citation_resolved": "CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up"
     },
     {
       "filingId": "LMT-10k",
@@ -1225,10 +1245,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0072",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.778Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "dbcf2b6e4944ec6b2dfcf142a3dfdeda94a09b2e",
+      "triageNote": "satisfied by emitter lib/router/govcon/usgaap/indirectRateStructure.ts at citation CAS 410 G&A pool composition, FAR 42.7 indirect cost rates",
+      "createdAt": "2026-06-27T23:24:49.778Z",
+      "closed_in": "C7a-8",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/govcon/usgaap/indirectRateStructure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-8/happy/noc-10k.json",
+      "citation_resolved": "CAS 410 G&A pool composition, FAR 42.7 indirect cost rates"
     },
     {
       "filingId": "NOC-10k",
@@ -1241,10 +1266,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0073",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.778Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "dbcf2b6e4944ec6b2dfcf142a3dfdeda94a09b2e",
+      "triageNote": "satisfied by emitter lib/router/govcon/usgaap/indirectRateStructure.ts at citation CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up",
+      "createdAt": "2026-06-27T23:24:49.778Z",
+      "closed_in": "C7a-8",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/govcon/usgaap/indirectRateStructure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-8/happy/noc-10k.json",
+      "citation_resolved": "CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up"
     },
     {
       "filingId": "NOC-10k",
@@ -1289,10 +1319,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0076",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.779Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "dbcf2b6e4944ec6b2dfcf142a3dfdeda94a09b2e",
+      "triageNote": "satisfied by emitter lib/router/govcon/usgaap/indirectRateStructure.ts at citation CAS 410 G&A pool composition, FAR 42.7 indirect cost rates",
+      "createdAt": "2026-06-27T23:24:49.779Z",
+      "closed_in": "C7a-8",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/govcon/usgaap/indirectRateStructure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-8/happy/rtx-10k.json",
+      "citation_resolved": "CAS 410 G&A pool composition, FAR 42.7 indirect cost rates"
     },
     {
       "filingId": "RTX-10k",
@@ -1305,10 +1340,15 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0077",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.779Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "dbcf2b6e4944ec6b2dfcf142a3dfdeda94a09b2e",
+      "triageNote": "satisfied by emitter lib/router/govcon/usgaap/indirectRateStructure.ts at citation CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up",
+      "createdAt": "2026-06-27T23:24:49.779Z",
+      "closed_in": "C7a-8",
+      "closure_mechanism": "emitter-satisfaction",
+      "emitter_path": "lib/router/govcon/usgaap/indirectRateStructure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-8/happy/rtx-10k.json",
+      "citation_resolved": "CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up"
     },
     {
       "filingId": "RTX-10k",

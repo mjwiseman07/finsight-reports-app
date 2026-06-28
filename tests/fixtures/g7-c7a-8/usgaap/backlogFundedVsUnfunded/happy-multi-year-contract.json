@@ -1,0 +1,24 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "FIXTURE",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "entityName": "Fixture Entity",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Government contractor disclosure"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "govcon": {
+      "backlog": {
+        "funded": 28000000000,
+        "unfunded": 12500000000,
+        "option_years": 5
+      }
+    }
+  }
+}

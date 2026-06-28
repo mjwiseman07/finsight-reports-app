@@ -137,6 +137,34 @@ export interface ExtractedFiling {
     cost_formula?: "FIFO" | "weighted_average" | "LIFO";
     carrying_amounts?: Record<string, number>;
   };
+  govcon?: {
+    contracts?: {
+      by_type: Record<string, number>;
+    };
+    customer_concentration?: {
+      us_government_pct: number;
+    };
+    cas_coverage?: {
+      applicable_standards: string[];
+      coverage_type: "full" | "modified" | "exempt";
+    };
+    backlog?: {
+      funded: number;
+      unfunded: number;
+      option_years?: number;
+      horizon_years?: number[];
+    };
+    unallowable_costs?: {
+      identified_categories: string[];
+      exclusion_methodology: string;
+    };
+    indirect_rates?: {
+      fringe: number;
+      overhead: number;
+      ga: number;
+      true_up_methodology: string;
+    };
+  };
 }
 
 export interface ExpectedDisclosureTopic {
@@ -192,6 +220,7 @@ export interface GapEntry {
   closure_mechanism?: string;
   scope_precondition?: string;
   framework_violation_handling?: string;
+  framework_substitute_note?: string;
 }
 
 export interface GapRegister {

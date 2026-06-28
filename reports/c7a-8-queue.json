@@ -1,0 +1,74 @@
+[
+  {
+    "id": "GAP-0064",
+    "filingId": "GD-10k",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cas-410-gna-pool",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0065",
+    "filingId": "GD-10k",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cas-418-overhead",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0068",
+    "filingId": "LMT-10k",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cas-410-gna-pool",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0069",
+    "filingId": "LMT-10k",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cas-418-overhead",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0072",
+    "filingId": "NOC-10k",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cas-410-gna-pool",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0073",
+    "filingId": "NOC-10k",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cas-418-overhead",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0076",
+    "filingId": "RTX-10k",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cas-410-gna-pool",
+    "closed_in": null
+  },
+  {
+    "id": "GAP-0077",
+    "filingId": "RTX-10k",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "triage": "fix-now",
+    "assertion": "cas-418-overhead",
+    "closed_in": null
+  }
+]
