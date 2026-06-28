@@ -10,18 +10,20 @@ export function SiteNav() {
     <header className="relative z-20">
       <Link
         href="/"
-        className={`absolute top-4 left-6 z-20 md:top-6 md:left-8 ${focusRing("rounded-lg")}`}
+        className={`absolute top-2 left-2 z-20 md:top-4 md:left-6 ${focusRing("rounded-lg")}`}
         aria-label="Advisacor home"
       >
         <Image
           src={heroLogo}
           alt="Advisacor"
+          width={1600}
+          height={800}
           priority
-          className="h-auto w-[220px] md:w-[300px] lg:w-[320px]"
+          className="pointer-events-none h-auto w-[480px] select-none md:w-[760px] lg:w-[880px] xl:w-[960px]"
         />
       </Link>
-      <nav className="relative mx-auto flex max-w-7xl justify-end px-0 pt-4 md:pt-6">
-        <div className="ml-auto flex items-center gap-4 rounded-full bg-white/40 px-4 py-2 backdrop-blur-sm md:gap-8 md:px-6 md:py-3">
+      <nav className="absolute top-6 right-8 z-30">
+        <div className="flex items-center gap-6 rounded-full bg-white/40 px-6 py-3 backdrop-blur-sm">
           <div className="hidden items-center gap-8 md:flex">
             <Link href="/#what-it-does" className={navLinkClass}>
               What It Does

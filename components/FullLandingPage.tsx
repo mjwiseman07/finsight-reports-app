@@ -484,7 +484,7 @@ export default function FullLandingPage() {
       >
         <SiteNav />
 
-        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 pt-32 md:pt-40 lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)]">
+        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 pt-[400px] md:pt-[480px] lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)] lg:pt-[540px] xl:pt-[580px]">
           <div className="max-w-3xl">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]">Early Access · Patent Pending</p>
             <h1 className={`mt-5 text-4xl font-black leading-[1.06] tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-6xl ${headingFont}`}>
