@@ -256,7 +256,7 @@ function DashboardPreview() {
             ["Margin", "34.6%", "+2.1 pts"],
           ].map(([label, value, tag]) => {
             const tagClass =
-              tag === "stable" ? "text-slate-500" : tag === "review" ? "text-amber-500" : "text-[#C9A961]";
+              tag === "stable" ? "text-slate-500" : tag === "review" ? "text-amber-400" : "text-[#C9A961]";
 
             return (
             <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">

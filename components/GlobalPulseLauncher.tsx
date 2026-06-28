@@ -71,7 +71,7 @@ export function GlobalPulseLauncher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 rounded-full bg-[#FF7A1A] px-4 py-3 text-xs font-black text-white shadow-2xl shadow-black/40"
+        className="fixed bottom-5 right-5 z-50 rounded-full bg-[#C9A961] px-4 py-3 text-xs font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A]"
       >
         Pulse
       </button>
@@ -81,7 +81,7 @@ export function GlobalPulseLauncher() {
           <div className="border-b border-white/10 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Pulse AI</p>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]">Pulse AI</p>
                 <h3 className="mt-2 text-2xl font-black">Financial intelligence assistant</h3>
                 <p className="mt-2 text-xs leading-5 text-slate-400">
                   Ask about performance, forecasts, risk, cash, margins, hiring, and what-if scenarios.
@@ -90,7 +90,7 @@ export function GlobalPulseLauncher() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-200"
+                className="rounded-full bg-[#0A1530] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#060E22]"
               >
                 Close
               </button>
@@ -102,10 +102,15 @@ export function GlobalPulseLauncher() {
               <div
                 key={`${message.role}-${index}`}
                 className={`rounded-3xl px-4 py-3 text-sm leading-6 ${
-                  message.role === "user" ? "ml-auto bg-[#FF7A1A] text-white" : "mr-auto bg-white/[0.06] text-slate-200"
+                  message.role === "user"
+                    ? "ml-auto bg-[#C9A961] font-semibold text-[#0A1530]"
+                    : "mr-auto flex gap-2.5 bg-[#0A1530] text-white/85"
                 }`}
               >
-                {message.content}
+                {message.role === "pulse" && (
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#C9A961]" aria-hidden="true" />
+                )}
+                <span>{message.content}</span>
               </div>
             ))}
           </div>
@@ -117,7 +122,7 @@ export function GlobalPulseLauncher() {
                   key={item}
                   type="button"
                   onClick={() => askPulse(item)}
-                  className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-300"
+                  className="rounded-full border border-[#C9A961]/30 bg-[#0A1530] px-4 py-2 text-sm text-white transition-colors hover:border-[#C9A961] hover:bg-[#0F1A3A]"
                 >
                   {item}
                 </button>
@@ -131,12 +136,12 @@ export function GlobalPulseLauncher() {
                   if (event.key === "Enter") askPulse();
                 }}
                 placeholder="Ask Pulse..."
-                className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none"
+                className="min-w-0 flex-1 rounded-full border border-[#C9A961]/20 bg-[#060E22] px-5 py-3 text-sm font-semibold text-white outline-none placeholder:text-white/40 focus:border-[#C9A961] focus:ring-1 focus:ring-[#C9A961]"
               />
               <button
                 type="button"
                 onClick={() => askPulse()}
-                className="rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm font-black text-white"
+                className="rounded-full bg-[#C9A961] px-4 py-3 text-sm font-semibold text-[#0A1530] transition-colors hover:bg-[#B8975A]"
               >
                 Ask
               </button>
