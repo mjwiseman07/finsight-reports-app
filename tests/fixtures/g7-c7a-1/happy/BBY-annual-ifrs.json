@@ -1,0 +1,18 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "BBY-annual",
+    "vertical": "con",
+    "framework": "ifrs",
+    "entityName": "Balfour Beatty plc",
+    "formType": "Annual Report",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "IFRS construction services; contract revenue under IFRS 15"
+    ],
+    "rawFrameworkSignals": [
+      "ifrs"
+    ]
+  },
+  "scenario": "happy"
+}

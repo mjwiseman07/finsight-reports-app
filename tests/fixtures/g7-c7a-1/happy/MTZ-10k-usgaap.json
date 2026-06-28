@@ -1,0 +1,36 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "MTZ-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "entityName": "JPMORGAN CHASE & CO",
+    "cik": "0000019617",
+    "formType": "10-K",
+    "numericFacts": [
+      {
+        "tag": "Revenues",
+        "label": "Revenues",
+        "value": 182447000000,
+        "unit": "USD",
+        "periodEnd": "2025-12-31"
+      },
+      {
+        "tag": "Assets",
+        "label": "Assets",
+        "value": 4900475000000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      }
+    ],
+    "narrativeSnippets": [
+      "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+      "Present value of lessee's discounted obligation for lease payments from operating lease.",
+      "Amount of revenue recognized from goods sold, services rendered, insurance premiums, or other activities that constitute an earning process. Includes, but is not limited to, investment and interest income before deduction of interest expens"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ]
+  },
+  "scenario": "happy"
+}

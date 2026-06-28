@@ -13,10 +13,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0001",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
-      "createdAt": "2026-06-27T23:24:49.759Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/ifrs/pocMethodDisclosure.ts at citation IFRS 15 B14, B19, 124",
+      "createdAt": "2026-06-27T23:24:49.759Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/ifrs/pocMethodDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/BBY-annual-ifrs.json",
+      "citation_resolved": "IFRS 15 B14, B19, 124"
     },
     {
       "filingId": "BBY-annual",
@@ -29,10 +33,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0002",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
-      "createdAt": "2026-06-27T23:24:49.759Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/ifrs/inputMeasureJustification.ts at citation IFRS 15 B18",
+      "createdAt": "2026-06-27T23:24:49.759Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/ifrs/inputMeasureJustification.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/BBY-annual-ifrs.json",
+      "citation_resolved": "IFRS 15 B18"
     },
     {
       "filingId": "BBY-annual",
@@ -45,10 +53,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0003",
-      "triage": "fix-now",
-      "triageDecisionSha": "59398f74ce7dc826cb27f6279b5a851ec6685546",
-      "triageNote": "G7-C6.1 C — IFRS structural parity: IFRS parity: structural manual-archive gap mirrors US GAAP fix-now cluster; C7a will implement IFRS extractor parity.",
-      "createdAt": "2026-06-27T23:24:49.759Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/ifrs/contractBalanceRollforward.ts at citation IFRS 15 116, 117, 118",
+      "createdAt": "2026-06-27T23:24:49.759Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/ifrs/contractBalanceRollforward.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/BBY-annual-ifrs.json",
+      "citation_resolved": "IFRS 15 116, 117, 118"
     },
     {
       "filingId": "BBY-annual",
@@ -93,10 +105,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0006",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.761Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/pocMethodDisclosure.ts at citation ASC 606 606-10-25-31, 606-10-55-21",
+      "createdAt": "2026-06-27T23:24:49.761Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/usgaap/pocMethodDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/FLR-10k-usgaap.json",
+      "citation_resolved": "ASC 606 606-10-25-31, 606-10-55-21"
     },
     {
       "filingId": "FLR-10k",
@@ -109,10 +125,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0007",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.761Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/costToCostInputMeasure.ts at citation ASC 606 606-10-55-20",
+      "createdAt": "2026-06-27T23:24:49.761Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/usgaap/costToCostInputMeasure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/FLR-10k-usgaap.json",
+      "citation_resolved": "ASC 606 606-10-55-20"
     },
     {
       "filingId": "FLR-10k",
@@ -125,10 +145,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0008",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.761Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/contractBalanceRollforward.ts at citation ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9",
+      "createdAt": "2026-06-27T23:24:49.761Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/usgaap/contractBalanceRollforward.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/FLR-10k-usgaap.json",
+      "citation_resolved": "ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9"
     },
     {
       "filingId": "FLR-10k",
@@ -189,10 +213,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0012",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.762Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/pocMethodDisclosure.ts at citation ASC 606 606-10-25-31, 606-10-55-21",
+      "createdAt": "2026-06-27T23:24:49.762Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/usgaap/pocMethodDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/GVA-10k-usgaap.json",
+      "citation_resolved": "ASC 606 606-10-25-31, 606-10-55-21"
     },
     {
       "filingId": "GVA-10k",
@@ -205,10 +233,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0013",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.762Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/costToCostInputMeasure.ts at citation ASC 606 606-10-55-20",
+      "createdAt": "2026-06-27T23:24:49.762Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/usgaap/costToCostInputMeasure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/GVA-10k-usgaap.json",
+      "citation_resolved": "ASC 606 606-10-55-20"
     },
     {
       "filingId": "GVA-10k",
@@ -221,10 +253,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0014",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.762Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/contractBalanceRollforward.ts at citation ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9",
+      "createdAt": "2026-06-27T23:24:49.762Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/usgaap/contractBalanceRollforward.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/GVA-10k-usgaap.json",
+      "citation_resolved": "ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9"
     },
     {
       "filingId": "GVA-10k",
@@ -285,10 +321,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0018",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.764Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/pocMethodDisclosure.ts at citation ASC 606 606-10-25-31, 606-10-55-21",
+      "createdAt": "2026-06-27T23:24:49.764Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/usgaap/pocMethodDisclosure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/MTZ-10k-usgaap.json",
+      "citation_resolved": "ASC 606 606-10-25-31, 606-10-55-21"
     },
     {
       "filingId": "MTZ-10k",
@@ -301,10 +341,14 @@
       "observed": "absent",
       "expected": "present",
       "id": "GAP-0019",
-      "triage": "fix-now",
-      "triageDecisionSha": "518fb35e2febd003aed11c2dadf2c558a96266c5",
-      "triageNote": "reason: Extractor/router enhancement scheduled for G7-C7a (expand tags or filing-type parsers).",
-      "createdAt": "2026-06-27T23:24:49.764Z"
+      "triage": "satisfied",
+      "triageDecisionSha": "5af49dd53ba8e09e2dc457e2437438369f550906",
+      "triageNote": "satisfied by emitter lib/router/construction/usgaap/costToCostInputMeasure.ts at citation ASC 606 606-10-55-20",
+      "createdAt": "2026-06-27T23:24:49.764Z",
+      "closed_in": "C7a-1",
+      "emitter_path": "lib/router/construction/usgaap/costToCostInputMeasure.ts",
+      "verification_fixture": "tests/fixtures/g7-c7a-1/happy/MTZ-10k-usgaap.json",
+      "citation_resolved": "ASC 606 606-10-55-20"
     },
     {
       "filingId": "MTZ-10k",

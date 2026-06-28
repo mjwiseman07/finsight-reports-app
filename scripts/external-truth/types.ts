@@ -33,6 +33,7 @@ export type TriageDecision =
   | "fix-now"
   | "document-limitation"
   | "defer-to-future"
+  | "satisfied"
   | null;
 
 export interface SourceJson {
@@ -126,6 +127,14 @@ export interface GapEntry {
   triageDecisionSha: string | null;
   triageNote: string | null;
   createdAt: string;
+  reclassified_in?: string;
+  c7a_sub_commit?: string;
+  ifrs_citation?: string;
+  framework_non_comingling_note?: string;
+  closed_in?: string;
+  emitter_path?: string;
+  verification_fixture?: string;
+  citation_resolved?: string;
 }
 
 export interface GapRegister {

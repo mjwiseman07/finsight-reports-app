@@ -1,0 +1,53 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "GVA-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "entityName": "MATRIX SERVICE CO",
+    "cik": "0000866273",
+    "formType": "10-K",
+    "inventoryMethod": "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+    "numericFacts": [
+      {
+        "tag": "Revenues",
+        "label": "Revenues",
+        "value": 629101000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      },
+      {
+        "tag": "RevenueFromContractWithCustomerIncludingAssessedTax",
+        "label": "Revenue from Contract with Customer, Including Assessed Tax",
+        "value": 629101000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      },
+      {
+        "tag": "Assets",
+        "label": "Assets",
+        "value": 616550000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      },
+      {
+        "tag": "AssetsCurrent",
+        "label": "Assets, Current",
+        "value": 412034000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      }
+    ],
+    "narrativeSnippets": [
+      "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+      "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obta",
+      "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable, classified as current.",
+      "Amount after valuation and LIFO reserves of inventory expected to be sold, or consumed within one year or operating cycle, if longer.",
+      "Present value of lessee's discounted obligation for lease payments from operating lease."
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ]
+  },
+  "scenario": "happy"
+}

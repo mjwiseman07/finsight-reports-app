@@ -1,0 +1,52 @@
+{
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "FLR-10k",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "entityName": "FLUOR CORPORATION",
+    "cik": "0001124198",
+    "formType": "10-K",
+    "numericFacts": [
+      {
+        "tag": "Revenues",
+        "label": "Revenues",
+        "value": 3663000000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      },
+      {
+        "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "label": "Revenue from Contract with Customer, Excluding Assessed Tax",
+        "value": 14365522000,
+        "unit": "USD",
+        "periodEnd": "2018-09-30"
+      },
+      {
+        "tag": "Assets",
+        "label": "Assets",
+        "value": 7920000000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      },
+      {
+        "tag": "AssetsCurrent",
+        "label": "Assets, Current",
+        "value": 6083000000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      }
+    ],
+    "narrativeSnippets": [
+      "Sum of the carrying amounts as of the balance sheet date of all assets that are recognized. Assets are probable future economic benefits obtained or controlled by an entity as a result of past transactions or events.",
+      "Sum of the carrying amounts as of the balance sheet date of all assets that are expected to be realized in cash, sold, or consumed within one year (or the normal operating cycle, if longer). Assets are probable future economic benefits obta",
+      "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable.",
+      "Amount of obligation to transfer good or service to customer for which consideration has been received or is receivable, classified as current.",
+      "Present value of lessee's discounted obligation for lease payments from finance lease."
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ]
+  },
+  "scenario": "happy"
+}

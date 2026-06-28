@@ -1,43 +1,74 @@
 import type { AssertionResult, ValidatorContext } from "../types";
 import { assertPresence, narrativeHas } from "../helpers";
+import { emitterSatisfiesAssertion, runConstructionRouter, withRouterNarratives } from "../../../../lib/router/construction";
+
+function augmentedCtx(ctx: ValidatorContext): ValidatorContext {
+  return {
+    ...ctx,
+    extracted: withRouterNarratives(ctx.extracted),
+  };
+}
+
+function assertEmitterOrNarrative(
+  ctx: ValidatorContext,
+  id: string,
+  tier: AssertionResult["tier"],
+  patterns: RegExp[],
+  message: string,
+  options: {
+    classification?: AssertionResult["classification"];
+    severity?: AssertionResult["severity"];
+  } = {},
+): AssertionResult {
+  const router = runConstructionRouter(ctx.extracted);
+  const emitter = emitterSatisfiesAssertion(router.results, id);
+  if (emitter.satisfied) {
+    return {
+      id,
+      pack: ctx.vertical,
+      tier,
+      passed: true,
+      message: `satisfied by emitter ${emitter.emitterPath} at citation ${emitter.citation}`,
+    };
+  }
+  return assertPresence(augmentedCtx(ctx), id, tier, narrativeHas(augmentedCtx(ctx).extracted, patterns), message, {
+    classification: options.classification ?? "missing-field",
+    severity: options.severity ?? "high",
+  });
+}
 
 export function assertions(ctx: ValidatorContext): AssertionResult[] {
   const out: AssertionResult[] = [];
-  const { extracted } = ctx;
+  const routed = augmentedCtx(ctx);
 
   out.push(
-    assertPresence(
+    assertEmitterOrNarrative(
       ctx,
       "poc-method-declared",
       "structural",
-      narrativeHas(extracted, [
-        /percentage of completion/i,
-        /cost-?to-?cost/i,
-        /over time/i,
-        /input method/i,
-      ]),
+      [/percentage of completion/i, /cost-?to-?cost/i, /over time/i, /input method/i],
       "Percentage-of-completion method not declared",
       { classification: "missing-field", severity: "high" },
     ),
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrNarrative(
       ctx,
       "cost-to-cost-ratio",
       "structural",
-      narrativeHas(extracted, [/cost incurred/i, /estimated total cost/i, /percent complete/i]),
+      [/cost incurred/i, /estimated total cost/i, /percent complete/i],
       "Cost-to-cost ratio inputs not evidenced",
       { classification: "missing-field", severity: "medium" },
     ),
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrNarrative(
       ctx,
       "contract-balances-rollforward",
       "structural",
-      narrativeHas(extracted, [/contract asset/i, /contract liability/i, /billings in excess/i]),
+      [/contract asset/i, /contract liability/i, /billings in excess/i],
       "Contract assets / liabilities rollforward not present",
       { classification: "missing-field", severity: "high" },
     ),
@@ -45,10 +76,10 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
 
   out.push(
     assertPresence(
-      ctx,
+      routed,
       "backlog-disclosure",
       "narrative",
-      narrativeHas(extracted, [/backlog/i, /remaining performance/i]),
+      narrativeHas(routed.extracted, [/backlog/i, /remaining performance/i]),
       "Backlog disclosure not present",
       { classification: "narrative-gap", severity: "low" },
     ),
@@ -56,21 +87,21 @@ export function assertions(ctx: ValidatorContext): AssertionResult[] {
 
   out.push(
     assertPresence(
-      ctx,
+      routed,
       "change-orders-claims",
       "narrative",
-      narrativeHas(extracted, [/change order/i, /claims/i, /variations/i]),
+      narrativeHas(routed.extracted, [/change order/i, /claims/i, /variations/i]),
       "Change orders / claims narrative not present",
       { classification: "narrative-gap", severity: "low" },
     ),
   );
 
   out.push(
-    assertPresence(
+    assertEmitterOrNarrative(
       ctx,
       "asc606-over-time",
       "structural",
-      narrativeHas(extracted, [/over time/i, /asc 606/i, /ifrs 15/i, /satisfaction of performance obligation/i]),
+      [/over time/i, /asc 606/i, /ifrs 15/i, /satisfaction of performance obligation/i],
       "ASC 606 / IFRS 15 over-time justification not present",
       { classification: "missing-field", severity: "medium" },
     ),
