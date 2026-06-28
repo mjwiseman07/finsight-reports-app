@@ -754,7 +754,7 @@ export default function FullLandingPage() {
             <div className="mx-auto h-56 w-56 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 shadow-lg lg:h-64 lg:w-64">
               <Image
                 src="/janice-wiseman-headshot.jpg"
-                alt="Janice Wiseman, Healthcare Advisor at Advisacor"
+                alt="Janice Wiseman, Co-Founder & COO of Wiseman Financial Technologies"
                 width={400}
                 height={400}
                 priority={false}
@@ -762,26 +762,29 @@ export default function FullLandingPage() {
               />
             </div>
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Healthcare Advisor</p>
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">
+                Co-Founder &amp; Chief Operating Officer
+              </p>
               <h3 className={`mt-4 max-w-3xl text-3xl font-black tracking-[-0.04em] text-[#0A1020] md:text-4xl ${headingFont}`}>
-                Designed with the people who actually bill the care.
+                Built around the people who actually use it.
               </h3>
-              <p className="mb-4 mt-6 leading-relaxed text-slate-600">
-                Advisacor&apos;s™ healthcare vertical is shaped by Janice Wiseman, who brings deep operational expertise
-                in healthcare revenue cycle, accounts receivable, and patient financial services.
+              <p className="mb-4 mt-6 leading-relaxed text-slate-700">
+                Janice Wiseman is Co-Founder and Chief Operating Officer of Wiseman Financial Technologies, LLC. She
+                leads enterprise governance, legal architecture, operational strategy, client onboarding, billing
+                philosophy, compliance standards, client success, and business operations.
               </p>
-              <p className="mb-4 leading-relaxed text-slate-600">
-                She currently manages AR, collections, and revenue cycle workflows across eight clinical facilities —
-                overseeing third-party billing, patient billing disputes, medical records coordination, and serving as
-                the cross-departmental subject matter expert on credit and collections.
+              <p className="mb-4 leading-relaxed text-slate-700">
+                Her domain expertise sits at the intersection of healthcare operations and finance. She currently manages
+                accounts receivable, third-party billing, patient billing disputes, and revenue cycle workflows across
+                eight clinical facilities — the kind of operational ground truth that shapes how Advisacor&apos;s™ healthcare
+                module actually works in production.
               </p>
-              <p className="mb-4 leading-relaxed text-slate-600">
+              <p className="mb-4 leading-relaxed text-slate-700">
                 Janice holds a Bachelor of Science in Healthcare Management and Administration from Liberty University.
-                Her firsthand knowledge of how providers actually bill, collect, and reconcile revenue is what gives
-                Advisacor&apos;s™ healthcare module its operational fidelity — the kind of detail that doesn&apos;t exist in
-                generic AI tools.
               </p>
-              <p className="text-sm font-medium text-slate-500">Healthcare operations across multi-facility clinic networks.</p>
+              <p className="text-sm font-medium italic text-slate-500">
+                Matthew builds the technology. Janice builds the company around it.
+              </p>
               <a
                 href="https://www.linkedin.com/in/janice-wiseman-a13850161"
                 target="_blank"
