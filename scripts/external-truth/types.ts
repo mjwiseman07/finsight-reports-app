@@ -1,9 +1,10 @@
 /**
  * Phase G7 — external-truth shared types.
  */
+import type { BankingExtracted } from "../../lib/router/banking/types";
 import type { InsuranceExtracted } from "../../lib/router/insurance/types";
 
-export type { InsuranceExtracted };
+export type { BankingExtracted, InsuranceExtracted };
 
 export type ExternalTruthVertical =
   | "saas"
@@ -19,7 +20,8 @@ export type ExternalTruthVertical =
   | "re"
   | "hos"
   | "log"
-  | "ins";
+  | "ins"
+  | "bank";
 
 export type ReportingFramework = "us-gaap" | "ifrs" | "ipsas";
 
@@ -527,6 +529,7 @@ export interface ExtractedFiling {
     };
   };
   insurance?: InsuranceExtracted;
+  banking?: BankingExtracted;
 }
 
 export interface ExpectedDisclosureTopic {

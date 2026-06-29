@@ -1,0 +1,278 @@
+{
+  "frameworkLane": "US-GAAP",
+  "results": [
+    {
+      "emitterId": "cecl-loans-hfi",
+      "emitterPath": "lib/router/banking/usgaap/cecl-loans-hfi.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "cecl-loans-hfi",
+          "citation": {
+            "standard": "ASC 326",
+            "paragraphs": [
+              "326-20-30-1",
+              "326-20-50-4"
+            ]
+          },
+          "text": "[bank subsidiary scope] HFI loans CECL (ASC 326-20 lifetime ECL, uncapped): amortized cost $1,800,000,000, allowance $23,400,000 using WARM per ASC 326 326-20-30-1, 326-20-50-4."
+        }
+      ]
+    },
+    {
+      "emitterId": "loan-portfolio-segmentation",
+      "emitterPath": "lib/router/banking/usgaap/loan-portfolio-segmentation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "loan-portfolio-segmentation",
+          "citation": {
+            "standard": "ASC 326",
+            "paragraphs": [
+              "326-20-50-4",
+              "326-20-55-5"
+            ]
+          },
+          "text": "[bank subsidiary scope] Loan portfolio segmented (C&I, CRE-owner-occupied, CRE-non-owner-occupied, Residential 1-4 family, Consumer, Construction) with CECL allowances by segment per ASC 326 326-20-50-4, 326-20-55-5."
+        }
+      ]
+    },
+    {
+      "emitterId": "npl-and-charge-offs",
+      "emitterPath": "lib/router/banking/usgaap/npl-and-charge-offs.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "npl-and-charge-offs",
+          "citation": {
+            "standard": "ASC 310",
+            "paragraphs": [
+              "310-10-35-7",
+              "326-20-50-6"
+            ]
+          },
+          "text": "[bank subsidiary scope] Nonaccrual loans $8,200,000; charge-offs YTD $1,850,000, recoveries $320,000 per ASC 310 310-10-35-7, 326-20-50-6."
+        }
+      ]
+    },
+    {
+      "emitterId": "cecl-afs-debt",
+      "emitterPath": "lib/router/banking/usgaap/cecl-afs-debt.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "cecl-afs-debt",
+          "citation": {
+            "standard": "ASC 326",
+            "paragraphs": [
+              "326-30-35-1",
+              "326-30-50-1"
+            ]
+          },
+          "text": "[bank subsidiary scope] AFS debt CECL (ASC 326-30 credit loss component, capped at unrealized loss $27,000,000): amortized cost $312,000,000, fair value $285,000,000 per ASC 326 326-30-35-1, 326-30-50-1."
+        }
+      ]
+    },
+    {
+      "emitterId": "cecl-htm-debt",
+      "emitterPath": "lib/router/banking/usgaap/cecl-htm-debt.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "cecl-htm-debt",
+          "citation": {
+            "standard": "ASC 326",
+            "paragraphs": [
+              "326-20-30-1",
+              "326-20-55-1"
+            ]
+          },
+          "text": "[bank subsidiary scope] HTM debt CECL (ASC 326-20 lifetime ECL, uncapped): amortized cost $145,000,000, fair value $132,000,000, allowance $13,000,000 per ASC 326 326-20-30-1, 326-20-55-1."
+        }
+      ]
+    },
+    {
+      "emitterId": "cecl-obs-commitments",
+      "emitterPath": "lib/router/banking/usgaap/cecl-obs-commitments.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "cecl-obs-commitments",
+          "citation": {
+            "standard": "ASC 326",
+            "paragraphs": [
+              "326-20-30-11",
+              "326-20-55-19"
+            ]
+          },
+          "text": "[bank subsidiary scope] OBS commitments CECL reserve on $425,000,000 undrawn commitments and $18,000,000 financial guarantees per ASC 326 326-20-30-11, 326-20-55-19."
+        }
+      ]
+    },
+    {
+      "emitterId": "allowance-rollforward",
+      "emitterPath": "lib/router/banking/usgaap/allowance-rollforward.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "allowance-rollforward",
+          "citation": {
+            "standard": "ASC 326",
+            "paragraphs": [
+              "326-20-50-5",
+              "326-30-50-2"
+            ]
+          },
+          "text": "[bank subsidiary scope] Allowance rollforward reconciles HFI ($23,400,000), AFS credit loss component, HTM, and OBS CECL buckets per ASC 326 326-20-50-5, 326-30-50-2."
+        }
+      ]
+    },
+    {
+      "emitterId": "hedge-cash-flow",
+      "emitterPath": "lib/router/banking/usgaap/hedge-cash-flow.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "hedge-cash-flow",
+          "citation": {
+            "standard": "ASC 815",
+            "paragraphs": [
+              "815-20-25-3",
+              "815-20-35-1"
+            ]
+          },
+          "text": "[bank subsidiary scope] Cash flow hedge notional $150,000,000 with contemporaneous hedge documentation per ASC 815 815-20-25-3, 815-20-35-1."
+        }
+      ]
+    },
+    {
+      "emitterId": "hedge-fair-value",
+      "emitterPath": "lib/router/banking/usgaap/hedge-fair-value.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "hedge-fair-value",
+          "citation": {
+            "standard": "ASC 815",
+            "paragraphs": [
+              "815-25-35-1",
+              "815-20-25-3"
+            ]
+          },
+          "text": "[bank subsidiary scope] Fair value hedge notional $75,000,000 with contemporaneous hedge documentation per ASC 815 815-25-35-1, 815-20-25-3."
+        }
+      ]
+    },
+    {
+      "emitterId": "investment-classification",
+      "emitterPath": "lib/router/banking/usgaap/investment-classification.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "investment-classification",
+          "citation": {
+            "standard": "ASC 320",
+            "paragraphs": [
+              "320-10-25-1",
+              "825-10-25-1"
+            ]
+          },
+          "text": "[bank subsidiary scope] Investment classification: AFS debt securities present; HTM debt securities present; total assets $2,500,000,000 per ASC 320 320-10-25-1, 825-10-25-1."
+        }
+      ]
+    },
+    {
+      "emitterId": "regulatory-capital-ratios",
+      "emitterPath": "lib/router/banking/regulatory/regulatory-capital-ratios.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "regulatory-capital-ratios",
+          "citation": {
+            "standard": "ASC 942",
+            "paragraphs": [
+              "12 CFR Part 217",
+              "Basel III CET1"
+            ]
+          },
+          "text": "[bank subsidiary scope] Regulatory capital ratios: CET1 13.74%, Tier 1 13.74%, Total 15.13%, leverage 10.72% per ASC 942 12 CFR Part 217, Basel III CET1."
+        }
+      ]
+    },
+    {
+      "emitterId": "risk-weighted-assets",
+      "emitterPath": "lib/router/banking/regulatory/risk-weighted-assets.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "risk-weighted-assets",
+          "citation": {
+            "standard": "ASC 942",
+            "paragraphs": [
+              "12 CFR Part 217.31",
+              "RWA disclosure"
+            ]
+          },
+          "text": "[bank subsidiary scope] Risk-weighted assets $1,950,000,000 per ASC 942 12 CFR Part 217.31, RWA disclosure."
+        }
+      ]
+    },
+    {
+      "emitterId": "ffiec-call-report-crossref",
+      "emitterPath": "lib/router/banking/regulatory/ffiec-call-report-crossref.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "ffiec-call-report-crossref",
+          "citation": {
+            "standard": "ASC 942",
+            "paragraphs": [
+              "FFIEC Call Report",
+              "RC-D schedule"
+            ]
+          },
+          "text": "[bank subsidiary scope] FFIEC 051 reduced schedule scope (graceful degradation — no full RC-D detail required) per ASC 942 FFIEC Call Report, RC-D schedule."
+        }
+      ]
+    },
+    {
+      "emitterId": "aoci-opt-out-disclosure",
+      "emitterPath": "lib/router/banking/regulatory/aoci-opt-out-disclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "aoci-opt-out-disclosure",
+          "citation": {
+            "standard": "ASC 825",
+            "paragraphs": [
+              "825-10-45-4",
+              "AOCI opt-out election"
+            ]
+          },
+          "text": "[bank subsidiary scope] AOCI opt-out election elected for eligible community bank (total assets $2,500,000,000) per ASC 825 825-10-45-4, AOCI opt-out election."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Community bank, ~$2.5B assets, FFIEC 051, CECL/WARM, AOCI opt-out elected",
+    "[bank subsidiary scope] HFI loans CECL (ASC 326-20 lifetime ECL, uncapped): amortized cost $1,800,000,000, allowance $23,400,000 using WARM per ASC 326 326-20-30-1, 326-20-50-4.",
+    "[bank subsidiary scope] Loan portfolio segmented (C&I, CRE-owner-occupied, CRE-non-owner-occupied, Residential 1-4 family, Consumer, Construction) with CECL allowances by segment per ASC 326 326-20-50-4, 326-20-55-5.",
+    "[bank subsidiary scope] Nonaccrual loans $8,200,000; charge-offs YTD $1,850,000, recoveries $320,000 per ASC 310 310-10-35-7, 326-20-50-6.",
+    "[bank subsidiary scope] AFS debt CECL (ASC 326-30 credit loss component, capped at unrealized loss $27,000,000): amortized cost $312,000,000, fair value $285,000,000 per ASC 326 326-30-35-1, 326-30-50-1.",
+    "[bank subsidiary scope] HTM debt CECL (ASC 326-20 lifetime ECL, uncapped): amortized cost $145,000,000, fair value $132,000,000, allowance $13,000,000 per ASC 326 326-20-30-1, 326-20-55-1.",
+    "[bank subsidiary scope] OBS commitments CECL reserve on $425,000,000 undrawn commitments and $18,000,000 financial guarantees per ASC 326 326-20-30-11, 326-20-55-19.",
+    "[bank subsidiary scope] Allowance rollforward reconciles HFI ($23,400,000), AFS credit loss component, HTM, and OBS CECL buckets per ASC 326 326-20-50-5, 326-30-50-2.",
+    "[bank subsidiary scope] Cash flow hedge notional $150,000,000 with contemporaneous hedge documentation per ASC 815 815-20-25-3, 815-20-35-1.",
+    "[bank subsidiary scope] Fair value hedge notional $75,000,000 with contemporaneous hedge documentation per ASC 815 815-25-35-1, 815-20-25-3.",
+    "[bank subsidiary scope] Investment classification: AFS debt securities present; HTM debt securities present; total assets $2,500,000,000 per ASC 320 320-10-25-1, 825-10-25-1.",
+    "[bank subsidiary scope] Regulatory capital ratios: CET1 13.74%, Tier 1 13.74%, Total 15.13%, leverage 10.72% per ASC 942 12 CFR Part 217, Basel III CET1.",
+    "[bank subsidiary scope] Risk-weighted assets $1,950,000,000 per ASC 942 12 CFR Part 217.31, RWA disclosure.",
+    "[bank subsidiary scope] FFIEC 051 reduced schedule scope (graceful degradation — no full RC-D detail required) per ASC 942 FFIEC Call Report, RC-D schedule.",
+    "[bank subsidiary scope] AOCI opt-out election elected for eligible community bank (total assets $2,500,000,000) per ASC 825 825-10-45-4, AOCI opt-out election."
+  ],
+  "verticalCode": "banking",
+  "filingId": "BANK-01",
+  "satisfiedEmitters": 14,
+  "failClosedEmitters": 0
+}

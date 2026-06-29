@@ -120,6 +120,23 @@ export const VERTICALS: VerticalConfig[] = [
     primaryFrameworks: ["ASC 944", "ASC 944 LDTI", "IFRS 17", "NAIC SAP", "ASC 326", "ASC 815-15"],
     sourcePhases: ["G8b-INS"],
   },
+  {
+    code: "banking",
+    name: "Banking",
+    mockCoFixturePath: "fixtures/mock-cos/BANK-01.json",
+    baselineDisclosurePath: "fixtures/baselines/BANK-01-pre-G8b.json",
+    primaryFrameworks: [
+      "ASC 326",
+      "ASC 815",
+      "ASC 320",
+      "ASC 825",
+      "IFRS 9",
+      "FFIEC Call Reports",
+      "12 CFR Part 217",
+      "SEC Subpart 1400",
+    ],
+    sourcePhases: ["G8b-BANK"],
+  },
 ];
 
 export const CASCADE_STAGES = [
