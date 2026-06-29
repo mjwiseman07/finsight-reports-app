@@ -45,12 +45,6 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = normalizedHost(request);
 
-  if (isLocalDevHost(host) && pathname === "/") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/landing-preview";
-    return NextResponse.rewrite(url);
-  }
-
   if (MARKETING_HOSTS.has(host) && !isStaticAsset(pathname) && !isMarketingAllowed(pathname)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
