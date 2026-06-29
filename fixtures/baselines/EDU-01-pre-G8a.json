@@ -1,0 +1,144 @@
+{
+  "frameworkLane": "us-gaap",
+  "results": [
+    {
+      "emitterId": "tuition-revenue-disclosure",
+      "emitterPath": "lib/router/education/usgaap/tuitionRevenueDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "tuition-revenue-disclosure",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-25-19",
+              "606-10-55-91"
+            ]
+          },
+          "text": "Tuition and fee revenue of $80,000,000 recognized over academic term performance obligations per ASC 606 606-10-25-19, 606-10-55-91."
+        }
+      ]
+    },
+    {
+      "emitterId": "contributions-grants-disclosure",
+      "emitterPath": "lib/router/education/usgaap/contributionsGrantsDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "contributions-grants-disclosure",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-605-25-11",
+              "958-605-55-8"
+            ]
+          },
+          "text": "Contributions and grants of $25,000,000 classified and recognized per ASC 958 958-605-25-11, 958-605-55-8."
+        }
+      ]
+    },
+    {
+      "emitterId": "endowment-net-asset-classification",
+      "emitterPath": "lib/router/education/usgaap/endowmentNetAssetClassification.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "endowment-net-asset-classification",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-205-45-14",
+              "958-320-45-1"
+            ]
+          },
+          "text": "Endowment net assets of $400,000,000 classified under UPMIFA spending policy and ASC 958 958-205-45-14, 958-320-45-1."
+        }
+      ]
+    },
+    {
+      "emitterId": "functional-expense-allocation",
+      "emitterPath": "lib/router/education/usgaap/functionalExpenseAllocation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "functional-expense-allocation",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-205-45-6",
+              "958-720-45-2"
+            ]
+          },
+          "text": "Functional expense allocation (instruction $85,000,000, support $22,000,000) per ASC 958 958-205-45-6, 958-720-45-2."
+        }
+      ]
+    },
+    {
+      "emitterId": "title-iv-composite-score",
+      "emitterPath": "lib/router/education/usgaap/titleIvCompositeScore.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "title-iv-composite-score",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-205-45-1",
+              "34 CFR 668.172 composite score"
+            ]
+          },
+          "text": "Title IV financial responsibility composite score 2.8 (pass) per ASC 958 958-205-45-1, 34 CFR 668.172 composite score."
+        }
+      ]
+    },
+    {
+      "emitterId": "restricted-unrestricted-net-assets",
+      "emitterPath": "lib/router/education/usgaap/restrictedUnrestrictedNetAssets.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "restricted-unrestricted-net-assets",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-205-45-1",
+              "958-205-45-7"
+            ]
+          },
+          "text": "Net assets with donor restrictions $280,000,000 and without donor restrictions $120,000,000 per ASC 958 958-205-45-1, 958-205-45-7."
+        }
+      ]
+    },
+    {
+      "emitterId": "auxiliary-enterprises-disclosure",
+      "emitterPath": "lib/router/education/usgaap/auxiliaryEnterprisesDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "auxiliary-enterprises-disclosure",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-720-45-15"
+            ]
+          },
+          "text": "Auxiliary enterprise revenue (housing $8,000,000, dining $4,500,000, athletics $2,500,000) per ASC 958 958-720-45-15."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Private nonprofit university ASC 958 basis",
+    "Tuition and fee revenue of $80,000,000 recognized over academic term performance obligations per ASC 606 606-10-25-19, 606-10-55-91.",
+    "Contributions and grants of $25,000,000 classified and recognized per ASC 958 958-605-25-11, 958-605-55-8.",
+    "Endowment net assets of $400,000,000 classified under UPMIFA spending policy and ASC 958 958-205-45-14, 958-320-45-1.",
+    "Functional expense allocation (instruction $85,000,000, support $22,000,000) per ASC 958 958-205-45-6, 958-720-45-2.",
+    "Title IV financial responsibility composite score 2.8 (pass) per ASC 958 958-205-45-1, 34 CFR 668.172 composite score.",
+    "Net assets with donor restrictions $280,000,000 and without donor restrictions $120,000,000 per ASC 958 958-205-45-1, 958-205-45-7.",
+    "Auxiliary enterprise revenue (housing $8,000,000, dining $4,500,000, athletics $2,500,000) per ASC 958 958-720-45-15."
+  ],
+  "verticalCode": "education",
+  "filingId": "EDU-01",
+  "satisfiedEmitters": 7,
+  "failClosedEmitters": 0
+}

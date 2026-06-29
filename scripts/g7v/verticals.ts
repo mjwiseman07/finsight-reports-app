@@ -80,6 +80,38 @@ export const VERTICALS: VerticalConfig[] = [
     primaryFrameworks: ["ASC 958", "IFRS", "IPSAS"],
     sourcePhases: ["NPO-1", "NPO-2"],
   },
+  {
+    code: "education",
+    name: "Education",
+    mockCoFixturePath: "fixtures/mock-cos/EDU-01.json",
+    baselineDisclosurePath: "fixtures/baselines/EDU-01-pre-G8a.json",
+    primaryFrameworks: ["ASC 958", "ASC 606", "UPMIFA", "IPSAS"],
+    sourcePhases: ["EDU-1", "EDU-2"],
+  },
+  {
+    code: "real-estate",
+    name: "Real Estate",
+    mockCoFixturePath: "fixtures/mock-cos/RE-01.json",
+    baselineDisclosurePath: "fixtures/baselines/RE-01-pre-G8a.json",
+    primaryFrameworks: ["ASC 842", "ASC 360", "IAS 40", "NAREIT"],
+    sourcePhases: ["RE-1", "RE-2"],
+  },
+  {
+    code: "hospitality",
+    name: "Hospitality",
+    mockCoFixturePath: "fixtures/mock-cos/HOS-01.json",
+    baselineDisclosurePath: "fixtures/baselines/HOS-01-pre-G8a.json",
+    primaryFrameworks: ["ASC 606", "ASC 842", "ASC 952", "USALI"],
+    sourcePhases: ["HOS-1", "HOS-2"],
+  },
+  {
+    code: "logistics",
+    name: "Logistics",
+    mockCoFixturePath: "fixtures/mock-cos/LOG-01.json",
+    baselineDisclosurePath: "fixtures/baselines/LOG-01-pre-G8a.json",
+    primaryFrameworks: ["ASC 606", "ASC 815", "ASC 842"],
+    sourcePhases: ["LOG-1", "LOG-2"],
+  },
 ];
 
 export const CASCADE_STAGES = [

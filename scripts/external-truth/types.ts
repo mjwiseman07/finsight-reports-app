@@ -10,7 +10,11 @@ export type ExternalTruthVertical =
   | "con"
   | "gc"
   | "ps"
-  | "fa";
+  | "fa"
+  | "edu"
+  | "re"
+  | "hos"
+  | "log";
 
 export type ReportingFramework = "us-gaap" | "ifrs" | "ipsas";
 
@@ -375,6 +379,146 @@ export interface ExtractedFiling {
     nav?: {
       net_assets: number;
       shares_outstanding: number;
+    };
+  };
+  education?: {
+    jurisdiction?: string;
+    revenue?: {
+      tuition: number;
+      contributions: number;
+      auxiliary: number;
+    };
+    endowment?: {
+      total: number;
+      with_donor_restrictions: number;
+      without_donor_restrictions: number;
+      permanently_restricted: number;
+      temporarily_restricted: number;
+    };
+    title_iv?: {
+      composite_score: number;
+      financial_responsibility_zone: "pass" | "pass-with-watch" | "fail";
+    };
+    auxiliary_enterprises?: {
+      housing: number;
+      dining: number;
+      athletics: number;
+    };
+    ipsas_non_exchange?: {
+      grant_revenue: number;
+      conditions_outstanding: string;
+    };
+  };
+  real_estate?: {
+    entityType?: string;
+    gaapBasis?: string;
+    revenue?: {
+      rental: number;
+      property_count: number;
+    };
+    lessor_leases?: {
+      operating: number;
+      sales_type: number;
+      direct_financing: number;
+    };
+    lessee?: {
+      rou_asset: number;
+      lease_liability: number;
+    };
+    investment_property?: {
+      fair_value: number;
+      carrying_amount: number;
+    };
+    impairment?: {
+      asset_group: string;
+      carrying_amount: number;
+      fair_value: number;
+    };
+    held_for_sale?: {
+      assets: number;
+      liabilities: number;
+    };
+    real_estate_sales?: {
+      full_accrual: number;
+      partial_sales: number;
+    };
+    reit_metrics?: {
+      ffo: number;
+      affo: number;
+      noi: number;
+    };
+    acquisition?: {
+      property_name: string;
+      amount: number;
+      cap_rate_pct: number;
+    };
+  };
+  hospitality?: {
+    franchiseFlag?: boolean;
+    casinoFlag?: boolean;
+    timeshareFlag?: boolean;
+    revenue?: {
+      rooms: number;
+      food_beverage: number;
+      other: number;
+      hotel_count: number;
+    };
+    loyalty_program?: {
+      deferred_revenue: number;
+      material_right_estimate: number;
+    };
+    gift_cards?: {
+      outstanding: number;
+      breakage_estimate: number;
+    };
+    franchise_fees?: {
+      initial: number;
+      ongoing: number;
+    };
+    casino?: {
+      base_jackpot_accrual: number;
+    };
+    timeshare?: {
+      revenue: number;
+      deferred: number;
+    };
+    usali?: {
+      edition: number;
+      departmental_schedules: string[];
+    };
+  };
+  logistics?: {
+    revenue?: {
+      freight: number;
+      fuel_surcharge: number;
+    };
+    fleet?: {
+      tractors: number;
+      trailers: number;
+    };
+    principal_or_agent?: "principal" | "agent";
+    bill_and_hold?: {
+      enabled: boolean;
+      goods_ready: boolean;
+      amount: number;
+    };
+    fuel_hedge?: {
+      notional: number;
+      fair_value: number;
+      effectiveness_pct: number;
+    };
+    impairment?: {
+      asset_group: string;
+      carrying_amount: number;
+      fair_value: number;
+    };
+    demurrage_detention?: {
+      demurrage: number;
+      detention: number;
+    };
+    terminal_leases?: {
+      count: number;
+      total_liability: number;
     };
   };
 }

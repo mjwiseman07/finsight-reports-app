@@ -13,6 +13,10 @@ import { runConstructionRouter } from "../../lib/router/construction";
 import { runProfessionalServicesRouter } from "../../lib/router/professional-services";
 import { runSaasRouter } from "../../lib/router/saas";
 import { runNonprofitRouter } from "../../lib/router/nonprofit";
+import { runEducationRouter } from "../../lib/router/education";
+import { runRealEstateRouter } from "../../lib/router/real-estate";
+import { runHospitalityRouter } from "../../lib/router/hospitality";
+import { runLogisticsRouter } from "../../lib/router/logistics";
 
 export type RouterOutput = {
   framework: ExtractedFiling["framework"];
@@ -46,6 +50,10 @@ const ROUTERS: Record<string, RouterFn> = {
   "professional-services": runProfessionalServicesRouter,
   saas: runSaasRouter,
   nonprofit: runNonprofitRouter,
+  education: runEducationRouter,
+  "real-estate": runRealEstateRouter,
+  hospitality: runHospitalityRouter,
+  logistics: runLogisticsRouter,
 };
 
 export function generateDisclosure(

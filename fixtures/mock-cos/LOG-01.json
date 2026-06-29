@@ -1,0 +1,56 @@
+{
+  "_g7vStub": true,
+  "_g7vStubComment": "G8a minimum viable mock-co — regional LTL trucking (LOG-01)",
+  "company": { "name": "Mock Logistics Co.", "fiscalYear": 2025, "currency": "USD" },
+  "trialBalance": [],
+  "accountMap": {},
+  "subledgers": { "ar": [], "ap": [], "inventory": [] },
+  "elections": {},
+  "memory": {},
+  "priorPeriod": null,
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "LOG-01",
+    "vertical": "log",
+    "framework": "us-gaap",
+    "entityName": "Mock Regional LTL Carriers Inc.",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": ["Regional LTL carrier principal freight revenue"],
+    "rawFrameworkSignals": ["us-gaap"],
+    "logistics": {
+      "revenue": {
+        "freight": 88000000,
+        "fuel_surcharge": 7000000
+      },
+      "fleet": {
+        "tractors": 220,
+        "trailers": 600
+      },
+      "principal_or_agent": "principal",
+      "bill_and_hold": {
+        "enabled": true,
+        "goods_ready": true,
+        "amount": 1200000
+      },
+      "fuel_hedge": {
+        "notional": 5000000,
+        "fair_value": 320000,
+        "effectiveness_pct": 92
+      },
+      "impairment": {
+        "asset_group": "tractor fleet",
+        "carrying_amount": 45000000,
+        "fair_value": 44000000
+      },
+      "demurrage_detention": {
+        "demurrage": 850000,
+        "detention": 620000
+      },
+      "terminal_leases": {
+        "count": 8,
+        "total_liability": 12400000
+      }
+    }
+  }
+}

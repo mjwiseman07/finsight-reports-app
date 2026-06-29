@@ -1,0 +1,125 @@
+{
+  "frameworkLane": "us-gaap",
+  "results": [
+    {
+      "emitterId": "rooms-revenue-disclosure",
+      "emitterPath": "lib/router/hospitality/usgaap/roomsRevenueDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "rooms-revenue-disclosure",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-25-19",
+              "606-10-55-91"
+            ]
+          },
+          "text": "Rooms revenue of $42,000,000 recognized over the guest stay performance obligation per ASC 606 606-10-25-19, 606-10-55-91."
+        }
+      ]
+    },
+    {
+      "emitterId": "loyalty-material-right-disclosure",
+      "emitterPath": "lib/router/hospitality/usgaap/loyaltyMaterialRightDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "loyalty-material-right-disclosure",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-32-27",
+              "606-10-55-42"
+            ]
+          },
+          "text": "Loyalty program deferred revenue $3,200,000 with material right estimate $850,000 allocated per ASC 606 606-10-32-27, 606-10-55-42."
+        }
+      ]
+    },
+    {
+      "emitterId": "gift-card-breakage-disclosure",
+      "emitterPath": "lib/router/hospitality/usgaap/giftCardBreakageDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "gift-card-breakage-disclosure",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-55-48",
+              "606-10-55-50"
+            ]
+          },
+          "text": "Gift card outstanding balance $1,100,000 with breakage estimate $165,000 recognized per ASC 606 606-10-55-48, 606-10-55-50."
+        }
+      ]
+    },
+    {
+      "emitterId": "operating-lease-commitments",
+      "emitterPath": "lib/router/hospitality/usgaap/operatingLeaseCommitments.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "operating-lease-commitments",
+          "citation": {
+            "standard": "ASC 842",
+            "paragraphs": [
+              "842-20-50-6"
+            ]
+          },
+          "text": "Operating lease commitments — Y1 $4,200,000, Y2 $4,100,000, Y3 $4,000,000, Y4 $3,900,000, Y5 $3,800,000, thereafter $18,000,000; total undiscounted $38,000,000; less imputed interest $6,200,000; present value of operating lease liability $31,800,000 per ASC 842 842-20-50-6."
+        }
+      ]
+    },
+    {
+      "emitterId": "franchise-fee-revenue-disclosure",
+      "emitterPath": "lib/router/hospitality/usgaap/franchiseFeeRevenueDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "franchise-fee-revenue-disclosure",
+          "citation": {
+            "standard": "ASC 952",
+            "paragraphs": [
+              "952-605-25-1",
+              "606-10-25-19"
+            ]
+          },
+          "text": "Franchise fee revenue: initial fees $2,400,000, ongoing royalties $4,800,000 recognized per ASC 952 952-605-25-1, 606-10-25-19."
+        }
+      ]
+    },
+    {
+      "emitterId": "usali-departmental-schedules",
+      "emitterPath": "lib/router/hospitality/usgaap/usaliDepartmentalSchedules.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "usali-departmental-schedules",
+          "citation": {
+            "standard": "ASC 925",
+            "paragraphs": [
+              "925-10-50-1",
+              "USALI departmental schedules"
+            ]
+          },
+          "text": "USALI 12th Edition departmental schedules (rooms, food_and_beverage, other_operated) presented for informational operating metrics per ASC 925 925-10-50-1, USALI departmental schedules."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Regional franchised hotel operator ASC 606/842/952",
+    "Rooms revenue of $42,000,000 recognized over the guest stay performance obligation per ASC 606 606-10-25-19, 606-10-55-91.",
+    "Loyalty program deferred revenue $3,200,000 with material right estimate $850,000 allocated per ASC 606 606-10-32-27, 606-10-55-42.",
+    "Gift card outstanding balance $1,100,000 with breakage estimate $165,000 recognized per ASC 606 606-10-55-48, 606-10-55-50.",
+    "Operating lease commitments — Y1 $4,200,000, Y2 $4,100,000, Y3 $4,000,000, Y4 $3,900,000, Y5 $3,800,000, thereafter $18,000,000; total undiscounted $38,000,000; less imputed interest $6,200,000; present value of operating lease liability $31,800,000 per ASC 842 842-20-50-6.",
+    "Franchise fee revenue: initial fees $2,400,000, ongoing royalties $4,800,000 recognized per ASC 952 952-605-25-1, 606-10-25-19.",
+    "USALI 12th Edition departmental schedules (rooms, food_and_beverage, other_operated) presented for informational operating metrics per ASC 925 925-10-50-1, USALI departmental schedules."
+  ],
+  "verticalCode": "hospitality",
+  "filingId": "HOS-01",
+  "satisfiedEmitters": 6,
+  "failClosedEmitters": 0
+}

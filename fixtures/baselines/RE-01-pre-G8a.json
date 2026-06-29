@@ -1,0 +1,145 @@
+{
+  "frameworkLane": "us-gaap",
+  "results": [
+    {
+      "emitterId": "lessor-revenue-disclosure",
+      "emitterPath": "lib/router/real-estate/usgaap/lessorRevenueDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "lessor-revenue-disclosure",
+          "citation": {
+            "standard": "ASC 842",
+            "paragraphs": [
+              "842-30-50-3",
+              "842-30-50-4"
+            ]
+          },
+          "text": "Lessor lease revenue: operating $72,000,000, sales-type $4,000,000, direct financing $4,000,000 per ASC 842 842-30-50-3, 842-30-50-4."
+        }
+      ]
+    },
+    {
+      "emitterId": "lessee-rou-disclosure",
+      "emitterPath": "lib/router/real-estate/usgaap/lesseeRouDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "lessee-rou-disclosure",
+          "citation": {
+            "standard": "ASC 842",
+            "paragraphs": [
+              "842-20-45-1",
+              "842-20-50-4"
+            ]
+          },
+          "text": "Lessee ROU asset $3,500,000 and lease liability $3,600,000 recognized at commencement per ASC 842 842-20-45-1, 842-20-50-4."
+        }
+      ]
+    },
+    {
+      "emitterId": "impairment-held-and-used",
+      "emitterPath": "lib/router/real-estate/usgaap/impairmentHeldAndUsed.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "impairment-held-and-used",
+          "citation": {
+            "standard": "ASC 360",
+            "paragraphs": [
+              "360-10-35-21",
+              "360-10-35-24"
+            ]
+          },
+          "text": "Held-and-used impairment for retail portfolio: carrying amount $12,000,000, fair value $11,500,000 per ASC 360 360-10-35-21, 360-10-35-24."
+        }
+      ]
+    },
+    {
+      "emitterId": "held-for-sale-classification",
+      "emitterPath": "lib/router/real-estate/usgaap/heldForSaleClassification.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "held-for-sale-classification",
+          "citation": {
+            "standard": "ASC 360",
+            "paragraphs": [
+              "360-10-45-9",
+              "360-10-45-10"
+            ]
+          },
+          "text": "Assets held for sale $2,500,000 and associated liabilities $400,000 classified per ASC 360 360-10-45-9, 360-10-45-10."
+        }
+      ]
+    },
+    {
+      "emitterId": "real-estate-sales-disclosure",
+      "emitterPath": "lib/router/real-estate/usgaap/realEstateSalesDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "real-estate-sales-disclosure",
+          "citation": {
+            "standard": "ASC 610-20",
+            "paragraphs": [
+              "610-20-45-12",
+              "610-20-25-6"
+            ]
+          },
+          "text": "Real estate sales: full accrual $6,000,000, partial sales $1,500,000 per ASC 610-20 610-20-45-12, 610-20-25-6."
+        }
+      ]
+    },
+    {
+      "emitterId": "cap-rate-acquisition-disclosure",
+      "emitterPath": "lib/router/real-estate/usgaap/capRateAcquisitionDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "cap-rate-acquisition-disclosure",
+          "citation": {
+            "standard": "ASC 805",
+            "paragraphs": [
+              "805-20-50-1",
+              "805-30-50-1"
+            ]
+          },
+          "text": "Acquisition of Riverfront Office Tower: purchase price $15,000,000, cap rate 6.2% per ASC 805 805-20-50-1, 805-30-50-1."
+        }
+      ]
+    },
+    {
+      "emitterId": "reit-non-gaap-measures",
+      "emitterPath": "lib/router/real-estate/usgaap/reitNonGaapMeasures.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "reit-non-gaap-measures",
+          "citation": {
+            "standard": "ASC 970",
+            "paragraphs": [
+              "970-323-50-1",
+              "970-323-50-2"
+            ]
+          },
+          "text": "REIT non-GAAP measures: FFO $52,000,000, AFFO $48,000,000, NOI $61,000,000 reconciled per ASC 970 970-323-50-1, 970-323-50-2."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Public REIT mixed retail and office portfolio",
+    "Lessor lease revenue: operating $72,000,000, sales-type $4,000,000, direct financing $4,000,000 per ASC 842 842-30-50-3, 842-30-50-4.",
+    "Lessee ROU asset $3,500,000 and lease liability $3,600,000 recognized at commencement per ASC 842 842-20-45-1, 842-20-50-4.",
+    "Held-and-used impairment for retail portfolio: carrying amount $12,000,000, fair value $11,500,000 per ASC 360 360-10-35-21, 360-10-35-24.",
+    "Assets held for sale $2,500,000 and associated liabilities $400,000 classified per ASC 360 360-10-45-9, 360-10-45-10.",
+    "Real estate sales: full accrual $6,000,000, partial sales $1,500,000 per ASC 610-20 610-20-45-12, 610-20-25-6.",
+    "Acquisition of Riverfront Office Tower: purchase price $15,000,000, cap rate 6.2% per ASC 805 805-20-50-1, 805-30-50-1.",
+    "REIT non-GAAP measures: FFO $52,000,000, AFFO $48,000,000, NOI $61,000,000 reconciled per ASC 970 970-323-50-1, 970-323-50-2."
+  ],
+  "verticalCode": "real-estate",
+  "filingId": "RE-01",
+  "satisfiedEmitters": 7,
+  "failClosedEmitters": 0
+}
