@@ -31,7 +31,7 @@ export function SiteFooter() {
             <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Company</p>
             <ul className="mt-3 space-y-2 text-sm font-semibold">
               <li>
-                <a href="#" className={`text-[#0A1020] hover:text-[#C9A961] ${focusRing("rounded")}`}>
+                <a href="/privacy" className={`text-[#0A1020] hover:text-[#C9A961] ${focusRing("rounded")}`}>
                   Privacy Policy
                 </a>
               </li>

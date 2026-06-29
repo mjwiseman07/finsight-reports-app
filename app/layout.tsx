@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geologica, Inter } from "next/font/google";
-import { GlobalPulseLauncher } from "../components/GlobalPulseLauncher";
 import "./globals.css";
 
 const inter = Inter({
@@ -53,7 +52,6 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
-        <GlobalPulseLauncher />
       </body>
     </html>
   );
