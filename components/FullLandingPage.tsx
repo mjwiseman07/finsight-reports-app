@@ -223,122 +223,6 @@ function HandHeartIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-function DashboardPreview() {
-  const liquidityForecast = [
-    { week: "W1", cash: 1.28 },
-    { week: "W2", cash: 1.34 },
-    { week: "W3", cash: 1.46 },
-    { week: "W4", cash: 1.52 },
-    { week: "W5", cash: 1.43 },
-    { week: "W6", cash: 1.57 },
-    { week: "W7", cash: 1.63 },
-  ];
-  const maxCash = Math.max(...liquidityForecast.map((point) => point.cash));
-  const chartPoints = liquidityForecast
-    .map((point, index) => {
-      const x = 34 + index * 58;
-      const y = 134 - (point.cash / maxCash) * 86;
-      return `${x},${y}`;
-    })
-    .join(" ");
-  const forecastAreaPath = `M ${chartPoints.replaceAll(" ", " L ")} L 382 142 L 34 142 Z`;
-
-  return (
-    <div className="relative overflow-hidden rounded-[2rem] bg-[#0A1530] p-5 ring-1 ring-white/5 shadow-2xl shadow-blue-950/40">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0A1530] via-[#0B1838] to-[#091226]" />
-      <div className="relative">
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#C9A961]">Executive Workspace</p>
-            <p className={`mt-1 text-xl font-black text-white ${headingFont}`}>Financial Intelligence Command Center</p>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold text-white">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" aria-hidden="true" />
-            Live
-          </span>
-        </div>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            ["Revenue", "$1.82M", "+12.4%"],
-            ["Runway", "21 wks", "stable"],
-            ["AR 90+", "$48K", "review"],
-            ["Margin", "34.6%", "+2.1 pts"],
-          ].map(([label, value, tag]) => {
-            const tagClass =
-              tag === "stable" ? "text-slate-500" : tag === "review" ? "text-amber-400" : "text-[#C9A961]";
-
-            return (
-            <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{label}</p>
-              <p className={`mt-3 text-2xl font-black text-white ${headingFont}`}>{value}</p>
-              <p className={`mt-2 text-xs font-bold ${tagClass}`}>{tag}</p>
-            </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-white/10 bg-[#060E22] p-5">
-          <div className="flex items-center justify-between">
-            <p className={`font-black text-white ${headingFont}`}>Liquidity Forecast</p>
-            <p className="text-xs font-bold text-slate-500">13-week view</p>
-          </div>
-          <div className="mt-5 rounded-2xl border border-white/10 p-4 shadow-inner shadow-black/30">
-            <div className="relative overflow-hidden rounded-xl border border-white/10 bg-[#040918] p-4" aria-label="Sample liquidity forecast chart">
-              <svg viewBox="0 0 420 178" className="h-56 w-full" preserveAspectRatio="none" role="img">
-                <rect x="267" y="18" width="116" height="124" fill="#C9A961" opacity="0.07" />
-                <text x="326" y="28" textAnchor="middle" fill="#94A3B8" fontSize="8" fontWeight="700" letterSpacing="1.2">
-                  FORECAST
-                </text>
-                {[36, 64, 92, 120, 148].map((y) => (
-                  <line key={y} x1="34" x2="382" y1={y} y2={y} stroke="rgba(148,163,184,0.16)" strokeWidth="0.8" />
-                ))}
-                <line x1="34" x2="382" y1="142" y2="142" stroke="rgba(148,163,184,0.3)" strokeWidth="1" />
-                <path d={forecastAreaPath} fill="#C9A961" opacity="0.08" />
-                <polyline points={chartPoints} fill="none" stroke="#C9A961" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline
-                  points="34,130 92,124 150,116 208,111 266,103 324,94 382,88"
-                  fill="none"
-                  stroke="rgba(148,163,184,0.45)"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeDasharray="5 7"
-                />
-                {liquidityForecast.map((point, index) => {
-                  const x = 34 + index * 58;
-                  const y = 134 - (point.cash / maxCash) * 86;
-                  return <circle key={point.week} cx={x} cy={y} r="2.8" fill="#060A12" stroke="#C9A961" strokeWidth="1.4" />;
-                })}
-                <text x="34" y="22" fill="#CBD5E1" fontSize="9" fontWeight="800" letterSpacing="1">
-                  CASH BALANCE ($M)
-                </text>
-                <text x="348" y="44" fill="#C9A961" fontSize="9" fontWeight="900">
-                  +18.6%
-                </text>
-                {liquidityForecast.map((point, index) => (
-                  <text key={point.week} x={34 + index * 58} y="166" textAnchor="middle" fill="#64748B" fontSize="9" fontWeight="800">
-                    {point.week}
-                  </text>
-                ))}
-              </svg>
-            </div>
-            <div className="mt-3 grid gap-2 text-xs font-bold text-slate-400 sm:grid-cols-3">
-              <span>
-                <span className="text-[#C9A961]">●</span> Treasury cash forecast
-              </span>
-              <span>
-                <span className="text-slate-500">●</span> Baseline scenario
-              </span>
-              <span className="text-[#C9A961]">Ending cash: $1.63M</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function VideoTile({ title, src }: { title: string; src: string }) {
   const [failed, setFailed] = useState(false);
 
@@ -488,7 +372,6 @@ export default function FullLandingPage() {
   return (
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
       <SiteNav />
-      <CapabilityCarousel />
       {/* SECTION A + B — Navigation + Hero */}
       <section
         id="top"
@@ -513,7 +396,14 @@ export default function FullLandingPage() {
                 Request Early Access
               </a>
               <a
-                href="#what-it-does"
+                href="#capabilities"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const el = document.getElementById("capabilities");
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                }}
                 className={`inline-flex items-center gap-2 rounded-full border-2 border-[#0A1530] bg-[#0A1530] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#060E22] ${focusRing()}`}
               >
                 See What It Does <span className="text-[#C9A961]">↓</span>
@@ -521,10 +411,70 @@ export default function FullLandingPage() {
             </div>
           </div>
           <div className="min-w-0">
-            <DashboardPreview />
+            <div className="relative ml-auto w-full max-w-xl">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A1530] via-[#0D1A3A] to-[#060E22] p-8 shadow-2xl ring-1 ring-white/10 sm:p-10">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#C9A961]/15 blur-3xl"
+                />
+                <div className="relative flex items-center justify-between">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#C9A961] sm:text-xs">
+                    Executive Workspace
+                  </p>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#C9A961]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#C9A961]" />
+                    Patent Pending
+                  </span>
+                </div>
+                <h3 className="relative mt-5 text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">
+                  Financial Intelligence Command Center
+                </h3>
+                <p className="relative mt-4 text-sm leading-relaxed text-white/70 sm:text-base">
+                  A single workspace where revenue, liquidity, receivables, and margin are continuously monitored,
+                  reconciled, and explained — every figure defended by the underlying 29-stage validation cascade.
+                </p>
+                <div
+                  aria-hidden
+                  className="relative mt-7 h-px w-full bg-gradient-to-r from-transparent via-[#C9A961]/40 to-transparent"
+                />
+                <div className="relative mt-7 grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C9A961]">Revenue Pulse</p>
+                    <p className="mt-1.5 text-xs leading-snug text-white/65">
+                      Recognition treated against ASC / IFRS in real time.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C9A961]">
+                      Liquidity Forecast
+                    </p>
+                    <p className="mt-1.5 text-xs leading-snug text-white/65">
+                      Multi-week cash position sourced from the live ledger.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C9A961]">AR Aging</p>
+                    <p className="mt-1.5 text-xs leading-snug text-white/65">
+                      Receivables triaged by risk and collection workflow.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#C9A961]">Margin Watch</p>
+                    <p className="mt-1.5 text-xs leading-snug text-white/65">
+                      Gross and contribution margin with variance attribution.
+                    </p>
+                  </div>
+                </div>
+                <p className="relative mt-7 text-[11px] uppercase tracking-[0.22em] text-white/45">
+                  Every number citable · Every change reviewable
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
+      <CapabilityCarousel />
 
       {/* SECTION C — Patent strip */}
       <section className="border-y border-white/5 bg-[#0A1530] px-6 py-5">
