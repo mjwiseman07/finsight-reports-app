@@ -74,25 +74,43 @@ const SLIDES: Slide[] = [
   {
     id: "ai-workforce",
     eyebrow: "AI Workforce",
-    title: "A team of specialized agents — not one general chatbot.",
+    title: "Staff accountants, seniors, and auditors — on demand.",
     body:
-      "Advisacor™ runs a workforce of role-specific AI agents: Reconciliation, Close, Disclosure, Controls, Review, and Variance. Each one is scoped to its job, audited, and orchestrated by the platform so nothing falls through the cracks.",
+      "Advisacor™ is engineered to do the work that historically required a Staff Accountant, Senior Accountant, Staff Auditor, or Senior Auditor on the team. Replace roles you can't afford to hire, or supplement the team you already have — at a fraction of the loaded cost of a headcount. And every AI worker can be programmed with the same job description you'd hand a new hire.",
     bullets: [
-      "Role-scoped agents with bounded authority",
-      "Orchestration layer routes work and escalations",
-      "Every agent action is logged and reviewable",
+      "Reconciliation Agent — handles Staff Accountant–level bank, AP, AR, and intercompany recs",
+      "Close Agent — runs Senior Accountant–level month-end close, accruals, and consolidations",
+      "Controls & Review Agents — perform Staff and Senior Auditor–level testing, sampling, and sign-off",
+      "Disclosure & Variance Agents — draft footnotes and explain movements with full citations",
+      "Each worker can be programmed with a job description — same scope you'd give a human hire",
+      "Replace open roles, or supplement the people you already have — your call, per client",
+    ],
+  },
+  {
+    id: "programmable-workers",
+    eyebrow: "Programmable Workers",
+    title: "Hand it the job description. It does the job.",
+    body:
+      "Every AI worker in Advisacor™ can be configured against an actual job description — the same one you'd hand a Staff Accountant, Senior Accountant, Staff Auditor, or Senior Auditor on day one. Paste the JD, define the scope, set the review rules, and the worker takes on that role's responsibilities across the clients or entities you assign it to.",
+    bullets: [
+      "Paste in a real job description — Staff Accountant, Senior Auditor, AR Clerk, Controller-track Senior, you name it",
+      "Define scope: which clients, which entities, which close cycles, which disclosure standards",
+      "Set the review rules — what gets auto-posted, what gets escalated, who signs off",
+      "Memory carries forward — the worker remembers prior-period decisions, client elections, and reviewer preferences",
+      "Update the JD anytime — the worker adapts to the new scope on the next cycle",
     ],
   },
   {
     id: "ai-helpers",
     eyebrow: "AI Helpers",
-    title: "Help where the work happens — inside the entry, not in a sidebar.",
+    title: "A senior reviewer over every accountant's shoulder.",
     body:
-      "In-context AI helpers suggest journal entries as you type, autocomplete disclosure language against the standard you're filing under, and explain variances without making you leave the screen.",
+      "For the humans you keep, Advisacor™ helpers sit beside them inside the work — suggesting journal entries as they type, autocompleting disclosure language against the standard they're filing under, and explaining variances without making them leave the screen. Less swivel-chair. Fewer review cycles.",
     bullets: [
-      "Journal entry suggestions inline with the GL",
-      "Disclosure autocomplete tied to ASC/IFRS rule citations",
-      "Variance explanations sourced from the underlying data",
+      "Inline journal entry suggestions with the source row attached",
+      "Disclosure autocomplete tied to ASC, IFRS, and IFRS for SMEs citations",
+      "Variance explanations sourced from the underlying data, not guessed",
+      "Catches what a tired reviewer at 11 PM on close night would miss",
     ],
   },
   {
@@ -129,6 +147,20 @@ const SLIDES: Slide[] = [
       "Natural-language access to ledgers, disclosures, and memory",
       "Every answer cites its source rows and rules",
       "Available to authenticated users only",
+    ],
+  },
+  {
+    id: "the-math",
+    eyebrow: "The Math",
+    title: "A finance team's worth of work — for a fraction of one salary.",
+    body:
+      "Hiring the team Advisacor™ replicates is expensive. Industry-reported loaded compensation in the US runs roughly: Staff Accountant $65–85K, Senior Accountant $95–120K, Staff Auditor $70–90K, Senior Auditor $100–130K — and that's before benefits, recruiting, ramp time, or turnover. Advisacor™ delivers that coverage as software, at roughly a quarter of the cost of staffing the same scope of work.",
+    bullets: [
+      "Staff Accountant: roughly $65,000 – $85,000 per year, loaded",
+      "Senior Accountant: roughly $95,000 – $120,000 per year, loaded",
+      "Staff Auditor: roughly $70,000 – $90,000 per year, loaded",
+      "Senior Auditor: roughly $100,000 – $130,000 per year, loaded",
+      "Advisacor™: a fraction of a single role — covering the work of all four",
     ],
   },
 ];
@@ -176,11 +208,16 @@ export default function CapabilityCarousel() {
       <div className="mx-auto max-w-6xl px-6 lg:px-8">
         <div className="mb-12 text-center lg:mb-16">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#C9A961]/30 bg-[#C9A961]/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A961]">
-            Every kind of finance team. Every kind of work.
+            A finance team — in software. At a fraction of the cost.
           </div>
           <h2 className="mt-6 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
             What Advisacor<sup className="text-[#C9A961]">™</sup> does.
           </h2>
+          <p className="mx-auto mt-5 max-w-3xl text-base leading-relaxed text-white/65 sm:text-lg">
+            Designed to do the work of staff accountants, seniors, and auditors — programmable with the same job
+            description you&apos;d hand a new hire. Replace roles you can&apos;t afford to fill, or supplement the team
+            you already have.
+          </p>
         </div>
 
         <div
