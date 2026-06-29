@@ -376,7 +376,7 @@ export function ComingSoonPage() {
           </div>
           <div className="flex flex-wrap gap-5 text-sm font-bold text-[#6B7280]">
             <a href="https://advisacor.com" className="hover:text-[#111827]">advisacor.com</a>
-            <a href="mailto:contact@advisacor.com" className="hover:text-[#111827]">Contact</a>
+            <a href="mailto:sales@advisacor.com" className="hover:text-[#111827]">sales@advisacor.com</a>
             <span>Privacy Policy</span>
             <span>LinkedIn</span>
           </div>
