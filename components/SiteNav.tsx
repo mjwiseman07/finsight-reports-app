@@ -19,7 +19,7 @@ export function SiteNav() {
           width={900}
           height={460}
           priority
-        className="pointer-events-none absolute top-3 left-3 z-20 h-auto w-[280px] select-none md:top-5 md:left-6 md:w-[380px] lg:w-[440px]"
+          className="pointer-events-none h-auto w-[280px] select-none md:w-[380px] lg:w-[440px]"
         />
       </Link>
       <nav className="absolute top-6 right-8 z-30">
