@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, type ReactNode, type SVGProps } from "react";
+import CapabilityCarousel from "./CapabilityCarousel";
 import { SiteFooter } from "./SiteFooter";
 import { SiteNav } from "./SiteNav";
 import { focusRing, headingFont, primaryCtaClass } from "./site-ui";
@@ -486,12 +487,13 @@ function EarlyAccessForm() {
 export default function FullLandingPage() {
   return (
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
+      <SiteNav />
+      <CapabilityCarousel />
       {/* SECTION A + B — Navigation + Hero */}
       <section
         id="top"
         className="relative isolate overflow-hidden bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 px-6 pb-16 md:pb-20"
       >
-        <SiteNav />
 
         <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 pt-[200px] md:pt-[240px] lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)] lg:pt-[260px]">
           <div className="max-w-3xl">
