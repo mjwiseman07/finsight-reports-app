@@ -1,0 +1,130 @@
+{
+  "frameworkLane": "us-gaap",
+  "results": [
+    {
+      "emitterId": "contract-type-mix-disclosure",
+      "emitterPath": "lib/router/govcon/usgaap/contractTypeMixDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "contract-type-mix",
+          "citation": {
+            "standard": "ASC 280",
+            "paragraphs": [
+              "280-10-50-40",
+              "FAR 16.2 FFP",
+              "FAR 16.3 cost-reimbursement",
+              "FAR 16.4 incentive",
+              "FAR 16.5 IDIQ",
+              "FAR 16.6 T&M"
+            ]
+          },
+          "text": "Government contract revenue concentration by contract type: FFP 42%, CPFF 18%, CPIF 12%, T_AND_M 8%, IDIQ 20% per ASC 280 280-10-50-40, FAR 16.2 FFP, FAR 16.3 cost-reimbursement, FAR 16.4 incentive, FAR 16.5 IDIQ, FAR 16.6 T&M. US Government customer concentration 72% of revenue triggers ASC 280-10-50-40 major customer disclosure."
+        }
+      ]
+    },
+    {
+      "emitterId": "dcaa-cas-compliance-disclosure",
+      "emitterPath": "lib/router/govcon/usgaap/dcaaCASComplianceDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "far-cas-allocation",
+          "citation": {
+            "standard": "CAS",
+            "paragraphs": [
+              "401",
+              "402",
+              "403",
+              "405",
+              "406",
+              "410",
+              "418"
+            ]
+          },
+          "text": "Cost Accounting Standards (CAS 401, CAS 410, CAS 418) apply under full coverage, establishing consistency in estimating, accumulating, and reporting contract costs per CAS 401, 402, 403, 405, 406, 410, 418."
+        }
+      ]
+    },
+    {
+      "emitterId": "backlog-funded-vs-unfunded",
+      "emitterPath": "lib/router/govcon/usgaap/backlogFundedVsUnfunded.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "backlog-funded-split",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-50-13",
+              "funded vs unfunded backlog split"
+            ]
+          },
+          "text": "Remaining performance obligations split: funded backlog $28000000000 (obligated) vs unfunded backlog $12500000000 (option years not yet exercised, 5 years) per ASC 606 606-10-50-13, funded vs unfunded backlog split."
+        }
+      ]
+    },
+    {
+      "emitterId": "cost-allowability-far",
+      "emitterPath": "lib/router/govcon/usgaap/costAllowabilityFAR.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "far-cas-allocation",
+          "citation": {
+            "standard": "FAR 31.205",
+            "paragraphs": [
+              "31.205-1",
+              "31.205-14 entertainment",
+              "31.205-22 lobbying",
+              "31.205-52 alcohol"
+            ]
+          },
+          "text": "Unallowable cost categories (entertainment, lobbying, alcohol) excluded using unallowable cost exclusion from forward pricing rates per FAR 31.205 31.205-1, 31.205-14 entertainment, 31.205-22 lobbying, 31.205-52 alcohol."
+        }
+      ]
+    },
+    {
+      "emitterId": "indirect-rate-structure",
+      "emitterPath": "lib/router/govcon/usgaap/indirectRateStructure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "cas-410-gna-pool",
+          "citation": {
+            "standard": "CAS 410",
+            "paragraphs": [
+              "G&A pool composition",
+              "FAR 42.7 indirect cost rates"
+            ]
+          },
+          "text": "General and administrative pool indirect rate 9.0% with fringe 28.0% per CAS 410 G&A pool composition, FAR 42.7 indirect cost rates."
+        },
+        {
+          "assertionId": "cas-418-overhead",
+          "citation": {
+            "standard": "CAS 418",
+            "paragraphs": [
+              "418 allocation of direct and indirect costs",
+              "FAR 42.7 rate true-up"
+            ]
+          },
+          "text": "Overhead pool rate 15.0% with annual annual forward pricing rate agreement true-up per CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Government contractor disclosure",
+    "Government contract revenue concentration by contract type: FFP 42%, CPFF 18%, CPIF 12%, T_AND_M 8%, IDIQ 20% per ASC 280 280-10-50-40, FAR 16.2 FFP, FAR 16.3 cost-reimbursement, FAR 16.4 incentive, FAR 16.5 IDIQ, FAR 16.6 T&M. US Government customer concentration 72% of revenue triggers ASC 280-10-50-40 major customer disclosure.",
+    "Cost Accounting Standards (CAS 401, CAS 410, CAS 418) apply under full coverage, establishing consistency in estimating, accumulating, and reporting contract costs per CAS 401, 402, 403, 405, 406, 410, 418.",
+    "Remaining performance obligations split: funded backlog $28000000000 (obligated) vs unfunded backlog $12500000000 (option years not yet exercised, 5 years) per ASC 606 606-10-50-13, funded vs unfunded backlog split.",
+    "Unallowable cost categories (entertainment, lobbying, alcohol) excluded using unallowable cost exclusion from forward pricing rates per FAR 31.205 31.205-1, 31.205-14 entertainment, 31.205-22 lobbying, 31.205-52 alcohol.",
+    "General and administrative pool indirect rate 9.0% with fringe 28.0% per CAS 410 G&A pool composition, FAR 42.7 indirect cost rates.",
+    "Overhead pool rate 15.0% with annual annual forward pricing rate agreement true-up per CAS 418 418 allocation of direct and indirect costs, FAR 42.7 rate true-up."
+  ],
+  "verticalCode": "govcon",
+  "filingId": "LMT-10k",
+  "satisfiedEmitters": 5,
+  "failClosedEmitters": 0
+}

@@ -1,0 +1,69 @@
+{
+  "frameworkLane": "us-gaap",
+  "results": [
+    {
+      "emitterId": "lease-cost-breakdown",
+      "emitterPath": "lib/router/lanes/retail/emitters/leaseCostBreakdown.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "lease-obligations",
+          "citation": {
+            "standard": "ASC 842",
+            "paragraphs": [
+              "842-20-50-4(a)",
+              "842-20-50-4(b)",
+              "842-20-50-4(c)"
+            ]
+          },
+          "text": "ASC 842 lessee lease cost: operating lease cost $298,000,000; variable lease cost $54,000,000; short-term lease cost $8,000,000; Total lease cost $360,000,000 per ASC 842 842-20-50-4(a), 842-20-50-4(b), 842-20-50-4(c)."
+        }
+      ]
+    },
+    {
+      "emitterId": "lease-weighted-averages",
+      "emitterPath": "lib/router/lanes/retail/emitters/leaseWeightedAverages.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "lease-obligations",
+          "citation": {
+            "standard": "ASC 842",
+            "paragraphs": [
+              "842-20-50-4(g)(1)",
+              "842-20-50-4(g)(2)"
+            ]
+          },
+          "text": "ASC 842 weighted-average remaining lease term and discount rate: operating leases 8.4 years at 4.25%; finance leases 12.7 years at 3.85% per ASC 842 842-20-50-4(g)(1), 842-20-50-4(g)(2)."
+        }
+      ]
+    },
+    {
+      "emitterId": "lease-maturity-reconciliation",
+      "emitterPath": "lib/router/lanes/retail/emitters/leaseMaturityReconciliation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "lease-obligations",
+          "citation": {
+            "standard": "ASC 842",
+            "paragraphs": [
+              "842-20-50-6"
+            ]
+          },
+          "text": "ASC 842 lease maturity reconciliation: Operating leases — Y1 $980,000,000, Y2 $920,000,000, Y3 $860,000,000, Y4 $810,000,000, Y5 $760,000,000, thereafter $4,200,000,000; total undiscounted $8,530,000,000; less imputed interest $1,980,000,000; present value of lease liability $6,550,000,000. Finance leases — Y1 $145,000,000, Y2 $132,000,000, Y3 $118,000,000, Y4 $105,000,000, Y5 $92,000,000, thereafter $410,000,000; total undiscounted $1,002,000,000; less imputed interest $175,000,000; present value of lease liability $827,000,000. Reconciled to balance sheet operating lease liability $6,550,000,000 and finance lease liability $827,000,000 (diff $0). per ASC 842 842-20-50-6."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Retail lease footnote disclosures",
+    "ASC 842 lessee lease cost: operating lease cost $298,000,000; variable lease cost $54,000,000; short-term lease cost $8,000,000; Total lease cost $360,000,000 per ASC 842 842-20-50-4(a), 842-20-50-4(b), 842-20-50-4(c).",
+    "ASC 842 weighted-average remaining lease term and discount rate: operating leases 8.4 years at 4.25%; finance leases 12.7 years at 3.85% per ASC 842 842-20-50-4(g)(1), 842-20-50-4(g)(2).",
+    "ASC 842 lease maturity reconciliation: Operating leases — Y1 $980,000,000, Y2 $920,000,000, Y3 $860,000,000, Y4 $810,000,000, Y5 $760,000,000, thereafter $4,200,000,000; total undiscounted $8,530,000,000; less imputed interest $1,980,000,000; present value of lease liability $6,550,000,000. Finance leases — Y1 $145,000,000, Y2 $132,000,000, Y3 $118,000,000, Y4 $105,000,000, Y5 $92,000,000, thereafter $410,000,000; total undiscounted $1,002,000,000; less imputed interest $175,000,000; present value of lease liability $827,000,000. Reconciled to balance sheet operating lease liability $6,550,000,000 and finance lease liability $827,000,000 (diff $0). per ASC 842 842-20-50-6."
+  ],
+  "verticalCode": "retail",
+  "filingId": "TGT-10K-LEASE",
+  "satisfiedEmitters": 3,
+  "failClosedEmitters": 0
+}

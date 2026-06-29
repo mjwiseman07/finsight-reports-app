@@ -1,0 +1,70 @@
+{
+  "framework": "us-gaap",
+  "results": [
+    {
+      "emitterId": "units-of-delivery-output-measure",
+      "emitterPath": "lib/router/construction/usgaap/unitsOfDeliveryOutputMeasure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "asc606-over-time",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-25-31",
+              "606-10-55-17",
+              "606-10-55-19"
+            ]
+          },
+          "text": "Revenue recognized over time using units-of-delivery output measure (completed housing units: 142 units complete) per ASC 606 606-10-25-31, 606-10-55-17, 606-10-55-19."
+        }
+      ]
+    },
+    {
+      "emitterId": "contract-balances-rollforward",
+      "emitterPath": "lib/router/construction/usgaap/contractBalanceRollforward.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "contract-balances-rollforward",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-45-1",
+              "606-10-45-5",
+              "606-10-50-9"
+            ]
+          },
+          "text": "Contract assets and contract liabilities rollforward disclosed per ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9, including billings in excess of costs."
+        }
+      ]
+    },
+    {
+      "emitterId": "revenue-disaggregation",
+      "emitterPath": "lib/router/construction/usgaap/revenueDisaggregation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "revenue-disaggregation",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-50-5"
+            ]
+          },
+          "text": "Construction revenue disaggregated by project type, geography, and contract duration per ASC 606 606-10-50-5."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Construction contract revenue recognition",
+    "Revenue recognized over time using units-of-delivery output measure (completed housing units: 142 units complete) per ASC 606 606-10-25-31, 606-10-55-17, 606-10-55-19.",
+    "Contract assets and contract liabilities rollforward disclosed per ASC 606 606-10-45-1, 606-10-45-5, 606-10-50-9, including billings in excess of costs.",
+    "Construction revenue disaggregated by project type, geography, and contract duration per ASC 606 606-10-50-5."
+  ],
+  "verticalCode": "construction",
+  "filingId": "FLR-10k",
+  "satisfiedEmitters": 3,
+  "failClosedEmitters": 0
+}

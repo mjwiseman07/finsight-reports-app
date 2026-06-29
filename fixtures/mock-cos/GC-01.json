@@ -1,0 +1,75 @@
+{
+  "_g7vStub": true,
+  "_g7vStubComment": "G7-V minimum viable mock-co — not a production fixture. extracted block sourced from tests/fixtures/g7-c7a-8/happy/lmt-10k.json",
+  "company": {
+    "name": "Mock GC Co.",
+    "fiscalYear": 2025,
+    "currency": "USD"
+  },
+  "trialBalance": [],
+  "accountMap": {},
+  "subledgers": {
+    "ar": [],
+    "ap": [],
+    "inventory": []
+  },
+  "elections": {},
+  "memory": {},
+  "priorPeriod": null,
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "LMT-10k",
+    "vertical": "gc",
+    "framework": "us-gaap",
+    "entityName": "Lockheed Martin",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Government contractor disclosure"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "govcon": {
+      "contracts": {
+        "by_type": {
+          "FFP": 42,
+          "CPFF": 18,
+          "CPIF": 12,
+          "T_AND_M": 8,
+          "IDIQ": 20
+        }
+      },
+      "customer_concentration": {
+        "us_government_pct": 72
+      },
+      "cas_coverage": {
+        "applicable_standards": [
+          "CAS 401",
+          "CAS 410",
+          "CAS 418"
+        ],
+        "coverage_type": "full"
+      },
+      "backlog": {
+        "funded": 28000000000,
+        "unfunded": 12500000000,
+        "option_years": 5
+      },
+      "unallowable_costs": {
+        "identified_categories": [
+          "entertainment",
+          "lobbying",
+          "alcohol"
+        ],
+        "exclusion_methodology": "unallowable cost exclusion from forward pricing rates"
+      },
+      "indirect_rates": {
+        "fringe": 0.28,
+        "overhead": 0.15,
+        "ga": 0.09,
+        "true_up_methodology": "annual forward pricing rate agreement true-up"
+      }
+    }
+  }
+}

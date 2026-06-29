@@ -1,0 +1,68 @@
+{
+  "frameworkLane": "us-gaap",
+  "results": [
+    {
+      "emitterId": "unbilled-receivables-disclosure",
+      "emitterPath": "lib/router/professional-services/usgaap/unbilledReceivablesDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "unbilled-receivables",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-45-1",
+              "606-10-50-9"
+            ]
+          },
+          "text": "Unbilled receivables of $180000000 presented as contract assets (opening $150000000, closing $180000000) with billed receivables $420000000 per ASC 606 606-10-45-1, 606-10-50-9."
+        }
+      ]
+    },
+    {
+      "emitterId": "principal-vs-agent-disclosure",
+      "emitterPath": "lib/router/professional-services/usgaap/principalVsAgentDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "principal-agent-pass-through",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-55-36",
+              "606-10-55-40"
+            ]
+          },
+          "text": "Professional services engagement classified as principal based on indicators (controls service delivery; bears delivery risk; pricing discretion) per ASC 606 606-10-55-36, 606-10-55-40."
+        }
+      ]
+    },
+    {
+      "emitterId": "fee-structure-disclosure",
+      "emitterPath": "lib/router/professional-services/usgaap/feeStructureDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "revenue-mix-tm-fixed",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-50-5"
+            ]
+          },
+          "text": "Professional services revenue disaggregated by fee structure (hourly: $8500000000; fixed_fee: $12200000000; retainer: $1100000000) per ASC 606 606-10-50-5."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Professional services engagement",
+    "Unbilled receivables of $180000000 presented as contract assets (opening $150000000, closing $180000000) with billed receivables $420000000 per ASC 606 606-10-45-1, 606-10-50-9.",
+    "Professional services engagement classified as principal based on indicators (controls service delivery; bears delivery risk; pricing discretion) per ASC 606 606-10-55-36, 606-10-55-40.",
+    "Professional services revenue disaggregated by fee structure (hourly: $8500000000; fixed_fee: $12200000000; retainer: $1100000000) per ASC 606 606-10-50-5."
+  ],
+  "verticalCode": "professional-services",
+  "filingId": "ACN-10k",
+  "satisfiedEmitters": 3,
+  "failClosedEmitters": 0
+}

@@ -1,0 +1,163 @@
+{
+  "framework": "us-gaap",
+  "results": [
+    {
+      "emitterId": "nav-computation",
+      "emitterPath": "lib/router/fund-accounting/usgaap/navPerShareRollforward.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "nav-computation",
+          "citation": {
+            "standard": "ASC 946",
+            "paragraphs": [
+              "946-205-45-1",
+              "946-205-50-1"
+            ]
+          },
+          "text": "Financial highlights table presents net asset value per share rollforward per ASC 946 946-205-45-1, 946-205-50-1."
+        }
+      ]
+    },
+    {
+      "emitterId": "expense-ratio",
+      "emitterPath": "lib/router/fund-accounting/usgaap/expenseRatioDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "expense-ratio",
+          "citation": {
+            "standard": "ASC 946",
+            "paragraphs": [
+              "946-205-50-15"
+            ]
+          },
+          "text": "Expense ratio (operating expenses to average net assets) disclosed per ASC 946 946-205-50-15."
+        }
+      ]
+    },
+    {
+      "emitterId": "portfolio-composition",
+      "emitterPath": "lib/router/fund-accounting/usgaap/investmentScheduleSummary.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "portfolio-composition",
+          "citation": {
+            "standard": "ASC 946",
+            "paragraphs": [
+              "946-210-45-4"
+            ]
+          },
+          "text": "Schedule of investments summarizes portfolio composition by industry, country, and issuer per ASC 946 946-210-45-4."
+        }
+      ]
+    },
+    {
+      "emitterId": "realized-unrealized-gains",
+      "emitterPath": "lib/router/fund-accounting/usgaap/realizedUnrealizedGains.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "realized-unrealized-gains",
+          "citation": {
+            "standard": "ASC 946",
+            "paragraphs": [
+              "946-225-45-5"
+            ]
+          },
+          "text": "Statement of operations separates realized and unrealized gains and losses per ASC 946 946-225-45-5."
+        }
+      ]
+    },
+    {
+      "emitterId": "top-holdings-disclosure",
+      "emitterPath": "lib/router/fund-accounting/usgaap/topHoldingsDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "top-holdings",
+          "citation": {
+            "standard": "ASC 946",
+            "paragraphs": [
+              "946-210-50-1",
+              "946-210-50-6",
+              "N-1A Item 27(d)(1)"
+            ]
+          },
+          "text": "Top 10 portfolio holdings as of 2026-03-31: Apple Inc 7.2%, Microsoft Corp 6.4% per ASC 946 946-210-50-1, 946-210-50-6, N-1A Item 27(d)(1)."
+        }
+      ]
+    },
+    {
+      "emitterId": "derivatives-schedule-disclosure",
+      "emitterPath": "lib/router/fund-accounting/usgaap/derivativesScheduleDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "derivatives-schedule",
+          "citation": {
+            "standard": "ASC 815",
+            "paragraphs": [
+              "815-10-50-4",
+              "ASC 946-210-50-12"
+            ]
+          },
+          "text": "Schedule of derivative instruments: index futures notional $500000000 per ASC 815 815-10-50-4, ASC 946-210-50-12."
+        }
+      ]
+    },
+    {
+      "emitterId": "brokerage-commission-disclosure",
+      "emitterPath": "lib/router/fund-accounting/usgaap/brokerageCommissionDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "brokerage-commissions",
+          "citation": {
+            "standard": "ASC 946",
+            "paragraphs": [
+              "946-225-45-3",
+              "Item 31",
+              "Rule 17a-7"
+            ]
+          },
+          "text": "Brokerage commissions by broker: Goldman Sachs $125000, Morgan Stanley $98500. research services under soft-dollar policy. per ASC 946 946-225-45-3, Item 31, Rule 17a-7."
+        }
+      ]
+    },
+    {
+      "emitterId": "portfolio-turnover-disclosure",
+      "emitterPath": "lib/router/fund-accounting/usgaap/portfolioTurnoverDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "portfolio-turnover",
+          "citation": {
+            "standard": "ASC 946",
+            "paragraphs": [
+              "946-205-50-15",
+              "N-1A Item 27"
+            ]
+          },
+          "text": "Portfolio turnover ratio 4.9% using lesser of purchases or sales divided by average net assets per ASC 946 946-205-50-15, N-1A Item 27."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Registered investment company filing",
+    "Financial highlights table presents net asset value per share rollforward per ASC 946 946-205-45-1, 946-205-50-1.",
+    "Expense ratio (operating expenses to average net assets) disclosed per ASC 946 946-205-50-15.",
+    "Schedule of investments summarizes portfolio composition by industry, country, and issuer per ASC 946 946-210-45-4.",
+    "Statement of operations separates realized and unrealized gains and losses per ASC 946 946-225-45-5.",
+    "Top 10 portfolio holdings as of 2026-03-31: Apple Inc 7.2%, Microsoft Corp 6.4% per ASC 946 946-210-50-1, 946-210-50-6, N-1A Item 27(d)(1).",
+    "Schedule of derivative instruments: index futures notional $500000000 per ASC 815 815-10-50-4, ASC 946-210-50-12.",
+    "Brokerage commissions by broker: Goldman Sachs $125000, Morgan Stanley $98500. research services under soft-dollar policy. per ASC 946 946-225-45-3, Item 31, Rule 17a-7.",
+    "Portfolio turnover ratio 4.9% using lesser of purchases or sales divided by average net assets per ASC 946 946-205-50-15, N-1A Item 27."
+  ],
+  "verticalCode": "fund-accounting",
+  "filingId": "VFIAX-SUITE",
+  "satisfiedEmitters": 8,
+  "failClosedEmitters": 0
+}

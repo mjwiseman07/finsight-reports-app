@@ -1,0 +1,62 @@
+{
+  "framework": "us-gaap",
+  "results": [
+    {
+      "emitterId": "chna-cycle",
+      "emitterPath": "lib/router/healthcare/usgaap/chnaCycleDisclosure.ts",
+      "lines": [],
+      "status": "fail-closed",
+      "failureReason": "CHNA scope: §501(c)(3) hospitals only — emitter dormant for this entity"
+    },
+    {
+      "emitterId": "community-benefit-report",
+      "emitterPath": "lib/router/healthcare/usgaap/communityBenefitReport.ts",
+      "lines": [],
+      "status": "fail-closed",
+      "failureReason": "Community benefit report scope: §501(c)(3) hospitals only — emitter dormant"
+    },
+    {
+      "emitterId": "payor-mix-disaggregation",
+      "emitterPath": "lib/router/lanes/healthcare/emitters/payorMixDisaggregation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "payor-mix",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-50-5"
+            ]
+          },
+          "text": "Net patient service revenue disaggregated by payor class per ASC 606 606-10-50-5: Medicare Traditional: gross $28,000,000,000, contractual adjustments $12,000,000,000, implicit price concessions $2,000,000,000, net $14,000,000,000; Medicare Advantage: gross $18,000,000,000, contractual adjustments $7,000,000,000, implicit price concessions $1,000,000,000, net $10,000,000,000; Medicaid: gross $12,000,000,000, contractual adjustments $5,000,000,000, implicit price concessions $500,000,000, net $6,500,000,000; Managed Care: gross $15,000,000,000, contractual adjustments $6,000,000,000, implicit price concessions $800,000,000, net $8,200,000,000; Self-Pay: gross $6,000,000,000, contractual adjustments $1,500,000,000, implicit price concessions $500,000,000, net $4,000,000,000; Other: gross $4,000,000,000, contractual adjustments $1,500,000,000, implicit price concessions $300,000,000, net $2,200,000,000. Total net patient service revenue $44,900,000,000."
+        }
+      ]
+    },
+    {
+      "emitterId": "allowance-rollforward",
+      "emitterPath": "lib/router/lanes/healthcare/emitters/allowanceRollforward.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "bad-debt-vs-charity",
+          "citation": {
+            "standard": "ASC 326",
+            "paragraphs": [
+              "326-20-50-4",
+              "606 residual collectibility"
+            ]
+          },
+          "text": "Residual allowance for doubtful accounts (post-ASC 606 CECL): opening $200,000,000, additions charged to provision for doubtful accounts $320,000,000, write-offs $280,000,000, recoveries $15,000,000, closing $255,000,000 per ASC 326 326-20-50-4, 606 residual collectibility. Residual collectibility expense 0.71% of net patient service revenue."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Net patient service revenue disaggregated by payor class per ASC 606 606-10-50-5: Medicare Traditional: gross $28,000,000,000, contractual adjustments $12,000,000,000, implicit price concessions $2,000,000,000, net $14,000,000,000; Medicare Advantage: gross $18,000,000,000, contractual adjustments $7,000,000,000, implicit price concessions $1,000,000,000, net $10,000,000,000; Medicaid: gross $12,000,000,000, contractual adjustments $5,000,000,000, implicit price concessions $500,000,000, net $6,500,000,000; Managed Care: gross $15,000,000,000, contractual adjustments $6,000,000,000, implicit price concessions $800,000,000, net $8,200,000,000; Self-Pay: gross $6,000,000,000, contractual adjustments $1,500,000,000, implicit price concessions $500,000,000, net $4,000,000,000; Other: gross $4,000,000,000, contractual adjustments $1,500,000,000, implicit price concessions $300,000,000, net $2,200,000,000. Total net patient service revenue $44,900,000,000.",
+    "Residual allowance for doubtful accounts (post-ASC 606 CECL): opening $200,000,000, additions charged to provision for doubtful accounts $320,000,000, write-offs $280,000,000, recoveries $15,000,000, closing $255,000,000 per ASC 326 326-20-50-4, 606 residual collectibility. Residual collectibility expense 0.71% of net patient service revenue."
+  ],
+  "verticalCode": "healthcare",
+  "filingId": "THC-10k",
+  "satisfiedEmitters": 2,
+  "failClosedEmitters": 2
+}

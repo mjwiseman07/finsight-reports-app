@@ -1,0 +1,80 @@
+{
+  "frameworkLane": "us_gaap",
+  "results": [
+    {
+      "emitterId": "functional-expense-allocation",
+      "emitterPath": "lib/router/nonprofit/usgaap/functionalExpenseAllocation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "functional-expense-allocation",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-720-45-2",
+              "958-205-45-6"
+            ]
+          },
+          "text": "Program, management and general, and fundraising expense matrix disclosed per ASC 958 958-720-45-2, 958-205-45-6 using direct identification with time studies for shared costs."
+        },
+        {
+          "assertionId": "part9-part10-cross-tie",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-720-45-2",
+              "958-205-45-6"
+            ]
+          },
+          "text": "Form 990 Part IX functional expenses tie to Part X balance sheet totals per ASC 958 958-720-45-2, 958-205-45-6."
+        }
+      ]
+    },
+    {
+      "emitterId": "natural-expense-disclosure",
+      "emitterPath": "lib/router/nonprofit/usgaap/naturalExpenseDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "natural-expense-disclosure",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-720-45-15"
+            ]
+          },
+          "text": "Natural expense classification (salaries, occupancy, depreciation, professional fees) disclosed per ASC 958 958-720-45-15."
+        }
+      ]
+    },
+    {
+      "emitterId": "allocation-methodology-disclosure",
+      "emitterPath": "lib/router/nonprofit/usgaap/allocationMethodologyDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "allocation-methodology-disclosure",
+          "citation": {
+            "standard": "ASC 958",
+            "paragraphs": [
+              "958-720-50-1"
+            ]
+          },
+          "text": "Allocation methodology (time study) and rationale disclosed per ASC 958 958-720-50-1: Shared costs allocated using periodic FTE time studies and direct identification where observable."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Q330",
+    "990 filing rows: 13",
+    "Program, management and general, and fundraising expense matrix disclosed per ASC 958 958-720-45-2, 958-205-45-6 using direct identification with time studies for shared costs.",
+    "Form 990 Part IX functional expenses tie to Part X balance sheet totals per ASC 958 958-720-45-2, 958-205-45-6.",
+    "Natural expense classification (salaries, occupancy, depreciation, professional fees) disclosed per ASC 958 958-720-45-15.",
+    "Allocation methodology (time study) and rationale disclosed per ASC 958 958-720-50-1: Shared costs allocated using periodic FTE time studies and direct identification where observable."
+  ],
+  "verticalCode": "nonprofit",
+  "filingId": "HABITAT-990",
+  "satisfiedEmitters": 3,
+  "failClosedEmitters": 0
+}

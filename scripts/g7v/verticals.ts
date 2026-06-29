@@ -1,0 +1,115 @@
+export type VerticalConfig = {
+  code: string;
+  name: string;
+  mockCoFixturePath: string;
+  baselineDisclosurePath: string;
+  primaryFrameworks: string[];
+  sourcePhases: string[];
+};
+
+export const VERTICALS: VerticalConfig[] = [
+  {
+    code: "healthcare",
+    name: "Healthcare",
+    mockCoFixturePath: "fixtures/mock-cos/HC-01.json",
+    baselineDisclosurePath: "fixtures/baselines/HC-01-pre-G7.json",
+    primaryFrameworks: ["ASC 606", "IFRS", "IFRS for SMEs"],
+    sourcePhases: ["HC-1", "HC-2", "42N1", "42O", "42P"],
+  },
+  {
+    code: "manufacturing",
+    name: "Manufacturing",
+    mockCoFixturePath: "fixtures/mock-cos/MFG-01.json",
+    baselineDisclosurePath: "fixtures/baselines/MFG-01-pre-G7.json",
+    primaryFrameworks: ["ASC 606", "IFRS"],
+    sourcePhases: ["MFG-1", "MFG-2"],
+  },
+  {
+    code: "retail",
+    name: "Retail",
+    mockCoFixturePath: "fixtures/mock-cos/RTL-01.json",
+    baselineDisclosurePath: "fixtures/baselines/RTL-01-pre-G7.json",
+    primaryFrameworks: ["ASC 606", "ASC 842", "IFRS"],
+    sourcePhases: ["RTL-1", "RTL-2", "RTL-3", "RTL-4", "RTL-5", "RTL-6"],
+  },
+  {
+    code: "fund-accounting",
+    name: "Fund Accounting",
+    mockCoFixturePath: "fixtures/mock-cos/FA-01.json",
+    baselineDisclosurePath: "fixtures/baselines/FA-01-pre-G7.json",
+    primaryFrameworks: ["ASC 946", "IFRS"],
+    sourcePhases: ["FA-1", "FA-2"],
+  },
+  {
+    code: "govcon",
+    name: "GovCon / DCAA",
+    mockCoFixturePath: "fixtures/mock-cos/GC-01.json",
+    baselineDisclosurePath: "fixtures/baselines/GC-01-pre-G7.json",
+    primaryFrameworks: ["CAS", "ASC 606", "IFRS"],
+    sourcePhases: ["GC-1", "GC-2"],
+  },
+  {
+    code: "construction",
+    name: "Construction",
+    mockCoFixturePath: "fixtures/mock-cos/CON-01.json",
+    baselineDisclosurePath: "fixtures/baselines/CON-01-pre-G7.json",
+    primaryFrameworks: ["ASC 606", "ASC 842", "IFRS"],
+    sourcePhases: ["CON-1", "CON-2"],
+  },
+  {
+    code: "professional-services",
+    name: "Professional Services",
+    mockCoFixturePath: "fixtures/mock-cos/PS-01.json",
+    baselineDisclosurePath: "fixtures/baselines/PS-01-pre-G7.json",
+    primaryFrameworks: ["ASC 606", "IFRS"],
+    sourcePhases: ["PS-1", "PS-2"],
+  },
+  {
+    code: "saas",
+    name: "SaaS",
+    mockCoFixturePath: "fixtures/mock-cos/SAAS-01.json",
+    baselineDisclosurePath: "fixtures/baselines/SAAS-01-pre-G7.json",
+    primaryFrameworks: ["ASC 606", "IFRS"],
+    sourcePhases: ["SAAS-1", "SAAS-2"],
+  },
+  {
+    code: "nonprofit",
+    name: "Nonprofit",
+    mockCoFixturePath: "fixtures/mock-cos/NPO-01.json",
+    baselineDisclosurePath: "fixtures/baselines/NPO-01-pre-G7.json",
+    primaryFrameworks: ["ASC 958", "IFRS", "IPSAS"],
+    sourcePhases: ["NPO-1", "NPO-2"],
+  },
+];
+
+export const CASCADE_STAGES = [
+  { id: 1, tier: 1, name: "Trial balance loaded and balanced (Dr = Cr)" },
+  { id: 2, tier: 1, name: "Account map present and complete for the vertical" },
+  { id: 3, tier: 1, name: "Period close confirmed (no open subledgers)" },
+  { id: 4, tier: 1, name: "Currency translation applied if multi-currency" },
+  { id: 5, tier: 1, name: "Intercompany eliminations applied if multi-entity" },
+  { id: 6, tier: 1, name: "Opening balance roll-forward verified" },
+  { id: 7, tier: 2, name: "Revenue recognition treatment applied per framework" },
+  { id: 8, tier: 2, name: "Lease classification applied (ASC 842 / IFRS 16) if applicable" },
+  { id: 9, tier: 2, name: "Inventory valuation method applied if inventory present" },
+  { id: 10, tier: 2, name: "Fair-value measurements flagged and sourced" },
+  { id: 11, tier: 2, name: "Allowance for credit losses calculated (CECL / IFRS 9)" },
+  { id: 12, tier: 2, name: "Deferred tax positions calculated" },
+  { id: 13, tier: 2, name: "Equity classification verified" },
+  { id: 14, tier: 3, name: "Footnote template selected per vertical and framework" },
+  { id: 15, tier: 3, name: "Quantitative figures populated from ledger" },
+  { id: 16, tier: 3, name: "Qualitative narrative populated from memory substrate" },
+  { id: 17, tier: 3, name: "Comparative period figures pulled and aligned" },
+  { id: 18, tier: 3, name: "Significant accounting policies disclosure assembled" },
+  { id: 19, tier: 3, name: "Related party disclosures assembled if applicable" },
+  { id: 20, tier: 3, name: "Subsequent events disclosure assembled if applicable" },
+  { id: 21, tier: 3, name: "Going concern assessment surfaced if triggered" },
+  { id: 22, tier: 3, name: "Industry-specific disclosure assembled" },
+  { id: 23, tier: 4, name: "Every figure linked to source ledger row(s)" },
+  { id: 24, tier: 4, name: "Every standards citation resolves to a valid paragraph" },
+  { id: 25, tier: 4, name: "Memory substrate entries cited where prior-period decisions reused" },
+  { id: 26, tier: 4, name: "Election registry entries cited where client-specific elections applied" },
+  { id: 27, tier: 4, name: "Reviewer preferences applied and logged" },
+  { id: 28, tier: 5, name: "Review queue entry created with sign-off rules per firm policy" },
+  { id: 29, tier: 5, name: "Disclosure version locked and hashable for audit trail" },
+];
