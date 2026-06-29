@@ -1,0 +1,185 @@
+{
+  "frameworkLane": "US-GAAP",
+  "results": [
+    {
+      "emitterId": "loss-reserves-and-ibnr",
+      "emitterPath": "lib/router/insurance/usgaap/lossReservesAndIBNR.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "loss-reserves-and-ibnr",
+          "citation": {
+            "standard": "ASC 944",
+            "paragraphs": [
+              "944-40-55-1",
+              "944-40-55-8"
+            ]
+          },
+          "text": "Short-duration loss reserves: case $145,000,000, IBNR $89,000,000, total incurred $234,000,000 per ASC 944 944-40-55-1, 944-40-55-8."
+        }
+      ]
+    },
+    {
+      "emitterId": "claims-development-triangle",
+      "emitterPath": "lib/router/insurance/usgaap/claimsDevelopmentTriangle.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "claims-development-triangle",
+          "citation": {
+            "standard": "ASC 944",
+            "paragraphs": [
+              "944-40-55-12",
+              "944-40-55-15"
+            ]
+          },
+          "text": "Claims development triangle disclosed for accident years 2021, 2022, 2023, 2024, 2025 per ASC 944 944-40-55-12, 944-40-55-15."
+        }
+      ]
+    },
+    {
+      "emitterId": "premiums-receivable-cecl",
+      "emitterPath": "lib/router/insurance/usgaap/premiumsReceivableCECL.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "premiums-receivable-cecl",
+          "citation": {
+            "standard": "ASC 326",
+            "paragraphs": [
+              "326-20-50-6",
+              "944 narrow scope premiums receivable"
+            ]
+          },
+          "text": "Premiums receivable CECL allowance $770,000 on gross premiums receivable $38,500,000 (ASC 326 narrow scope — premiums receivable only; not applied to loss reserves or DAC) per ASC 326 326-20-50-6, 944 narrow scope premiums receivable."
+        }
+      ]
+    },
+    {
+      "emitterId": "reinsurance-recoverable",
+      "emitterPath": "lib/router/insurance/usgaap/reinsuranceRecoverable.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "reinsurance-recoverable",
+          "citation": {
+            "standard": "ASC 326",
+            "paragraphs": [
+              "944-20-50-1",
+              "326 narrow scope reinsurance recoverables"
+            ]
+          },
+          "text": "Reinsurance recoverable gross $67,500,000 with credit allowance $3,300,000 (ASC 326 narrow scope — recoverables only) at 15.0% cession per ASC 326 944-20-50-1, 326 narrow scope reinsurance recoverables."
+        }
+      ]
+    },
+    {
+      "emitterId": "liability-for-future-policy-benefits",
+      "emitterPath": "lib/router/insurance/usgaap/liabilityForFuturePolicyBenefits.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "liability-for-future-policy-benefits",
+          "citation": {
+            "standard": "ASC 944",
+            "paragraphs": [
+              "944-40-25-1",
+              "944-40-55-1",
+              "ASU 2018-12 LDTI"
+            ]
+          },
+          "text": "Liability for future policy benefits $320,000,000 under LDTI (ldtiApplicabilityFlag true) per ASC 944 944-40-25-1, 944-40-55-1, ASU 2018-12 LDTI."
+        }
+      ]
+    },
+    {
+      "emitterId": "dac-amortization",
+      "emitterPath": "lib/router/insurance/usgaap/dacAmortization.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "dac-amortization",
+          "citation": {
+            "standard": "ASC 944",
+            "paragraphs": [
+              "944-30-35-1",
+              "ASU 2018-12 DAC amortization"
+            ]
+          },
+          "text": "Deferred acquisition costs balance $28,000,000 amortized on constant-level basis per ASC 944 944-30-35-1, ASU 2018-12 DAC amortization."
+        }
+      ]
+    },
+    {
+      "emitterId": "market-risk-benefits",
+      "emitterPath": "lib/router/insurance/usgaap/marketRiskBenefits.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "market-risk-benefits",
+          "citation": {
+            "standard": "ASC 944",
+            "paragraphs": [
+              "944-40-25-25C",
+              "ASU 2018-12 MRB"
+            ]
+          },
+          "text": "Market risk benefits fair value $12,500,000 recognized before embedded derivative evaluation per ASC 944 944-40-25-25C, ASU 2018-12 MRB (post-LDTI MRB priority over ASC 815-15)."
+        }
+      ],
+      "mrbApplicable": true
+    },
+    {
+      "emitterId": "statutory-reconciliation",
+      "emitterPath": "lib/router/insurance/sap/statutoryReconciliation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "statutory-reconciliation",
+          "citation": {
+            "standard": "ASC 944",
+            "paragraphs": [
+              "944-20-S99",
+              "NAIC SAP to US GAAP reconciliation"
+            ]
+          },
+          "text": "NAIC P&C-yellow statutory net income $28,500,000 and surplus $187,000,000 reconciled to US GAAP per ASC 944 944-20-S99, NAIC SAP to US GAAP reconciliation."
+        }
+      ]
+    },
+    {
+      "emitterId": "rbc-ratio-disclosure",
+      "emitterPath": "lib/router/insurance/sap/rbcRatioDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "rbc-ratio-disclosure",
+          "citation": {
+            "standard": "ASC 944",
+            "paragraphs": [
+              "944-40-S99",
+              "NAIC RBC action level"
+            ]
+          },
+          "text": "NAIC risk-based capital ratio 450% (no-action action level) per ASC 944 944-40-S99, NAIC RBC action level."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "US P&C insurer with life lines, NAIC filer, LDTI applicable",
+    "Short-duration loss reserves: case $145,000,000, IBNR $89,000,000, total incurred $234,000,000 per ASC 944 944-40-55-1, 944-40-55-8.",
+    "Claims development triangle disclosed for accident years 2021, 2022, 2023, 2024, 2025 per ASC 944 944-40-55-12, 944-40-55-15.",
+    "Premiums receivable CECL allowance $770,000 on gross premiums receivable $38,500,000 (ASC 326 narrow scope — premiums receivable only; not applied to loss reserves or DAC) per ASC 326 326-20-50-6, 944 narrow scope premiums receivable.",
+    "Reinsurance recoverable gross $67,500,000 with credit allowance $3,300,000 (ASC 326 narrow scope — recoverables only) at 15.0% cession per ASC 326 944-20-50-1, 326 narrow scope reinsurance recoverables.",
+    "Liability for future policy benefits $320,000,000 under LDTI (ldtiApplicabilityFlag true) per ASC 944 944-40-25-1, 944-40-55-1, ASU 2018-12 LDTI.",
+    "Deferred acquisition costs balance $28,000,000 amortized on constant-level basis per ASC 944 944-30-35-1, ASU 2018-12 DAC amortization.",
+    "Market risk benefits fair value $12,500,000 recognized before embedded derivative evaluation per ASC 944 944-40-25-25C, ASU 2018-12 MRB (post-LDTI MRB priority over ASC 815-15).",
+    "NAIC P&C-yellow statutory net income $28,500,000 and surplus $187,000,000 reconciled to US GAAP per ASC 944 944-20-S99, NAIC SAP to US GAAP reconciliation.",
+    "NAIC risk-based capital ratio 450% (no-action action level) per ASC 944 944-40-S99, NAIC RBC action level."
+  ],
+  "verticalCode": "insurance",
+  "filingId": "INS-01",
+  "satisfiedEmitters": 9,
+  "failClosedEmitters": 0
+}

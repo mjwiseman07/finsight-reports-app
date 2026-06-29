@@ -112,6 +112,14 @@ export const VERTICALS: VerticalConfig[] = [
     primaryFrameworks: ["ASC 606", "ASC 815", "ASC 842"],
     sourcePhases: ["LOG-1", "LOG-2"],
   },
+  {
+    code: "insurance",
+    name: "Insurance",
+    mockCoFixturePath: "fixtures/mock-cos/INS-01.json",
+    baselineDisclosurePath: "fixtures/baselines/INS-01-pre-G8b.json",
+    primaryFrameworks: ["ASC 944", "ASC 944 LDTI", "IFRS 17", "NAIC SAP", "ASC 326", "ASC 815-15"],
+    sourcePhases: ["G8b-INS"],
+  },
 ];
 
 export const CASCADE_STAGES = [

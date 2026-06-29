@@ -1,6 +1,10 @@
 /**
  * Phase G7 — external-truth shared types.
  */
+import type { InsuranceExtracted } from "../../lib/router/insurance/types";
+
+export type { InsuranceExtracted };
+
 export type ExternalTruthVertical =
   | "saas"
   | "rtl"
@@ -14,7 +18,8 @@ export type ExternalTruthVertical =
   | "edu"
   | "re"
   | "hos"
-  | "log";
+  | "log"
+  | "ins";
 
 export type ReportingFramework = "us-gaap" | "ifrs" | "ipsas";
 
@@ -521,6 +526,7 @@ export interface ExtractedFiling {
       total_liability: number;
     };
   };
+  insurance?: InsuranceExtracted;
 }
 
 export interface ExpectedDisclosureTopic {

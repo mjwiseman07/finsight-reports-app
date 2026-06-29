@@ -17,6 +17,7 @@ import { runEducationRouter } from "../../lib/router/education";
 import { runRealEstateRouter } from "../../lib/router/real-estate";
 import { runHospitalityRouter } from "../../lib/router/hospitality";
 import { runLogisticsRouter } from "../../lib/router/logistics";
+import { runInsuranceRouter } from "../../lib/router/insurance";
 
 export type RouterOutput = {
   framework: ExtractedFiling["framework"];
@@ -54,6 +55,7 @@ const ROUTERS: Record<string, RouterFn> = {
   "real-estate": runRealEstateRouter,
   hospitality: runHospitalityRouter,
   logistics: runLogisticsRouter,
+  insurance: runInsuranceRouter,
 };
 
 export function generateDisclosure(
