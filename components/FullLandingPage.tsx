@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useState, type ReactNode, type SVGProps } from "react";
-import { GlobalPulseLauncher } from "./GlobalPulseLauncher";
 import { SiteFooter } from "./SiteFooter";
 import { SiteNav } from "./SiteNav";
 import { focusRing, headingFont, primaryCtaClass } from "./site-ui";
@@ -763,7 +762,6 @@ export default function FullLandingPage() {
       </section>
 
       <SiteFooter />
-      <GlobalPulseLauncher />
     </main>
   );
 }
