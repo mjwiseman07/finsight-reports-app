@@ -11,9 +11,6 @@ export function SiteFooter() {
             <p className="mt-6 text-sm leading-relaxed text-slate-700">
               A product of Wiseman Financial Technologies LLC.
             </p>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              2023 South Stewart Avenue · Covington, VA 24426
-            </p>
           </div>
 
           <div className="md:col-span-2">
