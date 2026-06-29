@@ -13,24 +13,28 @@ const pillars = [
     title: "Reports That Defend Themselves",
     description:
       "Every number is anchored to real SEC filing patterns and audited through a 29-stage validation cascade before it reaches your screen. No hallucinated footnotes. No silent errors. A complete provenance trail behind every disclosure.",
+    detailLine: "29-STAGE VALIDATION · 45 REAL FILING ANCHORS",
     icon: ShieldCheckIcon,
   },
   {
     title: "Framework Discipline by Design",
     description:
       "US GAAP and IFRS never co-mingle. Healthcare revenue rules can't leak into manufacturing reports. The architecture enforces accounting framework boundaries the way good controls enforce SOX — automatically.",
+    detailLine: "US GAAP + IFRS · NEVER CO-MINGLED",
     icon: LayersIcon,
   },
   {
     title: "A Memory That Knows Your Books",
     description:
       "Advisacor™ remembers your chart of accounts, your close calendar, your prior-period judgments, your auditor's preferences. You don't re-explain your business every month.",
+    detailLine: "PRIOR-PERIOD JUDGMENTS · CHART OF ACCOUNTS · CLOSE CALENDAR",
     icon: DatabaseIcon,
   },
   {
     title: "An AI Workforce, Not a Chatbot",
     description:
       "Specialized agents for reconciliation, close, disclosure, and review — coordinated by an orchestrator that knows when to escalate and when to decide. Built like an accounting team, not a search box.",
+    detailLine: "RECONCILIATION · CLOSE · DISCLOSURE · REVIEW · CONTROLS",
     icon: UsersIcon,
   },
 ] as const;
@@ -41,19 +45,18 @@ const videoTiles = [
   { title: "Catching what a junior would miss", src: "/videos/gap-register.mp4" },
   { title: "GAAP vs IFRS, same data, two reports", src: "/videos/framework.mp4" },
   { title: "Nine industries, one platform", src: "/videos/verticals.mp4" },
-  { title: "The audit trail every number carries", src: "/videos/provenance.mp4" },
 ] as const;
 
 const industries = [
-  { name: "Healthcare", descriptor: "ASC 606 healthcare revenue, 340B, payer mix", icon: HeartPulseIcon },
-  { name: "Manufacturing", descriptor: "Inventory costing, WIP, cost variance", icon: FactoryIcon },
-  { name: "Retail", descriptor: "POS reconciliation, gift cards, returns reserves", icon: StoreIcon },
-  { name: "Fund Accounting", descriptor: "ASC 946, NAV, partner allocations", icon: LandmarkIcon },
-  { name: "GovCon / DCAA", descriptor: "FAR, CAS, indirect rate compliance", icon: ShieldIcon },
-  { name: "Construction", descriptor: "ASC 606 percentage completion, retention", icon: HardHatIcon },
-  { name: "Professional Services", descriptor: "Time and materials, milestone billing", icon: BriefcaseIcon },
-  { name: "SaaS", descriptor: "ARR, deferred revenue, multi-element arrangements", icon: CloudIcon },
-  { name: "Nonprofit", descriptor: "ASC 958, restricted funds, grant tracking", icon: HandHeartIcon },
+  { name: "Healthcare", descriptor: "ASC 606 healthcare revenue, 340B, payer mix", detailLine: "ASC 606 · 340B · PAYER-MIX VARIANCE", icon: HeartPulseIcon },
+  { name: "Manufacturing", descriptor: "Inventory costing, WIP, cost variance", detailLine: "STANDARD COST · WIP · PPV · ABSORPTION", icon: FactoryIcon },
+  { name: "Retail", descriptor: "POS reconciliation, gift cards, returns reserves", detailLine: "POS RECONCILIATION · GIFT CARDS · RETURNS RESERVE", icon: StoreIcon },
+  { name: "Fund Accounting", descriptor: "ASC 946, NAV, partner allocations", detailLine: "ASC 946 · NAV · WATERFALL ALLOCATIONS", icon: LandmarkIcon },
+  { name: "GovCon / DCAA", descriptor: "FAR, CAS, indirect rate compliance", detailLine: "FAR · CAS · INDIRECT RATE · INCURRED COST", icon: ShieldIcon },
+  { name: "Construction", descriptor: "ASC 606 percentage completion, retention", detailLine: "ASC 606 % COMPLETION · RETENTION · WIP SCHEDULE", icon: HardHatIcon },
+  { name: "Professional Services", descriptor: "Time and materials, milestone billing", detailLine: "T&M · MILESTONE · UTILIZATION · WIP", icon: BriefcaseIcon },
+  { name: "SaaS", descriptor: "ARR, deferred revenue, multi-element arrangements", detailLine: "ARR · DEFERRED REVENUE · ASC 606 MULTI-ELEMENT", icon: CloudIcon },
+  { name: "Nonprofit", descriptor: "ASC 958, restricted funds, grant tracking", detailLine: "ASC 958 · RESTRICTED FUNDS · GRANT TRACKING", icon: HandHeartIcon },
 ] as const;
 
 const steps = [
@@ -61,19 +64,25 @@ const steps = [
     number: "01",
     title: "Connect",
     description:
-      "Plug into QuickBooks, NetSuite, Sage, Xero, or Microsoft Dynamics. Advisacor™ reads your existing books — no migration required.",
+      "Plug into QuickBooks, NetSuite, Sage, Xero, or Microsoft Dynamics. No migration required.",
+    detail:
+      "Read-only by default. Your data stays where it lives. Nothing moves, nothing changes, nothing gets locked into a new system.",
   },
   {
     number: "02",
     title: "Validate",
     description:
-      "Every transaction, balance, and disclosure runs through a 29-stage validation cascade. Issues are flagged with full audit context. Nothing silent fails.",
+      "Every transaction runs through a 29-stage validation cascade. Issues flagged with full audit context.",
+    detail:
+      "29 stages including framework lockout, real-filing benchmark match, and provenance binding. Every flag carries its own audit trail back to the source transaction.",
   },
   {
     number: "03",
     title: "Report",
     description:
       "Audit-ready financial reports, disclosures, and management commentary — generated on demand, framework-correct, fully traceable.",
+    detail:
+      "Footnotes anchored to SEC filing patterns. Management commentary that cites its own evidence. Every number traceable back to its source in three clicks or fewer.",
   },
 ] as const;
 
@@ -484,7 +493,7 @@ export default function FullLandingPage() {
       >
         <SiteNav />
 
-        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 pt-[260px] sm:pt-[280px] md:pt-[310px] lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)] lg:pt-[340px] xl:pt-[360px]">
+        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 pt-[200px] md:pt-[240px] lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)] lg:pt-[260px]">
           <div className="max-w-3xl">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]">Early Access · Patent Pending</p>
             <h1 className={`mt-5 text-4xl font-black leading-[1.06] tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-6xl ${headingFont}`}>
@@ -545,6 +554,9 @@ export default function FullLandingPage() {
                 </div>
                 <h3 className={`text-xl font-black tracking-[-0.02em] text-[#0A1020] ${headingFont}`}>{pillar.title}</h3>
                 <p className="mt-4 text-sm leading-7 text-slate-600">{pillar.description}</p>
+                <p className="mt-4 border-t border-slate-200 pt-4 text-xs font-semibold tracking-wider text-[#C9A961]">
+                  {pillar.detailLine}
+                </p>
               </article>
             ))}
           </div>
@@ -563,8 +575,12 @@ export default function FullLandingPage() {
             {videoTiles.map((tile) => (
               <VideoTile key={tile.src} title={tile.title} src={tile.src} />
             ))}
+            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-[#C9A961]/30 bg-gradient-to-br from-[#0A1530] to-[#060E22] p-8 text-center">
+              <p className="mb-3 text-xs font-semibold tracking-wider text-[#C9A961]">MORE SEGMENTS COMING</p>
+              <p className="text-lg font-semibold leading-snug text-white">New videos roll out as features ship.</p>
+              <p className="mt-3 text-sm text-white/60">Request early access to be notified when each one drops.</p>
+            </div>
           </div>
-          <p className="mt-8 text-center text-sm text-slate-500">More segments rolling out as features ship.</p>
         </div>
       </section>
 
@@ -577,12 +593,18 @@ export default function FullLandingPage() {
           </h2>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             {industries.map((industry) => (
-              <article key={industry.name} className="enterprise-card group rounded-2xl border border-transparent p-6 transition hover:border-[#C9A961]">
+              <article
+                key={industry.name}
+                className="enterprise-card group rounded-2xl border border-transparent p-6 transition-all duration-200 hover:-translate-y-1 hover:border-[#C9A961]/40 hover:shadow-lg hover:shadow-[#C9A961]/10"
+              >
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A1020] text-[#C9A961] transition group-hover:text-[#D9BE7B]">
                   <industry.icon className="h-5 w-5" />
                 </div>
                 <h3 className={`text-lg font-black text-[#0A1020] transition group-hover:text-[#C9A961] ${headingFont}`}>{industry.name}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{industry.descriptor}</p>
+                <div className="mt-3 border-t border-[#C9A961]/40 pt-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  <p className="text-xs font-semibold tracking-wider text-[#C9A961]">{industry.detailLine}</p>
+                </div>
               </article>
             ))}
           </div>
@@ -610,6 +632,7 @@ export default function FullLandingPage() {
                 </p>
                 <h3 className={`mt-4 text-2xl font-black text-white ${headingFont}`}>{step.title}</h3>
                 <p className="mt-4 text-sm leading-7 text-slate-300">{step.description}</p>
+                <p className="mt-3 text-sm leading-relaxed text-white/70">{step.detail}</p>
               </article>
             ))}
           </div>
@@ -621,7 +644,7 @@ export default function FullLandingPage() {
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Built On</p>
           <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
-            The standards that matter.
+            Built on the standards your auditors require.
           </h2>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {badges.map((badge) => (

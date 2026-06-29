@@ -42,24 +42,26 @@ export default function AboutPage() {
   return (
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
       {/* SECTION 1 — Hero */}
-      <section className="relative isolate overflow-hidden bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 px-6 pb-16 md:pb-20">
+      <section className="relative overflow-hidden bg-[#0A1530] pb-24 pt-[200px] md:pt-[240px]">
         <SiteNav />
-        <div className="relative z-10 mx-auto max-w-4xl pt-32 md:pt-40">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]">
-            Wiseman Financial Technologies, LLC
-          </p>
-          <p className="mt-4 text-sm font-medium italic tracking-wide text-[#C9A961] md:text-base">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A961]/5 blur-3xl" />
+        <div className="relative mx-auto max-w-4xl px-6 text-center">
+          <p className="mb-6 text-xs font-semibold tracking-[0.2em] text-[#C9A961]">WISEMAN FINANCIAL TECHNOLOGIES, LLC</p>
+          <p className="mb-8 text-sm tracking-wide text-[#C9A961] md:text-base">
             ADVISACOR™ · Powerful Intelligence. Simplified. · Insight. Accuracy. Confidence.
           </p>
-          <h1
-            className={`mt-8 text-4xl font-black leading-[1.06] tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-6xl ${headingFont}`}
-          >
+          <h1 className="text-5xl font-bold leading-tight text-white md:text-6xl lg:text-7xl">
             About Wiseman Financial Technologies
           </h1>
-          <p className="mt-6 text-lg leading-8 text-slate-700 md:text-xl">
+          <p className="mx-auto mt-8 max-w-3xl text-lg leading-relaxed text-white/80 md:text-xl">
             Enterprise SaaS that turns complex financial and operational work into powerful intelligence — designed to
             enhance the systems organizations already trust, not replace them.
           </p>
+          <div className="mt-12 inline-flex items-center gap-3 text-sm text-white/50">
+            <span className="h-px w-12 bg-[#C9A961]/40" />
+            <span className="tracking-wider">CLIFTON FORGE · VIRGINIA</span>
+            <span className="h-px w-12 bg-[#C9A961]/40" />
+          </div>
         </div>
       </section>
 

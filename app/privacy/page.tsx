@@ -1,37 +1,55 @@
 import type { Metadata } from "next";
 import { SiteFooter } from "../../components/SiteFooter";
 import { SiteNav } from "../../components/SiteNav";
-import { headingFont } from "../../components/site-ui";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Advisacor™",
-  description: "Privacy policy for Wiseman Financial Technologies LLC and Advisacor™.",
+  description: "Privacy policy for Wiseman Financial Technologies, LLC and the Advisacor™ platform.",
 };
 
 export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
-      <section className="relative isolate overflow-hidden bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 px-6 pb-16 md:pb-20">
+      <section className="bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 pb-20 pt-[200px] md:pt-[240px]">
         <SiteNav />
-        <div className="relative z-10 mx-auto max-w-3xl pt-32 md:pt-40">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]">Legal</p>
-          <h1 className={`mt-4 text-4xl font-black tracking-[-0.04em] text-slate-900 md:text-5xl ${headingFont}`}>
-            Privacy Policy
-          </h1>
-          <p className="mt-3 text-sm font-semibold text-slate-600">Last updated June 2026</p>
-          <div className="mt-10 space-y-4 text-lg leading-8 text-slate-700">
-            <p>
-              Wiseman Financial Technologies LLC (&quot;Advisacor™&quot;) is committed to protecting the privacy of our
-              users. A full privacy policy will be published prior to general availability of the platform.
-            </p>
-            <p>
-              For questions about data privacy, contact{" "}
-              <a href="mailto:privacy@advisacor.com" className="font-semibold text-[#C9A961] hover:text-[#B8975A]">
-                privacy@advisacor.com
-              </a>
-              .
-            </p>
-          </div>
+        <div className="mx-auto max-w-3xl px-6">
+          <p className="mb-4 text-xs font-semibold tracking-wider text-[#C9A961]">PRIVACY POLICY</p>
+          <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">Privacy Policy</h1>
+          <p className="mt-4 text-sm text-slate-600">Last updated: June 2026</p>
+        </div>
+      </section>
+
+      <section className="bg-white py-20">
+        <div className="prose prose-slate mx-auto max-w-3xl px-6">
+          <p>
+            Wiseman Financial Technologies, LLC (&quot;Advisacor™,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is
+            committed to protecting the privacy of visitors to our website and prospective customers who join our early
+            access waitlist.
+          </p>
+          <h2>Information We Collect</h2>
+          <p>
+            During the pre-launch phase, the only information we collect is the name and email address you voluntarily
+            submit through the Request Early Access form on our website. We use this information solely to communicate
+            with you about product updates, early access invitations, and launch news.
+          </p>
+          <h2>How We Use Your Information</h2>
+          <p>
+            We do not sell, rent, or share your information with third parties. Your information is stored securely and
+            used only for the purposes described above.
+          </p>
+          <h2>Future Updates</h2>
+          <p>
+            A comprehensive privacy policy describing how Advisacor™ handles customer financial data, security
+            architecture, and data residency will be published prior to general availability of the platform.
+          </p>
+          <h2>Contact</h2>
+          <p>
+            For questions about data privacy, contact{" "}
+            <a href="mailto:privacy@advisacor.com" className="text-[#C9A961] hover:underline">
+              privacy@advisacor.com
+            </a>
+            .
+          </p>
         </div>
       </section>
 
