@@ -27,14 +27,6 @@ export function SiteFooter() {
                   sales@advisacor.com
                 </a>
               </li>
-              <li>
-                <a
-                  href="mailto:contact@advisacor.com"
-                  className={`text-slate-700 transition-colors hover:text-[#0A1530] ${focusRing("rounded")}`}
-                >
-                  contact@advisacor.com
-                </a>
-              </li>
             </ul>
           </div>
 
