@@ -10,16 +10,16 @@ export function SiteNav() {
     <header className="relative z-20">
       <Link
         href="/"
-        className={`absolute top-2 left-2 z-20 md:top-4 md:left-6 ${focusRing("rounded-lg")}`}
+        className={`absolute top-3 left-3 z-20 md:top-5 md:left-6 ${focusRing("rounded-lg")}`}
         aria-label="Advisacor home"
       >
         <Image
           src={heroLogo}
           alt="Advisacor"
-          width={1510}
-          height={839}
+          width={900}
+          height={460}
           priority
-          className="pointer-events-none h-auto w-[300px] select-none sm:w-[360px] md:w-[420px] lg:w-[480px] xl:w-[540px]"
+        className="pointer-events-none absolute top-3 left-3 z-20 h-auto w-[280px] select-none md:top-5 md:left-6 md:w-[380px] lg:w-[440px]"
         />
       </Link>
       <nav className="absolute top-6 right-8 z-30">
