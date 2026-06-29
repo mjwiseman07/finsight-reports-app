@@ -198,10 +198,11 @@ export default function CapabilityCarousel() {
 
   return (
     <section
+      id="capabilities"
       ref={containerRef}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="relative w-full bg-gradient-to-b from-[#060E22] via-[#0A1530] to-[#060E22] pt-32 pb-20 lg:pt-40 lg:pb-28"
+      className="relative w-full scroll-mt-24 bg-gradient-to-b from-[#060E22] via-[#0A1530] to-[#060E22] pt-20 pb-20 lg:pt-28 lg:pb-28"
       aria-roledescription="carousel"
       aria-label="Advisacor capabilities"
     >
