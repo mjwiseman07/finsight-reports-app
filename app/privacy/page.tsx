@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
-      <section className="bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 pb-20 pt-[200px] md:pt-[240px]">
-        <SiteNav />
+      <SiteNav />
+      <section className="bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 pb-20 pt-[240px] md:pt-[260px] lg:pt-[280px]">
         <div className="mx-auto max-w-3xl px-6">
           <p className="mb-4 text-xs font-semibold tracking-wider text-[#C9A961]">PRIVACY POLICY</p>
           <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">Privacy Policy</h1>
