@@ -10,6 +10,9 @@ import * as hcNpo from "./pairs/healthcareNonprofit";
 import * as reHos from "./pairs/realEstateHospitality";
 import * as bankIns from "./pairs/bankingInsurance";
 import * as faIns from "./pairs/fundAccountingInsurance";
+import * as hcEdu from "./pairs/healthcareEducation";
+import * as mfgRtl from "./pairs/manufacturingRetail";
+import * as conRe from "./pairs/constructionRealEstate";
 
 export const PAIR_VALIDATORS: Record<CrossoverPairCode, readonly PairCrossoverValidator[]> = {
   "hc-npo": [
@@ -36,6 +39,24 @@ export const PAIR_VALIDATORS: Record<CrossoverPairCode, readonly PairCrossoverVa
     faIns.validateInvestmentCompanyVsInsuranceElection,
     faIns.validateIlsContractBoundary,
     faIns.validateFairValueHierarchyConsistency,
+  ],
+  "hc-edu": [
+    hcEdu.validateMedicalResearchGrantClassification,
+    hcEdu.validateTuitionVsCharityCareThreshold,
+    hcEdu.validateForm990ScheduleHEReference,
+    hcEdu.validateEndowmentSegregation,
+  ],
+  "mfg-rtl": [
+    mfgRtl.validateInventoryDecomposition,
+    mfgRtl.validateMarginMethodConsistency,
+    mfgRtl.validateLeasePortfolioDuality,
+    mfgRtl.validateSegmentBoundaryConsistency,
+  ],
+  "con-re": [
+    conRe.validateHeldForSaleVsInvestmentClassification,
+    conRe.validateConstructionPocVsCompletedContract,
+    conRe.validateCapitalizationCutover,
+    conRe.validateBuildToRentLessorDisclosure,
   ],
 } as const;
 

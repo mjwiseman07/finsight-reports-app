@@ -48,3 +48,89 @@ export class IlsContractBoundaryError extends CrossoverViolationError {
     this.name = "IlsContractBoundaryError";
   }
 }
+
+// === Wave 2 — Tier 2 pair errors ===
+
+export class HcEduGrantClassificationError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("hc-edu:medical-research-grant-classification", detail);
+    this.name = "HcEduGrantClassificationError";
+  }
+}
+
+export class HcEduTuitionCharityThresholdError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("hc-edu:tuition-charity-threshold", detail);
+    this.name = "HcEduTuitionCharityThresholdError";
+  }
+}
+
+export class HcEduSchedule990ReferenceError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("hc-edu:form-990-schedule-h-e-reference", detail);
+    this.name = "HcEduSchedule990ReferenceError";
+  }
+}
+
+export class HcEduEndowmentComminglingError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("hc-edu:endowment-segregation", detail);
+    this.name = "HcEduEndowmentComminglingError";
+  }
+}
+
+export class MfgRtlInventoryComminglingError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("mfg-rtl:inventory-decomposition", detail);
+    this.name = "MfgRtlInventoryComminglingError";
+  }
+}
+
+export class MfgRtlMarginMethodError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("mfg-rtl:margin-method-consistency", detail);
+    this.name = "MfgRtlMarginMethodError";
+  }
+}
+
+export class MfgRtlLeaseDualityError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("mfg-rtl:lease-portfolio-duality", detail);
+    this.name = "MfgRtlLeaseDualityError";
+  }
+}
+
+export class MfgRtlSegmentBoundaryError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("mfg-rtl:segment-boundary", detail);
+    this.name = "MfgRtlSegmentBoundaryError";
+  }
+}
+
+export class ConReClassificationError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("con-re:held-for-sale-vs-investment", detail);
+    this.name = "ConReClassificationError";
+  }
+}
+
+export class ConReContractMethodError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("con-re:poc-vs-completed-contract", detail);
+    this.name = "ConReContractMethodError";
+  }
+}
+
+export class ConReCapitalizationCutoverError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("con-re:capitalization-cutover", detail);
+    this.name = "ConReCapitalizationCutoverError";
+  }
+}
+
+export class ConReBuildToRentLessorError extends CrossoverViolationError {
+  constructor(detail: string) {
+    super("con-re:build-to-rent-lessor", detail);
+    this.name = "ConReBuildToRentLessorError";
+  }
+}

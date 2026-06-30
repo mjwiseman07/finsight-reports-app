@@ -1,7 +1,14 @@
 import type { ExternalTruthVertical } from "../../../scripts/external-truth/types";
 import type { CrossoverContext, CrossoverValidatorResult } from "./types";
 
-export type CrossoverPairCode = "hc-npo" | "re-hos" | "bank-ins" | "fa-ins";
+export type CrossoverPairCode =
+  | "hc-npo"
+  | "re-hos"
+  | "bank-ins"
+  | "fa-ins"
+  | "hc-edu"
+  | "mfg-rtl"
+  | "con-re";
 
 export interface CrossoverPairDescriptor {
   code: CrossoverPairCode;
@@ -46,4 +53,7 @@ export const ALL_PAIRS: readonly CrossoverPairDescriptor[] = [
   { code: "re-hos", primary: "re", secondary: "hos", displayName: "Real Estate × Hospitality", patentNamed: true },
   { code: "bank-ins", primary: "bank", secondary: "ins", displayName: "Banking × Insurance", patentNamed: true },
   { code: "fa-ins", primary: "fa", secondary: "ins", displayName: "Fund Accounting × Insurance", patentNamed: true },
+  { code: "hc-edu", primary: "hc", secondary: "edu", displayName: "Healthcare × Education", patentNamed: false },
+  { code: "mfg-rtl", primary: "mfg", secondary: "rtl", displayName: "Manufacturing × Retail (DTC)", patentNamed: false },
+  { code: "con-re", primary: "con", secondary: "re", displayName: "Construction × Real Estate", patentNamed: false },
 ] as const;
