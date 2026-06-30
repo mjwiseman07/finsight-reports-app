@@ -47,3 +47,14 @@ export {
   validateCollapseStepDocumentation,
   validateRegisterSchemaV120,
 };
+
+// === G7-C7 Wave 1 additive exports (do not modify lines above) ===
+export { runCrossoverForPair, PAIR_VALIDATORS, describePair } from "./pairRegistry";
+export type {
+  CrossoverPairCode,
+  CrossoverPairDescriptor,
+  PairCrossoverContext,
+  PairFixtureEntity,
+  PairCrossoverValidator,
+} from "./pairTypes";
+export { ALL_PAIRS } from "./pairTypes";

@@ -1,0 +1,10 @@
+{
+  "pair": { "code": "re-hos", "primary": "re", "secondary": "hos", "displayName": "Real Estate × Hospitality", "patentNamed": true },
+  "pairEntities": [
+    { "entityId": "DIAMOND-REIT-HOTELS", "primaryVertical": "re", "secondaryVertical": "hos", "primaryFramework": "US_GAAP_ASC360", "secondaryFramework": "US_GAAP_ASC606", "reit90DistributionMet": true, "hotelADR": 245.50, "hotelRevPAR": 198.12, "hasLessorDuality": true }
+  ],
+  "disclosures": [
+    { "entityId": "DIAMOND-REIT-HOTELS", "framework": "US_GAAP_ASC360", "emitterPath": "lib/router/real-estate/usgaap/propertyImpairment.ts", "text": "REIT property lessor disclosure" },
+    { "entityId": "DIAMOND-REIT-HOTELS", "framework": "US_GAAP_ASC606", "emitterPath": "lib/router/hospitality/usgaap/hotelRevenue.ts", "text": "Hotel ADR / RevPAR" }
+  ]
+}
