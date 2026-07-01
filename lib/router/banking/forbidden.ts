@@ -28,7 +28,7 @@ export function validateBankingForbidden(extracted: ExtractedFiling): void {
     // Router must fire htm-taint-disclosure; validate at routing time via assertHtmTaintDisclosureRequired
   }
 
-  if (b.gaapBasis === "IFRS" && b.ifrs9) {
+  if (b.gaapBasis === "ifrs" && b.ifrs9) {
     const amortizedCostEligible =
       b.ifrs9.sppiTestPass && b.ifrs9.businessModel === "hold-to-collect";
     if (!amortizedCostEligible && b.hasLoansHFI) {

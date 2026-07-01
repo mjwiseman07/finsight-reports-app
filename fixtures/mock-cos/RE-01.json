@@ -21,7 +21,7 @@
     "entity_type": "REIT",
     "real_estate": {
       "entityType": "REIT",
-      "gaapBasis": "US GAAP",
+      "gaapBasis": "us-gaap",
       "revenue": {
         "rental": 80000000,
         "property_count": 18

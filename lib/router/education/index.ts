@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { citationResolved, type EmitterResult } from "../types";
 import { MissingDisclosureInputError } from "./errors";
 import {
@@ -15,7 +15,7 @@ import * as usAuxiliary from "./usgaap/auxiliaryEnterprisesDisclosure";
 import * as ipsasNonExchange from "./ipsas/nonExchangeRevenueDisclosure";
 
 export interface EducationRouterOutput {
-  framework: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
 }

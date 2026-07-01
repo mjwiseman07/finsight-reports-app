@@ -9,7 +9,7 @@ export function validateInsuranceForbidden(extracted: ExtractedFiling): void {
   }
   const ins = getInsurance(extracted);
 
-  if (ins.gaapBasis === "IFRS" && ins.naicFilerFlag) {
+  if (ins.gaapBasis === "ifrs" && ins.naicFilerFlag) {
     throw new FrameworkViolationError(
       "IFRS_17",
       "NAIC SAP under IFRS basis",
@@ -36,7 +36,7 @@ export function validateInsuranceForbidden(extracted: ExtractedFiling): void {
     );
   }
 
-  if (ins.gaapBasis === "IFRS" && ins.ifrs17 && ins.ifrs17.annualCohortGrouping === false) {
+  if (ins.gaapBasis === "ifrs" && ins.ifrs17 && ins.ifrs17.annualCohortGrouping === false) {
     throw new FrameworkViolationError(
       "IFRS_17",
       "Annual cohort violation",

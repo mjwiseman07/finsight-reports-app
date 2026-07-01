@@ -124,6 +124,9 @@ export const VERTICALS: VerticalConfig[] = [
     code: "banking",
     name: "Banking",
     mockCoFixturePath: "fixtures/mock-cos/BANK-01.json",
+    // Legacy baseline — pre-canonicalization snapshot; do not update.
+    // If this test fails after Phase 1.5 canonicalization, regenerate
+    // the baseline as a separate commit with review.
     baselineDisclosurePath: "fixtures/baselines/BANK-01-pre-G8b.json",
     primaryFrameworks: [
       "ASC 326",

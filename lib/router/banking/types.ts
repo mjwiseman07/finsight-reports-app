@@ -1,7 +1,7 @@
 import type { ExtractedFiling } from "../../../scripts/external-truth/types";
 
 export interface BankingExtracted {
-  gaapBasis: "US-GAAP" | "IFRS";
+  gaapBasis: "us-gaap" | "ifrs";
   secFilerFlag: boolean;
   callReportForm?: "031" | "041" | "051";
   reportingEntity: "BHC" | "bank-subsidiary";
@@ -84,11 +84,11 @@ export function buildBankingEmitterInput(extracted: ExtractedFiling): BankingEmi
 }
 
 export function isUsGaapBanking(b: BankingExtracted): boolean {
-  return b.gaapBasis === "US-GAAP";
+  return b.gaapBasis === "us-gaap";
 }
 
 export function isIfrsBanking(b: BankingExtracted): boolean {
-  return b.gaapBasis === "IFRS";
+  return b.gaapBasis === "ifrs";
 }
 
 export function hasInScopeCeclAssets(b: BankingExtracted): boolean {
@@ -109,7 +109,7 @@ export function hasRegulatoryCapital(b: BankingExtracted): boolean {
 }
 
 export function hasIfrs9Input(b: BankingExtracted): boolean {
-  return Boolean(b.ifrs9 && b.gaapBasis === "IFRS");
+  return Boolean(b.ifrs9 && b.gaapBasis === "ifrs");
 }
 
 export function hedgeDocumentationPresent(b: BankingExtracted): boolean {

@@ -27,7 +27,7 @@
     "entity_type": "C-Corp",
     "tax_status": "taxable",
     "banking": {
-      "gaapBasis": "US-GAAP",
+      "gaapBasis": "us-gaap",
       "secFilerFlag": false,
       "callReportForm": "051",
       "reportingEntity": "bank-subsidiary",

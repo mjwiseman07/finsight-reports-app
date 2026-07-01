@@ -2,7 +2,7 @@
  * G7-V discovered disclosure entry point (Step 1).
  * No src/disclosures/generate.ts — LOCK-G7 uses per-vertical routers in lib/router/.
  */
-import type { ExtractedFiling } from "../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../scripts/external-truth/types";
 import type { EmitterResult } from "../../lib/router/types";
 import { runHealthcareRouter } from "../../lib/router/healthcare";
 import { runManufacturingRouter } from "../../lib/router/manufacturing";
@@ -21,7 +21,7 @@ import { runInsuranceRouter } from "../../lib/router/insurance";
 import { runBankingRouter } from "../../lib/router/banking";
 
 export type RouterOutput = {
-  framework: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
   frameworkViolation?: {

@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { citationResolved, type EmitterResult } from "../types";
 import { MissingDisclosureInputError } from "./errors";
 import {
@@ -18,7 +18,7 @@ import * as usTimeshare from "./usgaap/timeshareRevenueDisclosure";
 import * as usUsali from "./usgaap/usaliDepartmentalSchedules";
 
 export interface HospitalityRouterOutput {
-  framework: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
 }

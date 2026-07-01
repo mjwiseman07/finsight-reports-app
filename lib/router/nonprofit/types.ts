@@ -1,7 +1,7 @@
 import type { ExtractedFiling } from "../../../scripts/external-truth/types";
 import { FrameworkUnsupportedError } from "./errors";
 
-export type NonprofitFrameworkLane = "us_gaap" | "ipsas" | "ifrs_for_smes";
+export type NonprofitFrameworkLane = "us-gaap" | "ipsas" | "ifrs-for-smes";
 
 export interface NonprofitEmitterInput {
   extracted: ExtractedFiling;
@@ -12,13 +12,13 @@ const STANDARD_NATURE_KEYS = ["salaries", "occupancy", "depreciation", "professi
 
 export function resolveNonprofitFrameworkLane(extracted: ExtractedFiling): NonprofitFrameworkLane {
   if (extracted.rawFrameworkSignals.includes("ifrs_for_smes")) {
-    return "ifrs_for_smes";
+    return "ifrs-for-smes";
   }
   if (extracted.framework === "ipsas") {
     return "ipsas";
   }
   if (extracted.framework === "us-gaap") {
-    return "us_gaap";
+    return "us-gaap";
   }
   throw new FrameworkUnsupportedError(`NPO framework not supported: ${extracted.framework}`);
 }

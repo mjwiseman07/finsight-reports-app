@@ -1,7 +1,7 @@
 import type { ExtractedFiling } from "../../../scripts/external-truth/types";
 
 export interface InsuranceExtracted {
-  gaapBasis: "US-GAAP" | "IFRS";
+  gaapBasis: "us-gaap" | "ifrs";
   naicFilerFlag: boolean;
   hasShortDurationContracts: boolean;
   hasLongDurationContracts: boolean;
@@ -86,11 +86,11 @@ export function buildInsuranceEmitterInput(extracted: ExtractedFiling): Insuranc
 }
 
 export function isUsGaapInsurance(ins: InsuranceExtracted): boolean {
-  return ins.gaapBasis === "US-GAAP";
+  return ins.gaapBasis === "us-gaap";
 }
 
 export function isIfrsInsurance(ins: InsuranceExtracted): boolean {
-  return ins.gaapBasis === "IFRS";
+  return ins.gaapBasis === "ifrs";
 }
 
 export function hasLossReservesInput(ins: InsuranceExtracted): boolean {
@@ -123,7 +123,7 @@ export function hasLongDurationInput(ins: InsuranceExtracted): boolean {
 }
 
 export function hasIfrs17Input(ins: InsuranceExtracted): boolean {
-  return Boolean(ins.ifrs17 && ins.gaapBasis === "IFRS");
+  return Boolean(ins.ifrs17 && ins.gaapBasis === "ifrs");
 }
 
 export function hasSapInput(ins: InsuranceExtracted): boolean {

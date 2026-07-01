@@ -23,7 +23,7 @@ function loadFixture(relPath: string): ExtractedFiling {
 describe("construction C7a-1b framework non-comingling", () => {
   it("US GAAP lane output has zero IFRS forbidden substrings across new emitters", () => {
     const extracted = loadFixture("usgaap/unitsOfDeliveryOutputMeasure/happy-housing-units.json");
-    const output = constructionLaneOutputText(extracted, "us_gaap");
+    const output = constructionLaneOutputText(extracted, "us-gaap");
     expect(collectForbiddenMatches(output, USGAAP_CON_FORBIDDEN_OUTPUT_SUBSTRINGS)).toEqual([]);
     expect(output.length).toBeGreaterThan(0);
   });
@@ -37,7 +37,7 @@ describe("construction C7a-1b framework non-comingling", () => {
 
   it("cross-cutting output-measure method-switch: units and milestones emit; invalid method throws FrameworkViolationError", () => {
     const extracted = loadFixture("cross-cutting/output-measure-method-switch.json");
-    const unitsOutput = constructionLaneOutputText(extracted, "us_gaap");
+    const unitsOutput = constructionLaneOutputText(extracted, "us-gaap");
     expect(collectForbiddenMatches(unitsOutput, USGAAP_CON_FORBIDDEN_OUTPUT_SUBSTRINGS)).toEqual([]);
     expect(unitsOutput).toMatch(/units-of-delivery/i);
 
@@ -52,7 +52,7 @@ describe("construction C7a-1b framework non-comingling", () => {
           },
         },
       },
-      "us_gaap",
+      "us-gaap",
     );
     expect(milestonesOutput).toMatch(/milestone/i);
 

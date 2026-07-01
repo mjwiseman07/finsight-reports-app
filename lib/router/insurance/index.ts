@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { FrameworkViolationError } from "../errors/FrameworkViolationError";
 import { citationResolved, type EmitterResult } from "../types";
 import { MissingDisclosureInputError } from "./errors";
@@ -35,7 +35,7 @@ export interface InsuranceFrameworkViolation {
 }
 
 export interface InsuranceRouterOutput {
-  framework: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
   frameworkViolation?: InsuranceFrameworkViolation;
@@ -207,11 +207,11 @@ export function runInsuranceRouter(extracted: ExtractedFiling): InsuranceRouterO
       ...results.flatMap((r) => (r.status === "satisfied" ? r.lines.map((l) => l.text) : [])),
     ];
 
-    return { framework: ins.gaapBasis as ExtractedFiling["framework"], results, augmentedNarratives };
+    return { framework: ins.gaapBasis, results, augmentedNarratives };
   } catch (error) {
     if (error instanceof FrameworkViolationError) {
       return {
-        framework: (extracted.insurance?.gaapBasis ?? "unknown") as ExtractedFiling["framework"],
+        framework: extracted.insurance?.gaapBasis ?? "unknown",
         results: [],
         augmentedNarratives: extracted.narrativeSnippets,
         frameworkViolation: frameworkViolationFromError(error),

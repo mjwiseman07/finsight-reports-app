@@ -25,6 +25,78 @@ export type ExternalTruthVertical =
 
 export type ReportingFramework = "us-gaap" | "ifrs" | "ipsas";
 
+/**
+ * Framework identifiers carried by router outputs.
+ *
+ * Superset of ReportingFramework with two additional states that only
+ * appear at the router boundary (not in extraction/emission):
+ *   - "ifrs-for-smes": smaller-entity IFRS regime; distinct disclosure
+ *     requirements from full IFRS (used primarily by nonprofits, some
+ *     smaller banks/insurers).
+ *   - "unknown": framework could not be determined from extraction.
+ *     Emitters MUST refuse to run on unknown framework.
+ *
+ * This type is DISTINCT from lib/intelligence/synthetic/standards/**
+ * StandardsReportingFramework, which uses snake_case and finer-grained
+ * variants (e.g. "ifrs_iasb"). The two type systems serve different
+ * layers and are not interchangeable. Do not merge them.
+ */
+export type RouterFramework =
+  | ReportingFramework
+  | "ifrs-for-smes"
+  | "unknown";
+
+/**
+ * Type guard — framework belongs to the US GAAP family.
+ * The ONLY sanctioned way to branch on GAAP-vs-IFRS at router level.
+ */
+export function isGaapFramework(f: RouterFramework): f is "us-gaap" {
+  return f === "us-gaap";
+}
+
+/**
+ * Type guard — framework belongs to any IFRS family (full IFRS OR
+ * IFRS for SMEs). Both share IFRS disclosure roots but have distinct
+ * treatments. Emitters that differ between the two variants MUST
+ * further use isFullIfrs() or isIfrsForSmes().
+ */
+export function isIfrsFamily(f: RouterFramework): f is "ifrs" | "ifrs-for-smes" {
+  return f === "ifrs" || f === "ifrs-for-smes";
+}
+
+/** Type guard — full IFRS only (not the SMEs variant). */
+export function isFullIfrs(f: RouterFramework): f is "ifrs" {
+  return f === "ifrs";
+}
+
+/** Type guard — IFRS for SMEs only. */
+export function isIfrsForSmes(f: RouterFramework): f is "ifrs-for-smes" {
+  return f === "ifrs-for-smes";
+}
+
+/** Type guard — International Public Sector Accounting Standards. */
+export function isIpsas(f: RouterFramework): f is "ipsas" {
+  return f === "ipsas";
+}
+
+/**
+ * Type guard — framework could not be determined. Callers MUST
+ * handle this explicitly (typically by refusing to emit).
+ */
+export function isUnknownFramework(f: RouterFramework): f is "unknown" {
+  return f === "unknown";
+}
+
+/**
+ * Exhaustiveness marker for switch statements on RouterFramework.
+ * If a new variant is added to RouterFramework without updating a
+ * switch, this function's call site produces a compile-time TYPE
+ * ERROR — preventing silent GAAP/IFRS blending.
+ */
+export function assertNeverFramework(framework: never): never {
+  throw new Error(`Unhandled RouterFramework variant: ${JSON.stringify(framework)}`);
+}
+
 export type ValidationTier = "structural" | "numeric" | "narrative";
 
 export type GapSeverity = "low" | "medium" | "high" | "critical";
@@ -418,7 +490,7 @@ export interface ExtractedFiling {
   };
   real_estate?: {
     entityType?: string;
-    gaapBasis?: string;
+    gaapBasis?: "us-gaap" | "ifrs";
     revenue?: {
       rental: number;
       property_count: number;
