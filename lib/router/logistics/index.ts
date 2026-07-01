@@ -12,7 +12,7 @@ import * as usDemurrage from "./usgaap/demurrageDetentionRevenue";
 import * as usFuelSurcharge from "./usgaap/fuelSurchargeDisclosure";
 
 export interface LogisticsRouterOutput {
-  frameworkLane: string;
+  framework: ExtractedFiling["framework"];
   results: EmitterResult[];
   augmentedNarratives: string[];
 }
@@ -72,7 +72,7 @@ export function runLogisticsRouter(extracted: ExtractedFiling): LogisticsRouterO
     ...results.flatMap((r) => (r.status === "satisfied" ? r.lines.map((l) => l.text) : [])),
   ];
 
-  return { frameworkLane: extracted.framework, results, augmentedNarratives };
+  return { framework: extracted.framework, results, augmentedNarratives };
 }
 
 export function emitterSatisfiesAssertion(

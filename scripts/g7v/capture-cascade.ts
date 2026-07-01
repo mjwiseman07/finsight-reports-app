@@ -1,5 +1,6 @@
 import type { ExtractedFiling } from "../../scripts/external-truth/types";
 import type { EmitterResult } from "../../lib/router/types";
+import { hasAllowanceAsc606Input } from "../../lib/router/lanes/healthcare/types";
 import { CASCADE_STAGES } from "./verticals";
 
 export type StageSkip = { stageId: number; reason: string };
@@ -139,7 +140,7 @@ export function observeRouterDisclosureStages(
     fire(10, "Router proxy: fair-value / holdings measurements present in fund inputs");
   }
 
-  if (extracted.healthcare_revenue?.asc606?.allowance || extracted.receivables) {
+  if (hasAllowanceAsc606Input(extracted) || extracted.receivables) {
     fire(11, "Router proxy: receivables / allowance inputs present");
   }
 

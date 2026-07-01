@@ -15,7 +15,7 @@ import * as usAuxiliary from "./usgaap/auxiliaryEnterprisesDisclosure";
 import * as ipsasNonExchange from "./ipsas/nonExchangeRevenueDisclosure";
 
 export interface EducationRouterOutput {
-  frameworkLane: string;
+  framework: ExtractedFiling["framework"];
   results: EmitterResult[];
   augmentedNarratives: string[];
 }
@@ -80,7 +80,7 @@ export function runEducationRouter(extracted: ExtractedFiling): EducationRouterO
     ...results.flatMap((r) => (r.status === "satisfied" ? r.lines.map((l) => l.text) : [])),
   ];
 
-  return { frameworkLane: extracted.framework, results, augmentedNarratives };
+  return { framework: extracted.framework, results, augmentedNarratives };
 }
 
 export function emitterSatisfiesAssertion(

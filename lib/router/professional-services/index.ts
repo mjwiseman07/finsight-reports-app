@@ -9,7 +9,7 @@ import * as ifrsUnbilled from "./ifrs/unbilledReceivablesDisclosure";
 import * as ifrsPrincipal from "./ifrs/principalVsAgentDisclosure";
 
 export interface PsRouterOutput {
-  frameworkLane: ExtractedFiling["framework"];
+  framework: ExtractedFiling["framework"];
   results: EmitterResult[];
   augmentedNarratives: string[];
 }
@@ -64,7 +64,7 @@ export function runProfessionalServicesRouter(extracted: ExtractedFiling): PsRou
       result.status === "satisfied" ? result.lines.map((line) => line.text) : [],
     ),
   ];
-  return { frameworkLane: extracted.framework, results, augmentedNarratives };
+  return { framework: extracted.framework, results, augmentedNarratives };
 }
 
 export function emitterSatisfiesAssertion(

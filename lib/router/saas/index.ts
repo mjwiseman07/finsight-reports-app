@@ -18,7 +18,7 @@ import * as ifrsVc from "./ifrs/variableConsiderationConstraint";
 import * as ifrsPva from "./ifrs/principalVsAgent";
 
 export interface SaasRouterOutput {
-  frameworkLane: ExtractedFiling["framework"];
+  framework: ExtractedFiling["framework"];
   results: EmitterResult[];
   augmentedNarratives: string[];
 }
@@ -96,7 +96,7 @@ export function runSaasRouter(extracted: ExtractedFiling): SaasRouterOutput {
       result.status === "satisfied" ? result.lines.map((line) => line.text) : [],
     ),
   ];
-  return { frameworkLane: extracted.framework, results, augmentedNarratives };
+  return { framework: extracted.framework, results, augmentedNarratives };
 }
 
 export function emitterSatisfiesAssertion(

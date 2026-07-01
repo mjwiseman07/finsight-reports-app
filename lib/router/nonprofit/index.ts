@@ -16,7 +16,7 @@ export interface NonprofitRouterDeferred {
 }
 
 export interface NonprofitRouterOutput {
-  frameworkLane: string;
+  framework: ExtractedFiling["framework"];
   results: EmitterResult[];
   deferred?: NonprofitRouterDeferred;
   augmentedNarratives: string[];
@@ -70,7 +70,7 @@ export function runNonprofitRouter(extracted: ExtractedFiling): NonprofitRouterO
 
   if (lane === "ifrs_for_smes") {
     return {
-      frameworkLane: lane,
+      framework: lane as ExtractedFiling["framework"],
       results: [],
       deferred: {
         framework: "ifrs_for_smes",
@@ -89,7 +89,7 @@ export function runNonprofitRouter(extracted: ExtractedFiling): NonprofitRouterO
     ),
   ];
 
-  return { frameworkLane: lane, results, augmentedNarratives };
+  return { framework: lane as ExtractedFiling["framework"], results, augmentedNarratives };
 }
 
 export function emitterSatisfiesAssertion(

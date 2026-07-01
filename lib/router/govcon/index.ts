@@ -11,7 +11,7 @@ import * as ifrsContractMix from "./ifrs/contractTypeMixDisclosure";
 import * as ifrsBacklog from "./ifrs/backlogDisclosure";
 
 export interface GovconRouterOutput {
-  frameworkLane: ExtractedFiling["framework"];
+  framework: ExtractedFiling["framework"];
   results: EmitterResult[];
   augmentedNarratives: string[];
 }
@@ -68,7 +68,7 @@ export function runGovconRouter(extracted: ExtractedFiling): GovconRouterOutput 
       result.status === "satisfied" ? result.lines.map((line) => line.text) : [],
     ),
   ];
-  return { frameworkLane: extracted.framework, results, augmentedNarratives };
+  return { framework: extracted.framework, results, augmentedNarratives };
 }
 
 export function emitterSatisfiesAssertion(

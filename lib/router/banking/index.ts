@@ -40,7 +40,7 @@ export interface BankingFrameworkViolation {
 }
 
 export interface BankingRouterOutput {
-  frameworkLane: string;
+  framework: ExtractedFiling["framework"];
   results: EmitterResult[];
   augmentedNarratives: string[];
   frameworkViolation?: BankingFrameworkViolation;
@@ -274,11 +274,11 @@ export function runBankingRouter(extracted: ExtractedFiling): BankingRouterOutpu
       ...results.flatMap((r) => (r.status === "satisfied" ? r.lines.map((l) => l.text) : [])),
     ];
 
-    return { frameworkLane: b.gaapBasis, results, augmentedNarratives };
+    return { framework: b.gaapBasis as ExtractedFiling["framework"], results, augmentedNarratives };
   } catch (error) {
     if (error instanceof FrameworkViolationError) {
       return {
-        frameworkLane: extracted.banking?.gaapBasis ?? "unknown",
+        framework: (extracted.banking?.gaapBasis ?? "unknown") as ExtractedFiling["framework"],
         results: [],
         augmentedNarratives: extracted.narrativeSnippets,
         frameworkViolation: frameworkViolationFromError(error),

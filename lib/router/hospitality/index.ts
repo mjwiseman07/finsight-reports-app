@@ -18,7 +18,7 @@ import * as usTimeshare from "./usgaap/timeshareRevenueDisclosure";
 import * as usUsali from "./usgaap/usaliDepartmentalSchedules";
 
 export interface HospitalityRouterOutput {
-  frameworkLane: string;
+  framework: ExtractedFiling["framework"];
   results: EmitterResult[];
   augmentedNarratives: string[];
 }
@@ -98,7 +98,7 @@ export function runHospitalityRouter(extracted: ExtractedFiling): HospitalityRou
     ...results.flatMap((r) => (r.status === "satisfied" ? r.lines.map((l) => l.text) : [])),
   ];
 
-  return { frameworkLane: extracted.framework, results, augmentedNarratives };
+  return { framework: extracted.framework, results, augmentedNarratives };
 }
 
 export function emitterSatisfiesAssertion(

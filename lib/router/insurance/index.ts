@@ -35,7 +35,7 @@ export interface InsuranceFrameworkViolation {
 }
 
 export interface InsuranceRouterOutput {
-  frameworkLane: string;
+  framework: ExtractedFiling["framework"];
   results: EmitterResult[];
   augmentedNarratives: string[];
   frameworkViolation?: InsuranceFrameworkViolation;
@@ -207,11 +207,11 @@ export function runInsuranceRouter(extracted: ExtractedFiling): InsuranceRouterO
       ...results.flatMap((r) => (r.status === "satisfied" ? r.lines.map((l) => l.text) : [])),
     ];
 
-    return { frameworkLane: ins.gaapBasis, results, augmentedNarratives };
+    return { framework: ins.gaapBasis as ExtractedFiling["framework"], results, augmentedNarratives };
   } catch (error) {
     if (error instanceof FrameworkViolationError) {
       return {
-        frameworkLane: extracted.insurance?.gaapBasis ?? "unknown",
+        framework: (extracted.insurance?.gaapBasis ?? "unknown") as ExtractedFiling["framework"],
         results: [],
         augmentedNarratives: extracted.narrativeSnippets,
         frameworkViolation: frameworkViolationFromError(error),
