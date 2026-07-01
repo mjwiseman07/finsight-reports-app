@@ -34,9 +34,11 @@ function ensureTypeScriptLoader() {
 
 async function main() {
   ensureTypeScriptLoader();
+  // Import the pure runner directly — the sibling .test.ts file imports vitest
+  // which cannot be loaded from a CommonJS require() chain.
   const testModulePath = path.join(
     root,
-    "architecture-lane/verifier-42-7f/__tests__/wiringVerifier.test.ts",
+    "architecture-lane/verifier-42-7f/wiringVerifierRunner.ts",
   );
   // eslint-disable-next-line import/no-dynamic-require, global-require
   const { runWiringVerifierTests } = require(testModulePath);

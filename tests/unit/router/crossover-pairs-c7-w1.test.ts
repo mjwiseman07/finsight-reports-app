@@ -27,11 +27,16 @@ function loadPairFixture(file: string): PairCrossoverContext {
 }
 
 describe("G7-C7 Wave 1 — infra", () => {
-  it("ALL_PAIRS contains exactly 4 patent-named pairs", () => {
-    expect(ALL_PAIRS).toHaveLength(4);
-    expect(ALL_PAIRS.every((p) => p.patentNamed)).toBe(true);
+  // W1 owns the 4 patent-named pairs. Total ALL_PAIRS length is
+  // owned by the wave that last extended the registry (currently W2).
+  const W1_CODES = ["hc-npo", "re-hos", "bank-ins", "fa-ins"] as const;
+
+  it("ALL_PAIRS contains the 4 patent-named W1 pairs", () => {
+    const patentNamed = ALL_PAIRS.filter((p) => p.patentNamed);
+    expect(patentNamed).toHaveLength(4);
+    expect(patentNamed.map((p) => p.code).sort()).toEqual([...W1_CODES].sort());
   });
-  it("describePair resolves all 4 codes", () => {
+  it("describePair resolves all 4 W1 codes with correct primary verticals", () => {
     expect(describePair("hc-npo").primary).toBe("hc");
     expect(describePair("re-hos").primary).toBe("re");
     expect(describePair("bank-ins").primary).toBe("bank");
