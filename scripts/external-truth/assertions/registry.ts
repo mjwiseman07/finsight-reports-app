@@ -1,5 +1,11 @@
 /**
  * Phase G7-C5.5 — vertical assertion pack registry.
+ *
+ * Registers the 15-vertical substrate: 9 verticals are built and have real
+ * assertion packs. The remaining 6 (edu, re, hos, log, bank, ins) are
+ * registered with a shared no-op function until their packs are built.
+ * The no-op preserves the exhaustive Record<ExternalTruthVertical, ...>
+ * type contract without falsely implying assertion coverage.
  */
 import type { ExternalTruthVertical } from "../types";
 import type { AssertionResult, ValidatorContext } from "./types";
@@ -14,7 +20,20 @@ import { assertions as professionalServicesAssertions } from "./professional-ser
 import { assertions as fundAccountingAssertions } from "./fund-accounting/index";
 import { assertions as frameworkAssertions } from "./framework/index";
 
+/**
+ * Shared no-op assertion pack. Used for verticals that are registered in the
+ * ExternalTruthVertical type but do not yet have a built assertion pack.
+ * Returns an empty result set — no assertions run, no assertions fail.
+ *
+ * When a real pack is built for one of these verticals:
+ *   1. Create scripts/external-truth/assertions/<vertical>/index.ts with an
+ *      `assertions` export matching the (ctx: ValidatorContext) => AssertionResult[] signature
+ *   2. Import it here and replace the noAssertions binding in PACKS below
+ */
+const noAssertions = (_ctx: ValidatorContext): AssertionResult[] => [];
+
 const PACKS: Record<ExternalTruthVertical, (ctx: ValidatorContext) => AssertionResult[]> = {
+  // Built packs
   saas: saasAssertions,
   rtl: retailAssertions,
   hc: healthcareAssertions,
@@ -24,6 +43,13 @@ const PACKS: Record<ExternalTruthVertical, (ctx: ValidatorContext) => AssertionR
   gc: govconAssertions,
   ps: professionalServicesAssertions,
   fa: fundAccountingAssertions,
+  // Registered stubs — packs not yet built
+  edu: noAssertions, // Education
+  re: noAssertions, // Real Estate
+  hos: noAssertions, // Hospitality
+  log: noAssertions, // Logistics
+  bank: noAssertions, // Banking
+  ins: noAssertions, // Insurance
 };
 
 export function runVerticalAssertions(ctx: ValidatorContext): AssertionResult[] {

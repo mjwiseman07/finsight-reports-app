@@ -39,6 +39,26 @@ export interface PairFixtureEntity {
   navReported?: number;
   reservesReported?: number;
   ilsContractBoundaryDocumented?: boolean;
+  // Wave 2 — Tier 2 pair fields
+  restrictedResearchGrant?: boolean;
+  tuitionDiscountThresholdMet?: boolean;
+  endowmentSegregated?: boolean;
+  has501c3Marker?: boolean;
+  hasScheduleHDisclosure?: boolean;
+  hasScheduleEDisclosure?: boolean;
+  inventoryHasWIP?: boolean;
+  inventoryHasFGOnly?: boolean;
+  marginMethod?: "cost-plus" | "markup" | "mixed";
+  singleSegmentAggregation?: boolean;
+  segmentAggregationJustified?: boolean;
+  ownedManufacturingFacility?: boolean;
+  leasedRetailStorefront?: boolean;
+  heldForSale?: boolean;
+  heldForInvestment?: boolean;
+  usesPOC?: boolean;
+  usesCompletedContract?: boolean;
+  capitalizationCutoverDocumented?: boolean;
+  buildToRentLeaseUp?: boolean;
 }
 
 export interface PairCrossoverContext extends CrossoverContext {
