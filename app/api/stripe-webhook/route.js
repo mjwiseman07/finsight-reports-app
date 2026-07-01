@@ -1,122 +1,97 @@
-import { NextResponse } from "next/server";
-import Stripe from "stripe";
-import { supabaseAdmin } from "../../../lib/supabase";
+import { NextResponse } from 'next/server';
+import { stripe } from '@/lib/stripe';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { syncSubscriptionFromStripe } from '@/lib/subscription-sync';
 
-function getStripeClient() {
-  if (!process.env.STRIPE_SECRET_KEY) return null;
-  return new Stripe(process.env.STRIPE_SECRET_KEY);
-}
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-function getPriceIdToPlan() {
-  return {
-    [process.env.STRIPE_PRICE_PULSE_STARTER]: "pulse_starter",
-    [process.env.STRIPE_PRICE_PULSE_PRO]: "pulse_pro",
-    [process.env.STRIPE_PRICE_ADVISACOR_PROFESSIONAL]: "advisacor_professional",
-    [process.env.STRIPE_PRICE_ADVISACOR_CFO]: "advisacor_cfo",
-    [process.env.STRIPE_PRICE_ESSENTIAL]: "essential",
-    [process.env.STRIPE_PRICE_PROFESSIONAL]: "professional",
-    [process.env.STRIPE_PRICE_VIRTUAL_CFO]: "virtualCfo",
-  };
-}
+const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
-function stripeUnavailableResponse() {
-  return NextResponse.json(
-    { error: "Stripe is not configured for this deployment." },
-    { status: 503 },
-  );
-}
-
-export async function POST(request) {
-  const stripe = getStripeClient();
-
-  if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
-    return stripeUnavailableResponse();
+export async function POST(req) {
+  if (!WEBHOOK_SECRET) {
+    console.error('[stripe-webhook] STRIPE_WEBHOOK_SECRET missing');
+    return NextResponse.json({ error: 'not_configured' }, { status: 500 });
   }
 
-  if (!supabaseAdmin) {
-    return NextResponse.json(
-      { error: "Supabase is not configured for this deployment." },
-      { status: 503 },
-    );
-  }
+  const signature = req.headers.get('stripe-signature');
+  if (!signature) return NextResponse.json({ error: 'no_signature' }, { status: 400 });
 
-  const priceIdToPlan = getPriceIdToPlan();
-  const signature = request.headers.get("stripe-signature");
-
-  if (!signature) {
-    return NextResponse.json({ error: "Missing Stripe signature" }, { status: 400 });
-  }
-
+  const raw = await req.text();
   let event;
+  try {
+    event = stripe.webhooks.constructEvent(raw, signature, WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('[stripe-webhook] signature verification failed', err.message);
+    return NextResponse.json({ error: 'invalid_signature' }, { status: 400 });
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  const { error: insertErr } = await supabase.from('stripe_webhook_events').insert({
+    stripe_event_id: event.id,
+    event_type: event.type,
+    received_at: new Date().toISOString(),
+  });
+
+  if (insertErr) {
+    if (insertErr.code === '23505') {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    console.error('[stripe-webhook] ledger insert failed', insertErr);
+    return NextResponse.json({ error: 'ledger_failed' }, { status: 500 });
+  }
 
   try {
-    const rawBody = Buffer.from(await request.arrayBuffer());
-    event = stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (error) {
-    return NextResponse.json(
-      { error: `Webhook signature verification failed: ${error.message}` },
-      { status: 400 },
-    );
+    await handleEvent(event);
+    await supabase
+      .from('stripe_webhook_events')
+      .update({ processed_at: new Date().toISOString() })
+      .eq('stripe_event_id', event.id);
+    return NextResponse.json({ received: true });
+  } catch (err) {
+    console.error(`[stripe-webhook] handler failed for ${event.type}`, err);
+    return NextResponse.json({ error: 'handler_failed' }, { status: 500 });
   }
+}
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const email = session.customer_details?.email || session.customer_email;
-    const stripeCustomerId =
-      typeof session.customer === "string" ? session.customer : session.customer?.id;
-    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
-    const priceId = lineItems.data[0]?.price?.id || null;
-    const subscriptionPlan = priceIdToPlan[priceId] || null;
-
-    if (email && stripeCustomerId) {
-      const { data: userRecord, error: lookupError } = await supabaseAdmin
-        .from("users")
-        .select("id")
-        .eq("email", email)
-        .single();
-
-      if (lookupError) {
-        return NextResponse.json({ error: lookupError.message }, { status: 500 });
+async function handleEvent(event) {
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object;
+      if (session.subscription) {
+        const subscriptionId =
+          typeof session.subscription === 'string'
+            ? session.subscription
+            : session.subscription.id;
+        await syncSubscriptionFromStripe(subscriptionId);
       }
-
-      if (userRecord?.id) {
-        const { error: updateError } = await supabaseAdmin
-          .from("users")
-          .update({
-            subscription_status: "active",
-            stripe_customer_id: stripeCustomerId,
-            subscription_price_id: priceId,
-            subscription_plan: subscriptionPlan,
-          })
-          .eq("id", userRecord.id);
-
-        if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 500 });
-        }
-      }
+      break;
     }
-  }
-
-  if (event.type === "customer.subscription.deleted") {
-    const subscription = event.data.object;
-    const stripeCustomerId =
-      typeof subscription.customer === "string"
-        ? subscription.customer
-        : subscription.customer?.id;
-
-    if (stripeCustomerId) {
-      const { error: updateError } = await supabaseAdmin
-        .from("users")
-        .update({
-          subscription_status: "cancelled",
-        })
-        .eq("stripe_customer_id", stripeCustomerId);
-
-      if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 });
-      }
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated':
+    case 'customer.subscription.deleted':
+    case 'customer.subscription.trial_will_end': {
+      const sub = event.data.object;
+      await syncSubscriptionFromStripe(sub.id);
+      break;
     }
+    case 'invoice.paid':
+    case 'invoice.payment_failed':
+    case 'invoice.upcoming': {
+      const invoice = event.data.object;
+      if (invoice.subscription) {
+        const subscriptionId =
+          typeof invoice.subscription === 'string'
+            ? invoice.subscription
+            : invoice.subscription.id;
+        await syncSubscriptionFromStripe(subscriptionId);
+      }
+      break;
+    }
+    case 'customer.updated':
+      break;
+    default:
+      console.log(`[stripe-webhook] unhandled event type: ${event.type}`);
   }
-
-  return NextResponse.json({ received: true });
 }
