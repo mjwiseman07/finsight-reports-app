@@ -172,7 +172,7 @@ function RefundQueueContent() {
     <div className="min-h-screen bg-[#F5F7FA] text-[#111827]">
       <SiteNav />
       <section className="relative overflow-hidden bg-gradient-to-b from-slate-200 via-slate-300 to-slate-400">
-        <div className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
+        <div className="mx-auto max-w-7xl px-6 pb-10 pt-[200px] sm:px-8 md:pt-[240px] lg:pt-[260px]">
           <p className={`${headingFont} text-xs uppercase tracking-[0.35em] text-[#C9A961]`}>
             Founder Console — Refund Queue
           </p>
