@@ -13,6 +13,7 @@ const PUBLIC_MARKETING_PATHS = new Set([
 
 const PUBLIC_MARKETING_API_PATHS = new Set([
   "/api/early-access",
+  "/api/stripe-webhook",
 ]);
 
 function normalizedHost(request: NextRequest) {
