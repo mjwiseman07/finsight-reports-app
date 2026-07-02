@@ -18,6 +18,12 @@ import {
   getRequestedRecurrence,
   shouldPersistRecurringPreference,
 } from "../../../../lib/pdf-package-customization";
+import { detectRefundIntent } from "../../../../lib/refunds/intent.ts";
+import { isNegativeReaction } from "../../../../lib/refunds/sentiment.ts";
+import {
+  handleRefundIntentRequest,
+  buildGenericErrorResponse,
+} from "../../../../lib/refunds/handler.js";
 import { resolveCompanyMembership } from "../../../../lib/company-security";
 import { auditSecurityEvent } from "../../../../lib/security-audit";
 import { assertReportPreflight } from "../../../../lib/reporting/report-preflight-validation";
@@ -349,12 +355,75 @@ export async function POST(request) {
 
     const companyId = body.companyId || body.company_id || null;
     const clientId = body.clientId || body.client_id || null;
-    const pdfCustomization = detectPdfPackageRequest(question);
 
     if (companyId) {
       const membership = await resolveCompanyMembership({ userId: authData.user.id, companyId });
       if (membership.response) return membership.response;
     }
+
+    const refundIntent = detectRefundIntent(question);
+    if (refundIntent.isRefundRequest || refundIntent.isCancellationOnly || isNegativeReaction(question)) {
+      try {
+        const refundResult = await handleRefundIntentRequest({
+          userId: authData.user.id,
+          userEmail: authData.user.email || "",
+          companyId,
+          message: question,
+        });
+
+        if (refundResult.response) {
+          await recordPulseUsage({
+            supabase: supabaseAdmin,
+            userId: authData.user.id,
+            companyId,
+            clientId,
+            subscriptionPlan,
+            question,
+            responseSource: "refund_intent",
+          });
+
+          await supabaseAdmin.from("pulse_conversation_memory").insert({
+            user_id: authData.user.id,
+            company_id: companyId,
+            client_id: clientId,
+            question,
+            response: refundResult.response,
+            intent: "refund_intent",
+            source_context: {
+              refund_path: refundResult.path,
+              refund_request_id: refundResult.refund_request_id,
+              escalated: refundResult.escalated,
+            },
+          });
+
+          return NextResponse.json({
+            question,
+            answer: refundResult.response,
+            source: "refund_intent",
+            refundIntent: refundResult,
+            usage: {
+              used: usage.limit === "unlimited" ? null : usage.used + 1,
+              limit: usage.limit,
+              tier: usage.tier.name,
+            },
+          });
+        }
+      } catch (refundError) {
+        console.error("[pulse/ask] refund intent failed", refundError);
+        return NextResponse.json({
+          question,
+          answer: buildGenericErrorResponse(),
+          source: "refund_intent_error",
+          usage: {
+            used: usage.limit === "unlimited" ? null : usage.used + 1,
+            limit: usage.limit,
+            tier: usage.tier.name,
+          },
+        });
+      }
+    }
+
+    const pdfCustomization = detectPdfPackageRequest(question);
 
     if (pdfCustomization) {
       const recurrence = body.recurrence || getRequestedRecurrence(question);
