@@ -124,6 +124,7 @@ export default function AdminPage() {
   const [supportMessage, setSupportMessage] = useState("");
   const [integrationValidation, setIntegrationValidation] = useState<IntegrationValidation | null>(null);
   const [isLoadingIntegrationValidation, setIsLoadingIntegrationValidation] = useState(false);
+  const [pendingRefundCount, setPendingRefundCount] = useState(0);
 
   const demoCompanies = useMemo(() => overview.demo_companies || [], [overview.demo_companies]);
   const selectedCompany = demoCompanies.find((company) => company.id === selectedCompanyId) || demoCompanies[0] || null;
@@ -170,6 +171,14 @@ export default function AdminPage() {
         setOverview(result);
         setSelectedCompanyId(result.demo_companies?.[0]?.id || "");
         await loadSupportTickets();
+
+        const refundsResponse = await fetch("/api/admin/refunds", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (refundsResponse.ok) {
+          const refundsResult = await refundsResponse.json();
+          setPendingRefundCount(Array.isArray(refundsResult.pending) ? refundsResult.pending.length : 0);
+        }
       } catch {
         setError("Unable to load Super Admin Mode.");
       } finally {
@@ -366,6 +375,22 @@ export default function AdminPage() {
               <p className="mt-3 max-w-3xl leading-7 text-slate-300">
                 Validate the same journey a customer uses: company onboarding, stored persona, stored package level, role-based users, delivery settings, package generation, jobs, logs, and demo-only QA sessions.
               </p>
+              <div className="mt-5">
+                <Link
+                  href="/admin/refunds"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/60 px-5 py-3 text-sm font-black text-white transition hover:border-[#FF7A1A]/40 hover:bg-white/5"
+                >
+                  Refund Queue
+                  {pendingRefundCount > 0 ? (
+                    <span className="rounded-full bg-[#FF7A1A] px-2.5 py-0.5 text-xs font-black text-white">
+                      {pendingRefundCount}
+                    </span>
+                  ) : null}
+                </Link>
+                <p className="mt-2 text-xs font-bold text-slate-500">
+                  Governed by Advisacor Refund Policy v1 · Path B founder review
+                </p>
+              </div>
               <div className="mt-5 flex flex-wrap gap-2">
                 {(overview.screens || superAdminScreens).map((screen) => (
                   <a key={screen} href={`#${screen.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-black text-slate-300 hover:bg-white/[0.1]">
