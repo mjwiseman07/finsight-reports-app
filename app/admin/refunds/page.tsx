@@ -43,7 +43,7 @@ function statusBadgeClass(status: string) {
 function RefundQueueContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const highlightId = searchParams.get("highlight");
+  const highlightId = searchParams?.get("highlight") ?? null;
 
   const [pending, setPending] = useState<RefundQueueItem[]>([]);
   const [recent, setRecent] = useState<RefundQueueItem[]>([]);

@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import { resolveSuperAdminAccess, auditSuperAdminEvent } from '../../../../../lib/super-admin-security';
-import { rateLimit } from '../../../../../lib/rate-limit';
-import { getSupabaseAdmin } from '../../../../../lib/supabase-admin.js';
-import { approveAndExecuteRefund } from '../../../../../lib/refunds/execute.ts';
-import { logRefundAudit } from '../../../../../lib/refunds/subscription-lookup.js';
+import { resolveSuperAdminAccess, auditSuperAdminEvent } from '@/lib/super-admin-security';
+import { rateLimit } from '@/lib/rate-limit';
+import { getSupabaseAdmin } from '@/lib/supabase-admin.js';
+import { approveAndExecuteRefund } from '@/lib/refunds/execute';
+import { logRefundAudit } from '@/lib/refunds/subscription-lookup.js';
 import {
   sendFounderApprovalEmail,
   sendFounderDenialEmail,
-} from '../../../../../lib/refunds/customer-email.js';
-import { sendFounderAlert } from '../../../../../lib/founder-alerts.js';
+} from '@/lib/refunds/customer-email.js';
+import { sendFounderAlert } from '@/lib/founder-alerts.js';
 
 export async function POST(request, { params }) {
   const rateLimitResponse = rateLimit(request, { key: 'admin-refunds-decide', limit: 30, windowMs: 60_000 });

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../../lib/supabase';
-import { rateLimit } from '../../../../lib/rate-limit';
-import { handleRefundIntentRequest, buildGenericErrorResponse } from '../../../../lib/refunds/handler.js';
+import { supabaseAdmin } from '@/lib/supabase';
+import { rateLimit } from '@/lib/rate-limit';
+import { handleRefundIntentRequest, buildGenericErrorResponse } from '@/lib/refunds/handler.js';
 
 export async function POST(request) {
   const rateLimitResponse = rateLimit(request, { key: 'pulse-refund-intent', limit: 20, windowMs: 60_000 });

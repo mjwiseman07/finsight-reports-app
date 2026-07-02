@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { resolveSuperAdminAccess } from '../../../../lib/super-admin-security';
-import { rateLimit } from '../../../../lib/rate-limit';
-import { getSupabaseAdmin } from '../../../../lib/supabase-admin.js';
-import { REFUND_WINDOW_DAYS } from '../../../../lib/refund-config.js';
-import { daysRemainingInWindow } from '../../../../lib/refunds/subscription-lookup.js';
+import { resolveSuperAdminAccess } from '@/lib/super-admin-security';
+import { rateLimit } from '@/lib/rate-limit';
+import { getSupabaseAdmin } from '@/lib/supabase-admin.js';
+import { REFUND_WINDOW_DAYS } from '@/lib/refund-config.js';
+import { daysRemainingInWindow } from '@/lib/refunds/subscription-lookup.js';
 
 async function enrichRefundRows(rows) {
   if (!rows?.length) return [];
