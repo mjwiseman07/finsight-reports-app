@@ -125,11 +125,13 @@
     "validate:frameworks": "npx tsx scripts/validate-fixture-frameworks.ts"
   },
   "dependencies": {
+    "@sparticuz/chromium-min": "^149.0.0",
     "@stripe/stripe-js": "^5.10.0",
     "@supabase/supabase-js": "^2.106.1",
     "next": "16.2.6",
     "node-quickbooks": "^2.0.50",
     "papaparse": "^5.5.3",
+    "puppeteer-core": "^25.3.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",

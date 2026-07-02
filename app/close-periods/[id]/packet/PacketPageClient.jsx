@@ -6,6 +6,8 @@ import PacketSectionCard from "./PacketSectionCard";
 import SectionEditorDrawer from "./SectionEditorDrawer";
 import RegenerateButton from "./RegenerateButton";
 import LockButton from "./LockButton";
+import DownloadPdfButton from "./DownloadPdfButton";
+import ShareLinksPanel from "./ShareLinksPanel";
 
 export default function PacketPageClient({
   closePeriodId,
@@ -14,6 +16,8 @@ export default function PacketPageClient({
   firmName,
   periodLabel,
   sections,
+  hideChrome = false,
+  hasPdf = false,
 }) {
   const [drawerSection, setDrawerSection] = useState(null);
 
@@ -54,30 +58,28 @@ export default function PacketPageClient({
           ))}
         </main>
 
-        <aside className="no-print w-full shrink-0 lg:w-64">
-          <div className="sticky top-6 space-y-3 rounded-2xl border border-white/10 bg-[#111112] p-4">
-            {!packetLocked && (
-              <RegenerateButton closePeriodId={closePeriodId} packetLocked={packetLocked} />
-            )}
-            <LockButton packetId={packet.id} packetLocked={packetLocked} sectionStatuses={sectionStatuses} />
-            <button
-              type="button"
-              disabled
-              className="w-full cursor-not-allowed rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/40"
-              title="PDF export ships in C4"
-            >
-              Download PDF (C4)
-            </button>
-          </div>
-        </aside>
+        {!hideChrome && (
+          <aside className="no-print w-full shrink-0 lg:w-64">
+            <div className="sticky top-6 space-y-3 rounded-2xl border border-white/10 bg-[#111112] p-4">
+              {!packetLocked && (
+                <RegenerateButton closePeriodId={closePeriodId} packetLocked={packetLocked} />
+              )}
+              <LockButton packetId={packet.id} packetLocked={packetLocked} sectionStatuses={sectionStatuses} />
+              <DownloadPdfButton packetId={packet.id} hasPdf={hasPdf} />
+              {packetLocked && <ShareLinksPanel packetId={packet.id} />}
+            </div>
+          </aside>
+        )}
       </div>
 
-      <SectionEditorDrawer
-        packetId={packet.id}
-        section={drawerSection}
-        open={Boolean(drawerSection)}
-        onClose={() => setDrawerSection(null)}
-      />
+      {!hideChrome && (
+        <SectionEditorDrawer
+          packetId={packet.id}
+          section={drawerSection}
+          open={Boolean(drawerSection)}
+          onClose={() => setDrawerSection(null)}
+        />
+      )}
     </div>
   );
 }

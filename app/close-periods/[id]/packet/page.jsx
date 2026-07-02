@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { headingFont } from "@/components/site-ui";
 import PacketPageClient from "./PacketPageClient";
@@ -27,6 +28,16 @@ export default async function PacketPage({ params }) {
   const { id: closePeriodId } = await params;
   const supabase = getSupabaseAdmin();
 
+  // Headless Puppeteer (C4) visits with the internal render token so it can
+  // snapshot a chrome-free page. In that mode we strip the right rail + drawer.
+  const headersList = await headers();
+  const renderTokenHeader = headersList.get("x-internal-render-token");
+  const isInternalRender = Boolean(
+    renderTokenHeader &&
+      process.env.INTERNAL_RENDER_TOKEN &&
+      renderTokenHeader === process.env.INTERNAL_RENDER_TOKEN,
+  );
+
   const { data: closePeriod } = await supabase
     .from("close_periods")
     .select("id, firm_client_id, period_start, period_end, status")
@@ -47,7 +58,7 @@ export default async function PacketPage({ params }) {
 
   const { data: packet } = await supabase
     .from("close_packets")
-    .select("id, version, status, locked_at, rendered_at")
+    .select("id, version, status, locked_at, rendered_at, pdf_object_path")
     .eq("close_period_id", closePeriodId)
     .order("version", { ascending: false })
     .limit(1)
@@ -91,6 +102,8 @@ export default async function PacketPage({ params }) {
           firmName={firmName}
           periodLabel={label}
           sections={sections || []}
+          hideChrome={isInternalRender}
+          hasPdf={Boolean(packet.pdf_object_path)}
         />
       )}
     </div>
