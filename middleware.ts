@@ -9,6 +9,16 @@ const PUBLIC_MARKETING_PATHS = new Set([
   "/about",
   "/privacy",
   "/coming-soon",
+  // App routes reachable from marketing hosts (auth + primary product surfaces).
+  // Role/auth gating happens inside these routes; middleware only controls reachability.
+  "/signin",
+  "/signup",
+  "/dashboard",
+  "/onboarding",
+  "/admin",
+  "/admin/refunds",
+  "/refund-policy",
+  "/support",
 ]);
 
 const PUBLIC_MARKETING_API_PATHS = new Set([
@@ -39,6 +49,15 @@ function isMarketingAllowed(pathname: string) {
   return (
     PUBLIC_MARKETING_PATHS.has(pathname) ||
     PUBLIC_MARKETING_API_PATHS.has(pathname) ||
+    // Allow all admin subpaths (admin/refunds, admin/users, etc.) and dashboard subpaths.
+    pathname.startsWith("/admin/") ||
+    pathname.startsWith("/dashboard/") ||
+    pathname.startsWith("/onboarding/") ||
+    // Allow app API surfaces that need to run for signed-in users on the marketing host.
+    pathname.startsWith("/api/admin/") ||
+    pathname.startsWith("/api/pulse/") ||
+    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/integrations/") ||
     pathname.startsWith("/#")
   );
 }
