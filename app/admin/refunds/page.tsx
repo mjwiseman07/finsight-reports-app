@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { AdvisacorLogo } from "../../../components/AdvisacorLogo";
-import { SupportHelpButton } from "../../../components/SupportHelpButton";
+import { SiteNav } from "../../../components/SiteNav";
+import { SiteFooter } from "../../../components/SiteFooter";
+import { headingFont, primaryCtaClass, focusRing } from "../../../components/site-ui";
 
 type RefundQueueItem = {
   id: string;
@@ -153,44 +154,46 @@ function RefundQueueContent() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-[#0A1020] px-6 py-10 text-white">
-        <p className="text-sm font-bold text-slate-400">Loading refund queue…</p>
+      <main className="min-h-screen bg-[#F5F7FA] px-6 py-10 text-[#111827]">
+        <p className="text-sm font-bold text-slate-600">Loading refund queue…</p>
       </main>
     );
   }
 
   if (error && !pending.length && !recent.length) {
     return (
-      <main className="min-h-screen bg-[#0A1020] px-6 py-10 text-white">
-        <p className="rounded-3xl border border-red-300/40 bg-red-500/15 p-6 text-sm font-bold text-red-100">{error}</p>
+      <main className="min-h-screen bg-[#F5F7FA] px-6 py-10 text-[#111827]">
+        <p className="rounded-3xl border border-red-300/60 bg-red-50 p-6 text-sm font-bold text-red-700">{error}</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#0A1020] px-6 py-6 text-white">
-      <div className="mx-auto max-w-7xl">
-        <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/[0.04] px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <Link href="/" className="block w-[min(420px,40vw)]">
-            <AdvisacorLogo priority className="w-full" />
-          </Link>
-          <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-slate-300">
-            <Link href="/admin" className="rounded-2xl border border-white/10 px-4 py-2 hover:bg-white/5">
-              Admin dashboard
-            </Link>
-            {adminEmail ? <span>Logged in as {adminEmail}</span> : null}
-          </div>
-          <SupportHelpButton compact />
-        </header>
-
-        <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-8">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FFB36F]">Founder operations</p>
-          <h1 className="mt-2 text-3xl font-black">Refund Queue</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            Governed by Advisacor Refund Policy v1 · Virginia law. Decisions are anchored to subscription tier,
-            first-cycle charge dates, and the disclosure validation surfaces that govern Advisacor billing.
+    <div className="min-h-screen bg-[#F5F7FA] text-[#111827]">
+      <SiteNav />
+      <section className="relative overflow-hidden bg-gradient-to-b from-slate-200 via-slate-300 to-slate-400">
+        <div className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
+          <p className={`${headingFont} text-xs uppercase tracking-[0.35em] text-[#C9A961]`}>
+            Founder Console — Refund Queue
           </p>
-        </section>
+          <h1 className={`${headingFont} mt-3 text-4xl font-semibold text-[#0A1530] sm:text-5xl`}>
+            Refund Requests
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm text-slate-700">
+            Review pending refund requests. Path A (auto-approve) executes within
+            SLA. Path B and C require founder approval.
+          </p>
+          <div className="mt-6">
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-400 bg-white/60 px-4 py-2 text-sm font-medium text-[#0A1530] hover:bg-white"
+            >
+              ← Back to Admin Workspace
+            </Link>
+          </div>
+        </div>
+      </section>
+      <main className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
 
         {toast && (
           <p className="mt-5 rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-100">
@@ -209,7 +212,7 @@ function RefundQueueContent() {
           </p>
         )}
 
-        <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+        <section className="mt-8 rounded-3xl border border-white/10 bg-[#0A1530] p-6 text-white">
           <h2 className="text-xl font-black">Pending review</h2>
           <p className="mt-2 text-sm text-slate-400">Path B requests awaiting founder decision (oldest first).</p>
           <div className="mt-5 grid gap-4">
@@ -258,7 +261,7 @@ function RefundQueueContent() {
           </div>
         </section>
 
-        <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+        <section className="mt-8 rounded-3xl border border-white/10 bg-[#0A1530] p-6 text-white">
           <h2 className="text-xl font-black">Recent activity</h2>
           <div className="mt-5 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
@@ -291,7 +294,7 @@ function RefundQueueContent() {
             </table>
           </div>
         </section>
-      </div>
+      </main>
 
       {modalItem && modalAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
@@ -329,7 +332,7 @@ function RefundQueueContent() {
                 type="button"
                 disabled={isSubmitting || !modalReason.trim()}
                 onClick={() => void submitDecision()}
-                className="rounded-2xl bg-[#FF7A1A] px-4 py-2 text-sm font-black text-white disabled:opacity-50"
+                className={`${primaryCtaClass} inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm disabled:opacity-50 ${focusRing()}`}
               >
                 {isSubmitting ? "Saving…" : "Confirm"}
               </button>
@@ -337,7 +340,8 @@ function RefundQueueContent() {
           </div>
         </div>
       )}
-    </main>
+      <SiteFooter />
+    </div>
   );
 }
 
@@ -345,8 +349,8 @@ export default function AdminRefundsPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-[#0A1020] px-6 py-10 text-white">
-          <p className="text-sm font-bold text-slate-400">Loading refund queue…</p>
+        <main className="min-h-screen bg-[#F5F7FA] px-6 py-10 text-[#111827]">
+          <p className="text-sm font-bold text-slate-600">Loading refund queue…</p>
         </main>
       }
     >

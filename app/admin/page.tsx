@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { AdvisacorLogo } from "../../components/AdvisacorLogo";
-import { SupportHelpButton } from "../../components/SupportHelpButton";
+import { SiteNav } from "../../components/SiteNav";
+import { SiteFooter } from "../../components/SiteFooter";
+import { headingFont, primaryCtaClass, focusRing } from "../../components/site-ui";
 import { superAdminScreens } from "../../lib/super-admin";
 import { supportTicketStatuses } from "../../lib/support-center";
 
@@ -316,17 +317,23 @@ export default function AdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0A1020] px-6 py-6 text-white">
-      <div className="mx-auto max-w-7xl">
-        <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/[0.04] px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
-            <AdvisacorLogo priority className="w-full" />
-          </Link>
-          <div className="text-sm font-bold text-slate-300">
-            {overview.admin?.email ? `Logged in as ${overview.admin.email}` : "Validating internal admin access"}
-          </div>
-          <SupportHelpButton compact />
-        </header>
+    <div className="min-h-screen bg-[#F5F7FA] text-[#111827]">
+      <SiteNav />
+      <section className="relative overflow-hidden bg-gradient-to-b from-slate-200 via-slate-300 to-slate-400">
+        <div className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
+          <p className={`${headingFont} text-xs uppercase tracking-[0.35em] text-[#C9A961]`}>
+            Founder Console — Patent Pending
+          </p>
+          <h1 className={`${headingFont} mt-3 text-4xl font-semibold text-[#0A1530] sm:text-5xl`}>
+            Admin Workspace
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm text-slate-700">
+            Manage tenants, jobs, audit logs, and refund queue. Actions taken here
+            are logged and reversible.
+          </p>
+        </div>
+      </section>
+      <main className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
 
         {overview.admin && (
           <div className="sticky top-3 z-40 mt-5 grid gap-3 rounded-3xl border border-red-300/40 bg-red-500/15 p-4 text-sm font-bold text-red-50 shadow-2xl shadow-black/25 backdrop-blur-xl md:grid-cols-4">
@@ -350,7 +357,7 @@ export default function AdminPage() {
         )}
 
         {isLoading && (
-          <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-sm font-bold text-slate-300">
+          <div className="mt-6 rounded-3xl border border-white/10 bg-[#0A1530] p-6 text-sm font-bold text-slate-300">
             Validating super admin access...
           </div>
         )}
@@ -369,8 +376,8 @@ export default function AdminPage() {
 
         {!isLoading && !error && overview.admin && (
           <section className="mt-8 grid gap-6">
-            <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Super Admin Dashboard</p>
+            <section className="rounded-[2rem] border border-white/10 bg-[#0A1530] p-6">
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Super Admin Dashboard</p>
               <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">Company Testing Center</h1>
               <p className="mt-3 max-w-3xl leading-7 text-slate-300">
                 Validate the same journey a customer uses: company onboarding, stored persona, stored package level, role-based users, delivery settings, package generation, jobs, logs, and demo-only QA sessions.
@@ -591,7 +598,7 @@ export default function AdminPage() {
                   type="button"
                   onClick={() => void loadIntegrationValidation()}
                   disabled={isLoadingIntegrationValidation}
-                  className="mt-4 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`${primaryCtaClass} mt-4 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${focusRing()}`}
                 >
                   {isLoadingIntegrationValidation ? "Running Validation..." : "Run Integration Validation"}
                 </button>
@@ -639,7 +646,7 @@ export default function AdminPage() {
                     type="button"
                     onClick={() => runAdminAction(card.action)}
                     disabled={isRunningAction}
-                    className="mt-4 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    className={`${primaryCtaClass} mt-4 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${focusRing()}`}
                   >
                     {card.button}
                   </button>
@@ -663,7 +670,7 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => void loadSupportTickets(supportSearch)}
-                  className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white"
+                  className={`${primaryCtaClass} inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm ${focusRing()}`}
                 >
                   Search Tickets
                 </button>
@@ -758,14 +765,15 @@ export default function AdminPage() {
             </section>
           </section>
         )}
-      </div>
-    </main>
+      </main>
+      <SiteFooter />
+    </div>
   );
 }
 
 function Panel({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+    <section id={id} className="rounded-[2rem] border border-white/10 bg-[#0A1530] p-6">
       <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-400">{title}</p>
       <div className="mt-4">{children}</div>
     </section>
