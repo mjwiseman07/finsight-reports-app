@@ -31,6 +31,7 @@ export async function POST(req) {
   const { error: insertErr } = await supabase.from('stripe_webhook_events').insert({
     stripe_event_id: event.id,
     event_type: event.type,
+    payload: event,
     received_at: new Date().toISOString(),
   });
 
