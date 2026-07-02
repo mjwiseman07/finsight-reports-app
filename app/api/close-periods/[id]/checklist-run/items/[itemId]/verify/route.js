@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { runVerifier } from "@/lib/checklist-verifiers/registry";
+import { finalizeChecklistRun } from "@/lib/checklist-run-finalize";
 
 export async function POST(req, { params }) {
   const supabase = getSupabaseAdmin();
@@ -51,8 +52,14 @@ export async function POST(req, { params }) {
       ai_result_json: result.raw || null,
     })
     .eq("id", itemId)
-    .select()
+    .select("*, run_id")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ item: data });
+
+  let runStatus = null;
+  if (data?.run_id && closePeriodId) {
+    runStatus = await finalizeChecklistRun(supabase, data.run_id, closePeriodId);
+  }
+
+  return NextResponse.json({ item: data, runStatus });
 }
