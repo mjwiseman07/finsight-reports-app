@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { citationResolved, type EmitterResult } from "../types";
 import { MissingDisclosureInputError } from "./errors";
 import { assertSaasFrameworkSupported, buildSaasEmitterInput } from "./types";
@@ -18,7 +18,7 @@ import * as ifrsVc from "./ifrs/variableConsiderationConstraint";
 import * as ifrsPva from "./ifrs/principalVsAgent";
 
 export interface SaasRouterOutput {
-  frameworkLane: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
 }
@@ -96,7 +96,7 @@ export function runSaasRouter(extracted: ExtractedFiling): SaasRouterOutput {
       result.status === "satisfied" ? result.lines.map((line) => line.text) : [],
     ),
   ];
-  return { frameworkLane: extracted.framework, results, augmentedNarratives };
+  return { framework: extracted.framework, results, augmentedNarratives };
 }
 
 export function emitterSatisfiesAssertion(
@@ -124,7 +124,7 @@ export function withRouterNarratives(extracted: ExtractedFiling): ExtractedFilin
   return { ...extracted, narrativeSnippets: router.augmentedNarratives };
 }
 
-export function saasLaneOutputText(extracted: ExtractedFiling, lane: "us_gaap" | "ifrs"): string {
+export function saasLaneOutputText(extracted: ExtractedFiling, lane: "us-gaap" | "ifrs"): string {
   const clone: ExtractedFiling = {
     ...extracted,
     framework: lane === "ifrs" ? "ifrs" : "us-gaap",

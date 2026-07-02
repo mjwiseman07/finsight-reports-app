@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { citationResolved, type EmitterResult } from "../types";
 import { FrameworkViolationError } from "../errors/FrameworkViolationError";
 import { MissingDisclosureInputError } from "./errors";
@@ -32,7 +32,7 @@ export interface RetailFrameworkViolation {
 }
 
 export interface RetailRouterOutput {
-  frameworkLane: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
   frameworkViolation?: RetailFrameworkViolation;
@@ -100,7 +100,7 @@ function runRetailIfrsLeaseLane(extracted: ExtractedFiling): EmitterResult[] {
 function runRetailIfrsLane(extracted: ExtractedFiling): RetailRouterOutput {
   if (hasAnyLeaseAsc842Input(extracted)) {
     return {
-      frameworkLane: extracted.framework,
+      framework: extracted.framework,
       results: [],
       augmentedNarratives: extracted.narrativeSnippets,
       frameworkViolation: {
@@ -131,7 +131,7 @@ function runRetailIfrsLane(extracted: ExtractedFiling): RetailRouterOutput {
           result.status === "satisfied" ? result.lines.map((line) => line.text) : [],
         ),
       ];
-      return { frameworkLane: extracted.framework, results, augmentedNarratives };
+      return { framework: extracted.framework, results, augmentedNarratives };
     }
 
     const results = leaseResults;
@@ -141,11 +141,11 @@ function runRetailIfrsLane(extracted: ExtractedFiling): RetailRouterOutput {
         result.status === "satisfied" ? result.lines.map((line) => line.text) : [],
       ),
     ];
-    return { frameworkLane: extracted.framework, results, augmentedNarratives };
+    return { framework: extracted.framework, results, augmentedNarratives };
   } catch (error) {
     if (error instanceof FrameworkViolationError) {
       return {
-        frameworkLane: extracted.framework,
+        framework: extracted.framework,
         results: [],
         augmentedNarratives: extracted.narrativeSnippets,
         frameworkViolation: frameworkViolationFromError(error),
@@ -158,7 +158,7 @@ function runRetailIfrsLane(extracted: ExtractedFiling): RetailRouterOutput {
 function runRetailUsgaapLane(extracted: ExtractedFiling): RetailRouterOutput {
   if (hasAnyLeaseIfrs16Input(extracted)) {
     return {
-      frameworkLane: extracted.framework,
+      framework: extracted.framework,
       results: [],
       augmentedNarratives: extracted.narrativeSnippets,
       frameworkViolation: {
@@ -203,11 +203,11 @@ function runRetailUsgaapLane(extracted: ExtractedFiling): RetailRouterOutput {
         result.status === "satisfied" ? result.lines.map((line) => line.text) : [],
       ),
     ];
-    return { frameworkLane: extracted.framework, results, augmentedNarratives };
+    return { framework: extracted.framework, results, augmentedNarratives };
   } catch (error) {
     if (error instanceof FrameworkViolationError) {
       return {
-        frameworkLane: extracted.framework,
+        framework: extracted.framework,
         results: [],
         augmentedNarratives: extracted.narrativeSnippets,
         frameworkViolation: frameworkViolationFromError(error),
@@ -225,7 +225,7 @@ export function runRetailRouter(extracted: ExtractedFiling): RetailRouterOutput 
     return runRetailUsgaapLane(extracted);
   }
   return {
-    frameworkLane: extracted.framework,
+    framework: extracted.framework,
     results: [],
     augmentedNarratives: extracted.narrativeSnippets,
   };

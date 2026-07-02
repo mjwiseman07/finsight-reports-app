@@ -1,0 +1,373 @@
+{
+  "evidenceVersion": "42.7C.2",
+  "generatedAt": "2026-06-24T00:00:00Z",
+  "totalCases": 52,
+  "passCount": 52,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "A.entry-shape.01",
+      "decision": "well-formed-entry",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Sample PanelDecisionEntry validates."
+    },
+    {
+      "id": "A.entry-shape.02",
+      "decision": "missing-callerPersonaHandle",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Missing callerPersonaHandle rejected."
+    },
+    {
+      "id": "A.entry-shape.callerTenantId",
+      "decision": "missing-callerTenantId",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Empty callerTenantId rejected."
+    },
+    {
+      "id": "A.entry-shape.callerSessionId",
+      "decision": "missing-callerSessionId",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Empty callerSessionId rejected."
+    },
+    {
+      "id": "A.entry-shape.callerOrgHandle",
+      "decision": "missing-callerOrgHandle",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Empty callerOrgHandle rejected."
+    },
+    {
+      "id": "A.entry-shape.tenantClassification",
+      "decision": "missing-tenantClassification",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Empty tenantClassification rejected."
+    },
+    {
+      "id": "A.entry-shape.advisoryCount",
+      "decision": "advisory-count-mismatch",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "advisoriesGenerated.length must equal advisoryCount."
+    },
+    {
+      "id": "A.entry-shape.citationWhitelist",
+      "decision": "citation-outside-locked-set",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Citation handle outside locked set rejected."
+    },
+    {
+      "id": "B.every-decision.01",
+      "decision": "zero-advisory-logged",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "Execute path logs advisoryCount 0."
+    },
+    {
+      "id": "B.every-decision.02",
+      "decision": "one-advisory-logged",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Hire-up path logs advisoryCount 1."
+    },
+    {
+      "id": "B.every-decision.03",
+      "decision": "multi-advisory-logged",
+      "expected": "gte-2",
+      "outcome": "gte-2",
+      "reason": "Hard-stop escalate logs multiple bundled advisories."
+    },
+    {
+      "id": "B.every-decision.04",
+      "decision": "default-selection-logged",
+      "expected": "panel.decision",
+      "outcome": "panel.decision",
+      "reason": "Default execute selection still produces panel.decision entry."
+    },
+    {
+      "id": "B.every-decision.05",
+      "decision": "no-deduplication",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "Repeated identical calls produce one entry per call."
+    },
+    {
+      "id": "C.caller-identity.01",
+      "decision": "zero-advisory-identity",
+      "expected": "all-present",
+      "outcome": "all-present",
+      "reason": "All four caller identity fields on zero-advisory outcome."
+    },
+    {
+      "id": "C.caller-identity.02",
+      "decision": "advisory-identity",
+      "expected": "all-present",
+      "outcome": "all-present",
+      "reason": "All four caller identity fields on advisory outcome."
+    },
+    {
+      "id": "C.caller-identity.03",
+      "decision": "default-panel-identity",
+      "expected": "all-present",
+      "outcome": "all-present",
+      "reason": "All four caller identity fields on default-panel outcome."
+    },
+    {
+      "id": "C.caller-identity.04",
+      "decision": "non-empty-strings",
+      "expected": "non-empty",
+      "outcome": "non-empty",
+      "reason": "Caller identity fields are non-empty strings."
+    },
+    {
+      "id": "C.caller-identity.05",
+      "decision": "same-session-two-entries",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Two calls from same session produce identical callerSessionId."
+    },
+    {
+      "id": "D.bundling.01",
+      "decision": "three-advisories-one-entry",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Single entry with 3 bundled advisories validates."
+    },
+    {
+      "id": "D.bundling.02",
+      "decision": "advisory-fields",
+      "expected": "all-four",
+      "outcome": "all-four",
+      "reason": "Each bundled advisory has all four PanelAdvisorySummary fields."
+    },
+    {
+      "id": "D.bundling.03",
+      "decision": "locked-citation",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Bundled advisory citationHandle is from locked set."
+    },
+    {
+      "id": "D.bundling.04",
+      "decision": "severity-tier",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Bundled advisory severityTier is valid enum."
+    },
+    {
+      "id": "D.bundling.05",
+      "decision": "deterministic-order",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Bundled advisory order is deterministic across repeated identical inputs."
+    },
+    {
+      "id": "D.bundling.06",
+      "decision": "empty-array-not-null",
+      "expected": "array",
+      "outcome": "array",
+      "reason": "Zero advisories produces advisoriesGenerated: [] (empty array)."
+    },
+    {
+      "id": "E.phi.01",
+      "decision": "phi-classification",
+      "expected": "phi-covered",
+      "outcome": "phi-covered",
+      "reason": "PHI tenant produces tenantClassification phi-covered."
+    },
+    {
+      "id": "E.phi.02",
+      "decision": "standard-classification",
+      "expected": "standard",
+      "outcome": "standard",
+      "reason": "Standard tenant produces tenantClassification standard."
+    },
+    {
+      "id": "E.phi.03",
+      "decision": "phi-namespace",
+      "expected": "phi-covered",
+      "outcome": "phi-covered",
+      "reason": "PHI tenant entries routed to phi-covered audit namespace."
+    },
+    {
+      "id": "E.phi.04",
+      "decision": "classifier-fail-closed",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Tenant classifier failure fails panel decision (fail-closed)."
+    },
+    {
+      "id": "F.fail-closed.01",
+      "decision": "append-throws",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "AuditLogWriter.append() throwing causes runPanelDecision() to throw."
+    },
+    {
+      "id": "F.fail-closed.02",
+      "decision": "no-decision-on-fail",
+      "expected": "not-returned",
+      "outcome": "not-returned",
+      "reason": "Caller does NOT receive a decision when audit write fails."
+    },
+    {
+      "id": "F.fail-closed.03",
+      "decision": "audit-before-return",
+      "expected": "append-first",
+      "outcome": "append-first",
+      "reason": "Audit write happens before decision is returned."
+    },
+    {
+      "id": "F.fail-closed.04",
+      "decision": "nth-call-throws",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Nth invocation throws when writer throws on Nth call."
+    },
+    {
+      "id": "F.fail-closed.05",
+      "decision": "retry-after-failure",
+      "expected": "failed-then-success",
+      "outcome": "failed-then-success",
+      "reason": "No partial state left behind on audit failure; retry succeeds."
+    },
+    {
+      "id": "G.hash-chain.01",
+      "decision": "prevHash-links",
+      "expected": "linked",
+      "outcome": "linked",
+      "reason": "Panel entry prevHash references previous entry in chain."
+    },
+    {
+      "id": "G.hash-chain.02",
+      "decision": "mixed-chain-verify",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Mixed cache + panel chain verifies via verifyAuditChain()."
+    },
+    {
+      "id": "G.hash-chain.03",
+      "decision": "chain-break-detected",
+      "expected": "invalid",
+      "outcome": "invalid",
+      "reason": "Chain break between panel entry and next entry is detected."
+    },
+    {
+      "id": "G.hash-chain.04",
+      "decision": "tamper-advisories",
+      "expected": "invalid",
+      "outcome": "invalid",
+      "reason": "Tampering advisoriesGenerated invalidates chain."
+    },
+    {
+      "id": "G.hash-chain.05",
+      "decision": "tamper-prevHash",
+      "expected": "invalid",
+      "outcome": "invalid",
+      "reason": "Tampering prevHash invalidates chain."
+    },
+    {
+      "id": "G.hash-chain.06",
+      "decision": "file-round-trip",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Round-trip through FileAppendAuditLogWriter produces a valid chain."
+    },
+    {
+      "id": "H.regression.01",
+      "decision": "panel-consumer-suite-exists",
+      "expected": "exists",
+      "outcome": "exists",
+      "reason": "42.7C panelConsumer.test.ts regression suite exists."
+    },
+    {
+      "id": "H.regression.02",
+      "decision": "87-test-floor",
+      "expected": "87",
+      "outcome": "87",
+      "reason": "panelConsumer.test.ts declares 87-case floor."
+    },
+    {
+      "id": "H.regression.03",
+      "decision": "phase-verifier-exists",
+      "expected": "exists",
+      "outcome": "exists",
+      "reason": "verify-phase-42-7c-2.js verifier exists for pure-core SHA check."
+    },
+    {
+      "id": "H.parity.01",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    },
+    {
+      "id": "H.parity.02",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    },
+    {
+      "id": "H.parity.03",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    },
+    {
+      "id": "H.parity.04",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    },
+    {
+      "id": "H.parity.05",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    },
+    {
+      "id": "H.parity.06",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    },
+    {
+      "id": "H.parity.07",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    },
+    {
+      "id": "H.parity.08",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    },
+    {
+      "id": "H.parity.09",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    },
+    {
+      "id": "H.parity.10",
+      "decision": "wrapped-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Panel decision behavioral output identical between wrapper and pure core."
+    }
+  ]
+}

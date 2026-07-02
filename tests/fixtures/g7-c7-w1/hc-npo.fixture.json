@@ -1,0 +1,10 @@
+{
+  "pair": { "code": "hc-npo", "primary": "hc", "secondary": "npo", "displayName": "Healthcare × Nonprofit", "patentNamed": true },
+  "pairEntities": [
+    { "entityId": "ACME-HOSP-501C3", "primaryVertical": "hc", "secondaryVertical": "npo", "primaryFramework": "US_GAAP_ASC954", "secondaryFramework": "US_GAAP_ASC958", "charityCareThresholdMet": true, "nfpFunctionalExpenseAllocated": true }
+  ],
+  "disclosures": [
+    { "entityId": "ACME-HOSP-501C3", "framework": "US_GAAP_ASC954", "emitterPath": "lib/router/healthcare/usgaap/communityBenefitReport.ts", "text": "ASC 954 community benefit" },
+    { "entityId": "ACME-HOSP-501C3", "framework": "US_GAAP_ASC958", "emitterPath": "lib/router/nonprofit/usgaap/functionalExpenseAllocation.ts", "text": "ASC 958 functional expense" }
+  ]
+}

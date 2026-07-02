@@ -23,7 +23,7 @@ function loadFixture(relPath: string): ExtractedFiling {
 describe("fund-accounting C7a-2b framework non-comingling", () => {
   it("US GAAP lane output has zero IFRS forbidden substrings across new emitters", () => {
     const extracted = loadFixture("usgaap/topHoldingsDisclosure/happy-fxaix-top10.json");
-    const output = fundAccountingLaneOutputText(extracted, "us_gaap");
+    const output = fundAccountingLaneOutputText(extracted, "us-gaap");
     expect(collectForbiddenMatches(output, USGAAP_FA_FORBIDDEN_OUTPUT_SUBSTRINGS)).toEqual([]);
     expect(output).toMatch(/Top 10 portfolio holdings/i);
   });
@@ -38,7 +38,7 @@ describe("fund-accounting C7a-2b framework non-comingling", () => {
 
   it("cross-cutting VFIAX full-suite: US GAAP full stack vs IFRS substitute both framework-pure", () => {
     const extracted = loadFixture("cross-cutting/fa-full-suite-vfiax.json");
-    const usOutput = fundAccountingLaneOutputText(extracted, "us_gaap");
+    const usOutput = fundAccountingLaneOutputText(extracted, "us-gaap");
     const ifrsOutput = fundAccountingLaneOutputText(
       { ...extracted, framework: "ifrs", rawFrameworkSignals: ["ifrs-full"] },
       "ifrs",

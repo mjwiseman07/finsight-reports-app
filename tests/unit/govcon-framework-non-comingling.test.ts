@@ -24,7 +24,7 @@ function loadFixture(relPath: string): ExtractedFiling {
 describe("govcon framework non-comingling", () => {
   it("US GAAP lane output has zero IFRS forbidden substrings", () => {
     const extracted = loadFixture("usgaap/contractTypeMixDisclosure/happy-defense-contractor.json");
-    const output = govconLaneOutputText(extracted, "us_gaap");
+    const output = govconLaneOutputText(extracted, "us-gaap");
     expect(collectForbiddenMatches(output, USGAAP_GOVCON_FORBIDDEN_OUTPUT_SUBSTRINGS)).toEqual([]);
     expect(output.length).toBeGreaterThan(0);
   });
@@ -39,7 +39,7 @@ describe("govcon framework non-comingling", () => {
 
   it("cross-cutting Lockheed-vs-BAE framework-switch: US GAAP FAR/CAS then IFRS segment disaggregation both framework-pure", () => {
     const extracted = loadFixture("cross-cutting/lockheed-vs-bae-framework-switch.json");
-    const usOutput = govconLaneOutputText(extracted, "us_gaap");
+    const usOutput = govconLaneOutputText(extracted, "us-gaap");
     const ifrsOutput = govconLaneOutputText(
       {
         ...extracted,

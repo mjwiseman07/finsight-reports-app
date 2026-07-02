@@ -1,0 +1,296 @@
+{
+  "evidenceVersion": "42.7E.1",
+  "generatedAt": "2026-06-24T00:00:00Z",
+  "totalCases": 41,
+  "passCount": 41,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "A1-01",
+      "decision": "chain-valid",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Three-entry chain verifies"
+    },
+    {
+      "id": "A1-02",
+      "decision": "genesis-first",
+      "expected": "GENESIS",
+      "outcome": "GENESIS",
+      "reason": "First entry prevHash is GENESIS"
+    },
+    {
+      "id": "A1-03",
+      "decision": "tampered-entry",
+      "expected": "invalid",
+      "outcome": "invalid",
+      "reason": "Tampered payload fails verifier"
+    },
+    {
+      "id": "A1-04",
+      "decision": "missing-entry",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Prefix chain still valid"
+    },
+    {
+      "id": "A1-05",
+      "decision": "reordered",
+      "expected": "invalid",
+      "outcome": "invalid",
+      "reason": "Reordered entries fail verifier"
+    },
+    {
+      "id": "A1-06",
+      "decision": "broken-prev-hash",
+      "expected": "invalid",
+      "outcome": "invalid",
+      "reason": "Broken prevHash fails verifier"
+    },
+    {
+      "id": "A2-01",
+      "decision": "line-count",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "One JSONL line per append"
+    },
+    {
+      "id": "A2-02",
+      "decision": "newline-terminated",
+      "expected": "yes",
+      "outcome": "yes",
+      "reason": "File ends with newline"
+    },
+    {
+      "id": "A2-03",
+      "decision": "valid-json-lines",
+      "expected": "all-valid",
+      "outcome": "all-valid",
+      "reason": "Each line parses as JSON"
+    },
+    {
+      "id": "A2-04",
+      "decision": "append-atomicity",
+      "expected": "3",
+      "outcome": "3",
+      "reason": "Sequential appends produce discrete lines (no interleave)"
+    },
+    {
+      "id": "A2-05",
+      "decision": "flush",
+      "expected": "ok",
+      "outcome": "ok",
+      "reason": "flush completes without error"
+    },
+    {
+      "id": "A2-06",
+      "decision": "restart-readable",
+      "expected": "3",
+      "outcome": "3",
+      "reason": "Recovered entry count after restart"
+    },
+    {
+      "id": "A2-07",
+      "decision": "head-hash-recovered",
+      "expected": "non-genesis",
+      "outcome": "non-genesis",
+      "reason": "headHash recovered from existing file"
+    },
+    {
+      "id": "A2-08",
+      "decision": "chain-after-restart",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "On-disk chain verifies after restart"
+    },
+    {
+      "id": "A3-01",
+      "decision": "two-files",
+      "expected": "both-exist",
+      "outcome": "both-exist",
+      "reason": "UTC date change creates new file"
+    },
+    {
+      "id": "A3-02",
+      "decision": "continuity-end",
+      "expected": "cache.dispose",
+      "outcome": "cache.dispose",
+      "reason": "Old file ends with rotation marker"
+    },
+    {
+      "id": "A3-03",
+      "decision": "continuity-start",
+      "expected": "cache.dispose",
+      "outcome": "cache.dispose",
+      "reason": "New file starts with rotation marker"
+    },
+    {
+      "id": "A3-04",
+      "decision": "chain-spans-rotation",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Hash chain continuous across rotation entries"
+    },
+    {
+      "id": "A3-05",
+      "decision": "filename-format",
+      "expected": "audit-YYYY-MM-DD-hostname.jsonl",
+      "outcome": "audit-YYYY-MM-DD-hostname.jsonl",
+      "reason": "Rotated filename matches pattern"
+    },
+    {
+      "id": "A4-01",
+      "decision": "email-hashed",
+      "expected": "hashed",
+      "outcome": "hashed",
+      "reason": "email field redacted"
+    },
+    {
+      "id": "A4-02",
+      "decision": "ssn-hashed",
+      "expected": "hashed",
+      "outcome": "hashed",
+      "reason": "ssn field redacted"
+    },
+    {
+      "id": "A4-03",
+      "decision": "long-truncated",
+      "expected": "truncated",
+      "outcome": "truncated",
+      "reason": "Long strings truncated"
+    },
+    {
+      "id": "A4-04",
+      "decision": "nested-walked",
+      "expected": "hashed",
+      "outcome": "hashed",
+      "reason": "Nested sensitive fields redacted"
+    },
+    {
+      "id": "A4-05",
+      "decision": "depth-limit",
+      "expected": "truncated",
+      "outcome": "truncated",
+      "reason": "Depth limit honored"
+    },
+    {
+      "id": "A4-06",
+      "decision": "ssn-regex-in-innocuous-field",
+      "expected": "hashed",
+      "outcome": "hashed",
+      "reason": "SSN pattern caught in innocuous field name"
+    },
+    {
+      "id": "A4-07",
+      "decision": "undefined-to-null",
+      "expected": "null",
+      "outcome": "null",
+      "reason": "undefined becomes null"
+    },
+    {
+      "id": "A4-08",
+      "decision": "original-unmutated",
+      "expected": "unchanged",
+      "outcome": "unchanged",
+      "reason": "Original payload not mutated"
+    },
+    {
+      "id": "A5-01",
+      "decision": "prod-guard",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "InMemoryAuditLogWriter forbidden in production"
+    },
+    {
+      "id": "A5-02",
+      "decision": "dev-safe",
+      "expected": "ok",
+      "outcome": "ok",
+      "reason": "InMemoryAuditLogWriter works in test/dev"
+    },
+    {
+      "id": "A6-01",
+      "decision": "min-days-floor",
+      "expected": "365",
+      "outcome": "365",
+      "reason": "minDays floor is 365"
+    },
+    {
+      "id": "A6-02",
+      "decision": "default-valid",
+      "expected": "ok",
+      "outcome": "ok",
+      "reason": "Default retention policy validates"
+    },
+    {
+      "id": "A6-03",
+      "decision": "below-floor-rejected",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "soc1Days below minDays rejected"
+    },
+    {
+      "id": "A6-04",
+      "decision": "purge-default",
+      "expected": "false",
+      "outcome": "false",
+      "reason": "purgeAllowed defaults false"
+    },
+    {
+      "id": "A7-01",
+      "decision": "actor-id-required",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Empty actor.id rejected"
+    },
+    {
+      "id": "A7-02",
+      "decision": "actor-kind-validated",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Invalid actor.kind rejected"
+    },
+    {
+      "id": "A7-03",
+      "decision": "actor-via-validated",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Invalid actor.via rejected"
+    },
+    {
+      "id": "A7-04",
+      "decision": "valid-actor",
+      "expected": "ok",
+      "outcome": "ok",
+      "reason": "Valid actor accepted"
+    },
+    {
+      "id": "A9-01",
+      "decision": "partial-last-line",
+      "expected": "GENESIS",
+      "outcome": "GENESIS",
+      "reason": "Corrupted trailing line → GENESIS recovery"
+    },
+    {
+      "id": "A9-02",
+      "decision": "empty-file",
+      "expected": "GENESIS",
+      "outcome": "GENESIS",
+      "reason": "Empty/missing file starts at GENESIS"
+    },
+    {
+      "id": "A9-03",
+      "decision": "missing-directory",
+      "expected": "created",
+      "outcome": "created",
+      "reason": "Constructor creates baseDir"
+    },
+    {
+      "id": "A8-01",
+      "decision": "byte-identical-runs",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Two consecutive runs produce byte-identical case records"
+    }
+  ]
+}

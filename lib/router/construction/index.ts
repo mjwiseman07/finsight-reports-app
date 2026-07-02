@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { FrameworkViolationError } from "../errors/FrameworkViolationError";
 import { citationResolved, type EmitterResult } from "../types";
 import { MissingDisclosureInputError } from "./errors";
@@ -19,7 +19,7 @@ import * as ifrsMilestone from "./ifrs/milestoneOutputMeasure";
 import * as ifrsPostCompletion from "./ifrs/postCompletionAdjustments";
 
 export interface ConstructionRouterOutput {
-  framework: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
   frameworkViolation?: FrameworkViolationError;
@@ -189,7 +189,7 @@ export function withRouterNarratives(extracted: ExtractedFiling): ExtractedFilin
   };
 }
 
-export function constructionLaneOutputText(extracted: ExtractedFiling, lane: "us_gaap" | "ifrs"): string {
+export function constructionLaneOutputText(extracted: ExtractedFiling, lane: "us-gaap" | "ifrs"): string {
   const clone: ExtractedFiling = {
     ...extracted,
     framework: lane === "ifrs" ? "ifrs" : "us-gaap",

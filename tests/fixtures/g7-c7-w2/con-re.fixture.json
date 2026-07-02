@@ -1,0 +1,11 @@
+{
+  "pair": { "code": "con-re", "primary": "con", "secondary": "re", "displayName": "Construction × Real Estate", "patentNamed": false },
+  "pairEntities": [
+    { "entityId": "AVALON-BTR-PROJECT-001", "primaryVertical": "con", "secondaryVertical": "re", "primaryFramework": "US_GAAP_ASC606", "secondaryFramework": "US_GAAP_ASC360", "heldForInvestment": true, "heldForSale": false, "usesPOC": true, "usesCompletedContract": false, "capitalizationCutoverDocumented": true, "buildToRentLeaseUp": true }
+  ],
+  "disclosures": [
+    { "entityId": "AVALON-BTR-PROJECT-001", "framework": "US_GAAP_ASC606", "emitterPath": "lib/router/construction/usgaap/percentageOfCompletion.ts", "text": "POC progress measure 67% complete" },
+    { "entityId": "AVALON-BTR-PROJECT-001", "framework": "US_GAAP_ASC360", "emitterPath": "lib/router/real-estate/usgaap/heldForInvestment.ts", "text": "held-for-investment classification at lease-up" },
+    { "entityId": "AVALON-BTR-PROJECT-001", "framework": "US_GAAP_ASC842", "emitterPath": "lib/router/real-estate/usgaap/btrLessor.ts", "text": "build-to-rent lessor ASC 842 disclosure" }
+  ]
+}

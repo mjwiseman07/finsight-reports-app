@@ -1,0 +1,494 @@
+{
+  "evidenceVersion": "G7.C7.W2.0",
+  "generatedAt": "2026-07-01T23:56:30.327Z",
+  "lockTag": "LOCK-G7-C7",
+  "commitSha": "a46ad235ac60870ab6f5070724cec523b2ab5223",
+  "totalStageRuns": 49,
+  "passCount": 49,
+  "failCount": 0,
+  "stages": [
+    {
+      "pairCode": "hc-npo",
+      "stage": 23,
+      "name": "pair-detection",
+      "outcome": "pass",
+      "metrics": {
+        "pairCode": "hc-npo",
+        "patentNamed": true
+      }
+    },
+    {
+      "pairCode": "hc-npo",
+      "stage": 24,
+      "name": "per-pair-fixture-load",
+      "outcome": "pass",
+      "metrics": {
+        "fixturePath": "tests/fixtures/g7-c7-w1/hc-npo.fixture.json",
+        "pairEntityCount": 1,
+        "disclosureCount": 2
+      }
+    },
+    {
+      "pairCode": "hc-npo",
+      "stage": 25,
+      "name": "per-pair-validator-dispatch",
+      "outcome": "pass",
+      "metrics": {
+        "validatorCount": 4,
+        "allPassed": true
+      }
+    },
+    {
+      "pairCode": "hc-npo",
+      "stage": 26,
+      "name": "cross-pair-register-reconciliation",
+      "outcome": "pass",
+      "metrics": {
+        "comminglingDetected": false
+      }
+    },
+    {
+      "pairCode": "hc-npo",
+      "stage": 27,
+      "name": "hybrid-disclosure-synthesis-emission",
+      "outcome": "pass",
+      "metrics": {
+        "synthesizedDisclosureCount": 2
+      }
+    },
+    {
+      "pairCode": "hc-npo",
+      "stage": 28,
+      "name": "per-pair-provenance-bundle-assembly",
+      "outcome": "pass",
+      "metrics": {
+        "provenanceBundleId": "g7-c7-hc-npo",
+        "lockTagRef": "LOCK-G7-C7"
+      }
+    },
+    {
+      "pairCode": "hc-npo",
+      "stage": 29,
+      "name": "pair-aware-lock-evidence-write",
+      "outcome": "pass",
+      "metrics": {
+        "lockTag": "LOCK-G7-C7",
+        "commitSha": "a46ad235ac60870ab6f5070724cec523b2ab5223"
+      }
+    },
+    {
+      "pairCode": "re-hos",
+      "stage": 23,
+      "name": "pair-detection",
+      "outcome": "pass",
+      "metrics": {
+        "pairCode": "re-hos",
+        "patentNamed": true
+      }
+    },
+    {
+      "pairCode": "re-hos",
+      "stage": 24,
+      "name": "per-pair-fixture-load",
+      "outcome": "pass",
+      "metrics": {
+        "fixturePath": "tests/fixtures/g7-c7-w1/re-hos.fixture.json",
+        "pairEntityCount": 1,
+        "disclosureCount": 2
+      }
+    },
+    {
+      "pairCode": "re-hos",
+      "stage": 25,
+      "name": "per-pair-validator-dispatch",
+      "outcome": "pass",
+      "metrics": {
+        "validatorCount": 4,
+        "allPassed": true
+      }
+    },
+    {
+      "pairCode": "re-hos",
+      "stage": 26,
+      "name": "cross-pair-register-reconciliation",
+      "outcome": "pass",
+      "metrics": {
+        "comminglingDetected": false
+      }
+    },
+    {
+      "pairCode": "re-hos",
+      "stage": 27,
+      "name": "hybrid-disclosure-synthesis-emission",
+      "outcome": "pass",
+      "metrics": {
+        "synthesizedDisclosureCount": 2
+      }
+    },
+    {
+      "pairCode": "re-hos",
+      "stage": 28,
+      "name": "per-pair-provenance-bundle-assembly",
+      "outcome": "pass",
+      "metrics": {
+        "provenanceBundleId": "g7-c7-re-hos",
+        "lockTagRef": "LOCK-G7-C7"
+      }
+    },
+    {
+      "pairCode": "re-hos",
+      "stage": 29,
+      "name": "pair-aware-lock-evidence-write",
+      "outcome": "pass",
+      "metrics": {
+        "lockTag": "LOCK-G7-C7",
+        "commitSha": "a46ad235ac60870ab6f5070724cec523b2ab5223"
+      }
+    },
+    {
+      "pairCode": "bank-ins",
+      "stage": 23,
+      "name": "pair-detection",
+      "outcome": "pass",
+      "metrics": {
+        "pairCode": "bank-ins",
+        "patentNamed": true
+      }
+    },
+    {
+      "pairCode": "bank-ins",
+      "stage": 24,
+      "name": "per-pair-fixture-load",
+      "outcome": "pass",
+      "metrics": {
+        "fixturePath": "tests/fixtures/g7-c7-w1/bank-ins.fixture.json",
+        "pairEntityCount": 2,
+        "disclosureCount": 3
+      }
+    },
+    {
+      "pairCode": "bank-ins",
+      "stage": 25,
+      "name": "per-pair-validator-dispatch",
+      "outcome": "pass",
+      "metrics": {
+        "validatorCount": 5,
+        "allPassed": true
+      }
+    },
+    {
+      "pairCode": "bank-ins",
+      "stage": 26,
+      "name": "cross-pair-register-reconciliation",
+      "outcome": "pass",
+      "metrics": {
+        "comminglingDetected": false
+      }
+    },
+    {
+      "pairCode": "bank-ins",
+      "stage": 27,
+      "name": "hybrid-disclosure-synthesis-emission",
+      "outcome": "pass",
+      "metrics": {
+        "synthesizedDisclosureCount": 3
+      }
+    },
+    {
+      "pairCode": "bank-ins",
+      "stage": 28,
+      "name": "per-pair-provenance-bundle-assembly",
+      "outcome": "pass",
+      "metrics": {
+        "provenanceBundleId": "g7-c7-bank-ins",
+        "lockTagRef": "LOCK-G7-C7"
+      }
+    },
+    {
+      "pairCode": "bank-ins",
+      "stage": 29,
+      "name": "pair-aware-lock-evidence-write",
+      "outcome": "pass",
+      "metrics": {
+        "lockTag": "LOCK-G7-C7",
+        "commitSha": "a46ad235ac60870ab6f5070724cec523b2ab5223"
+      }
+    },
+    {
+      "pairCode": "fa-ins",
+      "stage": 23,
+      "name": "pair-detection",
+      "outcome": "pass",
+      "metrics": {
+        "pairCode": "fa-ins",
+        "patentNamed": true
+      }
+    },
+    {
+      "pairCode": "fa-ins",
+      "stage": 24,
+      "name": "per-pair-fixture-load",
+      "outcome": "pass",
+      "metrics": {
+        "fixturePath": "tests/fixtures/g7-c7-w1/fa-ins.fixture.json",
+        "pairEntityCount": 1,
+        "disclosureCount": 3
+      }
+    },
+    {
+      "pairCode": "fa-ins",
+      "stage": 25,
+      "name": "per-pair-validator-dispatch",
+      "outcome": "pass",
+      "metrics": {
+        "validatorCount": 4,
+        "allPassed": true
+      }
+    },
+    {
+      "pairCode": "fa-ins",
+      "stage": 26,
+      "name": "cross-pair-register-reconciliation",
+      "outcome": "pass",
+      "metrics": {
+        "comminglingDetected": false
+      }
+    },
+    {
+      "pairCode": "fa-ins",
+      "stage": 27,
+      "name": "hybrid-disclosure-synthesis-emission",
+      "outcome": "pass",
+      "metrics": {
+        "synthesizedDisclosureCount": 3
+      }
+    },
+    {
+      "pairCode": "fa-ins",
+      "stage": 28,
+      "name": "per-pair-provenance-bundle-assembly",
+      "outcome": "pass",
+      "metrics": {
+        "provenanceBundleId": "g7-c7-fa-ins",
+        "lockTagRef": "LOCK-G7-C7"
+      }
+    },
+    {
+      "pairCode": "fa-ins",
+      "stage": 29,
+      "name": "pair-aware-lock-evidence-write",
+      "outcome": "pass",
+      "metrics": {
+        "lockTag": "LOCK-G7-C7",
+        "commitSha": "a46ad235ac60870ab6f5070724cec523b2ab5223"
+      }
+    },
+    {
+      "pairCode": "hc-edu",
+      "stage": 23,
+      "name": "pair-detection",
+      "outcome": "pass",
+      "metrics": {
+        "pairCode": "hc-edu",
+        "patentNamed": false
+      }
+    },
+    {
+      "pairCode": "hc-edu",
+      "stage": 24,
+      "name": "per-pair-fixture-load",
+      "outcome": "pass",
+      "metrics": {
+        "fixturePath": "tests/fixtures/g7-c7-w2/hc-edu.fixture.json",
+        "pairEntityCount": 1,
+        "disclosureCount": 4
+      }
+    },
+    {
+      "pairCode": "hc-edu",
+      "stage": 25,
+      "name": "per-pair-validator-dispatch",
+      "outcome": "pass",
+      "metrics": {
+        "validatorCount": 4,
+        "allPassed": true
+      }
+    },
+    {
+      "pairCode": "hc-edu",
+      "stage": 26,
+      "name": "cross-pair-register-reconciliation",
+      "outcome": "pass",
+      "metrics": {
+        "comminglingDetected": false
+      }
+    },
+    {
+      "pairCode": "hc-edu",
+      "stage": 27,
+      "name": "hybrid-disclosure-synthesis-emission",
+      "outcome": "pass",
+      "metrics": {
+        "synthesizedDisclosureCount": 4
+      }
+    },
+    {
+      "pairCode": "hc-edu",
+      "stage": 28,
+      "name": "per-pair-provenance-bundle-assembly",
+      "outcome": "pass",
+      "metrics": {
+        "provenanceBundleId": "g7-c7-hc-edu",
+        "lockTagRef": "LOCK-G7-C7"
+      }
+    },
+    {
+      "pairCode": "hc-edu",
+      "stage": 29,
+      "name": "pair-aware-lock-evidence-write",
+      "outcome": "pass",
+      "metrics": {
+        "lockTag": "LOCK-G7-C7",
+        "commitSha": "a46ad235ac60870ab6f5070724cec523b2ab5223"
+      }
+    },
+    {
+      "pairCode": "mfg-rtl",
+      "stage": 23,
+      "name": "pair-detection",
+      "outcome": "pass",
+      "metrics": {
+        "pairCode": "mfg-rtl",
+        "patentNamed": false
+      }
+    },
+    {
+      "pairCode": "mfg-rtl",
+      "stage": 24,
+      "name": "per-pair-fixture-load",
+      "outcome": "pass",
+      "metrics": {
+        "fixturePath": "tests/fixtures/g7-c7-w2/mfg-rtl.fixture.json",
+        "pairEntityCount": 2,
+        "disclosureCount": 3
+      }
+    },
+    {
+      "pairCode": "mfg-rtl",
+      "stage": 25,
+      "name": "per-pair-validator-dispatch",
+      "outcome": "pass",
+      "metrics": {
+        "validatorCount": 4,
+        "allPassed": true
+      }
+    },
+    {
+      "pairCode": "mfg-rtl",
+      "stage": 26,
+      "name": "cross-pair-register-reconciliation",
+      "outcome": "pass",
+      "metrics": {
+        "comminglingDetected": false
+      }
+    },
+    {
+      "pairCode": "mfg-rtl",
+      "stage": 27,
+      "name": "hybrid-disclosure-synthesis-emission",
+      "outcome": "pass",
+      "metrics": {
+        "synthesizedDisclosureCount": 3
+      }
+    },
+    {
+      "pairCode": "mfg-rtl",
+      "stage": 28,
+      "name": "per-pair-provenance-bundle-assembly",
+      "outcome": "pass",
+      "metrics": {
+        "provenanceBundleId": "g7-c7-mfg-rtl",
+        "lockTagRef": "LOCK-G7-C7"
+      }
+    },
+    {
+      "pairCode": "mfg-rtl",
+      "stage": 29,
+      "name": "pair-aware-lock-evidence-write",
+      "outcome": "pass",
+      "metrics": {
+        "lockTag": "LOCK-G7-C7",
+        "commitSha": "a46ad235ac60870ab6f5070724cec523b2ab5223"
+      }
+    },
+    {
+      "pairCode": "con-re",
+      "stage": 23,
+      "name": "pair-detection",
+      "outcome": "pass",
+      "metrics": {
+        "pairCode": "con-re",
+        "patentNamed": false
+      }
+    },
+    {
+      "pairCode": "con-re",
+      "stage": 24,
+      "name": "per-pair-fixture-load",
+      "outcome": "pass",
+      "metrics": {
+        "fixturePath": "tests/fixtures/g7-c7-w2/con-re.fixture.json",
+        "pairEntityCount": 1,
+        "disclosureCount": 3
+      }
+    },
+    {
+      "pairCode": "con-re",
+      "stage": 25,
+      "name": "per-pair-validator-dispatch",
+      "outcome": "pass",
+      "metrics": {
+        "validatorCount": 4,
+        "allPassed": true
+      }
+    },
+    {
+      "pairCode": "con-re",
+      "stage": 26,
+      "name": "cross-pair-register-reconciliation",
+      "outcome": "pass",
+      "metrics": {
+        "comminglingDetected": false
+      }
+    },
+    {
+      "pairCode": "con-re",
+      "stage": 27,
+      "name": "hybrid-disclosure-synthesis-emission",
+      "outcome": "pass",
+      "metrics": {
+        "synthesizedDisclosureCount": 3
+      }
+    },
+    {
+      "pairCode": "con-re",
+      "stage": 28,
+      "name": "per-pair-provenance-bundle-assembly",
+      "outcome": "pass",
+      "metrics": {
+        "provenanceBundleId": "g7-c7-con-re",
+        "lockTagRef": "LOCK-G7-C7"
+      }
+    },
+    {
+      "pairCode": "con-re",
+      "stage": 29,
+      "name": "pair-aware-lock-evidence-write",
+      "outcome": "pass",
+      "metrics": {
+        "lockTag": "LOCK-G7-C7",
+        "commitSha": "a46ad235ac60870ab6f5070724cec523b2ab5223"
+      }
+    }
+  ]
+}

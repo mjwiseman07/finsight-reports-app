@@ -1,0 +1,164 @@
+{
+  "frameworkLane": "us-gaap",
+  "results": [
+    {
+      "emitterId": "freight-revenue-over-time",
+      "emitterPath": "lib/router/logistics/usgaap/freightRevenueOverTime.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "freight-revenue-over-time",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-25-19",
+              "606-10-55-21"
+            ]
+          },
+          "text": "Freight revenue of $88,000,000 recognized over time as transportation services are rendered per ASC 606 606-10-25-19, 606-10-55-21."
+        }
+      ]
+    },
+    {
+      "emitterId": "principal-vs-agent-disclosure",
+      "emitterPath": "lib/router/logistics/usgaap/principalVsAgentDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "principal-vs-agent-disclosure",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-55-36",
+              "606-10-55-40"
+            ]
+          },
+          "text": "Entity reports as principal for logistics brokerage and managed transportation transactions per ASC 606 606-10-55-36, 606-10-55-40."
+        }
+      ]
+    },
+    {
+      "emitterId": "bill-and-hold-disclosure",
+      "emitterPath": "lib/router/logistics/usgaap/billAndHoldDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "bill-and-hold-disclosure",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-25-7",
+              "606-10-55-83"
+            ]
+          },
+          "text": "Bill-and-hold arrangement (enabled true, goods ready true, amount $1,200,000) evaluated per ASC 606 606-10-25-7, 606-10-55-83."
+        }
+      ]
+    },
+    {
+      "emitterId": "fuel-hedge-accounting",
+      "emitterPath": "lib/router/logistics/usgaap/fuelHedgeAccounting.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "fuel-hedge-accounting",
+          "citation": {
+            "standard": "ASC 815",
+            "paragraphs": [
+              "815-20-25-1",
+              "815-20-35-2"
+            ]
+          },
+          "text": "Fuel hedge (notional $5,000,000, fair value $320,000, effectiveness 92%) accounted for per ASC 815 815-20-25-1, 815-20-35-2."
+        }
+      ]
+    },
+    {
+      "emitterId": "fleet-impairment",
+      "emitterPath": "lib/router/logistics/usgaap/fleetImpairment.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "fleet-impairment",
+          "citation": {
+            "standard": "ASC 360",
+            "paragraphs": [
+              "360-10-35-21",
+              "360-10-50-3"
+            ]
+          },
+          "text": "Fleet impairment for tractor fleet (carrying amount $45,000,000, fair value $44,000,000) per ASC 360 360-10-35-21, 360-10-50-3."
+        }
+      ]
+    },
+    {
+      "emitterId": "equipment-lease-accounting",
+      "emitterPath": "lib/router/logistics/usgaap/equipmentLeaseAccounting.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "equipment-lease-accounting",
+          "citation": {
+            "standard": "ASC 842",
+            "paragraphs": [
+              "842-20-50-1",
+              "842-20-50-4"
+            ]
+          },
+          "text": "Terminal and equipment leases (8 leases, total liability $12,400,000) disclosed per ASC 842 842-20-50-1, 842-20-50-4."
+        }
+      ]
+    },
+    {
+      "emitterId": "demurrage-detention-revenue",
+      "emitterPath": "lib/router/logistics/usgaap/demurrageDetentionRevenue.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "demurrage-detention-revenue",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-32-2",
+              "606-10-55-91"
+            ]
+          },
+          "text": "Demurrage and detention revenue (demurrage $850,000, detention $620,000) recognized per ASC 606 606-10-32-2, 606-10-55-91."
+        }
+      ]
+    },
+    {
+      "emitterId": "fuel-surcharge-disclosure",
+      "emitterPath": "lib/router/logistics/usgaap/fuelSurchargeDisclosure.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "fuel-surcharge-disclosure",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-32-2",
+              "606-10-55-91"
+            ]
+          },
+          "text": "Fuel surcharge revenue of $7,000,000 disclosed as variable consideration per ASC 606 606-10-32-2, 606-10-55-91."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Regional LTL carrier principal freight revenue",
+    "Freight revenue of $88,000,000 recognized over time as transportation services are rendered per ASC 606 606-10-25-19, 606-10-55-21.",
+    "Entity reports as principal for logistics brokerage and managed transportation transactions per ASC 606 606-10-55-36, 606-10-55-40.",
+    "Bill-and-hold arrangement (enabled true, goods ready true, amount $1,200,000) evaluated per ASC 606 606-10-25-7, 606-10-55-83.",
+    "Fuel hedge (notional $5,000,000, fair value $320,000, effectiveness 92%) accounted for per ASC 815 815-20-25-1, 815-20-35-2.",
+    "Fleet impairment for tractor fleet (carrying amount $45,000,000, fair value $44,000,000) per ASC 360 360-10-35-21, 360-10-50-3.",
+    "Terminal and equipment leases (8 leases, total liability $12,400,000) disclosed per ASC 842 842-20-50-1, 842-20-50-4.",
+    "Demurrage and detention revenue (demurrage $850,000, detention $620,000) recognized per ASC 606 606-10-32-2, 606-10-55-91.",
+    "Fuel surcharge revenue of $7,000,000 disclosed as variable consideration per ASC 606 606-10-32-2, 606-10-55-91."
+  ],
+  "verticalCode": "logistics",
+  "filingId": "LOG-01",
+  "satisfiedEmitters": 8,
+  "failClosedEmitters": 0
+}

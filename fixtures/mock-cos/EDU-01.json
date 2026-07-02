@@ -1,0 +1,62 @@
+{
+  "_g7vStub": true,
+  "_g7vStubComment": "G8a minimum viable mock-co — mid-size private university (EDU-01)",
+  "company": { "name": "Mock University Co.", "fiscalYear": 2025, "currency": "USD" },
+  "trialBalance": [],
+  "accountMap": {},
+  "subledgers": { "ar": [], "ap": [], "inventory": [] },
+  "elections": {},
+  "memory": {},
+  "priorPeriod": null,
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "EDU-01",
+    "vertical": "edu",
+    "framework": "us-gaap",
+    "entityName": "Mock Private University",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": ["Private nonprofit university ASC 958 basis"],
+    "rawFrameworkSignals": ["us-gaap"],
+    "tax_status": "501c3",
+    "entity_type": "private_university",
+    "education": {
+      "jurisdiction": "us",
+      "revenue": {
+        "tuition": 80000000,
+        "contributions": 25000000,
+        "auxiliary": 15000000
+      },
+      "endowment": {
+        "total": 400000000,
+        "with_donor_restrictions": 280000000,
+        "without_donor_restrictions": 120000000,
+        "permanently_restricted": 180000000,
+        "temporarily_restricted": 100000000
+      },
+      "title_iv": {
+        "composite_score": 2.8,
+        "financial_responsibility_zone": "pass"
+      },
+      "auxiliary_enterprises": {
+        "housing": 8000000,
+        "dining": 4500000,
+        "athletics": 2500000
+      }
+    },
+    "expenses": {
+      "by_function": {
+        "program": 85000000,
+        "management_general": 22000000,
+        "fundraising": 8000000
+      },
+      "by_nature": {
+        "salaries": 72000000,
+        "occupancy": 14000000,
+        "depreciation": 9000000,
+        "professional_fees": 4000000
+      },
+      "allocation_basis": "direct identification with functional time studies"
+    }
+  }
+}

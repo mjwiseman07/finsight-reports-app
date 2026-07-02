@@ -1,0 +1,11 @@
+{
+  "pair": { "code": "fa-ins", "primary": "fa", "secondary": "ins", "displayName": "Fund Accounting × Insurance", "patentNamed": true },
+  "pairEntities": [
+    { "entityId": "CATBOND-FUND-001", "primaryVertical": "fa", "secondaryVertical": "ins", "primaryFramework": "US_GAAP_ASC946", "secondaryFramework": "US_GAAP_ASC944", "navReported": 102500000, "reservesReported": 98750000, "ilsContractBoundaryDocumented": true }
+  ],
+  "disclosures": [
+    { "entityId": "CATBOND-FUND-001", "framework": "US_GAAP_ASC946", "emitterPath": "lib/router/fund-accounting/usgaap/navCalculation.ts", "text": "NAV 102.5M" },
+    { "entityId": "CATBOND-FUND-001", "framework": "US_GAAP_ASC944", "emitterPath": "lib/router/insurance/usgaap/lossReservesAndIBNR.ts", "text": "Reserves 98.75M" },
+    { "entityId": "CATBOND-FUND-001", "framework": "META_RECONCILIATION", "emitterPath": "nav-reserves-reconciliation", "text": "delta 3.75M documented per ILS structure" }
+  ]
+}

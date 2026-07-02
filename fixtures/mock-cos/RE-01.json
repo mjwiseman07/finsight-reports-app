@@ -1,0 +1,63 @@
+{
+  "_g7vStub": true,
+  "_g7vStubComment": "G8a minimum viable mock-co — small public REIT (RE-01)",
+  "company": { "name": "Mock REIT Co.", "fiscalYear": 2025, "currency": "USD" },
+  "trialBalance": [],
+  "accountMap": {},
+  "subledgers": { "ar": [], "ap": [], "inventory": [] },
+  "elections": {},
+  "memory": {},
+  "priorPeriod": null,
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "RE-01",
+    "vertical": "re",
+    "framework": "us-gaap",
+    "entityName": "Mock Retail Office REIT Inc.",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": ["Public REIT mixed retail and office portfolio"],
+    "rawFrameworkSignals": ["us-gaap"],
+    "entity_type": "REIT",
+    "real_estate": {
+      "entityType": "REIT",
+      "gaapBasis": "us-gaap",
+      "revenue": {
+        "rental": 80000000,
+        "property_count": 18
+      },
+      "lessor_leases": {
+        "operating": 72000000,
+        "sales_type": 4000000,
+        "direct_financing": 4000000
+      },
+      "lessee": {
+        "rou_asset": 3500000,
+        "lease_liability": 3600000
+      },
+      "impairment": {
+        "asset_group": "retail portfolio",
+        "carrying_amount": 12000000,
+        "fair_value": 11500000
+      },
+      "held_for_sale": {
+        "assets": 2500000,
+        "liabilities": 400000
+      },
+      "real_estate_sales": {
+        "full_accrual": 6000000,
+        "partial_sales": 1500000
+      },
+      "reit_metrics": {
+        "ffo": 52000000,
+        "affo": 48000000,
+        "noi": 61000000
+      },
+      "acquisition": {
+        "property_name": "Riverfront Office Tower",
+        "amount": 15000000,
+        "cap_rate_pct": 6.2
+      }
+    }
+  }
+}

@@ -1,0 +1,618 @@
+{
+  "evidenceVersion": "42.7C.1",
+  "generatedAt": "2026-06-24T00:00:00Z",
+  "totalCases": 87,
+  "passCount": 87,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "S1-01",
+      "decision": "persona-count",
+      "expected": "9",
+      "outcome": "9",
+      "reason": "loadBaseline returns 9 personas"
+    },
+    {
+      "id": "S1-02",
+      "decision": "tier",
+      "expected": "all-tier-1",
+      "outcome": "all-tier-1",
+      "reason": "every baseline persona is tier 1"
+    },
+    {
+      "id": "S1-03",
+      "decision": "isNotReplacementForHuman",
+      "expected": "all-true",
+      "outcome": "all-true",
+      "reason": "isNotReplacementForHuman true on every persona"
+    },
+    {
+      "id": "S1-04",
+      "decision": "attestation",
+      "expected": "mwiseman@advisacor.com",
+      "outcome": "mwiseman@advisacor.com",
+      "reason": "founder attestation attestedBy"
+    },
+    {
+      "id": "S1-05",
+      "decision": "unique-personas",
+      "expected": "9-unique",
+      "outcome": "9-unique",
+      "reason": "9 unique personaIds"
+    },
+    {
+      "id": "S1-06",
+      "decision": "revenueNote",
+      "expected": "all-present",
+      "outcome": "all-present",
+      "reason": "revenueNote present on every persona"
+    },
+    {
+      "id": "S2-01",
+      "decision": "schemaVersion",
+      "expected": "42.7C.1",
+      "outcome": "42.7C.1",
+      "reason": "parity checklist schemaVersion"
+    },
+    {
+      "id": "S2-02",
+      "decision": "generatedFrom",
+      "expected": "worker-job-descriptions.json",
+      "outcome": "worker-job-descriptions.json",
+      "reason": "parity checklist generatedFrom"
+    },
+    {
+      "id": "S2-03",
+      "decision": "sort-order",
+      "expected": "sorted",
+      "outcome": "sorted",
+      "reason": "items sorted by personaId then capabilityId"
+    },
+    {
+      "id": "S2-04",
+      "decision": "item-fields",
+      "expected": "complete",
+      "outcome": "complete",
+      "reason": "every checklist item has required fields"
+    },
+    {
+      "id": "S3-01",
+      "decision": "merge-null",
+      "expected": "baseline-only",
+      "outcome": "baseline-only",
+      "reason": "null overlay yields baseline-only effective JD"
+    },
+    {
+      "id": "S3-02",
+      "decision": "persona-mismatch",
+      "expected": "OverlayPersonaMismatchError",
+      "outcome": "OverlayPersonaMismatchError",
+      "reason": "overlay persona mismatch rejected"
+    },
+    {
+      "id": "S3-03",
+      "decision": "disable-capability",
+      "expected": "disabled",
+      "outcome": "disabled",
+      "reason": "overlay disables capability"
+    },
+    {
+      "id": "S3-04",
+      "decision": "add-restriction",
+      "expected": "added",
+      "outcome": "added",
+      "reason": "overlay adds restriction"
+    },
+    {
+      "id": "S3-05",
+      "decision": "tighten-escalation",
+      "expected": "universal",
+      "outcome": "universal",
+      "reason": "specific to universal escalation tighten allowed"
+    },
+    {
+      "id": "S3-06",
+      "decision": "addedCapabilities",
+      "expected": "OverlayExpansionError",
+      "outcome": "OverlayExpansionError",
+      "reason": "addedCapabilities expansion rejected"
+    },
+    {
+      "id": "S3-07",
+      "decision": "removedRestrictionIds",
+      "expected": "OverlayExpansionError",
+      "outcome": "OverlayExpansionError",
+      "reason": "removedRestrictionIds expansion rejected"
+    },
+    {
+      "id": "S3-08",
+      "decision": "source",
+      "expected": "baseline+overlay",
+      "outcome": "baseline+overlay",
+      "reason": "overlay merge source tag"
+    },
+    {
+      "id": "S3-09",
+      "decision": "companyId",
+      "expected": "co-test",
+      "outcome": "co-test",
+      "reason": "overlay companyId preserved"
+    },
+    {
+      "id": "S3-10",
+      "decision": "companyAttestation",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "company attestation carried through"
+    },
+    {
+      "id": "S3-11",
+      "decision": "escalation-loosening",
+      "expected": "OverlayEscalationLooseningError",
+      "outcome": "OverlayEscalationLooseningError",
+      "reason": "escalation loosening rejected"
+    },
+    {
+      "id": "S3-12",
+      "decision": "restriction-count",
+      "expected": "baseline-plus-one",
+      "outcome": "baseline-plus-one",
+      "reason": "added restriction increases restriction count"
+    },
+    {
+      "id": "S4-01",
+      "decision": "source",
+      "expected": "phase39-email",
+      "outcome": "phase39-email",
+      "reason": "reader source tag"
+    },
+    {
+      "id": "S4-02",
+      "decision": "empty-queue",
+      "expected": "null",
+      "outcome": "null",
+      "reason": "null peek yields null work item"
+    },
+    {
+      "id": "S4-03",
+      "decision": "workItemId",
+      "expected": "email-001",
+      "outcome": "email-001",
+      "reason": "maps intake message id"
+    },
+    {
+      "id": "S4-04",
+      "decision": "receivedAt",
+      "expected": "2026-06-24T00:00:00.000Z",
+      "outcome": "2026-06-24T00:00:00.000Z",
+      "reason": "receivedAt from frozen clock"
+    },
+    {
+      "id": "S4-05",
+      "decision": "requestedPersonaId",
+      "expected": "ai-staff-accountant",
+      "outcome": "ai-staff-accountant",
+      "reason": "requestedPersonaId mapped"
+    },
+    {
+      "id": "S4-06",
+      "decision": "requestedCapabilityId",
+      "expected": "journal-entry-routine",
+      "outcome": "journal-entry-routine",
+      "reason": "requestedCapabilityId mapped"
+    },
+    {
+      "id": "S4-07",
+      "decision": "payload",
+      "expected": "memo-present",
+      "outcome": "memo-present",
+      "reason": "payload body mapped"
+    },
+    {
+      "id": "S4-08",
+      "decision": "provenance",
+      "expected": "phase39.module12:email-001",
+      "outcome": "phase39.module12:email-001",
+      "reason": "phase39 provenance ref format"
+    },
+    {
+      "id": "S4-09",
+      "decision": "ack",
+      "expected": "acked",
+      "outcome": "acked",
+      "reason": "ack delegates to module12"
+    },
+    {
+      "id": "S5-01",
+      "decision": "source",
+      "expected": "phase39-dashboard-queue",
+      "outcome": "phase39-dashboard-queue",
+      "reason": "reader source tag"
+    },
+    {
+      "id": "S5-02",
+      "decision": "empty-queue",
+      "expected": "null",
+      "outcome": "null",
+      "reason": "null peek yields null work item"
+    },
+    {
+      "id": "S5-03",
+      "decision": "workItemId",
+      "expected": "queue-001",
+      "outcome": "queue-001",
+      "reason": "maps queue task id"
+    },
+    {
+      "id": "S5-04",
+      "decision": "receivedAt",
+      "expected": "2026-06-24T00:00:00.000Z",
+      "outcome": "2026-06-24T00:00:00.000Z",
+      "reason": "receivedAt from frozen clock"
+    },
+    {
+      "id": "S5-05",
+      "decision": "requestedPersonaId",
+      "expected": "ai-senior-accountant",
+      "outcome": "ai-senior-accountant",
+      "reason": "requestedPersonaId mapped"
+    },
+    {
+      "id": "S5-06",
+      "decision": "requestedCapabilityId",
+      "expected": "month-end-close-routine",
+      "outcome": "month-end-close-routine",
+      "reason": "requestedCapabilityId mapped"
+    },
+    {
+      "id": "S5-07",
+      "decision": "payload",
+      "expected": "task-present",
+      "outcome": "task-present",
+      "reason": "payload body mapped"
+    },
+    {
+      "id": "S5-08",
+      "decision": "provenance",
+      "expected": "phase39.module10:queue-001",
+      "outcome": "phase39.module10:queue-001",
+      "reason": "phase39 provenance ref format"
+    },
+    {
+      "id": "S5-09",
+      "decision": "ack",
+      "expected": "acked",
+      "outcome": "acked",
+      "reason": "ack delegates to module10"
+    },
+    {
+      "id": "S6-ai-staff-accountant",
+      "decision": "execute",
+      "expected": "execute",
+      "outcome": "execute",
+      "reason": "persona ai-staff-accountant executes first capability bank-reconciliation-routine"
+    },
+    {
+      "id": "S6-ai-senior-accountant",
+      "decision": "execute",
+      "expected": "execute",
+      "outcome": "execute",
+      "reason": "persona ai-senior-accountant executes first capability month-end-close-routine"
+    },
+    {
+      "id": "S6-ai-accounting-manager",
+      "decision": "execute",
+      "expected": "execute",
+      "outcome": "execute",
+      "reason": "persona ai-accounting-manager executes first capability close-review-multi-loB"
+    },
+    {
+      "id": "S6-ai-controller-helper",
+      "decision": "execute",
+      "expected": "execute",
+      "outcome": "execute",
+      "reason": "persona ai-controller-helper executes first capability policy-drafting-assist"
+    },
+    {
+      "id": "S6-ai-cfo-helper",
+      "decision": "execute",
+      "expected": "execute",
+      "outcome": "execute",
+      "reason": "persona ai-cfo-helper executes first capability strategic-analysis-draft"
+    },
+    {
+      "id": "S6-ai-staff-auditor",
+      "decision": "execute",
+      "expected": "execute",
+      "outcome": "execute",
+      "reason": "persona ai-staff-auditor executes first capability audit-routine-testing"
+    },
+    {
+      "id": "S6-ai-senior-auditor",
+      "decision": "execute",
+      "expected": "execute",
+      "outcome": "execute",
+      "reason": "persona ai-senior-auditor executes first capability audit-workpaper-review"
+    },
+    {
+      "id": "S6-ai-audit-manager-helper",
+      "decision": "execute",
+      "expected": "execute",
+      "outcome": "execute",
+      "reason": "persona ai-audit-manager-helper executes first capability engagement-coordination"
+    },
+    {
+      "id": "S6-ai-partner-helper",
+      "decision": "execute",
+      "expected": "execute",
+      "outcome": "execute",
+      "reason": "persona ai-partner-helper executes first capability partner-readout-draft"
+    },
+    {
+      "id": "S7-01",
+      "decision": "hire-up",
+      "expected": "ai-senior-accountant",
+      "outcome": "ai-senior-accountant",
+      "reason": "ai-staff-accountant hire-up for month-end-close-routine"
+    },
+    {
+      "id": "S7-02",
+      "decision": "hire-up",
+      "expected": "ai-accounting-manager",
+      "outcome": "ai-accounting-manager",
+      "reason": "ai-senior-accountant hire-up for close-review-multi-loB"
+    },
+    {
+      "id": "S7-03",
+      "decision": "hire-up",
+      "expected": "ai-controller-helper",
+      "outcome": "ai-controller-helper",
+      "reason": "ai-accounting-manager hire-up for policy-drafting-assist"
+    },
+    {
+      "id": "S7-04",
+      "decision": "hire-up",
+      "expected": "ai-cfo-helper",
+      "outcome": "ai-cfo-helper",
+      "reason": "ai-controller-helper hire-up for framework-election-recommendation-draft"
+    },
+    {
+      "id": "S7-05",
+      "decision": "hire-up",
+      "expected": "ai-senior-auditor",
+      "outcome": "ai-senior-auditor",
+      "reason": "ai-staff-auditor hire-up for audit-workpaper-review"
+    },
+    {
+      "id": "S7-06",
+      "decision": "hire-up",
+      "expected": "ai-audit-manager-helper",
+      "outcome": "ai-audit-manager-helper",
+      "reason": "ai-senior-auditor hire-up for engagement-coordination"
+    },
+    {
+      "id": "S7-07",
+      "decision": "hire-up",
+      "expected": "ai-partner-helper",
+      "outcome": "ai-partner-helper",
+      "reason": "ai-audit-manager-helper hire-up for partner-readout-draft"
+    },
+    {
+      "id": "S7-08",
+      "decision": "seniority-increased",
+      "expected": "seniority-increased",
+      "outcome": "seniority-increased",
+      "reason": "hire-up strictly increases seniority"
+    },
+    {
+      "id": "S7-09",
+      "decision": "seniority-increased",
+      "expected": "seniority-increased",
+      "outcome": "seniority-increased",
+      "reason": "hire-up strictly increases seniority"
+    },
+    {
+      "id": "S7-10",
+      "decision": "seniority-increased",
+      "expected": "seniority-increased",
+      "outcome": "seniority-increased",
+      "reason": "hire-up strictly increases seniority"
+    },
+    {
+      "id": "S7-11",
+      "decision": "seniority-increased",
+      "expected": "seniority-increased",
+      "outcome": "seniority-increased",
+      "reason": "hire-up strictly increases seniority"
+    },
+    {
+      "id": "S7-12",
+      "decision": "seniority-increased",
+      "expected": "seniority-increased",
+      "outcome": "seniority-increased",
+      "reason": "hire-up strictly increases seniority"
+    },
+    {
+      "id": "S8-ai-staff-accountant",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "unknown capability escalates for ai-staff-accountant"
+    },
+    {
+      "id": "S8-ai-senior-accountant",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "unknown capability escalates for ai-senior-accountant"
+    },
+    {
+      "id": "S8-ai-accounting-manager",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "unknown capability escalates for ai-accounting-manager"
+    },
+    {
+      "id": "S8-ai-controller-helper",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "unknown capability escalates for ai-controller-helper"
+    },
+    {
+      "id": "S8-ai-cfo-helper",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "unknown capability escalates for ai-cfo-helper"
+    },
+    {
+      "id": "S8-ai-staff-auditor",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "unknown capability escalates for ai-staff-auditor"
+    },
+    {
+      "id": "S8-ai-senior-auditor",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "unknown capability escalates for ai-senior-auditor"
+    },
+    {
+      "id": "S8-ai-audit-manager-helper",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "unknown capability escalates for ai-audit-manager-helper"
+    },
+    {
+      "id": "S8-ai-partner-helper",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "unknown capability escalates for ai-partner-helper"
+    },
+    {
+      "id": "S9-01",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "hard-stop no-framework-election takes precedence"
+    },
+    {
+      "id": "S9-02",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "hard-stop no-management-rep takes precedence"
+    },
+    {
+      "id": "S9-03",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "hard-stop no-opinion-issuance takes precedence"
+    },
+    {
+      "id": "S9-04",
+      "decision": "escalate",
+      "expected": "escalate",
+      "outcome": "escalate",
+      "reason": "hard-stop no-partner-signature takes precedence"
+    },
+    {
+      "id": "S10-a",
+      "decision": "gate-decide",
+      "expected": "completed",
+      "outcome": "completed",
+      "reason": "NullCompanyJobDescriptionReader gate decide completes without I/O"
+    },
+    {
+      "id": "S10-b",
+      "decision": "failed-closed",
+      "expected": "failed-closed",
+      "outcome": "failed-closed",
+      "reason": "null phase38 transports fail closed"
+    },
+    {
+      "id": "S10-c",
+      "decision": "failed-closed",
+      "expected": "failed-closed",
+      "outcome": "failed-closed",
+      "reason": "null phase38 transports fail closed"
+    },
+    {
+      "id": "S10-d",
+      "decision": "failed-closed",
+      "expected": "failed-closed",
+      "outcome": "failed-closed",
+      "reason": "null phase38 transports fail closed"
+    },
+    {
+      "id": "S10-e",
+      "decision": "failed-closed",
+      "expected": "failed-closed",
+      "outcome": "failed-closed",
+      "reason": "null phase38 transports fail closed"
+    },
+    {
+      "id": "S10-f",
+      "decision": "failed-closed",
+      "expected": "failed-closed",
+      "outcome": "failed-closed",
+      "reason": "null phase38 transports fail closed"
+    },
+    {
+      "id": "S11-01",
+      "decision": "disclosed",
+      "expected": "disclosed",
+      "outcome": "disclosed",
+      "reason": "parityDisclosure populated when humanOnlyForNow"
+    },
+    {
+      "id": "S11-02",
+      "decision": "gap-reason",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "parityDisclosure includes gapReason"
+    },
+    {
+      "id": "S11-03",
+      "decision": "roadmap-pointer",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "parityDisclosure includes roadmapPointer"
+    },
+    {
+      "id": "S12-01",
+      "decision": "violations",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "Phase 39 LOCK import whitelist"
+    },
+    {
+      "id": "S13-01",
+      "decision": "violations",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "Phase 38-only external I/O containment"
+    },
+    {
+      "id": "S14-01",
+      "decision": "violations",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "role-adapter imports only via escalation-bridge"
+    },
+    {
+      "id": "S15-01",
+      "decision": "evidence-shape",
+      "expected": "complete",
+      "outcome": "complete",
+      "reason": "deterministic evidence object shape keys present"
+    }
+  ]
+}

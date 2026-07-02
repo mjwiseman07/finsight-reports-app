@@ -23,7 +23,7 @@ function loadFixture(relPath: string): ExtractedFiling {
 describe("saas framework non-comingling", () => {
   it("US GAAP lane output has zero IFRS forbidden substrings", () => {
     const extracted = loadFixture("happy/adbe-10k.json");
-    const output = saasLaneOutputText(extracted, "us_gaap");
+    const output = saasLaneOutputText(extracted, "us-gaap");
     expect(collectForbiddenMatches(output, USGAAP_SAAS_FORBIDDEN_OUTPUT_SUBSTRINGS)).toEqual([]);
     expect(output.length).toBeGreaterThan(0);
   });
@@ -37,7 +37,7 @@ describe("saas framework non-comingling", () => {
 
   it("cross-cutting framework-switch: US GAAP then IFRS both framework-pure", () => {
     const extracted = loadFixture("cross-cutting/framework-switch.json");
-    const usOutput = saasLaneOutputText(extracted, "us_gaap");
+    const usOutput = saasLaneOutputText(extracted, "us-gaap");
     const ifrsOutput = saasLaneOutputText(
       { ...extracted, framework: "ifrs", rawFrameworkSignals: ["ifrs-full"] },
       "ifrs",
@@ -60,7 +60,7 @@ describe("saas framework non-comingling", () => {
 
   it("comingling-rejected: US GAAP emitter output excludes prefilled IFRS citation from input narrative", () => {
     const extracted = loadFixture("usgaap/revenueDisaggregation/comingling-rejected.json");
-    const output = saasLaneOutputText(extracted, "us_gaap");
+    const output = saasLaneOutputText(extracted, "us-gaap");
     expect(collectForbiddenMatches(output, USGAAP_SAAS_FORBIDDEN_OUTPUT_SUBSTRINGS)).toEqual([]);
   });
 });

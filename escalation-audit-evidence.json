@@ -1,0 +1,345 @@
+{
+  "evidenceVersion": "42.7B.1",
+  "generatedAt": "2026-06-24T00:00:00Z",
+  "totalCases": 48,
+  "passCount": 48,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "A.resolved-no-escalation.01",
+      "decision": "resolved-resolution",
+      "expected": "no-escalation",
+      "outcome": "no-escalation",
+      "reason": "Resolved treatment yields no-escalation."
+    },
+    {
+      "id": "A.resolved-no-escalation.02",
+      "decision": "target-null",
+      "expected": "null",
+      "outcome": "null",
+      "reason": "No-escalation leaves targetPersonaHandle null."
+    },
+    {
+      "id": "A.unresolved-founder.01",
+      "decision": "unresolved-resolution",
+      "expected": "escalate-to-founder",
+      "outcome": "escalate-to-founder",
+      "reason": "Unresolved with founder fallback escalates to founder tier."
+    },
+    {
+      "id": "A.unresolved-founder.02",
+      "decision": "founder-contact",
+      "expected": "mwiseman@advisacor.com",
+      "outcome": "mwiseman@advisacor.com",
+      "reason": "Founder fallback contactRef is mwiseman@advisacor.com."
+    },
+    {
+      "id": "A.unresolved-founder.03",
+      "decision": "target-persona",
+      "expected": "ai-partner-helper",
+      "outcome": "ai-partner-helper",
+      "reason": "Founder escalation routes to ai-partner-helper."
+    },
+    {
+      "id": "A.fail-closed-decline.01",
+      "decision": "fail-closed-adapter",
+      "expected": "decline-out-of-scope",
+      "outcome": "decline-out-of-scope",
+      "reason": "fail_closed adapter outcome maps to decline-out-of-scope."
+    },
+    {
+      "id": "A.fail-closed-decline.02",
+      "decision": "adapter-outcome",
+      "expected": "fail_closed",
+      "outcome": "fail_closed",
+      "reason": "Registry miss yields fail_closed adapter outcome."
+    },
+    {
+      "id": "A.high-materiality-tier-up.01",
+      "decision": "high-materiality-unresolved",
+      "expected": "escalate-tier-up",
+      "outcome": "escalate-tier-up",
+      "reason": "High materiality with non-founder target escalates tier-up."
+    },
+    {
+      "id": "A.high-materiality-tier-up.02",
+      "decision": "tier-up-target",
+      "expected": "ai-senior-accountant",
+      "outcome": "ai-senior-accountant",
+      "reason": "ai-staff-accountant tier-up target is ai-senior-accountant."
+    },
+    {
+      "id": "A.critical-auditor-tier-up.01",
+      "decision": "critical-materiality",
+      "expected": "escalate-tier-up",
+      "outcome": "escalate-tier-up",
+      "reason": "Critical materiality with auditor persona tier-up."
+    },
+    {
+      "id": "A.critical-auditor-tier-up.02",
+      "decision": "auditor-target",
+      "expected": "ai-senior-auditor",
+      "outcome": "ai-senior-auditor",
+      "reason": "ai-staff-auditor tier-up target is ai-senior-auditor."
+    },
+    {
+      "id": "A.propagation.01",
+      "decision": "matched-rules",
+      "expected": "RULE-001",
+      "outcome": "RULE-001",
+      "reason": "matchedRules propagate from resolution."
+    },
+    {
+      "id": "A.propagation.02",
+      "decision": "citation-handles",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "citationHandlesConsulted populated on resolved path."
+    },
+    {
+      "id": "B.audit-wrapper.01",
+      "decision": "audit-entry-written",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "evaluateEscalation appends one audit entry when writer configured."
+    },
+    {
+      "id": "B.audit-wrapper.02",
+      "decision": "audit-kind",
+      "expected": "escalation.evaluated",
+      "outcome": "escalation.evaluated",
+      "reason": "Audit kind is escalation.evaluated."
+    },
+    {
+      "id": "B.audit-wrapper.03",
+      "decision": "payload-validates",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Audit payload passes validateEscalationEvaluatedEntry."
+    },
+    {
+      "id": "B.phi-tenant.01",
+      "decision": "tenant-classification",
+      "expected": "phi-covered",
+      "outcome": "phi-covered",
+      "reason": "PHI tenant classified as phi-covered in audit payload."
+    },
+    {
+      "id": "B.phi-tenant.02",
+      "decision": "audit-namespace",
+      "expected": "phi-covered",
+      "outcome": "phi-covered",
+      "reason": "PHI tenant auditNamespace is phi-covered."
+    },
+    {
+      "id": "B.standard-tenant.01",
+      "decision": "tenant-classification",
+      "expected": "standard",
+      "outcome": "standard",
+      "reason": "Standard tenant classified as standard."
+    },
+    {
+      "id": "B.standard-tenant.02",
+      "decision": "audit-namespace",
+      "expected": "standard",
+      "outcome": "standard",
+      "reason": "Standard tenant auditNamespace is standard."
+    },
+    {
+      "id": "B.audit-wrapper.04",
+      "decision": "tenant-classifier-required",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "tenantClassifier required when auditLogWriter configured."
+    },
+    {
+      "id": "B.audit-wrapper.05",
+      "decision": "known-tenant-registry",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Unknown tenant in knownTenantIds guard throws."
+    },
+    {
+      "id": "B.fail-closed-audit.01",
+      "decision": "audit-write-failure",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Mock audit writer that throws causes evaluateEscalation to throw."
+    },
+    {
+      "id": "B.audit-wrapper.06",
+      "decision": "no-audit-delegates-pure",
+      "expected": "no-escalation",
+      "outcome": "no-escalation",
+      "reason": "Without auditLogWriter, wrapper delegates to pure core."
+    },
+    {
+      "id": "C.entry-shape.01",
+      "decision": "well-formed-entry",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Sample EscalationEvaluatedEntry validates."
+    },
+    {
+      "id": "C.entry-shape.02",
+      "decision": "invalid-event",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Invalid event rejected by validator."
+    },
+    {
+      "id": "C.entry-shape.03",
+      "decision": "invalid-decision-outcome",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Invalid decisionOutcome rejected."
+    },
+    {
+      "id": "C.entry-shape.04",
+      "decision": "missing-required-field",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Missing callerTenantId rejected."
+    },
+    {
+      "id": "C.entry-shape.05",
+      "decision": "all-outcomes-valid",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "All four decisionOutcome enum values validate."
+    },
+    {
+      "id": "C.entry-shape.06",
+      "decision": "target-null-allowed",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "targetPersonaHandle null is allowed for no-escalation."
+    },
+    {
+      "id": "D.mixed-chain.01",
+      "decision": "entry-count",
+      "expected": "3",
+      "outcome": "3",
+      "reason": "Mixed chain has cache + escalation entries."
+    },
+    {
+      "id": "D.mixed-chain.02",
+      "decision": "verify-chain",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Mixed cache + escalation chain verifies with verifyAuditChain."
+    },
+    {
+      "id": "D.mixed-chain.03",
+      "decision": "genesis-first",
+      "expected": "GENESIS",
+      "outcome": "GENESIS",
+      "reason": "First entry prevHash is GENESIS."
+    },
+    {
+      "id": "D.mixed-chain.04",
+      "decision": "escalation-kind-present",
+      "expected": "escalation.evaluated",
+      "outcome": "escalation.evaluated",
+      "reason": "Escalation entry present in mixed chain."
+    },
+    {
+      "id": "D.mixed-chain.05",
+      "decision": "tampered-entry",
+      "expected": "invalid",
+      "outcome": "invalid",
+      "reason": "Tampered escalation entry fails chain verification."
+    },
+    {
+      "id": "D.mixed-chain.06",
+      "decision": "reordered-entries",
+      "expected": "invalid",
+      "outcome": "invalid",
+      "reason": "Reordered mixed chain fails verification."
+    },
+    {
+      "id": "E.pure-core.01",
+      "decision": "evaluateEscalationPure-exists",
+      "expected": "function",
+      "outcome": "function",
+      "reason": "evaluateEscalationPure export exists."
+    },
+    {
+      "id": "E.pure-core.02",
+      "decision": "no-audit-imports",
+      "expected": "zero-references",
+      "outcome": "zero-references",
+      "reason": "evaluateEscalationPure must not import audit module."
+    },
+    {
+      "id": "E.wrapper.01",
+      "decision": "delegates-to-pure",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "evaluateEscalation delegates to evaluateEscalationPure."
+    },
+    {
+      "id": "E.wrapper.02",
+      "decision": "doctrine-header",
+      "expected": "Phase 42.7B.1",
+      "outcome": "Phase 42.7B.1",
+      "reason": "evaluateEscalation.ts carries Phase 42.7B.1 doctrine header."
+    },
+    {
+      "id": "E.wrapper.03",
+      "decision": "treatment-adapter-doctrine",
+      "expected": "Phase 42.7B.1",
+      "outcome": "Phase 42.7B.1",
+      "reason": "treatmentRoleAdapter.ts carries Phase 42.7B.1 doctrine header."
+    },
+    {
+      "id": "F.persona-coverage.01",
+      "decision": "resolved-no-escalation",
+      "expected": "no-escalation",
+      "outcome": "no-escalation",
+      "reason": "ai-staff-accountant resolved path yields no-escalation."
+    },
+    {
+      "id": "F.persona-coverage.02",
+      "decision": "resolved-no-escalation",
+      "expected": "no-escalation",
+      "outcome": "no-escalation",
+      "reason": "ai-senior-accountant resolved path yields no-escalation."
+    },
+    {
+      "id": "F.persona-coverage.03",
+      "decision": "resolved-no-escalation",
+      "expected": "no-escalation",
+      "outcome": "no-escalation",
+      "reason": "ai-accounting-manager resolved path yields no-escalation."
+    },
+    {
+      "id": "F.persona-coverage.04",
+      "decision": "resolved-no-escalation",
+      "expected": "no-escalation",
+      "outcome": "no-escalation",
+      "reason": "ai-controller-helper resolved path yields no-escalation."
+    },
+    {
+      "id": "F.persona-coverage.05",
+      "decision": "resolved-no-escalation",
+      "expected": "no-escalation",
+      "outcome": "no-escalation",
+      "reason": "ai-cfo-helper resolved path yields no-escalation."
+    },
+    {
+      "id": "F.determinism.01",
+      "decision": "pure-repeatable",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Repeated pure evaluations produce identical results."
+    },
+    {
+      "id": "F.determinism.02",
+      "decision": "evidence-byte-identical",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Two consecutive runs produce byte-identical case records."
+    }
+  ]
+}

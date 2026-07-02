@@ -23,7 +23,7 @@ function loadFixture(relPath: string): ExtractedFiling {
 describe("nonprofit framework non-comingling", () => {
   it("US GAAP lane output has zero IPSAS/IFRS forbidden substrings", () => {
     const extracted = loadFixture("usgaap/functionalExpenseAllocation/happy-501c3-charity.json");
-    const output = nonprofitLaneOutputText(extracted, "us_gaap");
+    const output = nonprofitLaneOutputText(extracted, "us-gaap");
     expect(collectForbiddenMatches(output, USGAAP_NPO_FORBIDDEN_OUTPUT_SUBSTRINGS)).toEqual([]);
     expect(output.length).toBeGreaterThan(0);
   });
@@ -37,7 +37,7 @@ describe("nonprofit framework non-comingling", () => {
 
   it("cross-cutting framework-switch: same entity US GAAP then IPSAS both framework-pure", () => {
     const extracted = loadFixture("cross-cutting/framework-switch.json");
-    const usOutput = nonprofitLaneOutputText(extracted, "us_gaap");
+    const usOutput = nonprofitLaneOutputText(extracted, "us-gaap");
     const ipsasOutput = nonprofitLaneOutputText(
       { ...extracted, framework: "ipsas", rawFrameworkSignals: ["ipsas"], service_costs: extracted.service_costs },
       "ipsas",

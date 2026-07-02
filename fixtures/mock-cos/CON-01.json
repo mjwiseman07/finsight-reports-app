@@ -1,0 +1,49 @@
+{
+  "_g7vStub": true,
+  "_g7vStubComment": "G7-V minimum viable mock-co — not a production fixture. extracted block sourced from tests/fixtures/g7-c7a-1b/happy/flr-10k-units.json",
+  "company": {
+    "name": "Mock CON Co.",
+    "fiscalYear": 2025,
+    "currency": "USD"
+  },
+  "trialBalance": [],
+  "accountMap": {},
+  "subledgers": {
+    "ar": [],
+    "ap": [],
+    "inventory": []
+  },
+  "elections": {},
+  "memory": {},
+  "priorPeriod": null,
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "vertical": "con",
+    "framework": "us-gaap",
+    "formType": "10-K",
+    "numericFacts": [
+      {
+        "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "label": "Revenue from Contract with Customer",
+        "value": 5200000000,
+        "unit": "USD",
+        "periodEnd": "2026-03-31"
+      }
+    ],
+    "narrativeSnippets": [
+      "Construction contract revenue recognition"
+    ],
+    "rawFrameworkSignals": [
+      "us-gaap"
+    ],
+    "filingId": "FLR-10k",
+    "entityName": "FLUOR CORPORATION",
+    "construction": {
+      "output_measure": {
+        "method": "units-of-delivery",
+        "unit_definition": "completed housing units",
+        "unit_progress": 142
+      }
+    }
+  }
+}

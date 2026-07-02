@@ -1,0 +1,49 @@
+{
+  "framework": "us-gaap",
+  "results": [
+    {
+      "emitterId": "inventory-decomposition",
+      "emitterPath": "lib/router/lanes/manufacturing/emitters/inventoryDecomposition.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "inventory-decomposition",
+          "citation": {
+            "standard": "ASC 330",
+            "paragraphs": [
+              "330-10-50-1",
+              "330-10-50-4",
+              "330-10-35-1B"
+            ]
+          },
+          "text": "Inventories disaggregated per ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B: raw materials $5,200,000,000, work in process $1,800,000,000, finished goods $3,400,000,000, supplies $200,000,000. Total inventories $10,600,000,000. Costing method: weighted-average. Lower-of-cost-or-net-realizable-value writedown $120,000,000."
+        }
+      ]
+    },
+    {
+      "emitterId": "cogm-rollforward",
+      "emitterPath": "lib/router/lanes/manufacturing/emitters/cogmRollforward.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "cogm-rollforward",
+          "citation": {
+            "standard": "ASC 330",
+            "paragraphs": [
+              "COGM supplementary schedule"
+            ]
+          },
+          "text": "Cost of goods manufactured rollforward per ASC 330 COGM supplementary schedule: beginning raw materials $5,000,000,000, purchases $18,000,000,000, ending raw materials $5,200,000,000, raw materials used $17,800,000,000; direct labor $3,200,000,000, manufacturing overhead $2,100,000,000, total manufacturing costs $23,100,000,000; beginning WIP $1,600,000,000, ending WIP $1,800,000,000, cost of goods manufactured $22,900,000,000; beginning finished goods $3,200,000,000, ending finished goods $3,400,000,000, cost of goods sold $22,700,000,000 reconciled to income statement COGS."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "Inventories disaggregated per ASC 330 330-10-50-1, 330-10-50-4, 330-10-35-1B: raw materials $5,200,000,000, work in process $1,800,000,000, finished goods $3,400,000,000, supplies $200,000,000. Total inventories $10,600,000,000. Costing method: weighted-average. Lower-of-cost-or-net-realizable-value writedown $120,000,000.",
+    "Cost of goods manufactured rollforward per ASC 330 COGM supplementary schedule: beginning raw materials $5,000,000,000, purchases $18,000,000,000, ending raw materials $5,200,000,000, raw materials used $17,800,000,000; direct labor $3,200,000,000, manufacturing overhead $2,100,000,000, total manufacturing costs $23,100,000,000; beginning WIP $1,600,000,000, ending WIP $1,800,000,000, cost of goods manufactured $22,900,000,000; beginning finished goods $3,200,000,000, ending finished goods $3,400,000,000, cost of goods sold $22,700,000,000 reconciled to income statement COGS."
+  ],
+  "verticalCode": "manufacturing",
+  "filingId": "GE-10k",
+  "satisfiedEmitters": 2,
+  "failClosedEmitters": 0
+}

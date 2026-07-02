@@ -1,0 +1,12 @@
+{
+  "pair": { "code": "hc-edu", "primary": "hc", "secondary": "edu", "displayName": "Healthcare × Education", "patentNamed": false },
+  "pairEntities": [
+    { "entityId": "HARVARD-MED-AFFIL", "primaryVertical": "hc", "secondaryVertical": "edu", "primaryFramework": "US_GAAP_ASC954", "secondaryFramework": "US_GAAP_ASC958", "restrictedResearchGrant": true, "charityCareThresholdMet": true, "tuitionDiscountThresholdMet": true, "has501c3Marker": true, "hasScheduleHDisclosure": true, "hasScheduleEDisclosure": true, "endowmentSegregated": true }
+  ],
+  "disclosures": [
+    { "entityId": "HARVARD-MED-AFFIL", "framework": "US_GAAP_ASC954", "emitterPath": "lib/router/healthcare/usgaap/researchGrants.ts", "text": "ASC 954 restricted research grant from NIH" },
+    { "entityId": "HARVARD-MED-AFFIL", "framework": "US_GAAP_ASC958", "emitterPath": "lib/router/education/usgaap/restrictedResearchGrant.ts", "text": "ASC 958 education restricted grant" },
+    { "entityId": "HARVARD-MED-AFFIL", "framework": "US_GAAP_ASC954", "emitterPath": "lib/router/healthcare/usgaap/charityCare.ts", "text": "charity care threshold disclosure" },
+    { "entityId": "HARVARD-MED-AFFIL", "framework": "US_GAAP_ASC958", "emitterPath": "lib/router/education/usgaap/tuitionDiscount.ts", "text": "tuition discount endowment disclosure" }
+  ]
+}

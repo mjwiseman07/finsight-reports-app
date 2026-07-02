@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { citationResolved, type EmitterResult } from "../types";
 import { FrameworkUnsupportedError } from "./errors";
 import { buildNonprofitEmitterInput, resolveNonprofitFrameworkLane } from "./types";
@@ -10,13 +10,13 @@ import * as ipsasService from "./ipsas/serviceCostingDisclosure";
 import { MissingDisclosureInputError } from "./errors";
 
 export interface NonprofitRouterDeferred {
-  framework: "ifrs_for_smes";
+  framework: "ifrs-for-smes";
   status: "deferred";
   reason: string;
 }
 
 export interface NonprofitRouterOutput {
-  frameworkLane: string;
+  framework: RouterFramework;
   results: EmitterResult[];
   deferred?: NonprofitRouterDeferred;
   augmentedNarratives: string[];
@@ -68,12 +68,12 @@ export function runNonprofitRouter(extracted: ExtractedFiling): NonprofitRouterO
   const lane = resolveNonprofitFrameworkLane(extracted);
   const input = buildNonprofitEmitterInput(extracted);
 
-  if (lane === "ifrs_for_smes") {
+  if (lane === "ifrs-for-smes") {
     return {
-      frameworkLane: lane,
+      framework: lane,
       results: [],
       deferred: {
-        framework: "ifrs_for_smes",
+        framework: "ifrs-for-smes",
         status: "deferred",
         reason: "NPO IFRS for SMEs lane not yet implemented; tracked as remainder",
       },
@@ -89,7 +89,7 @@ export function runNonprofitRouter(extracted: ExtractedFiling): NonprofitRouterO
     ),
   ];
 
-  return { frameworkLane: lane, results, augmentedNarratives };
+  return { framework: lane, results, augmentedNarratives };
 }
 
 export function emitterSatisfiesAssertion(
@@ -117,7 +117,7 @@ export function withRouterNarratives(extracted: ExtractedFiling): ExtractedFilin
   return { ...extracted, narrativeSnippets: router.augmentedNarratives };
 }
 
-export function nonprofitLaneOutputText(extracted: ExtractedFiling, lane: "us_gaap" | "ipsas"): string {
+export function nonprofitLaneOutputText(extracted: ExtractedFiling, lane: "us-gaap" | "ipsas"): string {
   const clone: ExtractedFiling = {
     ...extracted,
     framework: lane === "ipsas" ? "ipsas" : "us-gaap",

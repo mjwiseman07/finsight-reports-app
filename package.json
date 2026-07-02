@@ -120,9 +120,12 @@
     "test:resolver": "node scripts/run-resolver-tests.js",
     "test:cascade": "npx tsx scripts/cascade-runner.ts",
     "test:integration": "npx tsx scripts/integration-harness.ts",
-    "stub:inventory": "npx tsx scripts/stub-inventory.ts"
+    "stub:inventory": "npx tsx scripts/stub-inventory.ts",
+    "g7v:verify": "npx tsx scripts/g7v/run-verification.ts",
+    "validate:frameworks": "npx tsx scripts/validate-fixture-frameworks.ts"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^5.10.0",
     "@supabase/supabase-js": "^2.106.1",
     "next": "16.2.6",
     "node-quickbooks": "^2.0.50",

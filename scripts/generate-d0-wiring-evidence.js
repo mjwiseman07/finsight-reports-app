@@ -54,9 +54,11 @@ function loadMatrixCases() {
 
 async function loadWiringEvidence() {
   ensureTypeScriptLoader();
+  // Import the pure runner directly — the sibling .test.ts file imports vitest
+  // which cannot be loaded from a CommonJS require() chain.
   // eslint-disable-next-line import/no-dynamic-require, global-require
   const { runWiringVerifierTests } = require(
-    path.join(root, "architecture-lane/verifier-42-7f/__tests__/wiringVerifier.test.ts"),
+    path.join(root, "architecture-lane/verifier-42-7f/wiringVerifierRunner.ts"),
   );
   return runWiringVerifierTests();
 }

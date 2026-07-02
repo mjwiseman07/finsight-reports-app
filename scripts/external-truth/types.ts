@@ -1,6 +1,11 @@
 /**
  * Phase G7 — external-truth shared types.
  */
+import type { BankingExtracted } from "../../lib/router/banking/types";
+import type { InsuranceExtracted } from "../../lib/router/insurance/types";
+
+export type { BankingExtracted, InsuranceExtracted };
+
 export type ExternalTruthVertical =
   | "saas"
   | "rtl"
@@ -10,9 +15,87 @@ export type ExternalTruthVertical =
   | "con"
   | "gc"
   | "ps"
-  | "fa";
+  | "fa"
+  | "edu"
+  | "re"
+  | "hos"
+  | "log"
+  | "ins"
+  | "bank";
 
 export type ReportingFramework = "us-gaap" | "ifrs" | "ipsas";
+
+/**
+ * Framework identifiers carried by router outputs.
+ *
+ * Superset of ReportingFramework with two additional states that only
+ * appear at the router boundary (not in extraction/emission):
+ *   - "ifrs-for-smes": smaller-entity IFRS regime; distinct disclosure
+ *     requirements from full IFRS (used primarily by nonprofits, some
+ *     smaller banks/insurers).
+ *   - "unknown": framework could not be determined from extraction.
+ *     Emitters MUST refuse to run on unknown framework.
+ *
+ * This type is DISTINCT from lib/intelligence/synthetic/standards/**
+ * StandardsReportingFramework, which uses snake_case and finer-grained
+ * variants (e.g. "ifrs_iasb"). The two type systems serve different
+ * layers and are not interchangeable. Do not merge them.
+ */
+export type RouterFramework =
+  | ReportingFramework
+  | "ifrs-for-smes"
+  | "unknown";
+
+/**
+ * Type guard — framework belongs to the US GAAP family.
+ * The ONLY sanctioned way to branch on GAAP-vs-IFRS at router level.
+ */
+export function isGaapFramework(f: RouterFramework): f is "us-gaap" {
+  return f === "us-gaap";
+}
+
+/**
+ * Type guard — framework belongs to any IFRS family (full IFRS OR
+ * IFRS for SMEs). Both share IFRS disclosure roots but have distinct
+ * treatments. Emitters that differ between the two variants MUST
+ * further use isFullIfrs() or isIfrsForSmes().
+ */
+export function isIfrsFamily(f: RouterFramework): f is "ifrs" | "ifrs-for-smes" {
+  return f === "ifrs" || f === "ifrs-for-smes";
+}
+
+/** Type guard — full IFRS only (not the SMEs variant). */
+export function isFullIfrs(f: RouterFramework): f is "ifrs" {
+  return f === "ifrs";
+}
+
+/** Type guard — IFRS for SMEs only. */
+export function isIfrsForSmes(f: RouterFramework): f is "ifrs-for-smes" {
+  return f === "ifrs-for-smes";
+}
+
+/** Type guard — International Public Sector Accounting Standards. */
+export function isIpsas(f: RouterFramework): f is "ipsas" {
+  return f === "ipsas";
+}
+
+/**
+ * Type guard — framework could not be determined. Callers MUST
+ * handle this explicitly (typically by refusing to emit).
+ */
+export function isUnknownFramework(f: RouterFramework): f is "unknown" {
+  return f === "unknown";
+}
+
+/**
+ * Exhaustiveness marker for switch statements on RouterFramework.
+ * If a new variant is added to RouterFramework without updating a
+ * switch, this function's call site produces a compile-time TYPE
+ * ERROR — preventing silent GAAP/IFRS blending.
+ */
+export function assertNeverFramework(framework: never): never {
+  throw new Error(`Unhandled RouterFramework variant: ${JSON.stringify(framework)}`);
+}
 
 export type ValidationTier = "structural" | "numeric" | "narrative";
 
@@ -377,6 +460,148 @@ export interface ExtractedFiling {
       shares_outstanding: number;
     };
   };
+  education?: {
+    jurisdiction?: string;
+    revenue?: {
+      tuition: number;
+      contributions: number;
+      auxiliary: number;
+    };
+    endowment?: {
+      total: number;
+      with_donor_restrictions: number;
+      without_donor_restrictions: number;
+      permanently_restricted: number;
+      temporarily_restricted: number;
+    };
+    title_iv?: {
+      composite_score: number;
+      financial_responsibility_zone: "pass" | "pass-with-watch" | "fail";
+    };
+    auxiliary_enterprises?: {
+      housing: number;
+      dining: number;
+      athletics: number;
+    };
+    ipsas_non_exchange?: {
+      grant_revenue: number;
+      conditions_outstanding: string;
+    };
+  };
+  real_estate?: {
+    entityType?: string;
+    gaapBasis?: "us-gaap" | "ifrs";
+    revenue?: {
+      rental: number;
+      property_count: number;
+    };
+    lessor_leases?: {
+      operating: number;
+      sales_type: number;
+      direct_financing: number;
+    };
+    lessee?: {
+      rou_asset: number;
+      lease_liability: number;
+    };
+    investment_property?: {
+      fair_value: number;
+      carrying_amount: number;
+    };
+    impairment?: {
+      asset_group: string;
+      carrying_amount: number;
+      fair_value: number;
+    };
+    held_for_sale?: {
+      assets: number;
+      liabilities: number;
+    };
+    real_estate_sales?: {
+      full_accrual: number;
+      partial_sales: number;
+    };
+    reit_metrics?: {
+      ffo: number;
+      affo: number;
+      noi: number;
+    };
+    acquisition?: {
+      property_name: string;
+      amount: number;
+      cap_rate_pct: number;
+    };
+  };
+  hospitality?: {
+    franchiseFlag?: boolean;
+    casinoFlag?: boolean;
+    timeshareFlag?: boolean;
+    revenue?: {
+      rooms: number;
+      food_beverage: number;
+      other: number;
+      hotel_count: number;
+    };
+    loyalty_program?: {
+      deferred_revenue: number;
+      material_right_estimate: number;
+    };
+    gift_cards?: {
+      outstanding: number;
+      breakage_estimate: number;
+    };
+    franchise_fees?: {
+      initial: number;
+      ongoing: number;
+    };
+    casino?: {
+      base_jackpot_accrual: number;
+    };
+    timeshare?: {
+      revenue: number;
+      deferred: number;
+    };
+    usali?: {
+      edition: number;
+      departmental_schedules: string[];
+    };
+  };
+  logistics?: {
+    revenue?: {
+      freight: number;
+      fuel_surcharge: number;
+    };
+    fleet?: {
+      tractors: number;
+      trailers: number;
+    };
+    principal_or_agent?: "principal" | "agent";
+    bill_and_hold?: {
+      enabled: boolean;
+      goods_ready: boolean;
+      amount: number;
+    };
+    fuel_hedge?: {
+      notional: number;
+      fair_value: number;
+      effectiveness_pct: number;
+    };
+    impairment?: {
+      asset_group: string;
+      carrying_amount: number;
+      fair_value: number;
+    };
+    demurrage_detention?: {
+      demurrage: number;
+      detention: number;
+    };
+    terminal_leases?: {
+      count: number;
+      total_liability: number;
+    };
+  };
+  insurance?: InsuranceExtracted;
+  banking?: BankingExtracted;
 }
 
 export interface ExpectedDisclosureTopic {

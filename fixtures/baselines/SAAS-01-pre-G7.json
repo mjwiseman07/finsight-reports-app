@@ -1,0 +1,158 @@
+{
+  "frameworkLane": "us-gaap",
+  "results": [
+    {
+      "emitterId": "contract-asset-liability-split",
+      "emitterPath": "lib/router/saas/usgaap/contractAssetLiabilitySplit.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "contract-asset-liability-split",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-45-1",
+              "606-10-45-5"
+            ]
+          },
+          "text": "Contract assets of $500000000 (current) and contract liabilities of $1200000000 (current) disclosed per ASC 606 606-10-45-1, 606-10-45-5."
+        },
+        {
+          "assertionId": "deferred-revenue-rollforward",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-45-1",
+              "606-10-45-5"
+            ]
+          },
+          "text": "Deferred revenue rollforward: beginning $1100000000, deferred $4500000000, recognized $4200000000, ending $1400000000 per ASC 606 606-10-45-1, 606-10-45-5."
+        }
+      ]
+    },
+    {
+      "emitterId": "revenue-disaggregation",
+      "emitterPath": "lib/router/saas/usgaap/revenueDisaggregation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "revenue-disaggregation",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-50-5",
+              "606-10-55-89",
+              "606-10-55-91"
+            ]
+          },
+          "text": "SaaS revenue disaggregated by category (subscription: $10000000000; professional_services: $1500000000; usage_based: $500000000) per ASC 606 606-10-50-5, 606-10-55-89, 606-10-55-91."
+        }
+      ]
+    },
+    {
+      "emitterId": "cost-to-obtain-contract",
+      "emitterPath": "lib/router/saas/usgaap/costToObtainContract.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "cost-to-obtain-contract",
+          "citation": {
+            "standard": "ASC 340-40",
+            "paragraphs": [
+              "340-40-25-1",
+              "340-40-35-1"
+            ]
+          },
+          "text": "Capitalized cost to obtain contracts of $800000000 with amortization of $650000000 per ASC 340-40 340-40-25-1, 340-40-35-1."
+        }
+      ]
+    },
+    {
+      "emitterId": "transaction-price-allocation",
+      "emitterPath": "lib/router/saas/usgaap/transactionPriceAllocation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "transaction-price-allocation",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-32-31",
+              "606-10-50-13"
+            ]
+          },
+          "text": "Transaction price allocated to performance obligations (subscription license: $9000000000; support services: $3000000000) per ASC 606 606-10-32-31, 606-10-50-13."
+        }
+      ]
+    },
+    {
+      "emitterId": "remaining-performance-obligation",
+      "emitterPath": "lib/router/saas/usgaap/remainingPerformanceObligation.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "rpo-disclosure",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-50-13",
+              "606-10-50-14"
+            ]
+          },
+          "text": "Remaining performance obligations of $25000000000, including $12000000000 expected within twelve months, per ASC 606 606-10-50-13, 606-10-50-14."
+        }
+      ]
+    },
+    {
+      "emitterId": "variable-consideration-constraint",
+      "emitterPath": "lib/router/saas/usgaap/variableConsiderationConstraint.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "variable-consideration-constraint",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-32-11",
+              "606-10-50-20"
+            ]
+          },
+          "text": "Variable consideration of $120000000 constrained (highly probable threshold applied to usage-based fees) per ASC 606 606-10-32-11, 606-10-50-20."
+        }
+      ]
+    },
+    {
+      "emitterId": "principal-vs-agent",
+      "emitterPath": "lib/router/saas/usgaap/principalVsAgent.ts",
+      "status": "satisfied",
+      "lines": [
+        {
+          "assertionId": "principal-vs-agent",
+          "citation": {
+            "standard": "ASC 606",
+            "paragraphs": [
+              "606-10-55-36",
+              "606-10-55-40"
+            ]
+          },
+          "text": "Entity reports as principal for SaaS marketplace transactions per ASC 606 606-10-55-36, 606-10-55-40."
+        }
+      ]
+    }
+  ],
+  "augmentedNarratives": [
+    "SaaS subscription revenue recognition",
+    "Contract assets of $500000000 (current) and contract liabilities of $1200000000 (current) disclosed per ASC 606 606-10-45-1, 606-10-45-5.",
+    "Deferred revenue rollforward: beginning $1100000000, deferred $4500000000, recognized $4200000000, ending $1400000000 per ASC 606 606-10-45-1, 606-10-45-5.",
+    "SaaS revenue disaggregated by category (subscription: $10000000000; professional_services: $1500000000; usage_based: $500000000) per ASC 606 606-10-50-5, 606-10-55-89, 606-10-55-91.",
+    "Capitalized cost to obtain contracts of $800000000 with amortization of $650000000 per ASC 340-40 340-40-25-1, 340-40-35-1.",
+    "Transaction price allocated to performance obligations (subscription license: $9000000000; support services: $3000000000) per ASC 606 606-10-32-31, 606-10-50-13.",
+    "Remaining performance obligations of $25000000000, including $12000000000 expected within twelve months, per ASC 606 606-10-50-13, 606-10-50-14.",
+    "Variable consideration of $120000000 constrained (highly probable threshold applied to usage-based fees) per ASC 606 606-10-32-11, 606-10-50-20.",
+    "Entity reports as principal for SaaS marketplace transactions per ASC 606 606-10-55-36, 606-10-55-40."
+  ],
+  "verticalCode": "saas",
+  "filingId": "CRM-10k",
+  "satisfiedEmitters": 7,
+  "failClosedEmitters": 0
+}

@@ -23,7 +23,7 @@ function loadFixture(relPath: string): ExtractedFiling {
 describe("professional services framework non-comingling", () => {
   it("US GAAP lane output has zero IFRS forbidden substrings", () => {
     const extracted = loadFixture("usgaap/unbilledReceivablesDisclosure/happy-consulting-firm.json");
-    const output = psLaneOutputText(extracted, "us_gaap");
+    const output = psLaneOutputText(extracted, "us-gaap");
     expect(collectForbiddenMatches(output, USGAAP_PS_FORBIDDEN_OUTPUT_SUBSTRINGS)).toEqual([]);
     expect(output.length).toBeGreaterThan(0);
   });
@@ -37,7 +37,7 @@ describe("professional services framework non-comingling", () => {
 
   it("cross-cutting agent-vs-principal framework-switch: US principal then IFRS agent both framework-pure", () => {
     const extracted = loadFixture("cross-cutting/agent-vs-principal-framework-switch.json");
-    const usOutput = psLaneOutputText(extracted, "us_gaap");
+    const usOutput = psLaneOutputText(extracted, "us-gaap");
     const ifrsOutput = psLaneOutputText(
       {
         ...extracted,
@@ -70,7 +70,7 @@ describe("professional services framework non-comingling", () => {
 
   it("comingling-rejected: US GAAP emitter output excludes prefilled IFRS citation from input narrative", () => {
     const extracted = loadFixture("usgaap/principalVsAgentDisclosure/comingling-rejected-ifrs-citation.json");
-    const output = psLaneOutputText(extracted, "us_gaap");
+    const output = psLaneOutputText(extracted, "us-gaap");
     expect(collectForbiddenMatches(output, USGAAP_PS_FORBIDDEN_OUTPUT_SUBSTRINGS)).toEqual([]);
   });
 });

@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { citationResolved, type EmitterResult } from "../types";
 import { FrameworkViolationError } from "../errors/FrameworkViolationError";
 import {
@@ -23,7 +23,7 @@ export interface ManufacturingFrameworkViolation {
 }
 
 export interface ManufacturingRouterOutput {
-  framework: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
   frameworkViolation?: ManufacturingFrameworkViolation;

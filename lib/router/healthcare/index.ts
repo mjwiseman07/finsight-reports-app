@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { citationResolved, type EmitterResult } from "../types";
 import { FrameworkViolationError } from "../errors/FrameworkViolationError";
 import { buildHealthcareEmitterInput } from "./types";
@@ -30,7 +30,7 @@ export interface HealthcareFrameworkViolation {
 }
 
 export interface HealthcareRouterOutput {
-  framework: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
   frameworkViolation?: HealthcareFrameworkViolation;

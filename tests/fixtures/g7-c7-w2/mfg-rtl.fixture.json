@@ -1,0 +1,12 @@
+{
+  "pair": { "code": "mfg-rtl", "primary": "mfg", "secondary": "rtl", "displayName": "Manufacturing × Retail (DTC)", "patentNamed": false },
+  "pairEntities": [
+    { "entityId": "TESLA-MFG-OPS", "primaryVertical": "mfg", "secondaryVertical": "mfg", "primaryFramework": "US_GAAP_ASC330", "secondaryFramework": "US_GAAP_ASC606", "inventoryHasWIP": true, "marginMethod": "cost-plus", "ownedManufacturingFacility": true, "singleSegmentAggregation": false },
+    { "entityId": "TESLA-DTC-STORES", "primaryVertical": "rtl", "secondaryVertical": "rtl", "primaryFramework": "US_GAAP_ASC330", "secondaryFramework": "US_GAAP_ASC606", "inventoryHasFGOnly": true, "inventoryHasWIP": false, "marginMethod": "markup", "leasedRetailStorefront": true, "singleSegmentAggregation": false }
+  ],
+  "disclosures": [
+    { "entityId": "TESLA-MFG-OPS", "framework": "US_GAAP_ASC330", "emitterPath": "lib/router/manufacturing/usgaap/inventoryDecomposition.ts", "text": "WIP raw materials FG decomposition; owned facility lessor not applicable" },
+    { "entityId": "TESLA-DTC-STORES", "framework": "US_GAAP_ASC842", "emitterPath": "lib/router/retail/usgaap/leaseDisclosure.ts", "text": "store lease lessee disclosure under ASC 842" },
+    { "entityId": "TESLA-MFG-OPS", "framework": "US_GAAP_ASC842", "emitterPath": "lib/router/manufacturing/usgaap/facilityLessor.ts", "text": "owned facility lessor flag for sub-leased space" }
+  ]
+}

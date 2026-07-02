@@ -1,0 +1,82 @@
+{
+  "_g7vStub": true,
+  "_g7vStubComment": "G8b-BANK — community bank, ~$2.5B assets, FFIEC 051, CECL/WARM, modest hedge book, not SEC filer, AOCI opt-out elected",
+  "company": {
+    "name": "Acme Community Bank, N.A.",
+    "fiscalYear": 2025,
+    "currency": "USD"
+  },
+  "trialBalance": [],
+  "accountMap": {},
+  "subledgers": { "ar": {}, "ap": {}, "inventory": {} },
+  "elections": {},
+  "memory": {},
+  "priorPeriod": null,
+  "extracted": {
+    "schemaVersion": "1.0.0",
+    "filingId": "BANK-01",
+    "vertical": "bank",
+    "framework": "us-gaap",
+    "entityName": "Acme Community Bank, N.A.",
+    "formType": "10-K",
+    "numericFacts": [],
+    "narrativeSnippets": [
+      "Community bank, ~$2.5B assets, FFIEC 051, CECL/WARM, AOCI opt-out elected"
+    ],
+    "rawFrameworkSignals": ["us-gaap"],
+    "entity_type": "C-Corp",
+    "tax_status": "taxable",
+    "banking": {
+      "gaapBasis": "us-gaap",
+      "secFilerFlag": false,
+      "callReportForm": "051",
+      "reportingEntity": "bank-subsidiary",
+      "totalAssets": 2500000000,
+      "aociOptOutElection": true,
+      "hasLoansHFI": true,
+      "loansHFI": {
+        "totalAmortizedCost": 1800000000,
+        "allowanceForCreditLosses": 23400000,
+        "ceclMethodology": "WARM",
+        "portfolioSegmentation": [
+          { "segment": "C&I", "amortizedCost": 450000000, "allowance": 6750000, "riskRating": "Pass" },
+          { "segment": "CRE-owner-occupied", "amortizedCost": 380000000, "allowance": 5320000, "riskRating": "Pass" },
+          { "segment": "CRE-non-owner-occupied", "amortizedCost": 320000000, "allowance": 5440000, "riskRating": "Pass" },
+          { "segment": "Residential 1-4 family", "amortizedCost": 410000000, "allowance": 3280000, "riskRating": "Pass" },
+          { "segment": "Consumer", "amortizedCost": 95000000, "allowance": 1900000 },
+          { "segment": "Construction", "amortizedCost": 145000000, "allowance": 710000 }
+        ],
+        "nonaccrualBalance": 8200000,
+        "chargeOffsYTD": 1850000,
+        "recoveriesYTD": 320000
+      },
+      "hasAFSDebtSecurities": true,
+      "hasHTMDebtSecurities": true,
+      "afsDebtFairValue": 285000000,
+      "afsDebtAmortizedCost": 312000000,
+      "afsDebtUnrealizedLoss": 27000000,
+      "htmDebtAmortizedCost": 145000000,
+      "htmDebtFairValue": 132000000,
+      "htmSaleDuringPeriod": false,
+      "obsCommitments": 425000000,
+      "obsFinancialGuarantees": 18000000,
+      "hedgePortfolio": {
+        "cashFlowHedges": 150000000,
+        "fairValueHedges": 75000000,
+        "portfolioLayerHedges": 0,
+        "netInvestmentHedges": 0,
+        "hedgeDocumentationFlag": true
+      },
+      "regulatoryCapital": {
+        "cet1Capital": 268000000,
+        "tier1Capital": 268000000,
+        "totalCapital": 295000000,
+        "riskWeightedAssets": 1950000000,
+        "cet1Ratio": 0.1374,
+        "tier1Ratio": 0.1374,
+        "totalCapitalRatio": 0.1513,
+        "tier1LeverageRatio": 0.1072
+      }
+    }
+  }
+}

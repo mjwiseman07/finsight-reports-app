@@ -1,0 +1,12 @@
+{
+  "pair": { "code": "bank-ins", "primary": "bank", "secondary": "ins", "displayName": "Banking × Insurance", "patentNamed": true },
+  "pairEntities": [
+    { "entityId": "BANCASSURE-BANK-CHILD", "primaryVertical": "bank", "secondaryVertical": "bank", "primaryFramework": "US_GAAP_ASC326_BANK", "secondaryFramework": "US_GAAP_ASC326_BANK", "ceclScopeFull": true, "ceclScopeNarrow": false, "ffiec051Filed": true, "ifrs17Lane": null, "rbcReported": false, "baselReported": true },
+    { "entityId": "BANCASSURE-INS-CHILD", "primaryVertical": "ins", "secondaryVertical": "ins", "primaryFramework": "US_GAAP_ASC944", "secondaryFramework": "US_GAAP_ASC944", "ceclScopeFull": false, "ceclScopeNarrow": true, "ffiec051Filed": false, "ifrs17Lane": null, "rbcReported": true, "baselReported": false }
+  ],
+  "disclosures": [
+    { "entityId": "BANCASSURE-BANK-CHILD", "framework": "US_GAAP_ASC326_BANK", "emitterPath": "lib/router/banking/usgaap/cecl-loans-hfi.ts", "text": "CECL loans HFI" },
+    { "entityId": "BANCASSURE-INS-CHILD", "framework": "US_GAAP_ASC944", "emitterPath": "lib/router/insurance/usgaap/premiumsReceivableCECL.ts", "text": "ASC 944 narrow CECL" },
+    { "entityId": "BANCASSURE-HOLDING", "framework": "META_RECONCILIATION", "emitterPath": "lib/router/crossover/pairs/bankingInsurance.ts", "text": "rbc and basel reconciliation documented at holding-co level" }
+  ]
+}
