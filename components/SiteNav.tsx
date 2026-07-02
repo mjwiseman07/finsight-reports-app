@@ -37,6 +37,9 @@ export function SiteNav() {
             <Link href="/about" className={navLinkClass}>
               About
             </Link>
+            <Link href="/signin" className={navLinkClass}>
+              Sign In
+            </Link>
             <Link
               href="/#early-access"
               className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-sm ${primaryCtaClass} ${focusRing()}`}
