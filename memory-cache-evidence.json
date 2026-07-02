@@ -1,0 +1,639 @@
+{
+  "evidenceVersion": "42.7E.1",
+  "generatedAt": "2026-06-24T00:00:00Z",
+  "totalCases": 90,
+  "passCount": 88,
+  "failCount": 2,
+  "cases": [
+    {
+      "id": "S1-01",
+      "decision": "same-parts-same-key",
+      "expected": "equal",
+      "outcome": "equal",
+      "reason": "Stable serialization for identical parts"
+    },
+    {
+      "id": "S1-02",
+      "decision": "framework-in-key",
+      "expected": "different",
+      "outcome": "different",
+      "reason": "Different framework yields different key"
+    },
+    {
+      "id": "S1-03",
+      "decision": "handle-in-key",
+      "expected": "different",
+      "outcome": "different",
+      "reason": "Different handle yields different key"
+    },
+    {
+      "id": "S1-04",
+      "decision": "fingerprint-changes-with-attestedAt",
+      "expected": "different",
+      "outcome": "different",
+      "reason": "Re-attestation changes fingerprint"
+    },
+    {
+      "id": "S1-05",
+      "decision": "classification-in-key",
+      "expected": "different",
+      "outcome": "different",
+      "reason": "Classification flows through cache key"
+    },
+    {
+      "id": "S1-06",
+      "decision": "null-election-fingerprint",
+      "expected": "NONE",
+      "outcome": "NONE",
+      "reason": "Null fingerprint serializes as NONE"
+    },
+    {
+      "id": "S2-01",
+      "decision": "initial-size",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "Empty map size is zero"
+    },
+    {
+      "id": "S2-02",
+      "decision": "bounded-size",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "Map respects max size"
+    },
+    {
+      "id": "S2-03",
+      "decision": "lru-eviction",
+      "expected": "b",
+      "outcome": "b",
+      "reason": "Least recently used key evicted"
+    },
+    {
+      "id": "S2-04",
+      "decision": "mru-on-get",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "MRU entry retained after get"
+    },
+    {
+      "id": "S2-05",
+      "decision": "has",
+      "expected": "true",
+      "outcome": "true",
+      "reason": "has() reflects membership"
+    },
+    {
+      "id": "S2-06",
+      "decision": "delete",
+      "expected": "true",
+      "outcome": "true",
+      "reason": "delete removes entry"
+    },
+    {
+      "id": "S2-07",
+      "decision": "update-existing",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Updating existing key does not grow size"
+    },
+    {
+      "id": "S2-08",
+      "decision": "reject-bad-maxSize",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "maxSize out of range rejected"
+    },
+    {
+      "id": "S2-09",
+      "decision": "iteration-order",
+      "expected": "x,y,z",
+      "outcome": "x,y,z",
+      "reason": "Keys iterate in insertion order"
+    },
+    {
+      "id": "S2-10",
+      "decision": "evicted-return",
+      "expected": "non-null",
+      "outcome": "non-null",
+      "reason": "set returns evicted key when full"
+    },
+    {
+      "id": "S3-01",
+      "decision": "hit-before-expiry",
+      "expected": "hit",
+      "outcome": "hit",
+      "reason": "Entry valid before expiresAt"
+    },
+    {
+      "id": "S3-02",
+      "decision": "miss-after-expiry",
+      "expected": "miss",
+      "outcome": "miss",
+      "reason": "Expired entry returns null"
+    },
+    {
+      "id": "S3-03",
+      "decision": "ttl-eviction-metric",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "TTL eviction counted"
+    },
+    {
+      "id": "S3-04",
+      "decision": "phi-ttl-shorter",
+      "expected": "miss",
+      "outcome": "miss",
+      "reason": "Phi entry expires on phi TTL schedule"
+    },
+    {
+      "id": "S3-05",
+      "decision": "clock-injection",
+      "expected": "controlled",
+      "outcome": "controlled",
+      "reason": "Fake clock drives expiry"
+    },
+    {
+      "id": "S3-06",
+      "decision": "clock-skew-tolerance-before",
+      "expected": "hit",
+      "outcome": "hit",
+      "reason": "Entry still valid one ms before expiry"
+    },
+    {
+      "id": "S3-07",
+      "decision": "clock-skew-tolerance-after",
+      "expected": "miss",
+      "outcome": "miss",
+      "reason": "Entry expired one ms after expiresAt"
+    },
+    {
+      "id": "S3-08",
+      "decision": "miss-metric-on-expired",
+      "expected": "gt-zero",
+      "outcome": "gt-zero",
+      "reason": "Expired get increments misses"
+    },
+    {
+      "id": "S4-01",
+      "decision": "standard-map-size",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Standard entry in standard map"
+    },
+    {
+      "id": "S4-02",
+      "decision": "phi-map-size",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Phi entry in phi map"
+    },
+    {
+      "id": "S4-03",
+      "decision": "purge-phi-only",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "purgePHIForTenant drops phi entries"
+    },
+    {
+      "id": "S4-04",
+      "decision": "standard-survives-purge",
+      "expected": "hit",
+      "outcome": "hit",
+      "reason": "Standard entry survives phi purge"
+    },
+    {
+      "id": "S4-05",
+      "decision": "invalidate-both-maps",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "invalidateOrg clears both maps for org"
+    },
+    {
+      "id": "S4-06",
+      "decision": "phi-map-cap",
+      "expected": "lte-max",
+      "outcome": "lte-max",
+      "reason": "Phi map respects bounded size"
+    },
+    {
+      "id": "S4-07",
+      "decision": "phi-key-marker",
+      "expected": "phi-covered",
+      "outcome": "phi-covered",
+      "reason": "Phi classification encoded in key"
+    },
+    {
+      "id": "S4-08",
+      "decision": "standard-key-marker",
+      "expected": "standard",
+      "outcome": "standard",
+      "reason": "Standard classification encoded in key"
+    },
+    {
+      "id": "S4-09",
+      "decision": "classifier-routing",
+      "expected": "phi-covered",
+      "outcome": "phi-covered",
+      "reason": "Healthcare vertical classified phi-covered"
+    },
+    {
+      "id": "S5-01",
+      "decision": "get-without-symbol",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "get without RESOLVER_INTERNAL throws"
+    },
+    {
+      "id": "S5-02",
+      "decision": "set-without-symbol",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "set without RESOLVER_INTERNAL throws"
+    },
+    {
+      "id": "S5-03",
+      "decision": "authorized-access",
+      "expected": "hit",
+      "outcome": "hit",
+      "reason": "Authorized access succeeds"
+    },
+    {
+      "id": "S5-04",
+      "decision": "symbol-not-serialized",
+      "expected": "absent",
+      "outcome": "absent",
+      "reason": "Symbol does not leak into JSON output"
+    },
+    {
+      "id": "S6-01",
+      "decision": "miss-count",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Initial miss counted"
+    },
+    {
+      "id": "S6-02",
+      "decision": "write-count",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Write counted"
+    },
+    {
+      "id": "S6-03",
+      "decision": "hit-count",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Hit counted"
+    },
+    {
+      "id": "S6-04",
+      "decision": "lru-eviction-count",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "LRU eviction counted"
+    },
+    {
+      "id": "S6-05",
+      "decision": "snapshot-readonly",
+      "expected": "unchanged",
+      "outcome": "unchanged",
+      "reason": "getCacheMetrics returns fresh frozen snapshot"
+    },
+    {
+      "id": "S6-06",
+      "decision": "current-size",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "currentSize reflects entries"
+    },
+    {
+      "id": "S6-07",
+      "decision": "no-double-hit",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Single hit not double-counted on re-read"
+    },
+    {
+      "id": "S6-08",
+      "decision": "second-hit",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "Second hit increments hits"
+    },
+    {
+      "id": "S7-01",
+      "decision": "invalidated-count",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "All org entries dropped"
+    },
+    {
+      "id": "S7-02",
+      "decision": "other-org-retained",
+      "expected": "hit",
+      "outcome": "hit",
+      "reason": "Other org entries untouched"
+    },
+    {
+      "id": "S7-03",
+      "decision": "invalidation-metric",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "invalidationsOrg incremented"
+    },
+    {
+      "id": "S7-04",
+      "decision": "audit-event",
+      "expected": "cache.invalidate.org",
+      "outcome": "cache.invalidate.org",
+      "reason": "Audit event emitted on invalidate"
+    },
+    {
+      "id": "S7-05",
+      "decision": "reason-captured",
+      "expected": "reason-x",
+      "outcome": "reason-x",
+      "reason": "Reason captured in audit payload"
+    },
+    {
+      "id": "S7-06",
+      "decision": "actor-captured",
+      "expected": "admin@test.com",
+      "outcome": "admin@test.com",
+      "reason": "Actor captured in audit entry"
+    },
+    {
+      "id": "S8-01",
+      "decision": "purged-count",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Phi entries purged for tenant"
+    },
+    {
+      "id": "S8-02",
+      "decision": "standard-retained",
+      "expected": "hit",
+      "outcome": "hit",
+      "reason": "Standard entries untouched by phi purge"
+    },
+    {
+      "id": "S8-03",
+      "decision": "purge-metric",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "purgesPHI metric incremented"
+    },
+    {
+      "id": "S8-04",
+      "decision": "audit-kind",
+      "expected": "cache.purge.phi",
+      "outcome": "cache.purge.phi",
+      "reason": "Audit event emitted on phi purge"
+    },
+    {
+      "id": "S8-05",
+      "decision": "phi-miss-after-purge",
+      "expected": "miss",
+      "outcome": "miss",
+      "reason": "Purged phi entry no longer retrievable"
+    },
+    {
+      "id": "S9-01",
+      "decision": "initial-bytes",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "approxBytes zero initially"
+    },
+    {
+      "id": "S9-02",
+      "decision": "bytes-nonzero",
+      "expected": "gt-zero",
+      "outcome": "gt-zero",
+      "reason": "approxBytes non-zero after write"
+    },
+    {
+      "id": "S9-03",
+      "decision": "bytes-reset-on-dispose",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "approxBytes reset on dispose"
+    },
+    {
+      "id": "S10-01",
+      "decision": "dispose-audit",
+      "expected": "cache.dispose",
+      "outcome": "cache.dispose",
+      "reason": "dispose emits audit entry"
+    },
+    {
+      "id": "S10-02",
+      "decision": "dispose-idempotent",
+      "expected": "ok",
+      "outcome": "ok",
+      "reason": "Second dispose is safe"
+    },
+    {
+      "id": "S10-03",
+      "decision": "writes-after-dispose",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "Further writes allowed after dispose"
+    },
+    {
+      "id": "S11-01",
+      "decision": "cached-second-call",
+      "expected": "same-hash",
+      "outcome": "same-hash",
+      "reason": "Second resolveTreatment call returns cached resolution"
+    },
+    {
+      "id": "S11-02",
+      "decision": "framework-cache-miss",
+      "expected": "IFRS",
+      "outcome": "IFRS",
+      "reason": "Different framework key causes separate cache entry"
+    },
+    {
+      "id": "S11-03",
+      "decision": "fingerprint-cache-miss",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "Changed fingerprint causes cache miss and rewrite"
+    },
+    {
+      "id": "S11-04",
+      "decision": "phi-classification-write",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Phi tenant entries land in phi map via resolver"
+    },
+    {
+      "id": "S11-05",
+      "decision": "per-request-mode",
+      "expected": "0-hits",
+      "outcome": "0-hits",
+      "reason": "per-request mode skips cache reads"
+    },
+    {
+      "id": "S11-06",
+      "decision": "invalidate-causes-miss",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "invalidateOrg between calls forces rewrite"
+    },
+    {
+      "id": "S11-07",
+      "decision": "fail-closed-audit",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Audit failure propagates from resolver"
+    },
+    {
+      "id": "S11-08",
+      "decision": "resolver-metrics",
+      "expected": "gt-zero",
+      "outcome": "gt-zero",
+      "reason": "Cache metrics exposed via memo cache after resolve"
+    },
+    {
+      "id": "S11-09",
+      "decision": "pure-core-untouched",
+      "expected": "identical",
+      "outcome": "changed",
+      "reason": "Pure inner core byte-identical to 20b4bdf"
+    },
+    {
+      "id": "S11-10",
+      "decision": "curated-rules-behavior",
+      "expected": "US_GAAP",
+      "outcome": "US_GAAP",
+      "reason": "Curated-rules path unchanged with cache enabled"
+    },
+    {
+      "id": "S11-11",
+      "decision": "org-edge-behavior",
+      "expected": "IFRS",
+      "outcome": "IFRS",
+      "reason": "Org-edge override preserved with cache"
+    },
+    {
+      "id": "S11-12",
+      "decision": "standard-ttl-config",
+      "expected": "21600000",
+      "outcome": "21600000",
+      "reason": "Standard TTL default configured"
+    },
+    {
+      "id": "S11-13",
+      "decision": "phi-ttl-config",
+      "expected": "3600000",
+      "outcome": "3600000",
+      "reason": "Phi TTL default configured"
+    },
+    {
+      "id": "S11-14",
+      "decision": "pure-regression-count",
+      "expected": "gt-zero",
+      "outcome": "gt-zero",
+      "reason": "Golden and hash suites still execute"
+    },
+    {
+      "id": "S11-15",
+      "decision": "resolveTreatmentPure-callable",
+      "expected": "ok",
+      "outcome": "ok",
+      "reason": "Pure core remains importable"
+    },
+    {
+      "id": "S12-01",
+      "decision": "byte-identical-pure",
+      "expected": "identical",
+      "outcome": "changed",
+      "reason": "resolveTreatmentPure.ts byte-identical to 20b4bdf"
+    },
+    {
+      "id": "S12-02",
+      "decision": "pure-no-cache-imports",
+      "expected": "clean",
+      "outcome": "clean",
+      "reason": "Pure core has no org-edge/memory/audit references"
+    },
+    {
+      "id": "S12-03",
+      "decision": "resolver-regression",
+      "expected": "passed",
+      "outcome": "passed",
+      "reason": "verify:treatment-resolver regression passes"
+    },
+    {
+      "id": "S13-01",
+      "decision": "treatment-resolver",
+      "expected": "passed",
+      "outcome": "passed",
+      "reason": "verify:treatment-resolver passes"
+    },
+    {
+      "id": "S13-02",
+      "decision": "panel-consumer",
+      "expected": "passed",
+      "outcome": "passed",
+      "reason": "verify:panel-consumer passes"
+    },
+    {
+      "id": "S13-03",
+      "decision": "org-edge",
+      "expected": "passed",
+      "outcome": "passed",
+      "reason": "verify:org-edge passes"
+    },
+    {
+      "id": "S13-04",
+      "decision": "combined-five-runs",
+      "expected": "5",
+      "outcome": "5",
+      "reason": "Combined regression suites stable across five consecutive runs"
+    },
+    {
+      "id": "S14-01",
+      "decision": "byte-identical-runs",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Two consecutive runs produce byte-identical case records"
+    },
+    {
+      "id": "S15-01",
+      "decision": "resolver-throws",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Audit append failure fails resolver closed"
+    },
+    {
+      "id": "S15-02",
+      "decision": "no-failed-entry",
+      "expected": "0-writes",
+      "outcome": "0-writes",
+      "reason": "Failed miss path does not complete cache write"
+    },
+    {
+      "id": "S15-03",
+      "decision": "miss-not-counted-after-throw",
+      "expected": "0-hits",
+      "outcome": "0-hits",
+      "reason": "No successful cache hit after audit failure"
+    },
+    {
+      "id": "S15-04",
+      "decision": "error-preserved",
+      "expected": "audit-fail-simulated",
+      "outcome": "audit-fail-simulated",
+      "reason": "Original audit error surface preserved"
+    },
+    {
+      "id": "S15-05",
+      "decision": "recovery-after-audit-fix",
+      "expected": "ok",
+      "outcome": "ok",
+      "reason": "Subsequent calls succeed after audit recovery"
+    }
+  ]
+}

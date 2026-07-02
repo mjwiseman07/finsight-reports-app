@@ -1,0 +1,345 @@
+{
+  "evidenceVersion": "42.7D.1-audit",
+  "generatedAt": "2026-06-24T00:00:00Z",
+  "totalCases": 48,
+  "passCount": 48,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "A.every-call.01",
+      "decision": "agreement-logged",
+      "expected": "orgEdge.reconciliation",
+      "outcome": "orgEdge.reconciliation",
+      "reason": "Agreement path emits orgEdge.reconciliation audit entry."
+    },
+    {
+      "id": "A.every-call.02",
+      "decision": "disagreement-logged",
+      "expected": "disagreement",
+      "outcome": "disagreement",
+      "reason": "Disagreement path emits audit entry with outcome disagreement."
+    },
+    {
+      "id": "A.every-call.03",
+      "decision": "no-election-logged",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "No-election path still emits one audit entry per call."
+    },
+    {
+      "id": "A.every-call.04",
+      "decision": "one-entry-per-call",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Single reconcile call produces exactly one orgEdge.reconciliation entry."
+    },
+    {
+      "id": "A.every-call.05",
+      "decision": "no-deduplication",
+      "expected": "2",
+      "outcome": "2",
+      "reason": "Repeated identical calls produce one entry per call (no dedup)."
+    },
+    {
+      "id": "A.every-call.06",
+      "decision": "audit-kind",
+      "expected": "orgEdge.reconciliation",
+      "outcome": "orgEdge.reconciliation",
+      "reason": "Audit envelope kind is orgEdge.reconciliation."
+    },
+    {
+      "id": "A.every-call.07",
+      "decision": "payload-version",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Payload version is 1."
+    },
+    {
+      "id": "A.every-call.08",
+      "decision": "override-agreement-logged",
+      "expected": "agreement",
+      "outcome": "agreement",
+      "reason": "Override-with-agreement path emits audit entry."
+    },
+    {
+      "id": "B.outcome.01",
+      "decision": "agreement-outcome",
+      "expected": "agreement",
+      "outcome": "agreement",
+      "reason": "Matching frameworks produce outcome agreement."
+    },
+    {
+      "id": "B.outcome.02",
+      "decision": "agreement-diff-none",
+      "expected": "none",
+      "outcome": "none",
+      "reason": "Agreement outcome requires diff.kind none."
+    },
+    {
+      "id": "B.outcome.03",
+      "decision": "disagreement-outcome",
+      "expected": "disagreement",
+      "outcome": "disagreement",
+      "reason": "Mismatched frameworks produce outcome disagreement."
+    },
+    {
+      "id": "B.outcome.04",
+      "decision": "disagreement-override-applied",
+      "expected": "override-applied",
+      "outcome": "override-applied",
+      "reason": "Disagreement outcome requires diff.kind override-applied."
+    },
+    {
+      "id": "B.outcome.05",
+      "decision": "no-election-agreement",
+      "expected": "agreement",
+      "outcome": "agreement",
+      "reason": "No-election path maps to agreement outcome in audit payload."
+    },
+    {
+      "id": "B.outcome.06",
+      "decision": "sec-agreement-none",
+      "expected": "none",
+      "outcome": "none",
+      "reason": "SEC_REGS_X agreement still uses diff.kind none."
+    },
+    {
+      "id": "C.diff-payload.orgPolicyHandle",
+      "decision": "disagreement-has-orgPolicyHandle",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "Disagreement diff includes orgPolicyHandle."
+    },
+    {
+      "id": "C.diff-payload.panelFrameworkHandle",
+      "decision": "disagreement-has-panelFrameworkHandle",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "Disagreement diff includes panelFrameworkHandle."
+    },
+    {
+      "id": "C.diff-payload.resolvedFrameworkHandle",
+      "decision": "disagreement-has-resolvedFrameworkHandle",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "Disagreement diff includes resolvedFrameworkHandle."
+    },
+    {
+      "id": "C.diff-payload.attestationChain",
+      "decision": "disagreement-has-attestationChain",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "Disagreement diff includes attestationChain."
+    },
+    {
+      "id": "C.diff-payload.resolutionRule",
+      "decision": "disagreement-has-resolutionRule",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "Disagreement diff includes resolutionRule."
+    },
+    {
+      "id": "C.diff-payload.agreement-only-none",
+      "decision": "agreement-no-extra-diff-fields",
+      "expected": "none-only",
+      "outcome": "none-only",
+      "reason": "Agreement diff contains only kind none (no override-applied fields)."
+    },
+    {
+      "id": "D.caller-identity.01",
+      "decision": "agreement-identity",
+      "expected": "all-present",
+      "outcome": "all-present",
+      "reason": "Agreement audit entry carries full CallerIdentity."
+    },
+    {
+      "id": "D.caller-identity.02",
+      "decision": "disagreement-identity",
+      "expected": "all-present",
+      "outcome": "all-present",
+      "reason": "Disagreement audit entry carries full CallerIdentity."
+    },
+    {
+      "id": "D.caller-identity.03",
+      "decision": "parent-request-id-key",
+      "expected": "present",
+      "outcome": "present",
+      "reason": "CallerIdentity includes invocationContext.parentRequestId (nullable)."
+    },
+    {
+      "id": "D.caller-identity.04",
+      "decision": "same-request-two-entries",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Two calls with same CallerIdentity produce identical requestId in both entries."
+    },
+    {
+      "id": "E.phi.01",
+      "decision": "phi-root-classification",
+      "expected": "phi-covered",
+      "outcome": "phi-covered",
+      "reason": "PHI tenant produces tenantClassification phi-covered at root."
+    },
+    {
+      "id": "E.phi.02",
+      "decision": "phi-caller-classification",
+      "expected": "phi-covered",
+      "outcome": "phi-covered",
+      "reason": "PHI tenant produces tenantClassification phi-covered in callerIdentity."
+    },
+    {
+      "id": "E.phi.03",
+      "decision": "phi-namespace",
+      "expected": "phi-covered",
+      "outcome": "phi-covered",
+      "reason": "PHI tenant entries routed to phi-covered audit namespace."
+    },
+    {
+      "id": "E.phi.04",
+      "decision": "standard-classification",
+      "expected": "standard",
+      "outcome": "standard",
+      "reason": "Standard tenant produces tenantClassification standard."
+    },
+    {
+      "id": "E.phi.05",
+      "decision": "classifier-fail-closed",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Unknown tenant fails closed when audit writer is configured."
+    },
+    {
+      "id": "F.hash-chain.01",
+      "decision": "prevHash-links",
+      "expected": "linked",
+      "outcome": "linked",
+      "reason": "Org-edge entry prevHash references previous entry in chain."
+    },
+    {
+      "id": "F.hash-chain.02",
+      "decision": "mixed-chain-verify",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Mixed cache + orgEdge chain verifies via verifyAuditChain()."
+    },
+    {
+      "id": "F.hash-chain.03",
+      "decision": "tamper-prevHash",
+      "expected": "invalid",
+      "outcome": "invalid",
+      "reason": "Tampering prevHash invalidates chain."
+    },
+    {
+      "id": "G.citation.01",
+      "decision": "unknown-handle-rejected",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Validator rejects citation handle outside locked set."
+    },
+    {
+      "id": "G.citation.02",
+      "decision": "locked-handle-accepted",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "Validator accepts locked citation handle."
+    },
+    {
+      "id": "G.citation.03",
+      "decision": "one-bad-handle-rejected",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "One invalid handle in citationHandles array fails validation."
+    },
+    {
+      "id": "H.fail-closed.01",
+      "decision": "append-throws",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "AuditLogWriter.append() throwing causes reconcileOrgStandards() to throw."
+    },
+    {
+      "id": "H.fail-closed.02",
+      "decision": "no-result-on-fail",
+      "expected": "not-returned",
+      "outcome": "not-returned",
+      "reason": "Caller does NOT receive a reconciliation result when audit write fails."
+    },
+    {
+      "id": "H.fail-closed.03",
+      "decision": "audit-before-return",
+      "expected": "append-first",
+      "outcome": "append-first",
+      "reason": "Audit write happens before reconciliation result is returned."
+    },
+    {
+      "id": "I.schema.01",
+      "decision": "agreement-plus-override-applied",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Agreement outcome with override-applied diff rejected."
+    },
+    {
+      "id": "I.schema.02",
+      "decision": "disagreement-plus-none",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Disagreement outcome with diff.kind none rejected."
+    },
+    {
+      "id": "I.schema.03",
+      "decision": "empty-attestation-chain",
+      "expected": "throws",
+      "outcome": "throws",
+      "reason": "Empty attestationChain on override-applied diff rejected."
+    },
+    {
+      "id": "J.regression.01",
+      "decision": "orgStandardsEdgePure-exists",
+      "expected": "exists",
+      "outcome": "exists",
+      "reason": "orgStandardsEdgePure.ts pure core module exists."
+    },
+    {
+      "id": "J.regression.02",
+      "decision": "audit-verifier-script",
+      "expected": "exists",
+      "outcome": "exists",
+      "reason": "verify-phase-42-7d-1-audit.js phase verifier exists."
+    },
+    {
+      "id": "J.parity.01",
+      "decision": "detectDisagreement-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "detectDisagreement export is byte-identical to detectDisagreementPure."
+    },
+    {
+      "id": "J.parity.02",
+      "decision": "detectDisagreement-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "detectDisagreement export is byte-identical to detectDisagreementPure."
+    },
+    {
+      "id": "J.parity.03",
+      "decision": "detectDisagreement-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "detectDisagreement export is byte-identical to detectDisagreementPure."
+    },
+    {
+      "id": "J.parity.04",
+      "decision": "detectDisagreement-vs-pure",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "detectDisagreement export is byte-identical to detectDisagreementPure."
+    },
+    {
+      "id": "J.regression.03",
+      "decision": "derive-context-validates",
+      "expected": "valid",
+      "outcome": "valid",
+      "reason": "deriveOrgEdgeReconciliationContextPure output passes validators without audit writer."
+    }
+  ]
+}

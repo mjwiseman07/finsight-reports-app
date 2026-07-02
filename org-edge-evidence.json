@@ -1,0 +1,429 @@
+{
+  "evidenceVersion": "42.7D.1",
+  "generatedAt": "2026-06-24T00:00:00Z",
+  "totalCases": 60,
+  "passCount": 60,
+  "failCount": 0,
+  "cases": [
+    {
+      "id": "S1.reader-construction.01",
+      "decision": "loads-valid-registry",
+      "expected": "loaded-with-entries",
+      "outcome": "loaded-with-entries",
+      "reason": "Registry parsed; entries indexed; isAvailable() true."
+    },
+    {
+      "id": "S1.reader-construction.02",
+      "decision": "is-available",
+      "expected": "true",
+      "outcome": "true",
+      "reason": "isAvailable() true after valid load."
+    },
+    {
+      "id": "S1.reader-construction.03",
+      "decision": "missing-file",
+      "expected": "OrgElectionRegistryUnavailableError",
+      "outcome": "OrgElectionRegistryUnavailableError",
+      "reason": "Throws OrgElectionRegistryUnavailableError on missing file."
+    },
+    {
+      "id": "S1.reader-construction.04",
+      "decision": "invalid-json",
+      "expected": "OrgElectionRegistryUnavailableError",
+      "outcome": "OrgElectionRegistryUnavailableError",
+      "reason": "Throws OrgElectionRegistryUnavailableError on invalid JSON."
+    },
+    {
+      "id": "S1.reader-construction.05",
+      "decision": "schema-invalid",
+      "expected": "fail-loud",
+      "outcome": "fail-loud",
+      "reason": "Throws on schema-invalid registry (validator or reader)."
+    },
+    {
+      "id": "S1.reader-construction.06",
+      "decision": "duplicate-org-id",
+      "expected": "fail-loud",
+      "outcome": "fail-loud",
+      "reason": "Throws on duplicate companyId (validator or reader)."
+    },
+    {
+      "id": "S1.reader-construction.07",
+      "decision": "frozen-entries",
+      "expected": "mutation-blocked",
+      "outcome": "mutation-blocked",
+      "reason": "AttestedElection entries are frozen at construction."
+    },
+    {
+      "id": "S1.reader-construction.08",
+      "decision": "load-once",
+      "expected": "read-after-delete-works",
+      "outcome": "read-after-delete-works",
+      "reason": "Load-once: file deleted post-construction; reads still work."
+    },
+    {
+      "id": "S2.null-reader.01",
+      "decision": "read-any-org",
+      "expected": "null",
+      "outcome": "null",
+      "reason": "NullOrgElectionReader returns null for any orgId."
+    },
+    {
+      "id": "S2.null-reader.02",
+      "decision": "is-available",
+      "expected": "false",
+      "outcome": "false",
+      "reason": "NullOrgElectionReader.isAvailable() is false."
+    },
+    {
+      "id": "S2.null-reader.03",
+      "decision": "default-safe",
+      "expected": "safe-default",
+      "outcome": "safe-default",
+      "reason": "NullOrgElectionReader is safe to use as default."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.01",
+      "decision": "no-election",
+      "expected": "no-election-no-projection",
+      "outcome": "no-election-no-projection",
+      "reason": "No election returns no-election; projection not invoked."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.02",
+      "decision": "matching-framework",
+      "expected": "override-no-disagreement",
+      "outcome": "override-no-disagreement",
+      "reason": "Matching election and projection yields override without disagreement."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.03",
+      "decision": "disagreement",
+      "expected": "override-with-disagreement",
+      "outcome": "override-with-disagreement",
+      "reason": "Differing election and projection yields override-with-disagreement."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.04",
+      "decision": "framework-pair",
+      "expected": "override-with-disagreement",
+      "outcome": "override-with-disagreement",
+      "reason": "US_GAAP vs IFRS pair produces disagreement advisory."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.05",
+      "decision": "framework-pair",
+      "expected": "override-with-disagreement",
+      "outcome": "override-with-disagreement",
+      "reason": "IFRS vs IFRS_SME pair produces disagreement advisory."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.06",
+      "decision": "framework-pair",
+      "expected": "override-with-disagreement",
+      "outcome": "override-with-disagreement",
+      "reason": "US_GAAP vs SEC_REGS_X pair produces disagreement advisory."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.07",
+      "decision": "framework-pair",
+      "expected": "override-with-disagreement",
+      "outcome": "override-with-disagreement",
+      "reason": "IFRS vs SEC_REGS_X pair produces disagreement advisory."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.08",
+      "decision": "framework-pair",
+      "expected": "override-with-disagreement",
+      "outcome": "override-with-disagreement",
+      "reason": "US_GAAP vs SEC_FORM_20F pair produces disagreement advisory."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.09",
+      "decision": "attestation-propagated",
+      "expected": "fields-propagated",
+      "outcome": "fields-propagated",
+      "reason": "Attestation fields propagate into disagreement advisory."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.10",
+      "decision": "human-review",
+      "expected": "true",
+      "outcome": "true",
+      "reason": "humanReviewRecommended is always true on disagreement."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.11",
+      "decision": "citation-refs-frozen",
+      "expected": "frozen-copy",
+      "outcome": "frozen-copy",
+      "reason": "curatedRulesCitationRefs is a frozen copy of projected ruleIds."
+    },
+    {
+      "id": "S3.disagreement-detector-pure.12",
+      "decision": "note-template",
+      "expected": "Org org-diff attested IFRS (IAS_1_PRESENTATION); curated rules would have produced US_GAAP. Attested election wins; advisory logged for human review.",
+      "outcome": "Org org-diff attested IFRS (IAS_1_PRESENTATION); curated rules would have produced US_GAAP. Attested election wins; advisory logged for human review.",
+      "reason": "Disagreement note matches locked template string."
+    },
+    {
+      "id": "S4.outer-wrapper-no-election.01",
+      "decision": "without-reader",
+      "expected": "US_GAAP",
+      "outcome": "US_GAAP",
+      "reason": "Without reader delegates to inner core (pre-42.7D behavior)."
+    },
+    {
+      "id": "S4.outer-wrapper-no-election.02",
+      "decision": "null-reader",
+      "expected": "US_GAAP",
+      "outcome": "US_GAAP",
+      "reason": "Null reader preserves pre-42.7D behavior."
+    },
+    {
+      "id": "S4.outer-wrapper-no-election.03",
+      "decision": "unknown-org",
+      "expected": "US_GAAP",
+      "outcome": "US_GAAP",
+      "reason": "Reader with unknown orgId delegates to inner core."
+    },
+    {
+      "id": "S4.outer-wrapper-no-election.04",
+      "decision": "resolved-by-absent",
+      "expected": "not-org-edge",
+      "outcome": "not-org-edge",
+      "reason": "No-election path must not set resolvedBy org-edge."
+    },
+    {
+      "id": "S4.outer-wrapper-no-election.05",
+      "decision": "advisories-absent",
+      "expected": "absent",
+      "outcome": "absent",
+      "reason": "No-election path must not populate advisories."
+    },
+    {
+      "id": "S4.outer-wrapper-no-election.06",
+      "decision": "election-absent",
+      "expected": "absent",
+      "outcome": "absent",
+      "reason": "No-election path must not populate election field."
+    },
+    {
+      "id": "S5.outer-wrapper-override.01",
+      "decision": "framework",
+      "expected": "US_GAAP",
+      "outcome": "US_GAAP",
+      "reason": "Attested framework wins when matching curated projection."
+    },
+    {
+      "id": "S5.outer-wrapper-override.02",
+      "decision": "citation-handle",
+      "expected": "ASC_105_10_05_1",
+      "outcome": "ASC_105_10_05_1",
+      "reason": "Attested citationHandle flows through override path."
+    },
+    {
+      "id": "S5.outer-wrapper-override.03",
+      "decision": "resolved-by",
+      "expected": "org-edge",
+      "outcome": "org-edge",
+      "reason": "Override path sets resolvedBy org-edge."
+    },
+    {
+      "id": "S5.outer-wrapper-override.04",
+      "decision": "matched-rules",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "Override path leaves matchedRules empty."
+    },
+    {
+      "id": "S5.outer-wrapper-override.05",
+      "decision": "unresolved-conflicts",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "Override path leaves unresolvedConflicts empty."
+    },
+    {
+      "id": "S5.outer-wrapper-override.06",
+      "decision": "advisories",
+      "expected": "0",
+      "outcome": "0",
+      "reason": "Matching override produces no advisories."
+    },
+    {
+      "id": "S6.outer-wrapper-override-with-disagreement.01",
+      "decision": "framework-override-wins",
+      "expected": "IFRS",
+      "outcome": "IFRS",
+      "reason": "Attested framework wins even when curated rules disagree."
+    },
+    {
+      "id": "S6.outer-wrapper-override-with-disagreement.02",
+      "decision": "advisories-length",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Disagreement emits one advisory."
+    },
+    {
+      "id": "S6.outer-wrapper-override-with-disagreement.03",
+      "decision": "both-frameworks",
+      "expected": "IFRS-vs-US_GAAP",
+      "outcome": "IFRS-vs-US_GAAP",
+      "reason": "Advisory carries both attested and curated frameworks."
+    },
+    {
+      "id": "S6.outer-wrapper-override-with-disagreement.04",
+      "decision": "attested-by",
+      "expected": "mwiseman@advisacor.com",
+      "outcome": "mwiseman@advisacor.com",
+      "reason": "attestedBy propagates into advisory."
+    },
+    {
+      "id": "S6.outer-wrapper-override-with-disagreement.05",
+      "decision": "human-review",
+      "expected": "true",
+      "outcome": "true",
+      "reason": "humanReviewRecommended true on disagreement advisory."
+    },
+    {
+      "id": "S6.outer-wrapper-override-with-disagreement.06",
+      "decision": "curated-rule-refs",
+      "expected": "populated",
+      "outcome": "populated",
+      "reason": "Curated rule refs populated on disagreement advisory."
+    },
+    {
+      "id": "S6.outer-wrapper-override-with-disagreement.07",
+      "decision": "projection-once",
+      "expected": "1",
+      "outcome": "1",
+      "reason": "Lazy projection invoked exactly once when election exists."
+    },
+    {
+      "id": "S6.outer-wrapper-override-with-disagreement.08",
+      "decision": "no-election-no-projection",
+      "expected": "not-org-edge",
+      "outcome": "not-org-edge",
+      "reason": "No election: projection not invoked; org-edge path not taken."
+    },
+    {
+      "id": "S7.consolidation-fail-loud.01",
+      "decision": "consolidation-rejected",
+      "expected": "OrgElectionConsolidationNotSupportedError",
+      "outcome": "OrgElectionConsolidationNotSupportedError",
+      "reason": "consolidationContext rejected with OrgElectionConsolidationNotSupportedError."
+    },
+    {
+      "id": "S7.consolidation-fail-loud.02",
+      "decision": "error-code",
+      "expected": "ORG_ELECTION_CONSOLIDATION_NOT_SUPPORTED",
+      "outcome": "ORG_ELECTION_CONSOLIDATION_NOT_SUPPORTED",
+      "reason": "Error code stable on consolidation rejection."
+    },
+    {
+      "id": "S7.consolidation-fail-loud.03",
+      "decision": "no-partial-resolution",
+      "expected": "no-resolution",
+      "outcome": "no-resolution",
+      "reason": "No partial state mutation on consolidation rejection."
+    },
+    {
+      "id": "S8.pure-inner-core-untouched.01",
+      "decision": "no-org-edge-imports",
+      "expected": "zero-references",
+      "outcome": "zero-references",
+      "reason": "resolveTreatmentPure.ts must not reference org-edge."
+    },
+    {
+      "id": "S8.pure-inner-core-untouched.02",
+      "decision": "golden-and-hash",
+      "expected": "pass",
+      "outcome": "pass",
+      "reason": "Golden (8) and determinism hash (3) suites still pass."
+    },
+    {
+      "id": "S8.pure-inner-core-untouched.03",
+      "decision": "mfg-shim",
+      "expected": "0-failures",
+      "outcome": "0-failures",
+      "reason": "MFG shim tests still pass."
+    },
+    {
+      "id": "S8.pure-inner-core-untouched.04",
+      "decision": "rtl-shim",
+      "expected": "0-failures",
+      "outcome": "0-failures",
+      "reason": "RTL shim tests still pass."
+    },
+    {
+      "id": "S9.resolution-shape-backward-compat.01",
+      "decision": "destructure",
+      "expected": "ok",
+      "outcome": "ok",
+      "reason": "Consumer destructuring of core fields still works."
+    },
+    {
+      "id": "S9.resolution-shape-backward-compat.02",
+      "decision": "optional-fields-absent",
+      "expected": "absent",
+      "outcome": "absent",
+      "reason": "New optional fields absent when no org-edge reader/election."
+    },
+    {
+      "id": "S9.resolution-shape-backward-compat.03",
+      "decision": "resolved-by-enum",
+      "expected": "typed",
+      "outcome": "typed",
+      "reason": "resolvedBy enum values remain strictly typed."
+    },
+    {
+      "id": "S9.resolution-shape-backward-compat.04",
+      "decision": "advisories-array",
+      "expected": "array",
+      "outcome": "array",
+      "reason": "advisories is an array when present on org-edge resolutions."
+    },
+    {
+      "id": "S10.citation-handle-correctness.01",
+      "decision": "citation-handle",
+      "expected": "ASC_105_10_05_1",
+      "outcome": "ASC_105_10_05_1",
+      "reason": "ASC_105_10_05_1 flows through org-edge resolution."
+    },
+    {
+      "id": "S10.citation-handle-correctness.02",
+      "decision": "citation-handle",
+      "expected": "IAS_1_PRESENTATION",
+      "outcome": "IAS_1_PRESENTATION",
+      "reason": "IAS_1_PRESENTATION flows through org-edge resolution."
+    },
+    {
+      "id": "S10.citation-handle-correctness.03",
+      "decision": "citation-handle",
+      "expected": "IFRS_FOR_SMES_S1",
+      "outcome": "IFRS_FOR_SMES_S1",
+      "reason": "IFRS_FOR_SMES_S1 flows through org-edge resolution."
+    },
+    {
+      "id": "S10.citation-handle-correctness.04",
+      "decision": "citation-handle",
+      "expected": "SEC_REG_S_X",
+      "outcome": "SEC_REG_S_X",
+      "reason": "SEC_REG_S_X flows through org-edge resolution."
+    },
+    {
+      "id": "S10.citation-handle-correctness.05",
+      "decision": "citation-handle",
+      "expected": "SEC_FORM_20F_FPI",
+      "outcome": "SEC_FORM_20F_FPI",
+      "reason": "SEC_FORM_20F_FPI flows through org-edge resolution."
+    },
+    {
+      "id": "S11.deterministic-evidence.01",
+      "decision": "byte-identical-runs",
+      "expected": "identical",
+      "outcome": "identical",
+      "reason": "Two consecutive runs produce byte-identical case records."
+    }
+  ]
+}

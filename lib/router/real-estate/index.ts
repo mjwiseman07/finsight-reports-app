@@ -1,4 +1,4 @@
-import type { ExtractedFiling } from "../../../scripts/external-truth/types";
+import type { ExtractedFiling, RouterFramework } from "../../../scripts/external-truth/types";
 import { citationResolved, type EmitterResult } from "../types";
 import { MissingDisclosureInputError } from "./errors";
 import {
@@ -16,7 +16,7 @@ import * as usAcquisition from "./usgaap/capRateAcquisitionDisclosure";
 import * as ifrsInvestmentProperty from "./ifrs/investmentPropertyFairValue";
 
 export interface RealEstateRouterOutput {
-  framework: ExtractedFiling["framework"];
+  framework: RouterFramework;
   results: EmitterResult[];
   augmentedNarratives: string[];
 }

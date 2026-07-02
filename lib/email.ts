@@ -30,6 +30,15 @@ export function getSupportEmail() {
   return process.env.SUPPORT_EMAIL || "support@advisacor.com";
 }
 
+export function getRefundsEmail(): string {
+  return process.env.REFUNDS_INBOX_EMAIL || process.env.REFUNDS_EMAIL || "refunds@advisacor.com";
+}
+
+export function getFounderAlertEmails(): string[] {
+  const raw = process.env.FOUNDER_ALERT_EMAILS || "jwiseman@advisacor.com,mwiseman@advisacor.com";
+  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 export async function sendEmail(payload: EmailPayload) {
   const resendApiKey = process.env.RESEND_API_KEY;
 

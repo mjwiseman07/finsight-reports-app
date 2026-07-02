@@ -76,7 +76,31 @@ async function handleEvent(event) {
       await syncSubscriptionFromStripe(sub.id);
       break;
     }
-    case 'invoice.paid':
+    case 'invoice.paid': {
+      const invoice = event.data.object;
+      if (invoice.subscription) {
+        const subscriptionId =
+          typeof invoice.subscription === 'string'
+            ? invoice.subscription
+            : invoice.subscription.id;
+        await syncSubscriptionFromStripe(subscriptionId);
+      }
+      if (invoice.subscription && invoice.status === 'paid') {
+        const supabase = getSupabaseAdmin();
+        const stripeSubId =
+          typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
+        await supabase
+          .from('subscriptions')
+          .update({
+            first_paid_charge_at: new Date(
+              (invoice.status_transitions?.paid_at || invoice.created) * 1000,
+            ).toISOString(),
+          })
+          .eq('stripe_subscription_id', stripeSubId)
+          .is('first_paid_charge_at', null);
+      }
+      break;
+    }
     case 'invoice.payment_failed':
     case 'invoice.upcoming': {
       const invoice = event.data.object;
@@ -86,6 +110,102 @@ async function handleEvent(event) {
             ? invoice.subscription
             : invoice.subscription.id;
         await syncSubscriptionFromStripe(subscriptionId);
+      }
+      break;
+    }
+    case 'charge.refunded': {
+      const charge = event.data.object;
+      const supabase = getSupabaseAdmin();
+      const refundId = charge.refunds?.data?.[0]?.id;
+      if (refundId) {
+        const { data: matched } = await supabase
+          .from('refund_requests')
+          .select('id, status')
+          .eq('stripe_refund_id', refundId)
+          .maybeSingle();
+        if (matched) {
+          await supabase.from('refund_audit_log').insert({
+            refund_request_id: matched.id,
+            actor_type: 'stripe',
+            actor_identifier: event.id,
+            event_type: 'stripe.charge.refunded',
+            payload: {
+              charge_id: charge.id,
+              amount_refunded: charge.amount_refunded,
+              currency: charge.currency,
+            },
+          });
+        } else {
+          console.info(`[stripe-webhook] charge.refunded received for un-tracked refund ${refundId}`);
+        }
+      }
+      break;
+    }
+    case 'charge.dispute.created': {
+      const dispute = event.data.object;
+      const supabase = getSupabaseAdmin();
+      const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id;
+      let subscriptionId = null;
+      let priorRefundRequest = null;
+
+      if (chargeId) {
+        const charge = await stripe.charges.retrieve(chargeId);
+        let stripeSubId = null;
+        if (charge.invoice) {
+          const invoiceId = typeof charge.invoice === 'string' ? charge.invoice : charge.invoice.id;
+          const invoice = await stripe.invoices.retrieve(invoiceId);
+          stripeSubId =
+            typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id || null;
+        }
+        if (stripeSubId) {
+          const { data: sub } = await supabase
+            .from('subscriptions')
+            .select('id, first_paid_charge_at')
+            .eq('stripe_subscription_id', stripeSubId)
+            .maybeSingle();
+          if (sub) {
+            subscriptionId = sub.id;
+            const { data: prior } = await supabase
+              .from('refund_requests')
+              .select('id, status')
+              .eq('subscription_id', sub.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            priorRefundRequest = prior;
+          }
+        }
+
+        const chargeCreatedAt = new Date(charge.created * 1000);
+        const isWithinPolicyWindow =
+          (Date.now() - chargeCreatedAt.getTime()) / (1000 * 60 * 60 * 24) <= 30;
+        const hadPriorContact = Boolean(priorRefundRequest);
+
+        const disputeRow = {
+          subscription_id: subscriptionId,
+          refund_request_id: priorRefundRequest?.id || null,
+          stripe_dispute_id: dispute.id,
+          stripe_charge_id: chargeId,
+          reason: dispute.reason,
+          amount_cents: dispute.amount,
+          currency: dispute.currency,
+          status: dispute.status,
+          evidence_due_by: dispute.evidence_details?.due_by
+            ? new Date(dispute.evidence_details.due_by * 1000).toISOString()
+            : null,
+          is_within_policy_window: isWithinPolicyWindow,
+          had_prior_contact: hadPriorContact,
+        };
+
+        const { error: insertErr } = await supabase.from('refund_disputes').insert(disputeRow);
+
+        if (!insertErr) {
+          const { alertChargebackCreated } = await import('@/lib/founder-alerts');
+          await alertChargebackCreated({
+            dispute: disputeRow,
+            priorRefundRequest,
+          });
+        }
       }
       break;
     }
