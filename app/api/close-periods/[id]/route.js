@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(req, { params }) {
   const supabase = getSupabaseAdmin();
-  const closePeriodId = params?.id;
+  const { id: closePeriodId } = await params;
   if (!closePeriodId) {
     return NextResponse.json({ error: "close period id required" }, { status: 400 });
   }

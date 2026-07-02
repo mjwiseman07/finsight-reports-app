@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(req, { params }) {
   const supabase = getSupabaseAdmin();
-  const firmClientId = params?.id;
+  const { id: firmClientId } = await params;
   if (!firmClientId) {
     return NextResponse.json({ error: "firm client id required" }, { status: 400 });
   }
@@ -19,7 +19,7 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   const supabase = getSupabaseAdmin();
-  const firmClientId = params?.id;
+  const { id: firmClientId } = await params;
   if (!firmClientId) {
     return NextResponse.json({ error: "firm client id required" }, { status: 400 });
   }

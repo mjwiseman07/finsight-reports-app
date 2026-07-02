@@ -19,11 +19,12 @@ function validate(body) {
 }
 
 export async function GET(req, { params }) {
+  const { id } = await params;
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("close_packet_variance_config")
     .select("*")
-    .eq("firm_client_id", params.id)
+    .eq("firm_client_id", id)
     .maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ config: data });
@@ -34,11 +35,12 @@ export async function POST(req, { params }) {
   const body = await req.json();
   const validationError = validate(body);
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+  const { id } = await params;
   const { data, error } = await supabase
     .from("close_packet_variance_config")
     .upsert(
       {
-        firm_client_id: params.id,
+        firm_client_id: id,
         firm_id: null,
         pct_threshold: body.pct_threshold ?? 10,
         abs_threshold_usd: body.abs_threshold_usd ?? 1000,
@@ -53,11 +55,12 @@ export async function POST(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  const { id } = await params;
   const supabase = getSupabaseAdmin();
   const { error } = await supabase
     .from("close_packet_variance_config")
     .delete()
-    .eq("firm_client_id", params.id);
+    .eq("firm_client_id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

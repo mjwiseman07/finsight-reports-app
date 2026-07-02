@@ -5,8 +5,7 @@ import { finalizeChecklistRun } from "@/lib/checklist-run-finalize";
 
 export async function POST(req, { params }) {
   const supabase = getSupabaseAdmin();
-  const closePeriodId = params?.id;
-  const itemId = params?.itemId;
+  const { id: closePeriodId, itemId } = await params;
   if (!closePeriodId || !itemId) {
     return NextResponse.json({ error: "close period id and item id required" }, { status: 400 });
   }
