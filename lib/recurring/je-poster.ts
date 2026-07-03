@@ -11,6 +11,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { qboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster";
 import { composeJEPayloadForFire } from "./je-composer";
 import { rowToRecurringScheduleLine, rowToRecurringTemplate } from "./db-mapper";
+import { triggerRunnerForRecurringFire } from "@/lib/rules/hooks/trigger-runner";
 import type { FireStatus, RecurringScheduleLine, RecurringTemplate } from "./types";
 
 export interface PostFireResult {
@@ -143,6 +144,14 @@ export async function postFire(fireId: string): Promise<PostFireResult> {
       .eq("fire_id", fireId);
 
     await bumpPostCount(supabase, template);
+
+    // D6.3 — fire the rule runner after the recurring JE landed + status
+    // committed to 'posted'. Fire-and-forget; runner failures must never break
+    // the post path (trigger swallows internally).
+    void triggerRunnerForRecurringFire(fireId).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn("[d6.3] runner trigger failed for recurring fire", fireId, err?.message);
+    });
 
     return {
       fire_id: fireId,
