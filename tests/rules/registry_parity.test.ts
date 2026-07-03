@@ -35,6 +35,14 @@ const IMPLEMENTED_RULE_IDS = new Set<string>([
   "gen.gl_mapping_variance_check",
   "gen.accrual_reversal_check",
   "gen.reversing_entry_period_check",
+  "mfg.absorption_check",
+  "mfg.cogs_variance_check",
+  "mfg.freight_capitalization_check",
+  "mfg.inventory_reconciliation_check",
+  "mfg.scrap_variance_check",
+  "mfg.standard_cost_capitalization_check",
+  "mfg.warranty_accrual_check",
+  "mfg.wip_cutoff_check",
 ]);
 
 describe("D6.0 rule registry parity", () => {
