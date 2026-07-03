@@ -5,7 +5,8 @@
 --   * FK targets corrected to real PKs:
 --       firm_clients(id)            [not firm_client_id]
 --       recurring_fires(fire_id)    [not recurring_fire_id]
---       company_memory_records(memory_id) [not memory_record_id]
+--       company_memory_records(memory_id) [not memory_record_id; and it is TEXT,
+--         so memory_record_id is declared text to match the FK target type]
 --     uncategorized_proposals(proposal_id) was already correct.
 --   * curated_rules_registry already exists (D0 migration
 --     20260708_00_d0_identity_and_memory_activation.sql) with a different
@@ -45,7 +46,7 @@ create table if not exists curated_rule_fires (
   reason_code             text not null,
   reason_detail           jsonb not null default '{}'::jsonb,
   severity_applied        text not null check (severity_applied in ('info','warning','error','critical')),
-  memory_record_id        uuid null references company_memory_records(memory_id) on delete set null,
+  memory_record_id        text null references company_memory_records(memory_id) on delete set null,
   reviewer_user_id        uuid null references auth.users(id) on delete set null,
   reviewer_action         text null check (reviewer_action in ('accepted','dismissed','escalated','override','pending')),
   reviewer_action_at      timestamptz null,
