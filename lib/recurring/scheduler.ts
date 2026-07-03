@@ -15,6 +15,8 @@ import { rowToRecurringScheduleLine, rowToRecurringTemplate } from "./db-mapper"
 import { computePeriodAmount } from "./period";
 import type { RecurringScheduleLine, RecurringTemplate } from "./types";
 import { wallClockToday } from "./tz";
+import { isCashBasisClient } from "./cash-basis-detector";
+import { reinforceMemory, upsertMemory } from "@/lib/memory/client-memory-service";
 
 export interface ClientFireSummary {
   firm_client_id: string;
@@ -56,7 +58,7 @@ export async function fireDueTemplatesForClient(
   // 1. Fetch client (need timezone).
   const { data: client, error: clientErr } = await supabase
     .from("firm_clients")
-    .select("id, timezone")
+    .select("id, timezone, accounting_method")
     .eq("id", firmClientId)
     .maybeSingle();
   if (clientErr) {
@@ -95,7 +97,16 @@ export async function fireDueTemplatesForClient(
       ? ((rawRow as Record<string, unknown>).template_id as string)
       : undefined;
     try {
-      await fireOneTemplate(supabase, rawRow as Record<string, unknown>, firmClientId, today, effectiveNow, nowIso, summary);
+      await fireOneTemplate(
+        supabase,
+        rawRow as Record<string, unknown>,
+        firmClientId,
+        today,
+        effectiveNow,
+        nowIso,
+        typeof client.accounting_method === "string" ? client.accounting_method : null,
+        summary,
+      );
     } catch (err) {
       summary.errors.push({ template_id: rawId, error: err instanceof Error ? err.message : String(err) });
     }
@@ -111,6 +122,7 @@ async function fireOneTemplate(
   today: string,
   effectiveNow: Date,
   nowIso: string,
+  accountingMethod: string | null,
   summary: ClientFireSummary,
 ): Promise<void> {
   // a. Map row → RecurringTemplate.
@@ -149,19 +161,30 @@ async function fireOneTemplate(
     }
   }
 
-  // d. Insert the proposed fire.
+  // d. Decide status + amount based on accounting method.
   //
-  // NOTE (drift): the D5.2 spec step (d) lists `je_payload_snapshot =
-  // template.je_payload_template`, but public.recurring_fires (D5.0 schema) has
-  // no such column and D5.2 must not change schema. Omitted here; D5.3 re-derives
-  // the payload from the template when it composes the JE. Flagged in report.
+  // D5.6: cash-basis clients get fires deflected at the scheduler write
+  // boundary. The fire lands in status='cash_basis' (valid per
+  // recurring_fires_status_check), the JE composer is never invoked, and the
+  // memory framework records the observation so confidence in "this client is
+  // cash basis" grows on repeat.
+  //
+  // D2's poster (lib/erp/quickbooks/journal-entry-poster.ts) remains the
+  // last-line safety net for any code path that bypasses this branch.
+  //
+  // NOTE (drift, from D5.2): the D5.2 spec step (d) listed `je_payload_snapshot`,
+  // but public.recurring_fires (D5.0 schema) has no such column; D5.3 re-derives
+  // the payload from the template when it composes the JE.
+  const isCash = isCashBasisClient(accountingMethod);
+  const finalStatus = isCash ? "cash_basis" : "proposed";
+  const finalAmount = isCash ? null : amountSnapshot;
   const fireRow = {
     template_id: template.template_id,
     firm_client_id: firmClientId,
     fire_date: today,
     period_index: periodIndex,
-    status: "proposed",
-    amount_override: amountSnapshot,
+    status: finalStatus,
+    amount_override: finalAmount,
   };
   const { error: insErr } = await supabase.from("recurring_fires").insert(fireRow);
   if (insErr) {
@@ -175,6 +198,43 @@ async function fireOneTemplate(
     return;
   }
   summary.fires_created += 1;
+
+  // D5.6: reinforce client-level memory that this client is cash basis.
+  // Best-effort — memory failures never block the fire. Deterministic memoryId
+  // gives natural idempotency: upsert on first observation, reinforce on repeat.
+  if (isCash) {
+    const memoryId = `mem_cash_basis_client_${firmClientId}`;
+    try {
+      const { created } = await upsertMemory({
+        firmClientId,
+        memoryType: "policy",
+        memoryId,
+        memoryKey: "accounting_method_cash_basis",
+        domain: "accounting",
+        subdomain: "recurring_je",
+        topic: "cash_basis_deflection",
+        entityType: "firm_client",
+        entityId: firmClientId,
+        sourceSystem: "d5.6.scheduler",
+        confidenceScore: 0.7,
+        evidenceStrength: "strong",
+        payload: {
+          accounting_method: "cash",
+          first_observed_at: nowIso,
+          source: "d5.6.scheduler",
+          fire_id: null, // fire_id is server-generated; not needed for policy memory
+        },
+      });
+      if (!created) {
+        await reinforceMemory(memoryId, "success");
+      }
+    } catch (memErr) {
+      summary.errors.push({
+        template_id: template.template_id,
+        error: `memory_reinforce_failed:${memErr instanceof Error ? memErr.message : String(memErr)}`,
+      });
+    }
+  }
 
   // e. Compute the next fire date.
   const nextFire = computeNextFireDate(template, today, effectiveNow);
