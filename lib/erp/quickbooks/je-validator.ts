@@ -69,27 +69,52 @@ export async function validateJEPayload(
   return { valid: true };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// A single account's existence check. An HTTP 200 is authoritative — whether the
+// account is found or not, we return immediately (zero retry latency on the happy
+// path AND on a genuine "account not found"). Retries fire ONLY on transient QBO
+// faults (429 rate-limit or 5xx application/system faults), which is what caused
+// the earlier bulk-post flakiness under load.
+async function accountExists(
+  realmId: string,
+  accessToken: string,
+  accountId: string,
+): Promise<boolean> {
+  const maxAttempts = 3;
+  const query = encodeURIComponent(`SELECT Id FROM Account WHERE Id = '${accountId}'`);
+  const url = `${qboApiBase()}/v3/company/${realmId}/query?query=${query}&minorversion=73`;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const rows = data?.QueryResponse?.Account;
+      return Array.isArray(rows) ? rows.length > 0 : !!rows;
+    }
+
+    // Non-2xx: retry only on transient faults; otherwise treat as not found.
+    const transient = resp.status === 429 || resp.status >= 500;
+    if (!transient || attempt === maxAttempts) return false;
+    await sleep(800 * attempt);
+  }
+  return false;
+}
+
 async function verifyQBOAccountsExist(
   realmId: string,
   accessToken: string,
   accountIds: string[],
 ): Promise<{ valid: boolean; missing?: string[] }> {
-  const idList = accountIds.map((id) => `'${id}'`).join(",");
-  const query = encodeURIComponent(`SELECT Id FROM Account WHERE Id IN (${idList})`);
-  const resp = await fetch(
-    `${qboApiBase()}/v3/company/${realmId}/query?query=${query}&minorversion=73`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-    },
+  // Parallel per-account checks keep wall-clock ≈ one round trip on the happy path.
+  const checks = await Promise.all(
+    accountIds.map(async (id) => ({ id, exists: await accountExists(realmId, accessToken, id) })),
   );
-  if (!resp.ok) {
-    return { valid: false, missing: accountIds };
-  }
-  const data = await resp.json();
-  const foundIds = new Set((data?.QueryResponse?.Account ?? []).map((a: { Id: string }) => a.Id));
-  const missing = accountIds.filter((id) => !foundIds.has(id));
+  const missing = checks.filter((c) => !c.exists).map((c) => c.id);
   return missing.length === 0 ? { valid: true } : { valid: false, missing };
 }

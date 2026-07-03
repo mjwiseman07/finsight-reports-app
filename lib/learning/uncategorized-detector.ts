@@ -59,9 +59,13 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function is429(err: unknown): boolean {
+function isRetryableQbo(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return /\b429\b/.test(msg) || /too many requests/i.test(msg);
+  return (
+    /\b429\b/.test(msg) ||
+    /too many requests/i.test(msg) ||
+    /application error/i.test(msg)
+  );
 }
 
 async function queryWithRetry(
@@ -70,13 +74,18 @@ async function queryWithRetry(
   sql: string,
   entityName: string,
 ): Promise<Record<string, unknown>[]> {
-  try {
-    return extractQueryEntities(await qboQuery(accessToken, realmId, sql), entityName);
-  } catch (err) {
-    if (!is429(err)) throw err;
-    await sleep(5000);
-    return extractQueryEntities(await qboQuery(accessToken, realmId, sql), entityName);
+  const maxAttempts = 4;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return extractQueryEntities(await qboQuery(accessToken, realmId, sql), entityName);
+    } catch (err) {
+      lastErr = err;
+      if (!isRetryableQbo(err) || attempt === maxAttempts) throw err;
+      await sleep(1500 * attempt);
+    }
   }
+  throw lastErr;
 }
 
 type Ref = { value?: string; name?: string; type?: string } | undefined;
@@ -109,22 +118,64 @@ function vendorFrom(
   return { vendor_id: null, vendor_name: null };
 }
 
+// Canonical QBO subtypes for the system junk-drawer accounts. Filtered one at a
+// time because QBO's query language rejects `IN` on AccountSubType (it only
+// supports `=` there — verified against realm 9341457151063823).
+const UNCATEGORIZED_SUBTYPES = ["UncategorizedExpense", "UncategorizedIncome"];
+
+// QBO's default junk-drawer account names. Matched by EXACT full name (not a
+// substring), so a customer account merely containing "Uncategorized" is not
+// swept in. Required because some files (incl. the sandbox) carry generic
+// subtypes on their junk-drawer accounts (e.g. "Uncategorized Expense" →
+// OtherMiscellaneousServiceCost) that the subtype filter alone would miss.
+const UNCATEGORIZED_NAMES = ["Uncategorized Expense", "Uncategorized Income", "Ask My Accountant"];
+
+function escapeQboLiteral(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 export async function findUncategorizedAccounts(
   accessToken: string,
   realmId: string,
 ): Promise<UncategorizedAccount[]> {
   // TODO(Step 4): expand via uncategorized_bucket_hint memory for renamed
   // junk-drawer accounts ("Ask CPA", "Uncategorized - Review", etc.).
-  const sql =
-    "SELECT Id, Name, AccountSubType FROM Account WHERE " +
-    "AccountSubType IN ('UncategorizedExpense', 'UncategorizedIncome') " +
-    "OR Name IN ('Ask My Accountant')";
-  const rows = await queryWithRetry(accessToken, realmId, sql, "Account");
-  return rows.map((a) => ({
-    account_id: String(a.Id ?? ""),
-    account_name: String(a.Name ?? ""),
-    account_subtype: String(a.AccountSubType ?? ""),
-  }));
+  const byId = new Map<string, UncategorizedAccount>();
+
+  const addRows = (rows: Record<string, unknown>[]) => {
+    for (const a of rows) {
+      const account_id = String(a.Id ?? "");
+      if (!account_id) continue;
+      byId.set(account_id, {
+        account_id,
+        account_name: String(a.Name ?? ""),
+        account_subtype: String(a.AccountSubType ?? a.AccountType ?? ""),
+      });
+    }
+  };
+
+  // 1. Canonical subtype match (production QBO defaults). One query per subtype
+  //    because QBO rejects `IN` on AccountSubType. Best-effort: some files reject
+  //    the enum value entirely ("invalid or unsupported property") — that must
+  //    not abort discovery, since the exact-name pass below is the reliable path.
+  for (const subtype of UNCATEGORIZED_SUBTYPES) {
+    const sql = `SELECT Id, Name, AccountType, AccountSubType FROM Account WHERE AccountSubType = '${subtype}' MAXRESULTS 100`;
+    try {
+      addRows(await queryWithRetry(accessToken, realmId, sql, "Account"));
+    } catch (err) {
+      if (!/invalid or unsupported property/i.test(err instanceof Error ? err.message : String(err))) {
+        throw err;
+      }
+    }
+  }
+
+  // 2. Exact default-name match (catches files whose junk-drawer accounts carry
+  //    generic subtypes, e.g. the sandbox). Name IN parses fine on QBO.
+  const nameList = UNCATEGORIZED_NAMES.map((n) => `'${escapeQboLiteral(n)}'`).join(", ");
+  const nameSql = `SELECT Id, Name, AccountType, AccountSubType FROM Account WHERE Name IN (${nameList}) MAXRESULTS 100`;
+  addRows(await queryWithRetry(accessToken, realmId, nameSql, "Account"));
+
+  return [...byId.values()];
 }
 
 export async function findUncategorizedTxns(input: DetectorInput): Promise<DetectorOutput> {
