@@ -33,8 +33,15 @@ vi.mock("@/lib/rules/logic", () => {
   return { RULE_REGISTRY: registry, ALL_RULE_IDS: Object.keys(registry) };
 });
 
+vi.mock("@/lib/rules/runner/resolve-qbo", () => ({
+  resolveQBOForClient: vi
+    .fn()
+    .mockResolvedValue({ handle: null, healthy: false, reason: "no_connection" }),
+}));
+
 const CLIENT: MockClientRow = {
   id: "client-1",
+  company_id: "co-1",
   industry_vertical: "manufacturing",
   accounting_method: "accrual",
   vertical_rules_enabled: true,
