@@ -136,14 +136,25 @@ async function main() {
   // Case 2 — scan generates proposals (may be 0 if no junk-drawer txns; pass if scan completes)
   let case2 = false;
   let case2Detail = "";
+  let case2Scan: Awaited<ReturnType<typeof runUncategorizedScan>> | null = null;
   try {
-    const scan = await runUncategorizedScan(ACCRUAL_CLIENT);
-    case2 = typeof scan.run_id === "string";
-    case2Detail = `generated=${scan.proposals_generated} buckets=${JSON.stringify(scan.by_bucket)}`;
+    case2Scan = await runUncategorizedScan(ACCRUAL_CLIENT);
+    case2 = typeof case2Scan.run_id === "string";
+    case2Detail = `generated=${case2Scan.proposals_generated} buckets=${JSON.stringify(case2Scan.by_bucket)}`;
   } catch (err) {
     case2Detail = err instanceof Error ? err.message : String(err);
   }
   pass("runUncategorizedScan completes on accrual client", case2, case2Detail);
+
+  // Case 2b — by_bucket sum matches proposals_generated (identity invariant)
+  const bucketsSum = case2Scan
+    ? case2Scan.by_bucket.green + case2Scan.by_bucket.yellow + case2Scan.by_bucket.red
+    : -1;
+  pass(
+    "by_bucket sum matches proposals_generated (identity invariant)",
+    !!case2Scan && case2Scan.proposals_generated === bucketsSum,
+    `generated=${case2Scan?.proposals_generated} buckets_sum=${bucketsSum}`,
+  );
 
   // Case 3 — green bucketing via composer
   await upsertMemory({

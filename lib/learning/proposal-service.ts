@@ -177,15 +177,16 @@ export async function runUncategorizedScan(
   });
 
   const supabase = getSupabaseAdmin();
-  let inserted = 0;
+  const insertedRows: typeof composed = [];
   for (const row of composed) {
     const { error } = await supabase.from("uncategorized_proposals").insert(row);
     if (error) {
       if (error.code === "23505") continue; // open proposal already exists
       throw new Error(`proposal insert failed: ${error.message}`);
     }
-    inserted += 1;
+    insertedRows.push(row);
   }
+  const inserted = insertedRows.length;
 
   const completedAt = new Date().toISOString();
   await upsertMemory({
@@ -207,8 +208,8 @@ export async function runUncategorizedScan(
   return {
     run_id: runId,
     proposals_generated: inserted,
-    by_bucket: countByBucket(composed),
-    by_source: countBySource(composed),
+    by_bucket: countByBucket(insertedRows),
+    by_source: countBySource(insertedRows),
     duration_ms: Math.round(performance.now() - start),
   };
 }
