@@ -92,7 +92,12 @@ export function makeSupabaseMock(opts: MockOpts): MockSupabase {
       resolve: (v: { data: unknown; error: unknown }) => T,
       reject?: (e: unknown) => T,
     ): Promise<T> {
-      return Promise.resolve({ data: opts.rules, error: opts.rulesError ?? null }).then(
+      // Mirror loadActiveRules Guardrail 2: only general + client vertical.
+      const allowed = new Set(
+        ["general", opts.client?.industry_vertical].filter(Boolean) as string[],
+      );
+      const filtered = opts.rules.filter((r) => allowed.has(r.vertical as string));
+      return Promise.resolve({ data: filtered, error: opts.rulesError ?? null }).then(
         resolve,
         reject,
       );
