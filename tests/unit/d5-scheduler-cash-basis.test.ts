@@ -146,7 +146,7 @@ describe("D5.6 — scheduler cash-basis branch", () => {
       expect.objectContaining({
         firmClientId: FIRM_CLIENT_ID,
         memoryId: `mem_cash_basis_client_${FIRM_CLIENT_ID}`,
-        memoryType: "policy",
+        memoryType: "operational_note",
       }),
     );
   });

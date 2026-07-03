@@ -207,7 +207,7 @@ async function fireOneTemplate(
     try {
       const { created } = await upsertMemory({
         firmClientId,
-        memoryType: "policy",
+        memoryType: "operational_note",
         memoryId,
         memoryKey: "accounting_method_cash_basis",
         domain: "accounting",
