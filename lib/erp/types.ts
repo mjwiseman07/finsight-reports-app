@@ -36,3 +36,43 @@ export type JournalEntryInput = Record<string, unknown>;
 export type JournalEntryResult = Record<string, unknown>;
 export type HealthResult = Record<string, unknown>;
 export type WritePreflightResult = Record<string, unknown>;
+
+// === D2: Safe JE Posting ===
+
+export type JELine = {
+  account_id: string; // QBO Account.Id
+  amount: number; // positive number
+  posting_type: "Debit" | "Credit";
+  description?: string;
+  customer_id?: string; // QBO Customer.Id
+  class_id?: string; // QBO Class.Id
+  department_id?: string; // QBO Department.Id
+};
+
+export type JEPayload = {
+  transaction_date: string; // ISO date YYYY-MM-DD
+  narration?: string;
+  private_note?: string;
+  lines: JELine[];
+  currency?: string; // default 'USD'
+};
+
+export type JEPostRequest = {
+  firm_client_id: string;
+  idempotency_key: string;
+  source_type: "rule" | "anomaly" | "flux" | "manual" | "reversal";
+  source_id?: string;
+  posted_by: "ai" | "human";
+  posted_by_user_id?: string;
+  payload: JEPayload;
+};
+
+export type JEPostResult =
+  | { status: "posted"; attempt_id: string; qbo_je_id: string }
+  | { status: "rejected"; attempt_id: string; reason: string; details?: unknown }
+  | { status: "failed"; attempt_id: string; error: string; retryable: boolean };
+
+export interface IJournalEntryPoster {
+  post(request: JEPostRequest): Promise<JEPostResult>;
+  reverse(attemptId: string, reason: string, actorUserId: string): Promise<JEPostResult>;
+}

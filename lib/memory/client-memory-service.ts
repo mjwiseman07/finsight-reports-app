@@ -24,7 +24,8 @@ export type MemoryType =
   | "industry_override"
   | "company_context"
   | "vendor_cadence"
-  | "recurring_je_template";
+  | "recurring_je_template"
+  | "posted_je";
 
 export type EvidenceStrength = "weak" | "moderate" | "strong";
 

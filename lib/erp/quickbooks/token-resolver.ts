@@ -233,13 +233,23 @@ async function refreshConnectionInPlace(
   );
 }
 
+export interface ResolveTokenOptions {
+  /** When true, force a token refresh regardless of current expiry. */
+  forceRefresh?: boolean;
+}
+
 /**
  * Returns a valid QBO token bundle for a firm_client, refreshing if the token
  * is expired or expiring within 5 minutes. Prefers accounting_connections.
  * Returns null if the firm_client has no QBO connection at all.
+ *
+ * Pass { forceRefresh: true } to skip the expiry short-circuit and refresh the
+ * connection unconditionally (used by the D2 poster after a 401). Existing
+ * callers that pass no options are unaffected.
  */
 export async function resolveQBOTokenForFirmClient(
   firmClientId: string,
+  options?: ResolveTokenOptions,
 ): Promise<QBOTokenBundle | null> {
   if (!firmClientId) throw new Error("firmClientId is required");
   const supabase = getSupabaseAdmin();
@@ -252,7 +262,7 @@ export async function resolveQBOTokenForFirmClient(
     (await loadErpConnection(supabase, ownerUserId));
   if (!conn) return null;
 
-  if (isExpiredOrExpiring(conn.expiresAt)) {
+  if (options?.forceRefresh || isExpiredOrExpiring(conn.expiresAt)) {
     return refreshConnectionInPlace(supabase, conn, ownerUserId);
   }
   return toBundle(conn, ownerUserId);
