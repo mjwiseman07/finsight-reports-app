@@ -10,6 +10,7 @@ import { qboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster
 import type { JEPayload } from "@/lib/erp/types";
 import { findUncategorizedTxns } from "@/lib/learning/uncategorized-detector";
 import { composeProposals } from "@/lib/learning/proposal-composer";
+import { triggerRunnerForProposal } from "@/lib/rules/hooks/trigger-runner";
 import type {
   AcceptProposalInput,
   AcceptProposalResponse,
@@ -286,6 +287,13 @@ export async function acceptProposal(
       );
     }
 
+    // D6.3 — fire the rule runner after the status is committed. Fire-and-forget;
+    // runner failures must never break the accept UX (trigger swallows internally).
+    void triggerRunnerForProposal(proposalId).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn("[d6.3] runner trigger failed for proposal", proposalId, err?.message);
+    });
+
     return {
       status: "cash_basis",
       proposal_id: proposalId,
@@ -334,6 +342,12 @@ export async function acceptProposal(
       true,
     );
   }
+
+  // D6.3 — fire the rule runner after the JE landed + status committed.
+  void triggerRunnerForProposal(proposalId).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.warn("[d6.3] runner trigger failed for proposal", proposalId, err?.message);
+  });
 
   return {
     status: "accepted",
@@ -475,6 +489,11 @@ export async function bulkAcceptProposals(
         );
       }
 
+      void triggerRunnerForProposal(proposal.proposal_id).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn("[d6.3] runner trigger failed for proposal", proposal.proposal_id, err?.message);
+      });
+
       results.push({
         proposal_id: proposal.proposal_id,
         posted_je_id: null,
@@ -517,6 +536,11 @@ export async function bulkAcceptProposals(
         true,
       );
     }
+
+    void triggerRunnerForProposal(proposal.proposal_id).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn("[d6.3] runner trigger failed for proposal", proposal.proposal_id, err?.message);
+    });
 
     results.push({
       proposal_id: proposal.proposal_id,
