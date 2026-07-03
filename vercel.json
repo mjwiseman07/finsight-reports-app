@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/learning/cron/reinforce-all", "schedule": "0 6 * * *" }
+  ]
+}

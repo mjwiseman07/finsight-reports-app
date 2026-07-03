@@ -239,6 +239,87 @@ export async function recordMemory(input: RecordMemoryInput): Promise<RecordMemo
   return { memory_id: memoryId, persistence_status };
 }
 
+export interface UpsertMemoryInput {
+  firmClientId: string;
+  memoryType: string;
+  /** Deterministic memory_id (primary key). Re-upserts mutate in place. */
+  memoryId: string;
+  payload: Record<string, unknown>;
+  memoryKey?: string;
+  confidenceScore?: number;
+  evidenceStrength?: EvidenceStrength;
+  domain?: string;
+  subdomain?: string;
+  topic?: string;
+  entityType?: string;
+  entityId?: string;
+  sourceSystem?: string;
+}
+
+/**
+ * Upsert a derived-statistics memory on a deterministic memory_id (D3 learning
+ * engine). On conflict it mutates payload/confidence in place — permitted for
+ * the learning memory_types by the D3 trigger relaxation. Immutable identity
+ * fields (memory_group_id, company_id, memory_type, source_system) are written
+ * deterministically so re-upserts leave them unchanged.
+ *
+ * Separate from recordMemory (which stays append-only pending->persisted).
+ */
+export async function upsertMemory(
+  input: UpsertMemoryInput,
+): Promise<{ memory_id: string; created: boolean }> {
+  if (!input?.firmClientId) throw new Error("firmClientId is required");
+  if (!input?.memoryType) throw new Error("memoryType is required");
+  if (!input?.memoryId) throw new Error("memoryId is required");
+
+  const supabase = getSupabaseAdmin();
+  const { companyId, industry } = await resolveCompanyId(supabase, input.firmClientId);
+
+  const memoryId = input.memoryId;
+  const memoryGroupId = memoryId.startsWith("mem_")
+    ? `grp_${memoryId.slice(4)}`
+    : `grp_${memoryId}`;
+  const nowIso = new Date().toISOString();
+
+  const { data: existing } = await supabase
+    .from("company_memory_records")
+    .select("memory_id")
+    .eq("memory_id", memoryId)
+    .maybeSingle();
+
+  const row: Record<string, unknown> = {
+    memory_id: memoryId,
+    memory_group_id: memoryGroupId,
+    memory_key: input.memoryKey ?? memoryId,
+    record_version: 1,
+    company_id: companyId,
+    memory_type: input.memoryType,
+    memory_status: "active",
+    persistence_status: "persisted",
+    intelligence_scope: "customer",
+    domain: input.domain ?? null,
+    subdomain: input.subdomain ?? null,
+    topic: input.topic ?? null,
+    industry: industry ?? null,
+    entity_type: input.entityType ?? null,
+    entity_id: input.entityId ?? null,
+    source_system: input.sourceSystem ?? "learning_engine",
+    confidence_score:
+      typeof input.confidenceScore === "number" ? clamp01(input.confidenceScore) : null,
+    evidence_strength: input.evidenceStrength ?? null,
+    payload: input.payload ?? {},
+    persisted_at: nowIso,
+    updated_at: nowIso,
+  };
+
+  const { error } = await supabase
+    .from("company_memory_records")
+    .upsert(row, { onConflict: "memory_id" });
+  if (error) throw new Error(`memory upsert failed: ${error.message}`);
+
+  return { memory_id: memoryId, created: !existing };
+}
+
 /**
  * Query active, persisted memories for a firm_client (resolved to company_id).
  */
