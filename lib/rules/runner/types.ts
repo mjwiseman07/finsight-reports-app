@@ -7,6 +7,7 @@ export interface RunOptions {
   ruleIdFilter?: string[];
   proposalId?: string; // link fire -> proposal
   recurringFireId?: string; // link fire -> recurring
+  closePeriodId?: string; // D6.2a — threaded into RuleContext for period rules
 }
 
 export interface LoadedRule {

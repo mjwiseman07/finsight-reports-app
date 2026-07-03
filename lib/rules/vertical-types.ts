@@ -7,8 +7,14 @@
 // so they need their own context/result shape. Keeping them in a distinct file
 // avoids breaking the existing D0 subsystem.
 
+export interface QBOHandle {
+  accessToken: string;
+  realmId: string;
+}
+
 export interface RuleContext {
   firmClientId: string;
+  companyId: string; // D6.2a — resolved once by the runner
   industryVertical: string;
   accountingMethod: "cash" | "accrual" | "modified_cash";
   targetType:
@@ -24,6 +30,8 @@ export interface RuleContext {
   targetRef: string;
   inputs: Record<string, unknown>;
   inputsHash: string;
+  qbo: QBOHandle | null; // D6.2a — null if unhealthy / unauthorized; rules self-suppress
+  closePeriodId?: string; // D6.2a — optional; period rules use it
 }
 
 export interface RuleResult {

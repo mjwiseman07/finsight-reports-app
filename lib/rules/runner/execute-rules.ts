@@ -6,6 +6,7 @@ import type { RunOptions, RunSummary, LoadedRule } from "./types";
 import { loadClient, loadActiveRules } from "./load-active-rules";
 import { writeFire } from "./write-fire";
 import { computeInputsHash } from "./compute-inputs-hash";
+import { resolveQBOForClient } from "./resolve-qbo";
 
 /**
  * Best-effort Sentry capture. Per D6 decision #7 this is wired but log-only:
@@ -61,6 +62,12 @@ export async function executeRules(
   // Guardrail 2: vertical scope (loadActiveRules restricts to general + client vertical)
   // Guardrail 4: enabled gate (loadActiveRules filters is_active = true)
   const rules = await loadActiveRules(supabase, client, opts.ruleIdFilter);
+
+  // Guardrail 9 (D6.2a): QBO health short-circuit. Resolve once per run. If the
+  // connection is unhealthy/missing, qbo is null and QBO-dependent rules
+  // self-suppress; memory-only rules (e.g. gl_mapping_variance) still run.
+  const qboResolve = await resolveQBOForClient(client.firm_client_id);
+
   const target =
     opts.targetFilter ?? { targetType: "account" as const, targetRef: opts.firmClientId };
 
@@ -95,12 +102,15 @@ export async function executeRules(
     );
     const ctx: RuleContext = {
       firmClientId: client.firm_client_id,
+      companyId: client.company_id,
       industryVertical: client.industry_vertical,
       accountingMethod: client.accounting_method,
       targetType: target.targetType,
       targetRef: target.targetRef,
       inputs,
       inputsHash,
+      qbo: qboResolve.handle,
+      closePeriodId: opts.closePeriodId,
     };
 
     let result: RuleResult;

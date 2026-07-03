@@ -33,8 +33,15 @@ vi.mock("@/lib/rules/logic", () => {
   return { RULE_REGISTRY: registry, ALL_RULE_IDS: Object.keys(registry) };
 });
 
+vi.mock("@/lib/rules/runner/resolve-qbo", () => ({
+  resolveQBOForClient: vi
+    .fn()
+    .mockResolvedValue({ handle: null, healthy: false, reason: "no_connection" }),
+}));
+
 const CLIENT: MockClientRow = {
   id: "client-1",
+  company_id: "co-1",
   industry_vertical: "manufacturing",
   accounting_method: "accrual",
   vertical_rules_enabled: true,
@@ -74,6 +81,19 @@ describe("executeRules — happy path", () => {
     expect(summary.fires.suppressed).toBe(0);
     expect(supabase.inserts).toHaveLength(3);
     expect(summary.killSwitchShortCircuit).toBe(false);
+  });
+
+  it("passes companyId and qbo (null when unresolved) into the rule ctx", async () => {
+    const supabase = makeSupabaseMock({ client: CLIENT, rules: [accrualRule("gen.subledger_tie_check")] });
+    await executeRules(supabase as unknown as SupabaseClient, {
+      firmClientId: "client-1",
+      trigger: "on_demand",
+    });
+    const ctx = (RULE_REGISTRY["gen.subledger_tie_check"].evaluate as ReturnType<typeof vi.fn>).mock
+      .calls[0][0];
+    expect(ctx.companyId).toBe("co-1");
+    expect(ctx.qbo).toBeNull();
+    expect(ctx.firmClientId).toBe("client-1");
   });
 
   it("defaults target to account/firmClientId when no targetFilter given", async () => {
