@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 // D2 smoke — uses QBO sandbox realm 9341457151063823
-// Account IDs: 7 = Advertising (Expense), 84 = Accounts Receivable (Asset)
+// Account IDs: 7 = Advertising (Expense), 35 = Checking (Bank)
+// Note: 84 (A/R) requires a customer entity in QBO sandbox — do not use for smoke tests.
 //
 // NOTE: this posts REAL journal entries to the QBO sandbox (idempotency +
 // balanced cases). Requires the D2 migration applied and a healthy QBO
@@ -41,7 +42,7 @@ import { getSupabaseAdmin } from "../../lib/supabase-admin.js";
 
 const FIRM_CLIENT_ID = "71111111-1111-4111-8111-111111111111";
 const DR_ACCOUNT = "7"; // Advertising (Expense)
-const CR_ACCOUNT = "84"; // Accounts Receivable (Asset)
+const CR_ACCOUNT = "35"; // Checking (Bank)
 
 const results: Array<{ name: string; ok: boolean; detail?: string }> = [];
 function pass(name: string, ok: boolean, detail?: string) {
