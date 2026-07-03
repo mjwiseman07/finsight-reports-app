@@ -49,6 +49,12 @@ const IMPLEMENTED_RULE_IDS = new Set<string>([
   "rtl.loyalty_reward_liability_check",
   "rtl.sales_returns_reserve_check",
   "rtl.seasonal_markdown_check",
+  "ps.bill_rate_variance_check",
+  "ps.contract_asset_reclass_check",
+  "ps.project_margin_flag_check",
+  "ps.revenue_percent_complete_check",
+  "ps.unbilled_receivables_check",
+  "ps.wip_billable_hours_check",
 ]);
 
 describe("D6.0 rule registry parity", () => {
