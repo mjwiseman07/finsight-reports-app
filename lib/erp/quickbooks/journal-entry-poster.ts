@@ -18,6 +18,8 @@ import type {
   JEPayload,
 } from "@/lib/erp/types";
 import { recordMemory } from "@/lib/memory/client-memory-service";
+import { persistJeEvidence } from "@/lib/je-evidence/persist";
+import { dispatchBackupPacket } from "@/lib/je-evidence/dispatch-hook";
 
 // Env-aware base URL: sandbox realm/token only work against the sandbox host.
 function qboApiBase(): string {
@@ -63,6 +65,17 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
     }
 
     const attemptId = attempt.attempt_id as string;
+
+    // D6.4b: evidence-contract enforcement — only when a caller supplies a composition (legacy callers unaffected).
+    const composition = (req as { composition?: import("@/lib/je-evidence/types").JeCompositionResult }).composition;
+    if (composition) {
+      try {
+        await persistJeEvidence({ db: supabase, attemptId, firmClientId: req.firm_client_id, composition });
+      } catch (err) {
+        await finalizeReject(attemptId, req, "evidence_contract_violation", { message: err instanceof Error ? err.message : String(err) });
+        return { status: "rejected", attempt_id: attemptId, reason: "evidence_contract_violation" };
+      }
+    }
 
     // 2. Cash-basis gate
     const { data: fc } = await supabase
@@ -157,6 +170,9 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
         line_count: req.payload.lines.length,
       },
     });
+
+    // D6.4b: fire-and-forget backup packet on success (only if composition supplied).
+    if (composition) dispatchBackupPacket(supabase, attemptId, req.firm_client_id);
 
     return { status: "posted", attempt_id: attemptId, qbo_je_id: qboJEId };
   },
