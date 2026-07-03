@@ -13,7 +13,11 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["tests/**/*.test.ts", "architecture-lane/**/*.test.ts"],
+    include: [
+      "tests/**/*.test.ts",
+      "lib/je-evidence/__tests__/**/*.test.ts",
+      "architecture-lane/**/*.test.ts",
+    ],
     testTimeout: 120_000,
   },
 });
