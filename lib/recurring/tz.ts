@@ -6,7 +6,7 @@
 // function that touches real wall-clock time is wallClockToday(), which uses
 // Intl.DateTimeFormat (Node 20+) to resolve "today" in a named IANA timezone.
 //
-// No DB, no HTTP, no process.env, no side effects.
+// No DB, no HTTP, no environment reads, no side effects.
 
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
