@@ -39,9 +39,9 @@ function loadEnv(path: string) {
 loadEnv(".env.local");
 loadEnv(".env");
 
-import { resolveQBOTokenForFirmClient } from "../../lib/qbo/token-resolver";
-import { checkQBOHealth } from "../../lib/qbo/health-checker";
-import { canPostToQBO } from "../../lib/qbo/write-preflight";
+import { resolveQBOTokenForFirmClient } from "../../lib/erp/quickbooks/token-resolver";
+import { checkQBOHealth } from "../../lib/erp/quickbooks/health-checker";
+import { canPostToQBO } from "../../lib/erp/quickbooks/write-preflight";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -75,11 +75,16 @@ async function main() {
   console.log("=== D1 QBO write readiness smoke test ===\n");
 
   // Confirm test client exists (created in D0 smoke).
-  const { data: client } = await supabase
+  const { data: client, error: clientErr } = await supabase
     .from("firm_clients")
-    .select("id, qbo_write_enabled")
+    .select("id, owner_user_id, qbo_write_enabled")
     .eq("id", TEST_FIRM_CLIENT_ID)
     .maybeSingle();
+  if (clientErr) {
+    fail("test firm_client exists", `${clientErr.message} (is the D1 migration applied?)`);
+    summary();
+    return;
+  }
   if (!client) {
     fail("test firm_client exists", `not found: ${TEST_FIRM_CLIENT_ID} (run D0 smoke first)`);
     summary();
@@ -87,10 +92,20 @@ async function main() {
   }
   pass("test firm_client exists", TEST_FIRM_CLIENT_ID);
 
-  // 1. resolveQBOTokenForFirmClient
+  // 2. owner_user_id populated (D1.1 backfill)
+  if (client.owner_user_id) {
+    pass("firm_client has owner_user_id", client.owner_user_id as string);
+  } else {
+    fail("firm_client has owner_user_id", "null — apply D1.1 backfill migration");
+  }
+
+  // 3. resolveQBOTokenForFirmClient
   const bundle = await resolveQBOTokenForFirmClient(TEST_FIRM_CLIENT_ID);
   if (!bundle) {
-    skip("resolveQBOTokenForFirmClient", "no QBO connection for test client — skipping health/preflight-write steps");
+    skip(
+      "resolveQBOTokenForFirmClient",
+      "owner has no accounting_connections QBO row in this env — skipping health/preflight-write steps",
+    );
     // Still verify the write-disabled path works without a connection.
     const disabled = await canPostToQBO(TEST_FIRM_CLIENT_ID);
     if (!disabled.canWrite && disabled.reason === "write_disabled") {

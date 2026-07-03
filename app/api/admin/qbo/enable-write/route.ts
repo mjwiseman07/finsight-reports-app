@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveSuperAdminAccess } from "@/lib/super-admin-security";
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
-import { checkQBOHealth } from "@/lib/qbo/health-checker";
+import { checkQBOHealth } from "@/lib/erp/quickbooks/health-checker";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

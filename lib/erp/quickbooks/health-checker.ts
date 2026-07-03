@@ -14,7 +14,7 @@ import {
   refreshQBOToken,
   type QBOTokenBundle,
   type QBOTokenSource,
-} from "@/lib/qbo/token-resolver";
+} from "@/lib/erp/quickbooks/token-resolver";
 
 export type QBOHealthStatus =
   | "healthy"

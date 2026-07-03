@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveSuperAdminAccess } from "@/lib/super-admin-security";
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
-import { resolveQBOTokenForFirmClient } from "@/lib/qbo/token-resolver";
+import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

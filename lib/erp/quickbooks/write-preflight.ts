@@ -7,8 +7,8 @@
  * resolves cleanly. D1 does NOT perform writes — this only provides the gate.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
-import { resolveQBOTokenForFirmClient, type QBOTokenBundle } from "@/lib/qbo/token-resolver";
-import { checkQBOHealth } from "@/lib/qbo/health-checker";
+import { resolveQBOTokenForFirmClient, type QBOTokenBundle } from "@/lib/erp/quickbooks/token-resolver";
+import { checkQBOHealth } from "@/lib/erp/quickbooks/health-checker";
 
 export type WritePreflightReason =
   | "write_disabled"
