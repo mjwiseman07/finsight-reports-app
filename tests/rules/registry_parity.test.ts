@@ -43,6 +43,12 @@ const IMPLEMENTED_RULE_IDS = new Set<string>([
   "mfg.standard_cost_capitalization_check",
   "mfg.warranty_accrual_check",
   "mfg.wip_cutoff_check",
+  "rtl.cogs_recognition_check",
+  "rtl.gift_card_liability_check",
+  "rtl.inventory_shrink_check",
+  "rtl.loyalty_reward_liability_check",
+  "rtl.sales_returns_reserve_check",
+  "rtl.seasonal_markdown_check",
 ]);
 
 describe("D6.0 rule registry parity", () => {
