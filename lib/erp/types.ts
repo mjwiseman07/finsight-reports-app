@@ -60,7 +60,7 @@ export type JEPayload = {
 export type JEPostRequest = {
   firm_client_id: string;
   idempotency_key: string;
-  source_type: "rule" | "anomaly" | "flux" | "manual" | "reversal";
+  source_type: "rule" | "anomaly" | "flux" | "manual" | "reversal" | "recurring";
   source_id?: string;
   posted_by: "ai" | "human";
   posted_by_user_id?: string;
