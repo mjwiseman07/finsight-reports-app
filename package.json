@@ -125,6 +125,7 @@
     "validate:frameworks": "npx tsx scripts/validate-fixture-frameworks.ts"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.5.1",
     "@sparticuz/chromium-min": "^149.0.0",
     "@stripe/stripe-js": "^5.10.0",
     "@supabase/supabase-js": "^2.106.1",
