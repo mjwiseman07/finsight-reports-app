@@ -9,9 +9,13 @@ const publishSpy = vi.hoisted(() =>
   vi.fn(async (_input: { eventCategory?: string; [k: string]: unknown }) => ({ eventId: "evt-1" })),
 );
 const reinforceSpy = vi.hoisted(() => vi.fn(async () => undefined));
+const postApprovedSpy = vi.hoisted(() => vi.fn(async () => ({ status: "posted" as const })));
 vi.mock("@/lib/supabase/service", () => ({ createServiceClient: () => mock }));
 vi.mock("@/lib/events/publisher", () => ({ publishEvent: publishSpy }));
 vi.mock("@/lib/memory/client-memory-service", () => ({ reinforce: reinforceSpy }));
+vi.mock("@/lib/pre-close/post-approved-review-item", () => ({
+  postApprovedReviewItem: postApprovedSpy,
+}));
 
 import { applyDirective } from "@/lib/directives/apply-directive";
 import type { DirectiveInput, JEDraft } from "@/lib/pre-close/types";
@@ -78,6 +82,8 @@ beforeEach(() => {
   mock.__reset();
   publishSpy.mockClear();
   reinforceSpy.mockClear();
+  postApprovedSpy.mockClear();
+  postApprovedSpy.mockResolvedValue({ status: "posted" });
 });
 
 describe("directives/apply-directive applyDirective", () => {
@@ -144,5 +150,49 @@ describe("directives/apply-directive applyDirective", () => {
   it("apply on non-existent id -> not_found", async () => {
     const r = await applyDirective(directive({ reviewItemId: "does-not-exist" }));
     expect(r.status).toBe("not_found");
+  });
+});
+
+describe("apply-directive D6.4c-3 post wiring", () => {
+  it("approved invokes postApprovedReviewItem", async () => {
+    seedPending("ri-post", "fire-post");
+    await applyDirective(directive({ reviewItemId: "ri-post" }));
+    expect(postApprovedSpy).toHaveBeenCalledOnce();
+    const calls = postApprovedSpy.mock.calls as unknown as Array<[{ reviewItemId: string }]>;
+    expect(calls[0][0].reviewItemId).toBe("ri-post");
+  });
+
+  it("rejected does NOT invoke postApprovedReviewItem", async () => {
+    seedPending("ri-rej", "fire-rej");
+    await applyDirective(directive({ reviewItemId: "ri-rej", decision: "rejected", decisionReasonCode: "no" }));
+    expect(postApprovedSpy).not.toHaveBeenCalled();
+  });
+
+  it("deferred does NOT invoke postApprovedReviewItem", async () => {
+    seedPending("ri-def", "fire-def");
+    await applyDirective(directive({ reviewItemId: "ri-def", decision: "deferred", decisionReasonCode: "wait" }));
+    expect(postApprovedSpy).not.toHaveBeenCalled();
+  });
+
+  it("edit_and_approved invokes postApprovedReviewItem", async () => {
+    seedPending("ri-edit", "fire-edit");
+    const edited = balanced();
+    edited.narration = "edited";
+    await applyDirective(
+      directive({
+        reviewItemId: "ri-edit",
+        decision: "edit_and_approved",
+        decisionReasonCode: "tweak",
+        editedJeDraft: edited,
+      }),
+    );
+    expect(postApprovedSpy).toHaveBeenCalledOnce();
+  });
+
+  it("poster throw is non-fatal — directive still applied", async () => {
+    seedPending("ri-throw", "fire-throw");
+    postApprovedSpy.mockRejectedValueOnce(new Error("poster boom"));
+    const r = await applyDirective(directive({ reviewItemId: "ri-throw" }));
+    expect(r.status).toBe("applied");
   });
 });

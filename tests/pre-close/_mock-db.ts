@@ -41,6 +41,8 @@ export function makeMockDb(): MockDb {
     engagement_addons: [],
     entitlement_check_audit: [],
     ledger_events: [],
+    engagement_posting_policy: [],
+    close_periods: [],
   };
 
   function ensure(name: string): Row[] {
@@ -48,11 +50,27 @@ export function makeMockDb(): MockDb {
     return state[name];
   }
 
-  function matches(row: Row, eqFilters: Array<[string, unknown]>, isFilters: Array<[string, unknown]>): boolean {
+  function matches(
+    row: Row,
+    eqFilters: Array<[string, unknown]>,
+    isFilters: Array<[string, unknown]>,
+    inFilters: Array<[string, unknown[]]>,
+    lteFilters: Array<[string, unknown]>,
+    gteFilters: Array<[string, unknown]>,
+  ): boolean {
     for (const [c, v] of eqFilters) if (row[c] !== v) return false;
     for (const [c, v] of isFilters) {
       if (v === null && row[c] != null) return false;
       if (v !== null && row[c] !== v) return false;
+    }
+    for (const [c, vals] of inFilters) {
+      if (!vals.includes(row[c])) return false;
+    }
+    for (const [c, v] of lteFilters) {
+      if (typeof row[c] === "string" && typeof v === "string" && row[c] > v) return false;
+    }
+    for (const [c, v] of gteFilters) {
+      if (typeof row[c] === "string" && typeof v === "string" && row[c] < v) return false;
     }
     return true;
   }
@@ -60,12 +78,17 @@ export function makeMockDb(): MockDb {
   function tbl(name: string) {
     const eqFilters: Array<[string, unknown]> = [];
     const isFilters: Array<[string, unknown]> = [];
+    const inFilters: Array<[string, unknown[]]> = [];
+    const lteFilters: Array<[string, unknown]> = [];
+    const gteFilters: Array<[string, unknown]> = [];
     let orderCol: string | null = null;
     let orderAsc = true;
     let limitN: number | undefined;
 
     function selected(): Row[] {
-      let rows = ensure(name).filter((r) => matches(r, eqFilters, isFilters));
+      let rows = ensure(name).filter((r) =>
+        matches(r, eqFilters, isFilters, inFilters, lteFilters, gteFilters),
+      );
       if (orderCol) {
         const col = orderCol;
         rows = rows.slice().sort((a, b) => {
@@ -91,6 +114,18 @@ export function makeMockDb(): MockDb {
       },
       is(col: string, val: unknown) {
         isFilters.push([col, val]);
+        return selectChain;
+      },
+      in(col: string, vals: unknown[]) {
+        inFilters.push([col, vals]);
+        return selectChain;
+      },
+      lte(col: string, val: unknown) {
+        lteFilters.push([col, val]);
+        return selectChain;
+      },
+      gte(col: string, val: unknown) {
+        gteFilters.push([col, val]);
         return selectChain;
       },
       order(col: string, opts?: { ascending?: boolean }) {
@@ -134,6 +169,7 @@ export function makeMockDb(): MockDb {
           decision_at: r.decision_at ?? null,
           edited_je_draft: r.edited_je_draft ?? null,
           posted_je_attempt_id: r.posted_je_attempt_id ?? null,
+          post_block_reason: r.post_block_reason ?? null,
           ...r,
         };
         ensure(name).push(row);
@@ -172,7 +208,7 @@ export function makeMockDb(): MockDb {
       const upEq: Array<[string, unknown]> = [];
       const upIs: Array<[string, unknown]> = [];
       const applyUpdate = () => {
-        const rows = ensure(name).filter((r) => matches(r, upEq, upIs));
+        const rows = ensure(name).filter((r) => matches(r, upEq, upIs, [], [], []));
         for (const row of rows) Object.assign(row, patch);
         return rows;
       };

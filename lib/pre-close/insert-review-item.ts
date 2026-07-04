@@ -103,6 +103,7 @@ export function rowToReviewItem(row: Record<string, unknown>): ReviewItemRow {
     decisionAt: (row.decision_at as string | null) ?? null,
     editedJeDraft: (row.edited_je_draft as ReviewItemRow["editedJeDraft"]) ?? null,
     postedJeAttemptId: (row.posted_je_attempt_id as string | null) ?? null,
+    postBlockReason: (row.post_block_reason as string | null) ?? null,
     createdAt: row.created_at as string,
   };
 }

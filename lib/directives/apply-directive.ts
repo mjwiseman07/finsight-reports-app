@@ -175,5 +175,27 @@ export async function applyDirective(
     console.warn("[apply-directive] memory reinforce failed (non-fatal)", e);
   }
 
+  // 7. D6.4c-3 — If the decision is post-eligible, invoke the poster.
+  if (input.decision === "approved" || input.decision === "edit_and_approved") {
+    try {
+      const { postApprovedReviewItem } = await import("@/lib/pre-close/post-approved-review-item");
+      const postResult = await postApprovedReviewItem({
+        reviewItemId: updatedRow.id,
+        actorType: input.actorType,
+        actorId: input.actorId ?? input.reviewerUserId ?? undefined,
+        correlationId: input.correlationId,
+      });
+      console.log("[apply-directive] post outcome", {
+        reviewItemId: updatedRow.id,
+        postStatus: postResult.status,
+      });
+    } catch (e) {
+      console.error("[apply-directive] postApprovedReviewItem threw (non-fatal)", {
+        reviewItemId: updatedRow.id,
+        error: e,
+      });
+    }
+  }
+
   return { status: "applied", row: updatedRow };
 }

@@ -72,6 +72,7 @@ export interface ReviewItemRow {
   decisionAt: string | null;
   editedJeDraft: JEDraft | null;
   postedJeAttemptId: string | null;
+  postBlockReason: string | null;
   createdAt: string;
 }
 
