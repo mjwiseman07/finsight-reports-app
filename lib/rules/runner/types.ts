@@ -31,6 +31,15 @@ export interface RunSummary {
     error: number;
     not_implemented: number;
   };
+  // D6.4c-2: composition outcomes for the fired-with-proposedJE path.
+  proposals: {
+    composed: number; // review item successfully inserted
+    basis_blocked: number; // composer returned basis_blocked
+    invalid_draft: number; // composer returned invalid_draft
+    composition_error: number; // composer or inserter threw (isolated + audited)
+    entitlement_denied: number; // add-on-gated rule fired without entitlement
+    no_proposal: number; // rule fired but did not emit proposedJE (flag-only rule)
+  };
   durationMs: number;
   killSwitchShortCircuit: boolean;
 }

@@ -1,4 +1,5 @@
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
+import type { JEDraft, JEDraftLine } from "@/lib/pre-close/types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — lib/qbo-rest.js is untyped
 import { findJournalEntries } from "@/lib/qbo-rest";
@@ -45,6 +46,51 @@ function currentPeriod(endDateISO: string): { start: string; end: string } {
   return {
     start: start.toISOString().slice(0, 10),
     end: endDateISO.slice(0, 10),
+  };
+}
+
+/**
+ * D6.4c-2 — build a reversing JE draft from a source accrual JE.
+ * Swaps debit/credit sides. Amounts in integer cents to match the JEDraft
+ * contract. Returns null if the source JE is unusable (missing lines, missing
+ * amounts/accounts, unbalanced, or zero total) — in which case the rule still
+ * fires but emits no proposal.
+ */
+function buildReversalDraft(source: QBOJournalEntry, transactionDate: string): JEDraft | null {
+  const lines = source.Line ?? [];
+  if (lines.length < 2) return null;
+  const draftLines: JEDraftLine[] = [];
+  let idx = 0;
+  for (const line of lines) {
+    const posting = line.JournalEntryLineDetail?.PostingType;
+    const amountDollars = line.Amount;
+    const accountId = line.JournalEntryLineDetail?.AccountRef?.value;
+    const accountName = line.JournalEntryLineDetail?.AccountRef?.name;
+    if (!posting || typeof amountDollars !== "number" || !accountId || !accountName) return null;
+    const amountCents = Math.round(amountDollars * 100);
+    if (amountCents <= 0) return null;
+    // Swap: source debit -> reversal credit, source credit -> reversal debit.
+    draftLines.push({
+      lineIndex: idx++,
+      accountId,
+      accountName,
+      drAmountCents: posting === "Credit" ? amountCents : 0,
+      crAmountCents: posting === "Debit" ? amountCents : 0,
+      memo: `Reversal of accrual ${source.DocNumber ?? source.Id}`,
+      evidenceRef: {
+        kind: "curated_rule_fire",
+        ref: source.Id,
+        detail: { source_doc_number: source.DocNumber, source_txn_date: source.TxnDate },
+      },
+    });
+  }
+  const totalDr = draftLines.reduce((s, l) => s + l.drAmountCents, 0);
+  const totalCr = draftLines.reduce((s, l) => s + l.crAmountCents, 0);
+  if (totalDr !== totalCr || totalDr === 0) return null;
+  return {
+    narration: `Reverse missed accrual JE ${source.DocNumber ?? source.Id} (${source.TxnDate})`,
+    transactionDate,
+    lines: draftLines,
   };
 }
 
@@ -105,6 +151,8 @@ export async function evaluate(ctx: RuleContext): Promise<RuleResult> {
       };
     }
 
+    const firstUnmatched = unmatched[0];
+    const proposedJE = buildReversalDraft(firstUnmatched, periodEnd);
     return {
       fired: true,
       outcome: "fired",
@@ -117,6 +165,21 @@ export async function evaluate(ctx: RuleContext): Promise<RuleResult> {
         missing: unmatched
           .slice(0, 20)
           .map((a) => ({ id: a.Id, docNumber: a.DocNumber, txnDate: a.TxnDate })),
+        // D6.4c-2: emit proposedJE for the first unmatched accrual so the
+        // orchestrator can compose it into a pre_close_review_items row. Left
+        // undefined when the source JE shape can't be safely reversed (missing
+        // amounts/accounts, unbalanced, or zero total) — the rule still fires.
+        proposedJE: proposedJE ?? undefined,
+        evidenceRefs: proposedJE
+          ? [
+              {
+                kind: "prior_period_je",
+                qbo_id: firstUnmatched.Id,
+                doc_number: firstUnmatched.DocNumber,
+                txn_date: firstUnmatched.TxnDate,
+              },
+            ]
+          : [],
       },
     };
   } catch (err) {

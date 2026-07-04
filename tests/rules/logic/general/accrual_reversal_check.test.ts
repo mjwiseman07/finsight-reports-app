@@ -73,3 +73,77 @@ describe("gen.accrual_reversal_check", () => {
     expect(res.reason_code).toBe("no_prior_accruals");
   });
 });
+
+describe("gen.accrual_reversal_check — D6.4c-2 proposedJE emission", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("emits a balanced reversing JE draft when an unmatched accrual is found", async () => {
+    jeMock
+      .mockResolvedValueOnce([
+        {
+          Id: "je-1",
+          DocNumber: "ACC-001",
+          TxnDate: "2026-05-31",
+          PrivateNote: "accrual for June rent",
+          Line: [
+            { Amount: 100, JournalEntryLineDetail: { PostingType: "Debit", AccountRef: { value: "6000", name: "Rent Expense" } } },
+            { Amount: 100, JournalEntryLineDetail: { PostingType: "Credit", AccountRef: { value: "2100", name: "Accrued Liabilities" } } },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    const result = await evaluate(ctx());
+    expect(result.outcome).toBe("fired");
+    const proposedJE = (result.reason_detail as { proposedJE?: unknown }).proposedJE;
+    expect(proposedJE).toBeDefined();
+    const lines = (proposedJE as { lines: Array<Record<string, number>> }).lines;
+    expect(lines).toHaveLength(2);
+    // Swapped: source debit became reversal credit and vice versa.
+    expect(lines[0].drAmountCents).toBe(0);
+    expect(lines[0].crAmountCents).toBe(10000);
+    expect(lines[1].drAmountCents).toBe(10000);
+    expect(lines[1].crAmountCents).toBe(0);
+    const totalDr = lines.reduce((s, l) => s + l.drAmountCents, 0);
+    const totalCr = lines.reduce((s, l) => s + l.crAmountCents, 0);
+    expect(totalDr).toBe(totalCr);
+  });
+
+  it("does NOT emit proposedJE when source JE has malformed lines (missing AccountRef)", async () => {
+    jeMock
+      .mockResolvedValueOnce([
+        {
+          Id: "je-2",
+          DocNumber: "ACC-002",
+          TxnDate: "2026-05-31",
+          PrivateNote: "accrual",
+          Line: [
+            { Amount: 50, JournalEntryLineDetail: { PostingType: "Debit" } },
+            { Amount: 50, JournalEntryLineDetail: { PostingType: "Credit", AccountRef: { value: "2100", name: "AL" } } },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    const result = await evaluate(ctx());
+    expect(result.outcome).toBe("fired");
+    expect((result.reason_detail as { proposedJE?: unknown }).proposedJE).toBeUndefined();
+  });
+
+  it("still fires but does not emit proposedJE when source JE has fewer than 2 lines", async () => {
+    jeMock
+      .mockResolvedValueOnce([
+        {
+          Id: "je-3",
+          DocNumber: "ACC-003",
+          TxnDate: "2026-05-31",
+          PrivateNote: "accrual",
+          Line: [
+            { Amount: 50, JournalEntryLineDetail: { PostingType: "Debit", AccountRef: { value: "6000", name: "Rent" } } },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    const result = await evaluate(ctx());
+    expect(result.outcome).toBe("fired");
+    expect((result.reason_detail as { proposedJE?: unknown }).proposedJE).toBeUndefined();
+  });
+});
