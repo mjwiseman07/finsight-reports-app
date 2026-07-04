@@ -86,6 +86,7 @@ describe("publishEvent — category validation", () => {
     "directive",
     "ai_action",
     "system",
+    "entitlement",
   ];
 
   it.each(categories)("accepts valid category '%s' and maps it onto the row", async (cat) => {

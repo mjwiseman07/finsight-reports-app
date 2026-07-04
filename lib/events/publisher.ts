@@ -33,7 +33,8 @@ export type EventCategory =
   | "rule"
   | "directive"
   | "ai_action"
-  | "system";
+  | "system"
+  | "entitlement";
 
 export type ActorType = "user" | "system" | "ai_agent" | "integration" | "rule" | "recurring";
 
@@ -80,6 +81,7 @@ const EVENT_CATEGORIES: EventCategory[] = [
   "directive",
   "ai_action",
   "system",
+  "entitlement",
 ];
 
 const ACTOR_TYPES: ActorType[] = ["user", "system", "ai_agent", "integration", "rule", "recurring"];
