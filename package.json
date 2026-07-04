@@ -117,6 +117,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "smoke:d-assertions-part3": "tsx scripts/smoke/d-assertions-part3-verify-live.ts",
     "test:resolver": "node scripts/run-resolver-tests.js",
     "test:cascade": "npx tsx scripts/cascade-runner.ts",
     "test:integration": "npx tsx scripts/integration-harness.ts",

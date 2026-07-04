@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { resolveFirmAccess } from "@/lib/firm-security";
+import { snapshotCoverageStatement } from "@/lib/close-packet/assertion-coverage-snapshot";
+import { toAssertionCoverageStatement } from "@/lib/close-packet/sections/assertion_coverage";
 
 export async function POST(req, { params }) {
   const { packetId } = await params;
@@ -8,7 +10,7 @@ export async function POST(req, { params }) {
 
   const { data: packet } = await supabase
     .from("close_packets")
-    .select("id, status, close_period_id")
+    .select("id, status, close_period_id, version")
     .eq("id", packetId)
     .maybeSingle();
   if (!packet) {
@@ -55,6 +57,30 @@ export async function POST(req, { params }) {
     .maybeSingle();
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const { data: acSection } = await supabase
+    .from("close_packet_sections")
+    .select("content_json")
+    .eq("packet_id", packetId)
+    .eq("section_key", "assertion_coverage")
+    .maybeSingle();
+
+  const statement = toAssertionCoverageStatement(acSection?.content_json);
+  if (statement) {
+    try {
+      await snapshotCoverageStatement({
+        supabase,
+        closePacketId: packetId,
+        closePeriodId: packet.close_period_id,
+        firmClientId: closePeriod.firm_client_id,
+        packetVersion: updated.version ?? packet.version,
+        statement,
+        capturedByUserId: access.userId ?? null,
+      });
+    } catch (err) {
+      console.error("[assertion_coverage_snapshot] lock-time snapshot failed:", err);
+    }
   }
 
   // Cascade the close period forward: drafting -> review_ready.

@@ -38,6 +38,10 @@ const UPSERT_CONFLICT_KEYS: Record<string, string[]> = {
   ],
 };
 
+const COMPOSITE_UNIQUE_KEYS: Record<string, string[]> = {
+  assertion_coverage_statement_versions: ["close_packet_id", "packet_version"],
+};
+
 function pickCols(row: Row | undefined, cols: string): Row | null {
   if (!row) return null;
   if (cols === "*") return row;
@@ -69,6 +73,8 @@ export function makeMockDb(): MockDb {
     close_assertion_coverage_events: [],
     assertion_gap_root_causes: [],
     firm_memberships: [],
+    assertion_coverage_statement_versions: [],
+    assertion_coverage_statement_downloads: [],
   };
 
   function ensure(name: string): Row[] {
@@ -232,13 +238,19 @@ export function makeMockDb(): MockDb {
     function doInsert(payload: Row | Row[]) {
       const rows = Array.isArray(payload) ? payload : [payload];
       const uniqueKey = UNIQUE_KEYS[name];
+      const compositeKey = COMPOSITE_UNIQUE_KEYS[name];
       const inserted: Row[] = [];
       for (const r of rows) {
         if (uniqueKey && ensure(name).some((x) => x[uniqueKey] === r[uniqueKey])) {
           return { error: { code: "23505", message: `duplicate key value violates unique constraint (${uniqueKey})` }, inserted: null };
         }
+        if (compositeKey?.length && ensure(name).some((x) => compositeKey.every((c) => x[c] === r[c]))) {
+          return { error: { code: "23505", message: `duplicate key value violates unique constraint (${compositeKey.join(",")})` }, inserted: null };
+        }
         const row: Row = {
           id: r.id ?? randomUUID(),
+          snapshot_id: r.snapshot_id ?? randomUUID(),
+          download_id: r.download_id ?? randomUUID(),
           created_at: r.created_at ?? new Date().toISOString(),
           decision: r.decision ?? null,
           decision_reason_code: r.decision_reason_code ?? null,

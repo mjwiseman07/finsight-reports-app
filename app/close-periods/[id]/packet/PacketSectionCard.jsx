@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { headingFont } from "@/components/site-ui";
 import { SECTION_TITLES } from "@/lib/close-packet/section-titles";
+import AssertionCoverageCard from "./AssertionCoverageCard";
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
@@ -261,6 +262,9 @@ function SectionBody({ sectionKey, content }) {
           </ul>
         );
       }
+
+      case "assertion_coverage":
+        return <AssertionCoverageCard content={content} />;
 
       case "checklist": {
         const items = content.items || [];

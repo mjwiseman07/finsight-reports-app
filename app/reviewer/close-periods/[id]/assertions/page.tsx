@@ -83,6 +83,32 @@ export default function AssertionCoveragePage() {
     }
   }
 
+  async function handleDownloadPdf() {
+    const token = window.localStorage.getItem("supabase_access_token");
+    if (!token) {
+      alert("Not authenticated");
+      return;
+    }
+    const res = await fetch(
+      `/api/reviewer/close-periods/${closePeriodId}/assertion-coverage/pdf`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(`Download failed: ${err.error || res.statusText}`);
+      return;
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `assertion-coverage-${closePeriodId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
   const grid = useMemo(() => {
     if (!data) return null;
     const byPair = new Map<string, CloseAssertionCoverageRow>();
@@ -110,16 +136,25 @@ export default function AssertionCoveragePage() {
           <h1 className="text-2xl font-semibold text-slate-100">Assertion Coverage</h1>
           <p className="text-sm text-slate-400">Close period {closePeriodId.slice(0, 8)}…</p>
         </div>
-        {isWriter && (
+        <div className="flex flex-wrap items-center gap-2">
+          {isWriter && (
+            <button
+              type="button"
+              onClick={recompute}
+              disabled={recomputing}
+              className="rounded-md border border-emerald-500/40 bg-emerald-600/20 px-3 py-2 text-sm text-emerald-200 hover:bg-emerald-600/30 disabled:opacity-50"
+            >
+              {recomputing ? "Recomputing…" : "Recompute coverage"}
+            </button>
+          )}
           <button
             type="button"
-            onClick={recompute}
-            disabled={recomputing}
-            className="rounded-md border border-emerald-500/40 bg-emerald-600/20 px-3 py-2 text-sm text-emerald-200 hover:bg-emerald-600/30 disabled:opacity-50"
+            onClick={handleDownloadPdf}
+            className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
           >
-            {recomputing ? "Recomputing…" : "Recompute coverage"}
+            Download Coverage Statement PDF
           </button>
-        )}
+        </div>
       </div>
       <div className="flex gap-3 text-xs">
         <span className="rounded border border-emerald-500/40 bg-emerald-600/20 px-2 py-1 text-emerald-300">
