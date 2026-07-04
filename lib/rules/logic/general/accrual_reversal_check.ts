@@ -1,3 +1,9 @@
+/**
+ * @rule       gen.accrual_reversal_check
+ * @assertions primary:cutoff | secondary:completeness,accuracy
+ * @accounts   accrued_liabilities, operating_expenses
+ * @citation   ASC 720; ISA 315 ¶A190
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 import type { JEDraft, JEDraftLine } from "@/lib/pre-close/types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -49,13 +55,6 @@ function currentPeriod(endDateISO: string): { start: string; end: string } {
   };
 }
 
-/**
- * D6.4c-2 — build a reversing JE draft from a source accrual JE.
- * Swaps debit/credit sides. Amounts in integer cents to match the JEDraft
- * contract. Returns null if the source JE is unusable (missing lines, missing
- * amounts/accounts, unbalanced, or zero total) — in which case the rule still
- * fires but emits no proposal.
- */
 function buildReversalDraft(source: QBOJournalEntry, transactionDate: string): JEDraft | null {
   const lines = source.Line ?? [];
   if (lines.length < 2) return null;

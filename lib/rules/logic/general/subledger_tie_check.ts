@@ -1,3 +1,9 @@
+/**
+ * @rule       gen.subledger_tie_check
+ * @assertions primary:completeness,accuracy | secondary:existence_occurrence
+ * @accounts   accounts_receivable, accounts_payable, inventory
+ * @citation   AICPA Audit Guide
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — lib/qbo-rest.js is untyped

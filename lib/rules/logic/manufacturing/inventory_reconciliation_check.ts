@@ -1,3 +1,9 @@
+/**
+ * @rule       mfg.inventory_reconciliation_check
+ * @assertions primary:existence_occurrence,completeness | secondary:accuracy
+ * @accounts   inventory
+ * @citation   ISA 501; AICPA Audit Guide
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore

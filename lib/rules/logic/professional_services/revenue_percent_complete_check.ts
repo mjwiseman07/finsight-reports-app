@@ -1,3 +1,9 @@
+/**
+ * @rule       ps.revenue_percent_complete_check
+ * @assertions primary:cutoff,accuracy | secondary:existence_occurrence
+ * @accounts   revenue, other_current_assets
+ * @citation   ASC 606-10-25
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 import { fire, internalError, loadMemoryPayload, suppress } from "./_helpers";
 

@@ -1,3 +1,9 @@
+/**
+ * @rule       gen.reversing_entry_period_check
+ * @assertions primary:cutoff | secondary:accuracy
+ * @accounts   accrued_liabilities, operating_expenses
+ * @citation   ISA 315 ¶A190
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — lib/qbo-rest.js is untyped

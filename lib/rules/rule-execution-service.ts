@@ -11,6 +11,7 @@
  * means seeding the registry row AND registering its loader here.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
+import { createServiceClient } from "@/lib/supabase/service";
 import * as clientMemoryService from "@/lib/memory/client-memory-service";
 import type {
   AccountingMethod,
@@ -204,4 +205,30 @@ export async function executeRulesForClient(
     results,
     generatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * D-Assertions Part 1 helper: for a given firm_client_id + close_period_id,
+ * return the set of assertion_ids exercised by at least one fired rule fire.
+ * close_period scoping threads in Part 2.
+ */
+export async function assertionsExercisedInPeriod(
+  firmClientId: string,
+  _closePeriodId: string,
+): Promise<Set<string>> {
+  const db = createServiceClient();
+  const { data: fires, error: firesErr } = await db
+    .from("curated_rule_fires")
+    .select("rule_id")
+    .eq("firm_client_id", firmClientId)
+    .eq("outcome", "fired");
+  if (firesErr) throw firesErr;
+  const ruleIds = Array.from(new Set((fires ?? []).map((f) => f.rule_id as string)));
+  if (ruleIds.length === 0) return new Set<string>();
+  const { data: cov, error: covErr } = await db
+    .from("rule_assertion_coverage")
+    .select("assertion_id")
+    .in("rule_id", ruleIds);
+  if (covErr) throw covErr;
+  return new Set((cov ?? []).map((c) => c.assertion_id as string));
 }

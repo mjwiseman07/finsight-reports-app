@@ -1,3 +1,9 @@
+/**
+ * @rule       mfg.freight_capitalization_check
+ * @assertions primary:classification | secondary:valuation_allocation
+ * @accounts   inventory, operating_expenses, cost_of_goods_sold
+ * @citation   ASC 330-10-30
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore

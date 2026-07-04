@@ -1,3 +1,9 @@
+/**
+ * @rule       mfg.wip_cutoff_check
+ * @assertions primary:cutoff | secondary:completeness
+ * @accounts   inventory, cost_of_goods_sold
+ * @citation   ASC 330
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore

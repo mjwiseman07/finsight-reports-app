@@ -1,3 +1,9 @@
+/**
+ * @rule       rtl.sales_returns_reserve_check
+ * @assertions primary:valuation_allocation | secondary:completeness
+ * @accounts   accounts_receivable, revenue, other_current_liabilities
+ * @citation   ASC 606-10-32
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — untyped qbo-rest

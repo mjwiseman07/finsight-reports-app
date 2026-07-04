@@ -1,3 +1,9 @@
+/**
+ * @rule       mfg.scrap_variance_check
+ * @assertions primary:valuation_allocation | secondary:completeness
+ * @accounts   inventory, cost_of_goods_sold
+ * @citation   ASC 330-10-30
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore

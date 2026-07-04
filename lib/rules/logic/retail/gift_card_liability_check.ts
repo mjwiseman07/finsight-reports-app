@@ -1,3 +1,9 @@
+/**
+ * @rule       rtl.gift_card_liability_check
+ * @assertions primary:completeness,valuation_allocation | secondary:presentation_disclosure
+ * @accounts   other_current_liabilities, revenue
+ * @citation   ASC 606-10-25
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — untyped qbo-rest

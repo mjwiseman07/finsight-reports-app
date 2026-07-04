@@ -1,3 +1,9 @@
+/**
+ * @rule       gen.gl_mapping_variance_check
+ * @assertions primary:classification | secondary:presentation_disclosure
+ * @accounts   operating_expenses, cost_of_goods_sold, revenue
+ * @citation   ISA 315 ¶A190
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 import { queryMemory } from "@/lib/memory/client-memory-service";
 

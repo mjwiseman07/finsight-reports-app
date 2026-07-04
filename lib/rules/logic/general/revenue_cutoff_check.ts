@@ -1,3 +1,9 @@
+/**
+ * @rule       gen.revenue_cutoff_check
+ * @assertions primary:cutoff | secondary:existence_occurrence,accuracy
+ * @accounts   revenue, accounts_receivable
+ * @citation   ASC 606-10-25
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/types";
 
 export const ruleId = "gen.revenue_cutoff_check";

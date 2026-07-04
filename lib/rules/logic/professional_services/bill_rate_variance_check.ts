@@ -1,3 +1,9 @@
+/**
+ * @rule       ps.bill_rate_variance_check
+ * @assertions primary:accuracy | secondary:completeness
+ * @accounts   revenue, accounts_receivable
+ * @citation   ASC 606-10-32
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 import {
   classTrackingEnabled,

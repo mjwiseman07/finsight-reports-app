@@ -1,3 +1,9 @@
+/**
+ * @rule       ps.wip_billable_hours_check
+ * @assertions primary:completeness | secondary:accuracy
+ * @accounts   revenue, other_current_assets
+ * @citation   ASC 606-10-45
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — untyped qbo-rest

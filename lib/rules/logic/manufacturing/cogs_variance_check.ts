@@ -1,3 +1,9 @@
+/**
+ * @rule       mfg.cogs_variance_check
+ * @assertions primary:accuracy,valuation_allocation
+ * @accounts   cost_of_goods_sold, inventory
+ * @citation   ASC 330
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore

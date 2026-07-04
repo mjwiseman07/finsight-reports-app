@@ -1,3 +1,9 @@
+/**
+ * @rule       mfg.warranty_accrual_check
+ * @assertions primary:completeness,valuation_allocation | secondary:presentation_disclosure
+ * @accounts   accrued_liabilities, operating_expenses
+ * @citation   ASC 460-10-25
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore

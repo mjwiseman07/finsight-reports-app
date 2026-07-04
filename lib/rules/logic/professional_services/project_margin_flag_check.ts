@@ -1,3 +1,9 @@
+/**
+ * @rule       ps.project_margin_flag_check
+ * @assertions primary:valuation_allocation | secondary:completeness
+ * @accounts   revenue, other_current_assets, accrued_liabilities
+ * @citation   ASC 606-10-25, ASC 605-35
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 import {
   classTrackingEnabled,

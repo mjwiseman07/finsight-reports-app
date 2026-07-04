@@ -1,3 +1,9 @@
+/**
+ * @rule       gen.depreciation_scheduled_check
+ * @assertions primary:valuation_allocation | secondary:completeness,cutoff
+ * @accounts   fixed_assets, operating_expenses
+ * @citation   ASC 360
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/types";
 
 export const ruleId = "gen.depreciation_scheduled_check";

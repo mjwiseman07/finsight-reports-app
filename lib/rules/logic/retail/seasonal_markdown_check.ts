@@ -1,3 +1,9 @@
+/**
+ * @rule       rtl.seasonal_markdown_check
+ * @assertions primary:valuation_allocation | secondary:cutoff
+ * @accounts   inventory, cost_of_goods_sold
+ * @citation   ASC 330-10-35
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — untyped qbo-rest

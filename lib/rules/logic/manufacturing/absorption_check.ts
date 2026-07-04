@@ -1,3 +1,9 @@
+/**
+ * @rule       mfg.absorption_check
+ * @assertions primary:valuation_allocation | secondary:classification,completeness
+ * @accounts   inventory, cost_of_goods_sold, operating_expenses
+ * @citation   ASC 330
+ */
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
