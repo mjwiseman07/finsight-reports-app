@@ -6,9 +6,25 @@ import { syncSubscriptionFromStripe } from '@/lib/subscription-sync';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+// Event types that D-Entitlements (POST /api/webhooks/stripe) already handles
+// when the subscription has engagement_id metadata. If we see one of these here,
+// we skip if engagement_id is present to prevent double-processing.
+const ENTITLEMENT_ROUTED_TYPES = new Set([
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+]);
+
+function shouldRouteToEntitlements(event) {
+  if (!ENTITLEMENT_ROUTED_TYPES.has(event.type)) return false;
+  const engagementId = event?.data?.object?.metadata?.engagement_id;
+  return Boolean(engagementId);
+}
 
 export async function POST(req) {
+  // Read the secret at request time (not module load) so runtime configuration
+  // and tests observe the current value of the environment variable.
+  const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
   if (!WEBHOOK_SECRET) {
     console.error('[stripe-webhook] STRIPE_WEBHOOK_SECRET missing');
     return NextResponse.json({ error: 'not_configured' }, { status: 500 });
@@ -28,11 +44,14 @@ export async function POST(req) {
 
   const supabase = getSupabaseAdmin();
 
+  // 1. Idempotent insert into unified stripe_webhook_events (new schema)
   const { error: insertErr } = await supabase.from('stripe_webhook_events').insert({
     stripe_event_id: event.id,
     event_type: event.type,
-    payload: event,
+    raw_payload: event,
     received_at: new Date().toISOString(),
+    processing_status: 'processing',
+    livemode: Boolean(event.livemode),
   });
 
   if (insertErr) {
@@ -43,15 +62,42 @@ export async function POST(req) {
     return NextResponse.json({ error: 'ledger_failed' }, { status: 500 });
   }
 
+  // 2. If this is a subscription event with engagement_id, D-Entitlements handles it —
+  //    mark this event as 'skipped' here to prevent double-processing.
+  if (shouldRouteToEntitlements(event)) {
+    await supabase
+      .from('stripe_webhook_events')
+      .update({
+        processing_status: 'skipped',
+        processed_at: new Date().toISOString(),
+        processing_error: 'routed_to_entitlements_webhook',
+      })
+      .eq('stripe_event_id', event.id);
+    return NextResponse.json({ received: true, routed: 'entitlements' });
+  }
+
+  // 3. Legacy handler
   try {
     await handleEvent(event);
     await supabase
       .from('stripe_webhook_events')
-      .update({ processed_at: new Date().toISOString() })
+      .update({
+        processing_status: 'processed',
+        processed_at: new Date().toISOString(),
+      })
       .eq('stripe_event_id', event.id);
     return NextResponse.json({ received: true });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error(`[stripe-webhook] handler failed for ${event.type}`, err);
+    await supabase
+      .from('stripe_webhook_events')
+      .update({
+        processing_status: 'failed',
+        processed_at: new Date().toISOString(),
+        processing_error: message,
+      })
+      .eq('stripe_event_id', event.id);
     return NextResponse.json({ error: 'handler_failed' }, { status: 500 });
   }
 }
@@ -73,6 +119,10 @@ async function handleEvent(event) {
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':
     case 'customer.subscription.trial_will_end': {
+      // NOTE: Subscription events with metadata.engagement_id are routed to
+      // /api/webhooks/stripe by the guard in POST and never reach handleEvent.
+      // Non-D-Entitlements subscriptions (phase-1 subs without engagement_id)
+      // continue to be handled here for backward compatibility.
       const sub = event.data.object;
       await syncSubscriptionFromStripe(sub.id);
       break;
