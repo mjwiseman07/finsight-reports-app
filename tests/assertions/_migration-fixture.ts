@@ -113,3 +113,41 @@ export function assertEnumCoverage() {
 
 export const ASSERTION_ID_SET = new Set<string>(ASSERTION_IDS);
 export const ACCOUNT_CATEGORY_SET = new Set<string>(ACCOUNT_CATEGORIES);
+
+const PART2_MIGRATION_PATH = path.join(
+  process.cwd(),
+  "supabase/migrations/20260707130000_d_assertions_part_2_coverage_projection.sql",
+);
+
+export function readPart2MigrationSql(): string {
+  return readFileSync(PART2_MIGRATION_PATH, "utf8");
+}
+
+export function parseRootCauseSeeds(sql: string): string[] {
+  const block = sql.match(
+    /insert into public\.assertion_gap_root_causes[\s\S]*?on conflict \(root_cause_code\)/i,
+  );
+  if (!block) return [];
+  const codes: string[] = [];
+  const re = /\('([^']+)',/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(block[0])) !== null) codes.push(m[1]);
+  return codes;
+}
+
+export function parseAdvisacorFlagSeeds(sql: string): string[] {
+  const block = sql.match(/insert into public\.advisacor_flags[\s\S]*?on conflict \(flag_key\)/i);
+  if (!block) return [];
+  const keys: string[] = [];
+  const re = /\('([^']+)',/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(block[0])) !== null) keys.push(m[1]);
+  return keys;
+}
+
+export function seedPart2Migration() {
+  const sql = readPart2MigrationSql();
+  const rootCauses = parseRootCauseSeeds(sql);
+  const flags = parseAdvisacorFlagSeeds(sql);
+  return { sql, rootCauses, flags };
+}

@@ -29,6 +29,25 @@ const UNIQUE_KEYS: Record<string, string> = {
   pre_close_review_items: "fire_id",
 };
 
+const UPSERT_CONFLICT_KEYS: Record<string, string[]> = {
+  close_assertion_coverage: [
+    "firm_client_id",
+    "close_period_id",
+    "account_category",
+    "assertion_id",
+  ],
+};
+
+function pickCols(row: Row | undefined, cols: string): Row | null {
+  if (!row) return null;
+  if (cols === "*") return row;
+  const out: Row = {};
+  for (const c of cols.split(",").map((s) => s.trim())) {
+    if (c in row) out[c] = row[c];
+  }
+  return out;
+}
+
 export function makeMockDb(): MockDb {
   const state: Record<string, Row[]> = {
     portcos: [],
@@ -43,11 +62,46 @@ export function makeMockDb(): MockDb {
     ledger_events: [],
     engagement_posting_policy: [],
     close_periods: [],
+    assertion_relevance_matrix: [],
+    rule_assertion_coverage: [],
+    advisacor_flags: [],
+    close_assertion_coverage: [],
+    close_assertion_coverage_events: [],
+    assertion_gap_root_causes: [],
+    firm_memberships: [],
   };
 
   function ensure(name: string): Row[] {
     if (!state[name]) state[name] = [];
     return state[name];
+  }
+
+  function applyInnerJoins(tableName: string, rows: Row[], selectCols: string): Row[] {
+    if (!selectCols.includes("!inner")) return rows;
+    return rows.flatMap((row) => {
+      let out: Row = { ...row };
+      let matched = true;
+      const re = /(\w+)!inner\(([^)]+)\)/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(selectCols)) !== null) {
+        const relTable = m[1];
+        const relCols = m[2];
+        let related: Row | undefined;
+        if (tableName === "pre_close_review_items" && relTable === "curated_rule_fires") {
+          related = ensure(relTable).find(
+            (f) => f.fire_id === out.fire_id || f.id === out.fire_id,
+          );
+        } else if (tableName === "close_periods" && relTable === "firm_clients") {
+          related = ensure(relTable).find((fc) => fc.id === out.firm_client_id);
+        }
+        if (!related) {
+          matched = false;
+          break;
+        }
+        out = { ...out, [relTable]: pickCols(related, relCols) };
+      }
+      return matched ? [out] : [];
+    });
   }
 
   function matches(
@@ -84,11 +138,14 @@ export function makeMockDb(): MockDb {
     let orderCol: string | null = null;
     let orderAsc = true;
     let limitN: number | undefined;
+    let selectCols = "*";
+    let headOnly = false;
 
     function selected(): Row[] {
       let rows = ensure(name).filter((r) =>
         matches(r, eqFilters, isFilters, inFilters, lteFilters, gteFilters),
       );
+      rows = applyInnerJoins(name, rows, selectCols);
       if (orderCol) {
         const col = orderCol;
         rows = rows.slice().sort((a, b) => {
@@ -105,7 +162,9 @@ export function makeMockDb(): MockDb {
 
     // --- SELECT chain ---
     const selectChain: Record<string, unknown> = {
-      select() {
+      select(cols = "*", opts?: { count?: string; head?: boolean }) {
+        selectCols = cols;
+        headOnly = !!opts?.head;
         return selectChain;
       },
       eq(col: string, val: unknown) {
@@ -145,16 +204,27 @@ export function makeMockDb(): MockDb {
         return selectChain;
       },
       maybeSingle() {
+        if (headOnly) {
+          const rows = selected();
+          return Promise.resolve({ data: null, error: null, count: rows.length });
+        }
         const rows = selected();
         return Promise.resolve({ data: rows[0] ?? null, error: null });
       },
       single() {
+        if (headOnly) {
+          const rows = selected();
+          return Promise.resolve({ data: null, error: null, count: rows.length });
+        }
         const rows = selected();
         if (rows.length === 1) return Promise.resolve({ data: rows[0], error: null });
         return Promise.resolve({ data: null, error: { message: "no single row" } });
       },
-      then(resolve: (v: { data: Row[]; error: null; count?: number }) => unknown, reject?: (e: unknown) => unknown) {
+      then(resolve: (v: { data: Row[] | null; error: null; count?: number }) => unknown, reject?: (e: unknown) => unknown) {
         const rows = selected();
+        if (headOnly) {
+          return Promise.resolve({ data: null, error: null, count: rows.length }).then(resolve, reject);
+        }
         return Promise.resolve({ data: rows, error: null, count: rows.length }).then(resolve, reject);
       },
     };
@@ -248,7 +318,41 @@ export function makeMockDb(): MockDb {
       return chain;
     };
 
-    return { ...selectChain, insert, update, upsert: insert };
+    const upsert = (payload: Row | Row[], opts?: { onConflict?: string }) => {
+      const rows = Array.isArray(payload) ? payload : [payload];
+      const conflictCols =
+        opts?.onConflict?.split(",").map((s) => s.trim()) ?? UPSERT_CONFLICT_KEYS[name];
+      const inserted: Row[] = [];
+      for (const r of rows) {
+        let existing: Row | undefined;
+        if (conflictCols?.length) {
+          existing = ensure(name).find((x) =>
+            conflictCols.every((c) => x[c] === r[c]),
+          );
+        }
+        if (existing) {
+          Object.assign(existing, r, { updated_at: r.updated_at ?? new Date().toISOString() });
+          inserted.push(existing);
+        } else {
+          const result = doInsert(r);
+          if (result.error) {
+            return {
+              then(resolve: (v: { data: Row[] | null; error: unknown }) => unknown) {
+                return Promise.resolve({ data: null, error: result.error }).then(resolve);
+              },
+            };
+          }
+          inserted.push(result.inserted![0]);
+        }
+      }
+      return {
+        then(resolve: (v: { data: Row[] | null; error: unknown }) => unknown) {
+          return Promise.resolve({ data: inserted, error: null }).then(resolve);
+        },
+      };
+    };
+
+    return { ...selectChain, insert, update, upsert };
   }
 
   return {

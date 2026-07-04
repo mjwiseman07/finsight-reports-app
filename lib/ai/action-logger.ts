@@ -18,6 +18,8 @@ export type AiActionCategory =
   | "cash_app_reasoning"
   | "ar_dunning_draft"
   | "assertion_reasoning"
+  | "assertion_coverage_scan"
+  | "assertion_gap_reasoning"
   | "je_proposal"
   | "anomaly_reasoning"
   | "recon_reasoning"
