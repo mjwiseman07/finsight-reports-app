@@ -15,10 +15,12 @@ export default defineConfig({
   test: {
     include: [
       "tests/**/*.test.ts",
+      "tests/**/*.test.tsx",
       "lib/je-evidence/__tests__/**/*.test.ts",
       "lib/accruals/__tests__/**/*.test.ts",
       "architecture-lane/**/*.test.ts",
     ],
     testTimeout: 120_000,
+    environment: "node",
   },
 });

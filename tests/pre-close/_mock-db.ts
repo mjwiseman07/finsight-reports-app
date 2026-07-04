@@ -128,6 +128,13 @@ export function makeMockDb(): MockDb {
         gteFilters.push([col, val]);
         return selectChain;
       },
+      or(_expr: string) {
+        return selectChain;
+      },
+      like(col: string, pattern: string) {
+        eqFilters.push([col, pattern.replace(/%/g, "")]);
+        return selectChain;
+      },
       order(col: string, opts?: { ascending?: boolean }) {
         orderCol = col;
         orderAsc = opts?.ascending !== false;
@@ -146,8 +153,9 @@ export function makeMockDb(): MockDb {
         if (rows.length === 1) return Promise.resolve({ data: rows[0], error: null });
         return Promise.resolve({ data: null, error: { message: "no single row" } });
       },
-      then(resolve: (v: { data: Row[]; error: null }) => unknown, reject?: (e: unknown) => unknown) {
-        return Promise.resolve({ data: selected(), error: null }).then(resolve, reject);
+      then(resolve: (v: { data: Row[]; error: null; count?: number }) => unknown, reject?: (e: unknown) => unknown) {
+        const rows = selected();
+        return Promise.resolve({ data: rows, error: null, count: rows.length }).then(resolve, reject);
       },
     };
 
@@ -240,7 +248,7 @@ export function makeMockDb(): MockDb {
       return chain;
     };
 
-    return { ...selectChain, insert, update };
+    return { ...selectChain, insert, update, upsert: insert };
   }
 
   return {

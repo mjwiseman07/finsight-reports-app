@@ -35,7 +35,8 @@ export type EventCategory =
   | "ai_action"
   | "system"
   | "entitlement"
-  | "posting";
+  | "posting"
+  | "reviewer_ui";
 
 export type ActorType = "user" | "system" | "ai_agent" | "integration" | "rule" | "recurring";
 

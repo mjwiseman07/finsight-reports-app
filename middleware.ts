@@ -17,6 +17,7 @@ const PUBLIC_MARKETING_PATHS = new Set([
   "/onboarding",
   "/admin",
   "/admin/refunds",
+  "/reviewer",
   "/refund-policy",
   "/support",
 ]);
@@ -51,12 +52,15 @@ function isMarketingAllowed(pathname: string) {
     PUBLIC_MARKETING_API_PATHS.has(pathname) ||
     // Allow all admin subpaths (admin/refunds, admin/users, etc.) and dashboard subpaths.
     pathname.startsWith("/admin/") ||
+    pathname.startsWith("/reviewer/") ||
     pathname.startsWith("/dashboard/") ||
     pathname.startsWith("/onboarding/") ||
     // Public, token-gated close packet share links.
     pathname.startsWith("/share/packet/") ||
     // Allow app API surfaces that need to run for signed-in users on the marketing host.
     pathname.startsWith("/api/admin/") ||
+    pathname.startsWith("/api/reviewer/") ||
+    pathname.startsWith("/api/client/") ||
     pathname.startsWith("/api/pulse/") ||
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/api/integrations/") ||
