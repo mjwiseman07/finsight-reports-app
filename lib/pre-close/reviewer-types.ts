@@ -27,8 +27,23 @@ export interface ReviewerQueueItem {
   qboJeId: string | null;
 }
 
+export interface GapQueueItem {
+  id: string;
+  origin: "gap";
+  firmClientName: string | null;
+  engagementName: string | null;
+  accountCategory: string;
+  assertionId: string;
+  severity: ReviewerSeverity;
+  status: "pending" | "decided";
+  gapRootCauseCode: string;
+  gapRecommendation: string | null;
+  createdAt: string;
+}
+
 export interface ReviewerQueueResponse {
   items: ReviewerQueueItem[];
+  gapItems?: GapQueueItem[];
   cursor: string | null;
   total: number;
 }

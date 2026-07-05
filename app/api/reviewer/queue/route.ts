@@ -6,6 +6,7 @@ import {
   decodeCursor,
   encodeCursor,
   mapQueueRow,
+  mapGapQueueRow,
   matchesStatusFilter,
   severityToDb,
 } from "@/lib/reviewer/queue-helpers";
@@ -44,7 +45,7 @@ export async function GET(
       .in("firm_id", ctx.firmIds);
     const engagementIds = (engagements ?? []).map((e) => e.id as string);
     if (engagementIds.length === 0) {
-      return NextResponse.json({ items: [], cursor: null, total: 0 });
+      return NextResponse.json({ items: [], gapItems: [], cursor: null, total: 0 });
     }
 
     let query = supabase
@@ -98,6 +99,26 @@ export async function GET(
       return mapped;
     });
 
+    let gapItems: unknown[] = [];
+    if (!ruleId) {
+      let gapQuery = supabase
+        .from("close_gap_review_items")
+        .select("*, engagements(engagement_name), firm_clients(name)")
+        .in("engagement_id", engagementId ? [engagementId] : engagementIds)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (closePeriodId) gapQuery = gapQuery.eq("close_period_id", closePeriodId);
+      if (status === "pending") gapQuery = gapQuery.eq("resolution_status", "open");
+      else if (status === "decided") gapQuery = gapQuery.neq("resolution_status", "open");
+      if (severity) {
+        const sev =
+          severity === "error" ? "critical" : severity === "warn" ? "warning" : "info";
+        gapQuery = gapQuery.eq("severity", sev);
+      }
+      const { data: gd } = await gapQuery;
+      gapItems = gd ?? [];
+    }
+
     let nextCursor: string | null = null;
     if (hasMore && filtered.length) {
       const last = filtered[filtered.length - 1];
@@ -109,6 +130,7 @@ export async function GET(
 
     return NextResponse.json({
       items,
+      gapItems: gapItems.map((r) => mapGapQueueRow(r as Parameters<typeof mapGapQueueRow>[0])),
       cursor: nextCursor,
       total: count ?? items.length,
     });

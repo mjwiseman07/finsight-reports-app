@@ -28,6 +28,20 @@ export function gapListOverflow(gapCount: number): { shown: number; overflow: nu
   return { shown, overflow: Math.max(0, gapCount - shown) };
 }
 
+export function remediationStatusLabel(
+  remediation: { status: string; type: string | null } | null | undefined,
+): string | null {
+  if (!remediation) return null;
+  if (remediation.status === "open") return "Gap · Open";
+  if (remediation.status === "resolved_deferred") return "Gap · Deferred";
+  if (remediation.type === "manual_test") return "Gap · Manual test";
+  if (remediation.type === "not_applicable_override") return "Gap · N/A override";
+  if (remediation.status === "resolved_remediated") return "Gap · Remediated";
+  if (remediation.status === "resolved_stale") return "Gap · Auto-closed";
+  if (remediation.status === "resolved_not_applicable") return "Gap · N/A override";
+  return `Gap · ${remediation.status}`;
+}
+
 export function testedListOverflow(testedCount: number): { shown: number; overflow: number } {
   const shown = Math.min(30, testedCount);
   return { shown, overflow: Math.max(0, testedCount - shown) };
@@ -186,11 +200,20 @@ export function MatrixTable({ statement }: { statement: AssertionCoverageStateme
               STATUS_LABEL[cell.coverage_status] ||
               cell.coverage_status[0]?.toUpperCase() ||
               "?";
+            const remediationLabel =
+              cell.coverage_status === "gap"
+                ? remediationStatusLabel(cell.remediation)
+                : null;
             return (
               <View key={a.assertion_id} style={styles.matrixCell}>
                 <Text style={[styles.statusBadge, { color, borderWidth: 0.5, borderColor: color }]}>
                   {label}
                 </Text>
+                {remediationLabel ? (
+                  <Text style={{ fontSize: 4, color: MUTED, marginTop: 1, textAlign: "center" }}>
+                    {remediationLabel}
+                  </Text>
+                ) : null}
               </View>
             );
           })}

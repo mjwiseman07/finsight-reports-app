@@ -42,6 +42,61 @@ export interface CloseAssertionCoverageRow {
   updated_at: string;
 }
 
+export const GAP_RESOLUTION_STATUSES = [
+  "open",
+  "resolved_remediated",
+  "resolved_deferred",
+  "resolved_not_applicable",
+  "resolved_stale",
+] as const;
+export type GapResolutionStatus = (typeof GAP_RESOLUTION_STATUSES)[number];
+
+export const GAP_RESOLUTION_TYPES = [
+  "manual_test",
+  "rule_activation",
+  "not_applicable_override",
+  "deferred_to_next_period",
+] as const;
+export type GapResolutionType = (typeof GAP_RESOLUTION_TYPES)[number];
+
+export interface GapReviewItemRow {
+  id: string;
+  firmClientId: string;
+  engagementId: string;
+  closePeriodId: string;
+  accountCategory: AccountCategory;
+  assertionId: AssertionId;
+  gapRootCauseCode: RootCauseCode;
+  gapRecommendation: string | null;
+  relevanceAtDetection: "relevant" | "usually_not_primary";
+  severity: "critical" | "warning" | "info";
+  resolutionStatus: GapResolutionStatus;
+  resolutionType: GapResolutionType | null;
+  resolutionMetadata: Record<string, unknown>;
+  resolvedByUserId: string | null;
+  resolvedAt: string | null;
+  resolutionStatusPrior: string | null;
+  reopenedAt: string | null;
+  firstDetectedAt: string;
+  lastProjectedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const ROOT_CAUSE_HUMAN: Record<RootCauseCode, string> = {
+  no_rule_defined: "No rule defined for this account/assertion pair",
+  rule_defined_but_not_fired: "Rule defined but did not fire this period",
+  rule_fired_but_all_suppressed: "Rule fired but all instances were suppressed",
+  rule_errored: "Rule execution errored",
+  assertion_not_relevant: "Assertion marked not relevant",
+  coverage_partial_by_design: "Coverage is partial by design",
+  manual_test_documented: "Manual test documented but not linked",
+};
+
+export function rootCauseCodeToHuman(code: RootCauseCode): string {
+  return ROOT_CAUSE_HUMAN[code] ?? code;
+}
+
 export interface CoverageEventRow {
   event_id: string;
   firm_client_id: string;
@@ -56,7 +111,9 @@ export interface CoverageEventRow {
     | "gap_reasoner_completed"
     | "gap_reasoner_skipped_flag_off"
     | "gap_reasoner_failed"
-    | "manual_override_applied";
+    | "manual_override_applied"
+    | "gap_review_items_synced"
+    | "gap_review_item_resolved";
   account_category: AccountCategory | null;
   assertion_id: AssertionId | null;
   payload: Record<string, unknown>;

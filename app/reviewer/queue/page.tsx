@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { ReviewerQueueItem, ReviewerQueueResponse } from "@/lib/pre-close/reviewer-types";
+import type { GapQueueItem, ReviewerQueueItem, ReviewerQueueResponse } from "@/lib/pre-close/reviewer-types";
 
 function severityClass(severity: string) {
   if (severity === "error") return "bg-red-500/20 text-red-200";
@@ -12,6 +12,7 @@ function severityClass(severity: string) {
 
 export default function ReviewerQueuePage() {
   const [items, setItems] = useState<ReviewerQueueItem[]>([]);
+  const [gapItems, setGapItems] = useState<GapQueueItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("all");
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,7 @@ export default function ReviewerQueuePage() {
         return;
       }
       setItems((prev) => (append ? [...prev, ...data.items] : data.items));
+      setGapItems(data.gapItems ?? []);
       setCursor(data.cursor);
       setLoading(false);
     },
@@ -140,6 +142,50 @@ export default function ReviewerQueuePage() {
         >
           Load more
         </button>
+      ) : null}
+
+      {gapItems.length > 0 ? (
+        <div className="mt-10">
+          <h2 className="text-lg font-medium text-teal-200 mb-3">Assertion Gaps</h2>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-slate-400 border-b border-white/10">
+                <th className="py-2">Severity</th>
+                <th>Account · Assertion</th>
+                <th>Client · Engagement</th>
+                <th>Root cause</th>
+                <th>Created</th>
+                <th>Status</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {gapItems.map((gap) => (
+                <tr key={gap.id} className="border-b border-white/5 hover:bg-white/5">
+                  <td className="py-2">
+                    <span className={`px-2 py-0.5 rounded text-xs ${severityClass(gap.severity)}`}>
+                      {gap.severity}
+                    </span>
+                  </td>
+                  <td>
+                    {gap.accountCategory} · {gap.assertionId}
+                  </td>
+                  <td>
+                    {gap.firmClientName} · {gap.engagementName}
+                  </td>
+                  <td className="text-xs">{gap.gapRootCauseCode}</td>
+                  <td>{new Date(gap.createdAt).toLocaleString()}</td>
+                  <td>{gap.status}</td>
+                  <td className="text-right">
+                    <Link href={`/reviewer/gap-items/${gap.id}`} className="underline">
+                      Open
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
     </div>
   );

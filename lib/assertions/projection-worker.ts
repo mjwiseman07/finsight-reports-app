@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { projectCoverage, summarize } from "@/lib/assertions/coverage-projection";
 import { detectGaps } from "@/lib/assertions/gap-detector";
 import { reasonGaps } from "@/lib/assertions/gap-reasoner";
+import { syncGapReviewItems } from "./gap-review-item-sync";
+import { resolveEngagementForFirmClient } from "@/lib/engagements/resolve";
 import type {
   ProjectionInput,
   ProjectedCoverageRow,
@@ -19,6 +21,10 @@ export interface WorkerResult {
   reasonerEnabled: boolean;
   reasonerSucceeded: number;
   reasonerFailed: number;
+  gapItemsOpened: number;
+  gapItemsRefreshed: number;
+  gapItemsAutoClosedStale: number;
+  gapItemsReopened: number;
   summary: ReturnType<typeof summarize>;
 }
 
@@ -255,6 +261,43 @@ export async function runProjectionWorker(
     }
   }
 
+  const { data: syncRows, error: syncLoadErr } = await db
+    .from("close_assertion_coverage")
+    .select("account_category, assertion_id, relevance_at_computation, gap_recommendation")
+    .eq("firm_client_id", firmClientId)
+    .eq("close_period_id", closePeriodId);
+  if (syncLoadErr) throw syncLoadErr;
+
+  const { engagementId } = await resolveEngagementForFirmClient(firmClientId);
+  const syncResult = await syncGapReviewItems(
+    db,
+    firmClientId,
+    closePeriodId,
+    engagementId,
+    gaps,
+    (syncRows ?? []).map((r) => ({
+      account_category: r.account_category,
+      assertion_id: r.assertion_id,
+      relevance_at_computation: r.relevance_at_computation,
+      gap_recommendation: (r.gap_recommendation as string | null) ?? null,
+    })),
+    workerRunId,
+  );
+
+  await insertEvent({
+    firm_client_id: firmClientId,
+    close_period_id: closePeriodId,
+    worker_run_id: workerRunId,
+    event_type: "gap_review_items_synced",
+    account_category: null,
+    assertion_id: null,
+    payload: { ...syncResult },
+    actor_type: "system",
+    actor_id: null,
+    linked_action_id: null,
+    correlation_id: workerRunId,
+  });
+
   const summary = summarize(rows);
   await insertEvent({
     firm_client_id: firmClientId,
@@ -286,6 +329,10 @@ export async function runProjectionWorker(
     reasonerEnabled: reasonerOutcome.enabled,
     reasonerSucceeded,
     reasonerFailed,
+    gapItemsOpened: syncResult.opened,
+    gapItemsRefreshed: syncResult.refreshed,
+    gapItemsAutoClosedStale: syncResult.auto_closed_stale,
+    gapItemsReopened: syncResult.reopened,
     summary,
   };
 }

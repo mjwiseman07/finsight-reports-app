@@ -170,3 +170,49 @@ export function mapLedgerEvents(rows: Array<Record<string, unknown>>): LedgerEve
     payload: r.payload ?? {},
   }));
 }
+
+export interface GapQueueRow {
+  id: string;
+  firm_client_id: string;
+  engagement_id: string;
+  close_period_id: string;
+  account_category: string;
+  assertion_id: string;
+  gap_root_cause_code: string;
+  gap_recommendation: string | null;
+  severity: string;
+  resolution_status: string;
+  created_at: string;
+  engagements?: { engagement_name?: string } | null;
+  firm_clients?: { name?: string } | null;
+}
+
+export function mapGapQueueRow(row: GapQueueRow): {
+  id: string;
+  origin: "gap";
+  firmClientName: string | null;
+  engagementName: string | null;
+  accountCategory: string;
+  assertionId: string;
+  severity: "info" | "warn" | "error";
+  status: "pending" | "decided";
+  gapRootCauseCode: string;
+  gapRecommendation: string | null;
+  createdAt: string;
+} {
+  const sev =
+    row.severity === "critical" ? "error" : row.severity === "warning" ? "warn" : "info";
+  return {
+    id: row.id,
+    origin: "gap",
+    firmClientName: row.firm_clients?.name ?? null,
+    engagementName: row.engagements?.engagement_name ?? null,
+    accountCategory: row.account_category,
+    assertionId: row.assertion_id,
+    severity: sev as "info" | "warn" | "error",
+    status: row.resolution_status === "open" ? "pending" : "decided",
+    gapRootCauseCode: row.gap_root_cause_code,
+    gapRecommendation: row.gap_recommendation,
+    createdAt: row.created_at,
+  };
+}

@@ -32,15 +32,18 @@ describe("resolveRuleAssertions", () => {
   it("caches per SupabaseClient (second call same client + same rule = 1 DB query)", async () => {
     seedCoverage("gen.rule", ["cutoff"]);
     let queries = 0;
-    const innerFrom = mock.from as unknown as (table: string) => object;
+    const origImpl = mock.from.getMockImplementation() as (table: string) => object;
     mock.from.mockImplementation((table: string) => {
       if (table === "rule_assertion_coverage") queries += 1;
-      return innerFrom(table);
+      return origImpl(table);
     });
-
-    await resolveRuleAssertions(mock as never, "gen.rule");
-    await resolveRuleAssertions(mock as never, "gen.rule");
-    expect(queries).toBe(1);
+    try {
+      await resolveRuleAssertions(mock as never, "gen.rule");
+      await resolveRuleAssertions(mock as never, "gen.rule");
+      expect(queries).toBe(1);
+    } finally {
+      mock.from.mockImplementation(origImpl);
+    }
   });
 
   it("different clients do not share cache", async () => {
@@ -50,21 +53,25 @@ describe("resolveRuleAssertions", () => {
 
     let q1 = 0;
     let q2 = 0;
-    const inner1 = mock.from as unknown as (table: string) => object;
+    const orig1 = mock.from.getMockImplementation() as (table: string) => object;
+    const orig2 = mock2.from.getMockImplementation() as (table: string) => object;
     mock.from.mockImplementation((t: string) => {
       if (t === "rule_assertion_coverage") q1 += 1;
-      return inner1(t);
+      return orig1(t);
     });
-    const inner2 = mock2.from as unknown as (table: string) => object;
     mock2.from.mockImplementation((t: string) => {
       if (t === "rule_assertion_coverage") q2 += 1;
-      return inner2(t);
+      return orig2(t);
     });
-
-    await resolveRuleAssertions(mock as never, "gen.rule");
-    await resolveRuleAssertions(mock2 as never, "gen.rule");
-    expect(q1).toBe(1);
-    expect(q2).toBe(1);
+    try {
+      await resolveRuleAssertions(mock as never, "gen.rule");
+      await resolveRuleAssertions(mock2 as never, "gen.rule");
+      expect(q1).toBe(1);
+      expect(q2).toBe(1);
+    } finally {
+      mock.from.mockImplementation(orig1);
+      mock2.from.mockImplementation(orig2);
+    }
   });
 });
 

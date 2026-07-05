@@ -34,6 +34,12 @@ export interface CoverageCellDrilldown {
   review_item_decision: string | null;
 }
 
+export interface CoverageCellRemediation {
+  gap_item_id: string;
+  status: string;
+  type: string | null;
+}
+
 export interface CoverageCell {
   account_category: AccountCategory;
   assertion_id: AssertionId;
@@ -47,6 +53,7 @@ export interface CoverageCell {
   gap_root_cause_code: RootCauseCode | null;
   gap_recommendation: string | null;
   drilldowns: CoverageCellDrilldown[];
+  remediation?: CoverageCellRemediation | null;
 }
 
 export interface CoverageStatementSummary {

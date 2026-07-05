@@ -66,7 +66,9 @@ beforeEach(() => {
     { flag_key: "assertions_gap_reasoning_enabled", flag_value: false },
     { flag_key: "assertions_projection_worker_enabled", flag_value: true },
   ]);
-  mock.__seed("firm_clients", [{ id: FC, industry_vertical: "general" }]);
+  mock.__seed("firm_clients", [{ id: FC, industry_vertical: "general", firm_id: "firm1" }]);
+  mock.__seed("engagements", [{ id: "eng1", firm_id: "firm1", status: "active", engagement_name: "Eng" }]);
+  mock.__seed("portcos", [{ engagement_id: "eng1", firm_client_id: FC, created_at: "2026-01-01" }]);
   seedMatrix();
 });
 
