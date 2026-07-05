@@ -42,6 +42,14 @@ const UPSERT_CONFLICT_KEYS: Record<string, string[]> = {
     "account_category",
     "assertion_id",
   ],
+  manual_test_evidence: [
+    "firm_client_id",
+    "close_period_id",
+    "account_category",
+    "assertion_id",
+    "content_hash",
+  ],
+  manual_test_attachments: ["evidence_id", "sha256"],
 };
 
 const COMPOSITE_UNIQUE_KEYS: Record<string, string[]> = {
@@ -79,6 +87,8 @@ export function makeMockDb(): MockDb {
     close_assertion_coverage_events: [],
     assertion_gap_root_causes: [],
     close_gap_review_items: [],
+    manual_test_evidence: [],
+    manual_test_attachments: [],
     firm_memberships: [],
     assertion_coverage_statement_versions: [],
     assertion_coverage_statement_downloads: [],
@@ -147,6 +157,7 @@ export function makeMockDb(): MockDb {
   function matches(
     row: Row,
     eqFilters: Array<[string, unknown]>,
+    containsFilters: Array<[string, Record<string, unknown>]>,
     neqFilters: Array<[string, unknown]>,
     isFilters: Array<[string, unknown]>,
     inFilters: Array<[string, unknown[]]>,
@@ -154,6 +165,12 @@ export function makeMockDb(): MockDb {
     gteFilters: Array<[string, unknown]>,
   ): boolean {
     for (const [c, v] of eqFilters) if (row[c] !== v) return false;
+    for (const [c, want] of containsFilters) {
+      const got = (row[c] as Record<string, unknown>) ?? {};
+      for (const [k, wv] of Object.entries(want)) {
+        if (got[k] !== wv) return false;
+      }
+    }
     for (const [c, v] of neqFilters) if (row[c] === v) return false;
     for (const [c, v] of isFilters) {
       if (v === null && row[c] != null) return false;
@@ -173,6 +190,7 @@ export function makeMockDb(): MockDb {
 
   function tbl(name: string) {
     const eqFilters: Array<[string, unknown]> = [];
+    const containsFilters: Array<[string, Record<string, unknown>]> = [];
     const neqFilters: Array<[string, unknown]> = [];
     const isFilters: Array<[string, unknown]> = [];
     const inFilters: Array<[string, unknown[]]> = [];
@@ -186,7 +204,7 @@ export function makeMockDb(): MockDb {
 
     function selected(): Row[] {
       let rows = ensure(name).filter((r) =>
-        matches(r, eqFilters, neqFilters, isFilters, inFilters, lteFilters, gteFilters),
+        matches(r, eqFilters, containsFilters, neqFilters, isFilters, inFilters, lteFilters, gteFilters),
       );
       rows = applyInnerJoins(name, rows, selectCols);
       rows = applyFkEmbeds(name, rows, selectCols);
@@ -240,6 +258,10 @@ export function makeMockDb(): MockDb {
       },
       like(col: string, pattern: string) {
         eqFilters.push([col, pattern.replace(/%/g, "")]);
+        return selectChain;
+      },
+      contains(col: string, val: Record<string, unknown>) {
+        containsFilters.push([col, val]);
         return selectChain;
       },
       order(col: string, opts?: { ascending?: boolean }) {
@@ -352,7 +374,7 @@ export function makeMockDb(): MockDb {
       const upEq: Array<[string, unknown]> = [];
       const upIs: Array<[string, unknown]> = [];
       const applyUpdate = () => {
-        const rows = ensure(name).filter((r) => matches(r, upEq, [], upIs, [], [], []));
+        const rows = ensure(name).filter((r) => matches(r, upEq, [], [], upIs, [], [], []));
         for (const row of rows) Object.assign(row, patch);
         return rows;
       };
@@ -411,11 +433,22 @@ export function makeMockDb(): MockDb {
           inserted.push(result.inserted![0]);
         }
       }
-      return {
+      const upsertChain: Record<string, unknown> = {
+        select() {
+          return {
+            single() {
+              return Promise.resolve({ data: inserted[0] ?? null, error: null });
+            },
+            maybeSingle() {
+              return Promise.resolve({ data: inserted[0] ?? null, error: null });
+            },
+          };
+        },
         then(resolve: (v: { data: Row[] | null; error: unknown }) => unknown) {
           return Promise.resolve({ data: inserted, error: null }).then(resolve);
         },
       };
+      return upsertChain;
     };
 
     return { ...selectChain, insert, update, upsert };

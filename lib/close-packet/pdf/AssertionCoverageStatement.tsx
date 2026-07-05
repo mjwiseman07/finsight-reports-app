@@ -42,6 +42,13 @@ export function remediationStatusLabel(
   return `Gap · ${remediation.status}`;
 }
 
+export function evidenceStrengthLabel(strength: string): string {
+  if (strength === "strong") return "● Strong";
+  if (strength === "moderate") return "◐ Moderate";
+  if (strength === "weak") return "○ Weak";
+  return "— Unassessed";
+}
+
 export function testedListOverflow(testedCount: number): { shown: number; overflow: number } {
   const shown = Math.min(30, testedCount);
   return { shown, overflow: Math.max(0, testedCount - shown) };
@@ -80,10 +87,12 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   matrixHeaderCategory: { width: "18%", fontSize: 7, fontFamily: "Helvetica-Bold" },
-  matrixHeaderAssertion: { flex: 1, fontSize: 7, fontFamily: "Helvetica-Bold", paddingHorizontal: 2 },
+  matrixHeaderAssertion: { flex: 1, fontSize: 7, fontFamily: "Helvetica-Bold", paddingHorizontal: 1 },
+  matrixHeaderEvidence: { width: 42, fontSize: 6, fontFamily: "Helvetica-Bold", textAlign: "center" },
   matrixRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#eee", paddingVertical: 2 },
   matrixCategory: { width: "18%", fontSize: 7, paddingRight: 3 },
   matrixCell: { flex: 1, fontSize: 6, paddingHorizontal: 1, textAlign: "center" },
+  matrixEvidenceCell: { width: 42, fontSize: 5, paddingHorizontal: 1, textAlign: "center", color: MUTED },
   statusBadge: { fontSize: 6, padding: 1, borderRadius: 2, textAlign: "center" },
   gapDetailRow: { flexDirection: "row", marginBottom: 3, fontSize: 8 },
   gapDetailLabel: { width: "30%", color: MUTED },
@@ -209,6 +218,11 @@ export function MatrixTable({ statement }: { statement: AssertionCoverageStateme
                 <Text style={[styles.statusBadge, { color, borderWidth: 0.5, borderColor: color }]}>
                   {label}
                 </Text>
+                {cell.coverage_status !== "not_applicable" ? (
+                  <Text style={{ fontSize: 4, color: ACCENT, marginTop: 1, textAlign: "center" }}>
+                    {evidenceStrengthLabel(cell.evidence_strength)}
+                  </Text>
+                ) : null}
                 {remediationLabel ? (
                   <Text style={{ fontSize: 4, color: MUTED, marginTop: 1, textAlign: "center" }}>
                     {remediationLabel}
@@ -302,7 +316,7 @@ export function TestedEvidence({ statement }: { statement: AssertionCoverageStat
           </Text>
           <View style={styles.gapDetailRow}>
             <Text style={styles.gapDetailLabel}>Evidence Strength</Text>
-            <Text style={styles.gapDetailValue}>{cell.evidence_strength}</Text>
+            <Text style={styles.gapDetailValue}>{evidenceStrengthLabel(cell.evidence_strength)}</Text>
           </View>
           <View style={styles.gapDetailRow}>
             <Text style={styles.gapDetailLabel}>Covering Rules</Text>

@@ -131,6 +131,14 @@ export interface RootCauseRow {
   pcaob_reference: string;
 }
 
+export interface ManualTestsByPair {
+  [key: string]: Array<{
+    evidenceId: string;
+    evidenceType: string;
+    dataSourceReliabilityBasis: string | null;
+  }>;
+}
+
 export interface ProjectionInput {
   firmClientId: string;
   closePeriodId: string;
@@ -151,6 +159,7 @@ export interface ProjectionInput {
     rule_id: string;
     outcome: "fired" | "suppressed" | "error" | "not_implemented";
   }>;
+  manualTestsByPair?: ManualTestsByPair;
 }
 
 export interface ProjectedCoverageRow {
@@ -160,6 +169,7 @@ export interface ProjectedCoverageRow {
   coverage_status: CoverageStatus;
   covering_rule_ids: string[];
   covering_fire_ids: string[];
+  covering_manual_test_ids: string[];
   evidence_strength: EvidenceStrength;
   gap_root_cause_code: RootCauseCode | null;
 }

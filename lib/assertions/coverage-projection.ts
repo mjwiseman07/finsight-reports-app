@@ -1,11 +1,17 @@
 import { ACCOUNT_CATEGORIES, ASSERTION_IDS } from "@/lib/pre-close/assertions-types";
 import type {
   CoverageStatus,
-  EvidenceStrength,
   ProjectedCoverageRow,
   ProjectionInput,
   RootCauseCode,
 } from "@/lib/pre-close/assertions-coverage-types";
+import {
+  assessEvidenceStrength,
+  assessFireOnlyStrength,
+} from "@/lib/assertions/evidence-strength";
+import type { ManualEvidenceType } from "@/lib/pre-close/manual-test-evidence-types";
+
+const EMPTY_MANUAL: string[] = [];
 
 export function projectCoverage(input: ProjectionInput): ProjectedCoverageRow[] {
   const relevanceMap = new Map<string, "relevant" | "usually_not_primary" | "not_applicable">();
@@ -43,6 +49,7 @@ export function projectCoverage(input: ProjectionInput): ProjectedCoverageRow[] 
           coverage_status: "not_applicable",
           covering_rule_ids: [],
           covering_fire_ids: [],
+          covering_manual_test_ids: EMPTY_MANUAL,
           evidence_strength: "unassessed",
           gap_root_cause_code: null,
         });
@@ -63,64 +70,80 @@ export function projectCoverage(input: ProjectionInput): ProjectedCoverageRow[] 
           coverage_status: "gap",
           covering_rule_ids: [],
           covering_fire_ids: [],
+          covering_manual_test_ids: EMPTY_MANUAL,
           evidence_strength: "unassessed",
           gap_root_cause_code: "no_rule_defined",
         });
         continue;
       }
 
-      let anyPrimaryFired = false;
-      let anySecondaryFired = false;
-      let anyPartialFired = false;
-      let anyFired = false;
-      let anySuppressed = false;
-      let anyErrored = false;
+      const key = `${account_category}::${assertion_id}`;
+      const manualTestsForPair = input.manualTestsByPair?.[key] ?? [];
+      const fireInputs = [];
+      for (const rc of coveringRules) {
+        const bucket = firesByRule.get(rc.rule_id);
+        if (!bucket) continue;
+        const outcomes: Array<{ ids: string[]; outcome: "fired" | "suppressed" | "error" }> = [
+          { ids: bucket.fired, outcome: "fired" },
+          { ids: bucket.suppressed, outcome: "suppressed" },
+          { ids: bucket.errored, outcome: "error" },
+        ];
+        for (const o of outcomes) {
+          for (const _fireId of o.ids) {
+            fireInputs.push({
+              ruleId: rc.rule_id,
+              coverageStrength: rc.coverage_strength as "primary" | "secondary" | "partial",
+              outcome: o.outcome,
+            });
+          }
+        }
+      }
+
       const firedRuleIds: string[] = [];
       const firedFireIds: string[] = [];
-
       for (const rc of coveringRules) {
         const bucket = firesByRule.get(rc.rule_id);
         if (!bucket) continue;
         if (bucket.fired.length > 0) {
-          anyFired = true;
           firedRuleIds.push(rc.rule_id);
           firedFireIds.push(...bucket.fired);
-          if (rc.coverage_strength === "primary") anyPrimaryFired = true;
-          else if (rc.coverage_strength === "secondary") anySecondaryFired = true;
-          else if (rc.coverage_strength === "partial") anyPartialFired = true;
-        } else if (bucket.suppressed.length > 0) {
-          anySuppressed = true;
-        } else if (bucket.errored.length > 0) {
-          anyErrored = true;
         }
       }
 
+      const manualInputs = manualTestsForPair.map((mt) => ({
+        evidenceId: mt.evidenceId,
+        evidenceType: mt.evidenceType as ManualEvidenceType,
+        dataSourceReliabilityBasis: mt.dataSourceReliabilityBasis,
+      }));
+
+      const assessment = assessEvidenceStrength({
+        fires: fireInputs,
+        manualTests: manualInputs,
+      });
+
+      const fireOnly = assessFireOnlyStrength(fireInputs);
       let status: CoverageStatus;
-      let strength: EvidenceStrength;
       let root: RootCauseCode | null = null;
 
-      if (anyPrimaryFired) {
+      if (fireOnly.anyPrimaryFired) {
         status = "tested";
-        strength = "strong";
-      } else if (anySecondaryFired) {
+      } else if (fireOnly.anySecondaryFired) {
         status = "partial";
-        strength = "moderate";
         root = "coverage_partial_by_design";
-      } else if (anyPartialFired) {
+      } else if (fireOnly.anyPartialFired) {
         status = "partial";
-        strength = "weak";
         root = "coverage_partial_by_design";
-      } else if (!anyFired && anyErrored) {
+      } else if (!fireOnly.anyFired && manualInputs.length > 0) {
+        status = manualInputs.length >= 1 ? "tested" : "partial";
+        root = null;
+      } else if (!fireOnly.anyFired && fireOnly.anyErrored) {
         status = "gap";
-        strength = "unassessed";
         root = "rule_errored";
-      } else if (!anyFired && anySuppressed) {
+      } else if (!fireOnly.anyFired && fireOnly.anySuppressed) {
         status = "gap";
-        strength = "unassessed";
         root = "rule_fired_but_all_suppressed";
       } else {
         status = "gap";
-        strength = "unassessed";
         root = "rule_defined_but_not_fired";
       }
 
@@ -131,7 +154,8 @@ export function projectCoverage(input: ProjectionInput): ProjectedCoverageRow[] 
         coverage_status: status,
         covering_rule_ids: Array.from(new Set(firedRuleIds)),
         covering_fire_ids: Array.from(new Set(firedFireIds)),
-        evidence_strength: strength,
+        covering_manual_test_ids: manualInputs.map((m) => m.evidenceId),
+        evidence_strength: assessment.strength,
         gap_root_cause_code: root,
       });
     }

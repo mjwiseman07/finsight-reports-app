@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { GapReviewItemRow } from "@/lib/pre-close/assertions-coverage-types";
@@ -52,6 +53,20 @@ export default function GapItemDetailPage() {
     setAssertion(data.assertion ?? null);
     const me = await meRes.json();
     setIsWriter((me.writerFirmIds ?? []).length > 0);
+    const mtRes = await fetch(
+      `/api/reviewer/manual-tests?closePeriodId=${encodeURIComponent(data.item.closePeriodId)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (mtRes.ok) {
+      const mtBody = await mtRes.json();
+      setLinkedTests(
+        (mtBody.evidence ?? []).filter(
+          (e: Record<string, unknown>) => e.resolves_gap_item_id === id,
+        ),
+      );
+    } else {
+      setLinkedTests([]);
+    }
   }, [id]);
 
   useEffect(() => {
@@ -129,16 +144,39 @@ export default function GapItemDetailPage() {
         </section>
       ) : null}
 
+      <section>
+        <h2 className="text-sm font-medium text-teal-300 mb-2">Linked manual tests</h2>
+        {linkedTests.length === 0 ? (
+          <p className="text-xs text-slate-400">None linked yet.</p>
+        ) : (
+          <ul className="text-sm space-y-1">
+            {linkedTests.map((t) => (
+              <li key={String(t.id)}>
+                <Link href={`/reviewer/manual-tests/${String(t.id)}`} className="underline">
+                  {String(t.evidence_type)} — {String(t.evidence_summary).slice(0, 80)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {isOpen && isWriter ? (
         <section>
           <h2 className="text-sm font-medium text-teal-300 mb-2">Resolve</h2>
           <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/reviewer/manual-tests/new?gapItemId=${id}&accountCategory=${item.accountCategory}&assertionId=${item.assertionId}&closePeriodId=${item.closePeriodId}&firmClientId=${item.firmClientId}&engagementId=${item.engagementId}`}
+              className="px-3 py-1 bg-white/10 rounded text-sm inline-block"
+            >
+              Upload manual test
+            </Link>
             <button
               type="button"
               className="px-3 py-1 bg-white/10 rounded text-sm"
               onClick={() => setModal("manual_test")}
             >
-              Manual test
+              Link existing ref
             </button>
             <button
               type="button"

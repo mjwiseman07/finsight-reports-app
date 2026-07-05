@@ -10,7 +10,9 @@ import type {
   ProjectionInput,
   ProjectedCoverageRow,
   CoverageEventRow,
+  ManualTestsByPair,
 } from "@/lib/pre-close/assertions-coverage-types";
+import { publishEvent } from "@/lib/events/publisher";
 
 export interface WorkerResult {
   workerRunId: string;
@@ -128,7 +130,68 @@ export async function runProjectionWorker(
   let rows: ProjectedCoverageRow[];
   try {
     const input = await loadProjectionInput(firmClientId, closePeriodId, workerRunId);
-    rows = projectCoverage(input);
+    const { data: manualTests, error: mtErr } = await db
+      .from("manual_test_evidence")
+      .select("id, account_category, assertion_id, evidence_type, data_source_reliability_basis")
+      .eq("close_period_id", closePeriodId)
+      .eq("firm_client_id", firmClientId);
+    if (mtErr) throw new Error(`manual_test_evidence load: ${mtErr.message}`);
+
+    const manualTestsByPair: ManualTestsByPair = {};
+    for (const mt of manualTests ?? []) {
+      const key = `${mt.account_category as string}::${mt.assertion_id as string}`;
+      if (!manualTestsByPair[key]) manualTestsByPair[key] = [];
+      manualTestsByPair[key].push({
+        evidenceId: mt.id as string,
+        evidenceType: mt.evidence_type as string,
+        dataSourceReliabilityBasis: (mt.data_source_reliability_basis as string | null) ?? null,
+      });
+    }
+
+    const { data: priorRows } = await db
+      .from("close_assertion_coverage")
+      .select("coverage_id, account_category, assertion_id, evidence_strength")
+      .eq("firm_client_id", firmClientId)
+      .eq("close_period_id", closePeriodId);
+    const priorStrength = new Map<string, string>();
+    for (const p of priorRows ?? []) {
+      priorStrength.set(
+        `${p.account_category as string}::${p.assertion_id as string}`,
+        p.evidence_strength as string,
+      );
+    }
+
+    rows = projectCoverage({ ...input, manualTestsByPair });
+
+    for (const r of rows) {
+      const key = `${r.account_category}::${r.assertion_id}`;
+      const prev = priorStrength.get(key);
+      if (prev && prev !== r.evidence_strength) {
+        const priorRow = (priorRows ?? []).find(
+          (p) =>
+            p.account_category === r.account_category && p.assertion_id === r.assertion_id,
+        );
+        await publishEvent({
+          eventType: "assertion.evidence_strength.assessed",
+          eventCategory: "assertion",
+          firmClientId,
+          closePeriodId,
+          aggregateType: "close_assertion_coverage",
+          aggregateId: (priorRow?.coverage_id as string) ?? workerRunId,
+          actorType: "system",
+          payload: {
+            account_category: r.account_category,
+            assertion_id: r.assertion_id,
+            previous_strength: prev,
+            new_strength: r.evidence_strength,
+            contribution: {
+              manual_test_ids: r.covering_manual_test_ids,
+            },
+          },
+          correlationId: workerRunId,
+        });
+      }
+    }
   } catch (e) {
     await insertEvent({
       firm_client_id: firmClientId,
@@ -155,8 +218,15 @@ export async function runProjectionWorker(
     coverage_status: r.coverage_status,
     covering_rule_ids: r.covering_rule_ids,
     covering_fire_ids: r.covering_fire_ids,
+    covering_manual_test_ids: r.covering_manual_test_ids,
     evidence_strength: r.evidence_strength,
     gap_root_cause_code: r.gap_root_cause_code,
+    manual_test_ref:
+      r.covering_manual_test_ids.length === 0
+        ? null
+        : r.covering_manual_test_ids.length === 1
+          ? "1 manual test"
+          : `${r.covering_manual_test_ids.length} manual tests`,
     computed_by_worker_run_id: workerRunId,
     updated_at: new Date().toISOString(),
   }));
