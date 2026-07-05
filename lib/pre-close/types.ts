@@ -59,6 +59,7 @@ export interface ReviewItemRow {
   jeDraftTotalDebitCents: number;
   jeDraftTotalCreditCents: number;
   jeDraftLineCount: number;
+  assertionTags: string[];
   ruleReasonCode: string;
   ruleReasonDetail: Record<string, unknown>;
   severity: "info" | "warning" | "error" | "critical";

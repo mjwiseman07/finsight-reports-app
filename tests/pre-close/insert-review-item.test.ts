@@ -12,6 +12,7 @@ vi.mock("@/lib/supabase/service", () => ({ createServiceClient: () => mock }));
 vi.mock("@/lib/events/publisher", () => ({ publishEvent: publishSpy }));
 
 import { insertReviewItem, InsertReviewItemError } from "@/lib/pre-close/insert-review-item";
+import { clearResolverCache } from "@/lib/assertions/resolve-rule-assertions";
 import type { JEDraft, ReviewItemCompositionInput } from "@/lib/pre-close/types";
 
 function balanced(): JEDraft {
@@ -47,18 +48,29 @@ function input(over: Partial<ReviewItemCompositionInput> = {}): ReviewItemCompos
 
 beforeEach(() => {
   mock.__reset();
+  clearResolverCache(mock as never);
   publishSpy.mockClear();
+  mock.__seed("rule_assertion_coverage", []);
 });
 
 describe("pre-close/insert-review-item insertReviewItem", () => {
   it("insert balanced draft -> row present with totals, event published", async () => {
+    mock.__seed("rule_assertion_coverage", [
+      { rule_id: "gen.rule", assertion_id: "completeness" },
+    ]);
     const row = await insertReviewItem(input());
     expect(row.jeDraftTotalDebitCents).toBe(500);
     expect(row.jeDraftTotalCreditCents).toBe(500);
     expect(row.jeDraftLineCount).toBe(2);
+    expect(row.assertionTags).toEqual(["completeness"]);
     expect(mock.__state.pre_close_review_items).toHaveLength(1);
+    expect(mock.__state.pre_close_review_items[0].assertion_tags).toEqual(["completeness"]);
     expect(publishSpy).toHaveBeenCalledTimes(1);
-    expect(publishSpy.mock.calls[0][0].eventCategory).toBe("rule");
+    const calls = publishSpy.mock.calls as unknown as Array<[
+      { eventCategory: string; payload: { assertion_tags: string[] } },
+    ]>;
+    expect(calls[0][0].eventCategory).toBe("rule");
+    expect(calls[0][0].payload.assertion_tags).toEqual(["completeness"]);
   });
 
   it("insert unbalanced draft -> throws InsertReviewItemError", async () => {

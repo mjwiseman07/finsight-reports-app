@@ -139,6 +139,9 @@ export async function postApprovedReviewItem(
     posted_by: input.actorType === "ai_agent" ? "ai" : "human",
     posted_by_user_id: input.actorId ?? undefined,
     payload: pipeline.payload,
+    assertions_addressed: row.assertionTags,
+    data_source_reliability_basis:
+      row.assertionTags.length > 0 ? "rule_synthesized_from_qbo_ledger" : undefined,
   });
 
   if (post.status === "posted") {

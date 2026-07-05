@@ -79,6 +79,7 @@ function seedApproved(id: string, extra: Record<string, unknown> = {}) {
       edited_je_draft: null,
       posted_je_attempt_id: null,
       post_block_reason: null,
+      assertion_tags: ["accuracy", "completeness"],
       created_at: "2026-07-06T00:00:00Z",
       ...extra,
     },
@@ -121,6 +122,13 @@ describe("post-approved-review-item integration", () => {
     const r = await postApprovedReviewItem({ reviewItemId: "ri-int-1", actorType: "user" });
     expect(r.status).toBe("posted");
     expect(mock.__state.pre_close_review_items[0].posted_je_attempt_id).toBe("att-int-1");
+    expect(posterPostMock.mock.calls[0][0].assertions_addressed).toEqual([
+      "accuracy",
+      "completeness",
+    ]);
+    expect(posterPostMock.mock.calls[0][0].data_source_reliability_basis).toBe(
+      "rule_synthesized_from_qbo_ledger",
+    );
   });
 
   it("set-once: second call returns already_posted", async () => {

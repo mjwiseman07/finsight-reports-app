@@ -162,7 +162,7 @@ async function main() {
   // Case 5: audit rows present
   const { data: auditRows } = await supabase
     .from("je_posting_audit")
-    .select("audit_id, status, rejection_reason")
+    .select("audit_id, status, rejection_reason, assertions_addressed")
     .eq("firm_client_id", FIRM_CLIENT_ID)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -170,6 +170,11 @@ async function main() {
     "audit rows written for recent attempts",
     !!auditRows && auditRows.length >= 4,
     `rows=${auditRows?.length ?? 0}`,
+  );
+  pass(
+    "je_posting_audit.assertions_addressed column readable (defaults to empty array)",
+    !!auditRows && auditRows.every((r: { assertions_addressed?: unknown }) => Array.isArray(r.assertions_addressed)),
+    `sample=${JSON.stringify(auditRows?.[0]?.assertions_addressed ?? null)}`,
   );
 
   const passed = results.filter((r) => r.ok).length;

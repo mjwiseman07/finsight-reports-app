@@ -80,6 +80,7 @@ function seedItem(id: string, extra: Record<string, unknown> = {}) {
       edited_je_draft: null,
       posted_je_attempt_id: null,
       post_block_reason: null,
+      assertion_tags: [],
       created_at: "2026-07-06T00:00:00Z",
       ...extra,
     },
@@ -211,14 +212,25 @@ describe("post-approved-review-item unit", () => {
   });
 
   it("happy path posted -> writes attempt_id, emits event, ai_action_log", async () => {
-    seedItem("ri-ok");
+    seedItem("ri-ok", { assertion_tags: ["cutoff"] });
     const r = await postApprovedReviewItem({ reviewItemId: "ri-ok", actorType: "user" });
     expect(r.status).toBe("posted");
     expect(mock.__state.pre_close_review_items[0].posted_je_attempt_id).toBe("att-1");
+    expect(posterPostMock.mock.calls[0][0].assertions_addressed).toEqual(["cutoff"]);
+    expect(posterPostMock.mock.calls[0][0].data_source_reliability_basis).toBe(
+      "rule_synthesized_from_qbo_ledger",
+    );
     expect(publishMock).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: "review_item.posted", eventCategory: "posting" }),
     );
     expect(mock.__state.ai_action_log.some((x) => x.action_category === "posting_attempt")).toBe(true);
+  });
+
+  it("empty assertion_tags omits data_source_reliability_basis", async () => {
+    seedItem("ri-empty-tags", { assertion_tags: [] });
+    await postApprovedReviewItem({ reviewItemId: "ri-empty-tags", actorType: "user" });
+    expect(posterPostMock.mock.calls[0][0].assertions_addressed).toEqual([]);
+    expect(posterPostMock.mock.calls[0][0].data_source_reliability_basis).toBeUndefined();
   });
 
   it("editedJeDraft preferred over jeDraft in pipeline input", async () => {

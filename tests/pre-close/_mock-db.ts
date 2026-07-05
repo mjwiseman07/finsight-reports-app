@@ -75,6 +75,9 @@ export function makeMockDb(): MockDb {
     firm_memberships: [],
     assertion_coverage_statement_versions: [],
     assertion_coverage_statement_downloads: [],
+    assertions_catalog: [],
+    je_post_attempts: [],
+    je_posting_audit: [],
   };
 
   function ensure(name: string): Row[] {
@@ -260,6 +263,9 @@ export function makeMockDb(): MockDb {
           edited_je_draft: r.edited_je_draft ?? null,
           posted_je_attempt_id: r.posted_je_attempt_id ?? null,
           post_block_reason: r.post_block_reason ?? null,
+          assertion_tags: r.assertion_tags ?? [],
+          assertions_addressed: r.assertions_addressed ?? [],
+          attempt_id: r.attempt_id ?? randomUUID(),
           ...r,
         };
         ensure(name).push(row);

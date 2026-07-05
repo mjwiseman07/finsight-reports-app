@@ -16,10 +16,12 @@ import type {
   JEPostRequest,
   JEPostResult,
   JEPayload,
+  DataSourceReliabilityBasis,
 } from "@/lib/erp/types";
 import { recordMemory } from "@/lib/memory/client-memory-service";
 import { persistJeEvidence } from "@/lib/je-evidence/persist";
 import { dispatchBackupPacket } from "@/lib/je-evidence/dispatch-hook";
+import { resolveFireAssertions } from "@/lib/assertions/resolve-rule-assertions";
 
 // Env-aware base URL: sandbox realm/token only work against the sandbox host.
 function qboApiBase(): string {
@@ -66,13 +68,31 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
 
     const attemptId = attempt.attempt_id as string;
 
+    // Part 4: Resolve fallback assertions_addressed for rule-source posts that
+    // didn't pre-compute (e.g., legacy callers). Explicit callers override.
+    let resolvedAssertions: string[] = req.assertions_addressed ?? [];
+    let resolvedReliability: string | null = req.data_source_reliability_basis ?? null;
+    if (req.source_type === "rule" && req.source_id && req.assertions_addressed === undefined) {
+      resolvedAssertions = await resolveFireAssertions(supabase, req.source_id);
+      if (resolvedAssertions.length > 0 && !resolvedReliability) {
+        resolvedReliability = "rule_synthesized_from_qbo_ledger";
+      }
+    }
+
     // D6.4b: evidence-contract enforcement — only when a caller supplies a composition (legacy callers unaffected).
-    const composition = (req as { composition?: import("@/lib/je-evidence/types").JeCompositionResult }).composition;
+    const composition = req.composition;
     if (composition) {
       try {
         await persistJeEvidence({ db: supabase, attemptId, firmClientId: req.firm_client_id, composition });
       } catch (err) {
-        await finalizeReject(attemptId, req, "evidence_contract_violation", { message: err instanceof Error ? err.message : String(err) });
+        await finalizeReject(
+          attemptId,
+          req,
+          "evidence_contract_violation",
+          { message: err instanceof Error ? err.message : String(err) },
+          resolvedAssertions,
+          resolvedReliability,
+        );
         return { status: "rejected", attempt_id: attemptId, reason: "evidence_contract_violation" };
       }
     }
@@ -84,21 +104,42 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
       .eq("id", req.firm_client_id)
       .single();
     if (fc?.accounting_method === "cash") {
-      await finalizeReject(attemptId, req, "cash_basis_notes_only");
+      await finalizeReject(
+        attemptId,
+        req,
+        "cash_basis_notes_only",
+        undefined,
+        resolvedAssertions,
+        resolvedReliability,
+      );
       return { status: "rejected", attempt_id: attemptId, reason: "cash_basis_notes_only" };
     }
 
     // 3. Write-enabled + healthy gate
     const preflight = await canPostToQBO(req.firm_client_id);
     if (!preflight.canWrite) {
-      await finalizeReject(attemptId, req, preflight.reason ?? "write_gate_failed");
+      await finalizeReject(
+        attemptId,
+        req,
+        preflight.reason ?? "write_gate_failed",
+        undefined,
+        resolvedAssertions,
+        resolvedReliability,
+      );
       return { status: "rejected", attempt_id: attemptId, reason: preflight.reason ?? "write_gate_failed" };
     }
 
     // 4. Resolve token
     const tokenResult = await resolveQBOTokenForFirmClient(req.firm_client_id);
     if (!tokenResult) {
-      await finalizeReject(attemptId, req, "no_qbo_token");
+      await finalizeReject(
+        attemptId,
+        req,
+        "no_qbo_token",
+        undefined,
+        resolvedAssertions,
+        resolvedReliability,
+      );
       return { status: "rejected", attempt_id: attemptId, reason: "no_qbo_token" };
     }
 
@@ -110,7 +151,14 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
       tokenResult.accessToken,
     );
     if (!validation.valid) {
-      await finalizeReject(attemptId, req, validation.reason, validation.details);
+      await finalizeReject(
+        attemptId,
+        req,
+        validation.reason,
+        validation.details,
+        resolvedAssertions,
+        resolvedReliability,
+      );
       return {
         status: "rejected",
         attempt_id: attemptId,
@@ -127,7 +175,7 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
     if (postResp.status === 401) {
       const refreshed = await resolveQBOTokenForFirmClient(req.firm_client_id, { forceRefresh: true });
       if (!refreshed) {
-        await finalizeFail(attemptId, req, "token_refresh_failed");
+        await finalizeFail(attemptId, req, "token_refresh_failed", undefined, resolvedAssertions, resolvedReliability);
         return { status: "failed", attempt_id: attemptId, error: "token_refresh_failed", retryable: true };
       }
       postResp = await postToQBO(refreshed.realmId, refreshed.accessToken, qboBody);
@@ -135,7 +183,7 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
 
     if (!postResp.ok) {
       const errBody = await postResp.json().catch(() => ({}));
-      await finalizeFail(attemptId, req, `qbo_${postResp.status}`, errBody);
+      await finalizeFail(attemptId, req, `qbo_${postResp.status}`, errBody, resolvedAssertions, resolvedReliability);
       return {
         status: "failed",
         attempt_id: attemptId,
@@ -147,12 +195,12 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
     const qboJson = await postResp.json();
     const qboJEId = qboJson?.JournalEntry?.Id;
     if (!qboJEId) {
-      await finalizeFail(attemptId, req, "qbo_response_missing_id", qboJson);
+      await finalizeFail(attemptId, req, "qbo_response_missing_id", qboJson, resolvedAssertions, resolvedReliability);
       return { status: "failed", attempt_id: attemptId, error: "qbo_response_missing_id", retryable: false };
     }
 
     // 8. Success — persist + memory
-    await finalizePost(attemptId, req, qboJEId);
+    await finalizePost(attemptId, req, qboJEId, resolvedAssertions, resolvedReliability);
     await recordMemory({
       firmClientId: req.firm_client_id,
       memoryType: "posted_je",
@@ -208,6 +256,9 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
       posted_by: "human",
       posted_by_user_id: actorUserId,
       payload: reversedPayload,
+      assertions_addressed: (original.assertions_addressed as string[]) ?? [],
+      data_source_reliability_basis:
+        (original.data_source_reliability_basis as DataSourceReliabilityBasis | null) ?? undefined,
     });
 
     if (result.status === "posted") {
@@ -260,7 +311,14 @@ async function postToQBO(realmId: string, accessToken: string, body: unknown) {
   );
 }
 
-async function finalizeReject(attemptId: string, req: JEPostRequest, reason: string, details?: unknown) {
+async function finalizeReject(
+  attemptId: string,
+  req: JEPostRequest,
+  reason: string,
+  details: unknown | undefined,
+  assertions: string[],
+  reliability: string | null,
+) {
   const supabase = getSupabaseAdmin();
   await supabase.from("je_post_attempts").update({ status: "rejected" }).eq("attempt_id", attemptId);
   await supabase.from("je_posting_audit").insert({
@@ -279,10 +337,19 @@ async function finalizeReject(attemptId: string, req: JEPostRequest, reason: str
     rejection_reason: reason,
     qbo_error_json: details ? (details as object) : null,
     payload_json: req.payload,
+    assertions_addressed: assertions,
+    data_source_reliability_basis: reliability,
   });
 }
 
-async function finalizeFail(attemptId: string, req: JEPostRequest, errorCode: string, details?: unknown) {
+async function finalizeFail(
+  attemptId: string,
+  req: JEPostRequest,
+  errorCode: string,
+  details: unknown | undefined,
+  assertions: string[],
+  reliability: string | null,
+) {
   const supabase = getSupabaseAdmin();
   await supabase.from("je_post_attempts").update({ status: "failed" }).eq("attempt_id", attemptId);
   await supabase.from("je_posting_audit").insert({
@@ -301,10 +368,18 @@ async function finalizeFail(attemptId: string, req: JEPostRequest, errorCode: st
     rejection_reason: errorCode,
     qbo_error_json: details ? (details as object) : null,
     payload_json: req.payload,
+    assertions_addressed: assertions,
+    data_source_reliability_basis: reliability,
   });
 }
 
-async function finalizePost(attemptId: string, req: JEPostRequest, qboJEId: string) {
+async function finalizePost(
+  attemptId: string,
+  req: JEPostRequest,
+  qboJEId: string,
+  assertions: string[],
+  reliability: string | null,
+) {
   const supabase = getSupabaseAdmin();
   await supabase
     .from("je_post_attempts")
@@ -325,6 +400,8 @@ async function finalizePost(attemptId: string, req: JEPostRequest, qboJEId: stri
     narration: req.payload.narration,
     status: "posted",
     payload_json: req.payload,
+    assertions_addressed: assertions,
+    data_source_reliability_basis: reliability,
   });
 }
 

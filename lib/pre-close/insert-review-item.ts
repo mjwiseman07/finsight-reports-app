@@ -8,6 +8,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { publishEvent } from "@/lib/events/publisher";
 import { validateJeDraft } from "./je-draft-validate";
+import { resolveRuleAssertions } from "@/lib/assertions/resolve-rule-assertions";
 import type { ReviewItemCompositionInput, ReviewItemRow } from "./types";
 
 export class InsertReviewItemError extends Error {
@@ -27,6 +28,8 @@ export async function insertReviewItem(
     throw new InsertReviewItemError(`invalid je_draft: ${v.reason}`);
   }
 
+  const assertionTags = await resolveRuleAssertions(supabase, input.ruleId);
+
   const { data, error } = await supabase
     .from("pre_close_review_items")
     .insert({
@@ -41,6 +44,7 @@ export async function insertReviewItem(
       je_draft_total_debit_cents: v.totalDebitCents,
       je_draft_total_credit_cents: v.totalCreditCents,
       je_draft_line_count: v.lineCount,
+      assertion_tags: assertionTags,
       rule_reason_code: input.ruleReasonCode,
       rule_reason_detail: input.ruleReasonDetail,
       severity: input.severity,
@@ -70,6 +74,7 @@ export async function insertReviewItem(
       severity: input.severity,
       accounting_method: input.accountingMethod,
       total_debit_cents: v.totalDebitCents,
+      assertion_tags: assertionTags,
     },
   });
 
@@ -90,6 +95,7 @@ export function rowToReviewItem(row: Record<string, unknown>): ReviewItemRow {
     jeDraftTotalDebitCents: row.je_draft_total_debit_cents as number,
     jeDraftTotalCreditCents: row.je_draft_total_credit_cents as number,
     jeDraftLineCount: row.je_draft_line_count as number,
+    assertionTags: (row.assertion_tags as string[] | null) ?? [],
     ruleReasonCode: row.rule_reason_code as string,
     ruleReasonDetail: (row.rule_reason_detail as Record<string, unknown>) ?? {},
     severity: row.severity as ReviewItemRow["severity"],

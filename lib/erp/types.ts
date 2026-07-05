@@ -65,7 +65,37 @@ export type JEPostRequest = {
   posted_by: "ai" | "human";
   posted_by_user_id?: string;
   payload: JEPayload;
+  composition?: import("@/lib/je-evidence/types").JeCompositionResult;
+  /**
+   * ISA 315 assertion IDs this JE addresses at post time.
+   * When source_type='rule' and this is omitted, the poster will resolve via
+   * curated_rule_fires + rule_assertion_coverage using source_id as fire_id.
+   * When empty [], no assertions are propagated (manual JEs, reversals).
+   */
+  assertions_addressed?: string[];
+  /**
+   * PCAOB AS 1105 ¶.10A (2025) reliability basis. Required by DB CHECK
+   * whenever assertions_addressed is non-empty at post time.
+   */
+  data_source_reliability_basis?: DataSourceReliabilityBasis;
 };
+
+export type DataSourceReliabilityBasis =
+  | "qbo_api_authenticated"
+  | "bank_feed_ocr"
+  | "plaid_direct"
+  | "manual_document_upload"
+  | "inbound_email_parsed"
+  | "rule_synthesized_from_qbo_ledger";
+
+export const DATA_SOURCE_RELIABILITY_BASES: readonly DataSourceReliabilityBasis[] = [
+  "qbo_api_authenticated",
+  "bank_feed_ocr",
+  "plaid_direct",
+  "manual_document_upload",
+  "inbound_email_parsed",
+  "rule_synthesized_from_qbo_ledger",
+] as const;
 
 export type JEPostResult =
   | { status: "posted"; attempt_id: string; qbo_je_id: string }
