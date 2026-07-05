@@ -354,18 +354,20 @@ export async function runProjectionWorker(
     workerRunId,
   );
 
-  await insertEvent({
-    firm_client_id: firmClientId,
-    close_period_id: closePeriodId,
-    worker_run_id: workerRunId,
-    event_type: "gap_review_items_synced",
-    account_category: null,
-    assertion_id: null,
-    payload: { ...syncResult },
-    actor_type: "system",
-    actor_id: null,
-    linked_action_id: null,
-    correlation_id: workerRunId,
+  // Emit via ledger_events (not close_assertion_coverage_events) — Part 5's
+  // gap_review_items_synced was never added to the coverage-events CHECK and
+  // would fail live inserts. Ledger events are the assertion-category audit path.
+  await publishEvent({
+    eventType: "assertion.gap_review_items_synced",
+    eventCategory: "assertion",
+    firmClientId,
+    closePeriodId,
+    engagementId,
+    aggregateType: "close_gap_review_items",
+    aggregateId: closePeriodId,
+    actorType: "system",
+    payload: { ...syncResult, worker_run_id: workerRunId },
+    correlationId: workerRunId,
   });
 
   const summary = summarize(rows);
@@ -382,6 +384,7 @@ export async function runProjectionWorker(
       reasoner_enabled: reasonerOutcome.enabled,
       reasoner_succeeded: reasonerSucceeded,
       reasoner_failed: reasonerFailed,
+      gap_items_synced: syncResult,
       summary,
     },
     actor_type: "system",

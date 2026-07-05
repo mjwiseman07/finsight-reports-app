@@ -37,6 +37,7 @@ export default function GapItemDetailPage() {
   const [rationale, setRationale] = useState("");
   const [activatedRuleId, setActivatedRuleId] = useState("");
   const [deferReason, setDeferReason] = useState("");
+  const [linkedTests, setLinkedTests] = useState<Array<Record<string, unknown>>>([]);
 
   const load = useCallback(async () => {
     const token = window.localStorage.getItem("supabase_access_token") || "";

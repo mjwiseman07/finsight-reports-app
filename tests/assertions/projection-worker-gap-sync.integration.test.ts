@@ -76,15 +76,28 @@ describe("runProjectionWorker gap sync", () => {
 
   it("emits gap_review_items_synced event", async () => {
     const result = await runProjectionWorker(FC, CP);
-    const evt = mock.__state.close_assertion_coverage_events.find(
-      (e) => e.event_type === "gap_review_items_synced" && e.worker_run_id === result.workerRunId,
+    expect(publishMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "assertion.gap_review_items_synced",
+        eventCategory: "assertion",
+        firmClientId: FC,
+        closePeriodId: CP,
+        payload: expect.objectContaining({
+          opened: expect.any(Number),
+          refreshed: expect.any(Number),
+          auto_closed_stale: expect.any(Number),
+          reopened: expect.any(Number),
+          worker_run_id: result.workerRunId,
+        }),
+      }),
     );
-    expect(evt).toBeDefined();
-    expect(evt?.payload).toMatchObject({
-      opened: expect.any(Number),
-      refreshed: expect.any(Number),
-      auto_closed_stale: expect.any(Number),
-      reopened: expect.any(Number),
+    const completed = mock.__state.close_assertion_coverage_events.find(
+      (e) => e.event_type === "projection_completed" && e.worker_run_id === result.workerRunId,
+    );
+    expect(completed?.payload).toMatchObject({
+      gap_items_synced: expect.objectContaining({
+        opened: expect.any(Number),
+      }),
     });
   });
 

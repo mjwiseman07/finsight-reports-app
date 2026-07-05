@@ -313,9 +313,11 @@ export function makeMockDb(): MockDb {
         }
         const row: Row = {
           id: r.id ?? randomUUID(),
+          attachment_id: r.attachment_id ?? randomUUID(),
           snapshot_id: r.snapshot_id ?? randomUUID(),
           download_id: r.download_id ?? randomUUID(),
           created_at: r.created_at ?? new Date().toISOString(),
+          ingested_at: r.ingested_at ?? new Date().toISOString(),
           decision: r.decision ?? null,
           decision_reason_code: r.decision_reason_code ?? null,
           decision_reason_text: r.decision_reason_text ?? null,

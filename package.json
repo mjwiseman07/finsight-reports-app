@@ -117,6 +117,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "smoke:d-assertions-e2e-lock": "tsx scripts/smoke/d-assertions-e2e-lock.ts",
     "smoke:d-assertions-part3": "tsx scripts/smoke/d-assertions-part3-verify-live.ts",
     "smoke:d-assertions-part4": "tsx scripts/smoke/d-assertions-part4-verify-live.ts",
     "smoke:d-assertions-part5": "tsx scripts/smoke/d-assertions-part5-verify-live.ts",

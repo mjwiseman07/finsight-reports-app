@@ -3,6 +3,7 @@
  */
 export const ASSERTION_EVENT_TYPES = [
   "gap_review_item.resolved",
+  "assertion.gap_review_items_synced",
   "assertion.manual_test.created",
   "assertion.manual_test.attached",
   "assertion.evidence_strength.assessed",

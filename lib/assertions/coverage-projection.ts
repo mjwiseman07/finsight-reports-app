@@ -62,23 +62,49 @@ export function projectCoverage(input: ProjectionInput): ProjectedCoverageRow[] 
           rc.account_categories.includes(account_category),
       );
 
+      const key = `${account_category}::${assertion_id}`;
+      const manualTestsForPair = input.manualTestsByPair?.[key] ?? [];
+      const manualInputsEarly = manualTestsForPair.map((mt) => ({
+        evidenceId: mt.evidenceId,
+        evidenceType: mt.evidenceType as ManualEvidenceType,
+        dataSourceReliabilityBasis: mt.dataSourceReliabilityBasis,
+      }));
+
+      // Manual tests alone can cover a pair even when no rule is defined
+      // (Part 6/7: gap remediation via manual_test_evidence).
       if (coveringRules.length === 0) {
-        rows.push({
-          account_category,
-          assertion_id,
-          relevance_at_computation: relevance,
-          coverage_status: "gap",
-          covering_rule_ids: [],
-          covering_fire_ids: [],
-          covering_manual_test_ids: EMPTY_MANUAL,
-          evidence_strength: "unassessed",
-          gap_root_cause_code: "no_rule_defined",
-        });
+        if (manualInputsEarly.length > 0) {
+          const assessment = assessEvidenceStrength({
+            fires: [],
+            manualTests: manualInputsEarly,
+          });
+          rows.push({
+            account_category,
+            assertion_id,
+            relevance_at_computation: relevance,
+            coverage_status: "tested",
+            covering_rule_ids: [],
+            covering_fire_ids: [],
+            covering_manual_test_ids: manualInputsEarly.map((m) => m.evidenceId),
+            evidence_strength: assessment.strength,
+            gap_root_cause_code: null,
+          });
+        } else {
+          rows.push({
+            account_category,
+            assertion_id,
+            relevance_at_computation: relevance,
+            coverage_status: "gap",
+            covering_rule_ids: [],
+            covering_fire_ids: [],
+            covering_manual_test_ids: EMPTY_MANUAL,
+            evidence_strength: "unassessed",
+            gap_root_cause_code: "no_rule_defined",
+          });
+        }
         continue;
       }
 
-      const key = `${account_category}::${assertion_id}`;
-      const manualTestsForPair = input.manualTestsByPair?.[key] ?? [];
       const fireInputs = [];
       for (const rc of coveringRules) {
         const bucket = firesByRule.get(rc.rule_id);
@@ -110,11 +136,7 @@ export function projectCoverage(input: ProjectionInput): ProjectedCoverageRow[] 
         }
       }
 
-      const manualInputs = manualTestsForPair.map((mt) => ({
-        evidenceId: mt.evidenceId,
-        evidenceType: mt.evidenceType as ManualEvidenceType,
-        dataSourceReliabilityBasis: mt.dataSourceReliabilityBasis,
-      }));
+      const manualInputs = manualInputsEarly;
 
       const assessment = assessEvidenceStrength({
         fires: fireInputs,

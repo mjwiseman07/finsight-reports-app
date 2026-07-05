@@ -16,17 +16,17 @@ export default function NewManualTestPage() {
   const [files, setFiles] = useState<File[]>([]);
 
   const [form, setForm] = useState({
-    firmClientId: params.get("firmClientId") ?? "",
-    engagementId: params.get("engagementId") ?? "",
-    closePeriodId: params.get("closePeriodId") ?? "",
-    accountCategory: params.get("accountCategory") ?? "cash",
-    assertionId: params.get("assertionId") ?? "accuracy",
+    firmClientId: params?.get("firmClientId") ?? "",
+    engagementId: params?.get("engagementId") ?? "",
+    closePeriodId: params?.get("closePeriodId") ?? "",
+    accountCategory: params?.get("accountCategory") ?? "cash",
+    assertionId: params?.get("assertionId") ?? "accuracy",
     evidenceType: "manual_procedure",
     sourceType: "reviewer_upload",
     evidenceSummary: "",
     calculationNotes: "",
     dataSourceReliabilityBasis: "",
-    resolvesGapItemId: params.get("gapItemId") ?? "",
+    resolvesGapItemId: params?.get("gapItemId") ?? "",
   });
 
   async function submit() {
