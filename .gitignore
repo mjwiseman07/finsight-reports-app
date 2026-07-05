@@ -46,3 +46,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ephemeral smoke-run artifacts (never commit — these are per-run outputs)
+/tmp/smoke/
+tmp/smoke/
+*.smoke.pdf
