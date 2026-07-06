@@ -280,6 +280,23 @@ BEGIN
   END LOOP;
 END $$;
 
+-- ---------- 11. Allow pre-routing intake events without firm scope ----------
+ALTER TABLE public.ledger_events DROP CONSTRAINT IF EXISTS ledger_events_scope_check;
+ALTER TABLE public.ledger_events ADD CONSTRAINT ledger_events_scope_check CHECK (
+  firm_id IS NOT NULL
+  OR firm_client_id IS NOT NULL
+  OR engagement_id IS NOT NULL
+  OR portco_id IS NOT NULL
+  OR (
+    event_category = 'intake'
+    AND event_type IN (
+      'intake_message_received',
+      'intake_message_deduped',
+      'intake_message_no_handler'
+    )
+  )
+);
+
 -- ============================================================================
 -- END Phase D6.5 Part 1
 -- ============================================================================
