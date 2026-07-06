@@ -69,6 +69,7 @@ if (!secret) {
   );
   process.exit(2);
 }
+const webhookSecret: string = secret;
 if (!allowWrites) {
   console.error(
     JSON.stringify([
@@ -88,7 +89,7 @@ function record(step: string, ok: boolean, details: string) {
 }
 
 function signBody(body: string): string {
-  return crypto.createHmac("sha256", secret).update(body, "utf8").digest("base64");
+  return crypto.createHmac("sha256", webhookSecret).update(body, "utf8").digest("base64");
 }
 
 async function main() {

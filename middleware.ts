@@ -64,6 +64,7 @@ function isMarketingAllowed(pathname: string) {
     pathname.startsWith("/api/pulse/") ||
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/api/integrations/") ||
+    pathname.startsWith("/api/webhooks/") ||
     pathname.startsWith("/#")
   );
 }
