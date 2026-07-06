@@ -18,11 +18,14 @@
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { CASH_APP_EVENT_TYPES, isCashAppEventType } from "@/lib/events/cash-app-catalog";
+import { INTAKE_EVENT_TYPES, isIntakeEventType } from "@/lib/events/intake-catalog";
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export { CASH_APP_EVENT_TYPES, isCashAppEventType };
 export type { CashAppEventType } from "@/lib/events/cash-app-catalog";
+export { INTAKE_EVENT_TYPES, isIntakeEventType };
+export type { IntakeEventType } from "@/lib/events/intake-catalog";
 
 // -------------------- Types --------------------
 export type EventCategory =
@@ -93,7 +96,22 @@ const EVENT_CATEGORIES: EventCategory[] = [
 
 const ACTOR_TYPES: ActorType[] = ["user", "system", "ai_agent", "integration", "rule", "recurring"];
 
+/** Pre-routing intake events may not yet know firm scope. */
+const PRE_ROUTE_INTAKE_EVENTS = new Set<string>([
+  "intake_message_received",
+  "intake_message_deduped",
+  "intake_message_no_handler",
+]);
+
 function assertScope(input: PublishEventInput): void {
+  if (
+    input.eventCategory === "intake" &&
+    PRE_ROUTE_INTAKE_EVENTS.has(input.eventType) &&
+    !input.firmId &&
+    !input.firmClientId
+  ) {
+    return;
+  }
   const hasScope = Boolean(
     input.firmId || input.firmClientId || input.engagementId || input.portcoId,
   );
@@ -124,6 +142,18 @@ function assertValidCashAppEventType(eventType: string, category: string): void 
   }
 }
 
+function assertValidIntakeEventType(eventType: string, category: string): void {
+  // Legacy intake events (e.g. bill.received) predate the D6.5 bus catalog.
+  // Only enforce the allowlist for D6.5 bus event types.
+  if (category !== "intake") return;
+  if (!eventType.startsWith("intake_message_") && !eventType.startsWith("intake_address_")) return;
+  if (!isIntakeEventType(eventType)) {
+    throw new Error(
+      `publishEvent: invalid intake eventType '${eventType}' (allowed: ${INTAKE_EVENT_TYPES.join(", ")})`,
+    );
+  }
+}
+
 // -------------------- Publisher --------------------
 export async function publishEvent(
   input: PublishEventInput,
@@ -133,6 +163,7 @@ export async function publishEvent(
   assertValidCategory(input.eventCategory);
   assertValidActor(input.actorType);
   assertValidCashAppEventType(input.eventType, input.eventCategory);
+  assertValidIntakeEventType(input.eventType, input.eventCategory);
 
   const supabase = client ?? createServiceClient();
   const correlationId = input.correlationId ?? randomUUID();
@@ -194,6 +225,7 @@ export async function publishEventsBatch(
   inputs.forEach((i) => assertValidCategory(i.eventCategory));
   inputs.forEach((i) => assertValidActor(i.actorType));
   inputs.forEach((i) => assertValidCashAppEventType(i.eventType, i.eventCategory));
+  inputs.forEach((i) => assertValidIntakeEventType(i.eventType, i.eventCategory));
 
   const supabase = client ?? createServiceClient();
   const correlationId = inputs[0].correlationId ?? randomUUID();

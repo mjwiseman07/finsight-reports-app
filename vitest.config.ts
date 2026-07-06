@@ -20,6 +20,7 @@ export default defineConfig({
       "lib/accruals/__tests__/**/*.test.ts",
       "lib/ar-cash-app/**/*.test.ts",
       "lib/cash-app/**/*.test.ts",
+      "lib/intake/**/*.test.ts",
       "app/**/*.test.ts",
       "app/**/*.test.tsx",
       "architecture-lane/**/*.test.ts",

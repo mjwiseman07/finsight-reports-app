@@ -1,18 +1,17 @@
 /**
- * Postmark inbound webhook — HMAC verify before any DB write.
+ * Postmark inbound webhook — universal intake entrypoint.
+ * HMAC + IP verify, ingest into intake_messages, dispatch to handler bus.
  */
 import { NextRequest, NextResponse } from "next/server";
 import crypto, { createHash } from "crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { extractEmailDomain } from "@/lib/ar-cash-app/normalization/payer-name";
-import { sniffFormat } from "@/lib/ar-cash-app/parsers/sniff";
-import { parseEdi820 } from "@/lib/ar-cash-app/parsers/edi-820";
-import { parseCamt054 } from "@/lib/ar-cash-app/parsers/iso20022-camt054";
+import { parseIntakeAddress } from "@/lib/intake/address";
+import { dispatchMessage } from "@/lib/intake/dispatch";
 import { publishEvent } from "@/lib/events/publisher";
+import type { IntakeMessageRecord, IntakeAttachmentRecord } from "@/lib/intake/types";
 
 export const runtime = "nodejs";
-
-const SECRET = process.env.POSTMARK_INBOUND_WEBHOOK_SECRET;
 
 const POSTMARK_WEBHOOK_IPS = [
   "3.134.147.250",
@@ -21,9 +20,9 @@ const POSTMARK_WEBHOOK_IPS = [
   "18.217.206.57",
 ];
 
-function verifyHmac(rawBody: string, providedSig: string | null): boolean {
-  if (!SECRET || !providedSig) return false;
-  const expected = crypto.createHmac("sha256", SECRET).update(rawBody, "utf8").digest("base64");
+function verifyHmac(rawBody: string, providedSig: string | null, secret: string | undefined): boolean {
+  if (!secret || !providedSig) return false;
+  const expected = crypto.createHmac("sha256", secret).update(rawBody, "utf8").digest("base64");
   const a = Buffer.from(expected);
   const b = Buffer.from(providedSig);
   if (a.length !== b.length) return false;
@@ -55,10 +54,12 @@ interface PostmarkInboundPayload {
   Headers?: Array<{ Name: string; Value: string }>;
   OriginalRecipient?: string;
   To?: string;
+  ToFull?: Array<{ Email: string; Name?: string }>;
 }
 
 export async function POST(req: NextRequest) {
-  if (!SECRET) {
+  const secret = process.env.POSTMARK_INBOUND_WEBHOOK_SECRET;
+  if (!secret) {
     console.error("[postmark-inbound] POSTMARK_INBOUND_WEBHOOK_SECRET not set");
     return NextResponse.json({ error: "server misconfigured" }, { status: 500 });
   }
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
   const url = new URL(req.url);
   const providedSig = url.searchParams.get("sig");
 
-  const validSig = verifyHmac(rawBody, providedSig);
+  const validSig = verifyHmac(rawBody, providedSig, secret);
   const validIp = isPostmarkIp(req);
   if (!validSig && !validIp) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -80,205 +81,166 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const senderEmail = payload.FromFull?.Email ?? payload.From;
-  const senderDomain = extractEmailDomain(senderEmail);
   const supabase = createServiceClient();
 
-  const dedupHash = createHash("sha256")
-    .update(`postmark_inbound|${payload.MessageID}`)
+  const senderEmail = payload.FromFull?.Email ?? payload.From;
+  const senderDomain = extractEmailDomain(senderEmail);
+  const recipientAddress =
+    payload.OriginalRecipient ?? payload.ToFull?.[0]?.Email ?? payload.To ?? null;
+  const parsedAddress = recipientAddress ? parseIntakeAddress(recipientAddress) : null;
+
+  const dedupKey = `postmark_inbound|${payload.MessageID}`;
+
+  const attachmentDigests: Array<{
+    filename: string;
+    content_type: string;
+    content_length: number;
+    content_sha256: string;
+    content_base64: string;
+  }> = [];
+
+  for (const att of payload.Attachments ?? []) {
+    const buf = Buffer.from(att.Content, "base64");
+    const sha = createHash("sha256").update(buf).digest("hex");
+    attachmentDigests.push({
+      filename: att.Name,
+      content_type: att.ContentType,
+      content_length: att.ContentLength,
+      content_sha256: sha,
+      content_base64: att.Content,
+    });
+  }
+
+  const contentHash = createHash("sha256")
+    .update(
+      JSON.stringify({
+        subject: payload.Subject ?? "",
+        text: payload.TextBody ?? "",
+        html: payload.HtmlBody ?? "",
+        attachments: attachmentDigests.map((a) => a.content_sha256).sort(),
+      }),
+    )
     .digest("hex");
 
   const { data: existing } = await supabase
-    .from("ar_cash_app_remittances")
-    .select("id")
-    .eq("dedup_hash", dedupHash)
+    .from("intake_messages")
+    .select("id, dispatch_status")
+    .eq("dedup_key", dedupKey)
     .maybeSingle();
 
   if (existing) {
-    return NextResponse.json({ ok: true, deduped: true, id: existing.id });
-  }
-
-  let firmId: string | null = null;
-  let companyId: string | null = null;
-  let firmClientId: string | null = null;
-
-  if (senderDomain) {
-    const { data: customer } = await supabase
-      .from("customers")
-      .select("firm_id, company_id")
-      .eq("email_domain", senderDomain)
-      .limit(1)
-      .maybeSingle();
-
-    if (customer) {
-      firmId = customer.firm_id;
-      companyId = customer.company_id;
-      const { data: fc } = await supabase
-        .from("firm_clients")
-        .select("id")
-        .eq("company_id", companyId)
-        .maybeSingle();
-      firmClientId = fc?.id ?? null;
-    }
-  }
-
-  if (!firmId || !companyId) {
-    console.warn("[postmark-inbound] unresolved sender", {
-      senderDomain,
-      messageId: payload.MessageID,
-    });
+    await publishEvent(
+      {
+        eventType: "intake_message_deduped",
+        eventCategory: "intake",
+        aggregateType: "intake_message",
+        aggregateId: existing.id,
+        actorType: "integration",
+        payload: { dedup_key: dedupKey, reason: "message_id_seen" },
+      },
+      supabase,
+    );
     return NextResponse.json({
       ok: true,
-      unresolved: true,
-      reason: "sender_domain_not_matched_to_any_customer",
-      messageId: payload.MessageID,
+      deduped: true,
+      intake_message_id: existing.id,
+      previous_status: existing.dispatch_status,
     });
   }
 
-  const textCandidates: string[] = [];
-  if (payload.TextBody) textCandidates.push(payload.TextBody);
-  for (const att of payload.Attachments ?? []) {
-    if (att.ContentType.startsWith("text/") || /\.(edi|x12|xml)$/i.test(att.Name)) {
-      try {
-        const decoded = Buffer.from(att.Content, "base64").toString("utf8");
-        textCandidates.push(decoded);
-      } catch {
-        /* skip */
-      }
-    }
+  let isDuplicate = false;
+  let duplicateOf: string | null = null;
+  const { data: contentMatch } = await supabase
+    .from("intake_messages")
+    .select("id")
+    .eq("content_hash", contentHash)
+    .limit(1)
+    .maybeSingle();
+  if (contentMatch) {
+    isDuplicate = true;
+    duplicateOf = contentMatch.id;
   }
 
-  let parseStatus: "pending" | "parsed" | "parse_failed" = "pending";
-  let parseError: string | null = null;
-  let remittanceLines: Array<{
-    invoice_reference: string;
-    amount_paid: number;
-    line_number: number;
-    raw_line_text: string;
-  }> = [];
-
-  for (const content of textCandidates) {
-    const format = sniffFormat(content);
-    if (!format) continue;
-    try {
-      if (format === "edi_820") {
-        const parsed = parseEdi820(content);
-        remittanceLines = parsed.lines.map((l, i) => ({
-          line_number: i + 1,
-          invoice_reference: l.invoiceReference,
-          amount_paid: l.amountPaid,
-          raw_line_text: l.rawSegment,
-        }));
-        parseStatus = "parsed";
-        break;
-      }
-      if (format === "iso20022_camt054") {
-        const parsed = parseCamt054(content);
-        let ln = 0;
-        for (const entry of parsed.entries) {
-          for (const ref of entry.invoiceReferences) {
-            ln += 1;
-            remittanceLines.push({
-              line_number: ln,
-              invoice_reference: ref,
-              amount_paid: entry.amount / Math.max(entry.invoiceReferences.length, 1),
-              raw_line_text: `${ref} (from camt.054 ${entry.bookingDate})`,
-            });
-          }
-        }
-        parseStatus = remittanceLines.length > 0 ? "parsed" : "pending";
-        break;
-      }
-    } catch (e: unknown) {
-      parseStatus = "parse_failed";
-      parseError = e instanceof Error ? e.message : String(e);
-    }
-  }
-
-  const { data: remittance, error: insertErr } = await supabase
-    .from("ar_cash_app_remittances")
+  const { data: inserted, error: insertErr } = await supabase
+    .from("intake_messages")
     .insert({
-      firm_id: firmId,
-      company_id: companyId,
       source_channel: "postmark_inbound",
       source_message_id: payload.MessageID,
-      raw_payload: payload,
-      raw_body_text: payload.TextBody ?? null,
-      raw_attachments: (payload.Attachments ?? []).map((a) => ({
-        filename: a.Name,
-        content_type: a.ContentType,
-        content_length: a.ContentLength,
-      })),
+      recipient_address: recipientAddress,
+      recipient_prefix: parsedAddress?.prefix ?? null,
+      recipient_firm_slug: parsedAddress?.firmSlug ?? null,
+      recipient_token: parsedAddress?.token ?? null,
       sender_email: senderEmail,
       sender_domain: senderDomain,
       subject: payload.Subject,
       received_at: payload.Date,
-      parse_status: parseStatus,
-      parse_error: parseError,
-      dedup_hash: dedupHash,
-      assertions_addressed: ["completeness"],
+      raw_body_text: payload.TextBody ?? null,
+      raw_body_html: payload.HtmlBody ?? null,
+      raw_headers: payload.Headers ?? null,
+      raw_payload: payload,
+      content_hash: contentHash,
+      dedup_key: dedupKey,
+      is_duplicate: isDuplicate,
+      duplicate_of: duplicateOf,
     })
     .select()
     .single();
 
-  if (insertErr || !remittance) {
-    console.error("[postmark-inbound] insert failed", insertErr);
+  if (insertErr || !inserted) {
+    console.error("[postmark-inbound] intake insert failed", insertErr);
     return NextResponse.json({ error: "ingest_failed" }, { status: 500 });
   }
 
-  if (remittanceLines.length > 0) {
-    const lineRows = remittanceLines.map((l) => ({
-      remittance_id: remittance.id,
-      firm_id: firmId!,
-      company_id: companyId!,
-      line_number: l.line_number,
-      invoice_reference: l.invoice_reference,
-      invoice_reference_normalized: null,
-      amount_paid: l.amount_paid,
-      raw_line_text: l.raw_line_text,
-    }));
-    await supabase.from("ar_cash_app_remittance_lines").insert(lineRows);
+  const attachmentRows: IntakeAttachmentRecord[] = [];
+  for (const d of attachmentDigests) {
+    const { data: attRow, error: attErr } = await supabase
+      .from("intake_attachments")
+      .insert({
+        intake_message_id: inserted.id,
+        filename: d.filename,
+        content_type: d.content_type,
+        content_length: d.content_length,
+        content_sha256: d.content_sha256,
+        content_base64: d.content_base64,
+      })
+      .select()
+      .single();
+    if (attErr || !attRow) continue;
+    attachmentRows.push(attRow as IntakeAttachmentRecord);
   }
 
   await publishEvent(
     {
-      eventType: "remittance_ingested",
-      eventCategory: "cash_app",
-      firmId,
-      firmClientId: firmClientId ?? undefined,
-      aggregateType: "ar_cash_app_remittance",
-      aggregateId: remittance.id,
+      eventType: "intake_message_received",
+      eventCategory: "intake",
+      aggregateType: "intake_message",
+      aggregateId: inserted.id,
       actorType: "integration",
       payload: {
         source_channel: "postmark_inbound",
         message_id: payload.MessageID,
+        recipient_prefix: parsedAddress?.prefix ?? null,
+        recipient_firm_slug: parsedAddress?.firmSlug ?? null,
         sender_domain: senderDomain,
-        company_id: companyId,
+        content_hash: contentHash,
+        is_duplicate: isDuplicate,
       },
     },
     supabase,
   );
 
-  if (parseStatus === "parsed") {
-    await publishEvent(
-      {
-        eventType: "remittance_parsed",
-        eventCategory: "cash_app",
-        firmId,
-        firmClientId: firmClientId ?? undefined,
-        aggregateType: "ar_cash_app_remittance",
-        aggregateId: remittance.id,
-        actorType: "integration",
-        payload: { lines: remittanceLines.length, company_id: companyId },
-      },
-      supabase,
-    );
-  }
+  const dispatchResult = await dispatchMessage(
+    supabase,
+    inserted as IntakeMessageRecord,
+    attachmentRows,
+  );
 
   return NextResponse.json({
     ok: true,
-    id: remittance.id,
-    parse_status: parseStatus,
-    lines: remittanceLines.length,
+    intake_message_id: inserted.id,
+    handler_key: dispatchResult.handlerKey,
+    outcome: dispatchResult.outcome,
+    detail: dispatchResult.detail,
+    is_duplicate: isDuplicate,
   });
 }
