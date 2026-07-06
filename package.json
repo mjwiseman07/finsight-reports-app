@@ -135,6 +135,7 @@
     "@sparticuz/chromium-min": "^149.0.0",
     "@stripe/stripe-js": "^5.10.0",
     "@supabase/supabase-js": "^2.106.1",
+    "fast-xml-parser": "^5.9.3",
     "next": "16.2.6",
     "node-quickbooks": "^2.0.50",
     "papaparse": "^5.5.3",

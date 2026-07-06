@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.08">
+  <BkToCstmrDbtCdtNtfctn>
+    <GrpHdr>
+      <MsgId>ADVISACOR-20260705-0001</MsgId>
+      <CreDtTm>2026-07-05T14:30:00</CreDtTm>
+    </GrpHdr>
+    <Ntfctn>
+      <Id>NTFCTN-0001</Id>
+      <Acct><Id><IBAN>US64SVBKUS6S3300958879</IBAN></Id></Acct>
+      <Ntry>
+        <NtryRef>NTRY-001</NtryRef>
+        <Amt Ccy="USD">1250.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-07-05</Dt></BookgDt>
+        <NtryDtls>
+          <TxDtls>
+            <RltdPties>
+              <Dbtr><Nm>ACME CORPORATION</Nm></Dbtr>
+            </RltdPties>
+            <RmtInf>
+              <Ustrd>Payment for INV-4521 and INV-4522</Ustrd>
+              <Strd>
+                <CdtrRefInf><Ref>INV-4521</Ref></CdtrRefInf>
+              </Strd>
+              <Strd>
+                <CdtrRefInf><Ref>INV-4522</Ref></CdtrRefInf>
+              </Strd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <NtryRef>NTRY-002</NtryRef>
+        <Amt Ccy="USD">50.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <BookgDt><Dt>2026-07-05</Dt></BookgDt>
+      </Ntry>
+    </Ntfctn>
+  </BkToCstmrDbtCdtNtfctn>
+</Document>

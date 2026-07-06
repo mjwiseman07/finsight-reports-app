@@ -17,8 +17,12 @@
  *   });
  */
 import { createServiceClient } from "@/lib/supabase/service";
+import { CASH_APP_EVENT_TYPES, isCashAppEventType } from "@/lib/events/cash-app-catalog";
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+export { CASH_APP_EVENT_TYPES, isCashAppEventType };
+export type { CashAppEventType } from "@/lib/events/cash-app-catalog";
 
 // -------------------- Types --------------------
 export type EventCategory =
@@ -112,6 +116,14 @@ function assertValidActor(actor: string): void {
   }
 }
 
+function assertValidCashAppEventType(eventType: string, category: string): void {
+  if (category === "cash_app" && !isCashAppEventType(eventType)) {
+    throw new Error(
+      `publishEvent: invalid cash_app eventType '${eventType}' (allowed: ${CASH_APP_EVENT_TYPES.join(", ")})`,
+    );
+  }
+}
+
 // -------------------- Publisher --------------------
 export async function publishEvent(
   input: PublishEventInput,
@@ -120,6 +132,7 @@ export async function publishEvent(
   assertScope(input);
   assertValidCategory(input.eventCategory);
   assertValidActor(input.actorType);
+  assertValidCashAppEventType(input.eventType, input.eventCategory);
 
   const supabase = client ?? createServiceClient();
   const correlationId = input.correlationId ?? randomUUID();
@@ -180,6 +193,7 @@ export async function publishEventsBatch(
   inputs.forEach(assertScope);
   inputs.forEach((i) => assertValidCategory(i.eventCategory));
   inputs.forEach((i) => assertValidActor(i.actorType));
+  inputs.forEach((i) => assertValidCashAppEventType(i.eventType, i.eventCategory));
 
   const supabase = client ?? createServiceClient();
   const correlationId = inputs[0].correlationId ?? randomUUID();
