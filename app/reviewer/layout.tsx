@@ -51,6 +51,9 @@ export default function ReviewerLayout({ children }: { children: React.ReactNode
           <Link href="/reviewer/queue" className="hover:text-teal-300">
             Queue
           </Link>
+          <Link href="/reviewer/cash-app" className="hover:text-teal-300">
+            Cash App
+          </Link>
           {me?.writerFirmIds.length ? (
             <span className="text-slate-500">Settings (per engagement)</span>
           ) : null}
