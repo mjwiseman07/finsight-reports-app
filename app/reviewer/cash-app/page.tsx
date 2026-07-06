@@ -11,9 +11,8 @@ async function fetchReviewItems(
   url.searchParams.set("status", "pending");
   url.searchParams.set("limit", "25");
   if (cursor) url.searchParams.set("cursor", cursor);
-  const token = window.localStorage.getItem("supabase_access_token") ?? "";
   const res = await fetch(url.toString(), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "same-origin",
   });
   if (!res.ok) {
     throw new Error(`Failed to load review items (status ${res.status})`);

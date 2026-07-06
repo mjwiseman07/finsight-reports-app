@@ -22,10 +22,7 @@ export function WriteOffModal({ reviewItemId, maxAmount, onClose, onResolved }: 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = window.localStorage.getItem("supabase_access_token") ?? "";
-    fetch("/api/reviewer/qbo-accounts", {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
+    fetch("/api/reviewer/qbo-accounts", { credentials: "same-origin" })
       .then((res) => (res.ok ? res.json() : { accounts: [] }))
       .then((data: { accounts?: GlAccountOption[] }) => setGlAccounts(data.accounts ?? []))
       .catch(() => setGlAccounts([]));
@@ -44,13 +41,10 @@ export function WriteOffModal({ reviewItemId, maxAmount, onClose, onResolved }: 
     setBusy(true);
     setError(null);
     try {
-      const token = window.localStorage.getItem("supabase_access_token") ?? "";
       const res = await fetch(`/api/ar/cash-app/review-items/${reviewItemId}/resolve`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ action: "write_off", amount: parsed, glAccountId }),
       });
       if (!res.ok) {

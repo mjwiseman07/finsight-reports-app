@@ -60,6 +60,7 @@ function isMarketingAllowed(pathname: string) {
     // Allow app API surfaces that need to run for signed-in users on the marketing host.
     pathname.startsWith("/api/admin/") ||
     pathname.startsWith("/api/reviewer/") ||
+    pathname.startsWith("/api/ar/") ||
     pathname.startsWith("/api/client/") ||
     pathname.startsWith("/api/pulse/") ||
     pathname.startsWith("/api/auth/") ||

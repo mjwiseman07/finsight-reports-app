@@ -41,13 +41,10 @@ export function SplitAllocationModal({ reviewItemId, candidates, onClose, onReso
     setBusy(true);
     setError(null);
     try {
-      const token = window.localStorage.getItem("supabase_access_token") ?? "";
       const res = await fetch(`/api/ar/cash-app/review-items/${reviewItemId}/resolve`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ action: "split", splitAllocations }),
       });
       if (!res.ok) {

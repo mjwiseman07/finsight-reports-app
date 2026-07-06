@@ -12,13 +12,10 @@ interface Props {
 }
 
 async function postResolve(id: string, body: unknown) {
-  const token = window.localStorage.getItem("supabase_access_token") ?? "";
   const res = await fetch(`/api/ar/cash-app/review-items/${id}/resolve`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     body: JSON.stringify(body),
   });
   if (!res.ok) {

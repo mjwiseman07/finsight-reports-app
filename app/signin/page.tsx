@@ -7,6 +7,7 @@ import { SiteFooter } from "../../components/SiteFooter";
 import { SiteNav } from "../../components/SiteNav";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import { supabase } from "../../lib/supabase";
+import { ADVISACOR_ACCESS_TOKEN_COOKIE } from "@/lib/reviewer/constants";
 
 export default function SigninPage() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function SigninPage() {
         return;
       }
       window.localStorage.setItem("supabase_access_token", data.session.access_token);
+      const maxAge = data.session.expires_in ?? 3600;
+      document.cookie = `${ADVISACOR_ACCESS_TOKEN_COOKIE}=${encodeURIComponent(data.session.access_token)}; path=/; max-age=${maxAge}; SameSite=Lax`;
       const isSuperAdmin =
         data.user?.app_metadata?.role === "super_admin" ||
         data.user?.user_metadata?.role === "super_admin";
