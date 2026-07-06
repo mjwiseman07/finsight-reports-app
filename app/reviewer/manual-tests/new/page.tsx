@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { MANUAL_EVIDENCE_TYPES } from "@/lib/pre-close/manual-test-evidence-types";
 
 const AccentTeal = "#01696F";
 
-export default function NewManualTestPage() {
+function NewManualTestPageInner() {
   const params = useSearchParams();
   const router = useRouter();
   const [error, setError] = useState("");
@@ -143,5 +143,13 @@ export default function NewManualTestPage() {
         </p>
       ) : null}
     </div>
+  );
+}
+
+export default function NewManualTestPage() {
+  return (
+    <Suspense fallback={<div className="text-slate-400 text-sm">Loading form…</div>}>
+      <NewManualTestPageInner />
+    </Suspense>
   );
 }
