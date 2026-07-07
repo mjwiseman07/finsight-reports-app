@@ -1,7 +1,7 @@
-{
-  "block": "D6.5 Part 2 Block 5 — Anomaly + Score Aggregation + Merkle Ledger",
-  "shipped_at": "__WILL_BE_SET_AT_COMMIT_TIME__",
-  "head_sha": "__WILL_BE_SET_AT_COMMIT_TIME__",
+﻿{
+  "block": "D6.5 Part 2 Block 5 â€” Anomaly + Score Aggregation + Merkle Ledger",
+  "shipped_at": "2026-07-07T03:55:14Z",
+  "head_sha": "bb81b41f8532f45778cfa3e03dc7a6bc3da33cfd",
   "base_head": "9e96664606b7b12cc96f406ef25b0a0200a6f650",
   "migration": "supabase/migrations/20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
   "artifacts": {
@@ -51,14 +51,15 @@
     "new_test_files": 12
   },
   "verification": {
-    "typecheck": "__WILL_BE_SET_AT_COMMIT_TIME__",
-    "test_pass_count": "__WILL_BE_SET_AT_COMMIT_TIME__",
-    "chain_verifier_smoke": "__WILL_BE_SET_AT_COMMIT_TIME__"
+    "typecheck": "pass on Block 5 production paths; pre-existing test-file tsc errors remain",
+    "test_pass_count": "1953",
+    "chain_verifier_smoke": "deferred to post-migration smoke run"
   },
   "carry_forward_to_block_6": [
-    "approvalThresholdCents currently NULL — Block 6 wires firm_clients.approval_threshold_cents",
-    "bill_history is now populated — Block 6 baseline harvest can bootstrap from existing rows",
-    "fraud_score_signals disposition rows — Block 6/8b UI can show reviewer productivity",
-    "Merkle chain now live — all downstream blocks inherit tamper evidence for free"
+    "approvalThresholdCents currently NULL â€” Block 6 wires firm_clients.approval_threshold_cents",
+    "bill_history is now populated â€” Block 6 baseline harvest can bootstrap from existing rows",
+    "fraud_score_signals disposition rows â€” Block 6/8b UI can show reviewer productivity",
+    "Merkle chain now live â€” all downstream blocks inherit tamper evidence for free"
   ]
 }
+
