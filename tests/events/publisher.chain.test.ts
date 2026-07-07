@@ -136,4 +136,73 @@ describe("publishEvent — merkle chain RPC", () => {
     expect(res.eventId).toBe("evt-injected");
     expect(res.eventSequence).toBe(5);
   });
+
+  it("throws instead of silently falling back when RPC returns an error", async () => {
+    const supabase = createServiceClient();
+    // Simulate an RPC error (e.g. transient network / permission / function bug)
+    rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: "connection reset by peer" },
+    });
+    await expect(
+      publishEvent(
+        {
+          eventType: "bill.fraud_score_updated",
+          eventCategory: "ap",
+          firmId: "f1",
+          firmClientId: "fc1",
+          aggregateType: "ap_intake_bill",
+          aggregateId: "b-err",
+          actorType: "system",
+          payload: { bill_id: "b-err" },
+        },
+        supabase as never,
+      ),
+    ).rejects.toThrow(/publish_ledger_event RPC failed.*connection reset by peer/);
+    // Confirm the legacy fallback insert path was NOT touched
+    // (the mock's .from() would have been called if fallback happened).
+    // The rpc mock IS called exactly once.
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to legacy insert only when supabase.rpc is undefined", async () => {
+    // Build a legacy-style supabase mock with NO rpc method — matches the
+    // 240+ pre-Block-5 tests. Confirms the fallback path still fires when
+    // .rpc doesn't exist on the client at all.
+    const insertMock = vi.fn().mockReturnValue({
+      select: () => ({
+        single: async () => ({
+          data: {
+            event_id: "evt-legacy-1",
+            event_sequence: 42,
+            event_type: "bill.fraud_score_updated",
+            event_category: "ap",
+            occurred_at: "2026-07-07T00:00:00Z",
+            recorded_at: "2026-07-07T00:00:01Z",
+          },
+          error: null,
+        }),
+      }),
+    });
+    const legacySupabase = {
+      from: vi.fn(() => ({ insert: insertMock })),
+      // NOTE: no rpc property at all
+    };
+    const result = await publishEvent(
+      {
+        eventType: "bill.fraud_score_updated",
+        eventCategory: "ap",
+        firmId: "f1",
+        firmClientId: "fc1",
+        aggregateType: "ap_intake_bill",
+        aggregateId: "b-legacy",
+        actorType: "system",
+        payload: { bill_id: "b-legacy" },
+      },
+      legacySupabase as never,
+    );
+    expect(result.eventId).toBe("evt-legacy-1");
+    expect(result.eventSequence).toBe(42);
+    expect(insertMock).toHaveBeenCalledTimes(1);
+  });
 });

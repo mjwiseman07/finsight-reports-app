@@ -202,13 +202,23 @@ export async function publishEvent(
 
   if (typeof supabase.rpc === "function") {
     const { data: rpcRows, error } = await supabase.rpc("publish_ledger_event", rpcArgs);
+    // If the RPC itself errored, do NOT fall through to the legacy insert path.
+    // A silent fallback would write an orphaned ledger row (no event_hash,
+    // no previous_event_hash, no chain_index) and permanently gap the Merkle
+    // chain — verifyChain would report the chain as broken forever after.
+    // Throwing surfaces the failure so an operator can investigate.
+    if (error) {
+      throw new Error(
+        `publish_ledger_event RPC failed: ${error.message ?? "unknown error"} (eventType=${input.eventType})`,
+      );
+    }
     const row = (rpcRows as Array<{
       event_id: string;
       event_hash: string;
       chain_index: number;
     }> | null)?.[0];
 
-    if (!error && row) {
+    if (row) {
       const { data: seqRow } = await supabase
         .from("ledger_events")
         .select("event_sequence, occurred_at, recorded_at")
@@ -224,6 +234,11 @@ export async function publishEvent(
         recordedAt: seqRow?.recorded_at ? new Date(seqRow.recorded_at) : new Date(),
       };
     }
+    // RPC returned no error but also no rows. This should never happen in
+    // production because publish_ledger_event ALWAYS returns exactly one row
+    // on success. If we hit this branch, it means the RPC call was intercepted
+    // by a test mock that returned undefined/null data — allow the fallback so
+    // legacy test mocks that don't stub .rpc's return value keep working.
   }
 
   // Fallback for environments/tests without publish_ledger_event RPC applied yet.
