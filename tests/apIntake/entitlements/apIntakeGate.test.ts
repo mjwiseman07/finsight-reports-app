@@ -5,6 +5,10 @@ vi.mock("@/lib/ai/action-logger", () => ({
   logAiAction: vi.fn().mockResolvedValue({ actionId: "a1", eventId: "e1" }),
 }));
 
+vi.mock("@/lib/events/publisher", () => ({
+  publishEvent: vi.fn().mockResolvedValue({ eventId: "evt-1" }),
+}));
+
 vi.mock("@/lib/entitlements/gate", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/entitlements/gate")>();
   return {
@@ -22,25 +26,59 @@ const mockAssert = vi.mocked(assertEntitlement);
 function makeCtx(): IntakeHandlerContext {
   const inserts: Array<{ table: string; row: Record<string, unknown> }> = [];
   const supabase = {
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
+    from: (table: string) => {
+      if (table === "ap_intake_quarantine") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: null, error: null }),
+            }),
+          }),
+          insert: (row: Record<string, unknown>) => {
+            inserts.push({ table, row });
+            return {
+              select: () => ({
+                single: async () => ({ data: { id: "q-gate-1" }, error: null }),
+              }),
+            };
+          },
+        };
+      }
+      if (table === "vendor_master_mirror") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => Promise.resolve({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
+      return {
+        select: () => ({
           eq: () => ({
-            limit: () => ({
-              maybeSingle: async () => ({ data: { id: "eng-1" }, error: null }),
+            eq: () => ({
+              limit: () => ({
+                maybeSingle: async () => ({ data: { id: "eng-1" }, error: null }),
+              }),
+              order: () => ({
+                limit: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+              }),
             }),
           }),
         }),
-      }),
-      insert: (row: Record<string, unknown>) => {
-        inserts.push({ table, row });
-        return {
-          select: () => ({
-            single: async () => ({ data: { id: "bill-1" }, error: null }),
-          }),
-        };
-      },
-    }),
+        insert: (row: Record<string, unknown>) => {
+          inserts.push({ table, row });
+          return {
+            select: () => ({
+              single: async () => ({ data: { id: "bill-1" }, error: null }),
+            }),
+          };
+        },
+        update: () => ({
+          eq: () => Promise.resolve({ data: null, error: null }),
+        }),
+      };
+    },
     _inserts: inserts,
   };
   return {

@@ -26,6 +26,8 @@ export type AiActionCategory =
   | "agent_close_walkthrough"
   | "visual_fingerprint"
   | "vendor_resolution"
+  | "bank_change_detection"
+  | "quarantine_gate_evaluation"
   | "other";
 
 export type ModelProvider = "anthropic" | "openai" | "google" | "aws_bedrock" | "local";

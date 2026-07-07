@@ -12,6 +12,7 @@ export const ADDON_CODES = [
   "ar_cash_app",
   "ar_collections",
   "voice_collections",
+  "quarantine_review",
 ] as const;
 
 export type AddonCode = (typeof ADDON_CODES)[number];
@@ -110,6 +111,19 @@ export const ADDON_REGISTRY: Record<AddonCode, AddonMetadata> = {
     defaultOverageUnitCents: 75,
     volumeUnit: "call_minute",
     requiresWave: 3,
+  },
+  quarantine_review: {
+    code: "quarantine_review",
+    displayName: "Quarantine Review",
+    description:
+      "Reviewer surface for AP bills held in quarantine by the immune system (L1-L11). Includes attestation modal, bookkeeper allowlist gate, and full audit trail. Required to release any bill flagged by the L1-L11 immune system.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 4900,
+    defaultIncludedVolume: 50,
+    defaultOverageUnitCents: 100,
+    volumeUnit: "release_attempt",
+    requiresWave: 1,
   },
 };
 

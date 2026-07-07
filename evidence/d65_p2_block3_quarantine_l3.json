@@ -1,0 +1,97 @@
+{
+  "block": "D6.5 Part 2 — Block 3 (L3 Bank Change + L2 Quarantine + Gates)",
+  "shipped_at": "2026-07-07T01:38:00.0000000Z",
+  "head_sha": "0ce7270bbe9433c4fc66d59f645c80b98307a30c",
+  "migration": {
+    "file": "supabase/migrations/20260717030000_d65_p2_block3_quarantine_l3.sql",
+    "name": "d65_p2_block3_quarantine_l3",
+    "applied_to_prod": false,
+    "additive_only": true,
+    "new_tables": [
+      "ap_intake_quarantine",
+      "vendor_bank_history",
+      "bookkeeper_release_allowlist",
+      "quarantine_release_attempts"
+    ],
+    "new_columns": [
+      "ap_intake_bills.fraud_score_current NUMERIC(4,3) DEFAULT 0",
+      "ap_intake_bills.quarantine_id UUID",
+      "ap_intake_bills.bank_account_hash_current TEXT"
+    ],
+    "new_ledger_event_types": [
+      "bill.quarantined",
+      "bill.release_requested",
+      "bill.released",
+      "bill.release_blocked",
+      "vendor.bank_info_observed",
+      "vendor.bank_change_detected"
+    ]
+  },
+  "artifacts": {
+    "new_code_files": [
+      "lib/ap-intake/quarantine/schema.ts",
+      "lib/ap-intake/quarantine/quarantine-service.ts",
+      "lib/ap-intake/quarantine/release-service.ts",
+      "lib/ap-intake/quarantine/gates/qc-01-attestation.ts",
+      "lib/ap-intake/quarantine/gates/qc-02-bookkeeper-allowlist.ts",
+      "lib/ap-intake/quarantine/gates/qc-03-second-person.ts",
+      "lib/ap-intake/quarantine/gates/qc-04-fraud-score-ceiling.ts",
+      "lib/ap-intake/quarantine/gates/index.ts",
+      "lib/ap-intake/l3/bank-change-detector.ts",
+      "lib/ap-intake/l3/remittance-extractor.ts",
+      "lib/ap-intake/assertions/bank-info-matches-vendor-history.ts",
+      "lib/ap-intake/assertions/quarantine-release-requires-all-gates.ts",
+      "scripts/seed-ny-pilot-allowlist.ts"
+    ],
+    "new_api_files": [
+      "app/api/quarantine/list/route.ts",
+      "app/api/quarantine/release-request/route.ts"
+    ],
+    "new_ui_files": [
+      "app/quarantine/page.tsx"
+    ],
+    "modified_code_files": [
+      "lib/entitlements/registry.ts",
+      "lib/events/ap-catalog.ts",
+      "lib/ai/action-logger.ts",
+      "lib/intake/handlers/bills.ts"
+    ],
+    "new_test_files": [
+      "tests/apIntake/l3/remittance-extractor.test.ts",
+      "tests/apIntake/l3/bank-change-detector.test.ts",
+      "tests/apIntake/quarantine/quarantine-service.test.ts",
+      "tests/apIntake/quarantine/gates/qc-01.test.ts",
+      "tests/apIntake/quarantine/gates/qc-02.test.ts",
+      "tests/apIntake/quarantine/gates/qc-03.test.ts",
+      "tests/apIntake/quarantine/gates/qc-04.test.ts",
+      "tests/apIntake/quarantine/release-service.test.ts",
+      "tests/apIntake/handlers/bills.bankChange.test.ts"
+    ],
+    "modified_test_files": [
+      "tests/apIntake/handlers/bills.integration.test.ts",
+      "tests/apIntake/handlers/bills.vendorResolution.test.ts",
+      "tests/apIntake/entitlements/apIntakeGate.test.ts",
+      "tests/entitlements/registry.test.ts",
+      "tests/entitlements/audit-immutability.test.ts"
+    ]
+  },
+  "verification": {
+    "typecheck": "pre-existing unrelated tsc errors in gap-review-item-sync and assertion-coverage-remediation tests",
+    "test_suite_total": 1889,
+    "test_suite_passed": 1888,
+    "test_suite_failed": 1,
+    "block_3_tests_passed": 33,
+    "block_1_2_tests_regressed": false,
+    "migration_ci_pass": true,
+    "reviewer_ui_router_kind": "app",
+    "hard_verify_head_sha_matches_evidence": true
+  },
+  "carry_forward_to_block_4": {
+    "notes": [
+      "Block 4 (L5 duplicate detection) consumes ap_intake_bills.fraud_score_current — should ADD to it, not replace.",
+      "Block 4 will emit signal duplicate_bill_detected which qc-04 will consider once Block 5 wires fraud_score aggregation.",
+      "quarantine_release_attempts.gate_results JSONB structure locked — Block 4/5 gates append entries, never mutate prior entries.",
+      "Assertion bank_info_matches_vendor_history is soft (WARN) in Block 3. Block 8a interlock may promote to HARD depending on rails config."
+    ]
+  }
+}

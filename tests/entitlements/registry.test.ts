@@ -8,8 +8,8 @@ import {
 } from "@/lib/entitlements/registry";
 
 describe("entitlements/registry", () => {
-  it("has exactly 6 add-on codes", () => {
-    expect(ADDON_CODES.length).toBe(6);
+  it("has exactly 7 add-on codes", () => {
+    expect(ADDON_CODES.length).toBe(7);
   });
 
   it("has metadata for every code", () => {
@@ -27,7 +27,7 @@ describe("entitlements/registry", () => {
     expect(isAddonCode("ap_intake")).toBe(true);
     expect(isAddonCode("ap_pay")).toBe(true);
     expect(isAddonCode("ar_collections")).toBe(true);
-    expect(isAddonCode("voice_collections")).toBe(true);
+    expect(isAddonCode("quarantine_review")).toBe(true);
     expect(isAddonCode("bookkeeping")).toBe(false);
     expect(isAddonCode("")).toBe(false);
     expect(isAddonCode(null)).toBe(false);
@@ -44,7 +44,7 @@ describe("entitlements/registry", () => {
     const b = listAddonCodes();
     expect(a).toEqual(b);
     a.push("x" as never);
-    expect(listAddonCodes().length).toBe(6);
+    expect(listAddonCodes().length).toBe(7);
   });
 
   it("ap_pay is standalone-capable", () => {
@@ -66,5 +66,6 @@ describe("entitlements/registry", () => {
     expect(ADDON_REGISTRY.ar_cash_app.defaultMonthlyBaseCents).toBe(14900);
     expect(ADDON_REGISTRY.ar_collections.defaultMonthlyBaseCents).toBe(24900);
     expect(ADDON_REGISTRY.voice_collections.defaultMonthlyBaseCents).toBe(9900);
+    expect(ADDON_REGISTRY.quarantine_review.defaultMonthlyBaseCents).toBe(4900);
   });
 });

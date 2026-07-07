@@ -30,37 +30,74 @@ const now = new Date().toISOString();
 function makeCtx(mirrorRows: Array<Record<string, unknown>>): IntakeHandlerContext {
   const inserts: Array<{ table: string; row: Record<string, unknown> }> = [];
   const supabase = {
-    from: (table: string) => ({
-      select: () => ({
-        eq: (_col1: string, _v1: unknown) => {
-          if (table === "vendor_master_mirror") {
-            return { eq: () => Promise.resolve({ data: mirrorRows, error: null }) };
+    from: (table: string) => {
+      if (table === "ap_intake_quarantine") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: null, error: null }),
+            }),
+          }),
+          insert: (row: Record<string, unknown>) => {
+            inserts.push({ table, row });
+            return {
+              select: () => ({
+                single: async () => ({ data: { id: "q-vendor-res-1" }, error: null }),
+              }),
+            };
+          },
+        };
+      }
+      if (table === "vendor_bank_history") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                order: () => Promise.resolve({ data: [], error: null }),
+              }),
+            }),
+          }),
+          insert: () => Promise.resolve({ data: null, error: null }),
+          update: () => ({
+            eq: () => Promise.resolve({ data: null, error: null }),
+          }),
+        };
+      }
+      return {
+        select: () => ({
+          eq: (_col1: string, _v1: unknown) => {
+            if (table === "vendor_master_mirror") {
+              return { eq: () => Promise.resolve({ data: mirrorRows, error: null }) };
+            }
+            return {
+              eq: () => ({
+                limit: () => ({
+                  maybeSingle: async () => ({ data: { id: "eng-1" }, error: null }),
+                }),
+                order: () => ({
+                  limit: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+                }),
+                eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+              }),
+            };
+          },
+        }),
+        insert: (row: Record<string, unknown>) => {
+          inserts.push({ table, row });
+          if (table === "vendor_invoice_fingerprints") {
+            return { error: null };
           }
           return {
-            eq: () => ({
-              limit: () => ({
-                maybeSingle: async () => ({ data: { id: "eng-1" }, error: null }),
-              }),
-              order: () => ({
-                limit: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
-              }),
-              eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+            select: () => ({
+              single: async () => ({ data: { id: "bill-1" }, error: null }),
             }),
           };
         },
-      }),
-      insert: (row: Record<string, unknown>) => {
-        inserts.push({ table, row });
-        if (table === "vendor_invoice_fingerprints") {
-          return { error: null };
-        }
-        return {
-          select: () => ({
-            single: async () => ({ data: { id: "bill-1" }, error: null }),
-          }),
-        };
-      },
-    }),
+        update: () => ({
+          eq: () => Promise.resolve({ data: null, error: null }),
+        }),
+      };
+    },
     _inserts: inserts,
   };
   return {
@@ -132,10 +169,12 @@ describe("bills handler — vendor resolution outcomes", () => {
     if (result.status === "success") {
       const signals = (result.detail.signals as Array<{ code: string }>) ?? [];
       expect(signals.some((s) => s.code === "no_match_route_to_quarantine")).toBe(true);
+      expect(result.detail.quarantine_id).toBe("q-vendor-res-1");
     }
     const inserts = (ctx.supabase as { _inserts: Array<{ table: string; row: Record<string, unknown> }> })
       ._inserts;
     expect(inserts.some((i) => i.table === "vendor_invoice_fingerprints")).toBe(false);
+    expect(inserts.some((i) => i.table === "ap_intake_quarantine")).toBe(true);
     expect(
       inserts.some(
         (i) => i.table === "ap_intake_bills" && i.row.vendor_resolution_method === "no_match",

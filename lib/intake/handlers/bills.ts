@@ -1,5 +1,5 @@
 /**
- * Phase D6.5 Part 2 — Block 2: Bills handler with L1 vendor resolution.
+ * Phase D6.5 Part 2 — Block 3: Bills handler with L1 vendor resolution + L3 bank change + quarantine.
  */
 import { publishEvent } from "@/lib/events/publisher";
 import { assertEntitlement } from "@/lib/entitlements/gate";
@@ -16,6 +16,9 @@ import {
   type BillTextExtractionResult,
 } from "@/lib/ap-intake/bills/helpers";
 import { resolveVendor, type VendorResolutionOutcome } from "@/lib/ap-intake/vendor/resolver";
+import { extractRemittance } from "@/lib/ap-intake/l3/remittance-extractor";
+import { detectBankChange } from "@/lib/ap-intake/l3/bank-change-detector";
+import { quarantineBill } from "@/lib/ap-intake/quarantine/quarantine-service";
 import type {
   IntakeHandler,
   IntakeHandlerContext,
@@ -145,6 +148,20 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
   textResult.bill_id = billId;
 
   if (outcome.method === "no_match") {
+    const { quarantineId } = await quarantineBill({
+      supabase: ctx.supabase,
+      firmId: ctx.message.firm_id,
+      firmClientId: ctx.message.firm_client_id ?? "",
+      billId,
+      intakeMessageId: ctx.message.id,
+      reason: "no_match",
+      originatingSignals: outcome.signals as Array<{
+        code: string;
+        severity: string;
+        evidence: unknown;
+      }>,
+      originatingSeverity: "HIGH",
+    });
     return {
       status: "success",
       detail: {
@@ -153,30 +170,47 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
         text: textResult,
         fingerprint_deferred: true,
         bill_id: billId,
+        quarantine_id: quarantineId,
         vendor_resolution: { method: outcome.method },
       },
     };
   }
 
   if (outcome.method === "fuzzy_candidate") {
+    const fuzzySignals = [
+      ...outcome.signals,
+      {
+        code: "fuzzy_candidates_pending_review",
+        severity: "INFO",
+        evidence: {
+          candidate_ids: outcome.candidate_ids,
+          confidence: outcome.confidence,
+        },
+      },
+    ];
+    const { quarantineId } = await quarantineBill({
+      supabase: ctx.supabase,
+      firmId: ctx.message.firm_id,
+      firmClientId: ctx.message.firm_client_id ?? "",
+      billId,
+      intakeMessageId: ctx.message.id,
+      reason: "fuzzy_candidate",
+      originatingSignals: fuzzySignals as Array<{
+        code: string;
+        severity: string;
+        evidence: unknown;
+      }>,
+      originatingSeverity: "HIGH",
+    });
     return {
       status: "success",
       detail: {
         partial: true,
-        signals: [
-          ...outcome.signals,
-          {
-            code: "fuzzy_candidates_pending_review",
-            severity: "INFO",
-            evidence: {
-              candidate_ids: outcome.candidate_ids,
-              confidence: outcome.confidence,
-            },
-          },
-        ],
+        signals: fuzzySignals,
         text: textResult,
         fingerprint_deferred: true,
         bill_id: billId,
+        quarantine_id: quarantineId,
         vendor_resolution: {
           method: outcome.method,
           candidate_ids: outcome.candidate_ids,
@@ -187,6 +221,53 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
   }
 
   const vendorId = outcome.resolved_vendor_id as string;
+
+  const extractedRemittance = extractRemittance(textResult.raw_text);
+  const bankResult = await detectBankChange({
+    supabase: ctx.supabase,
+    firmId: ctx.message.firm_id,
+    firmClientId: ctx.message.firm_client_id ?? "",
+    vendorId,
+    billId,
+    extracted: extractedRemittance,
+    actorUserId: null,
+  });
+
+  if (bankResult.changed) {
+    const bankSignals = bankResult.signals.map((s) => ({
+      code: s.code,
+      severity: s.severity,
+      evidence: s.evidence,
+    }));
+    const { quarantineId } = await quarantineBill({
+      supabase: ctx.supabase,
+      firmId: ctx.message.firm_id,
+      firmClientId: ctx.message.firm_client_id ?? "",
+      billId,
+      intakeMessageId: ctx.message.id,
+      reason: "bank_change_detected",
+      originatingSignals: bankSignals,
+      originatingSeverity: "HIGH",
+    });
+    return {
+      status: "success",
+      detail: {
+        partial: true,
+        signals: [...outcome.signals, ...bankSignals],
+        text: textResult,
+        fingerprint_deferred: true,
+        bill_id: billId,
+        quarantine_id: quarantineId,
+        vendor_resolution: { method: outcome.method },
+        bank_change: {
+          changed: true,
+          prior_hash: bankResult.prior_hash,
+          current_hash: bankResult.current_hash,
+        },
+      },
+    };
+  }
+
   const pageImage = await renderFirstPageRaster(ctx.message, ctx.attachments);
   const fp = await fingerprintExtract(pageImage, ctx.message.firm_client_id ?? "");
 
@@ -202,7 +283,14 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
     fp,
   });
 
-  const signals: Array<Record<string, unknown>> = [...outcome.signals];
+  const signals: Array<Record<string, unknown>> = [
+    ...outcome.signals,
+    ...bankResult.signals.map((s) => ({
+      code: s.code,
+      severity: s.severity,
+      evidence: s.evidence,
+    })),
+  ];
   let drift_from_prior = null;
   if (prior) {
     const drift = computeDrift(prior, fp);

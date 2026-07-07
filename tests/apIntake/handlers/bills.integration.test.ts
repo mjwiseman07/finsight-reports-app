@@ -24,6 +24,7 @@ const mockPublish = vi.mocked(publishEvent);
 interface MockState {
   fingerprintRows: Array<Record<string, unknown>>;
   billRows: Array<Record<string, unknown>>;
+  quarantineRows?: Array<Record<string, unknown>>;
   versionRows: Array<{ version: number }>;
   priorRow: Record<string, unknown> | null;
 }
@@ -80,6 +81,24 @@ function makeCtx(
           }),
         };
       }
+      if (table === "ap_intake_quarantine") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: null, error: null }),
+            }),
+          }),
+          insert: (row: Record<string, unknown>) => {
+            state.quarantineRows = state.quarantineRows ?? [];
+            state.quarantineRows.push(row);
+            return {
+              select: () => ({
+                single: async () => ({ data: { id: "q-integration-1" }, error: null }),
+              }),
+            };
+          },
+        };
+      }
       if (table === "ap_intake_bills") {
         return {
           insert: (row: Record<string, unknown>) => {
@@ -90,6 +109,24 @@ function makeCtx(
               }),
             };
           },
+          update: () => ({
+            eq: () => Promise.resolve({ data: null, error: null }),
+          }),
+        };
+      }
+      if (table === "vendor_bank_history") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                order: () => Promise.resolve({ data: [], error: null }),
+              }),
+            }),
+          }),
+          insert: () => Promise.resolve({ data: null, error: null }),
+          update: () => ({
+            eq: () => Promise.resolve({ data: null, error: null }),
+          }),
         };
       }
       if (table === "vendor_invoice_fingerprints") {
@@ -220,8 +257,13 @@ describe("bills handler integration", () => {
     const detail = result.detail as {
       signals: Array<{ code: string }>;
       fingerprint_deferred: boolean;
+      quarantine_id: string;
     };
     expect(detail.fingerprint_deferred).toBe(true);
+    expect(detail.quarantine_id).toBe("q-integration-1");
     expect(detail.signals.some((s) => s.code === "no_match_route_to_quarantine")).toBe(true);
+    expect(mockPublish).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "bill.quarantined" }),
+    );
   });
 });
