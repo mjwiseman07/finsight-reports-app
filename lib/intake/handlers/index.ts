@@ -1,9 +1,10 @@
 import type { IntakeHandler } from "../types";
 import { cashAppRemitHandler } from "./cash-app-remit";
+import { billsHandler } from "./bills";
 
 const HANDLERS: readonly IntakeHandler[] = [
   cashAppRemitHandler,
-  // Bills, docs land in Part 2 and Part 3.
+  billsHandler,
 ];
 
 export function getHandler(key: string): IntakeHandler | null {

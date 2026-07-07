@@ -1,0 +1,208 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/entitlements/gate", () => ({
+  assertEntitlement: vi.fn().mockResolvedValue(undefined),
+  EntitlementDenied: class EntitlementDenied extends Error {},
+}));
+
+vi.mock("@/lib/ai/action-logger", () => ({
+  logAiAction: vi.fn().mockResolvedValue({ actionId: "a1", eventId: "e1" }),
+}));
+
+vi.mock("@/lib/events/publisher", () => ({
+  publishEvent: vi.fn().mockResolvedValue({ eventId: "evt-1" }),
+}));
+
+import { publishEvent } from "@/lib/events/publisher";
+import { getHandler, listHandlers } from "@/lib/intake/handlers";
+import { handleBills } from "@/lib/intake/handlers/bills";
+import { acceptsBillsMime } from "@/lib/ap-intake/bills/helpers";
+import type { IntakeHandlerContext } from "@/lib/intake/types";
+
+const mockPublish = vi.mocked(publishEvent);
+
+interface MockState {
+  fingerprintRows: Array<Record<string, unknown>>;
+  billRows: Array<Record<string, unknown>>;
+  versionRows: Array<{ version: number }>;
+  priorRow: Record<string, unknown> | null;
+}
+
+function makeCtx(overrides: {
+  resolvedVendorId?: string | null;
+  attachmentSeed?: string;
+  state?: Partial<MockState>;
+} = {}): IntakeHandlerContext & { _state: MockState } {
+  const state: MockState = {
+    fingerprintRows: [],
+    billRows: [],
+    versionRows: [],
+    priorRow: null,
+    ...overrides.state,
+  };
+
+  const supabase = {
+    _state: state,
+    from: (table: string) => {
+      if (table === "engagements") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                limit: () => ({
+                  maybeSingle: async () => ({ data: { id: "eng-1" }, error: null }),
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "ap_intake_bills") {
+        return {
+          insert: (row: Record<string, unknown>) => {
+            state.billRows.push(row);
+            return {
+              select: () => ({
+                single: async () => ({ data: { id: "bill-1" }, error: null }),
+              }),
+            };
+          },
+        };
+      }
+      if (table === "vendor_invoice_fingerprints") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                order: () => ({
+                  limit: () => ({
+                    maybeSingle: async () => ({
+                      data: state.versionRows[0] ?? null,
+                      error: null,
+                    }),
+                  }),
+                }),
+                eq: () => ({
+                  maybeSingle: async () => ({ data: state.priorRow, error: null }),
+                }),
+              }),
+            }),
+          }),
+          insert: (row: Record<string, unknown>) => {
+            state.fingerprintRows.push(row);
+            return { error: null };
+          },
+        };
+      }
+      return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) };
+    },
+  };
+
+  return {
+    supabase: supabase as never,
+    _state: state,
+    message: {
+      id: "msg-1",
+      firm_id: "firm-1",
+      company_id: "co-1",
+      firm_client_id: "fc-1",
+      source_channel: "postmark_inbound",
+      source_message_id: overrides.attachmentSeed ?? "pm-1",
+      recipient_address: null,
+      recipient_prefix: "bills",
+      recipient_firm_slug: "acme",
+      recipient_token: "tok",
+      sender_email: "v@example.com",
+      sender_domain: "example.com",
+      subject: "Invoice",
+      received_at: "2026-07-06T04:00:00Z",
+      raw_body_text: "Invoice 123",
+      raw_body_html: null,
+      raw_headers: null,
+      raw_payload:
+        overrides.resolvedVendorId === undefined
+          ? {}
+          : { _resolved_vendor_id: overrides.resolvedVendorId },
+      content_hash: "hash",
+    },
+    attachments: [
+      {
+        id: "att-1",
+        filename: "bill.pdf",
+        content_type: "application/pdf",
+        content_length: 10,
+        content_sha256: "sha-pdf",
+        content_base64: Buffer.from("pdf").toString("base64"),
+        is_duplicate_of: null,
+      },
+    ],
+  };
+}
+
+describe("bills handler integration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("registers on intake bus under alias bills", () => {
+    expect(getHandler("bills")?.key).toBe("bills");
+    expect(listHandlers().some((h) => h.key === "bills")).toBe(true);
+  });
+
+  it("accepts four MIME types and rejects application/octet-stream", () => {
+    expect(acceptsBillsMime("application/pdf")).toBe(true);
+    expect(acceptsBillsMime("image/png")).toBe(true);
+    expect(acceptsBillsMime("image/jpeg")).toBe(true);
+    expect(acceptsBillsMime("image/webp")).toBe(true);
+    expect(acceptsBillsMime("application/octet-stream")).toBe(false);
+  });
+
+  it("persists fingerprint v1 and emits ledger event when vendor resolved", async () => {
+    const ctx = makeCtx({ resolvedVendorId: "vendor-1" });
+    const result = await handleBills(ctx);
+    expect(result.status).toBe("success");
+    expect(ctx._state.fingerprintRows).toHaveLength(1);
+    expect(ctx._state.fingerprintRows[0].version).toBe(1);
+    expect(mockPublish).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "fingerprint.new_version_created" }),
+      expect.anything(),
+    );
+  });
+
+  it("version 2 with drifted visuals emits HIGH drift signal", async () => {
+    const prior = {
+      layout_bboxes: [{ x: 0, y: 0, w: 10, h: 10, region_kind: "header" }],
+      font_families: ["sans-serif", "mono-table"],
+      color_palette: [[255, 0, 0, 50]],
+      phash: Buffer.alloc(8, 0xff),
+      dhash: Buffer.alloc(10, 0xff),
+      extractor_version: "l4-v1.0.0",
+    };
+    const ctx = makeCtx({
+      resolvedVendorId: "vendor-1",
+      attachmentSeed: "drift-seed-2",
+      state: {
+        versionRows: [{ version: 1 }],
+        priorRow: prior,
+      },
+    });
+    const result = await handleBills(ctx);
+    expect(result.status).toBe("success");
+    expect(ctx._state.fingerprintRows[0].version).toBe(2);
+    const signals = (result.detail as { signals: Array<{ severity: string }> }).signals;
+    expect(signals.some((s) => s.severity === "HIGH")).toBe(true);
+  });
+
+  it("unresolved vendor returns pending_vendor_resolution with zero fingerprint rows", async () => {
+    const ctx = makeCtx({ resolvedVendorId: null });
+    const result = await handleBills(ctx);
+    expect(result.status).toBe("success");
+    expect(ctx._state.fingerprintRows).toHaveLength(0);
+    const detail = result.detail as {
+      signals: Array<{ code: string }>;
+      fingerprint_deferred: boolean;
+    };
+    expect(detail.fingerprint_deferred).toBe(true);
+    expect(detail.signals[0]?.code).toBe("pending_vendor_resolution");
+  });
+});

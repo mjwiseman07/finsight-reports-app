@@ -21,6 +21,8 @@ export default defineConfig({
       "lib/ar-cash-app/**/*.test.ts",
       "lib/cash-app/**/*.test.ts",
       "lib/intake/**/*.test.ts",
+      "lib/ap-intake/**/*.test.ts",
+      "tests/apIntake/**/*.test.ts",
       "app/**/*.test.ts",
       "app/**/*.test.tsx",
       "architecture-lane/**/*.test.ts",

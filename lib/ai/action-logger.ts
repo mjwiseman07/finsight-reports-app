@@ -24,6 +24,7 @@ export type AiActionCategory =
   | "anomaly_reasoning"
   | "recon_reasoning"
   | "agent_close_walkthrough"
+  | "visual_fingerprint"
   | "other";
 
 export type ModelProvider = "anthropic" | "openai" | "google" | "aws_bedrock" | "local";

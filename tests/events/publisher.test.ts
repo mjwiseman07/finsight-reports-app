@@ -91,7 +91,12 @@ describe("publishEvent — category validation", () => {
 
   it.each(categories)("accepts valid category '%s' and maps it onto the row", async (cat) => {
     state.handle.queue("ledger_events", okEvent({ event_category: cat }));
-    const eventType = cat === "cash_app" ? "remittance_ingested" : "test.event";
+    const eventType =
+      cat === "cash_app"
+        ? "remittance_ingested"
+        : cat === "ap"
+          ? "bill.received"
+          : "test.event";
     const res = await publishEvent(baseInput({ eventCategory: cat, eventType }));
     expect(res.eventCategory).toBe(cat);
     const row = state.handle.firstArg("ledger_events", "insert") as Record<string, unknown>;

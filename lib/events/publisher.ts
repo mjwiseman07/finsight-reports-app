@@ -18,6 +18,7 @@
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { CASH_APP_EVENT_TYPES, isCashAppEventType } from "@/lib/events/cash-app-catalog";
+import { AP_EVENT_TYPES, isApEventType } from "@/lib/events/ap-catalog";
 import { INTAKE_EVENT_TYPES, isIntakeEventType } from "@/lib/events/intake-catalog";
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -25,7 +26,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export { CASH_APP_EVENT_TYPES, isCashAppEventType };
 export type { CashAppEventType } from "@/lib/events/cash-app-catalog";
 export { INTAKE_EVENT_TYPES, isIntakeEventType };
-export type { IntakeEventType } from "@/lib/events/intake-catalog";
+export { AP_EVENT_TYPES, isApEventType };
+export type { ApEventType } from "@/lib/events/ap-catalog";
 
 // -------------------- Types --------------------
 export type EventCategory =
@@ -142,6 +144,14 @@ function assertValidCashAppEventType(eventType: string, category: string): void 
   }
 }
 
+function assertValidApEventType(eventType: string, category: string): void {
+  if (category === "ap" && !isApEventType(eventType)) {
+    throw new Error(
+      `publishEvent: invalid ap eventType '${eventType}' (allowed: ${AP_EVENT_TYPES.join(", ")})`,
+    );
+  }
+}
+
 function assertValidIntakeEventType(eventType: string, category: string): void {
   // Legacy intake events (e.g. bill.received) predate the D6.5 bus catalog.
   // Only enforce the allowlist for D6.5 bus event types.
@@ -163,6 +173,7 @@ export async function publishEvent(
   assertValidCategory(input.eventCategory);
   assertValidActor(input.actorType);
   assertValidCashAppEventType(input.eventType, input.eventCategory);
+  assertValidApEventType(input.eventType, input.eventCategory);
   assertValidIntakeEventType(input.eventType, input.eventCategory);
 
   const supabase = client ?? createServiceClient();

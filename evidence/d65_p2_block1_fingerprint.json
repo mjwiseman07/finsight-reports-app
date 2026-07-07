@@ -1,0 +1,15 @@
+{
+  "block_id": "d65_p2_block1",
+  "layer": "L4",
+  "migration_file": "supabase/migrations/20260717010000_d65_p2_block1_visual_fingerprint.sql",
+  "handler_alias": "bills",
+  "assertion_id": "fingerprint_drift_within_threshold",
+  "smoke": {
+    "extractor_version": "l4-v1.0.0",
+    "tables_added": ["vendor_invoice_fingerprints", "ap_intake_bills"],
+    "entitlement_flag_added": "ap_intake",
+    "ai_action_log_category_added": "visual_fingerprint",
+    "ledger_event_type_added": "fingerprint.new_version_created",
+    "tests_passing": true
+  }
+}
