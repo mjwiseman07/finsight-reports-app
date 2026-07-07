@@ -1,5 +1,5 @@
 /**
- * Phase D6.5 Part 2 — Block 1: Bills handler on the Universal Intake Bus
+ * Phase D6.5 Part 2 — Block 2: Bills handler with L1 vendor resolution.
  */
 import { publishEvent } from "@/lib/events/publisher";
 import { assertEntitlement } from "@/lib/entitlements/gate";
@@ -15,6 +15,7 @@ import {
   renderFirstPageRaster,
   type BillTextExtractionResult,
 } from "@/lib/ap-intake/bills/helpers";
+import { resolveVendor, type VendorResolutionOutcome } from "@/lib/ap-intake/vendor/resolver";
 import type {
   IntakeHandler,
   IntakeHandlerContext,
@@ -101,6 +102,7 @@ async function persistFingerprint(
 async function persistBillRow(
   ctx: IntakeHandlerContext,
   text: BillTextExtractionResult,
+  outcome: VendorResolutionOutcome,
 ): Promise<string> {
   const { data, error } = await ctx.supabase
     .from("ap_intake_bills")
@@ -109,9 +111,12 @@ async function persistBillRow(
       company_id: ctx.message.company_id,
       firm_client_id: ctx.message.firm_client_id,
       intake_message_id: ctx.message.id,
-      resolved_vendor_id: text.resolved_vendor_id,
+      resolved_vendor_id: outcome.resolved_vendor_id,
       mime_type: text.mime_type,
       raw_text: text.raw_text,
+      vendor_resolution_method: outcome.method,
+      vendor_resolution_confidence: outcome.confidence,
+      vendor_candidate_ids: outcome.candidate_ids,
     })
     .select("id")
     .single();
@@ -135,47 +140,70 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
   }
 
   const textResult = extractBillText(ctx.message, ctx.attachments);
-  const billId = await persistBillRow(ctx, textResult);
+  const outcome = await resolveVendor(ctx, textResult.raw_text);
+  const billId = await persistBillRow(ctx, textResult, outcome);
   textResult.bill_id = billId;
 
-  const pageImage = await renderFirstPageRaster(ctx.message, ctx.attachments);
-  const fp = await fingerprintExtract(pageImage, ctx.message.firm_client_id ?? "");
+  if (outcome.method === "no_match") {
+    return {
+      status: "success",
+      detail: {
+        partial: true,
+        signals: outcome.signals,
+        text: textResult,
+        fingerprint_deferred: true,
+        bill_id: billId,
+        vendor_resolution: { method: outcome.method },
+      },
+    };
+  }
 
-  if (!textResult.resolved_vendor_id) {
+  if (outcome.method === "fuzzy_candidate") {
     return {
       status: "success",
       detail: {
         partial: true,
         signals: [
+          ...outcome.signals,
           {
-            code: "pending_vendor_resolution",
+            code: "fuzzy_candidates_pending_review",
             severity: "INFO",
-            evidence: { extractor_version: EXTRACTOR_VERSION },
+            evidence: {
+              candidate_ids: outcome.candidate_ids,
+              confidence: outcome.confidence,
+            },
           },
         ],
         text: textResult,
         fingerprint_deferred: true,
         bill_id: billId,
+        vendor_resolution: {
+          method: outcome.method,
+          candidate_ids: outcome.candidate_ids,
+          confidence: outcome.confidence,
+        },
       },
     };
   }
 
-  const version = await nextFingerprintVersion(ctx, textResult.resolved_vendor_id);
+  const vendorId = outcome.resolved_vendor_id as string;
+  const pageImage = await renderFirstPageRaster(ctx.message, ctx.attachments);
+  const fp = await fingerprintExtract(pageImage, ctx.message.firm_client_id ?? "");
+
+  const version = await nextFingerprintVersion(ctx, vendorId);
   const prior =
-    version > 1
-      ? await fetchPriorFingerprint(ctx, textResult.resolved_vendor_id, version - 1)
-      : null;
+    version > 1 ? await fetchPriorFingerprint(ctx, vendorId, version - 1) : null;
 
   await persistFingerprint(ctx, {
-    vendor_id: textResult.resolved_vendor_id,
+    vendor_id: vendorId,
     version,
     bill_id: billId,
     provenance: "live_intake",
     fp,
   });
 
+  const signals: Array<Record<string, unknown>> = [...outcome.signals];
   let drift_from_prior = null;
-  const signals: Array<Record<string, unknown>> = [];
   if (prior) {
     const drift = computeDrift(prior, fp);
     drift_from_prior = drift;
@@ -195,10 +223,10 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
       firmId: ctx.message.firm_id,
       firmClientId: ctx.message.firm_client_id ?? undefined,
       aggregateType: "vendor_invoice_fingerprint",
-      aggregateId: `${textResult.resolved_vendor_id}:v${version}`,
+      aggregateId: `${vendorId}:v${version}`,
       actorType: "system",
       payload: {
-        vendor_id: textResult.resolved_vendor_id,
+        vendor_id: vendorId,
         version,
         bill_id: billId,
         extractor_version: EXTRACTOR_VERSION,
@@ -215,6 +243,7 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
       text: textResult,
       fingerprint_version: version,
       bill_id: billId,
+      vendor_resolution: { method: outcome.method },
     },
   };
 }

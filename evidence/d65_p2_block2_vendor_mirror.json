@@ -1,0 +1,54 @@
+{
+  "block": "d65_p2_block2",
+  "shipped_at": "2026-07-07T00:40:00Z",
+  "head_sha": "6e97cf397370bef4ffaa15cebd096172530c9184",
+  "migration": {
+    "file": "supabase/migrations/20260717020000_d65_p2_block2_vendor_mirror.sql",
+    "tables_created": ["vendor_master_mirror"],
+    "tables_altered": ["ap_intake_bills", "ai_action_log"],
+    "assertion_registry_inserts": ["vendor_resolved_or_quarantined"],
+    "ledger_event_type_inserts": ["vendor.mirror_refreshed"]
+  },
+  "artifacts": {
+    "code_files_added": [
+      "lib/ap-intake/vendor/mirror-schema.ts",
+      "lib/ap-intake/vendor/normalize.ts",
+      "lib/ap-intake/vendor/fuzzy.ts",
+      "lib/ap-intake/vendor/resolver.ts",
+      "lib/ap-intake/vendor/mirror-sync.ts",
+      "lib/ap-intake/assertions/vendor-resolved-or-quarantined.ts"
+    ],
+    "code_files_modified": [
+      "lib/erp-adapters/base-adapter.js",
+      "lib/erp-adapters/quickbooks-adapter.js",
+      "lib/intake/handlers/bills.ts",
+      "lib/ap-intake/bills/helpers.ts",
+      "lib/events/ap-catalog.ts",
+      "lib/ap-intake/assertions/registry.ts",
+      "lib/ap-intake/assertions/fingerprint-drift-within-threshold.ts",
+      "lib/ai/action-logger.ts"
+    ],
+    "tests_added": [
+      "tests/apIntake/vendor/normalize.test.ts",
+      "tests/apIntake/vendor/fuzzy.test.ts",
+      "tests/apIntake/vendor/resolver.test.ts",
+      "tests/apIntake/vendor/mirror-sync.test.ts",
+      "tests/apIntake/handlers/bills.vendorResolution.test.ts"
+    ],
+    "tests_modified": [
+      "tests/apIntake/entitlements/apIntakeGate.test.ts",
+      "tests/apIntake/handlers/bills.integration.test.ts"
+    ]
+  },
+  "verification": {
+    "vitest_passed": 1855,
+    "vitest_failed": 1,
+    "vitest_skipped": 0,
+    "known_preexisting_failures": ["audit memory-cache test — unrelated to Block 2"],
+    "carry_forward_signals_ready_for_block_3": [
+      "no_match_route_to_quarantine",
+      "fuzzy_candidates_pending_review",
+      "vendor_mirror_stale"
+    ]
+  }
+}

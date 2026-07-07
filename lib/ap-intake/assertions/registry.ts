@@ -12,11 +12,7 @@ export interface AssertionResult {
 export interface AssertionEvaluator {
   id: string;
   layer: string;
-  evaluate: (subject: {
-    firm_id: string;
-    vendor_id: string;
-    version: number;
-  }) => Promise<AssertionResult>;
+  evaluate: (subject: Record<string, unknown>) => Promise<AssertionResult>;
 }
 
 const REGISTRY = new Map<string, AssertionEvaluator>();

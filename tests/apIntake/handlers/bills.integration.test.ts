@@ -28,11 +28,25 @@ interface MockState {
   priorRow: Record<string, unknown> | null;
 }
 
-function makeCtx(overrides: {
-  resolvedVendorId?: string | null;
-  attachmentSeed?: string;
-  state?: Partial<MockState>;
-} = {}): IntakeHandlerContext & { _state: MockState } {
+const now = new Date().toISOString();
+
+function makeCtx(
+  overrides: {
+    mirrorRows?: Array<Record<string, unknown>>;
+    attachmentSeed?: string;
+    state?: Partial<MockState>;
+    rawBodyText?: string;
+  } = {},
+): IntakeHandlerContext & { _state: MockState } {
+  const mirrorRows = overrides.mirrorRows ?? [
+    {
+      id: "vendor-1",
+      display_name: "Acme Inc",
+      normalized_name: "acme",
+      metaphone_code: "AKM",
+      last_synced_at: now,
+    },
+  ];
   const state: MockState = {
     fingerprintRows: [],
     billRows: [],
@@ -53,6 +67,15 @@ function makeCtx(overrides: {
                   maybeSingle: async () => ({ data: { id: "eng-1" }, error: null }),
                 }),
               }),
+            }),
+          }),
+        };
+      }
+      if (table === "vendor_master_mirror") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => Promise.resolve({ data: mirrorRows, error: null }),
             }),
           }),
         };
@@ -116,13 +139,10 @@ function makeCtx(overrides: {
       sender_domain: "example.com",
       subject: "Invoice",
       received_at: "2026-07-06T04:00:00Z",
-      raw_body_text: "Invoice 123",
+      raw_body_text: overrides.rawBodyText ?? "Acme Inc\nInvoice details",
       raw_body_html: null,
       raw_headers: null,
-      raw_payload:
-        overrides.resolvedVendorId === undefined
-          ? {}
-          : { _resolved_vendor_id: overrides.resolvedVendorId },
+      raw_payload: {},
       content_hash: "hash",
     },
     attachments: [
@@ -158,7 +178,7 @@ describe("bills handler integration", () => {
   });
 
   it("persists fingerprint v1 and emits ledger event when vendor resolved", async () => {
-    const ctx = makeCtx({ resolvedVendorId: "vendor-1" });
+    const ctx = makeCtx();
     const result = await handleBills(ctx);
     expect(result.status).toBe("success");
     expect(ctx._state.fingerprintRows).toHaveLength(1);
@@ -179,7 +199,6 @@ describe("bills handler integration", () => {
       extractor_version: "l4-v1.0.0",
     };
     const ctx = makeCtx({
-      resolvedVendorId: "vendor-1",
       attachmentSeed: "drift-seed-2",
       state: {
         versionRows: [{ version: 1 }],
@@ -193,8 +212,8 @@ describe("bills handler integration", () => {
     expect(signals.some((s) => s.severity === "HIGH")).toBe(true);
   });
 
-  it("unresolved vendor returns pending_vendor_resolution with zero fingerprint rows", async () => {
-    const ctx = makeCtx({ resolvedVendorId: null });
+  it("unresolved vendor returns no_match with zero fingerprint rows", async () => {
+    const ctx = makeCtx({ mirrorRows: [] });
     const result = await handleBills(ctx);
     expect(result.status).toBe("success");
     expect(ctx._state.fingerprintRows).toHaveLength(0);
@@ -203,6 +222,6 @@ describe("bills handler integration", () => {
       fingerprint_deferred: boolean;
     };
     expect(detail.fingerprint_deferred).toBe(true);
-    expect(detail.signals[0]?.code).toBe("pending_vendor_resolution");
+    expect(detail.signals.some((s) => s.code === "no_match_route_to_quarantine")).toBe(true);
   });
 });

@@ -17,12 +17,15 @@ function rowToPayload(row: Record<string, unknown>): FingerprintPayload {
   };
 }
 
-export async function evaluateFingerprintDriftWithinThreshold(subject: {
-  firm_id: string;
-  vendor_id: string;
-  version: number;
-}) {
-  const { firm_id, vendor_id, version } = subject;
+export async function evaluateFingerprintDriftWithinThreshold(
+  subject: Record<string, unknown>,
+) {
+  const firm_id = subject.firm_id as string;
+  const vendor_id = subject.vendor_id as string;
+  const version = subject.version as number;
+  if (!firm_id || !vendor_id || typeof version !== "number") {
+    return { status: "error" as const, reason: "missing_subject_fields" };
+  }
   if (version < 2) {
     return { status: "pass" as const, reason: "first_version_no_prior" };
   }

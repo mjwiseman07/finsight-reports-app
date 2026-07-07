@@ -5,6 +5,7 @@ export const AP_EVENT_TYPES = [
   "bill.received",
   "bill.extracted",
   "fingerprint.new_version_created",
+  "vendor.mirror_refreshed",
 ] as const;
 
 export type ApEventType = (typeof AP_EVENT_TYPES)[number];

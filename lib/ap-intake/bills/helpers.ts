@@ -19,7 +19,6 @@ export function acceptsBillsMime(mime: string): boolean {
 
 export interface BillTextExtractionResult {
   bill_id: string | null;
-  resolved_vendor_id: string | null;
   mime_type: string | null;
   raw_text: string;
 }
@@ -33,10 +32,6 @@ export function pickBillAttachment(
   return null;
 }
 
-/**
- * Existing text extraction path — unchanged contract surface for Part 1 bus.
- * Vendor resolution is honest-null until Block 2 L1 resolver lands.
- */
 export function extractBillText(
   message: IntakeMessageRecord,
   attachments: IntakeAttachmentRecord[],
@@ -54,13 +49,8 @@ export function extractBillText(
     }
   }
 
-  const payload = message.raw_payload as Record<string, unknown> | null;
-  const resolvedVendorId =
-    typeof payload?._resolved_vendor_id === "string" ? payload._resolved_vendor_id : null;
-
   return {
     bill_id: null,
-    resolved_vendor_id: resolvedVendorId,
     mime_type: att?.content_type ?? null,
     raw_text: parts.join("\n"),
   };
