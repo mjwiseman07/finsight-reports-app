@@ -22,7 +22,7 @@ interface DuplicateRow {
   confidence: number;
 }
 
-export default function QuarantinePage(): JSX.Element {
+export default function QuarantinePage() {
   const [rows, setRows] = useState<QuarantineRow[]>([]);
   const [duplicates, setDuplicates] = useState<Record<string, DuplicateRow[]>>({});
   const [status, setStatus] = useState<string>("loading");
