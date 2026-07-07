@@ -1,7 +1,7 @@
-{
-  "block": "D6.5 Part 2 — Block 4 (L5 Multi-Strategy Duplicate Detection)",
+﻿{
+  "block": "D6.5 Part 2 â€” Block 4 (L5 Multi-Strategy Duplicate Detection)",
   "shipped_at": "2026-07-07T03:02:00.0000000Z",
-  "head_sha": "c271754e0226ad3483a9fa17f36a98c55edba69d",
+  "head_sha": "0a4ec645d4478d279e1c0a3d7baa561f3fe66da6",
   "migration": {
     "file": "supabase/migrations/20260717040000_d65_p2_block4_duplicate_detection.sql",
     "name": "d65_p2_block4_duplicate_detection",
@@ -78,3 +78,4 @@
     "medium_signals": "S4 MEDIUM duplicate_flagged signals merge into bill detail without quarantine"
   }
 }
+
