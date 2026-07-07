@@ -10,7 +10,7 @@ describe("entitlements/audit invariants (schema-level)", () => {
     expect(badVerbs).toBeNull();
   });
 
-  it("ADDON_CODES length is 10 (compile-time contract mirror)", () => {
+  it("ADDON_CODES length is 11 (compile-time contract mirror)", () => {
     expect(ADDON_CODES).toEqual([
       "ap_intake",
       "ap_pay",
@@ -22,6 +22,7 @@ describe("entitlements/audit invariants (schema-level)", () => {
       "ap_requisitions",
       "ap_baseline_harvest",
       "ap_three_way_match",
+      "ap_budget_controls",
     ]);
   });
 });

@@ -4,7 +4,12 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/service";
-export type PilotFeatureCode = "ap_requisitions" | "ap_baseline_harvest" | "ap_three_way_match";
+export type PilotFeatureCode =
+  | "ap_requisitions"
+  | "ap_baseline_harvest"
+  | "ap_three_way_match"
+  | "ap_approval_matrix"
+  | "ap_budget_controls";
 export class PilotFeatureDenied extends Error {
   code: PilotFeatureCode;
   firmId: string;

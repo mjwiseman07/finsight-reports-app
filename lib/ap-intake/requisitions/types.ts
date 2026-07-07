@@ -36,3 +36,10 @@ export type RequisitionStatus =
   | "rejected"
   | "cancelled"
   | "converted_to_po";
+
+// Block 6b re-exports
+export type {
+  ApprovalChainStrategy,
+  ApprovalStepStatus,
+  ApprovalStepDefinition,
+} from "@/lib/ap-intake/approvals/types";

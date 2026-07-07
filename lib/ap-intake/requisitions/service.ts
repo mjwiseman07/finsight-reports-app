@@ -261,3 +261,11 @@ export async function rejectRequisition(input: RequisitionRejectInput): Promise<
     supabase,
   );
 }
+
+// Block 6b — Chain-based approval is available via lib/ap-intake/approvals/chain-service.ts
+export {
+  createApprovalChain,
+  approveApprovalStep,
+  rejectApprovalStep,
+  delegateApprovalStep,
+} from "@/lib/ap-intake/approvals/chain-service";

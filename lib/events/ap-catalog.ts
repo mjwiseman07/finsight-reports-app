@@ -35,6 +35,29 @@ export const AP_EVENT_TYPES = [
   "baseline_harvest.started",
   "baseline_harvest.completed",
   "baseline_harvest.failed",
+  // Block 6b — Approval Chain
+  "requisition.approval_chain_created",
+  "requisition.approval_step_assigned",
+  "requisition.approval_step_approved",
+  "requisition.approval_step_rejected",
+  "requisition.approval_step_delegated",
+  "requisition.approval_chain_completed",
+  // Block 6b — Delegation
+  "approval.delegation_created",
+  "approval.delegation_revoked",
+  // Block 6b — Comments
+  "requisition.commented",
+  "requisition.comment_edited",
+  "requisition.comment_deleted",
+  // Block 6b — Amendments
+  "requisition.amendment_requested",
+  "requisition.amendment_approved",
+  "requisition.amendment_rejected",
+  // Block 6b — Budget Controls
+  "budget.evaluated",
+  "budget.exceeded",
+  "budget.tolerance_hit",
+  "vendor_spend.updated",
 ] as const;
 
 export type ApEventType = (typeof AP_EVENT_TYPES)[number];

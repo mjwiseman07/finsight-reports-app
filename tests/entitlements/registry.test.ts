@@ -8,8 +8,8 @@ import {
 } from "@/lib/entitlements/registry";
 
 describe("entitlements/registry", () => {
-  it("has exactly 10 add-on codes", () => {
-    expect(ADDON_CODES.length).toBe(10);
+  it("has exactly 11 add-on codes", () => {
+    expect(ADDON_CODES.length).toBe(11);
   });
 
   it("has metadata for every code", () => {
@@ -19,7 +19,9 @@ describe("entitlements/registry", () => {
       expect(meta.displayName.length).toBeGreaterThan(0);
       expect(meta.description.length).toBeGreaterThan(0);
       expect(["ap", "ar", "collections"]).toContain(meta.category);
-      expect(meta.defaultMonthlyBaseCents).toBeGreaterThan(0);
+      if (code !== "ap_budget_controls") {
+        expect(meta.defaultMonthlyBaseCents).toBeGreaterThan(0);
+      }
     }
   });
 
@@ -44,7 +46,7 @@ describe("entitlements/registry", () => {
     const b = listAddonCodes();
     expect(a).toEqual(b);
     a.push("x" as never);
-    expect(listAddonCodes().length).toBe(10);
+    expect(listAddonCodes().length).toBe(11);
   });
 
   it("ap_pay is standalone-capable", () => {

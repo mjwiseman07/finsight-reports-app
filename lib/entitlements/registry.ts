@@ -16,6 +16,7 @@ export const ADDON_CODES = [
   "ap_requisitions",
   "ap_baseline_harvest",
   "ap_three_way_match",
+  "ap_budget_controls",
 ] as const;
 
 export type AddonCode = (typeof ADDON_CODES)[number];
@@ -166,6 +167,19 @@ export const ADDON_REGISTRY: Record<AddonCode, AddonMetadata> = {
     defaultOverageUnitCents: 0,
     volumeUnit: "match_eval",
     requiresWave: 1,
+  },
+  ap_budget_controls: {
+    code: "ap_budget_controls",
+    displayName: "AP Budget Controls",
+    description:
+      "GL-account monthly budget enforcement, vendor spend history, and tolerance-based budget checks on requisitions and bills.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 0,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "budget_check",
+    requiresWave: 2,
   },
 };
 
