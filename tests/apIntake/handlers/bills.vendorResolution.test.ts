@@ -63,6 +63,40 @@ function makeCtx(mirrorRows: Array<Record<string, unknown>>): IntakeHandlerConte
           }),
         };
       }
+      if (table === "ap_intake_bills") {
+        const billSelectChain = {
+          select: () => billSelectChain,
+          eq: () => billSelectChain,
+          neq: () => billSelectChain,
+          gte: () => billSelectChain,
+          lte: () => billSelectChain,
+          not: () => billSelectChain,
+          maybeSingle: async () => ({ data: { fraud_score_current: 0 }, error: null }),
+          then: (
+            resolve: (v: { data: unknown[]; error: null }) => void,
+            reject?: (e: unknown) => void,
+          ) => Promise.resolve({ data: [], error: null }).then(resolve, reject),
+        };
+        return {
+          select: () => billSelectChain,
+          insert: (row: Record<string, unknown>) => {
+            inserts.push({ table, row });
+            return {
+              select: () => ({
+                single: async () => ({ data: { id: "bill-1" }, error: null }),
+              }),
+            };
+          },
+          update: () => ({
+            eq: () => Promise.resolve({ data: null, error: null }),
+          }),
+        };
+      }
+      if (table === "ap_intake_bill_duplicates") {
+        return {
+          upsert: () => Promise.resolve({ error: null }),
+        };
+      }
       return {
         select: () => ({
           eq: (_col1: string, _v1: unknown) => {

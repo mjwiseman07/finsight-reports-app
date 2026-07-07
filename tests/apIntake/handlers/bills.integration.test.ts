@@ -100,6 +100,19 @@ function makeCtx(
         };
       }
       if (table === "ap_intake_bills") {
+        const billSelectChain = {
+          select: () => billSelectChain,
+          eq: () => billSelectChain,
+          neq: () => billSelectChain,
+          gte: () => billSelectChain,
+          lte: () => billSelectChain,
+          not: () => billSelectChain,
+          maybeSingle: async () => ({ data: { fraud_score_current: 0 }, error: null }),
+          then: (
+            resolve: (v: { data: unknown[]; error: null }) => void,
+            reject?: (e: unknown) => void,
+          ) => Promise.resolve({ data: [], error: null }).then(resolve, reject),
+        };
         return {
           insert: (row: Record<string, unknown>) => {
             state.billRows.push(row);
@@ -112,6 +125,12 @@ function makeCtx(
           update: () => ({
             eq: () => Promise.resolve({ data: null, error: null }),
           }),
+          select: () => billSelectChain,
+        };
+      }
+      if (table === "ap_intake_bill_duplicates") {
+        return {
+          upsert: () => Promise.resolve({ error: null }),
         };
       }
       if (table === "vendor_bank_history") {

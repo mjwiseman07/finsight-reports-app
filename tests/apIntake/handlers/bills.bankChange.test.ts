@@ -28,6 +28,12 @@ const mocks = {
     recordedAt: new Date(),
   })),
   assertEntitlement: vi.fn(async () => undefined),
+  detectDuplicates: vi.fn(async () => ({
+    hits: [],
+    highSeverityHits: [],
+    shouldQuarantine: false,
+    signals: [],
+  })),
 };
 
 vi.mock("@/lib/ap-intake/vendor/resolver", () => ({
@@ -59,6 +65,9 @@ vi.mock("@/lib/entitlements/gate", () => ({
   assertEntitlement: (...a: unknown[]) => mocks.assertEntitlement(...a),
   EntitlementDenied: class extends Error {},
 }));
+vi.mock("@/lib/ap-intake/duplicate/detector", () => ({
+  detectDuplicates: (...a: unknown[]) => mocks.detectDuplicates(...a),
+}));
 
 function makeCtx() {
   return {
@@ -83,6 +92,11 @@ function makeCtx() {
               select: () => ({ single: async () => ({ data: { id: "bill-1" }, error: null }) }),
             }),
             update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: { fraud_score_current: 0 }, error: null }),
+              }),
+            }),
           };
         }
         if (table === "vendor_invoice_fingerprints") {

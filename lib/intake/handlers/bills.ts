@@ -1,5 +1,5 @@
 /**
- * Phase D6.5 Part 2 — Block 3: Bills handler with L1 vendor resolution + L3 bank change + quarantine.
+ * Phase D6.5 Part 2 — Block 4: Bills handler with L1 vendor + L3 bank change + L5 duplicate detection.
  */
 import { publishEvent } from "@/lib/events/publisher";
 import { assertEntitlement } from "@/lib/entitlements/gate";
@@ -19,6 +19,9 @@ import { resolveVendor, type VendorResolutionOutcome } from "@/lib/ap-intake/ven
 import { extractRemittance } from "@/lib/ap-intake/l3/remittance-extractor";
 import { detectBankChange } from "@/lib/ap-intake/l3/bank-change-detector";
 import { quarantineBill } from "@/lib/ap-intake/quarantine/quarantine-service";
+import { extractInvoiceFields } from "@/lib/ap-intake/duplicate/invoice-extractor";
+import { computeContentHash } from "@/lib/ap-intake/duplicate/content-hash";
+import { detectDuplicates } from "@/lib/ap-intake/duplicate/detector";
 import type {
   IntakeHandler,
   IntakeHandlerContext,
@@ -268,6 +271,70 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
     };
   }
 
+  const invoiceFields = extractInvoiceFields(textResult.raw_text);
+  const contentHash = computeContentHash(textResult.raw_text);
+  await ctx.supabase
+    .from("ap_intake_bills")
+    .update({
+      invoice_number: invoiceFields.invoice_number,
+      invoice_date: invoiceFields.invoice_date,
+      invoice_amount_cents: invoiceFields.invoice_amount_cents,
+      content_hash_sha256: contentHash,
+    })
+    .eq("id", billId);
+
+  const dupResult = await detectDuplicates({
+    supabase: ctx.supabase,
+    firmId: ctx.message.firm_id,
+    firmClientId: ctx.message.firm_client_id ?? "",
+    vendorId,
+    billId,
+    contentHash,
+    invoiceNumber: invoiceFields.invoice_number,
+    invoiceDate: invoiceFields.invoice_date,
+    invoiceAmountCents: invoiceFields.invoice_amount_cents,
+  });
+
+  if (dupResult.shouldQuarantine) {
+    const { data: billRow } = await ctx.supabase
+      .from("ap_intake_bills")
+      .select("fraud_score_current")
+      .eq("id", billId)
+      .maybeSingle();
+    const current = Number(billRow?.fraud_score_current ?? 0);
+    await ctx.supabase
+      .from("ap_intake_bills")
+      .update({ fraud_score_current: Math.min(1, current + 0.91) })
+      .eq("id", billId);
+
+    const { quarantineId } = await quarantineBill({
+      supabase: ctx.supabase,
+      firmId: ctx.message.firm_id,
+      firmClientId: ctx.message.firm_client_id ?? "",
+      billId,
+      intakeMessageId: ctx.message.id,
+      reason: "multi_signal",
+      originatingSignals: dupResult.signals,
+      originatingSeverity: "HIGH",
+    });
+    return {
+      status: "success",
+      detail: {
+        partial: true,
+        signals: [...outcome.signals, ...dupResult.signals],
+        text: textResult,
+        fingerprint_deferred: true,
+        bill_id: billId,
+        quarantine_id: quarantineId,
+        vendor_resolution: { method: outcome.method },
+        duplicate_detection: {
+          hit_count: dupResult.hits.length,
+          high_severity_count: dupResult.highSeverityHits.length,
+        },
+      },
+    };
+  }
+
   const pageImage = await renderFirstPageRaster(ctx.message, ctx.attachments);
   const fp = await fingerprintExtract(pageImage, ctx.message.firm_client_id ?? "");
 
@@ -290,6 +357,7 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
       severity: s.severity,
       evidence: s.evidence,
     })),
+    ...dupResult.signals,
   ];
   let drift_from_prior = null;
   if (prior) {

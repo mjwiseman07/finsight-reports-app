@@ -13,8 +13,18 @@ interface QuarantineRow {
   opened_at: string;
 }
 
+interface DuplicateRow {
+  id: string;
+  bill_id: string;
+  matched_bill_id: string;
+  strategy_id: string;
+  severity: string;
+  confidence: number;
+}
+
 export default function QuarantinePage(): JSX.Element {
   const [rows, setRows] = useState<QuarantineRow[]>([]);
+  const [duplicates, setDuplicates] = useState<Record<string, DuplicateRow[]>>({});
   const [status, setStatus] = useState<string>("loading");
   const [attestation, setAttestation] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<Record<string, string>>({});
@@ -22,9 +32,21 @@ export default function QuarantinePage(): JSX.Element {
   useEffect(() => {
     fetch("/api/quarantine/list")
       .then((r) => r.json())
-      .then((data) => {
-        setRows(data.quarantines ?? []);
+      .then(async (data) => {
+        const quarantines: QuarantineRow[] = data.quarantines ?? [];
+        setRows(quarantines);
         setStatus("ready");
+        const dupMap: Record<string, DuplicateRow[]> = {};
+        await Promise.all(
+          quarantines.map(async (row) => {
+            const res = await fetch(`/api/ap-intake/duplicates?bill_id=${row.bill_id}`);
+            if (res.ok) {
+              const body = await res.json();
+              dupMap[row.bill_id] = body.duplicates ?? [];
+            }
+          }),
+        );
+        setDuplicates(dupMap);
       })
       .catch(() => setStatus("error"));
   }, []);
@@ -97,6 +119,23 @@ export default function QuarantinePage(): JSX.Element {
               {JSON.stringify(row.originating_signals, null, 2)}
             </pre>
           </details>
+          {(duplicates[row.bill_id]?.length ?? 0) > 0 && (
+            <details style={{ marginTop: "0.5rem" }}>
+              <summary>
+                Duplicate matches ({duplicates[row.bill_id]?.length ?? 0})
+              </summary>
+              <pre
+                style={{
+                  background: "#fff8e6",
+                  padding: "0.5rem",
+                  borderRadius: 4,
+                  overflowX: "auto",
+                }}
+              >
+                {JSON.stringify(duplicates[row.bill_id], null, 2)}
+              </pre>
+            </details>
+          )}
           <label htmlFor={`att-${row.id}`} style={{ display: "block", marginTop: "0.75rem" }}>
             Attestation (must reference at least one signal code, ≥20 chars):
           </label>

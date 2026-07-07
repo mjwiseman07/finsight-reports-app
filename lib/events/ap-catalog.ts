@@ -12,6 +12,8 @@ export const AP_EVENT_TYPES = [
   "bill.release_blocked",
   "vendor.bank_info_observed",
   "vendor.bank_change_detected",
+  "bill.duplicate_detected",
+  "bill.duplicate_flagged",
 ] as const;
 
 export type ApEventType = (typeof AP_EVENT_TYPES)[number];

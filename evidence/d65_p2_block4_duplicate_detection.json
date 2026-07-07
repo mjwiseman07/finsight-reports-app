@@ -1,0 +1,80 @@
+{
+  "block": "D6.5 Part 2 — Block 4 (L5 Multi-Strategy Duplicate Detection)",
+  "shipped_at": "2026-07-07T03:02:00.0000000Z",
+  "head_sha": "c271754e0226ad3483a9fa17f36a98c55edba69d",
+  "migration": {
+    "file": "supabase/migrations/20260717040000_d65_p2_block4_duplicate_detection.sql",
+    "name": "d65_p2_block4_duplicate_detection",
+    "applied_to_prod": true,
+    "additive_only": true,
+    "new_tables": ["ap_intake_bill_duplicates"],
+    "new_columns": [
+      "ap_intake_bills.invoice_number TEXT",
+      "ap_intake_bills.invoice_date DATE",
+      "ap_intake_bills.invoice_amount_cents BIGINT",
+      "ap_intake_bills.content_hash_sha256 TEXT"
+    ],
+    "new_ledger_event_types": ["bill.duplicate_detected", "bill.duplicate_flagged"]
+  },
+  "artifacts": {
+    "new_code_files": [
+      "lib/ap-intake/duplicate/schema.ts",
+      "lib/ap-intake/duplicate/content-hash.ts",
+      "lib/ap-intake/duplicate/invoice-extractor.ts",
+      "lib/ap-intake/duplicate/strategies/s1-content-hash.ts",
+      "lib/ap-intake/duplicate/strategies/s2-amount-vendor-date.ts",
+      "lib/ap-intake/duplicate/strategies/s3-invoice-number-vendor.ts",
+      "lib/ap-intake/duplicate/strategies/s4-fuzzy-amount-window.ts",
+      "lib/ap-intake/duplicate/persist.ts",
+      "lib/ap-intake/duplicate/detector.ts",
+      "lib/ap-intake/assertions/no-duplicate-bills-posted.ts"
+    ],
+    "new_api_files": ["app/api/ap-intake/duplicates/route.ts"],
+    "modified_code_files": [
+      "lib/intake/handlers/bills.ts",
+      "lib/events/ap-catalog.ts",
+      "lib/ai/action-logger.ts",
+      "app/quarantine/page.tsx"
+    ],
+    "new_test_files": [
+      "tests/apIntake/duplicate/content-hash.test.ts",
+      "tests/apIntake/duplicate/invoice-extractor.test.ts",
+      "tests/apIntake/duplicate/s1-content-hash.test.ts",
+      "tests/apIntake/duplicate/s2-amount-vendor-date.test.ts",
+      "tests/apIntake/duplicate/s3-invoice-number-vendor.test.ts",
+      "tests/apIntake/duplicate/s4-fuzzy-amount-window.test.ts",
+      "tests/apIntake/duplicate/persist.test.ts",
+      "tests/apIntake/duplicate/detector.test.ts",
+      "tests/apIntake/duplicate/no-duplicate-bills-posted.test.ts",
+      "tests/apIntake/handlers/bills.duplicate.test.ts"
+    ],
+    "modified_test_files": [
+      "tests/apIntake/handlers/bills.bankChange.test.ts",
+      "tests/apIntake/handlers/bills.integration.test.ts",
+      "tests/apIntake/handlers/bills.vendorResolution.test.ts"
+    ]
+  },
+  "verification": {
+    "typecheck": "pre-existing unrelated tsc errors outside Block 4 scope",
+    "test_suite_total": 1912,
+    "test_suite_passed": 1911,
+    "test_suite_failed": 1,
+    "known_failures": ["tests/audit/audit.test.ts memory-cache"]
+  },
+  "strategies": {
+    "S1_exact_content_hash": { "window_days": 90, "severity": "HIGH", "confidence": 1.0 },
+    "S2_amount_vendor_date": { "date_window_days": 3, "severity": "HIGH", "confidence": 0.95 },
+    "S3_invoice_number_vendor": { "window_days": 365, "severity": "HIGH", "confidence": 0.98 },
+    "S4_fuzzy_amount_window": {
+      "amount_window_pct": 5,
+      "date_window_days": 14,
+      "severity": "MEDIUM",
+      "confidence": 0.75
+    }
+  },
+  "carry_forward_to_block_5": {
+    "fraud_score_signal": "duplicate_detected HIGH hits ADD +0.91 to fraud_score_current (capped at 1.0); qc-04 consumes in Block 5",
+    "assertion_evaluator_wiring": "no_duplicate_bills_posted registered; evaluator hook lands Block 5",
+    "medium_signals": "S4 MEDIUM duplicate_flagged signals merge into bill detail without quarantine"
+  }
+}
