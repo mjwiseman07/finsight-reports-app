@@ -191,6 +191,17 @@ function makeCtx(
       if (table === "fraud_score_signals") {
         return { upsert: () => Promise.resolve({ error: null }) };
       }
+      if (table === "pilot_feature_allowlist") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: null, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
       return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) };
     },
   };

@@ -125,6 +125,17 @@ function makeCtx() {
             insert: () => Promise.resolve({ data: null, error: null }),
           };
         }
+        if (table === "pilot_feature_allowlist") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({ data: null, error: null }),
+                }),
+              }),
+            }),
+          };
+        }
         throw new Error(`unexpected ${table}`);
       },
     },

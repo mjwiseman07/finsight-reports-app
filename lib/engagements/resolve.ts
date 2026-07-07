@@ -7,6 +7,7 @@
  *
  * If neither resolution path finds exactly one engagement, throw. Never guess.
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export type EngagementResolutionSource = "portco" | "firm_default";
@@ -84,4 +85,16 @@ export async function resolveEngagementForFirmClient(
   }
 
   return { engagementId: engagements[0].id as string, source: "firm_default" };
+}
+
+export async function resolveEngagementId(
+  _supabase: SupabaseClient,
+  firmClientId: string,
+): Promise<string | null> {
+  try {
+    const { engagementId } = await resolveEngagementForFirmClient(firmClientId);
+    return engagementId;
+  } catch {
+    return null;
+  }
 }

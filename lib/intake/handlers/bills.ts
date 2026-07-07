@@ -26,6 +26,8 @@ import { detectAnomalies } from "@/lib/ap-intake/anomaly/detector";
 import { aggregateFraudScore } from "@/lib/ap-intake/scoring/aggregator";
 import type { ContributingSignal, ScoreSeverity } from "@/lib/ap-intake/scoring/schema";
 import { writeBillHistoryRow } from "@/lib/ap-intake/history/bill-history-writer";
+import { evaluateThreeWayMatch } from "@/lib/ap-intake/three-way-match/detector";
+import { hasPilotFeature } from "@/lib/entitlements/pilot-features";
 import type {
   IntakeHandler,
   IntakeHandlerContext,
@@ -287,6 +289,59 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
     })
     .eq("id", billId);
 
+  // ────────────────────────────────────────────────────────────
+  // L3 Three-Way-Match — Block 6a
+  // Gated: feature must be granted for this firm (pilot allowlist).
+  // ────────────────────────────────────────────────────────────
+  let threeWayMatchResult: Awaited<ReturnType<typeof evaluateThreeWayMatch>> | null = null;
+  const twmGate = await hasPilotFeature("ap_three_way_match", ctx.message.firm_id, ctx.supabase);
+  if (twmGate.allowed) {
+    threeWayMatchResult = await evaluateThreeWayMatch(ctx.supabase, {
+      firmId: ctx.message.firm_id,
+      firmClientId: ctx.message.firm_client_id ?? "",
+      vendorId,
+      billId,
+      invoiceAmountCents: invoiceFields.invoice_amount_cents,
+      invoiceDate: invoiceFields.invoice_date,
+    });
+    await publishEvent(
+      {
+        eventType: "three_way_match.evaluated",
+        eventCategory: "ap",
+        firmId: ctx.message.firm_id,
+        firmClientId: ctx.message.firm_client_id ?? undefined,
+        aggregateType: "bill",
+        aggregateId: billId,
+        actorType: "system",
+        payload: {
+          status: threeWayMatchResult.status,
+          purchase_order_id: threeWayMatchResult.purchaseOrderId,
+          signal_count: threeWayMatchResult.signals.length,
+        },
+      },
+      ctx.supabase,
+    );
+    if (threeWayMatchResult.shouldQuarantine) {
+      await publishEvent(
+        {
+          eventType: "three_way_match.hit",
+          eventCategory: "ap",
+          firmId: ctx.message.firm_id,
+          firmClientId: ctx.message.firm_client_id ?? undefined,
+          aggregateType: "bill",
+          aggregateId: billId,
+          actorType: "system",
+          payload: {
+            status: threeWayMatchResult.status,
+            purchase_order_id: threeWayMatchResult.purchaseOrderId,
+            signals: threeWayMatchResult.signals,
+          },
+        },
+        ctx.supabase,
+      );
+    }
+  }
+
   const dupResult = await detectDuplicates({
     supabase: ctx.supabase,
     firmId: ctx.message.firm_id,
@@ -326,6 +381,7 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
       supabase: ctx.supabase,
       firmId: ctx.message.firm_id,
       firmClientId: ctx.message.firm_client_id ?? "",
+      companyId: ctx.message.company_id ?? "",
       vendorId,
       billId,
       invoiceAmountCents: invoiceFields.invoice_amount_cents,
@@ -333,6 +389,9 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
       invoiceNumber: invoiceFields.invoice_number,
       receivedAt: ctx.message.received_at ?? new Date().toISOString(),
       quarantined: true,
+      purchaseOrderId: threeWayMatchResult?.purchaseOrderId ?? null,
+      threeWayMatchStatus: threeWayMatchResult?.status ?? null,
+      threeWayMatchSignals: threeWayMatchResult?.signals ?? [],
     });
 
     const { quarantineId } = await quarantineBill({
@@ -464,6 +523,14 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
       severity: s.severity as ScoreSeverity,
       evidence: s.evidence,
     })),
+    ...(threeWayMatchResult?.shouldQuarantine
+      ? threeWayMatchResult.signals.map((s) => ({
+          layer: "L3" as const,
+          code: s.code,
+          severity: s.severity as ScoreSeverity,
+          evidence: s.detail as Record<string, unknown>,
+        }))
+      : []),
   ];
 
   const aggregated = await aggregateFraudScore({
@@ -493,6 +560,7 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
       supabase: ctx.supabase,
       firmId: ctx.message.firm_id,
       firmClientId: ctx.message.firm_client_id ?? "",
+      companyId: ctx.message.company_id ?? "",
       vendorId,
       billId,
       invoiceAmountCents,
@@ -500,6 +568,9 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
       invoiceNumber: invoiceFields.invoice_number,
       receivedAt: ctx.message.received_at ?? new Date().toISOString(),
       quarantined: true,
+      purchaseOrderId: threeWayMatchResult?.purchaseOrderId ?? null,
+      threeWayMatchStatus: threeWayMatchResult?.status ?? null,
+      threeWayMatchSignals: threeWayMatchResult?.signals ?? [],
     });
     return {
       status: "success",
@@ -523,6 +594,7 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
     supabase: ctx.supabase,
     firmId: ctx.message.firm_id,
     firmClientId: ctx.message.firm_client_id ?? "",
+    companyId: ctx.message.company_id ?? "",
     vendorId,
     billId,
     invoiceAmountCents,
@@ -530,6 +602,9 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
     invoiceNumber: invoiceFields.invoice_number,
     receivedAt: ctx.message.received_at ?? new Date().toISOString(),
     quarantined: false,
+    purchaseOrderId: threeWayMatchResult?.purchaseOrderId ?? null,
+    threeWayMatchStatus: threeWayMatchResult?.status ?? null,
+    threeWayMatchSignals: threeWayMatchResult?.signals ?? [],
   });
 
   return {

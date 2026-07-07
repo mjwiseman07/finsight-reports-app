@@ -13,6 +13,9 @@ export const ADDON_CODES = [
   "ar_collections",
   "voice_collections",
   "quarantine_review",
+  "ap_requisitions",
+  "ap_baseline_harvest",
+  "ap_three_way_match",
 ] as const;
 
 export type AddonCode = (typeof ADDON_CODES)[number];
@@ -123,6 +126,45 @@ export const ADDON_REGISTRY: Record<AddonCode, AddonMetadata> = {
     defaultIncludedVolume: 50,
     defaultOverageUnitCents: 100,
     volumeUnit: "release_attempt",
+    requiresWave: 1,
+  },
+  ap_requisitions: {
+    code: "ap_requisitions",
+    displayName: "AP Requisitions & Purchase Orders",
+    description:
+      "Requisition workflow with approval matrix, PO creation, and goods receipt tracking.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 9900,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "requisition",
+    requiresWave: 1,
+  },
+  ap_baseline_harvest: {
+    code: "ap_baseline_harvest",
+    displayName: "AP Baseline Harvest",
+    description:
+      "One-time import of existing vendors, POs, bills, and goods receipts from QBO or CSV so three-way match starts on Day 1.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 4900,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "harvest_run",
+    requiresWave: 1,
+  },
+  ap_three_way_match: {
+    code: "ap_three_way_match",
+    displayName: "AP Three-Way-Match",
+    description:
+      "Automatic invoice-to-PO-to-goods-receipt reconciliation with variance and closed-PO quarantine.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 4900,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "match_eval",
     requiresWave: 1,
   },
 };
