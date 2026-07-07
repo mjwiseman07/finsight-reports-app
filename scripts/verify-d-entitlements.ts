@@ -30,10 +30,10 @@ async function main(): Promise<void> {
     });
   }
   checks.push({
-    name: "addon_code CHECK covers 6 codes (unit-test enforced)",
+    name: "addon_code CHECK covers 7 codes (unit-test enforced)",
     pass: true,
   });
-  checks.push({ name: "ADDON_CODES has exactly 6 entries", pass: ADDON_CODES.length === 6 });
+  checks.push({ name: "ADDON_CODES has exactly 7 entries", pass: ADDON_CODES.length === 7 });
   checks.push({
     name: "RLS enabled on 3 new tables (presence check)",
     pass: true,
