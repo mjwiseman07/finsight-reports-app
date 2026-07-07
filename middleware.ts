@@ -9,6 +9,14 @@ const PUBLIC_MARKETING_PATHS = new Set([
   "/about",
   "/privacy",
   "/coming-soon",
+  // Marketing v2 nav destinations (D6.5 Part 2).
+  "/what-it-does",
+  "/how-it-works",
+  "/industries",
+  "/free-review",
+  "/for/owner",
+  "/for/bookkeeper",
+  "/for/firm",
   // App routes reachable from marketing hosts (auth + primary product surfaces).
   // Role/auth gating happens inside these routes; middleware only controls reachability.
   "/signin",
