@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import heroLogo from "../public/advisacor-logo-full-transparent.png";
+import heroLogo from "../public/advisacor-logo-framed-navy.png";
 import { focusRing, primaryCtaClass } from "./site-ui";
 
 export function SiteNav() {
@@ -16,10 +16,10 @@ export function SiteNav() {
         <Image
           src={heroLogo}
           alt="Advisacor"
-          width={900}
-          height={460}
+          width={1788}
+          height={880}
           priority
-          className="pointer-events-none h-auto w-[280px] select-none md:w-[380px] lg:w-[440px]"
+          className="pointer-events-none h-auto w-[320px] select-none md:w-[460px] lg:w-[560px]"
         />
       </Link>
       <nav className="absolute top-6 right-8 z-30">

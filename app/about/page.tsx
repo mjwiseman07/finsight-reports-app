@@ -94,35 +94,8 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 3 — The Wiseman Promise */}
-      <section className="bg-[#F5F7FA] px-6 py-24">
-        <div className="mx-auto max-w-3xl">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">The Wiseman Promise</p>
-          <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] text-slate-900 md:text-4xl ${headingFont}`}>
-            Trust is not something we ask for. It is something we earn.
-          </h2>
-          <div className="mt-8 space-y-5 text-base leading-8 text-slate-700">
-            <p>At Wiseman Financial Technologies, trust is not something we ask for — it is something we earn.</p>
-            <p>
-              Everything we build is designed to make powerful technology feel simple while never compromising insight,
-              accuracy, confidence, governance, security, or trust.
-            </p>
-            <p>
-              We promise to communicate clearly, operate transparently, and treat every client with professionalism and
-              fairness.
-            </p>
-            <p>
-              When we make a mistake, we will make it right. When questions arise, we will rely upon documented evidence
-              — not assumptions — to reach fair decisions.
-            </p>
-            <p>We believe the strongest business relationships are not built on contracts alone. They are built on trust.</p>
-          </div>
-          <p className={`mt-10 text-xl font-black text-[#C9A961] md:text-2xl ${headingFont}`}>That is the Wiseman Promise.</p>
-        </div>
-      </section>
-
-      {/* SECTION 4 — Meet the Founders */}
-      <section className="bg-[#F5F7FA] px-6 pb-24">
+      {/* SECTION 3 — Meet the Founders */}
+      <section className="bg-[#F5F7FA] px-6 pt-24 pb-24">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Meet the Founders</p>
           <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] text-slate-900 md:text-4xl ${headingFont}`}>
@@ -158,7 +131,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 5 — A Shared Vision */}
+      {/* SECTION 4 — A Shared Vision */}
       <section className="bg-[#0A1530] px-6 py-24 text-white">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">A Shared Vision</p>
@@ -177,7 +150,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 6 — What Makes Advisacor Different */}
+      {/* SECTION 5 — What Makes Advisacor Different */}
       <section className="bg-[#F5F7FA] px-6 py-24">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">What Makes Advisacor™ Different</p>
@@ -201,7 +174,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 7 — Client Experience Philosophy */}
+      {/* SECTION 6 — Client Experience Philosophy */}
       <section className="bg-[#0A1530] px-6 py-24 text-white">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Our Client Experience Philosophy</p>
@@ -221,7 +194,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 8 — Looking Forward */}
+      {/* SECTION 7 — Looking Forward */}
       <section className="bg-[#F5F7FA] px-6 py-24">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Looking Forward</p>
@@ -242,7 +215,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 9 — CTA Strip */}
+      {/* SECTION 8 — CTA Strip */}
       <section className="bg-[#0A1530] px-6 py-20 text-center text-white">
         <div className="mx-auto max-w-2xl">
           <h2 className={`text-3xl font-black tracking-[-0.04em] md:text-4xl ${headingFont}`}>

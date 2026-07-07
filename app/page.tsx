@@ -16,8 +16,8 @@ export default function HomePage() {
     <main className="min-h-screen bg-[#0B0B0C] text-white">
       <SiteNav />
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-6 pb-12 pt-[200px] md:pb-16 md:pt-[240px] lg:pt-[260px]">
-        <p className="mb-6 text-sm uppercase tracking-[0.2em] text-[#C9A961]">
+      <section className="mx-auto max-w-6xl px-6 pb-12 pt-[300px] md:pb-16 md:pt-[380px] lg:pt-[440px]">
+        <p className="mb-6 text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961] md:text-base">
           Advisacor for accounting teams
         </p>
         <h1
