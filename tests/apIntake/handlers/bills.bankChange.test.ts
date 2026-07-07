@@ -34,6 +34,14 @@ const mocks = {
     shouldQuarantine: false,
     signals: [],
   })),
+  detectAnomalies: vi.fn(async () => ({ signals: [], hasHighSeverity: false })),
+  aggregateFraudScore: vi.fn(async () => ({
+    bill_id: "bill-1",
+    score: 0,
+    contributions: [],
+    quarantine_recommended: false,
+  })),
+  writeBillHistoryRow: vi.fn(async () => undefined),
 };
 
 vi.mock("@/lib/ap-intake/vendor/resolver", () => ({
@@ -67,6 +75,15 @@ vi.mock("@/lib/entitlements/gate", () => ({
 }));
 vi.mock("@/lib/ap-intake/duplicate/detector", () => ({
   detectDuplicates: (...a: unknown[]) => mocks.detectDuplicates(...a),
+}));
+vi.mock("@/lib/ap-intake/anomaly/detector", () => ({
+  detectAnomalies: (...a: unknown[]) => mocks.detectAnomalies(...a),
+}));
+vi.mock("@/lib/ap-intake/scoring/aggregator", () => ({
+  aggregateFraudScore: (...a: unknown[]) => mocks.aggregateFraudScore(...a),
+}));
+vi.mock("@/lib/ap-intake/history/bill-history-writer", () => ({
+  writeBillHistoryRow: (...a: unknown[]) => mocks.writeBillHistoryRow(...a),
 }));
 
 function makeCtx() {

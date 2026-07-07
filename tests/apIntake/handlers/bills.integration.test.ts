@@ -173,6 +173,24 @@ function makeCtx(
           },
         };
       }
+      if (table === "ap_intake_bill_duplicates") {
+        return {
+          upsert: () => Promise.resolve({ error: null }),
+        };
+      }
+      if (table === "bill_history") {
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          gte: () => chain,
+          order: () => chain,
+          limit: () => Promise.resolve({ data: [], error: null }),
+        };
+        return { select: () => chain, upsert: () => Promise.resolve({ error: null }) };
+      }
+      if (table === "fraud_score_signals") {
+        return { upsert: () => Promise.resolve({ error: null }) };
+      }
       return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) };
     },
   };

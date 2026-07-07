@@ -20,6 +20,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { CASH_APP_EVENT_TYPES, isCashAppEventType } from "@/lib/events/cash-app-catalog";
 import { AP_EVENT_TYPES, isApEventType } from "@/lib/events/ap-catalog";
 import { INTAKE_EVENT_TYPES, isIntakeEventType } from "@/lib/events/intake-catalog";
+import { canonicalPayloadJson } from "@/lib/ledger/merkle";
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -178,8 +179,55 @@ export async function publishEvent(
 
   const supabase = client ?? createServiceClient();
   const correlationId = input.correlationId ?? randomUUID();
+  const canonical = canonicalPayloadJson(input.payload);
 
-  const { data, error } = await supabase
+  const rpcArgs = {
+    p_event_type: input.eventType,
+    p_event_category: input.eventCategory,
+    p_event_version: input.eventVersion ?? 1,
+    p_firm_id: input.firmId ?? null,
+    p_firm_client_id: input.firmClientId ?? null,
+    p_engagement_id: input.engagementId ?? null,
+    p_portco_id: input.portcoId ?? null,
+    p_close_period_id: input.closePeriodId ?? null,
+    p_aggregate_type: input.aggregateType,
+    p_aggregate_id: input.aggregateId,
+    p_actor_type: input.actorType,
+    p_actor_id: input.actorId ?? null,
+    p_event_payload: input.payload,
+    p_event_metadata: input.metadata ?? {},
+    p_causation_event_id: input.causationEventId ?? null,
+    p_event_payload_canonical: canonical,
+  };
+
+  if (typeof supabase.rpc === "function") {
+    const { data: rpcRows, error } = await supabase.rpc("publish_ledger_event", rpcArgs);
+    const row = (rpcRows as Array<{
+      event_id: string;
+      event_hash: string;
+      chain_index: number;
+    }> | null)?.[0];
+
+    if (!error && row) {
+      const { data: seqRow } = await supabase
+        .from("ledger_events")
+        .select("event_sequence, occurred_at, recorded_at")
+        .eq("event_id", row.event_id)
+        .single();
+
+      return {
+        eventId: row.event_id,
+        eventSequence: seqRow?.event_sequence ?? row.chain_index,
+        eventType: input.eventType,
+        eventCategory: input.eventCategory,
+        occurredAt: seqRow?.occurred_at ? new Date(seqRow.occurred_at) : new Date(),
+        recordedAt: seqRow?.recorded_at ? new Date(seqRow.recorded_at) : new Date(),
+      };
+    }
+  }
+
+  // Fallback for environments/tests without publish_ledger_event RPC applied yet.
+  const { data, error: insertError } = await supabase
     .from("ledger_events")
     .insert({
       event_type: input.eventType,
@@ -203,8 +251,8 @@ export async function publishEvent(
     .select("event_id, event_sequence, event_type, event_category, occurred_at, recorded_at")
     .single();
 
-  if (error) {
-    throw new Error(`publishEvent failed: ${error.message} (eventType=${input.eventType})`);
+  if (insertError) {
+    throw new Error(`publishEvent failed: ${insertError.message} (eventType=${input.eventType})`);
   }
 
   return {

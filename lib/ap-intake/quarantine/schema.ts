@@ -7,7 +7,10 @@ export type QuarantineReason =
   | "no_match"
   | "fuzzy_candidate"
   | "bank_change_detected"
-  | "multi_signal";
+  | "multi_signal"
+  | "duplicate_detected"
+  | "anomaly_detected"
+  | "fraud_score_threshold";
 export type QuarantineSeverity = "HIGH" | "MEDIUM" | "LOW";
 
 export interface QuarantineRow {

@@ -1,5 +1,5 @@
 /**
- * Integration test — bills handler L5 duplicate detection wiring.
+ * Integration test — bills handler L6 anomaly + L11 fraud score aggregation wiring.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -8,12 +8,15 @@ const mocks = {
   extractRemittance: vi.fn(),
   detectBankChange: vi.fn(),
   detectDuplicates: vi.fn(),
-  quarantineBill: vi.fn(async () => ({ quarantineId: "q-dup" })),
+  detectAnomalies: vi.fn(),
+  aggregateFraudScore: vi.fn(),
+  writeBillHistoryRow: vi.fn(),
+  quarantineBill: vi.fn(async () => ({ quarantineId: "q-fraud" })),
   fingerprintExtract: vi.fn(),
   computeDrift: vi.fn(),
   renderFirstPageRaster: vi.fn(async () => Buffer.from("")),
   extractBillText: vi.fn(() => ({
-    raw_text: "Invoice # DUP-99 Total $100.00",
+    raw_text: "Invoice # ANOM-1 Total $9500.00",
     mime_type: "text/plain",
     bill_id: null,
   })),
@@ -27,14 +30,6 @@ const mocks = {
     recordedAt: new Date(),
   })),
   assertEntitlement: vi.fn(async () => undefined),
-  detectAnomalies: vi.fn(async () => ({ signals: [], hasHighSeverity: false })),
-  aggregateFraudScore: vi.fn(async () => ({
-    bill_id: "bill-1",
-    score: 0,
-    contributions: [],
-    quarantine_recommended: false,
-  })),
-  writeBillHistoryRow: vi.fn(async () => undefined),
 };
 
 vi.mock("@/lib/ap-intake/vendor/resolver", () => ({
@@ -142,7 +137,7 @@ function makeCtx() {
       sender_email: null,
       sender_domain: null,
       subject: null,
-      received_at: new Date().toISOString(),
+      received_at: "2026-06-01T14:00:00Z",
       raw_body_text: "",
       raw_body_html: null,
       raw_headers: null,
@@ -191,6 +186,30 @@ beforeEach(() => {
     shouldQuarantine: false,
     signals: [],
   });
+  mocks.detectAnomalies.mockResolvedValue({
+    signals: [
+      {
+        code: "threshold_splitting",
+        severity: "HIGH",
+        evidence: { prior_matches_14d: 2 },
+      },
+    ],
+    hasHighSeverity: true,
+  });
+  mocks.aggregateFraudScore.mockResolvedValue({
+    bill_id: "bill-1",
+    score: 0.35,
+    contributions: [
+      {
+        layer: "L6",
+        code: "threshold_splitting",
+        severity: "HIGH",
+        contribution: 0.35,
+        evidence: { prior_matches_14d: 2 },
+      },
+    ],
+    quarantine_recommended: false,
+  });
   mocks.fingerprintExtract.mockResolvedValue({
     layout_bboxes: [],
     font_families: [],
@@ -201,54 +220,63 @@ beforeEach(() => {
   });
 });
 
-describe("bills handler L5 duplicate wiring", () => {
-  it("HIGH duplicate → quarantine multi_signal + fingerprint_deferred", async () => {
-    mocks.detectDuplicates.mockResolvedValue({
-      hits: [
-        {
-          matched_bill_id: "b-old",
-          strategy_id: "S1_exact_content_hash",
-          confidence: 1,
-          severity: "HIGH",
-          evidence: {},
-        },
-      ],
-      highSeverityHits: [
-        {
-          matched_bill_id: "b-old",
-          strategy_id: "S1_exact_content_hash",
-          confidence: 1,
-          severity: "HIGH",
-          evidence: {},
-        },
-      ],
-      shouldQuarantine: true,
-      signals: [{ code: "duplicate_detected", severity: "HIGH", evidence: {} }],
-    });
-
+describe("bills handler L6 + L11 aggregation wiring", () => {
+  it("runs detectAnomalies and merges L6 signals into aggregateFraudScore", async () => {
     const { handleBills } = await import("@/lib/intake/handlers/bills");
     const r = await handleBills(makeCtx());
     if (r.status !== "success") throw new Error(`expected success, got ${r.status}`);
-    expect(r.detail.fingerprint_deferred).toBe(true);
-    expect(r.detail.quarantine_id).toBe("q-dup");
-    expect(mocks.quarantineBill).toHaveBeenCalledWith(
-      expect.objectContaining({ reason: "multi_signal" }),
+
+    expect(mocks.detectAnomalies).toHaveBeenCalledWith(
+      expect.objectContaining({
+        firmClientId: "fc1",
+        vendorId: "v1",
+        billId: "bill-1",
+        receivedAt: "2026-06-01T14:00:00Z",
+      }),
     );
-    expect(mocks.fingerprintExtract).not.toHaveBeenCalled();
-    expect(mocks.aggregateFraudScore).toHaveBeenCalled();
+    expect(mocks.aggregateFraudScore).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billId: "bill-1",
+        signals: expect.arrayContaining([
+          expect.objectContaining({ layer: "L6", code: "threshold_splitting", severity: "HIGH" }),
+        ]),
+      }),
+    );
+    expect(mocks.writeBillHistoryRow).toHaveBeenCalledWith(
+      expect.objectContaining({ billId: "bill-1", quarantined: false }),
+    );
+    expect(mocks.quarantineBill).not.toHaveBeenCalled();
+    expect(r.detail.signals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "threshold_splitting", severity: "HIGH" }),
+      ]),
+    );
   });
 
-  it("MEDIUM-only duplicate → fingerprint continues", async () => {
-    mocks.detectDuplicates.mockResolvedValue({
-      hits: [
+  it("quarantines on fraud score threshold and writes quarantined bill history", async () => {
+    mocks.aggregateFraudScore.mockResolvedValue({
+      bill_id: "bill-1",
+      score: 0.95,
+      contributions: [
         {
-          matched_bill_id: "b-fuzzy",
-          strategy_id: "S4_fuzzy_amount_window",
-          confidence: 0.75,
+          layer: "L6",
+          code: "threshold_splitting",
+          severity: "HIGH",
+          contribution: 0.35,
+          evidence: {},
+        },
+        {
+          layer: "L5",
+          code: "duplicate_flagged",
           severity: "MEDIUM",
+          contribution: 0.2,
           evidence: {},
         },
       ],
+      quarantine_recommended: true,
+    });
+    mocks.detectDuplicates.mockResolvedValue({
+      hits: [],
       highSeverityHits: [],
       shouldQuarantine: false,
       signals: [{ code: "duplicate_flagged", severity: "MEDIUM", evidence: {} }],
@@ -257,10 +285,16 @@ describe("bills handler L5 duplicate wiring", () => {
     const { handleBills } = await import("@/lib/intake/handlers/bills");
     const r = await handleBills(makeCtx());
     if (r.status !== "success") throw new Error(`expected success, got ${r.status}`);
-    expect(mocks.quarantineBill).not.toHaveBeenCalled();
-    expect(mocks.fingerprintExtract).toHaveBeenCalledTimes(1);
-    expect(r.detail.signals).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: "duplicate_flagged" })]),
+
+    expect(mocks.quarantineBill).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "fraud_score_threshold" }),
+    );
+    expect(mocks.writeBillHistoryRow).toHaveBeenCalledWith(
+      expect.objectContaining({ billId: "bill-1", quarantined: true }),
+    );
+    expect(r.detail.quarantine_id).toBe("q-fraud");
+    expect(r.detail.fraud_score_threshold).toEqual(
+      expect.objectContaining({ score: 0.95 }),
     );
   });
 });

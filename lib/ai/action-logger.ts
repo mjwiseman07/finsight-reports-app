@@ -29,6 +29,8 @@ export type AiActionCategory =
   | "bank_change_detection"
   | "quarantine_gate_evaluation"
   | "duplicate_detection"
+  | "statistical_anomaly_detection"
+  | "fraud_score_aggregation"
   | "other";
 
 export type ModelProvider = "anthropic" | "openai" | "google" | "aws_bedrock" | "local";

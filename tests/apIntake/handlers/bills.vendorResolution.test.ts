@@ -97,6 +97,19 @@ function makeCtx(mirrorRows: Array<Record<string, unknown>>): IntakeHandlerConte
           upsert: () => Promise.resolve({ error: null }),
         };
       }
+      if (table === "bill_history") {
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          gte: () => chain,
+          order: () => chain,
+          limit: () => Promise.resolve({ data: [], error: null }),
+        };
+        return { select: () => chain, upsert: () => Promise.resolve({ error: null }) };
+      }
+      if (table === "fraud_score_signals") {
+        return { upsert: () => Promise.resolve({ error: null }) };
+      }
       return {
         select: () => ({
           eq: (_col1: string, _v1: unknown) => {

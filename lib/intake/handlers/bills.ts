@@ -22,6 +22,10 @@ import { quarantineBill } from "@/lib/ap-intake/quarantine/quarantine-service";
 import { extractInvoiceFields } from "@/lib/ap-intake/duplicate/invoice-extractor";
 import { computeContentHash } from "@/lib/ap-intake/duplicate/content-hash";
 import { detectDuplicates } from "@/lib/ap-intake/duplicate/detector";
+import { detectAnomalies } from "@/lib/ap-intake/anomaly/detector";
+import { aggregateFraudScore } from "@/lib/ap-intake/scoring/aggregator";
+import type { ContributingSignal, ScoreSeverity } from "@/lib/ap-intake/scoring/schema";
+import { writeBillHistoryRow } from "@/lib/ap-intake/history/bill-history-writer";
 import type {
   IntakeHandler,
   IntakeHandlerContext,
@@ -296,16 +300,40 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
   });
 
   if (dupResult.shouldQuarantine) {
-    const { data: billRow } = await ctx.supabase
-      .from("ap_intake_bills")
-      .select("fraud_score_current")
-      .eq("id", billId)
-      .maybeSingle();
-    const current = Number(billRow?.fraud_score_current ?? 0);
-    await ctx.supabase
-      .from("ap_intake_bills")
-      .update({ fraud_score_current: Math.min(1, current + 0.91) })
-      .eq("id", billId);
+    await aggregateFraudScore({
+      supabase: ctx.supabase,
+      firmId: ctx.message.firm_id,
+      firmClientId: ctx.message.firm_client_id ?? "",
+      billId,
+      signals: [
+        ...bankResult.signals
+          .filter((s) => s.severity === "HIGH")
+          .map((s) => ({
+            layer: "L3" as const,
+            code: s.code,
+            severity: s.severity as "HIGH" | "MEDIUM",
+            evidence: s.evidence as Record<string, unknown>,
+          })),
+        ...dupResult.signals.map((s) => ({
+          layer: "L5" as const,
+          code: s.code,
+          severity: s.severity as "HIGH" | "MEDIUM",
+          evidence: (s.evidence ?? {}) as Record<string, unknown>,
+        })),
+      ],
+    });
+    await writeBillHistoryRow({
+      supabase: ctx.supabase,
+      firmId: ctx.message.firm_id,
+      firmClientId: ctx.message.firm_client_id ?? "",
+      vendorId,
+      billId,
+      invoiceAmountCents: invoiceFields.invoice_amount_cents,
+      invoiceDate: invoiceFields.invoice_date,
+      invoiceNumber: invoiceFields.invoice_number,
+      receivedAt: ctx.message.received_at ?? new Date().toISOString(),
+      quarantined: true,
+    });
 
     const { quarantineId } = await quarantineBill({
       supabase: ctx.supabase,
@@ -392,10 +420,122 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
     ctx.supabase,
   );
 
+  const invoiceAmountCents = invoiceFields.invoice_amount_cents;
+  const anomalyResult = await detectAnomalies({
+    supabase: ctx.supabase,
+    firmId: ctx.message.firm_id,
+    firmClientId: ctx.message.firm_client_id ?? "",
+    vendorId,
+    billId,
+    invoiceAmountCents,
+    receivedAt: ctx.message.received_at ?? new Date().toISOString(),
+    approvalThresholdCents: null,
+  });
+
+  const contributingSignals: ContributingSignal[] = [
+    ...bankResult.signals
+      .filter((s) => s.severity === "HIGH")
+      .map((s) => ({
+        layer: "L3" as const,
+        code: s.code,
+        severity: s.severity as ScoreSeverity,
+        evidence: s.evidence as Record<string, unknown>,
+      })),
+    ...(drift_from_prior &&
+    !(drift_from_prior as { within_threshold?: boolean }).within_threshold
+      ? [
+          {
+            layer: "L4" as const,
+            code: "fingerprint_drift_exceeded",
+            severity: "HIGH" as const,
+            evidence: drift_from_prior as unknown as Record<string, unknown>,
+          },
+        ]
+      : []),
+    ...dupResult.signals.map((s) => ({
+      layer: "L5" as const,
+      code: s.code,
+      severity: s.severity as ScoreSeverity,
+      evidence: (s.evidence ?? {}) as Record<string, unknown>,
+    })),
+    ...anomalyResult.signals.map((s) => ({
+      layer: "L6" as const,
+      code: s.code,
+      severity: s.severity as ScoreSeverity,
+      evidence: s.evidence,
+    })),
+  ];
+
+  const aggregated = await aggregateFraudScore({
+    supabase: ctx.supabase,
+    firmId: ctx.message.firm_id,
+    firmClientId: ctx.message.firm_client_id ?? "",
+    billId,
+    signals: contributingSignals,
+  });
+
+  if (aggregated.quarantine_recommended) {
+    const { quarantineId } = await quarantineBill({
+      supabase: ctx.supabase,
+      firmId: ctx.message.firm_id,
+      firmClientId: ctx.message.firm_client_id ?? "",
+      billId,
+      intakeMessageId: ctx.message.id,
+      reason: "fraud_score_threshold",
+      originatingSignals: contributingSignals.map((s) => ({
+        code: s.code,
+        severity: s.severity,
+        evidence: s.evidence,
+      })),
+      originatingSeverity: "HIGH",
+    });
+    await writeBillHistoryRow({
+      supabase: ctx.supabase,
+      firmId: ctx.message.firm_id,
+      firmClientId: ctx.message.firm_client_id ?? "",
+      vendorId,
+      billId,
+      invoiceAmountCents,
+      invoiceDate: invoiceFields.invoice_date,
+      invoiceNumber: invoiceFields.invoice_number,
+      receivedAt: ctx.message.received_at ?? new Date().toISOString(),
+      quarantined: true,
+    });
+    return {
+      status: "success",
+      detail: {
+        partial: true,
+        signals: [...signals, ...anomalyResult.signals],
+        text: textResult,
+        bill_id: billId,
+        quarantine_id: quarantineId,
+        fingerprint_version: version,
+        vendor_resolution: { method: outcome.method },
+        fraud_score_threshold: {
+          score: aggregated.score,
+          contributions: aggregated.contributions,
+        },
+      },
+    };
+  }
+
+  await writeBillHistoryRow({
+    supabase: ctx.supabase,
+    firmId: ctx.message.firm_id,
+    firmClientId: ctx.message.firm_client_id ?? "",
+    vendorId,
+    billId,
+    invoiceAmountCents,
+    invoiceDate: invoiceFields.invoice_date,
+    invoiceNumber: invoiceFields.invoice_number,
+    receivedAt: ctx.message.received_at ?? new Date().toISOString(),
+    quarantined: false,
+  });
+
   return {
     status: "success",
     detail: {
-      signals,
+      signals: [...signals, ...anomalyResult.signals],
       text: textResult,
       fingerprint_version: version,
       bill_id: billId,

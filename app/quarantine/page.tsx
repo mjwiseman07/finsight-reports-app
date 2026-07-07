@@ -4,6 +4,7 @@
  */
 "use client";
 import { useEffect, useState } from "react";
+import { FraudScorePanel } from "./fraud-score-panel";
 
 interface QuarantineRow {
   id: string;
@@ -136,6 +137,7 @@ export default function QuarantinePage() {
               </pre>
             </details>
           )}
+          <FraudScorePanel billId={row.bill_id} />
           <label htmlFor={`att-${row.id}`} style={{ display: "block", marginTop: "0.75rem" }}>
             Attestation (must reference at least one signal code, ≥20 chars):
           </label>

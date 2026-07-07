@@ -1,0 +1,64 @@
+{
+  "block": "D6.5 Part 2 Block 5 — Anomaly + Score Aggregation + Merkle Ledger",
+  "shipped_at": "__WILL_BE_SET_AT_COMMIT_TIME__",
+  "head_sha": "__WILL_BE_SET_AT_COMMIT_TIME__",
+  "base_head": "9e96664606b7b12cc96f406ef25b0a0200a6f650",
+  "migration": "supabase/migrations/20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+  "artifacts": {
+    "new_tables": ["bill_history", "fraud_score_signals", "ledger_chain_head"],
+    "new_ledger_columns": [
+      "ledger_events.event_hash",
+      "ledger_events.previous_event_hash",
+      "ledger_events.chain_index"
+    ],
+    "new_functions": ["publish_ledger_event"],
+    "new_code_files": [
+      "lib/ap-intake/anomaly/schema.ts",
+      "lib/ap-intake/anomaly/baseline.ts",
+      "lib/ap-intake/anomaly/detector.ts",
+      "lib/ap-intake/anomaly/detectors/unit-price-drift.ts",
+      "lib/ap-intake/anomaly/detectors/threshold-splitting.ts",
+      "lib/ap-intake/anomaly/detectors/round-number.ts",
+      "lib/ap-intake/anomaly/detectors/off-hours.ts",
+      "lib/ap-intake/scoring/schema.ts",
+      "lib/ap-intake/scoring/aggregator.ts",
+      "lib/ap-intake/history/bill-history-writer.ts",
+      "lib/ledger/merkle.ts",
+      "lib/ledger/chain-verifier.ts",
+      "app/quarantine/fraud-score-panel.tsx"
+    ],
+    "modified_code_files": [
+      "lib/events/publisher.ts",
+      "lib/events/ap-catalog.ts",
+      "lib/ai/action-logger.ts",
+      "lib/intake/handlers/bills.ts",
+      "lib/ap-intake/quarantine/schema.ts",
+      "app/quarantine/page.tsx"
+    ],
+    "new_api_routes": [
+      "app/api/fraud-signals/list/route.ts",
+      "app/api/fraud-signals/dispose/route.ts",
+      "app/api/ledger/verify-chain/route.ts"
+    ],
+    "new_event_types": [
+      "bill.anomaly_detected",
+      "bill.anomaly_flagged",
+      "bill.fraud_score_updated",
+      "bill.fraud_score_quarantine"
+    ],
+    "new_action_categories": ["statistical_anomaly_detection", "fraud_score_aggregation"],
+    "new_quarantine_reasons": ["anomaly_detected", "fraud_score_threshold"],
+    "new_test_files": 12
+  },
+  "verification": {
+    "typecheck": "__WILL_BE_SET_AT_COMMIT_TIME__",
+    "test_pass_count": "__WILL_BE_SET_AT_COMMIT_TIME__",
+    "chain_verifier_smoke": "__WILL_BE_SET_AT_COMMIT_TIME__"
+  },
+  "carry_forward_to_block_6": [
+    "approvalThresholdCents currently NULL — Block 6 wires firm_clients.approval_threshold_cents",
+    "bill_history is now populated — Block 6 baseline harvest can bootstrap from existing rows",
+    "fraud_score_signals disposition rows — Block 6/8b UI can show reviewer productivity",
+    "Merkle chain now live — all downstream blocks inherit tamper evidence for free"
+  ]
+}

@@ -14,6 +14,10 @@ export const AP_EVENT_TYPES = [
   "vendor.bank_change_detected",
   "bill.duplicate_detected",
   "bill.duplicate_flagged",
+  "bill.anomaly_detected",
+  "bill.anomaly_flagged",
+  "bill.fraud_score_updated",
+  "bill.fraud_score_quarantine",
 ] as const;
 
 export type ApEventType = (typeof AP_EVENT_TYPES)[number];
