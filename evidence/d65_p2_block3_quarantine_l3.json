@@ -1,7 +1,7 @@
-{
-  "block": "D6.5 Part 2 — Block 3 (L3 Bank Change + L2 Quarantine + Gates)",
+﻿{
+  "block": "D6.5 Part 2 â€” Block 3 (L3 Bank Change + L2 Quarantine + Gates)",
   "shipped_at": "2026-07-07T01:38:00.0000000Z",
-  "head_sha": "0ce7270bbe9433c4fc66d59f645c80b98307a30c",
+  "head_sha": "ca548eb0df1b331ec8a72260c2aff9a424cd6642",
   "migration": {
     "file": "supabase/migrations/20260717030000_d65_p2_block3_quarantine_l3.sql",
     "name": "d65_p2_block3_quarantine_l3",
@@ -88,10 +88,11 @@
   },
   "carry_forward_to_block_4": {
     "notes": [
-      "Block 4 (L5 duplicate detection) consumes ap_intake_bills.fraud_score_current — should ADD to it, not replace.",
+      "Block 4 (L5 duplicate detection) consumes ap_intake_bills.fraud_score_current â€” should ADD to it, not replace.",
       "Block 4 will emit signal duplicate_bill_detected which qc-04 will consider once Block 5 wires fraud_score aggregation.",
-      "quarantine_release_attempts.gate_results JSONB structure locked — Block 4/5 gates append entries, never mutate prior entries.",
+      "quarantine_release_attempts.gate_results JSONB structure locked â€” Block 4/5 gates append entries, never mutate prior entries.",
       "Assertion bank_info_matches_vendor_history is soft (WARN) in Block 3. Block 8a interlock may promote to HARD depending on rails config."
     ]
   }
 }
+
