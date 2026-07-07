@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#0B0B0C] text-white">
+    <main className="min-h-screen bg-[#0A1530] text-white">
       <SiteNav />
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-6 pb-12 pt-[300px] md:pb-16 md:pt-[380px] lg:pt-[440px]">

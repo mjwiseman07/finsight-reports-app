@@ -22,7 +22,7 @@ const SIGNUP_URL = "/signup?persona=owner";
 
 export default function OwnerPage() {
   return (
-    <main className="min-h-screen bg-[#0B0B0C] text-white">
+    <main className="min-h-screen bg-[#0A1530] text-white">
       <SiteNav />
       {/* HERO */}
       <section className="mx-auto max-w-6xl px-6 pt-[200px] md:pt-[240px] lg:pt-[260px] pb-16 md:pb-24">

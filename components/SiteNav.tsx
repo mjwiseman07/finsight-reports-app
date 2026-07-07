@@ -16,8 +16,8 @@ export function SiteNav() {
         <Image
           src={heroLogo}
           alt="Advisacor"
-          width={1788}
-          height={880}
+          width={1536}
+          height={902}
           priority
           className="pointer-events-none h-auto w-[320px] select-none md:w-[460px] lg:w-[560px]"
         />
@@ -25,13 +25,13 @@ export function SiteNav() {
       <nav className="absolute top-6 right-8 z-30">
         <div className="flex items-center gap-6 rounded-full bg-white/40 px-6 py-3 backdrop-blur-sm">
           <div className="hidden items-center gap-8 md:flex">
-            <Link href="/#what-it-does" className={navLinkClass}>
+            <Link href="/what-it-does" className={navLinkClass}>
               What It Does
             </Link>
-            <Link href="/#how-it-works" className={navLinkClass}>
+            <Link href="/how-it-works" className={navLinkClass}>
               How It Works
             </Link>
-            <Link href="/#industries" className={navLinkClass}>
+            <Link href="/industries" className={navLinkClass}>
               Industries
             </Link>
             <Link href="/about" className={navLinkClass}>
@@ -41,14 +41,14 @@ export function SiteNav() {
               Sign In
             </Link>
             <Link
-              href="/#early-access"
+              href="/free-review"
               className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-sm ${primaryCtaClass} ${focusRing()}`}
             >
               Request Early Access
             </Link>
           </div>
           <Link
-            href="/#early-access"
+            href="/free-review"
             className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs md:hidden ${primaryCtaClass} ${focusRing()}`}
           >
             Early Access
