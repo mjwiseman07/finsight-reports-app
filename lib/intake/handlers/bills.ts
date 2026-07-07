@@ -350,7 +350,7 @@ export async function handleBills(ctx: IntakeHandlerContext): Promise<IntakeHand
     fp,
   });
 
-  const signals: Array<Record<string, unknown>> = [
+  const signals: Array<{ code: string; severity: string; evidence: unknown }> = [
     ...outcome.signals,
     ...bankResult.signals.map((s) => ({
       code: s.code,
