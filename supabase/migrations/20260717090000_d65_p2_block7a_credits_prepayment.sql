@@ -1,5 +1,5 @@
 -- Phase D6.5 Part 2 Block 7a — L7 credits / prepayment sub-ledger
--- Depends on: Block 6b (engagement_addons, pilot_feature_allowlist, ap_intake_ledger_event_types, firm_memberships, vendors, bills)
+-- Depends on: Block 6b (engagement_addons, pilot_feature_allowlist, ap_intake_ledger_event_types, firm_memberships, ap_intake_bills)
 BEGIN;
 
 -- 1a. Widen engagement_addons.addon_code CHECK
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS public.vendor_credits (
   firm_id                UUID NOT NULL,
   firm_client_id         UUID NOT NULL,
   engagement_id          UUID,
-  vendor_id              UUID NOT NULL REFERENCES public.vendors(id) ON DELETE RESTRICT,
+  vendor_id              UUID NOT NULL,
   credit_type            TEXT NOT NULL CHECK (credit_type IN ('credit_memo','debit_memo')),
   source_document_type   TEXT NOT NULL CHECK (source_document_type IN ('vendor_issued','manual_entry','system_derived')),
   source_document_ref    TEXT,
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public.credit_applications (
   id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   firm_id                     UUID NOT NULL,
   vendor_credit_id            UUID NOT NULL REFERENCES public.vendor_credits(id) ON DELETE RESTRICT,
-  bill_id                     UUID NOT NULL REFERENCES public.bills(id) ON DELETE RESTRICT,
+  bill_id                     UUID NOT NULL REFERENCES public.ap_intake_bills(id) ON DELETE RESTRICT,
   applied_amount_cents        BIGINT NOT NULL CHECK (applied_amount_cents > 0),
   applied_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
   applied_by                  TEXT NOT NULL CHECK (applied_by IN ('system_auto','user_manual','payment_authorization')),
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS public.vendor_prepayment_balances (
   id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   firm_id                     UUID NOT NULL,
   firm_client_id              UUID NOT NULL,
-  vendor_id                   UUID NOT NULL REFERENCES public.vendors(id) ON DELETE RESTRICT,
+  vendor_id                   UUID NOT NULL,
   currency                    CHAR(3) NOT NULL,
   total_paid_cents            BIGINT NOT NULL DEFAULT 0 CHECK (total_paid_cents >= 0),
   total_applied_cents         BIGINT NOT NULL DEFAULT 0 CHECK (total_applied_cents >= 0),
@@ -113,12 +113,12 @@ CREATE POLICY vpb_firm_member_select ON public.vendor_prepayment_balances
 CREATE TABLE IF NOT EXISTS public.prepayment_ledger (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   firm_id            UUID NOT NULL,
-  vendor_id          UUID NOT NULL REFERENCES public.vendors(id) ON DELETE RESTRICT,
+  vendor_id          UUID NOT NULL,
   currency           CHAR(3) NOT NULL,
   movement_type      TEXT NOT NULL CHECK (movement_type IN ('prepayment_received','prepayment_applied','prepayment_reversed','prepayment_written_off')),
   amount_cents       BIGINT NOT NULL,
   source_event_id    UUID,
-  source_bill_id     UUID REFERENCES public.bills(id) ON DELETE SET NULL,
+  source_bill_id     UUID REFERENCES public.ap_intake_bills(id) ON DELETE SET NULL,
   notes              TEXT,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by_user_id UUID NOT NULL
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS public.refund_request_drafts (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   firm_id               UUID NOT NULL,
   firm_client_id        UUID NOT NULL,
-  vendor_id             UUID NOT NULL REFERENCES public.vendors(id) ON DELETE RESTRICT,
+  vendor_id             UUID NOT NULL,
   prepayment_balance_id UUID NOT NULL REFERENCES public.vendor_prepayment_balances(id) ON DELETE RESTRICT,
   draft_amount_cents    BIGINT NOT NULL CHECK (draft_amount_cents > 0),
   currency              CHAR(3) NOT NULL,
@@ -175,5 +175,20 @@ INSERT INTO public.ap_intake_ledger_event_types (event_type, actor_type, is_merk
   ('prepayment.refund_draft_created',     'system', TRUE),
   ('prepayment.refund_draft_reviewed',    'user',   TRUE)
 ON CONFLICT (event_type) DO NOTHING;
+
+-- Document why vendor_id is unconstrained (codebase convention)
+COMMENT ON COLUMN public.vendor_credits.vendor_id IS
+  'Logical vendor UUID. Unconstrained per codebase convention: vendor_master_mirror is an ERP-owned mirror (QBO/etc), not a canonical registry, so sub-ledger money tables never FK into it. Resolution happens at query time via ap_intake_bills.resolved_vendor_id and matching against vendor_master_mirror.';
+COMMENT ON COLUMN public.vendor_prepayment_balances.vendor_id IS
+  'Logical vendor UUID. Unconstrained per codebase convention: vendor_master_mirror is an ERP-owned mirror (QBO/etc), not a canonical registry, so sub-ledger money tables never FK into it. Resolution happens at query time via ap_intake_bills.resolved_vendor_id and matching against vendor_master_mirror.';
+COMMENT ON COLUMN public.prepayment_ledger.vendor_id IS
+  'Logical vendor UUID. Unconstrained per codebase convention: vendor_master_mirror is an ERP-owned mirror (QBO/etc), not a canonical registry, so sub-ledger money tables never FK into it. Resolution happens at query time via ap_intake_bills.resolved_vendor_id and matching against vendor_master_mirror.';
+COMMENT ON COLUMN public.refund_request_drafts.vendor_id IS
+  'Logical vendor UUID. Unconstrained per codebase convention: vendor_master_mirror is an ERP-owned mirror (QBO/etc), not a canonical registry, so sub-ledger money tables never FK into it. Resolution happens at query time via ap_intake_bills.resolved_vendor_id and matching against vendor_master_mirror.';
+
+COMMENT ON COLUMN public.credit_applications.bill_id IS
+  'FK to ap_intake_bills(id) — the canonical bill of record in this codebase. There is no public.bills table.';
+COMMENT ON COLUMN public.prepayment_ledger.source_bill_id IS
+  'FK to ap_intake_bills(id) — the canonical bill of record in this codebase. Nullable because prepayments can predate the invoice.';
 
 COMMIT;
