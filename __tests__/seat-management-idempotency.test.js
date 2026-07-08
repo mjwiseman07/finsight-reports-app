@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import crypto from 'node:crypto';
 
-// Mock modules BEFORE importing the SUT
 const supabaseChain = () => {
   const chain = {
     from: vi.fn().mockReturnThis(),
@@ -68,6 +67,15 @@ describe('activateSeat idempotency', () => {
       identifier: expectedIdentifier(ITEM_ID, COMPANY_ID, PERIOD_START),
       payload: { stripe_customer_id: 'cus_x', value: '1' },
     });
+    // Confirm the insert payload includes firm_id and uses the real column names.
+    expect(supabaseMock.insert).toHaveBeenCalledWith(expect.objectContaining({
+      subscription_item_id: ITEM_ID,
+      firm_id: FIRM_ID,
+      company_id: COMPANY_ID,
+      active: true,
+      billing_period_anchor: PERIOD_START,
+      stripe_usage_event_id: expectedIdentifier(ITEM_ID, COMPANY_ID, PERIOD_START),
+    }));
   });
 
   it('does NOT emit meter event when active seat already exists (app-side guard)', async () => {
