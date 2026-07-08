@@ -18,6 +18,7 @@ export const ADDON_CODES = [
   "ap_three_way_match",
   "ap_budget_controls",
   "ap_credit_prepayment",
+  "ap_multimodal_inbox",
 ] as const;
 
 export type AddonCode = (typeof ADDON_CODES)[number];
@@ -193,6 +194,19 @@ export const ADDON_REGISTRY: Record<AddonCode, AddonMetadata> = {
     defaultIncludedVolume: 0,
     defaultOverageUnitCents: 0,
     volumeUnit: "credit_prepayment_event",
+    requiresWave: 2,
+  },
+  ap_multimodal_inbox: {
+    code: "ap_multimodal_inbox",
+    displayName: "AP Multimodal Inbox",
+    description:
+      "Email, voice, SMS, and messaging vendor AP inbox with intent taxonomy, LLM drafter, autonomy modes, and permanent exclusion enforcement.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 5900,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "inbox_message",
     requiresWave: 2,
   },
 };

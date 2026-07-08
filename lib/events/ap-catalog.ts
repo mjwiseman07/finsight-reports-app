@@ -69,6 +69,19 @@ export const AP_EVENT_TYPES = [
   "prepayment.aged_flagged",
   "prepayment.refund_draft_created",
   "prepayment.refund_draft_reviewed",
+  // Block 7b — Multimodal AP Inbox
+  "ap_inbox.message_received",
+  "ap_inbox.message_classified",
+  "ap_inbox.classification_failed",
+  "ap_inbox.draft_created",
+  "ap_inbox.draft_reviewer_approved",
+  "ap_inbox.draft_reviewer_rejected",
+  "ap_inbox.draft_reviewer_deferred",
+  "ap_inbox.draft_sent",
+  "ap_inbox.autonomy_config_updated",
+  "ap_inbox.permanent_exclusion_enforced",
+  "ap_inbox.vendor_matched",
+  "ap_inbox.reclassified",
 ] as const;
 
 export type ApEventType = (typeof AP_EVENT_TYPES)[number];

@@ -21,6 +21,10 @@ export function makeMockSupabase() {
     prepayment_ledger: [],
     refund_request_drafts: [],
     engagements: [],
+    vendor_ap_inbox_messages: [],
+    ap_inbox_drafted_responses: [],
+    ap_inbox_autonomy_config: [],
+    ap_inbox_permanent_exclusions_log: [],
   };
 
   function ensureTable(name: string): Row[] {
