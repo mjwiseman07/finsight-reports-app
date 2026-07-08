@@ -4,6 +4,10 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { activateAddon, deactivateAddon } from "./service";
 import { isAddonCode, type AddonCode } from "./registry";
+import {
+  handleTcp1CheckoutCompleted,
+  handleTcp1SubscriptionDeleted,
+} from "@/lib/tcp1/stripe-pilot-checkout";
 
 export interface MinimalStripeEvent {
   id: string;
@@ -29,6 +33,7 @@ const HANDLED_TYPES = new Set<string>([
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
+  "checkout.session.completed",
 ]);
 
 export async function handleStripeWebhook(
@@ -58,6 +63,18 @@ export async function handleStripeWebhook(
   }
 
   try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as {
+        id: string;
+        subscription?: string | null;
+        customer?: string | null;
+        metadata?: Record<string, string | undefined>;
+      };
+      await handleTcp1CheckoutCompleted(session);
+      await markProcessed(event.id, "processed");
+      return { status: "processed" };
+    }
+
     const sub = event.data.object;
     const engagementId = sub.metadata?.engagement_id;
 
@@ -68,6 +85,9 @@ export async function handleStripeWebhook(
 
     if (event.type === "customer.subscription.deleted") {
       await deactivateBySubscription(sub.items?.data.map((i) => i.id) ?? []);
+      if (sub.id) {
+        await handleTcp1SubscriptionDeleted(sub.id);
+      }
       await markProcessed(event.id, "processed");
       return { status: "processed" };
     }

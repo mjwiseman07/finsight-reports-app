@@ -29,6 +29,7 @@ import { downloadFinancialPackagePdf } from "../../lib/financial-package-pdf";
 import type { ReportDataContext } from "../../lib/integrations/accounting/report-data-context";
 import { assertReportPreflight, validateReportPreflight } from "../../lib/reporting/report-preflight-validation";
 import { supabase } from "../../lib/supabase";
+import { SOLO_BK_STEPS } from "../../lib/onboarding-solo-bk-steps";
 
 const demoTemplates: Record<string, Partial<CompanyForm>> = {
   "demo-manufacturing": {
@@ -387,6 +388,8 @@ const accountingIntegrationOptions: Array<{
 function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const persona = searchParams?.get("persona") || "";
+  const isSoloBookkeeperPersona = persona === "bookkeeper";
   const templateId = searchParams?.get("companyTemplate") || "";
   const isSuperAdmin = searchParams?.get("superAdmin") === "true";
   const template = demoTemplates[templateId] || {};
@@ -463,6 +466,9 @@ function OnboardingContent() {
   });
 
   const steps = useMemo(() => {
+    if (isSoloBookkeeperPersona) {
+      return SOLO_BK_STEPS.map((s) => s.label);
+    }
     return [
       "Customer Type Selection",
       "Connect Accounting",
@@ -472,7 +478,7 @@ function OnboardingContent() {
       "Generate First Review",
       "Dashboard",
     ];
-  }, []);
+  }, [isSoloBookkeeperPersona]);
 
   const updateCompany = (key: keyof CompanyForm, value: string) => {
     setCompany((current) => ({ ...current, [key]: value }));
