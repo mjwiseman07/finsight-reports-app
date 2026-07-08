@@ -10,6 +10,7 @@ function row(
     coverage_status: "gap",
     covering_rule_ids: [],
     covering_fire_ids: [],
+    covering_manual_test_ids: [],
     evidence_strength: "unassessed",
     gap_root_cause_code: "no_rule_defined",
     ...partial,

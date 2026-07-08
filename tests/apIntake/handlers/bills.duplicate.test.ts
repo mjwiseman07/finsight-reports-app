@@ -4,21 +4,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mocks = {
-  resolveVendor: vi.fn(),
-  extractRemittance: vi.fn(),
-  detectBankChange: vi.fn(),
-  detectDuplicates: vi.fn(),
-  quarantineBill: vi.fn(async () => ({ quarantineId: "q-dup" })),
-  fingerprintExtract: vi.fn(),
-  computeDrift: vi.fn(),
-  renderFirstPageRaster: vi.fn(async () => Buffer.from("")),
-  extractBillText: vi.fn(() => ({
+  resolveVendor: vi.fn<(...args: unknown[]) => unknown>(),
+  extractRemittance: vi.fn<(...args: unknown[]) => unknown>(),
+  detectBankChange: vi.fn<(...args: unknown[]) => unknown>(),
+  detectDuplicates: vi.fn<(...args: unknown[]) => unknown>(),
+  quarantineBill: vi.fn<(...args: unknown[]) => unknown>(async () => ({ quarantineId: "q-dup" })),
+  fingerprintExtract: vi.fn<(...args: unknown[]) => unknown>(),
+  computeDrift: vi.fn<(...args: unknown[]) => unknown>(),
+  renderFirstPageRaster: vi.fn<(...args: unknown[]) => unknown>(async () => Buffer.from("")),
+  extractBillText: vi.fn<(...args: unknown[]) => unknown>(() => ({
     raw_text: "Invoice # DUP-99 Total $100.00",
     mime_type: "text/plain",
     bill_id: null,
   })),
-  acceptsBillsMime: vi.fn(() => true),
-  publishEvent: vi.fn(async () => ({
+  acceptsBillsMime: vi.fn<(...args: unknown[]) => unknown>(() => true),
+  publishEvent: vi.fn<(...args: unknown[]) => unknown>(async () => ({
     eventId: "e1",
     eventSequence: 1,
     eventType: "t",
@@ -26,15 +26,15 @@ const mocks = {
     occurredAt: new Date(),
     recordedAt: new Date(),
   })),
-  assertEntitlement: vi.fn(async () => undefined),
-  detectAnomalies: vi.fn(async () => ({ signals: [], hasHighSeverity: false })),
-  aggregateFraudScore: vi.fn(async () => ({
+  assertEntitlement: vi.fn<(...args: unknown[]) => unknown>(async () => undefined),
+  detectAnomalies: vi.fn<(...args: unknown[]) => unknown>(async () => ({ signals: [], hasHighSeverity: false })),
+  aggregateFraudScore: vi.fn<(...args: unknown[]) => unknown>(async () => ({
     bill_id: "bill-1",
     score: 0,
     contributions: [],
     quarantine_recommended: false,
   })),
-  writeBillHistoryRow: vi.fn(async () => undefined),
+  writeBillHistoryRow: vi.fn<(...args: unknown[]) => unknown>(async () => undefined),
 };
 
 vi.mock("@/lib/ap-intake/vendor/resolver", () => ({

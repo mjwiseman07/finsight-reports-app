@@ -68,7 +68,8 @@ describe("assertion coverage remediation drill-down", () => {
     });
     expect(result.status).toBe("ok");
     if (result.status !== "ok") return;
-    const cell = result.coverage_cells.find(
+    const ok = result as typeof result & { coverage_cells: Array<{ account_category: string; assertion_id: string; remediation?: unknown }> };
+    const cell = ok.coverage_cells.find(
       (c: { account_category: string; assertion_id: string }) =>
         c.account_category === "cash" && c.assertion_id === "accuracy",
     );
@@ -100,7 +101,8 @@ describe("assertion coverage remediation drill-down", () => {
     });
     expect(result.status).toBe("ok");
     if (result.status !== "ok") return;
-    const cell = result.coverage_cells.find(
+    const ok = result as typeof result & { coverage_cells: Array<{ account_category: string; assertion_id: string; remediation?: unknown }> };
+    const cell = ok.coverage_cells.find(
       (c: { account_category: string; assertion_id: string }) =>
         c.account_category === "cash" && c.assertion_id === "accuracy",
     );
@@ -124,7 +126,8 @@ describe("assertion coverage remediation drill-down", () => {
     });
     expect(result.status).toBe("ok");
     if (result.status !== "ok") return;
-    for (const cell of result.coverage_cells) {
+    const ok = result as typeof result & { coverage_cells: Array<Record<string, unknown>> };
+    for (const cell of ok.coverage_cells) {
       expect(cell).not.toHaveProperty("remediation");
     }
   });

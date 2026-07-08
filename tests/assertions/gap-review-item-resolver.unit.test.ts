@@ -66,7 +66,7 @@ describe("validateResolutionMetadata", () => {
 describe("resolveGapReviewItem", () => {
   it("manual_test writes resolved_remediated status", async () => {
     seedOpenGap();
-    const item = await resolveGapReviewItem(mock, "gap1", {
+    const item = await resolveGapReviewItem(mock as never, "gap1", {
       resolutionType: "manual_test",
       resolutionMetadata: { manual_test_ref: "MT-001", rationale: "walkthrough done" },
       resolvedByUserId: "u1",
@@ -77,7 +77,7 @@ describe("resolveGapReviewItem", () => {
 
   it("rule_activation writes resolved_remediated", async () => {
     seedOpenGap();
-    const item = await resolveGapReviewItem(mock, "gap1", {
+    const item = await resolveGapReviewItem(mock as never, "gap1", {
       resolutionType: "rule_activation",
       resolutionMetadata: { activated_rule_id: "gen.je_balance_check" },
       resolvedByUserId: "u1",
@@ -87,7 +87,7 @@ describe("resolveGapReviewItem", () => {
 
   it("not_applicable_override writes resolved_not_applicable", async () => {
     seedOpenGap();
-    const item = await resolveGapReviewItem(mock, "gap1", {
+    const item = await resolveGapReviewItem(mock as never, "gap1", {
       resolutionType: "not_applicable_override",
       resolutionMetadata: { rationale: "N/A for this vertical" },
       resolvedByUserId: "u1",
@@ -97,7 +97,7 @@ describe("resolveGapReviewItem", () => {
 
   it("deferred_to_next_period writes resolved_deferred", async () => {
     seedOpenGap();
-    const item = await resolveGapReviewItem(mock, "gap1", {
+    const item = await resolveGapReviewItem(mock as never, "gap1", {
       resolutionType: "deferred_to_next_period",
       resolutionMetadata: { defer_reason: "pending client docs" },
       resolvedByUserId: "u1",

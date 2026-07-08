@@ -210,7 +210,7 @@ describe("bills handler — vendor resolution outcomes", () => {
     ]);
     const result = await handleBills(ctx);
     expect(result.status).toBe("success");
-    const inserts = (ctx.supabase as { _inserts: Array<{ table: string; row: Record<string, unknown> }> })
+    const inserts = (ctx.supabase as unknown as { _inserts: Array<{ table: string; row: Record<string, unknown> }> })
       ._inserts;
     expect(
       inserts.some(
@@ -229,7 +229,7 @@ describe("bills handler — vendor resolution outcomes", () => {
       expect(signals.some((s) => s.code === "no_match_route_to_quarantine")).toBe(true);
       expect(result.detail.quarantine_id).toBe("q-vendor-res-1");
     }
-    const inserts = (ctx.supabase as { _inserts: Array<{ table: string; row: Record<string, unknown> }> })
+    const inserts = (ctx.supabase as unknown as { _inserts: Array<{ table: string; row: Record<string, unknown> }> })
       ._inserts;
     expect(inserts.some((i) => i.table === "vendor_invoice_fingerprints")).toBe(false);
     expect(inserts.some((i) => i.table === "ap_intake_quarantine")).toBe(true);
@@ -253,7 +253,7 @@ describe("bills handler — vendor resolution outcomes", () => {
     ctx.message.raw_body_text = "Acme Widget\nInvoice 123";
     const result = await handleBills(ctx);
     expect(result.status).toBe("success");
-    const inserts = (ctx.supabase as { _inserts: Array<{ table: string; row: Record<string, unknown> }> })
+    const inserts = (ctx.supabase as unknown as { _inserts: Array<{ table: string; row: Record<string, unknown> }> })
       ._inserts;
     const billInsert = inserts.find((i) => i.table === "ap_intake_bills");
     expect(billInsert?.row.vendor_resolution_method).toBe("fuzzy_candidate");

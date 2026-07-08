@@ -415,7 +415,7 @@ describe("cashAppRemitHandler", () => {
   });
 
   test("sets intake_message_id on remittance insert", async () => {
-    let insertedRow: Record<string, unknown> | null = null;
+    const capture = { insertedRow: null as { intake_message_id?: string } | null };
     const supabase = {
       from: (table: string) => {
         if (table === "ar_cash_app_remittances") {
@@ -426,7 +426,7 @@ describe("cashAppRemitHandler", () => {
               }),
             }),
             insert: (row: Record<string, unknown>) => {
-              insertedRow = row;
+              capture.insertedRow = row as { intake_message_id?: string };
               return {
                 select: () => ({
                   single: async () => ({ data: { id: "rem-3" }, error: null }),
@@ -468,6 +468,6 @@ describe("cashAppRemitHandler", () => {
       },
       attachments: [],
     });
-    expect(insertedRow?.intake_message_id).toBe("intake-link");
+    expect(capture.insertedRow?.intake_message_id).toBe("intake-link");
   });
 });

@@ -257,6 +257,7 @@ describe("projectCoverage", () => {
         coverage_status: "not_applicable" as const,
         covering_rule_ids: [],
         covering_fire_ids: [],
+        covering_manual_test_ids: [],
         evidence_strength: "unassessed" as const,
         gap_root_cause_code: null,
       })),

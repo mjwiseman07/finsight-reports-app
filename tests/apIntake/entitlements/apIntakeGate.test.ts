@@ -129,7 +129,7 @@ describe("ap_intake entitlement gate on bills handler", () => {
       new EntitlementDenied("ap_intake", "eng-1", "inactive"),
     );
     await expect(handleBills(ctx)).rejects.toBeInstanceOf(EntitlementDenied);
-    expect((ctx.supabase as { _inserts: unknown[] })._inserts.length).toBe(0);
+    expect((ctx.supabase as unknown as { _inserts: unknown[] })._inserts.length).toBe(0);
   });
 
   it("proceeds when ap_intake entitlement passes", async () => {

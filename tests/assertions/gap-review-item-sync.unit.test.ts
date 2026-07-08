@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeMockDb } from "../pre-close/_mock-db";
 import { syncGapReviewItems } from "@/lib/assertions/gap-review-item-sync";
+import type { GapSyncProjectionRow } from "@/lib/assertions/gap-review-item-sync";
 import type { DetectedGap } from "@/lib/assertions/gap-detector";
+import type { AccountCategory, AssertionId } from "@/lib/pre-close/assertions-types";
 
 const mock = makeMockDb();
 const FC = "fc1";
@@ -17,10 +19,10 @@ function projRow(
   assertion: string,
   relevance: "relevant" | "usually_not_primary" = "relevant",
   recommendation: string | null = null,
-) {
+): GapSyncProjectionRow {
   return {
-    account_category: account,
-    assertion_id: assertion,
+    account_category: account as AccountCategory,
+    assertion_id: assertion as AssertionId,
     relevance_at_computation: relevance,
     gap_recommendation: recommendation,
   };

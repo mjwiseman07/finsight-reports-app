@@ -292,6 +292,7 @@ describe("bills handler integration", () => {
     });
     const result = await handleBills(ctx);
     expect(result.status).toBe("success");
+    if (result.status !== "success") throw new Error("expected success");
     expect(ctx._state.fingerprintRows[0].version).toBe(2);
     const signals = (result.detail as { signals: Array<{ severity: string }> }).signals;
     expect(signals.some((s) => s.severity === "HIGH")).toBe(true);
@@ -301,6 +302,7 @@ describe("bills handler integration", () => {
     const ctx = makeCtx({ mirrorRows: [] });
     const result = await handleBills(ctx);
     expect(result.status).toBe("success");
+    if (result.status !== "success") throw new Error("expected success");
     expect(ctx._state.fingerprintRows).toHaveLength(0);
     const detail = result.detail as {
       signals: Array<{ code: string }>;
