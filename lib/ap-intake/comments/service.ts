@@ -4,6 +4,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { publishEvent } from "@/lib/events/publisher";
 import { assertEntitlement } from "@/lib/entitlements/gate";
+import { assertPilotFeature } from "@/lib/entitlements/pilot-features";
 
 export class CommentValidationError extends Error {
   field: string;
@@ -25,11 +26,17 @@ export interface EditCommentInput {
   commentId: string;
   authorUserId: string;
   body: string;
+  firmId: string;
+  engagementId: string;
+  firmClientId?: string;
 }
 
 export interface DeleteCommentInput {
   commentId: string;
   authorUserId: string;
+  firmId: string;
+  engagementId: string;
+  firmClientId?: string;
 }
 
 interface RequisitionCoreRow {
@@ -61,6 +68,7 @@ export async function addComment(input: AddCommentInput): Promise<string> {
     actorType: "user",
     actorId: input.authorUserId,
   });
+  await assertPilotFeature("ap_approval_matrix", req.firm_id);
   const supabase = createServiceClient();
   if (input.parentCommentId) {
     const { data: parent } = await supabase
@@ -107,6 +115,14 @@ export async function addComment(input: AddCommentInput): Promise<string> {
 }
 
 export async function editComment(input: EditCommentInput): Promise<void> {
+  await assertEntitlement("ap_requisitions", input.engagementId, {
+    caller: "comments.edit",
+    firmClientId: input.firmClientId,
+    actorType: "user",
+    actorId: input.authorUserId,
+    metadata: { operation: "editComment", firmId: input.firmId, commentId: input.commentId },
+  });
+  await assertPilotFeature("ap_approval_matrix", input.firmId);
   const body = input.body.trim();
   if (!body) throw new CommentValidationError("body", "body required");
   const supabase = createServiceClient();
@@ -142,6 +158,14 @@ export async function editComment(input: EditCommentInput): Promise<void> {
 }
 
 export async function deleteComment(input: DeleteCommentInput): Promise<void> {
+  await assertEntitlement("ap_requisitions", input.engagementId, {
+    caller: "comments.delete",
+    firmClientId: input.firmClientId,
+    actorType: "user",
+    actorId: input.authorUserId,
+    metadata: { operation: "deleteComment", firmId: input.firmId, commentId: input.commentId },
+  });
+  await assertPilotFeature("ap_approval_matrix", input.firmId);
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("requisition_comments")

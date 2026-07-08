@@ -3,6 +3,8 @@
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { publishEvent } from "@/lib/events/publisher";
+import { assertEntitlement } from "@/lib/entitlements/gate";
+import { assertPilotFeature } from "@/lib/entitlements/pilot-features";
 import {
   ApprovalValidationError,
   type CreateDelegationInput,
@@ -54,6 +56,14 @@ export async function resolveActiveDelegation(
 }
 
 export async function createDelegation(input: CreateDelegationInput): Promise<string> {
+  await assertEntitlement("ap_requisitions", input.engagementId, {
+    caller: "delegations.create",
+    firmClientId: input.firmClientId,
+    actorType: "user",
+    actorId: input.actorUserId,
+    metadata: { operation: "createDelegation", firmId: input.firmId },
+  });
+  await assertPilotFeature("ap_approval_matrix", input.firmId);
   if (input.delegatorUserId === input.delegateUserId) {
     throw new ApprovalValidationError("delegateUserId", "cannot delegate to self");
   }
@@ -103,6 +113,18 @@ export async function createDelegation(input: CreateDelegationInput): Promise<st
 }
 
 export async function revokeDelegation(input: RevokeDelegationInput): Promise<void> {
+  await assertEntitlement("ap_requisitions", input.engagementId, {
+    caller: "delegations.revoke",
+    firmClientId: input.firmClientId,
+    actorType: "user",
+    actorId: input.actorUserId,
+    metadata: {
+      operation: "revokeDelegation",
+      firmId: input.firmId,
+      delegationId: input.delegationId,
+    },
+  });
+  await assertPilotFeature("ap_approval_matrix", input.firmId);
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("approval_delegations")

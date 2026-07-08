@@ -202,6 +202,7 @@ export async function rejectAmendment(input: RejectAmendmentInput): Promise<void
     actorType: "user",
     actorId: input.approverUserId,
   });
+  await assertPilotFeature("ap_approval_matrix", req.firm_id);
   const nowIso = new Date().toISOString();
   await supabase
     .from("requisition_amendments")

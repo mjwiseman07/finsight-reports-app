@@ -13,6 +13,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "no_firm_membership" }, { status: 403 });
     }
     const body = await req.json().catch(() => ({}));
+    const engagementId = typeof body?.engagement_id === "string" ? body.engagement_id : null;
+    if (!engagementId) {
+      return NextResponse.json(
+        { error: "engagement_id is required for entitlement enforcement" },
+        { status: 400 },
+      );
+    }
     for (const f of ["delegate_user_id", "effective_to"]) {
       if (!body?.[f]) {
         return NextResponse.json(
@@ -30,6 +37,9 @@ export async function POST(req: Request) {
       effectiveTo: new Date(body.effective_to),
       reason: body.reason,
       actorUserId: auth.userId,
+      engagementId,
+      firmClientId:
+        typeof body.firm_client_id === "string" ? body.firm_client_id : undefined,
     });
     return NextResponse.json({ ok: true, delegation_id: id });
   } catch (err) {

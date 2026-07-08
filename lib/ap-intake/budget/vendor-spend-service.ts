@@ -3,6 +3,8 @@
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { publishEvent } from "@/lib/events/publisher";
+import { assertEntitlement } from "@/lib/entitlements/gate";
+import { assertPilotFeature } from "@/lib/entitlements/pilot-features";
 
 export interface AccumulateSpendInput {
   firmId: string;
@@ -16,9 +18,22 @@ export interface AccumulateSpendInput {
   amountCents: number;
   currency?: string;
   actorUserId: string;
+  engagementId: string;
 }
 
 export async function accumulateVendorSpend(input: AccumulateSpendInput): Promise<void> {
+  await assertEntitlement("ap_budget_controls", input.engagementId, {
+    caller: "budget.accumulateVendorSpend",
+    firmClientId: input.firmClientId,
+    actorType: "user",
+    actorId: input.actorUserId,
+    metadata: {
+      operation: "accumulateVendorSpend",
+      firmId: input.firmId,
+      vendorId: input.vendorId,
+    },
+  });
+  await assertPilotFeature("ap_budget_controls", input.firmId);
   if (input.amountCents <= 0) return;
   const supabase = createServiceClient();
   const { data: existing } = await supabase

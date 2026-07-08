@@ -47,10 +47,15 @@ export interface CreateDelegationInput {
   effectiveTo: Date;
   reason?: string;
   actorUserId: string;
+  engagementId: string;
+  firmClientId?: string;
 }
 export interface RevokeDelegationInput {
   delegationId: string;
   actorUserId: string;
+  firmId: string;
+  engagementId: string;
+  firmClientId?: string;
 }
 export class ApprovalValidationError extends Error {
   field: string;

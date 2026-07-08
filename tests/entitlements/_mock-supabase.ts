@@ -9,14 +9,26 @@ export function makeMockSupabase() {
     stripe_webhook_events: [],
     ledger_events: [],
     ai_action_log: [],
+    pilot_feature_allowlist: [],
+    requisitions: [],
+    requisition_comments: [],
+    requisition_amendments: [],
+    approval_delegations: [],
+    vendor_spend_history: [],
   };
 
+  function ensureTable(name: string): Row[] {
+    if (!state[name]) state[name] = [];
+    return state[name];
+  }
   function tbl(name: string) {
-    let filters: Array<[string, unknown]> = [];
+    ensureTable(name);
     let limitN: number | undefined;
     let single = false;
     let maybeSingle = false;
+    let filters: Array<[string, unknown]> = [];
     let inFilter: [string, unknown[]] | null = null;
+    let isFilter: [string, unknown] | null = null;
 
     const q: Record<string, unknown> = {
       select(_cols?: string) {
@@ -28,6 +40,10 @@ export function makeMockSupabase() {
       },
       in(col: string, vals: unknown[]) {
         inFilter = [col, vals];
+        return q;
+      },
+      is(col: string, val: unknown) {
+        isFilter = [col, val];
         return q;
       },
       limit(n: number) {
@@ -150,6 +166,10 @@ export function makeMockSupabase() {
       let rows = state[name].slice();
       for (const [col, val] of filters) rows = rows.filter((r) => r[col] === val);
       if (inFilter) rows = rows.filter((r) => inFilter![1].includes(r[inFilter![0]]));
+      if (isFilter) {
+        const [col, val] = isFilter;
+        rows = rows.filter((r) => (val == null ? r[col] == null : r[col] === val));
+      }
       if (limitN != null) rows = rows.slice(0, limitN);
       return rows;
     }
@@ -180,5 +200,8 @@ export function makeMockSupabase() {
       select: () => ({ limit: () => Promise.resolve({ data: [], error: null }) }),
     })),
     __state: state,
+    __reset() {
+      for (const k of Object.keys(state)) state[k] = [];
+    },
   };
 }
