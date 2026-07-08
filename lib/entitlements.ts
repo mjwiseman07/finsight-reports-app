@@ -1,8 +1,8 @@
 // lib/entitlements.ts
 //
 // Phase TCP1 W1 — Entitlements resolver.
-// Reads a firm-client's active subscription + complimentary status and returns
-// the entitlement bag used across the UI and API.
+// Reads active subscription + complimentary status and returns the entitlement
+// bag used across the UI and API.
 
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -30,6 +30,15 @@ const TIER_META: Record<
   },
 };
 
+type PilotSlotRow = {
+  tier_key: string;
+  pilot_slot_number: number | null;
+  pilot_status: string;
+  complimentary_client_cap: number | null;
+  pilot_converts_at: string | null;
+  pricing_structure: string | null;
+};
+
 export interface ResolvedEntitlements {
   tier_key: string;
   pricing_track: "standard" | "pilot" | "complimentary";
@@ -48,49 +57,12 @@ export interface ResolvedEntitlements {
   };
 }
 
-export async function resolveEntitlementsForFirmClient(
-  firmClientId: string,
-): Promise<ResolvedEntitlements | null> {
-  const supabase = createServiceClient();
-
-  const { data: slot, error: slotErr } = await supabase
-    .from("pilot_slots")
-    .select(
-      "tier_key, pilot_slot_number, pilot_status, complimentary_client_cap, pilot_converts_at, pricing_structure",
-    )
-    .eq("company_id", firmClientId)
-    .maybeSingle();
-  if (slotErr) throw slotErr;
-
-  if (!slot) return null;
-
+function buildResolvedEntitlements(
+  slot: PilotSlotRow,
+  clientCount: number,
+): ResolvedEntitlements | null {
   const tier = TIER_META[slot.tier_key];
   if (!tier) return null;
-
-  const { data: firmRow } = await supabase
-    .from("firms")
-    .select("id")
-    .eq("id", firmClientId)
-    .maybeSingle();
-
-  let clientCount = 0;
-  if (firmRow?.id) {
-    const { count, error: countErr } = await supabase
-      .from("firm_clients")
-      .select("*", { count: "exact", head: true })
-      .eq("firm_id", firmRow.id)
-      .eq("subscription_status", "active");
-    if (countErr) throw countErr;
-    clientCount = count ?? 0;
-  } else {
-    const { count, error: countErr } = await supabase
-      .from("firm_clients")
-      .select("*", { count: "exact", head: true })
-      .eq("company_id", firmClientId)
-      .eq("subscription_status", "active");
-    if (countErr) throw countErr;
-    clientCount = count ?? 0;
-  }
 
   const isComp = slot.pilot_status === "complimentary";
   const track: "standard" | "pilot" | "complimentary" = isComp
@@ -123,10 +95,103 @@ export async function resolveEntitlementsForFirmClient(
   };
 }
 
-export async function canAddClient(
+const SLOT_SELECT =
+  "tier_key, pilot_slot_number, pilot_status, complimentary_client_cap, pilot_converts_at, pricing_structure";
+
+/** Owner-tier products — reads pilot_slots by company_id only. */
+export async function resolveEntitlementsForCompany(
+  companyId: string,
+): Promise<ResolvedEntitlements | null> {
+  const supabase = createServiceClient();
+
+  const { data: slot, error: slotErr } = await supabase
+    .from("pilot_slots")
+    .select(SLOT_SELECT)
+    .eq("company_id", companyId)
+    .maybeSingle();
+  if (slotErr) throw slotErr;
+  if (!slot) return null;
+
+  const { count, error: countErr } = await supabase
+    .from("firm_clients")
+    .select("*", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .eq("subscription_status", "active");
+  if (countErr) throw countErr;
+
+  return buildResolvedEntitlements(slot, count ?? 0);
+}
+
+/** Firm-tier products — reads pilot_slots by firm_id. */
+export async function resolveEntitlementsForFirm(
+  firmId: string,
+): Promise<ResolvedEntitlements | null> {
+  const supabase = createServiceClient();
+
+  const { data: slot, error: slotErr } = await supabase
+    .from("pilot_slots")
+    .select(SLOT_SELECT)
+    .eq("firm_id", firmId)
+    .maybeSingle();
+  if (slotErr) throw slotErr;
+  if (!slot) return null;
+
+  const { count, error: countErr } = await supabase
+    .from("firm_clients")
+    .select("*", { count: "exact", head: true })
+    .eq("firm_id", firmId)
+    .eq("subscription_status", "active");
+  if (countErr) throw countErr;
+
+  return buildResolvedEntitlements(slot, count ?? 0);
+}
+
+/**
+ * Dispatches to firm-tier or owner-tier resolver. New call sites SHOULD use
+ * resolveEntitlementsForFirm / resolveEntitlementsForCompany directly once the
+ * entity type is known. This exists for legacy callers during migration.
+ */
+export async function resolveEntitlementsForSubject(
+  subjectId: string,
+): Promise<ResolvedEntitlements | null> {
+  const firmEnt = await resolveEntitlementsForFirm(subjectId);
+  if (firmEnt) return firmEnt;
+  return resolveEntitlementsForCompany(subjectId);
+}
+
+/**
+ * @deprecated Use resolveEntitlementsForFirm for firm-tier products or
+ * resolveEntitlementsForCompany for owner-tier products. Routes through
+ * resolveEntitlementsForSubject for backward compatibility.
+ */
+export async function resolveEntitlementsForFirmClient(
   firmClientId: string,
+): Promise<ResolvedEntitlements | null> {
+  return resolveEntitlementsForSubject(firmClientId);
+}
+
+export async function canAddClientForFirm(
+  firmId: string,
 ): Promise<{ allowed: boolean; reason?: string; capacity_remaining: number }> {
-  const ent = await resolveEntitlementsForFirmClient(firmClientId);
+  const ent = await resolveEntitlementsForFirm(firmId);
+  if (!ent) return { allowed: false, reason: "no_active_plan", capacity_remaining: 0 };
+  if (ent.client_capacity_remaining <= 0) {
+    return {
+      allowed: false,
+      reason: ent.is_complimentary ? "complimentary_cap_reached" : "tier_max_entities_reached",
+      capacity_remaining: 0,
+    };
+  }
+  return { allowed: true, capacity_remaining: ent.client_capacity_remaining };
+}
+
+/**
+ * @deprecated Use canAddClientForFirm when the entity type is known to be a firm.
+ */
+export async function canAddClient(
+  subjectId: string,
+): Promise<{ allowed: boolean; reason?: string; capacity_remaining: number }> {
+  const ent = await resolveEntitlementsForSubject(subjectId);
   if (!ent) return { allowed: false, reason: "no_active_plan", capacity_remaining: 0 };
   if (ent.client_capacity_remaining <= 0) {
     return {

@@ -181,4 +181,61 @@ describe("Phase TCP1 W1 — Solo Bookkeeper", () => {
       expect(true).toBe(true);
     });
   });
+
+  describe("Retrofit — pilot_slots firm_id / company_id XOR", () => {
+    it.skipIf(!hasSupabase)("CHECK rejects row with both firm_id and company_id set", async () => {
+      const { error } = await supabase!.from("pilot_slots").insert({
+        tier_key: "solo_bookkeeper",
+        firm_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        company_id: "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb",
+        pilot_slot_number: null,
+        pilot_status: "active",
+        pricing_structure: "flat",
+        pricing_cadence: "monthly",
+      });
+      expect(error).not.toBeNull();
+      expect(
+        /pilot_slots_entity_xor_check|violates foreign key/i.test(error!.message),
+        `expected XOR check or FK error, got: ${error!.message}`,
+      ).toBe(true);
+    });
+
+    it.skipIf(!hasSupabase)("CHECK rejects row with neither firm_id nor company_id set", async () => {
+      const { error } = await supabase!.from("pilot_slots").insert({
+        tier_key: "solo_bookkeeper",
+        firm_id: null,
+        company_id: null,
+        pilot_slot_number: null,
+        pilot_status: "active",
+        pricing_structure: "flat",
+        pricing_cadence: "monthly",
+      });
+      expect(error).not.toBeNull();
+      expect(/pilot_slots_entity_xor_check/i.test(error!.message)).toBe(true);
+    });
+
+    it("getSubscriptionEntity returns 'firm' for firm-tier keys", async () => {
+      const { getSubscriptionEntity } = await import("@/lib/product-tiers");
+      expect(getSubscriptionEntity("solo_bookkeeper")).toBe("firm");
+      expect(getSubscriptionEntity("firm")).toBe("firm");
+    });
+
+    it("getSubscriptionEntity returns 'company' for owner-tier keys", async () => {
+      const { getSubscriptionEntity } = await import("@/lib/product-tiers");
+      expect(getSubscriptionEntity("owner_pro")).toBe("company");
+      expect(getSubscriptionEntity("owner_lite")).toBe("company");
+    });
+
+    it("getSubscriptionEntity returns null for add-on tiers", async () => {
+      const { getSubscriptionEntity } = await import("@/lib/product-tiers");
+      expect(getSubscriptionEntity("client_seat_alacarte")).toBeNull();
+      expect(getSubscriptionEntity("firm_seat")).toBeNull();
+      expect(getSubscriptionEntity("industry_premium_addon")).toBeNull();
+    });
+
+    it("getSubscriptionEntity throws for unknown tier keys", async () => {
+      const { getSubscriptionEntity } = await import("@/lib/product-tiers");
+      expect(() => getSubscriptionEntity("not_a_real_tier")).toThrow(/unknown tier_key/);
+    });
+  });
 });

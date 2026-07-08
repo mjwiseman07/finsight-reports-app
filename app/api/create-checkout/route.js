@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { rateLimit } from "../../../lib/rate-limit";
-import { getCheckoutTiers } from "../../../lib/product-tiers";
+import { getCheckoutTiers, getSubscriptionEntity } from "../../../lib/product-tiers";
 
 function getStripeClient() {
   if (!process.env.STRIPE_SECRET_KEY) return null;
@@ -11,6 +11,94 @@ function getStripeClient() {
 
 function getAllowedPriceIds() {
   return getCheckoutTiers().map((tier) => tier.priceId).filter(Boolean);
+}
+
+async function resolveCheckoutMetadata({ userId, tierKey, track, pricingStructure, pricingCadence }) {
+  const entityType = getSubscriptionEntity(tierKey);
+
+  if (entityType === null) {
+    // Add-on tiers attach to the parent firm slot (solo_bookkeeper).
+    const { data: memberships, error: membershipError } = await supabaseAdmin
+      .from("firm_memberships")
+      .select("firm_id")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .limit(1);
+
+    if (membershipError) {
+      return { error: membershipError.message, status: 500 };
+    }
+    const firmId = memberships?.[0]?.firm_id;
+    if (!firmId) {
+      return { error: "Active firm membership required for add-on checkout", status: 403 };
+    }
+
+    return {
+      metadata: {
+        tier_key: tierKey,
+        firm_id: firmId,
+        track: track || "pilot",
+        pricing_structure: pricingStructure || "per_client",
+        pricing_cadence: pricingCadence || "monthly",
+      },
+    };
+  }
+
+  if (entityType === "firm") {
+    const { data: memberships, error: membershipError } = await supabaseAdmin
+      .from("firm_memberships")
+      .select("firm_id")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .limit(1);
+
+    if (membershipError) {
+      return { error: membershipError.message, status: 500 };
+    }
+    const firmId = memberships?.[0]?.firm_id;
+    if (!firmId) {
+      return { error: "Active firm membership required for firm-tier checkout", status: 403 };
+    }
+
+    return {
+      metadata: {
+        tier_key: tierKey,
+        firm_id: firmId,
+        track: track || "pilot",
+        pricing_structure: pricingStructure || "flat",
+        pricing_cadence: pricingCadence || "monthly",
+      },
+    };
+  }
+
+  if (entityType === "company") {
+    const { data: companyUsers, error: companyError } = await supabaseAdmin
+      .from("company_users")
+      .select("company_id")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .limit(1);
+
+    if (companyError) {
+      return { error: companyError.message, status: 500 };
+    }
+    const companyId = companyUsers?.[0]?.company_id;
+    if (!companyId) {
+      return { error: "Active company membership required for owner-tier checkout", status: 403 };
+    }
+
+    return {
+      metadata: {
+        tier_key: tierKey,
+        company_id: companyId,
+        track: track || "pilot",
+        pricing_structure: pricingStructure || "flat",
+        pricing_cadence: pricingCadence || "monthly",
+      },
+    };
+  }
+
+  return { error: "Unknown subscription entity type", status: 500 };
 }
 
 function stripeUnavailableResponse() {
@@ -51,7 +139,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Missing Authorization bearer token" }, { status: 401 });
   }
 
-  const { priceId } = await request.json();
+  const { priceId, tierKey, track, pricingStructure, pricingCadence } = await request.json();
 
   if (!priceId) {
     return NextResponse.json({ error: "priceId is required" }, { status: 400 });
@@ -90,7 +178,8 @@ export async function POST(request) {
   }
 
   const baseUrl = getBaseUrl(request);
-  const session = await stripe.checkout.sessions.create({
+
+  const sessionParams = {
     mode: "subscription",
     customer_email: userRecord.email || authData.user.email,
     line_items: [
@@ -104,7 +193,23 @@ export async function POST(request) {
     },
     success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/pricing`,
-  });
+  };
+
+  if (tierKey) {
+    const metaResult = await resolveCheckoutMetadata({
+      userId: authData.user.id,
+      tierKey,
+      track,
+      pricingStructure,
+      pricingCadence,
+    });
+    if (metaResult.error) {
+      return NextResponse.json({ error: metaResult.error }, { status: metaResult.status });
+    }
+    sessionParams.metadata = metaResult.metadata;
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams);
 
   return NextResponse.json({ url: session.url });
 }
