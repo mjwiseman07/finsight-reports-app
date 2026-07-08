@@ -8,8 +8,8 @@ import {
 } from "@/lib/entitlements/registry";
 
 describe("entitlements/registry", () => {
-  it("has exactly 15 add-on codes", () => {
-    expect(ADDON_CODES.length).toBe(15);
+  it("has exactly 17 add-on codes", () => {
+    expect(ADDON_CODES.length).toBe(17);
   });
 
   it("has metadata for every code", () => {
@@ -19,7 +19,15 @@ describe("entitlements/registry", () => {
       expect(meta.displayName.length).toBeGreaterThan(0);
       expect(meta.description.length).toBeGreaterThan(0);
       expect(["ap", "ar", "collections"]).toContain(meta.category);
-      if (!["ap_budget_controls", "ap_payment_interlock", "ap_banking_fanout"].includes(code)) {
+      if (
+        ![
+          "ap_budget_controls",
+          "ap_payment_interlock",
+          "ap_banking_fanout",
+          "ap_preset_packs",
+          "ap_adaptive_governance",
+        ].includes(code)
+      ) {
         expect(meta.defaultMonthlyBaseCents).toBeGreaterThan(0);
       }
     }
@@ -46,7 +54,7 @@ describe("entitlements/registry", () => {
     const b = listAddonCodes();
     expect(a).toEqual(b);
     a.push("x" as never);
-    expect(listAddonCodes().length).toBe(15);
+    expect(listAddonCodes().length).toBe(17);
   });
 
   it("ap_pay is standalone-capable", () => {

@@ -21,6 +21,8 @@ export const ADDON_CODES = [
   "ap_multimodal_inbox",
   "ap_payment_interlock",
   "ap_banking_fanout",
+  "ap_preset_packs",
+  "ap_adaptive_governance",
 ] as const;
 
 export type AddonCode = (typeof ADDON_CODES)[number];
@@ -235,6 +237,32 @@ export const ADDON_REGISTRY: Record<AddonCode, AddonMetadata> = {
     defaultIncludedVolume: 0,
     defaultOverageUnitCents: 0,
     volumeUnit: "rail_fanout_event",
+    requiresWave: 2,
+  },
+  ap_preset_packs: {
+    code: "ap_preset_packs",
+    displayName: "AP Preset Configuration Packs",
+    description:
+      "L12 five preset packs (Starter/Growing/Controller-Led/Firm-Managed/High-Risk) with per-setting override capability.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 0,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "preset_selection",
+    requiresWave: 2,
+  },
+  ap_adaptive_governance: {
+    code: "ap_adaptive_governance",
+    displayName: "AP Adaptive Self-Governance",
+    description:
+      "L13 always-on observation feed + human-approved drafted amendments. Never auto-applies.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 0,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "amendment_draft",
     requiresWave: 2,
   },
 };

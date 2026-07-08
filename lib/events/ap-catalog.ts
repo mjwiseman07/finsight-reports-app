@@ -95,6 +95,15 @@ export const AP_EVENT_TYPES = [
   "ap_rail.vendor_account_deactivated",
   "ap_rail.fanout_attempted",
   "ap_rail.fanout_recorded",
+  // Block 8b — L12 Preset Packs
+  "ap_preset.pack_selected",
+  "ap_preset.pack_swapped",
+  "ap_preset.override_applied",
+  // Block 8b — L13 Adaptive Self-Governance
+  "ap_selfgov.observation_recorded",
+  "ap_selfgov.amendment_drafted",
+  "ap_selfgov.amendment_applied",
+  "ap_selfgov.amendment_rejected",
 ] as const;
 
 export type ApEventType = (typeof AP_EVENT_TYPES)[number];
