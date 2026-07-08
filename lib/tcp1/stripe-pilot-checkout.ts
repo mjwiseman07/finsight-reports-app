@@ -55,11 +55,15 @@ export async function handleTcp1CheckoutCompleted(
     }
   }
 
+  // Standard-track subscribers do NOT occupy a pilot slot number — that's
+  // reserved for the pilot cohort. Use NULL so the partial unique index
+  // does not collide across standard subscribers (Bug 2).
+  const slotNumberForRow: number | null = track === "pilot" ? assignedSlot : null;
   const { error } = await supabase.from("pilot_slots").upsert(
     {
       tier_key: tierKey,
       company_id: companyId,
-      pilot_slot_number: assignedSlot ?? 1000,
+      pilot_slot_number: slotNumberForRow,
       pilot_status: "active",
       pricing_structure: pricingStructure ?? "flat",
       pricing_cadence: pricingCadence ?? "monthly",

@@ -109,4 +109,76 @@ describe("Phase TCP1 W1 — Solo Bookkeeper", () => {
       expect(soloBkStepsEstimatedTotal()).toBe(870);
     });
   });
+
+  describe("LOOKUP_KEY_TO_TIER (Bug 1 regression)", () => {
+    type LookupMeta = { track: string; cadence: string; structure: string | null };
+
+    it("resolves solo_bk_std_mo to track=standard, cadence=monthly, structure=flat", async () => {
+      const { LOOKUP_KEY_TO_TIER } = await import("@/lib/product-tiers");
+      const meta = (LOOKUP_KEY_TO_TIER as Record<string, LookupMeta>)["solo_bk_std_mo"];
+      expect(meta).toBeDefined();
+      expect(meta.track).toBe("standard");
+      expect(meta.cadence).toBe("monthly");
+      expect(meta.structure).toBe("flat");
+    });
+    it("resolves solo_bk_pilot_yr to track=pilot, cadence=yearly, structure=flat", async () => {
+      const { LOOKUP_KEY_TO_TIER } = await import("@/lib/product-tiers");
+      const meta = (LOOKUP_KEY_TO_TIER as Record<string, LookupMeta>)["solo_bk_pilot_yr"];
+      expect(meta).toBeDefined();
+      expect(meta.track).toBe("pilot");
+      expect(meta.cadence).toBe("yearly");
+      expect(meta.structure).toBe("flat");
+    });
+    it("resolves client_seat_std_mo to track=standard, cadence=monthly, structure=perClient", async () => {
+      const { LOOKUP_KEY_TO_TIER } = await import("@/lib/product-tiers");
+      const meta = (LOOKUP_KEY_TO_TIER as Record<string, LookupMeta>)["client_seat_std_mo"];
+      expect(meta).toBeDefined();
+      expect(meta.track).toBe("standard");
+      expect(meta.cadence).toBe("monthly");
+      expect(meta.structure).toBe("perClient");
+    });
+    it("every entry has track ∈ {standard,pilot} and cadence ∈ {monthly,yearly}", async () => {
+      const { LOOKUP_KEY_TO_TIER } = await import("@/lib/product-tiers");
+      const validTracks = new Set(["standard", "pilot"]);
+      const validCadences = new Set(["monthly", "yearly"]);
+      for (const [lookupKey, meta] of Object.entries(LOOKUP_KEY_TO_TIER)) {
+        expect(validTracks.has((meta as { track: string }).track), `${lookupKey}.track=${(meta as { track: string }).track}`).toBe(true);
+        expect(validCadences.has((meta as { cadence: string }).cadence), `${lookupKey}.cadence=${(meta as { cadence: string }).cadence}`).toBe(true);
+      }
+    });
+  });
+
+  describe("pilot_slot_number NULL for standard-track (Bug 2 regression)", () => {
+    it.skipIf(!hasSupabase)("supabase accepts pilot_slot_number NULL for standard-track row", async () => {
+      const testCompanyId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+      // Best-effort cleanup from any prior run (ignore error if row absent).
+      await supabase!
+        .from("pilot_slots")
+        .delete()
+        .eq("company_id", testCompanyId)
+        .eq("tier_key", "solo_bookkeeper");
+      const { error: insertErr } = await supabase!.from("pilot_slots").insert({
+        tier_key: "solo_bookkeeper",
+        company_id: testCompanyId,
+        pilot_slot_number: null,
+        pilot_status: "active",
+        pricing_structure: "flat",
+        pricing_cadence: "monthly",
+      });
+      // Insert may still fail if the company row does not exist (FK). That's
+      // fine for this regression: we care about the CHECK / NOT NULL, not FK.
+      if (insertErr && !/violates foreign key/i.test(insertErr.message)) {
+        throw insertErr;
+      }
+      // If it succeeded, clean up.
+      await supabase!
+        .from("pilot_slots")
+        .delete()
+        .eq("company_id", testCompanyId)
+        .eq("tier_key", "solo_bookkeeper");
+      // If we reached here without a non-FK error, the NULL was accepted by
+      // the schema. That's the assertion.
+      expect(true).toBe(true);
+    });
+  });
 });
