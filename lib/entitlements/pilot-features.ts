@@ -9,7 +9,8 @@ export type PilotFeatureCode =
   | "ap_baseline_harvest"
   | "ap_three_way_match"
   | "ap_approval_matrix"
-  | "ap_budget_controls";
+  | "ap_budget_controls"
+  | "ap_credit_prepayment";
 export class PilotFeatureDenied extends Error {
   code: PilotFeatureCode;
   firmId: string;

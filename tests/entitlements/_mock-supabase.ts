@@ -15,6 +15,12 @@ export function makeMockSupabase() {
     requisition_amendments: [],
     approval_delegations: [],
     vendor_spend_history: [],
+    vendor_credits: [],
+    credit_applications: [],
+    vendor_prepayment_balances: [],
+    prepayment_ledger: [],
+    refund_request_drafts: [],
+    engagements: [],
   };
 
   function ensureTable(name: string): Row[] {
@@ -29,6 +35,10 @@ export function makeMockSupabase() {
     let filters: Array<[string, unknown]> = [];
     let inFilter: [string, unknown[]] | null = null;
     let isFilter: [string, unknown] | null = null;
+    let gtFilter: [string, unknown] | null = null;
+    let lteFilter: [string, unknown] | null = null;
+    let orderCol: string | null = null;
+    let orderAsc = true;
 
     const q: Record<string, unknown> = {
       select(_cols?: string) {
@@ -46,6 +56,19 @@ export function makeMockSupabase() {
         isFilter = [col, val];
         return q;
       },
+      gt(col: string, val: unknown) {
+        gtFilter = [col, val];
+        return q;
+      },
+      lte(col: string, val: unknown) {
+        lteFilter = [col, val];
+        return q;
+      },
+      order(col: string, opts?: { ascending?: boolean }) {
+        orderCol = col;
+        orderAsc = opts?.ascending !== false;
+        return q;
+      },
       limit(n: number) {
         limitN = n;
         return q;
@@ -60,6 +83,7 @@ export function makeMockSupabase() {
       },
       insert(payload: Row | Row[]) {
         const rows = Array.isArray(payload) ? payload : [payload];
+        const inserted: Row[] = [];
         for (const r of rows) {
           if (name === "stripe_webhook_events") {
             const existing = state[name].find((x) => x.stripe_event_id === r.stripe_event_id);
@@ -81,9 +105,26 @@ export function makeMockSupabase() {
               });
             }
           }
-          state[name].push({ ...r, id: r.id ?? crypto.randomUUID() });
+          const row = { ...r, id: r.id ?? crypto.randomUUID() };
+          state[name].push(row);
+          inserted.push(row);
         }
-        return Promise.resolve({ data: rows, error: null });
+        const chain = {
+          select() {
+            return {
+              single() {
+                return Promise.resolve({ data: inserted[0] ?? null, error: null });
+              },
+            };
+          },
+          then(
+            resolve: (v: { data: Row[]; error: null }) => unknown,
+            reject?: (e: unknown) => unknown,
+          ) {
+            return Promise.resolve({ data: inserted, error: null }).then(resolve, reject);
+          },
+        };
+        return chain;
       },
       update(patch: Row) {
         const updatePatch = patch;
@@ -169,6 +210,25 @@ export function makeMockSupabase() {
       if (isFilter) {
         const [col, val] = isFilter;
         rows = rows.filter((r) => (val == null ? r[col] == null : r[col] === val));
+      }
+      if (gtFilter) {
+        const [col, val] = gtFilter;
+        rows = rows.filter((r) => Number(r[col]) > Number(val));
+      }
+      if (lteFilter) {
+        const [col, val] = lteFilter;
+        rows = rows.filter((r) => String(r[col]) <= String(val));
+      }
+      if (orderCol) {
+        const col = orderCol;
+        rows = rows.slice().sort((a, b) => {
+          const av = a[col];
+          const bv = b[col];
+          if (av === bv) return 0;
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          return av < bv ? (orderAsc ? -1 : 1) : orderAsc ? 1 : -1;
+        });
       }
       if (limitN != null) rows = rows.slice(0, limitN);
       return rows;

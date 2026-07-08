@@ -17,6 +17,7 @@ export const ADDON_CODES = [
   "ap_baseline_harvest",
   "ap_three_way_match",
   "ap_budget_controls",
+  "ap_credit_prepayment",
 ] as const;
 
 export type AddonCode = (typeof ADDON_CODES)[number];
@@ -179,6 +180,19 @@ export const ADDON_REGISTRY: Record<AddonCode, AddonMetadata> = {
     defaultIncludedVolume: 0,
     defaultOverageUnitCents: 0,
     volumeUnit: "budget_check",
+    requiresWave: 2,
+  },
+  ap_credit_prepayment: {
+    code: "ap_credit_prepayment",
+    displayName: "AP Credits & Prepayment",
+    description:
+      "Vendor credit/debit memos, prepayment sub-ledger, aging sweep, and human-only refund draft reviewer queue.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 4900,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "credit_prepayment_event",
     requiresWave: 2,
   },
 };

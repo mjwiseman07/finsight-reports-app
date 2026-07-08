@@ -8,8 +8,8 @@ import {
 } from "@/lib/entitlements/registry";
 
 describe("entitlements/registry", () => {
-  it("has exactly 11 add-on codes", () => {
-    expect(ADDON_CODES.length).toBe(11);
+  it("has exactly 12 add-on codes", () => {
+    expect(ADDON_CODES.length).toBe(12);
   });
 
   it("has metadata for every code", () => {
@@ -46,7 +46,7 @@ describe("entitlements/registry", () => {
     const b = listAddonCodes();
     expect(a).toEqual(b);
     a.push("x" as never);
-    expect(listAddonCodes().length).toBe(11);
+    expect(listAddonCodes().length).toBe(12);
   });
 
   it("ap_pay is standalone-capable", () => {

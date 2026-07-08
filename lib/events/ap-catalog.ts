@@ -58,6 +58,17 @@ export const AP_EVENT_TYPES = [
   "budget.exceeded",
   "budget.tolerance_hit",
   "vendor_spend.updated",
+  // Block 7a — Credits / Prepayment Sub-Ledger
+  "vendor_credit.issued",
+  "vendor_credit.applied",
+  "vendor_credit.application_reversed",
+  "vendor_credit.expired",
+  "vendor_credit.voided",
+  "prepayment.received",
+  "prepayment.applied",
+  "prepayment.aged_flagged",
+  "prepayment.refund_draft_created",
+  "prepayment.refund_draft_reviewed",
 ] as const;
 
 export type ApEventType = (typeof AP_EVENT_TYPES)[number];
