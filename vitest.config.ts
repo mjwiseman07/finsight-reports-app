@@ -27,6 +27,7 @@ export default defineConfig({
       "app/**/*.test.tsx",
       "architecture-lane/**/*.test.ts",
       "__tests__/**/*.test.ts",
+      "__tests__/**/*.test.js",
     ],
     testTimeout: 120_000,
     environment: "node",
