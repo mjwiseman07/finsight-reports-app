@@ -82,6 +82,19 @@ export const AP_EVENT_TYPES = [
   "ap_inbox.permanent_exclusion_enforced",
   "ap_inbox.vendor_matched",
   "ap_inbox.reclassified",
+  // Block 8a — Payment Interlock + Banking Rail Fan-Out
+  "ap_batch.created",
+  "ap_batch.line_added",
+  "ap_batch.interlock_computed",
+  "ap_batch.interlock_passed",
+  "ap_batch.interlock_failed",
+  "ap_batch.interlock_reviewer_approved",
+  "ap_batch.interlock_reviewer_rejected",
+  "ap_rail.vendor_account_registered",
+  "ap_rail.vendor_account_updated",
+  "ap_rail.vendor_account_deactivated",
+  "ap_rail.fanout_attempted",
+  "ap_rail.fanout_recorded",
 ] as const;
 
 export type ApEventType = (typeof AP_EVENT_TYPES)[number];

@@ -19,6 +19,8 @@ export const ADDON_CODES = [
   "ap_budget_controls",
   "ap_credit_prepayment",
   "ap_multimodal_inbox",
+  "ap_payment_interlock",
+  "ap_banking_fanout",
 ] as const;
 
 export type AddonCode = (typeof ADDON_CODES)[number];
@@ -207,6 +209,32 @@ export const ADDON_REGISTRY: Record<AddonCode, AddonMetadata> = {
     defaultIncludedVolume: 0,
     defaultOverageUnitCents: 0,
     volumeUnit: "inbox_message",
+    requiresWave: 2,
+  },
+  ap_payment_interlock: {
+    code: "ap_payment_interlock",
+    displayName: "AP Payment Interlock",
+    description:
+      "L9 no-overpay payment-time netting across credits, prepayments, requisitions, and GL budgets.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 0,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "interlock_check",
+    requiresWave: 2,
+  },
+  ap_banking_fanout: {
+    code: "ap_banking_fanout",
+    displayName: "AP Banking Rail Fan-Out",
+    description:
+      "L10 pluggable banking rail adapters (ACH, wire, RTP, check, virtual card) with bank attestation hooks.",
+    category: "ap",
+    standaloneCapable: false,
+    defaultMonthlyBaseCents: 0,
+    defaultIncludedVolume: 0,
+    defaultOverageUnitCents: 0,
+    volumeUnit: "rail_fanout_event",
     requiresWave: 2,
   },
 };

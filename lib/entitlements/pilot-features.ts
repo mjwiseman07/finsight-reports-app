@@ -11,7 +11,9 @@ export type PilotFeatureCode =
   | "ap_approval_matrix"
   | "ap_budget_controls"
   | "ap_credit_prepayment"
-  | "ap_multimodal_inbox";
+  | "ap_multimodal_inbox"
+  | "ap_payment_interlock"
+  | "ap_banking_fanout";
 export class PilotFeatureDenied extends Error {
   code: PilotFeatureCode;
   firmId: string;
