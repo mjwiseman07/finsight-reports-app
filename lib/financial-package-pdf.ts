@@ -23,6 +23,37 @@ type FinancialPackagePdfOptions = {
   incomeStatementDetailLevel?: "summary" | "detailed";
   normalizedData?: AdvisacorNormalizedFinancialData;
   reportDataContext?: ReportDataContext;
+  /**
+   * Phase TCP1 W2.5 — Review Assist mode.
+   * When true, the PDF renderer inserts a Review Findings section (blocker /
+   * warning / note counts and reviewer sign-off block) before the Financial
+   * Statements. Gated by the review_assist_pdf_mode entitlement.
+   * Default: false (no change to standard Financial Package output).
+   */
+  reviewAssistMode?: boolean;
+  /**
+   * Optional Review Assist findings payload. Blocks 5–7 populate this from
+   * the severity adapter and findings composer. When reviewAssistMode is true
+   * and this is undefined, the PDF renders the scaffold with zeroed counts.
+   */
+  reviewAssistFindings?: ReviewAssistFindingsPayload;
+};
+/**
+ * Phase TCP1 W2.5 — Review Assist findings payload.
+ * Blocks 5–7 will provide the real severity adapter and composer that
+ * produce this shape. Block 4 only reserves the type.
+ */
+export type ReviewAssistFindingsPayload = {
+  blockerCount: number;
+  warningCount: number;
+  noteCount: number;
+  reviewerName?: string;
+  reviewDate?: string;
+  findings?: Array<{
+    severity: "blocker" | "warning" | "note";
+    label: string;
+    detail?: string;
+  }>;
 };
 
 type PdfPage = {
@@ -66,10 +97,11 @@ export type FinancialPackageNormalizedInput = {
   reportDataContext?: ReportDataContext;
 };
 
-type NormalizedFinancialPackagePdfOptions = Required<Omit<FinancialPackagePdfOptions, "normalizedData" | "reportDataContext">> & {
+type NormalizedFinancialPackagePdfOptions = Required<Omit<FinancialPackagePdfOptions, "normalizedData" | "reportDataContext" | "reviewAssistFindings">> & {
   normalizedData?: AdvisacorNormalizedFinancialData;
   reportDataContext?: ReportDataContext;
   packageInput?: FinancialPackageNormalizedInput;
+  reviewAssistFindings?: ReviewAssistFindingsPayload;
 };
 
 const balanceSheetTieOut = {
@@ -1601,6 +1633,49 @@ function buildPageContent(page: PdfPage, options: NormalizedFinancialPackagePdfO
   return ops.join("\n");
 }
 
+/**
+ * Phase TCP1 W2.5 — Review Assist findings page.
+ * Renders a placeholder findings scaffold when reviewAssistMode is enabled.
+ * Blocks 5–7 will replace the scaffold body with real severity output from
+ * the findings composer and severity surface adapter.
+ */
+function buildReviewAssistFindingsPage(
+  findings: ReviewAssistFindingsPayload | undefined,
+  reportPeriod: string,
+  preparedBy: string,
+): PdfPage {
+  const blockerCount = findings?.blockerCount ?? 0;
+  const warningCount = findings?.warningCount ?? 0;
+  const noteCount = findings?.noteCount ?? 0;
+  const reviewerName = findings?.reviewerName ?? preparedBy;
+  const reviewDate = findings?.reviewDate ?? reportPeriod;
+  const findingsLines: string[] = [];
+  if (findings?.findings?.length) {
+    for (const f of findings.findings) {
+      const badge = f.severity === "blocker" ? "[BLOCKER]" : f.severity === "warning" ? "[WARNING]" : "[NOTE]";
+      findingsLines.push(`${badge} ${f.label}`);
+      if (f.detail) findingsLines.push(`    ${f.detail}`);
+    }
+  } else {
+    findingsLines.push("No findings recorded yet. Complete the review to populate this section.");
+  }
+  return {
+    title: "Review Assist — Findings Report",
+    category: "REVIEW ASSIST",
+    subtitle:
+      "Pre-close review of disclosures and severity. Findings are grouped by severity: BLOCKER (must fix), WARNING (should fix), NOTE (informational).",
+    table: [
+      ["Blockers", String(blockerCount)],
+      ["Warnings", String(warningCount)],
+      ["Notes", String(noteCount)],
+      ["Reviewer", reviewerName],
+      ["Review Date", reviewDate],
+    ],
+    lines: findingsLines,
+    divider: true,
+  };
+}
+
 function normalizeOptions(options: FinancialPackagePdfOptions = {}): NormalizedFinancialPackagePdfOptions {
   const normalizedData = options.normalizedData || options.reportDataContext?.normalizedData;
   const packageInput = buildFinancialPackageInputFromNormalizedData({
@@ -1624,6 +1699,8 @@ function normalizeOptions(options: FinancialPackagePdfOptions = {}): NormalizedF
     normalizedData,
     reportDataContext: options.reportDataContext,
     packageInput,
+    reviewAssistMode: options.reviewAssistMode ?? false,
+    reviewAssistFindings: options.reviewAssistFindings,
     commentaryOptions: options.commentaryOptions?.length
       ? options.commentaryOptions
       : [
@@ -2004,6 +2081,15 @@ export function buildFinancialPackagePdfBlob(options: FinancialPackagePdfOptions
   }
   const pages: PdfPage[] = [
     { title: "Cover Page", category: "CONFIDENTIAL" },
+    ...(normalizedOptions.reviewAssistMode
+      ? [
+          buildReviewAssistFindingsPage(
+            normalizedOptions.reviewAssistFindings,
+            normalizedOptions.reportPeriod,
+            normalizedOptions.preparedBy,
+          ),
+        ]
+      : []),
     ...packageSections,
   ];
   const expandedPages = pages.flatMap((page) => {
