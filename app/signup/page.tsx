@@ -14,9 +14,9 @@ export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const persona = searchParams.get("persona");
-  const plan = searchParams.get("plan");
-  const modeParam = searchParams.get("mode");
+  const persona = searchParams?.get("persona") ?? null;
+  const plan = searchParams?.get("plan") ?? null;
+  const modeParam = searchParams?.get("mode") ?? null;
 
   // W1 supports ONLY the Solo Bookkeeper flow. Anything else → redirect to /pricing.
   const isW1Flow = persona === "bookkeeper" && plan === "solo_bookkeeper";
