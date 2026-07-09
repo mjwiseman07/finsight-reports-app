@@ -19,6 +19,11 @@ export async function POST(req, { params }) {
   const access = await resolveFirmAccess(req, { clientId: closePeriod.firm_client_id });
   if (access.response) return access.response;
 
+  // Block 6 entitlement gate.
+  const { requireFlag } = await import("@/lib/review-assist/route-guard");
+  const gate = await requireFlag(access.client.firm_id, "close_packet_generation");
+  if (gate) return gate;
+
   if (closePeriod.status === "locked") {
     return NextResponse.json({ error: "Packet is locked" }, { status: 409 });
   }

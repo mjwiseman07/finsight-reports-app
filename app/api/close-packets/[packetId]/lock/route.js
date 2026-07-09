@@ -29,6 +29,11 @@ export async function POST(req, { params }) {
   const access = await resolveFirmAccess(req, { clientId: closePeriod.firm_client_id });
   if (access.response) return access.response;
 
+  // Block 6 entitlement gate — Review Assist tier is denied lock.
+  const { requireFlag } = await import("@/lib/review-assist/route-guard");
+  const gate = await requireFlag(access.client.firm_id, "full_assertion_output");
+  if (gate) return gate;
+
   const { data: sections } = await supabase
     .from("close_packet_sections")
     .select("section_key, content_json")
