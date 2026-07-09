@@ -90,10 +90,26 @@ function SignupPageContent() {
     setIsSubmitting(true);
 
     try {
+      // Derive redirect origin from the current window so we never fall back
+      // to the Supabase Site URL default (which was previously misconfigured
+      // to localhost). Preview deploys and prod both resolve correctly.
+      const redirectOrigin =
+        typeof window !== "undefined" && window.location?.origin
+          ? window.location.origin
+          : "https://www.advisacor.com";
+      // Preserve the persona/plan/mode query params through the confirmation
+      // round-trip so the user lands back on the same tier signup page.
+      const currentSearch =
+        typeof window !== "undefined" && window.location?.search
+          ? window.location.search
+          : "";
+      const separator = currentSearch ? "&" : "?";
+      const emailRedirectTo = `${redirectOrigin}/signup${currentSearch}${separator}confirmed=1`;
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo,
           data: {
             first_name: firstName,
             last_name: lastName,
