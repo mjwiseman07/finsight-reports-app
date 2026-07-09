@@ -54,3 +54,43 @@ export async function listDuplicatesForBill(
   if (error) throw error;
   return data ?? [];
 }
+
+/**
+ * Phase TCP1 W2.5 Block 7 — period-scoped duplicate reader for Review Assist.
+ * Read-only. Returns the rows deposited by persistDuplicateMatch during the
+ * close period, filtered to a given firm_client_id.
+ */
+export async function listDuplicatesForPeriod(
+  supabase: SupabaseClient,
+  args: { firmClientId: string; periodStart: string; periodEnd: string },
+): Promise<Array<{
+  bill_id: string;
+  matched_bill_id: string;
+  strategy_id: string;
+  confidence: number | null;
+  severity: string;
+  evidence: unknown;
+  quarantined: boolean;
+  detected_at: string;
+}>> {
+  const { data, error } = await supabase
+    .from("ap_intake_bill_duplicates")
+    .select(
+      "bill_id, matched_bill_id, strategy_id, confidence, severity, evidence, quarantined, detected_at",
+    )
+    .eq("firm_client_id", args.firmClientId)
+    .gte("detected_at", args.periodStart)
+    .lte("detected_at", args.periodEnd + "T23:59:59.999Z")
+    .order("detected_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Array<{
+    bill_id: string;
+    matched_bill_id: string;
+    strategy_id: string;
+    confidence: number | null;
+    severity: string;
+    evidence: unknown;
+    quarantined: boolean;
+    detected_at: string;
+  }>;
+}
