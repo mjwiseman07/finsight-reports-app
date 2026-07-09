@@ -1,9 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { AdvisacorLogo } from "../../components/AdvisacorLogo";
+import framedNavyLogo from "../../public/advisacor-logo-framed-navy.png";
+import { headingFont, primaryCtaClass } from "../../components/site-ui";
 import { supabase } from "../../lib/supabase";
 
 type CheckoutPricingStructure = "flat" | "perClient";
@@ -105,6 +107,7 @@ function SignupPageContent() {
           : "";
       const separator = currentSearch ? "&" : "?";
       const emailRedirectTo = `${redirectOrigin}/signup${currentSearch}${separator}confirmed=1`;
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -145,28 +148,42 @@ function SignupPageContent() {
   }
 
   return (
-    <main className="advisacor-dark-grid min-h-screen bg-[#0A1020] px-6 py-8 text-white">
+    <main className="advisacor-signup-brand min-h-screen bg-[#0A1530] px-6 py-8 text-white">
       <header className="mx-auto flex max-w-7xl items-center justify-between">
-        <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
-          <AdvisacorLogo priority className="w-full" />
+        <Link href="/" className="block" aria-label="Advisacor home">
+          <Image
+            src={framedNavyLogo}
+            alt="Advisacor"
+            width={1536}
+            height={902}
+            priority
+            className="pointer-events-none h-auto w-[320px] select-none md:w-[420px]"
+          />
         </Link>
-        <Link href="/signin" className="rounded-full border border-white/15 bg-white/[0.06] px-5 py-2.5 text-sm font-black text-white backdrop-blur transition hover:bg-white/[0.1]">
+        <Link
+          href="/signin"
+          className="rounded-full border border-white/15 bg-white/[0.06] px-5 py-2.5 text-sm font-black text-white backdrop-blur transition hover:bg-white/[0.1]"
+        >
           Sign In
         </Link>
       </header>
 
       <section className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-7xl items-center gap-10 py-12 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Solo Bookkeeper pilot</p>
-          <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.95] tracking-[-0.055em] md:text-7xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961]">
+            Solo Bookkeeper pilot
+          </p>
+          <h1
+            className={`${headingFont} mt-5 max-w-3xl text-5xl font-semibold leading-[1.05] tracking-tight md:text-7xl`}
+          >
             Start your pilot in under 15 minutes.
           </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
             {pricingStructure === "flat"
               ? "$279/mo pilot — first 10 slots. Full Advisacor stack for up to 10 QBO clients."
               : "$69/client/mo pilot — first 10 slots. Metered — pay only for active clients each month."}
           </p>
-          <ul className="mt-6 grid max-w-lg gap-3 text-sm text-slate-300">
+          <ul className="mt-6 grid max-w-lg gap-3 text-sm text-white/70">
             <li>• Connect QuickBooks Online after checkout</li>
             <li>• 15-vertical intelligence stack included</li>
             <li>• Organizational memory across every client</li>
@@ -174,71 +191,152 @@ function SignupPageContent() {
           </ul>
         </div>
 
-        <div className="dark-enterprise-card rounded-[2rem] p-8 md:p-10">
+        <div className="rounded-[2rem] border border-[#C9A961]/40 bg-[#0F1D3E]/85 p-8 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl md:p-10">
           {phase === "verify_email" ? (
             <>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Check your email</p>
-              <h2 className="mt-3 text-4xl font-black tracking-[-0.04em]">Verify to continue</h2>
-              <p className="mt-4 text-sm leading-6 text-slate-300">
-                We just sent a confirmation link to <span className="font-bold text-white">{email}</span>.
-                Click it, then come back here — checkout will start automatically.
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961]">
+                Check your email
               </p>
-              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs text-slate-400">
+              <h2
+                className={`${headingFont} mt-3 text-4xl font-semibold tracking-tight`}
+              >
+                Verify to continue
+              </h2>
+              <p className="mt-4 text-sm leading-6 text-white/70">
+                We just sent a confirmation link to{" "}
+                <span className="font-bold text-white">{email}</span>. Click it,
+                then come back here — checkout will start automatically.
+              </p>
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs text-white/60">
                 Waiting for verification… Don&apos;t close this tab.
               </div>
-              {error && <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">{error}</p>}
+              {error && (
+                <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">
+                  {error}
+                </p>
+              )}
             </>
           ) : phase === "creating_checkout" ? (
             <>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Preparing checkout</p>
-              <h2 className="mt-3 text-4xl font-black tracking-[-0.04em]">Redirecting to Stripe…</h2>
-              <p className="mt-4 text-sm leading-6 text-slate-300">Setting up your workspace and pilot slot. This takes a moment.</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961]">
+                Preparing checkout
+              </p>
+              <h2
+                className={`${headingFont} mt-3 text-4xl font-semibold tracking-tight`}
+              >
+                Redirecting to Stripe…
+              </h2>
+              <p className="mt-4 text-sm leading-6 text-white/70">
+                Setting up your workspace and pilot slot. This takes a moment.
+              </p>
             </>
           ) : (
             <>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Create your workspace</p>
-              <h2 className="mt-3 text-4xl font-black tracking-[-0.04em]">Solo Bookkeeper — {pricingStructure === "flat" ? "$279/mo pilot" : "$69/client/mo pilot"}</h2>
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                Fields marked with an asterisk are required. You&apos;ll verify your email, then complete checkout on Stripe.
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961]">
+                Create your workspace
+              </p>
+              <h2
+                className={`${headingFont} mt-3 text-4xl font-semibold tracking-tight`}
+              >
+                Solo Bookkeeper —{" "}
+                {pricingStructure === "flat"
+                  ? "$279/mo pilot"
+                  : "$69/client/mo pilot"}
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-white/60">
+                Fields marked with an asterisk are required. You&apos;ll verify
+                your email, then complete checkout on Stripe.
               </p>
 
               <form onSubmit={handleSubmit} className="mt-8 grid gap-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2">
-                    <span className="text-sm font-bold text-slate-200">First name *</span>
-                    <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" />
+                    <span className="text-sm font-semibold text-white/80">
+                      First name *
+                    </span>
+                    <input
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                      className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none transition focus:border-[#C9A961]"
+                    />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-sm font-bold text-slate-200">Last name *</span>
-                    <input value={lastName} onChange={(e) => setLastName(e.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" />
+                    <span className="text-sm font-semibold text-white/80">
+                      Last name *
+                    </span>
+                    <input
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                      className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none transition focus:border-[#C9A961]"
+                    />
                   </label>
                 </div>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-200">Business name *</span>
-                  <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" placeholder="e.g. Smith Bookkeeping LLC" />
+                  <span className="text-sm font-semibold text-white/80">
+                    Business name *
+                  </span>
+                  <input
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    required
+                    className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none transition focus:border-[#C9A961]"
+                    placeholder="e.g. Smith Bookkeeping LLC"
+                  />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-200">Email *</span>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" placeholder="you@firm.com" />
+                  <span className="text-sm font-semibold text-white/80">
+                    Email *
+                  </span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none transition focus:border-[#C9A961]"
+                    placeholder="you@firm.com"
+                  />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-bold text-slate-200">Password *</span>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" placeholder="Minimum 8 characters" />
+                  <span className="text-sm font-semibold text-white/80">
+                    Password *
+                  </span>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none transition focus:border-[#C9A961]"
+                    placeholder="Minimum 8 characters"
+                  />
                 </label>
 
-                {error && <p className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">{error}</p>}
+                {error && (
+                  <p className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">
+                    {error}
+                  </p>
+                )}
 
-                <button type="submit" disabled={isSubmitting} className="premium-button mt-2 rounded-2xl px-5 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`mt-2 rounded-2xl px-5 py-4 text-sm ${primaryCtaClass} disabled:cursor-not-allowed disabled:opacity-60`}
+                >
                   {isSubmitting ? "Creating workspace…" : "Start pilot"}
                 </button>
               </form>
 
-              <p className="mt-6 text-center text-sm text-slate-400">
+              <p className="mt-6 text-center text-sm text-white/60">
                 Already have access?{" "}
-                <Link href="/signin" className="font-bold text-[#FFB36F] hover:text-[#FF7A1A]">
+                <Link
+                  href="/signin"
+                  className="font-semibold text-[#C9A961] transition hover:text-[#D9B972]"
+                >
                   Sign in
                 </Link>
               </p>
