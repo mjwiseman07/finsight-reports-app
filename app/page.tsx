@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Link from "next/link";
 import { SiteNav } from "@/components/SiteNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import PersonaRouter from "@/components/PersonaRouter";
@@ -34,6 +35,26 @@ export default function HomePage() {
       {/* Persona chooser */}
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <PersonaRouter />
+      </section>
+      {/* W1 pilot CTA */}
+      <section className="mx-auto max-w-6xl px-6 pb-16">
+        <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0F1D3E] p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#C9A961] mb-2">Live now — pilot pricing</p>
+            <h3 className={`${headingFont} text-2xl md:text-3xl font-semibold leading-tight`}>
+              Solo Bookkeeper pilot is open.
+            </h3>
+            <p className="mt-3 text-white/70 max-w-2xl">
+              First 10 pilot slots — $279/mo flat or $69/client/mo à la carte. QBO only.
+            </p>
+          </div>
+          <Link
+            href="/pricing"
+            className="inline-flex items-center justify-center rounded-lg bg-[#C9A961] text-[#0A1530] font-semibold px-6 py-3 hover:bg-[#D9B972] transition whitespace-nowrap"
+          >
+            See pricing
+          </Link>
+        </div>
       </section>
       {/* Trust bar */}
       <section className="border-t border-white/10 bg-[#0F0F10]">

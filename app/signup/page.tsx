@@ -1,28 +1,90 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { AdvisacorLogo } from "../../components/AdvisacorLogo";
 import { supabase } from "../../lib/supabase";
 
-const tiers = [
-  "Essentials monthly review",
-  "Professional controller intelligence",
-  "Enterprise Virtual CFO platform",
-];
+type CheckoutPricingStructure = "flat" | "perClient";
 
-export default function SignupPage() {
+type SignupPhase = "form" | "verify_email" | "creating_checkout";
+
+function SignupPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const persona = searchParams?.get("persona") ?? null;
+  const plan = searchParams?.get("plan") ?? null;
+  const modeParam = searchParams?.get("mode") ?? null;
+
+  // W1 supports ONLY the Solo Bookkeeper flow. Anything else → redirect to /pricing.
+  const isW1Flow = persona === "bookkeeper" && plan === "solo_bookkeeper";
+  const pricingStructure: CheckoutPricingStructure =
+    modeParam === "per_client" ? "perClient" : "flat";
+
+  useEffect(() => {
+    if (!isW1Flow) {
+      router.replace("/pricing");
+    }
+  }, [isW1Flow, router]);
+
+  const [phase, setPhase] = useState<SignupPhase>("form");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [selectedTier, setSelectedTier] = useState(tiers[1]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  async function createCheckoutAndRedirect() {
+    setPhase("creating_checkout");
+    setError("");
+    try {
+      const res = await fetch("/api/checkout/create-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tier_key: "solo_bookkeeper",
+          pricing_structure: pricingStructure,
+          pricing_cadence: "monthly",
+          track: "pilot",
+          business_name: businessName,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body?.checkout_url) {
+        setError(body?.error ?? "Unable to start checkout. Please try again.");
+        setPhase("form");
+        return;
+      }
+      window.location.href = body.checkout_url;
+    } catch {
+      setError("Network error creating checkout. Please try again.");
+      setPhase("form");
+    }
+  }
+
+  async function pollForSessionAndCheckout() {
+    // The verify-email screen polls every 3s for up to 5 min. When the user
+    // clicks the confirmation link in Gmail, Supabase populates the session,
+    // and we kick off checkout automatically.
+    const started = Date.now();
+    const maxWaitMs = 5 * 60 * 1000;
+    while (Date.now() - started < maxWaitMs) {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.access_token) {
+        await createCheckoutAndRedirect();
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    setError("Verification link expired. Please try signing up again.");
+    setPhase("form");
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setIsSubmitting(true);
@@ -33,9 +95,9 @@ export default function SignupPage() {
         password,
         options: {
           data: {
-            full_name: fullName,
-            company_name: companyName,
-            requested_tier: selectedTier,
+            first_name: firstName,
+            last_name: lastName,
+            business_name: businessName,
           },
         },
       });
@@ -46,16 +108,25 @@ export default function SignupPage() {
       }
 
       if (data?.session?.access_token) {
+        // Email confirmation disabled (or user auto-confirmed) — go straight to checkout.
         window.localStorage.setItem("supabase_access_token", data.session.access_token);
+        await createCheckoutAndRedirect();
+      } else {
+        // Email confirmation required — show verify screen and poll for session.
+        setPhase("verify_email");
+        void pollForSessionAndCheckout();
       }
-
-      router.push("/dashboard");
     } catch {
       setError("Unable to create your account. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }
+
+  if (!isW1Flow) {
+    // Redirect effect is running — render nothing to avoid flash of legacy form.
+    return null;
+  }
 
   return (
     <main className="advisacor-dark-grid min-h-screen bg-[#0A1020] px-6 py-8 text-white">
@@ -70,85 +141,103 @@ export default function SignupPage() {
 
       <section className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-7xl items-center gap-10 py-12 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Enterprise Onboarding</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Solo Bookkeeper pilot</p>
           <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.95] tracking-[-0.055em] md:text-7xl">
-            Build your AI-powered finance command center.
+            Start your pilot in under 15 minutes.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-            Advisacor helps accounting firms, controllers, and finance leaders move from static reporting to operational intelligence, forecasting, executive packages, and AI-assisted advisory workflows.
+            {pricingStructure === "flat"
+              ? "$279/mo pilot — first 10 slots. Full Advisacor stack for up to 10 QBO clients."
+              : "$69/client/mo pilot — first 10 slots. Metered — pay only for active clients each month."}
           </p>
-          <div className="mt-8 grid max-w-3xl gap-4 md:grid-cols-3">
-            {["Operational analytics", "Forecast visibility", "Executive reporting"].map((item) => (
-              <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.055] p-5 backdrop-blur">
-                <div className="mb-5 h-10 w-10 rounded-2xl bg-[#FF7A1A]/15 p-2">
-                  <div className="h-full rounded-xl bg-[#FF7A1A]" />
-                </div>
-                <p className="text-sm font-black text-white">{item}</p>
-              </div>
-            ))}
-          </div>
+          <ul className="mt-6 grid max-w-lg gap-3 text-sm text-slate-300">
+            <li>• Connect QuickBooks Online after checkout</li>
+            <li>• 15-vertical intelligence stack included</li>
+            <li>• Organizational memory across every client</li>
+            <li>• Cancel any time</li>
+          </ul>
         </div>
 
         <div className="dark-enterprise-card rounded-[2rem] p-8 md:p-10">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Request Early Access</p>
-          <h2 className="mt-3 text-4xl font-black tracking-[-0.04em]">Create your workspace</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            Start with a guided setup for your advisory, controller, or executive reporting workflow.
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-8 grid gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2">
-                <span className="text-sm font-bold text-slate-200">Full name</span>
-                <input value={fullName} onChange={(event) => setFullName(event.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" />
-              </label>
-              <label className="grid gap-2">
-                <span className="text-sm font-bold text-slate-200">Company</span>
-                <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" />
-              </label>
-            </div>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-200">Email</span>
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" placeholder="you@firm.com" />
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-200">Password</span>
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={6} className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" placeholder="Create a secure password" />
-            </label>
-
-            <div className="grid gap-2">
-              <span className="text-sm font-bold text-slate-200">Primary package interest</span>
-              <div className="grid gap-2">
-                {tiers.map((tier) => (
-                  <button
-                    type="button"
-                    key={tier}
-                    onClick={() => setSelectedTier(tier)}
-                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${selectedTier === tier ? "border-[#FF7A1A] bg-[#FF7A1A]/15 text-white" : "border-white/10 bg-white/[0.035] text-slate-300 hover:bg-white/[0.07]"}`}
-                  >
-                    {tier}
-                  </button>
-                ))}
+          {phase === "verify_email" ? (
+            <>
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Check your email</p>
+              <h2 className="mt-3 text-4xl font-black tracking-[-0.04em]">Verify to continue</h2>
+              <p className="mt-4 text-sm leading-6 text-slate-300">
+                We just sent a confirmation link to <span className="font-bold text-white">{email}</span>.
+                Click it, then come back here — checkout will start automatically.
+              </p>
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs text-slate-400">
+                Waiting for verification… Don&apos;t close this tab.
               </div>
-            </div>
+              {error && <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">{error}</p>}
+            </>
+          ) : phase === "creating_checkout" ? (
+            <>
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Preparing checkout</p>
+              <h2 className="mt-3 text-4xl font-black tracking-[-0.04em]">Redirecting to Stripe…</h2>
+              <p className="mt-4 text-sm leading-6 text-slate-300">Setting up your workspace and pilot slot. This takes a moment.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Create your workspace</p>
+              <h2 className="mt-3 text-4xl font-black tracking-[-0.04em]">Solo Bookkeeper — {pricingStructure === "flat" ? "$279/mo pilot" : "$69/client/mo pilot"}</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                Fields marked with an asterisk are required. You&apos;ll verify your email, then complete checkout on Stripe.
+              </p>
 
-            {error && <p className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">{error}</p>}
+              <form onSubmit={handleSubmit} className="mt-8 grid gap-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-bold text-slate-200">First name *</span>
+                    <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-sm font-bold text-slate-200">Last name *</span>
+                    <input value={lastName} onChange={(e) => setLastName(e.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" />
+                  </label>
+                </div>
 
-            <button type="submit" disabled={isSubmitting} className="premium-button mt-2 rounded-2xl px-5 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
-              {isSubmitting ? "Creating workspace..." : "Request Early Access"}
-            </button>
-          </form>
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-slate-200">Business name *</span>
+                  <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" placeholder="e.g. Smith Bookkeeping LLC" />
+                </label>
 
-          <p className="mt-6 text-center text-sm text-slate-400">
-            Already have access?{" "}
-            <Link href="/signin" className="font-bold text-[#FFB36F] hover:text-[#FF7A1A]">
-              Sign in
-            </Link>
-          </p>
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-slate-200">Email *</span>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" placeholder="you@firm.com" />
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-bold text-slate-200">Password *</span>
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} className="rounded-2xl border border-white/10 bg-[#070B16] px-4 py-3 text-sm text-white outline-none focus:border-[#FF7A1A]" placeholder="Minimum 8 characters" />
+                </label>
+
+                {error && <p className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">{error}</p>}
+
+                <button type="submit" disabled={isSubmitting} className="premium-button mt-2 rounded-2xl px-5 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+                  {isSubmitting ? "Creating workspace…" : "Start pilot"}
+                </button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-slate-400">
+                Already have access?{" "}
+                <Link href="/signin" className="font-bold text-[#FFB36F] hover:text-[#FF7A1A]">
+                  Sign in
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </section>
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupPageContent />
+    </Suspense>
   );
 }
