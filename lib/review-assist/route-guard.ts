@@ -1,7 +1,3 @@
-// TODO(Block 6.1): wire `pulse_intelligence` gate into
-// app/api/pulse/ask/route.js and app/api/pulse/refund-intent/route.js
-// once the pulse auth wrapper is confirmed.
-//
 // Review Assist route guard — 403 response builder used by write endpoints
 // that Review Assist tier must not reach.
 //
@@ -23,9 +19,10 @@ export type GateFlagKey =
  * Require that the firm subscription has `flagKey` enabled.
  * Returns a 403 NextResponse when denied, null when allowed.
  *
- * subscriberType is always 'firm' for the Block 6 gate set — every gated
- * endpoint runs under a firm subscription in the Track C tier model.
- * If a caller ever needs 'company' scope, pass it explicitly.
+ * subscriberType is 'firm' by default (close-packets, close-periods,
+ * uncategorized — all firm-scoped). Pass 'company' for pulse write
+ * endpoints, which subscribe under Owner Lite / Owner Pro
+ * (subscriptionEntity: 'company' per lib/product-tiers.js).
  */
 export async function requireFlag(
   firmId: string,

@@ -359,6 +359,14 @@ export async function POST(request) {
     if (companyId) {
       const membership = await resolveCompanyMembership({ userId: authData.user.id, companyId });
       if (membership.response) return membership.response;
+      // Block 6.1 (Review Assist tier gate): pulse_intelligence flag required
+      // for Pulse Ask-the-books. Owner Lite / Owner Pro subscribe as
+      // subscriberType='company'; Review Assist ($99) is explicitly denied
+      // per Track_C_Phase_1_Tier_Spec_v1_2_Review_Assist_Addendum Block 5.
+      // Skipped for unauthenticated free-review lead sessions (no companyId).
+      const { requireFlag } = await import("../../../../lib/review-assist/route-guard");
+      const gate = await requireFlag(companyId, "pulse_intelligence", "company");
+      if (gate) return gate;
     }
 
     const refundIntent = detectRefundIntent(question);
