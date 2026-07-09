@@ -28,9 +28,15 @@ export async function handleTcp1CheckoutCompleted(
     return { handled: false, reason: "missing_tier_key" };
   }
 
-  // W1 scope guard — expand this list as later weeks launch.
-  if (tierKey !== "solo_bookkeeper" && tierKey !== "client_seat_alacarte") {
-    console.warn("[stripe/webhook] W1 only handles solo_bookkeeper family; ignoring", { tierKey });
+  // W1 + W2.5 scope guard — expand this list as later weeks launch.
+  // W2.5 (Jul 22): review_assist joins the firm-tier family.
+  const TCP1_LAUNCHED_TIERS = new Set([
+    "solo_bookkeeper",
+    "client_seat_alacarte",
+    "review_assist",
+  ]);
+  if (!TCP1_LAUNCHED_TIERS.has(tierKey)) {
+    console.warn("[stripe/webhook] tier not yet launched; ignoring", { tierKey });
     return { handled: false, reason: "out_of_scope_tier" };
   }
 

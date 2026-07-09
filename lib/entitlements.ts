@@ -28,6 +28,24 @@ const TIER_META: Record<
     },
     erpSupport: { quickbooks: "live", xero: "coming_soon" },
   },
+  review_assist: {
+    entitlements: {
+      max_entities: 0,
+      max_verticals: 15,
+      pulse_intelligence: false,
+      organizational_memory: false,
+      predictive_alerts: false,
+      weekly_briefings: false,
+      disclosure_validation_full: true,
+      cross_vertical_synthesis: false,
+      firm_seats: 0,
+      review_assist_pdf_mode: true,
+      review_assist_findings_composer: true,
+      review_assist_severity_surface: true,
+      review_assist_close_packet_gate: true,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
 };
 
 type PilotSlotRow = {
