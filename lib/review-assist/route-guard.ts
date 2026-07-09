@@ -13,7 +13,8 @@ export type GateFlagKey =
   | 'full_assertion_output'
   | 'close_packet_generation'
   | 'pulse_intelligence'
-  | 'qbo_write_back';
+  | 'qbo_write_back'
+  | 'review_assist_findings';
 
 /**
  * Require that the firm subscription has `flagKey` enabled.
