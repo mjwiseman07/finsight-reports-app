@@ -84,14 +84,38 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const track = body.track ?? "pilot";
   const businessName = (body.business_name ?? "").trim();
 
-  if (tierKey !== "solo_bookkeeper") {
+  // Phase TCP1 W2.5 (spec Block 7) — accept solo_bookkeeper OR review_assist.
+  // Other tiers still 400 until their respective launch weeks.
+  if (tierKey !== "solo_bookkeeper" && tierKey !== "review_assist") {
     return NextResponse.json(
       { error: "tier_not_supported_in_w1", tier_key: tierKey },
       { status: 400 },
     );
   }
+  // Review Assist launch gate — 404 the API when gated, symmetric with the
+  // middleware redirect on the /signup surface.
+  if (
+    tierKey === "review_assist" &&
+    (process.env.REVIEW_ASSIST_LAUNCH_GATED ?? "").toLowerCase() === "true"
+  ) {
+    return NextResponse.json({ error: "Not available" }, { status: 404 });
+  }
   if (pricingStructure !== "flat" && pricingStructure !== "perClient") {
     return NextResponse.json({ error: "invalid_pricing_structure" }, { status: 400 });
+  }
+  // Review Assist is flat-only (single SKU: review_assist_std_mo).
+  if (tierKey === "review_assist" && pricingStructure !== "flat") {
+    return NextResponse.json(
+      { error: "invalid_pricing_structure_for_tier", tier_key: tierKey, pricing_structure: pricingStructure },
+      { status: 400 },
+    );
+  }
+  // Review Assist is standard-track only (no pilot pricing).
+  if (tierKey === "review_assist" && track !== "standard") {
+    return NextResponse.json(
+      { error: "invalid_track_for_tier", tier_key: tierKey, track },
+      { status: 400 },
+    );
   }
   if (pricingCadence !== "monthly") {
     return NextResponse.json({ error: "invalid_pricing_cadence" }, { status: 400 });
@@ -181,9 +205,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // 7. Pilot-cap enforcement (mirrors webhook logic but pre-flight so users see
-  //    a clean error before hitting Stripe).
-  if (track === "pilot") {
+  // 7. Pilot-cap enforcement — only applies to solo_bookkeeper pilot track.
+  //    Review Assist is standard-track only, so no cap.
+  if (tierKey === "solo_bookkeeper" && track === "pilot") {
     const { count, error: capError } = await admin
       .from("pilot_slots")
       .select("id", { count: "exact", head: true })
@@ -200,11 +224,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // 8. Resolve Stripe price ID via lookup key.
-  const priceId = await getPriceId("solo_bookkeeper", track, "monthly", pricingStructure);
+  const priceId = await getPriceId(tierKey, track, "monthly", pricingStructure);
   if (!priceId) {
     console.error(
       "[create-session] price resolution failed",
-      { tier_key: "solo_bookkeeper", track, cadence: "monthly", structure: pricingStructure },
+      { tier_key: tierKey, track, cadence: "monthly", structure: pricingStructure },
     );
     return NextResponse.json({ error: "price_resolution_failed" }, { status: 500 });
   }
@@ -216,7 +240,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     "https://www.advisacor.com";
 
   const metadata = {
-    tier_key: "solo_bookkeeper",
+    tier_key: tierKey,
     pricing_structure: pricingStructure,
     pricing_cadence: "monthly",
     track,
@@ -231,7 +255,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: { metadata },
       metadata,
-      success_url: `${origin}/onboarding?checkout=success&tier=solo_bookkeeper`,
+      success_url: `${origin}/onboarding?checkout=success&tier=${tierKey}`,
       cancel_url: `${origin}/pricing?checkout=cancelled`,
       allow_promotion_codes: false,
     });

@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Link from "next/link";
 import { SiteNav } from "@/components/SiteNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WaitlistCapture } from "@/components/WaitlistCapture";
@@ -229,7 +230,7 @@ export default function BookkeeperPage() {
           <h2
             className={`${headingFont} text-3xl md:text-5xl font-semibold leading-[1.1] tracking-tight max-w-3xl mb-14`}
           >
-            Two plans. Priced for a real practice.
+            Priced for a real practice — or lighter if you&apos;re still evaluating.
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
             <div className="rounded-2xl border border-white/10 bg-[#111112] p-8">
@@ -296,6 +297,36 @@ export default function BookkeeperPage() {
                   <span>Full Close early-access add-on: $149/client/mo</span>
                 </li>
               </ul>
+            </div>
+          </div>
+          <div className="mt-8 max-w-4xl">
+            <div className="rounded-2xl border border-white/15 bg-[#141416] p-8">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                <div className="flex-1">
+                  <p className="text-[#C9A961] text-xs uppercase tracking-[0.2em] font-semibold mb-2">
+                    Or, lighter option
+                  </p>
+                  <h3 className={`${headingFont} text-2xl md:text-3xl font-semibold mb-3`}>
+                    Review Assist — $99/mo
+                  </h3>
+                  <p className="text-white/70 leading-relaxed max-w-2xl">
+                    Read-only close review. 9-source findings feed (variance,
+                    anomalies, reconciliation, cutoff, duplicates) plus an
+                    8-assertion coverage badge — but no write-back to QBO.
+                    Ideal if you want a second set of AI eyes on the close
+                    before you&apos;re ready for full automation.
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <Link
+                    href="/signup?persona=bookkeeper&plan=review_assist&mode=flat"
+                    className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-6 py-3 text-sm font-semibold text-[#0B0B0C] transition hover:bg-[#D9B972] ${focusRing()}`}
+                  >
+                    Start Review Assist
+                    <span aria-hidden>→</span>
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
           <p className="mt-6 text-sm text-white/55 max-w-2xl">
