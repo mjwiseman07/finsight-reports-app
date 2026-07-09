@@ -1,7 +1,7 @@
 import { Metadata } from "next";
-import Link from "next/link";
 import { SiteNav } from "@/components/SiteNav";
 import { SiteFooter } from "@/components/SiteFooter";
+import { WaitlistCapture } from "@/components/WaitlistCapture";
 import { headingFont, focusRing } from "@/components/site-ui";
 
 export const metadata: Metadata = {
@@ -18,7 +18,6 @@ export const metadata: Metadata = {
   },
 };
 
-const SIGNUP_URL = "/signup?persona=bookkeeper";
 
 export default function BookkeeperPage() {
   return (
@@ -40,15 +39,18 @@ export default function BookkeeperPage() {
           entries and tie-outs.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Link
-            href={SIGNUP_URL}
-            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Launching soon"
+            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] opacity-60 cursor-not-allowed transition-colors ${focusRing()}`}
           >
             Start free review
             <span aria-hidden>→</span>
-          </Link>
+          </button>
           <p className="text-sm text-white/55">
-            Connect QuickBooks in under 15 minutes. No card required.
+            Launching soon — join the waitlist for pilot access.
           </p>
         </div>
       </section>
@@ -206,13 +208,16 @@ export default function BookkeeperPage() {
             Connect one QBO file. Watch the draft close land in under 15 minutes.
             No card. No commitment. Just proof it works on your data.
           </p>
-          <Link
-            href={SIGNUP_URL}
-            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Launching soon"
+            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] opacity-60 cursor-not-allowed transition-colors ${focusRing()}`}
           >
             Start free review
             <span aria-hidden>→</span>
-          </Link>
+          </button>
         </div>
       </section>
       {/* PRICING */}
@@ -315,13 +320,16 @@ export default function BookkeeperPage() {
             monthly close, human-QA&apos;s it, and hands it back to you ready for
             your client sign-off. Limited to 10 pilot clients in Wave 1.
           </p>
-          <Link
-            href={SIGNUP_URL}
-            className={`inline-flex items-center gap-2 text-[#C9A961] hover:text-[#D4B672] transition-colors text-base font-semibold ${focusRing()}`}
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Launching soon"
+            className={`inline-flex items-center gap-2 text-[#C9A961] opacity-60 cursor-not-allowed transition-colors text-base font-semibold ${focusRing()}`}
           >
             Apply for Full Close pilot during signup
             <span aria-hidden>→</span>
-          </Link>
+          </button>
         </div>
       </section>
       {/* FAQ */}
@@ -386,16 +394,22 @@ export default function BookkeeperPage() {
           Connect one QuickBooks client. See the draft close in under 15 minutes.
           Decide from there.
         </p>
-        <Link
-          href={SIGNUP_URL}
-          className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-10 py-5 text-lg font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+        <button
+          type="button"
+          disabled
+          aria-disabled="true"
+          title="Launching soon"
+          className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-10 py-5 text-lg font-semibold text-[#0B0B0C] opacity-60 cursor-not-allowed transition-colors ${focusRing()}`}
         >
           Start free review
           <span aria-hidden>→</span>
-        </Link>
+        </button>
         <p className="mt-4 text-sm text-white/55">
-          No card required. Cancel anytime.
+          Launching soon — join the waitlist below.
         </p>
+        <div className="mt-8 max-w-md mx-auto">
+          <WaitlistCapture skuKey="solo_bookkeeper" />
+        </div>
       </section>
       <SiteFooter />
     </main>

@@ -108,12 +108,21 @@ export default function PricingPage() {
             </>
           )}
 
-          <Link
-            href={`/signup?persona=bookkeeper&plan=solo_bookkeeper&mode=${soloMode}`}
-            className={`w-full text-center rounded-lg bg-[#C9A961] text-[#0A1530] font-semibold py-3 hover:bg-[#D9B972] transition ${focusRing()}`}
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Launching soon"
+            className={`w-full text-center rounded-lg bg-[#C9A961] text-[#0A1530] font-semibold py-3 opacity-60 cursor-not-allowed ${focusRing()}`}
           >
             Start pilot
-          </Link>
+          </button>
+          <p className="mt-3 text-xs text-white/55 text-center">
+            Launching soon — join the waitlist below.
+          </p>
+          <div className="mt-4">
+            <WaitlistCapture skuKey="solo_bookkeeper" />
+          </div>
         </div>
 
         <ComingSoonCard
