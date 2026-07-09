@@ -4,6 +4,59 @@ import type { NextRequest } from "next/server";
 const MARKETING_HOSTS = new Set(["advisacor.com", "www.advisacor.com"]);
 const APP_HOSTS = new Set(["app.advisacor.com"]);
 
+// Phase TCP1 W2.5 — Solo Bookkeeper launch gate.
+// Blocks public reachability to SBK commerce surfaces until Smoke-SBK passes.
+// Reversible with SOLO_BK_LAUNCH_GATED=false (or unset). See runbook.
+const SOLO_BK_GATED_PATHS = new Set([
+  "/pricing",
+  "/for/bookkeeper",
+  "/signup",
+  "/signup/solo-bookkeeper",
+]);
+const SOLO_BK_GATED_API_PATHS = new Set([
+  "/api/checkout/create-session",
+]);
+const SOLO_BK_GATE_COOKIE = "advisacor_solo_bk_gate";
+
+function isSoloBkGated(): boolean {
+  return (process.env.SOLO_BK_LAUNCH_GATED ?? "").toLowerCase() === "true";
+}
+function isSoloBkGatedPath(pathname: string): boolean {
+  return (
+    SOLO_BK_GATED_PATHS.has(pathname) ||
+    SOLO_BK_GATED_API_PATHS.has(pathname) ||
+    // Any /signup/<subpath> route is gated (covers /signup/solo-bookkeeper deep-link).
+    pathname.startsWith("/signup/")
+  );
+}
+function extractClientIp(request: NextRequest): string {
+  const xff = request.headers.get("x-forwarded-for") || "";
+  const first = xff.split(",")[0]?.trim();
+  return first || request.headers.get("x-real-ip") || "";
+}
+function isAllowlistedIp(request: NextRequest): boolean {
+  const allow = (process.env.SOLO_BK_ALLOWED_IPS ?? "").trim();
+  if (!allow) return false;
+  const allowSet = new Set(allow.split(",").map((s) => s.trim()).filter(Boolean));
+  const ip = extractClientIp(request);
+  return ip.length > 0 && allowSet.has(ip);
+}
+function hasBypassToken(request: NextRequest): boolean {
+  const expected = (process.env.SOLO_BK_INTERNAL_TOKEN ?? "").trim();
+  if (!expected) return false;
+  const supplied = request.nextUrl.searchParams.get("internal");
+  return supplied === expected;
+}
+function hasBypassCookie(request: NextRequest): boolean {
+  const expected = (process.env.SOLO_BK_INTERNAL_TOKEN ?? "").trim();
+  if (!expected) return false;
+  const cookieValue = request.cookies.get(SOLO_BK_GATE_COOKIE)?.value;
+  return cookieValue === expected;
+}
+function isSoloBkBypassAllowed(request: NextRequest): boolean {
+  return isAllowlistedIp(request) || hasBypassToken(request) || hasBypassCookie(request);
+}
+
 const PUBLIC_MARKETING_PATHS = new Set([
   "/",
   "/about",
@@ -86,6 +139,47 @@ function isMarketingAllowed(pathname: string) {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = normalizedHost(request);
+
+  // Phase TCP1 W2.5 — Solo Bookkeeper launch gate.
+  // If gated AND request targets a gated path AND not bypass-allowlisted,
+  // redirect UI to /coming-soon and 404 API. Runs before generic marketing
+  // allowlist so gate wins even for paths already in PUBLIC_MARKETING_PATHS.
+  if (
+    MARKETING_HOSTS.has(host) &&
+    isSoloBkGated() &&
+    isSoloBkGatedPath(pathname) &&
+    !isSoloBkBypassAllowed(request)
+  ) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Not available" }, { status: 404 });
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/coming-soon";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  // Phase TCP1 W2.5 — Persist bypass token as cookie once presented via query.
+  // So an approved reviewer only needs ?internal=<token> once per session.
+  if (
+    MARKETING_HOSTS.has(host) &&
+    isSoloBkGated() &&
+    hasBypassToken(request) &&
+    !hasBypassCookie(request)
+  ) {
+    const expected = (process.env.SOLO_BK_INTERNAL_TOKEN ?? "").trim();
+    const response = NextResponse.next();
+    response.cookies.set({
+      name: SOLO_BK_GATE_COOKIE,
+      value: expected,
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24, // 24 hours
+    });
+    return response;
+  }
 
   if (MARKETING_HOSTS.has(host) && !isStaticAsset(pathname) && !isMarketingAllowed(pathname)) {
     if (pathname.startsWith("/api/")) {
