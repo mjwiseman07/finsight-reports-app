@@ -17,6 +17,8 @@ const PUBLIC_MARKETING_PATHS = new Set([
   "/for/owner",
   "/for/bookkeeper",
   "/for/firm",
+  // Phase TCP1 W1 — pilot checkout surface (smoke-unblock).
+  "/pricing",
   // App routes reachable from marketing hosts (auth + primary product surfaces).
   // Role/auth gating happens inside these routes; middleware only controls reachability.
   "/signin",
@@ -33,6 +35,9 @@ const PUBLIC_MARKETING_PATHS = new Set([
 const PUBLIC_MARKETING_API_PATHS = new Set([
   "/api/early-access",
   "/api/stripe-webhook",
+  // Phase TCP1 W1 — waitlist capture for coming-soon SKUs + pilot checkout entrypoint.
+  "/api/waitlist",
+  "/api/checkout/create-session",
 ]);
 
 function normalizedHost(request: NextRequest) {

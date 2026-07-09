@@ -34,6 +34,9 @@ export function SiteNav() {
             <Link href="/industries" className={navLinkClass}>
               Industries
             </Link>
+            <Link href="/pricing" className={navLinkClass}>
+              Pricing
+            </Link>
             <Link href="/about" className={navLinkClass}>
               About
             </Link>
