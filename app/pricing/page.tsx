@@ -37,7 +37,7 @@ export default function PricingPage() {
         </p>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 pb-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <section className="mx-auto max-w-7xl px-6 pb-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0F1D3E] p-6 flex flex-col">
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -125,6 +125,8 @@ export default function PricingPage() {
           </div>
         </div>
 
+        <ReviewAssistCard />
+
         <ComingSoonCard
           skuKey="owner_pro"
           title="Owner Pro"
@@ -174,6 +176,51 @@ function ComingSoonCard(props: {
       </div>
 
       <WaitlistCapture skuKey={props.skuKey} />
+    </div>
+  );
+}
+
+function ReviewAssistCard() {
+  return (
+    <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0F1D3E] p-6 flex flex-col">
+      <div className="mb-4">
+        <p className="text-xs uppercase tracking-wider text-[#C9A961] mb-1">
+          Live now — companion tier
+        </p>
+        <h2 className={`${headingFont} text-2xl font-semibold`}>
+          Review Assist
+        </h2>
+        <p className="text-sm text-white/60 mt-1">
+          Read-only close review for solo bookkeepers who aren&apos;t ready
+          for full write-back yet
+        </p>
+      </div>
+      <QboOnlyBadge />
+      <div className="mt-4 mb-4">
+        <div className="flex items-baseline gap-2">
+          <span className={`${headingFont} text-3xl font-semibold`}>$99</span>
+          <span className="text-sm text-white/50">/mo</span>
+        </div>
+        <div className="mt-1 text-xs text-white/50">
+          Flat pricing. Standard track — no pilot cap.
+        </div>
+      </div>
+      <ul className="text-sm text-white/70 space-y-2 mb-6 flex-1">
+        <li>9-source findings feed per close period</li>
+        <li>Variance, anomalies, cutoff, reconciliation, duplicates</li>
+        <li>Coverage badge across 8 audit assertions</li>
+        <li>Read-only — no write-back to QBO</li>
+        <li>Upgrade to Solo Bookkeeper for full close automation</li>
+      </ul>
+      <Link
+        href="/signup?persona=bookkeeper&plan=review_assist&mode=flat"
+        className={`w-full text-center rounded-lg bg-[#C9A961] text-[#0A1530] font-semibold py-3 ${focusRing()} hover:bg-[#D9B972] transition`}
+      >
+        Start Review Assist
+      </Link>
+      <p className="mt-3 text-xs text-white/55 text-center">
+        $99/mo · cancel anytime
+      </p>
     </div>
   );
 }

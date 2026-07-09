@@ -20,16 +20,26 @@ function SignupPageContent() {
   const plan = searchParams?.get("plan") ?? null;
   const modeParam = searchParams?.get("mode") ?? null;
 
-  // W1 supports ONLY the Solo Bookkeeper flow. Anything else → redirect to /pricing.
-  const isW1Flow = persona === "bookkeeper" && plan === "solo_bookkeeper";
-  const pricingStructure: CheckoutPricingStructure =
-    modeParam === "per_client" ? "perClient" : "flat";
+  // Phase TCP1 W1 supports Solo Bookkeeper. Phase TCP1 W2.5 adds Review Assist.
+  // Anything else → /pricing.
+  const isSbkFlow = persona === "bookkeeper" && plan === "solo_bookkeeper";
+  const isRaFlow = persona === "bookkeeper" && plan === "review_assist";
+  const isSupportedFlow = isSbkFlow || isRaFlow;
+  // SBK supports flat + per_client. RA is flat-only (single SKU).
+  const pricingStructure: CheckoutPricingStructure = isRaFlow
+    ? "flat"
+    : modeParam === "per_client"
+      ? "perClient"
+      : "flat";
+  // Tier-derived checkout params.
+  const tierKey = isRaFlow ? "review_assist" : "solo_bookkeeper";
+  const track = isRaFlow ? "standard" : "pilot";
 
   useEffect(() => {
-    if (!isW1Flow) {
+    if (!isSupportedFlow) {
       router.replace("/pricing");
     }
-  }, [isW1Flow, router]);
+  }, [isSupportedFlow, router]);
 
   const [phase, setPhase] = useState<SignupPhase>("form");
   const [firstName, setFirstName] = useState("");
@@ -48,10 +58,10 @@ function SignupPageContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tier_key: "solo_bookkeeper",
+          tier_key: tierKey,
           pricing_structure: pricingStructure,
           pricing_cadence: "monthly",
-          track: "pilot",
+          track,
           business_name: businessName,
         }),
       });
@@ -142,7 +152,7 @@ function SignupPageContent() {
     }
   }
 
-  if (!isW1Flow) {
+  if (!isSupportedFlow) {
     // Redirect effect is running — render nothing to avoid flash of legacy form.
     return null;
   }
@@ -171,23 +181,39 @@ function SignupPageContent() {
       <section className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-7xl items-center gap-10 py-12 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961]">
-            Solo Bookkeeper pilot
+            {isRaFlow ? "Review Assist" : "Solo Bookkeeper pilot"}
           </p>
           <h1
             className={`${headingFont} mt-5 max-w-3xl text-5xl font-semibold leading-[1.05] tracking-tight md:text-7xl`}
           >
-            Start your pilot in under 15 minutes.
+            {isRaFlow
+              ? "Start reviewing closes in under 15 minutes."
+              : "Start your pilot in under 15 minutes."}
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
-            {pricingStructure === "flat"
-              ? "$279/mo pilot — first 10 slots. Full Advisacor stack for up to 10 QBO clients."
-              : "$69/client/mo pilot — first 10 slots. Metered — pay only for active clients each month."}
+            {isRaFlow
+              ? "$99/mo — read-only Review Assist. Findings across variance, anomalies, reconciliation, cutoff, and duplicates. No write-back to QBO."
+              : pricingStructure === "flat"
+                ? "$279/mo pilot — first 10 slots. Full Advisacor stack for up to 10 QBO clients."
+                : "$69/client/mo pilot — first 10 slots. Metered — pay only for active clients each month."}
           </p>
           <ul className="mt-6 grid max-w-lg gap-3 text-sm text-white/70">
-            <li>• Connect QuickBooks Online after checkout</li>
-            <li>• 15-vertical intelligence stack included</li>
-            <li>• Organizational memory across every client</li>
-            <li>• Cancel any time</li>
+            {isRaFlow ? (
+              <>
+                <li>• Connect QuickBooks Online in read-only mode</li>
+                <li>• 9-source findings feed per close period</li>
+                <li>• Coverage badge across 8 audit assertions</li>
+                <li>• Upgrade to Solo Bookkeeper for full close automation</li>
+                <li>• Cancel any time</li>
+              </>
+            ) : (
+              <>
+                <li>• Connect QuickBooks Online after checkout</li>
+                <li>• 15-vertical intelligence stack included</li>
+                <li>• Organizational memory across every client</li>
+                <li>• Cancel any time</li>
+              </>
+            )}
           </ul>
         </div>
 
@@ -238,10 +264,9 @@ function SignupPageContent() {
               <h2
                 className={`${headingFont} mt-3 text-4xl font-semibold tracking-tight`}
               >
-                Solo Bookkeeper —{" "}
-                {pricingStructure === "flat"
-                  ? "$279/mo pilot"
-                  : "$69/client/mo pilot"}
+                {isRaFlow
+                  ? "Review Assist — $99/mo"
+                  : `Solo Bookkeeper — ${pricingStructure === "flat" ? "$279/mo pilot" : "$69/client/mo pilot"}`}
               </h2>
               <p className="mt-3 text-sm leading-6 text-white/60">
                 Fields marked with an asterisk are required. You&apos;ll verify
@@ -327,7 +352,7 @@ function SignupPageContent() {
                   disabled={isSubmitting}
                   className={`mt-2 rounded-2xl px-5 py-4 text-sm ${primaryCtaClass} disabled:cursor-not-allowed disabled:opacity-60`}
                 >
-                  {isSubmitting ? "Creating workspace…" : "Start pilot"}
+                  {isSubmitting ? "Creating workspace…" : isRaFlow ? "Start Review Assist" : "Start pilot"}
                 </button>
               </form>
 

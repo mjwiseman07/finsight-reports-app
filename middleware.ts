@@ -57,6 +57,47 @@ function isSoloBkBypassAllowed(request: NextRequest): boolean {
   return isAllowlistedIp(request) || hasBypassToken(request) || hasBypassCookie(request);
 }
 
+// Phase TCP1 W2.5 — Review Assist launch gate.
+// Blocks RA-specific paths (signup with plan=review_assist, checkout with
+// tier_key=review_assist) until Smoke-RA passes. Symmetric with Solo BK gate
+// but scoped by query/body so it does NOT re-gate the already-live SBK surface.
+// Reversible with REVIEW_ASSIST_LAUNCH_GATED=false (or unset). See Smoke-RA runbook.
+const REVIEW_ASSIST_GATE_COOKIE = "advisacor_review_assist_gate";
+
+function isReviewAssistGated(): boolean {
+  return (process.env.REVIEW_ASSIST_LAUNCH_GATED ?? "").toLowerCase() === "true";
+}
+function isReviewAssistSignupRequest(request: NextRequest, pathname: string): boolean {
+  if (pathname !== "/signup") return false;
+  return request.nextUrl.searchParams.get("plan") === "review_assist";
+}
+function isReviewAssistAllowlistedIp(request: NextRequest): boolean {
+  const allow = (process.env.REVIEW_ASSIST_ALLOWED_IPS ?? "").trim();
+  if (!allow) return false;
+  const allowSet = new Set(allow.split(",").map((s) => s.trim()).filter(Boolean));
+  const ip = extractClientIp(request);
+  return ip.length > 0 && allowSet.has(ip);
+}
+function hasReviewAssistBypassToken(request: NextRequest): boolean {
+  const expected = (process.env.REVIEW_ASSIST_INTERNAL_TOKEN ?? "").trim();
+  if (!expected) return false;
+  const supplied = request.nextUrl.searchParams.get("internal");
+  return supplied === expected;
+}
+function hasReviewAssistBypassCookie(request: NextRequest): boolean {
+  const expected = (process.env.REVIEW_ASSIST_INTERNAL_TOKEN ?? "").trim();
+  if (!expected) return false;
+  const cookieValue = request.cookies.get(REVIEW_ASSIST_GATE_COOKIE)?.value;
+  return cookieValue === expected;
+}
+function isReviewAssistBypassAllowed(request: NextRequest): boolean {
+  return (
+    isReviewAssistAllowlistedIp(request) ||
+    hasReviewAssistBypassToken(request) ||
+    hasReviewAssistBypassCookie(request)
+  );
+}
+
 const PUBLIC_MARKETING_PATHS = new Set([
   "/",
   "/about",
@@ -157,6 +198,43 @@ export function middleware(request: NextRequest) {
     url.pathname = "/coming-soon";
     url.search = "";
     return NextResponse.redirect(url);
+  }
+
+  // Phase TCP1 W2.5 — Review Assist launch gate.
+  // Only /signup?plan=review_assist redirects to /coming-soon.
+  // The /api/checkout/create-session gate is enforced inside the route handler
+  // (body inspection), not middleware — middleware only sees pathname + query.
+  if (
+    MARKETING_HOSTS.has(host) &&
+    isReviewAssistGated() &&
+    isReviewAssistSignupRequest(request, pathname) &&
+    !isReviewAssistBypassAllowed(request)
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/coming-soon";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+  // Persist RA bypass token as cookie once presented via ?internal=<token>.
+  if (
+    MARKETING_HOSTS.has(host) &&
+    isReviewAssistGated() &&
+    hasReviewAssistBypassToken(request) &&
+    !hasReviewAssistBypassCookie(request) &&
+    isReviewAssistSignupRequest(request, pathname)
+  ) {
+    const expected = (process.env.REVIEW_ASSIST_INTERNAL_TOKEN ?? "").trim();
+    const response = NextResponse.next();
+    response.cookies.set({
+      name: REVIEW_ASSIST_GATE_COOKIE,
+      value: expected,
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24,
+    });
+    return response;
   }
 
   // Phase TCP1 W2.5 — Persist bypass token as cookie once presented via query.
