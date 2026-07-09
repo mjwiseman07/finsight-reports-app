@@ -11,7 +11,7 @@
 // Reference: Track_C_Phase_1_Tier_Spec_v1_2_Review_Assist_Addendum, Block 5.
 import { NextResponse } from 'next/server';
 // @ts-expect-error — entitlements.js is a plain JS module (no types file)
-import { hasFlag } from '@/lib/entitlements';
+import { hasFlag } from '@/lib/entitlements.js';
 
 export type GateFlagKey =
   | 'full_assertion_output'
