@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { AdvisacorLogo } from "../../components/AdvisacorLogo";
 import { supabase } from "../../lib/supabase";
 
@@ -10,7 +10,7 @@ type CheckoutPricingStructure = "flat" | "perClient";
 
 type SignupPhase = "form" | "verify_email" | "creating_checkout";
 
-export default function SignupPage() {
+function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -231,5 +231,13 @@ export default function SignupPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupPageContent />
+    </Suspense>
   );
 }
