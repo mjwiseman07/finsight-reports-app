@@ -32,6 +32,11 @@ export async function POST(request, { params }) {
   const access = await resolveFirmAccess(request, { clientId: firmClientId });
   if (access.response) return access.response;
 
+  // Block 6 entitlement gate.
+  const { requireFlag } = await import("@/lib/review-assist/route-guard");
+  const gate = await requireFlag(access.client.firm_id, "close_packet_generation");
+  if (gate) return gate;
+
   let pdfBuffer;
   try {
     pdfBuffer = await renderPacketPdf({ closePeriodId: packet.close_period_id });
