@@ -8,7 +8,16 @@ import { handleStripeWebhook, type MinimalStripeEvent } from "@/lib/entitlements
 export const runtime = "nodejs";
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY ?? "";
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+// Phase TCP1 W2.5 Block 3.5 — This endpoint receives ONLY checkout.session.completed
+// from a dedicated Stripe LIVE webhook (webhook #2). The legacy endpoint
+// /api/stripe-webhook retains its own STRIPE_WEBHOOK_SECRET for all other events.
+// Each Stripe webhook endpoint has a distinct signing secret; sharing one env var
+// across two endpoints breaks signature verification on whichever endpoint the
+// shared secret does not match.
+const webhookSecret =
+  process.env.STRIPE_WEBHOOK_SECRET_TCP1 ??
+  process.env.STRIPE_WEBHOOK_SECRET ??
+  "";
 const stripe = stripeSecret ? new Stripe(stripeSecret) : null;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
