@@ -54,6 +54,15 @@ function SignupPageContent() {
     setPhase("creating_checkout");
     setError("");
     try {
+      // On ?confirmed=1 remount, React form state is empty — fall back to
+      // business_name stored in Supabase user_metadata at signUp time.
+      let resolvedBusinessName = businessName.trim();
+      if (!resolvedBusinessName) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        resolvedBusinessName = String(
+          sessionData?.session?.user?.user_metadata?.business_name ?? "",
+        ).trim();
+      }
       const res = await fetch("/api/checkout/create-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -62,7 +71,7 @@ function SignupPageContent() {
           pricing_structure: pricingStructure,
           pricing_cadence: "monthly",
           track,
-          business_name: businessName,
+          business_name: resolvedBusinessName,
         }),
       });
       const body = await res.json();
@@ -77,6 +86,42 @@ function SignupPageContent() {
       setPhase("form");
     }
   }
+
+  // Phase TCP1 W2.5 Block 9a: when Supabase redirects back after email
+  // confirmation with ?confirmed=1, the session tokens are in the URL hash.
+  // The browser client (createBrowserClient) writes them to cookies on load,
+  // and we then transition straight to checkout instead of re-rendering the
+  // signup form. Without this effect, a user clicking the confirmation link
+  // lands on a blank form and sees "unauthenticated" if they retry.
+  const confirmed = searchParams?.get("confirmed") === "1";
+  useEffect(() => {
+    if (!isSupportedFlow || !confirmed) return;
+    let cancelled = false;
+    (async () => {
+      // Give the SDK a tick to parse the URL hash and populate session cookies.
+      // getSession() waits for the initial detectSessionInUrl flow to complete.
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data?.session?.access_token) {
+        setPhase("creating_checkout");
+        await createCheckoutAndRedirect();
+      } else {
+        // No session after confirmation redirect — link expired or wrong tab.
+        // Surface a clean error rather than a silent stall.
+        setError(
+          "We couldn't confirm your session. Please sign in to continue.",
+        );
+        setPhase("form");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // createCheckoutAndRedirect is defined below and captures state via closure;
+    // we intentionally omit it from deps to avoid a re-run loop. The effect only
+    // needs to fire once per mount when confirmed=1.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSupportedFlow, confirmed]);
 
   async function pollForSessionAndCheckout() {
     // The verify-email screen polls every 3s for up to 5 min. When the user
