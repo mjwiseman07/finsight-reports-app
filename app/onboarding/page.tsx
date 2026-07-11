@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { AdvisacorLogo } from "../../components/AdvisacorLogo";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
 import { SupportTicketForm } from "../../components/SupportTicketForm";
@@ -31,6 +30,9 @@ import { assertReportPreflight, validateReportPreflight } from "../../lib/report
 import { supabase } from "../../lib/supabase";
 import { SOLO_BK_STEPS } from "../../lib/onboarding-solo-bk-steps";
 import { PaidUserWelcome } from "./_components/PaidUserWelcome";
+import { SiteNav } from "../../components/SiteNav";
+import { SiteFooter } from "../../components/SiteFooter";
+import { headingFont, primaryCtaClass, focusRing } from "../../components/site-ui";
 
 const demoTemplates: Record<string, Partial<CompanyForm>> = {
   "demo-manufacturing": {
@@ -2093,94 +2095,92 @@ function OnboardingContent() {
   }
 
   return (
-    <main className={`min-h-screen px-6 py-6 text-white ${isPaidUser ? "bg-[#0A1530]" : "bg-[#0A1020]"}`}>
-      <div className="mx-auto max-w-6xl">
-        <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/[0.04] px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
-            <AdvisacorLogo priority className="w-full" />
-          </Link>
+    <main className={`min-h-screen text-white ${isPaidUser ? "bg-[#0A1530]" : "bg-[#0A1020]"}`}>
+      <SiteNav />
+      <div className="mx-auto max-w-6xl px-6 pb-16 pt-[120px] md:pt-[140px]">
+        <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
           {isSuperAdmin && (
-            <div className="rounded-full border border-red-300/40 bg-red-500/15 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-red-100">
+            <div className="rounded-full border border-[#B84A3E]/40 bg-[#B84A3E]/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#E89890]">
               Super Admin Journey Test
             </div>
           )}
           <SupportHelpButton onClick={() => setSupportOpen(true)} compact />
         </header>
 
-        <section className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+        <section className="mt-2 rounded-[2rem] border border-white/10 bg-[#111112] p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className={`text-sm font-black uppercase tracking-[0.22em] ${isPaidUser ? "text-[#C9A961]" : "text-[#FFB36F]"}`}>
+              <p className={`text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961] ${headingFont}`}>
                 {isPaidUser ? "Paid Onboarding" : "Company Account Onboarding"}
               </p>
-              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">
+              <h1 className={`mt-3 text-4xl font-semibold tracking-[-0.03em] md:text-5xl ${headingFont}`}>
                 {isPaidUser
                   ? "Connect your first client and get findings in under 15 minutes."
                   : "Reach your first executive package in under 15 minutes."}
               </h1>
-              <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+              <p className="mt-3 max-w-3xl leading-7 text-white/75">
                 {isPaidUser
                   ? "Connect QuickBooks for the fastest path, or upload financial statements if your client is not on QuickBooks."
                   : "Choose the fastest path to value: upload financial statements for a limited free report or connect accounting for the full Advisacor intelligence platform."}
               </p>
             </div>
-            <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5 text-left lg:w-80">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-200">Time To First Value</p>
-              <p className="mt-2 text-2xl font-black text-white">{formatEstimatedRemaining(estimatedRemainingSeconds)}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
+            <div className="rounded-3xl border border-[#C9A961]/30 bg-[#C9A961]/10 p-5 text-left lg:w-80">
+              <p className={`text-xs font-semibold uppercase tracking-[0.22em] text-[#C9A961] ${headingFont}`}>Time To First Value</p>
+              <p className={`mt-2 text-2xl font-semibold text-white ${headingFont}`}>{formatEstimatedRemaining(estimatedRemainingSeconds)}</p>
+              <p className="mt-2 text-sm leading-6 text-white/75">
                 Target: meaningful output in {onboardingDesignPrinciple.targetMinutes} minutes or less.
               </p>
             </div>
           </div>
         </section>
 
-        <section className="mt-5 rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+        <section className="mt-5 rounded-3xl border border-white/10 bg-[#111112] p-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-black text-white">Guided setup progress</p>
+              <p className={`text-sm font-semibold text-white ${headingFont}`}>Guided setup progress</p>
               <p className="mt-1 text-sm leading-6 text-slate-400">
                 Step {step + 1} of {steps.length}: {steps[step]} should take about {Math.max(1, Math.ceil(currentStepSeconds / 60))} minute{Math.ceil(currentStepSeconds / 60) === 1 ? "" : "s"}.
               </p>
             </div>
-            <p className="text-sm font-black text-[#FFB36F]">{progressPercent}% complete</p>
+            <p className="text-sm font-semibold text-[#C9A961]">{progressPercent}% complete</p>
           </div>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.08]">
-            <div className="h-full rounded-full bg-[#FF7A1A]" style={{ width: `${progressPercent}%` }} />
+            <div className="h-full rounded-full bg-[#C9A961]" style={{ width: `${progressPercent}%` }} />
           </div>
           <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
             We only ask for what helps you reach a useful first package faster. Anything that can wait should be automated, simplified, or postponed.
           </p>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#FF7A1A]/20 bg-[#FF7A1A]/10 px-4 py-3">
-            <p className="text-sm font-bold text-[#FFD0AB]">Need Help? Ask an onboarding question or submit a support ticket without leaving setup.</p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#C9A961]/20 bg-[#C9A961]/10 px-4 py-3">
+            <p className="text-sm font-bold text-[#C9A961]">Need Help? Ask an onboarding question or submit a support ticket without leaving setup.</p>
             <SupportHelpButton onClick={() => setSupportOpen(true)} compact />
           </div>
         </section>
 
         <section className="mt-6 grid gap-6 lg:grid-cols-[0.32fr_1fr]">
-          <aside className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-            <p className="text-sm font-black text-white">Onboarding Progress</p>
+          <aside className="rounded-3xl border border-white/10 bg-[#111112] p-5">
+            <p className={`text-sm font-semibold text-white ${headingFont}`}>Onboarding Progress</p>
             <div className="mt-4 grid gap-2">
               {steps.map((label, index) => (
                 <button
                   key={label}
                   type="button"
                   onClick={() => setStep(index)}
-                  className={`rounded-2xl px-4 py-3 text-left text-sm font-black transition ${
-                    step === index ? "bg-[#FF7A1A] text-white" : isStepComplete(index) ? "bg-emerald-400/10 text-emerald-100" : "bg-white/[0.05] text-slate-400"
-                  }`}
+                  className={focusRing(`rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${
+                    step === index ? "bg-[#C9A961] text-[#0A1530]" : isStepComplete(index) ? "bg-[#C9A961]/15 text-[#C9A961]" : "bg-white/[0.05] text-white/60 hover:bg-white/[0.08]"
+                  }`)}
                 >
                   <span className="block text-[10px] uppercase tracking-[0.18em] opacity-75">Step {index + 1}</span>
-                  <span className="mt-1 block">{label}{isStepComplete(index) && step !== index ? " ✓" : ""}</span>
+                  <span className={`mt-1 block ${headingFont}`}>{label}{isStepComplete(index) && step !== index ? " ✓" : ""}</span>
                 </button>
               ))}
             </div>
           </aside>
 
-          <section className="rounded-3xl border border-white/10 bg-slate-950/60 p-6">
+          <section className="rounded-3xl border border-white/10 bg-[#111112] p-6">
             {step === companyInfoStep && (
               <div className="grid gap-5">
-                <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                  <p className="text-sm font-black text-emerald-100">Customer Type Selection</p>
+                <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                  <p className={`text-sm font-semibold text-[#C9A961] ${headingFont}`}>Customer Type Selection</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
                     Start here so Advisacor can tailor the onboarding wizard, report package, and Pulse commentary to the right customer type.
                   </p>
@@ -2207,16 +2207,16 @@ function OnboardingContent() {
 
             {step === industryStep && (
               <div className="grid gap-5">
-                <div className="rounded-3xl border border-blue-300/25 bg-blue-400/10 p-5">
-                  <p className="text-sm font-black text-blue-100">Select Industry</p>
+                <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                  <p className={`text-sm font-semibold text-[#C9A961] ${headingFont}`}>Select Industry</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
                     Industry type drives KPI recommendations, dashboard emphasis, benchmarking, and Pulse commentary.
                   </p>
                 </div>
                 <Select label="Industry type" value={company.industry_type} options={industryTypeOptions} help={contextualHelp.industryType} onChange={(value) => updateCompany("industry_type", value)} />
                 {recommendedPackage && (
-                  <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                    <p className="text-sm font-black text-emerald-100">Recommended Based On Your Available Data</p>
+                  <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                    <p className={`text-sm font-semibold text-[#C9A961] ${headingFont}`}>Recommended Based On Your Available Data</p>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
                       Current recommendation: {companyPackageOptions.find((option) => option.id === recommendedPackage)?.label || recommendedPackage}. Advisacor will automatically update this after report discovery. You can override it if your operating model requires a different package.
                     </p>
@@ -2233,7 +2233,7 @@ function OnboardingContent() {
 
             {step === connectQuickBooksStep && (
               <div className="grid gap-5">
-                <div className="flex items-center gap-2 text-sm font-black text-slate-200">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
                   Connect Accounting System
                   <HelpTip content={contextualHelp.dataSource} />
                 </div>
@@ -2250,11 +2250,11 @@ function OnboardingContent() {
                         selectIntegration("quickbooks");
                       }
                     }}
-                    className={`rounded-3xl border p-5 text-left transition ${
-                      dataSourcePath === "connected" ? "border-[#FF7A1A]/70 bg-[#FF7A1A]/15" : "border-white/10 bg-[#0A1020] hover:border-white/25"
-                    }`}
+                    className={focusRing(`rounded-3xl border p-5 text-left transition ${
+                      dataSourcePath === "connected" ? "border-[#C9A961]/70 bg-[#C9A961]/15" : "border-white/10 bg-[#111112] hover:border-white/25"
+                    }`)}
                   >
-                    <p className="text-lg font-black text-white">Connect Accounting</p>
+                    <p className="text-lg font-semibold text-white">Connect Accounting</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
                       Connect QuickBooks or Xero to unlock the full Advisacor intelligence platform.
                     </p>
@@ -2267,24 +2267,24 @@ function OnboardingContent() {
                   <button
                     type="button"
                     onClick={chooseManualUploadPath}
-                    className={`rounded-3xl border p-5 text-left transition ${
-                      dataSourcePath === "manual_upload" ? "border-emerald-300/60 bg-emerald-400/10" : "border-white/10 bg-[#0A1020] hover:border-white/25"
-                    }`}
+                    className={focusRing(`rounded-3xl border p-5 text-left transition ${
+                      dataSourcePath === "manual_upload" ? "border-[#C9A961]/40 bg-[#C9A961]/10" : "border-white/10 bg-[#111112] hover:border-white/25"
+                    }`)}
                   >
-                    <p className="text-lg font-black text-white">Skip for Now / Upload Reports Instead</p>
+                    <p className="text-lg font-semibold text-white">Skip for Now / Upload Reports Instead</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
                       Skip connected accounting and provide company information manually.
                     </p>
-                    <p className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">
+                    <p className="mt-4 rounded-2xl border border-[#C9A961]/25 bg-[#C9A961]/10 px-4 py-3 text-sm font-bold text-[#C9A961]">
                       Manual setup fields will appear below.
                     </p>
                   </button>
                 </div>
 
                 {dataSourcePath === "connected" ? (
-                  <div className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
+                  <div className="rounded-3xl border border-white/10 bg-[#111112] p-5">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-black text-white">Available Accounting Integrations</p>
+                      <p className={`text-sm font-semibold text-white ${headingFont}`}>Available Accounting Integrations</p>
                       <HelpTip content={contextualHelp.accountingSystem} />
                     </div>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -2299,14 +2299,14 @@ function OnboardingContent() {
                           disabled={integration.status !== "available"}
                           className={`rounded-2xl border p-4 text-left transition ${
                             selectedIntegration === integration.id
-                              ? "border-[#FF7A1A]/70 bg-[#FF7A1A]/15"
+                              ? "border-[#C9A961]/70 bg-[#C9A961]/15"
                               : "border-white/10 bg-white/[0.04] hover:border-white/25"
                           } disabled:cursor-not-allowed disabled:opacity-60`}
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-black text-white">{integration.label}</p>
+                            <p className="text-sm font-semibold text-white">{integration.label}</p>
                             {integration.status === "coming_soon" && (
-                              <span className="rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                              <span className="rounded-full bg-white/[0.08] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                                 Coming Soon
                               </span>
                             )}
@@ -2324,11 +2324,11 @@ function OnboardingContent() {
                           void validateAccountingConnection(selectedIntegration);
                         }}
                         aria-disabled={connectionStatus === "connecting" || getSelectedIntegrationOption().status !== "available"}
-                        className={`rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white ${
+                        className={focusRing(`rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A] ${
                           connectionStatus === "connecting" || getSelectedIntegrationOption().status !== "available"
                             ? "pointer-events-none cursor-not-allowed opacity-60"
                             : ""
-                        }`}
+                        }`)}
                       >
                         {connectionStatus === "connecting"
                           ? "Connecting..."
@@ -2336,7 +2336,7 @@ function OnboardingContent() {
                             ? `${getSelectedIntegrationOption().label} Connected`
                             : `Connect ${getSelectedIntegrationOption().label}`}
                       </a>
-                      <button type="button" onClick={() => setConnectionValidationOpen(true)} disabled={connectionStatus !== "connected"} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 disabled:cursor-not-allowed disabled:opacity-40">
+                      <button type="button" onClick={() => setConnectionValidationOpen(true)} disabled={connectionStatus !== "connected"} className={focusRing("rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:opacity-40")}>
                         View Validation Summary
                       </button>
                     </div>
@@ -2357,35 +2357,35 @@ function OnboardingContent() {
                             window.location.href = "/api/integrations/xero/connect";
                           });
                         }}
-                        className="mt-3 block rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-100"
+                        className="mt-3 block rounded-2xl border border-white/15 bg-white/[0.04] px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-white/70"
                       >
                         TEST DIRECT XERO CONNECT
                       </a>
                     )}
                     {connectionStatus !== "connected" && (
-                      <p className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
+                      <p className="mt-4 rounded-2xl border border-[#C9A961]/25 bg-[#C9A961]/10 px-4 py-3 text-sm font-bold text-[#C9A961]">
                         Connect QuickBooks or Xero to auto-populate company details, or choose Skip for Now to enter them manually.
                       </p>
                     )}
                     {connectedIntegration === "xero" && (
-                      <div className="mt-5 rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                        <p className="text-sm font-black text-emerald-100">Xero Integration Status</p>
+                      <div className="mt-5 rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                        <p className={`text-sm font-semibold text-[#C9A961] ${headingFont}`}>Xero Integration Status</p>
                         <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
                           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Status</p>
-                            <p className="mt-1 font-black text-white">{connectionStatus === "connected" ? "Connected" : "Pending organization selection"}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Status</p>
+                            <p className="mt-1 font-semibold text-white">{connectionStatus === "connected" ? "Connected" : "Pending organization selection"}</p>
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Organization Name</p>
-                            <p className="mt-1 font-black text-white">{connectedOrganizationName || "Select a Xero organization"}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Organization Name</p>
+                            <p className="mt-1 font-semibold text-white">{connectedOrganizationName || "Select a Xero organization"}</p>
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Last Sync</p>
-                            <p className="mt-1 font-black text-white">{connectedLastSync ? new Date(connectedLastSync).toLocaleString() : "Not synced yet"}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Last Sync</p>
+                            <p className="mt-1 font-semibold text-white">{connectedLastSync ? new Date(connectedLastSync).toLocaleString() : "Not synced yet"}</p>
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Source System</p>
-                            <p className="mt-1 font-black text-white">{syncDiagnostics?.sourceSystem || "xero"}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Source System</p>
+                            <p className="mt-1 font-semibold text-white">{syncDiagnostics?.sourceSystem || "xero"}</p>
                           </div>
                         </div>
                         {syncDiagnostics && (
@@ -2399,15 +2399,15 @@ function OnboardingContent() {
                               ["Income Statement Count", syncDiagnostics.incomeStatementCount],
                             ].map(([label, value]) => (
                               <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
-                                <p className="mt-1 font-black text-white">{value}</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</p>
+                                <p className="mt-1 font-semibold text-white">{value}</p>
                               </div>
                             ))}
                           </div>
                         )}
                         {syncDiagnostics && (
-                          <div className="mt-4 rounded-3xl border border-cyan-300/25 bg-cyan-400/10 p-4">
-                            <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-100">Temporary Xero Fetch Debug</p>
+                          <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/70">Temporary Xero Fetch Debug</p>
                             <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
                               {[
                                 ["Raw Xero Accounts Count", syncDiagnostics.xeroRawAccountsCount ?? "Not captured"],
@@ -2420,8 +2420,8 @@ function OnboardingContent() {
                                 ["Mapped P&L Rows", syncDiagnostics.xeroMappedIncomeStatementRowsCount ?? syncDiagnostics.incomeStatementCount],
                               ].map(([label, value]) => (
                                 <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                                  <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
-                                  <p className="mt-1 font-black text-white">{value}</p>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</p>
+                                  <p className="mt-1 font-semibold text-white">{value}</p>
                                 </div>
                               ))}
                             </div>
@@ -2429,14 +2429,14 @@ function OnboardingContent() {
                         )}
                         {xeroEntities.length > 0 && (
                           <div className="mt-4 grid gap-3">
-                            <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-100">Select Xero Organization</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#C9A961]">Select Xero Organization</p>
                             <div className="grid gap-2 md:grid-cols-2">
                               {xeroEntities.map((entity) => (
                                 <button
                                   key={entity.canonicalId || entity.externalId}
                                   type="button"
                                   onClick={() => void selectXeroEntity(entity)}
-                                  className="rounded-2xl border border-emerald-300/25 bg-[#0A1020] px-4 py-3 text-left text-sm font-black text-white transition hover:border-emerald-200"
+                                  className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-left text-sm font-semibold text-white transition hover:border-[#C9A961]/60"
                                 >
                                   {entity.name}
                                 </button>
@@ -2449,7 +2449,7 @@ function OnboardingContent() {
                             type="button"
                             onClick={() => void loadXeroEntities()}
                             disabled={(!connectedConnectionId && !freeReviewLeadId) || isLoadingXeroEntities}
-                            className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className={focusRing("rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-100 disabled:cursor-not-allowed disabled:opacity-50")}
                           >
                             {isLoadingXeroEntities ? "Loading Organizations..." : "Load Organizations"}
                           </button>
@@ -2457,7 +2457,7 @@ function OnboardingContent() {
                             type="button"
                             onClick={() => void syncConnectedIntegration()}
                             disabled={!connectedConnectionId || isSyncingIntegration}
-                            className="rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-black text-[#092014] disabled:cursor-not-allowed disabled:opacity-50"
+                            className={focusRing("rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A] disabled:cursor-not-allowed disabled:opacity-50")}
                           >
                             {isSyncingIntegration ? "Syncing..." : "Sync Now"}
                           </button>
@@ -2465,7 +2465,7 @@ function OnboardingContent() {
                             type="button"
                             onClick={() => void disconnectConnectedIntegration()}
                             disabled={!connectedConnectionId}
-                            className="rounded-2xl border border-red-300/30 px-5 py-3 text-sm font-black text-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className={focusRing("rounded-2xl border border-[#B84A3E]/30 px-5 py-3 text-sm font-semibold text-[#E89890] disabled:cursor-not-allowed disabled:opacity-50")}
                           >
                             Disconnect
                           </button>
@@ -2474,8 +2474,8 @@ function OnboardingContent() {
                     )}
                     {connectionStatus === "connected" && !manualCompanySetupVisible && (
                       <div className="grid gap-4">
-                        <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                          <p className="text-sm font-black text-emerald-100">{getSelectedIntegrationOption().label} company profile imported</p>
+                        <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                          <p className={`text-sm font-semibold text-[#C9A961] ${headingFont}`}>{getSelectedIntegrationOption().label} company profile imported</p>
                           <p className="mt-2 text-sm leading-6 text-slate-300">
                             Advisacor found the core company information it needs, so no manual company setup is required.
                           </p>
@@ -2488,8 +2488,8 @@ function OnboardingContent() {
                               ["Employee Count", company.employee_count],
                             ].map(([label, value]) => (
                               <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                                <dt className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</dt>
-                                <dd className="mt-1 font-black text-white">{value}</dd>
+                                <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</dt>
+                                <dd className="mt-1 font-semibold text-white">{value}</dd>
                               </div>
                             ))}
                           </dl>
@@ -2499,8 +2499,8 @@ function OnboardingContent() {
                     )}
                     {connectionStatus === "connected" && manualCompanySetupVisible && (
                       <div className="grid gap-4">
-                        <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                          <p className="text-sm font-black text-emerald-100">We found partial company information.</p>
+                        <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                          <p className={`text-sm font-semibold text-[#C9A961] ${headingFont}`}>We found partial company information.</p>
                           <p className="mt-2 text-sm leading-6 text-slate-300">
                             Advisacor imported what your accounting system provided. Confirm or complete the missing fields below.
                           </p>
@@ -2513,8 +2513,8 @@ function OnboardingContent() {
                               ["Employee Count", company.employee_count || "Imported if available"],
                             ].map(([label, value]) => (
                               <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                                <dt className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</dt>
-                                <dd className="mt-1 font-black text-white">{value}</dd>
+                                <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</dt>
+                                <dd className="mt-1 font-semibold text-white">{value}</dd>
                               </div>
                             ))}
                           </dl>
@@ -2530,16 +2530,16 @@ function OnboardingContent() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                    <p className="text-sm font-black text-emerald-100">Manual setup selected</p>
+                  <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                    <p className={`text-sm font-semibold text-[#C9A961] ${headingFont}`}>Manual setup selected</p>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
                       Complete the company information below. Financial report uploads remain in Step 3.
                     </p>
                   </div>
                 )}
                 {manualCompanySetupVisible && (
-                  <div className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
-                    <p className="text-sm font-black text-white">Manual Company Setup</p>
+                  <div className="rounded-3xl border border-white/10 bg-[#111112] p-5">
+                    <p className={`text-sm font-semibold text-white ${headingFont}`}>Manual Company Setup</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
                       We only ask for these fields because connected accounting was skipped or you chose to edit imported company details.
                     </p>
@@ -2558,8 +2558,8 @@ function OnboardingContent() {
             {step === uploadReportsStep && (
               <div className="grid gap-5">
                 {!needsSupplementalUploads ? (
-                  <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                    <p className="text-sm font-black text-emerald-100">Reports discovered from connected accounting</p>
+                  <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                    <p className={`text-sm font-semibold text-[#C9A961] ${headingFont}`}>Reports discovered from connected accounting</p>
                     <p className="mt-2 text-sm leading-6 text-slate-300">
                       No manual uploads are required. Advisacor will use the reports discovered during the accounting connection.
                     </p>
@@ -2568,8 +2568,8 @@ function OnboardingContent() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
-                    <p className="text-sm font-black text-white">Upload Financial Reports</p>
+                  <div className="rounded-3xl border border-white/10 bg-[#111112] p-5">
+                    <p className={`text-sm font-semibold text-white ${headingFont}`}>Upload Financial Reports</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
                       {dataSourcePath === "connected"
                         ? "Connected accounting did not provide every required financial report. Upload Balance Sheet and Income Statement to complete the first review."
@@ -2587,7 +2587,7 @@ function OnboardingContent() {
                       ))}
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <button type="button" onClick={openReportGuide} className="rounded-2xl border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 px-5 py-3 text-sm font-black text-[#FFD0AB]">
+                      <button type="button" onClick={openReportGuide} className={focusRing("rounded-2xl border border-[#C9A961]/30 bg-[#C9A961]/10 px-5 py-3 text-sm font-semibold text-[#C9A961]")}>
                         Download Report Guide PDF
                       </button>
                     </div>
@@ -2601,8 +2601,8 @@ function OnboardingContent() {
 
             {step === configurePulseStep && (
               <div className="grid gap-4">
-                <div className="rounded-3xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 p-5">
-                  <p className="text-sm font-black text-white">Configure Pulse</p>
+                <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                  <p className={`text-sm font-semibold text-white ${headingFont}`}>Configure Pulse</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
                     Configure briefs, monthly package delivery, approval settings, and how Pulse will keep stakeholders informed.
                   </p>
@@ -2619,14 +2619,14 @@ function OnboardingContent() {
             {step === generatePackageStep && (
               <div className="grid gap-5">
                 {firstPackageReady && (
-                  <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-6">
-                    <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">Report Ready</p>
-                    <h2 className="mt-3 text-3xl font-black text-white">Your first Advisacor financial review is ready.</h2>
+                  <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-6">
+                    <p className={`text-sm font-semibold uppercase tracking-[0.18em] text-[#C9A961] ${headingFont}`}>Report Ready</p>
+                    <h2 className={`mt-3 text-3xl font-semibold text-white ${headingFont}`}>Your first Advisacor financial review is ready.</h2>
                     <p className="mt-3 text-sm leading-6 text-slate-300">
                       Pulse has identified 3 opportunities and 2 risks in your business.
                     </p>
                     <div className="mt-5 flex flex-wrap gap-3">
-                      <button type="button" onClick={() => void downloadTrialReport()} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+                      <button type="button" onClick={() => void downloadTrialReport()} className={focusRing("rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A]")}>
                         Download Report
                       </button>
                       <button
@@ -2637,17 +2637,17 @@ function OnboardingContent() {
                           }
                           router.push("/dashboard");
                         }}
-                        className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200"
+                        className={focusRing("rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200")}
                       >
                         View Dashboard
                       </button>
                     </div>
                   </div>
                 )}
-                <div className="rounded-3xl border border-cyan-300/25 bg-cyan-400/10 p-5 text-xs font-bold text-cyan-50">
-                  <p className="text-sm font-black uppercase tracking-[0.18em] text-cyan-100">Sync Lookup Debug</p>
+                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-xs font-bold text-white/85">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">Sync Lookup Debug</p>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                    <div className="rounded-2xl border border-white/10 bg-[#111112]/70 p-4">
                       <p>ACTIVE PROVIDER: {selectedIntegration || "Not available"}</p>
                       <p>ACTIVE CONNECTION ID: {activeAccountingContext?.connectionId || connectedConnectionId || packageContextSource?.connectionId || reportSummarySource?.connectionId || "Not available"}</p>
                       <p>ACTIVE TENANT ID: {activeAccountingContext?.tenantId || packageContextSource?.tenantId || reportSummarySource?.tenantId || "Not available"}</p>
@@ -2655,14 +2655,14 @@ function OnboardingContent() {
                       <p>Latest Sync Status: {packageLookupDebug.latestSyncStatus || activeAccountingContext?.latestSyncStatus || "Not available"}</p>
                       <p>Latest Sync ID: {packageLookupDebug.latestSyncId || activeAccountingContext?.latestSyncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                    <div className="rounded-2xl border border-white/10 bg-[#111112]/70 p-4">
                       <p>CONNECTED REPORTS SUMMARY SOURCE</p>
                       <p>syncId: {reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
                       <p>connectionId: {reportSummarySource?.connectionId || activeAccountingContext?.connectionId || "Not available"}</p>
                       <p>sourceSystem: {reportSummarySource?.sourceSystem || activeAccountingContext?.sourceSystem || "Not available"}</p>
                       <p>tenantId: {reportSummarySource?.tenantId || activeAccountingContext?.tenantId || "Not available"}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                    <div className="rounded-2xl border border-white/10 bg-[#111112]/70 p-4">
                       <p>PACKAGE GENERATOR LOOKUP</p>
                       <p>syncId searched: {packageLookupDebug.syncIdSearched || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
                       <p>connectionId searched: {packageLookupDebug.connectionIdSearched || activeAccountingContext?.connectionId || "Not available"}</p>
@@ -2671,7 +2671,7 @@ function OnboardingContent() {
                       <p>Package Generator Expected Status: {packageLookupDebug.packageGeneratorExpectedStatus || activeAccountingContext?.packageGeneratorExpectedStatus || "SUCCESS"}</p>
                       <p>Package Generator Found Status: {packageLookupDebug.packageGeneratorFoundStatus || activeAccountingContext?.packageGeneratorFoundStatus || "Not available"}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                    <div className="rounded-2xl border border-white/10 bg-[#111112]/70 p-4">
                       <p>LATEST SUCCESSFUL SYNC FOUND?: {String(packageLookupDebug.latestSuccessfulSyncFound)}</p>
                       {!packageLookupDebug.latestSuccessfulSyncFound && (
                         <div className="mt-2">
@@ -2687,7 +2687,7 @@ function OnboardingContent() {
                       <p>Package Sync ID: {packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
                       <p>Match: {String(Boolean((reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) && (packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) && (reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) === (packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId)))}</p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-[#0A1020]/70 p-4">
+                    <div className="rounded-2xl border border-white/10 bg-[#111112]/70 p-4">
                       <p>Persisted Sync Record:</p>
                       <p>syncId: {activeAccountingContext?.persistedSyncRecord?.syncId || "Not available"}</p>
                       <p>syncStatus: {activeAccountingContext?.persistedSyncRecord?.syncStatus || "Not available"}</p>
@@ -2696,22 +2696,22 @@ function OnboardingContent() {
                       <p>tenantId: {activeAccountingContext?.persistedSyncRecord?.tenantId || "Not available"}</p>
                     </div>
                   </div>
-                  <button type="button" onClick={promoteSummarySyncToPackageContext} className="mt-4 rounded-2xl border border-cyan-200/40 px-4 py-2 text-xs font-black text-cyan-50">
+                  <button type="button" onClick={promoteSummarySyncToPackageContext} className={focusRing("mt-4 rounded-2xl border border-white/20 px-4 py-2 text-xs font-semibold text-white/85")}>
                     Use Summary Sync
                   </button>
                 </div>
-                <div className="rounded-3xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 p-5">
-                  <p className="text-sm font-black text-white">Generate First Package</p>
+                <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                  <p className={`text-sm font-semibold text-white ${headingFont}`}>Generate First Package</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
                     Advisacor will now generate your executive summary, dashboard, and initial package, then take you directly to your company dashboard.
                   </p>
                   {dataSourcePath === "manual_upload" && (
-                    <p className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">
+                    <p className="mt-4 rounded-2xl border border-[#C9A961]/25 bg-[#C9A961]/10 px-4 py-3 text-sm font-bold text-[#C9A961]">
                       Limited report generated from uploaded financial statements.
                     </p>
                   )}
                   {dataSourcePath === "connected" && (
-                    <p className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">
+                    <p className="mt-4 rounded-2xl border border-[#C9A961]/25 bg-[#C9A961]/10 px-4 py-3 text-sm font-bold text-[#C9A961]">
                       Full one-time free package: Executive Summary, Full PDF, Sample PowerPoint, Industry Intelligence, AI Commentary, Health Score, Risks, and Opportunities.
                     </p>
                   )}
@@ -2721,10 +2721,10 @@ function OnboardingContent() {
                   {packageBuildStatuses.map((status, index) => (
                     <div
                       key={status}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-black ${
+                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
                         index <= packageStatusIndex && isSaving
-                          ? "border-emerald-300/30 bg-emerald-400/10 text-emerald-100"
-                          : "border-white/10 bg-[#0A1020] text-slate-400"
+                          ? "border-[#C9A961]/25 bg-[#C9A961]/10 text-[#C9A961]"
+                          : "border-white/10 bg-[#111112] text-slate-400"
                       }`}
                     >
                       {status}
@@ -2736,7 +2736,7 @@ function OnboardingContent() {
                     type="button"
                     onClick={() => void refreshActiveReportContext()}
                     disabled={isSaving || !connectedConnectionId}
-                    className="rounded-2xl border border-cyan-300/30 px-5 py-3 text-sm font-black text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={focusRing("rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold text-white/70 disabled:cursor-not-allowed disabled:opacity-50")}
                   >
                     Refresh Context
                   </button>
@@ -2744,7 +2744,7 @@ function OnboardingContent() {
                     type="button"
                     onClick={() => void generateFirstPackage()}
                     disabled={isSaving}
-                    className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    className={focusRing("rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A] disabled:cursor-not-allowed disabled:opacity-60")}
                   >
                     {isSaving ? "Generating First Package..." : "Generate First Package"}
                   </button>
@@ -2754,32 +2754,32 @@ function OnboardingContent() {
 
             {step === dashboardStep && (
               <div className="grid gap-5">
-                <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
-                  <p className="text-sm font-black text-emerald-100">Dashboard</p>
+                <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+                  <p className={`text-sm font-semibold text-[#C9A961] ${headingFont}`}>Dashboard</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
                     The final onboarding outcome is the customer dashboard. Generate the first review to complete setup and enter the dashboard with your first package context.
                   </p>
                 </div>
-                <Link href="/dashboard" className="inline-flex rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+                <Link href="/dashboard" className={focusRing("inline-flex rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200")}>
                   Go to Dashboard
                 </Link>
               </div>
             )}
 
-            {error && <p className="mt-5 rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">{error}</p>}
-            {message && <p className="mt-5 rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-100">{message}</p>}
+            {error && <p className="mt-5 rounded-2xl border border-[#B84A3E]/30 bg-[#B84A3E]/10 p-4 text-sm font-bold text-[#E89890]">{error}</p>}
+            {message && <p className="mt-5 rounded-2xl border border-[#437A22]/30 bg-[#437A22]/10 p-4 text-sm font-medium text-[#8CB56C]">{message}</p>}
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => setStep((current) => Math.max(current - 1, 0))}
                 disabled={step === 0}
-                className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                className={focusRing("rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:opacity-40")}
               >
                 Back
               </button>
               {step < generatePackageStep ? (
-                <button type="button" onClick={continueOnboarding} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+                <button type="button" onClick={continueOnboarding} className={focusRing(`rounded-2xl px-5 py-3 text-sm ${primaryCtaClass}`)}>
                   Continue
                 </button>
               ) : (
@@ -2791,13 +2791,13 @@ function OnboardingContent() {
       </div>
       {supportOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
-          <section className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-3xl border border-white/10 bg-[#0A1020] p-6 shadow-2xl">
+          <section className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-3xl border border-white/10 bg-[#111112] p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Need Help?</p>
-                <h2 className="mt-2 text-2xl font-black">Onboarding Support</h2>
+                <p className={`text-sm font-semibold uppercase tracking-[0.18em] text-[#C9A961] ${headingFont}`}>Need Help?</p>
+                <h2 className={`mt-2 text-2xl font-semibold ${headingFont}`}>Onboarding Support</h2>
               </div>
-              <button type="button" onClick={() => setSupportOpen(false)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-slate-300">
+              <button type="button" onClick={() => setSupportOpen(false)} className={focusRing("rounded-2xl border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300")}>
                 Close
               </button>
             </div>
@@ -2809,28 +2809,29 @@ function OnboardingContent() {
       )}
       {connectionValidationOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
-          <section className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-3xl border border-white/10 bg-[#0A1020] p-6 shadow-2xl">
+          <section className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-3xl border border-white/10 bg-[#111112] p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Connection Validation</p>
-                <h2 className="mt-2 text-2xl font-black">Connected Reports Summary</h2>
+                <p className={`text-sm font-semibold uppercase tracking-[0.18em] text-[#C9A961] ${headingFont}`}>Connection Validation</p>
+                <h2 className={`mt-2 text-2xl font-semibold ${headingFont}`}>Connected Reports Summary</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
                   Advisacor discovered available reports, evaluated the data, and selected the recommended package.
                 </p>
               </div>
-              <button type="button" onClick={() => setConnectionValidationOpen(false)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-slate-300">
+              <button type="button" onClick={() => setConnectionValidationOpen(false)} className={focusRing("rounded-2xl border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300")}>
                 Close
               </button>
             </div>
             <div className="mt-5">
               <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} />
             </div>
-            <button type="button" onClick={continueAfterConnectionValidation} className="mt-5 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+            <button type="button" onClick={continueAfterConnectionValidation} className={focusRing("mt-5 rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A]")}>
               Continue With Recommended Package
             </button>
           </section>
         </div>
       )}
+      <SiteFooter />
     </main>
   );
 }
@@ -2854,7 +2855,7 @@ function Field({ label, value, onChange, placeholder = "", help }: { label: stri
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-2xl border border-white/10 bg-[#0A1020] px-4 py-3 text-white outline-none ring-[#FF7A1A]/50 focus:ring-2"
+        className="rounded-2xl border border-white/10 bg-[#111112] px-4 py-3 text-white outline-none ring-[#C9A961]/50 focus:ring-2"
       />
     </label>
   );
@@ -2870,7 +2871,7 @@ function Select({ label, value, options, optionLabels = {}, onChange, help }: { 
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-2xl border border-white/10 bg-[#0A1020] px-4 py-3 text-white outline-none ring-[#FF7A1A]/50 focus:ring-2"
+        className="rounded-2xl border border-white/10 bg-[#111112] px-4 py-3 text-white outline-none ring-[#C9A961]/50 focus:ring-2"
       >
         {options.map((option) => (
           <option key={option} value={option}>
@@ -2884,12 +2885,12 @@ function Select({ label, value, options, optionLabels = {}, onChange, help }: { 
 
 function Toggle({ label, checked, onChange, help }: { label: string; checked: boolean; onChange: (value: boolean) => void; help?: HelpContent }) {
   return (
-    <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0A1020] p-4 text-sm font-black text-slate-100">
+    <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#111112] p-4 text-sm font-semibold text-slate-100">
       <span className="flex items-center gap-2">
         {label}
         <HelpTip content={help} />
       </span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-5 w-5 accent-[#FF7A1A]" />
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="h-5 w-5 accent-[#C9A961]" />
     </label>
   );
 }
@@ -2897,28 +2898,28 @@ function Toggle({ label, checked, onChange, help }: { label: string; checked: bo
 function ConnectedReportsSummary({ reportSummary, recommendedPackage, manual = false }: { reportSummary: ReportSummary; recommendedPackage: string; manual?: boolean }) {
   const packageLabel = companyPackageOptions.find((option) => option.id === recommendedPackage)?.label || recommendedPackage;
   return (
-    <div className="mt-5 rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5">
+    <div className="mt-5 rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-sm font-black text-white">Connected Reports Summary</p>
+          <p className={`text-sm font-semibold text-white ${headingFont}`}>Connected Reports Summary</p>
           <p className="mt-2 text-sm leading-6 text-slate-300">
             {manual ? "Manual upload gives a limited free report and sample PDF." : "Connected accounting unlocks the full one-time free package and full intelligence path."}
           </p>
         </div>
-        <div className="rounded-2xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 px-4 py-3">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#FFB36F]">Recommended Package</p>
-          <p className="mt-1 text-lg font-black text-white">{packageLabel}</p>
+        <div className="rounded-2xl border border-[#C9A961]/25 bg-[#C9A961]/10 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#C9A961]">Recommended Package</p>
+          <p className="mt-1 text-lg font-semibold text-white">{packageLabel}</p>
         </div>
       </div>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-[#0A1020] p-4">
-          <p className="text-sm font-black text-emerald-100">Found</p>
+        <div className="rounded-2xl border border-white/10 bg-[#111112] p-4">
+          <p className="text-sm font-semibold text-[#C9A961]">Found</p>
           <div className="mt-3 grid gap-2 text-sm text-slate-300">
             {reportSummary.found.length ? reportSummary.found.map((report) => <span key={report.id}>✓ {report.label}</span>) : <span>No reports found yet.</span>}
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-[#0A1020] p-4">
-          <p className="text-sm font-black text-red-100">Missing</p>
+        <div className="rounded-2xl border border-white/10 bg-[#111112] p-4">
+          <p className="text-sm font-semibold text-[#E89890]">Missing</p>
           <div className="mt-3 grid gap-2 text-sm text-slate-400">
             {reportSummary.missing.length ? reportSummary.missing.map((report) => <span key={report.id}>× {report.label}</span>) : <span>No missing reports detected.</span>}
           </div>
@@ -2931,7 +2932,7 @@ function ConnectedReportsSummary({ reportSummary, recommendedPackage, manual = f
 function ComparisonList({ title, items }: { title: string; items: string[] }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-sm font-black text-white">{title}</p>
+      <p className="text-sm font-semibold text-white">{title}</p>
       <ul className="mt-3 grid gap-2 text-sm leading-6 text-slate-300">
         {items.map((item) => (
           <li key={item}>- {item}</li>
@@ -2943,16 +2944,16 @@ function ComparisonList({ title, items }: { title: string; items: string[] }) {
 
 function UploadReportInput({ label, required, selected, onChange }: { label: string; required: boolean; selected: boolean; onChange: (selected: boolean) => void }) {
   return (
-    <label className={`grid gap-2 rounded-2xl border p-4 text-sm font-bold ${selected ? "border-emerald-300/30 bg-emerald-400/10 text-emerald-100" : "border-white/10 bg-white/[0.04] text-slate-300"}`}>
+    <label className={`grid gap-2 rounded-2xl border p-4 text-sm font-bold ${selected ? "border-[#C9A961]/40 bg-[#C9A961]/10 text-[#C9A961]" : "border-white/10 bg-white/[0.04] text-white/75"}`}>
       <span className="flex items-center justify-between gap-3">
         {label}
-        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{required ? "Required" : "Optional"}</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{required ? "Required" : "Optional"}</span>
       </span>
       <input
         type="file"
         accept=".csv,.xlsx,.xls,.pdf"
         onChange={(event) => onChange(Boolean(event.target.files?.length))}
-        className="block w-full cursor-pointer rounded-xl border border-white/10 bg-[#0A1020] text-xs text-slate-300 file:mr-3 file:border-0 file:bg-[#FF7A1A] file:px-3 file:py-2 file:text-xs file:font-black file:text-white"
+        className="block w-full cursor-pointer rounded-xl border border-white/10 bg-[#111112] text-xs text-slate-300 file:mr-3 file:border-0 file:bg-[#C9A961] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-[#0A1530]"
       />
       <span className="text-xs text-slate-500">{selected ? "File selected" : "CSV, Excel, or PDF"}</span>
     </label>
@@ -2963,7 +2964,7 @@ function ChoiceGrid({ options, selected, onSelect, help }: { options: Array<{ id
   return (
     <div className="grid gap-4">
       {help && (
-        <div className="flex items-center gap-2 text-sm font-black text-slate-200">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
           Need help choosing?
           <HelpTip content={help} />
         </div>
@@ -2974,11 +2975,11 @@ function ChoiceGrid({ options, selected, onSelect, help }: { options: Array<{ id
             key={option.id}
             type="button"
             onClick={() => onSelect(option.id)}
-            className={`rounded-3xl border p-5 text-left transition ${
-              selected === option.id ? "border-[#FF7A1A]/70 bg-[#FF7A1A]/15" : "border-white/10 bg-[#0A1020] hover:border-white/25"
-            }`}
+            className={focusRing(`rounded-3xl border p-5 text-left transition ${
+              selected === option.id ? "border-[#C9A961]/70 bg-[#C9A961]/15" : "border-white/10 bg-[#111112] hover:border-white/25"
+            }`)}
           >
-            <p className="text-lg font-black text-white">{option.label}</p>
+            <p className={`text-lg font-semibold text-white ${headingFont}`}>{option.label}</p>
             <p className="mt-2 text-sm leading-6 text-slate-400">{option.description}</p>
           </button>
         ))}
@@ -2989,7 +2990,7 @@ function ChoiceGrid({ options, selected, onSelect, help }: { options: Array<{ id
 
 export default function OnboardingPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-[#0A1020] p-6 text-white">Loading onboarding...</main>}>
+    <Suspense fallback={<main className="min-h-screen bg-[#0A1530] p-6 text-white">Loading onboarding...</main>}>
       <OnboardingContent />
     </Suspense>
   );

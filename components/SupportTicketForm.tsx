@@ -72,8 +72,8 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
 
   return (
     <div className="grid gap-4">
-      <div className="rounded-3xl border border-blue-300/20 bg-blue-500/10 p-5">
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Ask Advisacor Support AI</p>
+      <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#C9A961]">Ask Advisacor Support AI</p>
         <p className="mt-2 text-sm leading-6 text-slate-300">
           Future architecture: Advisacor Support AI will try to answer onboarding, setup, package, and report questions before a ticket is submitted. If unresolved, the ticket will include the support AI context.
         </p>
@@ -82,7 +82,7 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="grid gap-2 text-sm font-bold text-slate-300">
           Category
-          <select value={category} onChange={(event) => setCategory(event.target.value)} className="rounded-2xl border border-white/10 bg-[#0A1020] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#FF7A1A]/50">
+          <select value={category} onChange={(event) => setCategory(event.target.value)} className="rounded-2xl border border-white/10 bg-[#111112] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#C9A961]/50">
             {supportTicketCategories.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -92,7 +92,7 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
         </label>
         <label className="grid gap-2 text-sm font-bold text-slate-300">
           Priority
-          <select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-[#0A1020] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#FF7A1A]/50">
+          <select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-[#111112] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#C9A961]/50">
             {supportTicketPriorities.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -104,12 +104,12 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
 
       <label className="grid gap-2 text-sm font-bold text-slate-300">
         Subject
-        <input value={subject} onChange={(event) => setSubject(event.target.value)} className="rounded-2xl border border-white/10 bg-[#0A1020] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#FF7A1A]/50" />
+        <input value={subject} onChange={(event) => setSubject(event.target.value)} className="rounded-2xl border border-white/10 bg-[#111112] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#C9A961]/50" />
       </label>
 
       <label className="grid gap-2 text-sm font-bold text-slate-300">
         Description
-        <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={5} className="rounded-2xl border border-white/10 bg-[#0A1020] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#FF7A1A]/50" />
+        <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={5} className="rounded-2xl border border-white/10 bg-[#111112] px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#C9A961]/50" />
       </label>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -121,10 +121,10 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
         Advisacor automatically captures your user, company, package level, persona, browser, and timestamp. Notifications are sent to support@advisacor.com.
       </p>
 
-      {error && <p className="rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">{error}</p>}
-      {success && <p className="whitespace-pre-line rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-100">{success}</p>}
+      {error && <p className="rounded-2xl border border-[#B84A3E]/30 bg-[#B84A3E]/10 p-4 text-sm font-bold text-[#E89890]">{error}</p>}
+      {success && <p className="whitespace-pre-line rounded-2xl border border-[#437A22]/30 bg-[#437A22]/10 p-4 text-sm font-bold text-[#8CB56C]">{success}</p>}
 
-      <button type="button" onClick={() => void submitTicket()} disabled={isSubmitting} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="button" onClick={() => void submitTicket()} disabled={isSubmitting} className="rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A] disabled:cursor-not-allowed disabled:opacity-60">
         {isSubmitting ? "Submitting..." : "Submit Support Ticket"}
       </button>
     </div>
@@ -138,7 +138,7 @@ function FileNameInput({ label, onChange }: { label: string; onChange: (value: s
       <input
         type="file"
         onChange={(event) => onChange(event.target.files?.[0]?.name || "")}
-        className="block w-full cursor-pointer rounded-2xl border border-white/10 bg-[#0A1020] text-xs text-slate-300 file:mr-3 file:border-0 file:bg-[#FF7A1A] file:px-3 file:py-3 file:text-xs file:font-black file:text-white"
+        className="block w-full cursor-pointer rounded-2xl border border-white/10 bg-[#111112] text-xs text-slate-300 file:mr-3 file:border-0 file:bg-[#C9A961] file:px-3 file:py-3 file:text-xs file:font-semibold file:text-[#0A1530]"
       />
     </label>
   );
