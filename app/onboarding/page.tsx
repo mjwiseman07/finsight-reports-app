@@ -30,6 +30,7 @@ import type { ReportDataContext } from "../../lib/integrations/accounting/report
 import { assertReportPreflight, validateReportPreflight } from "../../lib/reporting/report-preflight-validation";
 import { supabase } from "../../lib/supabase";
 import { SOLO_BK_STEPS } from "../../lib/onboarding-solo-bk-steps";
+import { PaidUserWelcome } from "./_components/PaidUserWelcome";
 
 const demoTemplates: Record<string, Partial<CompanyForm>> = {
   "demo-manufacturing": {
@@ -396,6 +397,73 @@ function OnboardingContent() {
   const queryLeadId = searchParams?.get("leadId") || "";
   const queryProvider = searchParams?.get("provider") === "xero" ? "xero" : searchParams?.get("provider") === "quickbooks" ? "quickbooks" : "quickbooks";
   const startsOnConnectAccounting = searchParams?.get("step") === "connect-accounting";
+
+  // Phase TCP1 W2.5 Block 9j — TIER AWARENESS
+  // Paid users bypass all free-review-lead gates and see PaidUserWelcome.
+  const [onboardingContext, setOnboardingContext] = useState<{
+    auth: boolean;
+    is_paid_user: boolean;
+    tier_key: string | null;
+    email: string | null;
+    active_paid_slot: {
+      id: string;
+      tier_key: string;
+      pilot_status: string;
+      stripe_subscription_id: string | null;
+    } | null;
+  } | null>(null);
+  const [contextLoading, setContextLoading] = useState(true);
+  const checkoutSuccessPending =
+    searchParams?.get("checkout") === "success" || searchParams?.get("paid") === "1";
+
+  useEffect(() => {
+    let cancelled = false;
+    const emptyContext = {
+      auth: false,
+      is_paid_user: false,
+      tier_key: null,
+      email: null,
+      active_paid_slot: null,
+    };
+
+    const loadContext = async () => {
+      try {
+        const response = await fetch("/api/onboarding/context", { credentials: "include" });
+        const data = await response.json();
+        if (cancelled) return data;
+        setOnboardingContext(data);
+        return data;
+      } catch {
+        if (cancelled) return emptyContext;
+        setOnboardingContext(emptyContext);
+        return emptyContext;
+      }
+    };
+
+    (async () => {
+      // After Stripe redirect, webhook may lag — poll briefly before treating as unpaid.
+      const maxAttempts = checkoutSuccessPending ? 12 : 1;
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const data = await loadContext();
+        if (cancelled) return;
+        if (data?.is_paid_user) {
+          setContextLoading(false);
+          return;
+        }
+        if (attempt < maxAttempts - 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        }
+      }
+      if (!cancelled) setContextLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutSuccessPending]);
+
+  const isPaidUser = Boolean(onboardingContext?.is_paid_user);
+  const paidTierKey = onboardingContext?.tier_key ?? null;
 
   const [step, setStep] = useState(startsOnConnectAccounting ? 1 : 0);
   const [error, setError] = useState("");
@@ -988,6 +1056,11 @@ function OnboardingContent() {
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isSuperAdmin) return;
+    // Phase TCP1 W2.5 Block 9j — paid users never bounce to free-review.
+    if (isPaidUser) return;
+    if (contextLoading) return;
+    // Hold the gate while Stripe webhook may still be writing pilot_slots.
+    if (checkoutSuccessPending) return;
     const storedLeadId = window.localStorage.getItem("advisacor_free_review_lead_id") || "";
     const nextLeadId = queryLeadId || storedLeadId;
     const isProviderConnectResume = searchParams?.get("step") === "connect-accounting" && ["xero", "quickbooks"].includes(searchParams?.get("provider") || "");
@@ -1004,7 +1077,16 @@ function OnboardingContent() {
     }
     setFreeReviewLeadId(nextLeadId);
     window.localStorage.setItem("advisacor_free_review_lead_id", nextLeadId);
-  }, [isSuperAdmin, queryLeadId, router, searchParams]);
+  }, [isSuperAdmin, isPaidUser, contextLoading, checkoutSuccessPending, queryLeadId, router, searchParams]);
+
+  // Phase TCP1 W2.5 Block 9j — paid manual-upload entry.
+  useEffect(() => {
+    if (!isPaidUser) return;
+    if (searchParams?.get("step") !== "manual-upload") return;
+    setDataSourcePath("manual_upload");
+    setManualCompanySetupVisible(true);
+    setStep(1);
+  }, [isPaidUser, searchParams]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -1204,7 +1286,7 @@ function OnboardingContent() {
         authenticated: Boolean(token),
       });
       const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
-      if (!token && !leadId) {
+      if (!token && !leadId && !isPaidUser) {
         router.push("/free-review?source=quickbooks-connect-gate");
         return;
       }
@@ -1295,7 +1377,7 @@ function OnboardingContent() {
     setMessage("");
     const token = await getAuthToken();
     const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
-    if (!token && !leadId) {
+    if (!token && !leadId && !isPaidUser) {
       setError("Sign in again to select a Xero organization.");
       return;
     }
@@ -1890,8 +1972,13 @@ function OnboardingContent() {
       const token = await getAuthToken();
       if (!token) {
         const leadId = freeReviewLeadId || window.localStorage.getItem("advisacor_free_review_lead_id") || "";
-        if (!leadId) {
+        if (!leadId && !isPaidUser) {
           router.push("/free-review?source=generate-review-gate");
+          return;
+        }
+        if (isPaidUser) {
+          setError("Your session expired. Please sign in again to continue.");
+          router.push(`/signin?next=${encodeURIComponent("/onboarding")}`);
           return;
         }
         await enrichFreeReviewLead({
@@ -1985,8 +2072,28 @@ function OnboardingContent() {
     }
   };
 
+  // Phase TCP1 W2.5 Block 9j — paid users see PaidUserWelcome unless a step is set.
+  const isWelcomeMode =
+    !searchParams?.get("step") && !searchParams?.get("quickBooksConnected");
+  if (contextLoading || (checkoutSuccessPending && !isPaidUser && isWelcomeMode)) {
+    return (
+      <main className="min-h-screen bg-[#0A1530] px-6 py-24 text-center text-white/60">
+        {checkoutSuccessPending ? "Confirming your subscription…" : "Loading…"}
+      </main>
+    );
+  }
+  if (isPaidUser && isWelcomeMode) {
+    return (
+      <PaidUserWelcome
+        tierKey={paidTierKey ?? "review_assist"}
+        email={onboardingContext?.email ?? ""}
+        businessName={company.name || undefined}
+      />
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-[#0A1020] px-6 py-6 text-white">
+    <main className={`min-h-screen px-6 py-6 text-white ${isPaidUser ? "bg-[#0A1530]" : "bg-[#0A1020]"}`}>
       <div className="mx-auto max-w-6xl">
         <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/[0.04] px-5 py-4 md:flex-row md:items-center md:justify-between">
           <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
@@ -2003,10 +2110,18 @@ function OnboardingContent() {
         <section className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Company Account Onboarding</p>
-              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">Reach your first executive package in under 15 minutes.</h1>
+              <p className={`text-sm font-black uppercase tracking-[0.22em] ${isPaidUser ? "text-[#C9A961]" : "text-[#FFB36F]"}`}>
+                {isPaidUser ? "Paid Onboarding" : "Company Account Onboarding"}
+              </p>
+              <h1 className="mt-3 text-4xl font-black tracking-[-0.04em] md:text-5xl">
+                {isPaidUser
+                  ? "Connect your first client and get findings in under 15 minutes."
+                  : "Reach your first executive package in under 15 minutes."}
+              </h1>
               <p className="mt-3 max-w-3xl leading-7 text-slate-300">
-                Choose the fastest path to value: upload financial statements for a limited free report or connect accounting for the full Advisacor intelligence platform.
+                {isPaidUser
+                  ? "Connect QuickBooks for the fastest path, or upload financial statements if your client is not on QuickBooks."
+                  : "Choose the fastest path to value: upload financial statements for a limited free report or connect accounting for the full Advisacor intelligence platform."}
               </p>
             </div>
             <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-5 text-left lg:w-80">
