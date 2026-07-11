@@ -76,15 +76,26 @@ function SignupPageContent() {
       });
       const body = await res.json();
       if (!res.ok || !body?.checkout_url) {
-        // Phase TCP1 W2.5 (Block 9c) — the server rejects unconfirmed emails
-        // with 403 email_not_confirmed. Route back to the verify screen so the
-        // user knows to click the confirmation link, and restart the poll so
-        // checkout kicks off automatically the moment confirmation completes.
+        // Phase TCP1 W2.5 (Block 9c) — server 403s unconfirmed emails. Route
+        // back to the verify screen and restart the poll.
         if (res.status === 403 && body?.error === "email_not_confirmed") {
           setError(
             "Please confirm your email to continue. We just sent a link to " +
               email +
               ".",
+          );
+          setPhase("verify_email");
+          void pollForSessionAndCheckout();
+          return;
+        }
+        // Phase TCP1 W2.5 (Block 9d) — a 401 here indicates a session/cookie
+        // race (e.g. auth cookies not yet written by createBrowserClient when
+        // the mount effect POSTed). The pollForSessionAndCheckout loop tolerates
+        // this by retrying, so route back to verify_email and let it recover
+        // instead of dead-ending on "unauthenticated".
+        if (res.status === 401) {
+          setError(
+            "Verifying your session… If this persists, please refresh the page.",
           );
           setPhase("verify_email");
           void pollForSessionAndCheckout();
@@ -101,27 +112,45 @@ function SignupPageContent() {
     }
   }
 
-  // Phase TCP1 W2.5 Block 9a: when Supabase redirects back after email
-  // confirmation with ?confirmed=1, the session tokens are in the URL hash.
-  // The browser client (createBrowserClient) writes them to cookies on load,
-  // and we then transition straight to checkout instead of re-rendering the
-  // signup form. Without this effect, a user clicking the confirmation link
-  // lands on a blank form and sees "unauthenticated" if they retry.
+  // Phase TCP1 W2.5 Block 9a + Block 9d: when Supabase redirects back after
+  // email confirmation with ?confirmed=1, the session tokens are in the URL
+  // hash. createBrowserClient parses the hash and populates the in-memory
+  // session synchronously, but writes cookies to document.cookie via async
+  // operations that may not be observable on the FIRST tick.
+  //
+  // Block 9d fix: bounded retry loop that waits for BOTH (a) getSession()
+  // returning a session AND (b) email_confirmed_at being non-null on the
+  // session user, before calling createCheckoutAndRedirect. This mirrors
+  // the pollForSessionAndCheckout guard added in Block 9c and eliminates
+  // the cookie-write race that produced 401 "unauthenticated" on the
+  // create-session POST.
   const confirmed = searchParams?.get("confirmed") === "1";
   useEffect(() => {
     if (!isSupportedFlow || !confirmed) return;
     let cancelled = false;
     (async () => {
-      // Give the SDK a tick to parse the URL hash and populate session cookies.
-      // getSession() waits for the initial detectSessionInUrl flow to complete.
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (data?.session?.access_token) {
-        setPhase("creating_checkout");
-        await createCheckoutAndRedirect();
-      } else {
-        // No session after confirmation redirect — link expired or wrong tab.
-        // Surface a clean error rather than a silent stall.
+      // Show the verify_email screen while we wait for the session to settle.
+      // If the user closed the original tab and this is a fresh mount from the
+      // email click, the verify_email screen is the correct visual state.
+      setPhase("verify_email");
+      const startedAt = Date.now();
+      const maxWaitMs = 30 * 1000; // 30s cap — link redirect + cookie write is
+      // normally sub-second; this only extends for pathological network conditions.
+      while (!cancelled && Date.now() - startedAt < maxWaitMs) {
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+        const session = data?.session;
+        if (session?.access_token && session.user?.email_confirmed_at) {
+          // Session AND email_confirmed_at are both live. Cookies have had at
+          // least one event-loop tick to write. Safe to call the server.
+          await createCheckoutAndRedirect();
+          return;
+        }
+        // Retry every 500ms — snappy enough to feel instant, slow enough to
+        // avoid a tight loop while cookies settle.
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      if (!cancelled) {
         setError(
           "We couldn't confirm your session. Please sign in to continue.",
         );
@@ -132,8 +161,7 @@ function SignupPageContent() {
       cancelled = true;
     };
     // createCheckoutAndRedirect is defined below and captures state via closure;
-    // we intentionally omit it from deps to avoid a re-run loop. The effect only
-    // needs to fire once per mount when confirmed=1.
+    // we intentionally omit it from deps to avoid a re-run loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSupportedFlow, confirmed]);
 
