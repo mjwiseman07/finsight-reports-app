@@ -274,6 +274,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   };
 
   // 10. Create checkout session.
+  //
+  // Phase TCP1 W2.5 Block 9f: explicitly allowlist payment_method_types to
+  // card + US bank account (ACH). Excludes Apple Pay, Google Pay, Link,
+  // Amazon Pay, Klarna, Cash App Pay, and any other alternative payment
+  // methods that Stripe may enable by default via the payment_method_configuration.
+  //
+  //   - "card":            Debit + credit
+  //   - "us_bank_account": ACH direct debit with Stripe-collected mandate.
+  //                        For subscriptions Stripe automatically shows the
+  //                        mandate acceptance UI. Verification is "instant"
+  //                        via Financial Connections when supported by the
+  //                        customer's bank, falling back to microdeposits.
+  //
+  // NOTE: setting payment_method_types explicitly disables Stripe's
+  // Dynamic Payment Methods (payment_method_configuration). This is
+  // intentional — we want a hard allowlist, not a bank/geography-driven
+  // dynamic set.
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -284,6 +301,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       success_url: `${origin}/onboarding?checkout=success&tier=${tierKey}`,
       cancel_url: `${origin}/pricing?checkout=cancelled`,
       allow_promotion_codes: false,
+      payment_method_types: ["card", "us_bank_account"],
+      payment_method_options: {
+        us_bank_account: {
+          verification_method: "instant",
+          financial_connections: {
+            permissions: ["payment_method"],
+          },
+        },
+      },
     });
 
     return NextResponse.json({
