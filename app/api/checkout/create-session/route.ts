@@ -21,6 +21,12 @@ import { cookies } from "next/headers";
 import { stripe } from "@/lib/stripe";
 import { getPriceId, getSubscriptionEntity } from "@/lib/product-tiers";
 import { createServiceClient } from "@/lib/supabase/service";
+import {
+  isSoloBkGated,
+  isSoloBkBypassAllowed,
+  isReviewAssistGated,
+  isReviewAssistBypassAllowed,
+} from "@/lib/tcp1/launch-gates";
 
 export const runtime = "nodejs";
 
@@ -84,19 +90,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const track = body.track ?? "pilot";
   const businessName = (body.business_name ?? "").trim();
 
-  // Phase TCP1 W2.5 (spec Block 7) — accept solo_bookkeeper OR review_assist.
-  // Other tiers still 400 until their respective launch weeks.
+  // Phase TCP1 W2.5 (Block 9b) — accept solo_bookkeeper OR review_assist. Other
+  // tiers still 400 until their respective launch weeks.
   if (tierKey !== "solo_bookkeeper" && tierKey !== "review_assist") {
     return NextResponse.json(
       { error: "tier_not_supported_in_w1", tier_key: tierKey },
       { status: 400 },
     );
   }
-  // Review Assist launch gate — 404 the API when gated, symmetric with the
-  // middleware redirect on the /signup surface.
+  // Launch gates — parity with middleware.ts via shared launch-gates helper.
+  // If gate is on AND request has no valid bypass (token / cookie / IP),
+  // return 404 symmetric with the middleware redirect on the /signup surface.
+  if (
+    tierKey === "solo_bookkeeper" &&
+    isSoloBkGated() &&
+    !isSoloBkBypassAllowed(req)
+  ) {
+    return NextResponse.json({ error: "Not available" }, { status: 404 });
+  }
   if (
     tierKey === "review_assist" &&
-    (process.env.REVIEW_ASSIST_LAUNCH_GATED ?? "").toLowerCase() === "true"
+    isReviewAssistGated() &&
+    !isReviewAssistBypassAllowed(req)
   ) {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
   }

@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  SOLO_BK_GATE_COOKIE,
+  REVIEW_ASSIST_GATE_COOKIE,
+  isSoloBkGated,
+  isSoloBkBypassAllowed,
+  hasSoloBkBypassToken,
+  hasSoloBkBypassCookie,
+  isReviewAssistGated,
+  isReviewAssistBypassAllowed,
+  hasReviewAssistBypassToken,
+  hasReviewAssistBypassCookie,
+} from "./lib/tcp1/launch-gates";
 
 const MARKETING_HOSTS = new Set(["advisacor.com", "www.advisacor.com"]);
 const APP_HOSTS = new Set(["app.advisacor.com"]);
@@ -16,11 +28,7 @@ const SOLO_BK_GATED_PATHS = new Set([
 const SOLO_BK_GATED_API_PATHS = new Set([
   "/api/checkout/create-session",
 ]);
-const SOLO_BK_GATE_COOKIE = "advisacor_solo_bk_gate";
 
-function isSoloBkGated(): boolean {
-  return (process.env.SOLO_BK_LAUNCH_GATED ?? "").toLowerCase() === "true";
-}
 function isSoloBkGatedPath(pathname: string): boolean {
   return (
     SOLO_BK_GATED_PATHS.has(pathname) ||
@@ -29,73 +37,15 @@ function isSoloBkGatedPath(pathname: string): boolean {
     pathname.startsWith("/signup/")
   );
 }
-function extractClientIp(request: NextRequest): string {
-  const xff = request.headers.get("x-forwarded-for") || "";
-  const first = xff.split(",")[0]?.trim();
-  return first || request.headers.get("x-real-ip") || "";
-}
-function isAllowlistedIp(request: NextRequest): boolean {
-  const allow = (process.env.SOLO_BK_ALLOWED_IPS ?? "").trim();
-  if (!allow) return false;
-  const allowSet = new Set(allow.split(",").map((s) => s.trim()).filter(Boolean));
-  const ip = extractClientIp(request);
-  return ip.length > 0 && allowSet.has(ip);
-}
-function hasBypassToken(request: NextRequest): boolean {
-  const expected = (process.env.SOLO_BK_INTERNAL_TOKEN ?? "").trim();
-  if (!expected) return false;
-  const supplied = request.nextUrl.searchParams.get("internal");
-  return supplied === expected;
-}
-function hasBypassCookie(request: NextRequest): boolean {
-  const expected = (process.env.SOLO_BK_INTERNAL_TOKEN ?? "").trim();
-  if (!expected) return false;
-  const cookieValue = request.cookies.get(SOLO_BK_GATE_COOKIE)?.value;
-  return cookieValue === expected;
-}
-function isSoloBkBypassAllowed(request: NextRequest): boolean {
-  return isAllowlistedIp(request) || hasBypassToken(request) || hasBypassCookie(request);
-}
 
 // Phase TCP1 W2.5 — Review Assist launch gate.
 // Blocks RA-specific paths (signup with plan=review_assist, checkout with
 // tier_key=review_assist) until Smoke-RA passes. Symmetric with Solo BK gate
 // but scoped by query/body so it does NOT re-gate the already-live SBK surface.
 // Reversible with REVIEW_ASSIST_LAUNCH_GATED=false (or unset). See Smoke-RA runbook.
-const REVIEW_ASSIST_GATE_COOKIE = "advisacor_review_assist_gate";
-
-function isReviewAssistGated(): boolean {
-  return (process.env.REVIEW_ASSIST_LAUNCH_GATED ?? "").toLowerCase() === "true";
-}
 function isReviewAssistSignupRequest(request: NextRequest, pathname: string): boolean {
   if (pathname !== "/signup") return false;
   return request.nextUrl.searchParams.get("plan") === "review_assist";
-}
-function isReviewAssistAllowlistedIp(request: NextRequest): boolean {
-  const allow = (process.env.REVIEW_ASSIST_ALLOWED_IPS ?? "").trim();
-  if (!allow) return false;
-  const allowSet = new Set(allow.split(",").map((s) => s.trim()).filter(Boolean));
-  const ip = extractClientIp(request);
-  return ip.length > 0 && allowSet.has(ip);
-}
-function hasReviewAssistBypassToken(request: NextRequest): boolean {
-  const expected = (process.env.REVIEW_ASSIST_INTERNAL_TOKEN ?? "").trim();
-  if (!expected) return false;
-  const supplied = request.nextUrl.searchParams.get("internal");
-  return supplied === expected;
-}
-function hasReviewAssistBypassCookie(request: NextRequest): boolean {
-  const expected = (process.env.REVIEW_ASSIST_INTERNAL_TOKEN ?? "").trim();
-  if (!expected) return false;
-  const cookieValue = request.cookies.get(REVIEW_ASSIST_GATE_COOKIE)?.value;
-  return cookieValue === expected;
-}
-function isReviewAssistBypassAllowed(request: NextRequest): boolean {
-  return (
-    isReviewAssistAllowlistedIp(request) ||
-    hasReviewAssistBypassToken(request) ||
-    hasReviewAssistBypassCookie(request)
-  );
 }
 
 const PUBLIC_MARKETING_PATHS = new Set([
@@ -242,8 +192,8 @@ export function middleware(request: NextRequest) {
   if (
     MARKETING_HOSTS.has(host) &&
     isSoloBkGated() &&
-    hasBypassToken(request) &&
-    !hasBypassCookie(request)
+    hasSoloBkBypassToken(request) &&
+    !hasSoloBkBypassCookie(request)
   ) {
     const expected = (process.env.SOLO_BK_INTERNAL_TOKEN ?? "").trim();
     const response = NextResponse.next();
