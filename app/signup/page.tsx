@@ -10,7 +10,15 @@ import { supabase } from "../../lib/supabase";
 
 type CheckoutPricingStructure = "flat" | "perClient";
 
-type SignupPhase = "form" | "verify_email" | "creating_checkout";
+// Phase TCP1 W2.5 Block 9e: new phase `confirmed_ready` — poll detected
+// email_confirmed_at but has NOT yet initiated checkout. User must click
+// Continue. This decouples confirmation from checkout POST, killing the
+// cookie-write race that Block 9d retry loop was patching.
+type SignupPhase =
+  | "form"
+  | "verify_email"
+  | "confirmed_ready"
+  | "creating_checkout";
 
 function SignupPageContent() {
   const router = useRouter();
@@ -54,8 +62,9 @@ function SignupPageContent() {
     setPhase("creating_checkout");
     setError("");
     try {
-      // On ?confirmed=1 remount, React form state is empty — fall back to
-      // business_name stored in Supabase user_metadata at signUp time.
+      // On phase transition to confirmed_ready, React form state should still
+      // be populated (same tab, same mount). But keep the metadata fallback
+      // as defense against Suspense re-mount edge cases.
       let resolvedBusinessName = businessName.trim();
       if (!resolvedBusinessName) {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -76,111 +85,46 @@ function SignupPageContent() {
       });
       const body = await res.json();
       if (!res.ok || !body?.checkout_url) {
-        // Phase TCP1 W2.5 (Block 9c) — server 403s unconfirmed emails. Route
-        // back to the verify screen and restart the poll.
+        // Phase TCP1 W2.5 (Block 9c) — server 403s unconfirmed emails.
+        // Post-Block 9e this should be unreachable because the poll gates
+        // the Continue button on email_confirmed_at, but keep as defense.
         if (res.status === 403 && body?.error === "email_not_confirmed") {
           setError(
-            "Please confirm your email to continue. We just sent a link to " +
+            "Please confirm your email first. We already sent a link to " +
               email +
               ".",
           );
           setPhase("verify_email");
-          void pollForSessionAndCheckout();
-          return;
-        }
-        // Phase TCP1 W2.5 (Block 9d) — a 401 here indicates a session/cookie
-        // race (e.g. auth cookies not yet written by createBrowserClient when
-        // the mount effect POSTed). The pollForSessionAndCheckout loop tolerates
-        // this by retrying, so route back to verify_email and let it recover
-        // instead of dead-ending on "unauthenticated".
-        if (res.status === 401) {
-          setError(
-            "Verifying your session… If this persists, please refresh the page.",
-          );
-          setPhase("verify_email");
-          void pollForSessionAndCheckout();
+          void pollForConfirmation();
           return;
         }
         setError(body?.error ?? "Unable to start checkout. Please try again.");
-        setPhase("form");
+        setPhase("confirmed_ready");
         return;
       }
       window.location.href = body.checkout_url;
     } catch {
       setError("Network error creating checkout. Please try again.");
-      setPhase("form");
+      setPhase("confirmed_ready");
     }
   }
 
-  // Phase TCP1 W2.5 Block 9a + Block 9d: when Supabase redirects back after
-  // email confirmation with ?confirmed=1, the session tokens are in the URL
-  // hash. createBrowserClient parses the hash and populates the in-memory
-  // session synchronously, but writes cookies to document.cookie via async
-  // operations that may not be observable on the FIRST tick.
-  //
-  // Block 9d fix: bounded retry loop that waits for BOTH (a) getSession()
-  // returning a session AND (b) email_confirmed_at being non-null on the
-  // session user, before calling createCheckoutAndRedirect. This mirrors
-  // the pollForSessionAndCheckout guard added in Block 9c and eliminates
-  // the cookie-write race that produced 401 "unauthenticated" on the
-  // create-session POST.
-  const confirmed = searchParams?.get("confirmed") === "1";
-  useEffect(() => {
-    if (!isSupportedFlow || !confirmed) return;
-    let cancelled = false;
-    (async () => {
-      // Show the verify_email screen while we wait for the session to settle.
-      // If the user closed the original tab and this is a fresh mount from the
-      // email click, the verify_email screen is the correct visual state.
-      setPhase("verify_email");
-      const startedAt = Date.now();
-      const maxWaitMs = 30 * 1000; // 30s cap — link redirect + cookie write is
-      // normally sub-second; this only extends for pathological network conditions.
-      while (!cancelled && Date.now() - startedAt < maxWaitMs) {
-        const { data } = await supabase.auth.getSession();
-        if (cancelled) return;
-        const session = data?.session;
-        if (session?.access_token && session.user?.email_confirmed_at) {
-          // Session AND email_confirmed_at are both live. Cookies have had at
-          // least one event-loop tick to write. Safe to call the server.
-          await createCheckoutAndRedirect();
-          return;
-        }
-        // Retry every 500ms — snappy enough to feel instant, slow enough to
-        // avoid a tight loop while cookies settle.
-        await new Promise((r) => setTimeout(r, 500));
-      }
-      if (!cancelled) {
-        setError(
-          "We couldn't confirm your session. Please sign in to continue.",
-        );
-        setPhase("form");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // createCheckoutAndRedirect is defined below and captures state via closure;
-    // we intentionally omit it from deps to avoid a re-run loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSupportedFlow, confirmed]);
-
-  async function pollForSessionAndCheckout() {
-    // The verify-email screen polls every 3s for up to 5 min. When the user
-    // clicks the confirmation link in Gmail, Supabase populates the session,
-    // and we kick off checkout automatically.
+  // Phase TCP1 W2.5 Block 9e: poll every 3s (up to 5 min) for
+  // email_confirmed_at. When detected, set phase=confirmed_ready — DO NOT
+  // auto-invoke checkout. User must click Continue. This eliminates the
+  // cookie-write race entirely because by the time the user clicks Continue,
+  // Supabase auth state has fully settled (hundreds of ms after the
+  // confirmed_at timestamp).
+  async function pollForConfirmation() {
     const started = Date.now();
-    const maxWaitMs = 5 * 60 * 1000;
+    const maxWaitMs = 5 * 60 * 1000; // 5 min
     while (Date.now() - started < maxWaitMs) {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session?.access_token) {
-        // Block 9c: session alone is not enough — wait until email_confirmed_at
-        // is set so we don't hammer create-session with 403s in a tight loop.
-        if (!data.session.user?.email_confirmed_at) {
-          await new Promise((r) => setTimeout(r, 3000));
-          continue;
-        }
-        await createCheckoutAndRedirect();
+      // Prefer getUser() over getSession(): confirmation happens in another tab,
+      // so the in-memory session on this tab may still show email_confirmed_at
+      // as null until we hit the Auth API.
+      const { data } = await supabase.auth.getUser();
+      if (data?.user?.email_confirmed_at) {
+        setPhase("confirmed_ready");
         return;
       }
       await new Promise((r) => setTimeout(r, 3000));
@@ -202,16 +146,13 @@ function SignupPageContent() {
         typeof window !== "undefined" && window.location?.origin
           ? window.location.origin
           : "https://www.advisacor.com";
-      // Preserve the persona/plan/mode query params through the confirmation
-      // round-trip so the user lands back on the same tier signup page.
-      const currentSearch =
-        typeof window !== "undefined" && window.location?.search
-          ? window.location.search
-          : "";
-      const separator = currentSearch ? "&" : "?";
-      const emailRedirectTo = `${redirectOrigin}/signup${currentSearch}${separator}confirmed=1`;
+      // Phase TCP1 W2.5 Block 9e: redirect to the dedicated /auth/confirmed
+      // landing page (no query params needed — this is a static page). This
+      // replaces the /signup?confirmed=1 round-trip that caused the mount-
+      // effect cookie-write race in Block 9a/9d.
+      const emailRedirectTo = `${redirectOrigin}/auth/confirmed`;
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -229,14 +170,10 @@ function SignupPageContent() {
         return;
       }
 
-      // Phase TCP1 W2.5 (Block 9c) — ALWAYS transition to verify_email after
-      // signup. The server (POST /api/checkout/create-session) is the sole
-      // authority on whether email is confirmed. Never route a fresh signup
-      // to Stripe checkout — even if Supabase returns a session (e.g. if
-      // email confirmation is disabled in config, which we must never trust
-      // the client to detect).
+      // Phase TCP1 W2.5 (Block 9c/9e) — ALWAYS transition to verify_email
+      // after signup. Server is the sole authority on confirmation state.
       setPhase("verify_email");
-      void pollForSessionAndCheckout();
+      void pollForConfirmation();
     } catch {
       setError("Unable to create your account. Please try again.");
     } finally {
@@ -321,18 +258,49 @@ function SignupPageContent() {
                 Verify to continue
               </h2>
               <p className="mt-4 text-sm leading-6 text-white/70">
-                We just sent a confirmation link to{" "}
-                <span className="font-bold text-white">{email}</span>. Click it,
-                then come back here — checkout will start automatically.
+                We sent a confirmation link to{" "}
+                <span className="font-bold text-white">{email}</span>. Click
+                the link in that email, then return to this tab to continue.
               </p>
-              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs text-white/60">
-                Waiting for verification… Don&apos;t close this tab.
+              <div className="mt-6 rounded-2xl border border-[#C9A961]/40 bg-[#C9A961]/10 p-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A961]">
+                Keep this tab open — do not close until you continue to checkout
+              </div>
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs text-white/60">
+                Waiting for verification…
               </div>
               {error && (
                 <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">
                   {error}
                 </p>
               )}
+            </>
+          ) : phase === "confirmed_ready" ? (
+            <>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961]">
+                Email confirmed
+              </p>
+              <h2
+                className={`${headingFont} mt-3 text-4xl font-semibold tracking-tight`}
+              >
+                Continue to checkout
+              </h2>
+              <p className="mt-4 text-sm leading-6 text-white/70">
+                Your email <span className="font-bold text-white">{email}</span>{" "}
+                is verified. Click below to complete your subscription on
+                Stripe.
+              </p>
+              {error && (
+                <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">
+                  {error}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => void createCheckoutAndRedirect()}
+                className={`mt-6 w-full rounded-2xl px-5 py-4 text-sm ${primaryCtaClass}`}
+              >
+                Continue to Checkout
+              </button>
             </>
           ) : phase === "creating_checkout" ? (
             <>
@@ -345,7 +313,7 @@ function SignupPageContent() {
                 Redirecting to Stripe…
               </h2>
               <p className="mt-4 text-sm leading-6 text-white/70">
-                Setting up your workspace and pilot slot. This takes a moment.
+                Setting up your workspace. This takes a moment.
               </p>
             </>
           ) : (
