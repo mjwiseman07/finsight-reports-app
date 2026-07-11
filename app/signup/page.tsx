@@ -109,16 +109,21 @@ function SignupPageContent() {
     }
   }
 
-  // Phase TCP1 W2.5 Block 9g: poll a server-side status endpoint instead of
-  // supabase.auth.getUser(). Getting user() requires an authenticated session
-  // on THIS tab — but confirmation happens on a different tab (/auth/confirmed
-  // via the email link), so this tab never gets cookies and getUser() returns
-  // null forever. Server-side probe reads auth.users.email_confirmed_at
-  // directly and returns only a boolean.
+  // Phase TCP1 W2.5 Block 9g: poll server-side status endpoint (auth.users
+  // read via service role). Getting user() would require an active session
+  // on THIS tab, but confirmation happens on a different tab.
+  //
+  // Phase TCP1 W2.5 Block 9h: after detecting confirmation, sign the user
+  // in on THIS tab so cookies are established before Continue is clicked.
+  // supabase.auth.signUp does NOT create a session when email confirmation
+  // is required — the user's password stays in React state (from the form
+  // submission) and is used here for the auto sign-in. Same security
+  // posture as the original submission; no additional password exposure.
   async function pollForConfirmation() {
     const pollEmail = email;
-    if (!pollEmail) {
-      setError("Missing email — please refresh and try again.");
+    const pollPassword = password;
+    if (!pollEmail || !pollPassword) {
+      setError("Missing credentials — please refresh and try again.");
       setPhase("form");
       return;
     }
@@ -134,6 +139,19 @@ function SignupPageContent() {
         if (res.ok) {
           const body = (await res.json()) as { confirmed?: boolean };
           if (body?.confirmed === true) {
+            // Block 9h: establish session on this tab before advancing.
+            const { error: signInError } =
+              await supabase.auth.signInWithPassword({
+                email: pollEmail,
+                password: pollPassword,
+              });
+            if (signInError) {
+              setError(
+                "Signed you in failed after confirmation. Please refresh and sign in manually.",
+              );
+              setPhase("form");
+              return;
+            }
             setPhase("confirmed_ready");
             return;
           }
