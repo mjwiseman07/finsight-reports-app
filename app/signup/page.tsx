@@ -109,23 +109,38 @@ function SignupPageContent() {
     }
   }
 
-  // Phase TCP1 W2.5 Block 9e: poll every 3s (up to 5 min) for
-  // email_confirmed_at. When detected, set phase=confirmed_ready — DO NOT
-  // auto-invoke checkout. User must click Continue. This eliminates the
-  // cookie-write race entirely because by the time the user clicks Continue,
-  // Supabase auth state has fully settled (hundreds of ms after the
-  // confirmed_at timestamp).
+  // Phase TCP1 W2.5 Block 9g: poll a server-side status endpoint instead of
+  // supabase.auth.getUser(). Getting user() requires an authenticated session
+  // on THIS tab — but confirmation happens on a different tab (/auth/confirmed
+  // via the email link), so this tab never gets cookies and getUser() returns
+  // null forever. Server-side probe reads auth.users.email_confirmed_at
+  // directly and returns only a boolean.
   async function pollForConfirmation() {
+    const pollEmail = email;
+    if (!pollEmail) {
+      setError("Missing email — please refresh and try again.");
+      setPhase("form");
+      return;
+    }
     const started = Date.now();
     const maxWaitMs = 5 * 60 * 1000; // 5 min
     while (Date.now() - started < maxWaitMs) {
-      // Prefer getUser() over getSession(): confirmation happens in another tab,
-      // so the in-memory session on this tab may still show email_confirmed_at
-      // as null until we hit the Auth API.
-      const { data } = await supabase.auth.getUser();
-      if (data?.user?.email_confirmed_at) {
-        setPhase("confirmed_ready");
-        return;
+      try {
+        const res = await fetch("/api/auth/confirmation-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: pollEmail }),
+        });
+        if (res.ok) {
+          const body = (await res.json()) as { confirmed?: boolean };
+          if (body?.confirmed === true) {
+            setPhase("confirmed_ready");
+            return;
+          }
+        }
+        // Non-2xx and unconfirmed both fall through to retry.
+      } catch {
+        // Network hiccup — retry on next tick.
       }
       await new Promise((r) => setTimeout(r, 3000));
     }
