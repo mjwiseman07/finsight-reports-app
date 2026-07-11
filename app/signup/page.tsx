@@ -76,6 +76,20 @@ function SignupPageContent() {
       });
       const body = await res.json();
       if (!res.ok || !body?.checkout_url) {
+        // Phase TCP1 W2.5 (Block 9c) — the server rejects unconfirmed emails
+        // with 403 email_not_confirmed. Route back to the verify screen so the
+        // user knows to click the confirmation link, and restart the poll so
+        // checkout kicks off automatically the moment confirmation completes.
+        if (res.status === 403 && body?.error === "email_not_confirmed") {
+          setError(
+            "Please confirm your email to continue. We just sent a link to " +
+              email +
+              ".",
+          );
+          setPhase("verify_email");
+          void pollForSessionAndCheckout();
+          return;
+        }
         setError(body?.error ?? "Unable to start checkout. Please try again.");
         setPhase("form");
         return;
@@ -132,6 +146,12 @@ function SignupPageContent() {
     while (Date.now() - started < maxWaitMs) {
       const { data } = await supabase.auth.getSession();
       if (data?.session?.access_token) {
+        // Block 9c: session alone is not enough — wait until email_confirmed_at
+        // is set so we don't hammer create-session with 403s in a tight loop.
+        if (!data.session.user?.email_confirmed_at) {
+          await new Promise((r) => setTimeout(r, 3000));
+          continue;
+        }
         await createCheckoutAndRedirect();
         return;
       }
@@ -181,15 +201,14 @@ function SignupPageContent() {
         return;
       }
 
-      if (data?.session?.access_token) {
-        // Email confirmation disabled (or user auto-confirmed) — go straight to checkout.
-        window.localStorage.setItem("supabase_access_token", data.session.access_token);
-        await createCheckoutAndRedirect();
-      } else {
-        // Email confirmation required — show verify screen and poll for session.
-        setPhase("verify_email");
-        void pollForSessionAndCheckout();
-      }
+      // Phase TCP1 W2.5 (Block 9c) — ALWAYS transition to verify_email after
+      // signup. The server (POST /api/checkout/create-session) is the sole
+      // authority on whether email is confirmed. Never route a fresh signup
+      // to Stripe checkout — even if Supabase returns a session (e.g. if
+      // email confirmation is disabled in config, which we must never trust
+      // the client to detect).
+      setPhase("verify_email");
+      void pollForSessionAndCheckout();
     } catch {
       setError("Unable to create your account. Please try again.");
     } finally {

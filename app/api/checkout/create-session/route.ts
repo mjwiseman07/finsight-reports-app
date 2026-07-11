@@ -75,6 +75,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (authError || !user) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
+  // Phase TCP1 W2.5 (Block 9c) — SERVER IS AUTHORITATIVE ON EMAIL CONFIRMATION.
+  // No path that reaches Stripe checkout may originate from an unconfirmed
+  // email, regardless of client-side flow. `email_confirmed_at` is the field
+  // that flips when the user clicks the Supabase confirmation link — this is
+  // distinct from raw_user_meta_data.email_verified (which is set at signup
+  // time and is not proof of confirmation). Blocks: config drift where email
+  // confirmation is disabled, admin-created users without confirmation, and
+  // any race where a session appears before verification completes.
+  if (!user.email_confirmed_at) {
+    return NextResponse.json({ error: "email_not_confirmed" }, { status: 403 });
+  }
 
   // 2. Parse + validate body.
   let body: CreateSessionBody;
