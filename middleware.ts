@@ -83,6 +83,7 @@ const PUBLIC_MARKETING_API_PATHS = new Set([
   // Phase TCP1 W1 — waitlist capture for coming-soon SKUs + pilot checkout entrypoint.
   "/api/waitlist",
   "/api/checkout/create-session",
+  "/api/onboarding/context",
 ]);
 
 function normalizedHost(request: NextRequest) {
