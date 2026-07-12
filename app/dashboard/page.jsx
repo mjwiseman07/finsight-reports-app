@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabase";
 import { AdvisacorLogo } from "../../components/AdvisacorLogo";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
+import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import { contextualHelp } from "../../lib/contextual-help";
 import {
   PLATFORM_PRODUCT_NAME,
@@ -1671,10 +1672,14 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="advisacor-dark-grid min-h-screen bg-[#0A1020] px-6 py-8 text-white">
+    <main className="min-h-screen bg-[#111112] px-6 py-8 text-white">
       <div className="mx-auto max-w-7xl">
-        <header className="sticky top-4 z-40 flex items-center justify-between rounded-3xl border border-white/10 bg-[#0A1020]/72 px-5 py-4 shadow-2xl shadow-black/30 backdrop-blur-2xl">
-          <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
+        <header className="sticky top-4 z-40 flex items-center justify-between rounded-3xl border border-white/10 bg-[#1A1A1C]/85 px-5 py-4 shadow-2xl shadow-black/40 backdrop-blur-2xl">
+          <Link
+            href="/"
+            className={`${focusRing("rounded-2xl")} block w-[min(320px,42vw)] px-0 py-0`}
+            aria-label="Advisacor home"
+          >
             <AdvisacorLogo priority className="w-full" />
           </Link>
           <div className="flex items-center gap-3">
@@ -1682,14 +1687,14 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setAccountOpen(true)}
-              className="rounded-2xl border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 px-4 py-2 text-sm font-bold text-[#FFD0AB] transition hover:border-[#FF7A1A]/60 hover:bg-[#FF7A1A]/20"
+              className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-5 py-2 text-sm font-bold text-[#C9A961] transition hover:border-[#C9A961]/70 hover:bg-[#C9A961]/20`}
             >
               Account
             </button>
             <button
               type="button"
               onClick={handleSignOut}
-              className="rounded-2xl border border-white/15 bg-slate-950 px-4 py-2 text-sm font-bold text-slate-200 transition hover:border-white/30 hover:text-white"
+              className={`${focusRing("rounded-full")} rounded-full border border-white/15 bg-[#111112] px-5 py-2 text-sm font-bold text-slate-200 transition hover:border-[#C9A961]/40 hover:text-[#C9A961]`}
             >
               Sign Out
             </button>
@@ -1704,16 +1709,22 @@ export default function DashboardPage() {
           )}
 
           {error && (
-            <div className="mb-6 rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4 text-sm font-semibold text-red-200">
-              {error}
+            <div
+              role="alert"
+              className="mb-6 rounded-2xl border border-[#B85C5C]/40 bg-[#B85C5C]/10 px-5 py-4 text-sm font-semibold text-[#F0BFBF]"
+            >
+              <span className={`${headingFont} mr-2 text-xs uppercase tracking-[0.18em] text-[#F0BFBF]`}>
+                Notice
+              </span>
+              <span>{error}</span>
             </div>
           )}
 
           {!isLoading && access?.allowed === true && (
             <div className="grid gap-8">
               {activeReportSummary && (
-                <div className="rounded-3xl border border-cyan-300/25 bg-cyan-400/10 p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100">Report Source: {activeReportSummary.sourceSystem}</p>
+                <div className="rounded-3xl border border-[#5591C7]/30 bg-[#5591C7]/10 p-5">
+                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#BCE2E7]`}>Report Source: {activeReportSummary.sourceSystem}</p>
                   <div className="mt-3 grid gap-3 text-sm md:grid-cols-3 xl:grid-cols-6">
                     {[
                       ["Connection ID", activeReportContext?.connectionId || "Not available"],
@@ -1734,14 +1745,14 @@ export default function DashboardPage() {
                       ["Cash Variance", activeReportPreflight ? formatDashboardCurrency(activeReportPreflight.diagnostics.cashVariance) : "Not available"],
                       ["Generated At", activeReportContext?.generatedAt ? new Date(activeReportContext.generatedAt).toLocaleString() : "Not generated"],
                     ].map(([label, value]) => (
-                      <div key={label} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100/70">{label}</p>
+                      <div key={label} className="rounded-2xl border border-white/10 bg-[#111112]/70 px-4 py-3">
+                        <p className={`${headingFont} text-[10px] font-black uppercase tracking-[0.14em] text-[#BCE2E7]/80`}>{label}</p>
                         <p className="mt-1 font-black text-white">{value}</p>
                       </div>
                     ))}
                   </div>
                   {activeReportPreflight && (activeReportPreflight.blockers.length > 0 || activeReportPreflight.warnings.length > 0) && (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-cyan-50">
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-[#111112]/70 px-4 py-3 text-sm text-[#BCE2E7]">
                       {[...activeReportPreflight.blockers, ...activeReportPreflight.warnings].map((issue) => (
                         <p key={`${issue.severity}-${issue.code}-${issue.affected || "report"}`} className="mt-1">
                           <span className="font-black">{issue.code}</span>: {issue.message}
@@ -1752,9 +1763,9 @@ export default function DashboardPage() {
                 </div>
               )}
               {new URLSearchParams(window.location.search).get("superAdmin") === "true" && (
-                <div className="rounded-[2rem] border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 p-6">
-                  <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Super Admin Test Journey</p>
-                  <h1 className="mt-3 text-3xl font-black">Business Owner Executive Workspace setup</h1>
+                <div className="rounded-[2rem] border border-[#C9A961]/40 bg-[#C9A961]/10 p-6">
+                  <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Super Admin Test Journey</p>
+                  <h1 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-white`}>Business Owner Executive Workspace setup</h1>
                   <p className="mt-3 max-w-3xl leading-7 text-slate-300">
                     Starting from owner onboarding for {new URLSearchParams(window.location.search).get("testCompany") || "selected demo company"} with {new URLSearchParams(window.location.search).get("package") || "selected"} package context.
                   </p>
@@ -1762,11 +1773,11 @@ export default function DashboardPage() {
               )}
 
               {firstPackageReady && (
-                <div className="rounded-[2rem] border border-emerald-300/25 bg-emerald-400/10 p-8 shadow-2xl shadow-emerald-500/10">
+                <div className="rounded-[2rem] border border-[#6DAA45]/35 bg-[#6DAA45]/10 p-8 shadow-2xl shadow-black/40">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Welcome to Advisacor</p>
-                      <h1 className="mt-4 text-4xl font-black tracking-[-0.04em]">Your company dashboard is ready.</h1>
+                      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#6DAA45]`}>Welcome to Advisacor</p>
+                      <h1 className={`${headingFont} mt-4 text-4xl font-black tracking-[-0.04em] text-white`}>Your company dashboard is ready.</h1>
                       <p className="mt-4 max-w-3xl leading-8 text-slate-300">
                         {onboardingCompanyName} has its first executive package, dashboard, and summary prepared with {onboardingIndustryType} context.
                       </p>
@@ -1774,7 +1785,11 @@ export default function DashboardPage() {
                     {readOnlyCustomerView ? (
                       <span className="rounded-2xl bg-slate-700 px-5 py-3 text-sm font-black text-slate-300">PDF disabled in read-only QA</span>
                     ) : (
-                      <button type="button" onClick={downloadTrialReport} className="shrink-0 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white shadow-xl shadow-orange-500/20">
+                      <button
+                        type="button"
+                        onClick={downloadTrialReport}
+                        className={`${primaryCtaClass} shrink-0`}
+                      >
                         Generate PDF
                       </button>
                     )}
@@ -1782,16 +1797,16 @@ export default function DashboardPage() {
 
                   <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {dashboardMetrics.map(([label, value, detail]) => (
-                      <div key={label} className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
-                        <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
-                        <p className="mt-3 text-3xl font-black text-white">{value}</p>
+                      <div key={label} className="rounded-3xl border border-white/10 bg-[#1A1A1C] p-5">
+                        <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-slate-500`}>{label}</p>
+                        <p className={`${headingFont} mt-3 text-3xl font-black text-white`}>{value}</p>
                         <p className="mt-2 text-sm leading-6 text-slate-400">{detail}</p>
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-6 rounded-3xl border border-white/10 bg-[#0A1020] p-5">
-                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Executive Summary</p>
+                  <div className="mt-6 rounded-3xl border border-white/10 bg-[#1A1A1C] p-5">
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]`}>Executive Summary</p>
                     <p className="mt-3 leading-7 text-slate-300">
                       The first package shows a healthy operating profile with stable liquidity, positive revenue momentum, and a clear need to watch collections concentration. The best near-term opportunity is improving profitability through margin discipline and tighter expense review.
                     </p>
@@ -1809,16 +1824,19 @@ export default function DashboardPage() {
               )}
 
               {customerViewMode && (
-                <div className="rounded-[2rem] border border-amber-300/35 bg-amber-400/10 p-5 text-amber-50">
+                <div className="rounded-[2rem] border border-[#BB653B]/40 bg-[#BB653B]/10 p-5 text-[#F5D2B0]">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <p className="text-sm font-black uppercase tracking-[0.2em] text-amber-200">Customer View Mode</p>
-                      <p className="mt-2 text-lg font-black">You are viewing this account as the customer.</p>
-                      <p className="mt-1 text-sm leading-6 text-amber-50/80">
+                      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#BB653B]`}>Customer View Mode</p>
+                      <p className={`${headingFont} mt-2 text-lg font-black text-white`}>You are viewing this account as the customer.</p>
+                      <p className="mt-1 text-sm leading-6 text-[#F5D2B0]/80">
                         Read-only QA mode is active. Internal Super Admin panels, billing administration, platform settings, and monitoring tools are not shown here.
                       </p>
                     </div>
-                    <Link href="/admin" className="rounded-2xl border border-amber-200/40 px-5 py-3 text-sm font-black text-amber-50">
+                    <Link
+                      href="/admin"
+                      className={`${focusRing("rounded-full")} rounded-full border border-[#BB653B]/50 px-5 py-3 text-sm font-black text-[#F5D2B0] transition hover:border-[#BB653B]/80 hover:text-white`}
+                    >
                       Return to Super Admin
                     </Link>
                   </div>
