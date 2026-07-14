@@ -218,7 +218,7 @@ export default function IndustriesPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0A1530] text-white">
+    <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <SiteNav />
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-6 pb-12 pt-[300px] md:pb-16 md:pt-[380px] lg:pt-[440px]">
@@ -230,7 +230,7 @@ export default function IndustriesPage() {
         >
           Ten verticals. One platform.
         </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70 md:text-xl">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#A29E93] md:text-xl">
           Advisacor ships industry-aware KPIs, disclosure libraries, and benchmark
           frameworks for every vertical below. Each is built on the same trust stack —
           the accounting logic is what changes.
@@ -250,7 +250,7 @@ export default function IndustriesPage() {
             {industries.map((ind) => (
               <article
                 key={ind.slug}
-                className="w-[85%] flex-none snap-start rounded-3xl border border-white/10 bg-white/[0.04] p-8 sm:w-[60%] md:w-[45%] lg:w-[calc((100%-2rem)/3.25)]"
+                className="w-[85%] flex-none snap-start rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-8 sm:w-[60%] md:w-[45%] lg:w-[calc((100%-2rem)/3.25)]"
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A961]">
                   {ind.eyebrow}
@@ -260,14 +260,14 @@ export default function IndustriesPage() {
                 >
                   {ind.title}
                 </h2>
-                <p className="mt-4 text-sm leading-relaxed text-white/70 md:text-base">
+                <p className="mt-4 text-sm leading-relaxed text-[#A29E93] md:text-base">
                   {ind.body}
                 </p>
                 <ul className="mt-6 grid gap-2.5">
                   {ind.coverage.map((c) => (
                     <li
                       key={c}
-                      className="flex items-start gap-3 text-xs text-white/75 md:text-sm"
+                      className="flex items-start gap-3 text-xs text-[#A29E93] md:text-sm"
                     >
                       <span aria-hidden className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-[#C9A961]" />
                       <span>{c}</span>
@@ -284,7 +284,7 @@ export default function IndustriesPage() {
                 onClick={onPrev}
                 disabled={!canPrev}
                 aria-label="Previous industry"
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/80 transition-colors hover:border-[#C9A961]/60 hover:text-[#C9A961] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-white/15 disabled:hover:text-white/80 ${focusRing("rounded-full")}`}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#C9A961]/25 bg-[#1A1A1C]/50 text-[#A29E93] transition-colors hover:border-[#C9A961]/60 hover:text-[#C9A961] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[#C9A961]/25 disabled:hover:text-[#A29E93] ${focusRing("rounded-full")}`}
               >
                 <span aria-hidden>←</span>
               </button>
@@ -293,7 +293,7 @@ export default function IndustriesPage() {
                 onClick={onNext}
                 disabled={!canNext}
                 aria-label="Next industry"
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/80 transition-colors hover:border-[#C9A961]/60 hover:text-[#C9A961] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-white/15 disabled:hover:text-white/80 ${focusRing("rounded-full")}`}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#C9A961]/25 bg-[#1A1A1C]/50 text-[#A29E93] transition-colors hover:border-[#C9A961]/60 hover:text-[#C9A961] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-[#C9A961]/25 disabled:hover:text-[#A29E93] ${focusRing("rounded-full")}`}
               >
                 <span aria-hidden>→</span>
               </button>
@@ -310,7 +310,7 @@ export default function IndustriesPage() {
                   className={`h-1.5 rounded-full transition-all ${
                     activeIndex === i
                       ? "w-6 bg-[#C9A961]"
-                      : "w-1.5 bg-white/25 hover:bg-white/40"
+                      : "w-1.5 bg-[#ECEBE7]/25 hover:bg-[#ECEBE7]/40"
                   } ${focusRing("rounded-full")}`}
                 />
               ))}
@@ -319,14 +319,14 @@ export default function IndustriesPage() {
         </div>
       </section>
       {/* Closing strip */}
-      <section className="border-t border-white/10 bg-white/[0.03]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]/40">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
           <h2
             className={`${headingFont} max-w-3xl text-3xl font-semibold leading-[1.1] tracking-tight md:text-5xl`}
           >
             Don't see your vertical? It's likely on the roadmap.
           </h2>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#A29E93]">
             Advisacor's industry framework is built to add verticals on a published
             cadence. Tell us what you run — if it isn't live, we'll tell you when.
           </p>
