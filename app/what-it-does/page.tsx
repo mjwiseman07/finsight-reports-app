@@ -60,7 +60,7 @@ const capabilities = [
 
 export default function WhatItDoesPage() {
   return (
-    <main className="min-h-screen bg-[#0A1530] text-white">
+    <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <SiteNav />
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-6 pb-12 pt-[300px] md:pb-16 md:pt-[380px] lg:pt-[440px]">
@@ -72,7 +72,7 @@ export default function WhatItDoesPage() {
         >
           An AI teammate for the people who actually keep the books.
         </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70 md:text-xl">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#A29E93] md:text-xl">
           Advisacor drafts your close, reviews your books, delivers CFO-level insight,
           and proves every number with an immutable audit trail — without replacing
           the humans who own the client relationship.
@@ -84,7 +84,7 @@ export default function WhatItDoesPage() {
           {capabilities.map((cap) => (
             <article
               key={cap.eyebrow}
-              className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 md:p-10"
+              className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-8 md:p-10"
             >
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A961]">
                 {cap.eyebrow}
@@ -94,14 +94,14 @@ export default function WhatItDoesPage() {
               >
                 {cap.title}
               </h2>
-              <p className="mt-4 max-w-3xl text-base leading-relaxed text-white/70 md:text-lg">
+              <p className="mt-4 max-w-3xl text-base leading-relaxed text-[#A29E93] md:text-lg">
                 {cap.body}
               </p>
               <ul className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2">
                 {cap.bullets.map((b) => (
                   <li
                     key={b}
-                    className="flex items-start gap-3 text-sm text-white/80 md:text-base"
+                    className="flex items-start gap-3 text-sm text-[#ECEBE7] md:text-base"
                   >
                     <span aria-hidden className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-[#C9A961]" />
                     <span>{b}</span>
@@ -113,14 +113,14 @@ export default function WhatItDoesPage() {
         </div>
       </section>
       {/* Closing CTA */}
-      <section className="border-t border-white/10 bg-white/[0.03]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]/40">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
           <h2
             className={`${headingFont} max-w-3xl text-3xl font-semibold leading-[1.1] tracking-tight md:text-5xl`}
           >
             Ready to see it on your own books?
           </h2>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#A29E93]">
             Bring one month of closed data. We'll show you what Advisacor would have
             caught, drafted, and delivered — before you commit to anything.
           </p>
