@@ -21,12 +21,12 @@ type FireReviewRow = {
 };
 
 const DECISION_STYLES: Record<string, { bg: string; label: string }> = {
-  dispatch: { bg: "#437A22", label: "Auto-eligible" },
+  dispatch: { bg: "#6DAA45", label: "Auto-eligible" },
   cash_basis_client: { bg: "#7A7974", label: "Cash-basis hold" },
   client_auto_post_disabled: { bg: "#7A7974", label: "Client disabled" },
   template_auto_post_off: { bg: "#7A7974", label: "Template manual" },
-  template_not_active: { bg: "#964219", label: "Template inactive" },
-  fire_not_proposed: { bg: "#A12C7B", label: "Not eligible" },
+  template_not_active: { bg: "#BB653B", label: "Template inactive" },
+  fire_not_proposed: { bg: "#B85C5C", label: "Not eligible" },
 };
 
 function pillFor(decision: GateDecision) {
@@ -40,7 +40,6 @@ function formatUsd(amount: number) {
 
 export function RecurringTab({ firmClientId }: { firmClientId: string }) {
   const router = useRouter();
-
   const [rows, setRows] = useState<FireReviewRow[]>([]);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
@@ -130,19 +129,19 @@ export function RecurringTab({ firmClientId }: { firmClientId: string }) {
   return (
     <div>
       {error && (
-        <div className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+        <div className="mb-4 rounded-xl border border-[#B85C5C]/40 bg-[#B85C5C]/10 px-4 py-3 text-sm text-[#F0BFBF]">
           {error}
         </div>
       )}
       {toast && (
-        <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+        <div className="mb-4 rounded-xl border border-[#6DAA45]/40 bg-[#6DAA45]/10 px-4 py-3 text-sm text-[#B5E28A]">
           {toast}
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-[#243041] bg-[#111827]">
+      <div className="overflow-x-auto rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/85">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-[#243041] text-xs uppercase tracking-wide text-[#94A3B8]">
+          <thead className="border-b border-[#C9A961]/20 text-xs uppercase tracking-wide text-[#A29E93]">
             <tr>
               <th className="px-4 py-3">Decision</th>
               <th className="px-4 py-3">Template</th>
@@ -156,13 +155,13 @@ export function RecurringTab({ firmClientId }: { firmClientId: string }) {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[#94A3B8]">
+                <td colSpan={7} className="px-4 py-8 text-center text-[#A29E93]">
                   Loading fires…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[#94A3B8]">
+                <td colSpan={7} className="px-4 py-8 text-center text-[#A29E93]">
                   No proposed recurring fires. Fires appear here after the daily scheduler runs.
                 </td>
               </tr>
@@ -170,10 +169,10 @@ export function RecurringTab({ firmClientId }: { firmClientId: string }) {
               rows.map((r) => {
                 const pill = pillFor(r.gate_decision);
                 return (
-                  <tr key={r.fire_id} className="border-t border-[#243041]/70">
+                  <tr key={r.fire_id} className="border-t border-[#C9A961]/10 text-[#ECEBE7]">
                     <td className="px-4 py-3">
                       <span
-                        className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold text-white"
+                        className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold text-[#111112]"
                         style={{ backgroundColor: pill.bg }}
                       >
                         {pill.label}
@@ -182,12 +181,12 @@ export function RecurringTab({ firmClientId }: { firmClientId: string }) {
                     <td className="px-4 py-3">{r.template_name}</td>
                     <td className="px-4 py-3">{r.cadence}</td>
                     <td className="px-4 py-3">{r.fire_date}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{r.period_index}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[#A29E93]">{r.period_index}</td>
                     <td className="px-4 py-3">
                       <span>{formatUsd(r.amount)}</span>
                       {r.amount_override !== null && (
                         <span
-                          className="ml-2 inline-flex rounded-full bg-[#D19900]/20 px-2 py-0.5 text-[10px] font-semibold text-[#F5D272]"
+                          className="ml-2 inline-flex rounded-full bg-[#C9A961]/20 px-2 py-0.5 text-[10px] font-semibold text-[#DFC084]"
                           title={`Advisory override: ${formatUsd(r.amount_override)}`}
                         >
                           override
@@ -199,21 +198,21 @@ export function RecurringTab({ firmClientId }: { firmClientId: string }) {
                         <button
                           type="button"
                           onClick={() => void postNow(r.fire_id)}
-                          className={`rounded-lg bg-[#437A22]/20 px-2 py-1 text-xs text-[#B7E4A3] hover:bg-[#437A22]/30 ${focusRing}`}
+                          className={`rounded-full bg-[#6DAA45]/20 px-2.5 py-1 text-xs font-semibold text-[#B5E28A] hover:bg-[#6DAA45]/30 ${focusRing()}`}
                         >
                           Post now
                         </button>
                         <button
                           type="button"
                           onClick={() => void skip(r.fire_id)}
-                          className={`rounded-lg bg-white/5 px-2 py-1 text-xs text-[#CBD5E1] hover:bg-white/10 ${focusRing}`}
+                          className={`rounded-full bg-[#C9A961]/10 px-2.5 py-1 text-xs font-semibold text-[#ECEBE7] hover:bg-[#C9A961]/20 ${focusRing()}`}
                         >
                           Skip
                         </button>
                         <button
                           type="button"
                           onClick={() => void reject(r.fire_id)}
-                          className={`rounded-lg bg-[#A12C7B]/20 px-2 py-1 text-xs text-[#F0B8D8] hover:bg-[#A12C7B]/30 ${focusRing}`}
+                          className={`rounded-full bg-[#B85C5C]/20 px-2.5 py-1 text-xs font-semibold text-[#F0BFBF] hover:bg-[#B85C5C]/30 ${focusRing()}`}
                         >
                           Reject
                         </button>

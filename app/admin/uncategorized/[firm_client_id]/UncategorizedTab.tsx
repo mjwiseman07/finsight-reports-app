@@ -20,9 +20,9 @@ type Proposal = {
 };
 
 const BUCKET_STYLES = {
-  green: { bg: "#437A22", label: "Green" },
+  green: { bg: "#6DAA45", label: "Green" },
   yellow: { bg: "#D19900", label: "Yellow" },
-  red: { bg: "#A12C7B", label: "Red" },
+  red: { bg: "#B85C5C", label: "Red" },
 } as const;
 
 function formatUsd(amount: number) {
@@ -31,7 +31,6 @@ function formatUsd(amount: number) {
 
 export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
   const router = useRouter();
-
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
@@ -142,7 +141,7 @@ export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
           type="button"
           onClick={() => void runScan()}
           disabled={isScanning}
-          className={`rounded-xl bg-[#5B8CFF] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${focusRing}`}
+          className={`rounded-full bg-[#C9A961] px-4 py-2 text-sm font-semibold text-[#111112] hover:bg-[#DFC084] disabled:opacity-50 ${focusRing()}`}
         >
           {isScanning ? "Scanning…" : "Run Scan"}
         </button>
@@ -151,7 +150,7 @@ export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
             type="button"
             onClick={() => void bulkAcceptGreen()}
             disabled={isBulkAccepting}
-            className={`rounded-xl bg-[#437A22] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${focusRing}`}
+            className={`rounded-full bg-[#6DAA45] px-4 py-2 text-sm font-semibold text-[#111112] hover:bg-[#B5E28A] disabled:opacity-50 ${focusRing()}`}
           >
             {isBulkAccepting ? "Accepting…" : `Accept All Green (${greenPending.length})`}
           </button>
@@ -159,19 +158,19 @@ export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+        <div className="mb-4 rounded-xl border border-[#B85C5C]/40 bg-[#B85C5C]/10 px-4 py-3 text-sm text-[#F0BFBF]">
           {error}
         </div>
       )}
       {toast && (
-        <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+        <div className="mb-4 rounded-xl border border-[#6DAA45]/40 bg-[#6DAA45]/10 px-4 py-3 text-sm text-[#B5E28A]">
           {toast}
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-[#243041] bg-[#111827]">
+      <div className="overflow-x-auto rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/85">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-[#243041] text-xs uppercase tracking-wide text-[#94A3B8]">
+          <thead className="border-b border-[#C9A961]/20 text-xs uppercase tracking-wide text-[#A29E93]">
             <tr>
               <th className="px-4 py-3">Bucket</th>
               <th className="px-4 py-3">Date</th>
@@ -186,13 +185,13 @@ export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[#94A3B8]">
+                <td colSpan={8} className="px-4 py-8 text-center text-[#A29E93]">
                   Loading proposals…
                 </td>
               </tr>
             ) : proposals.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[#94A3B8]">
+                <td colSpan={8} className="px-4 py-8 text-center text-[#A29E93]">
                   No pending proposals. Run a scan to detect uncategorized transactions.
                 </td>
               </tr>
@@ -200,10 +199,10 @@ export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
               proposals.map((p) => {
                 const bucket = BUCKET_STYLES[p.confidence_bucket];
                 return (
-                  <tr key={p.proposal_id} className="border-t border-[#243041]/70">
+                  <tr key={p.proposal_id} className="border-t border-[#C9A961]/10 text-[#ECEBE7]">
                     <td className="px-4 py-3">
                       <span
-                        className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold text-white"
+                        className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold text-[#111112]"
                         style={{ backgroundColor: bucket.bg }}
                         title={`${p.confidence.toFixed(3)} · ${p.source}`}
                       >
@@ -215,27 +214,27 @@ export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
                     <td className="px-4 py-3">{formatUsd(p.txn_amount)}</td>
                     <td className="px-4 py-3">{p.current_account_name}</td>
                     <td className="px-4 py-3">{p.suggested_account_name || "—"}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{p.confidence.toFixed(3)}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[#A29E93]">{p.confidence.toFixed(3)}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => void act(p.proposal_id, "accept")}
-                          className={`rounded-lg bg-[#437A22]/20 px-2 py-1 text-xs text-[#B7E4A3] hover:bg-[#437A22]/30 ${focusRing}`}
+                          className={`rounded-full bg-[#6DAA45]/20 px-2.5 py-1 text-xs font-semibold text-[#B5E28A] hover:bg-[#6DAA45]/30 ${focusRing()}`}
                         >
                           Accept
                         </button>
                         <button
                           type="button"
                           onClick={() => void act(p.proposal_id, "reject")}
-                          className={`rounded-lg bg-[#A12C7B]/20 px-2 py-1 text-xs text-[#F0B8D8] hover:bg-[#A12C7B]/30 ${focusRing}`}
+                          className={`rounded-full bg-[#B85C5C]/20 px-2.5 py-1 text-xs font-semibold text-[#F0BFBF] hover:bg-[#B85C5C]/30 ${focusRing()}`}
                         >
                           Reject
                         </button>
                         <button
                           type="button"
                           onClick={() => void act(p.proposal_id, "skip")}
-                          className={`rounded-lg bg-white/5 px-2 py-1 text-xs text-[#CBD5E1] hover:bg-white/10 ${focusRing}`}
+                          className={`rounded-full bg-[#C9A961]/10 px-2.5 py-1 text-xs font-semibold text-[#ECEBE7] hover:bg-[#C9A961]/20 ${focusRing()}`}
                         >
                           Skip
                         </button>
