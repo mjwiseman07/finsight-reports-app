@@ -2824,54 +2824,6 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
   );
 }
 
-function ExecutiveInsightEngine({ insights, onAskMetric, compact = false }) {
-  return (
-    <div className={compact ? "rounded-[1.5rem] border border-white/10 bg-slate-950/40 p-5" : "rounded-[2rem] border border-white/10 bg-white/[0.04] p-8"}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Executive Insight Engine</p>
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em]">What Pulse found when you logged in</h2>
-        </div>
-        <p className="max-w-xl text-sm leading-6 text-slate-400">
-          Pulse reviews historical trends, recurring issues, seasonality, and forecast movement to identify where executives should focus first.
-        </p>
-      </div>
-
-      <div className="mt-6 grid gap-5 lg:grid-cols-3">
-        <ExecutiveInsightCard title="Top 3 Risks" items={insights.risks} onAskMetric={onAskMetric} />
-        <ExecutiveInsightCard title="Top 3 Opportunities" items={insights.opportunities} onAskMetric={onAskMetric} />
-        <ExecutiveInsightCard title="Top 3 Recommended Actions" items={insights.recommendedActions} onAskMetric={onAskMetric} />
-      </div>
-    </div>
-  );
-}
-
-function ExecutiveInsightCard({ title, items, onAskMetric }) {
-  return (
-    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-      <p className="text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]">{title}</p>
-      <div className="mt-4 grid gap-3">
-        {items.map((item, index) => (
-          <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-sm leading-6 text-slate-300">
-                <span className="font-black text-white">{index + 1}.</span> {item}
-              </p>
-              <button
-                type="button"
-                onClick={() => onAskMetric(item)}
-                className="shrink-0 rounded-xl border border-blue-300/20 bg-blue-400/10 px-3 py-2 text-xs font-black text-blue-100"
-              >
-                Ask Pulse
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function PulseListCard({ title, items }) {
   return (
     <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
