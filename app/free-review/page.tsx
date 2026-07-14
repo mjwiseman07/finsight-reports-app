@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { AdvisacorLogo } from "../../components/AdvisacorLogo";
+import { SiteNav } from "@/components/SiteNav";
+import { SiteFooter } from "@/components/SiteFooter";
+import { focusRing, headingFont, primaryCtaClass } from "@/components/site-ui";
 
 type LeadForm = {
   first_name: string;
@@ -33,7 +34,6 @@ function FreeReviewLeadCapture() {
   const submitLead = async () => {
     setError("");
     setIsSaving(true);
-
     try {
       const utmTrackingData = Object.fromEntries(
         Array.from(searchParams?.entries() || []).filter(([key]) => key.startsWith("utm_")),
@@ -53,7 +53,6 @@ function FreeReviewLeadCapture() {
         setError(result.error || "Unable to save your free review information.");
         return;
       }
-
       window.localStorage.setItem("advisacor_free_review_lead_id", result.lead.id);
       window.localStorage.setItem("advisacor_free_review_lead_email", result.lead.email || form.email);
       router.push(`/onboarding?leadId=${encodeURIComponent(result.lead.id)}`);
@@ -72,28 +71,20 @@ function FreeReviewLeadCapture() {
   );
 
   return (
-    <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
-      <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between">
-          <Link href="/" className="block w-[min(525px,46.5vw)] px-0 py-0">
-            <AdvisacorLogo priority className="w-full" />
-          </Link>
-          <Link href="/signin" className="rounded-full px-4 py-2 text-sm font-bold text-[#111827] hover:bg-slate-100">
-            Sign In
-          </Link>
-        </nav>
-      </header>
+    <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
+      <SiteNav />
 
-      <section className="bg-[#0A1020] px-6 py-16 text-white">
+      <section className="px-6 py-16">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Free Financial Review</p>
-            <h1 className="mt-4 text-5xl font-black leading-[1.02] tracking-[-0.05em] md:text-7xl">
+            <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Free Financial Review</p>
+            <h1 className={`${headingFont} mt-4 text-5xl font-black leading-[1.02] tracking-[-0.05em] text-white md:text-7xl`}>
               Generate My Free Financial Review
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#A29E93]">
               Start with a short lead form so Advisacor can save your review session, follow up if onboarding is incomplete, and personalize your first package.
             </p>
+
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               {[
                 "Lead captured before onboarding",
@@ -103,32 +94,39 @@ function FreeReviewLeadCapture() {
                 "Follow-up ready for incomplete sessions",
                 "No manual details if Advisacor can import them",
               ].map((item) => (
-                <p key={item} className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-slate-200">
+                <p key={item} className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/70 px-4 py-3 text-sm font-bold text-[#ECEBE7]">
                   {item}
                 </p>
               ))}
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-white p-6 text-[#111827] shadow-2xl">
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#1E6BFF]">Lead Capture</p>
-            <h2 className="mt-2 text-3xl font-black tracking-[-0.035em] text-[#0A1020]">Tell us where to send your review</h2>
-            <p className="mt-3 text-sm leading-6 text-[#6B7280]">
+          <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C]/85 p-6 shadow-2xl shadow-black/40 backdrop-blur">
+            <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]`}>Lead Capture</p>
+            <h2 className={`${headingFont} mt-2 text-3xl font-black tracking-[-0.035em] text-white`}>Tell us where to send your review</h2>
+            <p className="mt-3 text-sm leading-6 text-[#A29E93]">
               Required before connecting QuickBooks, uploading reports, or generating your free package.
             </p>
+
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <LeadField label="First name" value={form.first_name} onChange={(value) => updateForm("first_name", value)} />
               <LeadField label="Last name" value={form.last_name} onChange={(value) => updateForm("last_name", value)} />
               <LeadField label="Business name" value={form.business_name} onChange={(value) => updateForm("business_name", value)} className="md:col-span-2" />
               <LeadField label="Email address" value={form.email} onChange={(value) => updateForm("email", value)} type="email" />
-              <LeadField label="Phone number optional" value={form.phone} onChange={(value) => updateForm("phone", value)} type="tel" />
+              <LeadField label="Phone number (optional)" value={form.phone} onChange={(value) => updateForm("phone", value)} type="tel" />
             </div>
-            {error && <p className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p>}
+
+            {error && (
+              <p role="alert" className="mt-5 rounded-2xl border border-[#B85C5C]/40 bg-[#B85C5C]/10 px-4 py-3 text-sm font-bold text-[#F0BFBF]">
+                {error}
+              </p>
+            )}
+
             <button
               type="button"
               onClick={submitLead}
               disabled={!canSubmit || isSaving}
-              className="premium-button mt-5 w-full rounded-2xl px-5 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className={`${primaryCtaClass} mt-5 w-full disabled:cursor-not-allowed disabled:opacity-50`}
             >
               {isSaving ? "Saving..." : "Continue to Free Review Onboarding"}
             </button>
@@ -136,11 +134,11 @@ function FreeReviewLeadCapture() {
         </div>
       </section>
 
-      <section className="px-6 py-16">
+      <section className="px-6 pb-20">
         <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="enterprise-card rounded-[2rem] p-7">
-            <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FF7A1A]">What Happens Next</p>
-            <h2 className="mt-3 text-4xl font-black tracking-[-0.04em] text-[#0A1020]">
+          <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/70 p-7">
+            <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>What Happens Next</p>
+            <h2 className={`${headingFont} mt-3 text-4xl font-black tracking-[-0.04em] text-white`}>
               Capture, connect, review.
             </h2>
             <div className="mt-7 grid gap-4 md:grid-cols-2">
@@ -155,28 +153,42 @@ function FreeReviewLeadCapture() {
             </div>
           </div>
 
-          <div className="rounded-[2rem] bg-[#0A1020] p-7 text-white shadow-2xl">
-            <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Conversion Workflow</p>
-            <h2 className="mt-3 text-3xl font-black">Incomplete sessions are follow-up ready.</h2>
-            <p className="mt-4 leading-7 text-slate-300">
+          <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#111112] p-7 shadow-2xl shadow-black/40">
+            <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Conversion Workflow</p>
+            <h2 className={`${headingFont} mt-3 text-3xl font-black text-white`}>Incomplete sessions are follow-up ready.</h2>
+            <p className="mt-4 leading-7 text-[#A29E93]">
               Capturing every free-review prospect before onboarding gives Advisacor a clean recovery path for users who start but do not finish connecting data or generating their first package.
             </p>
           </div>
         </div>
       </section>
+
+      <SiteFooter />
     </main>
   );
 }
 
-function LeadField({ label, value, onChange, type = "text", className = "" }: { label: string; value: string; onChange: (value: string) => void; type?: string; className?: string }) {
+function LeadField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  className = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  className?: string;
+}) {
   return (
     <label className={`grid gap-2 ${className}`}>
-      <span className="text-sm font-black text-[#0A1020]">{label}</span>
+      <span className="text-sm font-black text-[#ECEBE7]">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-[#FF7A1A]"
+        className={`${focusRing("rounded-2xl")} rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm text-[#ECEBE7] outline-none transition placeholder:text-[#7A7974] focus:border-[#C9A961]/70`}
       />
     </label>
   );
@@ -184,9 +196,9 @@ function LeadField({ label, value, onChange, type = "text", className = "" }: { 
 
 function PreviewCard({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5">
-      <p className="text-sm font-black text-[#0A1020]">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-[#6B7280]">{body}</p>
+    <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112] p-5">
+      <p className={`${headingFont} text-sm font-black text-[#C9A961]`}>{title}</p>
+      <p className="mt-2 text-sm leading-6 text-[#A29E93]">{body}</p>
     </div>
   );
 }
