@@ -22,7 +22,7 @@ const SIGNUP_URL = "/signup?persona=firm";
 
 export default function FirmPage() {
   return (
-    <main className="min-h-screen bg-[#0A1530] text-white">
+    <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <SiteNav />
       {/* HERO */}
       <section className="mx-auto max-w-6xl px-6 pt-[200px] md:pt-[240px] lg:pt-[260px] pb-16 md:pb-24">
@@ -34,7 +34,7 @@ export default function FirmPage() {
         >
           Never scramble when a bookkeeper leaves.
         </h1>
-        <p className="mt-6 text-lg md:text-xl text-white/70 max-w-2xl leading-relaxed">
+        <p className="mt-6 text-lg md:text-xl text-[#A29E93] max-w-2xl leading-relaxed">
           Advisacor gives your firm a shared AI teammate across every client
           engagement, a real-time multi-client dashboard, and elastic Full Close
           capacity when your team is short-staffed. Standardized closes.
@@ -43,20 +43,20 @@ export default function FirmPage() {
         <div className="mt-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Link
             href={SIGNUP_URL}
-            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors ${focusRing()}`}
           >
             Start free review
             <span aria-hidden>→</span>
           </Link>
-          <p className="text-sm text-white/55">
+          <p className="text-sm text-[#7A7974]">
             Connect your QuickBooks Accountant firm master. Under 15 minutes.
           </p>
         </div>
       </section>
       {/* PROBLEM BAND */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
             What breaks a firm
           </p>
           <h2
@@ -81,12 +81,12 @@ export default function FirmPage() {
             ].map((p) => (
               <div
                 key={p.label}
-                className="rounded-2xl border border-white/10 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
               >
                 <p className="text-[#C9A961] text-sm font-semibold mb-2">
                   {p.label}
                 </p>
-                <p className="text-white/75 leading-relaxed">{p.body}</p>
+                <p className="text-[#A29E93] leading-relaxed">{p.body}</p>
               </div>
             ))}
           </div>
@@ -94,7 +94,7 @@ export default function FirmPage() {
       </section>
       {/* HOW IT WORKS */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+        <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
           How it works for a firm
         </p>
         <h2
@@ -110,7 +110,7 @@ export default function FirmPage() {
             <h3 className={`${headingFont} text-xl font-semibold mb-3`}>
               Connect your firm master
             </h3>
-            <p className="text-white/70 leading-relaxed">
+            <p className="text-[#A29E93] leading-relaxed">
               One OAuth into QuickBooks Online Accountant pulls every client file
               your firm manages. Xero support rolling out in Wave 1. Seat and
               permission controls per staff member.
@@ -123,7 +123,7 @@ export default function FirmPage() {
             <h3 className={`${headingFont} text-xl font-semibold mb-3`}>
               Standardize every close
             </h3>
-            <p className="text-white/70 leading-relaxed">
+            <p className="text-[#A29E93] leading-relaxed">
               Firm-wide close templates, industry frameworks, and review
               checklists. Every bookkeeper on your team closes to the same
               standard. Every client report reads like it came from the same firm,
@@ -137,7 +137,7 @@ export default function FirmPage() {
             <h3 className={`${headingFont} text-xl font-semibold mb-3`}>
               Full Close when you need it
             </h3>
-            <p className="text-white/70 leading-relaxed">
+            <p className="text-[#A29E93] leading-relaxed">
               Losing staff or spiking on new engagements? Turn on Full Close for
               a subset of clients. Our team drafts and reconciles, human-QAs,
               hands it back to your partner for sign-off. Turn it off when you
@@ -147,9 +147,9 @@ export default function FirmPage() {
         </div>
       </section>
       {/* FEATURE GRID */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
             Built for firm operations
           </p>
           <h2
@@ -186,12 +186,12 @@ export default function FirmPage() {
             ].map((f) => (
               <div
                 key={f.title}
-                className="rounded-2xl border border-white/10 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {f.title}
                 </h3>
-                <p className="text-sm text-white/70 leading-relaxed">{f.body}</p>
+                <p className="text-sm text-[#A29E93] leading-relaxed">{f.body}</p>
               </div>
             ))}
           </div>
@@ -205,14 +205,14 @@ export default function FirmPage() {
           >
             See your entire book of business on one screen.
           </h2>
-          <p className="text-lg text-white/70 max-w-2xl mb-10">
+          <p className="text-lg text-[#A29E93] max-w-2xl mb-10">
             Connect your QuickBooks Accountant firm master. Under 15 minutes to
             see every client, every close status, every AI-proposed entry across
             your firm.
           </p>
           <Link
             href={SIGNUP_URL}
-            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors ${focusRing()}`}
           >
             Start free review
             <span aria-hidden>→</span>
@@ -220,7 +220,7 @@ export default function FirmPage() {
         </div>
       </section>
       {/* FULL CLOSE PILOT BAND — bigger for firms */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
           <p className="text-xs uppercase tracking-[0.2em] text-[#C9A961] mb-4">
             Full Close early access · limited to 5 firms in Wave 1
@@ -230,7 +230,7 @@ export default function FirmPage() {
           >
             The staff-insurance mode.
           </h2>
-          <p className="text-lg text-white/70 max-w-3xl mb-10 leading-relaxed">
+          <p className="text-lg text-[#A29E93] max-w-3xl mb-10 leading-relaxed">
             For a per-client add-on fee, our team drafts and reconciles the
             monthly close, human-QAs it, and hands it back to your firm ready for
             partner review. Turn it on for the clients where you are short-staffed.
@@ -238,46 +238,46 @@ export default function FirmPage() {
             headcount decision.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-            <div className="rounded-2xl border border-white/10 bg-[#111112] p-6">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">
                 Firm Starter add-on
               </p>
               <p className={`${headingFont} text-3xl font-semibold mb-2`}>
                 $149
-                <span className="text-sm text-white/50 font-normal">
+                <span className="text-sm text-[#7A7974] font-normal">
                   /client/mo
                 </span>
               </p>
-              <p className="text-sm text-white/70">Up to 10 firm clients</p>
+              <p className="text-sm text-[#A29E93]">Up to 10 firm clients</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[#111112] p-6">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">
                 Firm Growth add-on
               </p>
               <p className={`${headingFont} text-3xl font-semibold mb-2`}>
                 $129
-                <span className="text-sm text-white/50 font-normal">
+                <span className="text-sm text-[#7A7974] font-normal">
                   /client/mo
                 </span>
               </p>
-              <p className="text-sm text-white/70">Up to 30 firm clients</p>
+              <p className="text-sm text-[#A29E93]">Up to 30 firm clients</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[#111112] p-6">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">
                 Firm Scale add-on
               </p>
               <p className={`${headingFont} text-3xl font-semibold mb-2`}>
                 $99
-                <span className="text-sm text-white/50 font-normal">
+                <span className="text-sm text-[#7A7974] font-normal">
                   /client/mo
                 </span>
               </p>
-              <p className="text-sm text-white/70">30+ firm clients</p>
+              <p className="text-sm text-[#A29E93]">30+ firm clients</p>
             </div>
           </div>
           <Link
             href={SIGNUP_URL}
-            className={`inline-flex items-center gap-2 text-[#C9A961] hover:text-[#D4B672] transition-colors text-base font-semibold ${focusRing()}`}
+            className={`inline-flex items-center gap-2 text-[#C9A961] hover:text-[#DFC084] transition-colors text-base font-semibold ${focusRing()}`}
           >
             Apply for Full Close pilot during signup
             <span aria-hidden>→</span>
@@ -286,7 +286,7 @@ export default function FirmPage() {
       </section>
       {/* PRICING */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-        <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+        <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
           Firm pricing
         </p>
         <h2
@@ -295,16 +295,16 @@ export default function FirmPage() {
           Three plans. Per firm, not per seat.
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-white/10 bg-[#111112] p-8">
+          <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-8">
             <p className="text-[#C9A961] text-sm font-semibold mb-2">
               Firm Starter
             </p>
             <p className={`${headingFont} text-5xl font-semibold mb-2`}>
               $299
-              <span className="text-base text-white/50 font-normal">/month</span>
+              <span className="text-base text-[#7A7974] font-normal">/month</span>
             </p>
-            <p className="text-white/70 mb-8">Up to 10 firm clients</p>
-            <ul className="space-y-3 text-sm text-white/75">
+            <p className="text-[#A29E93] mb-8">Up to 10 firm clients</p>
+            <ul className="space-y-3 text-sm text-[#A29E93]">
               <li className="flex gap-3">
                 <span className="text-[#C9A961]">→</span>
                 <span>Unlimited staff seats</span>
@@ -328,7 +328,7 @@ export default function FirmPage() {
             </ul>
           </div>
           <div className="rounded-2xl border border-[#C9A961]/40 bg-[#111112] p-8 relative">
-            <span className="absolute -top-3 left-8 px-3 py-1 text-[10px] uppercase tracking-wider bg-[#C9A961] text-[#0B0B0C] font-semibold rounded-full">
+            <span className="absolute -top-3 left-8 px-3 py-1 text-[10px] uppercase tracking-wider bg-[#C9A961] text-[#111112] font-semibold rounded-full">
               Most firms pick this
             </span>
             <p className="text-[#C9A961] text-sm font-semibold mb-2">
@@ -336,10 +336,10 @@ export default function FirmPage() {
             </p>
             <p className={`${headingFont} text-5xl font-semibold mb-2`}>
               $599
-              <span className="text-base text-white/50 font-normal">/month</span>
+              <span className="text-base text-[#7A7974] font-normal">/month</span>
             </p>
-            <p className="text-white/70 mb-8">Up to 30 firm clients</p>
-            <ul className="space-y-3 text-sm text-white/75">
+            <p className="text-[#A29E93] mb-8">Up to 30 firm clients</p>
+            <ul className="space-y-3 text-sm text-[#A29E93]">
               <li className="flex gap-3">
                 <span className="text-[#C9A961]">→</span>
                 <span>Everything in Firm Starter</span>
@@ -362,16 +362,16 @@ export default function FirmPage() {
               </li>
             </ul>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-[#111112] p-8">
+          <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-8">
             <p className="text-[#C9A961] text-sm font-semibold mb-2">
               Firm Scale
             </p>
             <p className={`${headingFont} text-5xl font-semibold mb-2`}>
               $999
-              <span className="text-base text-white/50 font-normal">/month</span>
+              <span className="text-base text-[#7A7974] font-normal">/month</span>
             </p>
-            <p className="text-white/70 mb-8">30+ firm clients</p>
-            <ul className="space-y-3 text-sm text-white/75">
+            <p className="text-[#A29E93] mb-8">30+ firm clients</p>
+            <ul className="space-y-3 text-sm text-[#A29E93]">
               <li className="flex gap-3">
                 <span className="text-[#C9A961]">→</span>
                 <span>Everything in Firm Growth</span>
@@ -395,16 +395,16 @@ export default function FirmPage() {
             </ul>
           </div>
         </div>
-        <p className="mt-6 text-sm text-white/55 max-w-2xl">
+        <p className="mt-6 text-sm text-[#7A7974] max-w-2xl">
           Firm plans include unlimited staff seats. Client count means unique QBO
           files under your firm master. No per-close fees. No per-transaction
           fees. Cancel anytime.
         </p>
       </section>
       {/* FAQ */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]">
         <div className="mx-auto max-w-4xl px-6 py-20 md:py-24">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
             Common questions from firm owners
           </p>
           <h2
@@ -441,12 +441,12 @@ export default function FirmPage() {
             ].map((item) => (
               <div
                 key={item.q}
-                className="rounded-2xl border border-white/10 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {item.q}
                 </h3>
-                <p className="text-white/70 leading-relaxed">{item.a}</p>
+                <p className="text-[#A29E93] leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>
@@ -459,18 +459,18 @@ export default function FirmPage() {
         >
           Your next departing bookkeeper doesn&apos;t have to break your firm.
         </h2>
-        <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-10">
+        <p className="text-lg md:text-xl text-[#A29E93] max-w-2xl mx-auto mb-10">
           Connect your QuickBooks Accountant firm master. Under 15 minutes to see
           every client, every close, every AI-proposed entry across your firm.
         </p>
         <Link
           href={SIGNUP_URL}
-          className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-10 py-5 text-lg font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+          className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-10 py-5 text-lg font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors ${focusRing()}`}
         >
           Start free review
           <span aria-hidden>→</span>
         </Link>
-        <p className="mt-4 text-sm text-white/55">
+        <p className="mt-4 text-sm text-[#7A7974]">
           No card required. Cancel anytime.
         </p>
       </section>
