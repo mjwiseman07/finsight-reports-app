@@ -2858,24 +2858,24 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
   };
 
   return (
-    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#0A1020] p-8 shadow-2xl shadow-orange-500/10">
+    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#1A1A1C]/85 p-8 shadow-2xl shadow-[#FF7A1A]/10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Flux Analysis Workspace</p>
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Configure the analysis before execution.</h2>
-          <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Flux Analysis Workspace</p>
+          <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Configure the analysis before execution.</h2>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-[#ECEBE7]">
             Flux uses the same Balance Sheet and Income Statement source data included in the generated package, so the analysis reconciles back to the package.
           </p>
         </div>
-        <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-slate-200">
+        <button type="button" onClick={onClose} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-4 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
           Close
         </button>
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 1</p>
-          <h3 className="mt-2 text-xl font-black text-white">What Flux Analysis Would You Like To Perform?</h3>
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+          <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Step 1</p>
+          <h3 className={`${headingFont} mt-2 text-xl font-black text-[#ECEBE7]`}>What Flux Analysis Would You Like To Perform?</h3>
           <div className="mt-4 grid gap-3">
             {fluxTypeOptions.map((option) => {
               const allowed = currentRank >= fluxLevelRank[option.minimumLevel];
@@ -2884,16 +2884,16 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
                   key={option.key}
                   type="button"
                   onClick={() => allowed && onChange((current) => ({ ...current, fluxType: option.key }))}
-                  className={`rounded-2xl border px-4 py-3 text-left text-sm font-black ${
+                  className={`${focusRing("rounded-2xl")} rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${
                     config.fluxType === option.key
-                      ? "border-[#FF7A1A] bg-[#FF7A1A]/20 text-white"
+                      ? "border-[#FF7A1A] bg-[#FF7A1A]/20 text-[#ECEBE7]"
                       : allowed
-                        ? "border-white/10 bg-slate-950/60 text-slate-200"
-                        : "border-white/5 bg-slate-950/30 text-slate-500"
+                        ? "border-[#C9A961]/20 bg-[#1A1A1C] text-[#ECEBE7] hover:border-[#C9A961]/45"
+                        : "border-[#C9A961]/10 bg-[#1A1A1C]/60 text-[#7A7974]"
                   }`}
                 >
                   {option.label}
-                  {!allowed && <span className="ml-2 text-xs text-[#FFB36F]">Upgrade required</span>}
+                  {!allowed && <span className={`${headingFont} ml-2 text-xs text-[#FFB36F]`}>Upgrade required</span>}
                 </button>
               );
             })}
