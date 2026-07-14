@@ -1,9 +1,13 @@
+import Link from "next/link";
 import { buildAdvisacorNormalizedFinancialData } from "../../../lib/integrations/accounting/advisacor-data-model";
 import { getLatestNormalizedAccountingData } from "../../../lib/integrations/accounting/service";
 import { xeroAccountingProvider } from "../../../lib/integrations/accounting/providers/xero";
 import { decryptAccountingToken } from "../../../lib/integrations/accounting/token-encryption";
 import type { AccountingConnectionRecord, AccountingDateRange } from "../../../lib/integrations/accounting/types";
 import { supabaseAdmin } from "../../../lib/supabase";
+import { SiteNav } from "../../../components/SiteNav";
+import { SiteFooter } from "../../../components/SiteFooter";
+import { headingFont, focusRing } from "../../../components/site-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +33,7 @@ function latestCompletedMonth(): AccountingDateRange {
 
 async function loadActiveXeroConnection() {
   if (!supabaseAdmin) throw new Error("Supabase admin client is not configured.");
+
   const { data, error } = await supabaseAdmin
     .from("accounting_connections")
     .select("*")
@@ -36,6 +41,7 @@ async function loadActiveXeroConnection() {
     .in("status", ["connected", "needs_entity_selection"])
     .order("updated_at", { ascending: false })
     .limit(1);
+
   if (error) throw error;
   return (data?.[0] as AccountingConnectionRecord | undefined) || null;
 }
@@ -152,9 +158,9 @@ function mappedTrialBalanceRows(rows: Array<Record<string, unknown>>): DisplayRo
 
 function DataCard({ label, value }: { label: string; value: RowValue }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
-      <p className="mt-2 break-words text-lg font-black text-white">{safeValue(value)}</p>
+    <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-4">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]">{label}</p>
+      <p className="mt-2 break-words text-lg font-black text-[#ECEBE7]">{safeValue(value)}</p>
     </div>
   );
 }
@@ -162,22 +168,22 @@ function DataCard({ label, value }: { label: string; value: RowValue }) {
 function InspectorTable({ title, rows }: { title: string; rows: DisplayRow[] }) {
   const columns = rows[0] ? Object.keys(rows[0]) : [];
   return (
-    <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
-      <h2 className="text-xl font-black text-white">{title}</h2>
-      <p className="mt-1 text-sm text-slate-400">First 20 records. Tokens, secrets, and raw full payloads are not shown.</p>
+    <section className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-5 shadow-2xl shadow-black/40">
+      <h2 className={`${headingFont} text-xl font-black text-[#ECEBE7]`}>{title}</h2>
+      <p className="mt-1 text-sm text-[#A29E93]">First 20 records. Tokens, secrets, and raw full payloads are not shown.</p>
       {rows.length ? (
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-[0.14em] text-slate-400">
+            <thead className="text-xs uppercase tracking-[0.14em] text-[#7A7974]">
               <tr>
                 {columns.map((column) => (
-                  <th key={column} className="border-b border-white/10 px-3 py-2">{column}</th>
+                  <th key={column} className="border-b border-[#C9A961]/20 px-3 py-2">{column}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="text-slate-200">
+            <tbody className="text-[#ECEBE7]">
               {rows.map((row, index) => (
-                <tr key={`${title}-${index}`} className="border-b border-white/5">
+                <tr key={`${title}-${index}`} className="border-b border-[#C9A961]/10">
                   {columns.map((column) => (
                     <td key={column} className="px-3 py-2">{safeValue(row[column])}</td>
                   ))}
@@ -187,7 +193,7 @@ function InspectorTable({ title, rows }: { title: string; rows: DisplayRow[] }) 
           </table>
         </div>
       ) : (
-        <p className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
+        <p className="mt-4 rounded-2xl border border-[#BB653B]/40 bg-[#BB653B]/15 px-4 py-3 text-sm font-bold text-[#DFC084]">
           No records available.
         </p>
       )}
@@ -252,6 +258,7 @@ export default async function XeroInspectorPage() {
       balanceSheetApiError = balanceSheet.error || "";
       profitAndLossApiStatus = profitAndLoss.statusCode ?? "-";
       profitAndLossApiError = profitAndLoss.error || "";
+
       rawAccounts = Array.isArray(accounts.payload.Accounts) ? accounts.payload.Accounts : [];
       rawTrialBalanceFlattened = flattenRows(reportRows(trialBalance.payload));
       trialBalanceApiRowCount = rawTrialBalanceFlattened.length;
@@ -264,6 +271,7 @@ export default async function XeroInspectorPage() {
         sourceSystem: "xero",
         reportPeriod: null,
       });
+
       if (latestNormalized?.normalizedData) {
         normalizedAccounts = latestNormalized.normalizedData.normalizedAccounts as unknown as Array<Record<string, unknown>>;
         normalizedTrialBalance = latestNormalized.normalizedData.normalizedTrialBalance as unknown as Array<Record<string, unknown>>;
@@ -315,32 +323,48 @@ export default async function XeroInspectorPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0A1020] px-6 py-8 text-white">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-cyan-200">Temporary Xero Diagnostic</p>
-          <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">Xero Data Inspector</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+    <div className="min-h-screen bg-[#111112] text-[#ECEBE7]">
+      <SiteNav />
+
+      <section className="relative overflow-hidden bg-[#111112]">
+        <div className="mx-auto max-w-7xl px-6 pb-10 pt-[200px] sm:px-8 md:pt-[240px] lg:pt-[260px]">
+          <p className={`${headingFont} text-xs uppercase tracking-[0.35em] text-[#C9A961]`}>
+            Founder Console — Xero Inspector
+          </p>
+          <h1 className={`${headingFont} mt-3 text-4xl font-semibold text-[#ECEBE7] sm:text-5xl`}>
+            Xero Data Inspector
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#A29E93]">
             Diagnostics only: Xero API to raw results to normalized results. This page does not run PDF, PowerPoint, dashboard, Pulse, KPI, Flux, or QuickBooks paths.
           </p>
+          <div className="mt-6">
+            <Link
+              href="/admin"
+              className={`inline-flex items-center gap-2 rounded-full border border-[#C9A961]/25 bg-[#1A1A1C]/85 px-4 py-2 text-sm font-medium text-[#ECEBE7] transition hover:border-[#C9A961]/60 hover:bg-[#C9A961]/10 ${focusRing()}`}
+            >
+              ← Back to Admin Workspace
+            </Link>
+          </div>
         </div>
+      </section>
 
+      <main className="mx-auto max-w-7xl px-6 pb-16 sm:px-8">
         {error && (
-          <div className="mb-6 rounded-3xl border border-amber-300/25 bg-amber-400/10 p-5 text-amber-100">
+          <div className="mb-6 rounded-3xl border border-[#BB653B]/40 bg-[#BB653B]/15 p-5 text-[#DFC084]">
             <p className="font-black">Inspector unavailable</p>
             <p className="mt-2 text-sm">{error}</p>
           </div>
         )}
 
         {mappingError && (
-          <div className="mb-6 rounded-3xl border border-red-300/25 bg-red-400/10 p-5 text-red-100">
+          <div className="mb-6 rounded-3xl border border-[#B85C5C]/40 bg-[#B85C5C]/15 p-5 text-[#F0BFBF]">
             <p className="font-black">Normalization error</p>
             <p className="mt-2 text-sm">{mappingError}</p>
           </div>
         )}
 
-        <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
-          <h2 className="text-xl font-black text-white">Connection</h2>
+        <section className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-5 shadow-2xl shadow-black/40">
+          <h2 className={`${headingFont} text-xl font-black text-[#ECEBE7]`}>Connection</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <DataCard label="Source System" value={connection?.provider || "xero"} />
             <DataCard label="Tenant Name" value={connection?.external_entity_name || "Xero Organization"} />
@@ -349,14 +373,17 @@ export default async function XeroInspectorPage() {
             <DataCard label="Last Sync" value={String(connection?.metadata_json?.last_synced_at || connection?.updated_at || "")} />
           </div>
           <form method="post" action="/api/admin/xero-inspector/force-save" className="mt-5">
-            <button type="submit" className="rounded-2xl border border-cyan-200/40 bg-cyan-400/10 px-5 py-3 text-sm font-black text-cyan-50">
+            <button
+              type="submit"
+              className={`rounded-full bg-[#C9A961] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#DFC084] ${focusRing()}`}
+            >
               Force Save Current Inspector Sync
             </button>
           </form>
         </section>
 
-        <section className="mt-6 rounded-3xl border border-white/10 bg-slate-950/70 p-5">
-          <h2 className="text-xl font-black text-white">Raw API Results</h2>
+        <section className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-5 shadow-2xl shadow-black/40">
+          <h2 className={`${headingFont} text-xl font-black text-[#ECEBE7]`}>Raw API Results</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <DataCard label="Accounts API Status" value={accountsApiStatus} />
             <DataCard label="Accounts API Error" value={accountsApiError} />
@@ -373,8 +400,8 @@ export default async function XeroInspectorPage() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-3xl border border-white/10 bg-slate-950/70 p-5">
-          <h2 className="text-xl font-black text-white">Normalized Results</h2>
+        <section className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-5 shadow-2xl shadow-black/40">
+          <h2 className={`${headingFont} text-xl font-black text-[#ECEBE7]`}>Normalized Results</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <DataCard label="normalizedAccounts Count" value={normalizedAccounts.length} />
             <DataCard label="normalizedTrialBalance Count" value={normalizedTrialBalance.length} />
@@ -383,8 +410,8 @@ export default async function XeroInspectorPage() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-3xl border border-white/10 bg-slate-950/70 p-5">
-          <h2 className="text-xl font-black text-white">Report-Specific Mapping Diagnostics</h2>
+        <section className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-5 shadow-2xl shadow-black/40">
+          <h2 className={`${headingFont} text-xl font-black text-[#ECEBE7]`}>Report-Specific Mapping Diagnostics</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <DataCard label="Accounts Raw Count" value={reportMappingDiagnostics.accounts?.rawCount ?? rawAccounts.length} />
             <DataCard label="Accounts Mapped Count" value={reportMappingDiagnostics.accounts?.mappedCount ?? normalizedAccounts.length} />
@@ -407,7 +434,9 @@ export default async function XeroInspectorPage() {
           <InspectorTable title="Raw Trial Balance Rows" rows={rawTrialBalanceRows(rawTrialBalanceFlattened)} />
           <InspectorTable title="Mapped Trial Balance Rows" rows={mappedTrialBalanceRows(normalizedTrialBalance)} />
         </div>
-      </div>
-    </main>
+      </main>
+
+      <SiteFooter />
+    </div>
   );
 }
