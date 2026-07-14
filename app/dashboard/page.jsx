@@ -3327,9 +3327,9 @@ function PulseAdvisoryIntelligencePanel({ intelligence, onRefresh, onRun, onDism
 
 function FinancialStatementsShortcutSection() {
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Financial Statements</p>
-      <h2 className="mt-3 text-3xl font-black text-white">Balance Sheet and Income Statement snapshot.</h2>
+    <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#111112]/70 p-8">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#DFC084]`}>Financial Statements</p>
+      <h2 className={`${headingFont} mt-3 text-3xl font-black text-[#ECEBE7]`}>Balance Sheet and Income Statement snapshot.</h2>
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <DashboardFocusCard title="Balance Sheet" items={["Cash: $428K", "Accounts Receivable: $146K", "Net Fixed Assets: $565K", "Total Assets: $1.079M"]} />
         <DashboardFocusCard title="Income Statement" items={["Current month revenue: $824K", "Profitability: 14.6%", "Current month net income: $269.9K", "Gross margin assumption: 42%"]} />
@@ -3356,9 +3356,9 @@ function ArApShortcutSection() {
 
 function ShortcutMetricSection({ title, summary, cards }) {
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">{title}</p>
-      <h2 className="mt-3 text-3xl font-black text-white">{summary}</h2>
+    <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#111112]/70 p-8">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#DFC084]`}>{title}</p>
+      <h2 className={`${headingFont} mt-3 text-3xl font-black text-[#ECEBE7]`}>{summary}</h2>
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         {cards.map(([label, value, detail]) => (
           <MetricTile key={label} label={label} value={value} detail={detail} />
@@ -3384,18 +3384,18 @@ function SimplifiedFeatureCards({ onExploreSection }) {
   ];
 
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Explore Deeper</p>
+    <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#111112]/70 p-8">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#DFC084]`}>Explore Deeper</p>
       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map(([title, description]) => (
           <button
             key={title}
             type="button"
             onClick={() => onExploreSection(title)}
-            className="rounded-2xl border border-white/10 bg-slate-950/70 p-5 text-left transition hover:border-[#FF7A1A]/50"
+            className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] p-5 text-left transition hover:border-[#FF7A1A]/50`}
           >
-            <p className="text-base font-black text-white">{title}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
+            <p className={`${headingFont} text-base font-black text-[#ECEBE7]`}>{title}</p>
+            <p className="mt-2 text-sm leading-6 text-[#A29E93]">{description}</p>
           </button>
         ))}
       </div>
