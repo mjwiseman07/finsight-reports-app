@@ -2329,44 +2329,44 @@ export default function DashboardPage() {
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-4">
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>
                       Delivery Day <HelpTip content={contextualHelp.deliveryDay} />
                     </span>
                     <input
                       value={ownerDeliveryDay}
                       onChange={(event) => setOwnerDeliveryDay(event.target.value)}
-                      className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-emerald-300/60"
+                      className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>
                       Delivery Time <HelpTip content={contextualHelp.deliveryDay} />
                     </span>
                     <input
                       value={ownerDeliveryTime}
                       onChange={(event) => setOwnerDeliveryTime(event.target.value)}
-                      className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-emerald-300/60"
+                      className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>
                       Recipient Email <HelpTip content={contextualHelp.recipientEmails} />
                     </span>
                     <input
                       value={ownerRecipientEmail}
                       onChange={(event) => setOwnerRecipientEmail(event.target.value)}
                       placeholder={accountEmail}
-                      className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-slate-600 focus:border-emerald-300/60"
+                      className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] focus:border-[#C9A961]/60"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>
                       Package Level <HelpTip content={contextualHelp.packageSelection} />
                     </span>
                     <select
                       value={ownerPackageLevel}
                       onChange={(event) => setOwnerPackageLevel(event.target.value)}
-                      className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-emerald-300/60"
+                      className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                     >
                       <option value="essential">Essential Owner</option>
                       <option value="professional">Professional Owner</option>
@@ -2376,47 +2376,47 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Approval and Sending</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Approval and Sending</p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <label className="rounded-2xl bg-white/[0.04] px-4 py-3">
-                        <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                      <label className="rounded-2xl border border-[#C9A961]/15 bg-[#111112]/50 px-4 py-3">
+                        <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>
                           Approval <HelpTip content={contextualHelp.approvalRequired} />
                         </span>
                         <select
                           value={ownerRequireApproval ? "approval-required" : "no-approval"}
                           onChange={(event) => setOwnerRequireApproval(event.target.value === "approval-required")}
-                          className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none"
+                          className="mt-2 w-full rounded-xl border border-[#C9A961]/25 bg-[#111112] px-3 py-2 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                         >
                           <option value="approval-required">Require approval</option>
                           <option value="no-approval">No approval required</option>
                         </select>
                       </label>
-                      <label className="rounded-2xl bg-white/[0.04] px-4 py-3">
-                        <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                      <label className="rounded-2xl border border-[#C9A961]/15 bg-[#111112]/50 px-4 py-3">
+                        <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>
                           Auto-send <HelpTip content={contextualHelp.autoSend} />
                         </span>
                         <select
                           value={ownerAutoSendEnabled ? "auto-send" : "manual-send"}
                           onChange={(event) => setOwnerAutoSendEnabled(event.target.value === "auto-send")}
-                          className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm font-bold text-white outline-none"
+                          className="mt-2 w-full rounded-xl border border-[#C9A961]/25 bg-[#111112] px-3 py-2 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                         >
                           <option value="manual-send">Disabled</option>
                           <option value="auto-send">Enabled</option>
                         </select>
                       </label>
                     </div>
-                    <p className="mt-4 text-sm leading-6 text-slate-400">
+                    <p className="mt-4 text-sm leading-6 text-[#A29E93]">
                       Background jobs move through {deliveryProcessingStatuses.join(" -> ")} before owner delivery.
                     </p>
                   </div>
 
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Owner Package Scope</p>
-                    <p className="mt-2 text-sm font-bold text-emerald-100">{selectedOwnerPackageScope.packageName}</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Owner Package Scope</p>
+                    <p className={`${headingFont} mt-2 text-sm font-bold text-[#B5E28A]`}>{selectedOwnerPackageScope.packageName}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {selectedOwnerPackageScope.scope.map((item) => (
-                        <span key={item} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-bold text-slate-300">
+                        <span key={item} className="rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-3 py-1 text-xs font-bold text-[#ECEBE7]">
                           {item}
                         </span>
                       ))}
