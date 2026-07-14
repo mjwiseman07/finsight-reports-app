@@ -2900,12 +2900,12 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 2</p>
-          <h3 className="mt-2 text-xl font-black text-white">Select Financial Statements To Analyze</h3>
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+          <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Step 2</p>
+          <h3 className={`${headingFont} mt-2 text-xl font-black text-[#ECEBE7]`}>Select Financial Statements To Analyze</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {fluxStatements.map((statement) => (
-              <label key={statement} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">
+              <label key={statement} className="flex items-center gap-3 rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] px-4 py-3 text-sm font-bold text-[#ECEBE7]">
                 <input type="checkbox" checked={config.statements.includes(statement)} onChange={() => toggleStatement(statement)} />
                 {statement}
               </label>
@@ -2913,17 +2913,17 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 3</p>
-          <h3 className="mt-2 text-xl font-black text-white">Materiality Thresholds</h3>
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+          <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Step 3</p>
+          <h3 className={`${headingFont} mt-2 text-xl font-black text-[#ECEBE7]`}>Materiality Thresholds</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="grid gap-2 text-sm font-bold text-slate-300">
+            <label className="grid gap-2 text-sm font-bold text-[#ECEBE7]">
               Dollar Threshold
-              <input value={config.dollarThreshold} onChange={(event) => onChange((current) => ({ ...current, dollarThreshold: event.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white" />
+              <input value={config.dollarThreshold} onChange={(event) => onChange((current) => ({ ...current, dollarThreshold: event.target.value }))} className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-[#ECEBE7] placeholder:text-[#7A7974] focus:border-[#C9A961]/60" />
             </label>
-            <label className="grid gap-2 text-sm font-bold text-slate-300">
+            <label className="grid gap-2 text-sm font-bold text-[#ECEBE7]">
               Percentage Threshold
-              <input value={config.percentageThreshold} onChange={(event) => onChange((current) => ({ ...current, percentageThreshold: event.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white" />
+              <input value={config.percentageThreshold} onChange={(event) => onChange((current) => ({ ...current, percentageThreshold: event.target.value }))} className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-[#ECEBE7] placeholder:text-[#7A7974] focus:border-[#C9A961]/60" />
             </label>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -2936,7 +2936,7 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
                 key={key}
                 type="button"
                 onClick={() => onChange((current) => ({ ...current, filteringLogic: key }))}
-                className={`rounded-full px-4 py-2 text-xs font-black ${config.filteringLogic === key ? "bg-[#FF7A1A] text-white" : "border border-white/10 text-slate-300"}`}
+                className={`${focusRing("rounded-full")} ${headingFont} rounded-full px-4 py-2 text-xs font-black transition ${config.filteringLogic === key ? "bg-[#FF7A1A] text-[#111112] hover:bg-[#FF8D3C]" : "border border-[#C9A961]/30 text-[#ECEBE7] hover:border-[#C9A961]/55"}`}
               >
                 {label}
               </button>
@@ -2944,16 +2944,16 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 4</p>
-          <h3 className="mt-2 text-xl font-black text-white">AI Commentary Settings</h3>
-          <label className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+          <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Step 4</p>
+          <h3 className={`${headingFont} mt-2 text-xl font-black text-[#ECEBE7]`}>AI Commentary Settings</h3>
+          <label className="mt-4 flex items-center gap-3 rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] px-4 py-3 text-sm font-bold text-[#ECEBE7]">
             <input type="checkbox" checked={config.aiCommentaryEnabled} onChange={(event) => onChange((current) => ({ ...current, aiCommentaryEnabled: event.target.checked }))} />
             AI Commentary Enabled
           </label>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {fluxCommentaryOptions.map((option) => (
-              <label key={option} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">
+              <label key={option} className="flex items-center gap-3 rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] px-4 py-3 text-sm font-bold text-[#ECEBE7]">
                 <input type="checkbox" checked={config.commentaryOptions.includes(option)} disabled={!config.aiCommentaryEnabled} onChange={() => toggleCommentary(option)} />
                 {option}
               </label>
@@ -2962,37 +2962,37 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
         </div>
       </div>
 
-      <div className="mt-6 rounded-3xl border border-blue-300/20 bg-blue-400/10 p-5">
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Dashboard Flux View</p>
+      <div className="mt-6 rounded-3xl border border-[#C9A961]/25 bg-[#111112]/70 p-5">
+        <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#DFC084]`}>Dashboard Flux View</p>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {[
             ["Payroll Expense", "$45,000", "18%", "Payroll growth exceeded revenue growth by 6%."],
             ["Current FTE", "57", "+5", "Payroll cost per FTE is $4,250 versus $4,010 prior."],
             ["Accounts Receivable", "$19,500", "15.4%", "Working capital pressure increased with customer receivable growth."],
           ].map(([label, change, percent, note]) => (
-            <div key={label} className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-              <p className="mt-2 text-2xl font-black text-white">{change}</p>
-              <p className="text-sm font-bold text-[#FFB36F]">{percent}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{note}</p>
+            <div key={label} className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] p-4">
+              <p className={`${headingFont} text-xs font-black uppercase tracking-[0.14em] text-[#7A7974]`}>{label}</p>
+              <p className={`${headingFont} mt-2 text-2xl font-black text-[#DFC084]`}>{change}</p>
+              <p className={`${headingFont} text-sm font-bold text-[#FFB36F]`}>{percent}</p>
+              <p className="mt-2 text-sm leading-6 text-[#ECEBE7]">{note}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {message && <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">{message}</p>}
+      {message && <p className="mt-4 rounded-2xl border border-[#6DAA45]/30 bg-[#6DAA45]/10 px-4 py-3 text-sm font-bold text-[#B5E28A]">{message}</p>}
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <button type="button" onClick={() => onRun("pdf")} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+        <button type="button" onClick={() => onRun("pdf")} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FF8D3C]`}>
           Generate PDF Flux Package
         </button>
-        <button type="button" onClick={() => onRun("powerpoint")} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+        <button type="button" onClick={() => onRun("powerpoint")} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
           Generate PowerPoint Flux Package
         </button>
-        <button type="button" onClick={() => onRun("dashboard")} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+        <button type="button" onClick={() => onRun("dashboard")} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
           Generate Dashboard Flux View
         </button>
-        <span className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-bold text-slate-400">
+        <span className={`${headingFont} rounded-2xl border border-[#C9A961]/25 px-5 py-3 text-sm font-bold text-[#7A7974]`}>
           Selected: {selectedType.label} | {config.statements.join(", ")}
         </span>
       </div>
