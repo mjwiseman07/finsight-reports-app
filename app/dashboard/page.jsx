@@ -1889,13 +1889,13 @@ export default function DashboardPage() {
               )}
 
               {dashboardPackageHistory.length > 0 && (
-                <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-                  <p className="text-sm font-black uppercase tracking-[0.2em] text-[#FFB36F]">Package History</p>
+                <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6">
+                  <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#C9A961]`}>Package History</p>
                   <div className="mt-4 grid gap-3">
                     {dashboardPackageHistory.map((item) => (
-                      <div key={item.id} className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-sm font-black text-white">{item.title}</span>
-                        <span className="text-xs font-bold text-emerald-200">{item.status} | {item.generatedLabel || item.generatedAt}</span>
+                      <div key={item.id} className="flex flex-col gap-2 rounded-2xl border border-[#C9A961]/20 bg-[#111112]/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="text-sm font-black text-[#ECEBE7]">{item.title}</span>
+                        <span className="text-xs font-bold text-[#B5E28A]">{item.status} | {item.generatedLabel || item.generatedAt}</span>
                       </div>
                     ))}
                   </div>
@@ -1903,19 +1903,19 @@ export default function DashboardPage() {
               )}
 
               {intelligenceRecommendation && !recommendationDismissed && (
-                <div className="rounded-[2rem] border border-blue-300/25 bg-blue-500/10 p-6">
+                <div className="rounded-[2rem] border border-[#C9A961]/40 bg-[#C9A961]/10 p-6">
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Pulse Recommendation</p>
-                      <h2 className="mt-3 text-2xl font-black">
+                      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#DFC084]`}>Pulse Recommendation</p>
+                      <h2 className={`${headingFont} mt-3 text-2xl font-black tracking-[-0.02em] text-[#ECEBE7]`}>
                         We detected {intelligenceRecommendation.reports.join(" and ")} reports that can support additional intelligence.
                       </h2>
-                      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-[#ECEBE7]">
                         This is a contextual recommendation based on newly available data, not an onboarding step.
                       </p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         {intelligenceRecommendation.benefits.map((benefit) => (
-                          <span key={benefit} className="rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 text-xs font-black text-slate-200">
+                          <span key={benefit} className="rounded-full border border-[#C9A961]/20 bg-[#111112]/70 px-3 py-1 text-xs font-black text-[#ECEBE7]">
                             {benefit}
                           </span>
                         ))}
@@ -1931,7 +1931,7 @@ export default function DashboardPage() {
                           });
                           setAccountOpen(true);
                         }}
-                        className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white"
+                        className={`${primaryCtaClass} rounded-2xl px-5 py-3 text-sm`}
                       >
                         Review Recommendation
                       </button>
@@ -1943,7 +1943,7 @@ export default function DashboardPage() {
                           });
                           setRecommendationDismissed(true);
                         }}
-                        className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200"
+                        className={`${focusRing("rounded-2xl")} rounded-2xl border border-[#C9A961]/20 px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/40 hover:text-[#C9A961]`}
                       >
                         Dismiss
                       </button>
