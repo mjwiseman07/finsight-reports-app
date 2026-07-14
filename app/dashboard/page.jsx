@@ -2248,81 +2248,81 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div id="owner-delivery-settings" className="mt-8 rounded-[2rem] border border-emerald-300/20 bg-emerald-400/10 p-8">
+              <div id="owner-delivery-settings" className="mt-8 rounded-[2rem] border border-[#6DAA45]/35 bg-[#6DAA45]/10 p-8">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Business Owner Only</p>
-                    <h2 className="mt-3 text-3xl font-black">Email-first Weekly Pulse Brief and Secure Ask Pulse</h2>
-                    <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#6DAA45]`}>Business Owner Only</p>
+                    <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.02em] text-[#ECEBE7]`}>Email-first Weekly Pulse Brief and Secure Ask Pulse</h2>
+                    <p className="mt-3 max-w-3xl leading-7 text-[#ECEBE7]">
                       {ownerExecutiveBriefWorkflow.productGoal} This workflow is limited to the Business Owner persona and does not apply to bookkeeper, controller, or fractional CFO outputs.
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-emerald-300/20 bg-slate-950/60 px-5 py-4">
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-200">Default cadence</p>
-                    <p className="mt-2 text-sm font-bold text-white">{ownerExecutiveBriefWorkflow.defaultCadence}</p>
+                  <div className="rounded-2xl border border-[#6DAA45]/35 bg-[#111112]/70 px-5 py-4">
+                    <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#6DAA45]`}>Default cadence</p>
+                    <p className={`${headingFont} mt-2 text-sm font-bold text-[#B5E28A]`}>{ownerExecutiveBriefWorkflow.defaultCadence}</p>
                   </div>
                 </div>
 
-                <div className="mt-6 flex flex-col gap-3 rounded-3xl border border-white/10 bg-slate-950/60 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-6 flex flex-col gap-3 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-black text-white">Owner delivery settings</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Owner delivery settings</p>
+                    <p className="mt-1 text-sm leading-6 text-[#A29E93]">
                       Persist weekly brief, monthly package, approval, auto-send, recipient, and package settings for Business Owner delivery only.
                     </p>
                     {ownerSettingsMessage && (
-                      <p className="mt-2 text-sm font-bold text-emerald-200">{ownerSettingsMessage}</p>
+                      <p className="mt-2 text-sm font-bold text-[#B5E28A]">{ownerSettingsMessage}</p>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={handleSaveOwnerDeliverySettings}
                     disabled={ownerSettingsSaving}
-                    className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-[#062016] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#6DAA45] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#7DBB4E] disabled:cursor-not-allowed disabled:opacity-60`}
                   >
                     {ownerSettingsSaving ? "Saving..." : "Save Owner Settings"}
                   </button>
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-3">
-                  <label className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <span className="flex items-center gap-2 text-sm font-black text-white">
+                  <label className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <span className={`${headingFont} flex items-center gap-2 text-sm font-black text-[#ECEBE7]`}>
                       Weekly Pulse Brief <HelpTip content={contextualHelp.reportingCadence} />
                     </span>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">Automated Friday owner snapshot with health, cash, revenue, profit, payroll, collections, risk, opportunity, and focus.</p>
+                    <p className="mt-2 text-sm leading-6 text-[#A29E93]">Automated Friday owner snapshot with health, cash, revenue, profit, payroll, collections, risk, opportunity, and focus.</p>
                     <select
                       value={ownerWeeklyEnabled ? "enabled" : "disabled"}
                       onChange={(event) => setOwnerWeeklyEnabled(event.target.value === "enabled")}
-                      className="mt-4 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-emerald-300/60"
+                      className="mt-4 w-full rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                     >
                       <option value="enabled">Enabled</option>
                       <option value="disabled">Disabled</option>
                     </select>
                   </label>
 
-                  <label className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <span className="flex items-center gap-2 text-sm font-black text-white">
+                  <label className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <span className={`${headingFont} flex items-center gap-2 text-sm font-black text-[#ECEBE7]`}>
                       Monthly Executive Package <HelpTip content={contextualHelp.packageType} />
                     </span>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">Month-end email with Pulse Executive Summary, KPI highlights, PDF/PPT links, and the secure Ask Pulse button.</p>
+                    <p className="mt-2 text-sm leading-6 text-[#A29E93]">Month-end email with Pulse Executive Summary, KPI highlights, PDF/PPT links, and the secure Ask Pulse button.</p>
                     <select
                       value={ownerMonthlyEnabled ? "enabled" : "disabled"}
                       onChange={(event) => setOwnerMonthlyEnabled(event.target.value === "enabled")}
-                      className="mt-4 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-emerald-300/60"
+                      className="mt-4 w-full rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                     >
                       <option value="enabled">Enabled</option>
                       <option value="disabled">Disabled</option>
                     </select>
                   </label>
 
-                  <label className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <span className="flex items-center gap-2 text-sm font-black text-white">
+                  <label className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <span className={`${headingFont} flex items-center gap-2 text-sm font-black text-[#ECEBE7]`}>
                       Persona <HelpTip content={contextualHelp.primaryUseCase} />
                     </span>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">Locked to Business Owner for this email-first workflow.</p>
+                    <p className="mt-2 text-sm leading-6 text-[#A29E93]">Locked to Business Owner for this email-first workflow.</p>
                     <input
                       value="Business Owner"
                       readOnly
-                      className="mt-4 w-full rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-100 outline-none"
+                      className={`${headingFont} mt-4 w-full rounded-2xl border border-[#6DAA45]/35 bg-[#6DAA45]/10 px-4 py-3 text-sm font-black text-[#B5E28A] outline-none`}
                     />
                   </label>
                 </div>
