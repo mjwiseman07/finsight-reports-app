@@ -64,7 +64,7 @@ export function ComingSoonPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0A1530] text-white">
+    <main className="min-h-screen bg-[#111112] text-white">
       <SiteNav />
 
       {/* Hero */}
@@ -86,7 +86,7 @@ export function ComingSoonPage() {
 
       {/* Waitlist card */}
       <section id="early-access" className="mx-auto max-w-4xl px-6 pb-24">
-        <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0F1D3E] p-8 md:p-10">
+        <div className="rounded-2xl border border-[#C9A961]/40 bg-[#1A1A1C] p-8 md:p-10">
           <p className="text-xs uppercase tracking-[0.2em] text-[#C9A961] mb-3">
             Join the waitlist
           </p>
@@ -118,7 +118,7 @@ export function ComingSoonPage() {
                   }}
                   aria-invalid={Boolean(fieldErrors.name)}
                   aria-describedby={fieldErrors.name ? "coming-soon-name-error" : undefined}
-                  className="rounded-lg border border-white/15 bg-[#0A1530] px-4 py-3 text-white placeholder:text-white/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/40"
+                  className="rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white placeholder:text-white/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/40"
                   placeholder="Your full name"
                   autoComplete="name"
                 />
@@ -140,7 +140,7 @@ export function ComingSoonPage() {
                   }}
                   aria-invalid={Boolean(fieldErrors.email)}
                   aria-describedby={fieldErrors.email ? "coming-soon-email-error" : undefined}
-                  className="rounded-lg border border-white/15 bg-[#0A1530] px-4 py-3 text-white placeholder:text-white/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/40"
+                  className="rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white placeholder:text-white/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/40"
                   placeholder="you@company.com"
                   autoComplete="email"
                 />
@@ -160,7 +160,7 @@ export function ComingSoonPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center justify-center rounded-lg bg-[#C9A961] px-6 py-3 font-semibold text-[#0A1530] transition hover:bg-[#D9B972] disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-lg bg-[#C9A961] px-6 py-3 font-semibold text-[#111112] transition hover:bg-[#DFC084] disabled:opacity-60"
               >
                 {isSubmitting ? "Submitting…" : "Add me to the waitlist"}
               </button>

@@ -202,7 +202,7 @@ export default function OwnerPage() {
       </section>
       {/* MID-PAGE CTA */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <div className="rounded-3xl border border-[#C9A961]/30 bg-gradient-to-br from-[#141416] to-[#111112] p-10 md:p-16">
+        <div className="rounded-3xl border border-[#C9A961]/30 bg-gradient-to-br from-[#1A1A1C] to-[#111112] p-10 md:p-16">
           <h2
             className={`${headingFont} text-3xl md:text-5xl font-semibold leading-[1.1] tracking-tight max-w-3xl mb-6`}
           >

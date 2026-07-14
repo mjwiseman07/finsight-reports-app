@@ -27,7 +27,7 @@ export function PaidUserWelcome({ tierKey, email, businessName }: PaidUserWelcom
     : "You're in. Let's connect your first client.";
 
   return (
-    <main className="min-h-screen bg-[#0A1530] text-white">
+    <main className="min-h-screen bg-[#111112] text-white">
       <SiteNav />
       <section className="mx-auto max-w-6xl px-6 pt-[200px] md:pt-[240px] lg:pt-[260px] pb-16 md:pb-24">
         <p className="text-sm uppercase tracking-[0.2em] text-[#C9A961] mb-6">
@@ -51,7 +51,7 @@ export function PaidUserWelcome({ tierKey, email, businessName }: PaidUserWelcom
         </p>
       </section>
 
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-white/10 bg-[#1A1A1C]">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-[#C9A961]/40 bg-[#111112] p-8 flex flex-col">

@@ -49,11 +49,11 @@ export default function SigninPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
+    <main className="min-h-screen bg-[#F7F6F2] text-[#28251D]">
       <SiteNav />
       <section
         id="signin"
-        className="relative isolate overflow-hidden bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 px-6 pb-24 pt-[200px] md:pt-[240px] lg:pt-[260px]"
+        className="relative isolate overflow-hidden bg-gradient-to-br from-[#F7F6F2] via-[#EEEDE7] to-[#D4D1CA] px-6 pb-24 pt-[200px] md:pt-[240px] lg:pt-[260px]"
       >
         <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)]">
           {/* LEFT — Marketing narrative that matches the hero on the landing page */}
@@ -81,7 +81,7 @@ export default function SigninPage() {
           {/* RIGHT — Sign in card, styled to match the executive workspace card on the home hero */}
           <div className="min-w-0">
             <div className="relative ml-auto w-full max-w-2xl">
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A1530] via-[#0D1A3A] to-[#060E22] p-8 shadow-2xl ring-1 ring-white/10 sm:p-10">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#111112] via-[#0D1A3A] to-[#060E22] p-8 shadow-2xl ring-1 ring-white/10 sm:p-10">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#C9A961]/15 blur-3xl"
@@ -152,7 +152,7 @@ export default function SigninPage() {
                     {isSubmitting ? (
                       <span className="inline-flex items-center justify-center gap-2">
                         <span
-                          className="h-4 w-4 animate-spin rounded-full border-2 border-[#0A1530]/30 border-t-[#0A1530]"
+                          className="h-4 w-4 animate-spin rounded-full border-2 border-[#111112]/30 border-t-[#111112]"
                           aria-hidden="true"
                         />
                         Signing in...

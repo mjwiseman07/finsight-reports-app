@@ -19,7 +19,7 @@ export default async function SharedPacketPage({ params }) {
 
   if (!verification.valid) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0B0B0C] px-6 text-white">
+      <main className="flex min-h-screen items-center justify-center bg-[#111112] px-6 text-white">
         <div className="max-w-lg text-center">
           <h1 className="mb-3 text-2xl font-semibold">Link unavailable</h1>
           <p className="text-white/60">
@@ -59,7 +59,7 @@ export default async function SharedPacketPage({ params }) {
   const label = periodLabel(period);
 
   return (
-    <main className="min-h-screen bg-[#0B0B0C] text-white">
+    <main className="min-h-screen bg-[#111112] text-white">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
         <div>
           <div className="text-sm text-white/50">Close Packet</div>

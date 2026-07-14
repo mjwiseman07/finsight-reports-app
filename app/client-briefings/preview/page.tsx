@@ -108,7 +108,7 @@ function ClientBriefingPreviewContent() {
 
         {briefing && (
           <div className="grid gap-6 xl:grid-cols-[1fr_0.42fr]">
-            <article className="rounded-[2rem] border border-[#C9A961]/25 bg-[#F9FAFB] p-8 text-[#111827] shadow-2xl shadow-black/40">
+            <article className="rounded-[2rem] border border-[#C9A961]/25 bg-[#F9FAFB] p-8 text-[#28251D] shadow-2xl shadow-black/40">
               <header className="border-b border-slate-200 pb-6">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[#5B4A1F]">Client Briefing</p>
                 <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{briefing.clientName || "Client"}</h1>

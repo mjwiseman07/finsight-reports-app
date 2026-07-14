@@ -1,0 +1,49 @@
+---
+description: Advisacor brand token rules (v1.1). Loaded on every page/component/CSS edit. Canonical source of truth is docs/BRAND.md.
+alwaysApply: true
+globs:
+  - "app/**/*.tsx"
+  - "app/**/*.ts"
+  - "app/**/*.css"
+  - "components/**/*.tsx"
+  - "components/**/*.ts"
+  - "public/**/*.svg"
+---
+
+# Brand rules — read docs/BRAND.md before editing any page or component
+
+**Standing product-owner rule: "any pages should follow the formatting and coloring of the main page no matter what."**
+
+Before saving any change to a page under `app/` or a component under `components/`, verify all of the following:
+
+1. **Logo** — If the file renders a logo, it MUST be `/advisacor-logo-framed-navy.png` (via `next/image` static import). NEVER import `<AdvisacorLogo>` from `components/AdvisacorLogo.tsx`. NEVER reference `/advisacor-logo.svg` or `/advisacor-logo-light.svg`.
+
+2. **Marketing background** — Marketing pages (see docs/BRAND.md "Marketing scope") MUST use `bg-[#111112]` (canonical charcoal) as root background, OR `bg-[#F7F6F2]` (warm ivory) for explicit light-mode editorial pages (`/about`, `/privacy`). NEVER use `bg-[#0A1530]`, `bg-[#0A1020]` (legacy navy) or `bg-[#F5F7FA]` (cool slate).
+
+3. **Accent color** — Gold `#C9A961` (hover `#DFC084`) is the ONLY chromatic accent. Never introduce orange (`#FF7A1A`, `#FFB36F`, `#D28A4A`, `#F97316`), blue (`#2146CF`, `#1E6BFF`), or any other hue. Semantic red for errors and green for success are permitted.
+
+4. **CTAs** — Primary CTAs MUST use `primaryCtaClass` from `components/site-ui.ts`. Never use `.premium-button` (banned — orange gradient).
+
+5. **Text tokens (marketing dark-mode)** — Use the 3-tier canonical: `text-[#ECEBE7]` (primary ivory), `text-[#A29E93]` (muted), `text-[#7A7974]` (faint). Never `text-white/{40|50|55|60|70|75|80|85}` in marketing scope.
+
+6. **Text tokens (marketing light-mode: `/about`, `/privacy`)** — Use `text-[#28251D]` (primary dark warm) and `text-[#7A7974]` (muted). Never `text-slate-*` or `text-[#111827]` in marketing scope.
+
+7. **Border tokens (marketing dark-mode)** — Use `border-[#C9A961]/{20|25|30}` (standard / secondary / emphasis). Never `border-white/{10|15|20}` in marketing scope.
+
+8. **Surface tokens (marketing dark-mode)** — Use `bg-[#1A1A1C]` (opaque emphasis card) or `bg-[#1A1A1C]/{40|50|60}` (translucent variants). Never `bg-white/[0.0X]` or `bg-[#0F0F10]` / `bg-[#141416]` / `bg-[#0F1D3E]` in marketing scope.
+
+9. **Typography** — H1/H2/card titles MUST use `${headingFont}` from `components/site-ui.ts`. Never `font-black`. Prefer `font-semibold` for headings.
+
+10. **Focus states** — Interactive elements MUST use `focusRing()` from `components/site-ui.ts` or an inline focus ring in `#C9A961` with a `#111112` ring-offset. Never use orange focus rings.
+
+11. **Cards on dark surfaces** — Use inline `border-[#C9A961]/20 bg-[#1A1A1C]/50` (or an equivalent using the tokens in docs/BRAND.md). Never `.dark-enterprise-card` (banned).
+
+12. **Reference implementations** — When creating or editing any marketing page, mirror the canonical set in docs/BRAND.md "Reference implementations" (all 10 pages in the 9M.N series). If unsure how to render an element, open one of those files and copy the pattern.
+
+**Before saving**, self-verify by grepping the file for banned tokens:
+- Tier A (global): `FF7A1A`, `FFB36F`, `D28A4A`, `F97316`, `2146CF`, `1E6BFF`, `premium-button`, `advisacor-dark-grid`, `dark-enterprise-card`, `AdvisacorLogo`, `advisacor-logo.svg`, `advisacor-logo-light.svg`, `font-black`
+- Tier B (marketing files only): `#0A1530`, `#0A1020`, `#0F1D3E`, `#0F0F10`, `#141416`, `#0B0B0C`, `#F5F7FA`, `#111827`, `D4B672`, `D9B972`, `from-slate-2`, `via-slate-3`, `to-slate-4`
+
+If any match, replace with the canonical equivalent from docs/BRAND.md before proposing the edit.
+
+The build will fail via `npm run brand:lint` if any banned token reaches CI. Do not attempt to bypass or silence the lint — fix the code.

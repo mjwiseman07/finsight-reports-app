@@ -57,7 +57,7 @@ export default function SectionEditorDrawer({ packetId, section, open, onClose }
   return (
     <div className="no-print fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-      <div className="relative flex h-full w-full max-w-[640px] flex-col border-l border-white/10 bg-[#141416] shadow-2xl">
+      <div className="relative flex h-full w-full max-w-[640px] flex-col border-l border-white/10 bg-[#1A1A1C] shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <h3 className={`${headingFont} text-lg text-white`}>Edit section: {section.section_key}</h3>
           <button

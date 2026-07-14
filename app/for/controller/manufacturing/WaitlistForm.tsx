@@ -81,7 +81,7 @@ export default function WaitlistForm() {
             name="name"
             type="text"
             required
-            className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white placeholder-white/30 ${focusRing()}`}
+            className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white placeholder-white/30 ${focusRing()}`}
             placeholder="Full name"
           />
         </div>
@@ -93,7 +93,7 @@ export default function WaitlistForm() {
             name="email"
             type="email"
             required
-            className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white placeholder-white/30 ${focusRing()}`}
+            className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white placeholder-white/30 ${focusRing()}`}
             placeholder="you@company.com"
           />
         </div>
@@ -105,7 +105,7 @@ export default function WaitlistForm() {
             name="company"
             type="text"
             required
-            className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white placeholder-white/30 ${focusRing()}`}
+            className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white placeholder-white/30 ${focusRing()}`}
             placeholder="Company name"
           />
         </div>
@@ -118,7 +118,7 @@ export default function WaitlistForm() {
               name="revenue_band"
               required
               defaultValue=""
-              className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white ${focusRing()}`}
+              className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white ${focusRing()}`}
             >
               <option value="" disabled>
                 Select…
@@ -138,7 +138,7 @@ export default function WaitlistForm() {
               name="current_erp"
               required
               defaultValue=""
-              className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white ${focusRing()}`}
+              className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white ${focusRing()}`}
             >
               <option value="" disabled>
                 Select…
@@ -158,7 +158,7 @@ export default function WaitlistForm() {
           <textarea
             name="pain_point"
             rows={3}
-            className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white placeholder-white/30 resize-none ${focusRing()}`}
+            className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white placeholder-white/30 resize-none ${focusRing()}`}
             placeholder="Variance analysis, WIP roll, absorption, disclosures…"
           />
         </div>
@@ -168,7 +168,7 @@ export default function WaitlistForm() {
         <button
           type="submit"
           disabled={isPending}
-          className={`w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${focusRing()}`}
+          className={`w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${focusRing()}`}
         >
           {isPending ? "Submitting…" : "Join the waitlist"}
           {!isPending && <span aria-hidden>→</span>}
