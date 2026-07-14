@@ -3410,19 +3410,19 @@ function PulseCfoMemoryPanel({ memory, onAskMetric }) {
   const score = memory.score || buildPulseMemoryScore(timeline);
 
   return (
-    <div className="rounded-[2rem] border border-violet-300/20 bg-violet-400/10 p-8 shadow-2xl shadow-violet-500/5">
+    <div className="rounded-[2rem] border border-[#A86FDF]/30 bg-[#A86FDF]/10 p-8 shadow-2xl shadow-[#A86FDF]/10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-violet-200">Pulse CFO Memory</p>
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em]">Pulse remembers what it identified, recommended, and tracked.</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#BD91E6]`}>Pulse CFO Memory</p>
+          <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Pulse remembers what it identified, recommended, and tracked.</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#A29E93]">
             Persistent insight memory lets Pulse act like a CFO that has worked with the company over time, not a stateless chatbot.
           </p>
         </div>
         <button
           type="button"
           onClick={() => onAskMetric("what concerns you most based on prior Pulse memory")}
-          className="rounded-2xl bg-violet-300 px-5 py-3 text-sm font-black text-[#170826]"
+          className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#A86FDF] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#BD91E6]`}
         >
           Ask Pulse About Memory
         </button>
@@ -3436,23 +3436,23 @@ function PulseCfoMemoryPanel({ memory, onAskMetric }) {
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-          <p className="text-sm font-black text-white">Executive Timeline</p>
+        <div className="rounded-3xl border border-[#A86FDF]/20 bg-[#111112]/70 p-5">
+          <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Executive Timeline</p>
           <div className="mt-4 grid gap-3">
             {timeline.map((item) => (
               <button
                 type="button"
                 key={item.id}
                 onClick={() => setSelectedInsightId(item.id)}
-                className={`rounded-2xl border p-4 text-left transition ${
+                className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border p-4 text-left transition ${
                   selectedInsight?.id === item.id
-                    ? "border-violet-200/60 bg-violet-300/15"
-                    : "border-white/10 bg-[#0A1020] hover:border-white/25"
+                    ? "border-[#A86FDF]/60 bg-[#A86FDF]/15"
+                    : "border-[#A86FDF]/20 bg-[#1A1A1C] hover:border-[#A86FDF]/40"
                 }`}
               >
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-violet-200">{item.month}</p>
-                <p className="mt-1 text-sm font-black text-white">{item.label}</p>
-                <p className="mt-1 text-xs font-bold text-slate-500">
+                <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#BD91E6]`}>{item.month}</p>
+                <p className="mt-1 text-sm font-black text-[#ECEBE7]">{item.label}</p>
+                <p className="mt-1 text-xs font-bold text-[#7A7974]">
                   {item.current_trend} | {item.status} | {item.severity}
                 </p>
               </button>
@@ -3461,32 +3461,32 @@ function PulseCfoMemoryPanel({ memory, onAskMetric }) {
         </div>
 
         {selectedInsight && (
-          <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-6">
+          <div className="rounded-3xl border border-[#A86FDF]/20 bg-[#111112]/70 p-6">
             <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-violet-300/15 px-3 py-1 text-xs font-black text-violet-100">{selectedInsight.insight_category}</span>
-              <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-black text-slate-300">{selectedInsight.current_trend}</span>
-              <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-black text-slate-300">{selectedInsight.status}</span>
+              <span className={`${headingFont} rounded-full bg-[#A86FDF]/15 px-3 py-1 text-xs font-black text-[#BD91E6]`}>{selectedInsight.insight_category}</span>
+              <span className={`${headingFont} rounded-full bg-[#1A1A1C] px-3 py-1 text-xs font-black text-[#A29E93]`}>{selectedInsight.current_trend}</span>
+              <span className={`${headingFont} rounded-full bg-[#1A1A1C] px-3 py-1 text-xs font-black text-[#A29E93]`}>{selectedInsight.status}</span>
             </div>
-            <h3 className="mt-5 text-2xl font-black text-white">{selectedInsight.description}</h3>
+            <h3 className={`${headingFont} mt-5 text-2xl font-black text-[#ECEBE7]`}>{selectedInsight.description}</h3>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-[#0A1020] p-4">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Financial Impact</p>
-                <p className="mt-2 text-lg font-black text-white">
+              <div className="rounded-2xl border border-[#A86FDF]/20 bg-[#1A1A1C] p-4">
+                <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>Financial Impact</p>
+                <p className={`${headingFont} mt-2 text-lg font-black text-[#ECEBE7]`}>
                   {selectedInsight.financial_impact_label || `$${Number(selectedInsight.financial_impact || 0).toLocaleString()}`}
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-[#0A1020] p-4">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Current Status</p>
-                <p className="mt-2 text-lg font-black capitalize text-white">{String(selectedInsight.current_trend || "monitoring").replace(/_/g, " ")}</p>
+              <div className="rounded-2xl border border-[#A86FDF]/20 bg-[#1A1A1C] p-4">
+                <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>Current Status</p>
+                <p className={`${headingFont} mt-2 text-lg font-black capitalize text-[#ECEBE7]`}>{String(selectedInsight.current_trend || "monitoring").replace(/_/g, " ")}</p>
               </div>
             </div>
-            <div className="mt-5 rounded-2xl border border-white/10 bg-[#0A1020] p-4">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Original Recommendation</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{selectedInsight.recommended_action}</p>
+            <div className="mt-5 rounded-2xl border border-[#A86FDF]/20 bg-[#1A1A1C] p-4">
+              <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>Original Recommendation</p>
+              <p className="mt-2 text-sm leading-6 text-[#A29E93]">{selectedInsight.recommended_action}</p>
             </div>
-            <div className="mt-4 rounded-2xl border border-white/10 bg-[#0A1020] p-4">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Follow-up Notes</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{selectedInsight.follow_up_notes}</p>
+            <div className="mt-4 rounded-2xl border border-[#A86FDF]/20 bg-[#1A1A1C] p-4">
+              <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>Follow-up Notes</p>
+              <p className="mt-2 text-sm leading-6 text-[#A29E93]">{selectedInsight.follow_up_notes}</p>
             </div>
           </div>
         )}
@@ -3497,9 +3497,9 @@ function PulseCfoMemoryPanel({ memory, onAskMetric }) {
 
 function MemoryScoreCard({ label, value }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
-      <p className="mt-3 text-2xl font-black text-white">{value}</p>
+    <div className="rounded-3xl border border-[#A86FDF]/20 bg-[#111112]/70 p-5">
+      <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>{label}</p>
+      <p className={`${headingFont} mt-3 text-2xl font-black text-[#DFC084]`}>{value}</p>
     </div>
   );
 }
