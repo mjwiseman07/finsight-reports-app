@@ -2125,41 +2125,41 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+              <div className="mt-8 rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-8">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Delivery Configuration</p>
-                    <h2 className="mt-3 text-3xl font-black">Configure recurring executive delivery</h2>
-                    <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Delivery Configuration</p>
+                    <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.02em] text-[#ECEBE7]`}>Configure recurring executive delivery</h2>
+                    <p className="mt-3 max-w-3xl leading-7 text-[#ECEBE7]">
                       Configure the delivery layer while async processing handles ERP sync, AI commentary, PDF/PPT generation, approval status, and email delivery without freezing the frontend.
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-5 py-4">
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Status Flow</p>
-                    <p className="mt-2 text-sm font-bold text-slate-200">{deliveryProcessingStatuses.join(" -> ")}</p>
+                  <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/70 px-5 py-4">
+                    <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#A29E93]`}>Status Flow</p>
+                    <p className={`${headingFont} mt-2 text-sm font-bold text-[#DFC084]`}>{deliveryProcessingStatuses.join(" -> ")}</p>
                   </div>
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-3">
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#A29E93]`}>
                       Recipient Email <HelpTip content={contextualHelp.recipientEmails} />
                     </span>
                     <input
                       value={deliveryEmail}
                       onChange={(event) => setDeliveryEmail(event.target.value)}
                       placeholder={accountEmail}
-                      className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-slate-600 focus:border-[#FF7A1A]/60"
+                      className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] focus:border-[#C9A961]/60"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#A29E93]`}>
                       Delivery Cadence <HelpTip content={contextualHelp.reportingCadence} />
                     </span>
                     <select
                       value={deliveryCadence}
                       onChange={(event) => setDeliveryCadence(event.target.value)}
-                      className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF7A1A]/60"
+                      className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                     >
                       {executiveDeliveryCadences.map((cadence) => (
                         <option key={cadence}>{cadence}</option>
@@ -2167,13 +2167,13 @@ export default function DashboardPage() {
                     </select>
                   </label>
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#A29E93]`}>
                       Package Type <HelpTip content={contextualHelp.packageType} />
                     </span>
                     <select
                       value={deliveryPackageType}
                       onChange={(event) => setDeliveryPackageType(event.target.value)}
-                      className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF7A1A]/60"
+                      className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                     >
                       <option>Executive Financial Package</option>
                       <option>Weekly KPI Snapshot</option>
@@ -2182,31 +2182,31 @@ export default function DashboardPage() {
                     </select>
                   </label>
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#A29E93]`}>
                       Persona Output Style <HelpTip content={contextualHelp.primaryUseCase} />
                     </span>
-                    <div className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-slate-300">
+                    <div className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7]">
                       Stored on the company account during onboarding.
                     </div>
                   </label>
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#A29E93]`}>
                       Delivery Day <HelpTip content={contextualHelp.deliveryDay} />
                     </span>
                     <input
                       value={deliveryDay}
                       onChange={(event) => setDeliveryDay(event.target.value)}
-                      className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF7A1A]/60"
+                      className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    <span className={`${headingFont} flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#A29E93]`}>
                       Approval <HelpTip content={contextualHelp.approvalRequired} />
                     </span>
                     <select
                       value={deliveryApprovalMode}
                       onChange={(event) => setDeliveryApprovalMode(event.target.value)}
-                      className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF7A1A]/60"
+                      className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60"
                     >
                       <option value="approval-required">Approval required before send</option>
                       <option value="auto-send">Auto-send after generation</option>
@@ -2216,31 +2216,31 @@ export default function DashboardPage() {
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-3">
                   {automatedDeliveryOutputTypes.map((output) => (
-                    <div key={output.id} className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                      <p className="text-sm font-black text-white">{output.label}</p>
-                      <p className="mt-1 text-xs font-bold text-[#FFB36F]">{output.availability}</p>
-                      <p className="mt-3 text-sm leading-6 text-slate-400">{output.description}</p>
+                    <div key={output.id} className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                      <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>{output.label}</p>
+                      <p className={`${headingFont} mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#DFC084]`}>{output.availability}</p>
+                      <p className="mt-3 text-sm leading-6 text-[#A29E93]">{output.description}</p>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Configuration Fields</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Configuration Fields</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {deliveryConfigurationFields.map((field) => (
-                        <span key={field} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-bold text-slate-300">
+                        <span key={field} className="rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-3 py-1 text-xs font-bold text-[#ECEBE7]">
                           {field}
                         </span>
                       ))}
                     </div>
                   </div>
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Package Scope Still Applies</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Package Scope Still Applies</p>
                     <div className="mt-3 grid gap-2">
                       {packageScopeRules.map((rule) => (
-                        <p key={rule.packageName} className="text-sm leading-6 text-slate-400">
-                          <span className="font-black text-slate-200">{rule.packageName}:</span> {rule.scope}
+                        <p key={rule.packageName} className="text-sm leading-6 text-[#A29E93]">
+                          <span className={`${headingFont} font-black text-[#DFC084]`}>{rule.packageName}:</span> {rule.scope}
                         </p>
                       ))}
                     </div>
