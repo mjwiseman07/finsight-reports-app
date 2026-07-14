@@ -16,7 +16,6 @@ import {
   YAxis,
 } from "recharts";
 import { supabase } from "../../lib/supabase";
-import { AdvisacorLogo } from "../../components/AdvisacorLogo";
 import {
   automatedDeliveryOutputTypes,
   packageScopeRules,
@@ -13223,7 +13222,7 @@ export default function UploadPage() {
             border-radius: 0 !important;
             box-shadow: none !important;
             background: white !important;
-            color: #111827 !important;
+            color: #28251D !important;
             padding: 24px !important;
           }
 
@@ -13241,7 +13240,7 @@ export default function UploadPage() {
           body:has(.quickbooks-guide-modal) .quickbooks-guide-print td {
             border: 1px solid #d1d5db !important;
             padding: 8px !important;
-            color: #111827 !important;
+            color: #28251D !important;
             vertical-align: top !important;
           }
 
@@ -13265,7 +13264,7 @@ export default function UploadPage() {
           body.kpi-print-active .kpi-print-package {
             display: block !important;
             background: white !important;
-            color: #111827 !important;
+            color: #28251D !important;
             font-family: Arial, sans-serif;
           }
 
@@ -13332,7 +13331,7 @@ export default function UploadPage() {
           .print-package {
             display: block !important;
             background: white !important;
-            color: #111827 !important;
+            color: #28251D !important;
             font-family: Arial, sans-serif;
             counter-reset: print-page;
           }
@@ -14075,7 +14074,7 @@ export default function UploadPage() {
           }
 
           .print-aging-risk {
-            background: #f97316;
+            background: #C9A961;
           }
 
           .print-aging-critical {
@@ -14172,8 +14171,8 @@ export default function UploadPage() {
 
           .print-statement-table th {
             padding: 10px 0;
-            border-bottom: 2px solid #111827;
-            color: #111827;
+            border-bottom: 2px solid #28251D;
+            color: #28251D;
             font-weight: 700;
             text-align: left;
           }
@@ -14187,7 +14186,7 @@ export default function UploadPage() {
           .print-statement-table td {
             padding: 7px 0;
             border-bottom: 1px solid #e5e7eb;
-            color: #111827;
+            color: #28251D;
           }
 
           .print-statement-section td {
@@ -14221,7 +14220,7 @@ export default function UploadPage() {
           .print-statement-major-total td {
             padding-top: 10px;
             padding-bottom: 10px;
-            border-top: 2px solid #111827;
+            border-top: 2px solid #28251D;
             border-bottom: 1px solid #6b7280;
             background: #eef2ff;
             font-weight: 800;
@@ -14230,8 +14229,8 @@ export default function UploadPage() {
           .print-statement-grand-total td {
             padding-top: 11px;
             padding-bottom: 11px;
-            border-top: 3px solid #111827;
-            border-bottom: 2px solid #111827;
+            border-top: 3px solid #28251D;
+            border-bottom: 2px solid #28251D;
             background: #e5e7eb;
             font-size: 13.5px;
             font-weight: 900;
@@ -14243,8 +14242,8 @@ export default function UploadPage() {
       <main className="app-screen min-h-screen bg-[#0B1020] px-6 py-20 text-white">
         <div className="mx-auto max-w-7xl">
           {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("superAdmin") === "true" && (
-            <div className="mb-8 rounded-[2rem] border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 p-6">
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Super Admin Test Journey</p>
+            <div className="mb-8 rounded-[2rem] border border-[#C9A961]/30 bg-[#C9A961]/10 p-6">
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Super Admin Test Journey</p>
               <h1 className="mt-3 text-3xl font-black">Start from the beginning of the product flow</h1>
               <p className="mt-3 max-w-3xl leading-7 text-slate-300">
                 Persona: {new URLSearchParams(window.location.search).get("persona") || "Selected persona"} | Package: {new URLSearchParams(window.location.search).get("package") || "Selected package"} | Demo company: {new URLSearchParams(window.location.search).get("testCompany") || "Selected demo company"}
@@ -14581,7 +14580,7 @@ export default function UploadPage() {
                 </div>
               )}
               {(kpiReviewMode === "print" || (kpiReviewMode === "staged" && activeKpiReviewSection === "detected-kpis")) && (
-              <section id="kpi-review-stage-detected-kpis" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#111827] p-8 shadow-xl shadow-black/10">
+              <section id="kpi-review-stage-detected-kpis" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#28251D] p-8 shadow-xl shadow-black/10">
                 <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
                   Step 4 - Review KPIs
                 </p>
@@ -15265,10 +15264,10 @@ function ImportWorkflow({
   };
 
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-[#0A1020]/95 p-8 shadow-2xl shadow-black/30">
+    <div className="rounded-[2rem] border border-white/10 bg-[#111112]/95 p-8 shadow-2xl shadow-black/30">
       <div className="mb-10">
-        <AdvisacorLogo priority className="mb-6 w-[min(525px,46.5vw)]" />
-        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-[#FFB36F]">
+        <img src="/advisacor-logo-framed-navy.png" alt="Advisacor" className="mb-6 w-[min(525px,46.5vw)]" />
+        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-[#C9A961]">
           Enterprise Operational Intelligence
         </p>
         <h1 className="text-5xl font-bold tracking-tight text-[#F9FAFB]">
@@ -15278,7 +15277,7 @@ function ImportWorkflow({
           Upload QuickBooks reports, choose the appropriate advisory package, and Advisacor prepares
           a polished executive-ready financial package with the right level of analysis and delivery automation.
         </p>
-        <div className="mt-5 inline-flex rounded-full border border-[#FF7A1A]/30 bg-[#FF7A1A]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#FFD0AB]">
+        <div className="mt-5 inline-flex rounded-full border border-[#C9A961]/30 bg-[#C9A961]/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#FFD0AB]">
           {PACKAGE_LABELS[packageTier]} Package
         </div>
       </div>
@@ -15499,10 +15498,10 @@ function PersonaOutputSelector({
     packageScopeRules[0];
 
   return (
-    <section className="mb-8 rounded-[2rem] border border-[#1E6BFF]/20 bg-[#07101F] p-6 shadow-2xl shadow-black/20">
+    <section className="mb-8 rounded-[2rem] border border-[#C9A961]/20 bg-[#07101F] p-6 shadow-2xl shadow-black/20">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Persona Output Layer</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Persona Output Layer</p>
           <h2 className="mt-2 text-2xl font-black text-white">One intelligence engine, different presentation layers</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
             Package scope determines which intelligence is available. Persona mode determines wording, depth, visuals, recommendations, report structure, AI tone, and delivery summary style.
@@ -15521,13 +15520,13 @@ function PersonaOutputSelector({
             onClick={() => onPersonaOutputModeChange(persona.id as PersonaOutputModeId)}
             className={`rounded-3xl border p-4 text-left transition ${
               personaOutputMode === persona.id
-                ? "border-[#FF7A1A]/70 bg-[#FF7A1A]/15 shadow-xl shadow-[#FF7A1A]/10"
+                ? "border-[#C9A961]/70 bg-[#C9A961]/15 shadow-xl shadow-[#C9A961]/10"
                 : "border-white/10 bg-white/[0.035] hover:border-white/25"
             }`}
           >
             <p className="text-base font-black text-white">{persona.label}</p>
             <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{persona.positioning}</p>
-            <p className="mt-3 text-xs font-bold text-[#FFB36F]">{persona.tone}</p>
+            <p className="mt-3 text-xs font-bold text-[#C9A961]">{persona.tone}</p>
           </button>
         ))}
       </div>
@@ -15683,7 +15682,7 @@ function WorkflowSteps({
   ];
 
   return (
-    <div className="mb-8 rounded-2xl border border-[#243041] bg-[#111827]/80 p-3">
+    <div className="mb-8 rounded-2xl border border-[#243041] bg-[#28251D]/80 p-3">
       <div className="grid gap-2 md:grid-cols-8">
         {steps.map((step, index) => {
           const current = activeStep === index + 1 || step.status === "In Progress" || step.status === "Ready to continue";
@@ -15703,7 +15702,7 @@ function WorkflowSteps({
                       ? "border-slate-600 bg-slate-900/60"
                       : locked
                         ? "border-[#243041] bg-[#0B1020] opacity-70"
-                        : "border-[#243041] bg-[#111827]"
+                        : "border-[#243041] bg-[#28251D]"
               }`}
             >
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#5B8CFF]">
@@ -16302,7 +16301,7 @@ function KpiApprovalStatusCard({
                 value={reviewerNotes}
                 onChange={(event) => onReviewerNotesChange(event.target.value)}
                 placeholder="Add package review notes, adjustments, or internal context."
-                className="mt-2 min-h-20 w-full rounded-xl border border-[#243041] bg-[#111827] p-3 text-xs text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
+                className="mt-2 min-h-20 w-full rounded-xl border border-[#243041] bg-[#28251D] p-3 text-xs text-[#F9FAFB] outline-none placeholder:text-[#94A3B8] focus:border-[#5B8CFF]"
               />
             </label>
           )}
@@ -16332,7 +16331,7 @@ function ImportActionBar({
   return (
     <section
       id="import-action-bar"
-      className="mb-10 rounded-3xl border border-[#5B8CFF]/30 bg-[#111827] p-5 shadow-xl shadow-black/20"
+      className="mb-10 rounded-3xl border border-[#5B8CFF]/30 bg-[#28251D] p-5 shadow-xl shadow-black/20"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -16411,7 +16410,7 @@ function ImportMethodSelector({
   return (
     <section className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 shadow-xl shadow-black/10">
       <div className="mb-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#FFB36F]">
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#C9A961]">
           Choose Import Method
         </p>
         <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">How would you like to bring in reports?</h3>
@@ -16426,7 +16425,7 @@ function ImportMethodSelector({
             <span className="rounded-full bg-[#172033] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">
               {step}
             </span>
-            {index < flowSteps.length - 1 && <span className="text-[#FF7A1A]">→</span>}
+            {index < flowSteps.length - 1 && <span className="text-[#C9A961]">→</span>}
           </Fragment>
         ))}
       </div>
@@ -16499,10 +16498,10 @@ function EnterpriseImportExperiencePanel({ selectedImportMethod }: { selectedImp
   ];
 
   return (
-    <section className="rounded-[2rem] border border-[#1E6BFF]/20 bg-[#07101F] p-6 shadow-2xl shadow-black/20">
+    <section className="rounded-[2rem] border border-[#C9A961]/20 bg-[#07101F] p-6 shadow-2xl shadow-black/20">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Import Operations Layer</p>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Import Operations Layer</p>
           <h3 className="mt-2 text-2xl font-black text-white">Enterprise data intake, validation, mapping, and AI review</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
             The import workflow supports drag-and-drop style report intake, folder import, manual file selection, QuickBooks exports, validation, data preview, and AI-generated recommendations after reports are available.
@@ -16516,10 +16515,10 @@ function EnterpriseImportExperiencePanel({ selectedImportMethod }: { selectedImp
         {stages.map((stage, index) => (
           <div key={stage.title} className="rounded-3xl border border-white/10 bg-white/[0.045] p-5">
             <div className="flex items-center justify-between gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#FF7A1A]/15 text-sm font-black text-[#FFB36F]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#C9A961]/15 text-sm font-black text-[#C9A961]">
                 {index + 1}
               </span>
-              <span className="rounded-full bg-[#1E6BFF]/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#AFC8FF]">
+              <span className="rounded-full bg-[#C9A961]/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#AFC8FF]">
                 {stage.status}
               </span>
             </div>
@@ -16559,7 +16558,7 @@ function QuickBooksImportSummaryModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-4 backdrop-blur-sm">
       <section className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-[#334155] bg-[#0B1020] shadow-2xl shadow-black/40">
-        <div className="shrink-0 flex flex-col gap-4 border-b border-[#243041] bg-[#111827] px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="shrink-0 flex flex-col gap-4 border-b border-[#243041] bg-[#28251D] px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#5B8CFF]">QuickBooks Import Complete</p>
             <h2 className="mt-2 text-2xl font-bold text-white">Review imported and missing reports</h2>
@@ -16629,7 +16628,7 @@ function QuickBooksImportSummaryModal({
           </div>
         </div>
 
-        <div className="shrink-0 flex flex-col gap-3 border-t border-[#243041] bg-[#111827] px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+        <div className="shrink-0 flex flex-col gap-3 border-t border-[#243041] bg-[#28251D] px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={onImportFromFolder}
@@ -16685,7 +16684,7 @@ function QuickBooksHybridResultsPanel({
   const remainingReportCount = Math.max(requiredReports.length - readyReportCount, 0);
 
   return (
-    <section className="rounded-[2rem] border border-[#243041] bg-[#111827] p-6 shadow-xl shadow-black/10">
+    <section className="rounded-[2rem] border border-[#243041] bg-[#28251D] p-6 shadow-xl shadow-black/10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">QuickBooks Import Results</p>
@@ -16877,7 +16876,7 @@ function QuickBooksImportOptionCard({
       }`}
     >
       <div>
-        <div className="mb-5 rounded-2xl border border-[#243041] bg-[#111827] p-3">
+        <div className="mb-5 rounded-2xl border border-[#243041] bg-[#28251D] p-3">
           <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[#94A3B8]">Accounting Platform</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <button
@@ -16924,7 +16923,7 @@ function QuickBooksImportOptionCard({
         <p className="mt-3 text-sm leading-6 text-[#94A3B8]">
           Connect directly to QuickBooks to automate report retrieval and reduce manual uploads.
         </p>
-        <p className="mt-4 rounded-2xl border border-[#243041] bg-[#111827] px-4 py-3 text-xs leading-5 text-slate-300">
+        <p className="mt-4 rounded-2xl border border-[#243041] bg-[#28251D] px-4 py-3 text-xs leading-5 text-slate-300">
           <span className="font-bold text-slate-100">Recommended use:</span> Best for connected QuickBooks Online companies where you want Advisacor to fetch report data directly.
         </p>
       </div>
@@ -17017,7 +17016,7 @@ function ImportOptionCard({
         </div>
         <h4 className="text-xl font-bold text-[#F9FAFB]">{title}</h4>
         <p className="mt-3 text-sm leading-6 text-[#94A3B8]">{description}</p>
-        <p className="mt-4 rounded-2xl border border-[#243041] bg-[#111827] px-4 py-3 text-xs leading-5 text-slate-300">
+        <p className="mt-4 rounded-2xl border border-[#243041] bg-[#28251D] px-4 py-3 text-xs leading-5 text-slate-300">
           <span className="font-bold text-slate-100">Recommended use:</span> {recommendedUse}
         </p>
       </div>
@@ -17091,7 +17090,7 @@ function PremiumPackageSelector({
               className={`rounded-3xl border p-6 text-left shadow-lg transition ${
                 selected
                   ? "border-[#5B8CFF] bg-[#172033] shadow-[#5B8CFF]/10"
-                  : "border-[#243041] bg-[#111827] shadow-black/10 hover:border-[#5B8CFF]/60"
+                  : "border-[#243041] bg-[#28251D] shadow-black/10 hover:border-[#5B8CFF]/60"
               }`}
             >
               <div className="mb-5 flex items-center justify-between gap-4">
@@ -17136,7 +17135,7 @@ function FolderImportPanel({
   onFallbackFiles: (files: File[]) => Promise<void>;
 }) {
   return (
-    <section className="rounded-3xl border border-[#243041] bg-[#111827] p-6 shadow-xl shadow-black/10">
+    <section className="rounded-3xl border border-[#243041] bg-[#28251D] p-6 shadow-xl shadow-black/10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
@@ -17225,7 +17224,7 @@ function FolderImportResults({ result }: { result: FolderImportResult }) {
           <div className="mt-3 space-y-2 text-sm text-[#F9FAFB]">
             {group.items.length > 0 ? (
               group.items.map((item) => (
-                <p key={item} className="rounded-xl bg-[#111827] px-3 py-2">
+                <p key={item} className="rounded-xl bg-[#28251D] px-3 py-2">
                   {item}
                 </p>
               ))
@@ -17255,7 +17254,7 @@ function UploadGroup({
   onSelectReport: (reportId: string) => void;
 }) {
   return (
-    <section className="rounded-3xl border border-[#243041] bg-[#111827] p-6 shadow-xl shadow-black/10">
+    <section className="rounded-3xl border border-[#243041] bg-[#28251D] p-6 shadow-xl shadow-black/10">
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-[#F9FAFB]">{title}</h2>
@@ -17315,7 +17314,7 @@ function PremiumUploadCard({
       ? "bg-emerald-500/15 text-emerald-300"
       : report.required
         ? "bg-amber-500/15 text-amber-300"
-        : "bg-[#111827] text-[#94A3B8]";
+        : "bg-[#28251D] text-[#94A3B8]";
 
   return (
     <div
@@ -17324,7 +17323,7 @@ function PremiumUploadCard({
         selected
           ? "border-[#5B8CFF] bg-[#172033] ring-2 ring-[#5B8CFF]/40"
           : report.omitted
-            ? "border-slate-700 bg-[#111827] opacity-80"
+            ? "border-slate-700 bg-[#28251D] opacity-80"
             : "border-[#243041] bg-[#172033]"
       }`}
     >
@@ -17347,7 +17346,7 @@ function PremiumUploadCard({
       </div>
 
       <label
-        className={`block rounded-2xl border border-dashed bg-[#111827] p-5 transition ${
+        className={`block rounded-2xl border border-dashed bg-[#28251D] p-5 transition ${
           report.omitted
             ? "cursor-not-allowed border-[#243041]"
             : "cursor-pointer border-[#5B8CFF]/40 hover:border-[#5B8CFF]"
@@ -17428,7 +17427,7 @@ function LockedUploadCard({
   return (
     <div
       onClick={onSelect}
-      className={`rounded-2xl border bg-[#111827] p-5 opacity-80 shadow-lg shadow-black/10 ${
+      className={`rounded-2xl border bg-[#28251D] p-5 opacity-80 shadow-lg shadow-black/10 ${
         selected ? "border-[#5B8CFF] ring-2 ring-[#5B8CFF]/40" : "border-[#243041]"
       }`}
     >
@@ -17500,7 +17499,7 @@ function QuickBooksHelpTrigger({ help }: { help: QuickBooksReportHelp }) {
                 {help.note}
               </div>
             )}
-            <div className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+            <div className="rounded-xl border border-[#243041] bg-[#28251D] p-3">
               <p className="font-bold text-[#F9FAFB]">Export</p>
               <p className="mt-1 text-[#94A3B8]">{help.export}</p>
             </div>
@@ -17810,7 +17809,7 @@ function PackageCustomizationPanel({
   };
 
   return (
-    <section id="missing-inputs" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#111827] p-8 shadow-xl shadow-black/10">
+    <section id="missing-inputs" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#28251D] p-8 shadow-xl shadow-black/10">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">
@@ -17856,31 +17855,31 @@ function PackageCustomizationPanel({
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Client name</span>
               <input value={clientName} onChange={(event) => onClientNameChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
             </label>
-            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Reporting period</span>
               <input value={reportingPeriod} onChange={(event) => onReportingPeriodChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
             </label>
-            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Client industry</span>
               <input value={clientIndustry} onChange={(event) => onClientIndustryChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
             </label>
-            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Company tagline / subtitle</span>
               <input value={companyTagline} onChange={(event) => onCompanyTaglineChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
             </label>
-            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Prepared for</span>
               <input value={preparedFor} onChange={(event) => onPreparedForChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
             </label>
-            <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Prepared by</span>
               <input value={preparedBy} onChange={(event) => onPreparedByChange(event.target.value)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
             </label>
-            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <div className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Firm logo</span>
               <input
                 value={firmLogoPath}
@@ -17911,7 +17910,7 @@ function PackageCustomizationPanel({
                 Uploaded logos take priority and are embedded in the PDF and PowerPoint. Use a public logo URL, or upload the file from this computer.
               </span>
             </div>
-            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <div className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <span className="text-sm font-semibold text-[#F9FAFB]">Package level</span>
               <p className="mt-3 rounded-xl bg-[#0B1020] px-3 py-2 text-sm font-bold text-[#F9FAFB]">{PACKAGE_LABELS[packageTier]}</p>
               <label className="mt-3 flex items-center gap-2 text-xs text-[#94A3B8]">
@@ -17956,7 +17955,7 @@ function PackageCustomizationPanel({
                 className={`rounded-2xl border p-5 text-left transition ${
                   virtualCfoKpiMode === "recommended"
                     ? "border-[#5B8CFF] bg-[#5B8CFF]/15"
-                    : "border-[#243041] bg-[#111827] hover:border-[#5B8CFF]/60"
+                    : "border-[#243041] bg-[#28251D] hover:border-[#5B8CFF]/60"
                 }`}
               >
                 <span className="block text-lg font-bold text-[#F9FAFB]">Let Advisacor Choose For Me</span>
@@ -17973,7 +17972,7 @@ function PackageCustomizationPanel({
                 className={`rounded-2xl border p-5 text-left transition ${
                   virtualCfoKpiMode === "custom"
                     ? "border-[#5B8CFF] bg-[#5B8CFF]/15"
-                    : "border-[#243041] bg-[#111827] hover:border-[#5B8CFF]/60"
+                    : "border-[#243041] bg-[#28251D] hover:border-[#5B8CFF]/60"
                 }`}
               >
                 <span className="block text-lg font-bold text-[#F9FAFB]">Build Customized KPIs For This Client</span>
@@ -18008,7 +18007,7 @@ function PackageCustomizationPanel({
               const selected = selectedPdfSections.includes(option.id);
               const missingData = selected && isSectionMissingData(option);
               return (
-                <label key={option.id} className="flex items-start gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                <label key={option.id} className="flex items-start gap-3 rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                   <input type="checkbox" checked={selected} onChange={() => togglePdfSection(option.id)} className="mt-1" />
                   <span>
                     <span className="font-semibold text-[#F9FAFB]">{option.label}</span>
@@ -18052,7 +18051,7 @@ function PackageCustomizationPanel({
               })}
             </div>
 
-            <details className="mt-5 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <details className="mt-5 rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <summary className="cursor-pointer text-sm font-bold text-blue-200">Advanced optional KPI selection</summary>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {optionalRatios.map((ratio) => {
@@ -18093,7 +18092,7 @@ function PackageCustomizationPanel({
               {chartOptions
                 .filter((chart) => isReportAvailable(chart.minimumTier, packageTier))
                 .map((chart) => (
-                  <label key={chart.id} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                  <label key={chart.id} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                     <input type="checkbox" checked={selectedCharts.includes(chart.id)} onChange={() => toggleChart(chart.id)} />
                     <span className="text-sm font-semibold text-[#F9FAFB]">{chart.label}</span>
                   </label>
@@ -18110,39 +18109,39 @@ function PackageCustomizationPanel({
                 { id: "quarter" as FluxAnalysisId, label: "Quarter-over-Quarter" },
                 { id: "year" as FluxAnalysisId, label: "Year-over-Year" },
               ].map((item) => (
-                <label key={item.id} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+                <label key={item.id} className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                   <input type="checkbox" checked={selectedFluxAnalyses.includes(item.id)} onChange={() => toggleFluxAnalysis(item.id)} />
                   <span className="font-semibold text-[#F9FAFB]">{item.label}</span>
                 </label>
               ))}
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                 <span className="text-sm font-semibold text-[#F9FAFB]">Dollar threshold</span>
                 <input type="number" value={fluxSettings.dollarThreshold} onChange={(event) => onFluxSettingsChange({ ...fluxSettings, dollarThreshold: Number(event.target.value) })} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
               </label>
-              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                 <span className="text-sm font-semibold text-[#F9FAFB]">Percent threshold</span>
                 <input type="number" value={fluxSettings.percentThreshold} onChange={(event) => onFluxSettingsChange({ ...fluxSettings, percentThreshold: Number(event.target.value) })} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
               </label>
-              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                 <span className="text-sm font-semibold text-[#F9FAFB]">Threshold logic</span>
                 <select value={fluxSettings.logic} onChange={(event) => onFluxSettingsChange({ ...fluxSettings, logic: event.target.value as ThresholdLogic })} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]">
                   <option value="either">OR - either threshold</option>
                   <option value="both">AND - both thresholds</option>
                 </select>
               </label>
-              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                 <span className="text-sm font-semibold text-[#F9FAFB]">Maximum rows per section</span>
                 <input type="number" min="1" value={maxFluxRows} onChange={(event) => onMaxFluxRowsChange(Number(event.target.value) || 10)} className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB]" />
               </label>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <label className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4 text-sm font-semibold text-[#F9FAFB]">
+              <label className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#28251D] p-4 text-sm font-semibold text-[#F9FAFB]">
                 <input type="checkbox" checked={includeHighSeverityOnly} onChange={(event) => onIncludeHighSeverityOnlyChange(event.target.checked)} />
                 Include high severity only
               </label>
-              <label className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4 text-sm font-semibold text-[#F9FAFB]">
+              <label className="flex items-center gap-3 rounded-2xl border border-[#243041] bg-[#28251D] p-4 text-sm font-semibold text-[#F9FAFB]">
                 <input type="checkbox" checked={includeModerateSeverity} onChange={(event) => onIncludeModerateSeverityChange(event.target.checked)} />
                 Include moderate severity
               </label>
@@ -18224,7 +18223,7 @@ function PackageCustomizationPanel({
           )}
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <div className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <p className="text-sm font-bold text-[#F9FAFB]">Option 1: Monthly Revenue and Days</p>
               <p className="mt-2 text-xs leading-5 text-[#94A3B8]">
                 Enter monthly revenue and days in period. If revenue is blank, detected revenue
@@ -18256,7 +18255,7 @@ function PackageCustomizationPanel({
               />
             </div>
 
-            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <div className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <p className="text-sm font-bold text-[#F9FAFB]">Option 2: Average Daily Sales</p>
               <p className="mt-2 text-xs leading-5 text-[#94A3B8]">
                 Enter average daily sales directly if management already knows the daily sales run rate.
@@ -18271,7 +18270,7 @@ function PackageCustomizationPanel({
               />
             </div>
 
-            <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+            <div className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
               <p className="text-sm font-bold text-[#F9FAFB]">Option 3: Upload Sales Detail</p>
               <p className="mt-2 text-xs leading-5 text-[#94A3B8]">
                 Upload invoice or sales detail with an amount, sales, total, invoice amount, or net sales column.
@@ -18302,7 +18301,7 @@ function PackageCustomizationPanel({
 
           <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="grid gap-4 md:grid-cols-3">
-              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                 <span className="text-sm font-semibold text-[#F9FAFB]">Report start date</span>
                 <input
                   type="date"
@@ -18311,7 +18310,7 @@ function PackageCustomizationPanel({
                   className="mt-3 w-full rounded-xl border border-[#243041] bg-[#0B1020] px-3 py-2 text-sm text-[#F9FAFB] outline-none focus:border-[#5B8CFF]"
                 />
               </label>
-              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                 <span className="text-sm font-semibold text-[#F9FAFB]">Report end date</span>
                 <input
                   type="date"
@@ -18321,7 +18320,7 @@ function PackageCustomizationPanel({
                 />
                 <span className="mt-2 block text-xs text-[#94A3B8]">Auto days: {autoDays ?? "Enter dates"}</span>
               </label>
-              <label className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+              <label className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
                 <span className="text-sm font-semibold text-[#F9FAFB]">Manual period days</span>
                 <input
                   type="number"
@@ -18403,7 +18402,7 @@ function PackageCustomizationPanel({
 
       {customKpiModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#243041] bg-[#111827] shadow-2xl shadow-black/40">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#243041] bg-[#28251D] shadow-2xl shadow-black/40">
             <div className="shrink-0 border-b border-[#243041] px-6 py-5">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Custom KPI Setup</p>
               <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Select KPIs for this client</h3>
@@ -18476,7 +18475,7 @@ function PackageCustomizationPanel({
 
       {customDsoModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#243041] bg-[#111827] shadow-2xl shadow-black/40">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#243041] bg-[#28251D] shadow-2xl shadow-black/40">
             <div className="shrink-0 border-b border-[#243041] px-6 py-5">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">DSO Setup</p>
               <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Confirm DSO before returning to Step 3</h3>
@@ -18631,7 +18630,7 @@ function PackageCustomizationPanel({
 
 function PrintLikeMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+    <div className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
       <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
       <p className="mt-2 text-lg font-bold text-[#F9FAFB]">{value}</p>
     </div>
@@ -18790,7 +18789,7 @@ function KpiConfirmationPanel({
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
         {confirmationRows.map((row) => (
-          <div key={row.label} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div key={row.label} className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#94A3B8]">
               {row.label}
             </p>
@@ -18868,7 +18867,7 @@ function InventoryIntelligenceSection({
 
       <div className="mb-5 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
         {summaryItems.map((item) => (
-          <div key={item.label} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div key={item.label} className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#94A3B8]">{item.label}</p>
             <p className="mt-2 text-xl font-bold text-[#F9FAFB]">{item.value}</p>
             <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{item.detail}</p>
@@ -18900,7 +18899,7 @@ function InventoryIntelligenceSection({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {reviewGroups.map((group) => (
-          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-sm font-bold text-white">{group.title}</p>
             <div className="mt-3 space-y-3">
               {group.items.length ? (
@@ -18985,7 +18984,7 @@ function RevenueRecognitionIntelligenceSection({
 
       <div className="mb-5 grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3">
         {metricCards.map((item) => (
-          <div key={item.label} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div key={item.label} className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#94A3B8]">{item.label}</p>
             <p className="mt-2 text-xl font-bold text-[#F9FAFB]">{item.value}</p>
             <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{item.detail}</p>
@@ -19015,7 +19014,7 @@ function RevenueRecognitionIntelligenceSection({
       {isFullReview && revenueRecognitionIntelligence.anticipatedRecognitionSchedule.length > 0 && (
         <div className="mt-5 overflow-x-auto rounded-2xl border border-[#243041]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#111827] text-[#CBD5E1]">
+            <thead className="bg-[#28251D] text-[#CBD5E1]">
               <tr>
                 <th className="px-4 py-3">Anticipated Recognition Period</th>
                 <th className="px-4 py-3 text-right">Expected Recognition</th>
@@ -19041,7 +19040,7 @@ function RevenueRecognitionIntelligenceSection({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {reviewGroups.map((group) => (
-          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-sm font-bold text-white">{group.title}</p>
             <div className="mt-3 space-y-3">
               {group.items.length ? (
@@ -19060,7 +19059,7 @@ function RevenueRecognitionIntelligenceSection({
             </div>
           </div>
         ))}
-        <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+        <div className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
           <p className="text-sm font-bold text-white">Backend AI review flags</p>
           <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
             {(revenueRecognitionIntelligence.internalFlags.length
@@ -19153,7 +19152,7 @@ function TreasuryLiquidityIntelligenceSection({
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
         {metricCards.map((card) => (
-          <div key={card.label} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div key={card.label} className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#94A3B8]">{card.label}</p>
             <p className="mt-2 text-xl font-bold text-[#F9FAFB]">{card.value}</p>
             <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{card.detail}</p>
@@ -19170,7 +19169,7 @@ function TreasuryLiquidityIntelligenceSection({
                 <span>{row.label}</span>
                 <span>{row.display}</span>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-[#111827]">
+              <div className="h-3 overflow-hidden rounded-full bg-[#28251D]">
                 <div className="h-full rounded-full bg-[#5B8CFF]" style={{ width: `${Math.min((row.value / maxVisualValue) * 100, 100)}%` }} />
               </div>
             </div>
@@ -19202,7 +19201,7 @@ function TreasuryLiquidityIntelligenceSection({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {reviewGroups.map((group) => (
-          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-sm font-bold text-white">{group.title}</p>
             <div className="mt-3 space-y-3">
               {group.items.length ? (
@@ -19226,7 +19225,7 @@ function TreasuryLiquidityIntelligenceSection({
       {isVirtualScope && treasuryLiquidityIntelligence.cashForecast.length > 0 && (
         <div className="mt-5 overflow-x-auto rounded-2xl border border-[#243041]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#111827] text-[#CBD5E1]">
+            <thead className="bg-[#28251D] text-[#CBD5E1]">
               <tr>
                 <th className="px-4 py-3">Forecast Period</th>
                 <th className="px-4 py-3 text-right">Projected Cash</th>
@@ -19481,7 +19480,7 @@ function KpiReviewWorkflowPanel({
   onSelectSection: (sectionId: KpiReviewSectionId) => void;
 }) {
   return (
-    <section id="kpi-review" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#111827] p-8 shadow-xl shadow-black/10">
+    <section id="kpi-review" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#28251D] p-8 shadow-xl shadow-black/10">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Step 4 - Review KPIs</p>
@@ -19563,7 +19562,7 @@ function KpiReviewSectionActions({
   onApproveAll: () => void;
 }) {
   return (
-    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#243041] bg-[#111827] p-4">
+    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#243041] bg-[#28251D] p-4">
       <p className="text-sm font-semibold text-slate-300">Reviewing: <span className="text-white">{sectionLabel}</span></p>
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={onPrevious} disabled={isFirst} className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-bold text-slate-200 disabled:cursor-not-allowed disabled:opacity-50">
@@ -19694,7 +19693,7 @@ function ManufacturingInventoryIntelligenceSection({
             <div className="mt-3 grid gap-3">
               {group.items.length ? (
                 group.items.slice(0, showManufacturingDetail ? 6 : 3).map((item) => (
-                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#28251D] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-bold text-[#F9FAFB]">{item.label}</p>
                       <span className="rounded-full bg-orange-300/10 px-2 py-1 text-xs font-bold text-orange-100">
@@ -19819,7 +19818,7 @@ function CloseManagementIntelligenceSection({
             <div className="mt-3 grid gap-3">
               {group.items.length ? (
                 group.items.slice(0, showFullCloseReview ? 6 : 3).map((item) => (
-                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#28251D] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-bold text-[#F9FAFB]">{item.label}</p>
                       <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-xs font-bold text-cyan-100">
@@ -19843,7 +19842,7 @@ function CloseManagementIntelligenceSection({
           <p className="text-sm font-bold text-white">Future accounting operations roadmap</p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {intelligence.futureOperationsRoadmap.map((item) => (
-              <p key={item} className="rounded-xl border border-[#243041] bg-[#111827] p-3 text-sm leading-6 text-cyan-50/80">
+              <p key={item} className="rounded-xl border border-[#243041] bg-[#28251D] p-3 text-sm leading-6 text-cyan-50/80">
                 {item}
               </p>
             ))}
@@ -19907,7 +19906,7 @@ function ARReserveIntelligenceSection({
 
       <div className="overflow-x-auto rounded-2xl border border-[#243041]">
         <table className="w-full text-left text-sm">
-          <thead className="bg-[#111827] text-[#CBD5E1]">
+          <thead className="bg-[#28251D] text-[#CBD5E1]">
             <tr>
               <th className="px-4 py-3">Aging Bucket</th>
               <th className="px-4 py-3 text-right">Balance</th>
@@ -20066,7 +20065,7 @@ function ReserveLifecycleIntelligenceSection({
             <div className="mt-3 grid gap-3">
               {group.items.length ? (
                 group.items.slice(0, showVirtualCfoDetail ? 6 : 3).map((item) => (
-                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#28251D] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-bold text-[#F9FAFB]">{item.label}</p>
                       <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-xs font-bold text-cyan-100">
@@ -20090,7 +20089,7 @@ function ReserveLifecycleIntelligenceSection({
           <p className="text-sm font-bold text-white">Virtual CFO Reserve Forecast</p>
           <div className="mt-3 overflow-x-auto rounded-xl border border-[#243041]">
             <table className="w-full text-left text-sm">
-              <thead className="bg-[#111827] text-cyan-100">
+              <thead className="bg-[#28251D] text-cyan-100">
                 <tr>
                   <th className="px-4 py-3">Period</th>
                   <th className="px-4 py-3 text-right">Projected Older AR</th>
@@ -20146,7 +20145,7 @@ function ValidationDashboardSection({
   const criticalChecks = validationResults.checks.filter((check) => check.status === "red");
 
   return (
-    <section className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#111827] p-8 shadow-xl shadow-black/10">
+    <section className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#28251D] p-8 shadow-xl shadow-black/10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Internal Review Mode</p>
@@ -20202,7 +20201,7 @@ function ValidationDashboardSection({
               <div className="mt-3 grid gap-3">
                 {apCutoffIntelligence.recurringVendorProfiles.length ? (
                   apCutoffIntelligence.recurringVendorProfiles.slice(0, 4).map((profile) => (
-                    <div key={profile.vendor} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                    <div key={profile.vendor} className="rounded-xl border border-[#243041] bg-[#28251D] p-3">
                       <div className="flex items-start justify-between gap-3">
                         <p className="font-bold text-[#F9FAFB]">{profile.vendor}</p>
                         <span className="rounded-full bg-amber-300/10 px-2 py-1 text-xs font-bold text-amber-200">{profile.riskStatus}</span>
@@ -20221,7 +20220,7 @@ function ValidationDashboardSection({
               <div className="mt-3 grid gap-3">
                 {apCutoffIntelligence.accrualClearingItems.length ? (
                   apCutoffIntelligence.accrualClearingItems.map((item) => (
-                    <div key={item.accountName} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                    <div key={item.accountName} className="rounded-xl border border-[#243041] bg-[#28251D] p-3">
                       <div className="flex items-start justify-between gap-3">
                         <p className="font-bold text-[#F9FAFB]">{item.accountName}</p>
                         <span className="rounded-full bg-slate-500/15 px-2 py-1 text-xs font-bold text-slate-200">{item.status}</span>
@@ -20236,7 +20235,7 @@ function ValidationDashboardSection({
             </div>
           </div>
 
-          <div className="mt-5 rounded-2xl border border-amber-300/20 bg-[#111827] p-4">
+          <div className="mt-5 rounded-2xl border border-amber-300/20 bg-[#28251D] p-4">
             <p className="text-sm font-bold text-white">Review-Oriented Commentary</p>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
               {apCutoffIntelligence.commentary.map((item) => (
@@ -20304,7 +20303,7 @@ function ValidationReviewModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-4 backdrop-blur-sm">
       <section className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-[#334155] bg-[#0B1020] shadow-2xl shadow-black/40">
-        <div className="shrink-0 flex flex-col gap-4 border-b border-[#243041] bg-[#111827] px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="shrink-0 flex flex-col gap-4 border-b border-[#243041] bg-[#28251D] px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#5B8CFF]">Validation Review</p>
             <h2 className="mt-2 text-2xl font-bold text-white">Confirm reconciliation results</h2>
@@ -20325,7 +20324,7 @@ function ValidationReviewModal({
         <ValidationDashboardSection validationResults={validationResults} />
         </div>
 
-        <div className="shrink-0 flex flex-col gap-3 border-t border-[#243041] bg-[#111827] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="shrink-0 flex flex-col gap-3 border-t border-[#243041] bg-[#28251D] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs leading-5 text-[#94A3B8]">
             {hasCriticalFailures
               ? "Proceeding accepts the internal mismatch review and continues with reduced confidence."
@@ -20411,7 +20410,7 @@ function FluxReviewWorkspace({
         : "Virtual CFO supports full advisory variance review, management discussion flags, and client-ready explanations.";
 
   return (
-    <section id="flux-review" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#111827] p-8 shadow-xl shadow-black/10">
+    <section id="flux-review" className="workflow-section mt-10 rounded-3xl border border-[#243041] bg-[#28251D] p-8 shadow-xl shadow-black/10">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">Step 5 - Review Flux</p>
@@ -20476,7 +20475,7 @@ function FluxReviewWorkspace({
                   <label className="block text-sm font-semibold text-[#CBD5E1]">
                     Internal preparer notes
                     <textarea
-                      className="mt-2 h-24 w-full rounded-2xl border border-[#334155] bg-[#111827] p-3 text-sm text-white outline-none focus:border-[#5B8CFF]"
+                      className="mt-2 h-24 w-full rounded-2xl border border-[#334155] bg-[#28251D] p-3 text-sm text-white outline-none focus:border-[#5B8CFF]"
                       placeholder="Investigation notes for the preparer only. These never export."
                       value={state.internalNote}
                       onChange={(event) => updateRowState(row, basisLabel, { internalNote: event.target.value })}
@@ -20485,7 +20484,7 @@ function FluxReviewWorkspace({
                   <label className="block text-sm font-semibold text-[#CBD5E1]">
                     Client-facing explanation
                     <textarea
-                      className="mt-2 h-24 w-full rounded-2xl border border-[#334155] bg-[#111827] p-3 text-sm text-white outline-none focus:border-[#5B8CFF]"
+                      className="mt-2 h-24 w-full rounded-2xl border border-[#334155] bg-[#28251D] p-3 text-sm text-white outline-none focus:border-[#5B8CFF]"
                       placeholder="Polished explanation approved for the client package."
                       value={state.clientExplanation}
                       onChange={(event) => updateRowState(row, basisLabel, { clientExplanation: event.target.value })}
@@ -20559,7 +20558,7 @@ function BoardPackagePreview({
   const includeArReservePreview = sections.some((section) => section.title === "AR and AP Aging" && section.status === "Included");
 
   return (
-    <section id="pdf-review" className="workflow-section mt-10 rounded-[2rem] border border-[#243041] bg-[#F9FAFB] p-2 text-[#111827] shadow-2xl shadow-black/20">
+    <section id="pdf-review" className="workflow-section mt-10 rounded-[2rem] border border-[#243041] bg-[#F9FAFB] p-2 text-[#28251D] shadow-2xl shadow-black/20">
       <div className="rounded-[1.75rem] bg-white p-8">
         <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -20573,7 +20572,7 @@ function BoardPackagePreview({
           </div>
           <div className="text-right">
             <p className="text-sm font-semibold text-slate-600">Prepared by {preparedBy}</p>
-            <p className="mt-2 text-3xl font-bold text-[#111827]">{completenessScore}%</p>
+            <p className="mt-2 text-3xl font-bold text-[#28251D]">{completenessScore}%</p>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Package completeness</p>
           </div>
         </div>
@@ -22781,7 +22780,7 @@ function FixedAssetIntegrityIntelligenceSection({
           <p className="text-sm font-bold text-white">Fixed Asset Rollforward Schedules</p>
           <div className="mt-3 overflow-x-auto rounded-xl border border-[#243041]">
             <table className="w-full text-left text-sm">
-              <thead className="bg-[#111827] text-violet-100">
+              <thead className="bg-[#28251D] text-violet-100">
                 <tr>
                   <th className="px-4 py-3">Period</th>
                   <th className="px-4 py-3 text-right">Beginning Gross</th>
@@ -22811,7 +22810,7 @@ function FixedAssetIntegrityIntelligenceSection({
           </div>
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
             {intelligence.rollforwards.map((period) => (
-              <div key={`${period.period}-visual`} className="rounded-2xl border border-violet-300/20 bg-[#111827] p-4">
+              <div key={`${period.period}-visual`} className="rounded-2xl border border-violet-300/20 bg-[#28251D] p-4">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-violet-200">{period.period} visual</p>
                 <div className="mt-4 space-y-3">
                   <MiniBar label="Additions" value={period.additions} max={Math.max(period.additions, period.disposals, period.depreciationExpense, 1)} />
@@ -22854,7 +22853,7 @@ function FixedAssetIntegrityIntelligenceSection({
             <div className="mt-3 grid gap-3">
               {group.items.length ? (
                 group.items.slice(0, showOversight ? 6 : 3).map((item) => (
-                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#111827] p-3">
+                  <div key={`${group.title}-${item.label}-${item.amount}`} className="rounded-xl border border-[#243041] bg-[#28251D] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-bold text-[#F9FAFB]">{item.label}</p>
                       <span className="rounded-full bg-violet-300/10 px-2 py-1 text-xs font-bold text-violet-100">
@@ -23041,7 +23040,7 @@ function WorkforceIntelligenceSection({
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3">
         {metricCards.map((card) => (
-          <div key={card.label} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div key={card.label} className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#94A3B8]">{card.label}</p>
             <p className="mt-2 text-xl font-bold text-[#F9FAFB]">{card.value}</p>
             <p className="mt-2 text-xs leading-5 text-[#94A3B8]">{card.detail}</p>
@@ -23058,7 +23057,7 @@ function WorkforceIntelligenceSection({
                 <span>{row.label}</span>
                 <span>{row.display}</span>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-[#111827]">
+              <div className="h-3 overflow-hidden rounded-full bg-[#28251D]">
                 <div className="h-full rounded-full bg-[#5B8CFF]" style={{ width: `${Math.min((row.value / maxVisualValue) * 100, 100)}%` }} />
               </div>
             </div>
@@ -23090,7 +23089,7 @@ function WorkforceIntelligenceSection({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {reviewGroups.map((group) => (
-          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div key={group.title} className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-sm font-bold text-white">{group.title}</p>
             <div className="mt-3 space-y-3">
               {group.items.length ? (
@@ -23110,7 +23109,7 @@ function WorkforceIntelligenceSection({
           </div>
         ))}
         {isVirtualScope && (
-          <div className="rounded-2xl border border-[#243041] bg-[#111827] p-4">
+          <div className="rounded-2xl border border-[#243041] bg-[#28251D] p-4">
             <p className="text-sm font-bold text-white">Forecasting and workforce planning support</p>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-[#CBD5E1]">
               {workforceIntelligence.forecastIntegrationNotes.map((item) => (
@@ -23876,7 +23875,7 @@ function PrintableFinancialPackage({
               <span className="print-client-logo-placeholder">Client Logo</span>
             )}
           </div>
-          <AdvisacorLogo className="print-advisacor-logo" />
+          <img src="/advisacor-logo-framed-navy.png" alt="Advisacor" className="print-advisacor-logo" />
         </div>
 
         <div className="print-cover-hero">

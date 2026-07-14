@@ -3,7 +3,7 @@ import { focusRing } from "./site-ui";
 
 export function SiteFooter() {
   return (
-    <footer className="relative w-full bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 text-slate-700">
+    <footer className="relative w-full bg-gradient-to-br from-[#F7F6F2] via-[#EEEDE7] to-[#D4D1CA] text-slate-700">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-12 lg:gap-12">
           <div className="md:col-span-4">
@@ -19,7 +19,7 @@ export function SiteFooter() {
               <li>
                 <a
                   href="mailto:sales@advisacor.com"
-                  className={`text-slate-700 transition-colors hover:text-[#0A1530] ${focusRing("rounded")}`}
+                  className={`text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
                 >
                   sales@advisacor.com
                 </a>
@@ -33,7 +33,7 @@ export function SiteFooter() {
               <li>
                 <Link
                   href="/about"
-                  className={`font-medium text-slate-700 transition-colors hover:text-[#0A1530] ${focusRing("rounded")}`}
+                  className={`font-medium text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
                 >
                   About
                 </Link>
@@ -43,7 +43,7 @@ export function SiteFooter() {
                   href="https://www.linkedin.com/in/matthew-wiseman-807bb155"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`font-medium text-slate-700 transition-colors hover:text-[#0A1530] ${focusRing("rounded")}`}
+                  className={`font-medium text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
                 >
                   LinkedIn
                 </a>
@@ -51,7 +51,7 @@ export function SiteFooter() {
               <li>
                 <Link
                   href="/privacy"
-                  className={`font-medium text-slate-700 transition-colors hover:text-[#0A1530] ${focusRing("rounded")}`}
+                  className={`font-medium text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
                 >
                   Privacy Policy
                 </Link>

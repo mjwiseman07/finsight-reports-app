@@ -71,7 +71,7 @@ export function GlobalPulseLauncher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 rounded-full bg-[#C9A961] px-4 py-3 text-xs font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A]"
+        className="fixed bottom-5 right-5 z-50 rounded-full bg-[#C9A961] px-4 py-3 text-xs font-semibold text-[#111112] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A]"
       >
         Pulse
       </button>
@@ -90,7 +90,7 @@ export function GlobalPulseLauncher() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-full bg-[#0A1530] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#060E22]"
+                className="rounded-full bg-[#111112] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#060E22]"
               >
                 Close
               </button>
@@ -103,8 +103,8 @@ export function GlobalPulseLauncher() {
                 key={`${message.role}-${index}`}
                 className={`rounded-3xl px-4 py-3 text-sm leading-6 ${
                   message.role === "user"
-                    ? "ml-auto bg-[#C9A961] font-semibold text-[#0A1530]"
-                    : "mr-auto flex gap-2.5 bg-[#0A1530] text-white/85"
+                    ? "ml-auto bg-[#C9A961] font-semibold text-[#111112]"
+                    : "mr-auto flex gap-2.5 bg-[#111112] text-white/85"
                 }`}
               >
                 {message.role === "pulse" && (
@@ -122,7 +122,7 @@ export function GlobalPulseLauncher() {
                   key={item}
                   type="button"
                   onClick={() => askPulse(item)}
-                  className="rounded-full border border-[#C9A961]/30 bg-[#0A1530] px-4 py-2 text-sm text-white transition-colors hover:border-[#C9A961] hover:bg-[#0F1A3A]"
+                  className="rounded-full border border-[#C9A961]/30 bg-[#111112] px-4 py-2 text-sm text-white transition-colors hover:border-[#C9A961] hover:bg-[#0F1A3A]"
                 >
                   {item}
                 </button>
@@ -141,7 +141,7 @@ export function GlobalPulseLauncher() {
               <button
                 type="button"
                 onClick={() => askPulse()}
-                className="rounded-full bg-[#C9A961] px-4 py-3 text-sm font-semibold text-[#0A1530] transition-colors hover:bg-[#B8975A]"
+                className="rounded-full bg-[#C9A961] px-4 py-3 text-sm font-semibold text-[#111112] transition-colors hover:bg-[#B8975A]"
               >
                 Ask
               </button>

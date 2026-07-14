@@ -89,7 +89,7 @@ function NewClosePeriodContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0C] text-white">
+    <div className="min-h-screen bg-[#111112] text-white">
       <SiteNav />
       <section className="mx-auto max-w-3xl px-6 pt-[200px] md:pt-[240px] lg:pt-[260px] pb-24">
         <p className="text-sm uppercase tracking-[0.2em] text-[#C9A961] mb-6">
@@ -117,7 +117,7 @@ function NewClosePeriodContent() {
               value={firmClientId}
               onChange={(e) => setFirmClientId(e.target.value)}
               disabled={isLoading}
-              className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white ${focusRing()}`}
+              className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white ${focusRing()}`}
             >
               <option value="" disabled>
                 {isLoading ? "Loading clients…" : "Select a client"}
@@ -138,7 +138,7 @@ function NewClosePeriodContent() {
               type="month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
-              className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white ${focusRing()}`}
+              className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white ${focusRing()}`}
             />
           </div>
 
@@ -147,7 +147,7 @@ function NewClosePeriodContent() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${focusRing()}`}
+            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${focusRing()}`}
           >
             {isSubmitting ? "Creating…" : "Create close period"}
             {!isSubmitting && <span aria-hidden>→</span>}
@@ -163,7 +163,7 @@ export default function NewClosePeriodPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#0B0B0C] text-white px-6 py-10">
+        <div className="min-h-screen bg-[#111112] text-white px-6 py-10">
           <p className="text-sm text-white/55">Loading…</p>
         </div>
       }

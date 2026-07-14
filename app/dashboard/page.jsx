@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { AdvisacorLogo } from "../../components/AdvisacorLogo";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
@@ -1464,7 +1463,7 @@ export default function DashboardPage() {
       `<section><h1>Executive Summary</h1><h2>${options.companyName}</h2><p>${options.reportPeriod}</p></section>`,
       ...options.sections.map((section) => `<section><h1>${section}</h1><p>Board-ready ${section.toLowerCase()} refreshed from current company data.</p></section>`),
     ].join("");
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Advisacor Executive Package</title><style>body{font-family:Arial,sans-serif;background:#0A1020;color:#111}section{page-break-after:always;background:white;margin:24px;padding:48px;width:960px;height:540px}h1{color:#0A1020}h2{color:#C98746}</style></head><body>${slides}</body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Advisacor Executive Package</title><style>body{font-family:Arial,sans-serif;background:#111112;color:#111}section{page-break-after:always;background:white;margin:24px;padding:48px;width:960px;height:540px}h1{color:#111112}h2{color:#C98746}</style></head><body>${slides}</body></html>`;
     const blob = new Blob([html], { type: "application/vnd.ms-powerpoint" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1587,7 +1586,7 @@ export default function DashboardPage() {
       `<section><h1>Payroll/FTE Commentary</h1><p>Current FTE: 57 | Prior FTE: 52 | FTE Change: 5 | Payroll Cost Per FTE: $4,250 | Revenue Per FTE: $14,456</p></section>`,
       `<section><h1>Executive Focus</h1><p>Review staffing productivity, working capital movement, margin pressure, and material account changes before approving operational changes.</p></section>`,
     ].join("");
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Advisacor Flux Analysis</title><style>body{font-family:Arial,sans-serif;background:#0A1020;color:#111}section{page-break-after:always;background:white;margin:24px;padding:48px;width:960px;height:540px}h1{color:#0A1020}h2{color:#C98746}</style></head><body>${slides}</body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Advisacor Flux Analysis</title><style>body{font-family:Arial,sans-serif;background:#111112;color:#111}section{page-break-after:always;background:white;margin:24px;padding:48px;width:960px;height:540px}h1{color:#111112}h2{color:#C98746}</style></head><body>${slides}</body></html>`;
     const blob = new Blob([html], { type: "application/vnd.ms-powerpoint" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1680,7 +1679,7 @@ export default function DashboardPage() {
             className={`${focusRing("rounded-2xl")} block w-[min(320px,42vw)] px-0 py-0`}
             aria-label="Advisacor home"
           >
-            <AdvisacorLogo priority className="w-full" />
+            <img src="/advisacor-logo-framed-navy.png" alt="Advisacor" className="w-full" />
           </Link>
           <div className="flex items-center gap-3">
             <SupportHelpButton compact />
@@ -1990,7 +1989,7 @@ export default function DashboardPage() {
                       className={`${focusRing("rounded-2xl")} mt-8 w-full rounded-2xl px-5 py-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
                         plan.featured
                           ? "border border-[#C9A961]/60 bg-[#111112] text-[#ECEBE7] hover:border-[#C9A961] hover:bg-[#1A1A1C]"
-                          : "premium-button"
+                          : primaryCtaClass
                       }`}
                     >
                       {checkoutPlan === plan.key ? "Starting checkout..." : plan.priceId ? "Subscribe" : "Stripe price pending"}
@@ -2013,7 +2012,7 @@ export default function DashboardPage() {
                   type="button"
                   onClick={generateDashboardPackage}
                   disabled={dashboardPackageGenerating}
-                  className={`${focusRing("rounded-2xl")} premium-button mt-8 inline-flex rounded-2xl px-6 py-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60`}
+                  className={`${focusRing("rounded-2xl")} ${primaryCtaClass} mt-8 inline-flex rounded-2xl px-6 py-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                   {dashboardPackageGenerating ? "Generating..." : "Generate New Report"}
                 </button>
@@ -2482,7 +2481,7 @@ export default function DashboardPage() {
             <div className="shrink-0 border-b border-[#C9A961]/15 px-6 py-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Account</p>
+                  <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Account</p>
                   <h2 className={`${headingFont} mt-2 text-3xl font-black text-[#ECEBE7]`}>Account and package settings</h2>
                   <p className="mt-2 text-sm leading-6 text-[#A29E93]">
                     Review your account, current package, and available plan changes.
@@ -2517,7 +2516,7 @@ export default function DashboardPage() {
                     type="button"
                     onClick={handleSaveAccount}
                     disabled={accountSaving}
-                    className={`${focusRing("rounded-2xl")} ${headingFont} mt-3 rounded-2xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FFB36F] disabled:cursor-not-allowed disabled:opacity-60`}
+                    className={`${focusRing("rounded-2xl")} ${headingFont} mt-3 rounded-2xl bg-[#C9A961] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#C9A961] disabled:cursor-not-allowed disabled:opacity-60`}
                   >
                     {accountSaving ? "Saving..." : "Save Account Info"}
                   </button>
@@ -2534,7 +2533,7 @@ export default function DashboardPage() {
               <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#FFB36F]`}>Package Options</p>
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#C9A961]`}>Package Options</p>
                     <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Upgrade or downgrade your package</h3>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-[#A29E93]">
                       Active subscriptions are managed in Stripe billing. Trial or expired accounts can choose a package here.
@@ -2545,7 +2544,7 @@ export default function DashboardPage() {
                       type="button"
                       onClick={handleManageBilling}
                       disabled={billingLoading}
-                      className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-[#111112] shadow-xl shadow-black/30 transition hover:bg-[#FFB36F] disabled:cursor-not-allowed disabled:opacity-60`}
+                      className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-black text-[#111112] shadow-xl shadow-black/30 transition hover:bg-[#C9A961] disabled:cursor-not-allowed disabled:opacity-60`}
                     >
                       {billingLoading ? "Opening billing..." : "Manage Billing"}
                     </button>
@@ -2596,7 +2595,7 @@ export default function DashboardPage() {
                             type="button"
                             onClick={() => handleSubscribe(plan.key)}
                             disabled={checkoutPlan === plan.key}
-                            className={`${focusRing("rounded-2xl")} ${headingFont} mt-5 w-full rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FFB36F] disabled:cursor-not-allowed disabled:opacity-60`}
+                            className={`${focusRing("rounded-2xl")} ${headingFont} mt-5 w-full rounded-2xl bg-[#C9A961] px-4 py-3 text-sm font-black text-[#111112] transition hover:bg-[#C9A961] disabled:cursor-not-allowed disabled:opacity-60`}
                           >
                             {checkoutPlan === plan.key ? "Starting checkout..." : `Choose ${plan.name}`}
                           </button>
@@ -2656,7 +2655,7 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
           </span>
         ) : (
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={onGenerate} disabled={generating} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FFB36F] disabled:cursor-not-allowed disabled:opacity-60`}>
+            <button type="button" onClick={onGenerate} disabled={generating} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#C9A961] disabled:cursor-not-allowed disabled:opacity-60`}>
               {generating ? "Generating..." : "Generate Report"}
             </button>
             {packageReady && (
@@ -2669,7 +2668,7 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
       </div>
 
       {generating && (
-        <div className={`${headingFont} mt-5 rounded-2xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 px-4 py-3 text-sm font-black text-[#FFB36F]`}>
+        <div className={`${headingFont} mt-5 rounded-2xl border border-[#C9A961]/25 bg-[#C9A961]/10 px-4 py-3 text-sm font-black text-[#C9A961]`}>
           Generating executive summary, KPI dashboard, sample Pulse commentary, and initial insights...
         </div>
       )}
@@ -2763,8 +2762,8 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
   }
 
   return (
-    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#FF7A1A]/10 p-6 shadow-2xl shadow-[#FF7A1A]/5">
-      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Ask Pulse Anything About Your Business</p>
+    <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#C9A961]/10 p-6 shadow-2xl shadow-[#C9A961]/5">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Ask Pulse Anything About Your Business</p>
       <div className="mt-4 flex flex-col gap-3 lg:flex-row">
         <input
           value={question}
@@ -2773,9 +2772,9 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
             if (event.key === "Enter") onSubmit();
           }}
           placeholder="Ask about cash, margins, expenses, customers, risk, or what to do next..."
-          className={`${focusRing("rounded-2xl")} min-w-0 flex-1 rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-5 py-4 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] focus:border-[#FFB36F]`}
+          className={`${focusRing("rounded-2xl")} min-w-0 flex-1 rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-5 py-4 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] focus:border-[#C9A961]`}
         />
-        <button type="button" onClick={() => onSubmit()} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-6 py-4 text-sm font-black text-[#111112] transition hover:bg-[#FFB36F]`}>
+        <button type="button" onClick={() => onSubmit()} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-6 py-4 text-sm font-black text-[#111112] transition hover:bg-[#C9A961]`}>
           Ask Pulse
         </button>
       </div>
@@ -2802,7 +2801,7 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
           <div className="mt-4 grid max-h-96 gap-3 overflow-y-auto">
             {recentMessagePairs.slice(0, 4).map((pair, index) => (
               <div key={`${pair.question.content}-${index}`} className="grid gap-3">
-                <div className="ml-auto rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm leading-6 text-[#111112]">
+                <div className="ml-auto rounded-2xl bg-[#C9A961] px-4 py-3 text-sm leading-6 text-[#111112]">
                   <p className={`${headingFont} text-xs font-black uppercase tracking-[0.14em] opacity-70`}>You</p>
                   <p className="mt-1 whitespace-pre-wrap">{pair.question.content}</p>
                 </div>
@@ -2811,7 +2810,7 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
                     <p className={`${headingFont} text-xs font-black uppercase tracking-[0.14em] opacity-70`}>Pulse</p>
                     <p className="mt-1 whitespace-pre-wrap">{pair.answer.content}</p>
                     {pair.answer.content.includes("not included in your current Advisacor package") && (
-                      <button type="button" onClick={onUpgradePackage} className={`${focusRing("rounded-xl")} ${headingFont} mt-3 rounded-xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FFB36F]`}>
+                      <button type="button" onClick={onUpgradePackage} className={`${focusRing("rounded-xl")} ${headingFont} mt-3 rounded-xl bg-[#C9A961] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#C9A961]`}>
                         Upgrade Package
                       </button>
                     )}
@@ -2829,7 +2828,7 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
 function PulseListCard({ title, items }) {
   return (
     <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
-      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]`}>{title}</p>
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#C9A961]`}>{title}</p>
       <ul className="mt-4 grid gap-3 text-sm leading-6 text-[#ECEBE7]">
         {items.map((item) => (
           <li key={item}>- {item}</li>
@@ -2860,10 +2859,10 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
   };
 
   return (
-    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#1A1A1C]/85 p-8 shadow-2xl shadow-[#FF7A1A]/10">
+    <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C]/85 p-8 shadow-2xl shadow-[#C9A961]/10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Flux Analysis Workspace</p>
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Flux Analysis Workspace</p>
           <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Configure the analysis before execution.</h2>
           <p className="mt-3 max-w-4xl text-sm leading-6 text-[#ECEBE7]">
             Flux uses the same Balance Sheet and Income Statement source data included in the generated package, so the analysis reconciles back to the package.
@@ -2888,14 +2887,14 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
                   onClick={() => allowed && onChange((current) => ({ ...current, fluxType: option.key }))}
                   className={`${focusRing("rounded-2xl")} rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${
                     config.fluxType === option.key
-                      ? "border-[#FF7A1A] bg-[#FF7A1A]/20 text-[#ECEBE7]"
+                      ? "border-[#C9A961] bg-[#C9A961]/20 text-[#ECEBE7]"
                       : allowed
                         ? "border-[#C9A961]/20 bg-[#1A1A1C] text-[#ECEBE7] hover:border-[#C9A961]/45"
                         : "border-[#C9A961]/10 bg-[#1A1A1C]/60 text-[#7A7974]"
                   }`}
                 >
                   {option.label}
-                  {!allowed && <span className={`${headingFont} ml-2 text-xs text-[#FFB36F]`}>Upgrade required</span>}
+                  {!allowed && <span className={`${headingFont} ml-2 text-xs text-[#C9A961]`}>Upgrade required</span>}
                 </button>
               );
             })}
@@ -2938,7 +2937,7 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
                 key={key}
                 type="button"
                 onClick={() => onChange((current) => ({ ...current, filteringLogic: key }))}
-                className={`${focusRing("rounded-full")} ${headingFont} rounded-full px-4 py-2 text-xs font-black transition ${config.filteringLogic === key ? "bg-[#FF7A1A] text-[#111112] hover:bg-[#FF8D3C]" : "border border-[#C9A961]/30 text-[#ECEBE7] hover:border-[#C9A961]/55"}`}
+                className={`${focusRing("rounded-full")} ${headingFont} rounded-full px-4 py-2 text-xs font-black transition ${config.filteringLogic === key ? "bg-[#C9A961] text-[#111112] hover:bg-[#FF8D3C]" : "border border-[#C9A961]/30 text-[#ECEBE7] hover:border-[#C9A961]/55"}`}
               >
                 {label}
               </button>
@@ -2975,7 +2974,7 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
             <div key={label} className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] p-4">
               <p className={`${headingFont} text-xs font-black uppercase tracking-[0.14em] text-[#7A7974]`}>{label}</p>
               <p className={`${headingFont} mt-2 text-2xl font-black text-[#DFC084]`}>{change}</p>
-              <p className={`${headingFont} text-sm font-bold text-[#FFB36F]`}>{percent}</p>
+              <p className={`${headingFont} text-sm font-bold text-[#C9A961]`}>{percent}</p>
               <p className="mt-2 text-sm leading-6 text-[#ECEBE7]">{note}</p>
             </div>
           ))}
@@ -2985,7 +2984,7 @@ function FluxAnalysisWorkspace({ config, currentFluxLevel, message, onChange, on
       {message && <p className="mt-4 rounded-2xl border border-[#6DAA45]/30 bg-[#6DAA45]/10 px-4 py-3 text-sm font-bold text-[#B5E28A]">{message}</p>}
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <button type="button" onClick={() => onRun("pdf")} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FF8D3C]`}>
+        <button type="button" onClick={() => onRun("pdf")} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FF8D3C]`}>
           Generate PDF Flux Package
         </button>
         <button type="button" onClick={() => onRun("powerpoint")} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
@@ -3014,10 +3013,10 @@ function ExecutivePackageWizard({ config, generating, message, refreshStatus, on
   };
 
   return (
-    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#1A1A1C]/85 p-8 shadow-2xl shadow-[#FF7A1A]/10">
+    <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C]/85 p-8 shadow-2xl shadow-[#C9A961]/10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Generate Executive Reporting</p>
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Generate Executive Reporting</p>
           <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Choose the package and reporting period.</h2>
           <p className="mt-3 max-w-4xl text-sm leading-6 text-[#ECEBE7]">
             Advisacor refreshes current company data before generation so PDF and PowerPoint packages use the latest available financial information.
@@ -3041,7 +3040,7 @@ function ExecutivePackageWizard({ config, generating, message, refreshStatus, on
                 key={key}
                 type="button"
                 onClick={() => onChange((current) => ({ ...current, packageType: key }))}
-                className={`${focusRing("rounded-2xl")} rounded-2xl border p-4 text-left transition ${config.packageType === key ? "border-[#FF7A1A] bg-[#FF7A1A]/20" : "border-[#C9A961]/20 bg-[#1A1A1C] hover:border-[#C9A961]/45"}`}
+                className={`${focusRing("rounded-2xl")} rounded-2xl border p-4 text-left transition ${config.packageType === key ? "border-[#C9A961] bg-[#C9A961]/20" : "border-[#C9A961]/20 bg-[#1A1A1C] hover:border-[#C9A961]/45"}`}
               >
                 <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>{label}</p>
                 <p className="mt-2 text-xs leading-5 text-[#A29E93]">{description}</p>
@@ -3060,7 +3059,7 @@ function ExecutivePackageWizard({ config, generating, message, refreshStatus, on
                 type="button"
                 onClick={() => onChange((current) => ({ ...current, reportingPeriod: option.key }))}
                 className={`${focusRing("rounded-2xl")} rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${
-                  config.reportingPeriod === option.key ? "border-[#FF7A1A] bg-[#FF7A1A]/20 text-[#ECEBE7]" : "border-[#C9A961]/20 bg-[#1A1A1C] text-[#ECEBE7] hover:border-[#C9A961]/45"
+                  config.reportingPeriod === option.key ? "border-[#C9A961] bg-[#C9A961]/20 text-[#ECEBE7]" : "border-[#C9A961]/20 bg-[#1A1A1C] text-[#ECEBE7] hover:border-[#C9A961]/45"
                 }`}
               >
                 {option.label}
@@ -3111,7 +3110,7 @@ function ExecutivePackageWizard({ config, generating, message, refreshStatus, on
           type="button"
           onClick={() => onGenerate(config.packageType || "pdf")}
           disabled={generating}
-          className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FF8D3C] disabled:cursor-not-allowed disabled:opacity-60`}
+          className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FF8D3C] disabled:cursor-not-allowed disabled:opacity-60`}
         >
           {generating ? "Refreshing data..." : config.packageType === "powerpoint" ? "Generate PowerPoint" : "Generate PDF"}
         </button>
@@ -3252,7 +3251,7 @@ function PulseAdvisoryIntelligencePanel({ intelligence, onRefresh, onRun, onDism
           <button type="button" onClick={onRefresh} disabled={intelligence?.loading} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-4 py-2 text-xs font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60 disabled:opacity-50`}>
             Refresh
           </button>
-          <button type="button" onClick={onRun} disabled={intelligence?.loading} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FF8D3C] disabled:opacity-50`}>
+          <button type="button" onClick={onRun} disabled={intelligence?.loading} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FF8D3C] disabled:opacity-50`}>
             {intelligence?.loading ? "Running..." : "Run Intelligence"}
           </button>
         </div>
@@ -3307,7 +3306,7 @@ function PulseAdvisoryIntelligencePanel({ intelligence, onRefresh, onRun, onDism
                 <p className={`${headingFont} mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#7A7974]`}>{item.status}</p>
                 <p className="mt-2 text-sm leading-6 text-[#A29E93]">Recommended period: {item.recommended_period || "review period"}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" onClick={() => onGeneratePackage(item)} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-3 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FF8D3C]`}>
+                  <button type="button" onClick={() => onGeneratePackage(item)} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-3 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FF8D3C]`}>
                     Generate recommended package
                   </button>
                   <button type="button" onClick={() => onDismiss(item)} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-3 py-2 text-xs font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
@@ -3394,7 +3393,7 @@ function SimplifiedFeatureCards({ onExploreSection }) {
             key={title}
             type="button"
             onClick={() => onExploreSection(title)}
-            className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] p-5 text-left transition hover:border-[#FF7A1A]/50`}
+            className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] p-5 text-left transition hover:border-[#C9A961]/50`}
           >
             <p className={`${headingFont} text-base font-black text-[#ECEBE7]`}>{title}</p>
             <p className="mt-2 text-sm leading-6 text-[#A29E93]">{description}</p>
@@ -3557,7 +3556,7 @@ function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
       <div className="mt-6 rounded-3xl border border-[#5591C7]/20 bg-[#111112]/70 p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]`}>Predictive Alert Center</p>
+            <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]`}>Predictive Alert Center</p>
             <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Explanation, impact, and recommended action</h3>
           </div>
           <p className="max-w-xl text-sm leading-6 text-[#A29E93]">
@@ -3606,7 +3605,7 @@ function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
         <div className="mt-6 rounded-3xl border border-[#5591C7]/20 bg-[#111112]/70 p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]`}>What-If Scenario Modeling</p>
+              <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]`}>What-If Scenario Modeling</p>
               <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>{whatIfStrategy.label}</h3>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-[#A29E93]">
                 Pulse can build scenarios from natural language and explain estimated profit, cash, EBITDA, and KPI impact in plain English.
@@ -3644,7 +3643,7 @@ function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
 function DashboardFocusCard({ title, items }) {
   return (
     <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
-      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]`}>{title}</p>
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#C9A961]`}>{title}</p>
       <ul className="mt-4 grid gap-3 text-sm leading-6 text-[#ECEBE7]">
         {items.map((item) => (
           <li key={item}>- {item}</li>
@@ -3686,7 +3685,7 @@ function IndustryIntelligenceDashboard({ industryType, onAskMetric }) {
 
   return (
     <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#111112]/85 p-8">
-      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Industry Intelligence</p>
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Industry Intelligence</p>
       <h2 className={`${headingFont} mt-3 text-3xl font-black text-[#ECEBE7]`}>Operational intelligence will adapt as industry data becomes available.</h2>
       <p className="mt-3 max-w-3xl leading-7 text-[#A29E93]">
         Advisacor combines core financial intelligence with industry-specific KPIs, commentary, and recommendations.
@@ -3756,7 +3755,7 @@ function WorkforceModeling({ onAskMetric }) {
     <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]`}>What If Workforce Modeling</p>
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]`}>What If Workforce Modeling</p>
           <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Add 2 Nurses</h3>
           <p className="mt-2 text-sm leading-6 text-[#A29E93]">Simulates adding nurses, CNAs, therapists, or other staff positions against patient day economics.</p>
         </div>
@@ -3841,7 +3840,7 @@ function ProfessionalServicesDashboard({ onAskMetric }) {
 function IndustryShell({ title, subtitle, children }) {
   return (
     <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#111112]/85 p-8">
-      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Industry Intelligence</p>
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Industry Intelligence</p>
       <h2 className={`${headingFont} mt-3 text-3xl font-black text-[#ECEBE7]`}>{title}</h2>
       <p className="mt-3 max-w-3xl leading-7 text-[#A29E93]">{subtitle}</p>
       <div className="mt-6">{children}</div>
@@ -3852,7 +3851,7 @@ function IndustryShell({ title, subtitle, children }) {
 function IndustryCommentary({ items }) {
   return (
     <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
-      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]`}>Executive Commentary</p>
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#C9A961]`}>Executive Commentary</p>
       <ul className="mt-4 grid gap-3 text-sm leading-6 text-[#A29E93]">
         {items.map((item) => <li key={item}>- {item}</li>)}
       </ul>
@@ -3866,7 +3865,7 @@ function DashboardAiLauncher({ open, onOpenChange, question, onQuestionChange, m
       <button
         type="button"
         onClick={() => onOpenChange(true)}
-        className={`${focusRing("rounded-full")} ${headingFont} fixed bottom-5 right-5 z-50 rounded-full bg-[#FF7A1A] px-5 py-4 text-sm font-black text-[#111112] shadow-2xl shadow-black/40 transition hover:bg-[#FF9349]`}
+        className={`${focusRing("rounded-full")} ${headingFont} fixed bottom-5 right-5 z-50 rounded-full bg-[#C9A961] px-5 py-4 text-sm font-black text-[#111112] shadow-2xl shadow-black/40 transition hover:bg-[#FF9349]`}
       >
         Ask Pulse
       </button>
@@ -3876,7 +3875,7 @@ function DashboardAiLauncher({ open, onOpenChange, question, onQuestionChange, m
           <div className="border-b border-[#C9A961]/15 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]`}>Pulse</p>
+                <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]`}>Pulse</p>
                 <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Your business intelligence assistant</h3>
                 <p className="mt-2 text-xs leading-5 text-[#A29E93]">
                   Context: {context.companyName} | {context.industryType} | {context.packageName}
@@ -3898,7 +3897,7 @@ function DashboardAiLauncher({ open, onOpenChange, question, onQuestionChange, m
                 key={`${message.role}-${index}`}
                 className={`rounded-3xl px-4 py-3 text-sm leading-6 ${
                   message.role === "user"
-                    ? "ml-auto bg-[#FF7A1A] text-[#111112] font-black"
+                    ? "ml-auto bg-[#C9A961] text-[#111112] font-black"
                     : "mr-auto border border-[#C9A961]/20 bg-[#111112]/70 text-[#ECEBE7]"
                 }`}
               >
@@ -3933,7 +3932,7 @@ function DashboardAiLauncher({ open, onOpenChange, question, onQuestionChange, m
               <button
                 type="button"
                 onClick={() => onSubmit()}
-                className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FF9349]`}
+                className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-4 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FF9349]`}
               >
                 Ask
               </button>

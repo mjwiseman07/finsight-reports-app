@@ -77,7 +77,7 @@ export default async function PacketPage({ params }) {
   const firmName = firm?.name || "";
 
   return (
-    <div className="min-h-screen bg-[#0B0B0C] text-white">
+    <div className="min-h-screen bg-[#111112] text-white">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
 
       {!closePeriod ? (

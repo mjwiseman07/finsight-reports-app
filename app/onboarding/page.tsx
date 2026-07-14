@@ -1623,10 +1623,10 @@ function OnboardingContent() {
         <head>
           <title>Advisacor Report Guide</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 48px; color: #111827; line-height: 1.6; }
-            h1 { color: #0A1020; font-size: 34px; margin-bottom: 8px; }
-            h2 { color: #0A1020; margin-top: 28px; }
-            .brand { color: #D28A4A; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+            body { font-family: Arial, sans-serif; margin: 48px; color: #28251D; line-height: 1.6; }
+            h1 { color: #111112; font-size: 34px; margin-bottom: 8px; }
+            h2 { color: #111112; margin-top: 28px; }
+            .brand { color: #C9A961; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
             .box { border: 1px solid #E5E7EB; border-radius: 18px; padding: 20px; margin-top: 18px; }
             li { margin: 8px 0; }
           </style>

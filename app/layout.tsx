@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     siteName: "Advisacor",
     images: [
       {
-        url: "/advisacor-logo.svg",
+        url: "/advisacor-logo-framed-navy.png",
         width: 1200,
         height: 630,
         alt: "Advisacor Financial Intelligence",

@@ -220,7 +220,7 @@ function SignupPageContent() {
   }
 
   return (
-    <main className="advisacor-signup-brand min-h-screen bg-[#0A1530] px-6 py-8 text-white">
+    <main className="advisacor-signup-brand min-h-screen bg-[#111112] px-6 py-8 text-white">
       <header className="mx-auto flex max-w-7xl items-center justify-between">
         <Link href="/" className="block" aria-label="Advisacor home">
           <Image
@@ -279,7 +279,7 @@ function SignupPageContent() {
           </ul>
         </div>
 
-        <div className="rounded-[2rem] border border-[#C9A961]/40 bg-[#0F1D3E]/85 p-8 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl md:p-10">
+        <div className="rounded-[2rem] border border-[#C9A961]/40 bg-[#1A1A1C]/85 p-8 shadow-[0_30px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl md:p-10">
           {phase === "verify_email" ? (
             <>
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961]">
@@ -453,7 +453,7 @@ function SignupPageContent() {
                 Already have access?{" "}
                 <Link
                   href="/signin"
-                  className="font-semibold text-[#C9A961] transition hover:text-[#D9B972]"
+                  className="font-semibold text-[#C9A961] transition hover:text-[#DFC084]"
                 >
                   Sign in
                 </Link>

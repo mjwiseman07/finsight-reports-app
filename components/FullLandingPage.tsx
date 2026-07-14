@@ -251,7 +251,7 @@ function VideoTile({ title, src }: { title: string; src: string }) {
             <source src={src} type="video/mp4" />
           </video>
         )}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0A1020] via-[#0A1020]/80 to-transparent px-4 pb-4 pt-16">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#111112] via-[#111112]/80 to-transparent px-4 pb-4 pt-16">
           <p className={`text-sm font-black text-white ${headingFont}`}>{title}</p>
         </div>
       </div>
@@ -352,7 +352,7 @@ function EarlyAccessForm() {
       >
         {isSubmitting ? (
           <span className="inline-flex items-center justify-center gap-2">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0A1530]/30 border-t-[#0A1530]" aria-hidden="true" />
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#111112]/30 border-t-[#111112]" aria-hidden="true" />
             Submitting...
           </span>
         ) : (
@@ -370,12 +370,12 @@ function EarlyAccessForm() {
 
 export default function FullLandingPage() {
   return (
-    <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
+    <main className="min-h-screen bg-[#F7F6F2] text-[#28251D]">
       <SiteNav />
       {/* SECTION A + B — Navigation + Hero */}
       <section
         id="top"
-        className="relative isolate overflow-hidden bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 px-6 pb-16 md:pb-20"
+        className="relative isolate overflow-hidden bg-gradient-to-br from-[#F7F6F2] via-[#EEEDE7] to-[#D4D1CA] px-6 pb-16 md:pb-20"
       >
 
         <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 pt-[200px] md:pt-[240px] lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)] lg:pt-[260px]">
@@ -404,7 +404,7 @@ export default function FullLandingPage() {
                     el.scrollIntoView({ behavior: "smooth", block: "start" });
                   }
                 }}
-                className={`inline-flex items-center gap-2 rounded-full border-2 border-[#0A1530] bg-[#0A1530] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#060E22] ${focusRing()}`}
+                className={`inline-flex items-center gap-2 rounded-full border-2 border-[#111112] bg-[#111112] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#060E22] ${focusRing()}`}
               >
                 See What It Does <span className="text-[#C9A961]">↓</span>
               </a>
@@ -412,7 +412,7 @@ export default function FullLandingPage() {
           </div>
           <div className="min-w-0">
             <div className="relative ml-auto w-full max-w-xl">
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A1530] via-[#0D1A3A] to-[#060E22] p-8 shadow-2xl ring-1 ring-white/10 sm:p-10">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#111112] via-[#0D1A3A] to-[#060E22] p-8 shadow-2xl ring-1 ring-white/10 sm:p-10">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#C9A961]/15 blur-3xl"
@@ -477,7 +477,7 @@ export default function FullLandingPage() {
       <CapabilityCarousel />
 
       {/* SECTION C — Patent strip */}
-      <section className="border-y border-white/5 bg-[#0A1530] px-6 py-5">
+      <section className="border-y border-white/5 bg-[#111112] px-6 py-5">
         <p className="mx-auto max-w-5xl text-center text-xs leading-6 md:text-sm">
           <span className="font-semibold text-[#C9A961]">Three U.S. Provisional Patents Filed · June 2026</span>
           <span className="text-[#C9A961]/60"> · </span>
@@ -492,19 +492,19 @@ export default function FullLandingPage() {
       </section>
 
       {/* SECTION D — Four Pillars */}
-      <section id="what-it-does" className="scroll-mt-24 bg-[#F5F7FA] px-6 py-24">
+      <section id="what-it-does" className="scroll-mt-24 bg-[#F7F6F2] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">What Advisacor Does</p>
-          <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
+          <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#111112] md:text-5xl ${headingFont}`}>
             Four things generic AI accounting tools can&apos;t do.
           </h2>
           <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {pillars.map((pillar) => (
               <article key={pillar.title} className="enterprise-card rounded-[2rem] p-7">
-                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#C9A961]/20 bg-[#0A1020] text-[#C9A961]">
+                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#C9A961]/20 bg-[#111112] text-[#C9A961]">
                   <pillar.icon className="h-6 w-6" />
                 </div>
-                <h3 className={`text-xl font-black tracking-[-0.02em] text-[#0A1020] ${headingFont}`}>{pillar.title}</h3>
+                <h3 className={`text-xl font-black tracking-[-0.02em] text-[#111112] ${headingFont}`}>{pillar.title}</h3>
                 <p className="mt-4 text-sm leading-7 text-slate-600">{pillar.description}</p>
                 <p className="mt-4 border-t border-slate-200 pt-4 text-xs font-semibold tracking-wider text-[#C9A961]">
                   {pillar.detailLine}
@@ -516,7 +516,7 @@ export default function FullLandingPage() {
       </section>
 
       {/* SECTION E — Video Showcase */}
-      <section id="see-it" className="scroll-mt-24 bg-[#0A1020] px-6 py-24 text-white">
+      <section id="see-it" className="scroll-mt-24 bg-[#111112] px-6 py-24 text-white">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">See It In Action</p>
           <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] md:text-5xl ${headingFont}`}>Sixty seconds is all it takes.</h2>
@@ -527,7 +527,7 @@ export default function FullLandingPage() {
             {videoTiles.map((tile) => (
               <VideoTile key={tile.src} title={tile.title} src={tile.src} />
             ))}
-            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-[#C9A961]/30 bg-gradient-to-br from-[#0A1530] to-[#060E22] p-8 text-center">
+            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-[#C9A961]/30 bg-gradient-to-br from-[#111112] to-[#060E22] p-8 text-center">
               <p className="mb-3 text-xs font-semibold tracking-wider text-[#C9A961]">MORE SEGMENTS COMING</p>
               <p className="text-lg font-semibold leading-snug text-white">New videos roll out as features ship.</p>
               <p className="mt-3 text-sm text-white/60">Request early access to be notified when each one drops.</p>
@@ -537,10 +537,10 @@ export default function FullLandingPage() {
       </section>
 
       {/* SECTION F — Nine Industries */}
-      <section id="industries" className="scroll-mt-24 bg-[#F5F7FA] px-6 py-24">
+      <section id="industries" className="scroll-mt-24 bg-[#F7F6F2] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Built For The Industries That Need It Most</p>
-          <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
+          <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#111112] md:text-5xl ${headingFont}`}>
             Nine industries. Each one built from the inside out.
           </h2>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
@@ -549,10 +549,10 @@ export default function FullLandingPage() {
                 key={industry.name}
                 className="enterprise-card group rounded-2xl border border-transparent p-6 transition-all duration-200 hover:-translate-y-1 hover:border-[#C9A961]/40 hover:shadow-lg hover:shadow-[#C9A961]/10"
               >
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A1020] text-[#C9A961] transition group-hover:text-[#D9BE7B]">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#111112] text-[#C9A961] transition group-hover:text-[#D9BE7B]">
                   <industry.icon className="h-5 w-5" />
                 </div>
-                <h3 className={`text-lg font-black text-[#0A1020] transition group-hover:text-[#C9A961] ${headingFont}`}>{industry.name}</h3>
+                <h3 className={`text-lg font-black text-[#111112] transition group-hover:text-[#C9A961] ${headingFont}`}>{industry.name}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{industry.descriptor}</p>
                 <div className="mt-3 border-t border-[#C9A961]/40 pt-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                   <p className="text-xs font-semibold tracking-wider text-[#C9A961]">{industry.detailLine}</p>
@@ -568,7 +568,7 @@ export default function FullLandingPage() {
       </section>
 
       {/* SECTION G — How It Works */}
-      <section id="how-it-works" className="scroll-mt-24 bg-[#0A1020] px-6 py-24 text-white">
+      <section id="how-it-works" className="scroll-mt-24 bg-[#111112] px-6 py-24 text-white">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">How It Works</p>
           <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] md:text-5xl ${headingFont}`}>
@@ -578,7 +578,7 @@ export default function FullLandingPage() {
             {steps.map((step) => (
               <article key={step.number} className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 backdrop-blur">
                 <p
-                  className={`flex h-14 w-14 items-center justify-center rounded-full bg-[#C9A961] text-lg font-black text-[#0A1530] ${headingFont}`}
+                  className={`flex h-14 w-14 items-center justify-center rounded-full bg-[#C9A961] text-lg font-black text-[#111112] ${headingFont}`}
                 >
                   {step.number}
                 </p>
@@ -592,10 +592,10 @@ export default function FullLandingPage() {
       </section>
 
       {/* SECTION H — Built On */}
-      <section className="bg-[#F5F7FA] px-6 py-24">
+      <section className="bg-[#F7F6F2] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Built On</p>
-          <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
+          <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] text-[#111112] md:text-5xl ${headingFont}`}>
             Built on the standards your auditors require.
           </h2>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -604,12 +604,12 @@ export default function FullLandingPage() {
                 key={badge.title}
                 className={
                   badge.title === "Patent Pending"
-                    ? "rounded-2xl border border-[#C9A961] bg-[#0A1530] p-6 text-center"
+                    ? "rounded-2xl border border-[#C9A961] bg-[#111112] p-6 text-center"
                     : "enterprise-card rounded-2xl p-6 text-center"
                 }
               >
                 <p
-                  className={`text-lg font-black ${badge.title === "Patent Pending" ? "text-[#C9A961]" : "text-[#0A1020]"} ${headingFont}`}
+                  className={`text-lg font-black ${badge.title === "Patent Pending" ? "text-[#C9A961]" : "text-[#111112]"} ${headingFont}`}
                 >
                   {badge.title}
                 </p>
@@ -627,10 +627,10 @@ export default function FullLandingPage() {
       </section>
 
       {/* SECTION I — About / Founder */}
-      <section id="about" className="scroll-mt-24 bg-[#F5F7FA] px-6 pb-24">
+      <section id="about" className="scroll-mt-24 bg-[#F7F6F2] px-6 pb-24">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Built By Accountants For Accountants</p>
-          <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#0A1020] md:text-5xl ${headingFont}`}>
+          <h2 className={`mt-4 max-w-3xl text-4xl font-black tracking-[-0.04em] text-[#111112] md:text-5xl ${headingFont}`}>
             Designed by someone who&apos;s actually closed the books.
           </h2>
           <div className="mt-12 grid items-center gap-10 lg:grid-cols-[minmax(0,16rem)_1fr]">
@@ -665,7 +665,7 @@ export default function FullLandingPage() {
                 href="https://www.linkedin.com/in/matthew-wiseman-807bb155"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`mt-4 inline-flex text-sm font-semibold text-[#0A1530] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
+                className={`mt-4 inline-flex text-sm font-semibold text-[#111112] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
               >
                 Connect on LinkedIn →
               </a>
@@ -687,7 +687,7 @@ export default function FullLandingPage() {
               <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">
                 Co-Founder &amp; Chief Operating Officer
               </p>
-              <h3 className={`mt-4 max-w-3xl text-3xl font-black tracking-[-0.04em] text-[#0A1020] md:text-4xl ${headingFont}`}>
+              <h3 className={`mt-4 max-w-3xl text-3xl font-black tracking-[-0.04em] text-[#111112] md:text-4xl ${headingFont}`}>
                 Built around the people who actually use it.
               </h3>
               <p className="mb-4 mt-6 leading-relaxed text-slate-700">
@@ -711,7 +711,7 @@ export default function FullLandingPage() {
                 href="https://www.linkedin.com/in/janice-wiseman-a13850161"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`mt-4 inline-flex text-sm font-semibold text-[#0A1530] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
+                className={`mt-4 inline-flex text-sm font-semibold text-[#111112] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
               >
                 Connect on LinkedIn →
               </a>
@@ -721,7 +721,7 @@ export default function FullLandingPage() {
       </section>
 
       {/* SECTION J — Early Access */}
-      <section id="early-access" className="scroll-mt-24 bg-[#0A1020] px-6 py-24 text-white">
+      <section id="early-access" className="scroll-mt-24 bg-[#111112] px-6 py-24 text-white">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Early Access</p>
           <h2 className={`mt-4 text-4xl font-black tracking-[-0.04em] md:text-5xl ${headingFont}`}>

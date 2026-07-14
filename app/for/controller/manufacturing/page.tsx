@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function ManufacturingWaitlistPage() {
   return (
-    <main className="min-h-screen bg-[#0B0B0C] text-white">
+    <main className="min-h-screen bg-[#111112] text-white">
       <SiteNav />
       {/* HERO with inline form */}
       <section className="mx-auto max-w-6xl px-6 pt-[200px] md:pt-[240px] lg:pt-[260px] pb-16 md:pb-24">
@@ -51,7 +51,7 @@ export default function ManufacturingWaitlistPage() {
         </div>
       </section>
       {/* WHY THIS IS DIFFERENT */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-white/10 bg-[#1A1A1C]">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
           <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
             Why manufacturing gets its own vertical
@@ -124,7 +124,7 @@ export default function ManufacturingWaitlistPage() {
         </div>
       </section>
       {/* TIMELINE STRIP */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-white/10 bg-[#1A1A1C]">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
           <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
             Timeline

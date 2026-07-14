@@ -179,7 +179,7 @@ export default function ClosePeriodChecklistPage() {
   const canProceed = run?.status === "passed";
 
   return (
-    <div className="min-h-screen bg-[#0B0B0C] text-white">
+    <div className="min-h-screen bg-[#111112] text-white">
       <SiteNav />
       <section className="mx-auto max-w-4xl px-6 pt-[200px] md:pt-[240px] lg:pt-[260px] pb-24">
         <p className="text-sm uppercase tracking-[0.2em] text-[#C9A961] mb-6">
@@ -300,14 +300,14 @@ export default function ClosePeriodChecklistPage() {
                         value={noteDraft}
                         onChange={(e) => setNoteDraft(e.target.value)}
                         rows={3}
-                        className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white ${focusRing()}`}
+                        className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white ${focusRing()}`}
                         placeholder="What did you verify?"
                       />
                       <button
                         type="button"
                         disabled={actionLoading === ri.id}
                         onClick={() => void confirmItem(ri.id)}
-                        className={`mt-2 rounded-full bg-[#C9A961] px-5 py-2 text-sm font-semibold text-[#0B0B0C] disabled:opacity-60 ${focusRing()}`}
+                        className={`mt-2 rounded-full bg-[#C9A961] px-5 py-2 text-sm font-semibold text-[#111112] disabled:opacity-60 ${focusRing()}`}
                       >
                         Confirm
                       </button>
@@ -320,7 +320,7 @@ export default function ClosePeriodChecklistPage() {
                         value={waiveDraft}
                         onChange={(e) => setWaiveDraft(e.target.value)}
                         rows={2}
-                        className={`w-full rounded-lg border border-white/15 bg-[#0B0B0C] px-4 py-3 text-white ${focusRing()}`}
+                        className={`w-full rounded-lg border border-white/15 bg-[#111112] px-4 py-3 text-white ${focusRing()}`}
                         placeholder="Reason for waiver"
                       />
                       <button
@@ -349,7 +349,7 @@ export default function ClosePeriodChecklistPage() {
                 : "Checklist must pass before drafting can begin"
             }
             onClick={() => router.push(`/close-periods/${closePeriodId}`)}
-            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${focusRing()}`}
+            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${focusRing()}`}
           >
             Proceed to draft close
             <span aria-hidden>→</span>

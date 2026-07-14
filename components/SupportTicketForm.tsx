@@ -124,7 +124,7 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
       {error && <p className="rounded-2xl border border-[#B84A3E]/30 bg-[#B84A3E]/10 p-4 text-sm font-bold text-[#E89890]">{error}</p>}
       {success && <p className="whitespace-pre-line rounded-2xl border border-[#437A22]/30 bg-[#437A22]/10 p-4 text-sm font-bold text-[#8CB56C]">{success}</p>}
 
-      <button type="button" onClick={() => void submitTicket()} disabled={isSubmitting} className="rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#0A1530] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A] disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="button" onClick={() => void submitTicket()} disabled={isSubmitting} className="rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#111112] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A] disabled:cursor-not-allowed disabled:opacity-60">
         {isSubmitting ? "Submitting..." : "Submit Support Ticket"}
       </button>
     </div>
@@ -138,7 +138,7 @@ function FileNameInput({ label, onChange }: { label: string; onChange: (value: s
       <input
         type="file"
         onChange={(event) => onChange(event.target.files?.[0]?.name || "")}
-        className="block w-full cursor-pointer rounded-2xl border border-white/10 bg-[#111112] text-xs text-slate-300 file:mr-3 file:border-0 file:bg-[#C9A961] file:px-3 file:py-3 file:text-xs file:font-semibold file:text-[#0A1530]"
+        className="block w-full cursor-pointer rounded-2xl border border-white/10 bg-[#111112] text-xs text-slate-300 file:mr-3 file:border-0 file:bg-[#C9A961] file:px-3 file:py-3 file:text-xs file:font-semibold file:text-[#111112]"
       />
     </label>
   );
