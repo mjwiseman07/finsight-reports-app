@@ -3237,84 +3237,84 @@ function PulseAdvisoryIntelligencePanel({ intelligence, onRefresh, onRun, onDism
   const recommendationBySignal = new Map(recommendations.map((recommendation) => [recommendation.signal_id, recommendation]));
 
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+    <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#111112]/70 p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Pulse Advisory Intelligence</p>
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Autonomous advisory review queue.</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#DFC084]`}>Pulse Advisory Intelligence</p>
+          <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Autonomous advisory review queue.</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#A29E93]">
             Advisacor monitors connected company data for meaningful changes and prepares recommendations for review. Nothing is sent or shared externally without approval.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onRefresh} disabled={intelligence?.loading} className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-black text-slate-200 disabled:opacity-50">
+          <button type="button" onClick={onRefresh} disabled={intelligence?.loading} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-4 py-2 text-xs font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60 disabled:opacity-50`}>
             Refresh
           </button>
-          <button type="button" onClick={onRun} disabled={intelligence?.loading} className="rounded-2xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-white disabled:opacity-50">
+          <button type="button" onClick={onRun} disabled={intelligence?.loading} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FF8D3C] disabled:opacity-50`}>
             {intelligence?.loading ? "Running..." : "Run Intelligence"}
           </button>
         </div>
       </div>
 
       {highPriority && (
-        <p className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-bold text-amber-100">
+        <p className="mt-5 rounded-2xl border border-[#BB653B]/40 bg-[#BB653B]/12 px-4 py-3 text-sm font-bold text-[#DFC084]">
           Advisacor detected changes that may require advisor review. A recommended package is available.
         </p>
       )}
-      {intelligence?.message && <p className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">{intelligence.message}</p>}
-      {intelligence?.error && <p className="mt-5 rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm font-bold text-red-100">{intelligence.error}</p>}
+      {intelligence?.message && <p className="mt-5 rounded-2xl border border-[#6DAA45]/30 bg-[#6DAA45]/10 px-4 py-3 text-sm font-bold text-[#B5E28A]">{intelligence.message}</p>}
+      {intelligence?.error && <p className="mt-5 rounded-2xl border border-[#B85C5C]/40 bg-[#B85C5C]/12 px-4 py-3 text-sm font-bold text-[#F0BFBF]">{intelligence.error}</p>}
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="grid gap-4">
           {signals.length ? signals.slice(0, 6).map((signal) => {
             const recommendation = recommendationBySignal.get(signal.id);
             return (
-              <div key={signal.id} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+              <div key={signal.id} className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] ${severityClass(signal.severity)}`}>{signal.severity}</span>
-                    <h3 className="mt-3 text-lg font-black text-white">{signal.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-300">{signal.description}</p>
+                    <h3 className={`${headingFont} mt-3 text-lg font-black text-[#ECEBE7]`}>{signal.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-[#A29E93]">{signal.description}</p>
                   </div>
-                  <button type="button" onClick={() => onRefresh()} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-slate-200">
+                  <button type="button" onClick={() => onRefresh()} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-3 py-2 text-xs font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
                     Review recommendation
                   </button>
                 </div>
                 {recommendation && (
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                    <p className="text-sm font-black text-white">{recommendation.title}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">{recommendation.summary}</p>
+                  <div className="mt-4 rounded-2xl border border-[#C9A961]/15 bg-[#111112]/85 p-4">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>{recommendation.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-[#7A7974]">{recommendation.summary}</p>
                   </div>
                 )}
               </div>
             );
           }) : (
-            <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
-              <p className="text-sm font-black text-white">No new advisory signals loaded.</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Run advisory intelligence or refresh after data sync to review signals.</p>
+            <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+              <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>No new advisory signals loaded.</p>
+              <p className="mt-2 text-sm leading-6 text-[#7A7974]">Run advisory intelligence or refresh after data sync to review signals.</p>
             </div>
           )}
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Recommended Packages</p>
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#DFC084]`}>Recommended Packages</p>
           <div className="mt-4 grid gap-3">
             {packageQueue.length ? packageQueue.slice(0, 5).map((item) => (
-              <div key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                <p className="text-sm font-black text-white">{String(item.package_type || "").replaceAll("_", " ")}</p>
-                <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{item.status}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-400">Recommended period: {item.recommended_period || "review period"}</p>
+              <div key={item.id} className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] p-4">
+                <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>{String(item.package_type || "").replaceAll("_", " ")}</p>
+                <p className={`${headingFont} mt-1 text-xs font-bold uppercase tracking-[0.12em] text-[#7A7974]`}>{item.status}</p>
+                <p className="mt-2 text-sm leading-6 text-[#A29E93]">Recommended period: {item.recommended_period || "review period"}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" onClick={() => onGeneratePackage(item)} className="rounded-2xl bg-[#FF7A1A] px-3 py-2 text-xs font-black text-white">
+                  <button type="button" onClick={() => onGeneratePackage(item)} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-3 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FF8D3C]`}>
                     Generate recommended package
                   </button>
-                  <button type="button" onClick={() => onDismiss(item)} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-slate-200">
+                  <button type="button" onClick={() => onDismiss(item)} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-3 py-2 text-xs font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
                     Dismiss
                   </button>
                 </div>
               </div>
             )) : (
-              <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-400">
+              <p className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] px-4 py-3 text-sm text-[#7A7974]">
                 No package recommendations are pending review.
               </p>
             )}
