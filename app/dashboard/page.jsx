@@ -3155,7 +3155,7 @@ function ExploreDeeperActiveSection({
   return (
     <section id="explore-deeper-active-section" className="scroll-mt-28">
       <div className="mb-3 flex justify-end">
-        <button type="button" onClick={onCloseSection} className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-2 text-xs font-black text-slate-300 transition hover:border-white/25 hover:text-white">
+        <button type="button" onClick={onCloseSection} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 bg-[#111112]/70 px-4 py-2 text-xs font-black text-[#A29E93] transition hover:border-[#C9A961]/60 hover:text-[#ECEBE7]`}>
           Close Section
         </button>
       </div>
@@ -3207,9 +3207,9 @@ function ExploreDeeperActiveSection({
 
 function PulseInsightsShortcutSection() {
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Pulse Insights</p>
-      <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Executive analysis is ready.</h2>
+    <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#111112]/70 p-8">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#DFC084]`}>Pulse Insights</p>
+      <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Executive analysis is ready.</h2>
       <div className="mt-6 grid gap-5 lg:grid-cols-3">
         <DashboardFocusCard title="Executive Summary" items={["Stable liquidity with positive revenue momentum.", "Profitability is healthy, but labor and overhead should stay under review.", "Collections concentration remains the most important near-term watch item."]} />
         <DashboardFocusCard title="Top 3 Risks" items={["AR concentration could pressure short-term cash.", "Vendor payment timing should stay aligned with receipts.", "Margin can soften if payroll and overhead move faster than revenue."]} />
@@ -3223,10 +3223,10 @@ function PulseInsightsShortcutSection() {
 }
 
 function severityClass(severity) {
-  if (severity === "critical") return "border-red-300/30 bg-red-500/10 text-red-100";
-  if (severity === "high") return "border-amber-300/30 bg-amber-400/10 text-amber-100";
-  if (severity === "medium") return "border-blue-300/30 bg-blue-400/10 text-blue-100";
-  return "border-slate-300/20 bg-slate-400/10 text-slate-100";
+  if (severity === "critical") return "border-[#B85C5C]/40 bg-[#B85C5C]/12 text-[#F0BFBF]";
+  if (severity === "high") return "border-[#BB653B]/40 bg-[#BB653B]/12 text-[#DFC084]";
+  if (severity === "medium") return "border-[#4F98A3]/40 bg-[#4F98A3]/12 text-[#BCE2E7]";
+  return "border-[#C9A961]/30 bg-[#111112]/70 text-[#A29E93]";
 }
 
 function PulseAdvisoryIntelligencePanel({ intelligence, onRefresh, onRun, onDismiss, onGeneratePackage }) {
