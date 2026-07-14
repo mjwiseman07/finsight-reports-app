@@ -2761,8 +2761,8 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
   }
 
   return (
-    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#FF7A1A]/10 p-6 shadow-2xl shadow-orange-500/5">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Ask Pulse Anything About Your Business</p>
+    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#FF7A1A]/10 p-6 shadow-2xl shadow-[#FF7A1A]/5">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Ask Pulse Anything About Your Business</p>
       <div className="mt-4 flex flex-col gap-3 lg:flex-row">
         <input
           value={question}
@@ -2771,9 +2771,9 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
             if (event.key === "Enter") onSubmit();
           }}
           placeholder="Ask about cash, margins, expenses, customers, risk, or what to do next..."
-          className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950 px-5 py-4 text-sm font-bold text-white outline-none focus:border-[#FFB36F]"
+          className={`${focusRing("rounded-2xl")} min-w-0 flex-1 rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-5 py-4 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] focus:border-[#FFB36F]`}
         />
-        <button type="button" onClick={() => onSubmit()} className="rounded-2xl bg-[#FF7A1A] px-6 py-4 text-sm font-black text-white">
+        <button type="button" onClick={() => onSubmit()} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-6 py-4 text-sm font-black text-[#111112] transition hover:bg-[#FFB36F]`}>
           Ask Pulse
         </button>
       </div>
@@ -2783,33 +2783,33 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
             key={example}
             type="button"
             onClick={() => onSubmit(example)}
-            className="rounded-full border border-white/10 bg-slate-950/50 px-3 py-2 text-xs font-bold text-slate-200"
+            className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-3 py-2 text-xs font-bold text-[#ECEBE7] transition hover:border-[#C9A961]/50`}
           >
             {example}
           </button>
         ))}
       </div>
       {expanded && (
-        <div className="mt-5 rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+        <div className="mt-5 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-black text-white">Pulse response workspace</p>
-            <button type="button" onClick={onCollapse} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-300">
+            <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Pulse response workspace</p>
+            <button type="button" onClick={onCollapse} className={`${focusRing("rounded-xl")} ${headingFont} rounded-xl border border-[#C9A961]/40 px-3 py-2 text-xs font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
               Collapse
             </button>
           </div>
           <div className="mt-4 grid max-h-96 gap-3 overflow-y-auto">
             {recentMessagePairs.slice(0, 4).map((pair, index) => (
               <div key={`${pair.question.content}-${index}`} className="grid gap-3">
-                <div className="ml-auto rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm leading-6 text-white">
-                  <p className="text-xs font-black uppercase tracking-[0.14em] opacity-70">You</p>
+                <div className="ml-auto rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm leading-6 text-[#111112]">
+                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.14em] opacity-70`}>You</p>
                   <p className="mt-1 whitespace-pre-wrap">{pair.question.content}</p>
                 </div>
                 {pair.answer && (
-                  <div className="mr-auto rounded-2xl bg-white/[0.06] px-4 py-3 text-sm leading-6 text-slate-200">
-                    <p className="text-xs font-black uppercase tracking-[0.14em] opacity-70">Pulse</p>
+                  <div className="mr-auto rounded-2xl bg-[#1A1A1C] px-4 py-3 text-sm leading-6 text-[#ECEBE7]">
+                    <p className={`${headingFont} text-xs font-black uppercase tracking-[0.14em] opacity-70`}>Pulse</p>
                     <p className="mt-1 whitespace-pre-wrap">{pair.answer.content}</p>
                     {pair.answer.content.includes("not included in your current Advisacor package") && (
-                      <button type="button" onClick={onUpgradePackage} className="mt-3 rounded-xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-white">
+                      <button type="button" onClick={onUpgradePackage} className={`${focusRing("rounded-xl")} ${headingFont} mt-3 rounded-xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FFB36F]`}>
                         Upgrade Package
                       </button>
                     )}
