@@ -40,24 +40,24 @@ const founders = [
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
+    <main className="min-h-screen bg-[#F7F6F2] text-[#28251D]">
       <SiteNav />
       {/* SECTION 1 — Hero */}
-      <section className="relative overflow-hidden bg-[#0A1530] pb-24 pt-[240px] md:pt-[260px] lg:pt-[280px]">
+      <section className="relative overflow-hidden bg-[#111112] pb-24 pt-[240px] md:pt-[260px] lg:pt-[280px]">
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A961]/5 blur-3xl" />
         <div className="relative mx-auto max-w-4xl px-6 text-center">
           <p className="mb-6 text-xs font-semibold tracking-[0.2em] text-[#C9A961]">WISEMAN FINANCIAL TECHNOLOGIES, LLC</p>
           <p className="mb-8 text-sm tracking-wide text-[#C9A961] md:text-base">
             ADVISACOR™ · Powerful Intelligence. Simplified. · Insight. Accuracy. Confidence.
           </p>
-          <h1 className="text-5xl font-bold leading-tight text-white md:text-6xl lg:text-7xl">
+          <h1 className="text-5xl font-bold leading-tight text-[#ECEBE7] md:text-6xl lg:text-7xl">
             About Wiseman Financial Technologies
           </h1>
-          <p className="mx-auto mt-8 max-w-3xl text-lg leading-relaxed text-white/80 md:text-xl">
+          <p className="mx-auto mt-8 max-w-3xl text-lg leading-relaxed text-[#ECEBE7] md:text-xl">
             Enterprise SaaS that turns complex financial and operational work into powerful intelligence — designed to
             enhance the systems organizations already trust, not replace them.
           </p>
-          <div className="mt-12 inline-flex items-center gap-3 text-sm text-white/50">
+          <div className="mt-12 inline-flex items-center gap-3 text-sm text-[#7A7974]">
             <span className="h-px w-12 bg-[#C9A961]/40" />
             <span className="tracking-wider">CLIFTON FORGE · VIRGINIA</span>
             <span className="h-px w-12 bg-[#C9A961]/40" />
@@ -66,13 +66,13 @@ export default function AboutPage() {
       </section>
 
       {/* SECTION 2 — Who We Are */}
-      <section className="bg-[#0A1530] px-6 py-24 text-white">
+      <section className="bg-[#111112] px-6 py-24 text-[#ECEBE7]">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Who We Are</p>
           <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] md:text-4xl ${headingFont}`}>
             Powerful technology should simplify work — not complicate it.
           </h2>
-          <div className="mt-8 space-y-5 text-base leading-8 text-white/85">
+          <div className="mt-8 space-y-5 text-base leading-8 text-[#ECEBE7]">
             <p>
               Wiseman Financial Technologies, LLC is an enterprise Software-as-a-Service company dedicated to helping
               organizations simplify complex financial and operational work through powerful intelligence, enterprise
@@ -95,10 +95,10 @@ export default function AboutPage() {
       </section>
 
       {/* SECTION 3 — Meet the Founders */}
-      <section className="bg-[#F5F7FA] px-6 pt-24 pb-24">
+      <section className="bg-[#F7F6F2] px-6 pt-24 pb-24">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Meet the Founders</p>
-          <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] text-slate-900 md:text-4xl ${headingFont}`}>
+          <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] text-[#28251D] md:text-4xl ${headingFont}`}>
             Two roles. One shared vision.
           </h2>
           <div className="mt-12 grid gap-8 md:grid-cols-2">
@@ -113,15 +113,15 @@ export default function AboutPage() {
                     className={founder.imageClassName}
                   />
                 </div>
-                <h3 className={`mt-6 text-2xl font-black text-slate-900 ${headingFont}`}>{founder.name}</h3>
+                <h3 className={`mt-6 text-2xl font-black text-[#28251D] ${headingFont}`}>{founder.name}</h3>
                 <p className="mt-2 text-sm font-semibold text-[#C9A961]">{founder.title}</p>
-                <p className="mt-1 text-sm italic text-slate-600">{founder.subtitle}</p>
-                <p className="mt-5 text-sm leading-7 text-slate-700">{founder.body}</p>
+                <p className="mt-1 text-sm italic text-[#7A7974]">{founder.subtitle}</p>
+                <p className="mt-5 text-sm leading-7 text-[#28251D]">{founder.body}</p>
                 <a
                   href={founder.linkedIn}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`mt-5 inline-flex text-sm font-semibold text-[#0A1530] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
+                  className={`mt-5 inline-flex text-sm font-semibold text-[#111112] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
                 >
                   Connect on LinkedIn →
                 </a>
@@ -132,13 +132,13 @@ export default function AboutPage() {
       </section>
 
       {/* SECTION 4 — A Shared Vision */}
-      <section className="bg-[#0A1530] px-6 py-24 text-white">
+      <section className="bg-[#111112] px-6 py-24 text-[#ECEBE7]">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">A Shared Vision</p>
           <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] md:text-4xl ${headingFont}`}>
             Powerful on the inside. Simple on the outside.
           </h2>
-          <p className="mt-8 text-base leading-8 text-white/85">
+          <p className="mt-8 text-base leading-8 text-[#ECEBE7]">
             Together, Matthew and Janice founded Wiseman Financial Technologies with one shared vision: to build
             enterprise technology that is powerful on the inside, simple on the outside, and worthy of the trust placed
             in it by every client.
@@ -151,13 +151,13 @@ export default function AboutPage() {
       </section>
 
       {/* SECTION 5 — What Makes Advisacor Different */}
-      <section className="bg-[#F5F7FA] px-6 py-24">
+      <section className="bg-[#F7F6F2] px-6 py-24">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">What Makes Advisacor™ Different</p>
-          <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] text-slate-900 md:text-4xl ${headingFont}`}>
+          <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] text-[#28251D] md:text-4xl ${headingFont}`}>
             Built to enhance — not replace — the systems you already trust.
           </h2>
-          <div className="mt-8 space-y-5 text-base leading-8 text-slate-700">
+          <div className="mt-8 space-y-5 text-base leading-8 text-[#28251D]">
             <p>
               Advisacor™ was never designed to replace the business systems organizations already trust. It was designed
               to make those systems significantly more powerful by combining enterprise intelligence, automation,
@@ -175,33 +175,33 @@ export default function AboutPage() {
       </section>
 
       {/* SECTION 6 — Client Experience Philosophy */}
-      <section className="bg-[#0A1530] px-6 py-24 text-white">
+      <section className="bg-[#111112] px-6 py-24 text-[#ECEBE7]">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Our Client Experience Philosophy</p>
           <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] md:text-4xl ${headingFont}`}>
             Every screen. Every workflow. Every interaction.
           </h2>
-          <div className="mt-8 space-y-3 text-base leading-8 text-white/85">
+          <div className="mt-8 space-y-3 text-base leading-8 text-[#ECEBE7]">
             <p>Every screen. Every workflow. Every agreement. Every policy. Every recommendation. Every interaction with Pulse.</p>
             <p>Everything is guided by one principle:</p>
           </div>
           <p className={`mx-auto mt-10 max-w-2xl text-center text-xl font-black text-[#C9A961] md:text-2xl ${headingFont}`}>
             Powerful technology should create a simple experience.
           </p>
-          <p className="mt-10 text-center text-base leading-8 text-white/70">
+          <p className="mt-10 text-center text-base leading-8 text-[#A29E93]">
             Our responsibility is to make every interaction intuitive, transparent, educational, and trustworthy.
           </p>
         </div>
       </section>
 
       {/* SECTION 7 — Looking Forward */}
-      <section className="bg-[#F5F7FA] px-6 py-24">
+      <section className="bg-[#F7F6F2] px-6 py-24">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Looking Forward</p>
-          <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] text-slate-900 md:text-4xl ${headingFont}`}>
+          <h2 className={`mt-4 text-3xl font-black tracking-[-0.04em] text-[#28251D] md:text-4xl ${headingFont}`}>
             Built for the long term.
           </h2>
-          <div className="mt-8 space-y-5 text-base leading-8 text-slate-700">
+          <div className="mt-8 space-y-5 text-base leading-8 text-[#28251D]">
             <p>
               Wiseman Financial Technologies was founded with a long-term vision. We will continue building technology that
               helps organizations work smarter, operate more efficiently, strengthen governance, reduce complexity, and
@@ -216,12 +216,12 @@ export default function AboutPage() {
       </section>
 
       {/* SECTION 8 — CTA Strip */}
-      <section className="bg-[#0A1530] px-6 py-20 text-center text-white">
+      <section className="bg-[#111112] px-6 py-20 text-center text-[#ECEBE7]">
         <div className="mx-auto max-w-2xl">
           <h2 className={`text-3xl font-black tracking-[-0.04em] md:text-4xl ${headingFont}`}>
             Ready to see what powerful intelligence looks like?
           </h2>
-          <p className="mt-4 text-lg text-white/70">Request early access and we&apos;ll be in touch.</p>
+          <p className="mt-4 text-lg text-[#A29E93]">Request early access and we&apos;ll be in touch.</p>
           <Link
             href="/#early-access"
             className={`mt-8 inline-flex items-center justify-center rounded-full px-6 py-3 text-sm ${primaryCtaClass} ${focusRing()}`}
