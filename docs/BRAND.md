@@ -172,6 +172,27 @@ Gold-opacity variants introduced in 9M.N:
 
 ---
 
+## Persona-tile navy — brand-mark tie-in surface (v1.2)
+
+**Scope:** `components/PersonaTile.tsx` ONLY. This is NOT a general chromatic accent — gold `#C9A961` remains the sole marketing accent. This token exists to tie the choose-your-path persona-routing UX visually back to the framed-navy Advisacor logo mark.
+
+| Role | Hex | Usage |
+|---|---|---|
+| Persona-tile surface | `#0B1A3A` | Base fill for PersonaTile cards |
+| Persona-tile hover | `#12244A` | Hover-state fill |
+
+**Explicit distinction from banned `#0F1D3E`:**
+`#0F1D3E` (legacy pilot-CTA navy, Tier B banned) and `#0B1A3A` (persona-tile navy) are visually similar but semantically different. `#0F1D3E` was an orange-era CTA accent; `#0B1A3A` is a brand-mark reference tied to `advisacor-logo-framed-navy.png`. Do NOT swap them.
+
+**Persona tile canonical:**
+```tsx
+className={`group flex flex-col justify-between rounded-2xl border border-[#C9A961]/25 bg-[#0B1A3A] p-6 transition-all hover:border-[#C9A961]/60 hover:bg-[#12244A] ${focusRing()}`}
+```
+
+**Future personal-tile-family surfaces** (e.g., "Choose your industry" or similar routing tiles) may use these tokens. Any other surface — pricing cards, dashboards, editorial — must use the canonical charcoal (`#111112`) or Nexus surface (`#1A1A1C`) tokens.
+
+---
+
 ## Semantic colors (use sparingly)
 
 | Role | Hex | Usage |
@@ -386,3 +407,9 @@ Deviation from predicted counts indicates a missed compound. Post-mortem the ari
 |---|---|---|
 | 2026-07-08 | v1.0 drafted: navy `#0A1530` + gold `#C9A961`, orange-era BANNED tokens. Not merged. | Phase TCP1 W1 (not shipped) |
 | 2026-07-14 | v1.1 shipped: charcoal `#111112` + Nexus warm-ivory `/about` `/privacy`. 3-tier text tokens, compound surface patterns, Tier A/B lint split. Documented 9M.N migration workflow. | Phase TCP1 W2.5 composite |
+
+### v1.2 (Phase TCP1 post-W2.5 visual polish)
+
+- Added persona-tile navy family (`#0B1A3A` / `#12244A`) as brand-mark tie-in surface scoped to `components/PersonaTile.tsx` only
+- Clarified distinction from banned Tier B `#0F1D3E`
+- Reinforced: gold `#C9A961` remains the ONLY chromatic accent; navy is a brand-mark surface reference, not an accent color
