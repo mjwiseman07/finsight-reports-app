@@ -3076,12 +3076,12 @@ function ExecutivePackageWizard({ config, generating, message, refreshStatus, on
       </div>
 
       {config.packageType === "powerpoint" && (
-        <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">PowerPoint Content</p>
-          <h3 className="mt-2 text-xl font-black text-white">Include</h3>
+        <div className="mt-5 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+          <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>PowerPoint Content</p>
+          <h3 className={`${headingFont} mt-2 text-xl font-black text-[#ECEBE7]`}>Include</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {executivePowerPointSections.map((section) => (
-              <label key={section} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">
+              <label key={section} className="flex items-center gap-3 rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] px-4 py-3 text-sm font-bold text-[#ECEBE7]">
                 <input type="checkbox" checked={config.powerPointSections.includes(section)} onChange={() => togglePowerPointSection(section)} />
                 {section}
               </label>
@@ -3090,33 +3090,33 @@ function ExecutivePackageWizard({ config, generating, message, refreshStatus, on
         </div>
       )}
 
-      <div className="mt-5 rounded-3xl border border-blue-300/20 bg-blue-400/10 p-5">
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-200">Live Data Refresh</p>
+      <div className="mt-5 rounded-3xl border border-[#C9A961]/25 bg-[#111112]/70 p-5">
+        <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#DFC084]`}>Live Data Refresh</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {liveDataRefreshSources.map((source) => (
-            <div key={source} className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm font-bold text-slate-200">
-              <span className={refreshStatus.includes(source) ? "text-emerald-200" : "text-slate-500"}>{refreshStatus.includes(source) ? "Refreshed" : "Pending"}</span>
+            <div key={source} className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] px-4 py-3 text-sm font-bold text-[#ECEBE7]">
+              <span className={refreshStatus.includes(source) ? "text-[#B5E28A]" : "text-[#7A7974]"}>{refreshStatus.includes(source) ? "Refreshed" : "Pending"}</span>
               <span className="ml-2">{source}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {message && <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-100">{message}</p>}
+      {message && <p className="mt-4 rounded-2xl border border-[#6DAA45]/30 bg-[#6DAA45]/10 px-4 py-3 text-sm font-bold text-[#B5E28A]">{message}</p>}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
           onClick={() => onGenerate(config.packageType || "pdf")}
           disabled={generating}
-          className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FF8D3C] disabled:cursor-not-allowed disabled:opacity-60`}
         >
           {generating ? "Refreshing data..." : config.packageType === "powerpoint" ? "Generate PowerPoint" : "Generate PDF"}
         </button>
-        <button type="button" onClick={() => onGenerate("pdf")} disabled={generating} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 disabled:cursor-not-allowed disabled:opacity-60">
+        <button type="button" onClick={() => onGenerate("pdf")} disabled={generating} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60 disabled:cursor-not-allowed disabled:opacity-60`}>
           Generate PDF
         </button>
-        <button type="button" onClick={() => onGenerate("powerpoint")} disabled={generating} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200 disabled:cursor-not-allowed disabled:opacity-60">
+        <button type="button" onClick={() => onGenerate("powerpoint")} disabled={generating} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60 disabled:cursor-not-allowed disabled:opacity-60`}>
           Generate PowerPoint
         </button>
       </div>
