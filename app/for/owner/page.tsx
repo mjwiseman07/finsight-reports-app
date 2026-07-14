@@ -22,7 +22,7 @@ const SIGNUP_URL = "/signup?persona=owner";
 
 export default function OwnerPage() {
   return (
-    <main className="min-h-screen bg-[#0A1530] text-white">
+    <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <SiteNav />
       {/* HERO */}
       <section className="mx-auto max-w-6xl px-6 pt-[200px] md:pt-[240px] lg:pt-[260px] pb-16 md:pb-24">
@@ -34,7 +34,7 @@ export default function OwnerPage() {
         >
           A CFO&apos;s brain without a CFO&apos;s salary.
         </h1>
-        <p className="mt-6 text-lg md:text-xl text-white/70 max-w-2xl leading-relaxed">
+        <p className="mt-6 text-lg md:text-xl text-[#A29E93] max-w-2xl leading-relaxed">
           Connect QuickBooks, Xero, or upload a trial balance. Advisacor reads
           your books and hands you a plain-English readout of what is actually
           happening in your business — where you are making money, where you are
@@ -43,21 +43,21 @@ export default function OwnerPage() {
         <div className="mt-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Link
             href={SIGNUP_URL}
-            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors ${focusRing()}`}
           >
             Start free review
             <span aria-hidden>→</span>
           </Link>
-          <p className="text-sm text-white/55">
+          <p className="text-sm text-[#7A7974]">
             No accounting background required. Under 15 minutes to your first
             readout.
           </p>
         </div>
       </section>
       {/* WHAT YOU ACTUALLY WANT TO KNOW */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
             The questions you actually ask
           </p>
           <h2
@@ -86,12 +86,12 @@ export default function OwnerPage() {
             ].map((item) => (
               <div
                 key={item.q}
-                className="rounded-2xl border border-white/10 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
               >
                 <p className="text-[#C9A961] text-sm font-semibold mb-3">
                   {item.q}
                 </p>
-                <p className="text-white/75 leading-relaxed">{item.a}</p>
+                <p className="text-[#A29E93] leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>
@@ -99,7 +99,7 @@ export default function OwnerPage() {
       </section>
       {/* HOW IT WORKS */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+        <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
           How it works
         </p>
         <h2
@@ -115,7 +115,7 @@ export default function OwnerPage() {
             <h3 className={`${headingFont} text-xl font-semibold mb-3`}>
               Connect your books
             </h3>
-            <p className="text-white/70 leading-relaxed">
+            <p className="text-[#A29E93] leading-relaxed">
               One click to connect QuickBooks Online or Xero. Or upload a CSV
               trial balance from any system. We read what you have — clean or
               messy — and go from there.
@@ -128,7 +128,7 @@ export default function OwnerPage() {
             <h3 className={`${headingFont} text-xl font-semibold mb-3`}>
               Get your first readout
             </h3>
-            <p className="text-white/70 leading-relaxed">
+            <p className="text-[#A29E93] leading-relaxed">
               A plain-English monthly readout. Not a P&amp;L dump. What happened
               this period, why it matters, and what to watch. Built for you to
               read on your phone in five minutes.
@@ -141,7 +141,7 @@ export default function OwnerPage() {
             <h3 className={`${headingFont} text-xl font-semibold mb-3`}>
               Ask anything
             </h3>
-            <p className="text-white/70 leading-relaxed">
+            <p className="text-[#A29E93] leading-relaxed">
               Ask Advisacor a plain-language question. Get a plain-language
               answer, sourced from your own books. Like having a CFO on call, at
               2 a.m., on a Tuesday.
@@ -150,9 +150,9 @@ export default function OwnerPage() {
         </div>
       </section>
       {/* WHAT YOU GET — outcomes, not features */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
             What you actually get
           </p>
           <h2
@@ -189,12 +189,12 @@ export default function OwnerPage() {
             ].map((f) => (
               <div
                 key={f.title}
-                className="rounded-2xl border border-white/10 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {f.title}
                 </h3>
-                <p className="text-sm text-white/70 leading-relaxed">{f.body}</p>
+                <p className="text-sm text-[#A29E93] leading-relaxed">{f.body}</p>
               </div>
             ))}
           </div>
@@ -208,13 +208,13 @@ export default function OwnerPage() {
           >
             See your first readout before the end of today.
           </h2>
-          <p className="text-lg text-white/70 max-w-2xl mb-10">
+          <p className="text-lg text-[#A29E93] max-w-2xl mb-10">
             Connect QuickBooks, Xero, or upload a trial balance. Under 15 minutes
             to a plain-English readout on your actual business. No card required.
           </p>
           <Link
             href={SIGNUP_URL}
-            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+            className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors ${focusRing()}`}
           >
             Start free review
             <span aria-hidden>→</span>
@@ -222,9 +222,9 @@ export default function OwnerPage() {
         </div>
       </section>
       {/* PRICING — single tier, simple */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
             Owner pricing
           </p>
           <h2
@@ -239,12 +239,12 @@ export default function OwnerPage() {
               </p>
               <p className={`${headingFont} text-6xl font-semibold mb-2`}>
                 $199
-                <span className="text-lg text-white/50 font-normal">/month</span>
+                <span className="text-lg text-[#7A7974] font-normal">/month</span>
               </p>
-              <p className="text-white/70 mb-8">
+              <p className="text-[#A29E93] mb-8">
                 Flat rate. Unlimited readouts. Unlimited questions.
               </p>
-              <ul className="space-y-3 text-sm text-white/75">
+              <ul className="space-y-3 text-sm text-[#A29E93]">
                 <li className="flex gap-3">
                   <span className="text-[#C9A961]">→</span>
                   <span>QuickBooks Online, Xero, or CSV upload</span>
@@ -273,7 +273,7 @@ export default function OwnerPage() {
               <div className="mt-10">
                 <Link
                   href={SIGNUP_URL}
-                  className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+                  className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-8 py-4 text-base font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors ${focusRing()}`}
                 >
                   Start free review
                   <span aria-hidden>→</span>
@@ -281,7 +281,7 @@ export default function OwnerPage() {
               </div>
             </div>
           </div>
-          <p className="mt-6 text-sm text-white/55 max-w-2xl">
+          <p className="mt-6 text-sm text-[#7A7974] max-w-2xl">
             Priced for businesses doing $500K–$20M in revenue. Above that, ask us
             about the Controller plan.
           </p>
@@ -289,7 +289,7 @@ export default function OwnerPage() {
       </section>
       {/* BUT I HAVE A BOOKKEEPER — objection handling */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <div className="rounded-3xl border border-white/10 bg-[#111112] p-10 md:p-16">
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112] p-10 md:p-16">
           <p className="text-xs uppercase tracking-[0.2em] text-[#C9A961] mb-4">
             Objection, handled
           </p>
@@ -298,13 +298,13 @@ export default function OwnerPage() {
           >
             &quot;But I already have a bookkeeper.&quot;
           </h2>
-          <p className="text-lg text-white/70 max-w-3xl mb-6 leading-relaxed">
+          <p className="text-lg text-[#A29E93] max-w-3xl mb-6 leading-relaxed">
             Keep them. Advisacor is not a bookkeeping replacement — it&apos;s the
             executive layer that sits on top of whatever books you have. Your
             bookkeeper does the books. Advisacor tells you what they mean, in
             plain English, on your phone.
           </p>
-          <p className="text-lg text-white/70 max-w-3xl leading-relaxed">
+          <p className="text-lg text-[#A29E93] max-w-3xl leading-relaxed">
             If your bookkeeper wants to use Advisacor too — great, they get their
             own view. If not, that&apos;s fine too. You do not need their
             permission to understand your own numbers.
@@ -312,9 +312,9 @@ export default function OwnerPage() {
         </div>
       </section>
       {/* FAQ */}
-      <section className="border-t border-white/10 bg-[#0F0F10]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]">
         <div className="mx-auto max-w-4xl px-6 py-20 md:py-24">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#7A7974] mb-6">
             Common questions from business owners
           </p>
           <h2
@@ -351,12 +351,12 @@ export default function OwnerPage() {
             ].map((item) => (
               <div
                 key={item.q}
-                className="rounded-2xl border border-white/10 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {item.q}
                 </h3>
-                <p className="text-white/70 leading-relaxed">{item.a}</p>
+                <p className="text-[#A29E93] leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>
@@ -369,18 +369,18 @@ export default function OwnerPage() {
         >
           Stop guessing at your own business.
         </h2>
-        <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto mb-10">
+        <p className="text-lg md:text-xl text-[#A29E93] max-w-2xl mx-auto mb-10">
           Connect QuickBooks, Xero, or upload a trial balance. Under 15 minutes
           to a plain-English readout on what is actually happening.
         </p>
         <Link
           href={SIGNUP_URL}
-          className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-10 py-5 text-lg font-semibold text-[#0B0B0C] hover:bg-[#D4B672] transition-colors ${focusRing()}`}
+          className={`inline-flex items-center gap-2 rounded-full bg-[#C9A961] px-10 py-5 text-lg font-semibold text-[#111112] hover:bg-[#DFC084] transition-colors ${focusRing()}`}
         >
           Start free review
           <span aria-hidden>→</span>
         </Link>
-        <p className="mt-4 text-sm text-white/55">
+        <p className="mt-4 text-sm text-[#7A7974]">
           No card required. No accounting background required. Cancel anytime.
         </p>
       </section>
