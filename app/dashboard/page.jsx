@@ -2003,17 +2003,17 @@ export default function DashboardPage() {
 
           {!isLoading && access?.allowed === true && access.reason === "subscriber" && showLegacySubscriberConfiguration && (
             <div>
-              <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/10 p-8">
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-300">Active Subscriber</p>
-                <h1 className="mt-4 text-4xl font-black">Your {PLATFORM_PRODUCT_NAME} workspace is ready.</h1>
-                <p className="mt-4 max-w-2xl leading-8 text-slate-300">
+              <div className="rounded-[2rem] border border-[#6DAA45]/35 bg-[#6DAA45]/10 p-8">
+                <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#6DAA45]`}>Active Subscriber</p>
+                <h1 className={`${headingFont} mt-4 text-4xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Your {PLATFORM_PRODUCT_NAME} workspace is ready.</h1>
+                <p className="mt-4 max-w-2xl leading-8 text-[#ECEBE7]">
                   Generate new reports, manage client packages, configure delivery automation, and continue creating board-ready deliverables.
                 </p>
                 <button
                   type="button"
                   onClick={generateDashboardPackage}
                   disabled={dashboardPackageGenerating}
-                  className="premium-button mt-8 inline-flex rounded-2xl px-6 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`${focusRing("rounded-2xl")} premium-button mt-8 inline-flex rounded-2xl px-6 py-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                   {dashboardPackageGenerating ? "Generating..." : "Generate New Report"}
                 </button>
@@ -2021,51 +2021,51 @@ export default function DashboardPage() {
 
               <div className="mt-8 grid gap-5 md:grid-cols-3">
                 {["Reports Generated", "Package Status", "Subscription"].map((label, index) => (
-                  <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-                    <p className="text-sm font-bold text-slate-400">{label}</p>
-                    <p className="mt-4 text-3xl font-black">{index === 0 ? "Ready" : index === 1 ? "Active" : "Current"}</p>
+                  <div key={label} className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6">
+                    <p className={`${headingFont} text-xs font-black uppercase tracking-[0.14em] text-[#A29E93]`}>{label}</p>
+                    <p className={`${headingFont} mt-4 text-3xl font-black text-[#DFC084]`}>{index === 0 ? "Ready" : index === 1 ? "Active" : "Current"}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-8 rounded-[2rem] border border-blue-300/20 bg-blue-500/10 p-8">
+              <div className="mt-8 rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-8">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Automated Executive Delivery</p>
-                    <h2 className="mt-3 text-3xl font-black">Executive delivery automation architecture</h2>
-                    <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Automated Executive Delivery</p>
+                    <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.02em] text-[#ECEBE7]`}>Executive delivery automation architecture</h2>
+                    <p className="mt-3 max-w-3xl leading-7 text-[#ECEBE7]">
                       {automatedExecutiveDeliveryEngine.positioning} Package level controls intelligence scope while persona controls output wording, depth, visuals, recommendations, report structure, AI tone, and email summaries.
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-5 py-4">
-                    <p className="text-sm font-black text-emerald-200">{automatedExecutiveDeliveryEngine.readyMessage}</p>
+                  <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/70 px-5 py-4">
+                    <p className="text-sm font-black text-[#B5E28A]">{automatedExecutiveDeliveryEngine.readyMessage}</p>
                   </div>
                 </div>
 
                 <div className="mt-6 grid gap-5 lg:grid-cols-3">
-                  <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                    <p className="text-sm font-black text-blue-100">Recurring Outputs</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-5">
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#DFC084]`}>Recurring Outputs</p>
                     <div className="mt-4 grid gap-2">
                       {executiveDeliveryOutputs.slice(0, 5).map((item) => (
-                        <p key={item} className="rounded-2xl bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">{item}</p>
+                        <p key={item} className="rounded-2xl border border-[#C9A961]/15 bg-[#111112]/70 px-4 py-3 text-sm font-bold text-[#ECEBE7]">{item}</p>
                       ))}
                     </div>
                   </div>
-                  <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                    <p className="text-sm font-black text-blue-100">Scheduler Examples</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-5">
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#DFC084]`}>Scheduler Examples</p>
                     <div className="mt-4 grid gap-2">
                       {executiveDeliveryCadences.map((item) => (
-                        <p key={item} className="rounded-2xl bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-200">{item}</p>
+                        <p key={item} className="rounded-2xl border border-[#C9A961]/15 bg-[#111112]/70 px-4 py-3 text-sm font-bold text-[#ECEBE7]">{item}</p>
                       ))}
                     </div>
                   </div>
-                  <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                    <p className="text-sm font-black text-blue-100">Workspace Split</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-5">
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#DFC084]`}>Workspace Split</p>
                     <div className="mt-4 grid gap-2">
                       {workspaceArchitecture.map((workspace) => (
-                        <div key={workspace.name} className="rounded-2xl bg-slate-950/60 px-4 py-3">
-                          <p className="text-sm font-black text-white">{workspace.name}</p>
-                          <p className="mt-1 text-xs leading-5 text-slate-400">{workspace.audience}</p>
+                        <div key={workspace.name} className="rounded-2xl border border-[#C9A961]/15 bg-[#111112]/70 px-4 py-3">
+                          <p className="text-sm font-black text-[#ECEBE7]">{workspace.name}</p>
+                          <p className="mt-1 text-xs leading-5 text-[#A29E93]">{workspace.audience}</p>
                         </div>
                       ))}
                     </div>
