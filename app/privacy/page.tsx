@@ -9,17 +9,17 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-[#F5F7FA] text-[#111827]">
+    <main className="min-h-screen bg-[#F7F6F2] text-[#28251D]">
       <SiteNav />
-      <section className="bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 pb-20 pt-[240px] md:pt-[260px] lg:pt-[280px]">
+      <section className="bg-gradient-to-br from-[#F7F6F2] via-[#EEEDE7] to-[#D4D1CA] pb-20 pt-[240px] md:pt-[260px] lg:pt-[280px]">
         <div className="mx-auto max-w-3xl px-6">
           <p className="mb-4 text-xs font-semibold tracking-wider text-[#C9A961]">PRIVACY POLICY</p>
-          <h1 className="text-4xl font-bold leading-tight text-slate-900 md:text-5xl">Privacy Policy</h1>
-          <p className="mt-4 text-sm text-slate-600">Last updated: June 2026</p>
+          <h1 className="text-4xl font-bold leading-tight text-[#28251D] md:text-5xl">Privacy Policy</h1>
+          <p className="mt-4 text-sm text-[#7A7974]">Last updated: June 2026</p>
         </div>
       </section>
 
-      <section className="bg-white py-20">
+      <section className="bg-[#F9F8F5] py-20">
         <div className="prose prose-slate mx-auto max-w-3xl px-6">
           <p>
             Wiseman Financial Technologies, LLC (&quot;Advisacor™,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is
