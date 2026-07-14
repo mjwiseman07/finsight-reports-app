@@ -2638,27 +2638,27 @@ function FinancialHealthOverview({ onAskMetric }) {
 
 function OperationalDashboardSnapshot({ companyName, industryType, readOnly = false, onGenerate, generating = false, packageReady = false, onDownload }) {
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
+    <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Pulse Insights</p>
-          <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{companyName || "Executive financial intelligence"}</h1>
-          <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Pulse Insights</p>
+          <h1 className={`${headingFont} mt-3 text-4xl font-black tracking-[-0.04em] text-[#ECEBE7]`}>{companyName || "Executive financial intelligence"}</h1>
+          <p className="mt-3 max-w-3xl leading-7 text-[#ECEBE7]">
             Operational view focused on executive summary, health score, cash, revenue, profitability, risks, opportunities, and tasks.
             {industryType ? ` Industry context: ${industryType}.` : ""}
           </p>
         </div>
         {readOnly ? (
-          <span className="rounded-2xl border border-white/10 bg-slate-800 px-5 py-3 text-sm font-black text-slate-300">
+          <span className={`${headingFont} rounded-2xl border border-[#C9A961]/25 bg-[#1A1A1C] px-5 py-3 text-sm font-black text-[#A29E93]`}>
             Report generation disabled in read-only QA
           </span>
         ) : (
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={onGenerate} disabled={generating} className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="button" onClick={onGenerate} disabled={generating} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FFB36F] disabled:cursor-not-allowed disabled:opacity-60`}>
               {generating ? "Generating..." : "Generate Report"}
             </button>
             {packageReady && (
-              <button type="button" onClick={onDownload} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+              <button type="button" onClick={onDownload} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
                 Download Report
               </button>
             )}
@@ -2667,12 +2667,12 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
       </div>
 
       {generating && (
-        <div className="mt-5 rounded-2xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 px-4 py-3 text-sm font-black text-[#FFD0AB]">
+        <div className={`${headingFont} mt-5 rounded-2xl border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 px-4 py-3 text-sm font-black text-[#FFB36F]`}>
           Generating executive summary, KPI dashboard, sample Pulse commentary, and initial insights...
         </div>
       )}
       {packageReady && (
-        <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-100">
+        <div className={`${headingFont} mt-5 rounded-2xl border border-[#6DAA45]/35 bg-[#6DAA45]/10 px-4 py-3 text-sm font-black text-[#B5E28A]`}>
           Report ready. Pulse has identified 3 opportunities and 2 risks in your business.
         </div>
       )}
@@ -2684,10 +2684,10 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
           ["Revenue", "$1.8M", "Trending above the prior period."],
           ["Profitability", "14.6%", "Positive margin with expense discipline needed."],
         ].map(([label, value, detail]) => (
-          <div key={label} className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
-            <p className="mt-3 text-3xl font-black text-white">{value}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-400">{detail}</p>
+          <div key={label} className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+            <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>{label}</p>
+            <p className={`${headingFont} mt-3 text-3xl font-black text-[#DFC084]`}>{value}</p>
+            <p className="mt-2 text-sm leading-6 text-[#A29E93]">{detail}</p>
           </div>
         ))}
       </div>
