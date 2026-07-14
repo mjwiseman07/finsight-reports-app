@@ -21,7 +21,7 @@ export default function PersonaTile({
   return (
     <Link
       href={href}
-      className={`group flex flex-col justify-between rounded-2xl border border-white/10 bg-[#111112] p-6 transition-all hover:border-[#C9A961]/60 hover:bg-[#1A1A1C] ${focusRing()}`}
+      className={`group flex flex-col justify-between rounded-2xl border border-white/12 bg-[#1C1B19] p-6 transition-all hover:border-[#C9A961]/60 hover:bg-[#232220] ${focusRing()}`}
     >
       <div>
         <div className="mb-3 flex items-center justify-between">

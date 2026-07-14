@@ -113,15 +113,15 @@ export default function AboutPage() {
                     className={founder.imageClassName}
                   />
                 </div>
-                <h3 className={`mt-6 text-2xl font-black text-[#28251D] ${headingFont}`}>{founder.name}</h3>
+                <h3 className={`mt-6 text-2xl font-black text-[#F9F8F5] ${headingFont}`}>{founder.name}</h3>
                 <p className="mt-2 text-sm font-semibold text-[#C9A961]">{founder.title}</p>
-                <p className="mt-1 text-sm italic text-[#7A7974]">{founder.subtitle}</p>
-                <p className="mt-5 text-sm leading-7 text-[#28251D]">{founder.body}</p>
+                <p className="mt-1 text-sm italic text-[#A29E93]">{founder.subtitle}</p>
+                <p className="mt-5 text-sm leading-7 text-[#ECEBE7]">{founder.body}</p>
                 <a
                   href={founder.linkedIn}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`mt-5 inline-flex text-sm font-semibold text-[#111112] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
+                  className={`mt-5 inline-flex text-sm font-semibold text-[#ECEBE7] transition hover:text-[#C9A961] ${focusRing("rounded")}`}
                 >
                   Connect on LinkedIn →
                 </a>

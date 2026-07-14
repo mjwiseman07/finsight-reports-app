@@ -7,19 +7,19 @@ export function SiteNav() {
   const navLinkClass = `${focusRing("ring-offset-slate-300")} text-sm font-bold text-slate-900 transition hover:text-[#C9A961]`;
 
   return (
-    <header className="relative z-20">
+    <header className="relative z-20 min-h-[96px] md:min-h-[112px] lg:min-h-[128px]">
       <Link
         href="/"
-        className={`absolute top-3 left-3 z-20 md:top-5 md:left-6 ${focusRing("rounded-lg")}`}
         aria-label="Advisacor home"
+        className={`absolute top-3 left-3 z-20 md:top-5 md:left-6 ${focusRing("rounded-lg")}`}
       >
         <Image
           src={heroLogo}
           alt="Advisacor"
-          width={1536}
-          height={902}
+          width={360}
+          height={280}
           priority
-          className="pointer-events-none h-auto w-[220px] select-none md:w-[300px] lg:w-[360px]"
+          className="pointer-events-none h-auto w-[140px] select-none md:w-[180px] lg:w-[220px]"
         />
       </Link>
       <nav className="absolute top-6 right-8 z-30">
