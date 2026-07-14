@@ -2720,11 +2720,11 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="rounded-3xl border border-emerald-300/25 bg-emerald-400/10 p-6">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">Pulse Business Health Score</p>
-          <p className="mt-3 text-5xl font-black text-white">82 / 100</p>
-          <p className="mt-2 text-lg font-black text-emerald-100">Healthy</p>
-          <p className="mt-3 text-sm leading-6 text-emerald-50/80">
+        <div className="rounded-3xl border border-[#6DAA45]/35 bg-[#6DAA45]/10 p-6">
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#6DAA45]`}>Pulse Business Health Score</p>
+          <p className={`${headingFont} mt-3 text-5xl font-black text-[#B5E28A]`}>82 / 100</p>
+          <p className={`${headingFont} mt-2 text-lg font-black text-[#B5E28A]`}>Healthy</p>
+          <p className="mt-3 text-sm leading-6 text-[#A29E93]">
             Pulse is taking the pulse of your business across cash, revenue, profitability, working capital, and industry operating drivers.
           </p>
         </div>
@@ -2874,9 +2874,9 @@ function ExecutiveInsightCard({ title, items, onAskMetric }) {
 
 function PulseListCard({ title, items }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-      <p className="text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]">{title}</p>
-      <ul className="mt-4 grid gap-3 text-sm leading-6 text-slate-300">
+    <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]`}>{title}</p>
+      <ul className="mt-4 grid gap-3 text-sm leading-6 text-[#ECEBE7]">
         {items.map((item) => (
           <li key={item}>- {item}</li>
         ))}
@@ -3689,9 +3689,9 @@ function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
 
 function DashboardFocusCard({ title, items }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-      <p className="text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]">{title}</p>
-      <ul className="mt-4 grid gap-3 text-sm leading-6 text-slate-300">
+    <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]`}>{title}</p>
+      <ul className="mt-4 grid gap-3 text-sm leading-6 text-[#ECEBE7]">
         {items.map((item) => (
           <li key={item}>- {item}</li>
         ))}
@@ -3702,23 +3702,23 @@ function DashboardFocusCard({ title, items }) {
 
 function MetricTile({ label, value, detail, onAskMetric }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
+    <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
-          <p className="mt-3 text-3xl font-black text-white">{value}</p>
+          <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>{label}</p>
+          <p className={`${headingFont} mt-3 text-3xl font-black text-[#DFC084]`}>{value}</p>
         </div>
         {onAskMetric && (
           <button
             type="button"
             onClick={() => onAskMetric(label)}
-            className="rounded-xl border border-blue-300/20 bg-blue-400/10 px-3 py-2 text-xs font-black text-blue-100"
+            className={`${focusRing("rounded-xl")} ${headingFont} rounded-xl border border-[#C9A961]/25 bg-[#1A1A1C] px-3 py-2 text-xs font-black text-[#ECEBE7] transition hover:border-[#C9A961]/50`}
           >
             Ask Pulse
           </button>
         )}
       </div>
-      <p className="mt-2 text-sm leading-6 text-slate-400">{detail}</p>
+      <p className="mt-2 text-sm leading-6 text-[#A29E93]">{detail}</p>
     </div>
   );
 }
