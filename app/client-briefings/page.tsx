@@ -60,12 +60,10 @@ export default function ClientBriefingsDashboardPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const result = await response.json();
-
       if (!response.ok) {
         setError(result.error || "Unable to load Client Briefings.");
         return;
       }
-
       setRows(result.rows || []);
       setSummary(result.summary || emptySummary);
     } catch {
@@ -94,7 +92,6 @@ export default function ClientBriefingsDashboardPage() {
     setIsWorking(`${endpoint}-${body.client_id || body.briefing_id}`);
     setMessage("");
     setError("");
-
     try {
       const response = await fetch(endpoint, {
         method: "POST",
@@ -105,12 +102,10 @@ export default function ClientBriefingsDashboardPage() {
         body: JSON.stringify(body),
       });
       const result = await response.json();
-
       if (!response.ok) {
         setError(result.error || "Action failed.");
         return;
       }
-
       setMessage(successMessage);
       await loadDashboard();
     } catch {
@@ -123,19 +118,19 @@ export default function ClientBriefingsDashboardPage() {
   return (
     <ClientBriefingsChrome active="Dashboard">
       <section className="py-10">
-        <div className="rounded-[2rem] border border-blue-300/20 bg-blue-500/10 p-8">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Client Briefings</p>
-          <h1 className="mt-4 max-w-4xl text-5xl font-black leading-[0.95] tracking-[-0.055em] md:text-7xl">
+        <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C] p-8 shadow-2xl shadow-black/40">
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Client Briefings</p>
+          <h1 className="mt-4 max-w-4xl text-5xl font-black leading-[0.95] tracking-[-0.055em] text-[#ECEBE7] md:text-7xl">
             Every client gets a CFO-style briefing.
           </h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
+          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#A29E93]">
             Automate plain-English client updates at the cadence your firm chooses, with advisor review, missing-data notices, risk flags, and client-ready delivery.
           </p>
         </div>
 
-        {isLoading && <EmptyBriefingState message="Loading Client Briefings..." />}
-        {error && <div className="mt-6 rounded-3xl border border-red-300/30 bg-red-400/10 p-5 text-sm font-bold text-red-100">{error}</div>}
-        {message && <div className="mt-6 rounded-3xl border border-emerald-300/30 bg-emerald-400/10 p-5 text-sm font-bold text-emerald-100">{message}</div>}
+        {isLoading && <div className="mt-6"><EmptyBriefingState message="Loading Client Briefings..." /></div>}
+        {error && <div className="mt-6 rounded-3xl border border-[#B85C5C]/40 bg-[#B85C5C]/10 p-5 text-sm font-bold text-[#F0BFBF]">{error}</div>}
+        {message && <div className="mt-6 rounded-3xl border border-[#6DAA45]/40 bg-[#6DAA45]/10 p-5 text-sm font-bold text-[#B5E28A]">{message}</div>}
 
         {!isLoading && !error && (
           <>
@@ -146,28 +141,28 @@ export default function ClientBriefingsDashboardPage() {
               <SummaryCard label="Missing Data" value={summary.missingData} />
             </div>
 
-            <section className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+            <section className="mt-8 rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Briefing Dashboard</p>
-                  <h2 className="mt-2 text-3xl font-black">Cadence, status, risk, approvals, and missing data</h2>
+                  <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Briefing Dashboard</p>
+                  <h2 className="mt-2 text-3xl font-black text-[#ECEBE7]">Cadence, status, risk, approvals, and missing data</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value)} className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none">
+                  <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value)} className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60">
                     {["All", "Low", "Medium", "High"].map((risk) => <option key={risk}>{risk}</option>)}
                   </select>
-                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none">
+                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60">
                     {["All", "Draft", "Pending Approval", "Approved", "Sent", "Failed", "Skipped"].map((status) => <option key={status}>{status}</option>)}
                   </select>
-                  <Link href="/client-briefings/settings" className="rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white">
+                  <Link href="/client-briefings/settings" className="rounded-full bg-[#C9A961] px-5 py-3 text-sm font-black text-[#111112] hover:bg-[#DFC084]">
                     Configure Settings
                   </Link>
                 </div>
               </div>
 
-              <div className="mt-6 overflow-x-auto rounded-3xl border border-white/10">
+              <div className="mt-6 overflow-x-auto rounded-3xl border border-[#C9A961]/20">
                 <table className="min-w-[1180px] w-full text-left text-sm">
-                  <thead className="bg-slate-950/80 text-xs uppercase tracking-[0.12em] text-slate-500">
+                  <thead className="bg-[#111112] text-xs uppercase tracking-[0.12em] text-[#7A7974]">
                     <tr>
                       <th className="px-4 py-3">Client name</th>
                       <th className="px-4 py-3">Cadence</th>
@@ -180,27 +175,27 @@ export default function ClientBriefingsDashboardPage() {
                       <th className="px-4 py-3">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/10">
+                  <tbody className="divide-y divide-[#C9A961]/15">
                     {filteredRows.map((row) => (
-                      <tr key={row.clientId} className="bg-slate-950/35 align-top">
-                        <td className="px-4 py-4 font-black text-white">{row.clientName}</td>
-                        <td className="px-4 py-4 font-bold text-slate-300">{row.cadence}</td>
-                        <td className="px-4 py-4 text-slate-400">{formatDate(row.lastBriefingSent)}</td>
-                        <td className="px-4 py-4 text-slate-400">{row.nextScheduledBriefing}</td>
+                      <tr key={row.clientId} className="bg-[#1A1A1C]/60 align-top">
+                        <td className="px-4 py-4 font-black text-[#ECEBE7]">{row.clientName}</td>
+                        <td className="px-4 py-4 font-bold text-[#A29E93]">{row.cadence}</td>
+                        <td className="px-4 py-4 text-[#A29E93]">{formatDate(row.lastBriefingSent)}</td>
+                        <td className="px-4 py-4 text-[#A29E93]">{row.nextScheduledBriefing}</td>
                         <td className="px-4 py-4"><StatusBadge status={row.status} /></td>
-                        <td className="px-4 py-4 text-slate-300">{row.approvalRequired ? "Required" : "Auto-send allowed"}</td>
-                        <td className="px-4 py-4 text-slate-400">{row.missingReports.length ? row.missingReports.join(", ") : "None"}</td>
+                        <td className="px-4 py-4 text-[#A29E93]">{row.approvalRequired ? "Required" : "Auto-send allowed"}</td>
+                        <td className="px-4 py-4 text-[#A29E93]">{row.missingReports.length ? row.missingReports.join(", ") : "None"}</td>
                         <td className="px-4 py-4"><RiskBadge risk={row.riskLevel} /></td>
                         <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-2">
-                            <Link href={`/client-briefings/preview?client_id=${row.clientId}`} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-200">View</Link>
-                            <Link href={`/client-briefings/settings?client_id=${row.clientId}`} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-200">Edit</Link>
+                            <Link href={`/client-briefings/preview?client_id=${row.clientId}`} className="rounded-xl border border-[#C9A961]/25 px-3 py-2 text-xs font-black text-[#ECEBE7] hover:border-[#C9A961]/50">View</Link>
+                            <Link href={`/client-briefings/settings?client_id=${row.clientId}`} className="rounded-xl border border-[#C9A961]/25 px-3 py-2 text-xs font-black text-[#ECEBE7] hover:border-[#C9A961]/50">Edit</Link>
                             {row.latestBriefing?.id && (
-                              <button disabled={Boolean(isWorking)} onClick={() => callAction("/api/client-briefings/approve", { briefing_id: row.latestBriefing?.id || "" }, "Briefing approved.")} className="rounded-xl border border-blue-300/20 px-3 py-2 text-xs font-black text-blue-100 disabled:opacity-50">Approve</button>
+                              <button disabled={Boolean(isWorking)} onClick={() => callAction("/api/client-briefings/approve", { briefing_id: row.latestBriefing?.id || "" }, "Briefing approved.")} className="rounded-xl border border-[#5591C7]/40 bg-[#5591C7]/10 px-3 py-2 text-xs font-black text-[#B7D6F0] disabled:opacity-50">Approve</button>
                             )}
-                            <button disabled={Boolean(isWorking)} onClick={() => callAction("/api/client-briefings/generate", { client_id: row.clientId }, "Briefing generated.")} className="rounded-xl border border-[#FF7A1A]/30 px-3 py-2 text-xs font-black text-[#FFD0AB] disabled:opacity-50">Regenerate</button>
+                            <button disabled={Boolean(isWorking)} onClick={() => callAction("/api/client-briefings/generate", { client_id: row.clientId }, "Briefing generated.")} className="rounded-xl border border-[#C9A961]/40 bg-[#C9A961]/10 px-3 py-2 text-xs font-black text-[#DFC084] disabled:opacity-50">Regenerate</button>
                             {row.latestBriefing?.id && (
-                              <button disabled={Boolean(isWorking)} onClick={() => callAction("/api/client-briefings/send", { briefing_id: row.latestBriefing?.id || "" }, "Briefing marked sent.")} className="rounded-xl border border-emerald-300/20 px-3 py-2 text-xs font-black text-emerald-100 disabled:opacity-50">Send Now</button>
+                              <button disabled={Boolean(isWorking)} onClick={() => callAction("/api/client-briefings/send", { briefing_id: row.latestBriefing?.id || "" }, "Briefing marked sent.")} className="rounded-xl border border-[#6DAA45]/40 bg-[#6DAA45]/10 px-3 py-2 text-xs font-black text-[#B5E28A] disabled:opacity-50">Send Now</button>
                             )}
                           </div>
                         </td>
@@ -219,9 +214,9 @@ export default function ClientBriefingsDashboardPage() {
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
-      <p className="mt-3 text-4xl font-black text-white">{value}</p>
+    <div className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C] p-5">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]">{label}</p>
+      <p className="mt-3 text-4xl font-black text-[#DFC084]">{value}</p>
     </div>
   );
 }

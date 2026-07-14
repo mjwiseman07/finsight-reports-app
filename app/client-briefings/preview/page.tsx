@@ -79,12 +79,10 @@ function ClientBriefingPreviewContent() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const result = await response.json();
-
         if (!response.ok) {
           setError(result.error || "Unable to load briefing preview.");
           return;
         }
-
         setBriefings(result.briefings || []);
       } catch {
         setError("Unable to load briefing preview.");
@@ -105,14 +103,14 @@ function ClientBriefingPreviewContent() {
     <ClientBriefingsChrome active="Client Preview">
       <section className="py-10">
         {isLoading && <EmptyBriefingState message="Loading client briefing preview..." />}
-        {error && <div className="rounded-3xl border border-red-300/30 bg-red-400/10 p-5 text-sm font-bold text-red-100">{error}</div>}
+        {error && <div className="rounded-3xl border border-[#B85C5C]/40 bg-[#B85C5C]/10 p-5 text-sm font-bold text-[#F0BFBF]">{error}</div>}
         {!isLoading && !error && !briefing && <EmptyBriefingState message="No briefing is available yet. Generate a briefing from the dashboard first." />}
 
         {briefing && (
           <div className="grid gap-6 xl:grid-cols-[1fr_0.42fr]">
-            <article className="rounded-[2rem] border border-white/10 bg-[#F9FAFB] p-8 text-[#111827] shadow-2xl shadow-black/30">
+            <article className="rounded-[2rem] border border-[#C9A961]/25 bg-[#F9FAFB] p-8 text-[#111827] shadow-2xl shadow-black/40">
               <header className="border-b border-slate-200 pb-6">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#B65A12]">Client Briefing</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#5B4A1F]">Client Briefing</p>
                 <h1 className="mt-3 text-4xl font-black tracking-[-0.04em]">{briefing.clientName || "Client"}</h1>
                 <div className="mt-4 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
                   <p><strong>Briefing period:</strong> {briefing.periodStart} to {briefing.periodEnd}</p>
@@ -156,20 +154,20 @@ function ClientBriefingPreviewContent() {
             </article>
 
             <aside className="grid gap-6">
-              <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Workflow</p>
+              <section className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6">
+                <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Workflow</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <StatusBadge status={briefing.status} />
                   <RiskBadge risk={briefing.riskLevel} />
                 </div>
-                <p className="mt-4 text-sm leading-6 text-slate-400">
+                <p className="mt-4 text-sm leading-6 text-[#A29E93]">
                   Client-facing language stays simple and confident. Advisor notes preserve variance, KPI exceptions, risk flags, and talking points.
                 </p>
               </section>
 
-              <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Advisor Briefing</p>
-                <div className="mt-4 grid gap-3 text-sm leading-6 text-slate-300">
+              <section className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6">
+                <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Advisor Briefing</p>
+                <div className="mt-4 grid gap-3 text-sm leading-6 text-[#ECEBE7]">
                   <p><strong>Revenue variance:</strong> {briefing.advisorBriefingContent.revenueVariance}</p>
                   <p><strong>Gross margin:</strong> {briefing.advisorBriefingContent.grossMarginVariance}</p>
                   <p><strong>EBITDA/profit:</strong> {briefing.advisorBriefingContent.ebitdaVariance}</p>
@@ -181,9 +179,9 @@ function ClientBriefingPreviewContent() {
                 </div>
               </section>
 
-              <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Suggested Talking Points</p>
-                <ul className="mt-4 grid gap-2 text-sm leading-6 text-slate-300">
+              <section className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6">
+                <p className="text-sm font-black uppercase tracking-[0.22em] text-[#6DAA45]">Suggested Talking Points</p>
+                <ul className="mt-4 grid gap-2 text-sm leading-6 text-[#ECEBE7]">
                   {(briefing.advisorBriefingContent.suggestedTalkingPoints || []).map((point) => (
                     <li key={point}>- {point}</li>
                   ))}

@@ -62,7 +62,6 @@ function ClientBriefingSettingsContent() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const result = await response.json();
-
         if (!response.ok) {
           setError(result.error || "Unable to load briefing settings.");
           return;
@@ -99,7 +98,6 @@ function ClientBriefingSettingsContent() {
     setIsSaving(true);
     setError("");
     setMessage("");
-
     try {
       const response = await fetch("/api/client-briefings/settings", {
         method: "POST",
@@ -119,12 +117,10 @@ function ClientBriefingSettingsContent() {
         }),
       });
       const result = await response.json();
-
       if (!response.ok) {
         setError(result.error || "Unable to save settings.");
         return;
       }
-
       setMessage("Client Briefing settings saved.");
     } catch {
       setError("Unable to save settings.");
@@ -136,39 +132,38 @@ function ClientBriefingSettingsContent() {
   return (
     <ClientBriefingsChrome active="Settings">
       <section className="py-10">
-        <div className="rounded-[2rem] border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 p-8">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Briefing Cadence Setup</p>
-          <h1 className="mt-4 text-5xl font-black tracking-[-0.055em]">Choose how each client receives CFO-style updates.</h1>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
+        <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C] p-8 shadow-2xl shadow-black/40">
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Briefing Cadence Setup</p>
+          <h1 className="mt-4 text-5xl font-black tracking-[-0.055em] text-[#ECEBE7]">Choose how each client receives CFO-style updates.</h1>
+          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#A29E93]">
             Set weekly, bi-weekly, monthly, quarterly, or custom delivery for each client, including advisor approval and delivery channel.
           </p>
         </div>
 
-        {isLoading && <EmptyBriefingState message="Loading settings..." />}
-        {error && <div className="mt-6 rounded-3xl border border-red-300/30 bg-red-400/10 p-5 text-sm font-bold text-red-100">{error}</div>}
-        {message && <div className="mt-6 rounded-3xl border border-emerald-300/30 bg-emerald-400/10 p-5 text-sm font-bold text-emerald-100">{message}</div>}
+        {isLoading && <div className="mt-6"><EmptyBriefingState message="Loading settings..." /></div>}
+        {error && <div className="mt-6 rounded-3xl border border-[#B85C5C]/40 bg-[#B85C5C]/10 p-5 text-sm font-bold text-[#F0BFBF]">{error}</div>}
+        {message && <div className="mt-6 rounded-3xl border border-[#6DAA45]/40 bg-[#6DAA45]/10 p-5 text-sm font-bold text-[#B5E28A]">{message}</div>}
 
         {!isLoading && !error && (
           <div className="mt-8 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-            <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Client</p>
-              <select value={form.clientId} onChange={(event) => handleClientChange(event.target.value)} className="mt-4 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none">
+            <section className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6">
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]">Client</p>
+              <select value={form.clientId} onChange={(event) => handleClientChange(event.target.value)} className="mt-4 w-full rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60">
                 {clients.map((client) => (
                   <option key={client.clientId} value={client.clientId}>
                     {client.clientName}
                   </option>
                 ))}
               </select>
-
-              <div className="mt-5 rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                <p className="text-lg font-black text-white">{selectedClient?.clientName || "Selected client"}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
+              <div className="mt-5 rounded-3xl border border-[#C9A961]/15 bg-[#111112] p-5">
+                <p className="text-lg font-black text-[#ECEBE7]">{selectedClient?.clientName || "Selected client"}</p>
+                <p className="mt-2 text-sm leading-6 text-[#A29E93]">
                   Every briefing includes a client version and advisor version, with missing-data notices if reports are unavailable.
                 </p>
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+            <section className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Cadence">
                   <select value={form.cadence} onChange={(event) => update("cadence", event.target.value)} className={inputClass}>
@@ -203,12 +198,12 @@ function ClientBriefingSettingsContent() {
                 </Field>
               </div>
 
-              <label className="mt-5 flex items-center gap-3 rounded-3xl border border-white/10 bg-slate-950/60 p-4 text-sm font-bold text-slate-200">
-                <input type="checkbox" checked={form.approvalRequired} onChange={(event) => update("approvalRequired", event.target.checked)} className="h-4 w-4" />
+              <label className="mt-5 flex items-center gap-3 rounded-3xl border border-[#C9A961]/20 bg-[#111112] p-4 text-sm font-bold text-[#ECEBE7]">
+                <input type="checkbox" checked={form.approvalRequired} onChange={(event) => update("approvalRequired", event.target.checked)} className="h-4 w-4 accent-[#C9A961]" />
                 Require advisor approval before sending
               </label>
 
-              <button disabled={isSaving || !form.clientId} onClick={() => void saveSettings()} className="mt-6 rounded-2xl bg-[#FF7A1A] px-6 py-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50">
+              <button disabled={isSaving || !form.clientId} onClick={() => void saveSettings()} className="mt-6 rounded-full bg-[#C9A961] px-6 py-4 text-sm font-black text-[#111112] hover:bg-[#DFC084] disabled:cursor-not-allowed disabled:opacity-50">
                 {isSaving ? "Saving..." : "Save Briefing Settings"}
               </button>
             </section>
@@ -227,12 +222,12 @@ export default function ClientBriefingSettingsPage() {
   );
 }
 
-const inputClass = "w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF7A1A]/60";
+const inputClass = "w-full rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none focus:border-[#C9A961]/60";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</span>
+      <span className="text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]">{label}</span>
       <span className="mt-2 block">{children}</span>
     </label>
   );
