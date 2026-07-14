@@ -55,7 +55,7 @@ const trustLayers = [
 
 export default function HowItWorksPage() {
   return (
-    <main className="min-h-screen bg-[#0A1530] text-white">
+    <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <SiteNav />
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-6 pb-12 pt-[300px] md:pb-16 md:pt-[380px] lg:pt-[440px]">
@@ -67,7 +67,7 @@ export default function HowItWorksPage() {
         >
           Four steps from your ledger to a defensible close.
         </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70 md:text-xl">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#A29E93] md:text-xl">
           Advisacor is engineered to fit the way accounting actually happens —
           connect the systems you use, baseline how your book behaves, run AI teammates
           on your cadence, and approve every entry through a reviewer queue that leaves
@@ -80,7 +80,7 @@ export default function HowItWorksPage() {
           {steps.map((s) => (
             <article
               key={s.n}
-              className="rounded-3xl border border-white/10 bg-white/[0.04] p-8"
+              className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-8"
             >
               <p className={`${headingFont} text-6xl font-semibold text-[#C9A961]`}>
                 {s.n}
@@ -90,7 +90,7 @@ export default function HowItWorksPage() {
               >
                 {s.title}
               </h2>
-              <p className="mt-4 text-base leading-relaxed text-white/70 md:text-lg">
+              <p className="mt-4 text-base leading-relaxed text-[#A29E93] md:text-lg">
                 {s.body}
               </p>
             </article>
@@ -98,9 +98,9 @@ export default function HowItWorksPage() {
         </div>
       </section>
       {/* Under the hood — 13-layer trust stack */}
-      <section className="border-t border-white/10 bg-white/[0.03]">
+      <section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]/40">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-          <p className="mb-6 text-xs font-semibold uppercase tracking-[0.22em] text-white/50">
+          <p className="mb-6 text-xs font-semibold uppercase tracking-[0.22em] text-[#7A7974]">
             Under the hood
           </p>
           <h2
@@ -108,31 +108,31 @@ export default function HowItWorksPage() {
           >
             A thirteen-layer trust stack — most of it already running.
           </h2>
-          <p className="mt-6 max-w-3xl text-base leading-relaxed text-white/70 md:text-lg">
+          <p className="mt-6 max-w-3xl text-base leading-relaxed text-[#A29E93] md:text-lg">
             Every bill, journal, and payment passes through the layers below. Each layer
             is patent-pending, independently testable, and produces its own audit
-            evidence. Layers marked <span className="font-semibold text-[#C9A961]">LIVE</span> are shipping today; layers marked <span className="font-semibold text-white/60">SOON</span> are on the near-term roadmap.
+            evidence. Layers marked <span className="font-semibold text-[#C9A961]">LIVE</span> are shipping today; layers marked <span className="font-semibold text-[#A29E93]">SOON</span> are on the near-term roadmap.
           </p>
           <ul className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {trustLayers.map((l) => (
               <li
                 key={l.code}
-                className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4"
+                className="flex items-center gap-4 rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 px-5 py-4"
               >
                 <span
                   className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
                     l.badge === "LIVE"
-                      ? "bg-[#C9A961] text-[#0A1530]"
-                      : "border border-white/20 text-white/50"
+                      ? "bg-[#C9A961] text-[#111112]"
+                      : "border border-[#C9A961]/30 text-[#7A7974]"
                   }`}
                 >
                   {l.badge}
                 </span>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7A7974]">
                     {l.code}
                   </p>
-                  <p className="text-sm font-semibold text-white md:text-base">
+                  <p className="text-sm font-semibold text-[#ECEBE7] md:text-base">
                     {l.title}
                   </p>
                 </div>
@@ -148,7 +148,7 @@ export default function HowItWorksPage() {
         >
           Curious what step two would surface on your book?
         </h2>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#A29E93]">
           Bring one closed month. We'll baseline it, run the trust stack against it,
           and show you the findings — no commitment.
         </p>
