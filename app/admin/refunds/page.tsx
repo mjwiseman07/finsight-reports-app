@@ -35,10 +35,10 @@ function formatDate(value: string | null) {
 }
 
 function statusBadgeClass(status: string) {
-  if (status === "pending_review") return "border-amber-300/40 bg-amber-500/15 text-amber-100";
-  if (status === "completed") return "border-emerald-300/40 bg-emerald-500/15 text-emerald-100";
-  if (status === "denied" || status === "execution_failed") return "border-red-300/40 bg-red-500/15 text-red-100";
-  return "border-white/10 bg-white/5 text-slate-200";
+  if (status === "pending_review") return "border-[#BB653B]/40 bg-[#BB653B]/15 text-[#DFC084]";
+  if (status === "completed") return "border-[#6DAA45]/40 bg-[#6DAA45]/15 text-[#B5E28A]";
+  if (status === "denied" || status === "execution_failed") return "border-[#B85C5C]/40 bg-[#B85C5C]/15 text-[#F0BFBF]";
+  return "border-[#C9A961]/20 bg-[#C9A961]/10 text-[#A29E93]";
 }
 
 function RefundQueueContent() {
@@ -69,12 +69,10 @@ function RefundQueueContent() {
       headers: { Authorization: `Bearer ${token}` },
     });
     const result = await response.json();
-
     if (!response.ok) {
       setError(result.error || "Super admin access denied.");
       return;
     }
-
     setPending(result.pending || []);
     setRecent(result.recent || []);
   }, [router]);
@@ -99,7 +97,6 @@ function RefundQueueContent() {
       await loadQueue();
       setIsLoading(false);
     }
-
     void init();
   }, [loadQueue, router]);
 
@@ -126,7 +123,6 @@ function RefundQueueContent() {
         body: JSON.stringify({ action: modalAction, reason: modalReason.trim() }),
       });
       const result = await response.json();
-
       if (!response.ok) {
         setError(result.error || "Unable to process refund decision.");
         return;
@@ -154,70 +150,70 @@ function RefundQueueContent() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-[#F5F7FA] px-6 py-10 text-[#111827]">
-        <p className="text-sm font-bold text-slate-600">Loading refund queue…</p>
+      <main className="min-h-screen bg-[#111112] px-6 py-10 text-[#ECEBE7]">
+        <p className="text-sm font-bold text-[#A29E93]">Loading refund queue…</p>
       </main>
     );
   }
 
   if (error && !pending.length && !recent.length) {
     return (
-      <main className="min-h-screen bg-[#F5F7FA] px-6 py-10 text-[#111827]">
-        <p className="rounded-3xl border border-red-300/60 bg-red-50 p-6 text-sm font-bold text-red-700">{error}</p>
+      <main className="min-h-screen bg-[#111112] px-6 py-10 text-[#ECEBE7]">
+        <p className="rounded-3xl border border-[#B85C5C]/40 bg-[#B85C5C]/15 p-6 text-sm font-bold text-[#F0BFBF]">{error}</p>
       </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA] text-[#111827]">
+    <div className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <SiteNav />
-      <section className="relative overflow-hidden bg-gradient-to-b from-slate-200 via-slate-300 to-slate-400">
+
+      <section className="relative overflow-hidden bg-[#111112]">
         <div className="mx-auto max-w-7xl px-6 pb-10 pt-[200px] sm:px-8 md:pt-[240px] lg:pt-[260px]">
           <p className={`${headingFont} text-xs uppercase tracking-[0.35em] text-[#C9A961]`}>
             Founder Console — Refund Queue
           </p>
-          <h1 className={`${headingFont} mt-3 text-4xl font-semibold text-[#0A1530] sm:text-5xl`}>
+          <h1 className={`${headingFont} mt-3 text-4xl font-semibold text-[#ECEBE7] sm:text-5xl`}>
             Refund Requests
           </h1>
-          <p className="mt-3 max-w-2xl text-sm text-slate-700">
+          <p className="mt-3 max-w-2xl text-sm text-[#A29E93]">
             Review pending refund requests. Path A (auto-approve) executes within
             SLA. Path B and C require founder approval.
           </p>
           <div className="mt-6">
             <Link
               href="/admin"
-              className="inline-flex items-center gap-2 rounded-full border border-slate-400 bg-white/60 px-4 py-2 text-sm font-medium text-[#0A1530] hover:bg-white"
+              className={`inline-flex items-center gap-2 rounded-full border border-[#C9A961]/25 bg-[#1A1A1C]/85 px-4 py-2 text-sm font-medium text-[#ECEBE7] transition hover:border-[#C9A961]/60 hover:bg-[#C9A961]/10 ${focusRing()}`}
             >
               ← Back to Admin Workspace
             </Link>
           </div>
         </div>
       </section>
-      <main className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
 
+      <main className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
         {toast && (
-          <p className="mt-5 rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-100">
+          <p className="mt-5 rounded-2xl border border-[#6DAA45]/30 bg-[#6DAA45]/15 p-4 text-sm font-bold text-[#B5E28A]">
             {toast}
           </p>
         )}
         {error && (
-          <p className="mt-5 rounded-2xl border border-red-300/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">
+          <p className="mt-5 rounded-2xl border border-[#B85C5C]/30 bg-[#B85C5C]/15 p-4 text-sm font-bold text-[#F0BFBF]">
             {error}
           </p>
         )}
-
         {highlightedPending && (
-          <p className="mt-5 rounded-2xl border border-[#FF7A1A]/40 bg-[#FF7A1A]/10 p-4 text-sm font-bold text-orange-100">
+          <p className="mt-5 rounded-2xl border border-[#C9A961]/40 bg-[#C9A961]/10 p-4 text-sm font-bold text-[#DFC084]">
             Highlighted request: {highlightedPending.company_name} · {highlightedPending.customer_email}
           </p>
         )}
 
-        <section className="mt-8 rounded-3xl border border-white/10 bg-[#0A1530] p-6 text-white">
-          <h2 className="text-xl font-black">Pending review</h2>
-          <p className="mt-2 text-sm text-slate-400">Path B requests awaiting founder decision (oldest first).</p>
+        <section className="mt-8 rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6 text-[#ECEBE7] shadow-2xl shadow-black/40">
+          <h2 className={`${headingFont} text-xl font-black text-[#ECEBE7]`}>Pending review</h2>
+          <p className="mt-2 text-sm text-[#A29E93]">Path B requests awaiting founder decision (oldest first).</p>
           <div className="mt-5 grid gap-4">
             {pending.length === 0 && (
-              <p className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-400">
+              <p className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] px-4 py-3 text-sm font-bold text-[#A29E93]">
                 No pending requests.
               </p>
             )}
@@ -225,32 +221,32 @@ function RefundQueueContent() {
               <article
                 key={item.id}
                 id={item.id}
-                className={`rounded-3xl border bg-slate-950/60 p-5 ${item.id === highlightId ? "border-[#FF7A1A]/60" : "border-white/10"}`}
+                className={`rounded-3xl border bg-[#111112] p-5 ${item.id === highlightId ? "border-[#C9A961]/60" : "border-[#C9A961]/20"}`}
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <p className="text-sm font-black text-white">
+                    <p className="text-sm font-black text-[#ECEBE7]">
                       {item.company_name} · {item.customer_email}
                     </p>
-                    <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                    <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-[#7A7974]">
                       Path {item.path} · {item.tier} · {formatUsd(item.refundable_amount_cents)} refundable ·{" "}
                       {item.days_remaining} days left in window
                     </p>
-                    <p className="mt-3 text-sm leading-6 text-slate-400">{item.message_excerpt}</p>
-                    <p className="mt-2 text-xs font-bold text-slate-500">Submitted {formatDate(item.created_at)}</p>
+                    <p className="mt-3 text-sm leading-6 text-[#A29E93]">{item.message_excerpt}</p>
+                    <p className="mt-2 text-xs font-bold text-[#7A7974]">Submitted {formatDate(item.created_at)}</p>
                   </div>
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
                       onClick={() => openModal(item, "approve")}
-                      className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-500"
+                      className={`rounded-full bg-[#C9A961] px-5 py-3 text-sm font-black text-[#111112] transition hover:bg-[#DFC084] ${focusRing()}`}
                     >
                       Approve refund
                     </button>
                     <button
                       type="button"
                       onClick={() => openModal(item, "deny")}
-                      className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-white hover:bg-white/5"
+                      className={`rounded-full border border-[#C9A961]/25 bg-transparent px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60 hover:bg-[#C9A961]/10 ${focusRing()}`}
                     >
                       Deny
                     </button>
@@ -261,11 +257,11 @@ function RefundQueueContent() {
           </div>
         </section>
 
-        <section className="mt-8 rounded-3xl border border-white/10 bg-[#0A1530] p-6 text-white">
-          <h2 className="text-xl font-black">Recent activity</h2>
+        <section className="mt-8 rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-6 text-[#ECEBE7] shadow-2xl shadow-black/40">
+          <h2 className={`${headingFont} text-xl font-black text-[#ECEBE7]`}>Recent activity</h2>
           <div className="mt-5 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
-              <thead className="text-xs uppercase tracking-[0.14em] text-slate-500">
+              <thead className="text-xs uppercase tracking-[0.14em] text-[#7A7974]">
                 <tr>
                   <th className="px-3 py-2">Company</th>
                   <th className="px-3 py-2">Customer</th>
@@ -277,17 +273,17 @@ function RefundQueueContent() {
               </thead>
               <tbody>
                 {recent.map((item) => (
-                  <tr key={item.id} className="border-t border-white/10">
-                    <td className="px-3 py-3 font-bold text-white">{item.company_name}</td>
-                    <td className="px-3 py-3 text-slate-300">{item.customer_email}</td>
-                    <td className="px-3 py-3 text-slate-300">{item.path}</td>
+                  <tr key={item.id} className="border-t border-[#C9A961]/20">
+                    <td className="px-3 py-3 font-bold text-[#ECEBE7]">{item.company_name}</td>
+                    <td className="px-3 py-3 text-[#A29E93]">{item.customer_email}</td>
+                    <td className="px-3 py-3 text-[#A29E93]">{item.path}</td>
                     <td className="px-3 py-3">
                       <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusBadgeClass(item.status)}`}>
                         {item.status}
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-slate-400">{formatDate(item.resolved_at)}</td>
-                    <td className="px-3 py-3 text-slate-400">{item.decided_by || "—"}</td>
+                    <td className="px-3 py-3 text-[#7A7974]">{formatDate(item.resolved_at)}</td>
+                    <td className="px-3 py-3 text-[#7A7974]">{item.decided_by || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -298,23 +294,23 @@ function RefundQueueContent() {
 
       {modalItem && modalAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#0A1020] p-6 shadow-2xl">
-            <h3 className="text-lg font-black">
+          <div className="w-full max-w-lg rounded-3xl border border-[#C9A961]/25 bg-[#1A1A1C] p-6 shadow-2xl shadow-black/60">
+            <h3 className={`${headingFont} text-lg font-black text-[#ECEBE7]`}>
               {modalAction === "approve" ? "Approve refund" : "Deny refund"} — {modalItem.company_name}
             </h3>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm text-[#A29E93]">
               Amount: {formatUsd(modalItem.refundable_amount_cents)} · Customer: {modalItem.customer_email}
             </p>
-            <p className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm leading-6 text-slate-300">
+            <p className="mt-4 rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-4 text-sm leading-6 text-[#A29E93]">
               {modalItem.reason_provided || modalItem.message_excerpt}
             </p>
-            <label className="mt-4 block text-sm font-bold text-slate-300">
+            <label className="mt-4 block text-sm font-bold text-[#A29E93]">
               Reason (required)
               <textarea
                 value={modalReason}
                 onChange={(event) => setModalReason(event.target.value)}
                 rows={4}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-[#FF7A1A]/40"
+                className="mt-2 w-full rounded-2xl border border-[#C9A961]/20 bg-[#111112] px-4 py-3 text-sm text-[#ECEBE7] outline-none focus:ring-2 focus:ring-[#C9A961]/50"
               />
             </label>
             <div className="mt-5 flex justify-end gap-3">
@@ -324,7 +320,7 @@ function RefundQueueContent() {
                   setModalItem(null);
                   setModalAction(null);
                 }}
-                className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-bold"
+                className={`rounded-full border border-[#C9A961]/25 px-4 py-2 text-sm font-bold text-[#ECEBE7] transition hover:border-[#C9A961]/60 hover:bg-[#C9A961]/10 ${focusRing()}`}
               >
                 Cancel
               </button>
@@ -340,6 +336,7 @@ function RefundQueueContent() {
           </div>
         </div>
       )}
+
       <SiteFooter />
     </div>
   );
@@ -349,8 +346,8 @@ export default function AdminRefundsPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-[#F5F7FA] px-6 py-10 text-[#111827]">
-          <p className="text-sm font-bold text-slate-600">Loading refund queue…</p>
+        <main className="min-h-screen bg-[#111112] px-6 py-10 text-[#ECEBE7]">
+          <p className="text-sm font-bold text-[#A29E93]">Loading refund queue…</p>
         </main>
       }
     >
