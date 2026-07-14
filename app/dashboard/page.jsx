@@ -2073,15 +2073,15 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="mt-8 rounded-[2rem] border border-[#FF7A1A]/25 bg-[#FF7A1A]/10 p-8">
+              <div className="mt-8 rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-8">
                 <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
                   <div>
-                    <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Persona-Based Outputs</p>
-                    <h2 className="mt-3 text-3xl font-black">One intelligence engine. Four presentation layers.</h2>
-                    <p className="mt-3 leading-7 text-slate-300">
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Persona-Based Outputs</p>
+                    <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.02em] text-[#ECEBE7]`}>One intelligence engine. Four presentation layers.</h2>
+                    <p className="mt-3 leading-7 text-[#ECEBE7]">
                       {automatedExecutiveDeliveryEngine.coreRule}
                     </p>
-                    <p className="mt-5 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-300">
+                    <p className="mt-5 rounded-2xl border border-[#C9A961]/20 bg-[#111112]/70 px-4 py-3 text-sm font-bold text-[#ECEBE7]">
                       Output style is configured during company onboarding and inherited by users through their company role.
                     </p>
                     <div className="mt-5 grid gap-3">
@@ -2090,33 +2090,33 @@ export default function DashboardPage() {
                           key={persona.id}
                           className={`rounded-2xl border px-4 py-3 text-left transition ${
                             deliveryPersona === persona.id
-                              ? "border-[#FF7A1A]/70 bg-[#FF7A1A]/20"
-                              : "border-white/10 bg-slate-950/50 hover:border-white/25"
+                              ? "border-[#C9A961]/60 bg-[#C9A961]/15"
+                              : "border-[#C9A961]/20 bg-[#1A1A1C]/85 hover:border-[#C9A961]/45"
                           }`}
                         >
-                          <p className="text-sm font-black text-white">{persona.label}</p>
-                          <p className="mt-1 text-xs leading-5 text-slate-400">{persona.positioning}</p>
+                          <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>{persona.label}</p>
+                          <p className="mt-1 text-xs leading-5 text-[#A29E93]">{persona.positioning}</p>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="rounded-[1.75rem] border border-white/10 bg-slate-950/70 p-6">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Selected Output Style</p>
-                    <h3 className="mt-3 text-2xl font-black text-white">{selectedPersonaMode.label}</h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-300">{selectedPersonaMode.outputStyle}</p>
-                    <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
+                  <div className="rounded-[1.75rem] border border-[#C9A961]/20 bg-[#111112]/70 p-6">
+                    <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#A29E93]`}>Selected Output Style</p>
+                    <h3 className={`${headingFont} mt-3 text-2xl font-black text-[#DFC084]`}>{selectedPersonaMode.label}</h3>
+                    <p className="mt-3 text-sm leading-6 text-[#ECEBE7]">{selectedPersonaMode.outputStyle}</p>
+                    <p className="mt-4 rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 px-4 py-3 text-sm leading-6 text-[#ECEBE7]">
                       AI tone: {selectedPersonaMode.aiAssistantTone}
                     </p>
                     {selectedPersonaMode.translationExample && (
-                      <div className="mt-4 rounded-2xl border border-[#1E6BFF]/25 bg-[#1E6BFF]/10 p-4">
-                        <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-200">Owner Translation Example</p>
-                        <p className="mt-2 text-sm text-slate-300">{selectedPersonaMode.translationExample.ownerFacing}</p>
+                      <div className="mt-4 rounded-2xl border border-[#C9A961]/25 bg-[#1A1A1C]/85 p-4">
+                        <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#DFC084]`}>Owner Translation Example</p>
+                        <p className="mt-2 text-sm text-[#ECEBE7]">{selectedPersonaMode.translationExample.ownerFacing}</p>
                       </div>
                     )}
                     <div className="mt-5 flex flex-wrap gap-2">
                       {selectedPersonaMode.focus.slice(0, 8).map((item) => (
-                        <span key={item} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-bold text-slate-300">
+                        <span key={item} className="rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-3 py-1 text-xs font-bold text-[#ECEBE7]">
                           {item}
                         </span>
                       ))}
