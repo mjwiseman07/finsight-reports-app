@@ -1204,7 +1204,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const response = await fetch("/api/quickbooks/connect", {
+      const response = await fetch("/api/integrations/quickbooks/connect", {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}` },
       });

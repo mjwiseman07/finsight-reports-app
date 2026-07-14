@@ -11830,7 +11830,7 @@ export default function UploadPage() {
     }
 
     try {
-      const response = await fetch("/api/quickbooks/connect", {
+      const response = await fetch("/api/integrations/quickbooks/connect", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
