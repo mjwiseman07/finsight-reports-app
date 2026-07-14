@@ -1956,9 +1956,9 @@ export default function DashboardPage() {
 
           {!isLoading && access?.allowed === false && access.reason === "trial_expired" && (
             <div>
-              <div className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
-                <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-300">Choose a Plan</p>
-                <h1 className="mt-4 text-4xl font-black">Your free trial has been used. Choose a plan to continue.</h1>
+              <div className="mb-8 rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-8">
+                <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Choose a Plan</p>
+                <h1 className={`${headingFont} mt-4 text-4xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Your free trial has been used. Choose a plan to continue.</h1>
               </div>
 
               <div className="grid gap-6 xl:grid-cols-4">
@@ -1967,18 +1967,18 @@ export default function DashboardPage() {
                     key={plan.key}
                     className={`rounded-[2rem] border p-8 ${
                       plan.featured
-                        ? "border-[#FF7A1A]/40 bg-[#FF7A1A]/15 shadow-2xl shadow-[#FF7A1A]/20"
-                        : "border-white/10 bg-white/[0.04]"
+                        ? "border-[#C9A961]/60 bg-[#C9A961]/15 shadow-2xl shadow-[#C9A961]/25"
+                        : "border-[#C9A961]/20 bg-[#1A1A1C]/85"
                     }`}
                   >
-                    <p className={`text-sm font-black uppercase tracking-[0.18em] ${plan.featured ? "text-white" : "text-blue-200"}`}>
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] ${plan.featured ? "text-[#111112]" : "text-[#DFC084]"}`}>
                       {plan.name}
                     </p>
-                    <h2 className="mt-4 text-5xl font-black">{plan.price}</h2>
-                    <p className={`mt-4 min-h-20 leading-7 ${plan.featured ? "text-blue-50" : "text-slate-300"}`}>
+                    <h2 className={`${headingFont} mt-4 text-5xl font-black tracking-[-0.03em] ${plan.featured ? "text-[#111112]" : "text-[#DFC084]"}`}>{plan.price}</h2>
+                    <p className={`mt-4 min-h-20 leading-7 ${plan.featured ? "text-[#111112]" : "text-[#ECEBE7]"}`}>
                       {plan.description}
                     </p>
-                    <ul className={`mt-5 grid gap-2 text-sm leading-6 ${plan.featured ? "text-blue-50" : "text-slate-300"}`}>
+                    <ul className={`mt-5 grid gap-2 text-sm leading-6 ${plan.featured ? "text-[#111112]" : "text-[#ECEBE7]"}`}>
                       {plan.features.slice(0, 5).map((feature) => (
                         <li key={feature}>- {feature}</li>
                       ))}
@@ -1987,10 +1987,10 @@ export default function DashboardPage() {
                       type="button"
                       onClick={() => handleSubscribe(plan.key)}
                       disabled={checkoutPlan === plan.key || !plan.priceId}
-                      className={`mt-8 w-full rounded-2xl px-5 py-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                      className={`${focusRing("rounded-2xl")} mt-8 w-full rounded-2xl px-5 py-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
                         plan.featured
-                          ? "bg-white text-[#0A1020] hover:bg-orange-50"
-                          : "premium-button text-white"
+                          ? "border border-[#C9A961]/60 bg-[#111112] text-[#ECEBE7] hover:border-[#C9A961] hover:bg-[#1A1A1C]"
+                          : "premium-button"
                       }`}
                     >
                       {checkoutPlan === plan.key ? "Starting checkout..." : plan.priceId ? "Subscribe" : "Stripe price pending"}
