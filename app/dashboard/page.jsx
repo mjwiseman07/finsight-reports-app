@@ -2621,14 +2621,14 @@ function FinancialHealthOverview({ onAskMetric }) {
   ];
 
   return (
-    <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/10 p-8">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-emerald-200">Financial Health Score</p>
+    <div className="rounded-[2rem] border border-[#6DAA45]/35 bg-[#6DAA45]/10 p-8">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#6DAA45]`}>Financial Health Score</p>
       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {scores.map(([label, value, detail]) => (
-          <button key={label} type="button" onClick={() => onAskMetric(label)} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 text-left transition hover:border-emerald-300/40">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{label}</p>
-            <p className="mt-3 text-3xl font-black text-white">{value}</p>
-            <p className="mt-2 text-sm leading-6 text-emerald-100/80">{detail}</p>
+          <button key={label} type="button" onClick={() => onAskMetric(label)} className={`${focusRing("rounded-3xl")} rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5 text-left transition hover:border-[#C9A961]/50`}>
+            <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>{label}</p>
+            <p className={`${headingFont} mt-3 text-3xl font-black text-[#B5E28A]`}>{value}</p>
+            <p className="mt-2 text-sm leading-6 text-[#A29E93]">{detail}</p>
           </button>
         ))}
       </div>
