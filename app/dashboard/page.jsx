@@ -3012,24 +3012,24 @@ function ExecutivePackageWizard({ config, generating, message, refreshStatus, on
   };
 
   return (
-    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#0A1020] p-8 shadow-2xl shadow-orange-500/10">
+    <div className="rounded-[2rem] border border-[#FFB36F]/25 bg-[#1A1A1C]/85 p-8 shadow-2xl shadow-[#FF7A1A]/10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Generate Executive Reporting</p>
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Choose the package and reporting period.</h2>
-          <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Generate Executive Reporting</p>
+          <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Choose the package and reporting period.</h2>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-[#ECEBE7]">
             Advisacor refreshes current company data before generation so PDF and PowerPoint packages use the latest available financial information.
           </p>
         </div>
-        <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-slate-200">
+        <button type="button" onClick={onClose} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/40 px-4 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
           Close
         </button>
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Package Type</p>
-          <h3 className="mt-2 text-xl font-black text-white">What would you like to generate?</h3>
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+          <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Package Type</p>
+          <h3 className={`${headingFont} mt-2 text-xl font-black text-[#ECEBE7]`}>What would you like to generate?</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {[
               ["pdf", "Generate PDF Package", "Board-ready PDF package using current package configuration."],
@@ -3039,26 +3039,26 @@ function ExecutivePackageWizard({ config, generating, message, refreshStatus, on
                 key={key}
                 type="button"
                 onClick={() => onChange((current) => ({ ...current, packageType: key }))}
-                className={`rounded-2xl border p-4 text-left ${config.packageType === key ? "border-[#FF7A1A] bg-[#FF7A1A]/20" : "border-white/10 bg-slate-950/60"}`}
+                className={`${focusRing("rounded-2xl")} rounded-2xl border p-4 text-left transition ${config.packageType === key ? "border-[#FF7A1A] bg-[#FF7A1A]/20" : "border-[#C9A961]/20 bg-[#1A1A1C] hover:border-[#C9A961]/45"}`}
               >
-                <p className="text-sm font-black text-white">{label}</p>
-                <p className="mt-2 text-xs leading-5 text-slate-400">{description}</p>
+                <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>{label}</p>
+                <p className="mt-2 text-xs leading-5 text-[#A29E93]">{description}</p>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Step 1</p>
-          <h3 className="mt-2 text-xl font-black text-white">What reporting period would you like to generate?</h3>
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+          <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Step 1</p>
+          <h3 className={`${headingFont} mt-2 text-xl font-black text-[#ECEBE7]`}>What reporting period would you like to generate?</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {executivePackagePeriodOptions.map((option) => (
               <button
                 key={option.key}
                 type="button"
                 onClick={() => onChange((current) => ({ ...current, reportingPeriod: option.key }))}
-                className={`rounded-2xl border px-4 py-3 text-left text-sm font-black ${
-                  config.reportingPeriod === option.key ? "border-[#FF7A1A] bg-[#FF7A1A]/20 text-white" : "border-white/10 bg-slate-950/60 text-slate-200"
+                className={`${focusRing("rounded-2xl")} rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${
+                  config.reportingPeriod === option.key ? "border-[#FF7A1A] bg-[#FF7A1A]/20 text-[#ECEBE7]" : "border-[#C9A961]/20 bg-[#1A1A1C] text-[#ECEBE7] hover:border-[#C9A961]/45"
                 }`}
               >
                 {option.label}
@@ -3066,12 +3066,12 @@ function ExecutivePackageWizard({ config, generating, message, refreshStatus, on
             ))}
           </div>
           {config.reportingPeriod === "custom-date" && (
-            <label className="mt-4 grid gap-2 text-sm font-bold text-slate-300">
+            <label className="mt-4 grid gap-2 text-sm font-bold text-[#ECEBE7]">
               Custom Date
-              <input type="date" value={config.customDate} onChange={(event) => onChange((current) => ({ ...current, customDate: event.target.value }))} className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white" />
+              <input type="date" value={config.customDate} onChange={(event) => onChange((current) => ({ ...current, customDate: event.target.value }))} className="rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-[#ECEBE7] placeholder:text-[#7A7974] focus:border-[#C9A961]/60" />
             </label>
           )}
-          <p className="mt-4 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm font-bold text-slate-300">Selected period: {periodLabel}</p>
+          <p className="mt-4 rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7]">Selected period: {periodLabel}</p>
         </div>
       </div>
 
