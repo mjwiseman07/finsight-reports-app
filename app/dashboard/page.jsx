@@ -2425,22 +2425,22 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-3">
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Email Template</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">Subject: {ownerEmailTemplateSpec.weeklySubject}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">CTA: {ownerEmailTemplateSpec.primaryCta}</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Email Template</p>
+                    <p className="mt-2 text-sm leading-6 text-[#A29E93]">Subject: {ownerEmailTemplateSpec.weeklySubject}</p>
+                    <p className="mt-2 text-sm leading-6 text-[#A29E93]">CTA: {ownerEmailTemplateSpec.primaryCta}</p>
                   </div>
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Secure Ask Pulse</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Secure Ask Pulse</p>
+                    <p className="mt-2 text-sm leading-6 text-[#A29E93]">
                       Opens /owner/ask/[briefId] with an authenticated session or expiring owner magic link. No public chatbot links.
                     </p>
                   </div>
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Async Jobs</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Async Jobs</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {ownerBackgroundJobTypes.map((item) => (
-                        <span key={item} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-bold text-slate-300">
+                        <span key={item} className="rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-3 py-1 text-xs font-bold text-[#ECEBE7]">
                           {item}
                         </span>
                       ))}
@@ -2449,21 +2449,21 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Pulse Suggested Questions</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Pulse Suggested Questions</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {ownerSuggestedQuestions.map((item) => (
-                        <span key={item} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-bold text-slate-300">
+                        <span key={item} className="rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-3 py-1 text-xs font-bold text-[#ECEBE7]">
                           {item}
                         </span>
                       ))}
                     </div>
                   </div>
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-                    <p className="text-sm font-black text-white">Owner Settings Fields</p>
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                    <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Owner Settings Fields</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {ownerDeliverySettingsFields.map((field) => (
-                        <span key={field} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-bold text-slate-300">
+                        <span key={field} className="rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-3 py-1 text-xs font-bold text-[#ECEBE7]">
                           {field}
                         </span>
                       ))}
