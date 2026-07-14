@@ -3506,12 +3506,12 @@ function MemoryScoreCard({ label, value }) {
 
 function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
   return (
-    <div className="rounded-[2rem] border border-cyan-300/20 bg-cyan-400/10 p-8 shadow-2xl shadow-cyan-500/5">
+    <div className="rounded-[2rem] border border-[#5591C7]/30 bg-[#5591C7]/10 p-8 shadow-2xl shadow-[#5591C7]/10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-cyan-200">{snapshot.moduleName}</p>
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.03em] text-white">Predictive analytics for the next 30-90 days</h2>
-          <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#7BAAD3]`}>{snapshot.moduleName}</p>
+          <h2 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Predictive analytics for the next 30-90 days</h2>
+          <p className="mt-3 max-w-3xl leading-7 text-[#A29E93]">
             Pulse automatically explains revenue, EBITDA, cash, payroll, risk, and opportunity forecasts in plain English.
             {snapshot.industryType ? ` Industry model: ${snapshot.industryType}.` : ""}
           </p>
@@ -3519,7 +3519,7 @@ function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
         <button
           type="button"
           onClick={() => onAskMetric("biggest risks over the next 90 days")}
-          className="rounded-2xl border border-cyan-200/30 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-100"
+          className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#5591C7]/40 bg-[#5591C7]/15 px-5 py-3 text-sm font-black text-[#7BAAD3] transition hover:bg-[#5591C7]/25`}
         >
           Ask Pulse About Forecast
         </button>
@@ -3527,22 +3527,22 @@ function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {snapshot.forecasts.map((forecast) => (
-          <div key={forecast.label} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5">
+          <div key={forecast.label} className="rounded-3xl border border-[#5591C7]/20 bg-[#111112]/70 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{forecast.label}</p>
-                <p className="mt-3 text-3xl font-black text-white">{forecast.value}</p>
-                <p className="mt-1 text-sm font-black text-cyan-100">{forecast.trend}</p>
+                <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>{forecast.label}</p>
+                <p className={`${headingFont} mt-3 text-3xl font-black text-[#DFC084]`}>{forecast.value}</p>
+                <p className={`${headingFont} mt-1 text-sm font-black text-[#7BAAD3]`}>{forecast.trend}</p>
               </div>
               <button
                 type="button"
                 onClick={() => onAskMetric(forecast.label)}
-                className="rounded-xl border border-cyan-200/20 px-3 py-2 text-xs font-black text-cyan-100"
+                className={`${focusRing("rounded-xl")} ${headingFont} rounded-xl border border-[#5591C7]/30 px-3 py-2 text-xs font-black text-[#7BAAD3] transition hover:border-[#5591C7]/60 hover:bg-[#5591C7]/10`}
               >
                 Ask Pulse
               </button>
             </div>
-            <p className="mt-3 text-sm leading-6 text-slate-300">{forecast.explanation}</p>
+            <p className="mt-3 text-sm leading-6 text-[#A29E93]">{forecast.explanation}</p>
           </div>
         ))}
       </div>
@@ -3552,38 +3552,38 @@ function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
         <PulseListCard title="Industry Models" items={snapshot.industryModels} />
       </div>
 
-      <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+      <div className="mt-6 rounded-3xl border border-[#5591C7]/20 bg-[#111112]/70 p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Predictive Alert Center</p>
-            <h3 className="mt-2 text-2xl font-black text-white">Explanation, impact, and recommended action</h3>
+            <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]`}>Predictive Alert Center</p>
+            <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Explanation, impact, and recommended action</h3>
           </div>
-          <p className="max-w-xl text-sm leading-6 text-slate-400">
+          <p className="max-w-xl text-sm leading-6 text-[#A29E93]">
             Every alert includes plain-English context and can be sent to Pulse for follow-up.
           </p>
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {snapshot.predictiveAlerts.map((alert) => (
-            <div key={alert.title} className="rounded-3xl border border-white/10 bg-[#0A1020] p-5">
+            <div key={alert.title} className="rounded-3xl border border-[#5591C7]/20 bg-[#1A1A1C] p-5">
               <div className="flex items-start justify-between gap-3">
-                <p className="text-lg font-black text-white">{alert.title}</p>
+                <p className={`${headingFont} text-lg font-black text-[#ECEBE7]`}>{alert.title}</p>
                 <button
                   type="button"
                   onClick={() => onAskMetric(alert.title)}
-                  className="rounded-xl border border-cyan-200/20 px-3 py-2 text-xs font-black text-cyan-100"
+                  className={`${focusRing("rounded-xl")} ${headingFont} rounded-xl border border-[#5591C7]/30 px-3 py-2 text-xs font-black text-[#7BAAD3] transition hover:border-[#5591C7]/60 hover:bg-[#5591C7]/10`}
                 >
                   Ask Pulse
                 </button>
               </div>
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                <span className="font-black text-slate-100">Explanation:</span> {alert.explanation}
+              <p className="mt-3 text-sm leading-6 text-[#A29E93]">
+                <span className="font-black text-[#ECEBE7]">Explanation:</span> {alert.explanation}
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
-                <span className="font-black text-slate-100">Financial impact:</span> {alert.financialImpact}
+              <p className="mt-2 text-sm leading-6 text-[#A29E93]">
+                <span className="font-black text-[#ECEBE7]">Financial impact:</span> {alert.financialImpact}
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
-                <span className="font-black text-slate-100">Recommended action:</span> {alert.recommendedAction}
+              <p className="mt-2 text-sm leading-6 text-[#A29E93]">
+                <span className="font-black text-[#ECEBE7]">Recommended action:</span> {alert.recommendedAction}
               </p>
             </div>
           ))}
@@ -3591,26 +3591,26 @@ function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
 
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {snapshot.scores.map((score) => (
-            <div key={score.label} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">{score.label}</p>
-              <p className="mt-3 text-3xl font-black text-white">{score.value}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{score.explanation}</p>
+            <div key={score.label} className="rounded-3xl border border-[#5591C7]/20 bg-[#1A1A1C] p-5">
+              <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>{score.label}</p>
+              <p className={`${headingFont} mt-3 text-3xl font-black text-[#DFC084]`}>{score.value}</p>
+              <p className="mt-2 text-sm leading-6 text-[#A29E93]">{score.explanation}</p>
             </div>
           ))}
         </div>
       </div>
 
       {whatIfStrategy && (
-        <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/70 p-6">
+        <div className="mt-6 rounded-3xl border border-[#5591C7]/20 bg-[#111112]/70 p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">What-If Scenario Modeling</p>
-              <h3 className="mt-2 text-2xl font-black text-white">{whatIfStrategy.label}</h3>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
+              <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]`}>What-If Scenario Modeling</p>
+              <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>{whatIfStrategy.label}</h3>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-[#A29E93]">
                 Pulse can build scenarios from natural language and explain estimated profit, cash, EBITDA, and KPI impact in plain English.
               </p>
             </div>
-            <div className="rounded-2xl border border-cyan-200/20 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-100">
+            <div className={`${headingFont} rounded-2xl border border-[#5591C7]/30 bg-[#5591C7]/12 px-4 py-3 text-sm font-black text-[#7BAAD3]`}>
               {whatIfStrategy.limits.join(" | ")}
             </div>
           </div>
@@ -3627,7 +3627,7 @@ function PulsePredictPanel({ snapshot, whatIfStrategy, onAskMetric }) {
                 key={example}
                 type="button"
                 onClick={() => onAskMetric(example)}
-                className="rounded-full border border-white/10 px-3 py-2 text-xs font-bold text-slate-200"
+                className={`${focusRing("rounded-full")} ${headingFont} rounded-full border border-[#C9A961]/25 bg-[#111112]/70 px-3 py-2 text-xs font-bold text-[#A29E93] transition hover:border-[#C9A961]/60 hover:text-[#DFC084]`}
               >
                 {example}
               </button>
