@@ -3683,10 +3683,10 @@ function IndustryIntelligenceDashboard({ industryType, onAskMetric }) {
   if (industryType === "Professional Services") return <ProfessionalServicesDashboard onAskMetric={onAskMetric} />;
 
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-200">Industry Intelligence</p>
-      <h2 className="mt-3 text-3xl font-black">Operational intelligence will adapt as industry data becomes available.</h2>
-      <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+    <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#111112]/85 p-8">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Industry Intelligence</p>
+      <h2 className={`${headingFont} mt-3 text-3xl font-black text-[#ECEBE7]`}>Operational intelligence will adapt as industry data becomes available.</h2>
+      <p className="mt-3 max-w-3xl leading-7 text-[#A29E93]">
         Advisacor combines core financial intelligence with industry-specific KPIs, commentary, and recommendations.
       </p>
     </div>
@@ -3708,15 +3708,15 @@ function ConstructionDashboard({ onAskMetric }) {
         <MetricTile label="Backlog" value="$3.9M" detail="Backlog supports near-term revenue visibility." onAskMetric={onAskMetric} />
         <MetricTile label="Contract Margin Trends" value="19.7%" detail="Margin is stable but one renovation job is pressuring results." onAskMetric={onAskMetric} />
       </div>
-      <div className="mt-6 overflow-x-auto rounded-3xl border border-white/10">
+      <div className="mt-6 overflow-x-auto rounded-3xl border border-[#C9A961]/20">
         <table className="min-w-[1200px] w-full text-left text-sm">
-          <thead className="bg-slate-950/80 text-xs uppercase tracking-[0.12em] text-slate-500">
+          <thead className={`${headingFont} bg-[#111112] text-xs uppercase tracking-[0.12em] text-[#7A7974]`}>
             <tr>{["Job Name", "Contract Value", "Cost Incurred", "Estimated Remaining Cost", "Gross Margin", "Percent Complete", "Retainage Receivable", "Retainage Payable", "Over Billing", "Under Billing", "Status"].map((header) => <th key={header} className="px-4 py-3">{header}</th>)}</tr>
           </thead>
-          <tbody className="divide-y divide-white/10">
+          <tbody className="divide-y divide-[#C9A961]/10">
             {jobs.map((job) => (
-              <tr key={job[0]} className="bg-slate-950/35">
-                {job.map((cell) => <td key={`${job[0]}-${cell}`} className="px-4 py-4 font-bold text-slate-300">{cell}</td>)}
+              <tr key={job[0]} className="bg-[#1A1A1C]/70">
+                {job.map((cell) => <td key={`${job[0]}-${cell}`} className="px-4 py-4 font-bold text-[#A29E93]">{cell}</td>)}
               </tr>
             ))}
           </tbody>
@@ -3751,14 +3751,18 @@ function WorkforceModeling({ onAskMetric }) {
   const percentImpact = ((dollarImpact / currentLaborPpd) * 100).toFixed(1);
 
   return (
-    <div className="mt-6 rounded-3xl border border-emerald-300/20 bg-emerald-400/10 p-6">
+    <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-200">What If Workforce Modeling</p>
-          <h3 className="mt-2 text-2xl font-black">Add 2 Nurses</h3>
-          <p className="mt-2 text-sm leading-6 text-emerald-50/80">Simulates adding nurses, CNAs, therapists, or other staff positions against patient day economics.</p>
+          <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]`}>What If Workforce Modeling</p>
+          <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Add 2 Nurses</h3>
+          <p className="mt-2 text-sm leading-6 text-[#A29E93]">Simulates adding nurses, CNAs, therapists, or other staff positions against patient day economics.</p>
         </div>
-        <button type="button" onClick={() => onAskMetric("Labor Cost Per Patient Day workforce model")} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white">
+        <button
+          type="button"
+          onClick={() => onAskMetric("Labor Cost Per Patient Day workforce model")}
+          className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/25 bg-[#1A1A1C] px-4 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/50`}
+        >
           Ask Pulse
         </button>
       </div>
@@ -3834,10 +3838,10 @@ function ProfessionalServicesDashboard({ onAskMetric }) {
 
 function IndustryShell({ title, subtitle, children }) {
   return (
-    <div className="rounded-[2rem] border border-blue-300/20 bg-blue-500/10 p-8">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]">Industry Intelligence</p>
-      <h2 className="mt-3 text-3xl font-black">{title}</h2>
-      <p className="mt-3 max-w-3xl leading-7 text-slate-300">{subtitle}</p>
+    <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#111112]/85 p-8">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Industry Intelligence</p>
+      <h2 className={`${headingFont} mt-3 text-3xl font-black text-[#ECEBE7]`}>{title}</h2>
+      <p className="mt-3 max-w-3xl leading-7 text-[#A29E93]">{subtitle}</p>
       <div className="mt-6">{children}</div>
     </div>
   );
@@ -3845,9 +3849,9 @@ function IndustryShell({ title, subtitle, children }) {
 
 function IndustryCommentary({ items }) {
   return (
-    <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/60 p-5">
-      <p className="text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]">Executive Commentary</p>
-      <ul className="mt-4 grid gap-3 text-sm leading-6 text-slate-300">
+    <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.16em] text-[#FFB36F]`}>Executive Commentary</p>
+      <ul className="mt-4 grid gap-3 text-sm leading-6 text-[#A29E93]">
         {items.map((item) => <li key={item}>- {item}</li>)}
       </ul>
     </div>
@@ -3860,23 +3864,27 @@ function DashboardAiLauncher({ open, onOpenChange, question, onQuestionChange, m
       <button
         type="button"
         onClick={() => onOpenChange(true)}
-        className="fixed bottom-5 right-5 z-50 rounded-full bg-[#FF7A1A] px-5 py-4 text-sm font-black text-white shadow-2xl shadow-black/40"
+        className={`${focusRing("rounded-full")} ${headingFont} fixed bottom-5 right-5 z-50 rounded-full bg-[#FF7A1A] px-5 py-4 text-sm font-black text-[#111112] shadow-2xl shadow-black/40 transition hover:bg-[#FF9349]`}
       >
         Ask Pulse
       </button>
 
       {open && (
-        <div className="fixed bottom-20 right-5 z-50 flex max-h-[78vh] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b1220] shadow-2xl shadow-black/50">
-          <div className="border-b border-white/10 p-5">
+        <div className="fixed bottom-20 right-5 z-50 flex max-h-[78vh] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C]/95 shadow-2xl shadow-black/50">
+          <div className="border-b border-[#C9A961]/15 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]">Pulse</p>
-                <h3 className="mt-2 text-2xl font-black text-white">Your business intelligence assistant</h3>
-                <p className="mt-2 text-xs leading-5 text-slate-400">
+                <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#FFB36F]`}>Pulse</p>
+                <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Your business intelligence assistant</h3>
+                <p className="mt-2 text-xs leading-5 text-[#A29E93]">
                   Context: {context.companyName} | {context.industryType} | {context.packageName}
                 </p>
               </div>
-              <button type="button" onClick={() => onOpenChange(false)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-slate-200">
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className={`${focusRing("rounded-xl")} ${headingFont} rounded-xl border border-[#C9A961]/25 px-3 py-2 text-xs font-black text-[#A29E93] transition hover:border-[#C9A961]/50 hover:text-[#DFC084]`}
+              >
                 Close
               </button>
             </div>
@@ -3884,16 +3892,28 @@ function DashboardAiLauncher({ open, onOpenChange, question, onQuestionChange, m
 
           <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-4">
             {messages.map((message, index) => (
-              <div key={`${message.role}-${index}`} className={`rounded-3xl px-4 py-3 text-sm leading-6 ${message.role === "user" ? "ml-auto bg-[#FF7A1A] text-white" : "mr-auto bg-white/[0.06] text-slate-200"}`}>
+              <div
+                key={`${message.role}-${index}`}
+                className={`rounded-3xl px-4 py-3 text-sm leading-6 ${
+                  message.role === "user"
+                    ? "ml-auto bg-[#FF7A1A] text-[#111112] font-black"
+                    : "mr-auto border border-[#C9A961]/20 bg-[#111112]/70 text-[#ECEBE7]"
+                }`}
+              >
                 {message.content}
               </div>
             ))}
           </div>
 
-          <div className="border-t border-white/10 p-4">
+          <div className="border-t border-[#C9A961]/15 p-4">
             <div className="mb-3 flex flex-wrap gap-2">
               {defaultAiQuestions.slice(0, 5).map((item) => (
-                <button key={item} type="button" onClick={() => onSubmit(item)} className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-slate-300">
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => onSubmit(item)}
+                  className={`${focusRing("rounded-full")} ${headingFont} rounded-full border border-[#C9A961]/25 bg-[#111112]/70 px-3 py-1 text-xs font-bold text-[#A29E93] transition hover:border-[#C9A961]/60 hover:text-[#DFC084]`}
+                >
                   {item}
                 </button>
               ))}
@@ -3906,9 +3926,13 @@ function DashboardAiLauncher({ open, onOpenChange, question, onQuestionChange, m
                   if (event.key === "Enter") onSubmit();
                 }}
                 placeholder="Ask about forecasts, cash, profit, staffing, margin..."
-                className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none"
+                className={`${headingFont} min-w-0 flex-1 rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] transition focus:border-[#C9A961]/60 focus:ring-2 focus:ring-[#C9A961]/25`}
               />
-              <button type="button" onClick={() => onSubmit()} className="rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm font-black text-white">
+              <button
+                type="button"
+                onClick={() => onSubmit()}
+                className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FF9349]`}
+              >
                 Ask
               </button>
             </div>
