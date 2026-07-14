@@ -1672,9 +1672,9 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#111112] px-6 py-8 text-white">
+    <main className="min-h-screen bg-[#111112] px-6 py-8 text-[#ECEBE7]">
       <div className="mx-auto max-w-7xl">
-        <header className="sticky top-4 z-40 flex items-center justify-between rounded-3xl border border-white/10 bg-[#1A1A1C]/85 px-5 py-4 shadow-2xl shadow-black/40 backdrop-blur-2xl">
+        <header className="sticky top-4 z-40 flex items-center justify-between rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 px-5 py-4 shadow-2xl shadow-black/40 backdrop-blur-2xl">
           <Link
             href="/"
             className={`${focusRing("rounded-2xl")} block w-[min(320px,42vw)] px-0 py-0`}
@@ -1694,7 +1694,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={handleSignOut}
-              className={`${focusRing("rounded-full")} rounded-full border border-white/15 bg-[#111112] px-5 py-2 text-sm font-bold text-slate-200 transition hover:border-[#C9A961]/40 hover:text-[#C9A961]`}
+              className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/20 bg-[#111112] px-5 py-2 text-sm font-bold text-[#ECEBE7] transition hover:border-[#C9A961]/40 hover:text-[#C9A961]`}
             >
               Sign Out
             </button>
@@ -1703,8 +1703,8 @@ export default function DashboardPage() {
 
         <section className="py-12">
           {isLoading && (
-            <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8">
-              <p className="text-lg font-bold text-slate-300">Loading your dashboard...</p>
+            <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-8">
+              <p className="text-lg font-bold text-[#ECEBE7]">Loading your dashboard...</p>
             </div>
           )}
 
@@ -1724,7 +1724,7 @@ export default function DashboardPage() {
             <div className="grid gap-8">
               {activeReportSummary && (
                 <div className="rounded-3xl border border-[#5591C7]/30 bg-[#5591C7]/10 p-5">
-                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#BCE2E7]`}>Report Source: {activeReportSummary.sourceSystem}</p>
+                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#DFC084]`}>Report Source: {activeReportSummary.sourceSystem}</p>
                   <div className="mt-3 grid gap-3 text-sm md:grid-cols-3 xl:grid-cols-6">
                     {[
                       ["Connection ID", activeReportContext?.connectionId || "Not available"],
@@ -1745,14 +1745,14 @@ export default function DashboardPage() {
                       ["Cash Variance", activeReportPreflight ? formatDashboardCurrency(activeReportPreflight.diagnostics.cashVariance) : "Not available"],
                       ["Generated At", activeReportContext?.generatedAt ? new Date(activeReportContext.generatedAt).toLocaleString() : "Not generated"],
                     ].map(([label, value]) => (
-                      <div key={label} className="rounded-2xl border border-white/10 bg-[#111112]/70 px-4 py-3">
-                        <p className={`${headingFont} text-[10px] font-black uppercase tracking-[0.14em] text-[#BCE2E7]/80`}>{label}</p>
-                        <p className="mt-1 font-black text-white">{value}</p>
+                      <div key={label} className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/70 px-4 py-3">
+                        <p className={`${headingFont} text-[10px] font-black uppercase tracking-[0.14em] text-[#DFC084]/80`}>{label}</p>
+                        <p className="mt-1 font-black text-[#ECEBE7]">{value}</p>
                       </div>
                     ))}
                   </div>
                   {activeReportPreflight && (activeReportPreflight.blockers.length > 0 || activeReportPreflight.warnings.length > 0) && (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-[#111112]/70 px-4 py-3 text-sm text-[#BCE2E7]">
+                    <div className="mt-4 rounded-2xl border border-[#C9A961]/20 bg-[#111112]/70 px-4 py-3 text-sm text-[#ECEBE7]">
                       {[...activeReportPreflight.blockers, ...activeReportPreflight.warnings].map((issue) => (
                         <p key={`${issue.severity}-${issue.code}-${issue.affected || "report"}`} className="mt-1">
                           <span className="font-black">{issue.code}</span>: {issue.message}
@@ -1765,8 +1765,8 @@ export default function DashboardPage() {
               {new URLSearchParams(window.location.search).get("superAdmin") === "true" && (
                 <div className="rounded-[2rem] border border-[#C9A961]/40 bg-[#C9A961]/10 p-6">
                   <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Super Admin Test Journey</p>
-                  <h1 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-white`}>Business Owner Executive Workspace setup</h1>
-                  <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+                  <h1 className={`${headingFont} mt-3 text-3xl font-black tracking-[-0.03em] text-[#ECEBE7]`}>Business Owner Executive Workspace setup</h1>
+                  <p className="mt-3 max-w-3xl leading-7 text-[#ECEBE7]">
                     Starting from owner onboarding for {new URLSearchParams(window.location.search).get("testCompany") || "selected demo company"} with {new URLSearchParams(window.location.search).get("package") || "selected"} package context.
                   </p>
                 </div>
@@ -1777,13 +1777,13 @@ export default function DashboardPage() {
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#6DAA45]`}>Welcome to Advisacor</p>
-                      <h1 className={`${headingFont} mt-4 text-4xl font-black tracking-[-0.04em] text-white`}>Your company dashboard is ready.</h1>
-                      <p className="mt-4 max-w-3xl leading-8 text-slate-300">
+                      <h1 className={`${headingFont} mt-4 text-4xl font-black tracking-[-0.04em] text-[#ECEBE7]`}>Your company dashboard is ready.</h1>
+                      <p className="mt-4 max-w-3xl leading-8 text-[#ECEBE7]">
                         {onboardingCompanyName} has its first executive package, dashboard, and summary prepared with {onboardingIndustryType} context.
                       </p>
                     </div>
                     {readOnlyCustomerView ? (
-                      <span className="rounded-2xl bg-slate-700 px-5 py-3 text-sm font-black text-slate-300">PDF disabled in read-only QA</span>
+                      <span className="rounded-2xl bg-[#7A7974]/20 px-5 py-3 text-sm font-black text-[#A29E93]">PDF disabled in read-only QA</span>
                     ) : (
                       <button
                         type="button"
@@ -1797,26 +1797,26 @@ export default function DashboardPage() {
 
                   <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {dashboardMetrics.map(([label, value, detail]) => (
-                      <div key={label} className="rounded-3xl border border-white/10 bg-[#1A1A1C] p-5">
-                        <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-slate-500`}>{label}</p>
-                        <p className={`${headingFont} mt-3 text-3xl font-black text-white`}>{value}</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-400">{detail}</p>
+                      <div key={label} className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C] p-5">
+                        <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#A29E93]`}>{label}</p>
+                        <p className={`${headingFont} mt-3 text-3xl font-black text-[#DFC084]`}>{value}</p>
+                        <p className="mt-2 text-sm leading-6 text-[#A29E93]">{detail}</p>
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-6 rounded-3xl border border-white/10 bg-[#1A1A1C] p-5">
+                  <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C] p-5">
                     <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]`}>Executive Summary</p>
-                    <p className="mt-3 leading-7 text-slate-300">
+                    <p className="mt-3 leading-7 text-[#ECEBE7]">
                       The first package shows a healthy operating profile with stable liquidity, positive revenue momentum, and a clear need to watch collections concentration. The best near-term opportunity is improving profitability through margin discipline and tighter expense review.
                     </p>
                   </div>
 
                   <div className="mt-6 flex flex-wrap gap-3">
-                    <button type="button" onClick={() => setAiOpen(true)} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+                    <button type="button" onClick={() => setAiOpen(true)} className={`${focusRing("rounded-2xl")} rounded-2xl border border-[#C9A961]/20 px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/40 hover:text-[#C9A961]`}>
                       Ask Pulse
                     </button>
-                    <a href="#owner-delivery-settings" className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-slate-200">
+                    <a href="#owner-delivery-settings" className={`${focusRing("rounded-2xl")} rounded-2xl border border-[#C9A961]/20 px-5 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/40 hover:text-[#C9A961]`}>
                       Configure Weekly Brief
                     </a>
                   </div>
@@ -1828,14 +1828,14 @@ export default function DashboardPage() {
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#BB653B]`}>Customer View Mode</p>
-                      <p className={`${headingFont} mt-2 text-lg font-black text-white`}>You are viewing this account as the customer.</p>
+                      <p className={`${headingFont} mt-2 text-lg font-black text-[#ECEBE7]`}>You are viewing this account as the customer.</p>
                       <p className="mt-1 text-sm leading-6 text-[#F5D2B0]/80">
                         Read-only QA mode is active. Internal Super Admin panels, billing administration, platform settings, and monitoring tools are not shown here.
                       </p>
                     </div>
                     <Link
                       href="/admin"
-                      className={`${focusRing("rounded-full")} rounded-full border border-[#BB653B]/50 px-5 py-3 text-sm font-black text-[#F5D2B0] transition hover:border-[#BB653B]/80 hover:text-white`}
+                      className={`${focusRing("rounded-full")} rounded-full border border-[#BB653B]/50 px-5 py-3 text-sm font-black text-[#F5D2B0] transition hover:border-[#BB653B]/80 hover:text-[#ECEBE7]`}
                     >
                       Return to Super Admin
                     </Link>
