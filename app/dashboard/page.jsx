@@ -2478,20 +2478,20 @@ export default function DashboardPage() {
 
       {accountOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#0b1220] shadow-2xl shadow-black/40">
-            <div className="shrink-0 border-b border-white/10 px-6 py-5">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C]/95 shadow-2xl shadow-black/40">
+            <div className="shrink-0 border-b border-[#C9A961]/15 px-6 py-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-300">Account</p>
-                  <h2 className="mt-2 text-3xl font-black">Account and package settings</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                  <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#FFB36F]`}>Account</p>
+                  <h2 className={`${headingFont} mt-2 text-3xl font-black text-[#ECEBE7]`}>Account and package settings</h2>
+                  <p className="mt-2 text-sm leading-6 text-[#A29E93]">
                     Review your account, current package, and available plan changes.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAccountOpen(false)}
-                  className="rounded-2xl border border-white/15 bg-slate-950 px-4 py-2 text-sm font-bold text-slate-200 transition hover:border-white/30 hover:text-white"
+                  className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-2 text-sm font-bold text-[#A29E93] transition hover:border-[#C9A961]/50 hover:text-[#DFC084]`}
                 >
                   Close
                 </button>
@@ -2500,43 +2500,43 @@ export default function DashboardPage() {
 
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Email</p>
-                  <p className="mt-3 break-words text-lg font-black text-white">{accountEmail}</p>
+                <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Email</p>
+                  <p className={`${headingFont} mt-3 break-words text-lg font-black text-[#ECEBE7]`}>{accountEmail}</p>
                 </div>
-                <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Firm / Business</p>
+                <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Firm / Business</p>
                   <input
                     type="text"
                     value={businessNameDraft}
                     onChange={(event) => setBusinessNameDraft(event.target.value)}
                     placeholder={accountBusinessName}
-                    className="mt-3 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-slate-500 focus:border-blue-300/60"
+                    className={`${headingFont} mt-3 w-full rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] transition focus:border-[#C9A961]/60 focus:ring-2 focus:ring-[#C9A961]/25`}
                   />
                   <button
                     type="button"
                     onClick={handleSaveAccount}
                     disabled={accountSaving}
-                    className="mt-3 rounded-2xl bg-[#1a6cf6] px-4 py-2 text-xs font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    className={`${focusRing("rounded-2xl")} ${headingFont} mt-3 rounded-2xl bg-[#FF7A1A] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#FFB36F] disabled:cursor-not-allowed disabled:opacity-60`}
                   >
                     {accountSaving ? "Saving..." : "Save Account Info"}
                   </button>
                 </div>
-                <div className="rounded-3xl border border-emerald-300/20 bg-emerald-400/10 p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">Current Package</p>
-                  <p className="mt-3 text-lg font-black text-white">{currentPlanName}</p>
-                  <p className="mt-2 text-sm font-semibold capitalize text-emerald-100/80">
+                <div className="rounded-3xl border border-[#6DAA45]/30 bg-[#6DAA45]/10 p-5">
+                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#6DAA45]`}>Current Package</p>
+                  <p className={`${headingFont} mt-3 text-lg font-black text-[#B5E28A]`}>{currentPlanName}</p>
+                  <p className="mt-2 text-sm font-semibold capitalize text-[#B5E28A]/80">
                     {access?.subscription_status || access?.reason || "Loading"}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+              <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-sm font-black uppercase tracking-[0.2em] text-blue-300">Package Options</p>
-                    <h3 className="mt-2 text-2xl font-black">Upgrade or downgrade your package</h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#FFB36F]`}>Package Options</p>
+                    <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Upgrade or downgrade your package</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#A29E93]">
                       Active subscriptions are managed in Stripe billing. Trial or expired accounts can choose a package here.
                     </p>
                   </div>
@@ -2545,7 +2545,7 @@ export default function DashboardPage() {
                       type="button"
                       onClick={handleManageBilling}
                       disabled={billingLoading}
-                      className="rounded-2xl bg-[#1a6cf6] px-5 py-3 text-sm font-black text-white shadow-xl shadow-blue-500/20 transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-[#111112] shadow-xl shadow-black/30 transition hover:bg-[#FFB36F] disabled:cursor-not-allowed disabled:opacity-60`}
                     >
                       {billingLoading ? "Opening billing..." : "Manage Billing"}
                     </button>
@@ -2565,27 +2565,29 @@ export default function DashboardPage() {
                       <div
                         key={plan.key}
                         className={`rounded-3xl border p-5 ${
-                          isCurrentPlan ? "border-emerald-300/40 bg-emerald-400/10" : "border-white/10 bg-slate-950/60"
+                          isCurrentPlan ? "border-[#6DAA45]/35 bg-[#6DAA45]/10" : "border-[#C9A961]/20 bg-[#111112]/70"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-black text-white">{plan.name}</p>
-                            <p className="mt-1 text-2xl font-black">{plan.price}</p>
+                            <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>{plan.name}</p>
+                            <p className={`${headingFont} mt-1 text-2xl font-black text-[#DFC084]`}>{plan.price}</p>
                           </div>
-                          <span className={`rounded-full px-3 py-1 text-xs font-black ${
-                            isCurrentPlan ? "bg-emerald-400/15 text-emerald-200" : "bg-blue-500/15 text-blue-200"
+                          <span className={`${headingFont} rounded-full px-3 py-1 text-xs font-black ${
+                            isCurrentPlan
+                              ? "border border-[#6DAA45]/30 bg-[#6DAA45]/10 text-[#B5E28A]"
+                              : "border border-[#C9A961]/30 bg-[#111112]/70 text-[#A29E93]"
                           }`}>
                             {isCurrentPlan ? "Current" : planMove}
                           </span>
                         </div>
-                        <p className="mt-3 min-h-16 text-sm leading-6 text-slate-400">{plan.description}</p>
+                        <p className="mt-3 min-h-16 text-sm leading-6 text-[#A29E93]">{plan.description}</p>
                         {access?.reason === "subscriber" ? (
                           <button
                             type="button"
                             onClick={handleManageBilling}
                             disabled={billingLoading || isCurrentPlan}
-                            className="mt-5 w-full rounded-2xl border border-white/15 bg-slate-900 px-4 py-3 text-sm font-black text-slate-100 transition hover:border-blue-300/50 disabled:cursor-not-allowed disabled:opacity-50"
+                            className={`${focusRing("rounded-2xl")} ${headingFont} mt-5 w-full rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/50 hover:text-[#DFC084] disabled:cursor-not-allowed disabled:opacity-50`}
                           >
                             {isCurrentPlan ? "Current Package" : `${planMove} in Billing`}
                           </button>
@@ -2594,7 +2596,7 @@ export default function DashboardPage() {
                             type="button"
                             onClick={() => handleSubscribe(plan.key)}
                             disabled={checkoutPlan === plan.key}
-                            className="mt-5 w-full rounded-2xl bg-[#1a6cf6] px-4 py-3 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            className={`${focusRing("rounded-2xl")} ${headingFont} mt-5 w-full rounded-2xl bg-[#FF7A1A] px-4 py-3 text-sm font-black text-[#111112] transition hover:bg-[#FFB36F] disabled:cursor-not-allowed disabled:opacity-60`}
                           >
                             {checkoutPlan === plan.key ? "Starting checkout..." : `Choose ${plan.name}`}
                           </button>
