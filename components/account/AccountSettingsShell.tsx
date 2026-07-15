@@ -41,32 +41,31 @@ export function AccountSettingsShell({
         Manage your Advisacor profile, security, and billing preferences.
       </p>
 
-      <nav
-        className="mt-8 flex flex-wrap gap-2 border-b border-[#E8E6E0] pb-px"
-        aria-label="Account sections"
-      >
-        {TABS.map((tab) => {
-          const isActive =
-            activeTab === tab.id ||
-            pathname === tab.href ||
-            (tab.id === "security" && pathname?.startsWith(tab.href));
-          return (
-            <Link
-              key={tab.id}
-              href={tab.href}
-              className={`rounded-t-md px-4 py-2.5 text-sm font-semibold transition-colors ${
-                isActive
-                  ? "border border-b-0 border-[#E8E6E0] bg-white text-[#0B1A3A]"
-                  : "text-[#5C5A55] hover:text-[#0B1A3A]"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
+      <nav className="mt-8" aria-label="Account sections">
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#C9A961] p-1.5 shadow-sm">
+          {TABS.map((tab) => {
+            const isActive =
+              activeTab === tab.id ||
+              pathname === tab.href ||
+              (tab.id === "security" && pathname?.startsWith(tab.href));
+            return (
+              <Link
+                key={tab.id}
+                href={tab.href}
+                className={`${headingFont} rounded-full px-5 py-2 text-sm transition-colors ${
+                  isActive
+                    ? "bg-[#0B1A3A] font-black text-white shadow-md"
+                    : "font-bold text-[#111112] hover:text-[#0B1A3A]"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
-      <div className="rounded-b-xl border border-t-0 border-[#E8E6E0] bg-white p-6 sm:p-8">
+      <div className="mt-8 rounded-3xl border border-[#E8E6E0] bg-white p-6 shadow-sm shadow-black/5 sm:p-8">
         {children}
       </div>
     </div>

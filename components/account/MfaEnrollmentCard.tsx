@@ -5,7 +5,7 @@ import {
   enrollTotpFactor,
   verifyTotpEnrollment,
 } from "@/lib/mfa/actions";
-import { focusRing, primaryCtaClass } from "@/components/site-ui";
+import { focusRing } from "@/components/site-ui";
 import { MfaRecoveryCodesModal } from "./MfaRecoveryCodesModal";
 
 type Step = "idle" | "scan" | "codes" | "done";
@@ -60,11 +60,14 @@ export function MfaEnrollmentCard({ onComplete }: { onComplete?: () => void }) {
 
   if (step === "done") {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-        <p className="font-semibold text-emerald-900">
-          Two-factor authentication is enabled.
+      <div className="rounded-3xl border border-[#B9D28F] bg-[#E6F0DA] p-6 sm:p-8">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#2E5A15]">
+          Enabled
         </p>
-        <p className="mt-1 text-sm text-emerald-800/90">
+        <p className="mt-2 text-base font-black tracking-tight text-[#2E5A15]">
+          Two-factor authentication is on.
+        </p>
+        <p className="mt-2 text-sm leading-6 text-[#2E5A15]/85">
           You will be prompted for an authenticator code on your next sign-in.
         </p>
       </div>
@@ -72,13 +75,17 @@ export function MfaEnrollmentCard({ onComplete }: { onComplete?: () => void }) {
   }
 
   return (
-    <div className="rounded-xl border border-[#E8E6E0] bg-[#F7F6F2] p-5">
-      <h2 className="text-base font-semibold text-[#0B1A3A]">
-        Two-factor authentication
+    <div className="rounded-3xl border border-[#E8E6E0] bg-[#FAFAF7] p-6 sm:p-8">
+      <p className="text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]">
+        Two-Factor Authentication
+      </p>
+      <h2 className="mt-2 text-xl font-black tracking-tight text-[#0B1A3A]">
+        Protect your Advisacor account
       </h2>
-      <p className="mt-2 text-sm leading-6 text-[#5C5A55]">
-        Protect your Advisacor account with a time-based one-time password
-        (TOTP) from Google Authenticator, Authy, or 1Password.
+      <p className="mt-3 text-sm leading-6 text-[#5C5A55]">
+        Add a time-based one-time password (TOTP) from Google Authenticator,
+        Authy, or 1Password. Sign-ins will require a 6-digit code from your
+        authenticator app.
       </p>
 
       {step === "idle" && (
@@ -86,7 +93,7 @@ export function MfaEnrollmentCard({ onComplete }: { onComplete?: () => void }) {
           type="button"
           disabled={pending}
           onClick={startEnroll}
-          className={`mt-4 rounded-md px-4 py-2.5 text-sm disabled:opacity-60 ${primaryCtaClass} ${focusRing()}`}
+          className={`mt-5 inline-flex items-center justify-center rounded-full bg-[#0B1A3A] px-6 py-3 text-sm font-black text-white shadow-lg shadow-[#0B1A3A]/40 transition-colors hover:bg-[#12244A] disabled:cursor-not-allowed disabled:opacity-60 ${focusRing("rounded-full")}`}
         >
           {pending ? "Starting…" : "Enable Two-Factor Authentication"}
         </button>
@@ -99,7 +106,7 @@ export function MfaEnrollmentCard({ onComplete }: { onComplete?: () => void }) {
             <img
               src={qrCode}
               alt="TOTP QR code"
-              className="h-48 w-48 rounded-lg border border-[#E8E6E0] bg-white p-2"
+              className="h-48 w-48 rounded-2xl border border-[#E8E6E0] bg-white p-3"
             />
           ) : null}
           <div>
@@ -107,13 +114,13 @@ export function MfaEnrollmentCard({ onComplete }: { onComplete?: () => void }) {
               Manual secret
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <code className="rounded-md bg-white px-3 py-2 font-mono text-sm text-[#111112]">
+              <code className="rounded-2xl border border-[#E8E6E0] bg-white px-4 py-2.5 font-mono text-sm font-bold text-[#111112]">
                 {secret}
               </code>
               <button
                 type="button"
                 onClick={() => void copySecret()}
-                className={`rounded-md border border-[#0B1A3A]/20 bg-white px-3 py-2 text-sm font-semibold ${focusRing()}`}
+                className={`inline-flex items-center justify-center rounded-full border border-[#0B1A3A]/20 bg-white px-4 py-2 text-sm font-semibold text-[#0B1A3A] transition-colors hover:border-[#0B1A3A]/50 hover:bg-[#F7F6F2] ${focusRing("rounded-full")}`}
               >
                 {copiedSecret ? "Copied" : "Copy"}
               </button>
@@ -129,7 +136,7 @@ export function MfaEnrollmentCard({ onComplete }: { onComplete?: () => void }) {
               maxLength={6}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className={`rounded-md border border-[#E8E6E0] bg-white px-3 py-2 font-mono text-lg tracking-[0.3em] text-[#111112] ${focusRing()}`}
+              className={`rounded-2xl border border-[#E8E6E0] bg-white px-4 py-3 font-mono text-lg font-bold tracking-[0.3em] text-[#111112] focus:border-[#0B1A3A]/60 ${focusRing("rounded-2xl")}`}
               placeholder="000000"
             />
           </label>
@@ -137,7 +144,7 @@ export function MfaEnrollmentCard({ onComplete }: { onComplete?: () => void }) {
             type="button"
             disabled={pending || code.length !== 6}
             onClick={verify}
-            className={`rounded-md px-4 py-2.5 text-sm disabled:opacity-60 ${primaryCtaClass} ${focusRing()}`}
+            className={`inline-flex items-center justify-center rounded-full bg-[#0B1A3A] px-6 py-3 text-sm font-black text-white shadow-lg shadow-[#0B1A3A]/40 transition-colors hover:bg-[#12244A] disabled:cursor-not-allowed disabled:opacity-60 ${focusRing("rounded-full")}`}
           >
             {pending ? "Verifying…" : "Verify and enable"}
           </button>
@@ -145,7 +152,10 @@ export function MfaEnrollmentCard({ onComplete }: { onComplete?: () => void }) {
       )}
 
       {error ? (
-        <p className="mt-3 text-sm text-red-700" role="alert">
+        <p
+          className="mt-4 rounded-2xl border border-[#E9B0B6] bg-[#FDECEE] px-4 py-3 text-sm font-semibold text-[#74202B]"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}

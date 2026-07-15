@@ -14,8 +14,9 @@ export default async function AccountNotificationsPage() {
   return (
     <main className="min-h-screen bg-[#F7F6F2] text-[#111112]">
       <AccountSettingsShell activeTab="notifications">
-        <h2 className="text-base font-semibold text-[#0B1A3A]">Notifications</h2>
-        <p className="mt-2 text-sm text-[#5C5A55]">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]">Notifications</p>
+        <h2 className="mt-2 text-xl font-black tracking-tight text-[#0B1A3A]">Email & alerts</h2>
+        <p className="mt-3 text-sm leading-6 text-[#5C5A55]">
           Email and product notification preferences will land here in a later
           TCP1 block. MFA security alerts are always on for enrollment lifecycle
           events.
