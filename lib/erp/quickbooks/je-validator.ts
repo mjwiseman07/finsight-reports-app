@@ -5,6 +5,7 @@
  * locked-period rejection, and live account-existence verification.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
+import { getQuotaGuardUndiciDispatcher } from "@/lib/network/quotaguard-proxy";
 import type { JEPayload } from "@/lib/erp/types";
 
 export type ValidationResult =
@@ -88,9 +89,11 @@ async function accountExists(
   const url = `${qboApiBase()}/v3/company/${realmId}/query?query=${query}&minorversion=73`;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const dispatcher = getQuotaGuardUndiciDispatcher();
     const resp = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-    });
+      ...(dispatcher ? { dispatcher } : {}),
+    } as RequestInit);
 
     if (resp.ok) {
       const data = await resp.json();

@@ -138,6 +138,7 @@
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.106.1",
     "fast-xml-parser": "^5.9.3",
+    "https-proxy-agent": "^9.1.0",
     "next": "16.2.6",
     "node-quickbooks": "^2.0.50",
     "papaparse": "^5.5.3",
@@ -146,6 +147,7 @@
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
     "stripe": "^22.1.1",
+    "undici": "^8.7.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

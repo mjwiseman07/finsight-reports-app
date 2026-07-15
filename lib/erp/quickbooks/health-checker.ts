@@ -9,6 +9,7 @@
  * Read-only. No QBO writes.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
+import { getQuotaGuardUndiciDispatcher } from "@/lib/network/quotaguard-proxy";
 import {
   resolveQBOTokenForFirmClient,
   refreshQBOToken,
@@ -43,13 +44,15 @@ function qboBaseUrl(): string {
 
 async function companyInfoStatus(bundle: QBOTokenBundle): Promise<number> {
   const url = `${qboBaseUrl()}/v3/company/${bundle.realmId}/companyinfo/${bundle.realmId}`;
+  const dispatcher = getQuotaGuardUndiciDispatcher();
   const response = await fetch(url, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${bundle.accessToken}`,
       Accept: "application/json",
     },
-  });
+    ...(dispatcher ? { dispatcher } : {}),
+  } as RequestInit);
   return response.status;
 }
 
