@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { enforceMfaForRequest } from "./lib/mfa/middleware-enforce";
 import {
   SOLO_BK_GATE_COOKIE,
   REVIEW_ASSIST_GATE_COOKIE,
@@ -67,9 +68,12 @@ const PUBLIC_MARKETING_PATHS = new Set([
   // App routes reachable from marketing hosts (auth + primary product surfaces).
   // Role/auth gating happens inside these routes; middleware only controls reachability.
   "/signin",
+  "/signin/mfa-challenge",
   "/signup",
   "/auth/confirmed",
   "/dashboard",
+  "/dashboard/account",
+  "/dashboard/account/security",
   "/onboarding",
   "/admin",
   "/admin/refunds",
@@ -115,6 +119,7 @@ function isMarketingAllowed(pathname: string) {
     pathname.startsWith("/reviewer/") ||
     pathname.startsWith("/dashboard/") ||
     pathname.startsWith("/onboarding/") ||
+    pathname.startsWith("/signin/") ||
     // Public, token-gated close packet share links.
     pathname.startsWith("/share/packet/") ||
     // Allow app API surfaces that need to run for signed-in users on the marketing host.
@@ -135,9 +140,15 @@ function isMarketingAllowed(pathname: string) {
   );
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = normalizedHost(request);
+
+  // Phase TCP1 W2.5 Block 10 — MFA / AAL2 enforcement on sensitive routes.
+  // Runs before host allowlists so firm_admin without enrollment cannot reach
+  // admin/QBO-connect/billing surfaces even on marketing hosts.
+  const mfaGate = await enforceMfaForRequest(request);
+  if (mfaGate) return mfaGate;
 
   // Phase TCP1 W2.5 — Solo Bookkeeper launch gate.
   // If gated AND request targets a gated path AND not bypass-allowlisted,

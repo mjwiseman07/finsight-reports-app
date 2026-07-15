@@ -29,6 +29,21 @@ export default function SigninPage() {
       window.localStorage.setItem("supabase_access_token", data.session.access_token);
       const maxAge = data.session.expires_in ?? 3600;
       document.cookie = `${ADVISACOR_ACCESS_TOKEN_COOKIE}=${encodeURIComponent(data.session.access_token)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+
+      // Phase TCP1 W2.5 Block 10 — if TOTP enrolled and session is still AAL1,
+      // escalate via the MFA challenge page before entering the product.
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalData?.nextLevel === "aal2" && aalData.currentLevel !== "aal2") {
+        const returnTo =
+          new URLSearchParams(window.location.search).get("next") || "/dashboard";
+        router.push(
+          `/signin/mfa-challenge?returnTo=${encodeURIComponent(
+            returnTo.startsWith("/") ? returnTo : "/dashboard",
+          )}`,
+        );
+        return;
+      }
+
       const isSuperAdmin =
         data.user?.app_metadata?.role === "super_admin" ||
         data.user?.user_metadata?.role === "super_admin";
