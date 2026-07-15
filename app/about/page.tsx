@@ -28,7 +28,29 @@ const founders = [
     name: "Janice Wiseman",
     title: "Co-Founder & Chief Operating Officer",
     subtitle: "Enterprise Governance, Operations & Client Experience",
-    body: "Janice leads the governance framework, legal architecture, operational strategy, client onboarding experience, billing philosophy, compliance standards, client success strategy, and business operations for Wiseman Financial Technologies.",
+    body: "Janice leads the operational strategy, governance, compliance, and business execution behind Advisacor™.",
+    bioParagraphs: [
+      "As Co-Founder & Chief Operating Officer of Wiseman Financial Technologies, LLC, Janice leads the operational strategy, governance, compliance, and business execution behind Advisacor™ — an AI-powered platform designed to transform accounting, finance, audit, healthcare revenue cycle, and operational decision-making.",
+      "She oversees operations, legal and regulatory compliance, client onboarding, customer success, billing strategy, business development, and long-term organizational planning.",
+      "Her experience spans healthcare revenue cycle management, patient financial services, accounts receivable, collections, banking, consumer finance, legal collections, payment operations, compliance, and operational leadership. Throughout her career, she has built financial controls, standardized operations, created executive reporting, developed policies and procedures, trained teams, and improved organizational performance across highly regulated industries.",
+      "Working directly in healthcare, banking, finance, and legal collections has given her firsthand insight into the operational, financial, and compliance challenges organizations face every day. Those experiences shape Advisacor's development, ensuring every solution solves practical business problems — not theoretical ones.",
+    ],
+    focusAreas: [
+      "Executive Leadership",
+      "Operations Management",
+      "Corporate Governance",
+      "Healthcare Revenue Cycle (RCM)",
+      "Patient Financial Services",
+      "Accounts Receivable & Collections",
+      "Banking & Consumer Finance",
+      "Legal Collections",
+      "Regulatory Compliance",
+      "Client Success & Onboarding",
+      "Business Strategy",
+      "AI Business Operations",
+    ],
+    promise:
+      "We build technology around the professionals who use it. Every solution is designed to solve real operational challenges, deliver transparent and trustworthy results, and empower organizations to work smarter, make better decisions, and achieve meaningful outcomes.",
     image: "/janice-wiseman-headshot.jpg",
     imageAlt: "Janice Wiseman, Co-Founder & COO of Wiseman Financial Technologies",
     imageWidth: 400,
@@ -116,7 +138,34 @@ export default function AboutPage() {
                 <h3 className={`mt-6 text-2xl font-black text-[#F9F8F5] ${headingFont}`}>{founder.name}</h3>
                 <p className="mt-2 text-sm font-semibold text-[#C9A961]">{founder.title}</p>
                 <p className="mt-1 text-sm italic text-[#A29E93]">{founder.subtitle}</p>
-                <p className="mt-5 text-sm leading-7 text-[#ECEBE7]">{founder.body}</p>
+                {"bioParagraphs" in founder && founder.bioParagraphs ? (
+                  <div className="mt-5 space-y-4 text-sm leading-7 text-[#ECEBE7]">
+                    {founder.bioParagraphs.map((paragraph, i) => (
+                      <p key={i}>{paragraph}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-5 text-sm leading-7 text-[#ECEBE7]">{founder.body}</p>
+                )}
+                {"focusAreas" in founder && founder.focusAreas ? (
+                  <div className="mt-6">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#C9A961]">Areas of Focus</p>
+                    <ul className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm leading-6 text-[#ECEBE7] sm:grid-cols-2">
+                      {founder.focusAreas.map((area) => (
+                        <li key={area} className="flex items-start gap-2">
+                          <span aria-hidden className="mt-2 h-1 w-1 flex-shrink-0 rounded-full bg-[#C9A961]" />
+                          <span>{area}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {"promise" in founder && founder.promise ? (
+                  <div className="mt-6 rounded-2xl border border-[#C9A961]/30 bg-[#C9A961]/5 p-5">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#C9A961]">Our Promise</p>
+                    <p className="mt-2 text-sm leading-7 text-[#ECEBE7]">{founder.promise}</p>
+                  </div>
+                ) : null}
                 <a
                   href={founder.linkedIn}
                   target="_blank"
