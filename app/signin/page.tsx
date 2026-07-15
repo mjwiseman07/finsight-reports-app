@@ -81,7 +81,7 @@ export default function SigninPage() {
           {/* RIGHT — Sign in card, styled to match the executive workspace card on the home hero */}
           <div className="min-w-0">
             <div className="relative ml-auto w-full max-w-2xl">
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#111112] via-[#0D1A3A] to-[#060E22] p-8 shadow-2xl ring-1 ring-white/10 sm:p-10">
+              <div className="relative overflow-hidden rounded-2xl border border-[#C9A961]/40 bg-[#0B1A3A] p-8 shadow-2xl sm:p-10">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#C9A961]/15 blur-3xl"
