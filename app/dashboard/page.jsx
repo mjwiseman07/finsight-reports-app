@@ -1671,47 +1671,54 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#111112] px-6 py-8 text-[#ECEBE7]">
-      <div className="mx-auto max-w-7xl">
-        <header className="sticky top-4 z-40 flex items-center justify-between rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 px-5 py-4 shadow-2xl shadow-black/40 backdrop-blur-2xl">
-          <Link
-            href="/"
-            className={`${focusRing("rounded-2xl")} block w-[min(320px,42vw)] px-0 py-0`}
-            aria-label="Advisacor home"
-          >
-            <img src="/advisacor-logo-framed-navy.png" alt="Advisacor" className="w-full" />
-          </Link>
-          <div className="flex items-center gap-3">
+    <main className="min-h-screen bg-[#F7F6F2] text-[#111112]">
+      <header className="relative z-20 w-full bg-white min-h-[144px] md:min-h-[184px] lg:min-h-[216px] border-b border-[#E8E6E0]">
+        <Link
+          href="/"
+          aria-label="Advisacor home"
+          className={`absolute top-3 left-3 z-20 md:top-5 md:left-6 ${focusRing("rounded-lg")}`}
+        >
+          <img
+            src="/advisacor-logo-framed-navy.png"
+            alt="Advisacor"
+            className="pointer-events-none h-auto w-[140px] select-none md:w-[180px] lg:w-[220px]"
+          />
+        </Link>
+        <nav className="absolute top-6 right-8 z-30 md:top-10">
+          <div className="flex items-center gap-6 rounded-full bg-[#C9A961] px-6 py-3 shadow-sm">
             <SupportHelpButton compact />
             <Link
               href="/dashboard/account"
-              className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-5 py-2 text-sm font-bold text-[#C9A961] transition hover:border-[#C9A961]/70 hover:bg-[#C9A961]/20 inline-flex items-center`}
+              className={`${focusRing("rounded-lg")} text-sm font-bold text-[#111112] transition hover:text-[#0B1A3A]`}
             >
               Account
             </Link>
             <button
               type="button"
               onClick={handleSignOut}
-              className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/20 bg-[#111112] px-5 py-2 text-sm font-bold text-[#ECEBE7] transition hover:border-[#C9A961]/40 hover:text-[#C9A961]`}
+              className={`${focusRing("rounded-lg")} text-sm font-bold text-[#111112] transition hover:text-[#0B1A3A]`}
             >
               Sign Out
             </button>
           </div>
-        </header>
+        </nav>
+      </header>
 
+      <div className="mx-auto max-w-7xl px-6">
         <section className="py-12">
           {isLoading && (
-            <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-8">
-              <p className="text-lg font-bold text-[#ECEBE7]">Loading your dashboard...</p>
+            <div className="rounded-3xl border border-[#E8E6E0] bg-white p-8 shadow-sm shadow-black/5">
+              <p className={`${headingFont} text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Loading</p>
+              <p className={`${headingFont} mt-3 text-lg font-black text-[#0B1A3A]`}>Loading your dashboard...</p>
             </div>
           )}
 
           {error && (
             <div
               role="alert"
-              className="mb-6 rounded-2xl border border-[#B85C5C]/40 bg-[#B85C5C]/10 px-5 py-4 text-sm font-semibold text-[#F0BFBF]"
+              className="mb-6 rounded-2xl border border-[#E9B0B6] bg-[#FDECEE] px-5 py-4 text-sm font-semibold text-[#74202B]"
             >
-              <span className={`${headingFont} mr-2 text-xs uppercase tracking-[0.18em] text-[#F0BFBF]`}>
+              <span className={`${headingFont} mr-2 text-xs uppercase tracking-[0.18em] text-[#74202B]`}>
                 Notice
               </span>
               <span>{error}</span>
@@ -2475,21 +2482,21 @@ export default function DashboardPage() {
       </div>
 
       {accountOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C]/95 shadow-2xl shadow-black/40">
-            <div className="shrink-0 border-b border-[#C9A961]/15 px-6 py-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1A3A]/60 px-4 py-6">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#E8E6E0] bg-white shadow-2xl shadow-black/10">
+            <div className="shrink-0 border-b border-[#E8E6E0] px-6 py-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Account</p>
-                  <h2 className={`${headingFont} mt-2 text-3xl font-black text-[#ECEBE7]`}>Account and package settings</h2>
-                  <p className="mt-2 text-sm leading-6 text-[#A29E93]">
+                  <h2 className={`${headingFont} mt-2 text-3xl font-black tracking-[-0.03em] text-[#0B1A3A]`}>Account and package settings</h2>
+                  <p className="mt-2 text-sm leading-6 text-[#5C5A55]">
                     Review your account, current package, and available plan changes.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setAccountOpen(false)}
-                  className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-2 text-sm font-bold text-[#A29E93] transition hover:border-[#C9A961]/50 hover:text-[#DFC084]`}
+                  className={`${focusRing("rounded-full")} inline-flex items-center justify-center rounded-full border border-[#E8E6E0] bg-white px-5 py-2 text-sm font-semibold text-[#5C5A55] transition-colors hover:border-[#0B1A3A]/40 hover:bg-[#F7F6F2] hover:text-[#0B1A3A]`}
                 >
                   Close
                 </button>
@@ -2498,18 +2505,18 @@ export default function DashboardPage() {
 
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
-                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Email</p>
-                  <p className={`${headingFont} mt-3 break-words text-lg font-black text-[#ECEBE7]`}>{accountEmail}</p>
+                <div className="rounded-3xl border border-[#E8E6E0] bg-[#FAFAF7] p-5">
+                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#C9A961]`}>Email</p>
+                  <p className={`${headingFont} mt-3 break-words text-lg font-black text-[#111112]`}>{accountEmail}</p>
                 </div>
-                <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
-                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Firm / Business</p>
+                <div className="rounded-3xl border border-[#E8E6E0] bg-[#FAFAF7] p-5">
+                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#C9A961]`}>Firm / Business</p>
                   <input
                     type="text"
                     value={businessNameDraft}
                     onChange={(event) => setBusinessNameDraft(event.target.value)}
                     placeholder={accountBusinessName}
-                    className={`${headingFont} mt-3 w-full rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] transition focus:border-[#C9A961]/60 focus:ring-2 focus:ring-[#C9A961]/25`}
+                    className={`${focusRing("rounded-2xl")} mt-3 w-full rounded-2xl border border-[#E8E6E0] bg-white px-3 py-2 text-sm text-[#111112] outline-none placeholder:text-[#A29E93]`}
                   />
                   <button
                     type="button"
@@ -2520,41 +2527,41 @@ export default function DashboardPage() {
                     {accountSaving ? "Saving..." : "Save Account Info"}
                   </button>
                 </div>
-                <div className="rounded-3xl border border-[#6DAA45]/30 bg-[#6DAA45]/10 p-5">
-                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#6DAA45]`}>Current Package</p>
-                  <p className={`${headingFont} mt-3 text-lg font-black text-[#B5E28A]`}>{currentPlanName}</p>
-                  <p className="mt-2 text-sm font-semibold capitalize text-[#B5E28A]/80">
+                <div className="rounded-3xl border border-[#B9D28F] bg-[#E6F0DA] p-5">
+                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#2E5A15]`}>Current Package</p>
+                  <p className={`${headingFont} mt-3 text-lg font-black text-[#2E5A15]`}>{currentPlanName}</p>
+                  <p className="mt-2 text-sm font-semibold capitalize text-[#2E5A15]/80">
                     {access?.subscription_status || access?.reason || "Loading"}
                   </p>
                 </div>
               </div>
 
               {/* Security & 2FA quick link — Phase 10.1 */}
-              <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+              <div className="mt-6 rounded-3xl border border-[#E8E6E0] bg-[#FAFAF7] p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#C9A961]`}>Security</p>
-                    <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Two-factor authentication & sign-in</h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#A29E93]">
+                    <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#0B1A3A]`}>Two-factor authentication & sign-in</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5C5A55]">
                       Manage two-factor authentication (TOTP), recovery codes, and account security settings.
                     </p>
                   </div>
                   <Link
                     href="/dashboard/account/security"
                     onClick={() => setAccountOpen(false)}
-                    className={`${focusRing("rounded-2xl")} ${headingFont} shrink-0 rounded-2xl border border-[#C9A961]/60 bg-[#C9A961]/10 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#C9A961] transition hover:border-[#C9A961] hover:bg-[#C9A961]/20`}
+                    className={`${focusRing("rounded-full")} inline-flex shrink-0 items-center justify-center rounded-full bg-[#0B1A3A] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#0B1A3A]/40 transition-colors hover:bg-[#12244A]`}
                   >
                     Manage Security
                   </Link>
                 </div>
               </div>
 
-              <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+              <div className="mt-6 rounded-3xl border border-[#E8E6E0] bg-[#FAFAF7] p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#C9A961]`}>Package Options</p>
-                    <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Upgrade or downgrade your package</h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#A29E93]">
+                    <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#0B1A3A]`}>Upgrade or downgrade your package</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5C5A55]">
                       Active subscriptions are managed in Stripe billing. Trial or expired accounts can choose a package here.
                     </p>
                   </div>
