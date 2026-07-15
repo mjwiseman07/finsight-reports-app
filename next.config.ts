@@ -3,7 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Keep Chromium + puppeteer out of the bundler so the serverless function
   // ships the native binaries correctly (Doc C4 PDF generation).
-  serverExternalPackages: ["@sparticuz/chromium-min", "puppeteer-core"],
+  serverExternalPackages: [
+    "@sparticuz/chromium-min",
+    "puppeteer-core",
+    "undici",
+    "https-proxy-agent",
+  ],
   async headers() {
     const securityHeaders = [
       {

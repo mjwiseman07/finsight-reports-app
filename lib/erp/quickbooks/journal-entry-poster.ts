@@ -8,6 +8,7 @@
  * posted_je memory.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
+import { getQuotaGuardUndiciDispatcher } from "@/lib/network/quotaguard-proxy";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
 import { canPostToQBO } from "@/lib/erp/quickbooks/write-preflight";
 import { validateJEPayload } from "@/lib/erp/quickbooks/je-validator";
@@ -297,6 +298,7 @@ function buildQBOJournalEntry(p: JEPayload) {
 }
 
 async function postToQBO(realmId: string, accessToken: string, body: unknown) {
+  const dispatcher = getQuotaGuardUndiciDispatcher();
   return fetch(
     `${qboApiBase()}/v3/company/${realmId}/journalentry?minorversion=73`,
     {
@@ -307,7 +309,8 @@ async function postToQBO(realmId: string, accessToken: string, body: unknown) {
         Accept: "application/json",
       },
       body: JSON.stringify(body),
-    },
+      ...(dispatcher ? { dispatcher } : {}),
+    } as RequestInit,
   );
 }
 

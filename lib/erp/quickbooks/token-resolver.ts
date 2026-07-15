@@ -9,6 +9,7 @@
  * Additive only — does not modify existing OAuth or read paths.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
+import { getQuotaGuardUndiciDispatcher } from "@/lib/network/quotaguard-proxy";
 
 export type QBOTokenSource = "erp_connections" | "accounting_connections";
 
@@ -137,6 +138,7 @@ async function postRefresh(refreshToken: string): Promise<{
   refresh_token?: string;
   expires_in?: number;
 }> {
+  const dispatcher = getQuotaGuardUndiciDispatcher();
   const response = await fetch(QBO_TOKEN_URL, {
     method: "POST",
     headers: {
@@ -148,7 +150,8 @@ async function postRefresh(refreshToken: string): Promise<{
       grant_type: "refresh_token",
       refresh_token: refreshToken,
     }).toString(),
-  });
+    ...(dispatcher ? { dispatcher } : {}),
+  } as RequestInit);
   const text = await response.text();
   let payload: Record<string, unknown> = {};
   try {

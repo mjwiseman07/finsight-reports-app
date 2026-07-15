@@ -27,6 +27,7 @@ function loadEnv(path: string) {
 loadEnv(".env.local");
 
 import { resolveQBOTokenForFirmClient } from "../../lib/erp/quickbooks/token-resolver";
+import { getQuotaGuardUndiciDispatcher } from "../../lib/network/quotaguard-proxy";
 
 const FIRM_CLIENT_ID = "71111111-1111-4111-8111-111111111111";
 
@@ -42,9 +43,13 @@ async function main() {
   const query = encodeURIComponent(
     "SELECT Id, Name, AccountType, Classification FROM Account WHERE Active = true MAXRESULTS 50",
   );
+  const dispatcher = getQuotaGuardUndiciDispatcher();
   const resp = await fetch(
     `${qboApiBase()}/v3/company/${token.realmId}/query?query=${query}&minorversion=73`,
-    { headers: { Authorization: `Bearer ${token.accessToken}`, Accept: "application/json" } },
+    {
+      headers: { Authorization: `Bearer ${token.accessToken}`, Accept: "application/json" },
+      ...(dispatcher ? { dispatcher } : {}),
+    } as RequestInit,
   );
   const data = await resp.json();
   const accounts = data?.QueryResponse?.Account ?? [];

@@ -36,6 +36,7 @@ loadEnv(".env");
 
 import { getQboForFirmClient } from "../../lib/qbo-for-firm-client.js";
 import { qboQuery, extractQueryEntities } from "../../lib/qbo-rest";
+import { getQuotaGuardUndiciDispatcher } from "../../lib/network/quotaguard-proxy";
 import { findUncategorizedAccounts } from "../../lib/learning/uncategorized-detector";
 import {
   runUncategorizedScan,
@@ -115,6 +116,7 @@ async function qboPost(
   entity: string,
   body: unknown,
 ): Promise<Record<string, unknown>> {
+  const dispatcher = getQuotaGuardUndiciDispatcher();
   const resp = await fetch(`${qboApiBase()}/v3/company/${realmId}/${entity}?minorversion=73`, {
     method: "POST",
     headers: {
@@ -123,7 +125,8 @@ async function qboPost(
       Accept: "application/json",
     },
     body: JSON.stringify(body),
-  });
+    ...(dispatcher ? { dispatcher } : {}),
+  } as RequestInit);
   const text = await resp.text();
   let json: Record<string, unknown> = {};
   try {
