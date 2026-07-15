@@ -7,7 +7,7 @@ export function SiteNav() {
   const navLinkClass = `${focusRing("ring-offset-slate-300")} text-sm font-bold text-slate-900 transition hover:text-[#C9A961]`;
 
   return (
-    <header className="relative z-20 min-h-[96px] md:min-h-[112px] lg:min-h-[128px]">
+    <header className="relative z-20 w-full bg-[#F7F6F2] min-h-[144px] md:min-h-[184px] lg:min-h-[216px]">
       <Link
         href="/"
         aria-label="Advisacor home"
@@ -22,8 +22,8 @@ export function SiteNav() {
           className="pointer-events-none h-auto w-[140px] select-none md:w-[180px] lg:w-[220px]"
         />
       </Link>
-      <nav className="absolute top-6 right-8 z-30">
-        <div className="flex items-center gap-6 rounded-full bg-white/40 px-6 py-3 backdrop-blur-sm">
+      <nav className="absolute top-6 right-8 z-30 md:top-10">
+        <div className="flex items-center gap-6 rounded-full bg-white/85 px-6 py-3 shadow-sm ring-1 ring-black/5 backdrop-blur-sm">
           <div className="hidden items-center gap-8 md:flex">
             <Link href="/what-it-does" className={navLinkClass}>
               What It Does
