@@ -1671,7 +1671,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F7F6F2] text-[#111112]">
+    <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <header className="relative z-20 w-full bg-white min-h-[144px] md:min-h-[184px] lg:min-h-[216px] border-b border-[#E8E6E0]">
         <Link
           href="/"
@@ -2788,8 +2788,8 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
   }
 
   return (
-    <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#C9A961]/10 p-6 shadow-2xl shadow-[#C9A961]/5">
-      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Ask Pulse Anything About Your Business</p>
+    <div className="rounded-[2rem] border border-[#C9A961] bg-[#C9A961] p-6 shadow-2xl shadow-[#C9A961]/30">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#111112]`}>Ask Pulse Anything About Your Business</p>
       <div className="mt-4 flex flex-col gap-3 lg:flex-row">
         <input
           value={question}
@@ -2798,9 +2798,9 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
             if (event.key === "Enter") onSubmit();
           }}
           placeholder="Ask about cash, margins, expenses, customers, risk, or what to do next..."
-          className={`${focusRing("rounded-2xl")} min-w-0 flex-1 rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-5 py-4 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] focus:border-[#C9A961]`}
+          className={`${focusRing("rounded-2xl")} min-w-0 flex-1 rounded-2xl border border-[#0B1A3A]/20 bg-white px-5 py-4 text-sm font-bold text-[#111112] outline-none placeholder:text-[#5C5A55] focus:border-[#0B1A3A]`}
         />
-        <button type="button" onClick={() => onSubmit()} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-6 py-4 text-sm font-black text-[#111112] transition hover:bg-[#C9A961]`}>
+        <button type="button" onClick={() => onSubmit()} className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#0B1A3A] px-6 py-4 text-sm font-black text-white shadow-lg shadow-[#0B1A3A]/40 transition-colors hover:bg-[#12244A]`}>
           Ask Pulse
         </button>
       </div>
@@ -2810,33 +2810,33 @@ function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages =
             key={example}
             type="button"
             onClick={() => onSubmit(example)}
-            className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-3 py-2 text-xs font-bold text-[#ECEBE7] transition hover:border-[#C9A961]/50`}
+            className={`${focusRing("rounded-full")} rounded-full border border-[#0B1A3A]/20 bg-white px-3 py-2 text-xs font-bold text-[#111112] transition hover:border-[#0B1A3A]/50 hover:bg-[#F7F6F2]`}
           >
             {example}
           </button>
         ))}
       </div>
       {expanded && (
-        <div className="mt-5 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+        <div className="mt-5 rounded-3xl border border-[#0B1A3A]/15 bg-white p-5">
           <div className="flex items-center justify-between gap-3">
-            <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Pulse response workspace</p>
-            <button type="button" onClick={onCollapse} className={`${focusRing("rounded-xl")} ${headingFont} rounded-xl border border-[#C9A961]/40 px-3 py-2 text-xs font-black text-[#ECEBE7] transition hover:border-[#C9A961]/60`}>
+            <p className={`${headingFont} text-sm font-black text-[#0B1A3A]`}>Pulse response workspace</p>
+            <button type="button" onClick={onCollapse} className={`${focusRing("rounded-xl")} ${headingFont} rounded-xl border border-[#0B1A3A]/30 px-3 py-2 text-xs font-black text-[#0B1A3A] transition hover:border-[#0B1A3A]/60 hover:bg-[#F7F6F2]`}>
               Collapse
             </button>
           </div>
           <div className="mt-4 grid max-h-96 gap-3 overflow-y-auto">
             {recentMessagePairs.slice(0, 4).map((pair, index) => (
               <div key={`${pair.question.content}-${index}`} className="grid gap-3">
-                <div className="ml-auto rounded-2xl bg-[#C9A961] px-4 py-3 text-sm leading-6 text-[#111112]">
+                <div className="ml-auto rounded-2xl bg-[#0B1A3A] px-4 py-3 text-sm leading-6 text-white">
                   <p className={`${headingFont} text-xs font-black uppercase tracking-[0.14em] opacity-70`}>You</p>
                   <p className="mt-1 whitespace-pre-wrap">{pair.question.content}</p>
                 </div>
                 {pair.answer && (
-                  <div className="mr-auto rounded-2xl bg-[#1A1A1C] px-4 py-3 text-sm leading-6 text-[#ECEBE7]">
+                  <div className="mr-auto rounded-2xl border border-[#0B1A3A]/15 bg-[#F7F6F2] px-4 py-3 text-sm leading-6 text-[#111112]">
                     <p className={`${headingFont} text-xs font-black uppercase tracking-[0.14em] opacity-70`}>Pulse</p>
                     <p className="mt-1 whitespace-pre-wrap">{pair.answer.content}</p>
                     {pair.answer.content.includes("not included in your current Advisacor package") && (
-                      <button type="button" onClick={onUpgradePackage} className={`${focusRing("rounded-xl")} ${headingFont} mt-3 rounded-xl bg-[#C9A961] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#C9A961]`}>
+                      <button type="button" onClick={onUpgradePackage} className={`${focusRing("rounded-xl")} ${headingFont} mt-3 rounded-xl bg-[#0B1A3A] px-4 py-2 text-xs font-black text-white shadow-md shadow-[#0B1A3A]/30 transition-colors hover:bg-[#12244A]`}>
                         Upgrade Package
                       </button>
                     )}
@@ -3411,18 +3411,18 @@ function SimplifiedFeatureCards({ onExploreSection }) {
   ];
 
   return (
-    <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#111112]/70 p-8">
-      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#DFC084]`}>Explore Deeper</p>
+    <div className="rounded-[2rem] border border-white/10 bg-[#0B1A3A] p-8 shadow-2xl shadow-[#0B1A3A]/40">
+      <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Explore Deeper</p>
       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map(([title, description]) => (
           <button
             key={title}
             type="button"
             onClick={() => onExploreSection(title)}
-            className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C] p-5 text-left transition hover:border-[#C9A961]/50`}
+            className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-white/15 bg-[#12244A] p-5 text-left transition hover:border-[#C9A961]/60 hover:bg-[#1A2F5A]`}
           >
-            <p className={`${headingFont} text-base font-black text-[#ECEBE7]`}>{title}</p>
-            <p className="mt-2 text-sm leading-6 text-[#A29E93]">{description}</p>
+            <p className={`${headingFont} text-base font-black text-white`}>{title}</p>
+            <p className="mt-2 text-sm leading-6 text-[#B9B4A7]">{description}</p>
           </button>
         ))}
       </div>
