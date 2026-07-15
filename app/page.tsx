@@ -38,7 +38,7 @@ export default function HomePage() {
       </section>
       {/* W1 pilot CTA */}
       <section className="mx-auto max-w-6xl px-6 pb-16">
-        <div className="rounded-2xl border border-[#C9A961]/40 bg-[#1A1A1C] p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0B1A3A] p-8 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[#C9A961] mb-2">Live now — pilot pricing</p>
             <h3 className={`${headingFont} text-2xl md:text-3xl font-semibold leading-tight`}>

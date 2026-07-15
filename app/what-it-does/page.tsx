@@ -84,7 +84,7 @@ export default function WhatItDoesPage() {
           {capabilities.map((cap) => (
             <article
               key={cap.eyebrow}
-              className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-8 md:p-10"
+              className="rounded-3xl border border-[#C9A961]/20 bg-[#0B1A3A]/85 p-8 md:p-10"
             >
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A961]">
                 {cap.eyebrow}

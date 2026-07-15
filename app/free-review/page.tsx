@@ -94,14 +94,14 @@ function FreeReviewLeadCapture() {
                 "Follow-up ready for incomplete sessions",
                 "No manual details if Advisacor can import them",
               ].map((item) => (
-                <p key={item} className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/70 px-4 py-3 text-sm font-bold text-[#ECEBE7]">
+                <p key={item} className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A]/85 px-4 py-3 text-sm font-bold text-[#ECEBE7]">
                   {item}
                 </p>
               ))}
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C]/85 p-6 shadow-2xl shadow-black/40 backdrop-blur">
+          <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#0B1A3A]/85 p-6 shadow-2xl shadow-black/40 backdrop-blur">
             <p className={`${headingFont} text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]`}>Lead Capture</p>
             <h2 className={`${headingFont} mt-2 text-3xl font-black tracking-[-0.035em] text-white`}>Tell us where to send your review</h2>
             <p className="mt-3 text-sm leading-6 text-[#A29E93]">
@@ -136,7 +136,7 @@ function FreeReviewLeadCapture() {
 
       <section className="px-6 pb-20">
         <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#1A1A1C]/70 p-7">
+          <div className="rounded-[2rem] border border-[#C9A961]/20 bg-[#0B1A3A]/85 p-7">
             <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>What Happens Next</p>
             <h2 className={`${headingFont} mt-3 text-4xl font-black tracking-[-0.04em] text-white`}>
               Capture, connect, review.
@@ -153,7 +153,7 @@ function FreeReviewLeadCapture() {
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#111112] p-7 shadow-2xl shadow-black/40">
+          <div className="rounded-[2rem] border border-[#C9A961]/25 bg-[#0B1A3A] p-7 shadow-2xl shadow-black/40">
             <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Conversion Workflow</p>
             <h2 className={`${headingFont} mt-3 text-3xl font-black text-white`}>Incomplete sessions are follow-up ready.</h2>
             <p className="mt-4 leading-7 text-[#A29E93]">

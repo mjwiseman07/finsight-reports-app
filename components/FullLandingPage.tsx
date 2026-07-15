@@ -527,7 +527,7 @@ export default function FullLandingPage() {
             {videoTiles.map((tile) => (
               <VideoTile key={tile.src} title={tile.title} src={tile.src} />
             ))}
-            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-[#C9A961]/30 bg-gradient-to-br from-[#111112] to-[#060E22] p-8 text-center">
+            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-[#C9A961]/30 bg-gradient-to-br from-[#0B1A3A] to-[#12244A] p-8 text-center">
               <p className="mb-3 text-xs font-semibold tracking-wider text-[#C9A961]">MORE SEGMENTS COMING</p>
               <p className="text-lg font-semibold leading-snug text-white">New videos roll out as features ship.</p>
               <p className="mt-3 text-sm text-white/60">Request early access to be notified when each one drops.</p>
@@ -604,7 +604,7 @@ export default function FullLandingPage() {
                 key={badge.title}
                 className={
                   badge.title === "Patent Pending"
-                    ? "rounded-2xl border border-[#C9A961] bg-[#111112] p-6 text-center"
+                    ? "rounded-2xl border border-[#C9A961] bg-[#0B1A3A] p-6 text-center"
                     : "enterprise-card rounded-2xl p-6 text-center"
                 }
               >
