@@ -49,11 +49,11 @@ export default function SigninPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F7F6F2] text-[#28251D]">
+    <main className="min-h-screen bg-[#0B1A3A] text-[#ECEBE7]">
       <SiteNav />
       <section
         id="signin"
-        className="relative isolate overflow-hidden bg-gradient-to-br from-[#F7F6F2] via-[#EEEDE7] to-[#D4D1CA] px-6 pb-24 pt-[200px] md:pt-[240px] lg:pt-[260px]"
+        className="relative isolate overflow-hidden bg-[#0B1A3A] px-6 pb-24 pt-[200px] md:pt-[240px] lg:pt-[260px]"
       >
         <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)]">
           {/* LEFT — Marketing narrative that matches the hero on the landing page */}
@@ -62,16 +62,16 @@ export default function SigninPage() {
               Sign In — Patent Pending
             </p>
             <h1
-              className={`mt-5 text-4xl font-black leading-[1.06] tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-6xl ${headingFont}`}
+              className={`mt-5 text-4xl font-black leading-[1.06] tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl ${headingFont}`}
             >
               Welcome back.
             </h1>
-            <p className="mt-6 max-w-[640px] text-lg leading-8 text-slate-700">
+            <p className="mt-6 max-w-[640px] text-lg leading-8 text-[#ECEBE7]">
               Access your Advisacor workspace to continue reviewing KPI dashboards, forecasting
               signals, AP/AR intelligence, executive packages, and AI-powered advisory
               recommendations.
             </p>
-            <p className="mt-6 max-w-[640px] text-sm leading-7 text-slate-600">
+            <p className="mt-6 max-w-[640px] text-sm leading-7 text-[#A29E93]">
               Advisacor keeps US GAAP and IFRS separate by design, anchors every disclosure to
               real SEC filing patterns, and remembers your chart of accounts, close calendar,
               and prior-period judgments across every session.
