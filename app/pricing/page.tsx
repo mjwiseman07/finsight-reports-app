@@ -38,7 +38,7 @@ export default function PricingPage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-6 pb-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        <div className="rounded-2xl border border-[#C9A961]/40 bg-[#1A1A1C] p-6 flex flex-col">
+        <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0B1A3A] p-6 flex flex-col">
           <div className="flex items-start justify-between mb-4">
             <div>
               <p className="text-xs uppercase tracking-wider text-[#C9A961] mb-1">Live now</p>
@@ -159,7 +159,7 @@ function ComingSoonCard(props: {
   launchWeek: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/60 p-6 flex flex-col opacity-70">
+    <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A]/60 p-6 flex flex-col opacity-70">
       <div className="mb-4">
         <p className="text-xs uppercase tracking-wider text-[#7A7974] mb-1">{props.launchWeek}</p>
         <h2 className={`${headingFont} text-2xl font-semibold text-[#ECEBE7]`}>{props.title}</h2>
@@ -182,7 +182,7 @@ function ComingSoonCard(props: {
 
 function ReviewAssistCard() {
   return (
-    <div className="rounded-2xl border border-[#C9A961]/40 bg-[#1A1A1C] p-6 flex flex-col">
+    <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0B1A3A] p-6 flex flex-col">
       <div className="mb-4">
         <p className="text-xs uppercase tracking-wider text-[#C9A961] mb-1">
           Live now — companion tier

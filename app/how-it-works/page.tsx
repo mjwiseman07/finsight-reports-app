@@ -80,7 +80,7 @@ export default function HowItWorksPage() {
           {steps.map((s) => (
             <article
               key={s.n}
-              className="rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-8"
+              className="rounded-3xl border border-[#C9A961]/20 bg-[#0B1A3A]/85 p-8"
             >
               <p className={`${headingFont} text-6xl font-semibold text-[#C9A961]`}>
                 {s.n}
@@ -117,7 +117,7 @@ export default function HowItWorksPage() {
             {trustLayers.map((l) => (
               <li
                 key={l.code}
-                className="flex items-center gap-4 rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 px-5 py-4"
+                className="flex items-center gap-4 rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A]/85 px-5 py-4"
               >
                 <span
                   className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${

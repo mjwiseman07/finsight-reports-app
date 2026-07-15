@@ -250,7 +250,7 @@ export default function IndustriesPage() {
             {industries.map((ind) => (
               <article
                 key={ind.slug}
-                className="w-[85%] flex-none snap-start rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-8 sm:w-[60%] md:w-[45%] lg:w-[calc((100%-2rem)/3.25)]"
+                className="w-[85%] flex-none snap-start rounded-3xl border border-[#C9A961]/20 bg-[#0B1A3A]/85 p-8 sm:w-[60%] md:w-[45%] lg:w-[calc((100%-2rem)/3.25)]"
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A961]">
                   {ind.eyebrow}

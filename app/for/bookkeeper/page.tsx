@@ -67,7 +67,7 @@ export default function BookkeeperPage() {
             You&apos;re not a bookkeeping problem. You&apos;re a capacity problem.
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">Month-end</p>
               <p className="text-[#A29E93] leading-relaxed">
                 Every close eats the same 4–6 hours per client — reclassifications,
@@ -75,7 +75,7 @@ export default function BookkeeperPage() {
                 Multiply by 10 clients and your month never ends.
               </p>
             </div>
-            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">Growth</p>
               <p className="text-[#A29E93] leading-relaxed">
                 You&apos;d take on more clients, but you already work weekends.
@@ -83,7 +83,7 @@ export default function BookkeeperPage() {
                 So you cap at 10 and leave money on the table.
               </p>
             </div>
-            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">Risk</p>
               <p className="text-[#A29E93] leading-relaxed">
                 One missed reclassification or an out-of-period entry becomes
@@ -186,7 +186,7 @@ export default function BookkeeperPage() {
             ].map((f) => (
               <div
                 key={f.title}
-                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {f.title}
@@ -199,7 +199,7 @@ export default function BookkeeperPage() {
       </section>
       {/* MID-PAGE CTA */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <div className="rounded-3xl border border-[#C9A961]/30 bg-gradient-to-br from-[#1A1A1C] to-[#111112] p-10 md:p-16">
+        <div className="rounded-3xl border border-[#C9A961]/30 bg-gradient-to-br from-[#12244A] to-[#0B1A3A] p-10 md:p-16">
           <h2
             className={`${headingFont} text-3xl md:text-5xl font-semibold leading-[1.1] tracking-tight max-w-3xl mb-6`}
           >
@@ -233,7 +233,7 @@ export default function BookkeeperPage() {
             Priced for a real practice — or lighter if you&apos;re still evaluating.
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
-            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-8">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-8">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">
                 Solo Starter
               </p>
@@ -265,7 +265,7 @@ export default function BookkeeperPage() {
                 </li>
               </ul>
             </div>
-            <div className="rounded-2xl border border-[#C9A961]/40 bg-[#111112] p-8 relative">
+            <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0B1A3A] p-8 relative">
               <span className="absolute -top-3 left-8 px-3 py-1 text-[10px] uppercase tracking-wider bg-[#C9A961] text-[#111112] font-semibold rounded-full">
                 Most solo bookkeepers pick this
               </span>
@@ -300,7 +300,7 @@ export default function BookkeeperPage() {
             </div>
           </div>
           <div className="mt-8 max-w-4xl">
-            <div className="rounded-2xl border border-[#C9A961]/30 bg-[#1A1A1C] p-8">
+            <div className="rounded-2xl border border-[#C9A961]/30 bg-[#0B1A3A] p-8">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                 <div className="flex-1">
                   <p className="text-[#C9A961] text-xs uppercase tracking-[0.2em] font-semibold mb-2">
@@ -337,7 +337,7 @@ export default function BookkeeperPage() {
       </section>
       {/* FULL CLOSE STRIP */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112] p-10 md:p-14">
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#0B1A3A] p-10 md:p-14">
           <p className="text-xs uppercase tracking-[0.2em] text-[#C9A961] mb-4">
             Full Close early access · limited pilot
           </p>
@@ -403,7 +403,7 @@ export default function BookkeeperPage() {
             ].map((item) => (
               <div
                 key={item.q}
-                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {item.q}

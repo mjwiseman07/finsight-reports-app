@@ -86,7 +86,7 @@ export default function OwnerPage() {
             ].map((item) => (
               <div
                 key={item.q}
-                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6"
               >
                 <p className="text-[#C9A961] text-sm font-semibold mb-3">
                   {item.q}
@@ -189,7 +189,7 @@ export default function OwnerPage() {
             ].map((f) => (
               <div
                 key={f.title}
-                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {f.title}
@@ -202,7 +202,7 @@ export default function OwnerPage() {
       </section>
       {/* MID-PAGE CTA */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <div className="rounded-3xl border border-[#C9A961]/30 bg-gradient-to-br from-[#1A1A1C] to-[#111112] p-10 md:p-16">
+        <div className="rounded-3xl border border-[#C9A961]/30 bg-gradient-to-br from-[#12244A] to-[#0B1A3A] p-10 md:p-16">
           <h2
             className={`${headingFont} text-3xl md:text-5xl font-semibold leading-[1.1] tracking-tight max-w-3xl mb-6`}
           >
@@ -233,7 +233,7 @@ export default function OwnerPage() {
             One plan. Flat rate. That&apos;s it.
           </h2>
           <div className="max-w-2xl">
-            <div className="rounded-2xl border border-[#C9A961]/40 bg-[#111112] p-10">
+            <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0B1A3A] p-10">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">
                 Advisacor for Owners
               </p>
@@ -289,7 +289,7 @@ export default function OwnerPage() {
       </section>
       {/* BUT I HAVE A BOOKKEEPER — objection handling */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112] p-10 md:p-16">
+        <div className="rounded-3xl border border-[#C9A961]/20 bg-[#0B1A3A] p-10 md:p-16">
           <p className="text-xs uppercase tracking-[0.2em] text-[#C9A961] mb-4">
             Objection, handled
           </p>
@@ -351,7 +351,7 @@ export default function OwnerPage() {
             ].map((item) => (
               <div
                 key={item.q}
-                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {item.q}

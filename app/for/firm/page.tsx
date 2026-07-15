@@ -81,7 +81,7 @@ export default function FirmPage() {
             ].map((p) => (
               <div
                 key={p.label}
-                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6"
               >
                 <p className="text-[#C9A961] text-sm font-semibold mb-2">
                   {p.label}
@@ -186,7 +186,7 @@ export default function FirmPage() {
             ].map((f) => (
               <div
                 key={f.title}
-                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {f.title}
@@ -199,7 +199,7 @@ export default function FirmPage() {
       </section>
       {/* MID-PAGE CTA */}
       <section className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <div className="rounded-3xl border border-[#C9A961]/30 bg-gradient-to-br from-[#1A1A1C] to-[#111112] p-10 md:p-16">
+        <div className="rounded-3xl border border-[#C9A961]/30 bg-gradient-to-br from-[#12244A] to-[#0B1A3A] p-10 md:p-16">
           <h2
             className={`${headingFont} text-3xl md:text-5xl font-semibold leading-[1.1] tracking-tight max-w-3xl mb-6`}
           >
@@ -238,7 +238,7 @@ export default function FirmPage() {
             headcount decision.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">
                 Firm Starter add-on
               </p>
@@ -250,7 +250,7 @@ export default function FirmPage() {
               </p>
               <p className="text-sm text-[#A29E93]">Up to 10 firm clients</p>
             </div>
-            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">
                 Firm Growth add-on
               </p>
@@ -262,7 +262,7 @@ export default function FirmPage() {
               </p>
               <p className="text-sm text-[#A29E93]">Up to 30 firm clients</p>
             </div>
-            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6">
+            <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6">
               <p className="text-[#C9A961] text-sm font-semibold mb-2">
                 Firm Scale add-on
               </p>
@@ -295,7 +295,7 @@ export default function FirmPage() {
           Three plans. Per firm, not per seat.
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-8">
+          <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-8">
             <p className="text-[#C9A961] text-sm font-semibold mb-2">
               Firm Starter
             </p>
@@ -327,7 +327,7 @@ export default function FirmPage() {
               </li>
             </ul>
           </div>
-          <div className="rounded-2xl border border-[#C9A961]/40 bg-[#111112] p-8 relative">
+          <div className="rounded-2xl border border-[#C9A961]/40 bg-[#0B1A3A] p-8 relative">
             <span className="absolute -top-3 left-8 px-3 py-1 text-[10px] uppercase tracking-wider bg-[#C9A961] text-[#111112] font-semibold rounded-full">
               Most firms pick this
             </span>
@@ -362,7 +362,7 @@ export default function FirmPage() {
               </li>
             </ul>
           </div>
-          <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-8">
+          <div className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-8">
             <p className="text-[#C9A961] text-sm font-semibold mb-2">
               Firm Scale
             </p>
@@ -441,7 +441,7 @@ export default function FirmPage() {
             ].map((item) => (
               <div
                 key={item.q}
-                className="rounded-2xl border border-[#C9A961]/20 bg-[#111112] p-6"
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#0B1A3A] p-6"
               >
                 <h3 className={`${headingFont} text-lg font-semibold mb-3`}>
                   {item.q}

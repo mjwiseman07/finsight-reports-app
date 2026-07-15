@@ -172,24 +172,47 @@ Gold-opacity variants introduced in 9M.N:
 
 ---
 
-## Persona-tile navy — brand-mark tie-in surface (v1.2)
+## Marketing card-surface navy (v1.3)
 
-**Scope:** `components/PersonaTile.tsx` ONLY. This is NOT a general chromatic accent — gold `#C9A961` remains the sole marketing accent. This token exists to tie the choose-your-path persona-routing UX visually back to the framed-navy Advisacor logo mark.
+**Scope:** ALL card and pilot-band surfaces on the marketing scope. This is a semantic elevation of the persona-tile navy from v1.2 — navy is now the canonical marketing card-surface token, replacing charcoal (`#111112`) and Nexus surface (`#1A1A1C`) fills on `rounded-* border-[#C9A961]/*` card patterns.
+
+**Rationale:** Every marketing card had gold-tinted borders sitting on the same charcoal as the page background — cards blended into the page. Navy fill (`#0B1A3A`) inherits the framed-logo brand mark, creates real card elevation against `#111112` page bg, and gives the gold borders something meaningful to frame.
 
 | Role | Hex | Usage |
 |---|---|---|
-| Persona-tile surface | `#0B1A3A` | Base fill for PersonaTile cards |
-| Persona-tile hover | `#12244A` | Hover-state fill |
+| Card-surface navy | `#0B1A3A` | All marketing cards, tier cards, pilot bands, feature grids |
+| Card-surface navy (translucent) | `#0B1A3A]/85` | Cards that layered `bg-[#1A1A1C]/50-85` — preserved alpha semantics |
+| Card-surface navy (disabled) | `#0B1A3A]/60` | Upcoming/disabled tier cards |
+| Card-hover navy | `#12244A` | Interactive cards on hover (currently: `PersonaTile` only) |
+| Gradient card start | `#12244A` | Hero-CTA cards on `/for/*` (top-left → bottom-right gradient) |
+| Gradient card end | `#0B1A3A` | Hero-CTA cards on `/for/*` gradient end |
 
-**Explicit distinction from banned `#0F1D3E`:**
-`#0F1D3E` (legacy pilot-CTA navy, Tier B banned) and `#0B1A3A` (persona-tile navy) are visually similar but semantically different. `#0F1D3E` was an orange-era CTA accent; `#0B1A3A` is a brand-mark reference tied to `advisacor-logo-framed-navy.png`. Do NOT swap them.
+### Explicit exclusions (chrome remains charcoal)
 
-**Persona tile canonical:**
+The following gold-bordered elements STAY charcoal (`#111112` or `#1A1A1C`):
+
+- **Section alt-bands:** `<section className="border-t border-[#C9A961]/20 bg-[#1A1A1C]">` — page-level rhythm dividers, not cards
+- **Nav arrow buttons:** `h-10 w-10 rounded-full border ...` chrome
+- **Pill badges / icon wells:** small (`h-8-14 w-8-14`) gold-tinted decorative chrome
+- **Form inputs:** `focus:border-[#C9A961]` — input fields keep dark bg for contrast on typed text
+- **Form-wrapper cards** on `/free-review` containing form inputs — continuity with input dark bg
+- **`.enterprise-card` CSS class** on `/about` founder cards — mixed light+dark editorial per § "Mixed light+dark editorial (`/about`)"
+- **Dashboard scope:** all authenticated app surfaces (`/dashboard`, `/admin`, `/onboarding`, `/upload`, `/first-package-results`, `/close-periods`, `/firm`, `/support`, `/client-briefings`, `/owner/ask`, `/industry-intelligence`, `/healthcare-intelligence`, `/auth/confirmed`, `/for/controller/*`)
+- **Auth surfaces:** `/signin`, `/signup` — treated as dashboard-adjacent
+
+### Distinction from banned `#0F1D3E`
+
+`#0F1D3E` (legacy pilot-CTA navy, Tier B banned) and `#0B1A3A` (marketing card-surface navy) remain semantically different. `#0F1D3E` was the old orange-era CTA accent; `#0B1A3A` is the framed-logo brand-mark navy scoped to marketing card surfaces. Do NOT swap them.
+
+### Gold remains the ONLY chromatic accent
+
+Navy is a card-SURFACE token, not a chromatic accent. Gold (`#C9A961`) remains the only accent color for links, CTAs, eyebrows, focus rings, and borders. Navy provides depth and containment; gold provides emphasis and interaction.
+
+### Persona tile canonical
+
 ```tsx
 className={`group flex flex-col justify-between rounded-2xl border border-[#C9A961]/25 bg-[#0B1A3A] p-6 transition-all hover:border-[#C9A961]/60 hover:bg-[#12244A] ${focusRing()}`}
 ```
-
-**Future personal-tile-family surfaces** (e.g., "Choose your industry" or similar routing tiles) may use these tokens. Any other surface — pricing cards, dashboards, editorial — must use the canonical charcoal (`#111112`) or Nexus surface (`#1A1A1C`) tokens.
 
 ---
 
@@ -413,3 +436,10 @@ Deviation from predicted counts indicates a missed compound. Post-mortem the ari
 - Added persona-tile navy family (`#0B1A3A` / `#12244A`) as brand-mark tie-in surface scoped to `components/PersonaTile.tsx` only
 - Clarified distinction from banned Tier B `#0F1D3E`
 - Reinforced: gold `#C9A961` remains the ONLY chromatic accent; navy is a brand-mark surface reference, not an accent color
+
+### v1.3 (Phase TCP1 post-W2.5 navy card universalization)
+
+- Elevated persona-tile navy (`#0B1A3A` / `#12244A`) from PersonaTile-only scope to canonical marketing card-surface token
+- Recolored all card patterns (`rounded-* border-[#C9A961]/* bg-[#111112|#1A1A1C]`) across marketing scope to navy
+- Explicit exclusions documented: section bands, chrome, form inputs, `.enterprise-card`, dashboard scope, auth surfaces
+- Gold `#C9A961` remains the ONLY chromatic accent; navy is a surface token
