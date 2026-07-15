@@ -1683,13 +1683,12 @@ export default function DashboardPage() {
           </Link>
           <div className="flex items-center gap-3">
             <SupportHelpButton compact />
-            <button
-              type="button"
-              onClick={() => setAccountOpen(true)}
-              className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-5 py-2 text-sm font-bold text-[#C9A961] transition hover:border-[#C9A961]/70 hover:bg-[#C9A961]/20`}
+            <Link
+              href="/dashboard/account"
+              className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-5 py-2 text-sm font-bold text-[#C9A961] transition hover:border-[#C9A961]/70 hover:bg-[#C9A961]/20 inline-flex items-center`}
             >
               Account
-            </button>
+            </Link>
             <button
               type="button"
               onClick={handleSignOut}
