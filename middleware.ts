@@ -52,6 +52,7 @@ const PUBLIC_MARKETING_PATHS = new Set([
   "/",
   "/about",
   "/privacy",
+  "/terms",
   "/coming-soon",
   // Marketing v2 nav destinations (D6.5 Part 2).
   "/what-it-does",
