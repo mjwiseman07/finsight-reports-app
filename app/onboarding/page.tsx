@@ -33,6 +33,7 @@ import { PaidUserWelcome } from "./_components/PaidUserWelcome";
 import { SiteNav } from "../../components/SiteNav";
 import { SiteFooter } from "../../components/SiteFooter";
 import { headingFont, primaryCtaClass, focusRing } from "../../components/site-ui";
+import { qbErrorCopy } from "../../lib/onboarding/qb-error-messages";
 
 const demoTemplates: Record<string, Partial<CompanyForm>> = {
   "demo-manufacturing": {
@@ -399,6 +400,7 @@ function OnboardingContent() {
   const queryLeadId = searchParams?.get("leadId") || "";
   const queryProvider = searchParams?.get("provider") === "xero" ? "xero" : searchParams?.get("provider") === "quickbooks" ? "quickbooks" : "quickbooks";
   const startsOnConnectAccounting = searchParams?.get("step") === "connect-accounting";
+  const qbErrorCode = searchParams?.get("qbError") || null;
 
   // Phase TCP1 W2.5 Block 9j — TIER AWARENESS
   // Paid users bypass all free-review-lead gates and see PaidUserWelcome.
@@ -2075,8 +2077,11 @@ function OnboardingContent() {
   };
 
   // Phase TCP1 W2.5 Block 9j — paid users see PaidUserWelcome unless a step is set.
+  // Phase TCP1 W3 — qbError must force the onboarding shell so the banner is visible.
   const isWelcomeMode =
-    !searchParams?.get("step") && !searchParams?.get("quickBooksConnected");
+    !searchParams?.get("step") &&
+    !searchParams?.get("quickBooksConnected") &&
+    !qbErrorCode;
   if (contextLoading || (checkoutSuccessPending && !isPaidUser && isWelcomeMode)) {
     return (
       <main className="min-h-screen bg-[#111112] px-6 py-24 text-center text-[#7A7974]">
@@ -2097,7 +2102,35 @@ function OnboardingContent() {
   return (
     <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <SiteNav />
-      <div className="mx-auto max-w-6xl px-6 pb-16 pt-[120px] md:pt-[140px]">
+      {qbErrorCode ? (
+        <div className="mx-auto max-w-6xl px-6 pt-[120px] md:pt-[140px]">
+          {(() => {
+            const copy = qbErrorCopy(qbErrorCode);
+            return (
+              <div
+                role="alert"
+                className="rounded-2xl border border-[#B84A3E]/50 bg-[#B84A3E]/10 p-5 text-[#ECEBE7]"
+              >
+                <p className={`text-sm font-semibold uppercase tracking-[0.22em] text-[#E89890] ${headingFont}`}>
+                  QuickBooks connection issue
+                </p>
+                <p className={`mt-2 text-lg font-semibold text-white ${headingFont}`}>{copy.title}</p>
+                <p className="mt-2 leading-6 text-[#A29E93]">{copy.body}</p>
+                <div className="mt-4">
+                  <a
+                    href={copy.actionHref}
+                    className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm ${primaryCtaClass} ${focusRing()}`}
+                  >
+                    {copy.actionLabel}
+                    <span aria-hidden>→</span>
+                  </a>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      ) : null}
+      <div className={`mx-auto max-w-6xl px-6 pb-16 ${qbErrorCode ? "pt-6" : "pt-[120px] md:pt-[140px]"}`}>
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
           {isSuperAdmin && (
             <div className="rounded-full border border-[#B84A3E]/40 bg-[#B84A3E]/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#E89890]">

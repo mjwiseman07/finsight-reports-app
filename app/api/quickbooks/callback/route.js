@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getERPAdapter } from "../../../../lib/erp-adapters";
 import { supabaseAdmin } from "../../../../lib/supabase";
+import { resolveEntitlementsForSubject } from "../../../../lib/entitlements";
 
 function getQuickBooksTokenExpiry(token) {
   const expiresInSeconds = Number(token?.expires_in || 3600);
@@ -71,12 +72,57 @@ async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, 
   return result.data;
 }
 
+/**
+ * Phase TCP1 W3 — Tier-aware post-connect landing.
+ * Respects explicit returnTo cookie when set (user came from a specific
+ * onboarding step). Otherwise picks the correct default per tier:
+ *   review_assist   -> /reviewer/queue
+ *   solo_bookkeeper -> /dashboard
+ *   anything else   -> /dashboard (legacy default)
+ */
+async function resolvePostConnectLanding(userId, returnTo) {
+  if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+    return returnTo;
+  }
+  if (!userId) return "/dashboard";
+  try {
+    const entitlements = await resolveEntitlementsForSubject(userId);
+    if (entitlements?.tier_key === "review_assist") return "/reviewer/queue";
+    return "/dashboard";
+  } catch (err) {
+    console.warn("[quickbooks/callback] tier resolution failed, defaulting to /dashboard", {
+      message: err?.message,
+    });
+    return "/dashboard";
+  }
+}
+
+/**
+ * Phase TCP1 W3 — Every error path redirects to /onboarding?qbError=<code>
+ * so the user sees a friendly banner instead of raw JSON. Cookies are cleaned
+ * up on the redirect so a retry starts fresh.
+ */
+function redirectWithQbError(request, code, extraParams = {}) {
+  const url = new URL("/onboarding", request.url);
+  url.searchParams.set("qbError", code);
+  for (const [k, v] of Object.entries(extraParams)) {
+    if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
+  }
+  const response = NextResponse.redirect(url);
+  response.cookies.delete("qb_oauth_state");
+  response.cookies.delete("qb_oauth_mode");
+  response.cookies.delete("qb_oauth_token");
+  response.cookies.delete("qb_oauth_lead_id");
+  response.cookies.delete("qb_oauth_return_to");
+  return response;
+}
+
 export async function GET(request) {
   const url = new URL(request.url);
   const authCode = url.searchParams.get("code") || "";
+  const state = url.searchParams.get("state") || "";
   const intuitError = url.searchParams.get("error") || "";
   const intuitErrorDescription = url.searchParams.get("error_description") || "";
-  const state = url.searchParams.get("state") || "";
   const realmId = url.searchParams.get("realmId") || "";
   const configAdapter = getERPAdapter("quickbooks", null);
   const quickBooksConfig = configAdapter.getConfig();
@@ -85,7 +131,6 @@ export async function GET(request) {
   const supabaseToken = request.cookies.get("qb_oauth_token")?.value || "";
   const leadId = request.cookies.get("qb_oauth_lead_id")?.value || "";
   const returnTo = request.cookies.get("qb_oauth_return_to")?.value || "";
-  const redirectUrl = new URL(returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard", request.url);
 
   console.log("[quickbooks/callback] received callback", {
     hasAuthCode: Boolean(authCode),
@@ -103,7 +148,7 @@ export async function GET(request) {
       error: intuitError,
       hasDescription: Boolean(intuitErrorDescription),
     });
-    return NextResponse.json({ error: intuitError, description: intuitErrorDescription }, { status: 400 });
+    return redirectWithQbError(request, "intuit_denied", { intuitError });
   }
 
   if (!state || !expectedState || state !== expectedState || (oauthMode === "user" && !supabaseToken) || (oauthMode === "lead" && !leadId)) {
@@ -115,7 +160,7 @@ export async function GET(request) {
       hasLeadIdCookie: Boolean(leadId),
       mode: oauthMode,
     });
-    return NextResponse.json({ error: "Missing or invalid QuickBooks OAuth state" }, { status: 400 });
+    return redirectWithQbError(request, "state_mismatch");
   }
 
   if (!authCode || !realmId) {
@@ -123,12 +168,12 @@ export async function GET(request) {
       hasAuthCode: Boolean(authCode),
       hasRealmId: Boolean(realmId),
     });
-    return NextResponse.json({ error: "Missing required QuickBooks callback values" }, { status: 400 });
+    return redirectWithQbError(request, "missing_callback_values");
   }
 
   if (!supabaseAdmin) {
     console.error("[quickbooks/callback] Supabase admin client is not configured");
-    return NextResponse.json({ error: "Supabase admin client is not configured" }, { status: 500 });
+    return redirectWithQbError(request, "missing_admin_client");
   }
 
   try {
@@ -137,39 +182,54 @@ export async function GET(request) {
       hasClientSecret: Boolean(quickBooksConfig.clientSecret),
       environment: quickBooksConfig.environment,
       hasRedirectUri: Boolean(quickBooksConfig.redirectUri),
-      redirectUriMatchesExpected: quickBooksConfig.redirectUri === "http://localhost:3000/api/quickbooks/callback",
+      redirectUriValue: quickBooksConfig.redirectUri || null,
     });
 
-    const adapter = getERPAdapter("quickbooks", null);
-    const tokenResponse = await adapter.exchangeAuthorizationCode(authCode);
-
-    console.log("[quickbooks/callback] Intuit OAuth exchange response", {
-      ok: tokenResponse.ok,
-      status: tokenResponse.status,
-      statusText: tokenResponse.statusText,
-      hasPayload: Boolean(tokenResponse.payload),
-    });
-
-    if (!tokenResponse.ok) {
-      return NextResponse.json(
-        {
-          error: tokenResponse.payload?.error || "quickbooks_token_exchange_failed",
-          description: tokenResponse.payload?.error_description || "QuickBooks token exchange failed.",
-        },
-        { status: tokenResponse.status || 500 },
-      );
+    // Adapter API: exchangeAuthorizationCode(code) → { ok, status, payload }
+    // (paste suggested { code } object API; production adapter takes a string).
+    let token;
+    try {
+      const tokenResponse = await configAdapter.exchangeAuthorizationCode(authCode);
+      if (!tokenResponse.ok) {
+        console.error("[quickbooks/callback] token exchange failed", {
+          message: tokenResponse.payload?.error_description || tokenResponse.payload?.error,
+          code: tokenResponse.payload?.error,
+          status: tokenResponse.status,
+        });
+        return redirectWithQbError(request, "token_exchange_failed");
+      }
+      token = tokenResponse.payload;
+    } catch (exchangeErr) {
+      console.error("[quickbooks/callback] token exchange failed", {
+        message: exchangeErr?.message,
+        code: exchangeErr?.error || exchangeErr?.code,
+        intuitTid: exchangeErr?.intuit_tid,
+      });
+      return redirectWithQbError(request, "token_exchange_failed");
     }
 
-    const token = tokenResponse.payload;
+    // Adapter API: getCompanyProfile(accessToken, realmId)
+    const companyProfile = await configAdapter
+      .getCompanyProfile(token.access_token, realmId)
+      .catch(() => ({}));
 
     if (oauthMode === "lead") {
-      const companyProfile = await adapter.getCompanyProfile(token.access_token, realmId).catch(() => ({}));
-      const savedAccountingConnection = await saveLeadQuickBooksAccountingConnection({
-        leadId,
-        realmId,
-        token,
-        companyProfile,
-      });
+      let savedAccountingConnection;
+      try {
+        savedAccountingConnection = await saveLeadQuickBooksAccountingConnection({
+          leadId,
+          realmId,
+          token,
+          companyProfile,
+        });
+      } catch (saveErr) {
+        console.error("[quickbooks/callback] lead connection save failed", {
+          message: saveErr?.message,
+          code: saveErr?.code,
+        });
+        return redirectWithQbError(request, "connection_save_failed");
+      }
+
       const { error: leadError } = await supabaseAdmin
         .from("free_review_leads")
         .update({
@@ -195,13 +255,20 @@ export async function GET(request) {
         });
       }
 
-      console.log("[quickbooks/callback] lead accounting connection saved", {
-        connectionId: savedAccountingConnection.id,
+      console.log("[quickbooks/callback] lead flow — saved accounting connection", {
+        accountingConnectionId: savedAccountingConnection.id,
         leadId,
         realmId,
         status: savedAccountingConnection.status,
       });
 
+      // Lead flow always lands on /free-review (existing behavior) — leads
+      // don't have a resolved tier yet.
+      const leadLanding =
+        returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+          ? returnTo
+          : "/free-review";
+      const redirectUrl = new URL(leadLanding, request.url);
       redirectUrl.searchParams.set("quickBooksConnected", "true");
       redirectUrl.searchParams.set("leadId", leadId);
       redirectUrl.searchParams.set("connectionId", savedAccountingConnection.id);
@@ -214,13 +281,12 @@ export async function GET(request) {
     }
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(supabaseToken);
-
     if (authError || !authData?.user?.id) {
       console.error("[quickbooks/callback] Supabase JWT from OAuth cookie is invalid", {
         message: authError?.message,
         status: authError?.status,
       });
-      return NextResponse.json({ error: "Invalid or expired Supabase token in QuickBooks OAuth cookie" }, { status: 401 });
+      return redirectWithQbError(request, "invalid_supabase_token");
     }
 
     console.log("[quickbooks/callback] OAuth exchange succeeded", {
@@ -239,10 +305,19 @@ export async function GET(request) {
     });
 
     const userAdapter = getERPAdapter("quickbooks", authData.user.id);
-    const savedConnection = await userAdapter.saveConnection({
-      realmId,
-      token,
-    });
+    let savedConnection;
+    try {
+      savedConnection = await userAdapter.saveConnection({
+        realmId,
+        token,
+      });
+    } catch (saveErr) {
+      console.error("[quickbooks/callback] user connection save failed", {
+        message: saveErr?.message,
+        code: saveErr?.code,
+      });
+      return redirectWithQbError(request, "connection_save_failed");
+    }
 
     console.log("[quickbooks/callback] Supabase save succeeded", {
       connectionId: savedConnection?.id || null,
@@ -251,6 +326,11 @@ export async function GET(request) {
       updatedAt: savedConnection?.updated_at || null,
     });
 
+    // Phase TCP1 W3 — tier-aware landing.
+    const landing = await resolvePostConnectLanding(authData.user.id, returnTo);
+    const redirectUrl = new URL(landing, request.url);
+    redirectUrl.searchParams.set("quickBooksConnected", "true");
+    if (savedConnection?.id) redirectUrl.searchParams.set("connectionId", savedConnection.id);
     const response = NextResponse.redirect(redirectUrl);
     response.cookies.delete("qb_oauth_state");
     response.cookies.delete("qb_oauth_mode");
@@ -264,6 +344,6 @@ export async function GET(request) {
       code: error?.error || error?.code,
       intuitTid: error?.intuit_tid,
     });
-    return NextResponse.json({ error: error?.message || "QuickBooks OAuth callback failed" }, { status: 500 });
+    return redirectWithQbError(request, "token_exchange_failed");
   }
 }

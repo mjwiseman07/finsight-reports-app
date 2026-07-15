@@ -124,6 +124,11 @@ function isMarketingAllowed(pathname: string) {
     pathname.startsWith("/api/pulse/") ||
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/api/integrations/") ||
+    // Phase TCP1 W3 — QuickBooks OAuth callback and companion routes.
+    // Intuit's registered redirect URI targets /api/quickbooks/callback directly
+    // (not via the /api/integrations shim), and status/detect-capabilities/
+    // fetch-reports are called from marketing-host authenticated pages.
+    pathname.startsWith("/api/quickbooks/") ||
     pathname.startsWith("/api/webhooks/") ||
     pathname.startsWith("/#")
   );
