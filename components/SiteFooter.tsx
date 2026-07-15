@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { focusRing } from "./site-ui";
+import { showCookieBanner } from "./CookieBanner";
 
 export function SiteFooter() {
   return (
@@ -18,10 +21,10 @@ export function SiteFooter() {
             <ul className="mt-5 space-y-3 text-sm">
               <li>
                 <a
-                  href="mailto:sales@advisacor.com"
+                  href="mailto:mwiseman@advisacor.com"
                   className={`text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
                 >
-                  sales@advisacor.com
+                  mwiseman@advisacor.com
                 </a>
               </li>
             </ul>
@@ -50,11 +53,36 @@ export function SiteFooter() {
               </li>
               <li>
                 <Link
+                  href="/terms"
+                  className={`font-medium text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
+                >
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/privacy"
                   className={`font-medium text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
                 >
                   Privacy Policy
                 </Link>
+              </li>
+              <li>
+                <Link
+                  href="/refund-policy"
+                  className={`font-medium text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
+                >
+                  Refund Policy
+                </Link>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={showCookieBanner}
+                  className={`text-left font-medium text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
+                >
+                  Cookie preferences
+                </button>
               </li>
             </ul>
           </div>
