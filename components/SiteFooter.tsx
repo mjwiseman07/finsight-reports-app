@@ -3,7 +3,7 @@ import { focusRing } from "./site-ui";
 
 export function SiteFooter() {
   return (
-    <footer className="relative w-full bg-gradient-to-br from-[#F7F6F2] via-[#EEEDE7] to-[#D4D1CA] text-slate-700">
+    <footer className="relative w-full bg-white text-slate-700">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-12 lg:gap-12">
           <div className="md:col-span-4">
