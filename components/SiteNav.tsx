@@ -4,7 +4,7 @@ import heroLogo from "../public/advisacor-logo-framed-navy.png";
 import { focusRing, primaryCtaClass } from "./site-ui";
 
 export function SiteNav() {
-  const navLinkClass = `${focusRing("ring-offset-slate-300")} text-sm font-bold text-slate-900 transition hover:text-[#C9A961]`;
+  const navLinkClass = `${focusRing("ring-offset-[#0B1A3A]")} text-sm font-bold text-white transition hover:text-[#C9A961]`;
 
   return (
     <header className="relative z-20 w-full bg-white min-h-[144px] md:min-h-[184px] lg:min-h-[216px]">
@@ -23,7 +23,7 @@ export function SiteNav() {
         />
       </Link>
       <nav className="absolute top-6 right-8 z-30 md:top-10">
-        <div className="flex items-center gap-6 rounded-full bg-white px-6 py-3 shadow-sm ring-1 ring-black/5">
+        <div className="flex items-center gap-6 rounded-full bg-[#0B1A3A] px-6 py-3 shadow-sm">
           <div className="hidden items-center gap-8 md:flex">
             <Link href="/what-it-does" className={navLinkClass}>
               What It Does
