@@ -43,7 +43,7 @@ export default function AboutPage() {
     <main className="min-h-screen bg-[#F7F6F2] text-[#28251D]">
       <SiteNav />
       {/* SECTION 1 — Hero */}
-      <section className="relative overflow-hidden bg-[#111112] pb-24 pt-[240px] md:pt-[260px] lg:pt-[280px]">
+      <section className="relative overflow-hidden bg-[#111112] pb-24 pt-16 md:pt-20 lg:pt-24">
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A961]/5 blur-3xl" />
         <div className="relative mx-auto max-w-4xl px-6 text-center">
           <p className="mb-6 text-xs font-semibold tracking-[0.2em] text-[#C9A961]">WISEMAN FINANCIAL TECHNOLOGIES, LLC</p>

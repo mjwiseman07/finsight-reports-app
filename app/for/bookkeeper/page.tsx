@@ -25,7 +25,7 @@ export default function BookkeeperPage() {
     <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <SiteNav />
       {/* HERO */}
-      <section className="mx-auto max-w-6xl px-6 pt-[200px] md:pt-[240px] lg:pt-[260px] pb-16 md:pb-24">
+      <section className="mx-auto max-w-6xl px-6 pt-16 md:pt-20 lg:pt-24 pb-16 md:pb-24">
         <p className="text-sm uppercase tracking-[0.2em] text-[#C9A961] mb-6">
           For the solo bookkeeper
         </p>
