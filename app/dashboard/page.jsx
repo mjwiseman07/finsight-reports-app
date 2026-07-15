@@ -2530,6 +2530,26 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              {/* Security & 2FA quick link — Phase 10.1 */}
+              <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#C9A961]`}>Security</p>
+                    <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Two-factor authentication & sign-in</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#A29E93]">
+                      Manage two-factor authentication (TOTP), recovery codes, and account security settings.
+                    </p>
+                  </div>
+                  <Link
+                    href="/dashboard/account/security"
+                    onClick={() => setAccountOpen(false)}
+                    className={`${focusRing("rounded-2xl")} ${headingFont} shrink-0 rounded-2xl border border-[#C9A961]/60 bg-[#C9A961]/10 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#C9A961] transition hover:border-[#C9A961] hover:bg-[#C9A961]/20`}
+                  >
+                    Manage Security
+                  </Link>
+                </div>
+              </div>
+
               <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
