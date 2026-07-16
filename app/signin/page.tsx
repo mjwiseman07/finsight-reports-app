@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { SiteFooter } from "../../components/SiteFooter";
 import { SiteNav } from "../../components/SiteNav";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
@@ -15,15 +16,28 @@ export default function SigninPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setIsSubmitting(true);
+    if (!captchaToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+      setError("Please complete the security check before continuing.");
+      setIsSubmitting(false);
+      return;
+    }
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken },
+      });
       if (signInError || !data?.session?.access_token) {
         setError("Invalid email or password. Please try again.");
+        setCaptchaToken("");
+        turnstileRef.current?.reset();
         return;
       }
       window.localStorage.setItem("supabase_access_token", data.session.access_token);
@@ -144,9 +158,21 @@ export default function SigninPage() {
                       {error}
                     </p>
                   )}
+                  {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                    <div className="mt-1 flex justify-center">
+                      <Turnstile
+                        ref={turnstileRef}
+                        siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                        onSuccess={(token) => setCaptchaToken(token)}
+                        onError={() => setCaptchaToken("")}
+                        onExpire={() => setCaptchaToken("")}
+                        options={{ theme: "dark" }}
+                      />
+                    </div>
+                  )}
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || (!!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken)}
                     className={`mt-2 inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${primaryCtaClass} ${focusRing()}`}
                   >
                     {isSubmitting ? (
