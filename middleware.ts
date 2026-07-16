@@ -68,7 +68,9 @@ const PUBLIC_MARKETING_PATHS = new Set([
   // Role/auth gating happens inside these routes; middleware only controls reachability.
   "/signin",
   "/signup",
+  "/forgot-password",
   "/auth/confirmed",
+  "/auth/reset-password",
   "/dashboard",
   "/onboarding",
   "/admin",
