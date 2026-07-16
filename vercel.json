@@ -2,6 +2,7 @@
   "crons": [
     { "path": "/api/learning/cron/reinforce-all", "schedule": "0 6 * * *" },
     { "path": "/api/recurring/cron/fire-due", "schedule": "15 6 * * *" },
-    { "path": "/api/recurring/cron/auto-post", "schedule": "45 6 * * *" }
+    { "path": "/api/recurring/cron/auto-post", "schedule": "45 6 * * *" },
+    { "path": "/api/quickbooks/cdc", "schedule": "0 * * * *" }
   ]
 }
