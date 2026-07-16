@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireFirmAuth, authErrorResponse } from "@/lib/reviewer/auth";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
-import { getQuotaGuardUndiciDispatcher } from "@/lib/network/quotaguard-proxy";
+import { qboApiFetch } from "../../../../lib/qbo/api-fetch.js";
 
 const cache = new Map<string, { expires: number; accounts: Array<{ id: string; name: string }> }>();
 const TTL_MS = 5 * 60 * 1000;
@@ -25,24 +25,21 @@ export async function GET(req: NextRequest) {
     }
     const base = process.env.QBO_API_BASE || "https://quickbooks.api.intuit.com";
     const url = `${base}/v3/company/${token.realmId}/query?query=${encodeURIComponent("SELECT Id, Name FROM Account MAXRESULTS 500")}`;
-    const dispatcher = getQuotaGuardUndiciDispatcher();
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token.accessToken}`,
-        Accept: "application/json",
-      },
-      ...(dispatcher ? { dispatcher } : {}),
-    } as RequestInit);
-    if (!res.ok) {
+    const { ok, json } = await qboApiFetch(url, {
+      accessToken: token.accessToken,
+      method: "GET",
+    });
+    if (!ok) {
       return NextResponse.json({ accounts: [] });
     }
-    const json = (await res.json()) as {
-      QueryResponse?: { Account?: Array<{ Id?: string; Name?: string }> };
-    };
-    const accounts = (json.QueryResponse?.Account ?? []).map((a) => ({
+    const accounts = (
+      (json as { QueryResponse?: { Account?: Array<{ Id?: string; Name?: string }> } })
+        ?.QueryResponse?.Account ?? []
+    ).map((a) => ({
       id: String(a.Id ?? ""),
       name: String(a.Name ?? ""),
     }));
+
     cache.set(firmClientId, { expires: Date.now() + TTL_MS, accounts });
     return NextResponse.json({ accounts });
   } catch (e) {
