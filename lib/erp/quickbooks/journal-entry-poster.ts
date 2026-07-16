@@ -8,7 +8,6 @@
  * posted_je memory.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
-import { getQuotaGuardUndiciDispatcher } from "@/lib/network/quotaguard-proxy";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
 import { canPostToQBO } from "@/lib/erp/quickbooks/write-preflight";
 import { validateJEPayload } from "@/lib/erp/quickbooks/je-validator";
@@ -297,21 +296,34 @@ function buildQBOJournalEntry(p: JEPayload) {
   };
 }
 
-async function postToQBO(realmId: string, accessToken: string, body: unknown) {
-  const dispatcher = getQuotaGuardUndiciDispatcher();
-  return fetch(
-    `${qboApiBase()}/v3/company/${realmId}/journalentry?minorversion=73`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(body),
-      ...(dispatcher ? { dispatcher } : {}),
-    } as RequestInit,
-  );
+type QboPostResult = {
+  ok: boolean;
+  status: number;
+  intuit_tid: string | null;
+  json: () => Promise<any>;
+  text: () => Promise<string>;
+};
+
+async function postToQBO(
+  realmId: string,
+  accessToken: string,
+  body: unknown,
+): Promise<QboPostResult> {
+  const { qboApiFetch } = await import("../../qbo/api-fetch.js");
+  const url = `${qboApiBase()}/v3/company/${realmId}/journalentry?minorversion=73`;
+  const { ok, status, json, intuit_tid } = await qboApiFetch(url, {
+    accessToken,
+    method: "POST",
+    body: body as object,
+  });
+  // Preserve the previous Response-like shape callers may expect
+  return {
+    ok,
+    status,
+    intuit_tid,
+    json: async () => json,
+    text: async () => JSON.stringify(json),
+  };
 }
 
 async function finalizeReject(
