@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import framedNavyLogo from "../../public/advisacor-logo-framed-navy.png";
 import { headingFont, primaryCtaClass } from "../../components/site-ui";
 import { supabase } from "../../lib/supabase";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 type CheckoutPricingStructure = "flat" | "perClient";
 
@@ -57,6 +58,8 @@ function SignupPageContent() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
 
   async function createCheckoutAndRedirect() {
     setPhase("creating_checkout");
@@ -171,6 +174,13 @@ function SignupPageContent() {
     setError("");
     setIsSubmitting(true);
 
+    // Graceful degrade when site key unset (local). Production always has the key.
+    if (!captchaToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+      setError("Please complete the security check before continuing.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       // Derive redirect origin from the current window so we never fall back
       // to the Supabase Site URL default (which was previously misconfigured
@@ -190,6 +200,7 @@ function SignupPageContent() {
         password,
         options: {
           emailRedirectTo,
+          captchaToken,
           data: {
             first_name: firstName,
             last_name: lastName,
@@ -200,6 +211,8 @@ function SignupPageContent() {
 
       if (signUpError) {
         setError(signUpError.message);
+        setCaptchaToken("");
+        turnstileRef.current?.reset();
         return;
       }
 
@@ -440,9 +453,22 @@ function SignupPageContent() {
                   </p>
                 )}
 
+                {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                  <div className="mt-1 flex justify-center">
+                    <Turnstile
+                      ref={turnstileRef}
+                      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                      onSuccess={(token) => setCaptchaToken(token)}
+                      onError={() => setCaptchaToken("")}
+                      onExpire={() => setCaptchaToken("")}
+                      options={{ theme: "dark" }}
+                    />
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (!!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken)}
                   className={`mt-2 rounded-2xl px-5 py-4 text-sm ${primaryCtaClass} disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                   {isSubmitting ? "Creating workspace…" : isRaFlow ? "Start Review Assist" : "Start pilot"}
