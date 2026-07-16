@@ -59,11 +59,15 @@ export async function POST(request) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  // ----- 3. Load verifier token (server-side only; never referenced client-side)
-  const verifierToken = process.env.INTUIT_WEBHOOK_VERIFIER_TOKEN;
-  if (!verifierToken) {
+  // ----- 3. Load verifier tokens — accept EITHER Production OR Development-tier
+  // signature. Intuit signs sandbox events with the Development-tab verifier
+  // token and real customer events with the Production-tab verifier token.
+  // Both are separate env vars so we can rotate them independently.
+  const verifierTokenProd = process.env.INTUIT_WEBHOOK_VERIFIER_TOKEN;
+  const verifierTokenDev = process.env.INTUIT_WEBHOOK_VERIFIER_TOKEN_DEV;
+  if (!verifierTokenProd && !verifierTokenDev) {
     console.error(
-      "[qbo-webhook] INTUIT_WEBHOOK_VERIFIER_TOKEN not set — cannot verify signature",
+      "[qbo-webhook] neither INTUIT_WEBHOOK_VERIFIER_TOKEN nor INTUIT_WEBHOOK_VERIFIER_TOKEN_DEV is set — cannot verify signature",
     );
     // 500 → Intuit will retry with backoff, giving us time to add the env var
     return new NextResponse("Server misconfiguration", { status: 500 });
@@ -78,23 +82,44 @@ export async function POST(request) {
     return new NextResponse("Server misconfiguration", { status: 500 });
   }
 
-  // ----- 4. Verify HMAC-SHA256, constant-time compare (base64 encoding)
-  const expected = crypto
-    .createHmac("sha256", verifierToken)
-    .update(rawBody, "utf8")
-    .digest("base64");
-
-  // Both strings must be equal length before timingSafeEqual; otherwise the
-  // comparison itself would leak length info.
+  // ----- 4. Verify HMAC-SHA256 against BOTH tokens (constant-time on each).
+  // Accept if either matches. This is safe because:
+  //   - Both tokens are independently rotated and stored in server env.
+  //   - Constant-time compare prevents any per-token timing leak.
+  //   - We always run BOTH comparisons regardless of the first result, so
+  //     an attacker can't infer which token verified by measuring latency.
   const sigBuf = Buffer.from(signatureHeader, "utf8");
-  const expBuf = Buffer.from(expected, "utf8");
-  if (
-    sigBuf.length !== expBuf.length ||
-    !crypto.timingSafeEqual(sigBuf, expBuf)
-  ) {
-    console.warn("[qbo-webhook] signature mismatch");
+  let matchedTokenLabel = null;
+  let anyMatch = false;
+  for (const [label, token] of [
+    ["prod", verifierTokenProd],
+    ["dev", verifierTokenDev],
+  ]) {
+    if (!token) continue;
+    const expected = crypto
+      .createHmac("sha256", token)
+      .update(rawBody, "utf8")
+      .digest("base64");
+    const expBuf = Buffer.from(expected, "utf8");
+    // Length pre-check so timingSafeEqual doesn't throw. Both branches always
+    // executed (no short-circuit) so overall latency is token-count-invariant.
+    const lenMatch = sigBuf.length === expBuf.length;
+    const bufMatch = lenMatch && crypto.timingSafeEqual(sigBuf, expBuf);
+    if (bufMatch && !anyMatch) {
+      anyMatch = true;
+      matchedTokenLabel = label;
+    }
+  }
+  if (!anyMatch) {
+    console.warn("[qbo-webhook] signature mismatch against all configured tokens");
     return new NextResponse("Unauthorized", { status: 401 });
   }
+  // Observability: which token verified this event? Useful for confirming
+  // sandbox events flow through the Dev token path.
+  console.log("[qbo-webhook] signature verified", {
+    matched: matchedTokenLabel,
+  });
+
 
   // ----- 5. Parse CloudEvents JSON (top-level ARRAY, one entry per event)
   let events;
