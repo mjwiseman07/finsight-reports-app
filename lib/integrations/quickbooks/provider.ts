@@ -307,6 +307,12 @@ export class QuickBooksAccountingProvider implements AccountingProviderAdapter {
         reportAvailability,
       },
     };
+    // Phase MC-1 (Issue #6, Gap I-2): thread home currency onto the bundle so
+    // downstream labelling/conversion (MC-2/MC-3) has the currency context.
+    const companyProfile = (raw.company_profile as Record<string, unknown> | undefined) || {};
+    const homeCurrency = String(companyProfile.home_currency || "").toUpperCase();
+    if (homeCurrency) bundle.sourceMetadata.home_currency = homeCurrency;
+    bundle.sourceMetadata.multicurrency_enabled = Boolean(companyProfile.multicurrency_enabled);
     return bundle;
   }
 

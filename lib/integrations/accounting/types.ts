@@ -58,6 +58,10 @@ export interface CanonicalSourceMetadata {
   externalRecordId?: string;
   sourceReport?: string;
   raw?: unknown;
+  // Phase MC-1 (Issue #6, Gap I-2): home currency threading. Optional so all
+  // existing constructors remain valid; populated by providers that capture it.
+  home_currency?: string;
+  multicurrency_enabled?: boolean;
 }
 
 export interface CanonicalChartOfAccountsItem {

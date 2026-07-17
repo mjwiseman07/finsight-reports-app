@@ -24,6 +24,8 @@ async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, 
     tenant_or_realm_id: realmId,
     scopes: ["com.intuit.quickbooks.accounting"],
     status: "connected",
+    // Phase MC-1 (Issue #6, Gap DB-1): first-class home currency column.
+    home_currency: companyProfile.home_currency || null,
     metadata_json: {
       lead_id: leadId,
       realm_id: realmId,
@@ -33,6 +35,9 @@ async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, 
       active_provider: "quickbooks",
       connected_at: now,
       oauth_mode: "lead",
+      // Phase MC-1 (Issue #6): currency context mirrored for callers that read metadata_json.
+      home_currency: companyProfile.home_currency || null,
+      multicurrency_enabled: Boolean(companyProfile.multicurrency_enabled),
     },
     updated_at: now,
   };
