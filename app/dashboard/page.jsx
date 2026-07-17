@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
 import StartingPointCard from "../../components/dashboard/StartingPointCard";
+import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPointDeepLinkHandler";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import { contextualHelp } from "../../lib/contextual-help";
 import {
@@ -605,7 +606,6 @@ function mergeDashboardConversationMemory(question, answer, previousMemory) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [token, setToken] = useState("");
   const [access, setAccess] = useState(null);
   const [primaryPersona, setPrimaryPersona] = useState(null);
@@ -1458,20 +1458,6 @@ export default function DashboardPage() {
     scrollToExploreSection();
   };
 
-  useEffect(() => {
-    const startingPoint = searchParams?.get("startingPoint");
-    if (!startingPoint) return;
-    if (startingPoint === "executive-package") {
-      handleExploreCardClick("Executive Package");
-    } else if (startingPoint === "financial-health-score") {
-      handleExploreCardClick("Financial Health Score");
-    } else if (startingPoint === "ask-pulse") {
-      setAiOpen(true);
-    }
-    router.replace("/dashboard", { scroll: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
   const downloadExecutivePowerPointPackage = (options) => {
     const safeCompanyName = (options.companyName || "advisacor")
       .replace(/[^a-z0-9]+/gi, "-")
@@ -1739,6 +1725,13 @@ export default function DashboardPage() {
 
           {!isLoading && access?.allowed === true && (
             <div className="grid gap-8">
+              <Suspense fallback={null}>
+                <StartingPointDeepLinkHandler
+                  onExecutivePackage={() => handleExploreCardClick("Executive Package")}
+                  onFinancialHealthScore={() => handleExploreCardClick("Financial Health Score")}
+                  onAskPulse={() => setAiOpen(true)}
+                />
+              </Suspense>
               <StartingPointCard persona={primaryPersona || deliveryPersona} />
               {activeReportSummary && (
                 <div className="rounded-3xl border border-[#5591C7]/30 bg-[#5591C7]/10 p-5">
