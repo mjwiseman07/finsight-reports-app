@@ -2,20 +2,44 @@
 
 import { useMemo, useState } from "react";
 import type { TopCandidateSummary } from "@/lib/cash-app/review-queue-types";
+import { DEFAULT_FALLBACK_CURRENCY, formatMoney } from "@/lib/format/money";
 
 interface Props {
   reviewItemId: string;
   candidates: TopCandidateSummary[];
+  /** Phase MC-2d.1: tenant fallback currency when candidates carry none. */
+  homeCurrency?: string;
   onClose: () => void;
   onResolved: () => void;
 }
 
 const TOLERANCE = 0.01;
 
-export function SplitAllocationModal({ reviewItemId, candidates, onClose, onResolved }: Props) {
+export function SplitAllocationModal({
+  reviewItemId,
+  candidates,
+  homeCurrency,
+  onClose,
+  onResolved,
+}: Props) {
   const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Phase MC-2d.1: resolve the active currency for this modal.
+  // Precedence: the first candidate's currency (typically all candidates for
+  // one review item share a currency — QBO/Xero don't split payments across
+  // currencies), then the tenant home currency prop, then USD fallback.
+  const currency = useMemo(
+    () =>
+      candidates.find((c) => c.currency)?.currency ||
+      homeCurrency ||
+      DEFAULT_FALLBACK_CURRENCY,
+    [candidates, homeCurrency],
+  );
+
+  const money2 = (amount: number) =>
+    formatMoney(amount, currency, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const totalTarget = candidates.reduce((sum, c) => sum + c.invoiceAmount, 0);
   const runningTotal = useMemo(
@@ -27,7 +51,7 @@ export function SplitAllocationModal({ reviewItemId, candidates, onClose, onReso
   const handleSubmit = async () => {
     if (!withinTolerance) {
       setError(
-        `Allocations must sum to $${totalTarget.toFixed(2)} (currently $${runningTotal.toFixed(2)})`,
+        `Allocations must sum to ${money2(totalTarget)} (currently ${money2(runningTotal)})`,
       );
       return;
     }
@@ -84,35 +108,45 @@ export function SplitAllocationModal({ reviewItemId, candidates, onClose, onReso
         )}
 
         <div className="mt-4 space-y-3">
-          {candidates.map((c) => (
-            <div key={c.invoiceId}>
-              <label
-                htmlFor={`alloc-${c.invoiceId}`}
-                className="block text-sm font-medium text-slate-300"
-              >
-                {c.invoiceNumber} — {c.customerName} (invoice ${c.invoiceAmount.toFixed(2)})
-              </label>
-              <input
-                id={`alloc-${c.invoiceId}`}
-                type="number"
-                step="0.01"
-                min="0"
-                value={allocations[c.invoiceId] ?? ""}
-                onChange={(e) =>
-                  setAllocations((prev) => ({ ...prev, [c.invoiceId]: e.target.value }))
-                }
-                className="mt-1 w-full rounded-md border border-white/20 bg-slate-950 p-2 text-sm text-slate-100 focus:border-teal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-              />
-            </div>
-          ))}
+          {candidates.map((c) => {
+            // Phase MC-2d.1: each candidate uses its own currency label if
+            // set, falling back to the modal-level currency.
+            const rowCurrency = c.currency || currency;
+            return (
+              <div key={c.invoiceId}>
+                <label
+                  htmlFor={`alloc-${c.invoiceId}`}
+                  className="block text-sm font-medium text-slate-300"
+                >
+                  {c.invoiceNumber} — {c.customerName} (invoice{" "}
+                  {formatMoney(c.invoiceAmount, rowCurrency, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                  )
+                </label>
+                <input
+                  id={`alloc-${c.invoiceId}`}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={allocations[c.invoiceId] ?? ""}
+                  onChange={(e) =>
+                    setAllocations((prev) => ({ ...prev, [c.invoiceId]: e.target.value }))
+                  }
+                  className="mt-1 w-full rounded-md border border-white/20 bg-slate-950 p-2 text-sm text-slate-100 focus:border-teal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                />
+              </div>
+            );
+          })}
         </div>
 
         <p
           className={`mt-3 text-sm ${withinTolerance ? "text-emerald-400" : "text-amber-400"}`}
           role="status"
         >
-          Running total: ${runningTotal.toFixed(2)} of ${totalTarget.toFixed(2)}{" "}
-          {withinTolerance ? "(matches)" : "(must match within $0.01)"}
+          Running total: {money2(runningTotal)} of {money2(totalTarget)}{" "}
+          {withinTolerance ? "(matches)" : `(must match within ${money2(TOLERANCE)})`}
         </p>
 
         <div className="mt-4 flex justify-end gap-2">

@@ -11,6 +11,13 @@ export interface TopCandidateSummary {
   historicalPayerBehaviorScore: number;
   globalPatternScore: number;
   aggregateFeatureScore: number;
+  /**
+   * Phase MC-2d.1 — ISO 4217 currency of `invoiceAmount`. Sourced from the
+   * originating invoice (QBO CurrencyRef / Xero CurrencyCode). May be
+   * undefined for legacy records; consumers fall back to the item-level
+   * `home_currency`, then the page-level default, then USD.
+   */
+  currency?: string;
 }
 
 export interface MatchScoreSummary {
@@ -40,6 +47,15 @@ export interface ReviewItemRow {
   created_at: string;
   updated_at: string;
   ar_cash_app_match_scores: MatchScoreSummary[];
+  /**
+   * Phase MC-2d.1 — tenant home currency for this review item, denormalized
+   * on read from `accounting_connections.home_currency` for the item's
+   * `company_id`. Used as fallback when `TopCandidateSummary.currency` is
+   * missing. Uppercase ISO 4217; undefined when the tenant has no
+   * connected accounting realm (extremely rare — reviewer queue is only
+   * populated after a connection exists).
+   */
+  home_currency?: string;
 }
 
 export type ResolveAction = "accept" | "reject" | "write_off" | "on_account" | "split";
