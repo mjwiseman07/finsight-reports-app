@@ -12,6 +12,7 @@ import {
   US_PAYOR_FORBIDDEN_IN_IFRS,
   type HealthcareRevenueEmitterInput,
 } from "../../types";
+import { formatAmountForEmitter } from "../../../format-amount";
 
 export const EMITTER_PATH = "lib/router/lanes/healthcare/emitters/ifrs/payorMixIFRS.ts";
 
@@ -36,6 +37,7 @@ export function emitPayorMixIFRS(input: HealthcareRevenueEmitterInput): EmitterR
     throw new IfrsPayorMixIncompleteError("healthcare_revenue.ifrs.payor_mix");
   }
 
+  const currency = mix.presentation_currency;
   let sum = 0;
   const rows: string[] = [];
   for (const payor of mix.payors) {
@@ -46,7 +48,7 @@ export function emitPayorMixIFRS(input: HealthcareRevenueEmitterInput): EmitterR
       }
     }
     sum += payor.revenue;
-    rows.push(`${payor.class}: ${payor.revenue.toLocaleString("en-US")}`);
+    rows.push(`${payor.class}: ${formatAmountForEmitter(payor.revenue, currency)}`);
   }
 
   if (Math.abs(sum - mix.total_revenue) > HC_FOOTING_TOLERANCE_USD) {
@@ -55,7 +57,7 @@ export function emitPayorMixIFRS(input: HealthcareRevenueEmitterInput): EmitterR
 
   const text =
     `Revenue disaggregated by payor class per ${CITATION_RESOLVED}: ${rows.join("; ")}. ` +
-    `Total revenue ${mix.total_revenue.toLocaleString("en-US")}.`;
+    `Total revenue ${formatAmountForEmitter(mix.total_revenue, currency)}.`;
   assertIfrsHcRevenueOutputNonComingling(text);
 
   return {

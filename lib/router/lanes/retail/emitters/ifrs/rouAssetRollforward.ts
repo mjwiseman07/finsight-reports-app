@@ -7,6 +7,10 @@ import {
 import { IFRS16RoURollforwardError } from "../../errors";
 import { assertIfrsRtlLeaseOutputNonComingling } from "../../forbidden";
 import { FOOTING_TOLERANCE_UNITS, IFRS_16, type RetailLeaseEmitterInput } from "../../types";
+import {
+  EMITTER_CURRENCY_FALLBACK,
+  formatAmountForEmitter,
+} from "../../../format-amount";
 
 export const EMITTER_PATH = "lib/router/lanes/retail/emitters/ifrs/rouAssetRollforward.ts";
 
@@ -66,31 +70,32 @@ export function emitRouAssetRollforward(input: RetailLeaseEmitterInput): Emitter
     throw new IFRS16RoURollforwardError("RoU asset classes must be distinct");
   }
 
+  const currency = rollforward.presentation_currency;
   let totalClosing = 0;
   const classSummaries: string[] = [];
   for (const row of rollforward.classes) {
     footClassRow(row.class_name, row);
     totalClosing += row.closing;
     classSummaries.push(
-      `${row.class_name}: opening ${row.opening.toLocaleString("en-US")}, additions ${row.additions.toLocaleString("en-US")}, ` +
-        `depreciation ${row.depreciation.toLocaleString("en-US")}, impairment ${row.impairment_losses.toLocaleString("en-US")}, ` +
-        `reversals ${row.impairment_reversals.toLocaleString("en-US")}, disposals ${row.disposals.toLocaleString("en-US")}, ` +
-        `FX ${row.fx_translation.toLocaleString("en-US")}, other ${row.other_movements.toLocaleString("en-US")}, ` +
-        `closing ${row.closing.toLocaleString("en-US")}`,
+      `${row.class_name}: opening ${formatAmountForEmitter(row.opening, currency)}, additions ${formatAmountForEmitter(row.additions, currency)}, ` +
+        `depreciation ${formatAmountForEmitter(row.depreciation, currency)}, impairment ${formatAmountForEmitter(row.impairment_losses, currency)}, ` +
+        `reversals ${formatAmountForEmitter(row.impairment_reversals, currency)}, disposals ${formatAmountForEmitter(row.disposals, currency)}, ` +
+        `FX ${formatAmountForEmitter(row.fx_translation, currency)}, other ${formatAmountForEmitter(row.other_movements, currency)}, ` +
+        `closing ${formatAmountForEmitter(row.closing, currency)}`,
     );
   }
 
   const diff = Math.abs(totalClosing - rollforward.balance_sheet_rou_total);
   if (diff > FOOTING_TOLERANCE_UNITS) {
     throw new IFRS16RoURollforwardError(
-      `balance sheet RoU reconciliation diff ${diff.toLocaleString("en-US")}`,
+      `balance sheet RoU reconciliation diff ${formatAmountForEmitter(diff, currency)}`,
     );
   }
 
-  const currency = rollforward.presentation_currency ?? "units";
+  const currencyLabel = currency?.toUpperCase() ?? EMITTER_CURRENCY_FALLBACK;
   const text =
-    `IFRS 16.53(j) right-of-use asset rollforward by class (${currency}): ${classSummaries.join(". ")}. ` +
-    `Total closing RoU assets ${totalClosing.toLocaleString("en-US")} reconciled to balance sheet ${rollforward.balance_sheet_rou_total.toLocaleString("en-US")} per ${CITATION_RESOLVED}.`;
+    `IFRS 16.53(j) right-of-use asset rollforward by class (${currencyLabel}): ${classSummaries.join(". ")}. ` +
+    `Total closing RoU assets ${formatAmountForEmitter(totalClosing, currency)} reconciled to balance sheet ${formatAmountForEmitter(rollforward.balance_sheet_rou_total, currency)} per ${CITATION_RESOLVED}.`;
   assertIfrsRtlLeaseOutputNonComingling(text);
 
   return {

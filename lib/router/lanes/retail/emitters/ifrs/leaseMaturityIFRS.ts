@@ -7,6 +7,7 @@ import {
 import { IFRS16MaturityIncompleteError } from "../../errors";
 import { assertIfrsRtlLeaseOutputNonComingling } from "../../forbidden";
 import { FOOTING_TOLERANCE_UNITS, IFRS_16, type RetailLeaseEmitterInput } from "../../types";
+import { formatAmountForEmitter } from "../../../format-amount";
 
 export const EMITTER_PATH = "lib/router/lanes/retail/emitters/ifrs/leaseMaturityIFRS.ts";
 
@@ -48,18 +49,18 @@ export function emitLeaseMaturityIFRS(input: RetailLeaseEmitterInput): EmitterRe
     );
   }
 
-  const currency = maturity.presentation_currency ?? "units";
+  const currency = maturity.presentation_currency;
   const rate = maturity.weighted_average_ibr_pct.toFixed(2);
   const text =
     `IFRS 16 maturity analysis of lease liabilities (IFRS 7.39 bands): ` +
-    `≤1yr ${bands.within_one_year.toLocaleString("en-US")} ${currency}, ` +
-    `1–2yr ${bands.one_to_two_years.toLocaleString("en-US")} ${currency}, ` +
-    `2–3yr ${bands.two_to_three_years.toLocaleString("en-US")} ${currency}, ` +
-    `3–4yr ${bands.three_to_four_years.toLocaleString("en-US")} ${currency}, ` +
-    `4–5yr ${bands.four_to_five_years.toLocaleString("en-US")} ${currency}, ` +
-    `>5yr ${bands.beyond_five_years.toLocaleString("en-US")} ${currency}; ` +
-    `total undiscounted ${maturity.total_undiscounted.toLocaleString("en-US")} ${currency}; ` +
-    `lease liability carrying amount ${maturity.lease_liability_carrying_amount.toLocaleString("en-US")} ${currency}; ` +
+    `≤1yr ${formatAmountForEmitter(bands.within_one_year, currency)}, ` +
+    `1–2yr ${formatAmountForEmitter(bands.one_to_two_years, currency)}, ` +
+    `2–3yr ${formatAmountForEmitter(bands.two_to_three_years, currency)}, ` +
+    `3–4yr ${formatAmountForEmitter(bands.three_to_four_years, currency)}, ` +
+    `4–5yr ${formatAmountForEmitter(bands.four_to_five_years, currency)}, ` +
+    `>5yr ${formatAmountForEmitter(bands.beyond_five_years, currency)}; ` +
+    `total undiscounted ${formatAmountForEmitter(maturity.total_undiscounted, currency)}; ` +
+    `lease liability carrying amount ${formatAmountForEmitter(maturity.lease_liability_carrying_amount, currency)}; ` +
     `weighted-average incremental borrowing rate ${rate}% per ${CITATION_RESOLVED}.`;
   assertIfrsRtlLeaseOutputNonComingling(text);
 
