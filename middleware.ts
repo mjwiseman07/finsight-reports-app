@@ -134,6 +134,8 @@ function isMarketingAllowed(pathname: string) {
     // fetch-reports are called from marketing-host authenticated pages.
     pathname.startsWith("/api/quickbooks/") ||
     pathname.startsWith("/api/webhooks/") ||
+    // Free Review lead-capture funnel (lives on marketing host).
+    pathname.startsWith("/api/free-review/") ||
     pathname.startsWith("/#")
   );
 }
