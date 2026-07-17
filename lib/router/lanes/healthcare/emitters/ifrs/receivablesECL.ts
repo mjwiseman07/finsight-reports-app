@@ -11,6 +11,7 @@ import {
   IFRS_9,
   type HealthcareRevenueEmitterInput,
 } from "../../types";
+import { formatAmountForEmitter } from "../../../format-amount";
 
 export const EMITTER_PATH = "lib/router/lanes/healthcare/emitters/ifrs/receivablesECL.ts";
 
@@ -48,13 +49,13 @@ export function emitReceivablesECL(input: HealthcareRevenueEmitterInput): Emitte
     throw new IFRS9StageIncompleteError("ECL stage closing footing");
   }
 
-  const currency = ecl.presentation_currency ?? "units";
+  const currency = ecl.presentation_currency;
   const macro = ecl.forward_looking_inputs.join("; ");
   const text =
-    `IFRS 9 expected credit loss allowance: Stage 1 (12-month ECL) opening ${stage_1.opening.toLocaleString("en-US")} ${currency}, closing ${stage_1.closing.toLocaleString("en-US")} ${currency}; ` +
-    `Stage 2 (lifetime ECL) opening ${stage_2.opening.toLocaleString("en-US")} ${currency}, closing ${stage_2.closing.toLocaleString("en-US")} ${currency}; ` +
-    `Stage 3 (credit-impaired lifetime ECL) opening ${stage_3.opening.toLocaleString("en-US")} ${currency}, closing ${stage_3.closing.toLocaleString("en-US")} ${currency}. ` +
-    `Forward-looking macroeconomic inputs: ${macro}. Total closing ECL allowance ${ecl.total_closing_allowance.toLocaleString("en-US")} ${currency} per ${CITATION_RESOLVED}.`;
+    `IFRS 9 expected credit loss allowance: Stage 1 (12-month ECL) opening ${formatAmountForEmitter(stage_1.opening, currency)}, closing ${formatAmountForEmitter(stage_1.closing, currency)}; ` +
+    `Stage 2 (lifetime ECL) opening ${formatAmountForEmitter(stage_2.opening, currency)}, closing ${formatAmountForEmitter(stage_2.closing, currency)}; ` +
+    `Stage 3 (credit-impaired lifetime ECL) opening ${formatAmountForEmitter(stage_3.opening, currency)}, closing ${formatAmountForEmitter(stage_3.closing, currency)}. ` +
+    `Forward-looking macroeconomic inputs: ${macro}. Total closing ECL allowance ${formatAmountForEmitter(ecl.total_closing_allowance, currency)} per ${CITATION_RESOLVED}.`;
   assertIfrsHcRevenueOutputNonComingling(text);
 
   return {

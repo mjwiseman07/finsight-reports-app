@@ -16,6 +16,7 @@ import {
   MFG_FOOTING_TOLERANCE_USD,
   type ManufacturingInventoryEmitterInput,
 } from "../../types";
+import { formatAmountForEmitter } from "../../../format-amount";
 
 export const EMITTER_PATH =
   "lib/router/lanes/manufacturing/emitters/ifrs/inventoryDecompositionIAS2.ts";
@@ -69,23 +70,26 @@ export function emitInventoryDecompositionIAS2(input: ManufacturingInventoryEmit
     throw new Ias2InventoryDecompositionIncompleteError("inventory decomposition footing");
   }
 
+  const currency = decomp.presentation_currency;
   const methodLabel = decomp.costing_method === "FIFO" ? "FIFO" : "weighted-average";
   const nrvParts: string[] = [];
   if (decomp.nrv_writedown && decomp.nrv_writedown > 0) {
-    nrvParts.push(`NRV writedown $${decomp.nrv_writedown.toLocaleString("en-US")} per IAS 2.34`);
+    nrvParts.push(
+      `NRV writedown ${formatAmountForEmitter(decomp.nrv_writedown, currency)} per IAS 2.34`,
+    );
   }
   if (decomp.nrv_writedown_reversal && decomp.nrv_writedown_reversal > 0) {
     nrvParts.push(
-      `NRV writedown reversal $${decomp.nrv_writedown_reversal.toLocaleString("en-US")} per IAS 2.33`,
+      `NRV writedown reversal ${formatAmountForEmitter(decomp.nrv_writedown_reversal, currency)} per IAS 2.33`,
     );
   }
   const nrv = nrvParts.length > 0 ? ` ${nrvParts.join("; ")}.` : "";
 
   const text =
-    `Inventories classified per ${CITATION_RESOLVED}: raw materials $${decomp.raw_materials.toLocaleString("en-US")}, ` +
-    `work in progress $${decomp.work_in_progress.toLocaleString("en-US")}, finished goods $${decomp.finished_goods.toLocaleString("en-US")}` +
-    (merchandise > 0 ? `, merchandise $${merchandise.toLocaleString("en-US")}` : "") +
-    `. Total inventories $${decomp.total_inventories.toLocaleString("en-US")}. ` +
+    `Inventories classified per ${CITATION_RESOLVED}: raw materials ${formatAmountForEmitter(decomp.raw_materials, currency)}, ` +
+    `work in progress ${formatAmountForEmitter(decomp.work_in_progress, currency)}, finished goods ${formatAmountForEmitter(decomp.finished_goods, currency)}` +
+    (merchandise > 0 ? `, merchandise ${formatAmountForEmitter(merchandise, currency)}` : "") +
+    `. Total inventories ${formatAmountForEmitter(decomp.total_inventories, currency)}. ` +
     `Cost formula: ${methodLabel} (IAS 2.25).${nrv}`;
   assertIfrsMfgInventoryOutputNonComingling(text);
 

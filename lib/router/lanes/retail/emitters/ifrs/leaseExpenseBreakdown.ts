@@ -7,6 +7,7 @@ import {
 import { IFRS16ExpenseIncompleteError } from "../../errors";
 import { assertIfrsRtlLeaseOutputNonComingling } from "../../forbidden";
 import { IFRS_16, type RetailLeaseEmitterInput } from "../../types";
+import { formatAmountForEmitter } from "../../../format-amount";
 
 export const EMITTER_PATH = "lib/router/lanes/retail/emitters/ifrs/leaseExpenseBreakdown.ts";
 
@@ -52,20 +53,24 @@ export function emitLeaseExpenseBreakdown(input: RetailLeaseEmitterInput): Emitt
     throw new IFRS16ExpenseIncompleteError("short-term and low-value lease expense must not be collapsed");
   }
 
+  const currency = breakdown.presentation_currency;
   const depreciationSummary = Object.entries(breakdown.depreciation_rou_by_class)
-    .map(([cls, amount]: [string, number]) => `${cls}: ${amount.toLocaleString("en-US")}`)
+    .map(
+      ([cls, amount]: [string, number]) =>
+        `${cls}: ${formatAmountForEmitter(amount, currency)}`,
+    )
     .join("; ");
   const subleaseIncome = breakdown.sublease_income ?? 0;
   const subleaseLine =
     subleaseIncome !== 0
-      ? ` Income from subleasing right-of-use assets: ${subleaseIncome.toLocaleString("en-US")}.`
+      ? ` Income from subleasing right-of-use assets: ${formatAmountForEmitter(subleaseIncome, currency)}.`
       : "";
   const text =
     `IFRS 16 lessee lease expense by nature: depreciation of right-of-use assets (${depreciationSummary}); ` +
-    `interest on lease liabilities ${breakdown.interest_on_lease_liabilities.toLocaleString("en-US")}; ` +
-    `short-term lease expense ${breakdown.short_term_lease_expense.toLocaleString("en-US")}; ` +
-    `low-value asset lease expense ${breakdown.low_value_lease_expense.toLocaleString("en-US")}; ` +
-    `variable lease payments not in liability measurement ${breakdown.variable_lease_payments.toLocaleString("en-US")}.${subleaseLine} ` +
+    `interest on lease liabilities ${formatAmountForEmitter(breakdown.interest_on_lease_liabilities, currency)}; ` +
+    `short-term lease expense ${formatAmountForEmitter(breakdown.short_term_lease_expense, currency)}; ` +
+    `low-value asset lease expense ${formatAmountForEmitter(breakdown.low_value_lease_expense, currency)}; ` +
+    `variable lease payments not in liability measurement ${formatAmountForEmitter(breakdown.variable_lease_payments, currency)}.${subleaseLine} ` +
     `per ${CITATION_RESOLVED}.`;
   assertIfrsRtlLeaseOutputNonComingling(text);
 

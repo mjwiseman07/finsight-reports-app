@@ -308,6 +308,7 @@ export interface ExtractedFiling {
         low_value_lease_expense: number;
         variable_lease_payments: number;
         sublease_income?: number;
+        presentation_currency?: string;
       };
       maturity?: {
         bands: {
@@ -379,6 +380,7 @@ export interface ExtractedFiling {
       payor_mix?: {
         payors: Array<{ class: string; revenue: number }>;
         total_revenue: number;
+        presentation_currency?: string;
       };
       receivables_ecl?: {
         stages: {
@@ -428,6 +430,7 @@ export interface ExtractedFiling {
         nrv_writedown?: number;
         nrv_writedown_reversal?: number;
         work_in_process?: number;
+        presentation_currency?: string;
       };
     };
   };
