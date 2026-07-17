@@ -22,6 +22,7 @@ export default defineConfig({
       "lib/cash-app/**/*.test.ts",
       "lib/intake/**/*.test.ts",
       "lib/ap-intake/**/*.test.ts",
+      "lib/format/__tests__/**/*.test.ts",
       "tests/apIntake/**/*.test.ts",
       "app/**/*.test.ts",
       "app/**/*.test.tsx",
