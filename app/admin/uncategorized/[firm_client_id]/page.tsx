@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SiteNav } from "../../../../components/SiteNav";
 import { SiteFooter } from "../../../../components/SiteFooter";
 import { headingFont, focusRing } from "../../../../components/site-ui";
@@ -20,6 +20,36 @@ export default function UncategorizedAdminPage() {
   const params = useParams();
   const firmClientId = String(params?.firm_client_id ?? "");
   const [tab, setTab] = useState<TabKey>("uncategorized");
+  const [homeCurrency, setHomeCurrency] = useState<string | undefined>(undefined);
+
+  const token = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem("supabase_access_token") || "";
+  }, []);
+
+  // Phase MC-2d.2 — prefetch home_currency once from the proposals endpoint
+  // so the first tab render already has the tenant's currency in hand. The
+  // per-tab fetches will also thread home_currency through, but this ensures
+  // the tab that mounts first doesn't briefly flash USD before its fetch
+  // returns.
+  const loadHomeCurrency = useCallback(async () => {
+    if (!firmClientId || !token) return;
+    try {
+      const res = await fetch(
+        `/api/uncategorized/proposals?firm_client_id=${encodeURIComponent(firmClientId)}&status=pending&limit=1`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) return;
+      const json = (await res.json()) as { home_currency?: string };
+      if (json.home_currency) setHomeCurrency(json.home_currency);
+    } catch {
+      // Non-fatal — tab-level fetches will retry.
+    }
+  }, [firmClientId, token]);
+
+  useEffect(() => {
+    void loadHomeCurrency();
+  }, [loadHomeCurrency]);
 
   return (
     <div className="min-h-screen bg-[#111112] text-[#ECEBE7]">
@@ -61,9 +91,17 @@ export default function UncategorizedAdminPage() {
         </div>
 
         {tab === "uncategorized" ? (
-          <UncategorizedTab firmClientId={firmClientId} />
+          <UncategorizedTab
+            firmClientId={firmClientId}
+            homeCurrency={homeCurrency}
+            onHomeCurrencyResolved={setHomeCurrency}
+          />
         ) : (
-          <RecurringTab firmClientId={firmClientId} />
+          <RecurringTab
+            firmClientId={firmClientId}
+            homeCurrency={homeCurrency}
+            onHomeCurrencyResolved={setHomeCurrency}
+          />
         )}
       </main>
       <SiteFooter />

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { focusRing } from "../../../../components/site-ui";
+import { DEFAULT_FALLBACK_CURRENCY, formatMoney } from "@/lib/format/money";
 
 type Proposal = {
   proposal_id: string;
@@ -25,11 +26,22 @@ const BUCKET_STYLES = {
   red: { bg: "#B85C5C", label: "Red" },
 } as const;
 
-function formatUsd(amount: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
-}
-
-export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
+export function UncategorizedTab({
+  firmClientId,
+  homeCurrency,
+  onHomeCurrencyResolved,
+}: {
+  firmClientId: string;
+  homeCurrency?: string;
+  onHomeCurrencyResolved?: (currency: string) => void;
+}) {
+  // Phase MC-2d.2 — resolve display currency once per render from prop or USD.
+  const displayCurrency = homeCurrency || DEFAULT_FALLBACK_CURRENCY;
+  const money2 = useCallback(
+    (amount: number) =>
+      formatMoney(amount, displayCurrency, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    [displayCurrency],
+  );
   const router = useRouter();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [error, setError] = useState("");
@@ -59,15 +71,19 @@ export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
       `/api/uncategorized/proposals?firm_client_id=${encodeURIComponent(firmClientId)}&status=pending&limit=200`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    const result = await response.json();
+    const json = (await response.json()) as { proposals?: Proposal[]; home_currency?: string };
     if (!response.ok) {
-      setError(result.error || "Failed to load proposals.");
+      setError((json as { error?: string }).error || "Failed to load proposals.");
       setIsLoading(false);
       return;
     }
-    setProposals(result.proposals || []);
+    setProposals(json.proposals ?? []);
+    // Phase MC-2d.2 — bubble tenant currency up so sibling tab shares state.
+    if (json.home_currency && json.home_currency !== homeCurrency && onHomeCurrencyResolved) {
+      onHomeCurrencyResolved(json.home_currency);
+    }
     setIsLoading(false);
-  }, [firmClientId, router, token]);
+  }, [firmClientId, homeCurrency, onHomeCurrencyResolved, router, token]);
 
   useEffect(() => {
     void loadProposals();
@@ -211,7 +227,7 @@ export function UncategorizedTab({ firmClientId }: { firmClientId: string }) {
                     </td>
                     <td className="px-4 py-3">{p.txn_date}</td>
                     <td className="px-4 py-3">{p.vendor_name || "—"}</td>
-                    <td className="px-4 py-3">{formatUsd(p.txn_amount)}</td>
+                    <td className="px-4 py-3">{money2(p.txn_amount)}</td>
                     <td className="px-4 py-3">{p.current_account_name}</td>
                     <td className="px-4 py-3">{p.suggested_account_name || "—"}</td>
                     <td className="px-4 py-3 font-mono text-xs text-[#A29E93]">{p.confidence.toFixed(3)}</td>

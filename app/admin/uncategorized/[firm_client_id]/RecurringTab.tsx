@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { focusRing } from "../../../../components/site-ui";
+import { DEFAULT_FALLBACK_CURRENCY, formatMoney } from "@/lib/format/money";
 
 type GateDecision = { action: "dispatch" } | { action: "hold"; reason: string };
 
@@ -34,11 +35,22 @@ function pillFor(decision: GateDecision) {
   return DECISION_STYLES[key] ?? { bg: "#7A7974", label: "Hold" };
 }
 
-function formatUsd(amount: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
-}
-
-export function RecurringTab({ firmClientId }: { firmClientId: string }) {
+export function RecurringTab({
+  firmClientId,
+  homeCurrency,
+  onHomeCurrencyResolved,
+}: {
+  firmClientId: string;
+  homeCurrency?: string;
+  onHomeCurrencyResolved?: (currency: string) => void;
+}) {
+  // Phase MC-2d.2 — resolve display currency once per render from prop or USD.
+  const displayCurrency = homeCurrency || DEFAULT_FALLBACK_CURRENCY;
+  const money2 = useCallback(
+    (amount: number) =>
+      formatMoney(amount, displayCurrency, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    [displayCurrency],
+  );
   const router = useRouter();
   const [rows, setRows] = useState<FireReviewRow[]>([]);
   const [error, setError] = useState("");
@@ -61,15 +73,24 @@ export function RecurringTab({ firmClientId }: { firmClientId: string }) {
       `/api/recurring/fires?firm_client_id=${encodeURIComponent(firmClientId)}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    const result = await response.json();
+    const json = (await response.json()) as {
+      rows?: FireReviewRow[];
+      errors?: string[];
+      home_currency?: string;
+    };
     if (!response.ok) {
-      setError(result.error || "Failed to load fires.");
+      setError((json as { error?: string }).error || "Failed to load fires.");
       setIsLoading(false);
       return;
     }
-    setRows(result.rows || []);
+    setRows(json.rows ?? []);
+    // Phase MC-2d.2 — bubble tenant currency up to parent so sibling tab
+    // benefits without an extra fetch. Only fire when it actually changes.
+    if (json.home_currency && json.home_currency !== homeCurrency && onHomeCurrencyResolved) {
+      onHomeCurrencyResolved(json.home_currency);
+    }
     setIsLoading(false);
-  }, [firmClientId, router, token]);
+  }, [firmClientId, homeCurrency, onHomeCurrencyResolved, router, token]);
 
   useEffect(() => {
     void loadFires();
@@ -183,11 +204,11 @@ export function RecurringTab({ firmClientId }: { firmClientId: string }) {
                     <td className="px-4 py-3">{r.fire_date}</td>
                     <td className="px-4 py-3 font-mono text-xs text-[#A29E93]">{r.period_index}</td>
                     <td className="px-4 py-3">
-                      <span>{formatUsd(r.amount)}</span>
+                      <span>{money2(r.amount)}</span>
                       {r.amount_override !== null && (
                         <span
                           className="ml-2 inline-flex rounded-full bg-[#C9A961]/20 px-2 py-0.5 text-[10px] font-semibold text-[#DFC084]"
-                          title={`Advisory override: ${formatUsd(r.amount_override)}`}
+                          title={`Advisory override: ${money2(r.amount_override)}`}
                         >
                           override
                         </span>
