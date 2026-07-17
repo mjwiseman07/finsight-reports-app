@@ -141,4 +141,48 @@ describe("SplitAllocationModal", () => {
       screen.getByRole("dialog", { name: /split payment across invoices/i }),
     ).toBeInTheDocument();
   });
+
+  test("Phase MC-2d.1: CAD candidate renders CA$ amounts", () => {
+    const cadCandidates: TopCandidateSummary[] = candidates.map((c) => ({ ...c, currency: "CAD" }));
+    render(
+      <SplitAllocationModal
+        reviewItemId="ri-cad"
+        candidates={cadCandidates}
+        onClose={vi.fn()}
+        onResolved={vi.fn()}
+      />,
+    );
+    // Per-candidate label carries CA$ (or the localized CAD symbol).
+    expect(screen.getByText(/CA\$600\.00/)).toBeInTheDocument();
+    expect(screen.getByText(/CA\$400\.00/)).toBeInTheDocument();
+    // Tolerance copy carries CA$0.01.
+    expect(screen.getByText(/must match within CA\$0\.01/)).toBeInTheDocument();
+  });
+
+  test("Phase MC-2d.1: homeCurrency prop is the fallback when candidates lack currency", () => {
+    render(
+      <SplitAllocationModal
+        reviewItemId="ri-eur"
+        candidates={candidates}
+        homeCurrency="EUR"
+        onClose={vi.fn()}
+        onResolved={vi.fn()}
+      />,
+    );
+    // Intl may render as "€" or "EUR" depending on Node ICU — accept either.
+    expect(screen.getByText(/€600\.00|EUR\s*600\.00/)).toBeInTheDocument();
+  });
+
+  test("Phase MC-2d.1: no currency anywhere falls back to USD", () => {
+    render(
+      <SplitAllocationModal
+        reviewItemId="ri-usd"
+        candidates={candidates}
+        onClose={vi.fn()}
+        onResolved={vi.fn()}
+      />,
+    );
+    // Bare $ symbol on the target amount.
+    expect(screen.getByText(/\$1,000\.00/)).toBeInTheDocument();
+  });
 });

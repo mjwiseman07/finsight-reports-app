@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ReviewItemRow } from "@/lib/cash-app/review-queue-types";
+import { DEFAULT_FALLBACK_CURRENCY, formatMoney } from "@/lib/format/money";
 import { SplitAllocationModal } from "./SplitAllocationModal";
 import { WriteOffModal } from "./WriteOffModal";
 
@@ -166,7 +167,12 @@ export function ReviewItemDetailModal({ item, onClose, onResolved }: Props) {
                 <tr key={c.invoiceId} className="border-b border-white/5">
                   <td className="py-2 pr-2">{c.invoiceNumber}</td>
                   <td className="py-2 pr-2">{c.customerName}</td>
-                  <td className="py-2 pr-2">${c.invoiceAmount.toFixed(2)}</td>
+                  <td className="py-2 pr-2">
+                    {formatMoney(c.invoiceAmount, c.currency || item.home_currency || DEFAULT_FALLBACK_CURRENCY, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
                   <td className="py-2 pr-2">{Math.round(c.fuzzyPayerNameScore * 100)}%</td>
                   <td className="py-2 pr-2">{Math.round(c.amountToleranceScore * 100)}%</td>
                   <td className="py-2 pr-2">{Math.round(c.dateProximityScore * 100)}%</td>
@@ -261,6 +267,7 @@ export function ReviewItemDetailModal({ item, onClose, onResolved }: Props) {
         <SplitAllocationModal
           reviewItemId={item.id}
           candidates={item.top_candidates}
+          homeCurrency={item.home_currency}
           onClose={() => setShowSplit(false)}
           onResolved={() => onResolved(item.id)}
         />

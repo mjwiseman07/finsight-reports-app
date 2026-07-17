@@ -71,8 +71,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to load review items" }, { status: 500 });
     }
 
+    // Phase MC-2d.1: enrich each row with home_currency from
+    // accounting_connections. Group company_ids to dedupe the lookup.
+    const rawItems = data ?? [];
+    const uniqueCompanyIds = Array.from(
+      new Set(
+        rawItems
+          .map((r) => r.company_id as string | null | undefined)
+          .filter((v): v is string => Boolean(v)),
+      ),
+    );
+    const currencyByCompanyId = new Map<string, string>();
+    if (uniqueCompanyIds.length > 0) {
+      const { data: connections, error: connErr } = await supabase
+        .from("accounting_connections")
+        .select("id, user_id, home_currency, metadata_json")
+        // company_id maps to user_id in the connections row (MC-1 canonical linkage)
+        .in("user_id", uniqueCompanyIds);
+      if (connErr) {
+        // Non-fatal: fall through with no currency data. Modal will fall
+        // back to prop / USD default. Log and continue rather than 500 the
+        // reviewer queue over a currency lookup.
+        console.warn("[review-items GET] home_currency lookup failed:", connErr.message);
+      } else {
+        for (const conn of connections ?? []) {
+          if (conn.user_id && conn.home_currency) {
+            currencyByCompanyId.set(conn.user_id, String(conn.home_currency).toUpperCase());
+          }
+        }
+      }
+    }
+    const items = rawItems.map((row) => ({
+      ...row,
+      home_currency: row.company_id ? currencyByCompanyId.get(row.company_id) : undefined,
+    }));
+
     return NextResponse.json({
-      items: data ?? [],
+      items,
       nextCursor: data && data.length === limit ? data[data.length - 1].id : null,
     });
   } catch (err) {

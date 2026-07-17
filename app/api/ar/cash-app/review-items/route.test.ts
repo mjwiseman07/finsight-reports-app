@@ -110,4 +110,41 @@ describe("GET /api/ar/cash-app/review-items", () => {
     const res = await GET(req);
     expect(res.status).toBe(500);
   });
+
+  test("Phase MC-2d.1: GET decorates each item with home_currency from accounting_connections", async () => {
+    vi.mocked(requireFirmAuth).mockResolvedValue({
+      userId: "u1",
+      firmIds: ["f1"],
+      writerFirmIds: ["f1"],
+      isServiceRoleCaller: false,
+    });
+    mockFrom
+      .mockReturnValueOnce(
+        makeChain({
+          data: [{ id: "ri-1", company_id: "company-1", status: "pending" }],
+          error: null,
+        }),
+      )
+      .mockReturnValueOnce(
+        makeChain({
+          data: [
+            {
+              id: "conn-1",
+              user_id: "company-1",
+              home_currency: "CAD",
+              metadata_json: {},
+            },
+          ],
+          error: null,
+        }),
+      );
+    const req = new NextRequest("https://example.com/api/ar/cash-app/review-items");
+    const res = await GET(req);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0].home_currency).toBe("CAD");
+    expect(mockFrom).toHaveBeenCalledWith("ar_cash_app_review_items");
+    expect(mockFrom).toHaveBeenCalledWith("accounting_connections");
+  });
 });
