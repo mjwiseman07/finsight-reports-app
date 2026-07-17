@@ -20,15 +20,29 @@ export default function ResetPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Supabase password reset uses PKCE flow: the recovery email link points to
-    //   /auth/reset-password?code=<pkce_code>
-    // We must exchange that code for a session before we can call updateUser.
-    // Legacy implicit-flow projects deliver tokens in the URL hash — handle both.
+    // Reset landing supports three arrival paths:
+    //
+    //  1) Preferred (Supabase docs, cross-device):
+    //     Email link points to /auth/confirm?token_hash=xxx&type=recovery&next=/auth/reset-password
+    //     The confirm route calls verifyOtp() server-side and sets auth cookies BEFORE
+    //     redirecting here — so we just check for the session and show the form.
+    //
+    //  2) Query error from confirm route:
+    //     /auth/reset-password?error=invalid_link → show "Link expired or invalid"
+    //
+    //  3) Legacy fallbacks (during template migration, or if a user has an old email):
+    //     3a) PKCE: /auth/reset-password?code=xxx  → exchangeCodeForSession
+    //     3b) Implicit: /auth/reset-password#access_token=...&type=recovery → auto-processed
     let cancelled = false;
     async function check() {
       try {
-        // 1) PKCE path — ?code=xxx in query string.
         const url = new URL(window.location.href);
+        // Path 2 — explicit error from confirm route
+        if (url.searchParams.get("error")) {
+          setPhase("invalid");
+          return;
+        }
+        // Path 3a — legacy PKCE (kept for old outstanding emails)
         const code = url.searchParams.get("code");
         if (code) {
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -37,16 +51,14 @@ export default function ResetPasswordPage() {
             setPhase("invalid");
             return;
           }
-          // Clean the code out of the URL so a refresh doesn't try to re-exchange
-          // (codes are single-use; re-exchange would flip us to "invalid").
           url.searchParams.delete("code");
           window.history.replaceState(null, "", url.pathname + url.search + url.hash);
           setPhase("ready");
           return;
         }
-        // 2) Implicit-flow path — #access_token=...&type=recovery in hash.
-        //    supabase-js auto-processes this on client init; wait one microtask
-        //    then check for a session.
+        // Path 1 + Path 3b — session should already exist (set by /auth/confirm server-side)
+        // or is being auto-processed from the hash fragment by supabase-js.
+        // One microtask yield lets any client-side hash processing complete.
         await new Promise((r) => setTimeout(r, 0));
         const { data, error: sessionError } = await supabase.auth.getSession();
         if (cancelled) return;
@@ -116,19 +128,19 @@ export default function ResetPasswordPage() {
       >
         <div className="relative z-10 mx-auto max-w-xl">
           <div className="rounded-3xl border border-white/10 bg-[#141416] p-8 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)]">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#C9A961]">
               Password Recovery
             </p>
 
             {phase === "loading" && (
-              <h1 className={`mt-3 text-3xl font-black leading-tight tracking-[-0.02em] text-white ${headingFont}`}>
+              <h1 className={`mt-3 text-3xl font-semibold leading-tight tracking-[-0.02em] text-white ${headingFont}`}>
                 Verifying your link...
               </h1>
             )}
 
             {phase === "invalid" && (
               <>
-                <h1 className={`mt-3 text-3xl font-black leading-tight tracking-[-0.02em] text-white ${headingFont}`}>
+                <h1 className={`mt-3 text-3xl font-semibold leading-tight tracking-[-0.02em] text-white ${headingFont}`}>
                   Link expired or invalid
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-white/70">
@@ -145,7 +157,7 @@ export default function ResetPasswordPage() {
 
             {phase === "ready" && (
               <>
-                <h1 className={`mt-3 text-3xl font-black leading-tight tracking-[-0.02em] text-white ${headingFont}`}>
+                <h1 className={`mt-3 text-3xl font-semibold leading-tight tracking-[-0.02em] text-white ${headingFont}`}>
                   Set a new password
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-white/70">
@@ -205,7 +217,7 @@ export default function ResetPasswordPage() {
 
             {phase === "success" && (
               <>
-                <h1 className={`mt-3 text-3xl font-black leading-tight tracking-[-0.02em] text-white ${headingFont}`}>
+                <h1 className={`mt-3 text-3xl font-semibold leading-tight tracking-[-0.02em] text-white ${headingFont}`}>
                   Password updated
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-white/70">

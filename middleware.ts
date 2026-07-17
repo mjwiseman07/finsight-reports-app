@@ -69,6 +69,7 @@ const PUBLIC_MARKETING_PATHS = new Set([
   "/signin",
   "/signup",
   "/forgot-password",
+  "/auth/confirm",
   "/auth/confirmed",
   "/auth/reset-password",
   "/dashboard",
