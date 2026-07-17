@@ -102,6 +102,14 @@ export function buildAdvisacorNormalizedFinancialData({
     syncId,
     reportPeriod,
     mappedAt,
+    // Phase MC-2c: propagate home currency from the raw bundle onto the
+    // normalized surface. Downstream renderers (PDF, close packet, UI) read
+    // this without needing the full bundle in scope. Uppercased to match the
+    // ISO 4217 convention enforced elsewhere.
+    home_currency: bundle.sourceMetadata.home_currency
+      ? String(bundle.sourceMetadata.home_currency).toUpperCase()
+      : undefined,
+    multicurrency_enabled: bundle.sourceMetadata.multicurrency_enabled,
     rawReportsPulled: {
       accounts: Boolean(bundle.chartOfAccounts?.length),
       trialBalance: Boolean(bundle.trialBalance?.length),

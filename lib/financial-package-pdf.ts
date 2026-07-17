@@ -1,4 +1,12 @@
 import type { AdvisacorNormalizedFinancialData } from "./integrations/accounting";
+import { DEFAULT_FALLBACK_CURRENCY, formatMoney } from "@/lib/format/money";
+import {
+  buildDemoPackageSections,
+  buildDemoBalanceSheetRows,
+  buildDemoIncomeStatementRows,
+  buildDemoFluxRows,
+  type DemoFluxRow,
+} from "./financial-package-pdf.demo-fixtures";
 import type { CanonicalPnLRow } from "./integrations/accounting/types";
 import { buildMappedFinancialSummary, classifyBalanceSheetAccount } from "./integrations/accounting/normalizers/financial-statements";
 import { assertScheduleSource, type ReportDataContext } from "./integrations/accounting/report-data-context";
@@ -37,6 +45,10 @@ type FinancialPackagePdfOptions = {
    * and this is undefined, the PDF renders the scaffold with zeroed counts.
    */
   reviewAssistFindings?: ReviewAssistFindingsPayload;
+  /**
+   * Phase MC-2c — ISO 4217 currency code for all formatted amounts in this PDF.
+   */
+  homeCurrency?: string;
 };
 /**
  * Phase TCP1 W2.5 — Review Assist findings payload.
@@ -97,11 +109,13 @@ export type FinancialPackageNormalizedInput = {
   reportDataContext?: ReportDataContext;
 };
 
-type NormalizedFinancialPackagePdfOptions = Required<Omit<FinancialPackagePdfOptions, "normalizedData" | "reportDataContext" | "reviewAssistFindings">> & {
+type NormalizedFinancialPackagePdfOptions = Required<Omit<FinancialPackagePdfOptions, "normalizedData" | "reportDataContext" | "reviewAssistFindings" | "homeCurrency">> & {
   normalizedData?: AdvisacorNormalizedFinancialData;
   reportDataContext?: ReportDataContext;
   packageInput?: FinancialPackageNormalizedInput;
   reviewAssistFindings?: ReviewAssistFindingsPayload;
+  /** Resolved home currency for this PDF render — never undefined post-normalize. */
+  homeCurrency: string;
 };
 
 const balanceSheetTieOut = {
@@ -115,233 +129,6 @@ const fixedAssetTieOut = {
   endingAccumulatedDepreciation: -114000,
   endingNetBookValue: 565000,
 };
-
-const packageSections: PdfPage[] = [
-  {
-    title: "Table of Contents",
-    category: "PACKAGE OVERVIEW",
-    subtitle: "Executive board package sequence with financial statements separated from advisory insight pages.",
-  },
-  {
-    title: "Current Month Balance Sheet",
-    category: "FINANCIAL POSITION",
-    subtitle: "Financial position, liquidity, and capital structure overview.",
-    lines: ["Current assets, fixed assets, liabilities, and equity are reviewed for liquidity and balance sheet quality."],
-    divider: true,
-  },
-  {
-    title: "Balance Sheet",
-    category: "FINANCIAL STATEMENT",
-    statement: "balanceSheet",
-    table: [
-      ["Operating Checking", "$182,000"],
-      ["Savings Account", "$95,000"],
-      ["Total Bank Accounts", "$277,000"],
-      ["Accounts Receivable", "$146,000"],
-      ["Inventory Asset", "$82,000"],
-      ["Prepaid Insurance", "$9,000"],
-      ["Total Current Assets", "$514,000"],
-      ["Equipment and Vehicles", "$420,000"],
-      ["Machinery and Tools", "$185,000"],
-      ["Furniture and Office Equipment", "$46,000"],
-      ["Leasehold Improvements", "$28,000"],
-      ["Total Fixed Assets", "$679,000"],
-      ["Less: Accumulated Depreciation", "($114,000)"],
-      ["Net Fixed Assets", "$565,000"],
-      ["TOTAL ASSETS", "$1,079,000"],
-      ["Accounts Payable", "$78,000"],
-      ["Credit Cards", "$14,000"],
-      ["Vehicle Loans", "$67,000"],
-      ["Equipment Notes Payable", "$91,000"],
-      ["TOTAL LIABILITIES", "$282,000"],
-      ["TOTAL EQUITY", "$797,000"],
-    ],
-  },
-  {
-    title: "Balance Sheet Insights & Ratios",
-    category: "ADVISORY INSIGHTS",
-    lines: [
-      "Liquidity is healthy, with current assets exceeding short-term obligations.",
-      "Working capital should be monitored through AR aging and vendor payment timing.",
-      "Fixed asset intensity is material and should be reconciled against depreciation policy and additions.",
-    ],
-    table: [
-      ["Current Ratio", "2.8x"],
-      ["Working Capital", "$330,000"],
-      ["Debt to Equity", "0.35x"],
-      ["Cash as % of Assets", "25.7%"],
-    ],
-  },
-  {
-    title: "Fixed Asset Analysis",
-    category: "CAPITAL ASSETS",
-    lines: [
-      "Fixed assets include equipment, vehicles, machinery, and leasehold improvements.",
-      "Pulse recommends confirming current-year additions, disposals, and accumulated depreciation monthly.",
-      "Step-up and step-down valuation adjustments are shown separately and are not treated as additions, disposals, or transfers unless they represent actual asset activity.",
-    ],
-    table: [
-      ["Total Fixed Assets", "$679,000"],
-      ["Accumulated Depreciation", "($114,000)"],
-      ["Net Book Value", "$565,000"],
-      ["Depreciation Expense", "$5,000"],
-      ["Beginning Gross Assets", "$704,000"],
-      ["Additions", "$0"],
-      ["Disposals", "($25,000)"],
-      ["Transfers", "$0"],
-      ["Step-Up Valuation Adjustment", "$0"],
-      ["Step-Down Valuation Adjustment", "$0"],
-      ["Ending Gross Assets", "$679,000"],
-      ["Accumulated Depreciation Change", "($114,000)"],
-      ["Net Book Value Change", "$23,000"],
-      ["Advisory Focus", "Review additions, disposals, depreciation policy, and capacity impact."],
-    ],
-  },
-  {
-    title: "Accounts Receivable Aging",
-    category: "WORKING CAPITAL",
-    lines: ["Receivables are reviewed for collection exposure, DSO impact, and concentration risk."],
-    table: [
-      ["Current", "$96,000"],
-      ["1-30 Days", "$28,000"],
-      ["31-60 Days", "$13,000"],
-      ["61-90 Days", "$6,000"],
-      ["90+ Days", "$3,000"],
-      ["Total AR", "$146,000"],
-    ],
-  },
-  {
-    title: "Accounts Payable Aging",
-    category: "WORKING CAPITAL",
-    lines: ["Payables are reviewed for vendor pressure, payment timing, and cash runway implications."],
-    table: [
-      ["Current", "$44,000"],
-      ["1-30 Days", "$21,000"],
-      ["31-60 Days", "$9,000"],
-      ["61-90 Days", "$3,000"],
-      ["90+ Days", "$1,000"],
-      ["Total AP", "$78,000"],
-    ],
-  },
-  {
-    title: "Inventory Analysis",
-    category: "WORKING CAPITAL",
-    lines: [
-      "Inventory is compared to sales velocity, gross margin, and working capital usage.",
-      "Pulse recommends reviewing slow-moving items and confirming inventory ties to the balance sheet.",
-    ],
-    table: [
-      ["Raw Materials", "$34,000"],
-      ["Work in Process", "$18,000"],
-      ["Finished Goods", "$30,000"],
-      ["Slow Moving Inventory", "$7,500"],
-      ["Inventory Turnover", "5.4x"],
-    ],
-  },
-  {
-    title: "Current Month Income Statement",
-    category: "FINANCIAL PERFORMANCE",
-    subtitle: "Revenue, gross margin, operating expense, payroll, and net income overview.",
-    lines: ["The income statement is reviewed for margin movement, expense discipline, and operating leverage."],
-    divider: true,
-  },
-  {
-    title: "Income Statement",
-    category: "FINANCIAL STATEMENT",
-    statement: "incomeStatement",
-    table: [
-      ["Industrial Services Revenue", "$485,000"],
-      ["Maintenance Contracts", "$215,000"],
-      ["Emergency Repair Revenue", "$124,000"],
-      ["Total Income", "$824,000"],
-      ["Field Labor", "$238,000"],
-      ["Materials & Supplies", "$91,000"],
-      ["Equipment Rentals", "$27,000"],
-      ["Fuel Expense", "$19,000"],
-      ["Total Cost of Goods Sold", "$375,000"],
-      ["Gross Profit", "$449,000"],
-      ["Payroll - Admin", "$74,000"],
-      ["Insurance", "$18,000"],
-      ["Software Subscriptions", "$5,400"],
-      ["Utilities", "$6,200"],
-      ["Marketing", "$9,800"],
-      ["Office Expense", "$4,100"],
-      ["Vehicle Expense", "$11,800"],
-      ["Professional Fees", "$13,600"],
-      ["Rent Expense", "$24,000"],
-      ["Travel Expense", "$7,200"],
-      ["Depreciation Expense", "$5,000"],
-      ["Total Operating Expenses", "$179,100"],
-      ["Net Income", "$269,900"],
-    ],
-  },
-  {
-    title: "Income Statement Insights & Ratios",
-    category: "ADVISORY INSIGHTS",
-    lines: [
-      "Revenue is trending positively, while payroll should be monitored against revenue growth.",
-      "Gross margin remains healthy but could tighten if material or labor costs rise faster than sales.",
-    ],
-    table: [
-      ["Gross Margin", "40.0%"],
-      ["Operating Margin", "8.8%"],
-      ["Net Margin", "8.3%"],
-      ["Payroll as % of Revenue", "18.6%"],
-    ],
-  },
-  {
-    title: "Payroll & FTE Analysis",
-    category: "OPERATIONAL EFFICIENCY",
-    lines: [
-      "Payroll and headcount are reviewed for labor efficiency, staffing impact, and revenue per FTE.",
-      "Pulse recommends monitoring overtime and department-level payroll movement monthly.",
-    ],
-    table: [
-      ["Current FTE", "Not available"],
-      ["Prior FTE", "Not available"],
-      ["Payroll Cost", "Not available"],
-      ["Payroll Cost per FTE", "N/A"],
-      ["Revenue per FTE", "N/A"],
-      ["Payroll Growth", "N/A"],
-      ["Source", "Source: Not available"],
-    ],
-  },
-  {
-    title: "Executive Summary",
-    category: "EXECUTIVE ADVISORY",
-    lines: [
-      "Overall financial health is positive, with stable cash, improving revenue, and healthy profitability.",
-      "The most important near-term risk is payroll growing faster than revenue.",
-      "The best opportunity is improving collections to unlock working capital and reduce cash timing risk.",
-      "Pulse recommends a monthly executive review of cash, payroll, margin, AR, AP, and forecast movement.",
-    ],
-  },
-  {
-    title: "Ratio Analysis",
-    category: "FINANCIAL HEALTH",
-    table: [
-      ["Current Ratio", "2.8x"],
-      ["Quick Ratio", "2.3x"],
-      ["Gross Margin", "40.0%"],
-      ["Operating Margin", "8.8%"],
-      ["Net Margin", "8.3%"],
-      ["DSO", "31.7 days"],
-      ["AP Days", "27.9 days"],
-      ["Revenue per FTE", "N/A"],
-    ],
-  },
-  {
-    title: "Key Takeaways & Recommendations",
-    category: "MANAGEMENT PRIORITIES",
-    lines: [
-      "1. Improve collections cadence and prioritize balances older than 30 days.",
-      "2. Monitor payroll growth against revenue growth before approving new hiring.",
-      "3. Review fixed asset additions and depreciation monthly for reporting accuracy.",
-      "4. Use Pulse Predict for cash, payroll, and revenue scenario modeling.",
-      "5. Continue generating monthly executive packages for trend continuity.",
-    ],
-  },
-];
 
 function escapePdfText(value: string) {
   return value.replace(/[\\()]/g, "\\$&").replace(/[^\x20-\x7E]/g, "");
@@ -385,18 +172,24 @@ function formatFteValue(value: number | null) {
   return value === null || !Number.isFinite(value) ? "Not available" : value.toFixed(1);
 }
 
-function formatOptionalCurrencyValue(value: number | null, unavailableLabel = "N/A") {
-  return value === null || !Number.isFinite(value) ? unavailableLabel : formatCurrencyValue(value);
+function formatOptionalCurrencyValue(
+  value: number | null,
+  currency: string,
+  unavailableLabel = "N/A",
+) {
+  return value === null || !Number.isFinite(value) ? unavailableLabel : formatCurrencyValue(value, currency);
 }
 
 function payrollFteTableRows(options: NormalizedFinancialPackagePdfOptions): Array<[string, string]> {
   const analysis = payrollFteAnalysis(options.packageInput?.normalizedData);
+  const currency = options.homeCurrency;
+  const zeroLabel = formatMoney(0, currency, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   return [
     ["Current FTE", formatFteValue(analysis.currentFte)],
     ["Prior FTE", formatFteValue(analysis.priorFte)],
-    ["Payroll Cost", formatOptionalCurrencyValue(analysis.payrollCost, analysis.payrollCostIsZeroFromSource ? "$0" : "Not available")],
-    ["Payroll Cost per FTE", formatOptionalCurrencyValue(analysis.payrollCostPerFte)],
-    ["Revenue per FTE", formatOptionalCurrencyValue(analysis.revenuePerFte)],
+    ["Payroll Cost", formatOptionalCurrencyValue(analysis.payrollCost, currency, analysis.payrollCostIsZeroFromSource ? zeroLabel : "Not available")],
+    ["Payroll Cost per FTE", formatOptionalCurrencyValue(analysis.payrollCostPerFte, currency)],
+    ["Revenue per FTE", formatOptionalCurrencyValue(analysis.revenuePerFte, currency)],
     ["Payroll Growth", formatPercentValue(analysis.payrollGrowth === null ? null : analysis.payrollGrowth)],
     ["Source", analysis.sourceStatus],
   ];
@@ -404,47 +197,48 @@ function payrollFteTableRows(options: NormalizedFinancialPackagePdfOptions): Arr
 
 function mappedScheduleValues(pageTitle: string, options: NormalizedFinancialPackagePdfOptions) {
   const data = options.packageInput?.normalizedData;
+  const currency = options.homeCurrency;
   const arAging = agingBuckets(data?.normalizedARAging || []);
   const apAging = agingBuckets(data?.normalizedAPAging || []);
   const fixedAssets = fixedAssetSchedule(data);
   const ratios = ratioSchedule(data);
   if (pageTitle === "Accounts Receivable Aging") {
     return {
-      "current": formatCurrencyValue(arAging.current),
-      "1-30 days": formatCurrencyValue(arAging.oneToThirty),
-      "31-60 days": formatCurrencyValue(arAging.thirtyOneToSixty),
-      "61-90 days": formatCurrencyValue(arAging.sixtyOneToNinety),
-      "90+ days": formatCurrencyValue(arAging.ninetyPlus),
-      "total ar": formatCurrencyValue(arAging.total),
+      "current": formatCurrencyValue(arAging.current, currency),
+      "1-30 days": formatCurrencyValue(arAging.oneToThirty, currency),
+      "31-60 days": formatCurrencyValue(arAging.thirtyOneToSixty, currency),
+      "61-90 days": formatCurrencyValue(arAging.sixtyOneToNinety, currency),
+      "90+ days": formatCurrencyValue(arAging.ninetyPlus, currency),
+      "total ar": formatCurrencyValue(arAging.total, currency),
     };
   }
   if (pageTitle === "Accounts Payable Aging") {
     return {
-      "current": formatCurrencyValue(apAging.current),
-      "1-30 days": formatCurrencyValue(apAging.oneToThirty),
-      "31-60 days": formatCurrencyValue(apAging.thirtyOneToSixty),
-      "61-90 days": formatCurrencyValue(apAging.sixtyOneToNinety),
-      "90+ days": formatCurrencyValue(apAging.ninetyPlus),
-      "total ap": formatCurrencyValue(apAging.total),
+      "current": formatCurrencyValue(apAging.current, currency),
+      "1-30 days": formatCurrencyValue(apAging.oneToThirty, currency),
+      "31-60 days": formatCurrencyValue(apAging.thirtyOneToSixty, currency),
+      "61-90 days": formatCurrencyValue(apAging.sixtyOneToNinety, currency),
+      "90+ days": formatCurrencyValue(apAging.ninetyPlus, currency),
+      "total ap": formatCurrencyValue(apAging.total, currency),
     };
   }
   if (pageTitle === "Inventory Analysis") {
     const analysis = inventoryAnalysis(data, options.industryType);
     return {
-      "raw materials": formatCurrencyValue(analysis.items.filter((row) => row.inventoryStage === "Raw Materials").reduce((sum, row) => sum + row.extendedValue, 0)),
-      "work in process": formatCurrencyValue(analysis.items.filter((row) => row.inventoryStage === "Work in Process").reduce((sum, row) => sum + row.extendedValue, 0)),
-      "finished goods": formatCurrencyValue(analysis.items.filter((row) => row.inventoryStage === "Finished Goods").reduce((sum, row) => sum + row.extendedValue, 0)),
+      "raw materials": formatCurrencyValue(analysis.items.filter((row) => row.inventoryStage === "Raw Materials").reduce((sum, row) => sum + row.extendedValue, 0), currency),
+      "work in process": formatCurrencyValue(analysis.items.filter((row) => row.inventoryStage === "Work in Process").reduce((sum, row) => sum + row.extendedValue, 0), currency),
+      "finished goods": formatCurrencyValue(analysis.items.filter((row) => row.inventoryStage === "Finished Goods").reduce((sum, row) => sum + row.extendedValue, 0), currency),
       "slow moving inventory": "N/A",
-      "inventory value": formatCurrencyValue(analysis.totalInventoryValue),
-      "inventory asset": formatCurrencyValue(analysis.balanceSheetInventoryValue),
+      "inventory value": formatCurrencyValue(analysis.totalInventoryValue, currency),
+      "inventory asset": formatCurrencyValue(analysis.balanceSheetInventoryValue, currency),
       "inventory turnover": "N/A",
     };
   }
   if (pageTitle === "Fixed Asset Analysis") {
     return {
-      "total fixed assets": formatCurrencyValue(fixedAssets.originalCost),
-      "accumulated depreciation": formatCurrencyValue(fixedAssets.accumulatedDepreciation),
-      "net book value": formatCurrencyValue(fixedAssets.netBookValue),
+      "total fixed assets": formatCurrencyValue(fixedAssets.originalCost, currency),
+      "accumulated depreciation": formatCurrencyValue(fixedAssets.accumulatedDepreciation, currency),
+      "net book value": formatCurrencyValue(fixedAssets.netBookValue, currency),
       "depreciation expense": "N/A",
       "additions": "N/A",
       "disposals": "N/A",
@@ -456,11 +250,11 @@ function mappedScheduleValues(pageTitle: string, options: NormalizedFinancialPac
     return {
       "current ratio": formatRatioValue(ratios.currentRatio),
       "quick ratio": formatRatioValue(ratios.quickRatio),
-      "working capital": formatCurrencyValue(ratios.workingCapital),
+      "working capital": formatCurrencyValue(ratios.workingCapital, currency),
       "debt to equity": formatRatioValue(ratios.debtToEquity),
       "debt to assets": formatRatioValue(ratios.debtToAssets),
       "cash as % of assets": formatPercentValue(ratios.totalAssets ? ratios.currentAssets / ratios.totalAssets : null),
-      "revenue per fte": formatOptionalCurrencyValue(payroll.revenuePerFte),
+      "revenue per fte": formatOptionalCurrencyValue(payroll.revenuePerFte, currency),
     };
   }
   return {} as Record<string, string>;
@@ -468,6 +262,7 @@ function mappedScheduleValues(pageTitle: string, options: NormalizedFinancialPac
 
 function sourceSafeTableRows(rows: Array<[string, string]>, options: NormalizedFinancialPackagePdfOptions, pageTitle = "") {
   if (!options.packageInput?.normalizedData) return rows;
+  const currency = options.homeCurrency;
   const input = options.packageInput;
   const balanceSheet = input?.normalizedData?.normalizedBalanceSheet || [];
   const incomeStatement = input?.normalizedData?.normalizedIncomeStatement || [];
@@ -494,20 +289,26 @@ function sourceSafeTableRows(rows: Array<[string, string]>, options: NormalizedF
   return rows.map(([label, value]) => {
     const key = label.trim().toLowerCase();
     if (Object.prototype.hasOwnProperty.call(scheduleValues, key)) return [label, scheduleValues[key] || "N/A"] as [string, string];
-    if (Object.prototype.hasOwnProperty.call(mappedValues, key)) return [label, formatCurrencyValue(Number(mappedValues[key] || 0))] as [string, string];
+    if (Object.prototype.hasOwnProperty.call(mappedValues, key)) return [label, formatCurrencyValue(Number(mappedValues[key] || 0), currency)] as [string, string];
     return [label, value] as [string, string];
   });
 }
 
-function formatCurrencyValue(amount: number) {
+function formatCurrencyValue(amount: number, currency: string) {
   const absoluteAmount = Math.abs(Number(amount) || 0);
-  const formatted = `$${Math.round(absoluteAmount).toLocaleString()}`;
+  const formatted = formatMoney(Math.round(absoluteAmount), currency, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
   return amount < 0 ? `(${formatted})` : formatted;
 }
 
-function formatXeroCurrencyValue(amount: number) {
+function formatXeroCurrencyValue(amount: number, currency: string) {
   const absoluteAmount = Math.abs(Number(amount) || 0);
-  const formatted = `$${absoluteAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatted = formatMoney(absoluteAmount, currency, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   return amount < 0 ? `(${formatted})` : formatted;
 }
 
@@ -811,7 +612,10 @@ function buildBalanceSheetDisplayRows(normalizedData?: AdvisacorNormalizedFinanc
   const rows = normalizedData?.normalizedBalanceSheet || [];
   if (!rows.length) return null;
   const isXeroBalanceSheet = normalizedData?.sourceSystem === "xero";
-  const formatBalanceSheetAmount = normalizedData?.sourceSystem === "xero" ? formatXeroCurrencyValue : formatCurrencyValue;
+  const currency = normalizedData?.home_currency || DEFAULT_FALLBACK_CURRENCY;
+  const formatBalanceSheetAmount = normalizedData?.sourceSystem === "xero"
+    ? (amount: number) => formatXeroCurrencyValue(amount, currency)
+    : (amount: number) => formatCurrencyValue(amount, currency);
   const xeroEntityTotal = (entities: Array<{ amount?: number; balance?: number }> = []) =>
     entities.reduce((total, entity) => total + Number(entity.amount ?? entity.balance ?? 0), 0);
   const xeroControlPatterns = (label: string) => {
@@ -1070,7 +874,10 @@ function uniqueIncomeStatementAmountMap(rows: CanonicalPnLRow[], amountRowsOnly 
 function normalizeIncomeStatementSummary(normalizedData?: AdvisacorNormalizedFinancialData): FinancialStatementDisplayRow[] | null {
   const rows = normalizedData?.normalizedIncomeStatement || [];
   if (!rows.length) return null;
-  const formatIncomeStatementAmount = normalizedData?.sourceSystem === "xero" ? formatXeroCurrencyValue : formatCurrencyValue;
+  const currency = normalizedData?.home_currency || DEFAULT_FALLBACK_CURRENCY;
+  const formatIncomeStatementAmount = normalizedData?.sourceSystem === "xero"
+    ? (amount: number) => formatXeroCurrencyValue(amount, currency)
+    : (amount: number) => formatCurrencyValue(amount, currency);
   const current = buildMappedFinancialSummary([], rows);
   const ytdRows = normalizedData?.normalizedIncomeStatementYtd || [];
   const ytd = ytdRows.length ? buildMappedFinancialSummary([], ytdRows) : null;
@@ -1113,7 +920,10 @@ function normalizeIncomeStatementHierarchy(normalizedData?: AdvisacorNormalizedF
   const rows = normalizedData?.normalizedIncomeStatement || [];
   const ytdRows = normalizedData?.normalizedIncomeStatementYtd || [];
   if (!rows.length && !ytdRows.length) return null;
-  const formatIncomeStatementAmount = normalizedData?.sourceSystem === "xero" ? formatXeroCurrencyValue : formatCurrencyValue;
+  const currency = normalizedData?.home_currency || DEFAULT_FALLBACK_CURRENCY;
+  const formatIncomeStatementAmount = normalizedData?.sourceSystem === "xero"
+    ? (amount: number) => formatXeroCurrencyValue(amount, currency)
+    : (amount: number) => formatCurrencyValue(amount, currency);
   const currentByKey = new Map(rows.map((row) => [incomeStatementRowKey(row), Number(row.amount || 0)]));
   const ytdByKey = new Map(ytdRows.map((row) => [incomeStatementRowKey(row), Number(row.amount || 0)]));
   const currentByBaseKey = uniqueIncomeStatementAmountMap(rows);
@@ -1201,7 +1011,12 @@ export function buildFinancialPackageInputFromNormalizedData(context: ReportData
   return input;
 }
 
-function getFinancialStatementDisplayRows(statement: "balanceSheet" | "incomeStatement", packageInput?: FinancialPackageNormalizedInput, incomeStatementDetailLevel: IncomeStatementDetailLevel = "detailed") {
+function getFinancialStatementDisplayRows(
+  statement: "balanceSheet" | "incomeStatement",
+  packageInput: FinancialPackageNormalizedInput | undefined,
+  incomeStatementDetailLevel: IncomeStatementDetailLevel = "detailed",
+  homeCurrency: string = DEFAULT_FALLBACK_CURRENCY,
+) {
   const normalizedRows =
     statement === "balanceSheet"
       ? packageInput?.balanceSheetRows
@@ -1211,82 +1026,14 @@ function getFinancialStatementDisplayRows(statement: "balanceSheet" | "incomeSta
   const rows =
     normalizedRows?.length
       ? normalizedRows
-      :
-    (statement === "balanceSheet"
-      ? [
-          { label: "ASSETS", kind: "major" },
-          { label: "Current Assets", kind: "subheader" },
-          { label: "Cash", value: "$182,000", level: 1 },
-          { label: "Savings", value: "$95,000", level: 1 },
-          { label: "Accounts Receivable", value: "$146,000", level: 1 },
-          { label: "Inventory", value: "$82,000", level: 1 },
-          { label: "Prepaid Expenses", value: "$9,000", level: 1 },
-          { label: "Total Current Assets", value: "$514,000", kind: "subtotal" },
-          { label: "Property and Equipment", kind: "subheader" },
-          { label: "Equipment and Vehicles", value: "$420,000", level: 1 },
-          { label: "Machinery and Tools", value: "$185,000", level: 1 },
-          { label: "Furniture and Office Equipment", value: "$46,000", level: 1 },
-          { label: "Leasehold Improvements", value: "$28,000", level: 1 },
-          { label: "Total Property and Equipment", value: "$679,000", kind: "subtotal" },
-          { label: "Less: Accumulated Depreciation", value: "($114,000)", level: 1 },
-          { label: "Net Property and Equipment", value: "$565,000", kind: "subtotal" },
-          { label: "TOTAL ASSETS", value: "$1,079,000", kind: "total" },
-          { label: "LIABILITIES AND EQUITY", kind: "major" },
-          { label: "Current Liabilities", kind: "subheader" },
-          { label: "Accounts Payable", value: "$78,000", level: 1 },
-          { label: "Credit Cards", value: "$14,000", level: 1 },
-          { label: "Current Debt", value: "$32,000", level: 1 },
-          { label: "Total Current Liabilities", value: "$124,000", kind: "subtotal" },
-          { label: "Long-Term Liabilities", kind: "subheader" },
-          { label: "Equipment Notes Payable", value: "$91,000", level: 1 },
-          { label: "Vehicle Loans", value: "$67,000", level: 1 },
-          { label: "Line of Credit", value: "$0", level: 1 },
-          { label: "Total Long-Term Liabilities", value: "$158,000", kind: "subtotal" },
-          { label: "TOTAL LIABILITIES", value: "$282,000", kind: "subtotal" },
-          { label: "Equity", kind: "subheader" },
-          { label: "Owner Equity", value: "$522,100", level: 1 },
-          { label: "Retained Earnings", value: "$0", level: 1 },
-          { label: "Current Year Earnings", value: "$274,900", level: 1 },
-          { label: "TOTAL EQUITY", value: "$797,000", kind: "subtotal" },
-          { label: "TOTAL LIABILITIES AND EQUITY", value: "$1,079,000", kind: "total" },
-        ]
-      : [
-          { label: "REVENUE", kind: "major" },
-          { label: "Industrial Services Revenue", value: "$485,000", level: 1 },
-          { label: "Maintenance Contracts", value: "$215,000", level: 1 },
-          { label: "Emergency Repair Revenue", value: "$124,000", level: 1 },
-          { label: "TOTAL REVENUE", value: "$824,000", kind: "subtotal" },
-          { label: "COST OF GOODS SOLD", kind: "major" },
-          { label: "Field Labor", value: "$238,000", level: 1 },
-          { label: "Materials & Supplies", value: "$91,000", level: 1 },
-          { label: "Equipment Rentals", value: "$27,000", level: 1 },
-          { label: "Fuel Expense", value: "$19,000", level: 1 },
-          { label: "TOTAL COST OF GOODS SOLD", value: "$375,000", kind: "subtotal" },
-          { label: "GROSS PROFIT", value: "$449,000", kind: "highlight" },
-          { label: "OPERATING EXPENSES", kind: "major" },
-          { label: "Payroll - Admin", value: "$74,000", level: 1 },
-          { label: "Insurance", value: "$18,000", level: 1 },
-          { label: "Software Subscriptions", value: "$5,400", level: 1 },
-          { label: "Utilities", value: "$6,200", level: 1 },
-          { label: "Marketing", value: "$9,800", level: 1 },
-          { label: "Office Expense", value: "$4,100", level: 1 },
-          { label: "Vehicle Expense", value: "$11,800", level: 1 },
-          { label: "Professional Fees", value: "$13,600", level: 1 },
-          { label: "Rent Expense", value: "$24,000", level: 1 },
-          { label: "Travel Expense", value: "$7,200", level: 1 },
-          { label: "Depreciation Expense", value: "$5,000", level: 1 },
-          { label: "TOTAL OPERATING EXPENSES", value: "$179,100", kind: "subtotal" },
-          { label: "OPERATING INCOME", value: "$269,900", kind: "highlight" },
-          { label: "OTHER INCOME / EXPENSE", kind: "major" },
-          { label: "Other Income", value: "$0", level: 1 },
-          { label: "Other Expense", value: "$0", level: 1 },
-          { label: "NET INCOME", value: "$269,900", kind: "total" },
-        ]);
+      : (statement === "balanceSheet"
+          ? buildDemoBalanceSheetRows(homeCurrency)
+          : buildDemoIncomeStatementRows(homeCurrency));
   return rows;
 }
 
-function financialStatementRows(statement: "balanceSheet" | "incomeStatement", startY: number, packageInput?: FinancialPackageNormalizedInput, rowsOverride?: FinancialStatementDisplayRow[], incomeStatementDetailLevel: IncomeStatementDetailLevel = "detailed") {
-  const rows = rowsOverride || getFinancialStatementDisplayRows(statement, packageInput, incomeStatementDetailLevel);
+function financialStatementRows(statement: "balanceSheet" | "incomeStatement", startY: number, packageInput?: FinancialPackageNormalizedInput, rowsOverride?: FinancialStatementDisplayRow[], incomeStatementDetailLevel: IncomeStatementDetailLevel = "detailed", homeCurrency: string = DEFAULT_FALLBACK_CURRENCY) {
+  const rows = rowsOverride || getFinancialStatementDisplayRows(statement, packageInput, incomeStatementDetailLevel, homeCurrency);
   const isIncomeStatement = statement === "incomeStatement";
   const currentRightX = isIncomeStatement ? 442 : 508;
   const ytdRightX = 508;
@@ -1357,10 +1104,13 @@ function splitStatementRowsForPagination(rows: FinancialStatementDisplayRow[]) {
   return splitBalanceSheetRowsForPagination(rows);
 }
 
-function formatInventoryCurrency(amount: number | null | undefined) {
+function formatInventoryCurrency(amount: number | null | undefined, currency: string) {
   if (amount === null || amount === undefined || !Number.isFinite(amount)) return "N/A";
   const absoluteAmount = Math.abs(Number(amount) || 0);
-  const formatted = `$${absoluteAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatted = formatMoney(absoluteAmount, currency, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   return amount < 0 ? `(${formatted})` : formatted;
 }
 
@@ -1371,6 +1121,7 @@ function formatInventoryNumber(amount: number | null | undefined) {
 
 function inventoryAnalysisSchedule(startY: number, options: NormalizedFinancialPackagePdfOptions) {
   const analysis = inventoryAnalysis(options.packageInput?.normalizedData, options.industryType);
+  const currency = options.homeCurrency;
   const scheduleRightEdge = 548;
   const headers =
     analysis.industryMode === "manufacturing"
@@ -1383,14 +1134,14 @@ function inventoryAnalysisSchedule(startY: number, options: NormalizedFinancialP
           const quantity = stageItems.some((item) => item.quantity !== null) ? stageItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0) : null;
           const value = stageItems.reduce((sum, item) => sum + item.extendedValue, 0);
           const unitCost = quantity ? value / quantity : null;
-          return [stage, formatInventoryNumber(quantity), formatInventoryCurrency(unitCost), formatInventoryCurrency(value)];
+          return [stage, formatInventoryNumber(quantity), formatInventoryCurrency(unitCost, currency), formatInventoryCurrency(value, currency)];
         }).filter((row) => parseCurrencyLabel(row[row.length - 1]) > 0)
       : analysis.items.slice(0, 8).map((item) => [
           item.name,
           item.sku || "",
           formatInventoryNumber(item.quantity),
-          formatInventoryCurrency(item.unitCost),
-          formatInventoryCurrency(item.extendedValue),
+          formatInventoryCurrency(item.unitCost, currency),
+          formatInventoryCurrency(item.extendedValue, currency),
         ]);
   const drawHeader = () =>
     headers.map(([label, x], index) => (index === 0 ? textLine(label, x, startY, 7, "F2") : rightAlignedTextLine(label, x, startY, 6.7, "F2")));
@@ -1415,15 +1166,19 @@ function inventoryAnalysisSchedule(startY: number, options: NormalizedFinancialP
     "0.90 0.92 0.96 rg 48 " + (totalY - 6) + " 516 16 re f",
     "0 0 0 rg",
     textLine(`Total Qty: ${formatInventoryNumber(analysis.totalQuantity)}`, 58, totalY, 8, "F2"),
-    rightAlignedTextLine(`Total Inventory Value: ${formatInventoryCurrency(analysis.totalInventoryValue)}`, scheduleRightEdge, totalY, 8, "F2"),
+    rightAlignedTextLine(`Total Inventory Value: ${formatInventoryCurrency(analysis.totalInventoryValue, currency)}`, scheduleRightEdge, totalY, 8, "F2"),
     `${scheduleRightEdge - 96} ${totalY - 3} m ${scheduleRightEdge} ${totalY - 3} l S`,
     textLine(analysis.tieOutStatus, 58, varianceY, 8, "F2"),
-    rightAlignedTextLine(`Variance: ${formatInventoryCurrency(analysis.varianceToBalanceSheet)}`, scheduleRightEdge, varianceY, 8),
+    rightAlignedTextLine(`Variance: ${formatInventoryCurrency(analysis.varianceToBalanceSheet, currency)}`, scheduleRightEdge, varianceY, 8),
     ...(analysis.fallbackNote ? [textLine(analysis.fallbackNote, 58, noteY, 7.5)] : []),
   ];
 }
 
-function fixedAssetHorizontalSchedule(startY: number, packageInput?: FinancialPackageNormalizedInput) {
+function fixedAssetHorizontalSchedule(startY: number, options: NormalizedFinancialPackagePdfOptions) {
+  const packageInput = options.packageInput;
+  const currency = options.homeCurrency;
+  const zero = formatMoney(0, currency, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const moneyWhole = (amount: number) => formatCurrencyValue(amount, currency);
   const grossHeaders = [
     ["Category", 58],
     ["Beginning", 240],
@@ -1435,11 +1190,11 @@ function fixedAssetHorizontalSchedule(startY: number, packageInput?: FinancialPa
     ["Ending", 548],
   ] as const;
   const grossRows = [
-    ["Equipment and Vehicles", "$445,000", "$0", "($25,000)", "$0", "$0", "$0", "$420,000"],
-    ["Machinery and Tools", "$185,000", "$0", "$0", "$0", "$0", "$0", "$185,000"],
-    ["Furniture and Office Equipment", "$46,000", "$0", "$0", "$0", "$0", "$0", "$46,000"],
-    ["Leasehold Improvements", "$28,000", "$0", "$0", "$0", "$0", "$0", "$28,000"],
-    ["Total Gross Fixed Assets", "$704,000", "$0", "($25,000)", "$0", "$0", "$0", "$679,000"],
+    ["Equipment and Vehicles", moneyWhole(445000), zero, moneyWhole(-25000), zero, zero, zero, moneyWhole(420000)],
+    ["Machinery and Tools", moneyWhole(185000), zero, zero, zero, zero, zero, moneyWhole(185000)],
+    ["Furniture and Office Equipment", moneyWhole(46000), zero, zero, zero, zero, zero, moneyWhole(46000)],
+    ["Leasehold Improvements", moneyWhole(28000), zero, zero, zero, zero, zero, moneyWhole(28000)],
+    ["Total Gross Fixed Assets", moneyWhole(704000), zero, moneyWhole(-25000), zero, zero, zero, moneyWhole(679000)],
   ];
   const depreciationHeaders = [
     ["Category", 58],
@@ -1450,11 +1205,11 @@ function fixedAssetHorizontalSchedule(startY: number, packageInput?: FinancialPa
     ["Ending", 548],
   ] as const;
   const depreciationRows = [
-    ["Equipment and Vehicles", "($75,000)", "($3,100)", "$8,000", "$0", "($70,100)"],
-    ["Machinery and Tools", "($31,000)", "($1,300)", "$0", "$0", "($32,300)"],
-    ["Furniture and Office Equipment", "($8,000)", "($400)", "$0", "$0", "($8,400)"],
-    ["Leasehold Improvements", "($3,000)", "($200)", "$0", "$0", "($3,200)"],
-    ["Total Accumulated Depreciation", "($117,000)", "($5,000)", "$8,000", "$0", "($114,000)"],
+    ["Equipment and Vehicles", moneyWhole(-75000), moneyWhole(-3100), moneyWhole(8000), zero, moneyWhole(-70100)],
+    ["Machinery and Tools", moneyWhole(-31000), moneyWhole(-1300), zero, zero, moneyWhole(-32300)],
+    ["Furniture and Office Equipment", moneyWhole(-8000), moneyWhole(-400), zero, zero, moneyWhole(-8400)],
+    ["Leasehold Improvements", moneyWhole(-3000), moneyWhole(-200), zero, zero, moneyWhole(-3200)],
+    ["Total Accumulated Depreciation", moneyWhole(-117000), moneyWhole(-5000), moneyWhole(8000), zero, moneyWhole(-114000)],
   ];
   const liveFixedAssets = packageInput?.normalizedData
     ? sumNormalizedRows(packageInput.normalizedData?.normalizedBalanceSheet || [], /fixed asset|property|equipment|vehicle|machinery|furniture|leasehold|truck|original cost/i)
@@ -1470,23 +1225,23 @@ function fixedAssetHorizontalSchedule(startY: number, packageInput?: FinancialPa
       "0 0 0 rg",
       textLine(OPTIONAL_SUPPORTING_SCHEDULE_MESSAGE, 58, startY - 36, 8.5),
       textLine("Net Book Value", 58, startY - 82, 10, "F2"),
-      rightAlignedTextLine(liveFixedAssets === null ? "$565,000" : formatCurrencyValue(liveFixedAssets), scheduleRightEdge, startY - 82, 10, "F2"),
+      rightAlignedTextLine(liveFixedAssets === null ? moneyWhole(565000) : formatCurrencyValue(liveFixedAssets, currency), scheduleRightEdge, startY - 82, 10, "F2"),
       "430 " + (startY - 85) + " m " + scheduleRightEdge + " " + (startY - 85) + " l S",
       "430 " + (startY - 88) + " m " + scheduleRightEdge + " " + (startY - 88) + " l S",
     ];
   }
   const sourceSafeRow = (row: string[]) => {
     if (!useSourceSafeRows) return row;
-    if (/total gross fixed assets/i.test(row[0])) return [row[0], "$0", "$0", "$0", "$0", "$0", "$0", formatCurrencyValue(liveFixedAssetSchedule.originalCost)];
-    if (/total accumulated depreciation/i.test(row[0])) return [row[0], "$0", "N/A", "$0", formatCurrencyValue(liveFixedAssetSchedule.accumulatedDepreciation), formatCurrencyValue(liveFixedAssetSchedule.accumulatedDepreciation)];
+    if (/total gross fixed assets/i.test(row[0])) return [row[0], zero, zero, zero, zero, zero, zero, formatCurrencyValue(liveFixedAssetSchedule.originalCost, currency)];
+    if (/total accumulated depreciation/i.test(row[0])) return [row[0], zero, "N/A", zero, formatCurrencyValue(liveFixedAssetSchedule.accumulatedDepreciation, currency), formatCurrencyValue(liveFixedAssetSchedule.accumulatedDepreciation, currency)];
     const category = liveFixedAssetSchedule.categories.find((asset) => normalizedText(asset.name) === normalizedText(row[0]) || normalizedText(row[0]).includes(normalizedText(asset.name)) || normalizedText(asset.name).includes(normalizedText(row[0])));
     const ending = category?.originalCost || 0;
-    return [row[0], "$0", "$0", "$0", "$0", "$0", "$0", formatCurrencyValue(ending)];
+    return [row[0], zero, zero, zero, zero, zero, zero, formatCurrencyValue(ending, currency)];
   };
   const liveGrossRows = useSourceSafeRows && liveFixedAssetSchedule.categories.length
     ? [
-        ...liveFixedAssetSchedule.categories.filter((asset) => Math.abs(asset.originalCost) > 0.005).slice(0, 4).map((asset) => [asset.name, "$0", "$0", "$0", "$0", "$0", "$0", formatCurrencyValue(asset.originalCost)]),
-        ["Total Gross Fixed Assets", "$0", "$0", "$0", "$0", "$0", "$0", formatCurrencyValue(liveFixedAssetSchedule.originalCost)],
+        ...liveFixedAssetSchedule.categories.filter((asset) => Math.abs(asset.originalCost) > 0.005).slice(0, 4).map((asset) => [asset.name, zero, zero, zero, zero, zero, zero, formatCurrencyValue(asset.originalCost, currency)]),
+        ["Total Gross Fixed Assets", zero, zero, zero, zero, zero, zero, formatCurrencyValue(liveFixedAssetSchedule.originalCost, currency)],
       ]
     : grossRows;
   const sourceSafeGrossRows = liveGrossRows.map(sourceSafeRow);
@@ -1529,11 +1284,11 @@ function fixedAssetHorizontalSchedule(startY: number, packageInput?: FinancialPa
         ]
       : []),
     textLine("Net Book Value", 58, netBookValueY, 10, "F2"),
-    rightAlignedTextLine(liveFixedAssets === null ? "$565,000" : formatCurrencyValue(liveFixedAssetSchedule.netBookValue || liveFixedAssets), scheduleRightEdge, netBookValueY, 10, "F2"),
+    rightAlignedTextLine(liveFixedAssets === null ? moneyWhole(565000) : formatCurrencyValue(liveFixedAssetSchedule.netBookValue || liveFixedAssets, currency), scheduleRightEdge, netBookValueY, 10, "F2"),
     "430 " + (netBookValueY - 3) + " m " + scheduleRightEdge + " " + (netBookValueY - 3) + " l S",
     "430 " + (netBookValueY - 6) + " m " + scheduleRightEdge + " " + (netBookValueY - 6) + " l S",
     textLine(liveFixedAssetSchedule.tieOutStatus, 58, advisoryY, 8.5, "F2"),
-    rightAlignedTextLine(`Variance: ${formatInventoryCurrency(liveFixedAssetSchedule.varianceToBalanceSheet)}`, scheduleRightEdge, advisoryY, 8.5),
+    rightAlignedTextLine(`Variance: ${formatInventoryCurrency(liveFixedAssetSchedule.varianceToBalanceSheet, currency)}`, scheduleRightEdge, advisoryY, 8.5),
     textLine("Advisory Focus", 58, advisoryY - 24, 11, "F2"),
     textLine("Review additions, disposals, transfers, valuation adjustments, and depreciation policy against operating capacity and cash flow requirements.", 58, advisoryY - 44, 8.5),
   ];
@@ -1591,7 +1346,7 @@ function buildPageContent(page: PdfPage, options: NormalizedFinancialPackagePdfO
           "0 0 0 rg",
           textLine(pageLabel, 58, y, 10, "F2"),
           textLine(title, 110, y, 10),
-          textLine(packageSections[index]?.category || "", 400, y, 9, "F2"),
+          textLine(buildDemoPackageSections(options.homeCurrency)[index]?.category || "", 400, y, 9, "F2"),
         );
       });
     }
@@ -1605,7 +1360,7 @@ function buildPageContent(page: PdfPage, options: NormalizedFinancialPackagePdfO
       ops.push(...inventoryAnalysisSchedule(page.lines?.length ? 516 : 606, options));
     } else if (page.title === "Fixed Asset Analysis") {
       if (options.reportDataContext) assertScheduleSource("Fixed Asset Analysis", options.reportDataContext, options.normalizedData);
-      ops.push(...fixedAssetHorizontalSchedule(520, options.packageInput));
+      ops.push(...fixedAssetHorizontalSchedule(520, options));
     } else if (page.title === "Payroll & FTE Analysis") {
       if (options.reportDataContext) assertScheduleSource("Payroll & FTE Analysis", options.reportDataContext, options.normalizedData);
       ops.push(textLine("Line Item", 58, page.lines?.length ? 516 : 606, 9, "F2"), rightAlignedTextLine("Amount", 508, page.lines?.length ? 516 : 606, 9, "F2"));
@@ -1615,7 +1370,7 @@ function buildPageContent(page: PdfPage, options: NormalizedFinancialPackagePdfO
         if (options.reportDataContext) {
           assertScheduleSource(page.title, options.reportDataContext, page.statement === "balanceSheet" ? options.normalizedData?.normalizedBalanceSheet : options.normalizedData?.normalizedIncomeStatement);
         }
-        ops.push(...financialStatementRows(page.statement, 606, options.packageInput, page.statementRowsOverride, options.incomeStatementDetailLevel));
+        ops.push(...financialStatementRows(page.statement, 606, options.packageInput, page.statementRowsOverride, options.incomeStatementDetailLevel, options.homeCurrency));
       } else {
         ops.push(textLine("Line Item", 58, page.lines?.length ? 516 : 606, 9, "F2"), rightAlignedTextLine("Amount", 508, page.lines?.length ? 516 : 606, 9, "F2"));
         if (options.reportDataContext) assertScheduleSource(page.title, options.reportDataContext, options.normalizedData);
@@ -1682,7 +1437,16 @@ function normalizeOptions(options: FinancialPackagePdfOptions = {}): NormalizedF
     normalizedData,
     reportDataContext: options.reportDataContext,
   });
+  const resolvedHomeCurrency = (
+    options.homeCurrency ||
+    normalizedData?.home_currency ||
+    options.reportDataContext?.normalizedData?.home_currency ||
+    DEFAULT_FALLBACK_CURRENCY
+  )
+    .toString()
+    .toUpperCase();
   return {
+    homeCurrency: resolvedHomeCurrency,
     companyName: options.companyName || "QuickBooks Company",
     industryType: options.industryType || "Industry Intelligence",
     preparedBy: options.preparedBy || "Advisacor",
@@ -1691,7 +1455,7 @@ function normalizeOptions(options: FinancialPackagePdfOptions = {}): NormalizedF
     fluxLevel: options.fluxLevel || "cfo",
     fluxType: options.fluxType || "month-over-month",
     fluxStatements: options.fluxStatements?.length ? options.fluxStatements : ["Balance Sheet", "Income Statement"],
-    dollarThreshold: options.dollarThreshold || "$5,000",
+    dollarThreshold: options.dollarThreshold || formatMoney(5000, resolvedHomeCurrency, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
     percentageThreshold: options.percentageThreshold || "10%",
     filteringLogic: options.filteringLogic || "both",
     aiCommentaryEnabled: options.aiCommentaryEnabled ?? true,
@@ -1837,12 +1601,13 @@ function assertInventoryAnalysisPopulation(options: NormalizedFinancialPackagePd
 function assertPayrollFteNoDemoValues(options: NormalizedFinancialPackagePdfOptions) {
   const rows = payrollFteTableRows(options);
   const valuesByLabel = new Map(rows.map(([label, value]) => [label, value]));
+  const currency = options.homeCurrency;
   const demoValuesDetected =
     valuesByLabel.get("Current FTE") === "31.0" ||
     valuesByLabel.get("Prior FTE") === "29.5" ||
-    valuesByLabel.get("Payroll Cost") === "$78,000" ||
-    valuesByLabel.get("Payroll Cost per FTE") === "$2,516" ||
-    valuesByLabel.get("Revenue per FTE") === "$13,548" ||
+    valuesByLabel.get("Payroll Cost") === formatCurrencyValue(78000, currency) ||
+    valuesByLabel.get("Payroll Cost per FTE") === formatCurrencyValue(2516, currency) ||
+    valuesByLabel.get("Revenue per FTE") === formatCurrencyValue(13548, currency) ||
     valuesByLabel.get("Payroll Growth") === "8.0%";
   if (demoValuesDetected) {
     throw new Error("Payroll & FTE Analysis blocked: demo values detected.");
@@ -1860,7 +1625,7 @@ function assertIncomeStatementDetailNotCollapsed(options: NormalizedFinancialPac
   if (!data || data.sourceSystem !== "quickbooks") return;
   const mtdRows = data.normalizedIncomeStatement || [];
   const ytdRows = data.normalizedIncomeStatementYtd || [];
-  const mergedRows = getFinancialStatementDisplayRows("incomeStatement", options.packageInput, options.incomeStatementDetailLevel);
+  const mergedRows = getFinancialStatementDisplayRows("incomeStatement", options.packageInput, options.incomeStatementDetailLevel, options.homeCurrency);
   const reportEndDate = data.reportPeriod?.endDate || options.reportPeriod;
   const diagnostics = {
     provider: data.sourceSystem,
@@ -1932,8 +1697,8 @@ function assertPdfFinancialStatementTotals(options: NormalizedFinancialPackagePd
   if (!data) return;
   const balanceSheetRows = data.normalizedBalanceSheet || [];
   const incomeStatementRows = data.normalizedIncomeStatement || [];
-  const displayBalanceSheetRows = getFinancialStatementDisplayRows("balanceSheet", options.packageInput, options.incomeStatementDetailLevel);
-  const displayIncomeStatementRows = getFinancialStatementDisplayRows("incomeStatement", options.packageInput, options.incomeStatementDetailLevel);
+  const displayBalanceSheetRows = getFinancialStatementDisplayRows("balanceSheet", options.packageInput, options.incomeStatementDetailLevel, options.homeCurrency);
+  const displayIncomeStatementRows = getFinancialStatementDisplayRows("incomeStatement", options.packageInput, options.incomeStatementDetailLevel, options.homeCurrency);
   const checks = [
     ...(hasXeroDerivedControlFallbackRows(data)
       ? []
@@ -1983,7 +1748,7 @@ function assertXeroPdfBalanceSheetTotals(options: NormalizedFinancialPackagePdfO
   if (options.packageInput?.sourceSystem !== "xero") return;
   const balanceSheet = options.normalizedData?.normalizedBalanceSheet || [];
   if (!balanceSheet.length) return;
-  const displayRows = getFinancialStatementDisplayRows("balanceSheet", options.packageInput, options.incomeStatementDetailLevel);
+  const displayRows = getFinancialStatementDisplayRows("balanceSheet", options.packageInput, options.incomeStatementDetailLevel, options.homeCurrency);
   const selectedReportDate = options.normalizedData?.reportPeriod?.endDate || options.reportDataContext?.reportPeriod || options.reportPeriod;
   const rawTotals = xeroBalanceSheetTotals(balanceSheet, true);
   const normalizedTotals = xeroBalanceSheetTotals(balanceSheet);
@@ -2090,11 +1855,11 @@ export function buildFinancialPackagePdfBlob(options: FinancialPackagePdfOptions
           ),
         ]
       : []),
-    ...packageSections,
+    ...buildDemoPackageSections(normalizedOptions.homeCurrency),
   ];
   const expandedPages = pages.flatMap((page) => {
     if (!page.statement) return [page];
-    const rows = getFinancialStatementDisplayRows(page.statement, normalizedOptions.packageInput, normalizedOptions.incomeStatementDetailLevel);
+    const rows = getFinancialStatementDisplayRows(page.statement, normalizedOptions.packageInput, normalizedOptions.incomeStatementDetailLevel, normalizedOptions.homeCurrency);
     return splitStatementRowsForPagination(rows).map((rowChunk) => ({
       ...page,
       statementRowsOverride: rowChunk,
@@ -2121,99 +1886,7 @@ export function downloadFinancialPackagePdf(options: FinancialPackagePdfOptions 
   window.setTimeout(() => URL.revokeObjectURL(url), 1200);
 }
 
-const fluxRows: Array<{
-  account: string;
-  statement: string;
-  current: string;
-  prior: string;
-  change: string;
-  percent: string;
-  severity: string;
-  driver: string;
-  businessImplication: string;
-  implication: string;
-  action: string;
-  executiveFocus: string;
-  payrollFte?: {
-    currentFte: string;
-    priorFte: string;
-    fteChange: string;
-    payrollChange: string;
-    payrollPerFte: string;
-    priorPayrollPerFte: string;
-    revenuePerFte: string;
-    departmentChanges: string;
-  };
-}> = [
-  {
-    account: "Payroll Wages - Field Operations",
-    statement: "Income Statement",
-    current: "$24,220",
-    prior: "$19,440",
-    change: "$4,780",
-    percent: "24.6%",
-    severity: "High",
-    driver: "Staffing, overtime, utilization, or mix shift",
-    businessImplication: "Payroll growth exceeded revenue growth and may pressure gross margin if utilization does not improve.",
-    implication: "Labor movement should be evaluated against staffing levels, utilization, gross margin, and revenue per FTE.",
-    action: "Compare payroll growth to FTE movement and revenue capacity before concluding the variance is structural.",
-    executiveFocus: "Review staffing productivity and utilization before approving additional hiring.",
-    payrollFte: {
-      currentFte: "57",
-      priorFte: "52",
-      fteChange: "5",
-      payrollChange: "$45,000",
-      payrollPerFte: "$4,250",
-      priorPayrollPerFte: "$4,010",
-      revenuePerFte: "$14,456",
-      departmentChanges: "Field Operations payroll increased $5,689; overtime and dispatch coverage were the primary drivers.",
-    },
-  },
-  {
-    account: "Accounts Receivable",
-    statement: "Balance Sheet",
-    current: "$146,000",
-    prior: "$126,500",
-    change: "$19,500",
-    percent: "15.4%",
-    severity: "Medium",
-    driver: "Billing growth, collection timing, or aging mix",
-    businessImplication: "Receivable growth can absorb cash even when the income statement shows improving revenue.",
-    implication: "Receivable growth can create working capital pressure even when revenue is improving.",
-    action: "Review balances over 30 days and confirm collection owners for the largest customer exposures.",
-    executiveFocus: "Focus on customer concentration and aging movement before increasing credit exposure.",
-  },
-  {
-    account: "Materials and Supplies",
-    statement: "Income Statement",
-    current: "$68,400",
-    prior: "$59,100",
-    change: "$9,300",
-    percent: "15.7%",
-    severity: "Medium",
-    driver: "Volume, pricing, waste, or supplier cost movement",
-    businessImplication: "Input cost increases may reduce gross margin if pricing or usage controls do not adjust.",
-    implication: "Input cost increases can compress gross margin if pricing is not adjusted.",
-    action: "Compare material growth to revenue and gross margin before approving vendor or pricing decisions.",
-    executiveFocus: "Confirm whether the variance is volume-driven or price-driven before changing pricing.",
-  },
-  {
-    account: "Professional Fees",
-    statement: "Income Statement",
-    current: "$14,800",
-    prior: "$8,900",
-    change: "$5,900",
-    percent: "66.3%",
-    severity: "Watch",
-    driver: "One-time advisory, legal, accounting, or project activity",
-    businessImplication: "Non-recurring spend may distort run-rate operating expense if not isolated.",
-    implication: "Non-recurring services can distort operating expense trends if not separated from normal run-rate.",
-    action: "Classify one-time fees separately and update the forecast run-rate if the spend will continue.",
-    executiveFocus: "Determine whether this should remain in recurring operating expense or be treated as a one-time item.",
-  },
-];
-
-function buildFluxPageContent(title: string, options: NormalizedFinancialPackagePdfOptions, rows: typeof fluxRows, pageNumber: number, totalPages: number) {
+function buildFluxPageContent(title: string, options: NormalizedFinancialPackagePdfOptions, rows: DemoFluxRow[], pageNumber: number, totalPages: number) {
   const ops = [
     "0.04 0.06 0.13 rg 0 0 612 792 re f",
     "1 1 1 rg 32 32 548 728 re f",
@@ -2286,7 +1959,7 @@ export function buildFluxAnalysisPdfBlob(options: FinancialPackagePdfOptions = {
         : normalizedOptions.fluxType === "custom-period"
           ? "Custom Period Comparison"
           : "Month-over-Month";
-  const selectedRows = fluxRows.filter((row) =>
+  const selectedRows = buildDemoFluxRows(normalizedOptions.homeCurrency).filter((row) =>
     normalizedOptions.fluxStatements.some((statement) => {
       if (statement === row.statement) return true;
       if (statement === "Payroll Analysis") return row.account.toLowerCase().includes("payroll");

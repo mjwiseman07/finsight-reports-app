@@ -1983,6 +1983,14 @@ function OnboardingContent() {
       trial: true,
       normalizedData: (reportPayload?.normalizedData || undefined) as ReportDataContext["normalizedData"] | undefined,
       reportDataContext: (reportPayload?.reportDataContext || undefined) as ReportDataContext | undefined,
+      // Phase MC-2c: home currency threads through normalizedData by default;
+      // this explicit pass-through documents the intent and keeps the caller
+      // robust if the normalizedData/reportDataContext structures ever
+      // diverge on which side carries home_currency.
+      homeCurrency:
+        (reportPayload?.normalizedData as { home_currency?: string } | undefined)?.home_currency ||
+        (reportPayload?.reportDataContext?.normalizedData as { home_currency?: string } | undefined)?.home_currency ||
+        undefined,
     });
   };
 
