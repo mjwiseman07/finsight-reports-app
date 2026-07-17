@@ -20,19 +20,44 @@ export default function ResetPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Supabase JS client auto-processes URL hash tokens on load.
-    // Give it a tick, then check if we have a session.
+    // Supabase password reset uses PKCE flow: the recovery email link points to
+    //   /auth/reset-password?code=<pkce_code>
+    // We must exchange that code for a session before we can call updateUser.
+    // Legacy implicit-flow projects deliver tokens in the URL hash — handle both.
     let cancelled = false;
     async function check() {
-      // Wait one microtask to let supabase-js finish processing the hash fragment.
-      await new Promise((r) => setTimeout(r, 0));
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (sessionError || !data.session) {
-        setPhase("invalid");
-        return;
+      try {
+        // 1) PKCE path — ?code=xxx in query string.
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (cancelled) return;
+          if (exchangeError) {
+            setPhase("invalid");
+            return;
+          }
+          // Clean the code out of the URL so a refresh doesn't try to re-exchange
+          // (codes are single-use; re-exchange would flip us to "invalid").
+          url.searchParams.delete("code");
+          window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+          setPhase("ready");
+          return;
+        }
+        // 2) Implicit-flow path — #access_token=...&type=recovery in hash.
+        //    supabase-js auto-processes this on client init; wait one microtask
+        //    then check for a session.
+        await new Promise((r) => setTimeout(r, 0));
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (sessionError || !data.session) {
+          setPhase("invalid");
+          return;
+        }
+        setPhase("ready");
+      } catch {
+        if (!cancelled) setPhase("invalid");
       }
-      setPhase("ready");
     }
     void check();
     return () => {
