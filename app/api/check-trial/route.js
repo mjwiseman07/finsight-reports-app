@@ -20,6 +20,22 @@ function isMissingColumnError(error) {
   return error?.code === "42703" || message.includes("column") || message.includes("schema cache");
 }
 
+async function resolvePrimaryPersona(userId) {
+  try {
+    const { data: membership, error } = await supabaseAdmin
+      .from("company_users")
+      .select("role, companies(primary_persona)")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (error) return null;
+    return membership?.companies?.primary_persona || null;
+  } catch {
+    return null;
+  }
+}
+
 function isDevelopmentBypassRequest(request) {
   if (process.env.NODE_ENV !== "development") return false;
 
@@ -154,7 +170,10 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
   }
 
-  let { data: userRecord, error: userError } = await loadUserAccessById(authData.user.id);
+  const userId = authData.user.id;
+  const primaryPersona = await resolvePrimaryPersona(userId);
+
+  let { data: userRecord, error: userError } = await loadUserAccessById(userId);
 
   if (userError) {
     return NextResponse.json({ error: userError.message }, { status: 500 });
@@ -207,6 +226,7 @@ export async function POST(request) {
       subscription_status: userRecord.subscription_status || authSubscriptionStatus,
       subscription_price_id: userRecord.subscription_price_id,
       subscription_plan: plan,
+      primary_persona: primaryPersona,
     });
   }
 
@@ -219,6 +239,7 @@ export async function POST(request) {
       subscription_status: userRecord.subscription_status,
       subscription_price_id: userRecord.subscription_price_id,
       subscription_plan: null,
+      primary_persona: primaryPersona,
     });
   }
 
@@ -230,5 +251,6 @@ export async function POST(request) {
     subscription_status: userRecord.subscription_status,
     subscription_price_id: userRecord.subscription_price_id,
     subscription_plan: null,
+    primary_persona: primaryPersona,
   });
 }

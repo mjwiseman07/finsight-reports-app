@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
+import StartingPointCard from "../../components/dashboard/StartingPointCard";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import { contextualHelp } from "../../lib/contextual-help";
 import {
@@ -604,8 +605,10 @@ function mergeDashboardConversationMemory(question, answer, previousMemory) {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [token, setToken] = useState("");
   const [access, setAccess] = useState(null);
+  const [primaryPersona, setPrimaryPersona] = useState(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [checkoutPlan, setCheckoutPlan] = useState("");
@@ -877,6 +880,7 @@ export default function DashboardPage() {
         }
 
         setAccess(result);
+        setPrimaryPersona(result?.primary_persona ?? null);
         setBusinessNameDraft(result.business_name || "");
       } catch {
         setError("Unable to load dashboard access.");
@@ -1454,6 +1458,20 @@ export default function DashboardPage() {
     scrollToExploreSection();
   };
 
+  useEffect(() => {
+    const startingPoint = searchParams?.get("startingPoint");
+    if (!startingPoint) return;
+    if (startingPoint === "executive-package") {
+      handleExploreCardClick("Executive Package");
+    } else if (startingPoint === "financial-health-score") {
+      handleExploreCardClick("Financial Health Score");
+    } else if (startingPoint === "ask-pulse") {
+      setAiOpen(true);
+    }
+    router.replace("/dashboard", { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const downloadExecutivePowerPointPackage = (options) => {
     const safeCompanyName = (options.companyName || "advisacor")
       .replace(/[^a-z0-9]+/gi, "-")
@@ -1721,6 +1739,7 @@ export default function DashboardPage() {
 
           {!isLoading && access?.allowed === true && (
             <div className="grid gap-8">
+              <StartingPointCard persona={primaryPersona || deliveryPersona} />
               {activeReportSummary && (
                 <div className="rounded-3xl border border-[#5591C7]/30 bg-[#5591C7]/10 p-5">
                   <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#DFC084]`}>Report Source: {activeReportSummary.sourceSystem}</p>
@@ -3199,7 +3218,8 @@ function ExploreDeeperActiveSection({
       {sectionTitle === "Payroll & Labor" && <PayrollLaborShortcutSection />}
       {sectionTitle === "AR / AP Intelligence" && <ArApShortcutSection />}
       {sectionTitle === "Industry Insights" && <IndustryIntelligenceDashboard industryType={industryType} onAskMetric={onAskMetric} />}
-      {!["Pulse Insights", "Pulse Predict", "Executive Package", "Flux Analysis", "Financial Statements", "Pulse Advisory Intelligence", "Cash Flow", "Profitability", "Payroll & Labor", "AR / AP Intelligence", "Industry Insights"].includes(sectionTitle) && (
+      {sectionTitle === "Financial Health Score" && <FinancialHealthOverview onAskMetric={onAskMetric} />}
+      {!["Pulse Insights", "Pulse Predict", "Executive Package", "Flux Analysis", "Financial Statements", "Pulse Advisory Intelligence", "Cash Flow", "Profitability", "Payroll & Labor", "AR / AP Intelligence", "Industry Insights", "Financial Health Score"].includes(sectionTitle) && (
         <OperationalDashboardSnapshot companyName={companyName} industryType={industryType} readOnly />
       )}
     </section>

@@ -484,6 +484,12 @@ function OnboardingContent() {
   const hasTrackedStart = useRef(false);
   const hasResumedProviderConnect = useRef(false);
   const activeContextHydrationKey = useRef("");
+  const firstReviewSyncTriggered = useRef(false);
+  const [firstReviewSyncState, setFirstReviewSyncState] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const firstReviewMilestones =
+    firstReviewSyncState === "ready"
+      ? ["Fetching Balance Sheet", "Fetching Income Statement", "Fetching Trial Balance", "Ready"]
+      : ["Fetching Balance Sheet", "Fetching Income Statement", "Fetching Trial Balance"];
   const [accountType, setAccountType] = useState(searchParams?.get("accountType") || "my-own-company");
   const [company, setCompany] = useState<CompanyForm>({
     name: template.name || "",
@@ -1437,7 +1443,7 @@ function OnboardingContent() {
   };
 
   const syncConnectedIntegration = async () => {
-    if (!connectedConnectionId) return;
+    if (!connectedConnectionId) return false;
     setIsSyncingIntegration(true);
     setError("");
     setMessage("");
@@ -1446,7 +1452,7 @@ function OnboardingContent() {
       const token = await getAuthToken();
       if (!token) {
         setError("Sign in again to sync your accounting data.");
-        return;
+        return false;
       }
       const endDate = new Date();
       const startDate = new Date(endDate);
@@ -1471,11 +1477,11 @@ function OnboardingContent() {
           setSyncDiagnostics(result.diagnostics);
         }
         setError(result.preflight ? preflightIssueText({ message: result.error, preflight: result.preflight }) : result.error || "Unable to sync accounting data.");
-        return;
+        return false;
       }
       if (selectedIntegration === "xero" && result.normalizedData?.sourceSystem !== "xero") {
         setError(`Provider mismatch: active xero but normalized data is ${result.normalizedData?.sourceSystem || "unknown"}`);
-        return;
+        return false;
       }
       setConnectedLastSync(result.normalizedData?.lastSyncedAt || new Date().toISOString());
       setSyncDiagnostics(result.diagnostics || null);
@@ -1503,6 +1509,7 @@ function OnboardingContent() {
       });
       setConnectionValidationOpen(true);
       setMessage(result.message || `${getSelectedIntegrationOption().label} sync completed and normalized data validation passed.`);
+      return true;
     } finally {
       setIsSyncingIntegration(false);
     }
@@ -1552,6 +1559,35 @@ function OnboardingContent() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  useEffect(() => {
+    if (step !== generatePackageStep) return;
+    if (firstReviewSyncTriggered.current) return;
+    if (firstReviewSyncState === "loading" || firstReviewSyncState === "ready") return;
+    firstReviewSyncTriggered.current = true;
+    setFirstReviewSyncState("loading");
+    (async () => {
+      try {
+        const ok = await syncConnectedIntegration();
+        setFirstReviewSyncState(ok ? "ready" : "failed");
+      } catch {
+        setFirstReviewSyncState("failed");
+      }
+    })();
+  }, [step]);
+
+  const retryFirstReviewSync = () => {
+    firstReviewSyncTriggered.current = true;
+    setFirstReviewSyncState("loading");
+    (async () => {
+      try {
+        const ok = await syncConnectedIntegration();
+        setFirstReviewSyncState(ok ? "ready" : "failed");
+      } catch {
+        setFirstReviewSyncState("failed");
+      }
+    })();
+  };
 
   const updateManualUpload = (reportId: string, selected: boolean) => {
     const nextUploads = { ...manualUploads, [reportId]: selected };
@@ -2755,20 +2791,45 @@ function OnboardingContent() {
                   )}
                 </div>
                 <ConnectedReportsSummary reportSummary={reportSummary} recommendedPackage={recommendedPackage} manual={dataSourcePath === "manual_upload"} />
-                <div className="grid gap-3">
-                  {packageBuildStatuses.map((status, index) => (
-                    <div
-                      key={status}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
-                        index <= packageStatusIndex && isSaving
-                          ? "border-[#C9A961]/25 bg-[#C9A961]/10 text-[#C9A961]"
-                          : "border-[#C9A961]/20 bg-[#111112]/85 text-[#7A7974]"
-                      }`}
-                    >
-                      {status}
-                    </div>
-                  ))}
-                </div>
+                <ul className="mt-4 space-y-2">
+                  {firstReviewMilestones.map((label) => {
+                    const isReadyRow = label === "Ready";
+                    const state =
+                      firstReviewSyncState === "failed"
+                        ? "failed"
+                        : firstReviewSyncState === "ready"
+                          ? "ready"
+                          : isReadyRow
+                            ? "idle"
+                            : "loading";
+                    return (
+                      <li key={label} className="flex items-center gap-3 text-sm text-[#ECEBE7]">
+                        <span
+                          className={
+                            state === "ready"
+                              ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#C9A961] text-[#111112]"
+                              : state === "failed"
+                                ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500/30 text-red-200"
+                                : "inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/30 text-white/50"
+                          }
+                          aria-hidden="true"
+                        >
+                          {state === "ready" ? "✓" : state === "failed" ? "!" : "•"}
+                        </span>
+                        <span>{label}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {firstReviewSyncState === "failed" && (
+                  <button
+                    type="button"
+                    onClick={retryFirstReviewSync}
+                    className={focusRing("mt-4 rounded-md border border-[#C9A961] px-4 py-2 text-sm font-semibold text-[#C9A961]")}
+                  >
+                    Retry
+                  </button>
+                )}
                 <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
@@ -2780,11 +2841,11 @@ function OnboardingContent() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void generateFirstPackage()}
-                    disabled={isSaving}
-                    className={focusRing("rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#111112] shadow-lg shadow-[#C9A961]/30 transition-colors hover:bg-[#B8975A] disabled:cursor-not-allowed disabled:opacity-60")}
+                    onClick={() => router.push("/dashboard")}
+                    disabled={firstReviewSyncState === "loading"}
+                    className={focusRing(`${primaryCtaClass} rounded-md px-5 py-2 disabled:cursor-not-allowed disabled:opacity-60`)}
                   >
-                    {isSaving ? "Generating First Package..." : "Generate First Package"}
+                    Proceed to Company Dashboard
                   </button>
                 </div>
               </div>
@@ -2821,7 +2882,7 @@ function OnboardingContent() {
                   Continue
                 </button>
               ) : (
-                <span className="text-sm font-bold text-[#7A7974]">Generate your first package to finish onboarding.</span>
+                <span className="text-sm font-bold text-[#7A7974]">You're all set — head to your dashboard to start.</span>
               )}
             </div>
           </section>

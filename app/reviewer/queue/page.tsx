@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { GapQueueItem, ReviewerQueueItem, ReviewerQueueResponse } from "@/lib/pre-close/reviewer-types";
 
 function severityClass(severity: string) {
@@ -14,7 +15,12 @@ export default function ReviewerQueuePage() {
   const [items, setItems] = useState<ReviewerQueueItem[]>([]);
   const [gapItems, setGapItems] = useState<GapQueueItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>("all");
+  const searchParams = useSearchParams();
+  const validStatuses = ["all", "pending", "decided", "posted", "blocked"];
+  const initialStatus = searchParams?.get("status") || "all";
+  const [status, setStatus] = useState<string>(
+    validStatuses.includes(initialStatus) ? initialStatus : "all",
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
