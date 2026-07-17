@@ -401,6 +401,9 @@ function OnboardingContent() {
   const queryProvider = searchParams?.get("provider") === "xero" ? "xero" : searchParams?.get("provider") === "quickbooks" ? "quickbooks" : "quickbooks";
   const startsOnConnectAccounting = searchParams?.get("step") === "connect-accounting";
   const qbErrorCode = searchParams?.get("qbError") || null;
+  // Internal debug panels are hidden from end users. Set NEXT_PUBLIC_SHOW_ONBOARDING_DEBUG=true
+  // in a staging/local env to render them for support triage.
+  const isStaffViewer = process.env.NEXT_PUBLIC_SHOW_ONBOARDING_DEBUG === "true";
 
   // Phase TCP1 W2.5 Block 9j — TIER AWARENESS
   // Paid users bypass all free-review-lead gates and see PaidUserWelcome.
@@ -2438,7 +2441,7 @@ function OnboardingContent() {
                             ))}
                           </div>
                         )}
-                        {syncDiagnostics && (
+                        {syncDiagnostics && isStaffViewer && (
                           <div className="mt-4 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A29E93]">Temporary Xero Fetch Debug</p>
                             <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
@@ -2677,62 +2680,64 @@ function OnboardingContent() {
                     </div>
                   </div>
                 )}
-                <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5 text-xs font-bold text-[#ECEBE7]/90">
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#A29E93]">Sync Lookup Debug</p>
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
-                      <p>ACTIVE PROVIDER: {selectedIntegration || "Not available"}</p>
-                      <p>ACTIVE CONNECTION ID: {activeAccountingContext?.connectionId || connectedConnectionId || packageContextSource?.connectionId || reportSummarySource?.connectionId || "Not available"}</p>
-                      <p>ACTIVE TENANT ID: {activeAccountingContext?.tenantId || packageContextSource?.tenantId || reportSummarySource?.tenantId || "Not available"}</p>
-                      <p>ACTIVE COMPANY ID: {activeAccountingContext?.companyId || reportPayloadCompanyId(packageContextSource?.payload || reportSummarySource?.payload || null) || "Not available"}</p>
-                      <p>Latest Sync Status: {packageLookupDebug.latestSyncStatus || activeAccountingContext?.latestSyncStatus || "Not available"}</p>
-                      <p>Latest Sync ID: {packageLookupDebug.latestSyncId || activeAccountingContext?.latestSyncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                {isStaffViewer && (
+                  <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5 text-xs font-bold text-[#ECEBE7]/90">
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#A29E93]">Sync Lookup Debug</p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
+                        <p>ACTIVE PROVIDER: {selectedIntegration || "Not available"}</p>
+                        <p>ACTIVE CONNECTION ID: {activeAccountingContext?.connectionId || connectedConnectionId || packageContextSource?.connectionId || reportSummarySource?.connectionId || "Not available"}</p>
+                        <p>ACTIVE TENANT ID: {activeAccountingContext?.tenantId || packageContextSource?.tenantId || reportSummarySource?.tenantId || "Not available"}</p>
+                        <p>ACTIVE COMPANY ID: {activeAccountingContext?.companyId || reportPayloadCompanyId(packageContextSource?.payload || reportSummarySource?.payload || null) || "Not available"}</p>
+                        <p>Latest Sync Status: {packageLookupDebug.latestSyncStatus || activeAccountingContext?.latestSyncStatus || "Not available"}</p>
+                        <p>Latest Sync ID: {packageLookupDebug.latestSyncId || activeAccountingContext?.latestSyncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                      </div>
+                      <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
+                        <p>CONNECTED REPORTS SUMMARY SOURCE</p>
+                        <p>syncId: {reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                        <p>connectionId: {reportSummarySource?.connectionId || activeAccountingContext?.connectionId || "Not available"}</p>
+                        <p>sourceSystem: {reportSummarySource?.sourceSystem || activeAccountingContext?.sourceSystem || "Not available"}</p>
+                        <p>tenantId: {reportSummarySource?.tenantId || activeAccountingContext?.tenantId || "Not available"}</p>
+                      </div>
+                      <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
+                        <p>PACKAGE GENERATOR LOOKUP</p>
+                        <p>syncId searched: {packageLookupDebug.syncIdSearched || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                        <p>connectionId searched: {packageLookupDebug.connectionIdSearched || activeAccountingContext?.connectionId || "Not available"}</p>
+                        <p>sourceSystem searched: {packageLookupDebug.sourceSystemSearched || activeAccountingContext?.sourceSystem || "Not available"}</p>
+                        <p>tenantId searched: {packageLookupDebug.tenantIdSearched || activeAccountingContext?.tenantId || "Not available"}</p>
+                        <p>Package Generator Expected Status: {packageLookupDebug.packageGeneratorExpectedStatus || activeAccountingContext?.packageGeneratorExpectedStatus || "SUCCESS"}</p>
+                        <p>Package Generator Found Status: {packageLookupDebug.packageGeneratorFoundStatus || activeAccountingContext?.packageGeneratorFoundStatus || "Not available"}</p>
+                      </div>
+                      <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
+                        <p>LATEST SUCCESSFUL SYNC FOUND?: {String(packageLookupDebug.latestSuccessfulSyncFound)}</p>
+                        {!packageLookupDebug.latestSuccessfulSyncFound && (
+                          <div className="mt-2">
+                            <p>Reason:</p>
+                            <ul className="mt-1 list-disc pl-5">
+                              {(packageLookupDebug.mismatchReasons.length ? packageLookupDebug.mismatchReasons : ["sync status mismatch"]).map((reason) => (
+                                <li key={reason}>{reason}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <p className="mt-2">Summary Sync ID: {reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                        <p>Package Sync ID: {packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
+                        <p>Match: {String(Boolean((reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) && (packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) && (reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) === (packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId)))}</p>
+                      </div>
+                      <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
+                        <p>Persisted Sync Record:</p>
+                        <p>syncId: {activeAccountingContext?.persistedSyncRecord?.syncId || "Not available"}</p>
+                        <p>syncStatus: {activeAccountingContext?.persistedSyncRecord?.syncStatus || "Not available"}</p>
+                        <p>companyId: {activeAccountingContext?.persistedSyncRecord?.companyId || "Not available"}</p>
+                        <p>connectionId: {activeAccountingContext?.persistedSyncRecord?.connectionId || "Not available"}</p>
+                        <p>tenantId: {activeAccountingContext?.persistedSyncRecord?.tenantId || "Not available"}</p>
+                      </div>
                     </div>
-                    <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
-                      <p>CONNECTED REPORTS SUMMARY SOURCE</p>
-                      <p>syncId: {reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
-                      <p>connectionId: {reportSummarySource?.connectionId || activeAccountingContext?.connectionId || "Not available"}</p>
-                      <p>sourceSystem: {reportSummarySource?.sourceSystem || activeAccountingContext?.sourceSystem || "Not available"}</p>
-                      <p>tenantId: {reportSummarySource?.tenantId || activeAccountingContext?.tenantId || "Not available"}</p>
-                    </div>
-                    <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
-                      <p>PACKAGE GENERATOR LOOKUP</p>
-                      <p>syncId searched: {packageLookupDebug.syncIdSearched || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
-                      <p>connectionId searched: {packageLookupDebug.connectionIdSearched || activeAccountingContext?.connectionId || "Not available"}</p>
-                      <p>sourceSystem searched: {packageLookupDebug.sourceSystemSearched || activeAccountingContext?.sourceSystem || "Not available"}</p>
-                      <p>tenantId searched: {packageLookupDebug.tenantIdSearched || activeAccountingContext?.tenantId || "Not available"}</p>
-                      <p>Package Generator Expected Status: {packageLookupDebug.packageGeneratorExpectedStatus || activeAccountingContext?.packageGeneratorExpectedStatus || "SUCCESS"}</p>
-                      <p>Package Generator Found Status: {packageLookupDebug.packageGeneratorFoundStatus || activeAccountingContext?.packageGeneratorFoundStatus || "Not available"}</p>
-                    </div>
-                    <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
-                      <p>LATEST SUCCESSFUL SYNC FOUND?: {String(packageLookupDebug.latestSuccessfulSyncFound)}</p>
-                      {!packageLookupDebug.latestSuccessfulSyncFound && (
-                        <div className="mt-2">
-                          <p>Reason:</p>
-                          <ul className="mt-1 list-disc pl-5">
-                            {(packageLookupDebug.mismatchReasons.length ? packageLookupDebug.mismatchReasons : ["sync status mismatch"]).map((reason) => (
-                              <li key={reason}>{reason}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      <p className="mt-2">Summary Sync ID: {reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
-                      <p>Package Sync ID: {packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId || "Not available"}</p>
-                      <p>Match: {String(Boolean((reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) && (packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) && (reportSummarySource?.syncId || activeAccountingContext?.latestSuccessfulSyncId) === (packageContextSource?.syncId || activeAccountingContext?.latestSuccessfulSyncId)))}</p>
-                    </div>
-                    <div className="rounded-2xl border border-[#C9A961]/20 bg-[#111112]/85/70 p-4">
-                      <p>Persisted Sync Record:</p>
-                      <p>syncId: {activeAccountingContext?.persistedSyncRecord?.syncId || "Not available"}</p>
-                      <p>syncStatus: {activeAccountingContext?.persistedSyncRecord?.syncStatus || "Not available"}</p>
-                      <p>companyId: {activeAccountingContext?.persistedSyncRecord?.companyId || "Not available"}</p>
-                      <p>connectionId: {activeAccountingContext?.persistedSyncRecord?.connectionId || "Not available"}</p>
-                      <p>tenantId: {activeAccountingContext?.persistedSyncRecord?.tenantId || "Not available"}</p>
-                    </div>
+                    <button type="button" onClick={promoteSummarySyncToPackageContext} className={focusRing("mt-4 rounded-2xl border border-[#C9A961]/30 px-4 py-2 text-xs font-semibold text-[#ECEBE7]/90")}>
+                      Use Summary Sync
+                    </button>
                   </div>
-                  <button type="button" onClick={promoteSummarySyncToPackageContext} className={focusRing("mt-4 rounded-2xl border border-[#C9A961]/30 px-4 py-2 text-xs font-semibold text-[#ECEBE7]/90")}>
-                    Use Summary Sync
-                  </button>
-                </div>
+                )}
                 <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
                   <p className={`text-sm font-semibold text-[#ECEBE7] ${headingFont}`}>Generate First Package</p>
                   <p className="mt-2 text-sm leading-6 text-[#A29E93]">
