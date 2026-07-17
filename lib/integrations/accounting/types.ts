@@ -152,6 +152,13 @@ export interface AdvisacorNormalizedFinancialData {
   normalizedProjects: AdvisacorNormalizedEntity[];
   normalizedVendors: AdvisacorNormalizedEntity[];
   normalizedCustomers: AdvisacorNormalizedEntity[];
+  // Phase MC-2c (Issue #6, Gap R-2): tenant home currency threaded from
+  // bundle.sourceMetadata.home_currency (which MC-1 captured from the
+  // provider). Optional so all existing constructors remain valid. Formatters
+  // downstream (PDF, close packet, UI) read this to render figures in the
+  // tenant's currency instead of hardcoded USD.
+  home_currency?: string;
+  multicurrency_enabled?: boolean;
   validation: {
     readyForReporting: boolean;
     missingObjects: string[];
