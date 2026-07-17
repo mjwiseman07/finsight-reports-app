@@ -150,6 +150,14 @@ export default function SigninPage() {
                       placeholder="Enter your password"
                     />
                   </label>
+                  <div className="flex justify-end">
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs font-semibold text-[#C9A961] hover:text-[#D9BE7B]"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                   {error && (
                     <p
                       role="alert"
