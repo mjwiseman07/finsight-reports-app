@@ -73,9 +73,12 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
   return (
     <div className="grid gap-4">
       <div className="rounded-3xl border border-[#C9A961]/25 bg-[#C9A961]/10 p-5">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#C9A961]">Ask Advisacor Support AI</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#C9A961]">What happens when you submit</p>
         <p className="mt-2 text-sm leading-6 text-slate-300">
-          Future architecture: Advisacor Support AI will try to answer onboarding, setup, package, and report questions before a ticket is submitted. If unresolved, the ticket will include the support AI context.
+          Your ticket is delivered to the Advisacor support team and copied to your email address.
+          Advisacor automatically captures your account context, connected QuickBooks Online company, browser,
+          and the most recent Intuit request identifier so we can diagnose issues without a back-and-forth.
+          See &quot;Response time SLAs&quot; below the form for how quickly we will respond.
         </p>
       </div>
 
