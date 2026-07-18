@@ -6451,11 +6451,10 @@ function getInventoryTurnsCommentary(turns: number | null) {
   return "Inventory turns are slow and may indicate excess stock, obsolete items, or working capital tied up in inventory.";
 }
 
-function getSlowMovingCommentary(value: number) {
+function getSlowMovingCommentary(value: number, homeCurrency: string) {
   if (value <= 0) return "No slow moving inventory was identified from the current and prior valuation comparison.";
   return `Slow moving inventory ties up working capital and can create margin risk. Review ${formatCurrency(
-    value,
-  )} of flagged items for discounting, bundling, return-to-vendor options, or reserve adjustments.`;
+    value, homeCurrency)} of flagged items for discounting, bundling, return-to-vendor options, or reserve adjustments.`;
 }
 
 function isInventoryOperationalRow(row: GlActivityRow) {
@@ -6481,7 +6480,7 @@ function isInventoryOperationalRow(row: GlActivityRow) {
   ].some((term) => text.includes(term));
 }
 
-function buildInventoryReviewItems(rows: GlActivityRow[], patterns: string[], labelBuilder: (row: GlActivityRow) => string): InventoryReviewItem[] {
+function buildInventoryReviewItems(rows: GlActivityRow[], patterns: string[], labelBuilder: (row: GlActivityRow) => string, homeCurrency: string): InventoryReviewItem[] {
   const grouped = new Map<string, { amount: number; count: number }>();
   rows
     .filter((row) => {
@@ -6502,7 +6501,7 @@ function buildInventoryReviewItems(rows: GlActivityRow[], patterns: string[], la
       label,
       amount: value.amount,
       count: value.count,
-      commentary: `${label} shows ${value.count} review item${value.count === 1 ? "" : "s"} totaling ${formatCurrency(value.amount)}. Consider reviewing whether this represents a recurring operational inventory pattern.`,
+      commentary: `${label} shows ${value.count} review item${value.count === 1 ? "" : "s"} totaling ${formatCurrency(value.amount, homeCurrency)}. Consider reviewing whether this represents a recurring operational inventory pattern.`,
     }))
     .filter((item) => item.amount > 0)
     .sort((a, b) => b.amount - a.amount)
@@ -6537,6 +6536,8 @@ function calculateInventoryIntelligence({
   priorQuarterGlData,
   currentYearGlData,
   priorYearGlData,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   inventoryKpis: InventoryKpis;
@@ -6551,6 +6552,8 @@ function calculateInventoryIntelligence({
   priorQuarterGlData: ParsedFile | null;
   currentYearGlData: ParsedFile | null;
   priorYearGlData: ParsedFile | null;
+
+  homeCurrency: string;
 }): InventoryIntelligence {
   const endingInventory = inventoryKpis.totalValue;
   const beginningInventory =
@@ -6583,15 +6586,13 @@ function calculateInventoryIntelligence({
   const reserveShortfall = eoReserveBalance !== null ? slowMovingValue - eoReserveBalance : 0;
   const eoReserveWarning =
     eoReserveBalance !== null && reserveShortfall > 0
-      ? `Slow moving inventory of ${formatCurrency(slowMovingValue)} exceeds current E&O reserve of ${formatCurrency(
-          eoReserveBalance,
-        )} - consider increasing reserve by ${formatCurrency(reserveShortfall)}`
+      ? `Slow moving inventory of ${formatCurrency(slowMovingValue, homeCurrency)} exceeds current E&O reserve of ${formatCurrency(
+          eoReserveBalance, homeCurrency)} - consider increasing reserve by ${formatCurrency(reserveShortfall, homeCurrency)}`
       : null;
   const eoReserveCommentary =
     eoReserveBalance === null && slowMovingValue > 0
       ? `No E&O reserve identified. Based on slow moving inventory of ${formatCurrency(
-          slowMovingValue,
-        )}, consider establishing a reserve of 25% to 50% of that value.`
+          slowMovingValue, homeCurrency)}, consider establishing a reserve of 25% to 50% of that value.`
       : eoReserveWarning || "E&O reserve coverage appears aligned with the currently identified slow moving inventory risk.";
   const currentInventoryRows = getInventoryOperationalRows([currentMonthGlData, currentQuarterGlData, currentYearGlData]);
   const priorInventoryRows = getInventoryOperationalRows([priorMonthGlData, priorQuarterGlData, priorYearGlData]);
@@ -6602,29 +6603,29 @@ function calculateInventoryIntelligence({
     basicOperationalRows,
     ["adjustment", "inventory adjustment", "quantity adjustment"],
     (row) => row.memo || row.description || row.accountName,
-  );
+    homeCurrency);
   const recurringAdjustmentItems = buildInventoryReviewItems(
     allInventoryRows,
     ["adjustment", "shrink", "scrap", "write-off", "write off"],
     (row) => row.accountName,
-  ).filter((item) => item.count > 1 || item.amount > Math.max(endingInventory * 0.02, 2500));
+    homeCurrency).filter((item) => item.count > 1 || item.amount > Math.max(endingInventory * 0.02, 2500));
   const cycleCountVarianceTrends = fullOperationalReview
-    ? buildInventoryReviewItems(allInventoryRows, ["cycle count", "physical count", "count variance"], (row) => row.accountName)
+    ? buildInventoryReviewItems(allInventoryRows, ["cycle count", "physical count", "count variance"], (row) => row.accountName, homeCurrency)
     : [];
   const purchasePriceVarianceTrends = fullOperationalReview
-    ? buildInventoryReviewItems(allInventoryRows, ["ppv", "purchase price variance", "price variance"], (row) => row.accountName)
+    ? buildInventoryReviewItems(allInventoryRows, ["ppv", "purchase price variance", "price variance"], (row) => row.accountName, homeCurrency)
     : [];
   const manufacturingVarianceReview = fullOperationalReview
-    ? buildInventoryReviewItems(allInventoryRows, ["manufacturing variance", "production variance", "yield variance", "usage variance"], (row) => row.accountName)
+    ? buildInventoryReviewItems(allInventoryRows, ["manufacturing variance", "production variance", "yield variance", "usage variance"], (row) => row.accountName, homeCurrency)
     : [];
   const bomVarianceReview = fullOperationalReview
-    ? buildInventoryReviewItems(allInventoryRows, ["bom", "bill of material", "material variance"], (row) => row.accountName)
+    ? buildInventoryReviewItems(allInventoryRows, ["bom", "bill of material", "material variance"], (row) => row.accountName, homeCurrency)
     : [];
   const billOfLaborVarianceReview = fullOperationalReview
-    ? buildInventoryReviewItems(allInventoryRows, ["bill of labor", "labor variance", "labor efficiency"], (row) => row.accountName)
+    ? buildInventoryReviewItems(allInventoryRows, ["bill of labor", "labor variance", "labor efficiency"], (row) => row.accountName, homeCurrency)
     : [];
   const jobProfitabilityConcerns = fullOperationalReview
-    ? buildInventoryReviewItems(allInventoryRows, ["job", "work order", "project", "overrun", "underrun", "wip"], (row) => row.memo || row.description || row.accountName)
+    ? buildInventoryReviewItems(allInventoryRows, ["job", "work order", "project", "overrun", "underrun", "wip"], (row) => row.memo || row.description || row.accountName, homeCurrency)
     : [];
   const stagnantInventoryKeys = new Set(slowMovingItems.map((item) => normalizeStatementLabel(item.name)));
   const inventoryPurchasesWithLimitedMovement = fullOperationalReview
@@ -6634,7 +6635,7 @@ function calculateInventoryIntelligence({
           label: item.name,
           amount: item.value,
           count: 1,
-          commentary: `${item.name} carries ${formatCurrency(item.value)} of inventory value with limited identified movement. Consider reviewing purchasing cadence, demand planning, and reserve implications.`,
+          commentary: `${item.name} carries ${formatCurrency(item.value, homeCurrency)} of inventory value with limited identified movement. Consider reviewing purchasing cadence, demand planning, and reserve implications.`,
         }))
         .slice(0, 6)
     : [];
@@ -6643,7 +6644,7 @@ function calculateInventoryIntelligence({
       ? "Inventory turns appear slower than expected. Review purchasing cadence, demand assumptions, stagnant inventory, and inventory reserve exposure."
       : "Inventory turns support a basic inventory velocity review. Continue monitoring inventory aging, reserve exposure, and item concentration.",
     slowMovingValue > 0
-      ? `Slow-moving inventory exposure totals ${formatCurrency(slowMovingValue)} and appears concentrated in ${slowMovingItems.slice(0, 3).map((item) => item.name).join(", ") || "identified items"}. Consider reviewing movement history and reserve implications.`
+      ? `Slow-moving inventory exposure totals ${formatCurrency(slowMovingValue, homeCurrency)} and appears concentrated in ${slowMovingItems.slice(0, 3).map((item) => item.name).join(", ") || "identified items"}. Consider reviewing movement history and reserve implications.`
       : "No slow-moving inventory exposure was identified from the available current/prior valuation comparison.",
     largestInventoryAdjustments.length
       ? `Inventory adjustment activity appears concentrated in ${largestInventoryAdjustments[0].label}. Consider reviewing cycle count procedures, shrinkage trends, and purchasing controls.`
@@ -6656,7 +6657,7 @@ function calculateInventoryIntelligence({
       : "",
   ].filter(Boolean);
   const internalInventoryFlags = [
-    ...largestInventoryAdjustments.map((item) => `Largest inventory adjustment review item: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...largestInventoryAdjustments.map((item) => `Largest inventory adjustment review item: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
     ...(fullOperationalReview
       ? [
           ...recurringAdjustmentItems.map((item) => `Recurring adjustment pattern identified in ${item.label}; review ${item.count} related item${item.count === 1 ? "" : "s"}.`),
@@ -6683,7 +6684,7 @@ function calculateInventoryIntelligence({
     turnsCommentary: getInventoryTurnsCommentary(turns),
     slowMovingItems,
     slowMovingValue,
-    slowMovingCommentary: getSlowMovingCommentary(slowMovingValue),
+    slowMovingCommentary: getSlowMovingCommentary(slowMovingValue, homeCurrency),
     eoReserveBalance,
     eoReservePercent,
     eoReserveWarning,
@@ -6727,6 +6728,8 @@ function calculateManufacturingInventoryIntelligence({
   priorQuarterGlData,
   currentYearGlData,
   priorYearGlData,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   inventoryKpis: InventoryKpis;
@@ -6738,6 +6741,8 @@ function calculateManufacturingInventoryIntelligence({
   priorQuarterGlData: ParsedFile | null;
   currentYearGlData: ParsedFile | null;
   priorYearGlData: ParsedFile | null;
+
+  homeCurrency: string;
 }): ManufacturingInventoryIntelligence {
   const currentInventoryRows = getInventoryOperationalRows([currentMonthGlData, currentQuarterGlData, currentYearGlData]);
   const priorInventoryRows = getInventoryOperationalRows([priorMonthGlData, priorQuarterGlData, priorYearGlData]);
@@ -6750,12 +6755,12 @@ function calculateManufacturingInventoryIntelligence({
     currentInventoryRows,
     ["adjustment", "quantity adjustment", "inventory adjustment", "shrink", "scrap", "write-off", "write off"],
     (row) => row.className || row.memo || row.description || row.accountName,
-  );
+    homeCurrency);
   const priorAdjustmentItems = buildInventoryReviewItems(
     priorInventoryRows,
     ["adjustment", "quantity adjustment", "inventory adjustment", "shrink", "scrap", "write-off", "write off"],
     (row) => row.className || row.memo || row.description || row.accountName,
-  );
+    homeCurrency);
   const currentAdjustmentTotal = sumInventoryReviewItems(currentAdjustmentItems);
   const priorAdjustmentTotal = sumInventoryReviewItems(priorAdjustmentItems);
   const adjustmentTrendAmount = currentAdjustmentTotal - priorAdjustmentTotal;
@@ -6782,7 +6787,7 @@ function calculateManufacturingInventoryIntelligence({
       amount: item.value,
       count: 1,
       impact: item.value > highWatermark ? "High" as const : "Monitor" as const,
-      commentary: `${item.name} carries ${formatCurrency(item.value)} of slow-moving inventory exposure. Review turnover, demand assumptions, and reserve exposure.`,
+      commentary: `${item.name} carries ${formatCurrency(item.value, homeCurrency)} of slow-moving inventory exposure. Review turnover, demand assumptions, and reserve exposure.`,
     })),
     ...toManufacturingCostItems(inventoryIntelligence.inventoryPurchasesWithLimitedMovement, highWatermark),
   ].slice(0, fullManufacturingReview ? 8 : 4);
@@ -6811,24 +6816,24 @@ function calculateManufacturingInventoryIntelligence({
     packageTier === "essential"
       ? "Basic inventory review focuses on turnover, aging, and reserve exposure where inventory data is available."
       : packageTier === "professional"
-        ? `Inventory operational review shows ending inventory of ${formatCurrency(endingInventory)} and working capital movement of ${formatCurrency(workingCapitalImpact)}. Review inventory aging, adjustment activity, and reserve exposure.`
+        ? `Inventory operational review shows ending inventory of ${formatCurrency(endingInventory, homeCurrency)} and working capital movement of ${formatCurrency(workingCapitalImpact, homeCurrency)}. Review inventory aging, adjustment activity, and reserve exposure.`
         : `Manufacturing & Inventory Intelligence connects inventory balances, adjustments, PPV, BOM variance, labor variance, job profitability, and production efficiency into an operational finance review.`,
     inventoryGrowthPercent !== null
       ? `Inventory changed ${inventoryGrowthPercent.toFixed(1)}% versus the prior inventory baseline. Review whether inventory growth aligns with revenue, production demand, and working capital goals.`
       : "",
     adjustmentTrendAmount > 0
-      ? `Inventory adjustments increased by ${formatCurrency(adjustmentTrendAmount)} versus prior activity and may warrant review of cycle count procedures, shrinkage patterns, and location-level activity.`
+      ? `Inventory adjustments increased by ${formatCurrency(adjustmentTrendAmount, homeCurrency)} versus prior activity and may warrant review of cycle count procedures, shrinkage patterns, and location-level activity.`
       : adjustmentTrendAmount < 0
-        ? `Inventory adjustments decreased by ${formatCurrency(Math.abs(adjustmentTrendAmount))} versus prior activity. Continue monitoring recurring adjustment accounts and count variance trends.`
+        ? `Inventory adjustments decreased by ${formatCurrency(Math.abs(adjustmentTrendAmount), homeCurrency)} versus prior activity. Continue monitoring recurring adjustment accounts and count variance trends.`
         : "Inventory adjustment activity appears stable based on available current and prior GL detail.",
     reserveExposure > 0
-      ? `Slow-moving inventory exposure totals ${formatCurrency(reserveExposure)} and should be reviewed with reserve coverage, turnover, and purchasing cadence.`
+      ? `Slow-moving inventory exposure totals ${formatCurrency(reserveExposure, homeCurrency)} and should be reviewed with reserve coverage, turnover, and purchasing cadence.`
       : "",
     fullManufacturingReview && ppvImpact > 0
-      ? `PPV activity totals ${formatCurrency(ppvImpact)} in identified review items. Review material cost pressure, vendor pricing, and standard/BOM assumptions.`
+      ? `PPV activity totals ${formatCurrency(ppvImpact, homeCurrency)} in identified review items. Review material cost pressure, vendor pricing, and standard/BOM assumptions.`
       : "",
     fullManufacturingReview && (bomVarianceImpact || laborVarianceImpact || jobProfitabilityImpact)
-      ? `Production variance indicators total ${formatCurrency(bomVarianceImpact + laborVarianceImpact + jobProfitabilityImpact)} across BOM, labor, and job profitability review items. Review production assumptions and margin impact.`
+      ? `Production variance indicators total ${formatCurrency(bomVarianceImpact + laborVarianceImpact + jobProfitabilityImpact, homeCurrency)} across BOM, labor, and job profitability review items. Review production assumptions and margin impact.`
       : "",
   ].filter(Boolean);
   const internalFlags = [
@@ -6838,15 +6843,15 @@ function calculateManufacturingInventoryIntelligence({
     reserveExposure > highWatermark
       ? "Slow-moving inventory exposure is material relative to inventory balances and may warrant reserve exposure review."
       : "",
-    ...adjustmentItems.filter((item) => item.impact !== "Monitor").map((item) => `Inventory adjustment review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
-    ...cycleCountItems.map((item) => `Cycle count review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...adjustmentItems.filter((item) => item.impact !== "Monitor").map((item) => `Inventory adjustment review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
+    ...cycleCountItems.map((item) => `Cycle count review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
     ...(fullManufacturingReview
       ? [
-          ...ppvItems.map((item) => `PPV review: ${item.label} totaling ${formatCurrency(item.amount)}. Review vendor pricing and standard cost assumptions.`),
-          ...bomVarianceItems.map((item) => `BOM variance review: ${item.label} totaling ${formatCurrency(item.amount)}. Review material usage assumptions and production costing.`),
-          ...laborVarianceItems.map((item) => `Labor variance review: ${item.label} totaling ${formatCurrency(item.amount)}. Review expected labor hours, overtime pressure, and production efficiency.`),
-          ...jobProfitabilityItems.map((item) => `Job profitability review: ${item.label} totaling ${formatCurrency(item.amount)}. Review margin assumptions, material usage, and labor burden.`),
-          ...manufacturingVarianceItems.map((item) => `Manufacturing variance review: ${item.label} totaling ${formatCurrency(item.amount)}. Review production efficiency and margin impact.`),
+          ...ppvItems.map((item) => `PPV review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}. Review vendor pricing and standard cost assumptions.`),
+          ...bomVarianceItems.map((item) => `BOM variance review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}. Review material usage assumptions and production costing.`),
+          ...laborVarianceItems.map((item) => `Labor variance review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}. Review expected labor hours, overtime pressure, and production efficiency.`),
+          ...jobProfitabilityItems.map((item) => `Job profitability review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}. Review margin assumptions, material usage, and labor burden.`),
+          ...manufacturingVarianceItems.map((item) => `Manufacturing variance review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}. Review production efficiency and margin impact.`),
         ]
       : []),
   ].filter(Boolean).slice(0, 14);
@@ -6963,7 +6968,7 @@ function getPayrollDepartmentTotals(data: ParsedFile | null) {
   return totals;
 }
 
-function buildPayrollCommentary(rows: PayrollDepartmentRow[], analysis: Omit<PayrollAnalysis, "commentary">) {
+function buildPayrollCommentary(rows: PayrollDepartmentRow[], analysis: Omit<PayrollAnalysis, "commentary">, homeCurrency: string) {
   if (!rows.length) return [];
 
   const commentary: string[] = [];
@@ -6974,7 +6979,7 @@ function buildPayrollCommentary(rows: PayrollDepartmentRow[], analysis: Omit<Pay
     )}, a change of ${formatFte(analysis.totalFteChange)} FTE month-over-month.`,
   );
   commentary.push(
-    `Total payroll cost ${totalDirection} by ${formatCurrency(Math.abs(analysis.totalPayrollCostChange))} compared with the prior month.`,
+    `Total payroll cost ${totalDirection} by ${formatCurrency(Math.abs(analysis.totalPayrollCostChange), homeCurrency)} compared with the prior month.`,
   );
 
   rows
@@ -6988,7 +6993,7 @@ function buildPayrollCommentary(rows: PayrollDepartmentRow[], analysis: Omit<Pay
       commentary.push(
         `${row.department} ${fteDirection} by ${formatFte(
           Math.abs(row.fteChange),
-        )} FTE month-over-month, with ${costDirection} of ${formatCurrency(Math.abs(row.payrollCostChange))}.`,
+        )} FTE month-over-month, with ${costDirection} of ${formatCurrency(Math.abs(row.payrollCostChange), homeCurrency)}.`,
       );
     });
 
@@ -7000,7 +7005,7 @@ function calculatePayrollAnalysis(
   currentPayrollData: ParsedFile | null,
   priorPayrollData: ParsedFile | null,
   fteDivisor: number,
-): PayrollAnalysis {
+  homeCurrency: string,): PayrollAnalysis {
   const divisor = fteDivisor > 0 ? fteDivisor : 173.33;
   const currentTotals = getPayrollDepartmentTotals(currentPayrollData);
   const priorTotals = getPayrollDepartmentTotals(priorPayrollData);
@@ -7053,7 +7058,7 @@ function calculatePayrollAnalysis(
     highestPayrollCostIncreaseDepartment,
   };
 
-  return { ...analysis, commentary: buildPayrollCommentary(rows, analysis) };
+  return { ...analysis, commentary: buildPayrollCommentary(rows, analysis, homeCurrency) };
 }
 
 function calculateWorkforceIntelligence({
@@ -7890,6 +7895,7 @@ function calculateFixedAssetKpis(
   totalAssets: number,
   plData: ParsedFile | null,
   balanceSheetRows: StatementRow[] = [],
+  homeCurrency: string = DEFAULT_FALLBACK_CURRENCY,
 ): FixedAssetKpis {
   const balanceSheetFixedAssets = getBalanceSheetFixedAssetSummary(balanceSheetRows);
   const hasBalanceSheetFixedAssets =
@@ -7941,8 +7947,7 @@ function calculateFixedAssetKpis(
     const nbvValidationWarning =
       Math.abs(nbvVariance) > 1
         ? `Internal fixed asset check: gross fixed assets less accumulated depreciation differs from NBV by ${formatCurrency(
-            Math.abs(nbvVariance),
-          )}.`
+            Math.abs(nbvVariance), homeCurrency)}.`
         : null;
     const centralizedMatches: FixedAssetMatch[] = [
       ...matches,
@@ -8125,7 +8130,7 @@ function calculateFixedAssetKpis(
 function getFixedAssetChangeRows(
   current: FixedAssetKpis,
   prior: FixedAssetKpis,
-): FixedAssetChangeRow[] {
+  homeCurrency: string,): FixedAssetChangeRow[] {
   const buildRow = (
     metric: string,
     priorValue: number,
@@ -8164,7 +8169,7 @@ function getFixedAssetChangeRows(
       change: grossAdditions,
       interpretation:
         grossAdditions > 0
-          ? `Gross fixed assets increased by ${formatCurrency(grossAdditions)}, indicating additions or capitalized asset activity.`
+          ? `Gross fixed assets increased by ${formatCurrency(grossAdditions, homeCurrency)}, indicating additions or capitalized asset activity.`
           : "No gross fixed asset additions were identified from the period-over-period rollforward.",
     },
     {
@@ -8174,15 +8179,15 @@ function getFixedAssetChangeRows(
       change: -grossDisposals,
       interpretation:
         grossDisposals > 0
-          ? `Gross fixed assets decreased by ${formatCurrency(grossDisposals)}, indicating disposals or reclassification.`
+          ? `Gross fixed assets decreased by ${formatCurrency(grossDisposals, homeCurrency)}, indicating disposals or reclassification.`
           : "No gross fixed asset disposals were identified from the period-over-period rollforward.",
     },
     buildRow(
       "Ending gross assets",
       prior.totalFixedAssets,
       current.totalFixedAssets,
-      `Fixed assets increased by ${formatCurrency(fixedAssetCostChange)}, indicating net additions during the period.`,
-      `Fixed assets decreased by ${formatCurrency(Math.abs(fixedAssetCostChange))}, indicating possible disposals or reclassification.`,
+      `Fixed assets increased by ${formatCurrency(fixedAssetCostChange, homeCurrency)}, indicating net additions during the period.`,
+      `Fixed assets decreased by ${formatCurrency(Math.abs(fixedAssetCostChange), homeCurrency)}, indicating possible disposals or reclassification.`,
       "No net fixed asset additions or disposals were identified.",
     ),
     buildRow(
@@ -8190,11 +8195,9 @@ function getFixedAssetChangeRows(
       prior.accumulatedDepreciation,
       current.accumulatedDepreciation,
       `Accumulated depreciation increased by ${formatCurrency(
-        Math.abs(Math.abs(current.accumulatedDepreciation) - Math.abs(prior.accumulatedDepreciation)),
-      )}, meaning the depreciation reserve increased.`,
+        Math.abs(Math.abs(current.accumulatedDepreciation) - Math.abs(prior.accumulatedDepreciation)), homeCurrency)}, meaning the depreciation reserve increased.`,
       `Accumulated depreciation decreased by ${formatCurrency(
-        Math.abs(Math.abs(current.accumulatedDepreciation) - Math.abs(prior.accumulatedDepreciation)),
-      )}, which may indicate disposals or reclassification.`,
+        Math.abs(Math.abs(current.accumulatedDepreciation) - Math.abs(prior.accumulatedDepreciation)), homeCurrency)}, which may indicate disposals or reclassification.`,
       "Accumulated depreciation was unchanged.",
     ),
     buildRow(
@@ -8202,11 +8205,9 @@ function getFixedAssetChangeRows(
       prior.netBookValue,
       current.netBookValue,
       `Net book value increased by ${formatCurrency(
-        current.netBookValue - prior.netBookValue,
-      )}, suggesting additions exceeded depreciation and disposals.`,
+        current.netBookValue - prior.netBookValue, homeCurrency)}, suggesting additions exceeded depreciation and disposals.`,
       `Net book value decreased by ${formatCurrency(
-        Math.abs(current.netBookValue - prior.netBookValue),
-      )}, suggesting depreciation or disposals exceeded additions.`,
+        Math.abs(current.netBookValue - prior.netBookValue), homeCurrency)}, suggesting depreciation or disposals exceeded additions.`,
       "Net book value was unchanged.",
     ),
   ];
@@ -8276,11 +8277,15 @@ function buildFixedAssetRollforwardPeriod({
   current,
   prior,
   activityRows,
+
+  homeCurrency,
 }: {
   period: string;
   current: FixedAssetKpis;
   prior: FixedAssetKpis;
   activityRows: GlActivityRow[];
+
+  homeCurrency: string;
 }): FixedAssetRollforwardPeriod {
   const grossChange = current.totalFixedAssets - prior.totalFixedAssets;
   const activityAdditions = activityRows
@@ -8311,7 +8316,7 @@ function buildFixedAssetRollforwardPeriod({
     endingNetBookValue: current.netBookValue,
     commentary:
       additions > 0 || disposals > 0
-        ? `${period} rollforward identifies ${formatCurrency(additions)} of additions and ${formatCurrency(disposals)} of disposals or reclassification activity.`
+        ? `${period} rollforward identifies ${formatCurrency(additions, homeCurrency)} of additions and ${formatCurrency(disposals, homeCurrency)} of disposals or reclassification activity.`
         : `${period} rollforward shows limited gross fixed asset movement from available data.`,
   };
 }
@@ -8328,6 +8333,8 @@ function calculateFixedAssetIntegrityIntelligence({
   priorQuarterGlData,
   currentYearGlData,
   priorYearGlData,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   currentFixedAssetKpis: FixedAssetKpis;
@@ -8340,6 +8347,8 @@ function calculateFixedAssetIntegrityIntelligence({
   priorQuarterGlData: ParsedFile | null;
   currentYearGlData: ParsedFile | null;
   priorYearGlData: ParsedFile | null;
+
+  homeCurrency: string;
 }): FixedAssetIntegrityIntelligence {
   const fullOversight = isVirtualCfo(packageTier);
   const currentDataSets = [currentMonthGlData, currentQuarterGlData, currentYearGlData];
@@ -8358,9 +8367,12 @@ function calculateFixedAssetIntegrityIntelligence({
   const depreciationTrendAmount = Math.abs(currentFixedAssetKpis.accumulatedDepreciation) - Math.abs(priorFixedAssetKpis.accumulatedDepreciation);
   const rollforwards = isProfessionalOrHigher(packageTier)
     ? [
-        buildFixedAssetRollforwardPeriod({ period: "Monthly", current: currentFixedAssetKpis, prior: priorFixedAssetKpis, activityRows: getAccountActivity(currentMonthGlData, "__all__") }),
-        buildFixedAssetRollforwardPeriod({ period: "Quarterly", current: currentFixedAssetKpis, prior: priorFixedAssetKpis, activityRows: getAccountActivity(currentQuarterGlData, "__all__") }),
-        buildFixedAssetRollforwardPeriod({ period: "Yearly", current: currentFixedAssetKpis, prior: priorFixedAssetKpis, activityRows: getAccountActivity(currentYearGlData, "__all__") }),
+        buildFixedAssetRollforwardPeriod({ period: "Monthly", current: currentFixedAssetKpis, prior: priorFixedAssetKpis, activityRows: getAccountActivity(currentMonthGlData, "__all__"),
+    homeCurrency,}),
+        buildFixedAssetRollforwardPeriod({ period: "Quarterly", current: currentFixedAssetKpis, prior: priorFixedAssetKpis, activityRows: getAccountActivity(currentQuarterGlData, "__all__"),
+    homeCurrency,}),
+        buildFixedAssetRollforwardPeriod({ period: "Yearly", current: currentFixedAssetKpis, prior: priorFixedAssetKpis, activityRows: getAccountActivity(currentYearGlData, "__all__"),
+    homeCurrency,}),
       ]
     : [];
   const cipItems = [
@@ -8376,7 +8388,7 @@ function calculateFixedAssetIntegrityIntelligence({
     ...buildAssetIntegrityItems(
       fullOversight ? allCipRows : currentCipRows,
       (row) => row.accountName,
-      (label, amount, count) => `${label} includes ${count} CIP-related activity item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review project status, capitalization timing, and transfer activity.`,
+      (label, amount, count) => `${label} includes ${count} CIP-related activity item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount, homeCurrency)}. Review project status, capitalization timing, and transfer activity.`,
       "Monitor",
     ),
   ].slice(0, 8);
@@ -8402,7 +8414,7 @@ function calculateFixedAssetIntegrityIntelligence({
     ...buildAssetIntegrityItems(
       fullOversight ? allDepreciationRows : currentDepreciationRows,
       (row) => row.accountName,
-      (label, amount, count) => `${label} includes ${count} depreciation or amortization activity item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review timing consistency and relationship to the fixed asset base.`,
+      (label, amount, count) => `${label} includes ${count} depreciation or amortization activity item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount, homeCurrency)}. Review timing consistency and relationship to the fixed asset base.`,
       "Informational",
     ),
   ].slice(0, 8);
@@ -8419,7 +8431,7 @@ function calculateFixedAssetIntegrityIntelligence({
     ...buildAssetIntegrityItems(
       fullOversight ? allPrepaidRows : currentPrepaidRows,
       (row) => row.accountName,
-      (label, amount, count) => `${label} includes ${count} prepaid or deferred cost activity item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review amortization cadence, recurring entry timing, and balance reduction patterns.`,
+      (label, amount, count) => `${label} includes ${count} prepaid or deferred cost activity item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount, homeCurrency)}. Review amortization cadence, recurring entry timing, and balance reduction patterns.`,
       packageTier === "essential" ? "Monitor" : "Informational",
     ),
   ].slice(0, 8);
@@ -8468,19 +8480,19 @@ function calculateFixedAssetIntegrityIntelligence({
           : "Low Review";
   const commentary = [
     isProfessionalOrHigher(packageTier)
-      ? `Fixed asset lifecycle review shows gross fixed assets of ${formatCurrency(currentFixedAssetKpis.totalFixedAssets)}, accumulated depreciation of ${formatCurrency(currentFixedAssetKpis.accumulatedDepreciation)}, and net book value of ${formatCurrency(currentFixedAssetKpis.netBookValue)}.`
+      ? `Fixed asset lifecycle review shows gross fixed assets of ${formatCurrency(currentFixedAssetKpis.totalFixedAssets, homeCurrency)}, accumulated depreciation of ${formatCurrency(currentFixedAssetKpis.accumulatedDepreciation, homeCurrency)}, and net book value of ${formatCurrency(currentFixedAssetKpis.netBookValue, homeCurrency)}.`
       : "Basic balance sheet integrity review focuses on prepaid activity and stagnant operational balances.",
     capexTrendAmount
-      ? `CapEx trend movement is ${formatCurrency(capexTrendAmount)} compared with the prior fixed asset baseline. Review additions, disposals, capitalization timing, and operational asset use.`
+      ? `CapEx trend movement is ${formatCurrency(capexTrendAmount, homeCurrency)} compared with the prior fixed asset baseline. Review additions, disposals, capitalization timing, and operational asset use.`
       : "No net fixed asset cost movement was identified from the available current and prior fixed asset data.",
     depreciationTrendAmount || currentFixedAssetKpis.depreciationExpense
-      ? `Depreciation activity should be reviewed against asset additions and accumulated depreciation movement. Current depreciation expense is ${currentFixedAssetKpis.depreciationExpense === null ? "not identified" : formatCurrency(currentFixedAssetKpis.depreciationExpense)}.`
+      ? `Depreciation activity should be reviewed against asset additions and accumulated depreciation movement. Current depreciation expense is ${currentFixedAssetKpis.depreciationExpense === null ? "not identified" : formatCurrency(currentFixedAssetKpis.depreciationExpense, homeCurrency)}.`
       : "Depreciation activity appears limited from available reports and may warrant review where fixed asset balances exist.",
     cipBalance > 0
-      ? `CIP balance is ${formatCurrency(cipBalance)}. Review project status and capitalization timing where balances remain open across periods.`
+      ? `CIP balance is ${formatCurrency(cipBalance, homeCurrency)}. Review project status and capitalization timing where balances remain open across periods.`
       : "",
     prepaidBalance > 0
-      ? `Prepaid and deferred cost balances total ${formatCurrency(prepaidBalance)}. Review amortization cadence and recurring entry timing.`
+      ? `Prepaid and deferred cost balances total ${formatCurrency(prepaidBalance, homeCurrency)}. Review amortization cadence and recurring entry timing.`
       : "",
   ].filter(Boolean);
 
@@ -12204,7 +12216,8 @@ export default function UploadPage() {
     priorQuarterGlData: activePriorQuarterGlData,
     currentYearGlData: activeCurrentYearGlData,
     priorYearGlData: activePriorYearGlData,
-  });
+  
+    homeCurrency,});
   const manufacturingInventoryIntelligence = calculateManufacturingInventoryIntelligence({
     packageTier,
     inventoryKpis,
@@ -12216,16 +12229,17 @@ export default function UploadPage() {
     priorQuarterGlData: activePriorQuarterGlData,
     currentYearGlData: activeCurrentYearGlData,
     priorYearGlData: activePriorYearGlData,
-  });
-  const fixedAssetKpis = calculateFixedAssetKpis(activeFixedAssetData, kpis.totalAssets, activePlData, bsStatementRows);
+  
+    homeCurrency,});
+  const fixedAssetKpis = calculateFixedAssetKpis(activeFixedAssetData, kpis.totalAssets, activePlData, bsStatementRows, homeCurrency);
   const grossFixedAssets = fixedAssetKpis.totalFixedAssets;
   const accumulatedDepreciation = fixedAssetKpis.accumulatedDepreciation;
   const netBookValue = fixedAssetKpis.netBookValue;
   void grossFixedAssets;
   void accumulatedDepreciation;
   void netBookValue;
-  const priorFixedAssetKpis = calculateFixedAssetKpis(activePriorFixedAssetData, kpis.totalAssets, null, priorBsRowsForInventory);
-  const fixedAssetChangeRows = getFixedAssetChangeRows(fixedAssetKpis, priorFixedAssetKpis);
+  const priorFixedAssetKpis = calculateFixedAssetKpis(activePriorFixedAssetData, kpis.totalAssets, null, priorBsRowsForInventory, homeCurrency);
+  const fixedAssetChangeRows = getFixedAssetChangeRows(fixedAssetKpis, priorFixedAssetKpis, homeCurrency);
   const fixedAssetIntegrityIntelligence = calculateFixedAssetIntegrityIntelligence({
     packageTier,
     currentFixedAssetKpis: fixedAssetKpis,
@@ -12238,10 +12252,11 @@ export default function UploadPage() {
     priorQuarterGlData: activePriorQuarterGlData,
     currentYearGlData: activeCurrentYearGlData,
     priorYearGlData: activePriorYearGlData,
-  });
+  
+    homeCurrency,});
   const reportPeriod = clientReportingPeriod || "Current Reporting Period";
   const companyName = clientName || "Client Company Name";
-  const payrollAnalysis = calculatePayrollAnalysis(activeCurrentPayrollData, activePriorPayrollData, fteDivisor);
+  const payrollAnalysis = calculatePayrollAnalysis(activeCurrentPayrollData, activePriorPayrollData, fteDivisor, homeCurrency);
   const rawMonthFluxRows = getFluxRows(
     activeCurrentMonthGlData,
     activePriorMonthGlData,
@@ -14847,10 +14862,14 @@ export default function UploadPage() {
                     />
                   )}
                   {isProfessionalOrHigher(packageTier) && activeInventoryData && (
-                    <InventoryIntelligenceSection inventoryIntelligence={inventoryIntelligence} packageTier={packageTier} />
+                    <InventoryIntelligenceSection inventoryIntelligence={inventoryIntelligence} packageTier={packageTier} 
+          homeCurrency={homeCurrency}
+        />
                   )}
                   {activeInventoryData && manufacturingInventoryIntelligence.enabled && (
-                    <ManufacturingInventoryIntelligenceSection intelligence={manufacturingInventoryIntelligence} packageTier={packageTier} />
+                    <ManufacturingInventoryIntelligenceSection intelligence={manufacturingInventoryIntelligence} packageTier={packageTier} 
+          homeCurrency={homeCurrency}
+        />
                   )}
                   {closeManagementIntelligence.enabled && (
                     <CloseManagementIntelligenceSection intelligence={closeManagementIntelligence} packageTier={packageTier} homeCurrency={homeCurrency} />
@@ -14860,7 +14879,9 @@ export default function UploadPage() {
                     <ReserveLifecycleIntelligenceSection reserveLifecycleIntelligence={reserveLifecycleIntelligence} packageTier={packageTier} homeCurrency={homeCurrency} />
                   )}
                   {!isProfessionalOrHigher(packageTier) && fixedAssetIntegrityIntelligence.enabled && (
-                    <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} />
+                    <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} 
+          homeCurrency={homeCurrency}
+        />
                   )}
                   {kpiReviewMode === "staged" && (
                     <KpiReviewSectionActions
@@ -14995,10 +15016,14 @@ export default function UploadPage() {
                   fixedAssetKpis={fixedAssetKpis}
                   priorFixedAssetData={activePriorFixedAssetData}
                   changeRows={fixedAssetChangeRows}
-                />
+                
+          homeCurrency={homeCurrency}
+        />
               )}
               {!isVirtualCfo(packageTier) && fixedAssetIntegrityIntelligence.enabled && (
-                <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} />
+                <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} 
+          homeCurrency={homeCurrency}
+        />
               )}
               <ProfessionalPlaceholderSection />
             </>
@@ -15013,17 +15038,23 @@ export default function UploadPage() {
                 <InventoryAnalysisSection
                   inventoryKpis={inventoryKpis}
                   inventoryIntelligence={inventoryIntelligence}
-                />
+                
+          homeCurrency={homeCurrency}
+        />
               )}
               {activeFixedAssetData && (
                 <FixedAssetAnalysisSection
                   fixedAssetKpis={fixedAssetKpis}
                   priorFixedAssetData={activePriorFixedAssetData}
                   changeRows={fixedAssetChangeRows}
-                />
+                
+          homeCurrency={homeCurrency}
+        />
               )}
               {fixedAssetIntegrityIntelligence.enabled && (
-                <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} />
+                <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} 
+          homeCurrency={homeCurrency}
+        />
               )}
               <VirtualCfoPlaceholderSection />
               <PayrollAnalysisSection
@@ -15033,7 +15064,9 @@ export default function UploadPage() {
                 priorPayrollData={activePriorPayrollData}
                 fteDivisor={fteDivisor}
                 onFteDivisorChange={handleFteDivisorChange}
-              />
+              
+          homeCurrency={homeCurrency}
+        />
               <FluxAnalysisPanel
                 settings={fluxSettings}
                 onSettingsChange={setFluxSettings}
@@ -19025,15 +19058,19 @@ function KpiConfirmationPanel({
 function InventoryIntelligenceSection({
   inventoryIntelligence,
   packageTier,
+
+  homeCurrency,
 }: {
   inventoryIntelligence: InventoryIntelligence;
   packageTier: PackageTier;
+
+  homeCurrency: string;
 }) {
   const isFullReview = isVirtualCfo(packageTier);
   const summaryItems = [
     {
       label: "Inventory Aging / Slow-Moving Exposure",
-      value: formatMoneyLegacy(inventoryIntelligence.slowMovingValue),
+      value: formatMoneyLegacy(inventoryIntelligence.slowMovingValue, homeCurrency),
       detail: inventoryIntelligence.slowMovingCommentary,
     },
     {
@@ -19043,7 +19080,7 @@ function InventoryIntelligenceSection({
     },
     {
       label: "Inventory Reserve Exposure",
-      value: inventoryIntelligence.eoReserveBalance !== null ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance) : "Not identified",
+      value: inventoryIntelligence.eoReserveBalance !== null ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance, homeCurrency) : "Not identified",
       detail: inventoryIntelligence.eoReserveWarning || inventoryIntelligence.eoReserveCommentary,
     },
   ];
@@ -19127,7 +19164,7 @@ function InventoryIntelligenceSection({
                   <div key={`${group.title}-${item.label}`} className="rounded-xl border border-[#334155] bg-[#0B1120] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-sm font-semibold text-[#F9FAFB]">{item.label}</p>
-                      <p className="shrink-0 text-sm font-bold text-[#C4B5FD]">{formatMoneyLegacy(item.amount)}</p>
+                      <p className="shrink-0 text-sm font-bold text-[#C4B5FD]">{formatMoneyLegacy(item.amount, homeCurrency)}</p>
                     </div>
                     <p className="mt-1 text-xs leading-5 text-[#94A3B8]">{item.commentary}</p>
                   </div>
@@ -19814,9 +19851,13 @@ function KpiReviewSectionActions({
 function ManufacturingInventoryIntelligenceSection({
   intelligence,
   packageTier,
+
+  homeCurrency,
 }: {
   intelligence: ManufacturingInventoryIntelligence;
   packageTier: PackageTier;
+
+  homeCurrency: string;
 }) {
   const showManufacturingDetail = isVirtualCfo(packageTier);
   const reviewGroups = [
@@ -19929,7 +19970,7 @@ function ManufacturingInventoryIntelligenceSection({
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-bold text-[#F9FAFB]">{item.label}</p>
                       <span className="rounded-full bg-orange-300/10 px-2 py-1 text-xs font-bold text-orange-100">
-                        {item.impact} | {formatCurrency(item.amount)}
+                        {item.impact} | {formatCurrency(item.amount, homeCurrency)}
                       </span>
                     </div>
                     <p className="mt-2 text-xs leading-5 text-[#CBD5E1]">{item.commentary}</p>
@@ -22669,9 +22710,13 @@ function DarkChartTooltip({
 function InventoryAnalysisSection({
   inventoryKpis,
   inventoryIntelligence,
+
+  homeCurrency,
 }: {
   inventoryKpis: InventoryKpis;
   inventoryIntelligence: InventoryIntelligence;
+
+  homeCurrency: string;
 }) {
   return (
     <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8">
@@ -22691,7 +22736,7 @@ function InventoryAnalysisSection({
           label="E&O Reserve"
           value={
             inventoryIntelligence.eoReserveBalance !== null
-              ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance)
+              ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance, homeCurrency)
               : "Not identified"
           }
         />
@@ -22708,10 +22753,10 @@ function InventoryAnalysisSection({
         </div>
         <div className="rounded-2xl border border-slate-700 bg-slate-950 p-5">
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Slow Moving Risk</p>
-          <p className="mt-2 text-lg font-bold text-white">{formatMoneyLegacy(inventoryIntelligence.slowMovingValue)}</p>
+          <p className="mt-2 text-lg font-bold text-white">{formatMoneyLegacy(inventoryIntelligence.slowMovingValue, homeCurrency)}</p>
           <p className="mt-2 text-sm text-slate-400">
             {inventoryIntelligence.slowMovingPercent.toFixed(1)}% of inventory value; estimated annual carrying cost is{" "}
-            {formatMoneyLegacy(inventoryIntelligence.carryingCostEstimate)}.
+            {formatMoneyLegacy(inventoryIntelligence.carryingCostEstimate, homeCurrency)}.
           </p>
         </div>
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
@@ -22725,17 +22770,27 @@ function InventoryAnalysisSection({
         <KpiCard label="Carrying Cost Estimate" value={inventoryIntelligence.carryingCostEstimate} />
       </div>
       <div className="mt-6">
-        <SlowMovingInventoryScreenTable items={inventoryIntelligence.slowMovingItems} />
+        <SlowMovingInventoryScreenTable items={inventoryIntelligence.slowMovingItems} 
+          homeCurrency={homeCurrency}
+        />
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <InventoryScreenTable title="Top 5 Inventory Items by Value" items={inventoryKpis.topByValue} />
-        <InventoryScreenTable title="Top 5 Inventory Items by Quantity" items={inventoryKpis.topByQuantity} />
+        <InventoryScreenTable title="Top 5 Inventory Items by Value" items={inventoryKpis.topByValue} 
+          homeCurrency={homeCurrency}
+        />
+        <InventoryScreenTable title="Top 5 Inventory Items by Quantity" items={inventoryKpis.topByQuantity} 
+          homeCurrency={homeCurrency}
+        />
       </div>
     </section>
   );
 }
 
-function SlowMovingInventoryScreenTable({ items }: { items: SlowMovingInventoryItem[] }) {
+function SlowMovingInventoryScreenTable({ items,
+  homeCurrency,
+}: { items: SlowMovingInventoryItem[];
+  homeCurrency: string;
+}) {
   const total = items.reduce((sum, item) => sum + item.value, 0);
 
   return (
@@ -22743,7 +22798,7 @@ function SlowMovingInventoryScreenTable({ items }: { items: SlowMovingInventoryI
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-xl font-bold">Slow Moving Inventory</h3>
         <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-200">
-          Total {formatMoneyLegacy(total)}
+          Total {formatMoneyLegacy(total, homeCurrency)}
         </span>
       </div>
       <table className="w-full text-left text-sm">
@@ -22761,7 +22816,7 @@ function SlowMovingInventoryScreenTable({ items }: { items: SlowMovingInventoryI
               <tr key={`${item.name}-${index}`} className="border-t border-slate-800">
                 <td className="px-4 py-2 text-slate-300">{item.name}</td>
                 <td className="px-4 py-2 text-right tabular-nums">{formatNumber(item.quantity)}</td>
-                <td className="px-4 py-2 text-right tabular-nums">{formatMoneyLegacy(item.value)}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{formatMoneyLegacy(item.value, homeCurrency)}</td>
                 <td className="px-4 py-2 text-right tabular-nums">{formatNumber(item.daysSinceMovement)}</td>
               </tr>
             ))
@@ -22804,7 +22859,11 @@ function LockedInventoryIntelligencePlaceholder() {
   );
 }
 
-function InventoryScreenTable({ title, items }: { title: string; items: InventoryItem[] }) {
+function InventoryScreenTable({ title, items,
+  homeCurrency,
+}: { title: string; items: InventoryItem[];
+  homeCurrency: string;
+}) {
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-950 p-6">
       <h3 className="mb-4 text-xl font-bold">{title}</h3>
@@ -22822,7 +22881,7 @@ function InventoryScreenTable({ title, items }: { title: string; items: Inventor
               <tr key={`${item.name}-${index}`} className="border-t border-slate-800">
                 <td className="px-4 py-2 text-slate-300">{item.name}</td>
                 <td className="px-4 py-2 text-right tabular-nums">{formatNumber(item.quantity)}</td>
-                <td className="px-4 py-2 text-right tabular-nums">{formatMoneyLegacy(item.value)}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{formatMoneyLegacy(item.value, homeCurrency)}</td>
               </tr>
             ))
           ) : (
@@ -22915,10 +22974,14 @@ function FixedAssetAnalysisSection({
   fixedAssetKpis,
   priorFixedAssetData,
   changeRows,
+
+  homeCurrency,
 }: {
   fixedAssetKpis: FixedAssetKpis;
   priorFixedAssetData: ParsedFile | null;
   changeRows: FixedAssetChangeRow[];
+
+  homeCurrency: string;
 }) {
   return (
     <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8 shadow-lg">
@@ -22955,7 +23018,9 @@ function FixedAssetAnalysisSection({
       <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-950 p-6">
         <h3 className="mb-4 text-xl font-bold">Significant Changes</h3>
         {priorFixedAssetData ? (
-          <FixedAssetChangeTable rows={changeRows} />
+          <FixedAssetChangeTable rows={changeRows} 
+          homeCurrency={homeCurrency}
+        />
         ) : (
           <p className="text-slate-300">
             Upload prior period fixed asset report to calculate significant changes.
@@ -22980,8 +23045,7 @@ function FixedAssetAnalysisSection({
                 <td className="px-4 py-3 font-semibold">
                   {formatOptionalCurrency(
                     match.value,
-                    "N/A",
-                  )}
+                    "N/A", homeCurrency)}
                 </td>
               </tr>
             ))}
@@ -22995,9 +23059,13 @@ function FixedAssetAnalysisSection({
 function FixedAssetIntegrityIntelligenceSection({
   intelligence,
   packageTier,
+
+  homeCurrency,
 }: {
   intelligence: FixedAssetIntegrityIntelligence;
   packageTier: PackageTier;
+
+  homeCurrency: string;
 }) {
   const showRollforward = isProfessionalOrHigher(packageTier);
   const showOversight = isVirtualCfo(packageTier);
@@ -23054,13 +23122,13 @@ function FixedAssetIntegrityIntelligenceSection({
                 {intelligence.rollforwards.map((period) => (
                   <tr key={period.period} className="border-t border-[#243041]">
                     <td className="px-4 py-3 font-semibold text-white">{period.period}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.beginningGrossFixedAssets)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.additions)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.disposals)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.endingGrossFixedAssets)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.depreciationExpense)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.endingAccumulatedDepreciation)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-bold text-white">{formatCurrency(period.endingNetBookValue)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.beginningGrossFixedAssets, homeCurrency)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.additions, homeCurrency)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.disposals, homeCurrency)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.endingGrossFixedAssets, homeCurrency)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.depreciationExpense, homeCurrency)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-violet-50/80">{formatCurrency(period.endingAccumulatedDepreciation, homeCurrency)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-bold text-white">{formatCurrency(period.endingNetBookValue, homeCurrency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -23115,7 +23183,7 @@ function FixedAssetIntegrityIntelligenceSection({
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-bold text-[#F9FAFB]">{item.label}</p>
                       <span className="rounded-full bg-violet-300/10 px-2 py-1 text-xs font-bold text-violet-100">
-                        {item.status} | {formatCurrency(item.amount)}
+                        {item.status} | {formatCurrency(item.amount, homeCurrency)}
                       </span>
                     </div>
                     <p className="mt-2 text-xs leading-5 text-[#CBD5E1]">{item.commentary}</p>
@@ -23132,7 +23200,11 @@ function FixedAssetIntegrityIntelligenceSection({
   );
 }
 
-function FixedAssetChangeTable({ rows }: { rows: FixedAssetChangeRow[] }) {
+function FixedAssetChangeTable({ rows,
+  homeCurrency,
+}: { rows: FixedAssetChangeRow[];
+  homeCurrency: string;
+}) {
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-700">
       <table className="w-full text-left text-sm">
@@ -23149,9 +23221,9 @@ function FixedAssetChangeTable({ rows }: { rows: FixedAssetChangeRow[] }) {
           {rows.map((row) => (
             <tr key={row.metric} className="border-b border-slate-800">
               <td className="px-4 py-3 text-slate-300">{row.metric}</td>
-              <td className="px-4 py-3 font-semibold">{formatCurrency(row.prior)}</td>
-              <td className="px-4 py-3 font-semibold">{formatCurrency(row.current)}</td>
-              <td className="px-4 py-3 font-semibold">{formatCurrency(row.change)}</td>
+              <td className="px-4 py-3 font-semibold">{formatCurrency(row.prior, homeCurrency)}</td>
+              <td className="px-4 py-3 font-semibold">{formatCurrency(row.current, homeCurrency)}</td>
+              <td className="px-4 py-3 font-semibold">{formatCurrency(row.change, homeCurrency)}</td>
               <td className="px-4 py-3 text-slate-300">{row.interpretation}</td>
             </tr>
           ))}
@@ -23168,6 +23240,8 @@ function PayrollAnalysisSection({
   priorPayrollData,
   fteDivisor,
   onFteDivisorChange,
+
+  homeCurrency,
 }: {
   analysis: PayrollAnalysis;
   workforceIntelligence: WorkforceIntelligence;
@@ -23175,6 +23249,8 @@ function PayrollAnalysisSection({
   priorPayrollData: ParsedFile | null;
   fteDivisor: number;
   onFteDivisorChange: (value: number) => void;
+
+  homeCurrency: string;
 }) {
   const hasPayrollData = Boolean(currentPayrollData || priorPayrollData);
 
@@ -23221,14 +23297,18 @@ function PayrollAnalysisSection({
             <PayrollMetricCard label="Current FTE" value={formatFte(analysis.totalCurrentFte)} />
             <PayrollMetricCard label="Prior FTE" value={priorPayrollData ? formatFte(analysis.totalPriorFte) : "N/A"} />
             <PayrollMetricCard label="FTE Change" value={priorPayrollData ? formatFte(analysis.totalFteChange) : "N/A"} />
-            <PayrollMetricCard label="Payroll Cost Change" value={priorPayrollData ? formatCurrency(analysis.totalPayrollCostChange) : "N/A"} />
-            <PayrollMetricCard label="Revenue per FTE" value={workforceIntelligence.revenuePerFte !== null ? formatCurrency(workforceIntelligence.revenuePerFte) : "N/A"} />
+            <PayrollMetricCard label="Payroll Cost Change" value={priorPayrollData ? formatCurrency(analysis.totalPayrollCostChange, homeCurrency) : "N/A"} />
+            <PayrollMetricCard label="Revenue per FTE" value={workforceIntelligence.revenuePerFte !== null ? formatCurrency(workforceIntelligence.revenuePerFte, homeCurrency) : "N/A"} />
             <PayrollMetricCard label="Payroll % of Revenue" value={workforceIntelligence.payrollToRevenuePercent !== null ? `${workforceIntelligence.payrollToRevenuePercent.toFixed(1)}%` : "N/A"} />
           </div>
 
           <PayrollSummaryCallout analysis={analysis} includePrior={Boolean(priorPayrollData)} />
-          <PayrollTable title="FTE by Department" rows={analysis.rows} includePrior={Boolean(priorPayrollData)} />
-          <PayrollTable title="Payroll Cost by Department" rows={analysis.rows} includePrior={Boolean(priorPayrollData)} />
+          <PayrollTable title="FTE by Department" rows={analysis.rows} includePrior={Boolean(priorPayrollData)} 
+          homeCurrency={homeCurrency}
+        />
+          <PayrollTable title="Payroll Cost by Department" rows={analysis.rows} includePrior={Boolean(priorPayrollData)} 
+          homeCurrency={homeCurrency}
+        />
         </>
       )}
     </section>
@@ -23431,10 +23511,14 @@ function PayrollTable({
   title,
   rows,
   includePrior,
+
+  homeCurrency,
 }: {
   title: string;
   rows: PayrollDepartmentRow[];
   includePrior: boolean;
+
+  homeCurrency: string;
 }) {
   return (
     <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-700 bg-slate-950 p-6">
@@ -23460,10 +23544,10 @@ function PayrollTable({
                 <td className="px-4 py-3">{formatFte(row.currentFte)}</td>
                 <td className="px-4 py-3">{includePrior ? formatFte(row.priorFte) : "N/A"}</td>
                 <td className="px-4 py-3">{includePrior ? formatFte(row.fteChange) : "N/A"}</td>
-                <td className="px-4 py-3">{formatCurrency(row.currentPayrollCost)}</td>
-                <td className="px-4 py-3">{includePrior ? formatCurrency(row.priorPayrollCost) : "N/A"}</td>
-                <td className="px-4 py-3">{includePrior ? formatCurrency(row.payrollCostChange) : "N/A"}</td>
-                <td className="px-4 py-3">{formatCurrency(row.payrollCostPerFte)}</td>
+                <td className="px-4 py-3">{formatCurrency(row.currentPayrollCost, homeCurrency)}</td>
+                <td className="px-4 py-3">{includePrior ? formatCurrency(row.priorPayrollCost, homeCurrency) : "N/A"}</td>
+                <td className="px-4 py-3">{includePrior ? formatCurrency(row.payrollCostChange, homeCurrency) : "N/A"}</td>
+                <td className="px-4 py-3">{formatCurrency(row.payrollCostPerFte, homeCurrency)}</td>
               </tr>
             ))
           ) : (
