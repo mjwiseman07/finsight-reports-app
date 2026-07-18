@@ -33,6 +33,14 @@ type AdminOverview = {
   admin?: { email: string; role: string };
   screens?: string[];
   capabilities?: string[];
+  package_levels?: string[];
+  package_groups?: {
+    v14Live: string[];
+    v14Testing: string[];
+    v14ComingSoon: string[];
+    legacyOwner: string[];
+    archived: string[];
+  };
   demo_companies?: DemoCompany[];
   jobs?: Array<Record<string, string>>;
   failed_jobs?: Array<Record<string, string>>;
@@ -509,6 +517,66 @@ export default function AdminPage() {
                   ))}
                 </div>
 
+                {/* v1.4 Tier Switcher — Founder QA surface */}
+                {selectedCompany && overview?.package_groups && (
+                  <div className="mt-6 rounded-2xl border border-[#2A2A2C] bg-[#161616] p-6">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <div>
+                        <h3 className={`${headingFont} text-lg font-semibold text-[#ECEBE7]`}>
+                          v1.4 Tier Switcher
+                        </h3>
+                        <p className="mt-1 text-xs text-[#A29E93]">
+                          Switch {selectedCompany.name} to any tier for entitlement QA. Testing tiers are super-admin-only and never visible to real customers until promoted to live.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#C9A961]/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-[#C9A961]">
+                        Current: {selectedCompany.packageLevel || "—"}
+                      </span>
+                    </div>
+
+                    {overview.package_groups.v14Live.length > 0 && (
+                      <TierSwitcherGroup
+                        label="v1.4 Live"
+                        tierKeys={overview.package_groups.v14Live}
+                        onSwitch={(tierKey) => void runAdminAction("package_switched", { package_level: tierKey, tier_key: tierKey })}
+                        currentTierKey={selectedCompany.packageLevel}
+                        disabled={isRunningAction}
+                      />
+                    )}
+
+                    {overview.package_groups.v14Testing.length > 0 && (
+                      <TierSwitcherGroup
+                        label="v1.4 Testing (super-admin only)"
+                        tierKeys={overview.package_groups.v14Testing}
+                        onSwitch={(tierKey) => void runAdminAction("package_switched", { package_level: tierKey, tier_key: tierKey })}
+                        currentTierKey={selectedCompany.packageLevel}
+                        disabled={isRunningAction}
+                      />
+                    )}
+
+                    {overview.package_groups.v14ComingSoon.length > 0 && (
+                      <TierSwitcherGroup
+                        label="v1.4 Coming Soon"
+                        tierKeys={overview.package_groups.v14ComingSoon}
+                        onSwitch={(tierKey) => void runAdminAction("package_switched", { package_level: tierKey, tier_key: tierKey })}
+                        currentTierKey={selectedCompany.packageLevel}
+                        disabled={isRunningAction}
+                        dimmed
+                      />
+                    )}
+
+                    {overview.package_groups.legacyOwner.length > 0 && (
+                      <TierSwitcherGroup
+                        label="Legacy Owner Packages"
+                        tierKeys={overview.package_groups.legacyOwner}
+                        onSwitch={(tierKey) => void runAdminAction("package_switched", { package_level: tierKey, tier_key: tierKey })}
+                        currentTierKey={selectedCompany.packageLevel}
+                        disabled={isRunningAction}
+                      />
+                    )}
+                  </div>
+                )}
+
                 <details className="mt-4 rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/85 p-4">
                   <summary className="cursor-pointer text-sm font-black text-[#A29E93]">Demo-only QA session tools</summary>
                   <p className="mt-3 text-sm leading-6 text-[#A29E93]">
@@ -764,6 +832,48 @@ export default function AdminPage() {
       </main>
 
       <SiteFooter />
+    </div>
+  );
+}
+
+function TierSwitcherGroup({
+  label,
+  tierKeys,
+  onSwitch,
+  currentTierKey,
+  disabled,
+  dimmed,
+}: {
+  label: string;
+  tierKeys: string[];
+  onSwitch: (tierKey: string) => void;
+  currentTierKey?: string;
+  disabled?: boolean;
+  dimmed?: boolean;
+}) {
+  return (
+    <div className={`mt-4 ${dimmed ? "opacity-60" : ""}`}>
+      <p className="text-xs font-semibold uppercase tracking-widest text-[#A29E93]">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {tierKeys.map((tierKey) => {
+          const isCurrent = currentTierKey === tierKey;
+          return (
+            <button
+              key={tierKey}
+              type="button"
+              onClick={() => onSwitch(tierKey)}
+              disabled={disabled || isCurrent}
+              className={
+                isCurrent
+                  ? "rounded-full border border-[#C9A961] bg-[#C9A961]/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#C9A961] disabled:cursor-default"
+                  : "rounded-full border border-[#2A2A2C] bg-[#111112] px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#ECEBE7] hover:border-[#C9A961] hover:text-[#C9A961] disabled:cursor-not-allowed disabled:opacity-50"
+              }
+            >
+              {tierKey}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
