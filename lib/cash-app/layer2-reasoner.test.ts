@@ -40,6 +40,7 @@ const candidates: CandidateForReasoning[] = [
     invoiceId: "inv-1",
     docNumber: "INV-100",
     balance: 1000,
+    currency: "USD",
     invoiceDateIso: "2026-07-01",
     customerId: "cust-1",
     customerName: "Acme Corp",
@@ -48,6 +49,7 @@ const candidates: CandidateForReasoning[] = [
     invoiceId: "inv-2",
     docNumber: "INV-200",
     balance: 950,
+    currency: "USD",
     invoiceDateIso: "2026-06-15",
     customerId: "cust-2",
     customerName: "Acme Corporation",
@@ -110,6 +112,7 @@ describe("reasonAboutMatches — happy path (high primary confidence)", () => {
       featureBreakdowns,
       tenantId,
       firmConfig,
+      "USD",
     );
     expect(result.verdict).toBe("auto_match_candidate");
     expect(result.escalated).toBe(false);
@@ -127,7 +130,7 @@ describe("reasonAboutMatches — happy path (high primary confidence)", () => {
         preferred_candidate_id: "inv-1",
       }),
     );
-    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig);
+    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig, "USD");
     expect(mockPublishCashAppEvent).toHaveBeenCalledWith(
       "cash_app.layer2_scored",
       expect.anything(),
@@ -147,7 +150,7 @@ describe("reasonAboutMatches — happy path (high primary confidence)", () => {
         preferred_candidate_id: "inv-1",
       }),
     );
-    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig);
+    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig, "USD");
     const kinds = mockPublishCashAppEvent.mock.calls.map((c) => c[0]);
     expect(kinds).not.toContain("cash_app.layer2_escalated_to_toptier");
     expect(kinds).not.toContain("cash_app.layer2_dropped_to_review");
@@ -179,6 +182,7 @@ describe("reasonAboutMatches — escalation path (low primary -> high toptier)",
       featureBreakdowns,
       tenantId,
       firmConfig,
+      "USD",
     );
     expect(result.verdict).toBe("auto_match_candidate");
     expect(result.escalated).toBe(true);
@@ -208,7 +212,7 @@ describe("reasonAboutMatches — escalation path (low primary -> high toptier)",
           preferred_candidate_id: "inv-1",
         }),
       );
-    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig);
+    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig, "USD");
     expect(mockPublishCashAppEvent).toHaveBeenCalledWith(
       "cash_app.layer2_escalated_to_toptier",
       expect.objectContaining({ firmId: "firm-1", companyId: "co-1" }),
@@ -236,7 +240,7 @@ describe("reasonAboutMatches — escalation path (low primary -> high toptier)",
           preferred_candidate_id: "inv-1",
         }),
       );
-    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig);
+    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig, "USD");
     const secondCallArgs = mockInvokeClaude.mock.calls[1][0];
     const userMessage = secondCallArgs.messages[0].content;
     expect(userMessage).toContain("Prior reasoning text.");
@@ -268,6 +272,7 @@ describe("reasonAboutMatches — drop-to-review path (both tiers low)", () => {
       featureBreakdowns,
       tenantId,
       firmConfig,
+      "USD",
     );
     expect(result.verdict).toBe("route_to_review");
     expect(result.escalated).toBe(true);
@@ -292,7 +297,7 @@ describe("reasonAboutMatches — drop-to-review path (both tiers low)", () => {
           preferred_candidate_id: null,
         }),
       );
-    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig);
+    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig, "USD");
     expect(mockPublishCashAppEvent).toHaveBeenCalledWith(
       "cash_app.layer2_dropped_to_review",
       expect.objectContaining({ firmId: "firm-1", companyId: "co-1" }),
@@ -320,7 +325,7 @@ describe("reasonAboutMatches — drop-to-review path (both tiers low)", () => {
           preferred_candidate_id: null,
         }),
       );
-    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig);
+    await reasonAboutMatches(payment, candidates, featureBreakdowns, tenantId, firmConfig, "USD");
     expect(mockInvokeClaude).toHaveBeenCalledTimes(2);
     const tiers = mockInvokeClaude.mock.calls.map((c) => c[0].tier);
     expect(tiers).toEqual(["primary", "toptier"]);
@@ -343,6 +348,7 @@ describe("reasonAboutMatches — malformed JSON path", () => {
       featureBreakdowns,
       tenantId,
       firmConfig,
+      "USD",
     );
     expect(result.verdict).toBe("route_to_review");
     expect(result.malformedOutput).toBe(true);
@@ -380,6 +386,7 @@ describe("reasonAboutMatches — malformed JSON path", () => {
       featureBreakdowns,
       tenantId,
       firmConfig,
+      "USD",
     );
     expect(result.verdict).toBe("route_to_review");
     expect(result.malformedOutput).toBe(true);
@@ -401,6 +408,7 @@ describe("reasonAboutMatches — malformed JSON path", () => {
       featureBreakdowns,
       tenantId,
       firmConfig,
+      "USD",
     );
     expect(result.verdict).toBe("auto_match_candidate");
     expect(result.malformedOutput).toBe(false);
@@ -423,6 +431,7 @@ describe("reasonAboutMatches — threshold edge cases", () => {
       featureBreakdowns,
       tenantId,
       firmConfig,
+      "USD",
     );
     expect(result.escalated).toBe(false);
     expect(mockInvokeClaude).toHaveBeenCalledTimes(1);
@@ -453,6 +462,7 @@ describe("reasonAboutMatches — threshold edge cases", () => {
       featureBreakdowns,
       tenantId,
       strictConfig,
+      "USD",
     );
     expect(result.escalated).toBe(true);
     expect(result.verdict).toBe("auto_match_candidate");

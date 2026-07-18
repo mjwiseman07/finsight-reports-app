@@ -21,6 +21,14 @@ vi.mock("./publish-cash-app-event", () => ({
 vi.mock("@/lib/events/publisher", () => ({
   publishEvent: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/erp/quickbooks/currency-resolver", () => ({
+  resolveCurrencyForFirmClient: vi.fn().mockResolvedValue({
+    ok: true,
+    currency: "USD",
+    home_currency: "USD",
+    source: "home_currency_default",
+  }),
+}));
 
 import { computeLayer2FeatureScore } from "./layer2-features";
 import { isGenericEnoughToPool } from "./payer-pattern-classifier";
