@@ -4674,11 +4674,15 @@ function buildAnticipatedRecognitionSchedule({
   recognizedRevenueActivity,
   reportingPeriodEnd,
   fullReview,
+
+  homeCurrency,
 }: {
   deferredRevenueBalance: number;
   recognizedRevenueActivity: number;
   reportingPeriodEnd: string;
   fullReview: boolean;
+
+  homeCurrency: string;
 }): AnticipatedRecognitionSchedule[] {
   if (!deferredRevenueBalance) return [];
   const periodCount = fullReview ? 4 : 2;
@@ -4695,7 +4699,7 @@ function buildAnticipatedRecognitionSchedule({
       expectedRecognition,
       remainingDeferredObligation,
       confidence: recognizedRevenueActivity > 0 ? "Moderate" : "Low",
-      commentary: `${period}: anticipated recognition of ${formatCurrency(expectedRecognition)} with ${formatCurrency(remainingDeferredObligation)} of remaining deferred obligations after this period.`,
+      commentary: `${period}: anticipated recognition of ${formatCurrency(expectedRecognition, homeCurrency)} with ${formatCurrency(remainingDeferredObligation, homeCurrency)} of remaining deferred obligations after this period.`,
     };
   });
 }
@@ -4713,6 +4717,8 @@ function calculateRevenueRecognitionIntelligence({
   priorMonthGlData,
   priorQuarterGlData,
   priorYearGlData,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   currentBsRows: StatementRow[];
@@ -4726,6 +4732,8 @@ function calculateRevenueRecognitionIntelligence({
   priorMonthGlData: ParsedFile | null;
   priorQuarterGlData: ParsedFile | null;
   priorYearGlData: ParsedFile | null;
+
+  homeCurrency: string;
 }): RevenueRecognitionIntelligence {
   const fullReview = isVirtualCfo(packageTier);
   const enabled = isProfessionalOrHigher(packageTier);
@@ -4753,36 +4761,37 @@ function calculateRevenueRecognitionIntelligence({
     ? recognizedRevenueActivity / Math.max(deferredRevenueBalance + recognizedRevenueActivity, 1)
     : null;
   const anticipatedRecognitionSchedule = fullReview
-    ? buildAnticipatedRecognitionSchedule({ deferredRevenueBalance, recognizedRevenueActivity, reportingPeriodEnd, fullReview })
+    ? buildAnticipatedRecognitionSchedule({ deferredRevenueBalance, recognizedRevenueActivity, reportingPeriodEnd, fullReview,
+    homeCurrency,})
     : [];
   const deferredReviewItems = buildRevenueRecognitionReviewItems(
     deferredRows,
     (row) => row.accountName,
-    (label, amount, count) => `${label} shows ${count} deferred revenue review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review recognition timing and remaining future obligations.`,
+    (label, amount, count) => `${label} shows ${count} deferred revenue review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount, homeCurrency)}. Review recognition timing and remaining future obligations.`,
   );
   const unbilledReviewItems = buildRevenueRecognitionReviewItems(
     unbilledRows,
     (row) => row.customer || row.name || row.accountName,
-    (label, amount, count) => `${label} shows ${count} unbilled AR review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Consider billing cadence, project status, and near-term cash conversion timing.`,
+    (label, amount, count) => `${label} shows ${count} unbilled AR review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount, homeCurrency)}. Consider billing cadence, project status, and near-term cash conversion timing.`,
   );
   const billingCadenceItems = fullReview
     ? buildRevenueRecognitionReviewItems(
         billingRows,
         (row) => row.customer || row.name || row.accountName,
-        (label, amount, count) => `${label} shows ${count} billing cadence item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review recurring invoice timing patterns and operational billing cadence.`,
+        (label, amount, count) => `${label} shows ${count} billing cadence item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount, homeCurrency)}. Review recurring invoice timing patterns and operational billing cadence.`,
       )
     : [];
   const scheduleRecognition = anticipatedRecognitionSchedule.reduce((total, schedule) => total + schedule.expectedRecognition, 0);
   const commentary = [
     deferredRevenueChange > Math.max(priorDeferredRevenueBalance * 0.15, 1000)
-      ? `Deferred revenue balances increased period-over-period by ${formatCurrency(deferredRevenueChange)}, indicating future revenue recognition obligations tied to current-period billings.`
+      ? `Deferred revenue balances increased period-over-period by ${formatCurrency(deferredRevenueChange, homeCurrency)}, indicating future revenue recognition obligations tied to current-period billings.`
       : deferredRevenueBalance > 0
-        ? `Deferred revenue balances total ${formatCurrency(deferredRevenueBalance)}. Review recognition timing and remaining service delivery schedules.`
+        ? `Deferred revenue balances total ${formatCurrency(deferredRevenueBalance, homeCurrency)}. Review recognition timing and remaining service delivery schedules.`
         : "No deferred revenue balance was identified in the uploaded Balance Sheet detail.",
     unbilledArChange > Math.max(priorUnbilledArBalance * 0.15, 1000)
-      ? `Unbilled receivables increased by ${formatCurrency(unbilledArChange)}. Review project billing cadence, invoicing timing, and cash conversion implications.`
+      ? `Unbilled receivables increased by ${formatCurrency(unbilledArChange, homeCurrency)}. Review project billing cadence, invoicing timing, and cash conversion implications.`
       : unbilledArBalance > 0
-        ? `Unbilled AR totals ${formatCurrency(unbilledArBalance)}. Consider billing cadence and expected invoice timing.`
+        ? `Unbilled AR totals ${formatCurrency(unbilledArBalance, homeCurrency)}. Consider billing cadence and expected invoice timing.`
         : "No unbilled AR balance was identified in the uploaded Balance Sheet detail.",
     fullReview && deferredRevenueBalance > 0 && scheduleRecognition > 0
       ? `Approximately ${((scheduleRecognition / deferredRevenueBalance) * 100).toFixed(0)}% of deferred balances are expected to convert into recognized revenue across the anticipated recognition schedule.`
@@ -4804,16 +4813,16 @@ function calculateRevenueRecognitionIntelligence({
     fullReview && billingCadenceItems.some((item) => item.count > 1)
       ? "Recurring billing cadence pattern identified; consider reviewing repeated invoice timing by customer or project."
       : "",
-    ...deferredReviewItems.slice(0, 3).map((item) => `Deferred revenue review item: ${item.label} totaling ${formatCurrency(item.amount)}.`),
-    ...unbilledReviewItems.slice(0, 3).map((item) => `Unbilled AR review item: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...deferredReviewItems.slice(0, 3).map((item) => `Deferred revenue review item: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
+    ...unbilledReviewItems.slice(0, 3).map((item) => `Unbilled AR review item: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
   ].filter(Boolean).slice(0, 10);
   const forecastIntegrationNotes = fullReview
     ? [
         anticipatedRecognitionSchedule.length
-          ? `Use anticipated recognition schedule as a revenue forecast input: ${formatCurrency(scheduleRecognition)} expected recognition across ${anticipatedRecognitionSchedule.length} future period${anticipatedRecognitionSchedule.length === 1 ? "" : "s"}.`
+          ? `Use anticipated recognition schedule as a revenue forecast input: ${formatCurrency(scheduleRecognition, homeCurrency)} expected recognition across ${anticipatedRecognitionSchedule.length} future period${anticipatedRecognitionSchedule.length === 1 ? "" : "s"}.`
           : "Deferred recognition schedule could not be estimated until deferred balance or recognition cadence is available.",
         unbilledArBalance > 0
-          ? `Use ${formatCurrency(unbilledArBalance)} of unbilled AR as a billing cadence and liquidity planning input, subject to project and invoice review.`
+          ? `Use ${formatCurrency(unbilledArBalance, homeCurrency)} of unbilled AR as a billing cadence and liquidity planning input, subject to project and invoice review.`
           : "No unbilled AR balance was available for liquidity planning support.",
       ]
     : ["Professional package review is limited to high-level deferred revenue and unbilled AR operational timing commentary."];
@@ -4930,12 +4939,16 @@ function buildCashForecast({
   apKpis,
   payrollAnalysis,
   debtMetrics,
+
+  homeCurrency,
 }: {
   cashBalance: number;
   arKpis: AgingKpis;
   apKpis: APKpis;
   payrollAnalysis: PayrollAnalysis;
   debtMetrics: DebtMetrics;
+
+  homeCurrency: string;
 }): CashForecastPeriod[] {
   let projectedCash = cashBalance;
   const periods = ["Next 30 days", "31-60 days", "61-90 days", "91-120 days"];
@@ -4967,7 +4980,7 @@ function buildCashForecast({
       expectedPayments,
       payrollOutflow,
       debtOutflow,
-      commentary: `${period}: projected cash of ${formatCurrency(projectedCash)} after expected collections, vendor payments, payroll timing, and scheduled debt outflows.`,
+      commentary: `${period}: projected cash of ${formatCurrency(projectedCash, homeCurrency)} after expected collections, vendor payments, payroll timing, and scheduled debt outflows.`,
     };
   });
 }
@@ -4986,6 +4999,8 @@ function calculateTreasuryLiquidityIntelligence({
   currentMonthGlData,
   currentQuarterGlData,
   currentYearGlData,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   kpis: KPIs;
@@ -5000,6 +5015,8 @@ function calculateTreasuryLiquidityIntelligence({
   currentMonthGlData: ParsedFile | null;
   currentQuarterGlData: ParsedFile | null;
   currentYearGlData: ParsedFile | null;
+
+  homeCurrency: string;
 }): TreasuryLiquidityIntelligence {
   const cashAccountRows = getCashAccountRows(currentBsRows);
   const cashBalance = kpis.cash || cashAccountRows.reduce((total, row) => total + row.amount, 0);
@@ -5042,7 +5059,8 @@ function calculateTreasuryLiquidityIntelligence({
   const duplicateChecks = checkNumbers.filter((value, index, all) => all.indexOf(value) !== index);
   const sequenceGaps = checkNumbers.slice(1).filter((value, index) => value - checkNumbers[index] > 10);
   const cashForecast = isVirtualCfo(packageTier)
-    ? buildCashForecast({ cashBalance, arKpis, apKpis, payrollAnalysis, debtMetrics })
+    ? buildCashForecast({ cashBalance, arKpis, apKpis, payrollAnalysis, debtMetrics,
+    homeCurrency,})
     : [];
   const bankAccountItems: TreasuryReviewItem[] = [
     {
@@ -5063,7 +5081,7 @@ function calculateTreasuryLiquidityIntelligence({
     },
     {
       label: "Idle cash estimate",
-      value: formatCurrency(idleCashEstimate),
+      value: formatCurrency(idleCashEstimate, homeCurrency),
       commentary:
         idleCashEstimate > 0
           ? "Cash balances appear concentrated in low-activity accounts and may warrant treasury positioning review."
@@ -5073,7 +5091,7 @@ function calculateTreasuryLiquidityIntelligence({
   const cashPositionItems: TreasuryReviewItem[] = [
     {
       label: "Cash movement",
-      value: formatCurrency(cashChange),
+      value: formatCurrency(cashChange, homeCurrency),
       commentary:
         cashChange < -Math.max(priorCashBalance * 0.1, 5000)
           ? "Cash declined period-over-period. Review operational cash flow, collections, vendor payments, and payroll timing."
@@ -5083,7 +5101,7 @@ function calculateTreasuryLiquidityIntelligence({
     },
     {
       label: "Working capital",
-      value: workingCapital !== null ? formatCurrency(workingCapital) : "N/A",
+      value: workingCapital !== null ? formatCurrency(workingCapital, homeCurrency) : "N/A",
       commentary:
         workingCapital !== null && workingCapital < 0
           ? "Working capital is negative and may warrant liquidity timing review."
@@ -5122,8 +5140,8 @@ function calculateTreasuryLiquidityIntelligence({
   ];
   const commentary = [
     packageTier === "essential"
-      ? `Cash balances were ${formatCurrency(cashBalance)}. Review cash positioning together with AR collections and AP payment timing.`
-      : `Liquidity review shows cash of ${formatCurrency(cashBalance)}, working capital of ${workingCapital !== null ? formatCurrency(workingCapital) : "N/A"}, and a current ratio of ${currentRatio !== null ? currentRatio.toFixed(2) : "N/A"}.`,
+      ? `Cash balances were ${formatCurrency(cashBalance, homeCurrency)}. Review cash positioning together with AR collections and AP payment timing.`
+      : `Liquidity review shows cash of ${formatCurrency(cashBalance, homeCurrency)}, working capital of ${workingCapital !== null ? formatCurrency(workingCapital, homeCurrency) : "N/A"}, and a current ratio of ${currentRatio !== null ? currentRatio.toFixed(2) : "N/A"}.`,
     apKpis.days90Plus > 0 || arKpis.days90Plus > 0
       ? "AR/AP aging timing may affect near-term operating cash flow and should be reviewed with cash positioning."
       : "AR/AP aging does not show elevated older-bucket timing from available data.",
@@ -5131,7 +5149,7 @@ function calculateTreasuryLiquidityIntelligence({
       ? "Cash balances appear fragmented across multiple accounts and may warrant treasury structure review."
       : "",
     isVirtualCfo(packageTier) && cashForecast.length
-      ? `Cash forecast intelligence projects ${formatCurrency(cashForecast[cashForecast.length - 1].projectedCash)} by ${cashForecast[cashForecast.length - 1].period.toLowerCase()} based on current collection, AP, payroll, and debt timing assumptions.`
+      ? `Cash forecast intelligence projects ${formatCurrency(cashForecast[cashForecast.length - 1].projectedCash, homeCurrency)} by ${cashForecast[cashForecast.length - 1].period.toLowerCase()} based on current collection, AP, payroll, and debt timing assumptions.`
       : "",
   ].filter(Boolean);
   const internalFlags = [
@@ -5992,6 +6010,8 @@ function calculateARReserveIntelligence({
   plRows,
   currentMonthGlData,
   priorMonthGlData,
+
+  homeCurrency,
 }: {
   arData: ParsedFile | null;
   arKpis: AgingKpis;
@@ -5999,6 +6019,8 @@ function calculateARReserveIntelligence({
   plRows: StatementRow[];
   currentMonthGlData: ParsedFile | null;
   priorMonthGlData: ParsedFile | null;
+
+  homeCurrency: string;
 }): ARReserveIntelligence {
   const over180 = getAgingBucketValue(arData, ["181 - 365", "181-365", "181 to 365", "181+"]);
   const over365 = getAgingBucketValue(arData, ["over 365", ">365", "365+", "over 1 year"]);
@@ -6064,13 +6086,13 @@ function calculateARReserveIntelligence({
       ? "Collection performance appears strongest through 90 days, reducing near-term reserve pressure based on available aging."
       : "Potential reserve exposure exists in older receivable buckets and may warrant management review.",
     olderAr > 0
-      ? `Receivables over 90 days total ${formatMoneyLegacy(olderAr)}; preliminary reserve guidance estimates ${formatMoneyLegacy(totalSuggestedReserve)} before considering customer-specific collection history.`
+      ? `Receivables over 90 days total ${formatMoneyLegacy(olderAr, homeCurrency)}; preliminary reserve guidance estimates ${formatMoneyLegacy(totalSuggestedReserve, homeCurrency)} before considering customer-specific collection history.`
       : "No material receivable balance over 90 days was identified from the uploaded AR Aging.",
     existingReserveBalance !== null
-      ? `Existing reserve balance identified: ${formatMoneyLegacy(existingReserveBalance)}. ${reserveGap !== null && reserveGap > 0 ? `Preliminary aging guidance exceeds the reserve by ${formatMoneyLegacy(reserveGap)}.` : "Compare reserve coverage to historical write-offs and collections before concluding."}`
+      ? `Existing reserve balance identified: ${formatMoneyLegacy(existingReserveBalance, homeCurrency)}. ${reserveGap !== null && reserveGap > 0 ? `Preliminary aging guidance exceeds the reserve by ${formatMoneyLegacy(reserveGap, homeCurrency)}.` : "Compare reserve coverage to historical write-offs and collections before concluding."}`
       : "No allowance or bad debt reserve balance was identified in the Balance Sheet data.",
     resolvedWriteOffs !== null
-      ? `Write-off activity identified in uploaded reports totals ${formatMoneyLegacy(resolvedWriteOffs)}; consider comparing this to reserve coverage and collection trends.`
+      ? `Write-off activity identified in uploaded reports totals ${formatMoneyLegacy(resolvedWriteOffs, homeCurrency)}; consider comparing this to reserve coverage and collection trends.`
       : "Historical write-off detail was not identified in uploaded reports, so static aging guidance remains a starting point only.",
   ];
 
@@ -6088,7 +6110,7 @@ function calculateARReserveIntelligence({
   };
 }
 
-function getCustomerAgingExposures(arData: ParsedFile | null): ReserveLifecycleReviewItem[] {
+function getCustomerAgingExposures(arData: ParsedFile | null, homeCurrency: string): ReserveLifecycleReviewItem[] {
   if (!arData) return [];
   const headerIndex = arData.rows.findIndex((row) =>
     row.some((cell) => normalizeHeader(cell).includes("current") || normalizeHeader(cell).includes("90") || normalizeHeader(cell).includes("total")),
@@ -6121,12 +6143,12 @@ function getCustomerAgingExposures(arData: ParsedFile | null): ReserveLifecycleR
       percent: item.percent,
       commentary:
         item.olderAmount > 0
-          ? `${item.label} has ${formatCurrency(item.olderAmount)} in older receivable exposure. Consider customer-specific collectibility review and collection timing.`
+          ? `${item.label} has ${formatCurrency(item.olderAmount, homeCurrency)} in older receivable exposure. Consider customer-specific collectibility review and collection timing.`
           : `${item.label} represents ${item.percent !== null ? `${item.percent.toFixed(1)}%` : "a portion"} of AR exposure. Review concentration and payment patterns where appropriate.`,
     }));
 }
 
-function getUnappliedCreditItems(arData: ParsedFile | null, glDataSets: Array<ParsedFile | null>): ReserveLifecycleReviewItem[] {
+function getUnappliedCreditItems(arData: ParsedFile | null, glDataSets: Array<ParsedFile | null>, homeCurrency: string): ReserveLifecycleReviewItem[] {
   const agingCredits = (arData?.rows || [])
     .map((row) => {
       const label = String(row[0] || "").trim();
@@ -6135,7 +6157,7 @@ function getUnappliedCreditItems(arData: ParsedFile | null, glDataSets: Array<Pa
         ? {
             label,
             amount: Math.abs(value),
-            commentary: `${label} shows a negative receivable or credit balance of ${formatCurrency(Math.abs(value))}. Review application, refund timing, or classification.`,
+            commentary: `${label} shows a negative receivable or credit balance of ${formatCurrency(Math.abs(value), homeCurrency)}. Review application, refund timing, or classification.`,
           }
         : null;
     })
@@ -6146,14 +6168,14 @@ function getUnappliedCreditItems(arData: ParsedFile | null, glDataSets: Array<Pa
     .map((row) => ({
       label: row.customer || row.name || row.accountName || "Unapplied credit review",
       amount: Math.abs(row.amount || row.debit - row.credit),
-      commentary: `${row.customer || row.name || row.accountName || "Customer credit activity"} includes credit-related activity of ${formatCurrency(Math.abs(row.amount || row.debit - row.credit))}. Review application and classification timing.`,
+      commentary: `${row.customer || row.name || row.accountName || "Customer credit activity"} includes credit-related activity of ${formatCurrency(Math.abs(row.amount || row.debit - row.credit), homeCurrency)}. Review application and classification timing.`,
     }))
     .filter((item) => item.amount > 0);
 
   return [...agingCredits, ...glCredits].sort((a, b) => b.amount - a.amount).slice(0, 6);
 }
 
-function getWriteOffReviewItems(glDataSets: Array<ParsedFile | null>): ReserveLifecycleReviewItem[] {
+function getWriteOffReviewItems(glDataSets: Array<ParsedFile | null>, homeCurrency: string): ReserveLifecycleReviewItem[] {
   const grouped = new Map<string, { amount: number; count: number }>();
   glDataSets
     .flatMap((data) => getAccountActivity(data, "__all__"))
@@ -6169,7 +6191,7 @@ function getWriteOffReviewItems(glDataSets: Array<ParsedFile | null>): ReserveLi
     .map(([label, item]) => ({
       label,
       amount: item.amount,
-      commentary: `${label} shows ${item.count} write-off or reserve-related item${item.count === 1 ? "" : "s"} totaling ${formatCurrency(item.amount)}. Compare timing to reserve coverage and collection trends.`,
+      commentary: `${label} shows ${item.count} write-off or reserve-related item${item.count === 1 ? "" : "s"} totaling ${formatCurrency(item.amount, homeCurrency)}. Compare timing to reserve coverage and collection trends.`,
     }))
     .filter((item) => item.amount > 0)
     .sort((a, b) => b.amount - a.amount)
@@ -6188,6 +6210,8 @@ function calculateReserveLifecycleIntelligence({
   priorQuarterGlData,
   currentYearGlData,
   priorYearGlData,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   arData: ParsedFile | null;
@@ -6200,6 +6224,8 @@ function calculateReserveLifecycleIntelligence({
   priorQuarterGlData: ParsedFile | null;
   currentYearGlData: ParsedFile | null;
   priorYearGlData: ParsedFile | null;
+
+  homeCurrency: string;
 }): ReserveLifecycleIntelligence {
   const priorReserveBalance = findARReserveBalance(priorBsRows);
   const currentReserveBalance = arReserveIntelligence.existingReserveBalance;
@@ -6210,14 +6236,14 @@ function calculateReserveLifecycleIntelligence({
   const priorReserveToArPercent = priorReserveBalance !== null && priorArBalance ? (priorReserveBalance / priorArBalance) * 100 : null;
   const olderArBalance = arKpis.days90Plus;
   const olderArPercent = arKpis.total ? (olderArBalance / arKpis.total) * 100 : 0;
-  const customerConcentrationItems = getCustomerAgingExposures(arData);
+  const customerConcentrationItems = getCustomerAgingExposures(arData, homeCurrency);
   const concentrationExposure = customerConcentrationItems.slice(0, 3).reduce((total, item) => total + item.amount, 0);
   const concentrationPercent = arKpis.total ? (concentrationExposure / arKpis.total) * 100 : 0;
   const glDataSets = [currentMonthGlData, priorMonthGlData, currentQuarterGlData, priorQuarterGlData, currentYearGlData, priorYearGlData];
-  const writeOffItems = getWriteOffReviewItems(glDataSets);
+  const writeOffItems = getWriteOffReviewItems(glDataSets, homeCurrency);
   const writeOffTotal = arReserveIntelligence.writeOffs || writeOffItems.reduce((total, item) => total + item.amount, 0);
   const reserveBurnRate = currentReserveBalance && writeOffTotal ? (writeOffTotal / currentReserveBalance) * 100 : null;
-  const unappliedCreditItems = getUnappliedCreditItems(arData, glDataSets);
+  const unappliedCreditItems = getUnappliedCreditItems(arData, glDataSets, homeCurrency);
   const collectionTrendItems: ReserveLifecycleReviewItem[] = [
     {
       label: "Older AR exposure",
@@ -6225,7 +6251,7 @@ function calculateReserveLifecycleIntelligence({
       percent: olderArPercent,
       commentary:
         olderArBalance > 0
-          ? `Receivables over 90 days total ${formatCurrency(olderArBalance)}, or ${olderArPercent.toFixed(1)}% of AR. Review collection timing and reserve exposure.`
+          ? `Receivables over 90 days total ${formatCurrency(olderArBalance, homeCurrency)}, or ${olderArPercent.toFixed(1)}% of AR. Review collection timing and reserve exposure.`
           : "Collection performance appears strongest through 90 days based on available aging detail.",
     },
     {
@@ -6265,23 +6291,23 @@ function calculateReserveLifecycleIntelligence({
           period,
           projectedReserveExposure,
           projectedOlderAr,
-          commentary: `${period}: projected reserve exposure of ${formatCurrency(projectedReserveExposure)} if current collection and aging trends continue.`,
+          commentary: `${period}: projected reserve exposure of ${formatCurrency(projectedReserveExposure, homeCurrency)} if current collection and aging trends continue.`,
         };
       })
     : [];
   const commentary = [
-    `Preliminary reserve guidance remains ${formatCurrency(arReserveIntelligence.totalSuggestedReserve)}, with a suggested review range of ${formatCurrency(suggestedReserveLow)} to ${formatCurrency(suggestedReserveHigh)}.`,
+    `Preliminary reserve guidance remains ${formatCurrency(arReserveIntelligence.totalSuggestedReserve, homeCurrency)}, with a suggested review range of ${formatCurrency(suggestedReserveLow, homeCurrency)} to ${formatCurrency(suggestedReserveHigh, homeCurrency)}.`,
     currentReserveBalance !== null
-      ? `Current reserve balance identified: ${formatCurrency(currentReserveBalance)}${arReserveIntelligence.reserveGap !== null ? `, with a preliminary reserve gap/surplus of ${formatCurrency(arReserveIntelligence.reserveGap)}.` : "."}`
+      ? `Current reserve balance identified: ${formatCurrency(currentReserveBalance, homeCurrency)}${arReserveIntelligence.reserveGap !== null ? `, with a preliminary reserve gap/surplus of ${formatCurrency(arReserveIntelligence.reserveGap, homeCurrency)}.` : "."}`
       : "No reserve balance was identified in the uploaded Balance Sheet data; review whether a reserve account exists outside the uploaded report detail.",
     writeOffTotal > 0
-      ? `Write-off or reserve-related activity totals ${formatCurrency(writeOffTotal)} from available activity. Compare write-off timing to reserve coverage and collection trends.`
+      ? `Write-off or reserve-related activity totals ${formatCurrency(writeOffTotal, homeCurrency)} from available activity. Compare write-off timing to reserve coverage and collection trends.`
       : "Historical write-off activity was not identified in uploaded activity, so aging guidance remains a preliminary starting point.",
     isProfessionalOrHigher(packageTier) && concentrationPercent > 0
       ? `Top customer AR exposure represents ${concentrationPercent.toFixed(1)}% of receivables. Review concentration risk and customer-specific collection patterns.`
       : "",
     isVirtualCfo(packageTier) && reserveForecast.length
-      ? `Forecasted reserve exposure may reach ${formatCurrency(reserveForecast[reserveForecast.length - 1].projectedReserveExposure)} if current aging and collection patterns continue.`
+      ? `Forecasted reserve exposure may reach ${formatCurrency(reserveForecast[reserveForecast.length - 1].projectedReserveExposure, homeCurrency)} if current aging and collection patterns continue.`
       : "",
   ].filter(Boolean);
   const internalFlags = [
@@ -7040,6 +7066,8 @@ function calculateWorkforceIntelligence({
   budgetMetrics,
   monthFluxRows,
   quarterFluxRows,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   payrollAnalysis: PayrollAnalysis;
@@ -7050,6 +7078,8 @@ function calculateWorkforceIntelligence({
   budgetMetrics: BudgetMetrics;
   monthFluxRows: FluxRow[];
   quarterFluxRows: FluxRow[];
+
+  homeCurrency: string;
 }): WorkforceIntelligence {
   const enabled = payrollAnalysis.totalCurrentFte > 0 || payrollAnalysis.totalCurrentPayrollCost > 0;
   const revenuePerFte = payrollAnalysis.totalCurrentFte ? currentRevenue / payrollAnalysis.totalCurrentFte : null;
@@ -7072,7 +7102,7 @@ function calculateWorkforceIntelligence({
     .slice(0, isProfessionalOrHigher(packageTier) ? 6 : 3);
   const departmentScalingItems = topDepartmentMoves.map((row) => ({
     label: row.department,
-    value: `${formatCurrency(row.payrollCostChange)} payroll change / ${formatFte(row.fteChange)} FTE change`,
+    value: `${formatCurrency(row.payrollCostChange, homeCurrency)} payroll change / ${formatFte(row.fteChange)} FTE change`,
     commentary:
       row.payrollCostChange > 0 && row.fteChange <= 0.01
         ? `${row.department} payroll increased without matching FTE growth. Review overtime, compensation mix, payroll timing, or labor utilization.`
@@ -7083,12 +7113,12 @@ function calculateWorkforceIntelligence({
   const productivityItems: WorkforceReviewItem[] = [
     {
       label: "Revenue per FTE",
-      value: revenuePerFte !== null ? formatCurrency(revenuePerFte) : "N/A",
+      value: revenuePerFte !== null ? formatCurrency(revenuePerFte, homeCurrency) : "N/A",
       commentary:
         revenuePerFteChange !== null && revenuePerFteChange < 0
-          ? `Revenue per FTE declined by ${formatCurrency(Math.abs(revenuePerFteChange))}. Review staffing growth, utilization, and productivity trends.`
+          ? `Revenue per FTE declined by ${formatCurrency(Math.abs(revenuePerFteChange), homeCurrency)}. Review staffing growth, utilization, and productivity trends.`
           : revenuePerFteChange !== null
-            ? `Revenue per FTE improved by ${formatCurrency(revenuePerFteChange)}, indicating improving productivity or operating leverage.`
+            ? `Revenue per FTE improved by ${formatCurrency(revenuePerFteChange, homeCurrency)}, indicating improving productivity or operating leverage.`
             : "Revenue per FTE requires current and prior revenue and FTE data for trend review.",
     },
     {
@@ -7101,7 +7131,7 @@ function calculateWorkforceIntelligence({
     },
     {
       label: "Gross Profit per FTE",
-      value: grossProfitPerFte !== null ? formatCurrency(grossProfitPerFte) : "N/A",
+      value: grossProfitPerFte !== null ? formatCurrency(grossProfitPerFte, homeCurrency) : "N/A",
       commentary: "Use gross profit per FTE to review labor efficiency and operating leverage before finalizing payroll commentary.",
     },
   ];
@@ -7117,7 +7147,7 @@ function calculateWorkforceIntelligence({
       ? "FTE growth exceeded revenue growth trends and may warrant review of staffing scalability and labor utilization."
       : "Revenue and FTE trends should be reviewed together to assess productivity and operational leverage.",
     payrollFluxRows[0]
-      ? `Month-over-month payroll flux was led by ${payrollFluxRows[0].accountName} at ${formatCurrency(payrollFluxRows[0].dollarVariance)}. Tie payroll commentary to the approved flux explanation.`
+      ? `Month-over-month payroll flux was led by ${payrollFluxRows[0].accountName} at ${formatCurrency(payrollFluxRows[0].dollarVariance, homeCurrency)}. Tie payroll commentary to the approved flux explanation.`
       : "Month-over-month payroll flux should be reviewed when payroll GL detail is available.",
   ];
   const tierAdvisoryCommentary = [
@@ -7160,9 +7190,9 @@ function calculateWorkforceIntelligence({
   ].filter(Boolean).slice(0, 10);
   const forecastIntegrationNotes = isVirtualCfo(packageTier)
     ? [
-        `Use current payroll cost of ${formatCurrency(payrollAnalysis.totalCurrentPayrollCost)} and ${formatFte(payrollAnalysis.totalCurrentFte)} FTE as workforce forecast baseline.`,
+        `Use current payroll cost of ${formatCurrency(payrollAnalysis.totalCurrentPayrollCost, homeCurrency)} and ${formatFte(payrollAnalysis.totalCurrentFte)} FTE as workforce forecast baseline.`,
         revenuePerFte !== null
-          ? `Revenue per FTE of ${formatCurrency(revenuePerFte)} can support revenue scaling assumptions and hiring plan review.`
+          ? `Revenue per FTE of ${formatCurrency(revenuePerFte, homeCurrency)} can support revenue scaling assumptions and hiring plan review.`
           : "Revenue per FTE requires current revenue and FTE data before it can support forecast assumptions.",
         payrollToRevenuePercent !== null
           ? `Payroll is ${payrollToRevenuePercent.toFixed(1)}% of revenue; use this as a labor burden assumption when reviewing forecasted operating margins.`
@@ -7286,7 +7316,8 @@ function createPowerPointSlidesData({
   includePayroll,
   includeFixedAssets,
 
-  homeCurrency,}: {
+  homeCurrency,
+}: {
   packageTier: PackageTier;
   companyName: string;
   reportPeriod: string;
@@ -7312,7 +7343,8 @@ function createPowerPointSlidesData({
   includePayroll: boolean;
   includeFixedAssets: boolean;
 
-  homeCurrency: string;}): PowerPointSlideData[] {
+  homeCurrency: string;
+}): PowerPointSlideData[] {
   const statementChartData = (rows: StatementRow[]) =>
     rows.slice(0, boardMode ? 5 : 6).map((row) => ({ name: row.label, value: row.amount || 0 }));
   const fluxSlide = (
@@ -8560,6 +8592,8 @@ function calculateCloseManagementIntelligence({
   priorQuarterGlData,
   currentYearGlData,
   priorYearGlData,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   currentBsRows: StatementRow[];
@@ -8575,6 +8609,8 @@ function calculateCloseManagementIntelligence({
   priorQuarterGlData: ParsedFile | null;
   currentYearGlData: ParsedFile | null;
   priorYearGlData: ParsedFile | null;
+
+  homeCurrency: string;
 }): CloseManagementIntelligence {
   const currentDataSets = [currentMonthGlData, currentQuarterGlData, currentYearGlData];
   const allDataSets = [currentMonthGlData, priorMonthGlData, currentQuarterGlData, priorQuarterGlData, currentYearGlData, priorYearGlData];
@@ -8626,7 +8662,7 @@ function calculateCloseManagementIntelligence({
     ...buildCloseReviewItems(
       prepaidRows,
       (row) => row.accountName,
-      (label, amount, count) => `${label} includes ${count} prepaid or amortization-related posting${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review prepaid buildup, amortization timing, and recurring entry cadence.`,
+      (label, amount, count) => `${label} includes ${count} prepaid or amortization-related posting${count === 1 ? "" : "s"} totaling ${formatCurrency(amount, homeCurrency)}. Review prepaid buildup, amortization timing, and recurring entry cadence.`,
       "Monitor",
     ),
   ].slice(0, 8);
@@ -8637,7 +8673,7 @@ function calculateCloseManagementIntelligence({
   const accrualReversalItems = buildCloseReviewItems(
     fullCloseReview ? accrualRows : accrualRows.slice(0, 25),
     (row) => row.vendor || row.payee || row.accountName,
-    (label, amount, count) => `${label} includes ${count} accrual, reversal, or clearing review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review recurring timing, settlement, and uncleared accrual balances.`,
+    (label, amount, count) => `${label} includes ${count} accrual, reversal, or clearing review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount, homeCurrency)}. Review recurring timing, settlement, and uncleared accrual balances.`,
     "Review",
   );
   const manualJeRows = allRows.filter(isManualJournalEntryRow);
@@ -8666,7 +8702,7 @@ function calculateCloseManagementIntelligence({
   const manualJournalEntryItems = buildCloseReviewItems(
     [...unusualManualRows, ...roundDollarRows],
     (row) => row.accountName,
-    (label, amount, count) => `${label} includes ${count} manual or round-dollar journal entry review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount)}. Review posting timing and whether activity is consistent with historical patterns.`,
+    (label, amount, count) => `${label} includes ${count} manual or round-dollar journal entry review item${count === 1 ? "" : "s"} totaling ${formatCurrency(amount, homeCurrency)}. Review posting timing and whether activity is consistent with historical patterns.`,
     "Review",
   );
   const accountActivityItems = [...accountStats.entries()]
@@ -8736,11 +8772,11 @@ function calculateCloseManagementIntelligence({
     : [];
   const internalFlags = [
     ...scoreDrivers.map((driver) => `Close quality driver identified: ${driver}.`),
-    ...staleLiabilityItems.map((item) => `Stale liability review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
-    ...staleAssetItems.map((item) => `Stale asset review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
-    ...accrualReversalItems.map((item) => `Accrual lifecycle review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
-    ...manualJournalEntryItems.map((item) => `Manual journal entry review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
-    ...accountActivityItems.map((item) => `Account activity review: ${item.label} totaling ${formatCurrency(item.amount)}.`),
+    ...staleLiabilityItems.map((item) => `Stale liability review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
+    ...staleAssetItems.map((item) => `Stale asset review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
+    ...accrualReversalItems.map((item) => `Accrual lifecycle review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
+    ...manualJournalEntryItems.map((item) => `Manual journal entry review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
+    ...accountActivityItems.map((item) => `Account activity review: ${item.label} totaling ${formatCurrency(item.amount, homeCurrency)}.`),
   ].slice(0, 16);
 
   return {
@@ -12138,7 +12174,8 @@ export default function UploadPage() {
     plRows: plStatementRows,
     currentMonthGlData: activeCurrentMonthGlData,
     priorMonthGlData: activePriorMonthGlData,
-  });
+  
+    homeCurrency,});
   const reserveLifecycleIntelligence = calculateReserveLifecycleIntelligence({
     packageTier,
     arData: activeArData,
@@ -12151,7 +12188,8 @@ export default function UploadPage() {
     priorQuarterGlData: activePriorQuarterGlData,
     currentYearGlData: activeCurrentYearGlData,
     priorYearGlData: activePriorYearGlData,
-  });
+  
+    homeCurrency,});
   const inventoryIntelligence = calculateInventoryIntelligence({
     packageTier,
     inventoryKpis,
@@ -12269,7 +12307,8 @@ export default function UploadPage() {
     budgetMetrics,
     monthFluxRows,
     quarterFluxRows,
-  });
+  
+    homeCurrency,});
   const debtMetrics = calculateDebtMetrics(activeDebtScheduleData, kpis, bsStatementRows);
   const treasuryLiquidityIntelligence = calculateTreasuryLiquidityIntelligence({
     packageTier,
@@ -12285,7 +12324,8 @@ export default function UploadPage() {
     currentMonthGlData: activeCurrentMonthGlData,
     currentQuarterGlData: activeCurrentQuarterGlData,
     currentYearGlData: activeCurrentYearGlData,
-  });
+  
+    homeCurrency,});
   const apCutoffIntelligence = calculateApCutoffIntelligence({
     packageTier,
     reportingPeriodEnd,
@@ -12307,7 +12347,8 @@ export default function UploadPage() {
     priorMonthGlData: activePriorMonthGlData,
     priorQuarterGlData: activePriorQuarterGlData,
     priorYearGlData: activePriorYearGlData,
-  });
+  
+    homeCurrency,});
   const validationResults = validateFinancialPackage({
     packageTier,
     plData: activePlData,
@@ -12350,7 +12391,8 @@ export default function UploadPage() {
     priorQuarterGlData: activePriorQuarterGlData,
     currentYearGlData: activeCurrentYearGlData,
     priorYearGlData: activePriorYearGlData,
-  });
+  
+    homeCurrency,});
   const selectedUploadReport = selectedUploadReportId
     ? uploadReports.find((report) => report.id === selectedUploadReportId) || null
     : null;
@@ -14685,6 +14727,7 @@ export default function UploadPage() {
                   <ValidationDashboardSection
                     validationResults={validationResults}
                     apCutoffIntelligence={apCutoffIntelligence}
+                    homeCurrency={homeCurrency}
                   />
                   {kpiReviewMode === "staged" && (
                     <KpiReviewSectionActions
@@ -14788,17 +14831,19 @@ export default function UploadPage() {
                     <RevenueRecognitionIntelligenceSection
                       revenueRecognitionIntelligence={revenueRecognitionIntelligence}
                       packageTier={packageTier}
+                      homeCurrency={homeCurrency}
                     />
                   )}
                   {workforceIntelligence.enabled && (
                     <section className="mt-6 rounded-3xl border border-[#243041] bg-[#172033] p-6 shadow-xl shadow-black/10">
-                      <WorkforceIntelligenceSection workforceIntelligence={workforceIntelligence} packageTier={packageTier} />
+                      <WorkforceIntelligenceSection workforceIntelligence={workforceIntelligence} packageTier={packageTier} homeCurrency={homeCurrency} />
                     </section>
                   )}
                   {treasuryLiquidityIntelligence.enabled && (
                     <TreasuryLiquidityIntelligenceSection
                       treasuryLiquidityIntelligence={treasuryLiquidityIntelligence}
                       packageTier={packageTier}
+                      homeCurrency={homeCurrency}
                     />
                   )}
                   {isProfessionalOrHigher(packageTier) && activeInventoryData && (
@@ -14808,11 +14853,11 @@ export default function UploadPage() {
                     <ManufacturingInventoryIntelligenceSection intelligence={manufacturingInventoryIntelligence} packageTier={packageTier} />
                   )}
                   {closeManagementIntelligence.enabled && (
-                    <CloseManagementIntelligenceSection intelligence={closeManagementIntelligence} packageTier={packageTier} />
+                    <CloseManagementIntelligenceSection intelligence={closeManagementIntelligence} packageTier={packageTier} homeCurrency={homeCurrency} />
                   )}
-                  <ARReserveIntelligenceSection arReserveIntelligence={arReserveIntelligence} packageTier={packageTier} />
+                  <ARReserveIntelligenceSection arReserveIntelligence={arReserveIntelligence} packageTier={packageTier} homeCurrency={homeCurrency} />
                   {reserveLifecycleIntelligence.enabled && (
-                    <ReserveLifecycleIntelligenceSection reserveLifecycleIntelligence={reserveLifecycleIntelligence} packageTier={packageTier} />
+                    <ReserveLifecycleIntelligenceSection reserveLifecycleIntelligence={reserveLifecycleIntelligence} packageTier={packageTier} homeCurrency={homeCurrency} />
                   )}
                   {!isProfessionalOrHigher(packageTier) && fixedAssetIntegrityIntelligence.enabled && (
                     <FixedAssetIntegrityIntelligenceSection intelligence={fixedAssetIntegrityIntelligence} packageTier={packageTier} />
@@ -15128,6 +15173,7 @@ export default function UploadPage() {
           validationResults={validationResults}
           onProceed={handleProceedFromValidationReview}
           onBack={() => setValidationReviewOpen(false)}
+          homeCurrency={homeCurrency}
         />
       )}
 
@@ -19100,25 +19146,29 @@ function InventoryIntelligenceSection({
 function RevenueRecognitionIntelligenceSection({
   revenueRecognitionIntelligence,
   packageTier,
+
+  homeCurrency,
 }: {
   revenueRecognitionIntelligence: RevenueRecognitionIntelligence;
   packageTier: PackageTier;
+
+  homeCurrency: string;
 }) {
   const isFullReview = isVirtualCfo(packageTier);
   const metricCards = [
     {
       label: "Deferred Revenue",
-      value: formatMoneyLegacy(revenueRecognitionIntelligence.deferredRevenueBalance),
-      detail: `${formatMoneyLegacy(revenueRecognitionIntelligence.deferredRevenueChange)} period-over-period change`,
+      value: formatMoneyLegacy(revenueRecognitionIntelligence.deferredRevenueBalance, homeCurrency),
+      detail: `${formatMoneyLegacy(revenueRecognitionIntelligence.deferredRevenueChange, homeCurrency)} period-over-period change`,
     },
     {
       label: "Unbilled AR",
-      value: formatMoneyLegacy(revenueRecognitionIntelligence.unbilledArBalance),
-      detail: `${formatMoneyLegacy(revenueRecognitionIntelligence.unbilledArChange)} period-over-period change`,
+      value: formatMoneyLegacy(revenueRecognitionIntelligence.unbilledArBalance, homeCurrency),
+      detail: `${formatMoneyLegacy(revenueRecognitionIntelligence.unbilledArChange, homeCurrency)} period-over-period change`,
     },
     {
       label: "Recognition Activity",
-      value: formatMoneyLegacy(revenueRecognitionIntelligence.recognizedRevenueActivity),
+      value: formatMoneyLegacy(revenueRecognitionIntelligence.recognizedRevenueActivity, homeCurrency),
       detail:
         revenueRecognitionIntelligence.deferredRecognitionRate !== null
           ? `${(revenueRecognitionIntelligence.deferredRecognitionRate * 100).toFixed(0)}% estimated recognition cadence`
@@ -19126,7 +19176,7 @@ function RevenueRecognitionIntelligenceSection({
     },
     {
       label: "Billing Activity",
-      value: formatMoneyLegacy(revenueRecognitionIntelligence.billingActivity),
+      value: formatMoneyLegacy(revenueRecognitionIntelligence.billingActivity, homeCurrency),
       detail: "Used for billing cadence and liquidity timing review",
     },
   ];
@@ -19201,8 +19251,8 @@ function RevenueRecognitionIntelligenceSection({
               {revenueRecognitionIntelligence.anticipatedRecognitionSchedule.map((schedule) => (
                 <tr key={schedule.period} className="border-t border-[#243041]">
                   <td className="px-4 py-3 font-semibold text-[#F9FAFB]">{schedule.period}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(schedule.expectedRecognition)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(schedule.remainingDeferredObligation)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(schedule.expectedRecognition, homeCurrency)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(schedule.remainingDeferredObligation, homeCurrency)}</td>
                   <td className="px-4 py-3 text-[#CBD5E1]">{schedule.confidence}</td>
                   <td className="px-4 py-3 text-[#94A3B8]">{schedule.commentary}</td>
                 </tr>
@@ -19222,7 +19272,7 @@ function RevenueRecognitionIntelligenceSection({
                   <div key={`${group.title}-${item.label}`} className="rounded-xl border border-[#334155] bg-[#0B1120] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-sm font-semibold text-[#F9FAFB]">{item.label}</p>
-                      <p className="shrink-0 text-sm font-bold text-[#C4B5FD]">{formatMoneyLegacy(item.amount)}</p>
+                      <p className="shrink-0 text-sm font-bold text-[#C4B5FD]">{formatMoneyLegacy(item.amount, homeCurrency)}</p>
                     </div>
                     <p className="mt-1 text-xs leading-5 text-[#94A3B8]">{item.commentary}</p>
                   </div>
@@ -19252,24 +19302,28 @@ function RevenueRecognitionIntelligenceSection({
 function TreasuryLiquidityIntelligenceSection({
   treasuryLiquidityIntelligence,
   packageTier,
+
+  homeCurrency,
 }: {
   treasuryLiquidityIntelligence: TreasuryLiquidityIntelligence;
   packageTier: PackageTier;
+
+  homeCurrency: string;
 }) {
   const isProfessionalScope = isProfessionalOrHigher(packageTier);
   const isVirtualScope = isVirtualCfo(packageTier);
   const metricCards = [
     {
       label: "Cash Position",
-      value: formatMoneyLegacy(treasuryLiquidityIntelligence.cashBalance),
-      detail: `${formatMoneyLegacy(treasuryLiquidityIntelligence.cashChange)} period-over-period change`,
+      value: formatMoneyLegacy(treasuryLiquidityIntelligence.cashBalance, homeCurrency),
+      detail: `${formatMoneyLegacy(treasuryLiquidityIntelligence.cashChange, homeCurrency)} period-over-period change`,
     },
     {
       label: "Working Capital",
-      value: treasuryLiquidityIntelligence.workingCapital !== null ? formatMoneyLegacy(treasuryLiquidityIntelligence.workingCapital) : "N/A",
+      value: treasuryLiquidityIntelligence.workingCapital !== null ? formatMoneyLegacy(treasuryLiquidityIntelligence.workingCapital, homeCurrency) : "N/A",
       detail:
         treasuryLiquidityIntelligence.workingCapitalChange !== null
-          ? `${formatMoneyLegacy(treasuryLiquidityIntelligence.workingCapitalChange)} movement`
+          ? `${formatMoneyLegacy(treasuryLiquidityIntelligence.workingCapitalChange, homeCurrency)} movement`
           : "Requires current/prior balance sheet detail",
     },
     {
@@ -19294,13 +19348,13 @@ function TreasuryLiquidityIntelligenceSection({
       : []),
   ];
   const visualRows = [
-    { label: "Cash Change", value: Math.abs(treasuryLiquidityIntelligence.cashChange), display: formatCurrency(treasuryLiquidityIntelligence.cashChange) },
+    { label: "Cash Change", value: Math.abs(treasuryLiquidityIntelligence.cashChange), display: formatCurrency(treasuryLiquidityIntelligence.cashChange, homeCurrency) },
     {
       label: "Working Capital Change",
       value: Math.abs(treasuryLiquidityIntelligence.workingCapitalChange || 0),
-      display: treasuryLiquidityIntelligence.workingCapitalChange !== null ? formatCurrency(treasuryLiquidityIntelligence.workingCapitalChange) : "N/A",
+      display: treasuryLiquidityIntelligence.workingCapitalChange !== null ? formatCurrency(treasuryLiquidityIntelligence.workingCapitalChange, homeCurrency) : "N/A",
     },
-    { label: "Idle Cash Estimate", value: treasuryLiquidityIntelligence.idleCashEstimate, display: formatCurrency(treasuryLiquidityIntelligence.idleCashEstimate) },
+    { label: "Idle Cash Estimate", value: treasuryLiquidityIntelligence.idleCashEstimate, display: formatCurrency(treasuryLiquidityIntelligence.idleCashEstimate, homeCurrency) },
   ];
   const maxVisualValue = Math.max(...visualRows.map((row) => row.value), 1);
 
@@ -19414,11 +19468,11 @@ function TreasuryLiquidityIntelligenceSection({
               {treasuryLiquidityIntelligence.cashForecast.map((period) => (
                 <tr key={period.period} className="border-t border-[#243041]">
                   <td className="px-4 py-3 font-semibold text-[#F9FAFB]">{period.period}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.projectedCash)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.expectedCollections)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.expectedPayments)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.payrollOutflow)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.debtOutflow)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.projectedCash, homeCurrency)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.expectedCollections, homeCurrency)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.expectedPayments, homeCurrency)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.payrollOutflow, homeCurrency)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(period.debtOutflow, homeCurrency)}</td>
                   <td className="px-4 py-3 text-[#94A3B8]">{period.commentary}</td>
                 </tr>
               ))}
@@ -19895,9 +19949,13 @@ function ManufacturingInventoryIntelligenceSection({
 function CloseManagementIntelligenceSection({
   intelligence,
   packageTier,
+
+  homeCurrency,
 }: {
   intelligence: CloseManagementIntelligence;
   packageTier: PackageTier;
+
+  homeCurrency: string;
 }) {
   const showFullCloseReview = isVirtualCfo(packageTier);
   const reviewGroups = [
@@ -20000,7 +20058,7 @@ function CloseManagementIntelligenceSection({
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-bold text-[#F9FAFB]">{item.label}</p>
                       <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-xs font-bold text-cyan-100">
-                        {item.status} | {formatCurrency(item.amount)}
+                        {item.status} | {formatCurrency(item.amount, homeCurrency)}
                       </span>
                     </div>
                     <MiniBar label="Review exposure" value={item.amount} max={maxItemAmount} />
@@ -20034,9 +20092,13 @@ function CloseManagementIntelligenceSection({
 function ARReserveIntelligenceSection({
   arReserveIntelligence,
   packageTier,
+
+  homeCurrency,
 }: {
   arReserveIntelligence: ARReserveIntelligence;
   packageTier: PackageTier;
+
+  homeCurrency: string;
 }) {
   const tierScope =
     packageTier === "essential"
@@ -20097,9 +20159,9 @@ function ARReserveIntelligenceSection({
             {arReserveIntelligence.buckets.map((bucket) => (
               <tr key={bucket.id} className="border-t border-[#243041]">
                 <td className="px-4 py-3 font-semibold text-[#F9FAFB]">{bucket.label}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(bucket.balance)}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{formatMoneyLegacy(bucket.balance, homeCurrency)}</td>
                 <td className="px-4 py-3 text-right tabular-nums text-[#CBD5E1]">{bucket.reservePercent}%</td>
-                <td className="px-4 py-3 text-right tabular-nums font-semibold text-[#F9FAFB]">{formatMoneyLegacy(bucket.reserveAmount)}</td>
+                <td className="px-4 py-3 text-right tabular-nums font-semibold text-[#F9FAFB]">{formatMoneyLegacy(bucket.reserveAmount, homeCurrency)}</td>
                 <td className="px-4 py-3 text-[#94A3B8]">{bucket.rationale}</td>
               </tr>
             ))}
@@ -20135,9 +20197,13 @@ function ARReserveIntelligenceSection({
 function ReserveLifecycleIntelligenceSection({
   reserveLifecycleIntelligence,
   packageTier,
+
+  homeCurrency,
 }: {
   reserveLifecycleIntelligence: ReserveLifecycleIntelligence;
   packageTier: PackageTier;
+
+  homeCurrency: string;
 }) {
   const showProfessionalDetail = isProfessionalOrHigher(packageTier);
   const showVirtualCfoDetail = isVirtualCfo(packageTier);
@@ -20186,7 +20252,7 @@ function ReserveLifecycleIntelligenceSection({
             <MiniBar label="Suggested Reserve" value={reserveLifecycleIntelligence.suggestedReserveHigh} max={Math.max(reserveLifecycleIntelligence.suggestedReserveHigh, reserveLifecycleIntelligence.priorReserveBalance || 0, 1)} />
           </div>
           <p className="mt-3 text-xs leading-5 text-cyan-50/70">
-            Trend change: {reserveLifecycleIntelligence.reserveTrendAmount === null ? "Not enough prior reserve data" : formatCurrency(reserveLifecycleIntelligence.reserveTrendAmount)}
+            Trend change: {reserveLifecycleIntelligence.reserveTrendAmount === null ? "Not enough prior reserve data" : formatCurrency(reserveLifecycleIntelligence.reserveTrendAmount, homeCurrency)}
             {reserveLifecycleIntelligence.reserveTrendPercent !== null ? ` (${reserveLifecycleIntelligence.reserveTrendPercent.toFixed(1)}%)` : ""}.
           </p>
         </div>
@@ -20198,7 +20264,7 @@ function ReserveLifecycleIntelligenceSection({
             <MiniBar label="Top Customer Exposure" value={reserveLifecycleIntelligence.concentrationExposure} max={Math.max(reserveLifecycleIntelligence.concentrationExposure, reserveLifecycleIntelligence.olderArBalance, 1)} />
           </div>
           <p className="mt-3 text-xs leading-5 text-cyan-50/70">
-            Older AR totals {formatCurrency(reserveLifecycleIntelligence.olderArBalance)} and top customer exposure totals {formatCurrency(reserveLifecycleIntelligence.concentrationExposure)}.
+            Older AR totals {formatCurrency(reserveLifecycleIntelligence.olderArBalance, homeCurrency)} and top customer exposure totals {formatCurrency(reserveLifecycleIntelligence.concentrationExposure, homeCurrency)}.
           </p>
         </div>
         <div className="rounded-2xl border border-cyan-300/20 bg-[#0B1020] p-4">
@@ -20247,7 +20313,7 @@ function ReserveLifecycleIntelligenceSection({
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-bold text-[#F9FAFB]">{item.label}</p>
                       <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-xs font-bold text-cyan-100">
-                        {formatCurrency(item.amount)}
+                        {formatCurrency(item.amount, homeCurrency)}
                         {item.percent !== undefined && item.percent !== null ? ` | ${item.percent.toFixed(1)}%` : ""}
                       </span>
                     </div>
@@ -20279,8 +20345,8 @@ function ReserveLifecycleIntelligenceSection({
                 {reserveLifecycleIntelligence.reserveForecast.map((period) => (
                   <tr key={period.period} className="border-t border-[#243041]">
                     <td className="px-4 py-3 font-semibold text-white">{period.period}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-cyan-50/80">{formatCurrency(period.projectedOlderAr)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-cyan-50/80">{formatCurrency(period.projectedReserveExposure)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-cyan-50/80">{formatCurrency(period.projectedOlderAr, homeCurrency)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-cyan-50/80">{formatCurrency(period.projectedReserveExposure, homeCurrency)}</td>
                     <td className="px-4 py-3 text-cyan-50/70">{period.commentary}</td>
                   </tr>
                 ))}
@@ -20315,9 +20381,13 @@ function getValidationLabel(status: ValidationStatus) {
 function ValidationDashboardSection({
   validationResults,
   apCutoffIntelligence,
+
+  homeCurrency,
 }: {
   validationResults: ValidationResults;
   apCutoffIntelligence?: ApCutoffIntelligence;
+
+  homeCurrency: string;
 }) {
   const visibleChecks = validationResults.checks.filter((check) => check.status !== "gray" || check.category !== "periods");
   const criticalChecks = validationResults.checks.filter((check) => check.status === "red");
@@ -20367,7 +20437,7 @@ function ValidationDashboardSection({
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-amber-200">{window.daysAfterClose}-day post-close window</p>
                 <p className="mt-2 text-2xl font-black text-white">{window.candidateCount}</p>
                 <p className="mt-1 text-xs text-amber-50/70">
-                  {formatCurrency(window.totalAmount)} across {window.vendorCount} vendor{window.vendorCount === 1 ? "" : "s"}
+                  {formatCurrency(window.totalAmount, homeCurrency)} across {window.vendorCount} vendor{window.vendorCount === 1 ? "" : "s"}
                 </p>
               </div>
             ))}
@@ -20454,9 +20524,9 @@ function ValidationDashboardSection({
                     {getValidationLabel(check.status)}
                   </span>
                 </td>
-                <td className="px-4 py-3 tabular-nums">{check.expectedBalance === null ? "N/A" : formatCurrency(check.expectedBalance)}</td>
-                <td className="px-4 py-3 tabular-nums">{check.actualBalance === null ? "N/A" : formatCurrency(check.actualBalance)}</td>
-                <td className="px-4 py-3 tabular-nums">{check.variance === null ? "N/A" : formatCurrency(check.variance)}</td>
+                <td className="px-4 py-3 tabular-nums">{check.expectedBalance === null ? "N/A" : formatCurrency(check.expectedBalance, homeCurrency)}</td>
+                <td className="px-4 py-3 tabular-nums">{check.actualBalance === null ? "N/A" : formatCurrency(check.actualBalance, homeCurrency)}</td>
+                <td className="px-4 py-3 tabular-nums">{check.variance === null ? "N/A" : formatCurrency(check.variance, homeCurrency)}</td>
                 <td className="px-4 py-3 text-[#94A3B8]">{check.message}</td>
               </tr>
             ))}
@@ -20471,10 +20541,14 @@ function ValidationReviewModal({
   validationResults,
   onProceed,
   onBack,
+
+  homeCurrency,
 }: {
   validationResults: ValidationResults;
   onProceed: () => void;
   onBack: () => void;
+
+  homeCurrency: string;
 }) {
   const hasCriticalFailures = validationResults.hasCriticalFailures;
 
@@ -20499,7 +20573,7 @@ function ValidationReviewModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
-        <ValidationDashboardSection validationResults={validationResults} />
+        <ValidationDashboardSection validationResults={validationResults} homeCurrency={homeCurrency} />
         </div>
 
         <div className="shrink-0 flex flex-col gap-3 border-t border-[#243041] bg-[#28251D] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -20852,7 +20926,8 @@ function KpiReviewPrintPackage({
   includeFixedAssets,
   includePayroll,
 
-  homeCurrency,}: {
+  homeCurrency,
+}: {
   companyName: string;
   reportPeriod: string;
   kpis: KPIs;
@@ -20872,7 +20947,8 @@ function KpiReviewPrintPackage({
   includeFixedAssets: boolean;
   includePayroll: boolean;
 
-  homeCurrency: string;}) {
+  homeCurrency: string;
+}) {
   const printKpis = [
     ["Revenue", formatMoneyLegacy(kpis.revenue, homeCurrency)],
     ["COGS", formatMoneyLegacy(kpis.cogs, homeCurrency)],
@@ -23162,19 +23238,23 @@ function PayrollAnalysisSection({
 function WorkforceIntelligenceSection({
   workforceIntelligence,
   packageTier,
+
+  homeCurrency,
 }: {
   workforceIntelligence: WorkforceIntelligence;
   packageTier: PackageTier;
+
+  homeCurrency: string;
 }) {
   const isProfessionalScope = isProfessionalOrHigher(packageTier);
   const isVirtualScope = isVirtualCfo(packageTier);
   const metricCards = [
     {
       label: "Revenue per FTE",
-      value: workforceIntelligence.revenuePerFte !== null ? formatCurrency(workforceIntelligence.revenuePerFte) : "N/A",
+      value: workforceIntelligence.revenuePerFte !== null ? formatCurrency(workforceIntelligence.revenuePerFte, homeCurrency) : "N/A",
       detail:
         workforceIntelligence.revenuePerFteChange !== null
-          ? `${formatCurrency(workforceIntelligence.revenuePerFteChange)} change from prior period`
+          ? `${formatCurrency(workforceIntelligence.revenuePerFteChange, homeCurrency)} change from prior period`
           : "Requires current and prior revenue/FTE data",
     },
     {
@@ -23763,7 +23843,8 @@ function PrintableFinancialPackage({
   quarterFluxRows,
   yearFluxRows,
 
-  homeCurrency,}: {
+  homeCurrency,
+}: {
   packageTier: PackageTier;
   companyName: string;
   reportPeriod: string;
@@ -23808,7 +23889,8 @@ function PrintableFinancialPackage({
   quarterFluxRows: FluxRow[];
   yearFluxRows: FluxRow[];
 
-  homeCurrency: string;}) {
+  homeCurrency: string;
+}) {
   const plRows = getStatementRows(plData);
   const bsRows = getBalanceSheetStatementRowsWithNetBookValue(bsData);
   const includeSection = (sectionId: PackageSectionId) => selectedSections.includes(sectionId);
@@ -25268,8 +25350,10 @@ function PrintableFinancialPackage({
 }
 
 function FinancialStatementTable({ rows,
-  homeCurrency,}: { rows: StatementRow[];
-  homeCurrency: string;}) {
+  homeCurrency,
+}: { rows: StatementRow[];
+  homeCurrency: string;
+}) {
   const dedupedRows = getDedupedStatementRows(rows);
 
   return (
@@ -25315,13 +25399,15 @@ function DriverPrintTable({
   total,
   type,
 
-  homeCurrency,}: {
+  homeCurrency,
+}: {
   title: string;
   rows: StatementRow[];
   total: number;
   type: "revenue" | "expense";
 
-  homeCurrency: string;}) {
+  homeCurrency: string;
+}) {
   return (
     <div className="print-section-block">
       <h2>{title}</h2>
@@ -25367,7 +25453,8 @@ function PrintDashboardCard({
   budgetMetrics,
   netMargin,
 
-  homeCurrency,}: {
+  homeCurrency,
+}: {
   chartId: ChartSelectionId;
   kpis: KPIs;
   arKpis: AgingKpis;
@@ -25376,7 +25463,8 @@ function PrintDashboardCard({
   budgetMetrics: BudgetMetrics;
   netMargin: number;
 
-  homeCurrency: string;}) {
+  homeCurrency: string;
+}) {
   const chartLabels: Record<ChartSelectionId, string> = {
     "revenue-trend": "Revenue Trend",
     "gross-margin-trend": "Gross Margin Trend",
@@ -25485,12 +25573,14 @@ function AgingPrintTable({
   totalLabel,
   currentLabel,
 
-  homeCurrency,}: {
+  homeCurrency,
+}: {
   kpis: AgingKpis;
   totalLabel: string;
   currentLabel: string;
 
-  homeCurrency: string;}) {
+  homeCurrency: string;
+}) {
   const buckets = [
     { label: currentLabel, value: kpis.current, tone: "good" },
     { label: "1-30 Days", value: kpis.days1To30, tone: "watch" },
@@ -25548,8 +25638,10 @@ function AgingPrintTable({
 }
 
 function FixedAssetChangePrintTable({ rows,
-  homeCurrency,}: { rows: FixedAssetChangeRow[];
-  homeCurrency: string;}) {
+  homeCurrency,
+}: { rows: FixedAssetChangeRow[];
+  homeCurrency: string;
+}) {
   return (
     <table className="print-table">
       <thead>
@@ -25577,8 +25669,10 @@ function FixedAssetChangePrintTable({ rows,
 }
 
 function InventoryPrintTable({ items,
-  homeCurrency,}: { items: InventoryItem[];
-  homeCurrency: string;}) {
+  homeCurrency,
+}: { items: InventoryItem[];
+  homeCurrency: string;
+}) {
   return (
     <table className="print-table">
       <thead>
@@ -25608,8 +25702,10 @@ function InventoryPrintTable({ items,
 }
 
 function SlowMovingInventoryPrintTable({ items,
-  homeCurrency,}: { items: SlowMovingInventoryItem[];
-  homeCurrency: string;}) {
+  homeCurrency,
+}: { items: SlowMovingInventoryItem[];
+  homeCurrency: string;
+}) {
   const total = items.reduce((sum, item) => sum + item.value, 0);
 
   return (
@@ -25650,8 +25746,10 @@ function SlowMovingInventoryPrintTable({ items,
 }
 
 function BudgetPrintSection({ metrics,
-  homeCurrency,}: { metrics: BudgetMetrics;
-  homeCurrency: string;}) {
+  homeCurrency,
+}: { metrics: BudgetMetrics;
+  homeCurrency: string;
+}) {
   const revenueVariancePercent =
     metrics.revenueBudget && metrics.revenueVariance !== null
       ? (metrics.revenueVariance / metrics.revenueBudget) * 100
@@ -25721,8 +25819,10 @@ function BudgetPrintSection({ metrics,
 }
 
 function DebtPrintSection({ metrics,
-  homeCurrency,}: { metrics: DebtMetrics;
-  homeCurrency: string;}) {
+  homeCurrency,
+}: { metrics: DebtMetrics;
+  homeCurrency: string;
+}) {
   return (
     <section className="print-page">
       <p className="print-section-label">Section B - Performance Analysis</p>
@@ -25762,14 +25862,16 @@ function PayrollPrintSection({
   revenue,
   includeDepartmentTables = true,
 
-  homeCurrency,}: {
+  homeCurrency,
+}: {
   analysis: PayrollAnalysis;
   currentPayrollData: ParsedFile | null;
   priorPayrollData: ParsedFile | null;
   revenue: number;
   includeDepartmentTables?: boolean;
 
-  homeCurrency: string;}) {
+  homeCurrency: string;
+}) {
   const hasPayrollData = Boolean(currentPayrollData || priorPayrollData);
   const maxFte = Math.max(analysis.totalCurrentFte, analysis.totalPriorFte, 1);
   const maxPayroll = Math.max(analysis.totalCurrentPayrollCost, analysis.totalPriorPayrollCost, 1);
@@ -25866,11 +25968,13 @@ function PayrollPrintTable({
   rows,
   includePrior,
 
-  homeCurrency,}: {
+  homeCurrency,
+}: {
   rows: PayrollDepartmentRow[];
   includePrior: boolean;
 
-  homeCurrency: string;}) {
+  homeCurrency: string;
+}) {
   return (
     <table className="print-table">
       <thead>
@@ -25915,13 +26019,15 @@ function PrintFluxSection({
   rows,
   focus = "combined",
 
-  homeCurrency,}: {
+  homeCurrency,
+}: {
   title: string;
   subtitle?: string;
   rows: FluxRow[];
   focus?: "balance-sheet" | "income-statement" | "combined";
 
-  homeCurrency: string;}) {
+  homeCurrency: string;
+}) {
   const formatPrintFluxMoney = (row: FluxRow, value: number) =>
     isExpenseLikeFluxRow(row) ? formatMoneyLegacy(Math.abs(value), homeCurrency) : formatMoneyLegacy(value, homeCurrency);
   const formatPrintFluxPercent = (row: FluxRow) => formatFluxPercentLabel(row);
@@ -26031,8 +26137,10 @@ function PrintFluxSection({
 }
 
 function Preview({ title, data,
-  homeCurrency,}: { title: string; data: ParsedFile | null;
-  homeCurrency: string;}) {
+  homeCurrency,
+}: { title: string; data: ParsedFile | null;
+  homeCurrency: string;
+}) {
   if (!data) return null;
 
   const previewRows = getPreviewRows(title, data);
