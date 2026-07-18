@@ -36,6 +36,7 @@ export interface InvoiceRecord {
   customerName: string | null;
   amount: number;
   dueDate: string;
+  currency: string;
 }
 
 function fingerprintEntity(normalizedName: string): string {
@@ -141,7 +142,40 @@ export async function runLayer2ForUnmatchedPayment(
     return;
   }
 
-  const scoringCandidates = candidateInvoices.map((inv) => ({
+  // MC-4a (Gap C-1): Currency-equality gate. Layer 1 already filters same-currency
+  // invoices before returning; Layer 2 receives whatever the upstream orchestrator
+  // supplied. Enforce here as a defense-in-depth precondition so cross-currency
+  // false auto-matches are structurally impossible in the probabilistic path.
+  const sameCurrencyInvoices = candidateInvoices.filter(
+    (inv) => inv.currency === payment.currency,
+  );
+  const mismatchCount = candidateInvoices.length - sameCurrencyInvoices.length;
+
+  if (sameCurrencyInvoices.length === 0) {
+    await createReviewItem({
+      supabase,
+      paymentId: payment.id,
+      topCandidates: [],
+      llmReasoningExcerpt: null,
+      llmConfidence: null,
+      tenantId,
+    });
+    await publishCashAppEvent(
+      "cash_app.layer2_dropped_to_review",
+      { firmId: tenantId.firmId, companyId: tenantId.companyId },
+      "ar_cash_app_payment",
+      payment.id,
+      {
+        payment_id: payment.id,
+        reason: "currency_mismatch",
+        payment_currency: payment.currency,
+        mismatch_count: mismatchCount,
+      },
+    );
+    return;
+  }
+
+  const scoringCandidates = sameCurrencyInvoices.map((inv) => ({
     invoiceId: inv.id,
     invoiceBalance: inv.amount,
     invoiceDateIso: inv.dueDate,
@@ -151,7 +185,7 @@ export async function runLayer2ForUnmatchedPayment(
   const historicalCache = new Map<string, HistoricalBehaviorInput>();
   const globalCache = new Map<string, GlobalPatternHit>();
 
-  for (const inv of candidateInvoices) {
+  for (const inv of sameCurrencyInvoices) {
     const eligible = isGenericEnoughToPool(payment.payerNameRaw, inv.customerName);
     historicalCache.set(
       inv.id,
@@ -181,7 +215,7 @@ export async function runLayer2ForUnmatchedPayment(
     (candidate) => globalCache.get(candidate.invoiceId)!,
   );
 
-  const scored = candidateInvoices.map((invoice, i) => ({
+  const scored = sameCurrencyInvoices.map((invoice, i) => ({
     invoice,
     breakdown: breakdowns[i],
   }));
