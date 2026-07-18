@@ -189,6 +189,14 @@ function stripPresentational(raw: string): { text: string; negative: boolean } {
 
   text = text.replace(CURRENCY_SYMBOL_REGEX, "").trim();
 
+  // Strip apostrophe / right-single-quote used as thousands grouping (de-CH
+  // `1'234.56`). Without this, the en-US default path (no CHF/de-CH hint)
+  // treats `'` as a stray character and returns null — breaking MC-2e.3's
+  // Option B claim that the heuristic covers Swiss amounts without threading
+  // homeCurrency. Only strip when flanked by digits so possessive/quoted
+  // prose is unaffected.
+  text = text.replace(/(?<=\d)['\u2019](?=\d)/g, "");
+
   // Strip trailing "+"/"-" (accounting-style credit/debit indicator).
   text = text.replace(/[+\-]$/, () => {
     return "";
@@ -234,29 +242,71 @@ function interpretWithLocale(text: string, punctuation: LocalePunctuation): numb
 
   if (fracRaw && !/^\d+$/.test(fracRaw)) return null;
 
-  let integerDigits = "";
+  // Build digit string while collecting grouping segments so we can reject
+  // false-positive "grouping" that is actually a comma/period decimal
+  // (e.g. en-US seeing `1234,56` or `0,5` — without this check the locale
+  // path returns 123456 / 5 and the heuristic never runs).
+  const segments: string[] = [];
+  let current = "";
+  let sawGrouping = false;
   for (const c of Array.from(intRaw)) {
     if (/\d/.test(c)) {
-      integerDigits += c;
+      current += c;
     } else if (groupSet.has(c)) {
-      continue;
+      sawGrouping = true;
+      segments.push(current);
+      current = "";
     } else {
       return null;
     }
   }
+  segments.push(current);
+
+  if (sawGrouping && !groupingSegmentsValid(segments, punctuation.grouping)) {
+    return null;
+  }
+
+  let integerDigits = segments.join("");
 
   if (!integerDigits) {
     if (!fracRaw) return null;
     integerDigits = "0";
   }
 
-  // en-IN and other non-standard grouping widths: skip strict width checks
-  // for MC-2e.1 (paste design). Digits-after-strip is sufficient.
-  void punctuation.grouping;
-
   const assembled = fracRaw ? `${integerDigits}.${fracRaw}` : integerDigits;
   const n = Number(assembled);
   return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Validates integer-side grouping segments after a grouping separator was
+ * observed. Standard locales require every segment except the leftmost to
+ * be exactly 3 digits (and the leftmost 1–3). Locales with an explicit
+ * `grouping` profile (en-IN `[3, 2]`) validate from the right: first group
+ * width `grouping[0]`, then `grouping[1]` repeating, leftmost remainder
+ * at least 1 digit.
+ */
+function groupingSegmentsValid(
+  segments: string[],
+  grouping: readonly number[] | undefined,
+): boolean {
+  if (segments.some((s) => s.length === 0)) return false;
+
+  if (grouping && grouping.length > 0) {
+    const fromRight = [...segments].reverse();
+    const primary = grouping[0] ?? 3;
+    const secondary = grouping[1] ?? primary;
+    for (let i = 0; i < fromRight.length - 1; i++) {
+      const expected = i === 0 ? primary : secondary;
+      if (fromRight[i]!.length !== expected) return false;
+    }
+    return fromRight[fromRight.length - 1]!.length >= 1;
+  }
+
+  for (let i = 1; i < segments.length; i++) {
+    if (segments[i]!.length !== 3) return false;
+  }
+  return segments[0]!.length >= 1 && segments[0]!.length <= 3;
 }
 
 // ---------------------------------------------------------------------------
