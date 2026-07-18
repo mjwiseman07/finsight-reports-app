@@ -6,7 +6,12 @@ import { SiteNav } from "@/components/SiteNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { headingFont } from "@/components/site-ui";
 import { SupportTicketForm } from "../../components/SupportTicketForm";
-import { supportTicketStatuses } from "../../lib/support-center";
+import {
+  supportTicketStatuses,
+  supportSlaCommitments,
+  supportFaqEntries,
+  supportSetupGuides,
+} from "../../lib/support-center";
 
 type SupportTicket = {
   id: string;
@@ -146,6 +151,69 @@ export default function SupportPage() {
               )}
             </div>
           </section>
+        </section>
+
+        <section id="response-slas" className="mt-10 rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/70 p-6">
+          <h2 className={`${headingFont} text-xl font-semibold text-[#ECEBE7]`}>Response time SLAs</h2>
+          <p className="mt-2 text-sm leading-6 text-[#A29E93]">
+            Business hours: Monday&ndash;Friday, 9:00am&ndash;5:00pm US Eastern Time, excluding US federal holidays.
+          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#C9A961]/20 text-xs uppercase tracking-[0.14em] text-[#C9A961]">
+                  <th className="pb-2 pr-4 font-semibold">Severity</th>
+                  <th className="pb-2 pr-4 font-semibold">Definition</th>
+                  <th className="pb-2 font-semibold">Target first response</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#C9A961]/10 text-[#ECEBE7]">
+                {supportSlaCommitments.map((row) => (
+                  <tr key={row.severity}>
+                    <td className="py-3 pr-4 font-semibold text-[#ECEBE7]">{row.severity}</td>
+                    <td className="py-3 pr-4 text-[#A29E93]">{row.definition}</td>
+                    <td className="py-3 text-[#A29E93]">{row.responseTime}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="faq" className="mt-8 rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/70 p-6">
+          <h2 className={`${headingFont} text-xl font-semibold text-[#ECEBE7]`}>Frequently asked questions</h2>
+          <div className="mt-4 grid gap-4">
+            {supportFaqEntries.map((entry) => (
+              <details
+                key={entry.question}
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-4 open:border-[#C9A961]/40 open:bg-[#1A1A1C]/60"
+              >
+                <summary className="cursor-pointer text-sm font-semibold text-[#ECEBE7]">
+                  {entry.question}
+                </summary>
+                <p className="mt-3 text-sm leading-6 text-[#A29E93]">{entry.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        <section id="setup-guides" className="mt-8 rounded-3xl border border-[#C9A961]/20 bg-[#1A1A1C]/70 p-6">
+          <h2 className={`${headingFont} text-xl font-semibold text-[#ECEBE7]`}>Setup guides</h2>
+          <p className="mt-2 text-sm leading-6 text-[#A29E93]">
+            Quick reference walk-throughs for the workflows Advisacor customers hit most often. If a guide does not resolve your question, submit a support ticket above.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {supportSetupGuides.map((guide) => (
+              <div
+                key={guide.anchor}
+                id={guide.anchor}
+                className="rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-4"
+              >
+                <h3 className={`${headingFont} text-sm font-semibold text-[#ECEBE7]`}>{guide.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#A29E93]">{guide.summary}</p>
+              </div>
+            ))}
+          </div>
         </section>
       </div>
 
