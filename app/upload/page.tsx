@@ -2562,7 +2562,7 @@ function pptShape({
   `;
 }
 
-function buildSlideXml(slide: PowerPointSlideData, index: number, slideCount: number, preparedBy: string) {
+function buildSlideXml(slide: PowerPointSlideData, index: number, slideCount: number, preparedBy: string, homeCurrency: string) {
   let shapeId = 2;
   const nextId = () => shapeId++;
   const maxChartValue = Math.max(
@@ -2596,7 +2596,7 @@ function buildSlideXml(slide: PowerPointSlideData, index: number, slideCount: nu
           y,
           cx: 980000,
           cy: 260000,
-          paragraphs: pptParagraph(formatCurrency(value), 1150, "BFDBFE", true),
+          paragraphs: pptParagraph(formatCurrency(value, homeCurrency), 1150, "BFDBFE", true),
         }),
         pptShape({
           id: nextId(),
@@ -2686,7 +2686,7 @@ function buildSlideXml(slide: PowerPointSlideData, index: number, slideCount: nu
     </p:sld>`;
 }
 
-function buildPptxBlob(slides: PowerPointSlideData[], preparedBy: string) {
+function buildPptxBlob(slides: PowerPointSlideData[], preparedBy: string, homeCurrency: string) {
   const slideOverrides = slides
     .map((_, index) => `<Override PartName="/ppt/slides/slide${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`)
     .join("");
@@ -2744,7 +2744,7 @@ function buildPptxBlob(slides: PowerPointSlideData[], preparedBy: string) {
     ...slides.flatMap((slide, index) => [
       {
         path: `ppt/slides/slide${index + 1}.xml`,
-        content: buildSlideXml(slide, index, slides.length, preparedBy),
+        content: buildSlideXml(slide, index, slides.length, preparedBy, homeCurrency),
       },
       {
         path: `ppt/slides/_rels/slide${index + 1}.xml.rels`,
@@ -2867,6 +2867,7 @@ async function downloadPowerPointDeck(
   firmLogoPath: string,
   firmLogoDataUrl: string,
   boardMode: boolean,
+  homeCurrency: string,
 ) {
   if (!slides.length) return;
   const filename = `${sanitizeFilename(`${companyName} ${reportPeriod} Board Presentation`)}.pptx`;
@@ -3561,7 +3562,7 @@ async function downloadPowerPointDeck(
               fill: { color: "C0845A" },
               line: { color: "C0845A" },
             });
-            pptSlide.addText(formatCurrency(value), {
+            pptSlide.addText(formatCurrency(value, homeCurrency), {
               x: 8.0,
               y,
               w: 1.2,
@@ -3629,7 +3630,7 @@ async function downloadPowerPointDeck(
             margin: 0,
             fit: "shrink",
           });
-          pptSlide.addText(formatCurrency(value), {
+          pptSlide.addText(formatCurrency(value, homeCurrency), {
             x: 3.35,
             y,
             w: 1.2,
@@ -3756,7 +3757,7 @@ async function downloadPowerPointDeck(
           const displayValue =
             slide.sectionType === "payroll-fte" && chartLabel.toLowerCase() === "fte"
               ? formatFte(value)
-              : formatCurrency(value);
+              : formatCurrency(value, homeCurrency);
           const y = 2.9 + chartIndex * 0.5;
           const chartBarMaxWidth = 3.25;
           const barWidth = Math.min(chartBarMaxWidth, Math.max(0.25, (Math.abs(value) / maxChartValue) * chartBarMaxWidth));
@@ -7284,7 +7285,8 @@ function createPowerPointSlidesData({
   includeInventory,
   includePayroll,
   includeFixedAssets,
-}: {
+
+  homeCurrency,}: {
   packageTier: PackageTier;
   companyName: string;
   reportPeriod: string;
@@ -7309,7 +7311,8 @@ function createPowerPointSlidesData({
   includeInventory: boolean;
   includePayroll: boolean;
   includeFixedAssets: boolean;
-}): PowerPointSlideData[] {
+
+  homeCurrency: string;}): PowerPointSlideData[] {
   const statementChartData = (rows: StatementRow[]) =>
     rows.slice(0, boardMode ? 5 : 6).map((row) => ({ name: row.label, value: row.amount || 0 }));
   const fluxSlide = (
@@ -7325,7 +7328,7 @@ function createPowerPointSlidesData({
       bullets: topRows.length
         ? topRows.slice(0, 3).map((row) => `${row.accountName} requires management explanation and action ownership.`)
         : ["No flagged variance rows met the selected thresholds."],
-      takeaways: topRows.slice(0, 3).map((row) => `${row.accountName}: ${formatCurrency(row.dollarVariance)} ${formatFluxPercentLabel(row)}`),
+      takeaways: topRows.slice(0, 3).map((row) => `${row.accountName}: ${formatCurrency(row.dollarVariance, homeCurrency)} ${formatFluxPercentLabel(row)}`),
       chartData: topRows.map((row) => ({ name: row.accountName, value: row.dollarVariance })),
       sectionType,
     };
@@ -7354,10 +7357,10 @@ function createPowerPointSlidesData({
     { name: "Leverage", status: debtMetrics.debtToAssets === null || debtMetrics.debtToAssets < 30 ? "Green" : debtMetrics.debtToAssets < 50 ? "Yellow" : "Red" },
   ];
   const dashboardMetrics = [
-    { name: "Revenue", display: formatCurrency(kpis.revenue), value: kpis.revenue, kind: "metric" },
-    { name: "EBITDA", display: formatCurrency(ebitda), value: ebitda, kind: "metric" },
-    { name: "Net Income", display: formatCurrency(kpis.netIncome), value: kpis.netIncome, kind: "metric" },
-    { name: "Cash", display: formatCurrency(kpis.cash), value: kpis.cash, kind: "metric" },
+    { name: "Revenue", display: formatCurrency(kpis.revenue, homeCurrency), value: kpis.revenue, kind: "metric" },
+    { name: "EBITDA", display: formatCurrency(ebitda, homeCurrency), value: ebitda, kind: "metric" },
+    { name: "Net Income", display: formatCurrency(kpis.netIncome, homeCurrency), value: kpis.netIncome, kind: "metric" },
+    { name: "Cash", display: formatCurrency(kpis.cash, homeCurrency), value: kpis.cash, kind: "metric" },
     { name: "Current Ratio", display: ratioValue("Current Ratio"), value: currentRatioNumber || 0, kind: "metric" },
     { name: "DSO", display: ratioValue("DSO"), value: 0, kind: "metric" },
     { name: "Inventory Turns", display: inventoryIntelligence.turns !== null ? `${inventoryIntelligence.turns.toFixed(1)}x` : "N/A", value: inventoryIntelligence.turns || 0, kind: "metric" },
@@ -7424,7 +7427,7 @@ function createPowerPointSlidesData({
         title: "Working Capital & Liquidity",
         subtitle: "Cash, AR, AP, and near-term operating capacity",
         bullets: [
-          `Cash: ${formatCurrency(kpis.cash)} | AR: ${formatCurrency(kpis.accountsReceivable)} | AP: ${formatCurrency(apKpis.total)}`,
+          `Cash: ${formatCurrency(kpis.cash, homeCurrency)} | AR: ${formatCurrency(kpis.accountsReceivable, homeCurrency)} | AP: ${formatCurrency(apKpis.total, homeCurrency)}`,
           arKpis.total ? `${((arKpis.days90Plus / arKpis.total) * 100).toFixed(1)}% of AR is 90+ days.` : "AR aging detail was not available.",
           "Use the cash bridge and collections plan to manage near-term requirements.",
         ],
@@ -7448,10 +7451,10 @@ function createPowerPointSlidesData({
                     ? `Inventory cycles every ${Math.round(inventoryIntelligence.daysPerCycle)} days`
                     : "Average inventory required"
                 }`,
-                `Slow-moving Inventory|${formatCurrency(inventoryIntelligence.slowMovingValue)}|Review slow-moving items for working capital and margin exposure.`,
+                `Slow-moving Inventory|${formatCurrency(inventoryIntelligence.slowMovingValue, homeCurrency)}|Review slow-moving items for working capital and margin exposure.`,
                 `Inventory Reserve|${
                   inventoryIntelligence.eoReserveBalance !== null
-                    ? formatCurrency(inventoryIntelligence.eoReserveBalance)
+                    ? formatCurrency(inventoryIntelligence.eoReserveBalance, homeCurrency)
                     : "Not Applicable"
                 }|${
                   inventoryIntelligence.eoReserveBalance !== null
@@ -7519,7 +7522,7 @@ function createPowerPointSlidesData({
           const theme = getFluxAdvisoryTheme(row.accountName, row.accountType);
           return `${row.accountName}: ${theme.why}`;
         }),
-        takeaways: fluxRowsForDeck.slice(0, 3).map((row) => `${row.accountName}: ${formatCurrency(row.dollarVariance)} ${formatFluxPercentLabel(row)}`),
+        takeaways: fluxRowsForDeck.slice(0, 3).map((row) => `${row.accountName}: ${formatCurrency(row.dollarVariance, homeCurrency)} ${formatFluxPercentLabel(row)}`),
         chartData: fluxRowsForDeck.map((row) => {
           const theme = getFluxAdvisoryTheme(row.accountName, row.accountType);
           return {
@@ -7644,9 +7647,9 @@ function createPowerPointSlidesData({
       subtitle: "Receivables risk and collection focus",
       bullets: [
         arKpis.total ? `${((arKpis.days90Plus / arKpis.total) * 100).toFixed(1)}% of receivables are 90+ days.` : "AR detail was not available.",
-        `Preliminary reserve guidance is ${formatCurrency(arReserveIntelligence.totalSuggestedReserve)} with ${arReserveIntelligence.collectionRiskStatus.toLowerCase()} collection risk.`,
+        `Preliminary reserve guidance is ${formatCurrency(arReserveIntelligence.totalSuggestedReserve, homeCurrency)} with ${arReserveIntelligence.collectionRiskStatus.toLowerCase()} collection risk.`,
         arReserveIntelligence.existingReserveBalance !== null
-          ? `Existing reserve identified: ${formatCurrency(arReserveIntelligence.existingReserveBalance)}.`
+          ? `Existing reserve identified: ${formatCurrency(arReserveIntelligence.existingReserveBalance, homeCurrency)}.`
           : "No AR reserve balance was identified in uploaded Balance Sheet data.",
       ],
       chartData: [
@@ -7713,9 +7716,9 @@ function createPowerPointSlidesData({
                   ? `Inventory cycles every ${Math.round(inventoryIntelligence.daysPerCycle)} days`
                   : "Average inventory required"
               }`,
-              `Slow Moving Inventory|${formatCurrency(inventoryIntelligence.slowMovingValue)}|${inventoryIntelligence.slowMovingCommentary}`,
+              `Slow Moving Inventory|${formatCurrency(inventoryIntelligence.slowMovingValue, homeCurrency)}|${inventoryIntelligence.slowMovingCommentary}`,
               `E&O Reserve|${
-                inventoryIntelligence.eoReserveBalance !== null ? formatCurrency(inventoryIntelligence.eoReserveBalance) : "Not Applicable"
+                inventoryIntelligence.eoReserveBalance !== null ? formatCurrency(inventoryIntelligence.eoReserveBalance, homeCurrency) : "Not Applicable"
               }|${inventoryIntelligence.eoReserveWarning || inventoryIntelligence.eoReserveCommentary}`,
             ],
             chartData: inventoryIntelligence.slowMovingItems.slice(0, 5).map((item) => ({ name: item.name, value: item.value })),
@@ -7766,7 +7769,7 @@ function createPowerPointSlidesData({
             title: "Fixed Asset Analysis",
             subtitle: "Capital asset breakdown",
             bullets: [
-              `Net book value is ${formatCurrency(fixedAssetKpis.netBookValue)} after accumulated depreciation.`,
+              `Net book value is ${formatCurrency(fixedAssetKpis.netBookValue, homeCurrency)} after accumulated depreciation.`,
               "Capital spending should be evaluated against operating capacity and revenue productivity.",
               "Review additions, disposals, and depreciation trends in the PDF detail.",
             ],
@@ -7804,7 +7807,7 @@ function createPowerPointSlidesData({
       title: "Flux Analysis Highlights",
       subtitle: "Largest flagged variances",
       bullets: allFluxRows.slice(0, 3).map((row) => `${row.accountName} needs management explanation and follow-up.`),
-      takeaways: allFluxRows.slice(0, 3).map((row) => `${row.accountName}: ${formatCurrency(row.dollarVariance)} ${formatFluxPercentLabel(row)}`),
+      takeaways: allFluxRows.slice(0, 3).map((row) => `${row.accountName}: ${formatCurrency(row.dollarVariance, homeCurrency)} ${formatFluxPercentLabel(row)}`),
       chartData: allFluxRows.map((row) => ({ name: row.accountName, value: row.dollarVariance })),
       sectionType: "flux-summary",
     },
@@ -12578,6 +12581,7 @@ export default function UploadPage() {
     includeInventory: Boolean(activeInventoryData),
     includePayroll: Boolean(activeCurrentPayrollData),
     includeFixedAssets: Boolean(activeFixedAssetData),
+    homeCurrency,
   }).filter((slide) => {
     const slideSection = slide.sectionType;
     if (slideSection === "title") return true;
@@ -12950,6 +12954,7 @@ export default function UploadPage() {
       packageTier === "virtualCfo" ? firmLogoPath : "",
       packageTier === "virtualCfo" ? firmLogoDataUrl : "",
       true,
+      homeCurrency,
     );
     setShowPowerPointDraft(true);
     setPowerpointCreated(true);
@@ -15021,31 +15026,69 @@ export default function UploadPage() {
                 </div>
               </section>
 
-              <Preview title="Profit & Loss Preview" data={activePlData} />
-              <Preview title="Balance Sheet Preview" data={activeBsData} />
-              <Preview title="AR Aging Preview" data={activeArData} />
-              <Preview title="AP Aging Preview" data={activeApData} />
+              <Preview title="Profit & Loss Preview" data={activePlData} 
+              homeCurrency={homeCurrency}
+            />
+              <Preview title="Balance Sheet Preview" data={activeBsData} 
+              homeCurrency={homeCurrency}
+            />
+              <Preview title="AR Aging Preview" data={activeArData} 
+              homeCurrency={homeCurrency}
+            />
+              <Preview title="AP Aging Preview" data={activeApData} 
+              homeCurrency={homeCurrency}
+            />
               {isProfessionalOrHigher(packageTier) && (
                 <>
-                  <Preview title="Inventory Valuation Preview" data={activeInventoryData} />
-                  <Preview title="Customer Sales Detail Preview" data={activeCustomerSalesData} />
-                  <Preview title="Vendor Expense Detail Preview" data={activeVendorExpenseData} />
+                  <Preview title="Inventory Valuation Preview" data={activeInventoryData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Customer Sales Detail Preview" data={activeCustomerSalesData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Vendor Expense Detail Preview" data={activeVendorExpenseData} 
+              homeCurrency={homeCurrency}
+            />
                 </>
               )}
               {isVirtualCfo(packageTier) && (
                 <>
-                  <Preview title="Fixed Asset Preview" data={activeFixedAssetData} />
-                  <Preview title="Prior Period Fixed Asset Preview" data={activePriorFixedAssetData} />
-                  <Preview title="Prior Period Inventory Valuation Preview" data={activePriorInventoryData} />
-                  <Preview title="Budget vs Actual Preview" data={activeBudgetVsActualData} />
-                  <Preview title="Prior Period P&L Preview" data={activePriorPeriodPlData} />
-                  <Preview title="Prior Period Balance Sheet Preview" data={activePriorPeriodBsData} />
-                  <Preview title="Cash Flow Statement Preview" data={activeCashFlowData} />
-                  <Preview title="Debt Schedule Preview" data={activeDebtScheduleData} />
-                  <Preview title="Current Month Payroll Preview" data={activeCurrentPayrollData} />
-                  <Preview title="Prior Month Payroll Preview" data={activePriorPayrollData} />
-                  <Preview title="Current Month Payroll Detail Preview" data={activeCurrentPayrollDetailData} />
-                  <Preview title="Prior Month Payroll Detail Preview" data={activePriorPayrollDetailData} />
+                  <Preview title="Fixed Asset Preview" data={activeFixedAssetData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Prior Period Fixed Asset Preview" data={activePriorFixedAssetData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Prior Period Inventory Valuation Preview" data={activePriorInventoryData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Budget vs Actual Preview" data={activeBudgetVsActualData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Prior Period P&L Preview" data={activePriorPeriodPlData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Prior Period Balance Sheet Preview" data={activePriorPeriodBsData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Cash Flow Statement Preview" data={activeCashFlowData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Debt Schedule Preview" data={activeDebtScheduleData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Current Month Payroll Preview" data={activeCurrentPayrollData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Prior Month Payroll Preview" data={activePriorPayrollData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Current Month Payroll Detail Preview" data={activeCurrentPayrollDetailData} 
+              homeCurrency={homeCurrency}
+            />
+                  <Preview title="Prior Month Payroll Detail Preview" data={activePriorPayrollDetailData} 
+              homeCurrency={homeCurrency}
+            />
                 </>
               )}
             </>
@@ -15130,7 +15173,9 @@ export default function UploadPage() {
         monthFluxRows={monthFluxRows}
         quarterFluxRows={quarterFluxRows}
         yearFluxRows={yearFluxRows}
-      />
+      
+              homeCurrency={homeCurrency}
+            />
       <KpiReviewPrintPackage
         companyName={companyName}
         reportPeriod={reportPeriod}
@@ -15150,7 +15195,9 @@ export default function UploadPage() {
         includeInventory={Boolean(activeInventoryData)}
         includeFixedAssets={Boolean(activeFixedAssetData)}
         includePayroll={Boolean(activeCurrentPayrollData)}
-      />
+      
+              homeCurrency={homeCurrency}
+            />
       <AdvisacorCopilotPanel
         packageTier={packageTier}
         personaOutputMode={personaOutputMode}
@@ -20794,7 +20841,8 @@ function KpiReviewPrintPackage({
   includeInventory,
   includeFixedAssets,
   includePayroll,
-}: {
+
+  homeCurrency,}: {
   companyName: string;
   reportPeriod: string;
   kpis: KPIs;
@@ -20813,36 +20861,37 @@ function KpiReviewPrintPackage({
   includeInventory: boolean;
   includeFixedAssets: boolean;
   includePayroll: boolean;
-}) {
+
+  homeCurrency: string;}) {
   const printKpis = [
-    ["Revenue", formatMoneyLegacy(kpis.revenue)],
-    ["COGS", formatMoneyLegacy(kpis.cogs)],
-    ["Gross Profit", formatMoneyLegacy(kpis.grossProfit)],
-    ["Expenses", formatMoneyLegacy(kpis.expenses)],
-    ["Net Income", formatMoneyLegacy(kpis.netIncome)],
+    ["Revenue", formatMoneyLegacy(kpis.revenue, homeCurrency)],
+    ["COGS", formatMoneyLegacy(kpis.cogs, homeCurrency)],
+    ["Gross Profit", formatMoneyLegacy(kpis.grossProfit, homeCurrency)],
+    ["Expenses", formatMoneyLegacy(kpis.expenses, homeCurrency)],
+    ["Net Income", formatMoneyLegacy(kpis.netIncome, homeCurrency)],
     ["Net Margin", `${netMargin.toFixed(1)}%`],
-    ["Cash", formatMoneyLegacy(kpis.cash)],
-    ["Accounts Receivable", formatMoneyLegacy(kpis.accountsReceivable)],
-    ["Total Assets", formatMoneyLegacy(kpis.totalAssets)],
-    ...(includeAr ? [["AR Aging Total", formatMoneyLegacy(arKpis.total)]] : []),
-    ...(includeAp ? [["AP Aging Total", formatMoneyLegacy(apKpis.total)]] : []),
+    ["Cash", formatMoneyLegacy(kpis.cash, homeCurrency)],
+    ["Accounts Receivable", formatMoneyLegacy(kpis.accountsReceivable, homeCurrency)],
+    ["Total Assets", formatMoneyLegacy(kpis.totalAssets, homeCurrency)],
+    ...(includeAr ? [["AR Aging Total", formatMoneyLegacy(arKpis.total, homeCurrency)]] : []),
+    ...(includeAp ? [["AP Aging Total", formatMoneyLegacy(apKpis.total, homeCurrency)]] : []),
     ...(includeInventory
       ? [
-          ["Inventory Value", formatMoneyLegacy(inventoryKpis.totalValue)],
+          ["Inventory Value", formatMoneyLegacy(inventoryKpis.totalValue, homeCurrency)],
           ["Inventory Quantity", formatNumber(inventoryKpis.totalQuantity)],
           ["Inventory Turns", inventoryIntelligence.turns !== null ? `${inventoryIntelligence.turns.toFixed(1)}x` : "N/A"],
         ]
       : []),
     ...(includeFixedAssets
       ? [
-          ["Fixed Assets", formatMoneyLegacy(fixedAssetKpis.totalFixedAssets)],
-          ["Net Book Value", formatMoneyLegacy(fixedAssetKpis.netBookValue)],
+          ["Fixed Assets", formatMoneyLegacy(fixedAssetKpis.totalFixedAssets, homeCurrency)],
+          ["Net Book Value", formatMoneyLegacy(fixedAssetKpis.netBookValue, homeCurrency)],
         ]
       : []),
     ...(includePayroll
       ? [
           ["Current FTE", formatFte(payrollAnalysis.totalCurrentFte)],
-          ["Payroll Cost", formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost)],
+          ["Payroll Cost", formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost, homeCurrency)],
         ]
       : []),
   ];
@@ -20883,7 +20932,7 @@ function KpiReviewPrintPackage({
               <tr key={check.id}>
                 <td>{check.label}</td>
                 <td>{getValidationLabel(check.status)}</td>
-                <td>{check.variance === null ? "N/A" : formatCurrency(check.variance)}</td>
+                <td>{check.variance === null ? "N/A" : formatCurrency(check.variance, homeCurrency)}</td>
                 <td>{check.message}</td>
               </tr>
             ))}
@@ -23707,7 +23756,8 @@ function PrintableFinancialPackage({
   monthFluxRows,
   quarterFluxRows,
   yearFluxRows,
-}: {
+
+  homeCurrency,}: {
   packageTier: PackageTier;
   companyName: string;
   reportPeriod: string;
@@ -23751,7 +23801,8 @@ function PrintableFinancialPackage({
   monthFluxRows: FluxRow[];
   quarterFluxRows: FluxRow[];
   yearFluxRows: FluxRow[];
-}) {
+
+  homeCurrency: string;}) {
   const plRows = getStatementRows(plData);
   const bsRows = getBalanceSheetStatementRowsWithNetBookValue(bsData);
   const includeSection = (sectionId: PackageSectionId) => selectedSections.includes(sectionId);
@@ -23855,7 +23906,7 @@ function PrintableFinancialPackage({
     {
       area: "Cash Flow Readiness",
       status: kpis.cash + kpis.accountsReceivable - apKpis.total > 0 ? "Green" : "Red",
-      metric: `Working capital: ${formatMoneyLegacy(kpis.cash + kpis.accountsReceivable - apKpis.total)}`,
+      metric: `Working capital: ${formatMoneyLegacy(kpis.cash + kpis.accountsReceivable - apKpis.total, homeCurrency)}`,
       interpretation: "Near-term operating liquidity after AR and AP exposure.",
       action: "Align collections, vendor payment timing, and upcoming cash requirements.",
     },
@@ -24050,7 +24101,9 @@ function PrintableFinancialPackage({
           <p className="print-section-label">Financial Statement</p>
           <h1>Current Month Balance Sheet</h1>
           <p className="print-section-intro">{periodLabel}</p>
-          <FinancialStatementTable rows={bsRows} />
+          <FinancialStatementTable rows={bsRows} 
+              homeCurrency={homeCurrency}
+            />
         </section>
       )}
 
@@ -24060,8 +24113,8 @@ function PrintableFinancialPackage({
           <h1>Balance Sheet Insights & Ratios</h1>
           <p className="print-section-intro">Liquidity, working capital, leverage, and balance sheet risk indicators for management review.</p>
           <div className="print-executive-card-grid">
-            <PrintKpiCard label="Cash" value={formatMoneyLegacy(kpis.cash)} />
-            <PrintKpiCard label="Working Capital" value={formatMoneyLegacy(kpis.cash + kpis.accountsReceivable - apKpis.total)} />
+            <PrintKpiCard label="Cash" value={formatMoneyLegacy(kpis.cash, homeCurrency)} />
+            <PrintKpiCard label="Working Capital" value={formatMoneyLegacy(kpis.cash + kpis.accountsReceivable - apKpis.total, homeCurrency)} />
             <PrintKpiCard label="Current Ratio" value={ratioValue("Current Ratio")} />
             <PrintKpiCard label="Quick Ratio" value={ratioValue("Quick Ratio")} />
             <PrintKpiCard label="Debt / Assets" value={formatPercent(debtMetrics.debtToAssets)} />
@@ -24103,23 +24156,25 @@ function PrintableFinancialPackage({
           <h1>Fixed Asset Analysis</h1>
           <p className="print-section-intro">Capital asset position, depreciation, net book value, and period-over-period rollforward activity.</p>
           <div className="print-executive-card-grid">
-            <PrintKpiCard label="Total Fixed Assets" value={formatMoneyLegacy(fixedAssetKpis.totalFixedAssets)} />
-            <PrintKpiCard label="Accumulated Depreciation" value={formatMoneyLegacy(fixedAssetKpis.accumulatedDepreciation)} />
-            <PrintKpiCard label="Net Book Value" value={formatMoneyLegacy(fixedAssetKpis.netBookValue)} />
-            <PrintKpiCard label="Depreciation Expense" value={formatOptionalCurrency(fixedAssetKpis.depreciationExpense, "N/A")} />
+            <PrintKpiCard label="Total Fixed Assets" value={formatMoneyLegacy(fixedAssetKpis.totalFixedAssets, homeCurrency)} />
+            <PrintKpiCard label="Accumulated Depreciation" value={formatMoneyLegacy(fixedAssetKpis.accumulatedDepreciation, homeCurrency)} />
+            <PrintKpiCard label="Net Book Value" value={formatMoneyLegacy(fixedAssetKpis.netBookValue, homeCurrency)} />
+            <PrintKpiCard label="Depreciation Expense" value={formatOptionalCurrency(fixedAssetKpis.depreciationExpense, "N/A", homeCurrency)} />
           </div>
           {fixedAssetData ? (
             <>
               <h2>Fixed Asset Rollforward</h2>
               {priorFixedAssetData ? (
-                <FixedAssetChangePrintTable rows={fixedAssetChangeRows} />
+                <FixedAssetChangePrintTable rows={fixedAssetChangeRows} 
+              homeCurrency={homeCurrency}
+            />
               ) : (
                 <p className="print-commentary">Upload a prior period fixed asset report to show additions, disposals, depreciation movement, and ending net book value trend.</p>
               )}
               <div className="print-insight-grid">
                 <div className="print-insight-card">
                   <h3>Capital Investment View</h3>
-                  <p>Ending net book value is {formatMoneyLegacy(fixedAssetKpis.netBookValue)} after accumulated depreciation of {formatMoneyLegacy(fixedAssetKpis.accumulatedDepreciation)}.</p>
+                  <p>Ending net book value is {formatMoneyLegacy(fixedAssetKpis.netBookValue, homeCurrency)} after accumulated depreciation of {formatMoneyLegacy(fixedAssetKpis.accumulatedDepreciation, homeCurrency)}.</p>
                 </div>
                 <div className="print-insight-card">
                   <h3>Advisory Focus</h3>
@@ -24140,7 +24195,9 @@ function PrintableFinancialPackage({
           <p className="print-section-intro">Receivable concentration, collection timing, and cash conversion risk.</p>
           {arData ? (
             <>
-              <AgingPrintTable kpis={arKpis} totalLabel="Accounts Receivable Total" currentLabel="Current AR" />
+              <AgingPrintTable kpis={arKpis} totalLabel="Accounts Receivable Total" currentLabel="Current AR" 
+              homeCurrency={homeCurrency}
+            />
               <div className="print-insight-grid">
                 <div className="print-insight-card">
                   <h3>Collection Risk</h3>
@@ -24150,7 +24207,7 @@ function PrintableFinancialPackage({
                 <div className="print-insight-card">
                   <h3>Reserve Review</h3>
                   <p>
-                    Preliminary reserve guidance is {formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve)} with {arReserveIntelligence.collectionRiskStatus.toLowerCase()} collection risk. Consider customer-specific collectibility and historical write-offs before finalizing commentary.
+                    Preliminary reserve guidance is {formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve, homeCurrency)} with {arReserveIntelligence.collectionRiskStatus.toLowerCase()} collection risk. Consider customer-specific collectibility and historical write-offs before finalizing commentary.
                   </p>
                 </div>
                 <div className="print-insight-card">
@@ -24172,7 +24229,9 @@ function PrintableFinancialPackage({
           <p className="print-section-intro">Vendor payment timing, near-term cash commitments, and liquidity pressure points.</p>
           {apData ? (
             <>
-              <AgingPrintTable kpis={apKpis} totalLabel="Accounts Payable Total" currentLabel="Current AP" />
+              <AgingPrintTable kpis={apKpis} totalLabel="Accounts Payable Total" currentLabel="Current AP" 
+              homeCurrency={homeCurrency}
+            />
               <div className="print-insight-grid">
                 <div className="print-insight-card">
                   <h3>Vendor / Liquidity View</h3>
@@ -24196,12 +24255,12 @@ function PrintableFinancialPackage({
           <h1>Inventory Analysis</h1>
           <p className="print-section-intro">Inventory value, velocity, slow-moving exposure, reserve considerations, and concentration risk.</p>
           <div className="print-executive-card-grid">
-            <PrintKpiCard label="Total Inventory" value={formatMoneyLegacy(inventoryKpis.totalValue)} />
+            <PrintKpiCard label="Total Inventory" value={formatMoneyLegacy(inventoryKpis.totalValue, homeCurrency)} />
             <PrintKpiCard label="Inventory Turns" value={isVirtualCfo(packageTier) ? inventoryTurnsLabel : "Virtual CFO"} />
-            <PrintKpiCard label="Slow-Moving Inventory" value={isVirtualCfo(packageTier) ? formatMoneyLegacy(inventoryIntelligence.slowMovingValue) : "Virtual CFO"} />
-            <PrintKpiCard label="E&O Reserve" value={isVirtualCfo(packageTier) && inventoryIntelligence.eoReserveBalance !== null ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance) : "Not Applicable"} />
+            <PrintKpiCard label="Slow-Moving Inventory" value={isVirtualCfo(packageTier) ? formatMoneyLegacy(inventoryIntelligence.slowMovingValue, homeCurrency) : "Virtual CFO"} />
+            <PrintKpiCard label="E&O Reserve" value={isVirtualCfo(packageTier) && inventoryIntelligence.eoReserveBalance !== null ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance, homeCurrency) : "Not Applicable"} />
             <PrintKpiCard label="Top Item Exposure" value={`${inventoryIntelligence.topItemExposurePercent.toFixed(1)}%`} />
-            <PrintKpiCard label="Carrying Cost Estimate" value={isVirtualCfo(packageTier) ? formatMoneyLegacy(inventoryIntelligence.carryingCostEstimate) : "Virtual CFO"} />
+            <PrintKpiCard label="Carrying Cost Estimate" value={isVirtualCfo(packageTier) ? formatMoneyLegacy(inventoryIntelligence.carryingCostEstimate, homeCurrency) : "Virtual CFO"} />
           </div>
           {inventoryData ? (
             <>
@@ -24227,11 +24286,15 @@ function PrintableFinancialPackage({
                 </div>
               )}
               <h2>Top Inventory Exposure</h2>
-              <InventoryPrintTable items={inventoryKpis.topByValue} />
+              <InventoryPrintTable items={inventoryKpis.topByValue} 
+              homeCurrency={homeCurrency}
+            />
               {isVirtualCfo(packageTier) && (
                 <>
                   <h2>Slow-Moving Inventory</h2>
-                  <SlowMovingInventoryPrintTable items={inventoryIntelligence.slowMovingItems} />
+                  <SlowMovingInventoryPrintTable items={inventoryIntelligence.slowMovingItems} 
+              homeCurrency={homeCurrency}
+            />
                 </>
               )}
             </>
@@ -24256,7 +24319,9 @@ function PrintableFinancialPackage({
           <p className="print-section-label">Financial Statement</p>
           <h1>Current Month Income Statement</h1>
           <p className="print-section-intro">{periodLabel}</p>
-          <FinancialStatementTable rows={plRows} />
+          <FinancialStatementTable rows={plRows} 
+              homeCurrency={homeCurrency}
+            />
         </section>
       )}
 
@@ -24266,7 +24331,7 @@ function PrintableFinancialPackage({
           <h1>Income Statement Insights & Ratios</h1>
           <p className="print-section-intro">Profitability, margin quality, payroll scaling, and operating efficiency indicators.</p>
           <div className="print-executive-card-grid">
-            <PrintKpiCard label="Revenue" value={formatMoneyLegacy(kpis.revenue)} />
+            <PrintKpiCard label="Revenue" value={formatMoneyLegacy(kpis.revenue, homeCurrency)} />
             <PrintKpiCard label="Gross Margin" value={`${kpis.revenue ? ((kpis.grossProfit / kpis.revenue) * 100).toFixed(1) : "N/M"}%`} />
             <PrintKpiCard label="EBITDA Margin" value={ratioValue("EBITDA Margin")} />
             <PrintKpiCard label="Net Margin" value={`${netMargin.toFixed(1)}%`} />
@@ -24310,7 +24375,9 @@ function PrintableFinancialPackage({
           priorPayrollData={priorPayrollData}
           revenue={kpis.revenue}
           includeDepartmentTables
-        />
+        
+              homeCurrency={homeCurrency}
+            />
       )}
 
       {includeSection("executive-summary") && (
@@ -24460,13 +24527,17 @@ function PrintableFinancialPackage({
                 subtitle="Ending balances, working capital, debt, liquidity, and asset movement."
                 rows={balanceSheetFluxRows(period.rows)}
                 focus="balance-sheet"
-              />
+              
+              homeCurrency={homeCurrency}
+            />
               <PrintFluxSection
                 title={`${period.title} Income Statement Flux`}
                 subtitle="Revenue, margins, payroll, expenses, and profitability movement."
                 rows={incomeStatementFluxRows(period.rows)}
                 focus="income-statement"
-              />
+              
+              homeCurrency={homeCurrency}
+            />
             </Fragment>
           ))}
         </>
@@ -24526,12 +24597,12 @@ function PrintableFinancialPackage({
             Board-level summary of financial performance, liquidity, operating health, and priority management focus areas.
           </p>
           <div className="print-executive-card-grid print-executive-dashboard-kpis">
-            <PrintKpiCard label="Revenue" value={formatMoneyLegacy(kpis.revenue)} />
+            <PrintKpiCard label="Revenue" value={formatMoneyLegacy(kpis.revenue, homeCurrency)} />
             <PrintKpiCard label="Gross Margin" value={`${kpis.revenue ? ((kpis.grossProfit / kpis.revenue) * 100).toFixed(1) : "N/M"}%`} />
-            <PrintKpiCard label="EBITDA" value={formatMoneyLegacy(ebitda)} />
-            <PrintKpiCard label="Net Income" value={formatMoneyLegacy(kpis.netIncome)} />
-            <PrintKpiCard label="Cash" value={formatMoneyLegacy(kpis.cash)} />
-            <PrintKpiCard label="Working Capital" value={formatMoneyLegacy(kpis.cash + kpis.accountsReceivable - apKpis.total)} />
+            <PrintKpiCard label="EBITDA" value={formatMoneyLegacy(ebitda, homeCurrency)} />
+            <PrintKpiCard label="Net Income" value={formatMoneyLegacy(kpis.netIncome, homeCurrency)} />
+            <PrintKpiCard label="Cash" value={formatMoneyLegacy(kpis.cash, homeCurrency)} />
+            <PrintKpiCard label="Working Capital" value={formatMoneyLegacy(kpis.cash + kpis.accountsReceivable - apKpis.total, homeCurrency)} />
             <PrintKpiCard label="DSO" value={ratioValue("DSO")} />
             <PrintKpiCard label="Inventory Turns" value={inventoryTurnsLabel} />
             <PrintKpiCard label="Payroll / Revenue" value={payrollToRevenueLabel} />
@@ -24717,10 +24788,10 @@ function PrintableFinancialPackage({
           {executiveSummaryMode ? (
             <>
               <div className="print-grid">
-                <PrintKpiCard label="Revenue" value={formatMoneyLegacy(kpis.revenue)} />
-                <PrintKpiCard label="Gross Profit" value={formatMoneyLegacy(kpis.grossProfit)} />
-                <PrintKpiCard label="Expenses" value={formatMoneyLegacy(kpis.expenses)} />
-                <PrintKpiCard label="Net Income" value={formatMoneyLegacy(kpis.netIncome)} />
+                <PrintKpiCard label="Revenue" value={formatMoneyLegacy(kpis.revenue, homeCurrency)} />
+                <PrintKpiCard label="Gross Profit" value={formatMoneyLegacy(kpis.grossProfit, homeCurrency)} />
+                <PrintKpiCard label="Expenses" value={formatMoneyLegacy(kpis.expenses, homeCurrency)} />
+                <PrintKpiCard label="Net Income" value={formatMoneyLegacy(kpis.netIncome, homeCurrency)} />
               </div>
               <div className="print-what-matters-panel">
                 <h2>What Matters Most</h2>
@@ -24731,7 +24802,9 @@ function PrintableFinancialPackage({
               </div>
             </>
           ) : (
-            <FinancialStatementTable rows={plRows} />
+            <FinancialStatementTable rows={plRows} 
+              homeCurrency={homeCurrency}
+            />
           )}
         </div>
       </section>}
@@ -24746,11 +24819,11 @@ function PrintableFinancialPackage({
           {executiveSummaryMode ? (
             <>
               <div className="print-grid">
-                <PrintKpiCard label="Cash" value={formatMoneyLegacy(kpis.cash)} />
-                <PrintKpiCard label="Accounts Receivable" value={formatMoneyLegacy(kpis.accountsReceivable)} />
-                <PrintKpiCard label="Total Assets" value={formatMoneyLegacy(kpis.totalAssets)} />
-                <PrintKpiCard label="Total Liabilities" value={formatMoneyLegacy(kpis.totalLiabilities)} />
-                <PrintKpiCard label="Total Equity" value={formatMoneyLegacy(kpis.totalEquity)} />
+                <PrintKpiCard label="Cash" value={formatMoneyLegacy(kpis.cash, homeCurrency)} />
+                <PrintKpiCard label="Accounts Receivable" value={formatMoneyLegacy(kpis.accountsReceivable, homeCurrency)} />
+                <PrintKpiCard label="Total Assets" value={formatMoneyLegacy(kpis.totalAssets, homeCurrency)} />
+                <PrintKpiCard label="Total Liabilities" value={formatMoneyLegacy(kpis.totalLiabilities, homeCurrency)} />
+                <PrintKpiCard label="Total Equity" value={formatMoneyLegacy(kpis.totalEquity, homeCurrency)} />
                 <PrintKpiCard label="Current Ratio" value={ratioValue("Current Ratio")} />
               </div>
               <div className="print-what-matters-panel">
@@ -24761,7 +24834,9 @@ function PrintableFinancialPackage({
               </div>
             </>
           ) : (
-            <FinancialStatementTable rows={bsRows} />
+            <FinancialStatementTable rows={bsRows} 
+              homeCurrency={homeCurrency}
+            />
           )}
         </div>
       </section>}
@@ -24773,10 +24848,10 @@ function PrintableFinancialPackage({
             Board-level summary of financial performance, liquidity, operating health, and priority management focus areas.
           </p>
           <div className="print-executive-card-grid print-executive-dashboard-kpis">
-            <PrintKpiCard label="Revenue" value={formatMoneyLegacy(kpis.revenue)} />
-            <PrintKpiCard label="EBITDA" value={formatMoneyLegacy(ebitda)} />
-            <PrintKpiCard label="Net Income" value={formatMoneyLegacy(kpis.netIncome)} />
-            <PrintKpiCard label="Cash" value={formatMoneyLegacy(kpis.cash)} />
+            <PrintKpiCard label="Revenue" value={formatMoneyLegacy(kpis.revenue, homeCurrency)} />
+            <PrintKpiCard label="EBITDA" value={formatMoneyLegacy(ebitda, homeCurrency)} />
+            <PrintKpiCard label="Net Income" value={formatMoneyLegacy(kpis.netIncome, homeCurrency)} />
+            <PrintKpiCard label="Cash" value={formatMoneyLegacy(kpis.cash, homeCurrency)} />
             <PrintKpiCard label="Current Ratio" value={ratioValue("Current Ratio")} />
             <PrintKpiCard label="DSO" value={ratioValue("DSO")} />
             <PrintKpiCard label="FTE Count" value={formatFte(payrollAnalysis.totalCurrentFte)} />
@@ -24813,7 +24888,9 @@ function PrintableFinancialPackage({
                   payrollAnalysis={payrollAnalysis}
                   budgetMetrics={budgetMetrics}
                   netMargin={netMargin}
-                />
+                
+              homeCurrency={homeCurrency}
+            />
               ))}
             </div>
           )}
@@ -24825,14 +24902,18 @@ function PrintableFinancialPackage({
         <h1>Aging Analysis</h1>
         {includeSection("ar-aging") && <><h2>Accounts Receivable Aging</h2>
         {arData ? (
-          <AgingPrintTable kpis={arKpis} totalLabel="Accounts Receivable Total" currentLabel="Current AR" />
+          <AgingPrintTable kpis={arKpis} totalLabel="Accounts Receivable Total" currentLabel="Current AR" 
+              homeCurrency={homeCurrency}
+            />
         ) : (
           <p>AR Aging report not uploaded</p>
         )}</>}
 
         {includeSection("ap-aging") && <><h2>Accounts Payable Aging</h2>
         {apData ? (
-          <AgingPrintTable kpis={apKpis} totalLabel="Accounts Payable Total" currentLabel="Current AP" />
+          <AgingPrintTable kpis={apKpis} totalLabel="Accounts Payable Total" currentLabel="Current AP" 
+              homeCurrency={homeCurrency}
+            />
         ) : (
           <p>AP Aging report not uploaded</p>
         )}</>}
@@ -24846,22 +24927,24 @@ function PrintableFinancialPackage({
           Variance and trend indicators highlight where management should focus review time.
         </p>
         <div className="print-two-column">
-          <DriverPrintTable title="Top Revenue Sources" rows={topRevenueRows} total={kpis.revenue} type="revenue" />
-          <DriverPrintTable title="Top Expense Categories" rows={topExpenseRows} total={kpis.expenses} type="expense" />
+          <DriverPrintTable title="Top Revenue Sources" rows={topRevenueRows} total={kpis.revenue} type="revenue" 
+              homeCurrency={homeCurrency}
+            />
+          <DriverPrintTable title="Top Expense Categories" rows={topExpenseRows} total={kpis.expenses} type="expense" 
+              homeCurrency={homeCurrency}
+            />
         </div>
         <div className="print-narrative-card">
           <h3>Top Driver Commentary</h3>
           <p>
             {topRevenueRows[0]
               ? `${topRevenueRows[0].label} is the largest identified revenue source at ${formatMoneyLegacy(
-                  topRevenueRows[0].amount || 0,
-                )}, representing ${kpis.revenue ? ((Math.abs(topRevenueRows[0].amount || 0) / Math.abs(kpis.revenue)) * 100).toFixed(1) : "N/M"}% of revenue.`
+                  topRevenueRows[0].amount || 0, homeCurrency)}, representing ${kpis.revenue ? ((Math.abs(topRevenueRows[0].amount || 0) / Math.abs(kpis.revenue)) * 100).toFixed(1) : "N/M"}% of revenue.`
               : "Revenue source detail was not available in the uploaded Profit and Loss structure."}
             {" "}
             {topExpenseRows[0]
               ? `${topExpenseRows[0].label} is the largest operating expense category at ${formatMoneyLegacy(
-                  topExpenseRows[0].amount || 0,
-                )}, representing ${kpis.expenses ? ((Math.abs(topExpenseRows[0].amount || 0) / Math.abs(kpis.expenses)) * 100).toFixed(1) : "N/M"}% of expenses.`
+                  topExpenseRows[0].amount || 0, homeCurrency)}, representing ${kpis.expenses ? ((Math.abs(topExpenseRows[0].amount || 0) / Math.abs(kpis.expenses)) * 100).toFixed(1) : "N/M"}% of expenses.`
               : "Expense category detail was not available in the uploaded Profit and Loss structure."}
           </p>
         </div>
@@ -24916,13 +24999,13 @@ function PrintableFinancialPackage({
               <h1>Inventory and Working Capital Risk</h1>
               <p>Board-level inventory valuation, velocity, and reserve exposure summary.</p>
               <div className="print-grid">
-                <PrintKpiCard label="Total Inventory Value" value={formatMoneyLegacy(inventoryKpis.totalValue)} />
+                <PrintKpiCard label="Total Inventory Value" value={formatMoneyLegacy(inventoryKpis.totalValue, homeCurrency)} />
                 <PrintKpiCard label="Quantity on Hand" value={formatNumber(inventoryKpis.totalQuantity)} />
                 {isVirtualCfo(packageTier) && (
                   <>
                     <PrintKpiCard label="Inventory Turns" value={inventoryTurnsLabel} />
-                    <PrintKpiCard label="Slow Moving Value" value={formatMoneyLegacy(inventoryIntelligence.slowMovingValue)} />
-                    <PrintKpiCard label="E&O Reserve" value={inventoryIntelligence.eoReserveBalance !== null ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance) : "Not identified"} />
+                    <PrintKpiCard label="Slow Moving Value" value={formatMoneyLegacy(inventoryIntelligence.slowMovingValue, homeCurrency)} />
+                    <PrintKpiCard label="E&O Reserve" value={inventoryIntelligence.eoReserveBalance !== null ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance, homeCurrency) : "Not identified"} />
                   </>
                 )}
               </div>
@@ -24931,14 +25014,16 @@ function PrintableFinancialPackage({
                   <div className="print-narrative-card">
                     <h3>Inventory Turns Commentary</h3>
                     <p>
-                      Inventory turns are calculated as COGS of {formatCurrency(kpis.cogs)} divided by average inventory of{" "}
-                      {formatCurrency(inventoryIntelligence.averageInventory)}. {inventoryIntelligence.turnsCommentary}
+                      Inventory turns are calculated as COGS of {formatCurrency(kpis.cogs, homeCurrency)} divided by average inventory of{" "}
+                      {formatCurrency(inventoryIntelligence.averageInventory, homeCurrency)}. {inventoryIntelligence.turnsCommentary}
                     </p>
                   </div>
                   {!executiveSummaryMode && (
                     <>
                       <h2>Slow Moving Inventory</h2>
-                      <SlowMovingInventoryPrintTable items={inventoryIntelligence.slowMovingItems} />
+                      <SlowMovingInventoryPrintTable items={inventoryIntelligence.slowMovingItems} 
+              homeCurrency={homeCurrency}
+            />
                     </>
                   )}
                   <div className="print-narrative-card">
@@ -24954,9 +25039,13 @@ function PrintableFinancialPackage({
               {!executiveSummaryMode && (
                 <>
                   <h2>Top 5 Inventory Items by Value</h2>
-                  <InventoryPrintTable items={inventoryKpis.topByValue} />
+                  <InventoryPrintTable items={inventoryKpis.topByValue} 
+              homeCurrency={homeCurrency}
+            />
                   <h2>Top 5 Inventory Items by Quantity</h2>
-                  <InventoryPrintTable items={inventoryKpis.topByQuantity} />
+                  <InventoryPrintTable items={inventoryKpis.topByQuantity} 
+              homeCurrency={homeCurrency}
+            />
                 </>
               )}
             </section>
@@ -24976,23 +25065,22 @@ function PrintableFinancialPackage({
               <tbody>
                 <tr>
                   <td>Total Fixed Assets</td>
-                  <td>{formatMoneyLegacy(fixedAssetKpis.totalFixedAssets)}</td>
+                  <td>{formatMoneyLegacy(fixedAssetKpis.totalFixedAssets, homeCurrency)}</td>
                 </tr>
                 <tr>
                   <td>Accumulated Depreciation</td>
-                  <td>{formatMoneyLegacy(fixedAssetKpis.accumulatedDepreciation)}</td>
+                  <td>{formatMoneyLegacy(fixedAssetKpis.accumulatedDepreciation, homeCurrency)}</td>
                 </tr>
                 <tr>
                   <td>Net Book Value</td>
-                  <td>{formatMoneyLegacy(fixedAssetKpis.netBookValue)}</td>
+                  <td>{formatMoneyLegacy(fixedAssetKpis.netBookValue, homeCurrency)}</td>
                 </tr>
                 <tr>
                   <td>Depreciation Expense</td>
                   <td>
                     {formatOptionalCurrency(
                       fixedAssetKpis.depreciationExpense,
-                      "N/A",
-                    )}
+                      "N/A", homeCurrency)}
                   </td>
                 </tr>
               </tbody>
@@ -25000,18 +25088,19 @@ function PrintableFinancialPackage({
             <h2>Significant Changes</h2>
             {priorFixedAssetData ? (
               <>
-                <FixedAssetChangePrintTable rows={fixedAssetChangeRows} />
+                <FixedAssetChangePrintTable rows={fixedAssetChangeRows} 
+              homeCurrency={homeCurrency}
+            />
                 <div className="print-narrative-card">
                   <h3>CapEx and Depreciation Commentary</h3>
                   <p>
                     {fixedAssetChangeRows.find((row) => row.metric === "Fixed asset additions" && row.current > 0)
                       ? `Fixed assets increased by ${formatCurrency(
-                          fixedAssetChangeRows.find((row) => row.metric === "Fixed asset additions")?.current || 0,
-                        )}, indicating additions or capitalized asset activity during the period.`
+                          fixedAssetChangeRows.find((row) => row.metric === "Fixed asset additions")?.current || 0, homeCurrency)}, indicating additions or capitalized asset activity during the period.`
                       : "No material gross fixed asset additions were identified from the uploaded current and prior fixed asset reports."}
                     {" "}
-                    Ending net book value is {formatCurrency(fixedAssetKpis.netBookValue)} after accumulated depreciation of{" "}
-                    {formatCurrency(fixedAssetKpis.accumulatedDepreciation)}.
+                    Ending net book value is {formatCurrency(fixedAssetKpis.netBookValue, homeCurrency)} after accumulated depreciation of{" "}
+                    {formatCurrency(fixedAssetKpis.accumulatedDepreciation, homeCurrency)}.
                   </p>
                 </div>
               </>
@@ -25028,28 +25117,42 @@ function PrintableFinancialPackage({
               priorPayrollData={priorPayrollData}
               revenue={kpis.revenue}
               includeDepartmentTables={!executiveSummaryMode}
+            
+              homeCurrency={homeCurrency}
             />
           )}
 
           {includeSection("flux-summary") && topExecutiveFluxRows.length > 0 && (
             <>
-              <PrintFluxSection title="Executive Variance Summary" rows={topExecutiveFluxRows} />
+              <PrintFluxSection title="Executive Variance Summary" rows={topExecutiveFluxRows} 
+              homeCurrency={homeCurrency}
+            />
             </>
           )}
           {includeSection("month-flux") && monthFluxRows.length > 0 && (
-            <PrintFluxSection title="Month-over-Month Flux Analysis" rows={monthFluxRows} />
+            <PrintFluxSection title="Month-over-Month Flux Analysis" rows={monthFluxRows} 
+              homeCurrency={homeCurrency}
+            />
           )}
           {includeSection("quarter-flux") && quarterFluxRows.length > 0 && (
-            <PrintFluxSection title="Quarter-over-Quarter Flux Analysis" rows={quarterFluxRows} />
+            <PrintFluxSection title="Quarter-over-Quarter Flux Analysis" rows={quarterFluxRows} 
+              homeCurrency={homeCurrency}
+            />
           )}
           {includeSection("year-flux") && yearFluxRows.length > 0 && (
-            <PrintFluxSection title="Year-over-Year Flux Analysis" rows={yearFluxRows} />
+            <PrintFluxSection title="Year-over-Year Flux Analysis" rows={yearFluxRows} 
+              homeCurrency={homeCurrency}
+            />
           )}
 
           {includeSection("budget-vs-actual") && budgetMetrics.revenueActual !== null && (
-            <BudgetPrintSection metrics={budgetMetrics} />
+            <BudgetPrintSection metrics={budgetMetrics} 
+              homeCurrency={homeCurrency}
+            />
           )}
-          {includeSection("debt-schedule") && debtMetrics.totalDebt > 0 && <DebtPrintSection metrics={debtMetrics} />}
+          {includeSection("debt-schedule") && debtMetrics.totalDebt > 0 && <DebtPrintSection metrics={debtMetrics} 
+              homeCurrency={homeCurrency}
+            />}
           {false && includeSection("recommended-follow-up") && <section className="print-page">
             <h1>Recommended Follow-Up Items</h1>
             <ul>
@@ -25075,7 +25178,9 @@ function PrintableFinancialPackage({
             <section className="print-page">
               <p className="print-section-label">Appendix</p>
               <h1>Income Statement Detail</h1>
-              <FinancialStatementTable rows={plRows} />
+              <FinancialStatementTable rows={plRows} 
+              homeCurrency={homeCurrency}
+            />
             </section>
           )}
 
@@ -25083,7 +25188,9 @@ function PrintableFinancialPackage({
             <section className="print-page">
               <p className="print-section-label">Appendix</p>
               <h1>Balance Sheet Detail</h1>
-              <FinancialStatementTable rows={bsRows} />
+              <FinancialStatementTable rows={bsRows} 
+              homeCurrency={homeCurrency}
+            />
             </section>
           )}
 
@@ -25119,13 +25226,19 @@ function PrintableFinancialPackage({
               <p className="print-section-label">Appendix</p>
               <h1>Inventory Detail</h1>
               <h2>Top 5 Inventory Items by Value</h2>
-              <InventoryPrintTable items={inventoryKpis.topByValue} />
+              <InventoryPrintTable items={inventoryKpis.topByValue} 
+              homeCurrency={homeCurrency}
+            />
               <h2>Top 5 Inventory Items by Quantity</h2>
-              <InventoryPrintTable items={inventoryKpis.topByQuantity} />
+              <InventoryPrintTable items={inventoryKpis.topByQuantity} 
+              homeCurrency={homeCurrency}
+            />
               {isVirtualCfo(packageTier) && (
                 <>
                   <h2>Slow Moving Inventory Detail</h2>
-                  <SlowMovingInventoryPrintTable items={inventoryIntelligence.slowMovingItems} />
+                  <SlowMovingInventoryPrintTable items={inventoryIntelligence.slowMovingItems} 
+              homeCurrency={homeCurrency}
+            />
                 </>
               )}
             </section>
@@ -25138,6 +25251,8 @@ function PrintableFinancialPackage({
               priorPayrollData={priorPayrollData}
               revenue={kpis.revenue}
               includeDepartmentTables
+            
+              homeCurrency={homeCurrency}
             />
           )}
         </>
@@ -25146,7 +25261,9 @@ function PrintableFinancialPackage({
   );
 }
 
-function FinancialStatementTable({ rows }: { rows: StatementRow[] }) {
+function FinancialStatementTable({ rows,
+  homeCurrency,}: { rows: StatementRow[];
+  homeCurrency: string;}) {
   const dedupedRows = getDedupedStatementRows(rows);
 
   return (
@@ -25164,7 +25281,7 @@ function FinancialStatementTable({ rows }: { rows: StatementRow[] }) {
           return (
             <tr key={`${row.label}-${index}`} className={`print-statement-${rowType}`}>
               <td>{row.label}</td>
-              <td>{row.amount === null ? "" : formatMoneyLegacy(row.amount)}</td>
+              <td>{row.amount === null ? "" : formatMoneyLegacy(row.amount, homeCurrency)}</td>
             </tr>
           );
         })}
@@ -25191,12 +25308,14 @@ function DriverPrintTable({
   rows,
   total,
   type,
-}: {
+
+  homeCurrency,}: {
   title: string;
   rows: StatementRow[];
   total: number;
   type: "revenue" | "expense";
-}) {
+
+  homeCurrency: string;}) {
   return (
     <div className="print-section-block">
       <h2>{title}</h2>
@@ -25216,7 +25335,7 @@ function DriverPrintTable({
               return (
                 <tr key={`${type}-${row.label}-${index}`}>
                   <td>{row.label}</td>
-                  <td>{formatMoneyLegacy(row.amount || 0)}</td>
+                  <td>{formatMoneyLegacy(row.amount || 0, homeCurrency)}</td>
                   <td>{share === "N/M" ? share : `${share}%`}</td>
                   <td>{index === 0 ? "Top driver" : "Monitor"}</td>
                 </tr>
@@ -25241,7 +25360,8 @@ function PrintDashboardCard({
   payrollAnalysis,
   budgetMetrics,
   netMargin,
-}: {
+
+  homeCurrency,}: {
   chartId: ChartSelectionId;
   kpis: KPIs;
   arKpis: AgingKpis;
@@ -25249,7 +25369,8 @@ function PrintDashboardCard({
   payrollAnalysis: PayrollAnalysis;
   budgetMetrics: BudgetMetrics;
   netMargin: number;
-}) {
+
+  homeCurrency: string;}) {
   const chartLabels: Record<ChartSelectionId, string> = {
     "revenue-trend": "Revenue Trend",
     "gross-margin-trend": "Gross Margin Trend",
@@ -25265,18 +25386,18 @@ function PrintDashboardCard({
     "working-capital-trend": "Working Capital Trend",
   };
   const primaryValue: Record<ChartSelectionId, string> = {
-    "revenue-trend": formatCurrency(kpis.revenue),
+    "revenue-trend": formatCurrency(kpis.revenue, homeCurrency),
     "gross-margin-trend": `${kpis.revenue ? ((kpis.grossProfit / kpis.revenue) * 100).toFixed(1) : "0.0"}%`,
-    "ebitda-trend": formatCurrency(kpis.grossProfit - kpis.expenses),
-    "cash-trend": formatCurrency(kpis.cash),
-    "ar-aging-mix": formatCurrency(arKpis.total),
-    "ap-aging-mix": formatCurrency(apKpis.total),
-    "payroll-trend": formatCurrency(payrollAnalysis.totalCurrentPayrollCost),
-    "revenue-per-fte": payrollAnalysis.totalCurrentFte ? formatCurrency(kpis.revenue / payrollAnalysis.totalCurrentFte) : "N/A",
-    "expense-breakdown": formatCurrency(kpis.expenses),
-    "budget-vs-actual": formatOptionalCurrency(budgetMetrics.netIncomeVariance, "N/A"),
-    "net-income-trend": formatCurrency(kpis.netIncome),
-    "working-capital-trend": formatCurrency(kpis.cash + kpis.accountsReceivable - apKpis.total),
+    "ebitda-trend": formatCurrency(kpis.grossProfit - kpis.expenses, homeCurrency),
+    "cash-trend": formatCurrency(kpis.cash, homeCurrency),
+    "ar-aging-mix": formatCurrency(arKpis.total, homeCurrency),
+    "ap-aging-mix": formatCurrency(apKpis.total, homeCurrency),
+    "payroll-trend": formatCurrency(payrollAnalysis.totalCurrentPayrollCost, homeCurrency),
+    "revenue-per-fte": payrollAnalysis.totalCurrentFte ? formatCurrency(kpis.revenue / payrollAnalysis.totalCurrentFte, homeCurrency) : "N/A",
+    "expense-breakdown": formatCurrency(kpis.expenses, homeCurrency),
+    "budget-vs-actual": formatOptionalCurrency(budgetMetrics.netIncomeVariance, "N/A", homeCurrency),
+    "net-income-trend": formatCurrency(kpis.netIncome, homeCurrency),
+    "working-capital-trend": formatCurrency(kpis.cash + kpis.accountsReceivable - apKpis.total, homeCurrency),
   };
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
   const ebitda = kpis.grossProfit - kpis.expenses;
@@ -25357,11 +25478,13 @@ function AgingPrintTable({
   kpis,
   totalLabel,
   currentLabel,
-}: {
+
+  homeCurrency,}: {
   kpis: AgingKpis;
   totalLabel: string;
   currentLabel: string;
-}) {
+
+  homeCurrency: string;}) {
   const buckets = [
     { label: currentLabel, value: kpis.current, tone: "good" },
     { label: "1-30 Days", value: kpis.days1To30, tone: "watch" },
@@ -25377,10 +25500,10 @@ function AgingPrintTable({
   return (
     <div className="print-section-block">
       <div className="print-grid">
-        <PrintKpiCard label={totalLabel} value={formatMoneyLegacy(kpis.total)} />
+        <PrintKpiCard label={totalLabel} value={formatMoneyLegacy(kpis.total, homeCurrency)} />
         <PrintKpiCard label="Current %" value={`${currentPercent.toFixed(1)}%`} />
         <PrintKpiCard label="Over 30 Days" value={`${overduePercent.toFixed(1)}%`} />
-        <PrintKpiCard label="90+ Exposure" value={formatMoneyLegacy(kpis.days90Plus)} />
+        <PrintKpiCard label="90+ Exposure" value={formatMoneyLegacy(kpis.days90Plus, homeCurrency)} />
       </div>
       <table className="print-table print-compact-table">
         <thead>
@@ -25397,7 +25520,7 @@ function AgingPrintTable({
             return (
               <tr key={bucket.label}>
                 <td>{bucket.label}</td>
-                <td>{formatMoneyLegacy(bucket.value)}</td>
+                <td>{formatMoneyLegacy(bucket.value, homeCurrency)}</td>
                 <td>{percent.toFixed(1)}%</td>
                 <td>
                   <div className="print-aging-bar-track">
@@ -25418,7 +25541,9 @@ function AgingPrintTable({
   );
 }
 
-function FixedAssetChangePrintTable({ rows }: { rows: FixedAssetChangeRow[] }) {
+function FixedAssetChangePrintTable({ rows,
+  homeCurrency,}: { rows: FixedAssetChangeRow[];
+  homeCurrency: string;}) {
   return (
     <table className="print-table">
       <thead>
@@ -25434,9 +25559,9 @@ function FixedAssetChangePrintTable({ rows }: { rows: FixedAssetChangeRow[] }) {
         {rows.map((row) => (
           <tr key={row.metric}>
             <td>{row.metric}</td>
-            <td>{formatCurrency(row.prior)}</td>
-            <td>{formatCurrency(row.current)}</td>
-            <td>{formatCurrency(row.change)}</td>
+            <td>{formatCurrency(row.prior, homeCurrency)}</td>
+            <td>{formatCurrency(row.current, homeCurrency)}</td>
+            <td>{formatCurrency(row.change, homeCurrency)}</td>
             <td>{row.interpretation}</td>
           </tr>
         ))}
@@ -25445,7 +25570,9 @@ function FixedAssetChangePrintTable({ rows }: { rows: FixedAssetChangeRow[] }) {
   );
 }
 
-function InventoryPrintTable({ items }: { items: InventoryItem[] }) {
+function InventoryPrintTable({ items,
+  homeCurrency,}: { items: InventoryItem[];
+  homeCurrency: string;}) {
   return (
     <table className="print-table">
       <thead>
@@ -25461,7 +25588,7 @@ function InventoryPrintTable({ items }: { items: InventoryItem[] }) {
             <tr key={`${item.name}-${index}`}>
               <td>{item.name}</td>
               <td>{formatNumber(item.quantity)}</td>
-              <td>{formatMoneyLegacy(item.value)}</td>
+              <td>{formatMoneyLegacy(item.value, homeCurrency)}</td>
             </tr>
           ))
         ) : (
@@ -25474,7 +25601,9 @@ function InventoryPrintTable({ items }: { items: InventoryItem[] }) {
   );
 }
 
-function SlowMovingInventoryPrintTable({ items }: { items: SlowMovingInventoryItem[] }) {
+function SlowMovingInventoryPrintTable({ items,
+  homeCurrency,}: { items: SlowMovingInventoryItem[];
+  homeCurrency: string;}) {
   const total = items.reduce((sum, item) => sum + item.value, 0);
 
   return (
@@ -25494,13 +25623,13 @@ function SlowMovingInventoryPrintTable({ items }: { items: SlowMovingInventoryIt
               <tr key={`${item.name}-${index}`}>
                 <td>{item.name}</td>
                 <td>{formatNumber(item.quantity)}</td>
-                <td>{formatMoneyLegacy(item.value)}</td>
+                <td>{formatMoneyLegacy(item.value, homeCurrency)}</td>
                 <td>{formatNumber(item.daysSinceMovement)}</td>
               </tr>
             ))}
             <tr>
               <td colSpan={2}>Total Slow Moving Inventory</td>
-              <td>{formatMoneyLegacy(total)}</td>
+              <td>{formatMoneyLegacy(total, homeCurrency)}</td>
               <td />
             </tr>
           </>
@@ -25514,7 +25643,9 @@ function SlowMovingInventoryPrintTable({ items }: { items: SlowMovingInventoryIt
   );
 }
 
-function BudgetPrintSection({ metrics }: { metrics: BudgetMetrics }) {
+function BudgetPrintSection({ metrics,
+  homeCurrency,}: { metrics: BudgetMetrics;
+  homeCurrency: string;}) {
   const revenueVariancePercent =
     metrics.revenueBudget && metrics.revenueVariance !== null
       ? (metrics.revenueVariance / metrics.revenueBudget) * 100
@@ -25529,11 +25660,11 @@ function BudgetPrintSection({ metrics }: { metrics: BudgetMetrics }) {
       <p className="print-section-label">Section B - Performance Analysis</p>
       <h1>Budget vs Actual</h1>
       <div className="print-grid">
-        <PrintKpiCard label="Revenue Actual" value={formatOptionalCurrency(metrics.revenueActual, "N/A")} />
-        <PrintKpiCard label="Revenue Budget" value={formatOptionalCurrency(metrics.revenueBudget, "N/A")} />
-        <PrintKpiCard label="Revenue Variance" value={formatOptionalCurrency(metrics.revenueVariance, "N/A")} />
+        <PrintKpiCard label="Revenue Actual" value={formatOptionalCurrency(metrics.revenueActual, "N/A", homeCurrency)} />
+        <PrintKpiCard label="Revenue Budget" value={formatOptionalCurrency(metrics.revenueBudget, "N/A", homeCurrency)} />
+        <PrintKpiCard label="Revenue Variance" value={formatOptionalCurrency(metrics.revenueVariance, "N/A", homeCurrency)} />
         <PrintKpiCard label="Revenue Variance %" value={revenueVariancePercent === null ? "N/A" : `${revenueVariancePercent.toFixed(1)}%`} />
-        <PrintKpiCard label="Net Income Variance" value={formatOptionalCurrency(metrics.netIncomeVariance, "N/A")} />
+        <PrintKpiCard label="Net Income Variance" value={formatOptionalCurrency(metrics.netIncomeVariance, "N/A", homeCurrency)} />
         <PrintKpiCard label="Net Income Variance %" value={netIncomeVariancePercent === null ? "N/A" : `${netIncomeVariancePercent.toFixed(1)}%`} />
       </div>
       <table className="print-table print-compact-table">
@@ -25549,23 +25680,23 @@ function BudgetPrintSection({ metrics }: { metrics: BudgetMetrics }) {
         <tbody>
           <tr>
             <td>Revenue</td>
-            <td>{formatOptionalCurrency(metrics.revenueActual, "N/A")}</td>
-            <td>{formatOptionalCurrency(metrics.revenueBudget, "N/A")}</td>
-            <td>{formatOptionalCurrency(metrics.revenueVariance, "N/A")}</td>
+            <td>{formatOptionalCurrency(metrics.revenueActual, "N/A", homeCurrency)}</td>
+            <td>{formatOptionalCurrency(metrics.revenueBudget, "N/A", homeCurrency)}</td>
+            <td>{formatOptionalCurrency(metrics.revenueVariance, "N/A", homeCurrency)}</td>
             <td>{(metrics.revenueVariance || 0) >= 0 ? "Favorable" : "Unfavorable"}</td>
           </tr>
           <tr>
             <td>Net Income</td>
-            <td>{formatOptionalCurrency(metrics.netIncomeActual, "N/A")}</td>
-            <td>{formatOptionalCurrency(metrics.netIncomeBudget, "N/A")}</td>
-            <td>{formatOptionalCurrency(metrics.netIncomeVariance, "N/A")}</td>
+            <td>{formatOptionalCurrency(metrics.netIncomeActual, "N/A", homeCurrency)}</td>
+            <td>{formatOptionalCurrency(metrics.netIncomeBudget, "N/A", homeCurrency)}</td>
+            <td>{formatOptionalCurrency(metrics.netIncomeVariance, "N/A", homeCurrency)}</td>
             <td>{(metrics.netIncomeVariance || 0) >= 0 ? "Favorable" : "Unfavorable"}</td>
           </tr>
           <tr>
             <td>Largest Budget Miss</td>
             <td colSpan={4}>
               {metrics.largestUnfavorableVarianceLabel}:{" "}
-              {formatOptionalCurrency(metrics.largestUnfavorableVariance, "N/A")}
+              {formatOptionalCurrency(metrics.largestUnfavorableVariance, "N/A", homeCurrency)}
             </td>
           </tr>
         </tbody>
@@ -25575,8 +25706,7 @@ function BudgetPrintSection({ metrics }: { metrics: BudgetMetrics }) {
         <p>
           {metrics.largestUnfavorableVariance
             ? `${metrics.largestUnfavorableVarianceLabel} is the largest unfavorable budget variance at ${formatCurrency(
-                Math.abs(metrics.largestUnfavorableVariance),
-              )}. Review timing, staffing, vendor spend, and campaign or project deferrals behind this variance.`
+                Math.abs(metrics.largestUnfavorableVariance), homeCurrency)}. Review timing, staffing, vendor spend, and campaign or project deferrals behind this variance.`
             : "No unfavorable budget variance was identified from the uploaded budget report."}
         </p>
       </div>
@@ -25584,7 +25714,9 @@ function BudgetPrintSection({ metrics }: { metrics: BudgetMetrics }) {
   );
 }
 
-function DebtPrintSection({ metrics }: { metrics: DebtMetrics }) {
+function DebtPrintSection({ metrics,
+  homeCurrency,}: { metrics: DebtMetrics;
+  homeCurrency: string;}) {
   return (
     <section className="print-page">
       <p className="print-section-label">Section B - Performance Analysis</p>
@@ -25593,15 +25725,15 @@ function DebtPrintSection({ metrics }: { metrics: DebtMetrics }) {
         <tbody>
           <tr>
             <td>Total Debt</td>
-            <td>{formatCurrency(metrics.totalDebt)}</td>
+            <td>{formatCurrency(metrics.totalDebt, homeCurrency)}</td>
           </tr>
           <tr>
             <td>Current Portion</td>
-            <td>{formatCurrency(metrics.currentPortion)}</td>
+            <td>{formatCurrency(metrics.currentPortion, homeCurrency)}</td>
           </tr>
           <tr>
             <td>Long-Term Portion</td>
-            <td>{formatCurrency(metrics.longTermPortion)}</td>
+            <td>{formatCurrency(metrics.longTermPortion, homeCurrency)}</td>
           </tr>
           <tr>
             <td>Debt-to-Assets</td>
@@ -25623,13 +25755,15 @@ function PayrollPrintSection({
   priorPayrollData,
   revenue,
   includeDepartmentTables = true,
-}: {
+
+  homeCurrency,}: {
   analysis: PayrollAnalysis;
   currentPayrollData: ParsedFile | null;
   priorPayrollData: ParsedFile | null;
   revenue: number;
   includeDepartmentTables?: boolean;
-}) {
+
+  homeCurrency: string;}) {
   const hasPayrollData = Boolean(currentPayrollData || priorPayrollData);
   const maxFte = Math.max(analysis.totalCurrentFte, analysis.totalPriorFte, 1);
   const maxPayroll = Math.max(analysis.totalCurrentPayrollCost, analysis.totalPriorPayrollCost, 1);
@@ -25648,15 +25782,15 @@ function PayrollPrintSection({
             <PrintKpiCard label="Current FTE" value={formatFte(analysis.totalCurrentFte)} />
             <PrintKpiCard label="Prior FTE" value={priorPayrollData ? formatFte(analysis.totalPriorFte) : "N/A"} />
             <PrintKpiCard label="FTE Change" value={priorPayrollData ? formatFte(analysis.totalFteChange) : "N/A"} />
-            <PrintKpiCard label="Current Payroll" value={formatCurrency(analysis.totalCurrentPayrollCost)} />
-            <PrintKpiCard label="Prior Payroll" value={priorPayrollData ? formatCurrency(analysis.totalPriorPayrollCost) : "N/A"} />
+            <PrintKpiCard label="Current Payroll" value={formatCurrency(analysis.totalCurrentPayrollCost, homeCurrency)} />
+            <PrintKpiCard label="Prior Payroll" value={priorPayrollData ? formatCurrency(analysis.totalPriorPayrollCost, homeCurrency) : "N/A"} />
             <PrintKpiCard
               label="Payroll Cost Change"
-              value={priorPayrollData ? formatCurrency(analysis.totalPayrollCostChange) : "N/A"}
+              value={priorPayrollData ? formatCurrency(analysis.totalPayrollCostChange, homeCurrency) : "N/A"}
             />
             <PrintKpiCard
               label="Payroll Taxes"
-              value={formatCurrency(analysis.rows.reduce((total, row) => total + row.currentPayrollTaxes, 0))}
+              value={formatCurrency(analysis.rows.reduce((total, row) => total + row.currentPayrollTaxes, 0), homeCurrency)}
             />
             <PrintKpiCard
               label="Payroll % of Revenue"
@@ -25664,7 +25798,7 @@ function PayrollPrintSection({
             />
             <PrintKpiCard
               label="Revenue per FTE"
-              value={analysis.totalCurrentFte ? formatCurrency(revenue / analysis.totalCurrentFte) : "N/A"}
+              value={analysis.totalCurrentFte ? formatCurrency(revenue / analysis.totalCurrentFte, homeCurrency) : "N/A"}
             />
             <PrintKpiCard label="Benefits / Overtime" value="Review GL Detail" />
           </div>
@@ -25687,19 +25821,21 @@ function PayrollPrintSection({
               <div className="print-trend-row">
                 <span>Current</span>
                 <span className="print-trend-track"><span className="print-trend-bar" style={{ width: `${Math.min((analysis.totalCurrentPayrollCost / maxPayroll) * 100, 100)}%` }} /></span>
-                <span>{formatCurrency(analysis.totalCurrentPayrollCost)}</span>
+                <span>{formatCurrency(analysis.totalCurrentPayrollCost, homeCurrency)}</span>
               </div>
               <div className="print-trend-row">
                 <span>Prior</span>
                 <span className="print-trend-track"><span className="print-trend-bar" style={{ width: `${Math.min((analysis.totalPriorPayrollCost / maxPayroll) * 100, 100)}%` }} /></span>
-                <span>{priorPayrollData ? formatCurrency(analysis.totalPriorPayrollCost) : "N/A"}</span>
+                <span>{priorPayrollData ? formatCurrency(analysis.totalPriorPayrollCost, homeCurrency) : "N/A"}</span>
               </div>
             </div>
           </div>
           {includeDepartmentTables && (
             <>
               <h2>Department Staffing and Payroll Cost</h2>
-              <PayrollPrintTable rows={analysis.rows} includePrior={Boolean(priorPayrollData)} />
+              <PayrollPrintTable rows={analysis.rows} includePrior={Boolean(priorPayrollData)} 
+              homeCurrency={homeCurrency}
+            />
             </>
           )}
           <h2>Payroll Commentary</h2>
@@ -25723,10 +25859,12 @@ function PayrollPrintSection({
 function PayrollPrintTable({
   rows,
   includePrior,
-}: {
+
+  homeCurrency,}: {
   rows: PayrollDepartmentRow[];
   includePrior: boolean;
-}) {
+
+  homeCurrency: string;}) {
   return (
     <table className="print-table">
       <thead>
@@ -25749,10 +25887,10 @@ function PayrollPrintTable({
               <td>{formatFte(row.currentFte)}</td>
               <td>{includePrior ? formatFte(row.priorFte) : "N/A"}</td>
               <td>{includePrior ? formatFte(row.fteChange) : "N/A"}</td>
-              <td>{formatCurrency(row.currentPayrollCost)}</td>
-              <td>{includePrior ? formatCurrency(row.priorPayrollCost) : "N/A"}</td>
-              <td>{includePrior ? formatCurrency(row.payrollCostChange) : "N/A"}</td>
-              <td>{formatCurrency(row.payrollCostPerFte)}</td>
+              <td>{formatCurrency(row.currentPayrollCost, homeCurrency)}</td>
+              <td>{includePrior ? formatCurrency(row.priorPayrollCost, homeCurrency) : "N/A"}</td>
+              <td>{includePrior ? formatCurrency(row.payrollCostChange, homeCurrency) : "N/A"}</td>
+              <td>{formatCurrency(row.payrollCostPerFte, homeCurrency)}</td>
             </tr>
           ))
         ) : (
@@ -25770,14 +25908,16 @@ function PrintFluxSection({
   subtitle = "Top material account movements only. Detailed account support remains in the uploaded GL files.",
   rows,
   focus = "combined",
-}: {
+
+  homeCurrency,}: {
   title: string;
   subtitle?: string;
   rows: FluxRow[];
   focus?: "balance-sheet" | "income-statement" | "combined";
-}) {
+
+  homeCurrency: string;}) {
   const formatPrintFluxMoney = (row: FluxRow, value: number) =>
-    isExpenseLikeFluxRow(row) ? formatMoneyLegacy(Math.abs(value)) : formatMoneyLegacy(value);
+    isExpenseLikeFluxRow(row) ? formatMoneyLegacy(Math.abs(value), homeCurrency) : formatMoneyLegacy(value, homeCurrency);
   const formatPrintFluxPercent = (row: FluxRow) => formatFluxPercentLabel(row);
   const seenAccounts = new Set<string>();
   const topRows = [...rows]
@@ -25884,7 +26024,9 @@ function PrintFluxSection({
   );
 }
 
-function Preview({ title, data }: { title: string; data: ParsedFile | null }) {
+function Preview({ title, data,
+  homeCurrency,}: { title: string; data: ParsedFile | null;
+  homeCurrency: string;}) {
   if (!data) return null;
 
   const previewRows = getPreviewRows(title, data);
@@ -25945,7 +26087,7 @@ function Preview({ title, data }: { title: string; data: ParsedFile | null }) {
           ) ||
           cellIndex >= Math.max(lastNonEmptyCellIndex - 2, 0))
       ) {
-        return formatCurrency(value);
+        return formatCurrency(value, homeCurrency);
       }
       if (value !== null && cellIndex > 0) return formatNumber(value);
       return String(cell || "");
@@ -25957,7 +26099,7 @@ function Preview({ title, data }: { title: string; data: ParsedFile | null }) {
       value !== null &&
       !isAgingBucketLabel(cell)
     ) {
-      return formatCurrency(value);
+      return formatCurrency(value, homeCurrency);
     }
 
     if (
