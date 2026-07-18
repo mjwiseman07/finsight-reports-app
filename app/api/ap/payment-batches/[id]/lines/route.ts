@@ -14,6 +14,10 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     if (!firmId) return NextResponse.json({ error: "no_firm_membership" }, { status: 403 });
     const { id } = await context.params;
     const body = await req.json();
+    const currencyCode = typeof body.currency === "string" ? body.currency.trim() : "";
+    if (!currencyCode) {
+      return NextResponse.json({ error: "currency required" }, { status: 400 });
+    }
     const out = await addBatchLine({
       firmId,
       firmClientId: String(body.firm_client_id),
@@ -23,6 +27,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
       billId: body.bill_id ? String(body.bill_id) : null,
       requisitionId: body.requisition_id ? String(body.requisition_id) : null,
       grossAmountCents: Number(body.gross_amount_cents),
+      currencyCode,
       appliedCreditCents: body.applied_credit_cents != null ? Number(body.applied_credit_cents) : 0,
       appliedPrepaymentCents:
         body.applied_prepayment_cents != null ? Number(body.applied_prepayment_cents) : 0,

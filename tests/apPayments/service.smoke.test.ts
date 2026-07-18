@@ -11,6 +11,12 @@ const mocks = vi.hoisted(() => {
   const publishEvent = vi.fn(async () => {
     callOrder.push("publish");
   });
+  const resolveCurrencyForFirmClient = vi.fn(async () => ({
+    ok: true as const,
+    currency: "USD",
+    home_currency: "USD",
+    source: "home_currency_default" as const,
+  }));
 
   function chainableTable(insertResult?: { data: unknown; error: null }) {
     const api = {
@@ -44,6 +50,7 @@ const mocks = vi.hoisted(() => {
     assertEntitlement,
     assertPilotFeature,
     publishEvent,
+    resolveCurrencyForFirmClient,
     supabase,
     createServiceClient,
     chainableTable,
@@ -61,6 +68,9 @@ vi.mock("@/lib/entitlements/pilot-features", () => ({
 vi.mock("@/lib/events/publisher", () => ({ publishEvent: mocks.publishEvent }));
 vi.mock("@/lib/supabase/service", () => ({
   createServiceClient: mocks.createServiceClient,
+}));
+vi.mock("@/lib/erp/quickbooks/currency-resolver", () => ({
+  resolveCurrencyForFirmClient: mocks.resolveCurrencyForFirmClient,
 }));
 
 import {
@@ -81,6 +91,12 @@ describe("payments service gate ordering", () => {
   beforeEach(() => {
     mocks.callOrder.length = 0;
     vi.clearAllMocks();
+    mocks.resolveCurrencyForFirmClient.mockResolvedValue({
+      ok: true,
+      currency: "USD",
+      home_currency: "USD",
+      source: "home_currency_default",
+    });
     mocks.supabase.from.mockImplementation(() => mocks.chainableTable());
   });
 
@@ -88,6 +104,7 @@ describe("payments service gate ordering", () => {
     await createPaymentBatch({
       ...BASE,
       batchNumber: "B-001",
+      currency: "USD",
       requestedByUserId: BASE.actorUserId,
     });
     expect(mocks.callOrder.indexOf("entitlement")).toBeLessThan(mocks.callOrder.indexOf("db"));
@@ -97,11 +114,27 @@ describe("payments service gate ordering", () => {
   });
 
   it("addBatchLine calls gate before DB", async () => {
+    mocks.supabase.from.mockImplementation(((table: string) => {
+      if (table === "payment_batches") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn(async () => ({
+                data: { currency: "USD" },
+                error: null,
+              })),
+            })),
+          })),
+        };
+      }
+      return mocks.chainableTable();
+    }) as typeof mocks.supabase.from);
     await addBatchLine({
       ...BASE,
       batchId: "batch-1",
       vendorId: "v1",
       grossAmountCents: 1000,
+      currencyCode: "USD",
     });
     expect(mocks.callOrder.indexOf("entitlement")).toBeLessThan(mocks.callOrder.indexOf("db"));
     expect(mocks.callOrder.indexOf("pilot")).toBeLessThan(mocks.callOrder.indexOf("db"));
@@ -113,9 +146,11 @@ describe("payments service gate ordering", () => {
         eq: vi.fn(async () => ({ data: [], error: null })),
       })),
     };
+    const batchApi = mocks.chainableTable({ data: { currency: "USD" }, error: null });
     const interlockApi = mocks.chainableTable({ data: { id: "evt-1" }, error: null });
     mocks.supabase.from.mockImplementation(((table: string) => {
       if (table === "payment_batch_lines") return linesApi;
+      if (table === "payment_batches") return batchApi;
       if (table === "payment_batch_interlock_events") return interlockApi;
       return mocks.chainableTable();
     }) as typeof mocks.supabase.from);

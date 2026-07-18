@@ -1,10 +1,15 @@
 /**
  * Phase D6.5 Part 2 — Block 8a — L9 No-Overpay Payment-Time Interlock.
+ *
+ * MC-4c (Issue #6, Gap C-3): Currency-aware. Vendor commitments and GL
+ * budgets are home-currency denominated. Foreign-currency batch lines are
+ * rejected — reject-not-convert policy (see MC-3, MC-4a, MC-4b).
  */
 import type { GLBudgetSnapshotEntry, PerVendorNetPosition } from "./types";
 
 export interface InterlockInputLine {
   vendor_id: string;
+  currency: string; // MC-4c: ISO 4217 of the line
   gross_amount_cents: number;
   applied_credit_cents: number;
   applied_prepayment_cents: number;
@@ -40,8 +45,52 @@ export function computeInterlock(args: {
   lines: InterlockInputLine[];
   vendor_commitments: InterlockVendorCommitmentInput[];
   gl_budgets: InterlockGLBudgetInput[];
+  home_currency: string; // MC-4c: entity home currency
+  batch_currency: string; // MC-4c: parent batch currency
 }): InterlockDecision {
-  const { lines, vendor_commitments, gl_budgets } = args;
+  const { lines, vendor_commitments, gl_budgets, home_currency, batch_currency } = args;
+
+  // MC-4c pre-flight: currency policy.
+  const reasonCodesGlobal: string[] = [];
+  let currencyPolicyPassed = true;
+
+  if (!home_currency) {
+    currencyPolicyPassed = false;
+    reasonCodesGlobal.push("home_currency_unset");
+  }
+
+  if (home_currency && batch_currency && batch_currency !== home_currency) {
+    // Batch itself is denominated in a foreign currency — same reject policy.
+    currencyPolicyPassed = false;
+    reasonCodesGlobal.push(`foreign_currency_batch_requires_fx:${batch_currency}`);
+  }
+
+  // Line-level currency checks. Deduplicate reason codes per offending currency.
+  const foreignLineCurrencies = new Set<string>();
+  const mismatchedLineCurrencies = new Set<string>();
+  for (const line of lines) {
+    if (!line.currency) {
+      currencyPolicyPassed = false;
+      reasonCodesGlobal.push("line_currency_unset");
+      continue;
+    }
+    if (home_currency && line.currency !== home_currency) {
+      foreignLineCurrencies.add(line.currency);
+    }
+    if (batch_currency && line.currency !== batch_currency) {
+      mismatchedLineCurrencies.add(line.currency);
+    }
+  }
+  for (const c of foreignLineCurrencies) {
+    currencyPolicyPassed = false;
+    reasonCodesGlobal.push(`foreign_currency_line_requires_fx:${c}`);
+  }
+  for (const c of mismatchedLineCurrencies) {
+    currencyPolicyPassed = false;
+    reasonCodesGlobal.push(`batch_line_currency_mismatch:${c}`);
+  }
+
+  // Per-vendor net position aggregation (unchanged arithmetic).
   const perVendorMap = new Map<
     string,
     { gross: number; credit: number; prepay: number; net: number }
@@ -62,7 +111,6 @@ export function computeInterlock(args: {
   const commitmentByVendor = new Map<string, InterlockVendorCommitmentInput>();
   for (const c of vendor_commitments) commitmentByVendor.set(c.vendor_id, c);
   const perVendor: PerVendorNetPosition[] = [];
-  const reasonCodesGlobal: string[] = [];
   for (const [vendorId, totals] of perVendorMap.entries()) {
     const commitment = commitmentByVendor.get(vendorId);
     const reasons: string[] = [];
@@ -93,6 +141,8 @@ export function computeInterlock(args: {
       reason_codes: reasons,
     });
   }
+
+  // GL budget aggregation (unchanged arithmetic).
   const glMap = new Map<
     string,
     {
@@ -157,7 +207,7 @@ export function computeInterlock(args: {
   }
   const allVendorsPass = perVendor.every((p) => p.passes);
   const allGLPass = glSnapshot.every((g) => g.passes);
-  const passed = allVendorsPass && allGLPass;
+  const passed = currencyPolicyPassed && allVendorsPass && allGLPass;
   return {
     passed,
     per_vendor: perVendor,

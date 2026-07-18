@@ -4,6 +4,7 @@
 import { assertEntitlement } from "@/lib/entitlements/gate";
 import { assertPilotFeature } from "@/lib/entitlements/pilot-features";
 import { publishEvent } from "@/lib/events/publisher";
+import { resolveCurrencyForFirmClient } from "@/lib/erp/quickbooks/currency-resolver";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeInterlock } from "./interlock";
@@ -73,7 +74,7 @@ export async function createPaymentBatch(input: {
   firmClientId: string;
   engagementId: string;
   batchNumber: string;
-  currency?: string;
+  currency: string;
   requestedByUserId: string;
 }): Promise<{ batch_id: string }> {
   await gate({
@@ -86,12 +87,16 @@ export async function createPaymentBatch(input: {
     pilot: PILOT_INTERLOCK,
   });
   const supabase = createServiceClient();
+  const currency = input.currency.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new Error("invalid_currency_format");
+  }
   const { id } = await insertBatch(supabase, {
     firmId: input.firmId,
     firmClientId: input.firmClientId,
     engagementId: input.engagementId,
     batchNumber: input.batchNumber,
-    currency: input.currency ?? "USD",
+    currency,
     requestedByUserId: input.requestedByUserId,
   });
   await emitPaymentsEvent(supabase, {
@@ -101,7 +106,7 @@ export async function createPaymentBatch(input: {
     aggregateType: "payment_batch",
     aggregateId: id,
     eventType: "ap_batch.created",
-    payload: { batch_number: input.batchNumber, currency: input.currency ?? "USD" },
+    payload: { batch_number: input.batchNumber, currency },
     actorUserId: input.requestedByUserId,
   });
   return { batch_id: id };
@@ -116,6 +121,7 @@ export async function addBatchLine(input: {
   billId?: string | null;
   requisitionId?: string | null;
   grossAmountCents: number;
+  currencyCode: string;
   appliedCreditCents?: number;
   appliedPrepaymentCents?: number;
   glAccountCode?: string | null;
@@ -132,6 +138,24 @@ export async function addBatchLine(input: {
     pilot: PILOT_INTERLOCK,
   });
   const supabase = createServiceClient();
+  const currency = input.currencyCode.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new Error("invalid_currency_format");
+  }
+  // MC-4c: line currency must equal parent batch currency.
+  const { data: batchRow, error: batchErr } = await supabase
+    .from("payment_batches")
+    .select("currency")
+    .eq("id", input.batchId)
+    .single();
+  if (batchErr || !batchRow) throw batchErr ?? new Error("batch_not_found");
+  const batchCurrency = String(batchRow.currency ?? "").toUpperCase();
+  if (!batchCurrency) throw new Error("batch_currency_unset");
+  if (batchCurrency !== currency) {
+    throw new Error(
+      `batch_line_currency_mismatch: line=${currency} batch=${batchCurrency}`,
+    );
+  }
   const credit = input.appliedCreditCents ?? 0;
   const prepay = input.appliedPrepaymentCents ?? 0;
   const net = input.grossAmountCents - credit - prepay;
@@ -149,6 +173,7 @@ export async function addBatchLine(input: {
     netAmountCents: net,
     glAccountCode: input.glAccountCode ?? null,
     memo: input.memo ?? null,
+    currency,
   });
   await emitPaymentsEvent(supabase, {
     firmId: input.firmId,
@@ -160,6 +185,7 @@ export async function addBatchLine(input: {
     payload: {
       line_id: id,
       vendor_id: input.vendorId,
+      currency,
       gross_cents: input.grossAmountCents,
       applied_credit_cents: credit,
       applied_prepayment_cents: prepay,
@@ -192,10 +218,24 @@ export async function computePaymentInterlock(input: {
     pilot: PILOT_INTERLOCK,
   });
   const supabase = createServiceClient();
+  // MC-4c: Resolve home currency for this firm_client and load the batch's
+  // declared currency. Both are required inputs into computeInterlock.
+  const currencyRes = await resolveCurrencyForFirmClient(
+    supabase,
+    input.firmClientId,
+    undefined,
+  );
+  const home_currency = currencyRes.ok ? currencyRes.home_currency : "";
+  const { data: batchRow } = await supabase
+    .from("payment_batches")
+    .select("currency")
+    .eq("id", input.batchId)
+    .single();
+  const batch_currency = String(batchRow?.currency ?? "").toUpperCase();
   const { data: rawLines, error: lineErr } = await supabase
     .from("payment_batch_lines")
     .select(
-      "id, vendor_id, gross_amount_cents, applied_credit_cents, applied_prepayment_cents, net_amount_cents, gl_account_code",
+      "id, vendor_id, currency, gross_amount_cents, applied_credit_cents, applied_prepayment_cents, net_amount_cents, gl_account_code",
     )
     .eq("batch_id", input.batchId);
   if (lineErr) throw lineErr;
@@ -205,6 +245,7 @@ export async function computePaymentInterlock(input: {
   const period_month = now.getUTCMonth() + 1;
   const interlockLines = lines.map((l) => ({
     vendor_id: l.vendor_id as string,
+    currency: String(l.currency ?? "").toUpperCase(),
     gross_amount_cents: Number(l.gross_amount_cents),
     applied_credit_cents: Number(l.applied_credit_cents),
     applied_prepayment_cents: Number(l.applied_prepayment_cents),
@@ -260,6 +301,8 @@ export async function computePaymentInterlock(input: {
     lines: interlockLines,
     vendor_commitments: commitments,
     gl_budgets,
+    home_currency,
+    batch_currency,
   });
   const result: InterlockResult = decision.passed ? "passed" : "failed";
   const { data: evt, error: evtErr } = await supabase

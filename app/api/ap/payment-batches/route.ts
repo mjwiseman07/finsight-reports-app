@@ -13,12 +13,16 @@ export async function POST(req: Request) {
     const firmId = auth.firmIds[0];
     if (!firmId) return NextResponse.json({ error: "no_firm_membership" }, { status: 403 });
     const body = await req.json();
+    const currency = typeof body.currency === "string" ? body.currency.trim() : "";
+    if (!currency) {
+      return NextResponse.json({ error: "currency required" }, { status: 400 });
+    }
     const out = await createPaymentBatch({
       firmId,
       firmClientId: String(body.firm_client_id),
       engagementId: String(body.engagement_id),
       batchNumber: String(body.batch_number),
-      currency: body.currency ? String(body.currency) : undefined,
+      currency,
       requestedByUserId: String(body.requested_by_user_id ?? auth.userId),
     });
     return NextResponse.json(out);
