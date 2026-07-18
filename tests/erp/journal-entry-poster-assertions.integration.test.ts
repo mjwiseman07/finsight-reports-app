@@ -7,12 +7,14 @@ const {
   resolveQBOTokenForFirmClient,
   validateJEPayload,
   recordMemory,
+  qboApiFetch,
 } = vi.hoisted(() => ({
   getSupabaseAdmin: vi.fn(),
   canPostToQBO: vi.fn(),
   resolveQBOTokenForFirmClient: vi.fn(),
   validateJEPayload: vi.fn(),
   recordMemory: vi.fn(),
+  qboApiFetch: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase-admin.js", () => ({ getSupabaseAdmin }));
@@ -20,6 +22,7 @@ vi.mock("@/lib/erp/quickbooks/write-preflight", () => ({ canPostToQBO }));
 vi.mock("@/lib/erp/quickbooks/token-resolver", () => ({ resolveQBOTokenForFirmClient }));
 vi.mock("@/lib/erp/quickbooks/je-validator", () => ({ validateJEPayload }));
 vi.mock("@/lib/memory/client-memory-service", () => ({ recordMemory }));
+vi.mock("@/lib/qbo/api-fetch.js", () => ({ qboApiFetch }));
 
 import { qboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster";
 
@@ -32,10 +35,11 @@ beforeEach(() => {
   resolveQBOTokenForFirmClient.mockResolvedValue({ realmId: "r1", accessToken: "tok" });
   validateJEPayload.mockResolvedValue({ valid: true });
   recordMemory.mockResolvedValue({ memory_id: "m1", persistence_status: "persisted" });
-  global.fetch = vi.fn().mockResolvedValue({
+  qboApiFetch.mockResolvedValue({
     ok: true,
     status: 200,
-    json: async () => ({ JournalEntry: { Id: "QBO-1" } }),
+    intuit_tid: "tid-test",
+    json: { JournalEntry: { Id: "QBO-1" } },
   });
 });
 
@@ -133,7 +137,7 @@ describe("journal-entry-poster assertions propagation", () => {
   });
 
   it("failed post also carries assertions_addressed (finalizeFail path)", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+    qboApiFetch.mockResolvedValue({ ok: false, status: 500, intuit_tid: null, json: {} });
     await qboJournalEntryPoster.post({
       firm_client_id: "fc1",
       idempotency_key: "k7",

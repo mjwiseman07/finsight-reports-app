@@ -1,16 +1,19 @@
 /**
- * QBO Journal Entry Poster (Doc D2).
+ * QBO Journal Entry Poster (Doc D2, Phase MC-3 currency-aware).
  *
  * The single safe write path to QBO. Enforces, in order: idempotency,
- * cash-basis gate, write-enabled + health gate, token resolution, payload
- * validation, then posts with one forced-refresh retry on 401. Every attempt
- * writes exactly one row to je_posting_audit; every success records a
- * posted_je memory.
+ * cash-basis gate, write-enabled + health gate, token resolution, currency
+ * resolution (MC-3), payload validation (currency-aware), exchange rate
+ * resolution (MC-3), QBO body build with CurrencyRef + ExchangeRate, then
+ * posts with one forced-refresh retry on 401. Every attempt writes exactly
+ * one row to je_posting_audit; every success records a posted_je memory.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
 import { canPostToQBO } from "@/lib/erp/quickbooks/write-preflight";
 import { validateJEPayload } from "@/lib/erp/quickbooks/je-validator";
+import { resolveCurrencyForFirmClient } from "@/lib/erp/quickbooks/currency-resolver";
+import { resolveExchangeRate } from "@/lib/erp/quickbooks/exchange-rate";
 import type {
   IJournalEntryPoster,
   JEPostRequest,
@@ -23,18 +26,23 @@ import { persistJeEvidence } from "@/lib/je-evidence/persist";
 import { dispatchBackupPacket } from "@/lib/je-evidence/dispatch-hook";
 import { resolveFireAssertions } from "@/lib/assertions/resolve-rule-assertions";
 
-// Env-aware base URL: sandbox realm/token only work against the sandbox host.
 function qboApiBase(): string {
   return process.env.QB_ENVIRONMENT === "production"
     ? "https://quickbooks.api.intuit.com"
     : "https://sandbox-quickbooks.api.intuit.com";
 }
 
+interface CurrencyContext {
+  currency: string;
+  home_currency: string;
+  exchange_rate: number;
+}
+
 export const qboJournalEntryPoster: IJournalEntryPoster = {
   async post(req: JEPostRequest): Promise<JEPostResult> {
     const supabase = getSupabaseAdmin();
 
-    // 1. Idempotency — insert pending; if duplicate key, return existing outcome
+    // 1. Idempotency
     const { data: attempt, error: insertErr } = await supabase
       .from("je_post_attempts")
       .insert({
@@ -68,8 +76,6 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
 
     const attemptId = attempt.attempt_id as string;
 
-    // Part 4: Resolve fallback assertions_addressed for rule-source posts that
-    // didn't pre-compute (e.g., legacy callers). Explicit callers override.
     let resolvedAssertions: string[] = req.assertions_addressed ?? [];
     let resolvedReliability: string | null = req.data_source_reliability_basis ?? null;
     if (req.source_type === "rule" && req.source_id && req.assertions_addressed === undefined) {
@@ -79,7 +85,6 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
       }
     }
 
-    // D6.4b: evidence-contract enforcement — only when a caller supplies a composition (legacy callers unaffected).
     const composition = req.composition;
     if (composition) {
       try {
@@ -92,6 +97,7 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
           { message: err instanceof Error ? err.message : String(err) },
           resolvedAssertions,
           resolvedReliability,
+          null,
         );
         return { status: "rejected", attempt_id: attemptId, reason: "evidence_contract_violation" };
       }
@@ -111,6 +117,7 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
         undefined,
         resolvedAssertions,
         resolvedReliability,
+        null,
       );
       return { status: "rejected", attempt_id: attemptId, reason: "cash_basis_notes_only" };
     }
@@ -125,11 +132,12 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
         undefined,
         resolvedAssertions,
         resolvedReliability,
+        null,
       );
       return { status: "rejected", attempt_id: attemptId, reason: preflight.reason ?? "write_gate_failed" };
     }
 
-    // 4. Resolve token
+    // 4. Token
     const tokenResult = await resolveQBOTokenForFirmClient(req.firm_client_id);
     if (!tokenResult) {
       await finalizeReject(
@@ -139,16 +147,38 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
         undefined,
         resolvedAssertions,
         resolvedReliability,
+        null,
       );
       return { status: "rejected", attempt_id: attemptId, reason: "no_qbo_token" };
     }
 
-    // 5. Validate
+    // 5. MC-3: Resolve currency (explicit > home_currency default; reject if home missing)
+    const currencyResolution = await resolveCurrencyForFirmClient(
+      supabase,
+      req.firm_client_id,
+      req.payload.currency,
+    );
+    if (!currencyResolution.ok) {
+      await finalizeReject(
+        attemptId,
+        req,
+        currencyResolution.reason,
+        undefined,
+        resolvedAssertions,
+        resolvedReliability,
+        null,
+      );
+      return { status: "rejected", attempt_id: attemptId, reason: currencyResolution.reason };
+    }
+
+    // 6. Validate (currency-aware)
     const validation = await validateJEPayload(
       req.firm_client_id,
       req.payload,
       tokenResult.realmId,
       tokenResult.accessToken,
+      currencyResolution.currency,
+      currencyResolution.home_currency,
     );
     if (!validation.valid) {
       await finalizeReject(
@@ -158,6 +188,11 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
         validation.details,
         resolvedAssertions,
         resolvedReliability,
+        {
+          currency: currencyResolution.currency,
+          home_currency: currencyResolution.home_currency,
+          exchange_rate: 0, // pre-rate; not persisted as a real rate
+        },
       );
       return {
         status: "rejected",
@@ -167,15 +202,46 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
       };
     }
 
-    // 6. Build QBO body
-    const qboBody = buildQBOJournalEntry(req.payload);
+    // 7. MC-3: Resolve exchange rate (home short-circuits to 1.0)
+    const rateResult = await resolveExchangeRate(
+      tokenResult.realmId,
+      tokenResult.accessToken,
+      currencyResolution.currency,
+      currencyResolution.home_currency,
+      req.payload.transaction_date,
+    );
+    if (!rateResult.ok) {
+      await finalizeReject(
+        attemptId,
+        req,
+        rateResult.reason,
+        rateResult.details,
+        resolvedAssertions,
+        resolvedReliability,
+        {
+          currency: currencyResolution.currency,
+          home_currency: currencyResolution.home_currency,
+          exchange_rate: 0,
+        },
+      );
+      return { status: "rejected", attempt_id: attemptId, reason: rateResult.reason };
+    }
 
-    // 7. Post with one 401 retry after forced refresh
+    const currencyCtx: CurrencyContext = {
+      currency: currencyResolution.currency,
+      home_currency: currencyResolution.home_currency,
+      exchange_rate: rateResult.rate,
+    };
+
+    // 8. Build QBO body (with CurrencyRef + ExchangeRate)
+    const qboBody = buildQBOJournalEntry(req.payload, currencyCtx);
+
+    // 9. Post with one 401 retry after forced refresh
     let postResp = await postToQBO(tokenResult.realmId, tokenResult.accessToken, qboBody);
     if (postResp.status === 401) {
       const refreshed = await resolveQBOTokenForFirmClient(req.firm_client_id, { forceRefresh: true });
       if (!refreshed) {
-        await finalizeFail(attemptId, req, "token_refresh_failed", undefined, resolvedAssertions, resolvedReliability);
+        await finalizeFail(attemptId, req, "token_refresh_failed", undefined, resolvedAssertions, resolvedReliability, currencyCtx);
         return { status: "failed", attempt_id: attemptId, error: "token_refresh_failed", retryable: true };
       }
       postResp = await postToQBO(refreshed.realmId, refreshed.accessToken, qboBody);
@@ -183,7 +249,7 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
 
     if (!postResp.ok) {
       const errBody = await postResp.json().catch(() => ({}));
-      await finalizeFail(attemptId, req, `qbo_${postResp.status}`, errBody, resolvedAssertions, resolvedReliability);
+      await finalizeFail(attemptId, req, `qbo_${postResp.status}`, errBody, resolvedAssertions, resolvedReliability, currencyCtx);
       return {
         status: "failed",
         attempt_id: attemptId,
@@ -195,12 +261,12 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
     const qboJson = await postResp.json();
     const qboJEId = qboJson?.JournalEntry?.Id;
     if (!qboJEId) {
-      await finalizeFail(attemptId, req, "qbo_response_missing_id", qboJson, resolvedAssertions, resolvedReliability);
+      await finalizeFail(attemptId, req, "qbo_response_missing_id", qboJson, resolvedAssertions, resolvedReliability, currencyCtx);
       return { status: "failed", attempt_id: attemptId, error: "qbo_response_missing_id", retryable: false };
     }
 
-    // 8. Success — persist + memory
-    await finalizePost(attemptId, req, qboJEId, resolvedAssertions, resolvedReliability);
+    // 10. Success — persist + memory
+    await finalizePost(attemptId, req, qboJEId, resolvedAssertions, resolvedReliability, currencyCtx);
     await recordMemory({
       firmClientId: req.firm_client_id,
       memoryType: "posted_je",
@@ -216,10 +282,12 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
         dr_total: sumSide(req.payload, "Debit"),
         cr_total: sumSide(req.payload, "Credit"),
         line_count: req.payload.lines.length,
+        currency: currencyCtx.currency,
+        exchange_rate: currencyCtx.exchange_rate,
+        home_currency_at_post: currencyCtx.home_currency,
       },
     });
 
-    // D6.4b: fire-and-forget backup packet on success (only if composition supplied).
     if (composition) dispatchBackupPacket(supabase, attemptId, req.firm_client_id);
 
     return { status: "posted", attempt_id: attemptId, qbo_je_id: qboJEId };
@@ -239,9 +307,12 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
     }
 
     const originalPayload = original.payload_json as JEPayload;
+    // Preserve original currency; rate will be re-resolved at reversal post time
+    // (matches QBO UI behavior — reversal posts at current rate, not historical).
     const reversedPayload: JEPayload = {
       transaction_date: shiftDate(originalPayload.transaction_date, 1),
       narration: `REVERSAL of ${original.qbo_je_id}: ${reason}`,
+      currency: originalPayload.currency,
       lines: originalPayload.lines.map((l) => ({
         ...l,
         posting_type: l.posting_type === "Debit" ? "Credit" : "Debit",
@@ -274,10 +345,12 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
 
 // ---- helpers ----
 
-function buildQBOJournalEntry(p: JEPayload) {
+function buildQBOJournalEntry(p: JEPayload, ctx: CurrencyContext) {
   return {
     TxnDate: p.transaction_date,
     PrivateNote: p.private_note,
+    CurrencyRef: { value: ctx.currency },
+    ExchangeRate: Number(ctx.exchange_rate.toFixed(6)),
     Line: p.lines.map((l, idx) => ({
       Id: String(idx),
       DetailType: "JournalEntryLineDetail",
@@ -316,7 +389,6 @@ async function postToQBO(
     method: "POST",
     body: body as object,
   });
-  // Preserve the previous Response-like shape callers may expect
   return {
     ok,
     status,
@@ -333,6 +405,7 @@ async function finalizeReject(
   details: unknown | undefined,
   assertions: string[],
   reliability: string | null,
+  currencyCtx: CurrencyContext | null,
 ) {
   const supabase = getSupabaseAdmin();
   await supabase.from("je_post_attempts").update({ status: "rejected" }).eq("attempt_id", attemptId);
@@ -354,6 +427,9 @@ async function finalizeReject(
     payload_json: req.payload,
     assertions_addressed: assertions,
     data_source_reliability_basis: reliability,
+    currency: currencyCtx?.currency ?? null,
+    exchange_rate: currencyCtx && currencyCtx.exchange_rate > 0 ? currencyCtx.exchange_rate : null,
+    home_currency_at_post: currencyCtx?.home_currency ?? null,
   });
 }
 
@@ -364,6 +440,7 @@ async function finalizeFail(
   details: unknown | undefined,
   assertions: string[],
   reliability: string | null,
+  currencyCtx: CurrencyContext | null,
 ) {
   const supabase = getSupabaseAdmin();
   await supabase.from("je_post_attempts").update({ status: "failed" }).eq("attempt_id", attemptId);
@@ -385,6 +462,9 @@ async function finalizeFail(
     payload_json: req.payload,
     assertions_addressed: assertions,
     data_source_reliability_basis: reliability,
+    currency: currencyCtx?.currency ?? null,
+    exchange_rate: currencyCtx && currencyCtx.exchange_rate > 0 ? currencyCtx.exchange_rate : null,
+    home_currency_at_post: currencyCtx?.home_currency ?? null,
   });
 }
 
@@ -394,6 +474,7 @@ async function finalizePost(
   qboJEId: string,
   assertions: string[],
   reliability: string | null,
+  currencyCtx: CurrencyContext,
 ) {
   const supabase = getSupabaseAdmin();
   await supabase
@@ -417,6 +498,9 @@ async function finalizePost(
     payload_json: req.payload,
     assertions_addressed: assertions,
     data_source_reliability_basis: reliability,
+    currency: currencyCtx.currency,
+    exchange_rate: currencyCtx.exchange_rate,
+    home_currency_at_post: currencyCtx.home_currency,
   });
 }
 

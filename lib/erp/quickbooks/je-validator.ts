@@ -1,8 +1,9 @@
 /**
- * JE Validator (Doc D2).
+ * JE Validator (Doc D2, Phase MC-3 extended).
  *
  * Pure guardrails run before any QBO write: balance, line completeness,
- * locked-period rejection, and live account-existence verification.
+ * locked-period rejection, live account-existence verification, and
+ * (MC-3) currency-active verification.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { qboApiFetch } from "../../qbo/api-fetch.js";
@@ -12,7 +13,6 @@ export type ValidationResult =
   | { valid: true }
   | { valid: false; reason: string; details?: unknown };
 
-// Env-aware base URL: the sandbox realm/token only works against the sandbox host.
 function qboApiBase(): string {
   return process.env.QB_ENVIRONMENT === "production"
     ? "https://quickbooks.api.intuit.com"
@@ -24,6 +24,8 @@ export async function validateJEPayload(
   payload: JEPayload,
   realmId: string,
   accessToken: string,
+  resolvedCurrency?: string,
+  homeCurrency?: string,
 ): Promise<ValidationResult> {
   // 1. Balance check (tolerance 0.005)
   const drTotal = payload.lines
@@ -45,8 +47,7 @@ export async function validateJEPayload(
     }
   }
 
-  // 3. Locked period check — reject if txn date falls inside a period with
-  //    status IN ('locked','signed_off').
+  // 3. Locked period check
   const supabase = getSupabaseAdmin();
   const { data: lockedPeriod } = await supabase
     .from("close_periods")
@@ -67,6 +68,22 @@ export async function validateJEPayload(
     return { valid: false, reason: "invalid_account_id", details: accountsValid.missing };
   }
 
+  // 5. MC-3: currency-active verification. Fast-path when currency === home
+  //    (always active by definition). Only queries when caller supplied a
+  //    resolved currency (poster always does post-MC-3; legacy callers do not).
+  if (resolvedCurrency && homeCurrency) {
+    if (resolvedCurrency.toUpperCase() !== homeCurrency.toUpperCase()) {
+      const active = await verifyCurrencyActive(realmId, accessToken, resolvedCurrency);
+      if (!active) {
+        return {
+          valid: false,
+          reason: "currency_not_active",
+          details: { currency: resolvedCurrency },
+        };
+      }
+    }
+  }
+
   return { valid: true };
 }
 
@@ -74,11 +91,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// A single account's existence check. An HTTP 200 is authoritative — whether the
-// account is found or not, we return immediately (zero retry latency on the happy
-// path AND on a genuine "account not found"). Retries fire ONLY on transient QBO
-// faults (429 rate-limit or 5xx application/system faults), which is what caused
-// the earlier bulk-post flakiness under load.
 async function accountExists(
   realmId: string,
   accessToken: string,
@@ -97,8 +109,6 @@ async function accountExists(
       const rows = json?.QueryResponse?.Account;
       return Array.isArray(rows) ? rows.length > 0 : !!rows;
     }
-
-    // Non-2xx: retry only on transient faults; otherwise treat as not found.
     const transient = status === 429 || status >= 500;
     if (!transient || attempt === maxAttempts) return false;
     await sleep(800 * attempt);
@@ -111,10 +121,38 @@ async function verifyQBOAccountsExist(
   accessToken: string,
   accountIds: string[],
 ): Promise<{ valid: boolean; missing?: string[] }> {
-  // Parallel per-account checks keep wall-clock ≈ one round trip on the happy path.
   const checks = await Promise.all(
     accountIds.map(async (id) => ({ id, exists: await accountExists(realmId, accessToken, id) })),
   );
   const missing = checks.filter((c) => !c.exists).map((c) => c.id);
   return missing.length === 0 ? { valid: true } : { valid: false, missing };
+}
+
+// MC-3: verify currency is in the QBO active currency list.
+async function verifyCurrencyActive(
+  realmId: string,
+  accessToken: string,
+  currency: string,
+): Promise<boolean> {
+  const maxAttempts = 3;
+  const upper = currency.toUpperCase();
+  const query = encodeURIComponent(
+    `SELECT Id, Code FROM CompanyCurrency WHERE Code = '${upper}'`,
+  );
+  const url = `${qboApiBase()}/v3/company/${realmId}/query?query=${query}&minorversion=73`;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { ok, status, json } = await qboApiFetch(url, {
+      accessToken,
+      method: "GET",
+    });
+    if (ok) {
+      const rows = json?.QueryResponse?.CompanyCurrency;
+      return Array.isArray(rows) ? rows.length > 0 : !!rows;
+    }
+    const transient = status === 429 || status >= 500;
+    if (!transient || attempt === maxAttempts) return false;
+    await sleep(800 * attempt);
+  }
+  return false;
 }
