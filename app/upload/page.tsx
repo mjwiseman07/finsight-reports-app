@@ -22,6 +22,7 @@ import {
   personaOutputModes,
 } from "../../lib/executive-delivery-architecture";
 import { DEFAULT_FALLBACK_CURRENCY, isValidCurrencyCode, formatMoney as formatMoneyShared } from "../../lib/format/money";
+import { parseAmount } from "@/lib/parse/amount";
 
 type ParsedFile = {
   name: string;
@@ -3875,21 +3876,33 @@ async function downloadPowerPointDeck(
   }
 }
 
+// Phase MC-2e.3 (Issue #6, Gap I-3): body replaced with delegating wrapper
+// around the shared locale-aware parser at lib/parse/amount. Public signature
+// preserved: (value: unknown) => number | null. All 49 downstream call sites
+// in this file are unchanged.
+//
+// Improvements over the prior implementation:
+//   - de-DE (1.234,56), de-CH (1'234.56), en-IN (1,23,456.78) now parse
+//     correctly via the shared heuristic fallback.
+//   - fr-FR / fr-CA (1 234,56 with NBSP/NNBSP/space grouping) parse
+//     correctly after the inner-whitespace pre-strip below.
+//   - Leading `=` (spreadsheet-formula marker) still stripped up front,
+//     matching legacy behavior — the shared parser does not know about `=`.
+//   - Paren-negative, leading-minus, currency-symbol/ISO stripping all
+//     inherited from lib/parse/amount's stripPresentational stage.
+//
+// Threading homeCurrency into parseNumber was considered and rejected — see
+// the MC-2e.3 paste block rationale. The heuristic fallback covers the
+// important non-en-US cases without needing tenant context.
 function parseNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
-
-  const text = String(value)
-    .replace(/\$/g, "")
-    .replace(/,/g, "")
-    .replace(/\((.*?)\)/g, "-$1")
-    .replace(/^=/, "")
-    .trim();
-  const numericText = text.replace(/[^0-9.-]/g, "");
-
-  if (!/\d/.test(numericText)) return null;
-
-  const number = Number(numericText);
-  return Number.isFinite(number) ? number : null;
+  const raw = String(value).replace(/^=/, "").trim();
+  if (!raw) return null;
+  // Collapse inner whitespace (ASCII space, NBSP U+00A0, NNBSP U+202F, thin
+  // space U+2009) so fr-FR / fr-CA `1 234,56` reduces to `1234,56` and can
+  // be interpreted by the shared parser's heuristic mixed-punct branch.
+  const collapsed = raw.replace(/[\s\u00a0\u202f\u2009]+/g, "");
+  return parseAmount(collapsed);
 }
 
 function getLastNumericValue(row: unknown[]) {
