@@ -4002,6 +4002,7 @@ function buildExecutiveSummary({
   includePayroll,
   includeBudget,
   includeDebt,
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   kpis: KPIs;
@@ -4034,6 +4035,15 @@ function buildExecutiveSummary({
   includePayroll: boolean;
   includeBudget: boolean;
   includeDebt: boolean;
+  /**
+   * ISO 4217 tenant home currency threaded from `UploadPage.homeCurrency`
+   * React state (populated from QBO `company_profile.home_currency` by
+   * `applyQuickBooksClientProfile` in Phase MC-2d.3a). Consumed by the
+   * ~28 currency-formatter call sites inside this function's body.
+   * Defaults to `"USD"` for CSV-only sessions and legacy connections
+   * without a home_currency captured.
+   */
+  homeCurrency: string;
 }) {
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
   const expenseRatio = kpis.revenue ? (kpis.expenses / kpis.revenue) * 100 : 0;
@@ -4108,17 +4118,17 @@ function buildExecutiveSummary({
     if (!row) return fallback;
     const movement = row.dollarVariance >= 0 ? "increased" : "decreased";
     const driver = isMeaningfulFluxDriver(row.topDriver) ? `, with ${row.topDriver} identified as the largest activity driver` : "";
-    return `${row.accountName} ${movement} ${formatMoneyLegacy(Math.abs(row.dollarVariance))} ${row.periodLabel}${driver}`;
+    return `${row.accountName} ${movement} ${formatMoneyLegacy(Math.abs(row.dollarVariance), homeCurrency)} ${row.periodLabel}${driver}`;
   };
   const netIncomeDriverNarratives = [
     revenueFlux ? describeFluxDriver(revenueFlux, "") : "",
     marginFlux ? describeFluxDriver(marginFlux, "") : "",
     payrollFlux ? describeFluxDriver(payrollFlux, "") : "",
     includePayroll && Math.abs(payrollAnalysis.totalPayrollCostChange) > 0
-      ? `Payroll changed by ${formatMoneyLegacy(payrollAnalysis.totalPayrollCostChange)} while FTE changed by ${formatFte(payrollAnalysis.totalFteChange)}, connecting labor cost movement to operating capacity.`
+      ? `Payroll changed by ${formatMoneyLegacy(payrollAnalysis.totalPayrollCostChange, homeCurrency)} while FTE changed by ${formatFte(payrollAnalysis.totalFteChange)}, connecting labor cost movement to operating capacity.`
       : "",
     includeAr && arReserveIntelligence.totalSuggestedReserve > 0
-      ? `Reserve exposure of ${formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve)} should be read with collection timing, customer concentration, and aging migration.`
+      ? `Reserve exposure of ${formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve, homeCurrency)} should be read with collection timing, customer concentration, and aging migration.`
       : "",
     isProfessionalOrHigher(packageTier) && liquidityFlux ? describeFluxDriver(liquidityFlux, "") : "",
     isVirtualCfo(packageTier) && revenueRecognitionIntelligence.enabled && revenueRecognitionIntelligence.commentary[0]
@@ -4141,7 +4151,7 @@ function buildExecutiveSummary({
       "Workforce",
       "Review staffing scalability",
       Math.abs(payrollAnalysis.totalFteChange) > 0.5 || payrollAnalysis.totalPayrollCostChange > 0
-        ? `Payroll and FTE movement should be reviewed together: payroll changed ${formatMoneyLegacy(payrollAnalysis.totalPayrollCostChange)} while FTE changed ${formatFte(payrollAnalysis.totalFteChange)}. ${workforceSummary}`
+        ? `Payroll and FTE movement should be reviewed together: payroll changed ${formatMoneyLegacy(payrollAnalysis.totalPayrollCostChange, homeCurrency)} while FTE changed ${formatFte(payrollAnalysis.totalFteChange)}. ${workforceSummary}`
         : "Payroll and FTE levels appear stable, but revenue per FTE and labor utilization should remain part of the monthly operating review.",
       payrollAnalysis.totalPayrollCostChange > 0 && kpis.revenue <= priorKpis.revenue ? 80 : Math.abs(payrollAnalysis.totalFteChange) > 0.5 ? 65 : 30,
     );
@@ -4153,7 +4163,7 @@ function buildExecutiveSummary({
       "Manage reserve exposure and collection cadence",
       reserveLifecycleIntelligence.adequacyStatus === "Elevated Review"
         ? `${reserveLifecycleSummary} Collection timing and customer concentration may warrant management review before client-ready commentary is finalized.`
-        : `AR quality remains a management watch area, with ${formatMoneyLegacy(arKpis.days90Plus)} over 90 days and preliminary reserve exposure of ${formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve)}.`,
+        : `AR quality remains a management watch area, with ${formatMoneyLegacy(arKpis.days90Plus, homeCurrency)} over 90 days and preliminary reserve exposure of ${formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve, homeCurrency)}.`,
       reserveLifecycleIntelligence.adequacyStatus === "Elevated Review" ? 88 : arKpis.days90Plus > 0 ? 58 : 28,
     );
   }
@@ -4163,8 +4173,8 @@ function buildExecutiveSummary({
       "Inventory",
       "Improve inventory and working capital discipline",
       inventoryIntelligence.turns !== null && inventoryIntelligence.turns < 3
-        ? `Inventory turns are ${inventoryIntelligence.turns.toFixed(1)}x, and slow-moving exposure of ${formatCurrency(inventoryIntelligence.slowMovingValue)} may pressure working capital and reserve planning.`
-        : `Inventory totals ${formatMoneyLegacy(inventoryKpis.totalValue)}${topInventoryItem ? `, with ${topInventoryItem.name} representing ${topInventoryConcentration.toFixed(1)}% of value` : ""}. Continue reviewing turnover, purchasing cadence, and concentration.`,
+        ? `Inventory turns are ${inventoryIntelligence.turns.toFixed(1)}x, and slow-moving exposure of ${formatCurrency(inventoryIntelligence.slowMovingValue, homeCurrency)} may pressure working capital and reserve planning.`
+        : `Inventory totals ${formatMoneyLegacy(inventoryKpis.totalValue, homeCurrency)}${topInventoryItem ? `, with ${topInventoryItem.name} representing ${topInventoryConcentration.toFixed(1)}% of value` : ""}. Continue reviewing turnover, purchasing cadence, and concentration.`,
       inventoryIntelligence.turns !== null && inventoryIntelligence.turns < 3 ? 78 : inventoryIntelligence.slowMovingValue > 0 ? 62 : 32,
     );
   }
@@ -4173,7 +4183,7 @@ function buildExecutiveSummary({
       priorityItems,
       "Liquidity",
       "Monitor liquidity and working capital pressure",
-      `${treasurySummary} Working capital is ${workingCapital === null ? "not fully available" : formatMoneyLegacy(workingCapital)}, current ratio is ${currentRatio !== null ? currentRatio.toFixed(2) : "N/A"}, and quick ratio is ${quickRatio !== null ? quickRatio.toFixed(2) : "N/A"}. Cash positioning should be read alongside AR/AP timing.`,
+      `${treasurySummary} Working capital is ${workingCapital === null ? "not fully available" : formatMoneyLegacy(workingCapital, homeCurrency)}, current ratio is ${currentRatio !== null ? currentRatio.toFixed(2) : "N/A"}, and quick ratio is ${quickRatio !== null ? quickRatio.toFixed(2) : "N/A"}. Cash positioning should be read alongside AR/AP timing.`,
       treasuryLiquidityIntelligence.internalFlags.length ? 72 : workingCapital !== null && workingCapital < 0 ? 85 : 38,
     );
   }
@@ -4183,7 +4193,7 @@ function buildExecutiveSummary({
       priorityItems,
       "Capital Investment",
       "Review capital spending and asset utilization",
-      `Fixed assets have net book value of ${formatMoneyLegacy(fixedAssetKpis.netBookValue)}${nbvChange !== null ? `, with net book value changing ${formatMoneyLegacy(nbvChange)} versus the prior comparison period` : ""}. Review whether capital investment is translating into operating capacity and margin support.`,
+      `Fixed assets have net book value of ${formatMoneyLegacy(fixedAssetKpis.netBookValue, homeCurrency)}${nbvChange !== null ? `, with net book value changing ${formatMoneyLegacy(nbvChange, homeCurrency)} versus the prior comparison period` : ""}. Review whether capital investment is translating into operating capacity and margin support.`,
       nbvChange !== null && Math.abs(nbvChange) > Math.max(fixedAssetKpis.netBookValue * 0.1, 25000) ? 52 : 30,
     );
   }
@@ -4192,7 +4202,7 @@ function buildExecutiveSummary({
       priorityItems,
       "Debt",
       "Review leverage and debt service capacity",
-      `Debt totals ${formatMoneyLegacy(debtMetrics.totalDebt)}, with debt-to-assets of ${debtMetrics.debtToAssets !== null ? `${debtMetrics.debtToAssets.toFixed(1)}%` : "N/A"}. Review liquidity, debt service capacity, and capital needs together.`,
+      `Debt totals ${formatMoneyLegacy(debtMetrics.totalDebt, homeCurrency)}, with debt-to-assets of ${debtMetrics.debtToAssets !== null ? `${debtMetrics.debtToAssets.toFixed(1)}%` : "N/A"}. Review liquidity, debt service capacity, and capital needs together.`,
       debtMetrics.debtToAssets !== null && debtMetrics.debtToAssets > 40 ? 70 : 42,
     );
   }
@@ -4233,13 +4243,13 @@ function buildExecutiveSummary({
   const storyCards: ExecutiveStoryCard[] = [
     {
       label: "Profit Story",
-      value: formatMoneyLegacy(kpis.netIncome),
+      value: formatMoneyLegacy(kpis.netIncome, homeCurrency),
       tone: netMargin < 10 ? "watch" : "neutral",
       narrative: netIncomeDriverNarratives[0] || "Net income should be reviewed through revenue movement, margin behavior, payroll scaling, and approved flux drivers.",
     },
     {
       label: "Liquidity Outlook",
-      value: packageTier === "essential" ? formatMoneyLegacy(arKpis.total - apKpis.total) : formatMoneyLegacy(kpis.cash),
+      value: packageTier === "essential" ? formatMoneyLegacy(arKpis.total - apKpis.total, homeCurrency) : formatMoneyLegacy(kpis.cash, homeCurrency),
       tone: isProfessionalOrHigher(packageTier) && treasuryLiquidityIntelligence.internalFlags.length ? "watch" : "neutral",
       narrative: packageTier === "essential"
         ? "Essential liquidity storytelling focuses on AR collection cadence and AP timing rather than broader treasury analysis."
@@ -4247,13 +4257,13 @@ function buildExecutiveSummary({
     },
     {
       label: "Operating Leverage",
-      value: includePayroll && workforceIntelligence.revenuePerFte !== null ? formatMoneyLegacy(workforceIntelligence.revenuePerFte) : `${netMargin.toFixed(1)}%`,
+      value: includePayroll && workforceIntelligence.revenuePerFte !== null ? formatMoneyLegacy(workforceIntelligence.revenuePerFte, homeCurrency) : `${netMargin.toFixed(1)}%`,
       tone: includePayroll && payrollAnalysis.totalPayrollCostChange > 0 && kpis.revenue <= priorKpis.revenue ? "watch" : "neutral",
       narrative: includePayroll ? workforceSummary : "Operating leverage should be read through margin, expense behavior, and revenue conversion.",
     },
     {
       label: "Receivables Quality",
-      value: formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve),
+      value: formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve, homeCurrency),
       tone: reserveLifecycleIntelligence.adequacyStatus === "Elevated Review" ? "watch" : "neutral",
       narrative: reserveLifecycleSummary,
     },
@@ -4278,7 +4288,7 @@ function buildExecutiveSummary({
   const sections: ExecutiveSummarySectionItem[] = [
     {
       title: "Executive Storyline",
-      body: `${pickPhrase(["The period should be read through operating execution, cash conversion, and margin quality.", "The executive story is less about isolated balances and more about how performance converted into cash, capacity, and risk.", "The management view starts with what changed, why it changed, and where attention should go next."])} Revenue was ${formatMoneyLegacy(kpis.revenue)}, gross margin was ${grossMargin.toFixed(1)}%, net income was ${formatMoneyLegacy(kpis.netIncome)}, and net margin was ${netMargin.toFixed(1)}%. ${topPriority ? `The primary management priority is ${topPriority.title.toLowerCase()}: ${topPriority.narrative}` : "Management should continue reviewing profitability, collections, and operating trend indicators."}`,
+      body: `${pickPhrase(["The period should be read through operating execution, cash conversion, and margin quality.", "The executive story is less about isolated balances and more about how performance converted into cash, capacity, and risk.", "The management view starts with what changed, why it changed, and where attention should go next."])} Revenue was ${formatMoneyLegacy(kpis.revenue, homeCurrency)}, gross margin was ${grossMargin.toFixed(1)}%, net income was ${formatMoneyLegacy(kpis.netIncome, homeCurrency)}, and net margin was ${netMargin.toFixed(1)}%. ${topPriority ? `The primary management priority is ${topPriority.title.toLowerCase()}: ${topPriority.narrative}` : "Management should continue reviewing profitability, collections, and operating trend indicators."}`,
     },
     {
       title: "Net Income Driver Intelligence",
@@ -4302,7 +4312,7 @@ function buildExecutiveSummary({
             title: "Board-Level Planning View",
             body: `${secondPriority ? `Secondary priority: ${secondPriority.narrative}` : "Board discussion should remain focused on liquidity, margin quality, staffing scalability, and forecast visibility."} ${
               treasuryLiquidityIntelligence.cashForecast.length
-                ? `Cash forecasting indicates ${formatMoneyLegacy(treasuryLiquidityIntelligence.cashForecast[treasuryLiquidityIntelligence.cashForecast.length - 1].projectedCash)} projected cash in the outer forecast period.`
+                ? `Cash forecasting indicates ${formatMoneyLegacy(treasuryLiquidityIntelligence.cashForecast[treasuryLiquidityIntelligence.cashForecast.length - 1].projectedCash, homeCurrency)} projected cash in the outer forecast period.`
                 : ""
             }`,
           },
@@ -4317,7 +4327,7 @@ function buildExecutiveSummary({
     ? [
         treasuryLiquidityIntelligence.enabled ? "Liquidity outlook, cash runway, and working capital pressure under current operating assumptions." : "",
         includePayroll ? "Staffing scalability, revenue per FTE, and whether payroll growth is producing operating leverage." : "",
-        includeInventory ? `Inventory reserve exposure and turnover discipline, including ${formatCurrency(inventoryIntelligence.slowMovingValue)} of identified slow-moving inventory.` : "",
+        includeInventory ? `Inventory reserve exposure and turnover discipline, including ${formatCurrency(inventoryIntelligence.slowMovingValue, homeCurrency)} of identified slow-moving inventory.` : "",
         includeDebt ? "Debt capacity, leverage tolerance, and cash flow available for debt service." : "",
         revenueRecognitionIntelligence.enabled ? "Deferred revenue timing, unbilled AR conversion, and future revenue visibility." : "",
         reserveLifecycleIntelligence.enabled ? "Reserve exposure, customer concentration, and collection trend implications for liquidity and earnings quality." : "",
@@ -4359,20 +4369,20 @@ function buildExecutiveSummary({
     backendReviewFlags,
     highlights: [
       `${storyCards[0].label}: ${storyCards[0].value} - ${storyCards[0].narrative}`,
-      `Gross profit was ${formatMoneyLegacy(kpis.grossProfit)}, representing a gross margin of ${grossMargin.toFixed(1)}%.`,
-      ...(packageTier !== "essential" ? [`Cash on hand was ${formatMoneyLegacy(kpis.cash)}, equal to ${cashToAssets.toFixed(1)}% of total assets.`] : []),
-      ...(includePayroll ? [`Payroll cost was ${formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost)} across ${formatFte(payrollAnalysis.totalCurrentFte)} FTE, creating a staffing scalability review point.`] : []),
+      `Gross profit was ${formatMoneyLegacy(kpis.grossProfit, homeCurrency)}, representing a gross margin of ${grossMargin.toFixed(1)}%.`,
+      ...(packageTier !== "essential" ? [`Cash on hand was ${formatMoneyLegacy(kpis.cash, homeCurrency)}, equal to ${cashToAssets.toFixed(1)}% of total assets.`] : []),
+      ...(includePayroll ? [`Payroll cost was ${formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost, homeCurrency)} across ${formatFte(payrollAnalysis.totalCurrentFte)} FTE, creating a staffing scalability review point.`] : []),
       ...(includeFixedAssets
-        ? [`Net book value of fixed assets was ${formatCurrency(fixedAssetKpis.netBookValue)}.`]
+        ? [`Net book value of fixed assets was ${formatCurrency(fixedAssetKpis.netBookValue, homeCurrency)}.`]
         : []),
     ],
     watchItems: riskNarratives.length
       ? riskNarratives.map((item) => `${item.severity}: ${item.title} - ${item.narrative}`)
       : [
-          `Expenses totaled ${formatMoneyLegacy(kpis.expenses)}, or ${expenseRatio.toFixed(1)}% of revenue.`,
-          `Accounts receivable was ${formatMoneyLegacy(kpis.accountsReceivable)}, which should be monitored for collection timing.`,
+          `Expenses totaled ${formatMoneyLegacy(kpis.expenses, homeCurrency)}, or ${expenseRatio.toFixed(1)}% of revenue.`,
+          `Accounts receivable was ${formatMoneyLegacy(kpis.accountsReceivable, homeCurrency)}, which should be monitored for collection timing.`,
           ...(includePayroll
-            ? [`Payroll cost per FTE was ${formatMoneyLegacy(payrollCostPerFte)}, which should be reviewed with revenue per FTE and gross margin trends.`]
+            ? [`Payroll cost per FTE was ${formatMoneyLegacy(payrollCostPerFte, homeCurrency)}, which should be reviewed with revenue per FTE and gross margin trends.`]
             : []),
         ],
   };
@@ -12491,6 +12501,7 @@ export default function UploadPage() {
     includePayroll: Boolean(activeCurrentPayrollData),
     includeBudget: Boolean(activeBudgetVsActualData),
     includeDebt: Boolean(activeDebtScheduleData),
+    homeCurrency,
   });
   const packageQaFindings = buildPackageQaFindings({
     packageTier,
@@ -14482,6 +14493,7 @@ export default function UploadPage() {
                 includeHighSeverityOnly={includeHighSeverityOnly}
                 includeModerateSeverity={includeModerateSeverity}
                 maxFluxRows={maxFluxRows}
+                homeCurrency={homeCurrency}
               onClientNameChange={(value) => {
                 resetGeneratedState();
                 setClientName(value);
@@ -14869,6 +14881,7 @@ export default function UploadPage() {
               includeFixedAssets={Boolean(activeFixedAssetData)}
               includePayroll={Boolean(activeCurrentPayrollData)}
               inventoryIntelligence={inventoryIntelligence}
+              homeCurrency={homeCurrency}
             />
           )}
 
@@ -17705,6 +17718,7 @@ function PackageCustomizationPanel({
   onConfirmDso,
   onEditDsoInputs,
   onOmitDsoInput,
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   reports: UploadReport[];
@@ -17790,6 +17804,11 @@ function PackageCustomizationPanel({
   onConfirmDso: () => void;
   onEditDsoInputs: () => void;
   onOmitDsoInput: () => void;
+  /**
+   * ISO 4217 tenant home currency threaded from `UploadPage.homeCurrency`.
+   * Consumed by the 11 currency-formatter call sites inside this panel.
+   */
+  homeCurrency: string;
 }) {
   const [salesDetailInputKey, setSalesDetailInputKey] = useState(0);
   const [customKpiModalOpen, setCustomKpiModalOpen] = useState(false);
@@ -18294,7 +18313,7 @@ function PackageCustomizationPanel({
                 Additional Information Needed for DSO
               </h3>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#94A3B8]">
-                Accounts receivable was detected at {formatCurrency(accountsReceivable)}, but Advisacor
+                Accounts receivable was detected at {formatCurrency(accountsReceivable, homeCurrency)}, but Advisacor
                 needs average daily sales to calculate DSO.
               </p>
             </div>
@@ -18329,7 +18348,7 @@ function PackageCustomizationPanel({
               <p className="text-sm font-bold text-[#F9FAFB]">Option 1: Monthly Revenue and Days</p>
               <p className="mt-2 text-xs leading-5 text-[#94A3B8]">
                 Enter monthly revenue and days in period. If revenue is blank, detected revenue
-                ({formatCurrency(detectedRevenue)}) will be used when available.
+                ({formatCurrency(detectedRevenue, homeCurrency)}) will be used when available.
               </p>
               <input
                 type="number"
@@ -18395,7 +18414,7 @@ function PackageCustomizationPanel({
               {salesDetailData && (
                 <p className="mt-3 truncate rounded-xl bg-[#0B1020] px-3 py-2 text-xs text-[#94A3B8]">
                   {salesDetailData.name}
-                  {salesDetailRevenue ? ` | Sales detected: ${formatCurrency(salesDetailRevenue)}` : ""}
+                  {salesDetailRevenue ? ` | Sales detected: ${formatCurrency(salesDetailRevenue, homeCurrency)}` : ""}
                 </p>
               )}
             </div>
@@ -18459,10 +18478,10 @@ function PackageCustomizationPanel({
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-              <PrintLikeMetric label="Accounts Receivable" value={formatCurrency(accountsReceivableUsed)} />
-              <PrintLikeMetric label="Revenue Used" value={revenueUsed ? formatCurrency(revenueUsed) : "N/A"} />
+              <PrintLikeMetric label="Accounts Receivable" value={formatCurrency(accountsReceivableUsed, homeCurrency)} />
+              <PrintLikeMetric label="Revenue Used" value={revenueUsed ? formatCurrency(revenueUsed, homeCurrency) : "N/A"} />
               <PrintLikeMetric label="Period Days" value={dsoPeriodDays || effectiveDays ? String(dsoPeriodDays || effectiveDays) : "N/A"} />
-              <PrintLikeMetric label="Average Daily Sales" value={averageDailySalesUsed ? formatCurrency(averageDailySalesUsed) : "N/A"} />
+              <PrintLikeMetric label="Average Daily Sales" value={averageDailySalesUsed ? formatCurrency(averageDailySalesUsed, homeCurrency) : "N/A"} />
               <PrintLikeMetric label="Calculated DSO" value={dso !== null ? `${dso.toFixed(1)} days` : "Pending"} />
             </div>
 
@@ -18582,7 +18601,7 @@ function PackageCustomizationPanel({
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#5B8CFF]">DSO Setup</p>
               <h3 className="mt-2 text-2xl font-bold text-[#F9FAFB]">Confirm DSO before returning to Step 3</h3>
               <p className="mt-2 text-sm leading-6 text-[#94A3B8]">
-                Accounts receivable was detected at {formatCurrency(accountsReceivable)}. Provide sales data, confirm the calculation, or omit DSO from this custom package.
+                Accounts receivable was detected at {formatCurrency(accountsReceivable, homeCurrency)}. Provide sales data, confirm the calculation, or omit DSO from this custom package.
               </p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -18645,7 +18664,7 @@ function PackageCustomizationPanel({
                   {salesDetailData && (
                     <p className="mt-3 truncate rounded-xl bg-[#0B1020] px-3 py-2 text-xs text-[#94A3B8]">
                       {salesDetailData.name}
-                      {salesDetailRevenue ? ` | Sales detected: ${formatCurrency(salesDetailRevenue)}` : ""}
+                      {salesDetailRevenue ? ` | Sales detected: ${formatCurrency(salesDetailRevenue, homeCurrency)}` : ""}
                     </p>
                   )}
                 </div>
@@ -18684,10 +18703,10 @@ function PackageCustomizationPanel({
                 </label>
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-                <PrintLikeMetric label="Accounts Receivable" value={formatCurrency(accountsReceivableUsed)} />
-                <PrintLikeMetric label="Revenue Used" value={revenueUsed ? formatCurrency(revenueUsed) : "N/A"} />
+                <PrintLikeMetric label="Accounts Receivable" value={formatCurrency(accountsReceivableUsed, homeCurrency)} />
+                <PrintLikeMetric label="Revenue Used" value={revenueUsed ? formatCurrency(revenueUsed, homeCurrency) : "N/A"} />
                 <PrintLikeMetric label="Period Days" value={dsoPeriodDays || effectiveDays ? String(dsoPeriodDays || effectiveDays) : "N/A"} />
-                <PrintLikeMetric label="Average Daily Sales" value={averageDailySalesUsed ? formatCurrency(averageDailySalesUsed) : "N/A"} />
+                <PrintLikeMetric label="Average Daily Sales" value={averageDailySalesUsed ? formatCurrency(averageDailySalesUsed, homeCurrency) : "N/A"} />
                 <PrintLikeMetric label="Calculated DSO" value={dso !== null ? `${dso.toFixed(1)} days` : "Pending"} />
               </div>
               <p className="mt-4 text-sm leading-6 text-[#94A3B8]">
@@ -20635,6 +20654,7 @@ function BoardPackagePreview({
   includeInventory,
   includeFixedAssets,
   includePayroll,
+  homeCurrency,
 }: {
   companyName: string;
   reportPeriod: string;
@@ -20654,6 +20674,11 @@ function BoardPackagePreview({
   includeInventory: boolean;
   includeFixedAssets: boolean;
   includePayroll: boolean;
+  /**
+   * ISO 4217 tenant home currency threaded from `UploadPage.homeCurrency`.
+   * Consumed by the 10 currency-formatter call sites inside this preview.
+   */
+  homeCurrency: string;
 }) {
   const includedCount = sections.filter((section) => section.status === "Included").length;
   const completenessScore = Math.round((includedCount / sections.length) * 100);
@@ -20710,30 +20735,30 @@ function BoardPackagePreview({
         </div>
 
         <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-          <ReportMetricCard label="Revenue" value={formatMoneyLegacy(kpis.revenue)} />
-          <ReportMetricCard label="Gross Profit" value={formatMoneyLegacy(kpis.grossProfit)} />
-          <ReportMetricCard label="Net Income" value={formatMoneyLegacy(kpis.netIncome)} />
-          <ReportMetricCard label="Cash" value={formatMoneyLegacy(kpis.cash)} />
+          <ReportMetricCard label="Revenue" value={formatMoneyLegacy(kpis.revenue, homeCurrency)} />
+          <ReportMetricCard label="Gross Profit" value={formatMoneyLegacy(kpis.grossProfit, homeCurrency)} />
+          <ReportMetricCard label="Net Income" value={formatMoneyLegacy(kpis.netIncome, homeCurrency)} />
+          <ReportMetricCard label="Cash" value={formatMoneyLegacy(kpis.cash, homeCurrency)} />
           {includeArReservePreview && (
             <>
-              <ReportMetricCard label="AR Reserve Guidance" value={formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve)} />
+              <ReportMetricCard label="AR Reserve Guidance" value={formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve, homeCurrency)} />
               <ReportMetricCard label="AR Collection Risk" value={arReserveIntelligence.collectionRiskStatus} />
             </>
           )}
-          {includeAp && <ReportMetricCard label="AP Aging Total" value={formatMoneyLegacy(apKpis.total)} />}
+          {includeAp && <ReportMetricCard label="AP Aging Total" value={formatMoneyLegacy(apKpis.total, homeCurrency)} />}
           {includeInventory && (
-            <ReportMetricCard label="Inventory Value" value={formatMoneyLegacy(inventoryKpis.totalValue)} />
+            <ReportMetricCard label="Inventory Value" value={formatMoneyLegacy(inventoryKpis.totalValue, homeCurrency)} />
           )}
           {includeFixedAssets && (
             <>
-              <ReportMetricCard label="Fixed Assets" value={formatCurrency(fixedAssetKpis.totalFixedAssets)} />
-              <ReportMetricCard label="Net Book Value" value={formatCurrency(fixedAssetKpis.netBookValue)} />
+              <ReportMetricCard label="Fixed Assets" value={formatCurrency(fixedAssetKpis.totalFixedAssets, homeCurrency)} />
+              <ReportMetricCard label="Net Book Value" value={formatCurrency(fixedAssetKpis.netBookValue, homeCurrency)} />
             </>
           )}
           {includePayroll && (
             <>
               <ReportMetricCard label="Current FTE" value={formatFte(payrollAnalysis.totalCurrentFte)} />
-              <ReportMetricCard label="Payroll Cost" value={formatCurrency(payrollAnalysis.totalCurrentPayrollCost)} />
+              <ReportMetricCard label="Payroll Cost" value={formatCurrency(payrollAnalysis.totalCurrentPayrollCost, homeCurrency)} />
             </>
           )}
         </div>
