@@ -5400,6 +5400,8 @@ function validateFinancialPackage({
   payrollAnalysis,
   bsRows,
   tolerances = defaultValidationTolerances,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   plData: ParsedFile | null;
@@ -5427,6 +5429,8 @@ function validateFinancialPackage({
   payrollAnalysis: PayrollAnalysis;
   bsRows: StatementRow[];
   tolerances?: ValidationToleranceConfig;
+
+  homeCurrency: string;
 }): ValidationResults {
   const checks: ValidationCheck[] = [];
   const bsFixedAssets = getBalanceSheetFixedAssetSummary(bsRows);
@@ -5447,7 +5451,7 @@ function validateFinancialPackage({
       tolerance: tolerances.financialStatementTotals,
       missingMessage: "AR Aging and Balance Sheet AR balance are both required for this reconciliation.",
       successMessage: "AR Aging agrees to the Balance Sheet AR balance.",
-      mismatchMessage: (variance) => `AR Aging does not agree to Balance Sheet by ${formatCurrency(Math.abs(variance))}.`,
+      mismatchMessage: (variance) => `AR Aging does not agree to Balance Sheet by ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
     }),
     buildValidationCheck({
       id: "ap-aging-to-bs",
@@ -5458,7 +5462,7 @@ function validateFinancialPackage({
       tolerance: tolerances.financialStatementTotals,
       missingMessage: "AP Aging and Balance Sheet AP balance are both required for this reconciliation.",
       successMessage: "AP Aging agrees to the Balance Sheet AP balance.",
-      mismatchMessage: (variance) => `AP Aging does not agree to Balance Sheet by ${formatCurrency(Math.abs(variance))}.`,
+      mismatchMessage: (variance) => `AP Aging does not agree to Balance Sheet by ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
     }),
     buildValidationCheck({
       id: "ar-reserve-guidance-math",
@@ -5469,7 +5473,7 @@ function validateFinancialPackage({
       tolerance: 1,
       missingMessage: "AR Aging is required to validate reserve guidance math.",
       successMessage: "AR reserve percentages and reserve dollars calculate as expected.",
-      mismatchMessage: (variance) => `AR reserve guidance math differs by ${formatCurrency(Math.abs(variance))}.`,
+      mismatchMessage: (variance) => `AR reserve guidance math differs by ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
     }),
     buildValidationCheck({
       id: "inventory-to-bs",
@@ -5480,7 +5484,7 @@ function validateFinancialPackage({
       tolerance: tolerances.financialStatementTotals,
       missingMessage: "Inventory Valuation and Balance Sheet inventory balance are both required for inventory validation.",
       successMessage: "Inventory Valuation agrees to the Balance Sheet inventory balance.",
-      mismatchMessage: (variance) => `Inventory Valuation differs from Balance Sheet inventory by ${formatCurrency(Math.abs(variance))}.`,
+      mismatchMessage: (variance) => `Inventory Valuation differs from Balance Sheet inventory by ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
     }),
     buildValidationCheck({
       id: "fixed-asset-nbv-to-bs",
@@ -5491,7 +5495,7 @@ function validateFinancialPackage({
       tolerance: tolerances.financialStatementTotals,
       missingMessage: "Fixed Asset report and Balance Sheet fixed asset balances are both required for NBV validation.",
       successMessage: "Fixed Asset report NBV agrees to the Balance Sheet.",
-      mismatchMessage: (variance) => `Fixed Asset report NBV does not agree to uploaded Balance Sheet by ${formatCurrency(Math.abs(variance))}.`,
+      mismatchMessage: (variance) => `Fixed Asset report NBV does not agree to uploaded Balance Sheet by ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
     }),
     buildValidationCheck({
       id: "fixed-asset-rollforward-internal",
@@ -5502,7 +5506,7 @@ function validateFinancialPackage({
       tolerance: tolerances.financialStatementTotals,
       missingMessage: "Fixed asset gross cost, accumulated depreciation, and NBV are required for internal NBV math validation.",
       successMessage: "Internal fixed asset NBV math agrees.",
-      mismatchMessage: (variance) => `Internal fixed asset NBV math differs by ${formatCurrency(Math.abs(variance))}.`,
+      mismatchMessage: (variance) => `Internal fixed asset NBV math differs by ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
     }),
     buildValidationCheck({
       id: "debt-to-bs",
@@ -5513,7 +5517,7 @@ function validateFinancialPackage({
       tolerance: tolerances.financialStatementTotals,
       missingMessage: "Debt Schedule and Balance Sheet debt accounts are both required for debt validation.",
       successMessage: "Debt Schedule agrees to Balance Sheet debt accounts.",
-      mismatchMessage: (variance) => `Debt Schedule does not agree to Balance Sheet debt accounts by ${formatCurrency(Math.abs(variance))}.`,
+      mismatchMessage: (variance) => `Debt Schedule does not agree to Balance Sheet debt accounts by ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
     }),
     buildValidationCheck({
       id: "pl-net-income-to-bs",
@@ -5524,7 +5528,7 @@ function validateFinancialPackage({
       tolerance: tolerances.financialStatementTotals,
       missingMessage: "P&L and Balance Sheet current year earnings are required for net income validation.",
       successMessage: "P&L Net Income agrees to Balance Sheet current year earnings.",
-      mismatchMessage: (variance) => `P&L Net Income does not agree to Balance Sheet earnings by ${formatCurrency(Math.abs(variance))}.`,
+      mismatchMessage: (variance) => `P&L Net Income does not agree to Balance Sheet earnings by ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
     }),
   );
 
@@ -5550,7 +5554,7 @@ function validateFinancialPackage({
         tolerance: tolerances.glAggregation,
         missingMessage: `${file.label} debit and credit columns were not available for validation.`,
         successMessage: `${file.label} debits equal credits within tolerance.`,
-        mismatchMessage: (variance) => `${file.label} detail does not balance. Review uploaded file. Difference: ${formatCurrency(Math.abs(variance))}.`,
+        mismatchMessage: (variance) => `${file.label} detail does not balance. Review uploaded file. Difference: ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
       }),
     );
   });
@@ -5566,7 +5570,7 @@ function validateFinancialPackage({
       tolerance: Math.max(1, payrollAnalysis.totalCurrentPayrollCost * (tolerances.payrollPercent / 100)),
       missingMessage: "Payroll Summary and Payroll GL detail are both required for payroll validation.",
       successMessage: "Payroll Summary reconciles to payroll GL activity within tolerance.",
-      mismatchMessage: (variance) => `Payroll Summary does not reconcile to payroll GL activity by ${formatCurrency(Math.abs(variance))}.`,
+      mismatchMessage: (variance) => `Payroll Summary does not reconcile to payroll GL activity by ${formatCurrency(Math.abs(variance), homeCurrency)}.`,
     }),
   );
 
@@ -7241,7 +7245,7 @@ function buildBoardPackageSections({
   hasRatios,
   hasFollowUps,
   hasAnyFlux,
-  homeCurrency: _homeCurrency = DEFAULT_FALLBACK_CURRENCY,
+  homeCurrency = DEFAULT_FALLBACK_CURRENCY,
 }: {
   packageTier: PackageTier;
   reports: UploadReport[];
@@ -7250,16 +7254,9 @@ function buildBoardPackageSections({
   hasRatios: boolean;
   hasFollowUps: boolean;
   hasAnyFlux: boolean;
-  /**
-   * Phase MC-2d.3a: threaded from `UploadPage.homeCurrency` state. This PR
-   * plumbs the argument through the signature but does not yet consume it —
-   * `buildBoardPackageSections` renders section titles and status labels,
-   * not currency values. MC-2d.3b will consume it in the narrative-builder
-   * functions this function feeds into. Underscore-prefixed to acknowledge
-   * intentional unused-in-this-PR while satisfying strict lint.
-   */
   homeCurrency?: string;
 }) {
+    void homeCurrency; // Reserved for future currency-aware section labels.
   const reportMap = new Map(reports.map((report) => [report.id, report]));
   const statusFromReports = (ids: string[], minimumTier: PackageTier = "essential"): BoardPackageSection["status"] => {
     if (!isReportAvailable(minimumTier, packageTier)) return "Locked";
@@ -9653,7 +9650,7 @@ function isNumericFinancialCell(
   return isStatementAmountCell(row, cellIndex, value);
 }
 
-function formatTableCell(value: unknown, columnName: unknown, row: unknown[], rowIndex: number) {
+function formatTableCell(value: unknown, columnName: unknown, row: unknown[], rowIndex: number, homeCurrency: string) {
   const text = String(value || "");
   if (!text) return "";
   const rowLabel = String(row[0] || "");
@@ -9680,7 +9677,7 @@ function formatTableCell(value: unknown, columnName: unknown, row: unknown[], ro
     const displayValue = normalizeStatementLabel(rowLabel).includes("accumulated depreciation")
       ? -Math.abs(parsedValue)
       : parsedValue;
-    return formatCurrency(displayValue);
+    return formatCurrency(displayValue, homeCurrency);
   }
 
   return text;
@@ -9690,6 +9687,7 @@ function formatPreviewCell(
   row: unknown[],
   cell: unknown,
   cellIndex: number,
+  homeCurrency: string,
   headers: unknown[] = [],
   rowIndex = -1,
   previewTitle = "",
@@ -9726,7 +9724,7 @@ function formatPreviewCell(
     if (cellIndex === 0 || cellIndex === 1) return String(cell || "");
     if (parsedValue === null) return String(cell || "");
     if (cellIndex === 2) return formatNumber(parsedValue);
-    if (cellIndex >= 3) return formatCurrency(parsedValue);
+    if (cellIndex >= 3) return formatCurrency(parsedValue, homeCurrency);
   }
 
   if (
@@ -9736,7 +9734,7 @@ function formatPreviewCell(
     !isHeaderRow(row) &&
     !isAgingBucketLabel(cell)
   ) {
-    return formatCurrency(parsedValue);
+    return formatCurrency(parsedValue, homeCurrency);
   }
 
   if (
@@ -9750,7 +9748,7 @@ function formatPreviewCell(
     const displayValue = normalizeStatementLabel(rowLabel).includes("accumulated depreciation")
       ? -Math.abs(parsedValue)
       : parsedValue;
-    return formatCurrency(displayValue);
+    return formatCurrency(displayValue, homeCurrency);
   }
 
   if (
@@ -9767,7 +9765,7 @@ function formatPreviewCell(
     const displayValue = normalizeStatementLabel(rowLabel).includes("accumulated depreciation")
       ? -Math.abs(parsedValue)
       : parsedValue;
-    return formatCurrency(displayValue);
+    return formatCurrency(displayValue, homeCurrency);
   }
 
   const shouldUseStatementAmount =
@@ -9777,7 +9775,7 @@ function formatPreviewCell(
     !headerIsQuantity;
   const columnName = shouldUseStatementAmount ? "Amount" : headerColumnName;
 
-  return formatTableCell(cell, columnName, row, rowIndex);
+  return formatTableCell(cell, columnName, row, rowIndex, homeCurrency);
 }
 
 function getTopExpenseRows(plData: ParsedFile | null) {
@@ -9951,14 +9949,14 @@ function interpretPayrollCostToRevenue(value: number | null) {
   return `Payroll cost represents ${value.toFixed(1)}% of revenue, which is elevated and should be reviewed against pricing, utilization, and department staffing levels.`;
 }
 
-function interpretRevenuePerFte(value: number | null) {
+function interpretRevenuePerFte(value: number | null, homeCurrency: string) {
   if (value === null) return "Revenue per FTE requires revenue and current FTE data.";
-  return `Revenue per FTE is ${formatCurrency(value)}, indicating ${value >= 100000 ? "strong" : "an area to monitor for"} productivity for the current payroll base.`;
+  return `Revenue per FTE is ${formatCurrency(value, homeCurrency)}, indicating ${value >= 100000 ? "strong" : "an area to monitor for"} productivity for the current payroll base.`;
 }
 
-function interpretPayrollCostPerFte(value: number | null) {
+function interpretPayrollCostPerFte(value: number | null, homeCurrency: string) {
   if (value === null) return "Payroll cost per FTE requires current payroll cost and FTE data.";
-  return `Payroll cost per FTE is ${formatCurrency(value)}. Monitor this against revenue per FTE, gross margin, and department-level productivity.`;
+  return `Payroll cost per FTE is ${formatCurrency(value, homeCurrency)}. Monitor this against revenue per FTE, gross margin, and department-level productivity.`;
 }
 
 function interpretFteChange(value: number | null) {
@@ -10039,6 +10037,7 @@ function buildRatioRows(
   payrollAnalysis: PayrollAnalysis,
   includePayroll: boolean,
   debtMetrics: DebtMetrics,
+  homeCurrency: string,
   dsoOverride: number | null = null,
 ) {
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
@@ -10171,7 +10170,7 @@ function buildRatioRows(
     {
       name: "Working Capital Estimate",
       formula: "Current Assets - Current Liabilities",
-      value: workingCapital !== null ? formatMoneyLegacy(workingCapital) : "N/A",
+      value: workingCapital !== null ? formatMoneyLegacy(workingCapital, homeCurrency) : "N/A",
       interpretation: interpretWorkingCapital(workingCapital, kpis.revenue),
     },
     {
@@ -10257,19 +10256,19 @@ function buildRatioRows(
           {
             name: "Payroll Cost per FTE",
             formula: "Total Payroll Cost / Total FTE",
-            value: payrollCostPerFte !== null ? formatCurrency(payrollCostPerFte) : "N/A",
-            interpretation: interpretPayrollCostPerFte(payrollCostPerFte),
+            value: payrollCostPerFte !== null ? formatCurrency(payrollCostPerFte, homeCurrency) : "N/A",
+            interpretation: interpretPayrollCostPerFte(payrollCostPerFte, homeCurrency),
           },
           {
             name: "Revenue per FTE",
             formula: "Revenue / Total FTE",
-            value: revenuePerFte !== null ? formatCurrency(revenuePerFte) : "N/A",
-            interpretation: interpretRevenuePerFte(revenuePerFte),
+            value: revenuePerFte !== null ? formatCurrency(revenuePerFte, homeCurrency) : "N/A",
+            interpretation: interpretRevenuePerFte(revenuePerFte, homeCurrency),
           },
           {
             name: "Gross Profit per FTE",
             formula: "Gross Profit / Total FTE",
-            value: grossProfitPerFte !== null ? formatCurrency(grossProfitPerFte) : "N/A",
+            value: grossProfitPerFte !== null ? formatCurrency(grossProfitPerFte, homeCurrency) : "N/A",
             interpretation: "Gross profit per FTE connects staffing levels to direct profitability.",
           },
           {
@@ -10602,6 +10601,8 @@ function calculateApCutoffIntelligence({
   currentQuarterGlData,
   currentYearGlData,
   priorMonthGlData,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   reportingPeriodEnd: string;
@@ -10609,6 +10610,8 @@ function calculateApCutoffIntelligence({
   currentQuarterGlData: ParsedFile | null;
   currentYearGlData: ParsedFile | null;
   priorMonthGlData: ParsedFile | null;
+
+  homeCurrency: string;
 }): ApCutoffIntelligence {
   const empty: ApCutoffIntelligence = {
     enabled: isVirtualCfo(packageTier),
@@ -10666,7 +10669,7 @@ function calculateApCutoffIntelligence({
         totalLateInvoiceAmount,
         averageDaysAfterClose,
         riskStatus,
-        commentary: `${vendor} historically averages approximately ${formatCurrency(averageLateInvoiceAmount)} of invoices entered within ${Math.round(averageDaysAfterClose)} days after close with prior-period invoice dates. Consider whether a recurring month-end accrual process should be evaluated.`,
+        commentary: `${vendor} historically averages approximately ${formatCurrency(averageLateInvoiceAmount, homeCurrency)} of invoices entered within ${Math.round(averageDaysAfterClose)} days after close with prior-period invoice dates. Consider whether a recurring month-end accrual process should be evaluated.`,
       };
     })
     .sort((a, b) => b.totalLateInvoiceAmount - a.totalLateInvoiceAmount)
@@ -10696,7 +10699,7 @@ function calculateApCutoffIntelligence({
       priorActivity,
       change,
       status,
-      commentary: `Review ${accountName} for accrual reversal, AP clearing, and stale balance patterns. Activity changed by ${formatCurrency(change)} compared with the prior comparison period.`,
+      commentary: `Review ${accountName} for accrual reversal, AP clearing, and stale balance patterns. Activity changed by ${formatCurrency(change, homeCurrency)} compared with the prior comparison period.`,
     };
   }).slice(0, 6);
 
@@ -10716,7 +10719,7 @@ function calculateApCutoffIntelligence({
   const internalFlags = [
     ...reviewWindows
       .filter((window) => window.candidateCount > 0)
-      .map((window) => `AP cutoff window ${window.daysAfterClose} days: ${window.candidateCount} review item${window.candidateCount === 1 ? "" : "s"} totaling ${formatCurrency(window.totalAmount)}.`),
+      .map((window) => `AP cutoff window ${window.daysAfterClose} days: ${window.candidateCount} review item${window.candidateCount === 1 ? "" : "s"} totaling ${formatCurrency(window.totalAmount, homeCurrency)}.`),
     ...accrualClearingItems.map((item) => item.commentary),
   ];
 
@@ -10872,7 +10875,8 @@ function getPayrollFteCommentary(
   accountName: string,
   currentRows: GlActivityRow[],
   priorRows: GlActivityRow[],
-  payrollAnalysis?: PayrollAnalysis,
+  payrollAnalysis: PayrollAnalysis | undefined,
+  homeCurrency: string,
 ) {
   if (!payrollAnalysis || !isPayrollRelatedAccount(accountName)) return "";
 
@@ -10896,8 +10900,7 @@ function getPayrollFteCommentary(
   )} to ${formatFte(matchingDepartment.currentFte)}, a change of ${formatFte(
     matchingDepartment.fteChange,
   )} FTE. Payroll cost changed by ${formatCurrency(
-    matchingDepartment.payrollCostChange,
-  )}, which appears to be a primary driver of the labor/payroll variance when aligned with the GL activity.`;
+    matchingDepartment.payrollCostChange, homeCurrency)}, which appears to be a primary driver of the labor/payroll variance when aligned with the GL activity.`;
 }
 
 function getFluxAdvisoryTheme(accountName: string, accountType: FluxAccountType) {
@@ -10987,6 +10990,7 @@ function generateFluxCommentary(
   variance: number,
   percentVariance: number | null,
   topDrivers: FluxDriver[],
+  homeCurrency: string,
   currentRows: GlActivityRow[] = [],
   priorRows: GlActivityRow[] = [],
   payrollAnalysis?: PayrollAnalysis,
@@ -11001,35 +11005,34 @@ function generateFluxCommentary(
 
   if (!topDrivers.length || topDrivers.every((driver) => driver.name === "Unspecified activity")) {
     return `${accountName} ${measureText} ${direction} by ${formatCurrency(
-      Math.abs(variance),
-    )}${comparisonText}. Based on available GL detail, vendor/customer support was limited. ${theme.action}${getPayrollFteCommentary(
+      Math.abs(variance), homeCurrency)}${comparisonText}. Based on available GL detail, vendor/customer support was limited. ${theme.action}${getPayrollFteCommentary(
       accountName,
       currentRows,
       priorRows,
       payrollAnalysis,
+      homeCurrency,
     )}`;
   }
 
   const [primary, secondary, tertiary] = topDrivers;
   const driverPhrases = [
     `${primary.name}, which ${primary.change >= 0 ? "increased" : "decreased"} by ${formatCurrency(
-      Math.abs(primary.change),
-    )}`,
+      Math.abs(primary.change), homeCurrency)}`,
     secondary
-      ? `${secondary.name}, ${secondary.change >= 0 ? "up" : "down"} ${formatCurrency(Math.abs(secondary.change))}`
+      ? `${secondary.name}, ${secondary.change >= 0 ? "up" : "down"} ${formatCurrency(Math.abs(secondary.change), homeCurrency)}`
       : "",
     tertiary
-      ? `${tertiary.name}, ${tertiary.change >= 0 ? "up" : "down"} ${formatCurrency(Math.abs(tertiary.change))}`
+      ? `${tertiary.name}, ${tertiary.change >= 0 ? "up" : "down"} ${formatCurrency(Math.abs(tertiary.change), homeCurrency)}`
       : "",
   ].filter(Boolean);
 
   return `${accountName} ${measureText} ${direction} by ${formatCurrency(
-    Math.abs(variance),
-  )}${comparisonText}. ${confidencePrefix} ${driverPhrases.join(", followed by ")}. ${theme.implication}${getPayrollFteCommentary(
+    Math.abs(variance), homeCurrency)}${comparisonText}. ${confidencePrefix} ${driverPhrases.join(", followed by ")}. ${theme.implication}${getPayrollFteCommentary(
     accountName,
     currentRows,
     priorRows,
     payrollAnalysis,
+    homeCurrency,
   )}`;
 }
 
@@ -11037,6 +11040,7 @@ function getFluxRows(
   currentData: ParsedFile | null,
   priorData: ParsedFile | null,
   settings: FluxSettings,
+  homeCurrency: string,
   payrollAnalysis?: PayrollAnalysis,
   currentBalanceData?: ParsedFile | null,
   priorBalanceData?: ParsedFile | null,
@@ -11121,6 +11125,7 @@ function getFluxRows(
           dollarVariance,
           percentVariance,
           topDrivers,
+          homeCurrency,
           currentActivity,
           priorActivity,
           payrollAnalysis,
@@ -12261,6 +12266,7 @@ export default function UploadPage() {
     activeCurrentMonthGlData,
     activePriorMonthGlData,
     fluxSettings,
+    homeCurrency,
     payrollAnalysis,
     activeBsData,
     activePriorPeriodBsData,
@@ -12269,6 +12275,7 @@ export default function UploadPage() {
     activeCurrentQuarterGlData,
     activePriorQuarterGlData,
     fluxSettings,
+    homeCurrency,
     payrollAnalysis,
     activeBsData,
     activePriorPeriodBsData,
@@ -12277,6 +12284,7 @@ export default function UploadPage() {
     activeCurrentYearGlData,
     activePriorYearGlData,
     fluxSettings,
+    homeCurrency,
     payrollAnalysis,
     activeBsData,
     activePriorPeriodBsData,
@@ -12348,7 +12356,8 @@ export default function UploadPage() {
     currentQuarterGlData: activeCurrentQuarterGlData,
     currentYearGlData: activeCurrentYearGlData,
     priorMonthGlData: activePriorMonthGlData,
-  });
+  
+    homeCurrency,});
   const revenueRecognitionIntelligence = calculateRevenueRecognitionIntelligence({
     packageTier,
     currentBsRows: bsStatementRows,
@@ -12390,7 +12399,8 @@ export default function UploadPage() {
     debtMetrics,
     payrollAnalysis,
     bsRows: bsStatementRows,
-  });
+  
+    homeCurrency,});
   const closeManagementIntelligence = calculateCloseManagementIntelligence({
     packageTier,
     currentBsRows: bsStatementRows,
@@ -12527,6 +12537,7 @@ export default function UploadPage() {
     payrollAnalysis,
     Boolean(activeCurrentPayrollData),
     debtMetrics,
+    homeCurrency,
     dso,
   ).filter((ratio) => selectedRatios.includes(ratio.name as RatioId));
   const executiveSummary = buildExecutiveSummary({
@@ -14790,7 +14801,7 @@ export default function UploadPage() {
                         label="E&O Reserve"
                         value={
                           inventoryIntelligence.eoReserveBalance !== null
-                            ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance)
+                            ? formatMoneyLegacy(inventoryIntelligence.eoReserveBalance, homeCurrency)
                             : "Not identified"
                         }
                       />
@@ -14931,7 +14942,9 @@ export default function UploadPage() {
               onReviewStateChange={setFluxReviewState}
               confirmed={fluxReviewConfirmed}
               onConfirmedChange={setFluxReviewConfirmed}
-            />
+            
+          homeCurrency={homeCurrency}
+        />
           )}
 
           {activeWorkflowStep === 6 && (
@@ -14984,7 +14997,9 @@ export default function UploadPage() {
                 includeInventory={Boolean(activeInventoryData)}
                 includeFixedAssets={Boolean(activeFixedAssetData)}
                 includePayroll={Boolean(activeCurrentPayrollData)}
-              />
+              
+          homeCurrency={homeCurrency}
+        />
               {kpiReviewMode === "staged" && (
                 <KpiReviewSectionActions
                   sectionLabel="Financial Snapshot Graphs"
@@ -15076,7 +15091,9 @@ export default function UploadPage() {
                 monthDebug={monthFluxDebug}
                 quarterDebug={quarterFluxDebug}
                 yearDebug={yearFluxDebug}
-              />
+              
+          homeCurrency={homeCurrency}
+        />
             </>
           )}
 
@@ -15098,7 +15115,7 @@ export default function UploadPage() {
                         <tr key={`${match.metric}-${index}`} className="border-b border-slate-800">
                           <td className="px-4 py-3 text-slate-300">{match.metric}</td>
                           <td className="px-4 py-3 text-slate-300">{match.label}</td>
-                          <td className="px-4 py-3 font-semibold">{formatMoneyLegacy(match.value)}</td>
+                          <td className="px-4 py-3 font-semibold">{formatMoneyLegacy(match.value, homeCurrency)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -20661,6 +20678,8 @@ function FluxReviewWorkspace({
   onReviewStateChange,
   confirmed,
   onConfirmedChange,
+
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   rows: Array<{ row: FluxRow; basisLabel: string }>;
@@ -20668,6 +20687,8 @@ function FluxReviewWorkspace({
   onReviewStateChange: Dispatch<SetStateAction<Record<string, FluxReviewRowState>>>;
   confirmed: boolean;
   onConfirmedChange: (confirmed: boolean) => void;
+
+  homeCurrency: string;
 }) {
   const getState = (row: FluxRow, basisLabel: string): FluxReviewRowState => {
     const key = getFluxRowKey(row, basisLabel);
@@ -20745,7 +20766,7 @@ function FluxReviewWorkspace({
                     </div>
                     <h3 className="mt-2 text-xl font-bold text-white">{row.accountName}</h3>
                     <p className="mt-1 text-sm text-[#CBD5E1]">
-                      {formatCurrency(row.priorAmount)} to {formatCurrency(row.currentAmount)} ({formatCurrency(row.dollarVariance)})
+                      {formatCurrency(row.priorAmount, homeCurrency)} to {formatCurrency(row.currentAmount, homeCurrency)} ({formatCurrency(row.dollarVariance, homeCurrency)})
                     </p>
                     <p className="mt-2 text-sm text-[#94A3B8]">Top driver: {isMeaningfulFluxDriver(row.topDriver) ? row.topDriver : "Review GL detail for named vendor, customer, employee, or memo context."}</p>
                   </div>
@@ -22438,6 +22459,8 @@ function BasicChartsSection({
   includeInventory,
   includeFixedAssets,
   includePayroll,
+
+  homeCurrency,
 }: {
   kpis: KPIs;
   arKpis: AgingKpis;
@@ -22451,6 +22474,8 @@ function BasicChartsSection({
   includeInventory: boolean;
   includeFixedAssets: boolean;
   includePayroll: boolean;
+
+  homeCurrency: string;
 }) {
   const grossMargin = kpis.revenue ? (kpis.grossProfit / kpis.revenue) * 100 : 0;
   const netMargin = kpis.revenue ? (kpis.netIncome / kpis.revenue) * 100 : 0;
@@ -22505,35 +22530,35 @@ function BasicChartsSection({
       <h2 className="mb-6 text-3xl font-bold">Financial Snapshot</h2>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
-        <ChartCard title="Revenue, COGS, Expenses, Net Income" value={formatMoneyLegacy(kpis.revenue)}>
-          <VerticalBarChart data={incomeStatementData} />
+        <ChartCard title="Revenue, COGS, Expenses, Net Income" value={formatMoneyLegacy(kpis.revenue, homeCurrency)}>
+          <VerticalBarChart data={incomeStatementData} homeCurrency={homeCurrency} />
         </ChartCard>
         <ChartCard title="Gross Margin and Net Margin" value={`${grossMargin.toFixed(1)}% / ${netMargin.toFixed(1)}%`}>
-          <VerticalBarChart data={marginData} percent />
+          <VerticalBarChart data={marginData} percent homeCurrency={homeCurrency} />
         </ChartCard>
-        <ChartCard title="Cash, AR, AP" value={`${formatMoneyLegacy(kpis.cash)} / ${formatMoneyLegacy(kpis.accountsReceivable)}`}>
-          <VerticalBarChart data={liquidityData} />
+        <ChartCard title="Cash, AR, AP" value={`${formatMoneyLegacy(kpis.cash, homeCurrency)} / ${formatMoneyLegacy(kpis.accountsReceivable, homeCurrency)}`}>
+          <VerticalBarChart data={liquidityData} homeCurrency={homeCurrency} />
         </ChartCard>
-        <ChartCard title="AR Aging" value={includeAr ? formatMoneyLegacy(arKpis.total) : "No data"}>
-          {includeAr ? <VerticalBarChart data={agingBuckets(arKpis)} /> : <NoChartData />}
+        <ChartCard title="AR Aging" value={includeAr ? formatMoneyLegacy(arKpis.total, homeCurrency) : "No data"}>
+          {includeAr ? <VerticalBarChart data={agingBuckets(arKpis)} homeCurrency={homeCurrency} /> : <NoChartData />}
         </ChartCard>
-        <ChartCard title="AP Aging" value={includeAp ? formatMoneyLegacy(apKpis.total) : "No data"}>
-          {includeAp ? <VerticalBarChart data={agingBuckets(apKpis)} /> : <NoChartData />}
+        <ChartCard title="AP Aging" value={includeAp ? formatMoneyLegacy(apKpis.total, homeCurrency) : "No data"}>
+          {includeAp ? <VerticalBarChart data={agingBuckets(apKpis)} homeCurrency={homeCurrency} /> : <NoChartData />}
         </ChartCard>
-        <ChartCard title="Inventory Top 5 by Value" value={includeInventory ? formatMoneyLegacy(inventoryKpis.totalValue) : "No data"}>
-          {includeInventory && inventoryData.length ? <HorizontalBarChart data={inventoryData} /> : <NoChartData />}
+        <ChartCard title="Inventory Top 5 by Value" value={includeInventory ? formatMoneyLegacy(inventoryKpis.totalValue, homeCurrency) : "No data"}>
+          {includeInventory && inventoryData.length ? <HorizontalBarChart data={inventoryData} homeCurrency={homeCurrency} /> : <NoChartData />}
         </ChartCard>
-        <ChartCard title="Payroll Cost by Department" value={includePayroll ? formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost) : "No data"}>
-          {includePayroll && payrollCostData.length ? <HorizontalBarChart data={payrollCostData} /> : <NoChartData />}
+        <ChartCard title="Payroll Cost by Department" value={includePayroll ? formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost, homeCurrency) : "No data"}>
+          {includePayroll && payrollCostData.length ? <HorizontalBarChart data={payrollCostData} homeCurrency={homeCurrency} /> : <NoChartData />}
         </ChartCard>
         <ChartCard title="FTE by Department" value={includePayroll ? formatFte(payrollAnalysis.totalCurrentFte) : "No data"}>
-          {includePayroll && fteData.length ? <FteDepartmentChart data={fteData} /> : <NoChartData />}
+          {includePayroll && fteData.length ? <FteDepartmentChart data={fteData} homeCurrency={homeCurrency} /> : <NoChartData />}
         </ChartCard>
-        <ChartCard title="Fixed Assets Breakdown" value={includeFixedAssets ? formatMoneyLegacy(fixedAssetKpis.netBookValue) : "No data"}>
-          {includeFixedAssets ? <DonutChart data={fixedAssetData} /> : <NoChartData />}
+        <ChartCard title="Fixed Assets Breakdown" value={includeFixedAssets ? formatMoneyLegacy(fixedAssetKpis.netBookValue, homeCurrency) : "No data"}>
+          {includeFixedAssets ? <DonutChart data={fixedAssetData} homeCurrency={homeCurrency} /> : <NoChartData />}
         </ChartCard>
         <ChartCard title="Flux Variance Highlights" value={fluxData.length ? `${fluxData.length} flagged` : "No data"}>
-          {fluxData.length ? <HorizontalBarChart data={fluxData} /> : <NoChartData />}
+          {fluxData.length ? <HorizontalBarChart data={fluxData} homeCurrency={homeCurrency} /> : <NoChartData />}
         </ChartCard>
       </div>
     </section>
@@ -22558,9 +22583,11 @@ function aggregateChartData(data: Array<{ name: string; value: number; color: st
 function VerticalBarChart({
   data,
   percent = false,
+  homeCurrency = DEFAULT_FALLBACK_CURRENCY,
 }: {
   data: Array<{ name: string; value: number; color: string }>;
   percent?: boolean;
+  homeCurrency?: string;
 }) {
   const hasData = data.some((item) => item.value !== 0);
   if (!hasData) return <NoChartData />;
@@ -22570,7 +22597,7 @@ function VerticalBarChart({
       <BarChart data={aggregateChartData(data)}>
         <XAxis dataKey="name" tick={{ fill: "#cbd5e1", fontSize: 11 }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-        <Tooltip content={<DarkChartTooltip percent={percent} />} />
+        <Tooltip content={<DarkChartTooltip percent={percent} homeCurrency={homeCurrency} />} />
         <Bar dataKey="value" radius={[8, 8, 0, 0]} animationDuration={700}>
           {aggregateChartData(data).map((entry, index) => (
             <Cell key={`${entry.name}-${index}`} fill={entry.color} />
@@ -22581,7 +22608,13 @@ function VerticalBarChart({
   );
 }
 
-function HorizontalBarChart({ data }: { data: Array<{ name: string; value: number; color: string }> }) {
+function HorizontalBarChart({
+  data,
+  homeCurrency = DEFAULT_FALLBACK_CURRENCY,
+}: {
+  data: Array<{ name: string; value: number; color: string }>;
+  homeCurrency?: string;
+}) {
   const chartData = aggregateChartData(data);
   const hasData = chartData.some((item) => item.value !== 0);
   if (!hasData) return <NoChartData />;
@@ -22598,7 +22631,7 @@ function HorizontalBarChart({ data }: { data: Array<{ name: string; value: numbe
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip content={<DarkChartTooltip />} />
+        <Tooltip content={<DarkChartTooltip homeCurrency={homeCurrency} />} />
         <Bar dataKey="value" radius={[0, 8, 8, 0]} animationDuration={700}>
           {chartData.map((entry, index) => (
             <Cell key={`${entry.name}-${index}`} fill={entry.color} />
@@ -22609,13 +22642,19 @@ function HorizontalBarChart({ data }: { data: Array<{ name: string; value: numbe
   );
 }
 
-function FteDepartmentChart({ data }: { data: PayrollDepartmentRow[] }) {
+function FteDepartmentChart({
+  data,
+  homeCurrency = DEFAULT_FALLBACK_CURRENCY,
+}: {
+  data: PayrollDepartmentRow[];
+  homeCurrency?: string;
+}) {
   return (
     <ResponsiveContainer width="100%" height={240}>
       <BarChart data={data.slice(0, 8)}>
         <XAxis dataKey="department" tick={{ fill: "#cbd5e1", fontSize: 10 }} axisLine={false} tickLine={false} />
         <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-        <Tooltip content={<DarkChartTooltip plain />} />
+        <Tooltip content={<DarkChartTooltip plain homeCurrency={homeCurrency} />} />
         <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: 12 }} />
         <Bar dataKey="currentFte" name="Current FTE" fill="#5B8CFF" radius={[8, 8, 0, 0]} />
         <Bar dataKey="priorFte" name="Prior FTE" fill="#7BA7D9" radius={[8, 8, 0, 0]} />
@@ -22624,7 +22663,13 @@ function FteDepartmentChart({ data }: { data: PayrollDepartmentRow[] }) {
   );
 }
 
-function DonutChart({ data }: { data: Array<{ name: string; value: number; color: string }> }) {
+function DonutChart({
+  data,
+  homeCurrency = DEFAULT_FALLBACK_CURRENCY,
+}: {
+  data: Array<{ name: string; value: number; color: string }>;
+  homeCurrency?: string;
+}) {
   const filteredData = data.filter((item) => item.value > 0);
   if (!filteredData.length) return <NoChartData />;
 
@@ -22644,7 +22689,7 @@ function DonutChart({ data }: { data: Array<{ name: string; value: number; color
             <Cell key={`${entry.name}-${index}`} fill={entry.color} />
           ))}
         </Pie>
-        <Tooltip content={<DarkChartTooltip />} />
+        <Tooltip content={<DarkChartTooltip homeCurrency={homeCurrency} />} />
         <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: 12 }} />
       </PieChart>
     </ResponsiveContainer>
@@ -22683,16 +22728,19 @@ function DarkChartTooltip({
   label,
   percent = false,
   plain = false,
-}: {
+
+  homeCurrency = DEFAULT_FALLBACK_CURRENCY,}: {
   active?: boolean;
   payload?: Array<{ name?: string; value?: number; payload?: { name?: string } }>;
   label?: string;
   percent?: boolean;
   plain?: boolean;
+
+  homeCurrency?: string;
 }) {
   if (!active || !payload?.length) return null;
   const formatTooltipValue = (value: number) =>
-    percent ? `${value.toFixed(1)}%` : plain ? formatFte(value) : formatMoneyLegacy(value);
+    percent ? `${value.toFixed(1)}%` : plain ? formatFte(value) : formatMoneyLegacy(value, homeCurrency);
 
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm shadow-xl">
@@ -23572,6 +23620,8 @@ function FluxAnalysisPanel({
   monthDebug,
   quarterDebug,
   yearDebug,
+
+  homeCurrency,
 }: {
   settings: FluxSettings;
   onSettingsChange: (settings: FluxSettings) => void;
@@ -23581,6 +23631,8 @@ function FluxAnalysisPanel({
   monthDebug: FluxDebugInfo;
   quarterDebug: FluxDebugInfo;
   yearDebug: FluxDebugInfo;
+
+  homeCurrency: string;
 }) {
   return (
     <section className="mt-10 rounded-3xl border border-blue-900/60 bg-slate-900 p-8">
@@ -23654,9 +23706,15 @@ function FluxAnalysisPanel({
         yearDebug={yearDebug}
       />
 
-      <FluxTable title="Current Month vs Prior Month" rows={monthRows} />
-      <FluxTable title="Current Quarter vs Prior Quarter" rows={quarterRows} />
-      <FluxTable title="Current Year vs Prior Year" rows={yearRows} />
+      <FluxTable title="Current Month vs Prior Month" rows={monthRows} 
+          homeCurrency={homeCurrency}
+        />
+      <FluxTable title="Current Quarter vs Prior Quarter" rows={quarterRows} 
+          homeCurrency={homeCurrency}
+        />
+      <FluxTable title="Current Year vs Prior Year" rows={yearRows} 
+          homeCurrency={homeCurrency}
+        />
     </section>
   );
 }
@@ -23699,7 +23757,7 @@ function FluxDebugPanel({
   );
 }
 
-function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
+function FluxTable({ title, rows, homeCurrency }: { title: string; rows: FluxRow[]; homeCurrency: string }) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<keyof FluxRow>("dollarVariance");
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
@@ -23776,9 +23834,9 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
                       <td className="px-4 py-3 text-slate-300">{row.accountNumber}</td>
                       <td className="min-w-56 px-4 py-3 font-semibold text-slate-200">{row.accountName}</td>
                       <td className="px-4 py-3 text-slate-300">{row.basis}</td>
-                      <td className="px-4 py-3">{formatMoneyLegacy(row.currentAmount)}</td>
-                      <td className="px-4 py-3">{formatMoneyLegacy(row.priorAmount)}</td>
-                      <td className="px-4 py-3">{formatMoneyLegacy(row.dollarVariance)}</td>
+                      <td className="px-4 py-3">{formatMoneyLegacy(row.currentAmount, homeCurrency)}</td>
+                      <td className="px-4 py-3">{formatMoneyLegacy(row.priorAmount, homeCurrency)}</td>
+                      <td className="px-4 py-3">{formatMoneyLegacy(row.dollarVariance, homeCurrency)}</td>
                       <td className="px-4 py-3">
                         {formatFluxPercentLabel(row)}
                       </td>
@@ -23788,7 +23846,7 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
                       <td className="px-4 py-3 text-slate-300">{row.flagReason}</td>
                       <td className="px-4 py-3 text-slate-300">{row.topDriver}</td>
                       <td className="px-4 py-3 font-semibold">
-                        {row.driverChange === null ? "N/A" : formatCurrency(row.driverChange)}
+                        {row.driverChange === null ? "N/A" : formatCurrency(row.driverChange, homeCurrency)}
                       </td>
                       <td className="px-4 py-3">
                         <button
@@ -23840,8 +23898,8 @@ function FluxTable({ title, rows }: { title: string; rows: FluxRow[] }) {
                                     <div key={driver.name} className="rounded-xl border border-slate-800 bg-slate-900 p-3">
                                       <p className="font-semibold text-slate-100">{driver.name}</p>
                                       <p className="mt-1 text-xs text-slate-400">
-                                        Current {formatCurrency(driver.current)} | Prior {formatCurrency(driver.prior)} | Change{" "}
-                                        {formatCurrency(driver.change)}
+                                        Current {formatCurrency(driver.current, homeCurrency)} | Prior {formatCurrency(driver.prior, homeCurrency)} | Change{" "}
+                                        {formatCurrency(driver.change, homeCurrency)}
                                       </p>
                                     </div>
                                   ))
@@ -26311,7 +26369,7 @@ function Preview({ title, data,
       return formatPercent(value);
     }
 
-    return formatPreviewCell(row, cell, cellIndex, headers, rowIndex, title);
+    return formatPreviewCell(row, cell, cellIndex, homeCurrency, headers, rowIndex, title);
   };
 
   return (
