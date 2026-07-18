@@ -177,6 +177,46 @@ async function main() {
     `sample=${JSON.stringify(auditRows?.[0]?.assertions_addressed ?? null)}`,
   );
 
+  // Case 6: MC-3 — CurrencyRef + ExchangeRate=1 on USD-home sandbox
+  // Adapted to this smoke's pass() helper (paste used t.test / assert naming).
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const mc3Key = `mc3_smoke_${Date.now()}`;
+  const mc3Result = await qboJournalEntryPoster.post({
+    firm_client_id: FIRM_CLIENT_ID,
+    idempotency_key: mc3Key,
+    source_type: "manual",
+    posted_by: "human",
+    payload: {
+      transaction_date: todayIso,
+      narration: "MC-3 smoke — currency writeback",
+      currency: "USD",
+      lines: [
+        { account_id: DR_ACCOUNT, amount: 10.0, posting_type: "Debit", description: "MC-3 test DR" },
+        { account_id: CR_ACCOUNT, amount: 10.0, posting_type: "Credit", description: "MC-3 test CR" },
+      ],
+    },
+  });
+  pass(
+    "MC-3: JE posts with CurrencyRef + ExchangeRate=1 on USD-home sandbox",
+    mc3Result.status === "posted",
+    `status=${mc3Result.status}${mc3Result.status === "posted" ? " je=" + mc3Result.qbo_je_id : " reason=" + (mc3Result as { reason?: string }).reason}`,
+  );
+
+  if (mc3Result.status === "posted") {
+    const { data: mc3Audit } = await supabase
+      .from("je_posting_audit")
+      .select("currency, exchange_rate, home_currency_at_post")
+      .eq("idempotency_key", mc3Key)
+      .single();
+    pass(
+      "MC-3: audit row captured currency + exchange_rate + home_currency_at_post",
+      mc3Audit?.currency === "USD" &&
+        Number(mc3Audit?.exchange_rate) === 1 &&
+        mc3Audit?.home_currency_at_post === "USD",
+      `currency=${mc3Audit?.currency} rate=${mc3Audit?.exchange_rate} home=${mc3Audit?.home_currency_at_post}`,
+    );
+  }
+
   const passed = results.filter((r) => r.ok).length;
   const failed = results.length - passed;
   console.log(`\n=== SUMMARY: ${passed} passed, ${failed} failed ===`);

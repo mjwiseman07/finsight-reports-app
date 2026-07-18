@@ -35,10 +35,46 @@ export function makePosterMockDb(): MockDb & { auditRows: Record<string, unknown
       };
     }
     if (table === "firm_clients") {
+      // Poster asks for accounting_method (.single); MC-3 currency resolver
+      // asks for owner_user_id (.maybeSingle). Both must work on the same table.
+      const firmClientRow = {
+        accounting_method: "accrual",
+        owner_user_id: "owner-1",
+      };
       return {
         select: () => ({
           eq: () => ({
-            single: async () => ({ data: { accounting_method: "accrual" }, error: null }),
+            single: async () => ({ data: firmClientRow, error: null }),
+            maybeSingle: async () => ({ data: firmClientRow, error: null }),
+          }),
+        }),
+      };
+    }
+    if (table === "accounting_connections") {
+      // MC-3 currency resolver: home_currency for the firm client owner.
+      return {
+        select: () => ({
+          eq: () => ({
+            order: () => ({
+              limit: () => ({
+                maybeSingle: async () => ({
+                  data: { home_currency: "USD" },
+                  error: null,
+                }),
+                single: async () => ({
+                  data: { home_currency: "USD" },
+                  error: null,
+                }),
+              }),
+            }),
+            maybeSingle: async () => ({
+              data: { home_currency: "USD" },
+              error: null,
+            }),
+            single: async () => ({
+              data: { home_currency: "USD" },
+              error: null,
+            }),
           }),
         }),
       };
