@@ -84,6 +84,7 @@ async function main() {
       customerName: "Totally Unrelated Corp ZZZ",
       amount: 12.34,
       dueDate: "2020-01-01",
+      currency: "USD",
     },
     {
       id: invoiceIds[1],
@@ -92,6 +93,7 @@ async function main() {
       customerName: "Another Mismatch LLC",
       amount: 56.78,
       dueDate: "2019-06-15",
+      currency: "USD",
     },
     {
       id: invoiceIds[2],
@@ -100,6 +102,7 @@ async function main() {
       customerName: "Third Wrong Customer Inc",
       amount: 99.99,
       dueDate: "2018-01-01",
+      currency: "USD",
     },
   ];
 

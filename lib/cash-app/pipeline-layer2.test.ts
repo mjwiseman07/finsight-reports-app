@@ -64,6 +64,7 @@ function makeInvoice(
     customerName: string;
     amount: number;
     dueDate: string;
+    currency: string;
   }> = {},
 ) {
   return {
@@ -73,6 +74,7 @@ function makeInvoice(
     customerName: "Microsoft Corp",
     amount: 1000,
     dueDate: "2026-06-01",
+    currency: "USD",
     ...overrides,
   };
 }
@@ -246,5 +248,83 @@ describe("runLayer2ForUnmatchedPayment orchestration", () => {
     await runLayer2ForUnmatchedPayment(supabase as never, payment, eightInvoices, tenantId);
     const call = vi.mocked(reasonAboutMatches).mock.calls[0];
     expect(call[1].length).toBeLessThanOrEqual(5);
+  });
+
+  test("MC-4a: all candidates currency-mismatched -> drops to review, never scores or reasons", async () => {
+    const supabase = makeSupabaseMock();
+    const eurInvoice = makeInvoice({ id: "inv-eur", currency: "EUR" });
+    const gbpInvoice = makeInvoice({ id: "inv-gbp", currency: "GBP" });
+
+    await runLayer2ForUnmatchedPayment(
+      supabase as never,
+      payment, // USD payment
+      [eurInvoice, gbpInvoice],
+      tenantId,
+    );
+
+    expect(computeLayer2FeatureScore).not.toHaveBeenCalled();
+    expect(reasonAboutMatches).not.toHaveBeenCalled();
+    expect(createReviewItem).toHaveBeenCalledWith(
+      expect.objectContaining({ topCandidates: [] }),
+    );
+    expect(publishCashAppEvent).toHaveBeenCalledWith(
+      "cash_app.layer2_dropped_to_review",
+      { firmId: "firm-1", companyId: "co-1" },
+      "ar_cash_app_payment",
+      "pay-1",
+      expect.objectContaining({
+        reason: "currency_mismatch",
+        payment_currency: "USD",
+        mismatch_count: 2,
+      }),
+    );
+  });
+
+  test("MC-4a: mixed currency candidates -> only same-currency enter scoring", async () => {
+    const supabase = makeSupabaseMock();
+    const usdInvoice = makeInvoice({ id: "inv-usd", currency: "USD" });
+    const eurInvoice = makeInvoice({ id: "inv-eur", currency: "EUR" });
+    vi.mocked(computeLayer2FeatureScore).mockReturnValue([mockBreakdown(0.1)]);
+
+    await runLayer2ForUnmatchedPayment(
+      supabase as never,
+      payment, // USD payment
+      [usdInvoice, eurInvoice],
+      tenantId,
+    );
+
+    expect(computeLayer2FeatureScore).toHaveBeenCalledTimes(1);
+    // Scoring was called with only the USD invoice (1 candidate, not 2)
+    const scoringCall = vi.mocked(computeLayer2FeatureScore).mock.calls[0];
+    const scoringCandidates = scoringCall[0];
+    expect(scoringCandidates).toHaveLength(1);
+    expect(scoringCandidates[0].invoiceId).toBe("inv-usd");
+  });
+
+  test("MC-4a: all candidates same currency -> unchanged behavior (regression guard)", async () => {
+    const supabase = makeSupabaseMock();
+    const usdInvoice1 = makeInvoice({ id: "inv-1", currency: "USD" });
+    const usdInvoice2 = makeInvoice({ id: "inv-2", currency: "USD" });
+    vi.mocked(computeLayer2FeatureScore).mockReturnValue([
+      mockBreakdown(0.1),
+      mockBreakdown(0.1),
+    ]);
+
+    await runLayer2ForUnmatchedPayment(
+      supabase as never,
+      payment,
+      [usdInvoice1, usdInvoice2],
+      tenantId,
+    );
+
+    expect(computeLayer2FeatureScore).toHaveBeenCalledTimes(1);
+    const scoringCall = vi.mocked(computeLayer2FeatureScore).mock.calls[0];
+    expect(scoringCall[0]).toHaveLength(2);
+    // No currency-mismatch event
+    const publishedEvents = vi.mocked(publishCashAppEvent).mock.calls;
+    const mismatchEvents = publishedEvents.filter(
+      (call) => (call[4] as any)?.reason === "currency_mismatch",
+    );
+    expect(mismatchEvents).toHaveLength(0);
   });
 });
