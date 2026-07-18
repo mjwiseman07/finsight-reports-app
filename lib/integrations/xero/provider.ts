@@ -1,3 +1,4 @@
+import { parseAmountOrZero } from "@/lib/parse/amount";
 import { buildCertificationFixtureReportBundle } from "../accounting/normalizers/certification-fixtures";
 import { availabilityFromRows, notAvailableSchedule } from "../../accounting/supporting-schedules/fetchSupportingSchedules";
 import { buildMappedFinancialSummary, normalizeXeroFinancialStatement } from "../accounting/normalizers/financial-statements";
@@ -65,15 +66,10 @@ function withXeroHierarchyMetadata(raw: unknown, hierarchyPath: string[], source
   };
 }
 
-function parseAmount(value: unknown): number {
-  if (typeof value === "number") return value;
-  const raw = String(value ?? "0").trim();
-  const isNegative = /^\(.*\)$/.test(raw) || /^-/.test(raw);
-  const normalized = raw.replace(/[($,\s)]/g, "").replace(/^-/, "");
-  const amount = Number(normalized);
-  if (!Number.isFinite(amount)) return 0;
-  return isNegative ? -amount : amount;
-}
+// Phase MC-2e.2 (Issue #6, Gap I-3): local parseAmount replaced by shared
+// locale-aware parser. Xero Report API returns en-US-formatted numeric
+// strings ("1234.56", "1,234.56"); shared parser handles both via heuristic.
+const parseAmount = (value: unknown): number => parseAmountOrZero(value);
 
 function source(sourceReport: string, raw: unknown, externalEntityId?: string, externalRecordId?: string): CanonicalSourceMetadata {
   return {
