@@ -18,6 +18,7 @@ export interface ApplyPrepaymentInput {
   engagementId: string;
   vendorId: string;
   billId: string;
+  billCurrency: string;
   amountCents: number;
   currency: string;
   actorUserId: string;

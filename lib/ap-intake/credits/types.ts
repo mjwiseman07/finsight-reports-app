@@ -23,6 +23,7 @@ export interface ApplyCreditInput {
   engagementId: string;
   creditId: string;
   billId: string;
+  billCurrency: string;
   appliedAmountCents: number;
   appliedBy: "system_auto" | "user_manual" | "payment_authorization";
   actorUserId: string;
