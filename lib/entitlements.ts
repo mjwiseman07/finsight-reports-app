@@ -10,8 +10,9 @@ import { createServiceClient } from "@/lib/supabase/service";
 const TIER_META: Record<
   string,
   {
-    entitlements: Record<string, boolean | number | string>;
+    entitlements: Record<string, boolean | number | string | null>;
     erpSupport: ResolvedEntitlements["erp_support"];
+    archived?: boolean;
   }
 > = {
   solo_bookkeeper: {
@@ -27,6 +28,7 @@ const TIER_META: Record<
       firm_seats: 10,
     },
     erpSupport: { quickbooks: "live", xero: "coming_soon" },
+    archived: true, // v1.4: retired
   },
   review_assist: {
     entitlements: {
@@ -43,6 +45,142 @@ const TIER_META: Record<
       review_assist_findings_composer: true,
       review_assist_severity_surface: true,
       review_assist_close_packet_gate: true,
+      // v1.4 additions
+      review_assist_bank_matching_csv: true,
+      review_assist_bank_matching_qbo_feed: true,
+      review_assist_je_proposal: true,
+      review_assist_matching_engine: "rules",
+      review_assist_write_qbo: false,
+      review_assist_historical_cleanup: false,
+      review_assist_multi_client: false,
+      review_assist_je_cadence_configurable: true,
+      review_assist_je_cadence_default: "daily",
+      review_assist_je_always_on: true,
+      review_assist_print_pdf: true,
+      review_assist_print_csv: true,
+      review_assist_cash_app: false,
+      review_assist_cash_app_engine: null,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
+  review_assist_pro: {
+    entitlements: {
+      max_entities: 10,
+      max_verticals: 15,
+      pulse_intelligence: true,
+      organizational_memory: true,
+      predictive_alerts: true,
+      weekly_briefings: true,
+      disclosure_validation_full: true,
+      cross_vertical_synthesis: true,
+      firm_seats: 5,
+      review_assist_pdf_mode: true,
+      review_assist_findings_composer: true,
+      review_assist_severity_surface: true,
+      review_assist_close_packet_gate: true,
+      review_assist_bank_matching_csv: true,
+      review_assist_bank_matching_qbo_feed: true,
+      review_assist_je_proposal: true,
+      review_assist_je_cadence_configurable: true,
+      review_assist_je_cadence_default: "realtime",
+      review_assist_je_always_on: true,
+      review_assist_print_pdf: true,
+      review_assist_print_csv: true,
+      review_assist_write_qbo: true,
+      review_assist_matching_engine: "ai_memory",
+      review_assist_historical_cleanup: true,
+      review_assist_historical_lookback_months: 24,
+      review_assist_multi_client: true,
+      review_assist_ai_reasoning: true,
+      review_assist_memory_substrate: true,
+      review_assist_evidence_citations: true,
+      review_assist_assertion_coverage: true,
+      review_assist_industry_templates: true,
+      ask_pulse_command_center: true,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
+  ra_cashapp_addon: {
+    entitlements: {
+      review_assist_cash_app: true,
+      review_assist_cash_app_engine: "rules",
+      review_assist_cash_app_max_per_month: 100,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
+  ra_je_write_addon: {
+    entitlements: {
+      review_assist_write_qbo: true,
+      review_assist_je_audit_trail: true,
+      review_assist_je_reversal: true,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
+  ra_pro_cashapp_addon: {
+    entitlements: {
+      review_assist_cash_app: true,
+      review_assist_cash_app_engine: "ai_memory",
+      cash_app_check_image_ocr: true,
+      cash_app_split_payments: true,
+      cash_app_short_pay_handling: true,
+      cash_app_discount_logic: true,
+      cash_app_confidence_scoring: true,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
+  ra_pro_ar_addon: {
+    entitlements: {
+      ra_pro_ar_billing: true,
+      ra_pro_ar_customer_mgmt: true,
+      ra_pro_ar_invoice_send: true,
+      ra_pro_ar_stripe_payment_links: true,
+      ra_pro_ar_aging_native: true,
+      ra_pro_ar_reconciliation: true,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
+  ra_pro_ap_addon: {
+    entitlements: {
+      ra_pro_ap_bills: true,
+      ra_pro_ap_vendor_mgmt: true,
+      ra_pro_ap_approval_workflow: true,
+      ra_pro_ap_qbo_bill_write: true,
+      ra_pro_ap_1099_tracking: true,
+      ra_pro_ap_aging_native: true,
+      ra_pro_ap_fraud_stack: true,
+      ra_pro_ap_fraud_duplicate_detection: true,
+      ra_pro_ap_fraud_new_vendor_hold: true,
+      ra_pro_ap_fraud_amount_outlier: true,
+      ra_pro_ap_fraud_bank_change_alert: true,
+      ra_pro_ap_fraud_velocity_limit: true,
+      ra_pro_ap_fraud_split_invoice: true,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
+  ra_pro_billpay_connector_addon: {
+    entitlements: {
+      ra_pro_billpay_connector: true,
+      ra_pro_billpay_fraud_stack_apply: true,
+      ra_pro_billpay_orchestration: true,
+      ra_pro_billpay_reconciliation: true,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
+  ra_pro_billpay_native_addon: {
+    entitlements: {
+      ra_pro_billpay_native: true,
+      ra_pro_billpay_native_ach: true,
+      ra_pro_billpay_native_2fa_threshold_usd: 10000,
+      ra_pro_billpay_native_sanctions_screening: true,
+      ra_pro_billpay_native_vendor_bank_verification: true,
+      ra_pro_billpay_native_1099_auto: true,
+    },
+    erpSupport: { quickbooks: "live", xero: "coming_soon" },
+  },
+  ra_pro_payroll_addon: {
+    entitlements: {
+      ra_pro_payroll: false,
+      ra_pro_payroll_max_employees: 0,
     },
     erpSupport: { quickbooks: "live", xero: "coming_soon" },
   },
@@ -68,7 +206,7 @@ export interface ResolvedEntitlements {
   complimentary_client_cap: number | null;
   pilot_slot_number: number | null;
   pilot_status: string | null;
-  entitlement_flags: Record<string, boolean | number | string>;
+  entitlement_flags: Record<string, boolean | number | string | null>;
   erp_support: {
     quickbooks: "live" | "coming_soon" | "not_supported";
     xero: "live" | "coming_soon" | "not_supported";
