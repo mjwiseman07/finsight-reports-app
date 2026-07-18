@@ -161,6 +161,17 @@ describe("parseAmount — heuristic fallback (Strategy B)", () => {
     // yielding 1.234. Verify strict path below.
     expect(parseAmount("1,234", { currency: "USD" })).toBe(1234);
   });
+  // MC-2e.4: Option B (no currency hint) must cover these — en-US used to
+  // false-accept comma-decimals as grouping, and reject Swiss apostrophes.
+  it(`bare comma-decimal without currency hint (was 100× off / wrong)`, () => {
+    expect(parseAmount("1234,56")).toBe(1234.56);
+    expect(parseAmount("0,5")).toBe(0.5);
+    expect(parseAmount("12,34")).toBe(12.34);
+  });
+  it(`Swiss apostrophe without CHF hint (was null)`, () => {
+    expect(parseAmount("1'234.56")).toBe(1234.56);
+    expect(parseAmount("1'234'567.89")).toBe(1234567.89);
+  });
 });
 
 describe("parseAmount — strict mode", () => {
