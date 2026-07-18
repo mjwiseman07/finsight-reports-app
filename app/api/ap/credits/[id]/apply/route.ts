@@ -14,12 +14,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (!firmId) return NextResponse.json({ error: "no_firm_membership" }, { status: 403 });
     const { id } = await ctx.params;
     const body = await req.json().catch(() => ({}));
+    const billCurrency = typeof body.bill_currency === "string" ? body.bill_currency.trim() : "";
+    if (!billCurrency) {
+      return NextResponse.json({ error: "bill_currency required" }, { status: 400 });
+    }
     const appId = await applyCredit({
       firmId,
       firmClientId: String(body.firm_client_id),
       engagementId: String(body.engagement_id),
       creditId: id,
       billId: String(body.bill_id),
+      billCurrency,
       appliedAmountCents: Number(body.applied_amount_cents),
       appliedBy: body.applied_by ?? "user_manual",
       actorUserId: auth.userId,

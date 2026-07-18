@@ -83,12 +83,21 @@ export async function applyCredit(input: ApplyCreditInput): Promise<string> {
   const supabase = createServiceClient();
   const { data: credit, error: cErr } = await supabase
     .from("vendor_credits")
-    .select("id, firm_id, remaining_amount_cents, status")
+    .select("id, firm_id, remaining_amount_cents, status, currency")
     .eq("id", input.creditId)
     .single();
   if (cErr || !credit) throw new CreditValidationError("creditId", "credit not found");
   if (credit.firm_id !== input.firmId) {
     throw new CreditValidationError("firmId", "firm mismatch");
+  }
+  // MC-4b (Gap C-2): Currency-equality gate. A credit memo can only be applied
+  // to a bill in the same currency. No FX conversion at apply time (mirrors
+  // MC-3/MC-4a "reject, never fallback" policy).
+  if (credit.currency !== input.billCurrency) {
+    throw new CreditValidationError(
+      "currency",
+      `credit currency ${credit.currency} does not match bill currency ${input.billCurrency}`,
+    );
   }
   if (credit.status !== "open" && credit.status !== "partially_applied") {
     throw new CreditValidationError("status", `credit not applicable (status=${credit.status})`);
@@ -135,6 +144,8 @@ export async function applyCredit(input: ApplyCreditInput): Promise<string> {
       applied_amount_cents: input.appliedAmountCents,
       applied_by: input.appliedBy,
       new_status: newStatus,
+      credit_currency: credit.currency,
+      bill_currency: input.billCurrency,
     },
   });
   return app.id;

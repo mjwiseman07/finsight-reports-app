@@ -139,6 +139,16 @@ export async function applyPrepayment(input: ApplyPrepaymentInput): Promise<stri
   if (input.amountCents <= 0) {
     throw new PrepaymentValidationError("amountCents", "must be > 0");
   }
+  // MC-4b (Gap C-2): Currency-equality gate. Prepayment balance lookup uses
+  // input.currency as its WHERE clause key; assert that this matches the bill's
+  // currency so a caller cannot silently apply a EUR balance to a USD bill by
+  // supplying the wrong currency envelope. Reject, never convert.
+  if (input.currency !== input.billCurrency) {
+    throw new PrepaymentValidationError(
+      "currency",
+      `prepayment currency ${input.currency} does not match bill currency ${input.billCurrency}`,
+    );
+  }
   await assertEntitlement("ap_credit_prepayment", input.engagementId, {
     caller: "prepayment.applyPrepayment",
     firmClientId: input.firmClientId,
@@ -205,6 +215,7 @@ export async function applyPrepayment(input: ApplyPrepaymentInput): Promise<stri
       ledger_id: led.id,
       amount_cents: input.amountCents,
       currency: input.currency,
+      bill_currency: input.billCurrency,
     },
   });
   return led.id;
