@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { superAdminActionTypes, superAdminPackageLevels, superAdminPersonaModes } from "../../../../lib/super-admin";
+import {
+  superAdminActionTypes,
+  superAdminPersonaModes,
+  getSuperAdminPackageLevels,
+} from "../../../../lib/super-admin";
 import {
   assertDemoCompany,
   auditSuperAdminEvent,
@@ -39,7 +43,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Invalid persona mode." }, { status: 400 });
   }
 
-  if (action === "package_switched" && !superAdminPackageLevels.includes(body.package_level)) {
+  if (action === "package_switched" && !getSuperAdminPackageLevels().includes(body.package_level)) {
     return NextResponse.json({ error: "Invalid package level." }, { status: 400 });
   }
 
@@ -52,6 +56,7 @@ export async function POST(request) {
     metadata: {
       persona_mode: body.persona_mode || null,
       package_level: body.package_level || null,
+      tier_key: body.tier_key || body.package_level || null,
       account_type: body.account_type || null,
       workflow: body.workflow || null,
       test_only: true,
