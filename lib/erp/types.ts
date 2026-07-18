@@ -99,7 +99,16 @@ export const DATA_SOURCE_RELIABILITY_BASES: readonly DataSourceReliabilityBasis[
 
 export type JEPostResult =
   | { status: "posted"; attempt_id: string; qbo_je_id: string }
-  | { status: "rejected"; attempt_id: string; reason: string; details?: unknown }
+  | {
+      status: "rejected";
+      attempt_id: string;
+      reason: string;
+      details?: unknown;
+      /** Phase Q7 — present when reason is edition_missing_capability */
+      missingCapability?: string;
+      edition?: string | null;
+      subscriptionStatus?: string;
+    }
   | { status: "failed"; attempt_id: string; error: string; retryable: boolean };
 
 export interface IJournalEntryPoster {

@@ -236,6 +236,62 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
     // 8. Build QBO body (with CurrencyRef + ExchangeRate)
     const qboBody = buildQBOJournalEntry(req.payload, currencyCtx);
 
+    // Phase Q7 (Issue #7): pick the strongest required capability based on
+    // what this JE actually uses, then re-run preflight with that requirement.
+    // Reject-not-degrade: if the edition can't support it, refuse the POST
+    // with a clear reason.
+    //
+    // Deviation from paste: do NOT use Boolean(jePayload?.CurrencyRef) —
+    // buildQBOJournalEntry always sets CurrencyRef post-MC-3, which would
+    // incorrectly require multicurrency for every home-currency JE and block
+    // simple_start. Detect foreign currency via CurrencyContext instead.
+    let requiredCapability: import("@/lib/erp/quickbooks/qbo-editions").QboCapability =
+      "journal_entry_write";
+    const linesForCheck = Array.isArray(qboBody?.Line) ? qboBody.Line : [];
+    const usesClass = linesForCheck.some(
+      (line: { JournalEntryLineDetail?: { ClassRef?: unknown } }) =>
+        Boolean(line?.JournalEntryLineDetail?.ClassRef),
+    );
+    const usesDepartment = linesForCheck.some(
+      (line: { JournalEntryLineDetail?: { DepartmentRef?: unknown } }) =>
+        Boolean(line?.JournalEntryLineDetail?.DepartmentRef),
+    );
+    const usesMulticurrency =
+      currencyCtx.currency !== currencyCtx.home_currency || currencyCtx.exchange_rate !== 1;
+
+    if (usesMulticurrency) requiredCapability = "multicurrency";
+    if (usesDepartment) requiredCapability = "locations";
+    if (usesClass) requiredCapability = "classes";
+
+    if (requiredCapability !== "journal_entry_write") {
+      const capabilityCheck = await canPostToQBO(req.firm_client_id, {
+        requireCapability: requiredCapability,
+      });
+      if (!capabilityCheck.canWrite) {
+        await finalizeReject(
+          attemptId,
+          req,
+          capabilityCheck.reason ?? "edition_missing_capability",
+          {
+            missingCapability: capabilityCheck.missingCapability,
+            edition: capabilityCheck.edition,
+            subscriptionStatus: capabilityCheck.subscriptionStatus,
+          },
+          resolvedAssertions,
+          resolvedReliability,
+          currencyCtx,
+        );
+        return {
+          status: "rejected",
+          attempt_id: attemptId,
+          reason: capabilityCheck.reason ?? "edition_missing_capability",
+          missingCapability: capabilityCheck.missingCapability,
+          edition: capabilityCheck.edition,
+          subscriptionStatus: capabilityCheck.subscriptionStatus,
+        };
+      }
+    }
+
     // 9. Post with one 401 retry after forced refresh
     let postResp = await postToQBO(tokenResult.realmId, tokenResult.accessToken, qboBody);
     if (postResp.status === 401) {

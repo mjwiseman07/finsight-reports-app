@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getERPAdapter } from "../../../../lib/erp-adapters";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { resolveEntitlementsForSubject } from "../../../../lib/entitlements";
+import { parseOfferingSku, parseSubscriptionStatus } from "@/lib/erp/quickbooks/qbo-editions";
 
 function getQuickBooksTokenExpiry(token) {
   const expiresInSeconds = Number(token?.expires_in || 3600);
@@ -26,6 +27,9 @@ async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, 
     status: "connected",
     // Phase MC-1 (Issue #6, Gap DB-1): first-class home currency column.
     home_currency: companyProfile.home_currency || null,
+    // Phase Q7 (Issue #7): normalized edition + subscription status.
+    qbo_edition: parseOfferingSku(companyProfile.qbo_edition_raw),
+    qbo_subscription_status: parseSubscriptionStatus(companyProfile.qbo_subscription_status_raw),
     metadata_json: {
       lead_id: leadId,
       realm_id: realmId,
@@ -38,6 +42,12 @@ async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, 
       // Phase MC-1 (Issue #6): currency context mirrored for callers that read metadata_json.
       home_currency: companyProfile.home_currency || null,
       multicurrency_enabled: Boolean(companyProfile.multicurrency_enabled),
+      // Phase Q7 (Issue #7): mirror edition context into metadata_json for
+      // callers reading from JSON.
+      qbo_edition: parseOfferingSku(companyProfile.qbo_edition_raw),
+      qbo_subscription_status: parseSubscriptionStatus(companyProfile.qbo_subscription_status_raw),
+      qbo_edition_raw: companyProfile.qbo_edition_raw || null,
+      qbo_subscription_status_raw: companyProfile.qbo_subscription_status_raw || null,
     },
     updated_at: now,
   };
