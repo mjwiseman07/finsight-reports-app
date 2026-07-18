@@ -9,14 +9,13 @@ import type {
   CanonicalTrialBalanceRow,
   ConnectedAccountingEntity,
 } from "../types";
+import { parseAmountOrZero } from "@/lib/parse/amount";
 import { normalizeQuickBooksFinancialStatement, normalizeStructuredReportRows } from "./financial-statements";
 
-function parseAmount(value: unknown): number {
-  if (typeof value === "number") return value;
-  const normalized = String(value ?? "0").replace(/[$,]/g, "");
-  const amount = Number(normalized);
-  return Number.isFinite(amount) ? amount : 0;
-}
+// Phase MC-2e.2 (Issue #6, Gap I-3): local parseAmount replaced by shared
+// locale-aware parser. QBO/Xero API responses are always en-US-formatted;
+// calling parseAmountOrZero with no options preserves that behavior exactly.
+const parseAmount = (value: unknown): number => parseAmountOrZero(value);
 
 function source(provider: AccountingProvider, sourceReport: string, raw: unknown, externalEntityId?: string): CanonicalSourceMetadata {
   return {

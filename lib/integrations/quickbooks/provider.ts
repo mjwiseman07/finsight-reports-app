@@ -1,3 +1,4 @@
+import { parseAmountOrZero } from "@/lib/parse/amount";
 import { QuickBooksAdapter } from "../../erp-adapters/quickbooks-adapter";
 import { availabilityFromRows, notAvailableSchedule } from "../../accounting/supporting-schedules/fetchSupportingSchedules";
 import { buildCertificationFixtureReportBundle } from "../accounting/normalizers/certification-fixtures";
@@ -13,15 +14,10 @@ import type {
   ProviderRequestParams,
 } from "../accounting/types";
 
-function parseAmount(value: unknown) {
-  if (typeof value === "number") return value;
-  const raw = String(value ?? "0").trim();
-  const isNegative = /^\(.*\)$/.test(raw) || /^-/.test(raw);
-  const normalized = raw.replace(/[($,\s)]/g, "").replace(/^-/, "");
-  const amount = Number(normalized);
-  if (!Number.isFinite(amount)) return 0;
-  return isNegative ? -amount : amount;
-}
+// Phase MC-2e.2 (Issue #6, Gap I-3): local parseAmount replaced by shared
+// locale-aware parser. Intuit QBO Report API returns en-US-formatted numeric
+// strings; shared parser preserves that behavior exactly.
+const parseAmount = (value: unknown): number => parseAmountOrZero(value);
 
 function quickBooksColValue(col: unknown) {
   const record = col as Record<string, unknown> | undefined;

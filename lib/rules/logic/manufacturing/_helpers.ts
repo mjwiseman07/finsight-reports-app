@@ -1,4 +1,5 @@
 import { queryMemory } from "@/lib/memory/client-memory-service";
+import { parseAmountOrZero } from "@/lib/parse/amount";
 import type { RuleContext, RuleResult } from "@/lib/rules/vertical-types";
 
 export interface QBOReportRow {
@@ -57,10 +58,13 @@ export function internalError(err: unknown): RuleResult {
   };
 }
 
+// Phase MC-2e.2 (Issue #6, Gap I-3): re-implemented against the shared
+// locale-aware parser. Manufacturing rule helpers consume QBO report rows
+// (en-US contract); shared parser matches the previous behavior exactly.
+// Exported signature preserved — all 8 downstream rule files continue to
+// import { parseAmount } from "./_helpers" without change.
 export function parseAmount(val: unknown): number {
-  if (val == null) return 0;
-  const n = parseFloat(String(val).replace(/,/g, ""));
-  return Number.isFinite(n) ? n : 0;
+  return parseAmountOrZero(val);
 }
 
 function rowLabel(row: QBOReportRow): string {

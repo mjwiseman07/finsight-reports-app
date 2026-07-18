@@ -1,5 +1,6 @@
 import type { AdvisacorNormalizedFinancialData } from "./integrations/accounting";
 import { DEFAULT_FALLBACK_CURRENCY, formatMoney } from "@/lib/format/money";
+import { parseAmountOrZero } from "@/lib/parse/amount";
 import {
   buildDemoPackageSections,
   buildDemoBalanceSheetRows,
@@ -312,13 +313,16 @@ function formatXeroCurrencyValue(amount: number, currency: string) {
   return amount < 0 ? `(${formatted})` : formatted;
 }
 
-function parseCurrencyLabel(value: unknown) {
-  const raw = String(value || "").trim();
-  if (!raw) return 0;
-  const isNegative = /^\(.*\)$/.test(raw) || /^-/.test(raw);
-  const amount = Number(raw.replace(/[($,\s)]/g, "").replace(/^-/, ""));
-  if (!Number.isFinite(amount)) return 0;
-  return isNegative ? -amount : amount;
+// Phase MC-2e.2 (Issue #6, Gap I-3): local parseCurrencyLabel replaced by
+// shared locale-aware parser. This helper parses already-formatted display
+// labels (e.g. "$1,234.56", "(1,234.56)", "€1.234,56" post-MC-2d). Callers
+// don't have homeCurrency in scope; the shared parser's heuristic fallback
+// correctly interprets both en-US ("1,234.56") and de-DE ("1.234,56")
+// formats without threading currency here. TODO(MC-2e.3+): thread
+// homeCurrency where the caller has it in scope (e.g. inventoryAnalysisSchedule
+// has options.homeCurrency).
+function parseCurrencyLabel(value: unknown): number {
+  return parseAmountOrZero(value);
 }
 
 function sumNormalizedRows(rows: Array<{ label: string; section?: string; amount: number }>, pattern: RegExp) {

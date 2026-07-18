@@ -1,6 +1,8 @@
 /**
  * Phase D6.5 Part 2 — Block 4: regex-based invoice field extraction from bill text.
  */
+import { parseAmountToCents as sharedParseAmountToCents } from "@/lib/parse/amount";
+
 export interface ExtractedInvoiceFields {
   invoice_number: string | null;
   invoice_date: string | null;
@@ -85,9 +87,11 @@ export function extractInvoiceFields(rawText: string): ExtractedInvoiceFields {
   };
 }
 
+// Phase MC-2e.2 (Issue #6, Gap I-3): local parseAmountToCents replaced by
+// shared locale-aware helper. OCR'd invoice text can carry vendor-locale
+// formatting (e.g. de-DE "1.234,56"); the shared parser interprets both
+// en-US and non-en-US grouping via its heuristic fallback. Return type
+// preserved: number | null.
 function parseAmountToCents(raw: string): number | null {
-  const cleaned = raw.replace(/,/g, "");
-  const value = Number(cleaned);
-  if (!Number.isFinite(value)) return null;
-  return Math.round(value * 100);
+  return sharedParseAmountToCents(raw);
 }

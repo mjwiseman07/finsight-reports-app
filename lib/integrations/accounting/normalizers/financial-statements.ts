@@ -1,3 +1,4 @@
+import { parseAmountOrZero } from "@/lib/parse/amount";
 import type {
   AccountingProvider,
   CanonicalBalanceSheetRow,
@@ -36,15 +37,10 @@ type FinancialSummary = {
   incomeStatementValid: boolean;
 };
 
-function parseAmount(value: unknown): number {
-  if (typeof value === "number") return value;
-  const raw = String(value ?? "0").trim();
-  const isNegative = /^\(.*\)$/.test(raw) || /^-/.test(raw);
-  const normalized = raw.replace(/[($,\s)]/g, "").replace(/^-/, "");
-  const amount = Number(normalized);
-  if (!Number.isFinite(amount)) return 0;
-  return isNegative ? -amount : amount;
-}
+// Phase MC-2e.2 (Issue #6, Gap I-3): local parseAmount replaced by shared
+// locale-aware parser. Preserves paren-negative + leading-minus + whitespace
+// stripping behavior via the shared module's stripPresentational stage.
+const parseAmount = (value: unknown): number => parseAmountOrZero(value);
 
 function source(provider: AccountingProvider, sourceReport: string, raw: unknown, externalEntityId?: string): CanonicalSourceMetadata {
   return {
