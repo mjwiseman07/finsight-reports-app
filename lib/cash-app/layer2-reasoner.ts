@@ -18,6 +18,7 @@ export interface CandidateForReasoning {
   invoiceId: string;
   docNumber: string;
   balance: number;
+  currency: string;
   invoiceDateIso: string;
   customerId: string;
   customerName: string | null;
@@ -50,7 +51,7 @@ interface LlmVerdict {
   preferred_candidate_id: string | null;
 }
 
-function buildSystemPrompt(): string {
+export function buildSystemPrompt(): string {
   return [
     "You are a cash-application matching assistant for an accounting platform.",
     "Given a payment and a list of candidate open invoices with pre-computed feature",
@@ -59,6 +60,13 @@ function buildSystemPrompt(): string {
     'this exact shape:',
     '{"verdict": "match" | "no_match" | "uncertain", "confidence": <number 0..1>,',
     ' "reasoning": "<short explanation>", "preferred_candidate_id": "<invoice id or null>"}',
+    "CURRENCY DISCIPLINE: All monetary amounts you see (payment.amount_received,",
+    "candidate.balance, and any historical figures) are denominated in the currency",
+    "named in the CURRENCY_SCOPE block below. You MUST NOT compare, sum, or infer",
+    "arithmetic relationships between amounts in different currencies. If ANY candidate",
+    "is denominated in a currency different from the payment_currency, verdict MUST be",
+    '"no_match" and reasoning MUST cite the currency mismatch explicitly. Do not',
+    "silently convert or approximate FX.",
     'Set verdict "match" only when you are confident a specific candidate is correct.',
     'Set "uncertain" when multiple candidates are plausible or evidence is weak.',
     'Set "no_match" when no candidate is plausible at all.',
@@ -66,13 +74,23 @@ function buildSystemPrompt(): string {
   ].join(" ");
 }
 
-function buildUserPrompt(
+export function buildUserPrompt(
   payment: PaymentForReasoning,
   candidates: CandidateForReasoning[],
   featureBreakdowns: FeatureBreakdown[],
+  homeCurrency: string,
   priorBelief?: { verdict: string; confidence: number; reasoning: string },
 ): string {
   const lines: string[] = [];
+  lines.push("CURRENCY_SCOPE:");
+  lines.push(
+    JSON.stringify({
+      payment_currency: payment.currency,
+      home_currency: homeCurrency,
+      note: "All monetary amounts in this prompt are denominated in payment_currency. Refuse cross-currency matches.",
+    }),
+  );
+  lines.push("");
   lines.push("PAYMENT:");
   lines.push(
     JSON.stringify({
@@ -92,6 +110,7 @@ function buildUserPrompt(
         invoice_id: c.invoiceId,
         doc_number: c.docNumber,
         balance: c.balance,
+        currency: c.currency,
         invoice_date: c.invoiceDateIso,
         customer_name: c.customerName,
         feature_scores: fb
@@ -161,9 +180,15 @@ export async function reasonAboutMatches(
   featureBreakdowns: FeatureBreakdown[],
   tenantId: { firmId: string; companyId: string },
   firmConfig: FirmLlmConfig,
+  homeCurrency: string,
 ): Promise<LayerResult> {
   const systemPrompt = buildSystemPrompt();
-  const primaryUserPrompt = buildUserPrompt(payment, topCandidates, featureBreakdowns);
+  const primaryUserPrompt = buildUserPrompt(
+    payment,
+    topCandidates,
+    featureBreakdowns,
+    homeCurrency,
+  );
   const scope = { firmId: tenantId.firmId, companyId: tenantId.companyId };
 
   const primaryResponse = await invokeClaude({
@@ -240,11 +265,17 @@ export async function reasonAboutMatches(
       },
     );
 
-    const escalationUserPrompt = buildUserPrompt(payment, topCandidates, featureBreakdowns, {
-      verdict: primaryParsed.verdict,
-      confidence: primaryConfidence,
-      reasoning: primaryParsed.reasoning,
-    });
+    const escalationUserPrompt = buildUserPrompt(
+      payment,
+      topCandidates,
+      featureBreakdowns,
+      homeCurrency,
+      {
+        verdict: primaryParsed.verdict,
+        confidence: primaryConfidence,
+        reasoning: primaryParsed.reasoning,
+      },
+    );
 
     const toptierResponse = await invokeClaude({
       tier: firmConfig.layer2LlmEscalationTier,

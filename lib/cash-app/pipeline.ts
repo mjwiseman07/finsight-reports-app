@@ -16,6 +16,7 @@ import { reasonAboutMatches, type CandidateForReasoning } from "./layer2-reasone
 import { createReviewItem } from "./review-queue";
 import { getFirmLlmConfig } from "./firm-llm-config";
 import { normalizePayerName } from "@/lib/ar-cash-app/normalization/payer-name";
+import { resolveCurrencyForFirmClient } from "@/lib/erp/quickbooks/currency-resolver";
 import type { TopCandidateSummary } from "./review-queue-types";
 
 const LAYER2_PLAUSIBILITY_FLOOR = 0.35;
@@ -251,12 +252,30 @@ export async function runLayer2ForUnmatchedPayment(
     invoiceId: c.invoice.id,
     docNumber: c.invoice.invoiceNumber,
     balance: c.invoice.amount,
+    currency: c.invoice.currency,
     invoiceDateIso: c.invoice.dueDate,
     customerId: c.invoice.customerId,
     customerName: c.invoice.customerName,
   }));
 
   const featureBreakdowns = topCandidates.map((c) => c.breakdown);
+
+  // MC-4d: Resolve entity home currency for CURRENCY_SCOPE. Best-effort fallback
+  // to payment.currency if MC-3 resolver is unavailable (never throws by contract,
+  // but catch transient failures so Layer-2 remains available).
+  let homeCurrency = payment.currency;
+  try {
+    const resolved = await resolveCurrencyForFirmClient(
+      supabase,
+      tenantId.companyId,
+      undefined,
+    );
+    if (resolved.ok) {
+      homeCurrency = resolved.home_currency;
+    }
+  } catch {
+    // best-effort fallback — Layer-2 remains available if MC-3 resolver is transiently unavailable
+  }
 
   const result = await reasonAboutMatches(
     {
@@ -271,6 +290,7 @@ export async function runLayer2ForUnmatchedPayment(
     featureBreakdowns,
     tenantId,
     firmConfig,
+    homeCurrency,
   );
 
   for (const entry of topCandidates) {
