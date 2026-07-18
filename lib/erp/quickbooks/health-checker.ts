@@ -1,10 +1,14 @@
 /**
- * QBO Health Checker (Doc D1).
+ * QBO Health Checker (Doc D1 + Phase Q7 edition retrofit).
  *
  * Performs a live, read-only probe against QBO for a firm_client: confirms the
  * token resolves, the required scope is present, and the realm is reachable via
  * the companyinfo endpoint. Records the result to qbo_health_check_log and
  * updates firm_clients.qbo_last_health_check_*.
+ *
+ * On a healthy 200, also opportunistically backfills qbo_edition /
+ * qbo_subscription_status on accounting_connections when those columns are NULL
+ * (Phase Q7 / Issue #7).
  *
  * Read-only. No QBO writes.
  */
@@ -34,6 +38,11 @@ export interface QBOHealthResult {
   errorMessage?: string;
 }
 
+type CompanyInfoPayload = {
+  NameValue?: Array<{ Name?: string; Value?: string }>;
+  SubscriptionStatus?: string;
+};
+
 const QBO_SCOPE = "com.intuit.quickbooks.accounting";
 
 function qboBaseUrl(): string {
@@ -42,13 +51,25 @@ function qboBaseUrl(): string {
     : "https://sandbox-quickbooks.api.intuit.com";
 }
 
-async function companyInfoStatus(bundle: QBOTokenBundle): Promise<number> {
+/**
+ * Fetch CompanyInfo and return both HTTP status and the CompanyInfo object
+ * (when status is 200). Used so Q7 can parse OfferingSku / SubscriptionStatus.
+ */
+async function fetchCompanyInfo(
+  bundle: QBOTokenBundle,
+): Promise<{ status: number; companyInfo: CompanyInfoPayload | null }> {
   const url = `${qboBaseUrl()}/v3/company/${bundle.realmId}/companyinfo/${bundle.realmId}`;
-  const { status } = await qboApiFetch(url, {
+  const { status, json } = await qboApiFetch(url, {
     accessToken: bundle.accessToken,
     method: "GET",
   });
-  return status;
+  if (status !== 200) {
+    return { status, companyInfo: null };
+  }
+  const root = (json ?? {}) as { CompanyInfo?: CompanyInfoPayload } & CompanyInfoPayload;
+  const companyInfo: CompanyInfoPayload =
+    root.CompanyInfo && typeof root.CompanyInfo === "object" ? root.CompanyInfo : root;
+  return { status, companyInfo };
 }
 
 function statusFromHttp(httpStatus: number): QBOHealthStatus {
@@ -83,6 +104,57 @@ async function persist(
       qbo_last_health_check_status: result.status,
     })
     .eq("id", firmClientId);
+}
+
+/**
+ * Phase Q7 (Issue #7): opportunistic retrofit for older rows that pre-date
+ * OAuth-time edition capture. Never overwrites a non-null value.
+ */
+async function retrofitEditionFromCompanyInfo(
+  realmId: string,
+  companyInfo: CompanyInfoPayload | null,
+): Promise<void> {
+  if (!companyInfo) return;
+  try {
+    const nameValues = Array.isArray(companyInfo.NameValue) ? companyInfo.NameValue : [];
+    let offeringSkuRaw: string | null = null;
+    for (const entry of nameValues) {
+      if (entry?.Name === "OfferingSku" && typeof entry.Value === "string") {
+        offeringSkuRaw = entry.Value;
+        break;
+      }
+    }
+    const subStatusRaw =
+      typeof companyInfo.SubscriptionStatus === "string" ? companyInfo.SubscriptionStatus : null;
+
+    const { parseOfferingSku, parseSubscriptionStatus } = await import(
+      "@/lib/erp/quickbooks/qbo-editions"
+    );
+    const parsedEdition = parseOfferingSku(offeringSkuRaw);
+    const parsedStatus = parseSubscriptionStatus(subStatusRaw);
+
+    const supabase = getSupabaseAdmin();
+    const { data: existingRow } = await supabase
+      .from("accounting_connections")
+      .select("id, qbo_edition, qbo_subscription_status")
+      .eq("tenant_or_realm_id", realmId)
+      .eq("provider", "quickbooks")
+      .maybeSingle();
+
+    if (existingRow?.id && (!existingRow.qbo_edition || !existingRow.qbo_subscription_status)) {
+      await supabase
+        .from("accounting_connections")
+        .update({
+          qbo_edition: existingRow.qbo_edition ?? parsedEdition,
+          qbo_subscription_status: existingRow.qbo_subscription_status ?? parsedStatus,
+        })
+        .eq("id", existingRow.id);
+    }
+  } catch (retrofitErr) {
+    console.warn("[qbo-health] Q7 edition retrofit skipped", {
+      message: (retrofitErr as Error)?.message,
+    });
+  }
 }
 
 /**
@@ -146,10 +218,10 @@ export async function checkQBOHealth(firmClientId: string): Promise<QBOHealthRes
   }
 
   try {
-    let httpStatus = await companyInfoStatus(bundle);
+    let probe = await fetchCompanyInfo(bundle);
 
     // On 401, attempt a single forced refresh, then re-probe.
-    if (httpStatus === 401) {
+    if (probe.status === 401) {
       try {
         const refreshed = await refreshQBOToken(firmClientId, bundle.tokenSource);
         if (!refreshed) {
@@ -162,8 +234,8 @@ export async function checkQBOHealth(firmClientId: string): Promise<QBOHealthRes
           });
         }
         bundle = refreshed;
-        httpStatus = await companyInfoStatus(bundle);
-        if (httpStatus === 401) {
+        probe = await fetchCompanyInfo(bundle);
+        if (probe.status === 401) {
           return finalize({
             status: "refresh_failed",
             tokenSource: bundle.tokenSource,
@@ -183,12 +255,17 @@ export async function checkQBOHealth(firmClientId: string): Promise<QBOHealthRes
       }
     }
 
+    const healthStatus = statusFromHttp(probe.status);
+    if (healthStatus === "healthy" && bundle.realmId) {
+      await retrofitEditionFromCompanyInfo(bundle.realmId, probe.companyInfo);
+    }
+
     return finalize({
-      status: statusFromHttp(httpStatus),
+      status: healthStatus,
       tokenSource: bundle.tokenSource,
       realmId: bundle.realmId,
       grantedScopes: bundle.grantedScopes,
-      errorMessage: httpStatus === 200 ? undefined : `QBO companyinfo returned ${httpStatus}`,
+      errorMessage: probe.status === 200 ? undefined : `QBO companyinfo returned ${probe.status}`,
     });
   } catch (err) {
     return finalize({
