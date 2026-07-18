@@ -14781,7 +14781,9 @@ export default function UploadPage() {
                     dso={dso}
                     ratioRows={ratioRows}
                     reportsChangedAfterConfirmation={reportsChangedAfterConfirmation}
-                  />
+                  
+          homeCurrency={homeCurrency}
+        />
                   {revenueRecognitionIntelligence.enabled && (
                     <RevenueRecognitionIntelligenceSection
                       revenueRecognitionIntelligence={revenueRecognitionIntelligence}
@@ -15225,7 +15227,9 @@ export default function UploadPage() {
         treasuryLiquidityIntelligence={treasuryLiquidityIntelligence}
         manufacturingInventoryIntelligence={manufacturingInventoryIntelligence}
         closeManagementIntelligence={closeManagementIntelligence}
-      />
+      
+          homeCurrency={homeCurrency}
+        />
     </>
   );
 }
@@ -18861,6 +18865,7 @@ function KpiConfirmationPanel({
   dso,
   ratioRows,
   reportsChangedAfterConfirmation,
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   kpis: KPIs;
@@ -18880,30 +18885,31 @@ function KpiConfirmationPanel({
   dso: number | null;
   ratioRows: Array<{ name: string; formula: string; value: string; interpretation: string }>;
   reportsChangedAfterConfirmation: boolean;
+  homeCurrency: string;
 }) {
   const confirmationRows = [
-    { label: "Revenue", value: formatMoneyLegacy(kpis.revenue) },
-    { label: "Gross Profit", value: formatMoneyLegacy(kpis.grossProfit) },
-    { label: "Expenses", value: formatMoneyLegacy(kpis.expenses) },
-    { label: "Net Income", value: formatMoneyLegacy(kpis.netIncome) },
-    { label: "Cash", value: formatMoneyLegacy(kpis.cash) },
-    { label: "Accounts Receivable", value: formatMoneyLegacy(kpis.accountsReceivable) },
-    { label: "Total Assets", value: formatMoneyLegacy(kpis.totalAssets) },
+    { label: "Revenue", value: formatMoneyLegacy(kpis.revenue, homeCurrency) },
+    { label: "Gross Profit", value: formatMoneyLegacy(kpis.grossProfit, homeCurrency) },
+    { label: "Expenses", value: formatMoneyLegacy(kpis.expenses, homeCurrency) },
+    { label: "Net Income", value: formatMoneyLegacy(kpis.netIncome, homeCurrency) },
+    { label: "Cash", value: formatMoneyLegacy(kpis.cash, homeCurrency) },
+    { label: "Accounts Receivable", value: formatMoneyLegacy(kpis.accountsReceivable, homeCurrency) },
+    { label: "Total Assets", value: formatMoneyLegacy(kpis.totalAssets, homeCurrency) },
     ...ratioRows
       .filter((row) => ["Current Ratio", "Quick Ratio", "Working Capital Estimate"].includes(row.name))
       .map((row) => ({ label: row.name, value: row.value })),
-    ...(includeAr ? [{ label: "AR Aging Total", value: formatMoneyLegacy(arKpis.total) }] : []),
+    ...(includeAr ? [{ label: "AR Aging Total", value: formatMoneyLegacy(arKpis.total, homeCurrency) }] : []),
     ...(includeAr
       ? [
-          { label: "Suggested AR Reserve", value: formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve) },
+          { label: "Suggested AR Reserve", value: formatMoneyLegacy(arReserveIntelligence.totalSuggestedReserve, homeCurrency) },
           { label: "AR Collection Risk", value: arReserveIntelligence.collectionRiskStatus },
         ]
       : []),
-    ...(includeAp ? [{ label: "AP Aging Total", value: formatMoneyLegacy(apKpis.total) }] : []),
+    ...(includeAp ? [{ label: "AP Aging Total", value: formatMoneyLegacy(apKpis.total, homeCurrency) }] : []),
     ...(dso !== null ? [{ label: "DSO", value: `${dso.toFixed(1)} days` }] : []),
     ...(isProfessionalOrHigher(packageTier) && includeInventory
       ? [
-          { label: "Inventory Value", value: formatMoneyLegacy(inventoryKpis.totalValue) },
+          { label: "Inventory Value", value: formatMoneyLegacy(inventoryKpis.totalValue, homeCurrency) },
           { label: "Inventory Quantity", value: formatNumber(inventoryKpis.totalQuantity) },
           ...(isVirtualCfo(packageTier)
             ? [
@@ -18920,15 +18926,15 @@ function KpiConfirmationPanel({
       : []),
     ...(isProfessionalOrHigher(packageTier) && includeFixedAssets
       ? [
-          { label: "Gross Fixed Assets", value: formatMoneyLegacy(fixedAssetKpis.grossFixedAssets) },
-          { label: "Net Book Value", value: formatMoneyLegacy(fixedAssetKpis.netBookValue) },
+          { label: "Gross Fixed Assets", value: formatMoneyLegacy(fixedAssetKpis.grossFixedAssets, homeCurrency) },
+          { label: "Net Book Value", value: formatMoneyLegacy(fixedAssetKpis.netBookValue, homeCurrency) },
         ]
       : []),
     ...(includePayroll
       ? [
           { label: "Current FTE", value: formatFte(payrollAnalysis.totalCurrentFte) },
-          { label: "Payroll Cost", value: formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost) },
-          { label: "Payroll Cost Change", value: formatMoneyLegacy(payrollAnalysis.totalPayrollCostChange) },
+          { label: "Payroll Cost", value: formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost, homeCurrency) },
+          { label: "Payroll Cost Change", value: formatMoneyLegacy(payrollAnalysis.totalPayrollCostChange, homeCurrency) },
         ]
       : []),
     { label: "Net Margin", value: `${netMargin.toFixed(1)}%` },
@@ -19569,12 +19575,14 @@ function KpiCard({
   percent = false,
   plain = false,
   helperText,
+  homeCurrency = DEFAULT_FALLBACK_CURRENCY,
 }: {
   label: string;
   value: number | string | null;
   percent?: boolean;
   plain?: boolean;
   helperText?: string;
+  homeCurrency?: string;
 }) {
   const displayValue =
     typeof value === "string"
@@ -19585,7 +19593,7 @@ function KpiCard({
           ? formatNumber(value)
           : percent
             ? `${value.toFixed(1)}%`
-            : formatMoneyLegacy(value);
+            : formatMoneyLegacy(value, homeCurrency);
   const valueIsText = typeof value === "string";
 
   return (
@@ -19604,14 +19612,16 @@ function MiniBar({
   value,
   max,
   suffix = "",
+  homeCurrency = DEFAULT_FALLBACK_CURRENCY,
 }: {
   label: string;
   value: number;
   max: number;
   suffix?: string;
+  homeCurrency?: string;
 }) {
   const width = Math.max(0, Math.min(100, max ? (Math.abs(value) / Math.abs(max)) * 100 : 0));
-  const displayValue = suffix === "%" ? `${value.toFixed(1)}%` : formatCurrency(value);
+  const displayValue = suffix === "%" ? `${value.toFixed(1)}%` : formatCurrency(value, homeCurrency);
 
   return (
     <div>
@@ -21073,6 +21083,7 @@ function AdvisacorCopilotPanel({
   treasuryLiquidityIntelligence,
   manufacturingInventoryIntelligence,
   closeManagementIntelligence,
+  homeCurrency,
 }: {
   packageTier: PackageTier;
   personaOutputMode: PersonaOutputModeId;
@@ -21100,6 +21111,7 @@ function AdvisacorCopilotPanel({
   treasuryLiquidityIntelligence: TreasuryLiquidityIntelligence;
   manufacturingInventoryIntelligence: ManufacturingInventoryIntelligence;
   closeManagementIntelligence: CloseManagementIntelligence;
+  homeCurrency: string;
 }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -21127,10 +21139,10 @@ function AdvisacorCopilotPanel({
     personaOutputModes.find((persona: { id: string }) => persona.id === personaOutputMode) || personaOutputModes[3];
   const selectedPersonaRole = getCopilotRoleForPersona(personaOutputMode);
   const kpiSummaryItems = [
-    `Revenue ${formatMoneyLegacy(kpis.revenue)}`,
-    `Net Income ${formatMoneyLegacy(kpis.netIncome)}`,
-    `Cash ${formatMoneyLegacy(kpis.cash)}`,
-    `AR ${formatMoneyLegacy(kpis.accountsReceivable)}`,
+    `Revenue ${formatMoneyLegacy(kpis.revenue, homeCurrency)}`,
+    `Net Income ${formatMoneyLegacy(kpis.netIncome, homeCurrency)}`,
+    `Cash ${formatMoneyLegacy(kpis.cash, homeCurrency)}`,
+    `AR ${formatMoneyLegacy(kpis.accountsReceivable, homeCurrency)}`,
   ];
   const buildContextualQuickPrompts = () => {
     const prompts: string[] = [];
@@ -21664,7 +21676,7 @@ function AdvisacorCopilotPanel({
       const validationText = warningValidationChecks.length
         ? `Resolve or document validation warnings first: ${warningValidationChecks.slice(0, 2).map((check) => check.label).join(", ")}.`
         : "Validation does not show critical warnings right now.";
-      const fluxText = allFluxRows[0] ? `Review the largest flux item: ${allFluxRows[0].accountName} (${formatMoneyLegacy(allFluxRows[0].dollarVariance)}).` : "No material flux row is currently available.";
+      const fluxText = allFluxRows[0] ? `Review the largest flux item: ${allFluxRows[0].accountName} (${formatMoneyLegacy(allFluxRows[0].dollarVariance, homeCurrency)}).` : "No material flux row is currently available.";
       return `Before sending, review: KPI reasonableness, report date/basis alignment, validation exceptions, major flux movements, DSO/AR aging, payroll scaling, inventory reserve exposure, and whether the executive summary language is client-ready. ${validationText} ${fluxText}`;
     }
 
@@ -21698,9 +21710,8 @@ function AdvisacorCopilotPanel({
     ) {
       const topFlag = workforceIntelligence.internalFlags[0] || "Review payroll movement against FTE, revenue, utilization, and margin trends.";
       return `Workforce Intelligence shows ${formatFte(payrollAnalysis.totalCurrentFte)} current FTE, payroll cost of ${formatMoneyLegacy(
-        payrollAnalysis.totalCurrentPayrollCost,
-      )}, and revenue per FTE of ${
-        workforceIntelligence.revenuePerFte !== null ? formatCurrency(workforceIntelligence.revenuePerFte) : "N/A"
+        payrollAnalysis.totalCurrentPayrollCost, homeCurrency)}, and revenue per FTE of ${
+        workforceIntelligence.revenuePerFte !== null ? formatCurrency(workforceIntelligence.revenuePerFte, homeCurrency) : "N/A"
       }. ${topFlag} Commentary should stay within the ${PACKAGE_LABELS[packageTier]} package scope.`;
     }
 
@@ -21713,12 +21724,11 @@ function AdvisacorCopilotPanel({
     ) {
       const topFlag = treasuryLiquidityIntelligence.internalFlags[0] || "Review cash positioning with AR collections, AP timing, payroll timing, and working capital trends.";
       const forecastText = treasuryLiquidityIntelligence.cashForecast.length
-        ? ` Forecast view projects ${formatCurrency(treasuryLiquidityIntelligence.cashForecast[treasuryLiquidityIntelligence.cashForecast.length - 1].projectedCash)} by ${treasuryLiquidityIntelligence.cashForecast[treasuryLiquidityIntelligence.cashForecast.length - 1].period.toLowerCase()}.`
+        ? ` Forecast view projects ${formatCurrency(treasuryLiquidityIntelligence.cashForecast[treasuryLiquidityIntelligence.cashForecast.length - 1].projectedCash, homeCurrency)} by ${treasuryLiquidityIntelligence.cashForecast[treasuryLiquidityIntelligence.cashForecast.length - 1].period.toLowerCase()}.`
         : "";
       return `Treasury & Liquidity Intelligence shows cash of ${formatMoneyLegacy(
-        treasuryLiquidityIntelligence.cashBalance,
-      )}, working capital of ${
-        treasuryLiquidityIntelligence.workingCapital !== null ? formatMoneyLegacy(treasuryLiquidityIntelligence.workingCapital) : "N/A"
+        treasuryLiquidityIntelligence.cashBalance, homeCurrency)}, working capital of ${
+        treasuryLiquidityIntelligence.workingCapital !== null ? formatMoneyLegacy(treasuryLiquidityIntelligence.workingCapital, homeCurrency) : "N/A"
       }, and current ratio of ${
         treasuryLiquidityIntelligence.currentRatio !== null ? treasuryLiquidityIntelligence.currentRatio.toFixed(2) : "N/A"
       }. ${topFlag}${forecastText}`;
@@ -21737,13 +21747,11 @@ function AdvisacorCopilotPanel({
     ) {
       const topFlag = manufacturingInventoryIntelligence.internalFlags[0] || inventoryIntelligence.internalInventoryFlags[0] || "Review inventory turnover, adjustment activity, slow-moving exposure, and production variance signals.";
       const manufacturingText = isVirtualCfo(packageTier)
-        ? ` PPV impact is ${formatMoneyLegacy(manufacturingInventoryIntelligence.ppvImpact)}, BOM variance impact is ${formatMoneyLegacy(manufacturingInventoryIntelligence.bomVarianceImpact)}, labor variance impact is ${formatMoneyLegacy(manufacturingInventoryIntelligence.laborVarianceImpact)}, and job profitability impact is ${formatMoneyLegacy(manufacturingInventoryIntelligence.jobProfitabilityImpact)}.`
+        ? ` PPV impact is ${formatMoneyLegacy(manufacturingInventoryIntelligence.ppvImpact, homeCurrency)}, BOM variance impact is ${formatMoneyLegacy(manufacturingInventoryIntelligence.bomVarianceImpact, homeCurrency)}, labor variance impact is ${formatMoneyLegacy(manufacturingInventoryIntelligence.laborVarianceImpact, homeCurrency)}, and job profitability impact is ${formatMoneyLegacy(manufacturingInventoryIntelligence.jobProfitabilityImpact, homeCurrency)}.`
         : " Advanced PPV, BOM, labor variance, and job profitability intelligence is scoped to the Virtual CFO package.";
       return `Manufacturing & Inventory Intelligence status is ${manufacturingInventoryIntelligence.operationalEfficiencyStatus.toLowerCase()}. Inventory working capital impact is ${formatMoneyLegacy(
-        manufacturingInventoryIntelligence.workingCapitalImpact,
-      )}, adjustment trend is ${formatMoneyLegacy(manufacturingInventoryIntelligence.adjustmentTrendAmount)}, and slow-moving reserve exposure is ${formatMoneyLegacy(
-        manufacturingInventoryIntelligence.reserveExposure,
-      )}.${manufacturingText} ${topFlag}`;
+        manufacturingInventoryIntelligence.workingCapitalImpact, homeCurrency)}, adjustment trend is ${formatMoneyLegacy(manufacturingInventoryIntelligence.adjustmentTrendAmount, homeCurrency)}, and slow-moving reserve exposure is ${formatMoneyLegacy(
+        manufacturingInventoryIntelligence.reserveExposure, homeCurrency)}.${manufacturingText} ${topFlag}`;
     }
 
     if (
@@ -21766,11 +21774,11 @@ function AdvisacorCopilotPanel({
 
     if (normalized.includes("bad debt") || normalized.includes("reserve") || normalized.includes("allowance")) {
       const forecastText = reserveLifecycleIntelligence.reserveForecast.length
-        ? ` Forecasted reserve exposure may reach ${formatMoneyLegacy(reserveLifecycleIntelligence.reserveForecast[reserveLifecycleIntelligence.reserveForecast.length - 1].projectedReserveExposure)} if current aging and collection patterns continue.`
+        ? ` Forecasted reserve exposure may reach ${formatMoneyLegacy(reserveLifecycleIntelligence.reserveForecast[reserveLifecycleIntelligence.reserveForecast.length - 1].projectedReserveExposure, homeCurrency)} if current aging and collection patterns continue.`
         : "";
-      return `Reserve Lifecycle Intelligence estimates a preliminary review range of ${formatMoneyLegacy(reserveLifecycleIntelligence.suggestedReserveLow)} to ${formatMoneyLegacy(reserveLifecycleIntelligence.suggestedReserveHigh)} with ${reserveLifecycleIntelligence.adequacyStatus.toLowerCase()} status. Existing reserve is ${
-        arReserveIntelligence.existingReserveBalance === null ? "not identified" : formatMoneyLegacy(arReserveIntelligence.existingReserveBalance)
-      }. Older AR is ${formatMoneyLegacy(reserveLifecycleIntelligence.olderArBalance)} (${reserveLifecycleIntelligence.olderArPercent.toFixed(1)}% of AR), and top customer exposure is ${reserveLifecycleIntelligence.concentrationPercent.toFixed(1)}% of AR. This is review support only; consider customer-specific collectibility, historical write-offs, payment behavior, unapplied credits, and any management-specific reserve policy before finalizing commentary.${forecastText}`;
+      return `Reserve Lifecycle Intelligence estimates a preliminary review range of ${formatMoneyLegacy(reserveLifecycleIntelligence.suggestedReserveLow, homeCurrency)} to ${formatMoneyLegacy(reserveLifecycleIntelligence.suggestedReserveHigh, homeCurrency)} with ${reserveLifecycleIntelligence.adequacyStatus.toLowerCase()} status. Existing reserve is ${
+        arReserveIntelligence.existingReserveBalance === null ? "not identified" : formatMoneyLegacy(arReserveIntelligence.existingReserveBalance, homeCurrency)
+      }. Older AR is ${formatMoneyLegacy(reserveLifecycleIntelligence.olderArBalance, homeCurrency)} (${reserveLifecycleIntelligence.olderArPercent.toFixed(1)}% of AR), and top customer exposure is ${reserveLifecycleIntelligence.concentrationPercent.toFixed(1)}% of AR. This is review support only; consider customer-specific collectibility, historical write-offs, payment behavior, unapplied credits, and any management-specific reserve policy before finalizing commentary.${forecastText}`;
     }
 
     if (
@@ -21783,18 +21791,16 @@ function AdvisacorCopilotPanel({
       const scheduleText = revenueRecognitionIntelligence.anticipatedRecognitionSchedule.length
         ? ` Anticipated recognition schedule: ${revenueRecognitionIntelligence.anticipatedRecognitionSchedule
             .slice(0, 2)
-            .map((schedule) => `${schedule.period} ${formatMoneyLegacy(schedule.expectedRecognition)}`)
+            .map((schedule) => `${schedule.period} ${formatMoneyLegacy(schedule.expectedRecognition, homeCurrency)}`)
             .join("; ")}.`
         : "";
       return `Revenue Recognition Intelligence shows deferred revenue of ${formatMoneyLegacy(
-        revenueRecognitionIntelligence.deferredRevenueBalance,
-      )} and unbilled AR of ${formatMoneyLegacy(
-        revenueRecognitionIntelligence.unbilledArBalance,
-      )}. Review recognition timing, billing cadence, future obligations, and project invoicing patterns before using advanced commentary in client deliverables.${scheduleText}`;
+        revenueRecognitionIntelligence.deferredRevenueBalance, homeCurrency)} and unbilled AR of ${formatMoneyLegacy(
+        revenueRecognitionIntelligence.unbilledArBalance, homeCurrency)}. Review recognition timing, billing cadence, future obligations, and project invoicing patterns before using advanced commentary in client deliverables.${scheduleText}`;
     }
 
     if (normalized.includes("net margin")) {
-      return `Net Margin is Net Income divided by Revenue. It shows how much profit remains after direct costs and operating expenses. Based on uploaded data, net income is ${formatMoneyLegacy(kpis.netIncome)} on revenue of ${formatMoneyLegacy(kpis.revenue)}. Use it to evaluate profitability quality, not just sales volume.`;
+      return `Net Margin is Net Income divided by Revenue. It shows how much profit remains after direct costs and operating expenses. Based on uploaded data, net income is ${formatMoneyLegacy(kpis.netIncome, homeCurrency)} on revenue of ${formatMoneyLegacy(kpis.revenue, homeCurrency)}. Use it to evaluate profitability quality, not just sales volume.`;
     }
 
     if (normalized.includes("ratio")) {
@@ -21836,18 +21842,18 @@ function AdvisacorCopilotPanel({
     }
 
     if (normalized.includes("payroll")) {
-      return `Payroll cost is ${formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost)} across ${formatFte(payrollAnalysis.totalCurrentFte)} FTE. ${
+      return `Payroll cost is ${formatMoneyLegacy(payrollAnalysis.totalCurrentPayrollCost, homeCurrency)} across ${formatFte(payrollAnalysis.totalCurrentFte)} FTE. ${
         payrollAnalysis.totalPayrollCostChange !== 0
-          ? `Payroll changed by ${formatMoneyLegacy(payrollAnalysis.totalPayrollCostChange)} versus the prior period. `
+          ? `Payroll changed by ${formatMoneyLegacy(payrollAnalysis.totalPayrollCostChange, homeCurrency)} versus the prior period. `
           : ""
       }Recommended review steps: compare payroll growth to revenue, review department-level FTE changes, and separate wages, taxes, benefits, and overtime drivers.`;
     }
 
     if (normalized.includes("inventory")) {
-      return `Inventory turns are ${inventoryIntelligence.turns !== null ? `${inventoryIntelligence.turns.toFixed(1)}x` : "not available"} and slow-moving inventory is ${formatMoneyLegacy(inventoryIntelligence.slowMovingValue)}. ${
+      return `Inventory turns are ${inventoryIntelligence.turns !== null ? `${inventoryIntelligence.turns.toFixed(1)}x` : "not available"} and slow-moving inventory is ${formatMoneyLegacy(inventoryIntelligence.slowMovingValue, homeCurrency)}. ${
         inventoryIntelligence.eoReserveBalance === null
           ? "No E&O reserve account was identified on the Balance Sheet, so reserve coverage should be reviewed if slow-moving exposure is material."
-          : `E&O reserve identified: ${formatMoneyLegacy(inventoryIntelligence.eoReserveBalance)}.`
+          : `E&O reserve identified: ${formatMoneyLegacy(inventoryIntelligence.eoReserveBalance, homeCurrency)}.`
       }`;
     }
 
@@ -21856,8 +21862,8 @@ function AdvisacorCopilotPanel({
       const cfoDepth = advancedCfoMode
         ? "Virtual CFO lens: prioritize liquidity, margin quality, working capital conversion, leverage exposure, and owner-ready action items."
         : "Professional lens: focus on operating trends, KPI reasonableness, and major variance explanations.";
-      return `${cfoDepth} Based on uploaded data, net margin is ${kpis.revenue ? ((kpis.netIncome / kpis.revenue) * 100).toFixed(1) : "N/M"}%, cash is ${formatMoneyLegacy(kpis.cash)}, AP is ${formatMoneyLegacy(apKpis.total)}, and ${
-        topFlux ? `the largest flux item is ${topFlux.accountName} at ${formatMoneyLegacy(topFlux.dollarVariance)}.` : "no flux item is currently available."
+      return `${cfoDepth} Based on uploaded data, net margin is ${kpis.revenue ? ((kpis.netIncome / kpis.revenue) * 100).toFixed(1) : "N/M"}%, cash is ${formatMoneyLegacy(kpis.cash, homeCurrency)}, AP is ${formatMoneyLegacy(apKpis.total, homeCurrency)}, and ${
+        topFlux ? `the largest flux item is ${topFlux.accountName} at ${formatMoneyLegacy(topFlux.dollarVariance, homeCurrency)}.` : "no flux item is currently available."
       } Recommended next step: document the top 3 exceptions and assign management follow-up before finalizing client-ready outputs.`;
     }
 
