@@ -45,6 +45,7 @@ export async function insertBatchLine(
     netAmountCents: number;
     glAccountCode: string | null;
     memo: string | null;
+    currency: string;
   },
 ): Promise<{ id: string }> {
   const { data, error } = await supabase
@@ -62,6 +63,7 @@ export async function insertBatchLine(
       net_amount_cents: input.netAmountCents,
       gl_account_code: input.glAccountCode,
       memo: input.memo,
+      currency: input.currency,
     })
     .select("id")
     .single();

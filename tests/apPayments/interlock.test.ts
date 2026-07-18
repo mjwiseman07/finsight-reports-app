@@ -5,7 +5,13 @@ const PERIOD = { period_year: 2026, period_month: 7 };
 
 describe("computeInterlock", () => {
   it("passes with no lines", () => {
-    const d = computeInterlock({ lines: [], vendor_commitments: [], gl_budgets: [] });
+    const d = computeInterlock({
+      lines: [],
+      vendor_commitments: [],
+      gl_budgets: [],
+      home_currency: "USD",
+      batch_currency: "USD",
+    });
     expect(d.passed).toBe(true);
     expect(d.per_vendor).toEqual([]);
     expect(d.gl_budget_snapshot).toEqual([]);
@@ -17,6 +23,7 @@ describe("computeInterlock", () => {
       lines: [
         {
           vendor_id: "v1",
+          currency: "USD",
           gross_amount_cents: 10000,
           applied_credit_cents: 0,
           applied_prepayment_cents: 0,
@@ -29,6 +36,8 @@ describe("computeInterlock", () => {
         { vendor_id: "v1", requisition_remaining_cents: 20000, annual_commitment_remaining_cents: null },
       ],
       gl_budgets: [],
+      home_currency: "USD",
+      batch_currency: "USD",
     });
     expect(d.passed).toBe(true);
     expect(d.per_vendor[0]?.passes).toBe(true);
@@ -39,6 +48,7 @@ describe("computeInterlock", () => {
       lines: [
         {
           vendor_id: "v1",
+          currency: "USD",
           gross_amount_cents: 50000,
           applied_credit_cents: 0,
           applied_prepayment_cents: 0,
@@ -51,6 +61,8 @@ describe("computeInterlock", () => {
         { vendor_id: "v1", requisition_remaining_cents: 10000, annual_commitment_remaining_cents: null },
       ],
       gl_budgets: [],
+      home_currency: "USD",
+      batch_currency: "USD",
     });
     expect(d.passed).toBe(false);
     expect(d.per_vendor[0]?.reason_codes).toContain("requisition_remaining_exceeded");
@@ -61,6 +73,7 @@ describe("computeInterlock", () => {
       lines: [
         {
           vendor_id: "v1",
+          currency: "USD",
           gross_amount_cents: 30000,
           applied_credit_cents: 0,
           applied_prepayment_cents: 0,
@@ -73,6 +86,8 @@ describe("computeInterlock", () => {
         { vendor_id: "v1", requisition_remaining_cents: null, annual_commitment_remaining_cents: 20000 },
       ],
       gl_budgets: [],
+      home_currency: "USD",
+      batch_currency: "USD",
     });
     expect(d.passed).toBe(false);
     expect(d.per_vendor[0]?.reason_codes).toContain("annual_commitment_exceeded");
@@ -83,6 +98,7 @@ describe("computeInterlock", () => {
       lines: [
         {
           vendor_id: "v1",
+          currency: "USD",
           gross_amount_cents: 5000,
           applied_credit_cents: 0,
           applied_prepayment_cents: 0,
@@ -92,6 +108,7 @@ describe("computeInterlock", () => {
         },
         {
           vendor_id: "v2",
+          currency: "USD",
           gross_amount_cents: 90000,
           applied_credit_cents: 0,
           applied_prepayment_cents: 0,
@@ -105,6 +122,8 @@ describe("computeInterlock", () => {
         { vendor_id: "v2", requisition_remaining_cents: 50000, annual_commitment_remaining_cents: null },
       ],
       gl_budgets: [],
+      home_currency: "USD",
+      batch_currency: "USD",
     });
     expect(d.passed).toBe(false);
     expect(d.per_vendor.find((p) => p.vendor_id === "v1")?.passes).toBe(true);
@@ -116,6 +135,7 @@ describe("computeInterlock", () => {
       lines: [
         {
           vendor_id: "v1",
+          currency: "USD",
           gross_amount_cents: 10000,
           applied_credit_cents: 0,
           applied_prepayment_cents: 0,
@@ -135,6 +155,8 @@ describe("computeInterlock", () => {
           already_committed_cents: 0,
         },
       ],
+      home_currency: "USD",
+      batch_currency: "USD",
     });
     expect(d.passed).toBe(true);
     expect(d.gl_budget_snapshot[0]?.passes).toBe(true);
@@ -145,6 +167,7 @@ describe("computeInterlock", () => {
       lines: [
         {
           vendor_id: "v1",
+          currency: "USD",
           gross_amount_cents: 12000,
           applied_credit_cents: 0,
           applied_prepayment_cents: 0,
@@ -164,6 +187,8 @@ describe("computeInterlock", () => {
           already_committed_cents: 0,
         },
       ],
+      home_currency: "USD",
+      batch_currency: "USD",
     });
     expect(d.passed).toBe(false);
     expect(d.gl_budget_snapshot[0]?.passes).toBe(false);
@@ -175,6 +200,7 @@ describe("computeInterlock", () => {
       lines: [
         {
           vendor_id: "v1",
+          currency: "USD",
           gross_amount_cents: 999999,
           applied_credit_cents: 0,
           applied_prepayment_cents: 0,
@@ -185,6 +211,8 @@ describe("computeInterlock", () => {
       ],
       vendor_commitments: [],
       gl_budgets: [],
+      home_currency: "USD",
+      batch_currency: "USD",
     });
     expect(d.passed).toBe(true);
     expect(d.gl_budget_snapshot[0]?.passes).toBe(true);
