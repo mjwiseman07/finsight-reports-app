@@ -14,6 +14,7 @@
     "seed:customer-test-account": "node scripts/seed-customer-test-account.js",
     "seed:demo-environments": "node scripts/seed-demo-environments.js",
     "seed:fresh-customer-demo": "node scripts/seed-fresh-customer-demo.js",
+    "seed:audit-ready-test-engagement": "tsx scripts/seed-audit-ready-test-engagement.ts",
     "debug:xero-raw": "node scripts/debug-xero-raw.js",
     "debug:xero-fetch": "node scripts/debug-xero-fetch.js",
     "verify:super-admin": "node scripts/verify-super-admin.js",
