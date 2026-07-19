@@ -1,6 +1,8 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { getAuthenticatedCompanyUser } from "../../../../lib/company-security";
 import { escapeHtml, getEarlyAccessEmailConfig, getSupportEmail, sendEmail } from "../../../../lib/email";
+import { getRecentIntuitTidForUser } from "../../../../lib/qbo/recent-intuit-tid";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import {
@@ -37,6 +39,9 @@ async function sendSupportNotification(ticket) {
         `Priority: ${ticket.priority}`,
         `Company: ${ticket.company_name || "Not available"}`,
         `User: ${ticket.user_email || "Not available"}`,
+        `Correlation ID: ${ticket.correlation_id || "(not generated)"}`,
+        `QBO realm: ${ticket.qbo_realm_id || "not connected"}`,
+        `Recent Intuit request ID (last 24h): ${ticket.last_intuit_tid || "none captured"}`,
         "",
         ticket.description,
       ].join("\n"),
@@ -74,6 +79,7 @@ async function sendCustomerConfirmation(ticket) {
         `Priority: ${ticket.priority}`,
         `Status: ${ticket.status}`,
         `Date submitted: ${submittedAt}`,
+        `Correlation ID: ${ticket.correlation_id || ""}`,
         "",
         "A member of the Advisacor support team will review your request.",
         "",
@@ -92,7 +98,8 @@ async function sendCustomerConfirmation(ticket) {
         `<p style=\"margin:0 0 8px;\"><strong>Category:</strong> ${safeCategory}</p>`,
         `<p style=\"margin:0 0 8px;\"><strong>Priority:</strong> ${safePriority}</p>`,
         `<p style=\"margin:0 0 8px;\"><strong>Status:</strong> ${safeStatus}</p>`,
-        `<p style=\"margin:0;\"><strong>Date submitted:</strong> ${safeSubmittedAt}</p>`,
+        `<p style=\"margin:0 0 8px;\"><strong>Date submitted:</strong> ${safeSubmittedAt}</p>`,
+        `<p style=\"margin:8px 0 0;\"><strong>Correlation ID:</strong> ${escapeHtml(ticket.correlation_id || "")}</p>`,
         "</div>",
         "<p style=\"margin:22px 0 0;color:#6B7280;font-size:13px;\">Advisacor Support</p>",
         "</div>",
@@ -185,6 +192,35 @@ export async function POST(request) {
   if (!description) return NextResponse.json({ error: "Description is required." }, { status: 400 });
 
   const company = await resolvePrimaryCompany(access.user.id);
+
+  // Resolve active QBO connection (nullable — user may have none connected)
+  const { data: qboConnection } = await supabaseAdmin
+    .from("qbo_connections_unified")
+    .select("realm_id")
+    .eq("user_id", access.user.id)
+    .limit(1)
+    .maybeSingle();
+  const qboRealmId = qboConnection?.realm_id || null;
+
+  // Most recent intuit_tid captured for this user in the last 24 hours
+  const recentTid = await getRecentIntuitTidForUser(access.user.id);
+  const lastIntuitTid = recentTid?.intuit_tid || null;
+
+  // Correlation UUID — appears in both emails
+  const correlationId = crypto.randomUUID();
+
+  // Client-supplied workflow context — sanitize to known shape only
+  const workflowContext = (() => {
+    const raw = body.workflow_context;
+    if (!raw || typeof raw !== "object") return null;
+    return {
+      path: typeof raw.path === "string" ? raw.path.slice(0, 240) : "",
+      referrer: typeof raw.referrer === "string" ? raw.referrer.slice(0, 240) : "",
+      error_message:
+        typeof raw.error_message === "string" ? raw.error_message.slice(0, 500) : "",
+    };
+  })();
+
   const attachmentMetadata = {
     screenshot: body.screenshot ? String(body.screenshot).slice(0, 240) : "",
     attachment: body.attachment ? String(body.attachment).slice(0, 240) : "",
@@ -211,6 +247,10 @@ export async function POST(request) {
         architecture: aiSupportAssistantArchitecture,
         attempted: Boolean(body.ai_support_attempted),
       },
+      qbo_realm_id: qboRealmId,
+      last_intuit_tid: lastIntuitTid,
+      workflow_context: workflowContext,
+      correlation_id: correlationId,
     })
     .select("*")
     .single();

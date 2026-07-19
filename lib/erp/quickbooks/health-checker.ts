@@ -62,6 +62,7 @@ async function fetchCompanyInfo(
   const { status, json } = await qboApiFetch(url, {
     accessToken: bundle.accessToken,
     method: "GET",
+    context: { userId: bundle.ownerUserId, realmId: bundle.realmId },
   });
   if (status !== 200) {
     return { status, companyInfo: null };

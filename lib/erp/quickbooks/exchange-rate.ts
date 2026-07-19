@@ -36,6 +36,7 @@ export async function resolveExchangeRate(
   sourceCurrency: string,
   homeCurrency: string,
   asOfDate: string,
+  userId?: string,
 ): Promise<ExchangeRateResult> {
   if (sourceCurrency.toUpperCase() === homeCurrency.toUpperCase()) {
     return { ok: true, rate: 1, as_of_date: asOfDate };
@@ -54,6 +55,7 @@ export async function resolveExchangeRate(
     const { ok, status, json } = await qboApiFetch(url, {
       accessToken,
       method: "GET",
+      context: userId ? { userId, realmId } : undefined,
     });
 
     if (ok) {

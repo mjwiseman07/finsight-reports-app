@@ -110,6 +110,9 @@ export async function runRemediationPipeline(
     payload,
     tokenBundle.realmId,
     tokenBundle.accessToken,
+    undefined,
+    undefined,
+    tokenBundle.ownerUserId,
   );
   if (!qboValidate.valid) {
     return {

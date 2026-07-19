@@ -8,7 +8,7 @@ const TTL_MS = 5 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
   try {
-    await requireFirmAuth(req);
+    const auth = await requireFirmAuth(req);
     const firmClientId = req.nextUrl.searchParams.get("firmClientId");
     if (!firmClientId) {
       return NextResponse.json({ error: "firmClientId_required" }, { status: 400 });
@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     const { ok, json } = await qboApiFetch(url, {
       accessToken: token.accessToken,
       method: "GET",
+      context: { userId: auth.userId, realmId: token.realmId },
     });
     if (!ok) {
       return NextResponse.json({ accounts: [] });
