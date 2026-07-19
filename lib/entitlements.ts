@@ -97,6 +97,13 @@ const TIER_META: Record<
       review_assist_assertion_coverage: true,
       review_assist_industry_templates: true,
       ask_pulse_command_center: true,
+      // v1.5 RA Pro capabilities (default ON)
+      review_assist_evidence_bundles_visible: true,
+      review_assist_evidence_bundle_download: true,
+      review_assist_reconciliation_view: true,
+      review_assist_variance_narratives: true,
+      review_assist_prior_period_lookup: true,
+      ai_workforce_enabled: false, // reserved — advertised, not shipped
     },
     erpSupport: { quickbooks: "live", xero: "coming_soon" },
   },
