@@ -85,6 +85,7 @@ export async function enforceMfaForRequest(
 
   const isFirmAdmin = (memberships?.length ?? 0) > 0;
 
+  // Second-factor detection
   let hasTotp = false;
   try {
     const { data: factors } = await admin.auth.admin.mfa.listFactors({ userId });
@@ -95,7 +96,42 @@ export async function enforceMfaForRequest(
     console.error("[mfa-middleware] listFactors failed", err);
   }
 
-  if (isFirmAdmin && !hasTotp) {
+  let hasWebAuthn = false;
+  try {
+    const { count } = await admin
+      .from("user_webauthn_credentials")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    hasWebAuthn = (count ?? 0) > 0;
+  } catch (err) {
+    console.error("[mfa-middleware] webauthn lookup failed", err);
+  }
+
+  const hasSecondFactor = hasTotp || hasWebAuthn;
+
+  // Trusted-device / short-lived MFA-verified cookies skip the challenge redirect.
+  let deviceTrusted = false;
+  let sessionMfaVerified = false;
+  try {
+    const {
+      isTrustedDevice,
+      trustedDeviceCookieName,
+      mfaVerifiedCookieName,
+      verifyMfaVerifiedCookie,
+    } = await import("@/lib/mfa/trusted-devices");
+    const cookieValue = request.cookies.get(trustedDeviceCookieName())?.value;
+    if (cookieValue) {
+      deviceTrusted = await isTrustedDevice(userId, cookieValue);
+    }
+    const verifiedRaw = request.cookies.get(mfaVerifiedCookieName())?.value;
+    sessionMfaVerified = await verifyMfaVerifiedCookie(verifiedRaw, userId);
+  } catch (err) {
+    console.error("[mfa-middleware] trusted device check failed", err);
+  }
+
+  const challengeSatisfied = aal === "aal2" || deviceTrusted || sessionMfaVerified;
+
+  if (isFirmAdmin && !hasSecondFactor) {
     if (isApi) {
       return unauthorizedApi(
         "Two-factor authentication enrollment required for firm administrators",
@@ -107,18 +143,14 @@ export async function enforceMfaForRequest(
     });
   }
 
-  if (isFirmAdmin && hasTotp && aal !== "aal2") {
+  if (isFirmAdmin && hasSecondFactor && !challengeSatisfied) {
     if (isApi) return unauthorizedApi("AAL2 required", 403);
-    return redirectTo(request, "/signin/mfa-challenge", {
-      returnTo: pathname,
-    });
+    return redirectTo(request, "/signin/mfa-challenge", { returnTo: pathname });
   }
 
-  if (!isFirmAdmin && hasTotp && aal !== "aal2") {
+  if (!isFirmAdmin && hasSecondFactor && !challengeSatisfied) {
     if (isApi) return unauthorizedApi("AAL2 required", 403);
-    return redirectTo(request, "/signin/mfa-challenge", {
-      returnTo: pathname,
-    });
+    return redirectTo(request, "/signin/mfa-challenge", { returnTo: pathname });
   }
 
   return null;

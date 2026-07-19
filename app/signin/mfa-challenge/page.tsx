@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteNav } from "@/components/SiteNav";
 import { focusRing, headingFont, primaryCtaClass } from "@/components/site-ui";
@@ -19,6 +19,15 @@ function MfaChallengeForm() {
   const [recovery, setRecovery] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
+  const [trustDevice, setTrustDevice] = useState(false);
+  const [webauthnAvailable, setWebauthnAvailable] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/mfa/factors/summary", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : { hasWebAuthn: false }))
+      .then((data) => setWebauthnAvailable(Boolean(data.hasWebAuthn)))
+      .catch(() => setWebauthnAvailable(false));
+  }, []);
 
   const persistToken = (accessToken: string, expiresIn: number) => {
     window.localStorage.setItem("supabase_access_token", accessToken);
@@ -28,7 +37,7 @@ function MfaChallengeForm() {
   const submitTotp = () => {
     setError("");
     startTransition(async () => {
-      const result = await verifyMfaChallenge(code);
+      const result = await verifyMfaChallenge(code, { trustDevice });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -56,6 +65,35 @@ function MfaChallengeForm() {
       }
       // Recovery resets MFA factors — continue at AAL1 to re-enroll.
       router.replace("/dashboard/account/security?enforcement=required");
+    });
+  };
+
+  const verifyWithPasskey = () => {
+    setError("");
+    startTransition(async () => {
+      try {
+        const optsRes = await fetch("/api/mfa/webauthn/authenticate/options", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+        if (!optsRes.ok) throw new Error("Could not start passkey challenge");
+        const options = await optsRes.json();
+        const { startAuthentication } = await import("@simplewebauthn/browser");
+        const authResp = await startAuthentication({ optionsJSON: options });
+        const verifyRes = await fetch("/api/mfa/webauthn/authenticate/verify", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ response: authResp, trustDevice }),
+        });
+        if (verifyRes.ok) {
+          window.location.href = returnTo.startsWith("/") ? returnTo : "/dashboard";
+        } else {
+          setError("Passkey verification failed");
+        }
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Passkey verification failed");
+      }
     });
   };
 
@@ -98,6 +136,15 @@ function MfaChallengeForm() {
               placeholder="000000"
             />
           </label>
+          <label className="flex items-center gap-2 text-sm text-white/70">
+            <input
+              type="checkbox"
+              checked={trustDevice}
+              onChange={(e) => setTrustDevice(e.target.checked)}
+              className="h-4 w-4 rounded border-[#C9A961]/40"
+            />
+            Trust this device for 30 days
+          </label>
           <button
             type="submit"
             disabled={pending || code.length !== 6}
@@ -105,6 +152,16 @@ function MfaChallengeForm() {
           >
             {pending ? "Verifying…" : "Verify"}
           </button>
+          {webauthnAvailable ? (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={verifyWithPasskey}
+              className={`rounded-xl border border-[#C9A961]/40 bg-[#C9A961]/10 px-4 py-3 text-sm font-semibold text-[#C9A961] disabled:opacity-60 ${focusRing("focus-visible:ring-offset-[#0B1A3A]")}`}
+            >
+              Use a passkey
+            </button>
+          ) : null}
         </form>
       ) : (
         <form

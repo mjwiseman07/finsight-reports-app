@@ -1,21 +1,16 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { ADVISACOR_ACCESS_TOKEN_COOKIE } from "@/lib/reviewer/constants";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import type { MfaAuditEventType as SharedMfaAuditEventType } from "@/types/mfa";
+import { userHasWebAuthn } from "@/lib/mfa/webauthn";
 
 export type MfaResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
-export type MfaAuditEventType =
-  | "enroll_started"
-  | "enroll_completed"
-  | "enroll_failed"
-  | "verify_success"
-  | "verify_failed"
-  | "disable"
-  | "recovery_code_used"
-  | "recovery_codes_regenerated"
-  | "admin_enforcement_prompted";
+export type MfaAuditEventType = SharedMfaAuditEventType;
+
+export { userHasWebAuthn };
 
 /**
  * Prefer @supabase/ssr cookie jar; fall back to Advisacor access-token cookie
@@ -113,4 +108,40 @@ export async function userHasActiveFirmAdminRole(userId: string): Promise<boolea
     return false;
   }
   return (data?.length ?? 0) > 0;
+}
+
+export async function getUserFromRequest(_request?: Request): Promise<User | null> {
+  const supabase = await createMfaUserClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+}
+
+export async function logMfaEvent(input: {
+  userId: string;
+  eventType: MfaAuditEventType;
+  request?: Request;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  const ctx = await getRequestAuditContext();
+  await writeMfaAuditLog({
+    userId: input.userId,
+    eventType: input.eventType,
+    metadata: input.metadata,
+    ipAddress: ctx.ipAddress,
+    userAgent: ctx.userAgent,
+  });
+}
+
+export async function userHasAnySecondFactor(userId: string): Promise<boolean> {
+  const [hasWebAuthnFactor, factorList] = await Promise.all([
+    userHasWebAuthn(userId),
+    getSupabaseAdmin().auth.admin.mfa.listFactors({ userId }),
+  ]);
+  const hasTotp = (factorList.data?.factors ?? []).some(
+    (f: { factor_type?: string; status?: string }) =>
+      f.factor_type === "totp" && f.status === "verified",
+  );
+  return hasWebAuthnFactor || hasTotp;
 }

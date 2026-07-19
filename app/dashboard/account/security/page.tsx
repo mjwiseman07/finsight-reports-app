@@ -3,12 +3,15 @@ import { AccountSettingsShell } from "@/components/account/AccountSettingsShell"
 import { MfaEnrollmentCard } from "@/components/account/MfaEnrollmentCard";
 import { MfaEnforcementNotice } from "@/components/account/MfaEnforcementNotice";
 import { MfaManagementCard } from "@/components/account/MfaManagementCard";
+import { MfaPasskeyCard } from "@/components/mfa/MfaPasskeyCard";
+import { MfaTrustedDevicesCard } from "@/components/mfa/MfaTrustedDevicesCard";
 import {
   createMfaUserClient,
   userHasActiveFirmAdminRole,
   writeMfaAuditLog,
 } from "@/lib/mfa/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { userHasWebAuthn } from "@/lib/mfa/webauthn";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +30,9 @@ export default async function AccountSecurityPage({
   const { data: factors } = await supabase.auth.mfa.listFactors();
   const totp = factors?.totp?.[0] ?? null;
   const isEnrolled = Boolean(totp);
+  const hasPasskey = await userHasWebAuthn(user.id);
   const isFirmAdmin = await userHasActiveFirmAdminRole(user.id);
-  const showEnforcement = isFirmAdmin && !isEnrolled;
+  const showEnforcement = isFirmAdmin && !isEnrolled && !hasPasskey;
 
   if (showEnforcement && params.enforcement === "required") {
     await writeMfaAuditLog({
@@ -69,6 +73,8 @@ export default async function AccountSecurityPage({
             auditTail={auditTail}
           />
         ) : null}
+        <MfaPasskeyCard />
+        <MfaTrustedDevicesCard />
       </AccountSettingsShell>
     </main>
   );
