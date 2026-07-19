@@ -24,6 +24,10 @@ export const MFA_EXEMPT_PREFIXES = [
   "/signin",
   "/signin/mfa-challenge",
   "/dashboard/account/security",
+  // WebAuthn challenge routes must be reachable pre-aal2.
+  "/api/mfa/webauthn/authenticate/options",
+  "/api/mfa/webauthn/authenticate/verify",
+  "/api/mfa/factors/summary",
 ] as const;
 
 export function isMfaExemptPath(pathname: string): boolean {

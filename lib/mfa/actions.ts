@@ -355,6 +355,7 @@ export async function consumeRecoveryCode(
 
 export async function verifyMfaChallenge(
   code: string,
+  options?: { trustDevice?: boolean },
 ): Promise<MfaResult<{ accessToken: string; expiresIn: number }>> {
   const ctx = await getRequestAuditContext();
   try {
@@ -426,6 +427,39 @@ export async function verifyMfaChallenge(
     const expiresIn = verified.expires_in ?? 3600;
     if (!accessToken) {
       return { ok: false, error: "MFA verified but no access token returned" };
+    }
+
+    if (options?.trustDevice) {
+      try {
+        const { cookies } = await import("next/headers");
+        const {
+          addTrustedDevice,
+          trustedDeviceCookieName,
+        } = await import("@/lib/mfa/trusted-devices");
+        const { cookieValue, maxAgeSeconds } = await addTrustedDevice(
+          user.id,
+          ctx.userAgent,
+          ctx.ipAddress,
+        );
+        const jar = await cookies();
+        jar.set({
+          name: trustedDeviceCookieName(),
+          value: cookieValue,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: maxAgeSeconds,
+        });
+        await writeMfaAuditLog({
+          userId: user.id,
+          eventType: "trusted_device_added",
+          metadata: { source: "totp_challenge" },
+          ...ctx,
+        });
+      } catch (err) {
+        console.error("[mfa] trusted device cookie set failed", err);
+      }
     }
 
     return { ok: true, data: { accessToken, expiresIn } };

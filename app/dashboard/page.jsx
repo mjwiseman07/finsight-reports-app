@@ -616,7 +616,7 @@ export default function DashboardPage() {
   const [quickBooksCapabilities, setQuickBooksCapabilities] = useState(null);
   const [quickBooksDetecting, setQuickBooksDetecting] = useState(false);
   const [recommendationDismissed, setRecommendationDismissed] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
+  const [userIsFirmAdmin, setUserIsFirmAdmin] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [accountSaving, setAccountSaving] = useState(false);
@@ -816,6 +816,13 @@ export default function DashboardPage() {
 
     return readValidStoredAuthToken(token);
   }, [readValidStoredAuthToken, token]);
+
+  useEffect(() => {
+    fetch("/api/user/role")
+      .then((r) => (r.ok ? r.json() : { role: null }))
+      .then((data) => setUserIsFirmAdmin(data.role === "firm_admin"))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const loadAccess = async () => {
@@ -1947,7 +1954,11 @@ export default function DashboardPage() {
                             available_reports: intelligenceRecommendation.reports,
                             benefits: intelligenceRecommendation.benefits,
                           });
-                          setAccountOpen(true);
+                          if (userIsFirmAdmin) {
+                            router.push("/pricing");
+                          } else {
+                            router.push("/dashboard/account/billing");
+                          }
                         }}
                         className={`${primaryCtaClass} rounded-2xl px-5 py-3 text-sm`}
                       >
@@ -2500,160 +2511,7 @@ export default function DashboardPage() {
         userEmail={accountEmail === "Not available" ? "" : accountEmail}
       />
 
-      {accountOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-[#C9A961]/25 bg-[#1A1A1C]/95 shadow-2xl shadow-black/40">
-            <div className="shrink-0 border-b border-[#C9A961]/15 px-6 py-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className={`${headingFont} text-sm font-black uppercase tracking-[0.22em] text-[#C9A961]`}>Account</p>
-                  <h2 className={`${headingFont} mt-2 text-3xl font-black text-[#ECEBE7]`}>Account and package settings</h2>
-                  <p className="mt-2 text-sm leading-6 text-[#A29E93]">
-                    Review your account, current package, and available plan changes.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAccountOpen(false)}
-                  className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-2 text-sm font-bold text-[#A29E93] transition hover:border-[#C9A961]/50 hover:text-[#DFC084]`}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
-                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Email</p>
-                  <p className={`${headingFont} mt-3 break-words text-lg font-black text-[#ECEBE7]`}>{accountEmail}</p>
-                </div>
-                <div className="rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
-                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#7A7974]`}>Firm / Business</p>
-                  <input
-                    type="text"
-                    value={businessNameDraft}
-                    onChange={(event) => setBusinessNameDraft(event.target.value)}
-                    placeholder={accountBusinessName}
-                    className={`${headingFont} mt-3 w-full rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-bold text-[#ECEBE7] outline-none placeholder:text-[#7A7974] transition focus:border-[#C9A961]/60 focus:ring-2 focus:ring-[#C9A961]/25`}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSaveAccount}
-                    disabled={accountSaving}
-                    className={`${focusRing("rounded-2xl")} ${headingFont} mt-3 rounded-2xl bg-[#C9A961] px-4 py-2 text-xs font-black text-[#111112] transition hover:bg-[#C9A961] disabled:cursor-not-allowed disabled:opacity-60`}
-                  >
-                    {accountSaving ? "Saving..." : "Save Account Info"}
-                  </button>
-                </div>
-                <div className="rounded-3xl border border-[#6DAA45]/30 bg-[#6DAA45]/10 p-5">
-                  <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#6DAA45]`}>Current Package</p>
-                  <p className={`${headingFont} mt-3 text-lg font-black text-[#B5E28A]`}>{currentPlanName}</p>
-                  <p className="mt-2 text-sm font-semibold capitalize text-[#B5E28A]/80">
-                    {access?.subscription_status || access?.reason || "Loading"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Security & 2FA quick link — Phase 10.1 */}
-              <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#C9A961]`}>Security</p>
-                    <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Two-factor authentication & sign-in</h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#A29E93]">
-                      Manage two-factor authentication (TOTP), recovery codes, and account security settings.
-                    </p>
-                  </div>
-                  <Link
-                    href="/dashboard/account/security"
-                    onClick={() => setAccountOpen(false)}
-                    className={`${focusRing("rounded-2xl")} ${headingFont} shrink-0 rounded-2xl border border-[#C9A961]/60 bg-[#C9A961]/10 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#C9A961] transition hover:border-[#C9A961] hover:bg-[#C9A961]/20`}
-                  >
-                    Manage Security
-                  </Link>
-                </div>
-              </div>
-
-              <div className="mt-6 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className={`${headingFont} text-sm font-black uppercase tracking-[0.2em] text-[#C9A961]`}>Package Options</p>
-                    <h3 className={`${headingFont} mt-2 text-2xl font-black text-[#ECEBE7]`}>Upgrade or downgrade your package</h3>
-                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#A29E93]">
-                      Active subscriptions are managed in Stripe billing. Trial or expired accounts can choose a package here.
-                    </p>
-                  </div>
-                  {access?.reason === "subscriber" && (
-                    <button
-                      type="button"
-                      onClick={handleManageBilling}
-                      disabled={billingLoading}
-                      className={`${focusRing("rounded-2xl")} ${headingFont} rounded-2xl bg-[#C9A961] px-5 py-3 text-sm font-black text-[#111112] shadow-xl shadow-black/30 transition hover:bg-[#C9A961] disabled:cursor-not-allowed disabled:opacity-60`}
-                    >
-                      {billingLoading ? "Opening billing..." : "Manage Billing"}
-                    </button>
-                  )}
-                </div>
-
-                <div className="mt-5 grid gap-4 lg:grid-cols-3">
-                  {plans.map((plan) => {
-                    const isCurrentPlan = currentPlanKey === plan.key;
-                    const planMove =
-                      currentPlanKey && !isCurrentPlan
-                        ? planRank[plan.key] > planRank[currentPlanKey]
-                          ? "Upgrade"
-                          : "Downgrade"
-                        : "Current";
-                    return (
-                      <div
-                        key={plan.key}
-                        className={`rounded-3xl border p-5 ${
-                          isCurrentPlan ? "border-[#6DAA45]/35 bg-[#6DAA45]/10" : "border-[#C9A961]/20 bg-[#111112]/70"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>{plan.name}</p>
-                            <p className={`${headingFont} mt-1 text-2xl font-black text-[#DFC084]`}>{plan.price}</p>
-                          </div>
-                          <span className={`${headingFont} rounded-full px-3 py-1 text-xs font-black ${
-                            isCurrentPlan
-                              ? "border border-[#6DAA45]/30 bg-[#6DAA45]/10 text-[#B5E28A]"
-                              : "border border-[#C9A961]/30 bg-[#111112]/70 text-[#A29E93]"
-                          }`}>
-                            {isCurrentPlan ? "Current" : planMove}
-                          </span>
-                        </div>
-                        <p className="mt-3 min-h-16 text-sm leading-6 text-[#A29E93]">{plan.description}</p>
-                        {access?.reason === "subscriber" ? (
-                          <button
-                            type="button"
-                            onClick={handleManageBilling}
-                            disabled={billingLoading || isCurrentPlan}
-                            className={`${focusRing("rounded-2xl")} ${headingFont} mt-5 w-full rounded-2xl border border-[#C9A961]/25 bg-[#111112] px-4 py-3 text-sm font-black text-[#ECEBE7] transition hover:border-[#C9A961]/50 hover:text-[#DFC084] disabled:cursor-not-allowed disabled:opacity-50`}
-                          >
-                            {isCurrentPlan ? "Current Package" : `${planMove} in Billing`}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleSubscribe(plan.key)}
-                            disabled={checkoutPlan === plan.key}
-                            className={`${focusRing("rounded-2xl")} ${headingFont} mt-5 w-full rounded-2xl bg-[#C9A961] px-4 py-3 text-sm font-black text-[#111112] transition hover:bg-[#C9A961] disabled:cursor-not-allowed disabled:opacity-60`}
-                          >
-                            {checkoutPlan === plan.key ? "Starting checkout..." : `Choose ${plan.name}`}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
