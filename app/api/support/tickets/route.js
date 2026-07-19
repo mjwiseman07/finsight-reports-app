@@ -230,6 +230,30 @@ async function postImpl(request) {
     };
   })();
 
+  // Block 2.6: parent_ticket_id + prefill_attribution
+  const rawParentId = typeof body.parent_ticket_id === "string" ? body.parent_ticket_id.trim() : "";
+  let validatedParentId = null;
+  if (rawParentId && /^[a-f0-9-]{36}$/.test(rawParentId)) {
+    const { data: parent } = await supabaseAdmin
+      .from("support_tickets")
+      .select("id, user_id")
+      .eq("id", rawParentId)
+      .maybeSingle();
+    if (parent && parent.user_id === access.user.id) {
+      validatedParentId = parent.id;
+    }
+  }
+  const prefillAttribution =
+    body.prefill_attribution && typeof body.prefill_attribution === "object"
+      ? body.prefill_attribution
+      : null;
+  // Fold prefill_attribution into workflow_context so we don't need a new column
+  const workflowContextForInsert = workflowContext
+    ? { ...workflowContext, prefill_attribution: prefillAttribution }
+    : prefillAttribution
+      ? { prefill_attribution: prefillAttribution }
+      : null;
+
   const attachmentMetadata = {
     screenshot: body.screenshot ? String(body.screenshot).slice(0, 240) : "",
     attachment: body.attachment ? String(body.attachment).slice(0, 240) : "",
@@ -258,8 +282,9 @@ async function postImpl(request) {
       },
       qbo_realm_id: qboRealmId,
       last_intuit_tid: lastIntuitTid,
-      workflow_context: workflowContext,
+      workflow_context: workflowContextForInsert,
       correlation_id: correlationId,
+      parent_ticket_id: validatedParentId,
     })
     .select("*")
     .single();
