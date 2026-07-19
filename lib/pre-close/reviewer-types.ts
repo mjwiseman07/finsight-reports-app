@@ -75,6 +75,13 @@ export interface ReviewItemDetail extends ReviewerQueueItem {
   decisionReasonText: string | null;
   postingLedgerEvents: LedgerEventSummary[];
   remediationLog: RemediationLogEntry[];
+  /** Gap 3 */
+  proposedByUserId?: string | null;
+  approvedByUserId?: string | null;
+  materialityBucket?: "low" | "medium" | "high" | null;
+  requiresMfaStepUp?: boolean;
+  autonomousLane?: boolean;
+  gap3Grandfathered?: boolean;
 }
 
 export interface DecideRequestBody {
@@ -102,6 +109,12 @@ export interface PostingPolicyUpdateBody {
     | null;
   autoPostOnApproved?: boolean;
   autoPostOnEditAndApproved?: boolean;
+  /** Gap 3 — per-engagement materiality overrides (cents). null clears to platform default. */
+  materialityLowMaxCents?: number | null;
+  materialityMediumMaxCents?: number | null;
+  materialityHighRequiresMfa?: boolean | null;
+  autonomousPostingEnabled?: boolean;
+  autonomousMaxBucket?: "low" | "medium" | null;
 }
 
 export interface FilterParams {

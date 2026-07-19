@@ -295,14 +295,26 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
     }
 
     // 9. Post with one 401 retry after forced refresh
-    let postResp = await postToQBO(tokenResult.realmId, tokenResult.accessToken, qboBody);
+    let postResp = await postToQBO(
+      tokenResult.realmId,
+      tokenResult.accessToken,
+      qboBody,
+      req.posted_by_user_id,
+      req.firm_client_id,
+    );
     if (postResp.status === 401) {
       const refreshed = await resolveQBOTokenForFirmClient(req.firm_client_id, { forceRefresh: true });
       if (!refreshed) {
         await finalizeFail(attemptId, req, "token_refresh_failed", undefined, resolvedAssertions, resolvedReliability, currencyCtx);
         return { status: "failed", attempt_id: attemptId, error: "token_refresh_failed", retryable: true };
       }
-      postResp = await postToQBO(refreshed.realmId, refreshed.accessToken, qboBody);
+      postResp = await postToQBO(
+        refreshed.realmId,
+        refreshed.accessToken,
+        qboBody,
+        req.posted_by_user_id,
+        req.firm_client_id,
+      );
     }
 
     if (!postResp.ok) {
@@ -440,15 +452,34 @@ async function postToQBO(
   accessToken: string,
   body: unknown,
   userId?: string,
+  firmClientId?: string,
 ): Promise<QboPostResult> {
   const { qboApiFetch } = await import("../../qbo/api-fetch.js");
   const url = `${qboApiBase()}/v3/company/${realmId}/journalentry?minorversion=73`;
+  const startedAt = Date.now();
   const { ok, status, json, intuit_tid } = await qboApiFetch(url, {
     accessToken,
     method: "POST",
     body: body as object,
     context: userId ? { userId, realmId } : undefined,
   });
+  if (firmClientId) {
+    try {
+      const { recordQboApiTrace } = await import("../../qbo/api-trace");
+      await recordQboApiTrace({
+        firm_client_id: firmClientId,
+        realm_id: realmId,
+        endpoint: "/v3/company/{realmId}/journalentry",
+        http_method: "POST",
+        http_status: status,
+        intuit_tid: intuit_tid ?? null,
+        latency_ms: Date.now() - startedAt,
+        error_code: ok ? null : String(status),
+      });
+    } catch {
+      /* trace must never fail the post */
+    }
+  }
   return {
     ok,
     status,

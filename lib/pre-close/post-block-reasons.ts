@@ -18,6 +18,7 @@ export const POST_BLOCK_REASONS = {
   POLICY_BLOCKED_MANUAL_ONLY: "policy_blocked_manual_only",
   ENTITLEMENT_DENIED: "entitlement_denied",
   BASIS_GUARD_REJECTED: "basis_guard_rejected",
+  GAP3_APPROVAL_GATE_DENIED: "gap3_approval_gate_denied",
   UNKNOWN_ERROR: "unknown_error",
 } as const;
 

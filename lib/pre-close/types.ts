@@ -87,4 +87,7 @@ export interface DirectiveInput {
   actorId?: string;
   correlationId?: string;
   editedJeDraft?: JEDraft;
+  /** Gap 3 — stamped on approve/reject; required by SoD trigger for approvals. */
+  mfaStepUpVerifiedAt?: string | null;
+  mfaStepUpMethod?: "totp" | "webauthn" | null;
 }
