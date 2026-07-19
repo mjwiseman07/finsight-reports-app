@@ -3,6 +3,11 @@ import { stripe } from '@/lib/stripe';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { syncSubscriptionFromStripe } from '@/lib/subscription-sync';
 import { withAutoFile } from '@/lib/support/api-error-wrapper';
+import {
+  scheduleGap2Purge,
+  cancelGap2Purge,
+  resolveFirmIdFromSubscription,
+} from '@/lib/gap2/stripe-integration';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -119,13 +124,43 @@ async function handleEvent(event) {
       break;
     }
     case 'customer.subscription.created':
-    case 'customer.subscription.updated':
-    case 'customer.subscription.deleted':
-    case 'customer.subscription.trial_will_end': {
+    case 'customer.subscription.updated': {
       // NOTE: Subscription events with metadata.engagement_id are routed to
       // /api/webhooks/stripe by the guard in POST and never reach handleEvent.
       // Non-D-Entitlements subscriptions (phase-1 subs without engagement_id)
       // continue to be handled here for backward compatibility.
+      const sub = event.data.object;
+      await syncSubscriptionFromStripe(sub.id);
+      // Gap 2: reactivation cancels a pending purge
+      if (sub.status === 'active' || sub.status === 'trialing') {
+        const firmId = await resolveFirmIdFromSubscription(sub.id);
+        if (firmId) {
+          await cancelGap2Purge({
+            firm_id: firmId,
+            reason: 'stripe_subscription_reactivated',
+            stripe_event_id: event.id,
+          });
+        }
+      }
+      break;
+    }
+    case 'customer.subscription.deleted': {
+      const sub = event.data.object;
+      await syncSubscriptionFromStripe(sub.id);
+      // Gap 2: schedule 30-day cascade purge
+      const firmId = await resolveFirmIdFromSubscription(sub.id);
+      if (firmId) {
+        await scheduleGap2Purge({
+          firm_id: firmId,
+          stripe_subscription_id: sub.id,
+          stripe_customer_id: typeof sub.customer === 'string' ? sub.customer : sub.customer?.id,
+          reason: 'stripe_subscription_deleted',
+          stripe_event_id: event.id,
+        });
+      }
+      break;
+    }
+    case 'customer.subscription.trial_will_end': {
       const sub = event.data.object;
       await syncSubscriptionFromStripe(sub.id);
       break;
