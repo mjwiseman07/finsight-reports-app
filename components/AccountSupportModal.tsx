@@ -154,6 +154,31 @@ export function AccountSupportModal({ open, onClose, userEmail }: AccountSupport
         </section>
 
         <section className="mt-6">
+          <p className={sectionHeaderClass}>Security &amp; 2FA</p>
+          <div className={`${cardClass} mt-2`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm text-[#ECEBE7]">
+                  Two-factor authentication (2FA) is required for firm administrators and
+                  recommended for every user.
+                </p>
+                <p className="mt-1 text-xs text-[#7A7974]">
+                  Enroll a TOTP authenticator app, generate one-time recovery codes, and
+                  manage your device from the Security &amp; 2FA settings.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/account/security"
+                onClick={onClose}
+                className="shrink-0 rounded-xl border border-[#C9A961]/40 bg-[#C9A961]/10 px-3 py-2 text-xs font-semibold text-[#C9A961] transition hover:border-[#C9A961]/70 hover:bg-[#C9A961]/20"
+              >
+                Manage 2FA
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6">
           <p className={sectionHeaderClass}>Connection health</p>
           <div className={`${cardClass} mt-2`}>
             {loading ? (
