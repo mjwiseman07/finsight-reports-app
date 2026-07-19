@@ -34,6 +34,32 @@ vi.mock("@/lib/erp/quickbooks/journal-entry-poster", () => ({
 }));
 vi.mock("@/lib/events/publisher", () => ({ publishEvent: publishMock }));
 
+const requireApprovalMock = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    ok: true,
+    bundle: {
+      review_item_id: "ri",
+      firm_client_id: "fc1",
+      engagement_id: "eng1",
+      decision: "approved",
+      proposed_by_user_id: "u0",
+      approved_by_user_id: "u1",
+      materiality_bucket: "low",
+      requires_mfa_step_up: false,
+      mfa_step_up_verified_at: null,
+      mfa_step_up_method: null,
+      gap3_grandfathered: false,
+      autonomous_lane: false,
+    },
+  }),
+);
+vi.mock("@/lib/pre-close/require-approval", () => ({
+  requireApproval: requireApprovalMock,
+}));
+vi.mock("@/lib/pre-close/gap3-log", () => ({
+  logGap3Action: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { makeMockDb } from "./_mock-db";
 const mock = makeMockDb();
 vi.mock("@/lib/supabase/service", () => ({ createServiceClient: () => mock }));
@@ -95,6 +121,24 @@ beforeEach(() => {
   assertEntitlementMock.mockReset();
   posterPostMock.mockReset();
   publishMock.mockReset();
+  requireApprovalMock.mockClear();
+  requireApprovalMock.mockResolvedValue({
+    ok: true,
+    bundle: {
+      review_item_id: "ri",
+      firm_client_id: "fc1",
+      engagement_id: "eng1",
+      decision: "approved",
+      proposed_by_user_id: "u0",
+      approved_by_user_id: "u1",
+      materiality_bucket: "low",
+      requires_mfa_step_up: false,
+      mfa_step_up_verified_at: null,
+      mfa_step_up_method: null,
+      gap3_grandfathered: false,
+      autonomous_lane: false,
+    },
+  });
   publishMock.mockResolvedValue({});
   assertEntitlementMock.mockResolvedValue(undefined);
   policyMock.mockResolvedValue({

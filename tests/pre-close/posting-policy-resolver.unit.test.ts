@@ -18,6 +18,11 @@ function policy(over: Partial<PostingPolicy> = {}): PostingPolicy {
     autoPostOnApproved: true,
     autoPostOnEditAndApproved: false,
     isDefaulted: false,
+    materialityLowMaxCents: null,
+    materialityMediumMaxCents: null,
+    materialityHighRequiresMfa: null,
+    autonomousPostingEnabled: false,
+    autonomousMaxBucket: null,
     ...over,
   };
 }

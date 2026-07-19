@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import type { ReviewItemDetail } from "@/lib/pre-close/reviewer-types";
 import { DirectiveModal } from "../../components/DirectiveModal";
 
@@ -12,6 +13,7 @@ export default function ReviewItemDetailPage() {
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [isWriter, setIsWriter] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const token = window.localStorage.getItem("supabase_access_token") || "";
@@ -27,6 +29,7 @@ export default function ReviewItemDetailPage() {
     setDetail(data);
     const me = await meRes.json();
     setIsWriter((me.writerFirmIds ?? []).length > 0);
+    setCurrentUserId(me.userId ?? null);
   }, [id]);
 
   useEffect(() => {
@@ -49,12 +52,30 @@ export default function ReviewItemDetailPage() {
   if (error) return <p className="text-red-300">{error}</p>;
   if (!detail) return <p className="text-slate-400">Loading…</p>;
 
+  const sodBlocked =
+    Boolean(detail.proposedByUserId) &&
+    Boolean(currentUserId) &&
+    detail.proposedByUserId === currentUserId &&
+    !detail.decision;
+
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-teal-200">
-            {detail.ruleId} — {detail.severity}
+          <h1 className="text-xl font-semibold text-teal-200 flex flex-wrap items-center gap-2">
+            <span>
+              {detail.ruleId} — {detail.severity}
+            </span>
+            {detail.materialityBucket ? (
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-normal text-slate-200">
+                {detail.materialityBucket}
+              </span>
+            ) : null}
+            {detail.requiresMfaStepUp ? (
+              <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-normal text-red-200">
+                MFA required
+              </span>
+            ) : null}
           </h1>
           <p className="text-slate-400 text-sm">
             {detail.firmClientName} · {detail.engagementName}
@@ -68,6 +89,13 @@ export default function ReviewItemDetailPage() {
           Export packet
         </button>
       </div>
+
+      {sodBlocked ? (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+          Segregation of duties: you proposed this JE and cannot approve it. Ask another writer to
+          review.
+        </div>
+      ) : null}
 
       <section>
         <h2 className="text-sm font-medium text-teal-300 mb-2">Evidence</h2>
@@ -109,7 +137,8 @@ export default function ReviewItemDetailPage() {
         ) : isWriter ? (
           <button
             type="button"
-            className="px-4 py-2 bg-teal-800 rounded"
+            className="px-4 py-2 bg-teal-800 rounded disabled:opacity-40"
+            disabled={sodBlocked}
             onClick={() => setModalOpen(true)}
           >
             Decide
@@ -117,6 +146,14 @@ export default function ReviewItemDetailPage() {
         ) : (
           <p className="text-slate-400">Pending review</p>
         )}
+        {detail.requiresMfaStepUp && !detail.decision ? (
+          <p className="mt-2 text-xs text-slate-400">
+            High materiality — approving will require a fresh MFA verification.{" "}
+            <Link href="/dashboard" className="underline">
+              Open Security &amp; 2FA
+            </Link>
+          </p>
+        ) : null}
       </section>
 
       <section>

@@ -9,6 +9,8 @@ import { SupportHelpButton } from "../../components/SupportHelpButton";
 import { AccountSupportModal } from "../../components/AccountSupportModal";
 import StartingPointCard from "../../components/dashboard/StartingPointCard";
 import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPointDeepLinkHandler";
+import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
+import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import { contextualHelp } from "../../lib/contextual-help";
 import {
@@ -1747,6 +1749,8 @@ export default function DashboardPage() {
                 />
               </Suspense>
               <StartingPointCard persona={primaryPersona || deliveryPersona} />
+              <PendingApprovalsCard />
+              <PostedJesCard />
               {activeReportSummary && (
                 <div className="rounded-3xl border border-[#5591C7]/30 bg-[#5591C7]/10 p-5">
                   <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#DFC084]`}>Report Source: {activeReportSummary.sourceSystem}</p>

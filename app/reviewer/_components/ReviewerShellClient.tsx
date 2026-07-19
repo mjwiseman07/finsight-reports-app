@@ -44,6 +44,9 @@ export function ReviewerShellClient({
             <Link href="/reviewer/cash-app" className="hover:text-teal-300">
               Cash App
             </Link>
+            <Link href="/reviewer/mobile" className="hover:text-teal-300">
+              Mobile approvals
+            </Link>
             {session.writerFirmIds.length ? (
               <span className="text-slate-500">Settings (per engagement)</span>
             ) : null}

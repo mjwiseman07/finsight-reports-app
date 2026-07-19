@@ -20,6 +20,12 @@ export interface PostingPolicy {
   autoPostOnApproved: boolean;
   autoPostOnEditAndApproved: boolean;
   isDefaulted: boolean;
+  /** Gap 3 */
+  materialityLowMaxCents: number | null;
+  materialityMediumMaxCents: number | null;
+  materialityHighRequiresMfa: boolean | null;
+  autonomousPostingEnabled: boolean;
+  autonomousMaxBucket: "low" | "medium" | null;
 }
 
 const DEFAULT_POLICY: Omit<PostingPolicy, "engagementId"> = {
@@ -28,6 +34,11 @@ const DEFAULT_POLICY: Omit<PostingPolicy, "engagementId"> = {
   autoPostOnApproved: true,
   autoPostOnEditAndApproved: false,
   isDefaulted: true,
+  materialityLowMaxCents: null,
+  materialityMediumMaxCents: null,
+  materialityHighRequiresMfa: null,
+  autonomousPostingEnabled: false,
+  autonomousMaxBucket: null,
 };
 
 export async function resolvePostingPolicy(
@@ -37,7 +48,7 @@ export async function resolvePostingPolicy(
   const { data, error } = await supabase
     .from("engagement_posting_policy")
     .select(
-      "engagement_id, policy_code, advisacor_preset, auto_post_on_approved, auto_post_on_edit_and_approved",
+      "engagement_id, policy_code, advisacor_preset, auto_post_on_approved, auto_post_on_edit_and_approved, materiality_low_max_cents, materiality_medium_max_cents, materiality_high_requires_mfa, autonomous_posting_enabled, autonomous_max_bucket",
     )
     .eq("engagement_id", engagementId)
     .maybeSingle();
@@ -48,6 +59,7 @@ export async function resolvePostingPolicy(
   if (!data) {
     return { ...DEFAULT_POLICY, engagementId };
   }
+  const maxBucket = data.autonomous_max_bucket as string | null;
   return {
     engagementId: data.engagement_id as string,
     policyCode: data.policy_code as string,
@@ -55,6 +67,19 @@ export async function resolvePostingPolicy(
     autoPostOnApproved: Boolean(data.auto_post_on_approved),
     autoPostOnEditAndApproved: Boolean(data.auto_post_on_edit_and_approved),
     isDefaulted: false,
+    materialityLowMaxCents:
+      data.materiality_low_max_cents != null ? Number(data.materiality_low_max_cents) : null,
+    materialityMediumMaxCents:
+      data.materiality_medium_max_cents != null
+        ? Number(data.materiality_medium_max_cents)
+        : null,
+    materialityHighRequiresMfa:
+      data.materiality_high_requires_mfa == null
+        ? null
+        : Boolean(data.materiality_high_requires_mfa),
+    autonomousPostingEnabled: Boolean(data.autonomous_posting_enabled),
+    autonomousMaxBucket:
+      maxBucket === "low" || maxBucket === "medium" ? maxBucket : null,
   };
 }
 

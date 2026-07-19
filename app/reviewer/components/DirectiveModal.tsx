@@ -52,7 +52,17 @@ export function DirectiveModal({ reviewItemId, firmClientId, initialDraft, onClo
     });
     setSubmitting(false);
     if (!res.ok) {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (data.error === "mfa_step_up_required") {
+        setError(
+          "Fresh MFA required for this materiality tier. Open Security & 2FA on the dashboard, verify, then retry.",
+        );
+        return;
+      }
+      if (data.error === "sod_violation_same_user") {
+        setError("Segregation of duties: you cannot approve a JE you proposed.");
+        return;
+      }
       setError(data.error || "submit_failed");
       return;
     }

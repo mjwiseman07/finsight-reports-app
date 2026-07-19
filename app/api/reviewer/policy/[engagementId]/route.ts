@@ -88,10 +88,43 @@ export async function PUT(
       }
     }
 
+    // Gap 3 — materiality + autonomous posting controls
+    if ("materialityLowMaxCents" in body) {
+      patch.materiality_low_max_cents = body.materialityLowMaxCents;
+    }
+    if ("materialityMediumMaxCents" in body) {
+      patch.materiality_medium_max_cents = body.materialityMediumMaxCents;
+    }
+    if ("materialityHighRequiresMfa" in body) {
+      patch.materiality_high_requires_mfa = body.materialityHighRequiresMfa;
+    }
+    if (body.autonomousPostingEnabled != null) {
+      patch.autonomous_posting_enabled = body.autonomousPostingEnabled;
+      if (body.autonomousPostingEnabled) {
+        if (body.autonomousMaxBucket !== "low" && body.autonomousMaxBucket !== "medium") {
+          return NextResponse.json(
+            { error: "autonomous_max_bucket_required" },
+            { status: 400 },
+          );
+        }
+        patch.autonomous_max_bucket = body.autonomousMaxBucket;
+      } else if (body.autonomousMaxBucket === null || body.autonomousPostingEnabled === false) {
+        patch.autonomous_max_bucket = null;
+      }
+    } else if ("autonomousMaxBucket" in body) {
+      if ((body.autonomousMaxBucket as string | null | undefined) === "high") {
+        return NextResponse.json({ error: "autonomous_high_forbidden" }, { status: 400 });
+      }
+      patch.autonomous_max_bucket = body.autonomousMaxBucket;
+    }
+
     const { error } = await supabase.from("engagement_posting_policy").upsert(patch);
     if (error) {
       if (error.message?.includes("requires")) {
         return NextResponse.json({ error: "preset_flag_mismatch" }, { status: 409 });
+      }
+      if (error.message?.includes("autonomous")) {
+        return NextResponse.json({ error: "autonomous_constraint_violation" }, { status: 409 });
       }
       return NextResponse.json({ error: "update_failed" }, { status: 500 });
     }

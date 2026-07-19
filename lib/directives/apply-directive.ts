@@ -69,21 +69,43 @@ export async function applyDirective(
 
   // 3. Update — the immutability trigger enforces decision set-once at DB level
   const nowIso = new Date().toISOString();
+  const patch: Record<string, unknown> = {
+    decision: input.decision,
+    decision_reason_code: input.decisionReasonCode,
+    decision_reason_text: input.decisionReasonText,
+    reviewer_user_id: input.reviewerUserId,
+    decision_at: nowIso,
+    edited_je_draft: input.decision === "edit_and_approved" ? input.editedJeDraft : null,
+  };
+  // Gap 3: stamp approver identity for SoD trigger + POST gate (approve/reject).
+  if (
+    input.decision === "approved" ||
+    input.decision === "edit_and_approved" ||
+    input.decision === "rejected"
+  ) {
+    patch.approved_by_user_id = input.reviewerUserId;
+  }
+  if (input.mfaStepUpVerifiedAt) {
+    patch.mfa_step_up_verified_at = input.mfaStepUpVerifiedAt;
+    patch.mfa_step_up_method = input.mfaStepUpMethod ?? null;
+  }
   const { data: updated, error: updErr } = await supabase
     .from("pre_close_review_items")
-    .update({
-      decision: input.decision,
-      decision_reason_code: input.decisionReasonCode,
-      decision_reason_text: input.decisionReasonText,
-      reviewer_user_id: input.reviewerUserId,
-      decision_at: nowIso,
-      edited_je_draft: input.decision === "edit_and_approved" ? input.editedJeDraft : null,
-    })
+    .update(patch)
     .eq("id", input.reviewItemId)
     .is("decision", null) // additional guard vs races
     .select("*")
     .maybeSingle();
-  if (updErr) throw new DirectiveError("update failed", updErr);
+  if (updErr) {
+    const msg = String(updErr.message ?? "");
+    if (msg.includes("gap3_sod_violation")) {
+      throw new DirectiveError("gap3_sod_violation", updErr);
+    }
+    if (msg.includes("gap3_mfa_step_up_required")) {
+      throw new DirectiveError("gap3_mfa_step_up_required", updErr);
+    }
+    throw new DirectiveError("update failed", updErr);
+  }
   if (!updated) {
     // Race — another writer decided between our load and update
     const { data: raced } = await supabase

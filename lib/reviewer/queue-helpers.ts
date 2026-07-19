@@ -148,6 +148,12 @@ export function mapReviewItemDetail(
     decisionReasonText: base.decisionReasonText,
     postingLedgerEvents: extras.postingLedgerEvents,
     remediationLog: extras.remediationLog,
+    proposedByUserId: (row.proposed_by_user_id as string | null) ?? null,
+    approvedByUserId: (row.approved_by_user_id as string | null) ?? null,
+    materialityBucket: (row.materiality_bucket as ReviewItemDetail["materialityBucket"]) ?? null,
+    requiresMfaStepUp: Boolean(row.requires_mfa_step_up),
+    autonomousLane: Boolean(row.autonomous_lane),
+    gap3Grandfathered: Boolean(row.gap3_grandfathered),
   };
 }
 

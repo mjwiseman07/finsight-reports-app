@@ -13,6 +13,8 @@ import {
 import { POST_BLOCK_REASONS, type PostBlockReason } from "@/lib/pre-close/post-block-reasons";
 import { rowToReviewItem } from "@/lib/pre-close/insert-review-item";
 import { assertEntitlement, EntitlementDenied } from "@/lib/entitlements/gate";
+import { requireApproval } from "@/lib/pre-close/require-approval";
+import { logGap3Action } from "@/lib/pre-close/gap3-log";
 import type { JEDraft } from "@/lib/pre-close/types";
 
 export interface PostApprovedInput {
@@ -111,6 +113,28 @@ export async function postApprovedReviewItem(
     if (!policyPermitsAutoPost(policy, row.decision as ReviewerDecision)) {
       return { status: "policy_skip", reviewItemId: row.id, policyCode: policy.policyCode };
     }
+  }
+
+  // Gap 3 defense-in-depth: SoD / MFA / autonomous bucket gate before QBO post.
+  const gate = await requireApproval(input.reviewItemId, row.firmClientId);
+  if (!gate.ok) {
+    await logGap3Action({
+      firmClientId: row.firmClientId,
+      actionCategory: "gap3_approval",
+      actionType: "gap3.auto_post_gate_denied",
+      actorId: input.actorId ?? null,
+      inputSummary: JSON.stringify({
+        reason: gate.reason,
+        review_item_id: input.reviewItemId,
+      }),
+    });
+    return {
+      status: "post_blocked",
+      reviewItemId: input.reviewItemId,
+      reason: POST_BLOCK_REASONS.GAP3_APPROVAL_GATE_DENIED,
+      details: { gate_reason: gate.reason },
+      remediationsApplied: [],
+    };
   }
 
   const draftToPost: JEDraft = (row.editedJeDraft ?? row.jeDraft) as JEDraft;

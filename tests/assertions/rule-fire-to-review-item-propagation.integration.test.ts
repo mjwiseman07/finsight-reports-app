@@ -23,6 +23,28 @@ vi.mock("@/lib/entitlements/gate", () => ({
   assertEntitlement: assertEntitlementMock,
   EntitlementDenied: class extends Error {},
 }));
+vi.mock("@/lib/pre-close/require-approval", () => ({
+  requireApproval: vi.fn().mockResolvedValue({
+    ok: true,
+    bundle: {
+      review_item_id: "ri",
+      firm_client_id: "fc1",
+      engagement_id: "eng1",
+      decision: "approved",
+      proposed_by_user_id: "u0",
+      approved_by_user_id: "u1",
+      materiality_bucket: "low",
+      requires_mfa_step_up: false,
+      mfa_step_up_verified_at: null,
+      mfa_step_up_method: null,
+      gap3_grandfathered: false,
+      autonomous_lane: false,
+    },
+  }),
+}));
+vi.mock("@/lib/pre-close/gap3-log", () => ({
+  logGap3Action: vi.fn().mockResolvedValue(undefined),
+}));
 
 import { insertReviewItem } from "@/lib/pre-close/insert-review-item";
 import { postApprovedReviewItem } from "@/lib/pre-close/post-approved-review-item";
