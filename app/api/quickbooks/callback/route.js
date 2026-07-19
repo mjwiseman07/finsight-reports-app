@@ -133,8 +133,6 @@ function redirectWithQbError(request, code, extraParams = {}) {
   return response;
 }
 
-import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
-
 async function getImpl(request) {
   const url = new URL(request.url);
   const authCode = url.searchParams.get("code") || "";
