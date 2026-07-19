@@ -121,6 +121,7 @@ function isMarketingAllowed(pathname: string) {
     pathname.startsWith("/admin/") ||
     pathname.startsWith("/reviewer/") ||
     pathname.startsWith("/dashboard/") ||
+    pathname.startsWith("/audit-ready/") ||
     pathname.startsWith("/onboarding/") ||
     pathname.startsWith("/signin/") ||
     // Public, token-gated close packet share links.
@@ -128,6 +129,7 @@ function isMarketingAllowed(pathname: string) {
     // Allow app API surfaces that need to run for signed-in users on the marketing host.
     pathname.startsWith("/api/admin/") ||
     pathname.startsWith("/api/reviewer/") ||
+    pathname.startsWith("/api/audit-ready/") ||
     pathname.startsWith("/api/ar/") ||
     pathname.startsWith("/api/client/") ||
     pathname.startsWith("/api/pulse/") ||
