@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { syncSubscriptionFromStripe } from '@/lib/subscription-sync';
+import { withAutoFile } from '@/lib/support/api-error-wrapper';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,7 @@ function shouldRouteToEntitlements(event) {
   return Boolean(engagementId);
 }
 
-export async function POST(req) {
+async function postImpl(req) {
   // Read the secret at request time (not module load) so runtime configuration
   // and tests observe the current value of the environment variable.
   const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
@@ -101,6 +102,8 @@ export async function POST(req) {
     return NextResponse.json({ error: 'handler_failed' }, { status: 500 });
   }
 }
+
+export const POST = withAutoFile(postImpl, { source: "stripe" });
 
 async function handleEvent(event) {
   switch (event.type) {

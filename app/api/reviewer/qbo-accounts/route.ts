@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireFirmAuth, authErrorResponse } from "@/lib/reviewer/auth";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
 import { qboApiFetch } from "../../../../lib/qbo/api-fetch.js";
+import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
 
 const cache = new Map<string, { expires: number; accounts: Array<{ id: string; name: string }> }>();
 const TTL_MS = 5 * 60 * 1000;
 
-export async function GET(req: NextRequest) {
+async function getImpl(req: NextRequest) {
   try {
     const auth = await requireFirmAuth(req);
+    try {
+      // Attach user id header for the wrapper's fallback error path
+      req.headers.set?.("x-advisacor-user-id", auth.userId);
+    } catch { /* headers may be immutable — ignore */ }
     const firmClientId = req.nextUrl.searchParams.get("firmClientId");
     if (!firmClientId) {
       return NextResponse.json({ error: "firmClientId_required" }, { status: 400 });
@@ -47,3 +52,8 @@ export async function GET(req: NextRequest) {
     return authErrorResponse(e);
   }
 }
+
+export const GET = withAutoFile(
+  getImpl as unknown as (req: Request) => Promise<Response>,
+  { source: "internal" },
+);

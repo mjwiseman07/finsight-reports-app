@@ -4,6 +4,7 @@ import { getAuthenticatedCompanyUser } from "../../../../lib/company-security";
 import { escapeHtml, getEarlyAccessEmailConfig, getSupportEmail, sendEmail } from "../../../../lib/email";
 import { getRecentIntuitTidForUser } from "../../../../lib/qbo/recent-intuit-tid";
 import { rateLimit } from "../../../../lib/rate-limit";
+import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import {
   aiSupportAssistantArchitecture,
@@ -140,12 +141,16 @@ async function auditSupportTicketCreated({ ticket, userId, companyId, category, 
   }
 }
 
-export async function GET(request) {
+async function getImpl(request) {
   const rateLimitResponse = rateLimit(request, { key: "support-ticket-list", limit: 60, windowMs: 60_000 });
   if (rateLimitResponse) return rateLimitResponse;
 
   const access = await getAuthenticatedCompanyUser(request);
   if (access.response) return access.response;
+  try {
+    // Attach user id header for the wrapper's fallback error path
+    request.headers.set?.("x-advisacor-user-id", access.user.id);
+  } catch { /* headers may be immutable — ignore */ }
 
   if (!supabaseAdmin) {
     return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
@@ -171,12 +176,16 @@ export async function GET(request) {
   });
 }
 
-export async function POST(request) {
+async function postImpl(request) {
   const rateLimitResponse = rateLimit(request, { key: "support-ticket-create", limit: 12, windowMs: 60_000 });
   if (rateLimitResponse) return rateLimitResponse;
 
   const access = await getAuthenticatedCompanyUser(request);
   if (access.response) return access.response;
+  try {
+    // Attach user id header for the wrapper's fallback error path
+    request.headers.set?.("x-advisacor-user-id", access.user.id);
+  } catch { /* headers may be immutable — ignore */ }
 
   if (!supabaseAdmin) {
     return NextResponse.json({ error: "Supabase is not configured." }, { status: 503 });
@@ -297,3 +306,6 @@ export async function POST(request) {
     message: `Your support request has been received.\nTicket #${insertedTicket.ticket_number}\nA member of the Advisacor support team will review your request.`,
   });
 }
+
+export const GET = withAutoFile(getImpl, { source: "internal" });
+export const POST = withAutoFile(postImpl, { source: "internal" });

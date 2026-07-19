@@ -21,6 +21,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { dispatchWebhookEvent } from "../../../../lib/qbo/webhook-handlers";
+import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
 
 // Force Node runtime — we need `crypto`, and raw body preservation is unreliable on Edge.
 export const runtime = "nodejs";
@@ -32,7 +33,7 @@ export const dynamic = "force-dynamic";
 // Intuit's dashboard pings the endpoint URL on save. Return 200 with a
 // minimal body so the save button doesn't complain.
 // =========================================================================
-export async function GET() {
+async function getImpl() {
   return NextResponse.json(
     { ok: true, endpoint: "quickbooks-webhook", method: "GET" },
     { status: 200 },
@@ -42,7 +43,7 @@ export async function GET() {
 // =========================================================================
 // POST — the real receiver.
 // =========================================================================
-export async function POST(request) {
+async function postImpl(request) {
   // ----- 1. Read raw body BEFORE parsing (signature is computed over exact bytes)
   let rawBody;
   try {
@@ -238,6 +239,9 @@ export async function POST(request) {
     { status: 200 },
   );
 }
+
+export const GET = withAutoFile(getImpl, { source: "internal" });
+export const POST = withAutoFile(postImpl, { source: "internal" });
 
 // =========================================================================
 // Helpers
