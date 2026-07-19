@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         <div className="mx-auto max-w-3xl px-6">
           <p className="mb-4 text-xs font-semibold tracking-wider text-[#C9A961]">PRIVACY POLICY</p>
           <h1 className="text-4xl font-bold leading-tight text-[#28251D] md:text-5xl">Privacy Policy</h1>
-          <p className="mt-4 text-sm text-[#7A7974]">Last updated: July 14, 2026 · Effective: July 14, 2026</p>
+          <p className="mt-4 text-sm text-[#7A7974]">Last updated: July 19, 2026 · Effective: July 19, 2026</p>
         </div>
       </section>
       <section className="bg-[#F9F8F5] py-20">
@@ -126,11 +126,15 @@ export default function PrivacyPage() {
           </ul>
           <h2 id="retention">8. Data Retention and Deletion</h2>
           <ul>
-            <li><strong>Active subscriptions:</strong> we retain data for as long as your subscription is active and for a reasonable period thereafter to allow for reactivation and to fulfill legal, tax, and audit obligations.</li>
-            <li><strong>After cancellation:</strong> customer QBO-derived data is deleted from active systems within thirty (30) days of subscription cancellation. Anonymized or aggregated usage data may be retained longer for analytics purposes.</li>
-            <li><strong>On request:</strong> you may request deletion at any time by emailing{" "}
-              <a href="mailto:mwiseman@advisacor.com">mwiseman@advisacor.com</a>. We will delete data within thirty (30) days of a verified request, subject to legal retention obligations.
-            </li>
+            <li><strong>During your subscription:</strong> we retain your data for as long as you maintain an active Advisacor subscription.</li>
+            <li><strong>After subscription cancellation:</strong> we retain your customer data for thirty (30) days as a grace period, then permanently and irrevocably delete it via automated cascade deletion across all customer-scoped tables. During this grace period you may reactivate your subscription to restore access with no data loss. Reactivation cancels the scheduled purge automatically.</li>
+            <li><strong>Notification:</strong> we email the firm owner immediately upon cancellation with the exact date of scheduled deletion, and again upon reactivation to confirm restoration.</li>
+            <li><strong>Customer-initiated deletion:</strong> you may request immediate permanent deletion at any time by emailing{" "}
+              <a href="mailto:support@advisacor.com">support@advisacor.com</a>{" "}
+              or from your account settings. Customer-initiated deletion requires multi-factor authentication step-up and email confirmation. Once confirmed, deletion begins within one hour and is complete within twenty-four (24) hours.</li>
+            <li><strong>Audit trail:</strong> we retain an append-only audit log of all deletion events (schedule date, execution date, tables purged, actor) for compliance purposes. This audit log contains no customer accounting data — only deletion metadata. Retention period for the audit log is seven (7) years.</li>
+            <li><strong>Legal hold:</strong> if we receive a subpoena, court order, or other lawful compulsion requiring data preservation, we will apply a legal hold that prevents automated deletion. You will be notified unless notification is legally prohibited.</li>
+            <li><strong>Support and audit logs:</strong> operational logs (error records, <code>intuit_tid</code>, request traces) are retained for ninety (90) days for troubleshooting.</li>
             <li><strong>Backups:</strong> data may persist in encrypted backups for up to ninety (90) days after deletion from active systems.</li>
           </ul>
           <h2 id="security">9. Security</h2>

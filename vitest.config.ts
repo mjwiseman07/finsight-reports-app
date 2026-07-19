@@ -18,6 +18,7 @@ export default defineConfig({
       "tests/**/*.test.tsx",
       "lib/je-evidence/__tests__/**/*.test.ts",
       "lib/accruals/__tests__/**/*.test.ts",
+      "lib/gap2/__tests__/**/*.test.ts",
       "lib/ar-cash-app/**/*.test.ts",
       "lib/cash-app/**/*.test.ts",
       "lib/intake/**/*.test.ts",
