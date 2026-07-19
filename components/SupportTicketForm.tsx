@@ -67,6 +67,41 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const context = params.get("context");
+    if (context !== "pulse_handoff") return;
+
+    const q = params.get("prefill_question") || "";
+    const a = params.get("prefill_answer") || "";
+    if (!q && !a) return;
+
+    const composed =
+      `I asked Pulse: ${q}\n\n` +
+      `Pulse answered: ${a}\n\n` +
+      `What I needed instead: `;
+
+    // Set only if user hasn't typed anything yet — never clobber user input
+    setDescription((current) => (current && current.trim().length > 0 ? current : composed));
+    setCategory((current) => current || "Other");
+    setPriority((current) => current || "Normal");
+
+    // Focus the description textarea after the placeholder text
+    requestAnimationFrame(() => {
+      const el = document.getElementById("support-description") as HTMLTextAreaElement | null;
+      if (el) {
+        el.focus();
+        const pos = composed.length;
+        try {
+          el.setSelectionRange(pos, pos);
+        } catch {
+          /* Some browsers throw on setSelectionRange for empty textarea — ignore */
+        }
+      }
+    });
+  }, []);
+
   const applyDraft = (focusDescription: boolean) => {
     if (!prefillDraft) return;
     setSubject(prefillDraft.subject);

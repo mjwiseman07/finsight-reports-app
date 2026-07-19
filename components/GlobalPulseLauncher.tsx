@@ -1,23 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { answerPulseCfoQuestion, pulseAiCoreQuestions } from "../lib/pulse-predict";
 
 type Message = {
+  id: string;
   role: "user" | "pulse";
   content: string;
+  sourceQuestion?: string;
+  isPlaceholder?: boolean;
 };
 
 export function GlobalPulseLauncher() {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
+  const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
+      id: "greeting",
       role: "pulse",
       content:
         "Hi, I'm Pulse. I help explain what happened, predict what may happen next, and recommend what to do like an experienced CFO.",
     },
   ]);
+
+  React.useEffect(() => {
+    const onOpen = () => setOpen(true);
+    document.addEventListener("advisacor:open-pulse", onOpen);
+    return () => document.removeEventListener("advisacor:open-pulse", onOpen);
+  }, []);
+
+  const copyMessage = async (msg: Message) => {
+    try {
+      await navigator.clipboard.writeText(msg.content);
+      setCopiedId(msg.id);
+      setTimeout(() => setCopiedId((cur) => (cur === msg.id ? null : cur)), 1200);
+    } catch {
+      /* clipboard may be unavailable in some browsers — silent no-op */
+    }
+  };
+
+  const buildReportHref = (msg: Message) => {
+    const q = (msg.sourceQuestion || "").slice(0, 500);
+    const a = (msg.content || "").slice(0, 500);
+    const params = new URLSearchParams({
+      context: "pulse_handoff",
+      pulse_message_id: msg.id,
+      prefill_question: q,
+      prefill_answer: a,
+    });
+    return `/support?${params.toString()}`;
+  };
 
   const askPulse = (value = question) => {
     const trimmedQuestion = value.trim();
@@ -32,8 +65,13 @@ export function GlobalPulseLauncher() {
 
     setMessages((current) => [
       ...current,
-      { role: "user", content: trimmedQuestion },
-      { role: "pulse", content: "Pulse is checking company memory, financial history, forecasts, and prior conversations..." },
+      { id: crypto.randomUUID(), role: "user", content: trimmedQuestion },
+      {
+        id: crypto.randomUUID(),
+        role: "pulse",
+        content: "Pulse is checking company memory, financial history, forecasts, and prior conversations...",
+        isPlaceholder: true,
+      },
     ]);
     setQuestion("");
     setOpen(true);
@@ -61,7 +99,12 @@ export function GlobalPulseLauncher() {
 
       setMessages((current) => [
         ...current.slice(0, -1),
-        { role: "pulse", content: answer },
+        {
+          id: crypto.randomUUID(),
+          role: "pulse",
+          content: answer,
+          sourceQuestion: trimmedQuestion,
+        },
       ]);
     })();
   };
@@ -81,8 +124,8 @@ export function GlobalPulseLauncher() {
           <div className="border-b border-white/10 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#C9A961]">Pulse AI</p>
-                <h3 className="mt-2 text-2xl font-black">Financial intelligence assistant</h3>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#C9A961]">Pulse AI</p>
+                <h3 className="mt-2 text-2xl font-semibold">Financial intelligence assistant</h3>
                 <p className="mt-2 text-xs leading-5 text-slate-400">
                   Ask about performance, forecasts, risk, cash, margins, hiring, and what-if scenarios.
                 </p>
@@ -98,21 +141,45 @@ export function GlobalPulseLauncher() {
           </div>
 
           <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-4">
-            {messages.map((message, index) => (
-              <div
-                key={`${message.role}-${index}`}
-                className={`rounded-3xl px-4 py-3 text-sm leading-6 ${
-                  message.role === "user"
-                    ? "ml-auto bg-[#C9A961] font-semibold text-[#111112]"
-                    : "mr-auto flex gap-2.5 bg-[#111112] text-white/85"
-                }`}
-              >
-                {message.role === "pulse" && (
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#C9A961]" aria-hidden="true" />
-                )}
-                <span>{message.content}</span>
-              </div>
-            ))}
+            {messages.map((message) => {
+              const isPulse = message.role === "pulse";
+              const showActionRow = isPulse && !message.isPlaceholder && message.id !== "greeting";
+              return (
+                <div key={message.id} className="grid gap-1">
+                  <div
+                    className={`rounded-3xl px-4 py-3 text-sm leading-6 ${
+                      message.role === "user"
+                        ? "ml-auto bg-[#C9A961] font-semibold text-[#111112]"
+                        : "mr-auto flex gap-2.5 bg-[#111112] text-white/85"
+                    }`}
+                  >
+                    {isPulse && (
+                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#C9A961]" aria-hidden="true" />
+                    )}
+                    <span>{message.content}</span>
+                  </div>
+                  {showActionRow && (
+                    <div className="mr-auto flex items-center gap-1 pl-4">
+                      <button
+                        type="button"
+                        onClick={() => copyMessage(message)}
+                        className="rounded-full border border-white/10 px-2 py-1 text-[11px] font-semibold text-white/50 hover:border-[#C9A961] hover:text-[#C9A961]"
+                      >
+                        {copiedId === message.id ? "Copied" : "Copy"}
+                      </button>
+                      <a
+                        href={buildReportHref(message)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full border border-white/10 px-2 py-1 text-[11px] font-semibold text-white/50 hover:border-[#C9A961] hover:text-[#C9A961]"
+                      >
+                        Report
+                      </a>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="border-t border-white/10 p-4">
