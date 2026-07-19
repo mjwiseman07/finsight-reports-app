@@ -26,6 +26,7 @@ export async function validateJEPayload(
   accessToken: string,
   resolvedCurrency?: string,
   homeCurrency?: string,
+  userId?: string,
 ): Promise<ValidationResult> {
   // 1. Balance check (tolerance 0.005)
   const drTotal = payload.lines
@@ -63,7 +64,12 @@ export async function validateJEPayload(
 
   // 4. Account existence (batched)
   const uniqueAccountIds = [...new Set(payload.lines.map((l) => l.account_id))];
-  const accountsValid = await verifyQBOAccountsExist(realmId, accessToken, uniqueAccountIds);
+  const accountsValid = await verifyQBOAccountsExist(
+    realmId,
+    accessToken,
+    uniqueAccountIds,
+    userId,
+  );
   if (!accountsValid.valid) {
     return { valid: false, reason: "invalid_account_id", details: accountsValid.missing };
   }
@@ -73,7 +79,12 @@ export async function validateJEPayload(
   //    resolved currency (poster always does post-MC-3; legacy callers do not).
   if (resolvedCurrency && homeCurrency) {
     if (resolvedCurrency.toUpperCase() !== homeCurrency.toUpperCase()) {
-      const active = await verifyCurrencyActive(realmId, accessToken, resolvedCurrency);
+      const active = await verifyCurrencyActive(
+        realmId,
+        accessToken,
+        resolvedCurrency,
+        userId,
+      );
       if (!active) {
         return {
           valid: false,
@@ -95,6 +106,7 @@ async function accountExists(
   realmId: string,
   accessToken: string,
   accountId: string,
+  userId?: string,
 ): Promise<boolean> {
   const maxAttempts = 3;
   const query = encodeURIComponent(`SELECT Id FROM Account WHERE Id = '${accountId}'`);
@@ -104,6 +116,7 @@ async function accountExists(
     const { ok, status, json } = await qboApiFetch(url, {
       accessToken,
       method: "GET",
+      context: userId ? { userId, realmId } : undefined,
     });
     if (ok) {
       const rows = json?.QueryResponse?.Account;
@@ -120,9 +133,13 @@ async function verifyQBOAccountsExist(
   realmId: string,
   accessToken: string,
   accountIds: string[],
+  userId?: string,
 ): Promise<{ valid: boolean; missing?: string[] }> {
   const checks = await Promise.all(
-    accountIds.map(async (id) => ({ id, exists: await accountExists(realmId, accessToken, id) })),
+    accountIds.map(async (id) => ({
+      id,
+      exists: await accountExists(realmId, accessToken, id, userId),
+    })),
   );
   const missing = checks.filter((c) => !c.exists).map((c) => c.id);
   return missing.length === 0 ? { valid: true } : { valid: false, missing };
@@ -133,6 +150,7 @@ async function verifyCurrencyActive(
   realmId: string,
   accessToken: string,
   currency: string,
+  userId?: string,
 ): Promise<boolean> {
   const maxAttempts = 3;
   const upper = currency.toUpperCase();
@@ -145,6 +163,7 @@ async function verifyCurrencyActive(
     const { ok, status, json } = await qboApiFetch(url, {
       accessToken,
       method: "GET",
+      context: userId ? { userId, realmId } : undefined,
     });
     if (ok) {
       const rows = json?.QueryResponse?.CompanyCurrency;

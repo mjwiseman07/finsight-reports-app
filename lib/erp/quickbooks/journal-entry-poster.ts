@@ -179,6 +179,7 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
       tokenResult.accessToken,
       currencyResolution.currency,
       currencyResolution.home_currency,
+      tokenResult.ownerUserId,
     );
     if (!validation.valid) {
       await finalizeReject(
@@ -209,6 +210,7 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
       currencyResolution.currency,
       currencyResolution.home_currency,
       req.payload.transaction_date,
+      tokenResult.ownerUserId,
     );
     if (!rateResult.ok) {
       await finalizeReject(
@@ -437,6 +439,7 @@ async function postToQBO(
   realmId: string,
   accessToken: string,
   body: unknown,
+  userId?: string,
 ): Promise<QboPostResult> {
   const { qboApiFetch } = await import("../../qbo/api-fetch.js");
   const url = `${qboApiBase()}/v3/company/${realmId}/journalentry?minorversion=73`;
@@ -444,6 +447,7 @@ async function postToQBO(
     accessToken,
     method: "POST",
     body: body as object,
+    context: userId ? { userId, realmId } : undefined,
   });
   return {
     ok,

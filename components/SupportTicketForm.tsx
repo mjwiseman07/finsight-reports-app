@@ -31,6 +31,11 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
         return;
       }
 
+      const workflowContext = {
+        path: typeof window !== "undefined" ? window.location.pathname : "",
+        referrer: typeof document !== "undefined" ? document.referrer : "",
+      };
+
       const response = await fetch("/api/support/tickets", {
         method: "POST",
         headers: {
@@ -45,6 +50,7 @@ export function SupportTicketForm({ defaultCategory = "Onboarding", onSubmitted 
           screenshot,
           attachment,
           browser: window.navigator.userAgent,
+          workflow_context: workflowContext,
         }),
       });
       const result = (await response.json()) as SubmitResult & { error?: string };
