@@ -3,12 +3,13 @@
 
 import { NextResponse } from "next/server";
 import { runCdcReconciliation } from "@/lib/qbo/cdc.js";
+import { withAutoFile } from "@/lib/support/api-error-wrapper";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 min — matches the RUN_BUDGET_MS in cdc.js (4 min) + margin
 
-export async function GET(req: Request) {
+async function getImpl(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return NextResponse.json({ error: "cron_secret_not_configured" }, { status: 500 });
@@ -30,3 +31,5 @@ export async function GET(req: Request) {
     );
   }
 }
+
+export const GET = withAutoFile(getImpl, { source: "internal" });

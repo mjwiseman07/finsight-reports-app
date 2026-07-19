@@ -3,6 +3,7 @@ import { getERPAdapter } from "../../../../lib/erp-adapters";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { resolveEntitlementsForSubject } from "../../../../lib/entitlements";
 import { parseOfferingSku, parseSubscriptionStatus } from "@/lib/erp/quickbooks/qbo-editions";
+import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
 
 function getQuickBooksTokenExpiry(token) {
   const expiresInSeconds = Number(token?.expires_in || 3600);
@@ -132,7 +133,7 @@ function redirectWithQbError(request, code, extraParams = {}) {
   return response;
 }
 
-export async function GET(request) {
+async function getImpl(request) {
   const url = new URL(request.url);
   const authCode = url.searchParams.get("code") || "";
   const state = url.searchParams.get("state") || "";
@@ -362,3 +363,5 @@ export async function GET(request) {
     return redirectWithQbError(request, "token_exchange_failed");
   }
 }
+
+export const GET = withAutoFile(getImpl, { source: "internal" });

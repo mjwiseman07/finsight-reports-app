@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
+import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
 import {
   askOpenAiWithPulseContext,
   buildPulseContextPackage,
@@ -119,7 +120,7 @@ async function savePdfCustomization({
   return data;
 }
 
-export async function POST(request) {
+async function postImpl(request) {
   const rateLimitResponse = rateLimit(request, { key: "pulse-ask", limit: 30, windowMs: 60_000 });
   if (rateLimitResponse) return rateLimitResponse;
 
@@ -616,3 +617,5 @@ export async function POST(request) {
     return NextResponse.json({ error: error?.message || "Pulse could not answer this question." }, { status: 500 });
   }
 }
+
+export const POST = withAutoFile(postImpl, { source: "internal" });
