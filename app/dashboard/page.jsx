@@ -6,6 +6,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
+import { AccountSupportModal } from "../../components/AccountSupportModal";
 import StartingPointCard from "../../components/dashboard/StartingPointCard";
 import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPointDeepLinkHandler";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
@@ -616,6 +617,7 @@ export default function DashboardPage() {
   const [quickBooksDetecting, setQuickBooksDetecting] = useState(false);
   const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [accountSaving, setAccountSaving] = useState(false);
   const [businessNameDraft, setBusinessNameDraft] = useState("");
@@ -1686,7 +1688,13 @@ export default function DashboardPage() {
             <img src="/advisacor-logo-framed-navy.png" alt="Advisacor" className="w-full" />
           </Link>
           <div className="flex items-center gap-3">
-            <SupportHelpButton compact />
+            <button
+              type="button"
+              onClick={() => setShowAccountModal(true)}
+              className="rounded-full border border-[#C9A961]/40 bg-[#111112] px-4 py-2 text-xs font-semibold text-[#C9A961] hover:bg-[#C9A961]/10"
+            >
+              Account &amp; Support
+            </button>
             <button
               type="button"
               onClick={() => setAccountOpen(true)}
@@ -2486,6 +2494,12 @@ export default function DashboardPage() {
           )}
         </section>
       </div>
+
+      <AccountSupportModal
+        open={showAccountModal}
+        onClose={() => setShowAccountModal(false)}
+        userEmail={accountEmail === "Not available" ? "" : accountEmail}
+      />
 
       {accountOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
