@@ -1,4 +1,5 @@
-import pdf from 'pdf-parse';
+// Note: pdfjs-dist is imported lazily inside extractTextFromBuffer's PDF branch
+// so non-PDF uploads (xlsx, docx, eml, txt) don't pay the pdfjs init cost.
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import { simpleParser } from 'mailparser';
@@ -30,12 +31,41 @@ export async function extractTextFromBuffer(
   contentType: string,
 ): Promise<string> {
   if (contentType === 'application/pdf') {
-    // pdf-parse v1: default export is a function that takes a Buffer/Uint8Array
-    // and returns { text, numpages, info, metadata, version }.
-    // Chosen for Node serverless compatibility — v2 requires browser globals
-    // (DOMMatrix, ImageData) that are unavailable on Vercel Lambdas.
-    const parsed = await pdf(buffer);
-    return parsed.text ?? '';
+    // Use pdfjs-dist "legacy" build — Mozilla's officially-supported Node
+    // bundle. Self-shims DOMMatrix/ImageData/Path2D. We avoid pdf-parse
+    // entirely because:
+    //   - pdf-parse@2 crashes at module-load on Vercel Lambda (DOMMatrix)
+    //   - pdf-parse@1 (vendored pdfjs@1.9) throws "bad XRef entry" on valid
+    //     PDFs under modern Node V8 buffer semantics
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const data = new Uint8Array(buffer);
+    const doc = await pdfjs.getDocument({
+      data,
+      useSystemFonts: true,
+      disableFontFace: true,
+      isEvalSupported: false,
+      // No worker — we want single-threaded, in-process parsing
+      useWorkerFetch: false,
+    }).promise;
+    try {
+      const pageTexts: string[] = [];
+      for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
+        const page = await doc.getPage(pageNum);
+        try {
+          const content = await page.getTextContent();
+          const text = content.items
+            .map((item) => ('str' in item ? item.str : ''))
+            .join(' ');
+          pageTexts.push(text);
+        } finally {
+          page.cleanup();
+        }
+      }
+      return pageTexts.join('\n\n');
+    } finally {
+      await doc.cleanup();
+      await doc.destroy();
+    }
   }
 
   if (
