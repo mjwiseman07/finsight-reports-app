@@ -2,6 +2,15 @@
 
 import React, { useState } from "react";
 import { answerPulseCfoQuestion, pulseAiCoreQuestions } from "../lib/pulse-predict";
+import {
+  PulseJeAccountPicker,
+  PulseJePreviewModal,
+} from "./pulse/PulseJePreviewModal";
+import type {
+  JePreviewPayload,
+  PulseJeAskResponse,
+  ResolvedAccountCandidate,
+} from "@/lib/pulse-je/types";
 
 type Message = {
   id: string;
@@ -23,6 +32,14 @@ export function GlobalPulseLauncher() {
         "Hi, I'm Pulse. I help explain what happened, predict what may happen next, and recommend what to do like an experienced CFO.",
     },
   ]);
+  const [jePreview, setJePreview] = useState<JePreviewPayload | null>(null);
+  const [jeOpen, setJeOpen] = useState(false);
+  const [jePicker, setJePicker] = useState<{
+    subject: "from" | "to";
+    hintPhrase: string;
+    candidates: ResolvedAccountCandidate[];
+    originalQuestion: string;
+  } | null>(null);
 
   React.useEffect(() => {
     const onOpen = () => setOpen(true);
@@ -52,6 +69,68 @@ export function GlobalPulseLauncher() {
     return `/support?${params.toString()}`;
   };
 
+  const handleJeConfirm = (_preview: JePreviewPayload) => {
+    window.alert("Posting arrives in PULSE-JE-2");
+    setJeOpen(false);
+  };
+
+  const applyJeResponse = (result: PulseJeAskResponse, originalQuestion: string) => {
+    if (result.pulse_je === "preview") {
+      setJePreview(result.preview);
+      setJeOpen(true);
+      setJePicker(null);
+      setMessages((current) => [
+        ...current.slice(0, -1),
+        {
+          id: crypto.randomUUID(),
+          role: "pulse",
+          content: "I've prepared a journal entry preview — review and confirm in the modal.",
+          sourceQuestion: originalQuestion,
+        },
+      ]);
+      return true;
+    }
+    if (result.pulse_je === "picker") {
+      setJePicker({
+        subject: result.subject,
+        hintPhrase: result.hint_phrase,
+        candidates: result.candidates,
+        originalQuestion,
+      });
+      setMessages((current) => [
+        ...current.slice(0, -1),
+        {
+          id: crypto.randomUUID(),
+          role: "pulse",
+          content: `Which ${result.subject} account did you mean for "${result.hint_phrase}"?`,
+          sourceQuestion: originalQuestion,
+        },
+      ]);
+      return true;
+    }
+    if (
+      result.pulse_je === "not_found" ||
+      result.pulse_je === "insufficient_info" ||
+      result.pulse_je === "not_entitled"
+    ) {
+      const content =
+        result.pulse_je === "not_entitled"
+          ? `${result.message}\n\nUpgrade: /pricing#ra-pro`
+          : result.message;
+      setMessages((current) => [
+        ...current.slice(0, -1),
+        {
+          id: crypto.randomUUID(),
+          role: "pulse",
+          content,
+          sourceQuestion: originalQuestion,
+        },
+      ]);
+      return true;
+    }
+    return false;
+  };
+
   const askPulse = (value = question) => {
     const trimmedQuestion = value.trim();
     if (!trimmedQuestion) return;
@@ -69,27 +148,40 @@ export function GlobalPulseLauncher() {
       {
         id: crypto.randomUUID(),
         role: "pulse",
-        content: "Pulse is checking company memory, financial history, forecasts, and prior conversations...",
+        content:
+          "Pulse is checking company memory, financial history, forecasts, and prior conversations...",
         isPlaceholder: true,
       },
     ]);
     setQuestion("");
     setOpen(true);
+    setJePicker(null);
 
     void (async () => {
       let answer = fallbackAnswer;
       try {
         const token = window.localStorage.getItem("supabase_access_token") || "";
         if (token) {
+          const companyId =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("companyId")
+              : null;
           const response = await fetch("/api/pulse/ask", {
             method: "POST",
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ question: trimmedQuestion }),
+            body: JSON.stringify({
+              question: trimmedQuestion,
+              companyId,
+            }),
           });
           const result = await response.json().catch(() => ({}));
+          if (response.ok && result.pulse_je) {
+            if (applyJeResponse(result as PulseJeAskResponse, trimmedQuestion)) return;
+          }
           if (response.ok && result.answer) answer = result.answer;
           else if (result.error) answer = `${fallbackAnswer}\n\nPulse API note: ${result.error}`;
         }
@@ -124,10 +216,13 @@ export function GlobalPulseLauncher() {
           <div className="border-b border-white/10 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#C9A961]">Pulse AI</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#C9A961]">
+                  Pulse AI
+                </p>
                 <h3 className="mt-2 text-2xl font-semibold">Financial intelligence assistant</h3>
                 <p className="mt-2 text-xs leading-5 text-slate-400">
-                  Ask about performance, forecasts, risk, cash, margins, hiring, and what-if scenarios.
+                  Ask about performance, forecasts, risk, cash, margins, hiring, and what-if
+                  scenarios.
                 </p>
               </div>
               <button
@@ -154,9 +249,12 @@ export function GlobalPulseLauncher() {
                     }`}
                   >
                     {isPulse && (
-                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#C9A961]" aria-hidden="true" />
+                      <span
+                        className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#C9A961]"
+                        aria-hidden="true"
+                      />
                     )}
-                    <span>{message.content}</span>
+                    <span className="whitespace-pre-wrap">{message.content}</span>
                   </div>
                   {showActionRow && (
                     <div className="mr-auto flex items-center gap-1 pl-4">
@@ -180,6 +278,32 @@ export function GlobalPulseLauncher() {
                 </div>
               );
             })}
+
+            {jePicker && (
+              <PulseJeAccountPicker
+                subject={jePicker.subject}
+                hintPhrase={jePicker.hintPhrase}
+                candidates={jePicker.candidates}
+                onCancel={() => setJePicker(null)}
+                onPick={(account) => {
+                  const rewritten =
+                    jePicker.subject === "from"
+                      ? jePicker.originalQuestion.replace(
+                          new RegExp(jePicker.hintPhrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+                          account.fully_qualified_name,
+                        )
+                      : jePicker.originalQuestion.replace(
+                          new RegExp(
+                            `(to\\s+)${jePicker.hintPhrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+                            "i",
+                          ),
+                          `$1${account.fully_qualified_name}`,
+                        );
+                  setJePicker(null);
+                  askPulse(rewritten);
+                }}
+              />
+            )}
           </div>
 
           <div className="border-t border-white/10 p-4">
@@ -215,6 +339,15 @@ export function GlobalPulseLauncher() {
             </div>
           </div>
         </div>
+      )}
+
+      {jePreview && (
+        <PulseJePreviewModal
+          open={jeOpen}
+          preview={jePreview}
+          onClose={() => setJeOpen(false)}
+          onConfirm={handleJeConfirm}
+        />
       )}
     </>
   );
