@@ -34,6 +34,8 @@ export function GlobalPulseLauncher() {
   ]);
   const [jePreview, setJePreview] = useState<JePreviewPayload | null>(null);
   const [jeOpen, setJeOpen] = useState(false);
+  const [jeSubmitting, setJeSubmitting] = useState(false);
+  const [jeError, setJeError] = useState<string | null>(null);
   const [jePicker, setJePicker] = useState<{
     subject: "from" | "to";
     hintPhrase: string;
@@ -69,13 +71,55 @@ export function GlobalPulseLauncher() {
     return `/support?${params.toString()}`;
   };
 
-  const handleJeConfirm = (_preview: JePreviewPayload) => {
-    window.alert("Posting arrives in PULSE-JE-2");
-    setJeOpen(false);
+  const handleJeConfirm = async (preview: JePreviewPayload) => {
+    setJeSubmitting(true);
+    setJeError(null);
+    try {
+      const token = window.localStorage.getItem("supabase_access_token") || "";
+      const resp = await fetch("/api/pulse/je/confirm", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ preview }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        setJeError(data?.message || data?.error || `Post failed (HTTP ${resp.status})`);
+        return;
+      }
+      if (data?.status === "posted") {
+        setJeOpen(false);
+        setMessages((current) => [
+          ...current,
+          {
+            id: crypto.randomUUID(),
+            role: "pulse",
+            content: `Journal entry posted. QBO ID: ${data.qbo_je_id}. Memo: "${preview.memo}".`,
+            sourceQuestion: preview.intent_signal.raw_text,
+          },
+        ]);
+      } else if (data?.status === "rejected") {
+        setJeError(
+          `Rejected: ${data.reason || "unknown"}${
+            data.details ? ` — ${JSON.stringify(data.details)}` : ""
+          }`,
+        );
+      } else {
+        setJeError(`Failed: ${data?.error || "unknown"}`);
+      }
+    } catch (err: unknown) {
+      setJeError((err as { message?: string })?.message || "Network error");
+    } finally {
+      setJeSubmitting(false);
+    }
   };
 
   const applyJeResponse = (result: PulseJeAskResponse, originalQuestion: string) => {
     if (result.pulse_je === "preview") {
+      setJeError(null);
       setJePreview(result.preview);
       setJeOpen(true);
       setJePicker(null);
@@ -347,6 +391,9 @@ export function GlobalPulseLauncher() {
           preview={jePreview}
           onClose={() => setJeOpen(false)}
           onConfirm={handleJeConfirm}
+          disabled={jeSubmitting}
+          submitting={jeSubmitting}
+          error={jeError}
         />
       )}
     </>
