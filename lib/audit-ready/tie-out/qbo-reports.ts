@@ -383,9 +383,9 @@ export async function fetchQboInventoryValuationDetail(params: {
   };
 }
 // ---------------------------------------------------------------------------
-// Open Item Receipts (GRNI). No dedicated QBO report — we query ItemReceipt
-// entities filtered to open status. GRNI value = sum of open Item Receipts
-// posted against the client's clearing account.
+// Open Item Receipts (GRNI report). No dedicated QBO report — we query
+// ItemReceipt entities and surface all open (unbilled) receipts as-of date.
+// RA-tier: no clearing-account filter; pre-tax subtotals preferred.
 // ---------------------------------------------------------------------------
 export type QboItemReceipt = {
   receipt_id: string;
@@ -393,7 +393,8 @@ export type QboItemReceipt = {
   vendor_ref: string | null;
   vendor_display_name: string | null;
   clearing_account_ref: string | null;
-  total_cents: number;
+  total_cents: number; // TotalAmt (includes tax if any tax lines present)
+  subtotal_cents: number; // Pre-tax amount — preferred for GRNI reporting
   doc_number: string | null;
 };
 export type QboItemReceiptQueryResult = {
@@ -406,7 +407,7 @@ export type QboItemReceiptQueryResult = {
 /**
  * Query open ItemReceipt records as-of a date. QBO does not accept an
  * `asOf` filter on ItemReceipt query, so we pull all ItemReceipts with
- * TxnDate <= asOfDate and filter client-side.
+ * TxnDate <= asOfDate and filter client-side (Balance > 0 / TotalAmt > 0).
  *
  * NOTE: pagination via STARTPOSITION. We loop until <1000 rows returned
  * to guarantee we captured all receipts.
@@ -415,9 +416,8 @@ export async function fetchQboOpenItemReceipts(params: {
   realmId: string;
   accessToken: string;
   asOfDate: string;
-  clearingAccountId: string;
 }): Promise<QboItemReceiptQueryResult> {
-  const { realmId, accessToken, asOfDate, clearingAccountId } = params;
+  const { realmId, accessToken, asOfDate } = params;
   const pageSize = 1000;
   let startPos = 1;
   const receipts: QboItemReceipt[] = [];
@@ -425,9 +425,11 @@ export async function fetchQboOpenItemReceipts(params: {
   let lastTid: string | null = null;
   while (true) {
     // Explicit column list — SELECT * is unreliable on ItemReceipt across
-    // some QBO sandbox realms. Column list mirrors the QboItemReceipt type.
+    // some QBO sandbox realms. Keep minorversion=65 + Fault surfacing from 3.1.
+    // Balance / TxnTaxDetail support RA-tier open + pre-tax reporting.
+    // Client-side Balance filter (not WHERE Balance > '0') — safer across realms.
     const q =
-      `SELECT Id, TxnDate, DocNumber, TotalAmt, VendorRef, APAccountRef, Line ` +
+      `SELECT Id, TxnDate, DocNumber, TotalAmt, Balance, VendorRef, APAccountRef, Line, TxnTaxDetail ` +
       `FROM ItemReceipt ` +
       `WHERE TxnDate <= '${asOfDate}' ` +
       `STARTPOSITION ${startPos} MAXRESULTS ${pageSize}`;
@@ -454,26 +456,37 @@ export async function fetchQboOpenItemReceipts(params: {
       TxnDate: string;
       DocNumber?: string;
       TotalAmt?: number;
+      Balance?: number | null;
       VendorRef?: { value?: string; name?: string };
       APAccountRef?: { value?: string };
-      Line?: Array<{ AccountBasedExpenseLineDetail?: { AccountRef?: { value?: string } } }>;
+      TxnTaxDetail?: { TotalTax?: number };
+      Line?: Array<{
+        AccountBasedExpenseLineDetail?: { AccountRef?: { value?: string } };
+      }>;
     }>;
     for (const r of page) {
-      // Filter to receipts posted against the configured clearing account.
+      // Return every open Item Receipt regardless of account routing.
+      // QBO parks the credit in A/P by default; this report surfaces the
+      // full unbilled-receipt population for RA-tier visibility.
       const apAcct = r.APAccountRef?.value ?? null;
-      const lineAccts = (r.Line ?? [])
-        .map((l) => l.AccountBasedExpenseLineDetail?.AccountRef?.value ?? null)
-        .filter((x): x is string => !!x);
-      const touchesClearing =
-        apAcct === clearingAccountId || lineAccts.includes(clearingAccountId);
-      if (!touchesClearing) continue;
+      const totalAmt = r.TotalAmt ?? 0;
+      const totalCents = Math.round(totalAmt * 100);
+      const taxAmt = r.TxnTaxDetail?.TotalTax ?? 0;
+      const subtotalCents = Math.round((totalAmt - taxAmt) * 100);
+      // Skip zero-cost receipts (cost pending — quantity received but not
+      // priced yet) and zero-balance receipts (already fully converted).
+      if (totalCents <= 0) continue;
+      if (r.Balance !== undefined && r.Balance !== null && r.Balance <= 0) {
+        continue;
+      }
       receipts.push({
         receipt_id: r.Id,
         txn_date: r.TxnDate,
         vendor_ref: r.VendorRef?.value ?? null,
         vendor_display_name: r.VendorRef?.name ?? null,
-        clearing_account_ref: clearingAccountId,
-        total_cents: Math.round((r.TotalAmt ?? 0) * 100),
+        clearing_account_ref: apAcct, // Actual AP account QBO booked the credit to
+        total_cents: totalCents,
+        subtotal_cents: subtotalCents > 0 ? subtotalCents : totalCents,
         doc_number: r.DocNumber ?? null,
       });
     }
@@ -481,7 +494,8 @@ export async function fetchQboOpenItemReceipts(params: {
     startPos += pageSize;
     if (startPos > 50000) break; // hard safety stop
   }
-  const total = receipts.reduce((s, r) => s + r.total_cents, 0);
+  // GRNI reports pre-tax — aggregate subtotal_cents.
+  const total = receipts.reduce((s, r) => s + r.subtotal_cents, 0);
   return {
     as_of_date: asOfDate,
     receipts,

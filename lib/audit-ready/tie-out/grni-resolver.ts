@@ -1,12 +1,9 @@
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import {
   fetchQboOpenItemReceipts,
-  fetchQboTrialBalance,
   type QboItemReceiptQueryResult,
-  type QboTrialBalanceResult,
 } from "./qbo-reports";
 import {
-  classifyVariance,
   type PolicySnapshot,
   type VarianceClassification,
 } from "./policy";
@@ -16,7 +13,6 @@ export type GrniResolverInput = {
   pbcRequestId: string;
   realmId: string;
   accessToken: string;
-  clearingAccountId: string;
   asOfDate: string;
   policy: PolicySnapshot & { policy_mode: string };
   triggeredByUserId: string;
@@ -101,67 +97,44 @@ export async function runGrniResolver(
       .eq("id", input.pbcRequestId);
   };
   let subledger: QboItemReceiptQueryResult;
-  let trial: QboTrialBalanceResult;
   try {
-    // Fetch ItemReceipt separately so entity-disabled 400s can map to
-    // resolver_config_required (V12 worker contract) without rewriting
-    // the shared Promise.all failure path for TrialBalance errors.
-    try {
-      subledger = await fetchQboOpenItemReceipts({
-        realmId: input.realmId,
-        accessToken: input.accessToken,
-        asOfDate: input.asOfDate,
-        clearingAccountId: input.clearingAccountId,
-      });
-    } catch (itemReceiptErr: unknown) {
-      const msg =
-        itemReceiptErr instanceof Error
-          ? itemReceiptErr.message
-          : String(itemReceiptErr);
-      // QBO Simple Start / non-inventory sandboxes often lack ItemReceipt.
-      // Mirror V12 semantics via worker: code=resolver_config_required.
-      // Adaptation vs paste: paste returned { status: "resolver_config_required" }
-      // which is not in GrniResolverOutput. Missing clearing is handled in
-      // worker.ts before run insert (no run row). Here a run already exists,
-      // so failRun with error_code resolver_config_required and return failed.
-      const isEntityDisabled =
-        msg.includes("QBO ItemReceipt query failed: 400") &&
-        (msg.includes("Entity not enabled") ||
-          msg.includes("not supported") ||
-          msg.includes("QueryValidationError"));
-      if (isEntityDisabled) {
-        const configMsg =
-          "qbo_itemreceipt_not_enabled: This QBO company does not have " +
-          "ItemReceipt entity enabled. GRNI tie-out requires ItemReceipt " +
-          "transactions (typically enabled in QBO Plus/Advanced with " +
-          "inventory + purchase-order workflows). " +
-          msg;
-        await failRun("resolver_config_required", configMsg);
-        return {
-          runId,
-          status: "failed",
-          totalsStatus: "kickout",
-          subledgerTotalCents: 0,
-          glTotalCents: 0,
-          totalsVarianceCents: 0,
-          itemCount: 0,
-          autoReconcileCount: 0,
-          reviewCount: 0,
-          kickoutCount: 0,
-          durationMs: Date.now() - start,
-          errorCode: "resolver_config_required",
-          errorMessage: configMsg,
-        };
-      }
-      throw itemReceiptErr;
-    }
-    trial = await fetchQboTrialBalance({
+    subledger = await fetchQboOpenItemReceipts({
       realmId: input.realmId,
       accessToken: input.accessToken,
       asOfDate: input.asOfDate,
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "unknown";
+    // If QBO returns entity-not-enabled or endpoint 400 for ItemReceipt,
+    // surface qbo_itemreceipt_not_available rather than a hard qbo_fetch_failed.
+    const isEntityDisabled =
+      msg.includes("QBO ItemReceipt query failed: 400") &&
+      (msg.includes("Entity not enabled") ||
+        msg.includes("not supported") ||
+        msg.includes("QueryValidationError") ||
+        msg.includes("invalid context declaration"));
+    if (isEntityDisabled) {
+      await failRun(
+        "qbo_itemreceipt_not_available",
+        "QBO Item Receipt entity is not available on this company (typically requires QBO Plus/Advanced with inventory + purchase workflows enabled).",
+      );
+      return {
+        runId,
+        status: "failed",
+        totalsStatus: "kickout",
+        subledgerTotalCents: 0,
+        glTotalCents: 0,
+        totalsVarianceCents: 0,
+        itemCount: 0,
+        autoReconcileCount: 0,
+        reviewCount: 0,
+        kickoutCount: 0,
+        durationMs: Date.now() - start,
+        errorCode: "qbo_itemreceipt_not_available",
+        errorMessage:
+          "QBO Item Receipt entity is not available on this company.",
+      };
+    }
     await failRun("qbo_fetch_failed", msg);
     return {
       runId,
@@ -179,34 +152,54 @@ export async function runGrniResolver(
       errorMessage: msg,
     };
   }
-  // GRNI clearing is typically credit-normal (liability) — use abs for compare.
-  const glLine = trial.lines.find(
-    (l) => l.account_ref === input.clearingAccountId,
-  );
-  const glNetCents = glLine ? glLine.net_cents : 0;
-  const glTotalCents = Math.abs(glNetCents);
+  // Report-only resolver: no GL/subledger comparison. Just list open receipts
+  // and age them. Totals status is always "tie" for the header row (nothing to
+  // reconcile against); individual receipts get "review" if aged >60 days.
   const subTotalCents = subledger.total_cents;
-  const totalsVariance = subTotalCents - glTotalCents;
-  const totalsClass = classifyVariance(
-    totalsVariance,
-    glTotalCents !== 0 ? glTotalCents : subTotalCents,
-    input.policy,
-  );
-  const totalsStatus: GrniResolverOutput["totalsStatus"] =
-    totalsClass.status === "auto_cleared"
-      ? "auto_reconcile"
-      : totalsClass.status === "tie"
-        ? "tie"
-        : totalsClass.status === "review"
-          ? "review"
-          : "kickout";
-  // Each open Item Receipt older than 60 days as-of period end is flagged
-  // for review — this is a standard GRNI aging finding (stuck receipts).
-  const cutoff = new Date(input.asOfDate);
-  cutoff.setDate(cutoff.getDate() - 60);
-  const variances: VarianceInsert[] = subledger.receipts.map((r) => {
-    const isStale = new Date(r.txn_date) < cutoff;
-    return {
+  const varianceRows: VarianceInsert[] = [];
+  varianceRows.push({
+    run_id: runId,
+    engagement_id: input.engagementId,
+    pbc_request_id: input.pbcRequestId,
+    entity_kind: "totals",
+    entity_qbo_id: null,
+    entity_display_name: "Open Item Receipts (unbilled)",
+    subledger_amount_cents: subTotalCents,
+    gl_amount_cents: null,
+    variance_cents: 0,
+    variance_percent: null,
+    status: "tie",
+    classification_reason: null,
+  });
+  let reviewCount = 0;
+  const asOf = new Date(input.asOfDate);
+  const daysBetween = (a: Date, b: Date): number =>
+    Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+  for (const r of subledger.receipts) {
+    const ageDays = daysBetween(new Date(r.txn_date), asOf);
+    // Aging buckets: current (<=60), 60-90, 90-180, over-180.
+    // Anything >60 days flagged for review; bucket carried in
+    // classification_reason for reporting + future memory-based narratives.
+    let bucket: string;
+    let isStale: boolean;
+    if (ageDays <= 60) {
+      bucket = "current_0_60";
+      isStale = false;
+    } else if (ageDays <= 90) {
+      bucket = "aging_60_90";
+      isStale = true;
+    } else if (ageDays <= 180) {
+      bucket = "aging_90_180";
+      isStale = true;
+    } else {
+      bucket = "aging_over_180";
+      isStale = true;
+    }
+    const status: VarianceClassification = isStale ? "review" : "tie";
+    if (isStale) reviewCount += 1;
+    // GRNI reports the pre-tax amount as the subledger figure.
+    const receiptAmountCents = r.subtotal_cents ?? r.total_cents;
+    varianceRows.push({
       run_id: runId,
       engagement_id: input.engagementId,
       pbc_request_id: input.pbcRequestId,
@@ -215,88 +208,68 @@ export async function runGrniResolver(
       entity_display_name:
         r.vendor_display_name ??
         (r.doc_number ? `Receipt ${r.doc_number}` : `Receipt ${r.receipt_id}`),
-      subledger_amount_cents: r.total_cents,
+      subledger_amount_cents: receiptAmountCents,
       gl_amount_cents: null,
       variance_cents: 0,
       variance_percent: null,
-      status: (isStale ? "review" : "tie") as VarianceClassification,
+      status,
       classification_reason: isStale
-        ? "open_item_receipt_over_60_days"
-        : "open item receipt (informational)",
-    };
-  });
-  variances.push({
-    run_id: runId,
-    engagement_id: input.engagementId,
-    pbc_request_id: input.pbcRequestId,
-    entity_kind: "totals",
-    entity_qbo_id: input.clearingAccountId,
-    entity_display_name: `GRNI open receipts vs GL (${glLine?.account_name ?? "GRNI clearing"})`,
-    subledger_amount_cents: subTotalCents,
-    gl_amount_cents: glTotalCents,
-    variance_cents: totalsVariance,
-    variance_percent: totalsClass.percent,
-    status: totalsClass.status,
-    classification_reason: totalsClass.reason,
-  });
-  if (variances.length) {
-    for (let i = 0; i < variances.length; i += 500) {
-      const chunk = variances.slice(i, i + 500);
-      const { error: varErr } = await supabase
-        .from("audit_ready_tie_out_variances")
-        .insert(chunk);
-      if (varErr) {
-        await failRun("variance_insert_failed", varErr.message);
-        return {
-          runId,
-          status: "failed",
-          totalsStatus: "kickout",
-          subledgerTotalCents: subTotalCents,
-          glTotalCents,
-          totalsVarianceCents: totalsVariance,
-          itemCount: 0,
-          autoReconcileCount: 0,
-          reviewCount: 0,
-          kickoutCount: 0,
-          durationMs: Date.now() - start,
-          errorCode: "variance_insert_failed",
-          errorMessage: varErr.message,
-        };
-      }
+        ? `open_item_receipt_${bucket}`
+        : null,
+    });
+  }
+  const CHUNK = 500;
+  for (let i = 0; i < varianceRows.length; i += CHUNK) {
+    const chunk = varianceRows.slice(i, i + CHUNK);
+    const { error: vErr } = await supabase
+      .from("audit_ready_tie_out_variances")
+      .insert(chunk);
+    if (vErr) {
+      await failRun("variance_insert_failed", vErr.message);
+      return {
+        runId,
+        status: "failed",
+        totalsStatus: "kickout",
+        subledgerTotalCents: subTotalCents,
+        glTotalCents: 0,
+        totalsVarianceCents: 0,
+        itemCount: 0,
+        autoReconcileCount: 0,
+        reviewCount: 0,
+        kickoutCount: 0,
+        durationMs: Date.now() - start,
+        errorCode: "variance_insert_failed",
+        errorMessage: vErr.message,
+      };
     }
   }
-  const itemCount = variances.length;
-  const autoCount = variances.filter((v) => v.status === "auto_cleared").length;
-  const reviewCount = variances.filter((v) => v.status === "review").length;
-  const kickoutCount = variances.filter((v) => v.status === "kickout").length;
-  const pbcLastStatus: "tie" | "auto_reconciled" | "review" | "kickout" =
-    totalsStatus === "tie"
-      ? "tie"
-      : totalsStatus === "auto_reconcile"
-        ? "auto_reconciled"
-        : totalsStatus === "review"
-          ? "review"
-          : "kickout";
+  const totalsStatus: GrniResolverOutput["totalsStatus"] = "tie";
+  const durationMs = Date.now() - start;
+  // Adaptation vs paste: shipped column names are item_*_count (not
+  // auto_reconcile_count / review_count / kickout_count).
   await supabase
     .from("audit_ready_tie_out_runs")
     .update({
       status: "completed",
-      subledger_total_cents: subTotalCents,
-      gl_total_cents: glTotalCents,
-      totals_variance_cents: totalsVariance,
-      totals_status: totalsStatus,
-      item_count: itemCount,
-      item_auto_reconcile_count: autoCount,
-      item_review_count: reviewCount,
-      item_kickout_count: kickoutCount,
-      subledger_source_url: subledger.raw_query_url,
-      gl_source_url: trial.raw_report_url,
-      intuit_tid_subledger: subledger.intuit_tid,
-      intuit_tid_gl: trial.intuit_tid,
       completed_at: new Date().toISOString(),
-      duration_ms: Date.now() - start,
+      duration_ms: durationMs,
+      subledger_total_cents: subTotalCents,
+      gl_total_cents: null,
+      totals_variance_cents: 0,
+      totals_status: totalsStatus,
+      item_count: subledger.receipts.length,
+      item_auto_reconcile_count: 0,
+      item_review_count: reviewCount,
+      item_kickout_count: 0,
+      subledger_source_url: subledger.raw_query_url,
+      gl_source_url: null,
+      intuit_tid_subledger: subledger.intuit_tid,
+      intuit_tid_gl: null,
     })
     .eq("id", runId);
+  // Adaptation vs paste: PBC CHECK allows review|tie (not needs_review|tied_out).
+  const pbcLastStatus: "tie" | "review" =
+    reviewCount > 0 ? "review" : "tie";
   await supabase
     .from("audit_ready_pbc_requests")
     .update({
@@ -310,12 +283,12 @@ export async function runGrniResolver(
     status: "completed",
     totalsStatus,
     subledgerTotalCents: subTotalCents,
-    glTotalCents,
-    totalsVarianceCents: totalsVariance,
-    itemCount,
-    autoReconcileCount: autoCount,
+    glTotalCents: 0,
+    totalsVarianceCents: 0,
+    itemCount: subledger.receipts.length,
+    autoReconcileCount: 0,
     reviewCount,
-    kickoutCount,
-    durationMs: Date.now() - start,
+    kickoutCount: 0,
+    durationMs,
   };
 }

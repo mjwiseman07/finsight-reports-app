@@ -246,24 +246,16 @@ export async function runTieOut(
           };
     }
     case "grni": {
-      const clearingAccountId =
-        input.grniClearingAccountId ??
-        (eng.grni_clearing_qbo_account_id as string | null) ??
-        null;
-      if (!clearingAccountId) {
-        return {
-          ok: false,
-          reason:
-            "grni_clearing_account_not_configured — set audit_ready_engagements.grni_clearing_qbo_account_id",
-          code: "resolver_config_required",
-        };
-      }
+      // RA-tier: report-only. No clearing account required. The
+      // grni_clearing_qbo_account_id column stays on the engagement for
+      // a future RA Pro-tier reclass mechanism (Advisacor posts JEs to
+      // move unbilled Item Receipts from A/P to a dedicated GRNI account
+      // continuously via CDC cron). That is out of scope for this phase.
       const result = await runGrniResolver({
         engagementId: input.engagementId,
         pbcRequestId: input.pbcRequestId,
         realmId: token.realmId,
         accessToken: token.accessToken,
-        clearingAccountId,
         asOfDate: input.asOfDate,
         policy: policy as PolicySnapshot & { policy_mode: string },
         triggeredByUserId: input.triggeredByUserId,

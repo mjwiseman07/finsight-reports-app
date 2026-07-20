@@ -450,8 +450,8 @@ function RunModal({
             )}
             {showGrniNote && (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
-                GRNI clearing account is resolved from engagement settings
-                (`grni_clearing_qbo_account_id`). No account ID input required.
+                Report of all open (unbilled) Item Receipts as of period end. No
+                account configuration required.
               </div>
             )}
             {err && (
