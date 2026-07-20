@@ -45,6 +45,7 @@ export default function DemoAccountsClient({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [assumedFirmId, setAssumedFirmId] = useState<string | null>(null);
+  const [connectingHolderId, setConnectingHolderId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -124,6 +125,36 @@ export default function DemoAccountsClient({
       setBusy(null);
     }
   }, []);
+
+  async function handleConnectHolder(holderUserId: string, firmId: string) {
+    setConnectingHolderId(holderUserId);
+    try {
+      const res = await fetch("/api/admin/quickbooks/connect-as-holder", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ holderUserId, firmId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Request failed" }));
+        alert(`Failed to start OAuth: ${err.error || res.statusText}`);
+        setConnectingHolderId(null);
+        return;
+      }
+      const { url } = await res.json();
+      if (!url) {
+        alert("Server did not return an Intuit URL");
+        setConnectingHolderId(null);
+        return;
+      }
+      window.location.href = url;
+    } catch (err) {
+      alert(
+        `Network error starting OAuth: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      setConnectingHolderId(null);
+    }
+  }
 
   return (
     <div style={{ padding: "24px 32px", maxWidth: 1100, margin: "0 auto" }}>
@@ -270,25 +301,42 @@ export default function DemoAccountsClient({
                         {h.connection.realmId ?? "—"}
                       </td>
                       <td style={{ padding: 8 }}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            h.userId && void bind(firm.firmClientId, h.userId)
-                          }
-                          disabled={!canBind || busy !== null || isActive}
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: 4,
-                            border: "1px solid #cbd5e1",
-                            background: canBind && !isActive ? "white" : "#f1f5f9",
-                            cursor:
-                              canBind && !isActive && busy === null
-                                ? "pointer"
-                                : "not-allowed",
-                          }}
-                        >
-                          {isActive ? "Bound" : "Bind"}
-                        </button>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          {h.connection.status === "no_connection" && h.userId && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                h.userId && void handleConnectHolder(h.userId, firm.firmId)
+                              }
+                              disabled={connectingHolderId === h.userId || busy !== null}
+                              className="rounded-md border border-[#C9A961] px-3 py-1.5 text-xs font-semibold text-[#0B1A3A] transition-colors hover:bg-[#C9A961] hover:text-white disabled:opacity-50"
+                              aria-label={`Connect QuickBooks for holder ${h.email}`}
+                            >
+                              {connectingHolderId === h.userId
+                                ? "Redirecting…"
+                                : "Connect QBO"}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              h.userId && void bind(firm.firmClientId, h.userId)
+                            }
+                            disabled={!canBind || busy !== null || isActive}
+                            style={{
+                              padding: "4px 10px",
+                              borderRadius: 4,
+                              border: "1px solid #cbd5e1",
+                              background: canBind && !isActive ? "white" : "#f1f5f9",
+                              cursor:
+                                canBind && !isActive && busy === null
+                                  ? "pointer"
+                                  : "not-allowed",
+                            }}
+                          >
+                            {isActive ? "Bound" : "Bind"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

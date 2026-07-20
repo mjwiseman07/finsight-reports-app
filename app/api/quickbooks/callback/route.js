@@ -4,6 +4,7 @@ import { supabaseAdmin } from "../../../../lib/supabase";
 import { resolveEntitlementsForSubject } from "../../../../lib/entitlements";
 import { parseOfferingSku, parseSubscriptionStatus } from "@/lib/erp/quickbooks/qbo-editions";
 import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
+import { verifyHolderUserIdCookie, HOLDER_USER_ID_COOKIE_NAME } from "@/lib/demo/holder-cookie";
 
 function getQuickBooksTokenExpiry(token) {
   const expiresInSeconds = Number(token?.expires_in || 3600);
@@ -130,6 +131,7 @@ function redirectWithQbError(request, code, extraParams = {}) {
   response.cookies.delete("qb_oauth_token");
   response.cookies.delete("qb_oauth_lead_id");
   response.cookies.delete("qb_oauth_return_to");
+  response.cookies.delete("qb_oauth_holder_user_id");
   return response;
 }
 
@@ -147,6 +149,8 @@ async function getImpl(request) {
   const supabaseToken = request.cookies.get("qb_oauth_token")?.value || "";
   const leadId = request.cookies.get("qb_oauth_lead_id")?.value || "";
   const returnTo = request.cookies.get("qb_oauth_return_to")?.value || "";
+  const holderCookie = request.cookies.get(HOLDER_USER_ID_COOKIE_NAME)?.value || "";
+  const holderUserId = oauthMode === "super_admin_holder" ? verifyHolderUserIdCookie(holderCookie) : null;
 
   console.log("[quickbooks/callback] received callback", {
     hasAuthCode: Boolean(authCode),
@@ -167,7 +171,14 @@ async function getImpl(request) {
     return redirectWithQbError(request, "intuit_denied", { intuitError });
   }
 
-  if (!state || !expectedState || state !== expectedState || (oauthMode === "user" && !supabaseToken) || (oauthMode === "lead" && !leadId)) {
+  if (
+    !state ||
+    !expectedState ||
+    state !== expectedState ||
+    (oauthMode === "user" && !supabaseToken) ||
+    (oauthMode === "lead" && !leadId) ||
+    (oauthMode === "super_admin_holder" && !holderUserId)
+  ) {
     console.error("[quickbooks/callback] missing or invalid OAuth state cookie", {
       hasState: Boolean(state),
       hasExpectedStateCookie: Boolean(expectedState),
@@ -228,6 +239,52 @@ async function getImpl(request) {
     const companyProfile = await configAdapter
       .getCompanyProfile(token.access_token, realmId)
       .catch(() => ({}));
+
+    if (oauthMode === "super_admin_holder") {
+      // DEMO-3B — attach connection to the holder user_id, not the caller.
+      const targetUserId = holderUserId;
+      if (!targetUserId) {
+        return redirectWithQbError(request, "holder_cookie_invalid");
+      }
+
+      const holderAdapter = getERPAdapter("quickbooks", targetUserId);
+      let savedConnection;
+      try {
+        savedConnection = await holderAdapter.saveConnection({
+          realmId,
+          token,
+        });
+      } catch (saveErr) {
+        console.error("[quickbooks/callback] super_admin_holder connection save failed", {
+          message: saveErr?.message,
+          code: saveErr?.code,
+          holderUserId: targetUserId,
+        });
+        return redirectWithQbError(request, "connection_save_failed");
+      }
+
+      console.log("[quickbooks/callback] super_admin_holder — saved accounting connection", {
+        connectionId: savedConnection?.id || null,
+        holderUserId: targetUserId,
+        realmId,
+      });
+
+      const holderLanding =
+        returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+          ? returnTo
+          : "/admin/demo-accounts";
+      const redirectUrl = new URL(holderLanding, request.url);
+      redirectUrl.searchParams.set("quickBooksConnected", "true");
+      redirectUrl.searchParams.set("holderConnected", targetUserId);
+      if (savedConnection?.id) redirectUrl.searchParams.set("connectionId", savedConnection.id);
+
+      const response = NextResponse.redirect(redirectUrl);
+      response.cookies.delete("qb_oauth_state");
+      response.cookies.delete("qb_oauth_mode");
+      response.cookies.delete("qb_oauth_holder_user_id");
+      response.cookies.delete("qb_oauth_return_to");
+      return response;
+    }
 
     if (oauthMode === "lead") {
       let savedAccountingConnection;
