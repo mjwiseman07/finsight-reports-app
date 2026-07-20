@@ -29,6 +29,18 @@ export function AccountSettingsShell({
 
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-10">
+      <div className="mb-6">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-[#5C5A55] transition-colors hover:text-[#0B1A3A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A961] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F7F6F2]"
+          aria-label="Back to dashboard"
+        >
+          <span aria-hidden="true" className="text-base leading-none">
+            ←
+          </span>
+          <span>Back to dashboard</span>
+        </Link>
+      </div>
       <p className="text-xs font-black uppercase tracking-[0.22em] text-[#C9A961]">
         Account
       </p>
