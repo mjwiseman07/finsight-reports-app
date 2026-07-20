@@ -7,7 +7,10 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { invokeBedrock } from './bedrock-client';
 import { checkEngagementCap, logUsage } from './llm-usage';
 import { redactPii, encryptRedactionMap } from './pii-redaction';
-import { classifyAssertions } from './assertion-classifier';
+import {
+  classifyAssertions,
+  applyClassificationsToRequests,
+} from './assertion-classifier';
 
 export interface ParsedPbcRequest {
   request_number: string;
@@ -218,9 +221,7 @@ export async function parsePbcUpload(opts: ParsePbcOptions): Promise<{
         opts.engagementId,
         opts.calledByUserId,
       );
-      for (let i = 0; i < requests.length; i++) {
-        requests[i].assertion_tags = classified[i] ?? [];
-      }
+      applyClassificationsToRequests(requests, classified);
     }
 
     if (requests.length > 0) {
@@ -246,6 +247,7 @@ export async function parsePbcUpload(opts: ParsePbcOptions): Promise<{
       .update({
         status: 'parsed',
         parse_completed_at: new Date().toISOString(),
+        parse_error: null,
         extracted_request_count: requests.length,
       })
       .eq('id', opts.uploadId);
