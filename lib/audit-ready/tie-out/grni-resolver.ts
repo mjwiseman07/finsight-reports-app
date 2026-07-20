@@ -103,19 +103,63 @@ export async function runGrniResolver(
   let subledger: QboItemReceiptQueryResult;
   let trial: QboTrialBalanceResult;
   try {
-    [subledger, trial] = await Promise.all([
-      fetchQboOpenItemReceipts({
+    // Fetch ItemReceipt separately so entity-disabled 400s can map to
+    // resolver_config_required (V12 worker contract) without rewriting
+    // the shared Promise.all failure path for TrialBalance errors.
+    try {
+      subledger = await fetchQboOpenItemReceipts({
         realmId: input.realmId,
         accessToken: input.accessToken,
         asOfDate: input.asOfDate,
         clearingAccountId: input.clearingAccountId,
-      }),
-      fetchQboTrialBalance({
-        realmId: input.realmId,
-        accessToken: input.accessToken,
-        asOfDate: input.asOfDate,
-      }),
-    ]);
+      });
+    } catch (itemReceiptErr: unknown) {
+      const msg =
+        itemReceiptErr instanceof Error
+          ? itemReceiptErr.message
+          : String(itemReceiptErr);
+      // QBO Simple Start / non-inventory sandboxes often lack ItemReceipt.
+      // Mirror V12 semantics via worker: code=resolver_config_required.
+      // Adaptation vs paste: paste returned { status: "resolver_config_required" }
+      // which is not in GrniResolverOutput. Missing clearing is handled in
+      // worker.ts before run insert (no run row). Here a run already exists,
+      // so failRun with error_code resolver_config_required and return failed.
+      const isEntityDisabled =
+        msg.includes("QBO ItemReceipt query failed: 400") &&
+        (msg.includes("Entity not enabled") ||
+          msg.includes("not supported") ||
+          msg.includes("QueryValidationError"));
+      if (isEntityDisabled) {
+        const configMsg =
+          "qbo_itemreceipt_not_enabled: This QBO company does not have " +
+          "ItemReceipt entity enabled. GRNI tie-out requires ItemReceipt " +
+          "transactions (typically enabled in QBO Plus/Advanced with " +
+          "inventory + purchase-order workflows). " +
+          msg;
+        await failRun("resolver_config_required", configMsg);
+        return {
+          runId,
+          status: "failed",
+          totalsStatus: "kickout",
+          subledgerTotalCents: 0,
+          glTotalCents: 0,
+          totalsVarianceCents: 0,
+          itemCount: 0,
+          autoReconcileCount: 0,
+          reviewCount: 0,
+          kickoutCount: 0,
+          durationMs: Date.now() - start,
+          errorCode: "resolver_config_required",
+          errorMessage: configMsg,
+        };
+      }
+      throw itemReceiptErr;
+    }
+    trial = await fetchQboTrialBalance({
+      realmId: input.realmId,
+      accessToken: input.accessToken,
+      asOfDate: input.asOfDate,
+    });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "unknown";
     await failRun("qbo_fetch_failed", msg);

@@ -424,17 +424,28 @@ export async function fetchQboOpenItemReceipts(params: {
   let lastUrl = "";
   let lastTid: string | null = null;
   while (true) {
+    // Explicit column list — SELECT * is unreliable on ItemReceipt across
+    // some QBO sandbox realms. Column list mirrors the QboItemReceipt type.
     const q =
-      `SELECT * FROM ItemReceipt WHERE TxnDate <= '${asOfDate}' ` +
+      `SELECT Id, TxnDate, DocNumber, TotalAmt, VendorRef, APAccountRef, Line ` +
+      `FROM ItemReceipt ` +
+      `WHERE TxnDate <= '${asOfDate}' ` +
       `STARTPOSITION ${startPos} MAXRESULTS ${pageSize}`;
     const url =
       `${qboBaseUrl()}/v3/company/${encodeURIComponent(realmId)}/query` +
-      `?query=${encodeURIComponent(q)}&minorversion=75`;
+      `?query=${encodeURIComponent(q)}&minorversion=65`;
     lastUrl = url;
     const res = await qboApiFetch(url, { accessToken, method: "GET" });
     if (!res.ok) {
+      // Surface the QBO Fault so we can diagnose 400s. Redact tokens/realmId.
+      const faultBody =
+        res.json?.Fault?.Error?.map(
+          (e: { Message?: string; Detail?: string; code?: string }) =>
+            `[${e.code ?? "?"}] ${e.Message ?? ""} :: ${e.Detail ?? ""}`,
+        ).join(" | ") ?? JSON.stringify(res.json ?? {}).slice(0, 500);
       throw new Error(
-        `QBO ItemReceipt query failed: ${res.status} tid=${res.intuit_tid ?? "n/a"}`,
+        `QBO ItemReceipt query failed: ${res.status} tid=${res.intuit_tid ?? "n/a"} ` +
+          `query=${encodeURIComponent(q).slice(0, 200)} fault=${faultBody}`,
       );
     }
     lastTid = res.intuit_tid;
