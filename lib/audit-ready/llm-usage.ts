@@ -8,7 +8,8 @@ export type LlmOperation =
   | 'pii_redaction_ner'
   | 'response_draft'
   | 'evidence_bundle_summary'
-  | 'tieout_explain';
+  | 'tieout_explain'
+  | 'tie_out_kind_classify';
 
 export interface UsageContext {
   engagementId: string;

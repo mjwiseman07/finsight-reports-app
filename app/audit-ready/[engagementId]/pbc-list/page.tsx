@@ -15,15 +15,23 @@ export default function PbcListPage() {
   return (
     <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <div className="mx-auto max-w-6xl space-y-6 px-6 py-8">
-        <header>
-          <h1 className={`${headingFont} text-2xl font-semibold text-[#ECEBE7]`}>
-            PBC Request List
-          </h1>
-          <p className="mt-1 text-[#A29E93]">
-            Upload the auditor&apos;s PBC list. Advisacor parses it, classifies
-            each request against the six financial-statement assertions, and
-            links matching evidence from your books.
-          </p>
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className={`${headingFont} text-2xl font-semibold text-[#ECEBE7]`}>
+              PBC Request List
+            </h1>
+            <p className="mt-1 text-[#A29E93]">
+              Upload the auditor&apos;s PBC list. Advisacor parses it, classifies
+              each request against the six financial-statement assertions, and
+              links matching evidence from your books.
+            </p>
+          </div>
+          <a
+            href={`/audit-ready/${engagementId}/tie-out-summary`}
+            className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C] px-3 py-1.5 text-sm font-medium text-[#ECEBE7] hover:bg-[#1A1A1C]/80"
+          >
+            Tie-Out Summary
+          </a>
         </header>
 
         <EngagementCostTile engagementId={engagementId} />
