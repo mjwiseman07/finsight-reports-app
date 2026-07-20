@@ -12,6 +12,10 @@ import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPoi
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
+import {
+  PulseJeAccountPicker,
+  PulseJePreviewModal,
+} from "../../components/pulse/PulseJePreviewModal";
 import { contextualHelp } from "../../lib/contextual-help";
 import {
   PLATFORM_PRODUCT_NAME,
@@ -668,6 +672,9 @@ export default function DashboardPage() {
       content: "Hi, I'm Pulse. I help you understand the financial and operational health of your business.",
     },
   ]);
+  const [jePreview, setJePreview] = useState(null);
+  const [jeOpen, setJeOpen] = useState(false);
+  const [jePicker, setJePicker] = useState(null);
   const [pulseMemory, setPulseMemory] = useState({
     insights: demoPulseInsightMemory,
     timeline: buildPulseMemoryTimeline(demoPulseInsightMemory),
@@ -1316,7 +1323,26 @@ export default function DashboardPage() {
           }),
         });
         const result = await response.json().catch(() => ({}));
-        if (response.ok && result.answer) {
+        if (response.ok && result.pulse_je) {
+          if (result.pulse_je === "preview" && result.preview) {
+            setJePreview(result.preview);
+            setJeOpen(true);
+            setJePicker(null);
+            answer = "I've prepared a journal entry preview — review and confirm in the modal.";
+          } else if (result.pulse_je === "picker") {
+            setJePicker({
+              subject: result.subject,
+              hintPhrase: result.hint_phrase,
+              candidates: result.candidates || [],
+              originalQuestion: trimmedQuestion,
+            });
+            answer = `Which ${result.subject} account did you mean for "${result.hint_phrase}"?`;
+          } else if (result.pulse_je === "not_entitled") {
+            answer = `${result.message || "Conversational journal entries require Review Assist Pro."}\n\nUpgrade: /pricing#ra-pro`;
+          } else if (result.message) {
+            answer = result.message;
+          }
+        } else if (response.ok && result.answer) {
           answer = result.answer;
           nextConversationEntityMemory = result.conversationMemory || mergeDashboardConversationMemory(trimmedQuestion, answer, conversationEntityMemory);
         } else if (result.error) {
@@ -2515,6 +2541,41 @@ export default function DashboardPage() {
         userEmail={accountEmail === "Not available" ? "" : accountEmail}
       />
 
+      {jePicker && (
+        <div className="fixed bottom-24 right-5 z-[55] w-[min(420px,calc(100vw-2rem))]">
+          <PulseJeAccountPicker
+            subject={jePicker.subject}
+            hintPhrase={jePicker.hintPhrase}
+            candidates={jePicker.candidates}
+            onCancel={() => setJePicker(null)}
+            onPick={(account) => {
+              const hint = jePicker.hintPhrase;
+              const escaped = hint.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              const rewritten =
+                jePicker.subject === "from"
+                  ? jePicker.originalQuestion.replace(new RegExp(escaped, "i"), account.fully_qualified_name)
+                  : jePicker.originalQuestion.replace(
+                      new RegExp(`(to\\s+)${escaped}`, "i"),
+                      `$1${account.fully_qualified_name}`,
+                    );
+              setJePicker(null);
+              void submitAiQuestion(rewritten);
+            }}
+          />
+        </div>
+      )}
+
+      {jePreview && (
+        <PulseJePreviewModal
+          open={jeOpen}
+          preview={jePreview}
+          onClose={() => setJeOpen(false)}
+          onConfirm={() => {
+            window.alert("Posting arrives in PULSE-JE-2");
+            setJeOpen(false);
+          }}
+        />
+      )}
 
     </main>
   );

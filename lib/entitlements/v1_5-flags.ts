@@ -64,6 +64,15 @@ export const V1_5_FLAGS = {
       review_assist_pro: true,
     },
   },
+  ra_pro_pulse_journal_entry: {
+    id: 'ra_pro_pulse_journal_entry',
+    default: false,
+    description: 'Conversational journal-entry preview in Pulse (PULSE-JE-1)',
+    tier_defaults: {
+      review_assist: false,
+      review_assist_pro: true,
+    },
+  },
 
   // ============================================================
   // RESERVED — advertised, not shipped in v1.5
@@ -139,6 +148,7 @@ export function getV15RaProDefaultFlags(): Record<string, boolean> {
     review_assist_variance_narratives: true,
     review_assist_prior_period_lookup: true,
     ask_pulse_command_center: true,
+    ra_pro_pulse_journal_entry: true,
     ai_workforce_enabled: false,
   };
 }

@@ -370,6 +370,83 @@ async function postImpl(request) {
       if (gate) return gate;
     }
 
+    // --- PULSE-JE-1: conversational journal-entry preview (RA Pro only) --------
+    try {
+      const { detectJournalEntryIntent } = await import("../../../../lib/pulse-je/intent-detector");
+      const jeIntent = detectJournalEntryIntent(question);
+      if (jeIntent.kind === "reclass" && jeIntent.confidence >= 0.7) {
+        const { resolvePulseJeContext } = await import("../../../../lib/pulse-je/resolve-context");
+        const { requirePulseJeEntitlement } = await import("../../../../lib/pulse-je/entitlement");
+        const { buildPulseJePreview } = await import("../../../../lib/pulse-je/preview-builder");
+
+        const ctx = await resolvePulseJeContext({
+          request,
+          companyId,
+          firmClientId: body.firmClientId || body.firm_client_id || null,
+        });
+
+        if (!ctx) {
+          return NextResponse.json(
+            {
+              pulse_je: "insufficient_info",
+              missing: [],
+              message:
+                "I can't identify your active client company yet. Connect QuickBooks or select a client, then try again.",
+            },
+            { status: 200 },
+          );
+        }
+
+        const gate = await requirePulseJeEntitlement(ctx.firmId);
+        if (!gate.ok) {
+          return NextResponse.json(
+            {
+              pulse_je: "not_entitled",
+              message: gate.reason || "Conversational journal entries require Review Assist Pro.",
+            },
+            { status: 200 },
+          );
+        }
+
+        const jeResp = await buildPulseJePreview(jeIntent, {
+          firmClientId: ctx.firmClientId,
+          companyId: ctx.companyId,
+          homeCurrencyCode: ctx.homeCurrencyCode || "USD",
+          actorUserId: authData.user.id,
+        });
+
+        try {
+          await auditSecurityEvent({
+            actorUserId: authData.user.id,
+            actorEmail: authData.user.email || null,
+            eventType: "pulse_je_preview_shown",
+            firmId: ctx.firmId,
+            companyId: ctx.companyId,
+            resourceType: "pulse_je",
+            resourceId: ctx.firmClientId,
+            metadata: {
+              confidence: jeIntent.confidence,
+              amount: jeIntent.hints.amount,
+              from_phrase: jeIntent.hints.from_account_phrase,
+              to_phrase: jeIntent.hints.to_account_phrase,
+              resolver_from_cache:
+                jeResp && "preview" in jeResp
+                  ? jeResp.preview.meta.resolver_from_cache
+                  : null,
+              outcome: jeResp && "pulse_je" in jeResp ? jeResp.pulse_je : "unknown",
+            },
+          });
+        } catch (_) {
+          /* audit best-effort */
+        }
+
+        return NextResponse.json(jeResp, { status: 200 });
+      }
+    } catch (jeErr) {
+      console.error("[pulse-je-1] intent branch failed", jeErr);
+    }
+    // --- END PULSE-JE-1 --------------------------------------------------------
+
     const refundIntent = detectRefundIntent(question);
     if (refundIntent.isRefundRequest || refundIntent.isCancellationOnly || isNegativeReaction(question)) {
       try {

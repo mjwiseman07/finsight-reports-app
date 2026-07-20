@@ -7,7 +7,9 @@ import { AUDIT_READY_SKU_CATALOG } from '../product-tiers.js';
 import { getV15RaProDefaultFlags } from './v1_5-flags';
 import type { AuditReadySize } from './types';
 
-/** Extend an existing RA Pro flag bag with v1.5 defaults (additive merge). */
+/** Extend an existing RA Pro flag bag with v1.5 defaults (additive merge).
+ * Includes `ra_pro_pulse_journal_entry` (PULSE-JE-1 conversational JE preview).
+ */
 export function withV15RaProFlags(
   existingRaProFlags: Record<string, unknown>,
 ): Record<string, unknown> {
