@@ -35,8 +35,8 @@ export default async function TieOutSummaryPage({
             Tie-Out Summary
           </h1>
           <p className="mt-1 text-sm text-[#A29E93]">
-            Read-only view of tie-out state per PBC line. Resolvers arrive in the
-            next phase.
+            Tie-out state per PBC line. Run AR aging resolvers when a line is
+            ready.
           </p>
         </header>
         <TieOutSummaryClient

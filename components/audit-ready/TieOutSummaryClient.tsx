@@ -11,6 +11,9 @@ type Row = {
   tie_out_kind_classifier: string | null;
   tie_out_state: string;
   pbc_status: string;
+  last_tie_out_run_id: string | null;
+  last_tie_out_status: string | null;
+  last_tie_out_at: string | null;
 };
 
 type Policy = {
@@ -22,12 +25,31 @@ type Policy = {
   authoritative_comparison: string;
 } | null;
 
+type RunOutcome = {
+  ok?: boolean;
+  kind?: string;
+  runId?: string;
+  totalsStatus?: string;
+  itemCount?: number;
+  reason?: string;
+  code?: string;
+  error?: string;
+};
+
 /** Status pills kept as slate/amber/emerald (AR internal surface — paste OK). */
 const PILL_STYLES: Record<string, string> = {
+  // shipped in TIEOUT-1:
   no_tolerance_policy: "bg-slate-100 text-slate-700 ring-slate-200",
   not_yet_classified: "bg-amber-50 text-amber-800 ring-amber-200",
   requires_manual_review: "bg-orange-50 text-orange-800 ring-orange-200",
   classified: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  // NEW in TIEOUT-2:
+  ready_to_run: "bg-sky-50 text-sky-800 ring-sky-200",
+  tied_out: "bg-emerald-100 text-emerald-900 ring-emerald-300",
+  auto_reconciled: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  needs_review: "bg-amber-50 text-amber-800 ring-amber-200",
+  kicked_out: "bg-rose-50 text-rose-800 ring-rose-200",
+  failed: "bg-rose-50 text-rose-900 ring-rose-300",
 };
 
 export function TieOutSummaryClient({
@@ -45,6 +67,13 @@ export function TieOutSummaryClient({
   const [busy, setBusy] = useState<null | "classify" | "policy">(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [runOpen, setRunOpen] = useState<{
+    pbcId: string;
+    requestNumber: string;
+  } | null>(null);
+  const [runBusy, setRunBusy] = useState(false);
+  const [runErr, setRunErr] = useState<string | null>(null);
+  const [runResult, setRunResult] = useState<RunOutcome | null>(null);
 
   async function refresh() {
     const resp = await fetch(`/api/audit-ready/${engagementId}/tie-out-summary`);
@@ -59,11 +88,14 @@ export function TieOutSummaryClient({
     setErr(null);
     setMsg(null);
     try {
-      const resp = await fetch(`/api/audit-ready/${engagementId}/tie-out-classify`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ useLLMFallback: true }),
-      });
+      const resp = await fetch(
+        `/api/audit-ready/${engagementId}/tie-out-classify`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ useLLMFallback: true }),
+        },
+      );
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "classify_failed");
       setMsg(
@@ -77,16 +109,21 @@ export function TieOutSummaryClient({
     }
   }
 
-  async function setPolicyMode(mode: "aggressive" | "standard" | "conservative") {
+  async function setPolicyMode(
+    mode: "aggressive" | "standard" | "conservative",
+  ) {
     setBusy("policy");
     setErr(null);
     setMsg(null);
     try {
-      const resp = await fetch(`/api/audit-ready/${engagementId}/tie-out-policy`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ policy_mode: mode }),
-      });
+      const resp = await fetch(
+        `/api/audit-ready/${engagementId}/tie-out-policy`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ policy_mode: mode }),
+        },
+      );
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "policy_save_failed");
       setMsg(`Tolerance policy set to ${mode}.`);
@@ -95,6 +132,41 @@ export function TieOutSummaryClient({
       setErr(e instanceof Error ? e.message : "unknown");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function triggerRun(
+    pbcId: string,
+    asOfDate: string,
+    arAccountId: string,
+  ) {
+    setRunBusy(true);
+    setRunErr(null);
+    setRunResult(null);
+    try {
+      const resp = await fetch(
+        `/api/audit-ready/${engagementId}/tie-out/run`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            pbc_request_id: pbcId,
+            as_of_date: asOfDate,
+            ar_account_id: arAccountId || undefined,
+          }),
+        },
+      );
+      const data = (await resp.json()) as RunOutcome;
+      if (!resp.ok || data.ok === false) {
+        setRunErr(data.reason || data.error || "run_failed");
+      } else {
+        setRunResult(data);
+        await refresh();
+      }
+    } catch (e: unknown) {
+      setRunErr(e instanceof Error ? e.message : "unknown");
+    } finally {
+      setRunBusy(false);
     }
   }
 
@@ -191,6 +263,8 @@ export function TieOutSummaryClient({
               <th className="py-2">Kind</th>
               <th className="py-2">Confidence</th>
               <th className="py-2">State</th>
+              <th className="py-2">Last run</th>
+              <th className="py-2">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#C9A961]/10">
@@ -218,11 +292,174 @@ export function TieOutSummaryClient({
                     {String(r.tie_out_state).replace(/_/g, " ")}
                   </span>
                 </td>
+                <td className="py-2 text-xs text-[#7A7974]">
+                  {r.last_tie_out_status
+                    ? String(r.last_tie_out_status).replace(/_/g, " ")
+                    : "—"}
+                </td>
+                <td className="py-2">
+                  {r.tie_out_state === "ready_to_run" ||
+                  r.tie_out_state === "needs_review" ||
+                  r.tie_out_state === "failed" ||
+                  r.tie_out_state === "kicked_out" ? (
+                    canWrite ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRunOpen({
+                            pbcId: r.pbc_request_id,
+                            requestNumber: r.request_number,
+                          })
+                        }
+                        className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        disabled={runBusy}
+                      >
+                        Run
+                      </button>
+                    ) : (
+                      "—"
+                    )
+                  ) : (
+                    "—"
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </section>
+
+      {runOpen && (
+        <RunModal
+          engagementId={engagementId}
+          pbcId={runOpen.pbcId}
+          requestNumber={runOpen.requestNumber}
+          onClose={() => {
+            setRunOpen(null);
+            setRunErr(null);
+            setRunResult(null);
+          }}
+          onSubmit={(asOf, arAcct) =>
+            triggerRun(runOpen.pbcId, asOf, arAcct)
+          }
+          busy={runBusy}
+          err={runErr}
+          result={runResult}
+        />
+      )}
+    </div>
+  );
+}
+
+function RunModal({
+  engagementId: _engagementId,
+  pbcId: _pbcId,
+  requestNumber,
+  onClose,
+  onSubmit,
+  busy,
+  err,
+  result,
+}: {
+  engagementId: string;
+  pbcId: string;
+  requestNumber: string;
+  onClose: () => void;
+  onSubmit: (asOfDate: string, arAccountId: string) => void | Promise<void>;
+  busy: boolean;
+  err: string | null;
+  result: RunOutcome | null;
+}) {
+  const [asOf, setAsOf] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [acct, setAcct] = useState<string>("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900">
+            Run tie-out — {requestNumber}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-800"
+          >
+            ×
+          </button>
+        </div>
+        {!result ? (
+          <div className="mt-3 space-y-3">
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-700">
+                Period end (as-of)
+              </span>
+              <input
+                type="date"
+                value={asOf}
+                onChange={(e) => setAsOf(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+              />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium text-slate-700">
+                QBO AR account ID{" "}
+                <span className="text-slate-500">
+                  (optional — falls back to PBC source hint)
+                </span>
+              </span>
+              <input
+                type="text"
+                value={acct}
+                onChange={(e) => setAcct(e.target.value)}
+                placeholder="e.g. 84"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-mono"
+              />
+            </label>
+            {err && (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
+                {err}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => onSubmit(asOf, acct)}
+                disabled={busy}
+                className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {busy ? "Running…" : "Run tie-out"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 space-y-2 text-sm">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-emerald-900">
+              Tie-out completed — {result.itemCount} items, totals status{" "}
+              <strong>{result.totalsStatus}</strong>.
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
