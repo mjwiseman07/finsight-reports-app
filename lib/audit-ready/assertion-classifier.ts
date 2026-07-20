@@ -52,22 +52,67 @@ export async function classifyAssertions(
       true,
     );
 
+    // Sonnet frequently wraps JSON in ```json fences or emits leading prose.
+    // Mirror the extraction pattern used in pbc-parser.ts: try direct parse,
+    // then fall back to greedy-match on the first {...} block. Log on failure
+    // instead of silently dropping — an empty classification set means every
+    // downstream consumer (parity, tie-out priority, auditor filters) sees
+    // untagged requests and we lose $0.03 of Bedrock spend per parse.
+    let parsed: {
+      classifications: { index: number; assertions: string[] }[];
+    } | null = null;
     try {
-      const parsed = JSON.parse(result.content) as {
-        classifications: { index: number; assertions: string[] }[];
-      };
-      for (const c of parsed.classifications ?? []) {
-        const globalIdx = i + c.index;
-        if (globalIdx >= 0 && globalIdx < requests.length) {
-          results[globalIdx] = (c.assertions ?? []).filter((a): a is Assertion =>
-            (ASSERTIONS as readonly string[]).includes(a),
-          );
+      parsed = JSON.parse(result.content);
+    } catch {
+      const match = result.content.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          parsed = JSON.parse(match[0]);
+        } catch {
+          parsed = null;
         }
       }
-    } catch {
-      // leave unclassified
+    }
+    if (!parsed) {
+      console.error('[assertion-classifier] JSON parse failed', {
+        engagementId,
+        batchStart: i,
+        batchSize: batch.length,
+        contentPreview: result.content.slice(0, 500),
+      });
+      continue;
+    }
+    for (const c of parsed.classifications ?? []) {
+      const globalIdx = i + c.index;
+      if (globalIdx >= 0 && globalIdx < requests.length) {
+        const filtered = (c.assertions ?? []).filter((a): a is Assertion =>
+          (ASSERTIONS as readonly string[]).includes(a),
+        );
+        if (filtered.length === 0 && (c.assertions ?? []).length > 0) {
+          console.warn('[assertion-classifier] all tags filtered out', {
+            engagementId,
+            requestNumber: requests[globalIdx]?.request_number,
+            rawTags: c.assertions,
+          });
+        }
+        results[globalIdx] = filtered;
+      }
     }
   }
 
   return results;
+}
+
+/**
+ * Given already-classified tag arrays and a list of requests, apply the tags
+ * to each request in place. Extracted so unit tests can verify tag-application
+ * without hitting Bedrock.
+ */
+export function applyClassificationsToRequests(
+  requests: ParsedPbcRequest[],
+  classifications: string[][],
+): void {
+  for (let i = 0; i < requests.length; i++) {
+    requests[i].assertion_tags = classifications[i] ?? [];
+  }
 }
