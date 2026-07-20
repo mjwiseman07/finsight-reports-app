@@ -1,4 +1,4 @@
-import { PDFParse } from 'pdf-parse';
+import pdf from 'pdf-parse';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import { simpleParser } from 'mailparser';
@@ -30,13 +30,12 @@ export async function extractTextFromBuffer(
   contentType: string,
 ): Promise<string> {
   if (contentType === 'application/pdf') {
-    const parser = new PDFParse({ data: new Uint8Array(buffer) });
-    try {
-      const parsed = await parser.getText();
-      return parsed.text ?? '';
-    } finally {
-      await parser.destroy().catch(() => undefined);
-    }
+    // pdf-parse v1: default export is a function that takes a Buffer/Uint8Array
+    // and returns { text, numpages, info, metadata, version }.
+    // Chosen for Node serverless compatibility — v2 requires browser globals
+    // (DOMMatrix, ImageData) that are unavailable on Vercel Lambdas.
+    const parsed = await pdf(buffer);
+    return parsed.text ?? '';
   }
 
   if (

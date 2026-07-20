@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     "puppeteer-core",
     "undici",
     "https-proxy-agent",
+    "pdf-parse",
   ],
   async headers() {
     const securityHeaders = [
