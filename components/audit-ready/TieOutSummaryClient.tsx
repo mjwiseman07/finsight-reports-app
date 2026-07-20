@@ -70,6 +70,7 @@ export function TieOutSummaryClient({
   const [runOpen, setRunOpen] = useState<{
     pbcId: string;
     requestNumber: string;
+    tieOutKind: string | null;
   } | null>(null);
   const [runBusy, setRunBusy] = useState(false);
   const [runErr, setRunErr] = useState<string | null>(null);
@@ -138,22 +139,30 @@ export function TieOutSummaryClient({
   async function triggerRun(
     pbcId: string,
     asOfDate: string,
-    arAccountId: string,
+    accountId: string,
+    tieOutKind: string | null,
   ) {
     setRunBusy(true);
     setRunErr(null);
     setRunResult(null);
     try {
+      const body: Record<string, unknown> = {
+        pbc_request_id: pbcId,
+        as_of_date: asOfDate,
+      };
+      if (tieOutKind === "ar_aging" && accountId) {
+        body.ar_account_id = accountId;
+      } else if (tieOutKind === "ap_aging" && accountId) {
+        body.ap_account_id = accountId;
+      } else if (tieOutKind === "inventory" && accountId) {
+        body.inventory_account_id = accountId;
+      }
       const resp = await fetch(
         `/api/audit-ready/${engagementId}/tie-out/run`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            pbc_request_id: pbcId,
-            as_of_date: asOfDate,
-            ar_account_id: arAccountId || undefined,
-          }),
+          body: JSON.stringify(body),
         },
       );
       const data = (await resp.json()) as RunOutcome;
@@ -309,6 +318,7 @@ export function TieOutSummaryClient({
                           setRunOpen({
                             pbcId: r.pbc_request_id,
                             requestNumber: r.request_number,
+                            tieOutKind: r.tie_out_kind,
                           })
                         }
                         className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
@@ -334,13 +344,14 @@ export function TieOutSummaryClient({
           engagementId={engagementId}
           pbcId={runOpen.pbcId}
           requestNumber={runOpen.requestNumber}
+          tieOutKind={runOpen.tieOutKind}
           onClose={() => {
             setRunOpen(null);
             setRunErr(null);
             setRunResult(null);
           }}
-          onSubmit={(asOf, arAcct) =>
-            triggerRun(runOpen.pbcId, asOf, arAcct)
+          onSubmit={(asOf, acct) =>
+            triggerRun(runOpen.pbcId, asOf, acct, runOpen.tieOutKind)
           }
           busy={runBusy}
           err={runErr}
@@ -355,6 +366,7 @@ function RunModal({
   engagementId: _engagementId,
   pbcId: _pbcId,
   requestNumber,
+  tieOutKind,
   onClose,
   onSubmit,
   busy,
@@ -364,8 +376,9 @@ function RunModal({
   engagementId: string;
   pbcId: string;
   requestNumber: string;
+  tieOutKind: string | null;
   onClose: () => void;
-  onSubmit: (asOfDate: string, arAccountId: string) => void | Promise<void>;
+  onSubmit: (asOfDate: string, accountId: string) => void | Promise<void>;
   busy: boolean;
   err: string | null;
   result: RunOutcome | null;
@@ -376,6 +389,19 @@ function RunModal({
     return d.toISOString().slice(0, 10);
   });
   const [acct, setAcct] = useState<string>("");
+  const accountLabel =
+    tieOutKind === "ap_aging"
+      ? "QBO AP account ID"
+      : tieOutKind === "inventory"
+        ? "QBO Inventory account ID"
+        : tieOutKind === "ar_aging"
+          ? "QBO AR account ID"
+          : null;
+  const showAccountInput =
+    tieOutKind === "ar_aging" ||
+    tieOutKind === "ap_aging" ||
+    tieOutKind === "inventory";
+  const showGrniNote = tieOutKind === "grni";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
@@ -404,21 +430,30 @@ function RunModal({
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
               />
             </label>
-            <label className="block">
-              <span className="block text-xs font-medium text-slate-700">
-                QBO AR account ID{" "}
-                <span className="text-slate-500">
-                  (optional — falls back to PBC source hint)
+            {showAccountInput && accountLabel && (
+              <label className="block">
+                <span className="block text-xs font-medium text-slate-700">
+                  {accountLabel}{" "}
+                  <span className="text-slate-500">
+                    (optional — falls back to PBC source hint / engagement
+                    binding)
+                  </span>
                 </span>
-              </span>
-              <input
-                type="text"
-                value={acct}
-                onChange={(e) => setAcct(e.target.value)}
-                placeholder="e.g. 84"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-mono"
-              />
-            </label>
+                <input
+                  type="text"
+                  value={acct}
+                  onChange={(e) => setAcct(e.target.value)}
+                  placeholder="e.g. 84"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-mono"
+                />
+              </label>
+            )}
+            {showGrniNote && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
+                GRNI clearing account is resolved from engagement settings
+                (`grni_clearing_qbo_account_id`). No account ID input required.
+              </div>
+            )}
             {err && (
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
                 {err}
