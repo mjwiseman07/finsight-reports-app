@@ -9,6 +9,8 @@ type PreviewProps = {
   onClose: () => void;
   onConfirm: (preview: JePreviewPayload) => void;
   disabled?: boolean;
+  submitting?: boolean;
+  error?: string | null;
 };
 
 export function PulseJePreviewModal({
@@ -17,11 +19,14 @@ export function PulseJePreviewModal({
   onClose,
   onConfirm,
   disabled,
+  submitting,
+  error,
 }: PreviewProps) {
   if (!open) return null;
 
   const isError = preview.validation.status === "error";
   const isWarning = preview.validation.status === "warning";
+  const confirmDisabled = Boolean(disabled || submitting || isError);
 
   return (
     <div
@@ -120,11 +125,18 @@ export function PulseJePreviewModal({
           </div>
         )}
 
+        {error ? (
+          <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+            <div className="font-semibold">Posting failed</div>
+            <p className="mt-1">{error}</p>
+          </div>
+        ) : null}
+
         <div className="mt-6 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            disabled={disabled}
+            disabled={Boolean(disabled || submitting)}
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             Cancel
@@ -132,10 +144,10 @@ export function PulseJePreviewModal({
           <button
             type="button"
             onClick={() => onConfirm(preview)}
-            disabled={disabled || isError}
+            disabled={confirmDisabled}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
           >
-            Confirm and post
+            {submitting ? "Posting…" : "Confirm and post"}
           </button>
         </div>
       </div>

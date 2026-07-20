@@ -674,6 +674,8 @@ export default function DashboardPage() {
   ]);
   const [jePreview, setJePreview] = useState(null);
   const [jeOpen, setJeOpen] = useState(false);
+  const [jeSubmitting, setJeSubmitting] = useState(false);
+  const [jeError, setJeError] = useState(null);
   const [jePicker, setJePicker] = useState(null);
   const [pulseMemory, setPulseMemory] = useState({
     insights: demoPulseInsightMemory,
@@ -1325,6 +1327,7 @@ export default function DashboardPage() {
         const result = await response.json().catch(() => ({}));
         if (response.ok && result.pulse_je) {
           if (result.pulse_je === "preview" && result.preview) {
+            setJeError(null);
             setJePreview(result.preview);
             setJeOpen(true);
             setJePicker(null);
@@ -2570,9 +2573,51 @@ export default function DashboardPage() {
           open={jeOpen}
           preview={jePreview}
           onClose={() => setJeOpen(false)}
-          onConfirm={() => {
-            window.alert("Posting arrives in PULSE-JE-2");
-            setJeOpen(false);
+          disabled={jeSubmitting}
+          submitting={jeSubmitting}
+          error={jeError}
+          onConfirm={async (preview) => {
+            setJeSubmitting(true);
+            setJeError(null);
+            try {
+              const authToken = token || window.localStorage.getItem("supabase_access_token") || "";
+              const resp = await fetch("/api/pulse/je/confirm", {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+                body: JSON.stringify({ preview }),
+              });
+              const data = await resp.json().catch(() => ({}));
+              if (!resp.ok) {
+                setJeError(data?.message || data?.error || `Post failed (HTTP ${resp.status})`);
+                return;
+              }
+              if (data?.status === "posted") {
+                setJeOpen(false);
+                setAiMessages((current) => [
+                  ...current,
+                  {
+                    role: "advisacor",
+                    content: `Journal entry posted. QBO ID: ${data.qbo_je_id}. Memo: "${preview.memo}".`,
+                  },
+                ]);
+              } else if (data?.status === "rejected") {
+                setJeError(
+                  `Rejected: ${data.reason || "unknown"}${
+                    data.details ? ` — ${JSON.stringify(data.details)}` : ""
+                  }`,
+                );
+              } else {
+                setJeError(`Failed: ${data?.error || "unknown"}`);
+              }
+            } catch (err) {
+              setJeError(err?.message || "Network error");
+            } finally {
+              setJeSubmitting(false);
+            }
           }}
         />
       )}

@@ -86,7 +86,8 @@ export type DataSourceReliabilityBasis =
   | "plaid_direct"
   | "manual_document_upload"
   | "inbound_email_parsed"
-  | "rule_synthesized_from_qbo_ledger";
+  | "rule_synthesized_from_qbo_ledger"
+  | "user_conversational_correction";
 
 export const DATA_SOURCE_RELIABILITY_BASES: readonly DataSourceReliabilityBasis[] = [
   "qbo_api_authenticated",
@@ -95,6 +96,7 @@ export const DATA_SOURCE_RELIABILITY_BASES: readonly DataSourceReliabilityBasis[
   "manual_document_upload",
   "inbound_email_parsed",
   "rule_synthesized_from_qbo_ledger",
+  "user_conversational_correction",
 ] as const;
 
 export type JEPostResult =
