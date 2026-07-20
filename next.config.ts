@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Force Vercel to ship pdfjs-dist's worker file alongside audit-ready API
+  // routes. serverExternalPackages tells Next not to bundle pdfjs-dist, but
+  // Vercel's outputFileTracing may miss pdf.worker.mjs because it's only
+  // referenced through a dynamic import inside pdf.mjs.
+  outputFileTracingIncludes: {
+    "/api/audit-ready/**": [
+      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+    ],
+  },
   // Keep Chromium + puppeteer out of the bundler so the serverless function
   // ships the native binaries correctly (Doc C4 PDF generation).
   serverExternalPackages: [

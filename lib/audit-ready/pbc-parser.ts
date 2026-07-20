@@ -37,14 +37,26 @@ export async function extractTextFromBuffer(
     //   - pdf-parse@2 crashes at module-load on Vercel Lambda (DOMMatrix)
     //   - pdf-parse@1 (vendored pdfjs@1.9) throws "bad XRef entry" on valid
     //     PDFs under modern Node V8 buffer semantics
+    //
+    // pdfjs's Node code path uses a "fake worker" (LoopbackPort — no thread
+    // spawn) but still needs to import pdf.worker.mjs to get the
+    // WorkerMessageHandler. The default workerSrc = "./pdf.worker.mjs" is a
+    // relative specifier Node's ESM loader cannot resolve inside a dynamic
+    // import on Vercel Lambda. We resolve it to an absolute path via
+    // require.resolve so the import always succeeds.
+    const { createRequire } = await import('node:module');
+    const require = createRequire(import.meta.url);
+    const workerSrc = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+
     const data = new Uint8Array(buffer);
     const doc = await pdfjs.getDocument({
       data,
       useSystemFonts: true,
       disableFontFace: true,
       isEvalSupported: false,
-      // No worker — we want single-threaded, in-process parsing
       useWorkerFetch: false,
     }).promise;
     try {
