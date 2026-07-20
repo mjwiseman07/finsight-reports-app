@@ -1,13 +1,17 @@
 /**
- * Install QuotaGuard's undici ProxyAgent as the process-wide global
+ * Install a hostname-aware `Dispatcher` as the process-wide global
  * dispatcher for `fetch()`. Called once at Node.js runtime boot via
- * `instrumentation.ts` so every `fetch()` in the codebase egresses
- * through QuotaGuard's static IPs — no per-call site changes required.
+ * `instrumentation.ts`.
+ *
+ * Only allowlisted hostnames (Intuit QuickBooks Online) egress through
+ * QuotaGuard's static IPs; every other outbound fetch (Supabase, Stripe,
+ * Datadog, Vercel, our own APIs) uses the default undici agent (direct).
  *
  * Idempotent — safe to call multiple times.
  */
 import { setGlobalDispatcher } from "undici";
-import { getQuotaGuardUndiciDispatcher, isQuotaGuardConfigured } from "./quotaguard-proxy";
+import { getSelectiveDispatcher } from "./selective-dispatcher";
+import { isQuotaGuardConfigured } from "./quotaguard-proxy";
 
 let _installed = false;
 
@@ -16,16 +20,16 @@ export function initQuotaGuardGlobalDispatcher(): void {
 
   if (!isQuotaGuardConfigured()) {
     console.log(
-      "[quotaguard] QUOTAGUARD_PROXY_URL not set; skipping global dispatcher install (local dev / tests).",
+      "[quotaguard] QUOTAGUARD_PROXY_URL not set; skipping selective dispatcher install (local dev / tests).",
     );
     _installed = true;
     return;
   }
 
-  const dispatcher = getQuotaGuardUndiciDispatcher();
+  const dispatcher = getSelectiveDispatcher();
   if (!dispatcher) {
     console.warn(
-      "[quotaguard] Proxy URL configured but ProxyAgent construction returned null; not installing dispatcher.",
+      "[quotaguard] Proxy URL configured but selective dispatcher construction returned null; not installing.",
     );
     _installed = true;
     return;
@@ -33,5 +37,7 @@ export function initQuotaGuardGlobalDispatcher(): void {
 
   setGlobalDispatcher(dispatcher);
   _installed = true;
-  console.log("[quotaguard] Global fetch dispatcher routing through QuotaGuard Shield.");
+  console.log(
+    "[quotaguard] Selective global fetch dispatcher installed. QBO hosts route via QuotaGuard; all other hosts direct.",
+  );
 }
