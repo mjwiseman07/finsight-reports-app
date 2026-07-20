@@ -11,7 +11,7 @@ function getQuickBooksTokenExpiry(token) {
   return new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 }
 
-async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, companyProfile }) {
+async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, companyProfile, oauthMode = "lead" }) {
   const companyName = companyProfile.legal_name || companyProfile.company_name || "QuickBooks Company";
   const now = new Date().toISOString();
   const payload = {
@@ -33,14 +33,14 @@ async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, 
     qbo_edition: parseOfferingSku(companyProfile.qbo_edition_raw),
     qbo_subscription_status: parseSubscriptionStatus(companyProfile.qbo_subscription_status_raw),
     metadata_json: {
-      lead_id: leadId,
+      ...(oauthMode === "lead" ? { lead_id: leadId } : {}),
       realm_id: realmId,
       company_name: companyName,
       tenant_name: companyName,
       source_system: "quickbooks",
       active_provider: "quickbooks",
       connected_at: now,
-      oauth_mode: "lead",
+      oauth_mode: oauthMode,
       // Phase MC-1 (Issue #6): currency context mirrored for callers that read metadata_json.
       home_currency: companyProfile.home_currency || null,
       multicurrency_enabled: Boolean(companyProfile.multicurrency_enabled),
@@ -248,14 +248,14 @@ async function getImpl(request) {
       }
 
       const holderAdapter = getERPAdapter("quickbooks", targetUserId);
-      let savedConnection;
+      let savedErpConnection;
       try {
-        savedConnection = await holderAdapter.saveConnection({
+        savedErpConnection = await holderAdapter.saveConnection({
           realmId,
           token,
         });
       } catch (saveErr) {
-        console.error("[quickbooks/callback] super_admin_holder connection save failed", {
+        console.error("[quickbooks/callback] super_admin_holder erp connection save failed", {
           message: saveErr?.message,
           code: saveErr?.code,
           holderUserId: targetUserId,
@@ -263,8 +263,29 @@ async function getImpl(request) {
         return redirectWithQbError(request, "connection_save_failed");
       }
 
+      // DEMO-3A picker + bind-holder read accounting_connections (not erp_connections).
+      let savedConnection;
+      try {
+        savedConnection = await saveLeadQuickBooksAccountingConnection({
+          leadId: targetUserId,
+          realmId,
+          token,
+          companyProfile,
+          oauthMode: "super_admin_holder",
+        });
+      } catch (saveErr) {
+        console.error("[quickbooks/callback] super_admin_holder accounting connection save failed", {
+          message: saveErr?.message,
+          code: saveErr?.code,
+          holderUserId: targetUserId,
+          erpConnectionId: savedErpConnection?.id || null,
+        });
+        return redirectWithQbError(request, "connection_save_failed");
+      }
+
       console.log("[quickbooks/callback] super_admin_holder — saved accounting connection", {
         connectionId: savedConnection?.id || null,
+        erpConnectionId: savedErpConnection?.id || null,
         holderUserId: targetUserId,
         realmId,
       });
