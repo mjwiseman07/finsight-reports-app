@@ -38,15 +38,18 @@ export async function extractTextFromBuffer(
     //   - pdf-parse@1 (vendored pdfjs@1.9) throws "bad XRef entry" on valid
     //     PDFs under modern Node V8 buffer semantics
     //
-    // pdfjs's Node code path uses a "fake worker" (LoopbackPort — no thread
-    // spawn) but still needs to import pdf.worker.mjs to get the
-    // WorkerMessageHandler. The default workerSrc = "./pdf.worker.mjs" is a
-    // relative specifier Node's ESM loader cannot resolve inside a dynamic
-    // import on Vercel Lambda. We resolve it to an absolute path via
-    // require.resolve so the import always succeeds.
-    const { createRequire } = await import('node:module');
-    const require = createRequire(import.meta.url);
-    const workerSrc = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+    // pdfjs's Node "fake worker" (LoopbackPort — no thread spawn) still
+    // needs to import pdf.worker.mjs to get the WorkerMessageHandler.
+    // The default workerSrc = "./pdf.worker.mjs" is unresolvable on Vercel
+    // Lambda because serverExternalPackages excludes pdfjs-dist from
+    // outputFileTracing, so the worker file is never copied into
+    // /var/task/node_modules. We vendor pdf.worker.mjs into the app itself
+    // (lib/audit-ready/vendor/pdf.worker.mjs) so it's ALWAYS in the Lambda
+    // bundle, and reference it via new URL(..., import.meta.url) which
+    // Next.js and Turbopack both recognize as a first-class asset reference.
+    const { fileURLToPath } = await import('node:url');
+    const workerUrl = new URL('./vendor/pdf.worker.mjs', import.meta.url);
+    const workerSrc = fileURLToPath(workerUrl);
 
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
     pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;

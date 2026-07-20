@@ -6,8 +6,14 @@ const nextConfig: NextConfig = {
   // Vercel's outputFileTracing may miss pdf.worker.mjs because it's only
   // referenced through a dynamic import inside pdf.mjs.
   outputFileTracingIncludes: {
+    // Ship the vendored pdfjs worker with every audit-ready API route.
+    // We vendor lib/audit-ready/vendor/pdf.worker.mjs into the app so
+    // Vercel always ships it (serverExternalPackages excludes the
+    // pdfjs-dist node_modules copy). Kept as an explicit include so
+    // Vercel's file tracer never drops it even if the new URL() reference
+    // in pbc-parser.ts changes.
     "/api/audit-ready/**": [
-      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+      "./lib/audit-ready/vendor/pdf.worker.mjs",
     ],
   },
   // Keep Chromium + puppeteer out of the bundler so the serverless function
