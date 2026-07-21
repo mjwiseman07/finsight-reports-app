@@ -870,9 +870,8 @@ export async function fetchQboGeneralLedgerDetail(params: {
     "name",
     "memo",
     "split_acc",
-    "debt_amt",
-    "credt_amt",
-    "rbal_nat_bal",
+    "subt_nat_amount",
+    "rbal_nat_amount",
   ].join(",");
   // QBO GeneralLedger report does not accept `date_macro=Custom`.
   // Passing `start_date` + `end_date` implicitly defines a custom range;
@@ -912,8 +911,11 @@ export async function fetchQboGeneralLedgerDetail(params: {
   const iName = colIdx("Name");
   const iMemo = colIdx("Memo/Description");
   const iSplit = colIdx("Split");
+  // QBO returns either separate Debit/Credit columns OR a signed "Amount" column
+  // depending on the column codes requested. With subt_nat_amount we get "Amount".
   const iDebit = colIdx("Debit");
   const iCredit = colIdx("Credit");
+  const iAmount = colIdx("Amount");
   const iBalance = colIdx("Balance");
   const activity: QboGlActivityRow[] = [];
   let beginningBalanceCents = 0;
@@ -954,10 +956,25 @@ export async function fetchQboGeneralLedgerDetail(params: {
         return;
       }
       if (isTotal) return;
-      const debit = toCents(getCol(node, iDebit).value);
-      const credit = toCents(getCol(node, iCredit).value);
       const balance = toCents(getCol(node, iBalance).value);
       const txnRef = getCol(node, iType).id || null;
+      let debitCents = 0;
+      let creditCents = 0;
+      let netCents = 0;
+      if (iDebit >= 0 || iCredit >= 0) {
+        debitCents = toCents(getCol(node, iDebit).value);
+        creditCents = toCents(getCol(node, iCredit).value);
+        netCents = debitCents - creditCents;
+      } else if (iAmount >= 0) {
+        // Signed net amount from QBO. Split into debit/credit halves for
+        // downstream reporting parity with the two-column layout.
+        netCents = toCents(getCol(node, iAmount).value);
+        if (netCents >= 0) {
+          debitCents = netCents;
+        } else {
+          creditCents = -netCents;
+        }
+      }
       activity.push({
         txnDate: /^\d{4}-\d{2}-\d{2}$/.test(dateCell) ? dateCell : null,
         txnType: typeCell || null,
@@ -965,27 +982,34 @@ export async function fetchQboGeneralLedgerDetail(params: {
         name: getCol(node, iName).value || null,
         memo: getCol(node, iMemo).value || null,
         splitAccount: getCol(node, iSplit).value || null,
-        debitCents: debit,
-        creditCents: credit,
-        netCents: debit - credit,
+        debitCents,
+        creditCents,
+        netCents,
         runningBalanceCents: balance,
         txnRef,
       });
     }
-    if (node.Summary?.ColData && node.type === "Section") {
-      const bal = toCents(node.Summary.ColData[iBalance]?.value ?? "");
-      if (bal !== 0 || endingBalanceCents === 0) {
-        endingBalanceCents = bal;
-      }
-    }
+    // Do not treat Section Summary as authoritative for ending balance.
+    // Some QBO column layouts leave the Balance column empty in the summary
+    // and put net activity in the Amount column instead. Ending balance is
+    // derived below from the last activity row's runningBalanceCents.
     node.Rows?.Row?.forEach(walk);
   };
   (json.Rows?.Row as QboRow[] | undefined)?.forEach(walk);
-  // Fallback: if section summary wasn't found, ending = beginning + sum(activity)
-  if (endingBalanceCents === 0 && activity.length > 0) {
+  // Ending balance: prefer the running balance of the last activity row
+  // (authoritative per QBO). Fall back to beginning + sum(activity) only if
+  // no rows had a usable running balance.
+  const lastWithRb = [...activity]
+    .reverse()
+    .find((r) => Number.isFinite(r.runningBalanceCents) && r.runningBalanceCents !== 0);
+  if (lastWithRb) {
+    endingBalanceCents = lastWithRb.runningBalanceCents;
+  } else if (activity.length > 0) {
     endingBalanceCents =
       beginningBalanceCents +
       activity.reduce((s, r) => s + r.netCents, 0);
+  } else {
+    endingBalanceCents = beginningBalanceCents;
   }
   return {
     beginningBalanceCents,
