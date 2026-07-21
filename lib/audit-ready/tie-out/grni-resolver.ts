@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import {
-  fetchQboOpenItemReceipts,
-  type QboItemReceiptQueryResult,
+  fetchQboOpenUnbilledBills,
+  type QboUnbilledBillsQueryResult,
 } from "./qbo-reports";
 import {
   type PolicySnapshot,
@@ -96,45 +96,20 @@ export async function runGrniResolver(
       })
       .eq("id", input.pbcRequestId);
   };
-  let subledger: QboItemReceiptQueryResult;
+  let subledger: QboUnbilledBillsQueryResult;
   try {
-    subledger = await fetchQboOpenItemReceipts({
+    subledger = await fetchQboOpenUnbilledBills({
       realmId: input.realmId,
       accessToken: input.accessToken,
       asOfDate: input.asOfDate,
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "unknown";
-    // If QBO returns entity-not-enabled or endpoint 400 for ItemReceipt,
-    // surface qbo_itemreceipt_not_available rather than a hard qbo_fetch_failed.
-    const isEntityDisabled =
-      msg.includes("QBO ItemReceipt query failed: 400") &&
-      (msg.includes("Entity not enabled") ||
-        msg.includes("not supported") ||
-        msg.includes("QueryValidationError") ||
-        msg.includes("invalid context declaration"));
-    if (isEntityDisabled) {
-      await failRun(
-        "qbo_itemreceipt_not_available",
-        "QBO Item Receipt entity is not available on this company (typically requires QBO Plus/Advanced with inventory + purchase workflows enabled).",
-      );
-      return {
-        runId,
-        status: "failed",
-        totalsStatus: "kickout",
-        subledgerTotalCents: 0,
-        glTotalCents: 0,
-        totalsVarianceCents: 0,
-        itemCount: 0,
-        autoReconcileCount: 0,
-        reviewCount: 0,
-        kickoutCount: 0,
-        durationMs: Date.now() - start,
-        errorCode: "qbo_itemreceipt_not_available",
-        errorMessage:
-          "QBO Item Receipt entity is not available on this company.",
-      };
-    }
+    // The Bill entity is universally available on every QBO Online
+    // subscription tier (Simple Start → Advanced), so there is no
+    // entity-not-enabled fallback to distinguish here. Any 4xx from
+    // the query is surfaced as qbo_fetch_failed with the redacted Fault
+    // body for diagnosis.
     await failRun("qbo_fetch_failed", msg);
     return {
       runId,
@@ -152,9 +127,10 @@ export async function runGrniResolver(
       errorMessage: msg,
     };
   }
-  // Report-only resolver: no GL/subledger comparison. Just list open receipts
-  // and age them. Totals status is always "tie" for the header row (nothing to
-  // reconcile against); individual receipts get "review" if aged >60 days.
+  // Report-only resolver: no GL/subledger comparison. Just list open unbilled
+  // Bills and age them. Totals status is always "tie" for the header row
+  // (nothing to reconcile against); individual bills get "review" if aged
+  // >60 days.
   const subTotalCents = subledger.total_cents;
   const varianceRows: VarianceInsert[] = [];
   varianceRows.push({
@@ -163,7 +139,7 @@ export async function runGrniResolver(
     pbc_request_id: input.pbcRequestId,
     entity_kind: "totals",
     entity_qbo_id: null,
-    entity_display_name: "Open Item Receipts (unbilled)",
+    entity_display_name: "Open Unbilled Bills (GRNI)",
     subledger_amount_cents: subTotalCents,
     gl_amount_cents: null,
     variance_cents: 0,
@@ -175,8 +151,8 @@ export async function runGrniResolver(
   const asOf = new Date(input.asOfDate);
   const daysBetween = (a: Date, b: Date): number =>
     Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
-  for (const r of subledger.receipts) {
-    const ageDays = daysBetween(new Date(r.txn_date), asOf);
+  for (const b of subledger.bills) {
+    const ageDays = daysBetween(new Date(b.txn_date), asOf);
     // Aging buckets: current (<=60), 60-90, 90-180, over-180.
     // Anything >60 days flagged for review; bucket carried in
     // classification_reason for reporting + future memory-based narratives.
@@ -198,24 +174,25 @@ export async function runGrniResolver(
     const status: VarianceClassification = isStale ? "review" : "tie";
     if (isStale) reviewCount += 1;
     // GRNI reports the pre-tax amount as the subledger figure.
-    const receiptAmountCents = r.subtotal_cents ?? r.total_cents;
+    const billAmountCents = b.subtotal_cents ?? b.total_cents;
+    // Display name: prefer vendor name; fall back to "Unbilled Bill <id>"
+    // (a GRNI bill by definition has no DocNumber, so we never fall back
+    // to the doc number).
+    const displayName =
+      b.vendor_display_name ?? `Unbilled Bill ${b.bill_id}`;
     varianceRows.push({
       run_id: runId,
       engagement_id: input.engagementId,
       pbc_request_id: input.pbcRequestId,
       entity_kind: "vendor",
-      entity_qbo_id: r.vendor_ref,
-      entity_display_name:
-        r.vendor_display_name ??
-        (r.doc_number ? `Receipt ${r.doc_number}` : `Receipt ${r.receipt_id}`),
-      subledger_amount_cents: receiptAmountCents,
+      entity_qbo_id: b.vendor_ref,
+      entity_display_name: displayName,
+      subledger_amount_cents: billAmountCents,
       gl_amount_cents: null,
       variance_cents: 0,
       variance_percent: null,
       status,
-      classification_reason: isStale
-        ? `open_item_receipt_${bucket}`
-        : null,
+      classification_reason: isStale ? `unbilled_bill_${bucket}` : null,
     });
   }
   const CHUNK = 500;
@@ -257,7 +234,7 @@ export async function runGrniResolver(
       gl_total_cents: null,
       totals_variance_cents: 0,
       totals_status: totalsStatus,
-      item_count: subledger.receipts.length,
+      item_count: subledger.bills.length,
       item_auto_reconcile_count: 0,
       item_review_count: reviewCount,
       item_kickout_count: 0,
@@ -285,7 +262,7 @@ export async function runGrniResolver(
     subledgerTotalCents: subTotalCents,
     glTotalCents: 0,
     totalsVarianceCents: 0,
-    itemCount: subledger.receipts.length,
+    itemCount: subledger.bills.length,
     autoReconcileCount: 0,
     reviewCount,
     kickoutCount: 0,

@@ -383,55 +383,83 @@ export async function fetchQboInventoryValuationDetail(params: {
   };
 }
 // ---------------------------------------------------------------------------
-// Open Item Receipts (GRNI report). No dedicated QBO report — we query
-// ItemReceipt entities and surface all open (unbilled) receipts as-of date.
-// RA-tier: no clearing-account filter; pre-tax subtotals preferred.
+// Open Unbilled Bills (GRNI report — QBO Online).
+//
+// QBO Online does not surface `ItemReceipt` as a first-class transaction — the
+// UI never creates one. The on-platform GRNI pattern is:
+//   1. Bookkeeper creates a Purchase Order.
+//   2. Goods arrive → bookkeeper uses "Copy to Bill" on the PO, leaves
+//      DocNumber (Bill no.) BLANK to signal "goods received, invoice not
+//      yet arrived", saves.
+//   3. Vendor invoice arrives → bookkeeper re-opens the bill, fills in
+//      DocNumber (the vendor's actual invoice number), saves.
+//
+// So the RA-tier report queries `Bill WHERE (DocNumber IS NULL OR DocNumber
+// = '') AND Balance > 0 AND TxnDate <= asOfDate`. No dedicated QBO report;
+// no clearing-account filter; pre-tax subtotals preferred (Bill.TotalAmt
+// minus TxnTaxDetail.TotalTax).
+//
+// RA Pro-tier reclass (Provisional #7 candidate) will additionally post
+// JEs to move these balances from A/P to a dedicated GRNI clearing
+// account continuously — that lives on `grni_clearing_qbo_account_id`
+// on the engagement row and is out of scope for RA-tier.
 // ---------------------------------------------------------------------------
-export type QboItemReceipt = {
-  receipt_id: string;
+export type QboUnbilledBill = {
+  bill_id: string;
   txn_date: string;
   vendor_ref: string | null;
   vendor_display_name: string | null;
-  clearing_account_ref: string | null;
+  ap_account_ref: string | null;
   total_cents: number; // TotalAmt (includes tax if any tax lines present)
   subtotal_cents: number; // Pre-tax amount — preferred for GRNI reporting
-  doc_number: string | null;
+  balance_cents: number; // Balance (unpaid portion)
+  doc_number: string | null; // Always null/empty for GRNI bills
+  linked_po_ids: string[]; // LinkedTxn where TxnType='PurchaseOrder'
 };
-export type QboItemReceiptQueryResult = {
+export type QboUnbilledBillsQueryResult = {
   as_of_date: string;
-  receipts: QboItemReceipt[];
-  total_cents: number;
+  bills: QboUnbilledBill[];
+  total_cents: number; // Sum of subtotal_cents (pre-tax)
   raw_query_url: string;
   intuit_tid: string | null;
 };
 /**
- * Query open ItemReceipt records as-of a date. QBO does not accept an
- * `asOf` filter on ItemReceipt query, so we pull all ItemReceipts with
- * TxnDate <= asOfDate and filter client-side (Balance > 0 / TotalAmt > 0).
+ * Query open unbilled Bills as-of a date. RA-tier GRNI report.
  *
- * NOTE: pagination via STARTPOSITION. We loop until <1000 rows returned
- * to guarantee we captured all receipts.
+ * Query strategy: `SELECT ... FROM Bill WHERE (DocNumber IS NULL OR DocNumber
+ * = '') AND TxnDate <= '<asOfDate>'`. Client-side filter: `Balance > 0` and
+ * `TotalAmt > 0` (safer than SQL Balance filter across realms). Pagination
+ * via STARTPOSITION until <1000 rows returned.
+ *
+ * Explicit column list rather than SELECT * — SELECT * on Bill is unreliable
+ * across QBO sandbox realms. LinkedTxn is included so we can surface which
+ * POs the unbilled bill is receiving against (audit evidence).
+ *
+ * Retains 3.1's Fault surfacing on 4xx and 3.2's pre-tax subtotal + zero-
+ * amount/zero-balance client-side filters.
  */
-export async function fetchQboOpenItemReceipts(params: {
+export async function fetchQboOpenUnbilledBills(params: {
   realmId: string;
   accessToken: string;
   asOfDate: string;
-}): Promise<QboItemReceiptQueryResult> {
+}): Promise<QboUnbilledBillsQueryResult> {
   const { realmId, accessToken, asOfDate } = params;
   const pageSize = 1000;
   let startPos = 1;
-  const receipts: QboItemReceipt[] = [];
+  const bills: QboUnbilledBill[] = [];
   let lastUrl = "";
   let lastTid: string | null = null;
   while (true) {
-    // Explicit column list — SELECT * is unreliable on ItemReceipt across
-    // some QBO sandbox realms. Keep minorversion=65 + Fault surfacing from 3.1.
-    // Balance / TxnTaxDetail support RA-tier open + pre-tax reporting.
-    // Client-side Balance filter (not WHERE Balance > '0') — safer across realms.
+    // NOTE on the WHERE clause: QBO's query language accepts
+    // `DocNumber IS NULL` — QBO Online returns Bill rows without the
+    // DocNumber field when it is null. We also OR against empty string
+    // because some minorversions serialise a blank DocNumber as "".
     const q =
-      `SELECT Id, TxnDate, DocNumber, TotalAmt, Balance, VendorRef, APAccountRef, Line, TxnTaxDetail ` +
-      `FROM ItemReceipt ` +
+      `SELECT Id, TxnDate, DocNumber, TotalAmt, Balance, VendorRef, ` +
+      `APAccountRef, LinkedTxn, TxnTaxDetail ` +
+      `FROM Bill ` +
       `WHERE TxnDate <= '${asOfDate}' ` +
+      `AND (DocNumber IS NULL OR DocNumber = '') ` +
       `STARTPOSITION ${startPos} MAXRESULTS ${pageSize}`;
     const url =
       `${qboBaseUrl()}/v3/company/${encodeURIComponent(realmId)}/query` +
@@ -446,12 +474,12 @@ export async function fetchQboOpenItemReceipts(params: {
             `[${e.code ?? "?"}] ${e.Message ?? ""} :: ${e.Detail ?? ""}`,
         ).join(" | ") ?? JSON.stringify(res.json ?? {}).slice(0, 500);
       throw new Error(
-        `QBO ItemReceipt query failed: ${res.status} tid=${res.intuit_tid ?? "n/a"} ` +
+        `QBO Bill query failed: ${res.status} tid=${res.intuit_tid ?? "n/a"} ` +
           `query=${encodeURIComponent(q).slice(0, 200)} fault=${faultBody}`,
       );
     }
     lastTid = res.intuit_tid;
-    const page = (res.json?.QueryResponse?.ItemReceipt ?? []) as Array<{
+    const page = (res.json?.QueryResponse?.Bill ?? []) as Array<{
       Id: string;
       TxnDate: string;
       DocNumber?: string;
@@ -460,34 +488,40 @@ export async function fetchQboOpenItemReceipts(params: {
       VendorRef?: { value?: string; name?: string };
       APAccountRef?: { value?: string };
       TxnTaxDetail?: { TotalTax?: number };
-      Line?: Array<{
-        AccountBasedExpenseLineDetail?: { AccountRef?: { value?: string } };
-      }>;
+      LinkedTxn?: Array<{ TxnId?: string; TxnType?: string }>;
     }>;
-    for (const r of page) {
-      // Return every open Item Receipt regardless of account routing.
-      // QBO parks the credit in A/P by default; this report surfaces the
-      // full unbilled-receipt population for RA-tier visibility.
-      const apAcct = r.APAccountRef?.value ?? null;
-      const totalAmt = r.TotalAmt ?? 0;
+    for (const b of page) {
+      const totalAmt = b.TotalAmt ?? 0;
       const totalCents = Math.round(totalAmt * 100);
-      const taxAmt = r.TxnTaxDetail?.TotalTax ?? 0;
+      const taxAmt = b.TxnTaxDetail?.TotalTax ?? 0;
       const subtotalCents = Math.round((totalAmt - taxAmt) * 100);
-      // Skip zero-cost receipts (cost pending — quantity received but not
-      // priced yet) and zero-balance receipts (already fully converted).
+      const balance = b.Balance ?? 0;
+      const balanceCents = Math.round(balance * 100);
+      // Skip zero-amount bills (data entry in progress / draft) and
+      // zero-balance bills (already fully paid — not really "unbilled"
+      // GRNI, would be a data-quality anomaly given DocNumber is blank).
       if (totalCents <= 0) continue;
-      if (r.Balance !== undefined && r.Balance !== null && r.Balance <= 0) {
-        continue;
-      }
-      receipts.push({
-        receipt_id: r.Id,
-        txn_date: r.TxnDate,
-        vendor_ref: r.VendorRef?.value ?? null,
-        vendor_display_name: r.VendorRef?.name ?? null,
-        clearing_account_ref: apAcct, // Actual AP account QBO booked the credit to
+      if (balanceCents <= 0) continue;
+      // Extract PO links for audit evidence — a real GRNI bill should
+      // have at least one LinkedTxn.TxnType === 'PurchaseOrder'. We
+      // don't reject bills without one (some bookkeepers create bare
+      // bills), but we surface the linkage in the payload.
+      const linkedPoIds =
+        b.LinkedTxn?.filter((lt) => lt.TxnType === "PurchaseOrder")
+          .map((lt) => lt.TxnId)
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
+          ?? [];
+      bills.push({
+        bill_id: b.Id,
+        txn_date: b.TxnDate,
+        vendor_ref: b.VendorRef?.value ?? null,
+        vendor_display_name: b.VendorRef?.name ?? null,
+        ap_account_ref: b.APAccountRef?.value ?? null,
         total_cents: totalCents,
         subtotal_cents: subtotalCents > 0 ? subtotalCents : totalCents,
-        doc_number: r.DocNumber ?? null,
+        balance_cents: balanceCents,
+        doc_number: b.DocNumber ?? null,
+        linked_po_ids: linkedPoIds,
       });
     }
     if (page.length < pageSize) break;
@@ -495,10 +529,10 @@ export async function fetchQboOpenItemReceipts(params: {
     if (startPos > 50000) break; // hard safety stop
   }
   // GRNI reports pre-tax — aggregate subtotal_cents.
-  const total = receipts.reduce((s, r) => s + r.subtotal_cents, 0);
+  const total = bills.reduce((s, b) => s + b.subtotal_cents, 0);
   return {
     as_of_date: asOfDate,
-    receipts,
+    bills,
     total_cents: total,
     raw_query_url: lastUrl,
     intuit_tid: lastTid,
