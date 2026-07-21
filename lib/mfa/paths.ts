@@ -28,6 +28,11 @@ export const MFA_EXEMPT_PREFIXES = [
   "/api/mfa/webauthn/authenticate/options",
   "/api/mfa/webauthn/authenticate/verify",
   "/api/mfa/factors/summary",
+  // Super-admin fixture-setup tools: resolveSuperAdminAccess already
+  // enforces email allowlist + super_admin role. Exempted because these
+  // tools must be reachable from server-to-server test contexts (AAL1
+  // Bearer sessions).
+  "/api/admin/qbo-inspector",
 ] as const;
 
 export function isMfaExemptPath(pathname: string): boolean {
