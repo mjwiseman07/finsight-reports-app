@@ -7,6 +7,8 @@ import {
   StyleSheet,
   renderToBuffer,
 } from "@react-pdf/renderer";
+import { createHash } from "node:crypto";
+import { PDFDocument, PDFHexString, PDFString } from "pdf-lib";
 
 const ACCENT = "#01696F";
 const MUTED = "#666";
@@ -223,5 +225,42 @@ export async function renderFaRollforwardPdf(
     </Document>
   );
   const buf = await renderToBuffer(doc);
-  return Buffer.from(buf);
+  // Post-process to eliminate wall-clock timestamps so identical input
+  // hashes to identical bytes across runs (audit-grade reproducibility).
+  // react-pdf embeds /CreationDate as an indirect string object plus a
+  // timestamp-derived trailer /ID. pdf-lib's setCreationDate replaces the
+  // Info dict entry with an inline epoch string but leaves the old indirect
+  // date object in the body and preserves the random /ID — both must be
+  // normalized explicitly for byte-stable output.
+  const doc2 = await PDFDocument.load(buf, { updateMetadata: false });
+  const epoch = new Date(0); // 1970-01-01T00:00:00Z
+  doc2.setCreationDate(epoch);
+  doc2.setModificationDate(epoch);
+  // Producer/Creator are already fixed strings from react-pdf; leave them.
+  for (const [ref, obj] of doc2.context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFString)) continue;
+    try {
+      obj.decodeDate();
+    } catch {
+      continue;
+    }
+    doc2.context.assign(ref, PDFString.fromDate(epoch));
+  }
+  // pdf-lib does not content-hash /ID on save — it keeps the loaded trailer
+  // ID. Two-pass: serialize with a fixed placeholder, then stamp an MD5 of
+  // that buffer as the permanent /ID and re-serialize.
+  const placeholder = PDFHexString.of("00000000000000000000000000000000");
+  doc2.context.trailerInfo.ID = doc2.context.obj([placeholder, placeholder]);
+  const pass1 = await doc2.save({
+    useObjectStreams: false,
+    addDefaultPage: false,
+  });
+  const idHex = createHash("md5").update(pass1).digest("hex");
+  const id = PDFHexString.of(idHex);
+  doc2.context.trailerInfo.ID = doc2.context.obj([id, id]);
+  const out = await doc2.save({
+    useObjectStreams: false,
+    addDefaultPage: false,
+  });
+  return Buffer.from(out);
 }
