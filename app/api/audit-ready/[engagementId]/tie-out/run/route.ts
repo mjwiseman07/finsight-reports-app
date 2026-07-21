@@ -9,6 +9,9 @@ type Body = {
   pbc_request_id: string;
   as_of_date: string;
   ar_account_id?: string;
+  ap_account_id?: string;
+  inventory_account_id?: string;
+  grni_clearing_account_id?: string;
 };
 
 export async function POST(
@@ -41,6 +44,9 @@ export async function POST(
     pbcRequestId: body.pbc_request_id,
     asOfDate: body.as_of_date,
     arAccountId: body.ar_account_id,
+    apAccountId: body.ap_account_id,
+    inventoryAccountId: body.inventory_account_id,
+    grniClearingAccountId: body.grni_clearing_account_id,
     triggeredByUserId: actor.userId,
     triggerReason: "manual",
   });

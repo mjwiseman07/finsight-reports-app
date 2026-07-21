@@ -1,6 +1,9 @@
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
 import { runArResolver } from "./ar-resolver";
+import { runApResolver } from "./ap-resolver";
+import { runInventoryResolver } from "./inventory-resolver";
+import { runGrniResolver } from "./grni-resolver";
 import type { PolicySnapshot } from "./policy";
 
 export type RunTieOutInput = {
@@ -8,6 +11,9 @@ export type RunTieOutInput = {
   pbcRequestId: string;
   asOfDate: string;
   arAccountId?: string;
+  apAccountId?: string;
+  inventoryAccountId?: string;
+  grniClearingAccountId?: string;
   triggeredByUserId: string;
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
 };
@@ -71,7 +77,11 @@ export async function runTieOut(
   }
   const { data: eng } = await supabase
     .from("audit_ready_engagements")
-    .select("id, company_id, firm_id, firm_client_id")
+    .select(
+      "id, company_id, firm_id, firm_client_id, " +
+        "ar_control_qbo_account_id, ap_control_qbo_account_id, " +
+        "inventory_control_qbo_account_id, grni_clearing_qbo_account_id",
+    )
     .eq("id", input.engagementId)
     .maybeSingle();
   if (!eng) {
@@ -159,9 +169,112 @@ export async function runTieOut(
             code: result.errorCode ?? "resolver_failed",
           };
     }
-    case "ap_aging":
-    case "inventory":
-    case "grni":
+    case "ap_aging": {
+      const apAccountId =
+        input.apAccountId ??
+        (eng.ap_control_qbo_account_id as string | null) ??
+        (pbc.source_account_hint as string) ??
+        null;
+      if (!apAccountId) {
+        return {
+          ok: false,
+          reason: "ap_account_id_required",
+          code: "ap_account_id_required",
+        };
+      }
+      const result = await runApResolver({
+        engagementId: input.engagementId,
+        pbcRequestId: input.pbcRequestId,
+        realmId: token.realmId,
+        accessToken: token.accessToken,
+        apAccountId,
+        asOfDate: input.asOfDate,
+        policy: policy as PolicySnapshot & { policy_mode: string },
+        triggeredByUserId: input.triggeredByUserId,
+        triggerReason: input.triggerReason,
+      });
+      return result.status === "completed"
+        ? {
+            ok: true,
+            kind: "ap_aging",
+            runId: result.runId,
+            totalsStatus: result.totalsStatus,
+            itemCount: result.itemCount,
+          }
+        : {
+            ok: false,
+            reason: result.errorMessage ?? "resolver_failed",
+            code: result.errorCode ?? "resolver_failed",
+          };
+    }
+    case "inventory": {
+      const inventoryAccountId =
+        input.inventoryAccountId ??
+        (eng.inventory_control_qbo_account_id as string | null) ??
+        (pbc.source_account_hint as string) ??
+        null;
+      if (!inventoryAccountId) {
+        return {
+          ok: false,
+          reason: "inventory_account_id_required",
+          code: "inventory_account_id_required",
+        };
+      }
+      const result = await runInventoryResolver({
+        engagementId: input.engagementId,
+        pbcRequestId: input.pbcRequestId,
+        realmId: token.realmId,
+        accessToken: token.accessToken,
+        inventoryAccountId,
+        asOfDate: input.asOfDate,
+        policy: policy as PolicySnapshot & { policy_mode: string },
+        triggeredByUserId: input.triggeredByUserId,
+        triggerReason: input.triggerReason,
+      });
+      return result.status === "completed"
+        ? {
+            ok: true,
+            kind: "inventory",
+            runId: result.runId,
+            totalsStatus: result.totalsStatus,
+            itemCount: result.itemCount,
+          }
+        : {
+            ok: false,
+            reason: result.errorMessage ?? "resolver_failed",
+            code: result.errorCode ?? "resolver_failed",
+          };
+    }
+    case "grni": {
+      // RA-tier: report-only. No clearing account required. The
+      // grni_clearing_qbo_account_id column stays on the engagement for
+      // a future RA Pro-tier reclass mechanism (Advisacor posts JEs to
+      // move unbilled Item Receipts from A/P to a dedicated GRNI account
+      // continuously via CDC cron). That is out of scope for this phase.
+      const result = await runGrniResolver({
+        engagementId: input.engagementId,
+        pbcRequestId: input.pbcRequestId,
+        realmId: token.realmId,
+        accessToken: token.accessToken,
+        asOfDate: input.asOfDate,
+        policy: policy as PolicySnapshot & { policy_mode: string },
+        triggeredByUserId: input.triggeredByUserId,
+        triggerReason: input.triggerReason,
+      });
+      return result.status === "completed"
+        ? {
+            ok: true,
+            kind: "grni",
+            runId: result.runId,
+            totalsStatus: result.totalsStatus,
+            itemCount: result.itemCount,
+          }
+        : {
+            ok: false,
+            reason: result.errorMessage ?? "resolver_failed",
+            code: result.errorCode ?? "resolver_failed",
+          };
+    }
     case "bank_recon":
     case "cash_recon":
     case "fixed_assets":
