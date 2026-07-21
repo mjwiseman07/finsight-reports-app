@@ -232,10 +232,19 @@ export async function POST(request: Request) {
   // Step 4: Build the PATCH body.
   const taxAmount = tax_amount_cents / 100;
   const netTaxable = prevTotalCents / 100; // treat the previous total as net-taxable base
-  const patchBody = {
+  const vendorRef = bill.VendorRef as { value?: string; name?: string } | undefined;
+  const currencyRef = bill.CurrencyRef as { value?: string; name?: string } | undefined;
+  if (!vendorRef?.value) {
+    return NextResponse.json(
+      { error: "bill_missing_vendor_ref", bill_id },
+      { status: 500 },
+    );
+  }
+  const patchBody: Record<string, unknown> = {
     Id: bill_id,
     SyncToken: syncToken,
     sparse: true,
+    VendorRef: vendorRef,
     Line: existingLines,
     TxnTaxDetail: {
       TotalTax: taxAmount,
@@ -252,6 +261,7 @@ export async function POST(request: Request) {
         },
       ],
     },
+    ...(currencyRef?.value ? { CurrencyRef: currencyRef } : {}),
   };
 
   if (dry_run) {
