@@ -27,6 +27,10 @@ interface Body {
   bill_id?: string;
   tax_amount_cents?: number;
   dry_run?: boolean;
+  // "full" (default) includes TaxLine[]; "totaltax_only" writes just
+  // TxnTaxDetail.TotalTax. US QBO sandboxes need "totaltax_only" because
+  // Automated Sales Tax doesn't expose purchase-side tax codes.
+  tax_line_mode?: "full" | "totaltax_only";
 }
 
 interface QboFaultError {
@@ -69,6 +73,8 @@ export async function POST(request: Request) {
 
   const { firm_client_id, bill_id, tax_amount_cents } = body;
   const dry_run = Boolean(body.dry_run);
+  const tax_line_mode: "full" | "totaltax_only" =
+    body.tax_line_mode === "totaltax_only" ? "totaltax_only" : "full";
 
   if (!firm_client_id || typeof firm_client_id !== "string") {
     return NextResponse.json(
@@ -132,102 +138,111 @@ export async function POST(request: Request) {
   const prevTotalTaxCents = Math.round(Number(prevTxnTax?.TotalTax ?? 0) * 100);
   const prevTotalCents = Math.round(prevTotalAmt * 100);
 
-  // Step 2: Discover a usable TaxCode with a Sales rate > 0.
-  const taxCodeQuery =
-    `SELECT * FROM TaxCode WHERE Active = true STARTPOSITION 1 MAXRESULTS 100`;
-  const taxCodeUrl =
-    `${qboBaseUrl()}/v3/company/${encodeURIComponent(realmId)}/query` +
-    `?query=${encodeURIComponent(taxCodeQuery)}&minorversion=65`;
-  const tcRes = await qboApiFetch(taxCodeUrl, { accessToken, method: "GET" });
-  if (!tcRes.ok) {
-    return NextResponse.json(
-      {
-        error: "taxcode_query_failed",
-        status: tcRes.status,
-        intuit_tid: tcRes.intuit_tid,
-        fault: faultBody(tcRes.json),
-      },
-      { status: 500 },
-    );
-  }
+  // Step 2 (conditional): Discover a usable TaxCode + TaxRate.
+  // Skipped in totaltax_only mode — US sandboxes don't have purchase-side
+  // tax codes, and the resolver reads TxnTaxDetail.TotalTax directly.
+  let picked: { code: {
+    Id?: string; Name?: string; Active?: boolean; Taxable?: boolean;
+    SalesTaxRateList?: { TaxRateDetail?: { TaxRateRef?: { value?: string } }[] };
+  }; rateRefId: string } | null = null;
+  let ratePercent = 0;
+  if (tax_line_mode === "full") {
+    const taxCodeQuery =
+      `SELECT * FROM TaxCode WHERE Active = true STARTPOSITION 1 MAXRESULTS 100`;
+    const taxCodeUrl =
+      `${qboBaseUrl()}/v3/company/${encodeURIComponent(realmId)}/query` +
+      `?query=${encodeURIComponent(taxCodeQuery)}&minorversion=65`;
+    const tcRes = await qboApiFetch(taxCodeUrl, { accessToken, method: "GET" });
+    if (!tcRes.ok) {
+      return NextResponse.json(
+        {
+          error: "taxcode_query_failed",
+          status: tcRes.status,
+          intuit_tid: tcRes.intuit_tid,
+          fault: faultBody(tcRes.json),
+        },
+        { status: 500 },
+      );
+    }
 
-  interface TaxRateRef {
-    value?: string;
-  }
-  interface TaxRateDetail {
-    TaxRateRef?: TaxRateRef;
-    TaxTypeApplicable?: string;
-    TaxOrder?: number;
-  }
-  interface TaxCode {
-    Id?: string;
-    Name?: string;
-    Active?: boolean;
-    Taxable?: boolean;
-    SalesTaxRateList?: { TaxRateDetail?: TaxRateDetail[] };
-  }
+    interface TaxRateRef {
+      value?: string;
+    }
+    interface TaxRateDetail {
+      TaxRateRef?: TaxRateRef;
+      TaxTypeApplicable?: string;
+      TaxOrder?: number;
+    }
+    interface TaxCode {
+      Id?: string;
+      Name?: string;
+      Active?: boolean;
+      Taxable?: boolean;
+      SalesTaxRateList?: { TaxRateDetail?: TaxRateDetail[] };
+    }
 
-  const taxCodes: TaxCode[] =
-    (tcRes.json as { QueryResponse?: { TaxCode?: TaxCode[] } })
-      ?.QueryResponse?.TaxCode ?? [];
+    const taxCodes: TaxCode[] =
+      (tcRes.json as { QueryResponse?: { TaxCode?: TaxCode[] } })
+        ?.QueryResponse?.TaxCode ?? [];
 
-  // Preferred: any code named "State Sales Tax" (Automated Sales Tax
-  // sandbox default). Fallback: any active taxable code with a sales rate.
-  const pickCode = (): { code: TaxCode; rateRefId: string } | null => {
-    const withSalesRate = taxCodes.filter((c) => {
-      if (!c.Active) return false;
-      const detail = c.SalesTaxRateList?.TaxRateDetail?.[0];
-      return Boolean(detail?.TaxRateRef?.value);
-    });
-    const preferred = withSalesRate.find((c) =>
-      /state sales tax/i.test(c.Name ?? ""),
-    );
-    const chosen = preferred ?? withSalesRate[0];
-    if (!chosen) return null;
-    const rateRefId =
-      chosen.SalesTaxRateList?.TaxRateDetail?.[0]?.TaxRateRef?.value;
-    if (!rateRefId) return null;
-    return { code: chosen, rateRefId };
-  };
+    // Preferred: any code named "State Sales Tax" (Automated Sales Tax
+    // sandbox default). Fallback: any active taxable code with a sales rate.
+    const pickCode = (): { code: TaxCode; rateRefId: string } | null => {
+      const withSalesRate = taxCodes.filter((c) => {
+        if (!c.Active) return false;
+        const detail = c.SalesTaxRateList?.TaxRateDetail?.[0];
+        return Boolean(detail?.TaxRateRef?.value);
+      });
+      const preferred = withSalesRate.find((c) =>
+        /state sales tax/i.test(c.Name ?? ""),
+      );
+      const chosen = preferred ?? withSalesRate[0];
+      if (!chosen) return null;
+      const rateRefId =
+        chosen.SalesTaxRateList?.TaxRateDetail?.[0]?.TaxRateRef?.value;
+      if (!rateRefId) return null;
+      return { code: chosen, rateRefId };
+    };
 
-  const picked = pickCode();
-  if (!picked) {
-    return NextResponse.json(
-      {
-        error: "no_usable_tax_code",
-        detail: "No active TaxCode with a sales rate reference was found.",
-        seen: taxCodes.map((c) => ({
-          id: c.Id,
-          name: c.Name,
-          active: c.Active,
-          has_sales_rate: Boolean(
-            c.SalesTaxRateList?.TaxRateDetail?.[0]?.TaxRateRef?.value,
-          ),
-        })),
-      },
-      { status: 400 },
-    );
+    picked = pickCode();
+    if (!picked) {
+      return NextResponse.json(
+        {
+          error: "no_usable_tax_code",
+          detail: "No active TaxCode with a sales rate reference was found.",
+          seen: taxCodes.map((c) => ({
+            id: c.Id,
+            name: c.Name,
+            active: c.Active,
+            has_sales_rate: Boolean(
+              c.SalesTaxRateList?.TaxRateDetail?.[0]?.TaxRateRef?.value,
+            ),
+          })),
+        },
+        { status: 400 },
+      );
+    }
+
+    // Step 3: Look up the rate percent for the chosen TaxRateRef.
+    const rateUrl =
+      `${qboBaseUrl()}/v3/company/${encodeURIComponent(realmId)}` +
+      `/taxrate/${encodeURIComponent(picked.rateRefId)}?minorversion=65`;
+    const rateRes = await qboApiFetch(rateUrl, { accessToken, method: "GET" });
+    if (!rateRes.ok) {
+      return NextResponse.json(
+        {
+          error: "taxrate_get_failed",
+          status: rateRes.status,
+          intuit_tid: rateRes.intuit_tid,
+          fault: faultBody(rateRes.json),
+        },
+        { status: 500 },
+      );
+    }
+    const taxRate =
+      (rateRes.json as { TaxRate?: { RateValue?: number } })?.TaxRate;
+    ratePercent = Number(taxRate?.RateValue ?? 0);
   }
-
-  // Step 3: Look up the rate percent for the chosen TaxRateRef.
-  const rateUrl =
-    `${qboBaseUrl()}/v3/company/${encodeURIComponent(realmId)}` +
-    `/taxrate/${encodeURIComponent(picked.rateRefId)}?minorversion=65`;
-  const rateRes = await qboApiFetch(rateUrl, { accessToken, method: "GET" });
-  if (!rateRes.ok) {
-    return NextResponse.json(
-      {
-        error: "taxrate_get_failed",
-        status: rateRes.status,
-        intuit_tid: rateRes.intuit_tid,
-        fault: faultBody(rateRes.json),
-      },
-      { status: 500 },
-    );
-  }
-  const taxRate =
-    (rateRes.json as { TaxRate?: { RateValue?: number } })?.TaxRate;
-  const ratePercent = Number(taxRate?.RateValue ?? 0);
 
   // Step 4: Build the PATCH body.
   const taxAmount = tax_amount_cents / 100;
@@ -240,27 +255,31 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+  const txnTaxDetail: Record<string, unknown> =
+    tax_line_mode === "full" && picked
+      ? {
+          TotalTax: taxAmount,
+          TaxLine: [
+            {
+              Amount: taxAmount,
+              DetailType: "TaxLineDetail",
+              TaxLineDetail: {
+                TaxRateRef: { value: picked.rateRefId },
+                PercentBased: true,
+                TaxPercent: ratePercent,
+                NetAmountTaxable: netTaxable,
+              },
+            },
+          ],
+        }
+      : { TotalTax: taxAmount };
   const patchBody: Record<string, unknown> = {
     Id: bill_id,
     SyncToken: syncToken,
     sparse: true,
     VendorRef: vendorRef,
     Line: existingLines,
-    TxnTaxDetail: {
-      TotalTax: taxAmount,
-      TaxLine: [
-        {
-          Amount: taxAmount,
-          DetailType: "TaxLineDetail",
-          TaxLineDetail: {
-            TaxRateRef: { value: picked.rateRefId },
-            PercentBased: true,
-            TaxPercent: ratePercent,
-            NetAmountTaxable: netTaxable,
-          },
-        },
-      ],
-    },
+    TxnTaxDetail: txnTaxDetail,
     ...(currencyRef?.value ? { CurrencyRef: currencyRef } : {}),
   };
 
@@ -271,14 +290,17 @@ export async function POST(request: Request) {
       bill_id,
       prev_total_cents: prevTotalCents,
       prev_total_tax_cents: prevTotalTaxCents,
-      tax_code_used: {
-        id: picked.code.Id ?? null,
-        name: picked.code.Name ?? null,
-        rate_percent: ratePercent,
-        tax_rate_ref_id: picked.rateRefId,
-      },
+      tax_code_used: picked
+        ? {
+            id: picked.code.Id ?? null,
+            name: picked.code.Name ?? null,
+            rate_percent: ratePercent,
+            tax_rate_ref_id: picked.rateRefId,
+          }
+        : null,
+      tax_line_mode,
       preview: patchBody,
-      intuit_tid: rateRes.intuit_tid,
+      intuit_tid: billRes.intuit_tid,
     });
   }
 
@@ -319,12 +341,15 @@ export async function POST(request: Request) {
     prev_total_tax_cents: prevTotalTaxCents,
     new_total_cents: Math.round(newTotalAmt * 100),
     new_total_tax_cents: newTotalTaxCents,
-    tax_code_used: {
-      id: picked.code.Id ?? null,
-      name: picked.code.Name ?? null,
-      rate_percent: ratePercent,
-      tax_rate_ref_id: picked.rateRefId,
-    },
+    tax_code_used: picked
+      ? {
+          id: picked.code.Id ?? null,
+          name: picked.code.Name ?? null,
+          rate_percent: ratePercent,
+          tax_rate_ref_id: picked.rateRefId,
+        }
+      : null,
+    tax_line_mode,
     intuit_tid: updRes.intuit_tid,
   });
 }
