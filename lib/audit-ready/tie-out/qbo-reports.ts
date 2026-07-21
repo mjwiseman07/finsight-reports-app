@@ -394,10 +394,11 @@ export async function fetchQboInventoryValuationDetail(params: {
 //   3. Vendor invoice arrives → bookkeeper re-opens the bill, fills in
 //      DocNumber (the vendor's actual invoice number), saves.
 //
-// So the RA-tier report queries `Bill WHERE (DocNumber IS NULL OR DocNumber
-// = '') AND Balance > 0 AND TxnDate <= asOfDate`. No dedicated QBO report;
-// no clearing-account filter; pre-tax subtotals preferred (Bill.TotalAmt
-// minus TxnTaxDetail.TotalTax).
+// So the RA-tier report queries Bill by TxnDate <= asOfDate, then filters
+// client-side for blank DocNumber + Balance > 0 (QBO query language does
+// not support DocNumber IS NULL / parenthesized OR). No dedicated QBO
+// report; no clearing-account filter; pre-tax subtotals preferred when
+// TxnTaxDetail is present on the entity payload.
 //
 // RA Pro-tier reclass (Provisional #7 candidate) will additionally post
 // JEs to move these balances from A/P to a dedicated GRNI clearing
@@ -426,17 +427,19 @@ export type QboUnbilledBillsQueryResult = {
 /**
  * Query open unbilled Bills as-of a date. RA-tier GRNI report.
  *
- * Query strategy: `SELECT ... FROM Bill WHERE (DocNumber IS NULL OR DocNumber
- * = '') AND TxnDate <= '<asOfDate>'`. Client-side filter: `Balance > 0` and
- * `TotalAmt > 0` (safer than SQL Balance filter across realms). Pagination
- * via STARTPOSITION until <1000 rows returned.
+ * Query strategy: `SELECT ... FROM Bill WHERE TxnDate <= '<asOfDate>'`, then
+ * client-side filter for blank DocNumber + Balance > 0 + TotalAmt > 0.
  *
- * Explicit column list rather than SELECT * — SELECT * on Bill is unreliable
- * across QBO sandbox realms. LinkedTxn is included so we can surface which
- * POs the unbilled bill is receiving against (audit evidence).
+ * QBO Online query-language adaptations (probed against sandbox 9341457151063823):
+ * - `DocNumber IS NULL` / parenthesized OR → QueryParserError 4000
+ * - `DocNumber = ''` parses but matches zero rows (blank DocNumber is omitted,
+ *   not empty string)
+ * - `LinkedTxn` / `TxnTaxDetail` are not selectable on Bill query (4001
+ *   Property not found). When present on a full Bill entity they are still
+ *   parsed; otherwise linked_po_ids=[] and subtotal falls back to TotalAmt.
  *
- * Retains 3.1's Fault surfacing on 4xx and 3.2's pre-tax subtotal + zero-
- * amount/zero-balance client-side filters.
+ * Pagination via STARTPOSITION until <1000 rows returned. Retains 3.1 Fault
+ * surfacing on 4xx and 3.2 pre-tax / zero-amount / zero-balance filters.
  */
 export async function fetchQboOpenUnbilledBills(params: {
   realmId: string;
@@ -450,16 +453,14 @@ export async function fetchQboOpenUnbilledBills(params: {
   let lastUrl = "";
   let lastTid: string | null = null;
   while (true) {
-    // NOTE on the WHERE clause: QBO's query language accepts
-    // `DocNumber IS NULL` — QBO Online returns Bill rows without the
-    // DocNumber field when it is null. We also OR against empty string
-    // because some minorversions serialise a blank DocNumber as "".
+    // Explicit columns that Bill query accepts. Do NOT SELECT LinkedTxn or
+    // TxnTaxDetail — QBO returns QueryValidationError 4001 for both.
+    // Blank DocNumber is filtered client-side (IS NULL / OR '' not supported).
     const q =
       `SELECT Id, TxnDate, DocNumber, TotalAmt, Balance, VendorRef, ` +
-      `APAccountRef, LinkedTxn, TxnTaxDetail ` +
+      `APAccountRef ` +
       `FROM Bill ` +
       `WHERE TxnDate <= '${asOfDate}' ` +
-      `AND (DocNumber IS NULL OR DocNumber = '') ` +
       `STARTPOSITION ${startPos} MAXRESULTS ${pageSize}`;
     const url =
       `${qboBaseUrl()}/v3/company/${encodeURIComponent(realmId)}/query` +
@@ -491,6 +492,13 @@ export async function fetchQboOpenUnbilledBills(params: {
       LinkedTxn?: Array<{ TxnId?: string; TxnType?: string }>;
     }>;
     for (const b of page) {
+      // GRNI convention: Bill no. (DocNumber) left blank. QBO omits the field
+      // when null — treat missing / whitespace-only as unbilled.
+      const doc = b.DocNumber;
+      const docBlank =
+        doc === undefined || doc === null || String(doc).trim() === "";
+      if (!docBlank) continue;
+
       const totalAmt = b.TotalAmt ?? 0;
       const totalCents = Math.round(totalAmt * 100);
       const taxAmt = b.TxnTaxDetail?.TotalTax ?? 0;
@@ -502,10 +510,8 @@ export async function fetchQboOpenUnbilledBills(params: {
       // GRNI, would be a data-quality anomaly given DocNumber is blank).
       if (totalCents <= 0) continue;
       if (balanceCents <= 0) continue;
-      // Extract PO links for audit evidence — a real GRNI bill should
-      // have at least one LinkedTxn.TxnType === 'PurchaseOrder'. We
-      // don't reject bills without one (some bookkeepers create bare
-      // bills), but we surface the linkage in the payload.
+      // Extract PO links for audit evidence when LinkedTxn is present on the
+      // entity payload (not returned by Bill query; reserved for enrichment).
       const linkedPoIds =
         b.LinkedTxn?.filter((lt) => lt.TxnType === "PurchaseOrder")
           .map((lt) => lt.TxnId)
