@@ -617,3 +617,293 @@ export async function fetchQboOpenUnbilledBills(params: {
     intuit_tid: lastTid,
   };
 }
+
+// ─────────────────────────────────────────────────────────────
+// PBC-TIEOUT-4B.1: CompanyInfo, Account list, GL Detail
+// ─────────────────────────────────────────────────────────────
+
+export type QboCompanyInfo = {
+  companyName: string;
+  fiscalYearStartMonth: number; // 1-12
+  legalName: string | null;
+};
+
+export async function fetchQboCompanyInfo(params: {
+  realmId: string;
+  accessToken: string;
+}): Promise<QboCompanyInfo> {
+  const url =
+    `${qboBaseUrl()}/v3/company/${params.realmId}/companyinfo/${params.realmId}` +
+    `?minorversion=75`;
+  const res = await qboApiFetch(url, {
+    accessToken: params.accessToken,
+    method: "GET",
+  });
+  if (!res.ok) {
+    throw new Error(
+      `fetchQboCompanyInfo failed: ${res.status} ${res.text}`,
+    );
+  }
+  const json = res.json as {
+    CompanyInfo?: {
+      CompanyName?: string;
+      LegalName?: string;
+      FiscalYearStartMonth?: string;
+    };
+  };
+  const monthName = json.CompanyInfo?.FiscalYearStartMonth || "January";
+  const monthIdx =
+    [
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december",
+    ].indexOf(monthName.toLowerCase()) + 1;
+  return {
+    companyName: json.CompanyInfo?.CompanyName || "",
+    legalName: json.CompanyInfo?.LegalName || null,
+    fiscalYearStartMonth: monthIdx > 0 ? monthIdx : 1,
+  };
+}
+
+export type QboAccountListEntry = {
+  id: string;
+  name: string;
+  fullyQualifiedName: string;
+  accountType: string;
+  accountSubType: string | null;
+  classification: string; // Asset | Liability | Equity | Revenue | Expense
+  currentBalance: number | null;
+  active: boolean;
+};
+
+const BS_ACCOUNT_TYPES = new Set([
+  "Bank",
+  "AccountsReceivable",
+  "OtherCurrentAsset",
+  "FixedAsset",
+  "OtherAsset",
+  "AccountsPayable",
+  "CreditCard",
+  "OtherCurrentLiability",
+  "LongTermLiability",
+  "Equity",
+]);
+
+export async function fetchQboAccountList(params: {
+  realmId: string;
+  accessToken: string;
+}): Promise<QboAccountListEntry[]> {
+  const query =
+    "SELECT Id, Name, FullyQualifiedName, AccountType, AccountSubType, Classification, CurrentBalance, Active FROM Account WHERE Active = true STARTPOSITION 1 MAXRESULTS 1000";
+  const url =
+    `${qboBaseUrl()}/v3/company/${params.realmId}/query` +
+    `?query=${encodeURIComponent(query)}&minorversion=75`;
+  const res = await qboApiFetch(url, {
+    accessToken: params.accessToken,
+    method: "GET",
+  });
+  if (!res.ok) {
+    throw new Error(
+      `fetchQboAccountList failed: ${res.status} ${res.text}`,
+    );
+  }
+  const json = res.json as {
+    QueryResponse?: {
+      Account?: Array<{
+        Id: string;
+        Name: string;
+        FullyQualifiedName: string;
+        AccountType: string;
+        AccountSubType?: string;
+        Classification?: string;
+        CurrentBalance?: number;
+        Active?: boolean;
+      }>;
+    };
+  };
+  const rows = json.QueryResponse?.Account ?? [];
+  return rows
+    .filter((r) => BS_ACCOUNT_TYPES.has(r.AccountType))
+    .map((r) => ({
+      id: r.Id,
+      name: r.Name,
+      fullyQualifiedName: r.FullyQualifiedName,
+      accountType: r.AccountType,
+      accountSubType: r.AccountSubType ?? null,
+      classification: r.Classification ?? "",
+      currentBalance: r.CurrentBalance ?? null,
+      active: r.Active !== false,
+    }));
+}
+
+export type QboGlActivityRow = {
+  txnDate: string | null; // yyyy-mm-dd
+  txnType: string | null;
+  docNumber: string | null;
+  name: string | null;
+  memo: string | null;
+  splitAccount: string | null;
+  debitCents: number;
+  creditCents: number;
+  netCents: number; // signed = debit - credit
+  runningBalanceCents: number; // as reported by QBO (Native)
+  txnRef: string | null;
+};
+
+export type QboGlDetailResult = {
+  beginningBalanceCents: number;
+  endingBalanceCents: number;
+  activity: QboGlActivityRow[];
+  reportUrl: string;
+  intuitTid: string | null;
+};
+
+/**
+ * Fetch QBO GeneralLedger report for a single account over a date range.
+ * Returns beginning balance, all activity rows, and ending balance (all in cents).
+ */
+export async function fetchQboGeneralLedgerDetail(params: {
+  realmId: string;
+  accessToken: string;
+  accountId: string;
+  startDate: string; // yyyy-mm-dd
+  endDate: string; // yyyy-mm-dd
+}): Promise<QboGlDetailResult> {
+  const columns = [
+    "tx_date",
+    "txn_type",
+    "doc_num",
+    "name",
+    "memo",
+    "split_acc",
+    "debt_amt",
+    "credt_amt",
+    "rbal_nat_bal",
+  ].join(",");
+  const url =
+    `${qboBaseUrl()}/v3/company/${params.realmId}/reports/GeneralLedger` +
+    `?account=${params.accountId}` +
+    `&start_date=${params.startDate}` +
+    `&end_date=${params.endDate}` +
+    `&date_macro=Custom` +
+    `&columns=${columns}` +
+    `&minorversion=75`;
+  const res = await qboApiFetch(url, {
+    accessToken: params.accessToken,
+    method: "GET",
+  });
+  if (!res.ok) {
+    throw new Error(
+      `fetchQboGeneralLedgerDetail failed: ${res.status} ${res.text}`,
+    );
+  }
+  const intuitTid = res.intuit_tid ?? null;
+  const json = res.json as {
+    Rows?: { Row?: unknown[] };
+    Columns?: { Column?: Array<{ ColTitle: string }> };
+  };
+  // QBO GL report structure: each account has a Section containing:
+  //   - a "Beginning Balance" data row
+  //   - one or more transaction data rows
+  //   - a Summary row with the ending balance
+  const cols = json.Columns?.Column ?? [];
+  const colIdx = (title: string) =>
+    cols.findIndex((c) => c.ColTitle?.toLowerCase() === title.toLowerCase());
+  const iDate = colIdx("Date");
+  const iType = colIdx("Transaction Type");
+  const iDoc = colIdx("Num");
+  const iName = colIdx("Name");
+  const iMemo = colIdx("Memo/Description");
+  const iSplit = colIdx("Split");
+  const iDebit = colIdx("Debit");
+  const iCredit = colIdx("Credit");
+  const iBalance = colIdx("Balance");
+  const activity: QboGlActivityRow[] = [];
+  let beginningBalanceCents = 0;
+  let endingBalanceCents = 0;
+  const toCents = (v: unknown): number => {
+    if (v === null || v === undefined || v === "") return 0;
+    const n = parseFloat(String(v).replace(/,/g, ""));
+    if (!Number.isFinite(n)) return 0;
+    return Math.round(n * 100);
+  };
+  const getCol = (
+    row: { ColData?: Array<{ value?: string; id?: string }> },
+    i: number,
+  ) =>
+    i >= 0 && row.ColData && row.ColData[i]
+      ? row.ColData[i]
+      : { value: "", id: "" };
+  type QboRow = {
+    type?: string;
+    group?: string;
+    ColData?: Array<{ value?: string; id?: string }>;
+    Header?: { ColData?: Array<{ value?: string }> };
+    Summary?: { ColData?: Array<{ value?: string }> };
+    Rows?: { Row?: QboRow[] };
+  };
+  const walk = (node: QboRow | undefined) => {
+    if (!node) return;
+    if (node.type === "Data" && node.ColData) {
+      const dateCell = getCol(node, iDate).value || "";
+      const typeCell = getCol(node, iType).value || "";
+      const isBeginning =
+        /beginning balance/i.test(typeCell) ||
+        /beginning balance/i.test(dateCell);
+      const isTotal =
+        /total for/i.test(typeCell) || /total for/i.test(dateCell);
+      if (isBeginning) {
+        beginningBalanceCents = toCents(getCol(node, iBalance).value);
+        return;
+      }
+      if (isTotal) return;
+      const debit = toCents(getCol(node, iDebit).value);
+      const credit = toCents(getCol(node, iCredit).value);
+      const balance = toCents(getCol(node, iBalance).value);
+      const txnRef = getCol(node, iType).id || null;
+      activity.push({
+        txnDate: /^\d{4}-\d{2}-\d{2}$/.test(dateCell) ? dateCell : null,
+        txnType: typeCell || null,
+        docNumber: getCol(node, iDoc).value || null,
+        name: getCol(node, iName).value || null,
+        memo: getCol(node, iMemo).value || null,
+        splitAccount: getCol(node, iSplit).value || null,
+        debitCents: debit,
+        creditCents: credit,
+        netCents: debit - credit,
+        runningBalanceCents: balance,
+        txnRef,
+      });
+    }
+    if (node.Summary?.ColData && node.type === "Section") {
+      const bal = toCents(node.Summary.ColData[iBalance]?.value ?? "");
+      if (bal !== 0 || endingBalanceCents === 0) {
+        endingBalanceCents = bal;
+      }
+    }
+    node.Rows?.Row?.forEach(walk);
+  };
+  (json.Rows?.Row as QboRow[] | undefined)?.forEach(walk);
+  // Fallback: if section summary wasn't found, ending = beginning + sum(activity)
+  if (endingBalanceCents === 0 && activity.length > 0) {
+    endingBalanceCents =
+      beginningBalanceCents +
+      activity.reduce((s, r) => s + r.netCents, 0);
+  }
+  return {
+    beginningBalanceCents,
+    endingBalanceCents,
+    activity,
+    reportUrl: url,
+    intuitTid,
+  };
+}

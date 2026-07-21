@@ -4,6 +4,7 @@ import { runArResolver } from "./ar-resolver";
 import { runApResolver } from "./ap-resolver";
 import { runInventoryResolver } from "./inventory-resolver";
 import { runGrniResolver } from "./grni-resolver";
+import { runBsAccountResolver } from "./bs-account-resolver";
 import type { PolicySnapshot } from "./policy";
 
 export type RunTieOutInput = {
@@ -14,6 +15,8 @@ export type RunTieOutInput = {
   apAccountId?: string;
   inventoryAccountId?: string;
   grniClearingAccountId?: string;
+  bsAccountId?: string; // PBC-TIEOUT-4B.1
+  activityStartDate?: string; // PBC-TIEOUT-4B.1
   triggeredByUserId: string;
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
 };
@@ -159,6 +162,42 @@ export async function runTieOut(
         ? {
             ok: true,
             kind: "ar_aging",
+            runId: result.runId,
+            totalsStatus: result.totalsStatus,
+            itemCount: result.itemCount,
+          }
+        : {
+            ok: false,
+            reason: result.errorMessage ?? "resolver_failed",
+            code: result.errorCode ?? "resolver_failed",
+          };
+    }
+    case "bs_account_recon": {
+      const bsAccountId =
+        input.bsAccountId ?? (pbc.source_account_hint as string) ?? null;
+      if (!bsAccountId) {
+        return {
+          ok: false,
+          reason: "bs_account_id_required",
+          code: "bs_account_id_required",
+        };
+      }
+      const result = await runBsAccountResolver({
+        engagementId: input.engagementId,
+        pbcRequestId: input.pbcRequestId,
+        realmId: token.realmId,
+        accessToken: token.accessToken,
+        bsAccountId,
+        asOfDate: input.asOfDate,
+        activityStartDate: input.activityStartDate,
+        policy: policy as PolicySnapshot & { policy_mode: string },
+        triggeredByUserId: input.triggeredByUserId,
+        triggerReason: input.triggerReason,
+      });
+      return result.status === "completed"
+        ? {
+            ok: true,
+            kind: "bs_account_recon",
             runId: result.runId,
             totalsStatus: result.totalsStatus,
             itemCount: result.itemCount,

@@ -12,6 +12,8 @@ type Body = {
   ap_account_id?: string;
   inventory_account_id?: string;
   grni_clearing_account_id?: string;
+  bs_account_id?: string;
+  activity_start_date?: string;
 };
 
 export async function POST(
@@ -39,6 +41,15 @@ export async function POST(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(body.as_of_date)) {
     return NextResponse.json({ error: "as_of_date_format" }, { status: 400 });
   }
+  if (
+    body.activity_start_date &&
+    !/^\d{4}-\d{2}-\d{2}$/.test(body.activity_start_date)
+  ) {
+    return NextResponse.json(
+      { error: "activity_start_date_format" },
+      { status: 400 },
+    );
+  }
   const outcome = await runTieOut({
     engagementId,
     pbcRequestId: body.pbc_request_id,
@@ -47,6 +58,8 @@ export async function POST(
     apAccountId: body.ap_account_id,
     inventoryAccountId: body.inventory_account_id,
     grniClearingAccountId: body.grni_clearing_account_id,
+    bsAccountId: body.bs_account_id,
+    activityStartDate: body.activity_start_date,
     triggeredByUserId: actor.userId,
     triggerReason: "manual",
   });
