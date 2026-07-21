@@ -683,6 +683,16 @@ export type QboAccountListEntry = {
   classification: string; // Asset | Liability | Equity | Revenue | Expense
   currentBalance: number | null;
   active: boolean;
+  /** True when QBO SubAccount flag is set (has a ParentRef). */
+  isSubAccount: boolean;
+  /** Parent account Id when this is a sub-account; otherwise null. */
+  parentAccountId: string | null;
+  /**
+   * True when at least one other active BS account lists this Id as
+   * ParentRef. Rollup parents' GL balances already include children —
+   * FA roll-forward must skip them to avoid double-counting.
+   */
+  isRollupParent: boolean;
 };
 
 /**
@@ -740,7 +750,7 @@ export async function fetchQboAccountList(params: {
   accessToken: string;
 }): Promise<QboAccountListEntry[]> {
   const query =
-    "SELECT Id, Name, FullyQualifiedName, AccountType, AccountSubType, Classification, CurrentBalance, Active FROM Account WHERE Active = true STARTPOSITION 1 MAXRESULTS 1000";
+    "SELECT Id, Name, FullyQualifiedName, AccountType, AccountSubType, Classification, CurrentBalance, Active, SubAccount, ParentRef FROM Account WHERE Active = true STARTPOSITION 1 MAXRESULTS 1000";
   const url =
     `${qboBaseUrl()}/v3/company/${params.realmId}/query` +
     `?query=${encodeURIComponent(query)}&minorversion=75`;
@@ -764,22 +774,39 @@ export async function fetchQboAccountList(params: {
         Classification?: string;
         CurrentBalance?: number;
         Active?: boolean;
+        SubAccount?: boolean;
+        ParentRef?: { value?: string; name?: string };
       }>;
     };
   };
   const rows = json.QueryResponse?.Account ?? [];
-  return rows
+  const mapped = rows
     .filter((r) => BS_ACCOUNT_TYPES.has(r.AccountType))
-    .map((r) => ({
-      id: r.Id,
-      name: r.Name,
-      fullyQualifiedName: r.FullyQualifiedName,
-      accountType: r.AccountType,
-      accountSubType: r.AccountSubType ?? null,
-      classification: r.Classification ?? "",
-      currentBalance: r.CurrentBalance ?? null,
-      active: r.Active !== false,
-    }));
+    .map((r) => {
+      const parentAccountId = r.ParentRef?.value ?? null;
+      const isSubAccount = r.SubAccount === true || parentAccountId != null;
+      return {
+        id: r.Id,
+        name: r.Name,
+        fullyQualifiedName: r.FullyQualifiedName,
+        accountType: r.AccountType,
+        accountSubType: r.AccountSubType ?? null,
+        classification: r.Classification ?? "",
+        currentBalance: r.CurrentBalance ?? null,
+        active: r.Active !== false,
+        isSubAccount,
+        parentAccountId,
+        isRollupParent: false,
+      };
+    });
+  const rollupParentIds = new Set<string>();
+  for (const a of mapped) {
+    if (a.parentAccountId) rollupParentIds.add(a.parentAccountId);
+  }
+  return mapped.map((a) => ({
+    ...a,
+    isRollupParent: rollupParentIds.has(a.id),
+  }));
 }
 
 export type QboGlActivityRow = {

@@ -141,13 +141,15 @@ export async function runFaRollforwardResolver(
       realmId: input.realmId,
       accessToken: input.accessToken,
     });
+    // Skip rollup parents — their GL already includes sub-account activity.
     const faCostAccounts = accounts.filter(
       (a) =>
         isFaCostAccountType(a.accountType) &&
-        !isFaAccumDeprSubType(a.accountSubType),
+        !isFaAccumDeprSubType(a.accountSubType) &&
+        !a.isRollupParent,
     );
-    const faAccumAccounts = accounts.filter((a) =>
-      isFaAccumDeprSubType(a.accountSubType),
+    const faAccumAccounts = accounts.filter(
+      (a) => isFaAccumDeprSubType(a.accountSubType) && !a.isRollupParent,
     );
     if (faCostAccounts.length === 0) {
       throw new Error("no_fixed_asset_accounts");
