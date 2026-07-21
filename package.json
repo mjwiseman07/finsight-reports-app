@@ -150,6 +150,7 @@
     "node-quickbooks": "^2.0.50",
     "otplib": "^13.4.1",
     "papaparse": "^5.5.3",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
     "puppeteer-core": "^25.3.0",
     "qrcode": "^1.5.4",

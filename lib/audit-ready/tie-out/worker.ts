@@ -5,6 +5,8 @@ import { runApResolver } from "./ap-resolver";
 import { runInventoryResolver } from "./inventory-resolver";
 import { runGrniResolver } from "./grni-resolver";
 import { runBsAccountResolver } from "./bs-account-resolver";
+import { runFaRollforwardResolver } from "./fa-rollforward-resolver";
+import { fetchQboAccountList } from "./qbo-reports";
 import type { PolicySnapshot } from "./policy";
 
 export type RunTieOutInput = {
@@ -182,12 +184,33 @@ export async function runTieOut(
           code: "bs_account_id_required",
         };
       }
+      // Pre-fetch AccountList so the artifact row carries account metadata.
+      let bsAccountName = "";
+      let accountType: string | undefined;
+      let accountSubType: string | undefined;
+      try {
+        const accts = await fetchQboAccountList({
+          realmId: token.realmId,
+          accessToken: token.accessToken,
+        });
+        const match = accts.find((a) => a.id === bsAccountId);
+        if (match) {
+          bsAccountName = match.name;
+          accountType = match.accountType;
+          accountSubType = match.accountSubType ?? undefined;
+        }
+      } catch {
+        // Non-fatal: proceed without metadata.
+      }
       const result = await runBsAccountResolver({
         engagementId: input.engagementId,
         pbcRequestId: input.pbcRequestId,
         realmId: token.realmId,
         accessToken: token.accessToken,
         bsAccountId,
+        bsAccountName,
+        accountType,
+        accountSubType,
         asOfDate: input.asOfDate,
         activityStartDate: input.activityStartDate,
         policy: policy as PolicySnapshot & { policy_mode: string },
@@ -198,6 +221,32 @@ export async function runTieOut(
         ? {
             ok: true,
             kind: "bs_account_recon",
+            runId: result.runId,
+            totalsStatus: result.totalsStatus,
+            itemCount: result.itemCount,
+          }
+        : {
+            ok: false,
+            reason: result.errorMessage ?? "resolver_failed",
+            code: result.errorCode ?? "resolver_failed",
+          };
+    }
+    case "fixed_asset_rollforward": {
+      const result = await runFaRollforwardResolver({
+        engagementId: input.engagementId,
+        pbcRequestId: input.pbcRequestId,
+        realmId: token.realmId,
+        accessToken: token.accessToken,
+        asOfDate: input.asOfDate,
+        activityStartDate: input.activityStartDate,
+        policy: policy as PolicySnapshot & { policy_mode: string },
+        triggeredByUserId: input.triggeredByUserId,
+        triggerReason: input.triggerReason,
+      });
+      return result.status === "completed"
+        ? {
+            ok: true,
+            kind: "fixed_asset_rollforward",
             runId: result.runId,
             totalsStatus: result.totalsStatus,
             itemCount: result.itemCount,

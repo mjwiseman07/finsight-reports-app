@@ -164,27 +164,48 @@ export async function fetchQboTrialBalance(params: {
   const lines: QboTrialBalanceLine[] = [];
   const walk = (r: {
     type?: string;
+    group?: string;
     ColData?: Array<{ value?: string; id?: string }>;
     Rows?: { Row?: unknown[] };
+    Summary?: unknown;
   }) => {
-    if (r.type === "Data" && Array.isArray(r.ColData)) {
-      const cols = r.ColData;
+    // QBO TrialBalance leaf rows arrive WITHOUT a `type` field
+    // (only Section / Header parent rows have a type). Include any row
+    // that has ColData, no nested Rows, and is not explicitly a
+    // Section/Header. This mirrors the layout QBO returns at
+    // minorversion 65/75 in sandbox and production.
+    const isLeaf =
+      Array.isArray(r.ColData) &&
+      !(r.Rows && Array.isArray(r.Rows.Row) && r.Rows.Row.length > 0) &&
+      r.type !== "Section" &&
+      r.type !== "Header";
+    if (isLeaf) {
+      const cols = r.ColData ?? [];
       // TrialBalance layout: [Account, Debit, Credit]
       const acct = cols[0];
-      const debit = parseFloat(String(cols[1]?.value ?? "0").replace(/,/g, ""));
-      const credit = parseFloat(String(cols[2]?.value ?? "0").replace(/,/g, ""));
-      const debit_cents = Math.round((isNaN(debit) ? 0 : debit) * 100);
-      const credit_cents = Math.round((isNaN(credit) ? 0 : credit) * 100);
-      lines.push({
-        account_ref: acct?.id ?? null,
-        account_name: acct?.value ?? "(unknown account)",
-        debit_cents,
-        credit_cents,
-        net_cents: debit_cents - credit_cents,
-      });
+      // Only ingest rows that actually resolve to a QBO account id.
+      // This excludes summary/subtotal leaves that carry the same
+      // ColData shape but no id.
+      if (acct?.id) {
+        const debit = parseFloat(
+          String(cols[1]?.value ?? "0").replace(/,/g, ""),
+        );
+        const credit = parseFloat(
+          String(cols[2]?.value ?? "0").replace(/,/g, ""),
+        );
+        const debit_cents = Math.round((isNaN(debit) ? 0 : debit) * 100);
+        const credit_cents = Math.round((isNaN(credit) ? 0 : credit) * 100);
+        lines.push({
+          account_ref: acct.id,
+          account_name: acct.value ?? "(unknown account)",
+          debit_cents,
+          credit_cents,
+          net_cents: debit_cents - credit_cents,
+        });
+      }
     }
     if (Array.isArray(r.Rows?.Row)) {
-      (r.Rows.Row as typeof rows).forEach(walk);
+      (r.Rows!.Row as typeof rows).forEach(walk);
     }
   };
   rows.forEach(walk);
@@ -683,10 +704,39 @@ export type QboAccountListEntry = {
   classification: string; // Asset | Liability | Equity | Revenue | Expense
   currentBalance: number | null;
   active: boolean;
+  /** True when QBO SubAccount flag is set (has a ParentRef). */
+  isSubAccount: boolean;
+  /** Parent account Id when this is a sub-account; otherwise null. */
+  parentAccountId: string | null;
+  /**
+   * True when at least one other active BS account lists this Id as
+   * ParentRef. Rollup parents' GL balances already include children —
+   * FA roll-forward must skip them to avoid double-counting.
+   */
+  isRollupParent: boolean;
 };
 
+/**
+ * QBO Account.query returns AccountType in **display form with spaces**
+ * on minorversions we currently target (e.g. "Fixed Asset",
+ * "Accounts Receivable", "Other Current Liability"). We keep the
+ * enum-token (no-space) forms too so that a future switch to a
+ * minorversion that returns tokenized types (e.g. "FixedAsset") does
+ * not silently regress. Both forms are treated as balance-sheet.
+ */
 const BS_ACCOUNT_TYPES = new Set([
+  // Display form (what QBO sandbox returns at minorversion 65/75)
   "Bank",
+  "Accounts Receivable",
+  "Other Current Asset",
+  "Fixed Asset",
+  "Other Asset",
+  "Accounts Payable",
+  "Credit Card",
+  "Other Current Liability",
+  "Long Term Liability",
+  "Equity",
+  // Enum-token form (defensive; some minorversions may return this)
   "AccountsReceivable",
   "OtherCurrentAsset",
   "FixedAsset",
@@ -695,15 +745,33 @@ const BS_ACCOUNT_TYPES = new Set([
   "CreditCard",
   "OtherCurrentLiability",
   "LongTermLiability",
-  "Equity",
 ]);
+
+/**
+ * QBO Account.query returns AccountType as enum tokens without spaces
+ * (e.g. FixedAsset). Display-form "Fixed Asset" is tolerated defensively.
+ */
+export const FA_COST_ACCOUNT_TYPES = new Set(["FixedAsset", "Fixed Asset"]);
+
+export const FA_ACCUM_DEPR_SUBTYPES = new Set([
+  "AccumulatedDepreciation",
+  "AccumulatedAmortization",
+]);
+
+export function isFaCostAccountType(accountType: string): boolean {
+  return FA_COST_ACCOUNT_TYPES.has(accountType);
+}
+
+export function isFaAccumDeprSubType(accountSubType: string | null): boolean {
+  return FA_ACCUM_DEPR_SUBTYPES.has(accountSubType ?? "");
+}
 
 export async function fetchQboAccountList(params: {
   realmId: string;
   accessToken: string;
 }): Promise<QboAccountListEntry[]> {
   const query =
-    "SELECT Id, Name, FullyQualifiedName, AccountType, AccountSubType, Classification, CurrentBalance, Active FROM Account WHERE Active = true STARTPOSITION 1 MAXRESULTS 1000";
+    "SELECT Id, Name, FullyQualifiedName, AccountType, AccountSubType, Classification, CurrentBalance, Active, SubAccount, ParentRef FROM Account WHERE Active = true STARTPOSITION 1 MAXRESULTS 1000";
   const url =
     `${qboBaseUrl()}/v3/company/${params.realmId}/query` +
     `?query=${encodeURIComponent(query)}&minorversion=75`;
@@ -727,22 +795,39 @@ export async function fetchQboAccountList(params: {
         Classification?: string;
         CurrentBalance?: number;
         Active?: boolean;
+        SubAccount?: boolean;
+        ParentRef?: { value?: string; name?: string };
       }>;
     };
   };
   const rows = json.QueryResponse?.Account ?? [];
-  return rows
+  const mapped = rows
     .filter((r) => BS_ACCOUNT_TYPES.has(r.AccountType))
-    .map((r) => ({
-      id: r.Id,
-      name: r.Name,
-      fullyQualifiedName: r.FullyQualifiedName,
-      accountType: r.AccountType,
-      accountSubType: r.AccountSubType ?? null,
-      classification: r.Classification ?? "",
-      currentBalance: r.CurrentBalance ?? null,
-      active: r.Active !== false,
-    }));
+    .map((r) => {
+      const parentAccountId = r.ParentRef?.value ?? null;
+      const isSubAccount = r.SubAccount === true || parentAccountId != null;
+      return {
+        id: r.Id,
+        name: r.Name,
+        fullyQualifiedName: r.FullyQualifiedName,
+        accountType: r.AccountType,
+        accountSubType: r.AccountSubType ?? null,
+        classification: r.Classification ?? "",
+        currentBalance: r.CurrentBalance ?? null,
+        active: r.Active !== false,
+        isSubAccount,
+        parentAccountId,
+        isRollupParent: false,
+      };
+    });
+  const rollupParentIds = new Set<string>();
+  for (const a of mapped) {
+    if (a.parentAccountId) rollupParentIds.add(a.parentAccountId);
+  }
+  return mapped.map((a) => ({
+    ...a,
+    isRollupParent: rollupParentIds.has(a.id),
+  }));
 }
 
 export type QboGlActivityRow = {
@@ -785,9 +870,8 @@ export async function fetchQboGeneralLedgerDetail(params: {
     "name",
     "memo",
     "split_acc",
-    "debt_amt",
-    "credt_amt",
-    "rbal_nat_bal",
+    "subt_nat_amount",
+    "rbal_nat_amount",
   ].join(",");
   // QBO GeneralLedger report does not accept `date_macro=Custom`.
   // Passing `start_date` + `end_date` implicitly defines a custom range;
@@ -827,8 +911,11 @@ export async function fetchQboGeneralLedgerDetail(params: {
   const iName = colIdx("Name");
   const iMemo = colIdx("Memo/Description");
   const iSplit = colIdx("Split");
+  // QBO returns either separate Debit/Credit columns OR a signed "Amount" column
+  // depending on the column codes requested. With subt_nat_amount we get "Amount".
   const iDebit = colIdx("Debit");
   const iCredit = colIdx("Credit");
+  const iAmount = colIdx("Amount");
   const iBalance = colIdx("Balance");
   const activity: QboGlActivityRow[] = [];
   let beginningBalanceCents = 0;
@@ -869,10 +956,25 @@ export async function fetchQboGeneralLedgerDetail(params: {
         return;
       }
       if (isTotal) return;
-      const debit = toCents(getCol(node, iDebit).value);
-      const credit = toCents(getCol(node, iCredit).value);
       const balance = toCents(getCol(node, iBalance).value);
       const txnRef = getCol(node, iType).id || null;
+      let debitCents = 0;
+      let creditCents = 0;
+      let netCents = 0;
+      if (iDebit >= 0 || iCredit >= 0) {
+        debitCents = toCents(getCol(node, iDebit).value);
+        creditCents = toCents(getCol(node, iCredit).value);
+        netCents = debitCents - creditCents;
+      } else if (iAmount >= 0) {
+        // Signed net amount from QBO. Split into debit/credit halves for
+        // downstream reporting parity with the two-column layout.
+        netCents = toCents(getCol(node, iAmount).value);
+        if (netCents >= 0) {
+          debitCents = netCents;
+        } else {
+          creditCents = -netCents;
+        }
+      }
       activity.push({
         txnDate: /^\d{4}-\d{2}-\d{2}$/.test(dateCell) ? dateCell : null,
         txnType: typeCell || null,
@@ -880,27 +982,34 @@ export async function fetchQboGeneralLedgerDetail(params: {
         name: getCol(node, iName).value || null,
         memo: getCol(node, iMemo).value || null,
         splitAccount: getCol(node, iSplit).value || null,
-        debitCents: debit,
-        creditCents: credit,
-        netCents: debit - credit,
+        debitCents,
+        creditCents,
+        netCents,
         runningBalanceCents: balance,
         txnRef,
       });
     }
-    if (node.Summary?.ColData && node.type === "Section") {
-      const bal = toCents(node.Summary.ColData[iBalance]?.value ?? "");
-      if (bal !== 0 || endingBalanceCents === 0) {
-        endingBalanceCents = bal;
-      }
-    }
+    // Do not treat Section Summary as authoritative for ending balance.
+    // Some QBO column layouts leave the Balance column empty in the summary
+    // and put net activity in the Amount column instead. Ending balance is
+    // derived below from the last activity row's runningBalanceCents.
     node.Rows?.Row?.forEach(walk);
   };
   (json.Rows?.Row as QboRow[] | undefined)?.forEach(walk);
-  // Fallback: if section summary wasn't found, ending = beginning + sum(activity)
-  if (endingBalanceCents === 0 && activity.length > 0) {
+  // Ending balance: prefer the running balance of the last activity row
+  // (authoritative per QBO). Fall back to beginning + sum(activity) only if
+  // no rows had a usable running balance.
+  const lastWithRb = [...activity]
+    .reverse()
+    .find((r) => Number.isFinite(r.runningBalanceCents) && r.runningBalanceCents !== 0);
+  if (lastWithRb) {
+    endingBalanceCents = lastWithRb.runningBalanceCents;
+  } else if (activity.length > 0) {
     endingBalanceCents =
       beginningBalanceCents +
       activity.reduce((s, r) => s + r.netCents, 0);
+  } else {
+    endingBalanceCents = beginningBalanceCents;
   }
   return {
     beginningBalanceCents,

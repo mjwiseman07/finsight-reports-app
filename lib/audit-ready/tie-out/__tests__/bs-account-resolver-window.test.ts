@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { activityWindowForFiscalYear } from "../bs-account-resolver";
+import { activityWindowForFiscalYear } from "../fiscal-year";
 
 describe("activityWindowForFiscalYear", () => {
   it("Jan-start FY, mid-year as-of", () => {
