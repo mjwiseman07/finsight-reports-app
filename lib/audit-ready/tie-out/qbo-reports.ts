@@ -698,6 +698,25 @@ const BS_ACCOUNT_TYPES = new Set([
   "Equity",
 ]);
 
+/**
+ * QBO Account.query returns AccountType as enum tokens without spaces
+ * (e.g. FixedAsset). Display-form "Fixed Asset" is tolerated defensively.
+ */
+export const FA_COST_ACCOUNT_TYPES = new Set(["FixedAsset", "Fixed Asset"]);
+
+export const FA_ACCUM_DEPR_SUBTYPES = new Set([
+  "AccumulatedDepreciation",
+  "AccumulatedAmortization",
+]);
+
+export function isFaCostAccountType(accountType: string): boolean {
+  return FA_COST_ACCOUNT_TYPES.has(accountType);
+}
+
+export function isFaAccumDeprSubType(accountSubType: string | null): boolean {
+  return FA_ACCUM_DEPR_SUBTYPES.has(accountSubType ?? "");
+}
+
 export async function fetchQboAccountList(params: {
   realmId: string;
   accessToken: string;
