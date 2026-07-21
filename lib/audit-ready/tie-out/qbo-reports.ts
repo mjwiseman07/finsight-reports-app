@@ -416,6 +416,8 @@ export type QboUnbilledBill = {
   balance_cents: number; // Balance (unpaid portion)
   doc_number: string | null; // Always null/empty for GRNI bills
   linked_po_ids: string[]; // LinkedTxn where TxnType='PurchaseOrder'
+  enrichment_error: string | null; // Non-null when GET-by-id failed; row falls
+  // back to list-query values (subtotal_cents=total_cents, linked_po_ids=[]).
 };
 export type QboUnbilledBillsQueryResult = {
   as_of_date: string;
@@ -425,21 +427,75 @@ export type QboUnbilledBillsQueryResult = {
   intuit_tid: string | null;
 };
 /**
+ * Fetch a single Bill by id. Returns the full entity — including TxnTaxDetail
+ * and LinkedTxn, which are NOT selectable on the `Bill` list query.
+ *
+ * Used by `fetchQboOpenUnbilledBills` for per-row enrichment (real pre-tax
+ * subtotal + PO linkage evidence). Returns null on any failure (4xx/5xx/
+ * network/parse) — caller decides how to degrade. The reason string surfaces
+ * `intuit_tid` for Intuit support tickets if enrichment consistently fails.
+ */
+async function fetchQboBillById(params: {
+  realmId: string;
+  accessToken: string;
+  billId: string;
+}): Promise<{
+  ok: true;
+  bill: {
+    TotalAmt?: number;
+    TxnTaxDetail?: { TotalTax?: number };
+    LinkedTxn?: Array<{ TxnId?: string; TxnType?: string }>;
+  };
+} | { ok: false; reason: string }> {
+  const { realmId, accessToken, billId } = params;
+  const url =
+    `${qboBaseUrl()}/v3/company/${encodeURIComponent(realmId)}` +
+    `/bill/${encodeURIComponent(billId)}?minorversion=65`;
+  const res = await qboApiFetch(url, { accessToken, method: "GET" });
+  if (!res.ok) {
+    const faultBody =
+      res.json?.Fault?.Error?.map(
+        (e: { Message?: string; Detail?: string; code?: string }) =>
+          `[${e.code ?? "?"}] ${e.Message ?? ""}`,
+      ).join(" | ") ?? "";
+    return {
+      ok: false,
+      reason: `bill_get_${res.status}_tid=${res.intuit_tid ?? "n/a"}${
+        faultBody ? ` fault=${faultBody}` : ""
+      }`,
+    };
+  }
+  const bill = res.json?.Bill;
+  if (!bill || typeof bill !== "object") {
+    return {
+      ok: false,
+      reason: `bill_get_parse_tid=${res.intuit_tid ?? "n/a"}`,
+    };
+  }
+  return { ok: true, bill };
+}
+/**
  * Query open unbilled Bills as-of a date. RA-tier GRNI report.
  *
- * Query strategy: `SELECT ... FROM Bill WHERE TxnDate <= '<asOfDate>'`, then
- * client-side filter for blank DocNumber + Balance > 0 + TotalAmt > 0.
+ * Two-step query strategy (QBO Online):
+ *   1. `SELECT ... FROM Bill WHERE TxnDate <= '<asOfDate>'` list query, then
+ *      client-side filter for blank DocNumber + Balance > 0 + TotalAmt > 0.
+ *   2. For each surviving Bill, `GET /v3/company/<realm>/bill/<id>` to
+ *      enrich with TxnTaxDetail (real pre-tax subtotal) and LinkedTxn
+ *      (PO linkage evidence). Fails gracefully per-row.
  *
  * QBO Online query-language adaptations (probed against sandbox 9341457151063823):
  * - `DocNumber IS NULL` / parenthesized OR → QueryParserError 4000
  * - `DocNumber = ''` parses but matches zero rows (blank DocNumber is omitted,
  *   not empty string)
  * - `LinkedTxn` / `TxnTaxDetail` are not selectable on Bill query (4001
- *   Property not found). When present on a full Bill entity they are still
- *   parsed; otherwise linked_po_ids=[] and subtotal falls back to TotalAmt.
+ *   Property not found). They ARE returned on the single-Bill GET endpoint,
+ *   which is why enrichment is a second call rather than a richer SELECT.
  *
  * Pagination via STARTPOSITION until <1000 rows returned. Retains 3.1 Fault
  * surfacing on 4xx and 3.2 pre-tax / zero-amount / zero-balance filters.
+ * Enrichment is sequential — RA-tier volumes (<200 bills/period) don't
+ * benefit from parallelism, and QBO throttles at 500 req/min per realm.
  */
 export async function fetchQboOpenUnbilledBills(params: {
   realmId: string;
@@ -488,8 +544,8 @@ export async function fetchQboOpenUnbilledBills(params: {
       Balance?: number | null;
       VendorRef?: { value?: string; name?: string };
       APAccountRef?: { value?: string };
-      TxnTaxDetail?: { TotalTax?: number };
-      LinkedTxn?: Array<{ TxnId?: string; TxnType?: string }>;
+      // Note: TxnTaxDetail / LinkedTxn are NOT returned by the Bill list query
+      // (QBO 4001 if you try to SELECT them). Enriched via fetchQboBillById.
     }>;
     for (const b of page) {
       // GRNI convention: Bill no. (DocNumber) left blank. QBO omits the field
@@ -498,11 +554,8 @@ export async function fetchQboOpenUnbilledBills(params: {
       const docBlank =
         doc === undefined || doc === null || String(doc).trim() === "";
       if (!docBlank) continue;
-
       const totalAmt = b.TotalAmt ?? 0;
       const totalCents = Math.round(totalAmt * 100);
-      const taxAmt = b.TxnTaxDetail?.TotalTax ?? 0;
-      const subtotalCents = Math.round((totalAmt - taxAmt) * 100);
       const balance = b.Balance ?? 0;
       const balanceCents = Math.round(balance * 100);
       // Skip zero-amount bills (data entry in progress / draft) and
@@ -510,13 +563,32 @@ export async function fetchQboOpenUnbilledBills(params: {
       // GRNI, would be a data-quality anomaly given DocNumber is blank).
       if (totalCents <= 0) continue;
       if (balanceCents <= 0) continue;
-      // Extract PO links for audit evidence when LinkedTxn is present on the
-      // entity payload (not returned by Bill query; reserved for enrichment).
-      const linkedPoIds =
-        b.LinkedTxn?.filter((lt) => lt.TxnType === "PurchaseOrder")
-          .map((lt) => lt.TxnId)
-          .filter((id): id is string => typeof id === "string" && id.length > 0)
-          ?? [];
+      // Enrich via single-Bill GET to pull TxnTaxDetail (real pre-tax
+      // subtotal) + LinkedTxn (PO linkage evidence). If enrichment fails
+      // for this row, fall back to list-query values with an error string.
+      const enriched = await fetchQboBillById({
+        realmId,
+        accessToken,
+        billId: b.Id,
+      });
+      let subtotalCents = totalCents;
+      let linkedPoIds: string[] = [];
+      let enrichmentError: string | null = null;
+      if (enriched.ok) {
+        const taxAmt = enriched.bill.TxnTaxDetail?.TotalTax ?? 0;
+        // Prefer enriched TotalAmt if returned (should always match list
+        // value; guarded for defensive parity).
+        const enrichedTotalAmt = enriched.bill.TotalAmt ?? totalAmt;
+        const preTax = Math.round((enrichedTotalAmt - taxAmt) * 100);
+        subtotalCents = preTax > 0 ? preTax : totalCents;
+        linkedPoIds =
+          enriched.bill.LinkedTxn?.filter((lt) => lt.TxnType === "PurchaseOrder")
+            .map((lt) => lt.TxnId)
+            .filter((id): id is string => typeof id === "string" && id.length > 0)
+            ?? [];
+      } else {
+        enrichmentError = enriched.reason;
+      }
       bills.push({
         bill_id: b.Id,
         txn_date: b.TxnDate,
@@ -524,10 +596,11 @@ export async function fetchQboOpenUnbilledBills(params: {
         vendor_display_name: b.VendorRef?.name ?? null,
         ap_account_ref: b.APAccountRef?.value ?? null,
         total_cents: totalCents,
-        subtotal_cents: subtotalCents > 0 ? subtotalCents : totalCents,
+        subtotal_cents: subtotalCents,
         balance_cents: balanceCents,
         doc_number: b.DocNumber ?? null,
         linked_po_ids: linkedPoIds,
+        enrichment_error: enrichmentError,
       });
     }
     if (page.length < pageSize) break;
