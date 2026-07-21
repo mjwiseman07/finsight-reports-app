@@ -164,27 +164,48 @@ export async function fetchQboTrialBalance(params: {
   const lines: QboTrialBalanceLine[] = [];
   const walk = (r: {
     type?: string;
+    group?: string;
     ColData?: Array<{ value?: string; id?: string }>;
     Rows?: { Row?: unknown[] };
+    Summary?: unknown;
   }) => {
-    if (r.type === "Data" && Array.isArray(r.ColData)) {
-      const cols = r.ColData;
+    // QBO TrialBalance leaf rows arrive WITHOUT a `type` field
+    // (only Section / Header parent rows have a type). Include any row
+    // that has ColData, no nested Rows, and is not explicitly a
+    // Section/Header. This mirrors the layout QBO returns at
+    // minorversion 65/75 in sandbox and production.
+    const isLeaf =
+      Array.isArray(r.ColData) &&
+      !(r.Rows && Array.isArray(r.Rows.Row) && r.Rows.Row.length > 0) &&
+      r.type !== "Section" &&
+      r.type !== "Header";
+    if (isLeaf) {
+      const cols = r.ColData ?? [];
       // TrialBalance layout: [Account, Debit, Credit]
       const acct = cols[0];
-      const debit = parseFloat(String(cols[1]?.value ?? "0").replace(/,/g, ""));
-      const credit = parseFloat(String(cols[2]?.value ?? "0").replace(/,/g, ""));
-      const debit_cents = Math.round((isNaN(debit) ? 0 : debit) * 100);
-      const credit_cents = Math.round((isNaN(credit) ? 0 : credit) * 100);
-      lines.push({
-        account_ref: acct?.id ?? null,
-        account_name: acct?.value ?? "(unknown account)",
-        debit_cents,
-        credit_cents,
-        net_cents: debit_cents - credit_cents,
-      });
+      // Only ingest rows that actually resolve to a QBO account id.
+      // This excludes summary/subtotal leaves that carry the same
+      // ColData shape but no id.
+      if (acct?.id) {
+        const debit = parseFloat(
+          String(cols[1]?.value ?? "0").replace(/,/g, ""),
+        );
+        const credit = parseFloat(
+          String(cols[2]?.value ?? "0").replace(/,/g, ""),
+        );
+        const debit_cents = Math.round((isNaN(debit) ? 0 : debit) * 100);
+        const credit_cents = Math.round((isNaN(credit) ? 0 : credit) * 100);
+        lines.push({
+          account_ref: acct.id,
+          account_name: acct.value ?? "(unknown account)",
+          debit_cents,
+          credit_cents,
+          net_cents: debit_cents - credit_cents,
+        });
+      }
     }
     if (Array.isArray(r.Rows?.Row)) {
-      (r.Rows.Row as typeof rows).forEach(walk);
+      (r.Rows!.Row as typeof rows).forEach(walk);
     }
   };
   rows.forEach(walk);
