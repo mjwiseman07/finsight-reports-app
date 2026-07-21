@@ -50,6 +50,28 @@ type VarianceInsert = {
   classification_reason: string | null;
 };
 
+type EvidenceRow = {
+  // Temp join key (unused by DB). Bill evidence maps to vendor variance
+  // rows via billVarianceStart offset — not positional index 0 (totals).
+  variance_key: string;
+  run_id: string;
+  engagement_id: string;
+  source_kind: "bill";
+  source_qbo_id: string;
+  source_txn_date: string | null;
+  source_doc_number: string | null;
+  vendor_ref: string | null;
+  customer_ref: null;
+  total_cents: number;
+  subtotal_cents: number;
+  balance_cents: number;
+  linked_po_ids: string[];
+  linked_invoice_ids: string[]; // always [] for bills
+  enrichment_error: string | null;
+  aging_bucket: string | null;
+  age_days_at_run: number;
+};
+
 export async function runGrniResolver(
   input: GrniResolverInput,
 ): Promise<GrniResolverOutput> {
@@ -151,6 +173,7 @@ export async function runGrniResolver(
   const asOf = new Date(input.asOfDate);
   const daysBetween = (a: Date, b: Date): number =>
     Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+  const evidenceRows: EvidenceRow[] = [];
   for (const b of subledger.bills) {
     const ageDays = daysBetween(new Date(b.txn_date), asOf);
     // Aging buckets: current (<=60), 60-90, 90-180, over-180.
@@ -180,6 +203,12 @@ export async function runGrniResolver(
     // to the doc number).
     const displayName =
       b.vendor_display_name ?? `Unbilled Bill ${b.bill_id}`;
+    // Stable key that ties evidence row -> variance row after insert.
+    // Uses bill_id because we write one variance per bill in GRNI (rollup
+    // happens at the aggregate/summary row, not here). If GRNI ever moves
+    // to per-vendor rollup, this key changes to vendor:bucket + we'd
+    // write multiple evidence rows per variance.
+    const varianceKey = `bill:${b.bill_id}`;
     varianceRows.push({
       run_id: runId,
       engagement_id: input.engagementId,
@@ -194,15 +223,39 @@ export async function runGrniResolver(
       status,
       classification_reason: isStale ? `unbilled_bill_${bucket}` : null,
     });
+    evidenceRows.push({
+      variance_key: varianceKey,
+      run_id: runId,
+      engagement_id: input.engagementId,
+      source_kind: "bill",
+      source_qbo_id: b.bill_id,
+      source_txn_date: b.txn_date,
+      source_doc_number: b.doc_number,
+      vendor_ref: b.vendor_ref,
+      customer_ref: null,
+      total_cents: b.total_cents,
+      subtotal_cents: b.subtotal_cents,
+      balance_cents: b.balance_cents,
+      linked_po_ids: b.linked_po_ids,
+      linked_invoice_ids: [],
+      enrichment_error: b.enrichment_error,
+      aging_bucket: bucket,
+      age_days_at_run: ageDays,
+    });
   }
+  // Insert variances in chunks, capture returned ids to map back to
+  // evidence rows. Insert order is preserved by Postgres; totals is first,
+  // then one vendor variance per Bill — evidence attaches only to bills.
   const CHUNK = 500;
+  const insertedVarianceIds: string[] = [];
   for (let i = 0; i < varianceRows.length; i += CHUNK) {
     const chunk = varianceRows.slice(i, i + CHUNK);
-    const { error: vErr } = await supabase
+    const { data: insertedChunk, error: vErr } = await supabase
       .from("audit_ready_tie_out_variances")
-      .insert(chunk);
-    if (vErr) {
-      await failRun("variance_insert_failed", vErr.message);
+      .insert(chunk)
+      .select("id");
+    if (vErr || !insertedChunk) {
+      await failRun("variance_insert_failed", vErr?.message ?? "no rows returned");
       return {
         runId,
         status: "failed",
@@ -216,8 +269,87 @@ export async function runGrniResolver(
         kickoutCount: 0,
         durationMs: Date.now() - start,
         errorCode: "variance_insert_failed",
-        errorMessage: vErr.message,
+        errorMessage: vErr?.message ?? "no rows returned",
       };
+    }
+    for (const row of insertedChunk) insertedVarianceIds.push(row.id as string);
+  }
+  if (insertedVarianceIds.length !== varianceRows.length) {
+    await failRun(
+      "variance_insert_count_mismatch",
+      `expected ${varianceRows.length} inserted, got ${insertedVarianceIds.length}`,
+    );
+    return {
+      runId,
+      status: "failed",
+      totalsStatus: "kickout",
+      subledgerTotalCents: subTotalCents,
+      glTotalCents: 0,
+      totalsVarianceCents: 0,
+      itemCount: 0,
+      autoReconcileCount: 0,
+      reviewCount: 0,
+      kickoutCount: 0,
+      durationMs: Date.now() - start,
+      errorCode: "variance_insert_count_mismatch",
+      errorMessage: `expected ${varianceRows.length} inserted, got ${insertedVarianceIds.length}`,
+    };
+  }
+  // CRITICAL: varianceRows[0] is the totals row; evidenceRows are bills only.
+  // Positional map evidenceRows[i] → insertedVarianceIds[i] would attach
+  // bill evidence to the totals variance. Offset by first vendor row.
+  const billVarianceStart = varianceRows.findIndex(
+    (r) => r.entity_kind === "vendor",
+  );
+  const vendorVarianceCount = varianceRows.filter(
+    (r) => r.entity_kind === "vendor",
+  ).length;
+  if (
+    billVarianceStart < 0 ||
+    evidenceRows.length !== vendorVarianceCount ||
+    evidenceRows.length !== varianceRows.length - billVarianceStart
+  ) {
+    await failRun(
+      "evidence_variance_alignment_mismatch",
+      `evidence=${evidenceRows.length} vendorVariances=${vendorVarianceCount} ` +
+        `totalVariances=${varianceRows.length} billVarianceStart=${billVarianceStart}`,
+    );
+    return {
+      runId,
+      status: "failed",
+      totalsStatus: "kickout",
+      subledgerTotalCents: subTotalCents,
+      glTotalCents: 0,
+      totalsVarianceCents: 0,
+      itemCount: 0,
+      autoReconcileCount: 0,
+      reviewCount: 0,
+      kickoutCount: 0,
+      durationMs: Date.now() - start,
+      errorCode: "evidence_variance_alignment_mismatch",
+      errorMessage: `evidence=${evidenceRows.length} vendorVariances=${vendorVarianceCount}`,
+    };
+  }
+  const evidenceInsertRows = evidenceRows.map((e, idx) => {
+    const { variance_key: _variance_key, ...rest } = e;
+    return {
+      ...rest,
+      variance_id: insertedVarianceIds[billVarianceStart + idx],
+    };
+  });
+  // Insert evidence in chunks. A failure here is non-fatal for the run —
+  // the variance rows are already in place and correct; we log it on the
+  // run row but let totals_status stay "tie" so bookkeepers still get the
+  // rollup. Evidence-persistence failure is a warning, not a broken run.
+  let evidenceInsertError: string | null = null;
+  for (let i = 0; i < evidenceInsertRows.length; i += CHUNK) {
+    const chunk = evidenceInsertRows.slice(i, i + CHUNK);
+    const { error: eErr } = await supabase
+      .from("audit_ready_tie_out_variance_evidence")
+      .insert(chunk);
+    if (eErr) {
+      evidenceInsertError = eErr.message;
+      break;
     }
   }
   const totalsStatus: GrniResolverOutput["totalsStatus"] = "tie";
@@ -242,6 +374,12 @@ export async function runGrniResolver(
       gl_source_url: null,
       intuit_tid_subledger: subledger.intuit_tid,
       intuit_tid_gl: null,
+      // PBC-TIEOUT-3.4: evidence-persistence warning surface. Non-blocking.
+      ...(evidenceInsertError
+        ? {
+            error_message: `WARNING: evidence_insert_failed: ${evidenceInsertError}`,
+          }
+        : {}),
     })
     .eq("id", runId);
   // Adaptation vs paste: PBC CHECK allows review|tie (not needs_review|tied_out).
