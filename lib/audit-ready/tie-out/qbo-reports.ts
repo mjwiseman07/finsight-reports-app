@@ -789,12 +789,15 @@ export async function fetchQboGeneralLedgerDetail(params: {
     "credt_amt",
     "rbal_nat_bal",
   ].join(",");
+  // QBO GeneralLedger report does not accept `date_macro=Custom`.
+  // Passing `start_date` + `end_date` implicitly defines a custom range;
+  // `date_macro` must be omitted (only enumerated values like `Today`,
+  // `LastMonth`, etc. are valid).
   const url =
     `${qboBaseUrl()}/v3/company/${params.realmId}/reports/GeneralLedger` +
     `?account=${params.accountId}` +
     `&start_date=${params.startDate}` +
     `&end_date=${params.endDate}` +
-    `&date_macro=Custom` +
     `&columns=${columns}` +
     `&minorversion=75`;
   const res = await qboApiFetch(url, {
