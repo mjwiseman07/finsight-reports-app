@@ -685,8 +685,27 @@ export type QboAccountListEntry = {
   active: boolean;
 };
 
+/**
+ * QBO Account.query returns AccountType in **display form with spaces**
+ * on minorversions we currently target (e.g. "Fixed Asset",
+ * "Accounts Receivable", "Other Current Liability"). We keep the
+ * enum-token (no-space) forms too so that a future switch to a
+ * minorversion that returns tokenized types (e.g. "FixedAsset") does
+ * not silently regress. Both forms are treated as balance-sheet.
+ */
 const BS_ACCOUNT_TYPES = new Set([
+  // Display form (what QBO sandbox returns at minorversion 65/75)
   "Bank",
+  "Accounts Receivable",
+  "Other Current Asset",
+  "Fixed Asset",
+  "Other Asset",
+  "Accounts Payable",
+  "Credit Card",
+  "Other Current Liability",
+  "Long Term Liability",
+  "Equity",
+  // Enum-token form (defensive; some minorversions may return this)
   "AccountsReceivable",
   "OtherCurrentAsset",
   "FixedAsset",
@@ -695,7 +714,6 @@ const BS_ACCOUNT_TYPES = new Set([
   "CreditCard",
   "OtherCurrentLiability",
   "LongTermLiability",
-  "Equity",
 ]);
 
 /**
