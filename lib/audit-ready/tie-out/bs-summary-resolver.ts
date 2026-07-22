@@ -210,6 +210,7 @@ export async function runBsSummaryResolver(
     };
   }
   const runId = runRow.id as string;
+  const runStartedAtMs = Date.now();
   try {
     // 2. Load BS-only account universe.
     const loader = input._accountsLoader ?? fetchQboAccountList;
@@ -249,6 +250,17 @@ export async function runBsSummaryResolver(
     const perAccountRunner =
       input._perAccountRunner ??
       (async (args) => {
+        const cls = classificationOf(args.account);
+        if (cls === null) {
+          // Guard: accounts array was already filtered to BS-only above,
+          // so this branch is unreachable in practice. Return a synthetic
+          // failure to make the type checker happy without throwing.
+          return {
+            status: "failed" as const,
+            errorCode: "non_bs_classification",
+            errorMessage: `Account ${args.account.id} lacks a BS classification`,
+          };
+        }
         return runBsAccountResolver({
           engagementId: args.engagementId,
           // Real PBC UUID (sentinel), not rollup runId — FK to pbc_requests.
@@ -259,6 +271,7 @@ export async function runBsSummaryResolver(
           bsAccountName: args.account.name,
           accountType: args.account.accountType,
           accountSubType: args.account.accountSubType ?? undefined,
+          classification: cls,
           asOfDate: args.asOfDate,
           activityStartDate: args.activityStartDate,
           policy: args.policy,
@@ -316,9 +329,12 @@ export async function runBsSummaryResolver(
         activityStartDate: startDate,
       });
       if (res.status === "completed") {
-        // Aggregate by classification. GL ending balance uses natural sign
-        // as returned by the per-account resolver (assets positive; L/E
-        // stored as absolute natural credit balance).
+        // Aggregate by classification. After the per-account resolver
+        // applies normalizeTbNetToNaturalSign (see ./sign-normalize.ts),
+        // glEndingBalanceCents is always in QBO's natural-sign convention:
+        // assets positive (contra-assets negative), liabilities positive,
+        // equity positive. This lets the BS equation below read literally
+        // as assets = liabilities + equity.
         if (cls === "Asset") assets += res.glEndingBalanceCents;
         else if (cls === "Liability") liabilities += res.glEndingBalanceCents;
         else equity += res.glEndingBalanceCents;
@@ -472,15 +488,30 @@ export async function runBsSummaryResolver(
       if (linesErr)
         throw new Error(`lines_insert_failed: ${linesErr.message}`);
     }
-    // 8. Complete the run.
+    // 8. Complete the run. Include per-classification counts, duration,
+    // and BS-equation-side totals so downstream consumers (4B.4 monthly
+    // cron notifications, admin dashboards) can read the run row alone
+    // without joining the summary artifact.
+    const runFinishedAtMs = Date.now();
     await supabase
       .from("audit_ready_tie_out_runs")
       .update({
         status: "completed",
         totals_status: totalsStatus,
         item_count: accounts.length,
+        item_auto_reconcile_count: cAuto,
+        item_review_count: cReview,
+        item_kickout_count: cKick,
+        duration_ms: runFinishedAtMs - runStartedAtMs,
+        // For rollup runs, "subledger" and "gl" are semantically the
+        // two sides of the BS equation. Store assets on one side and
+        // liabilities+equity on the other so totals_variance_cents matches
+        // the BS equation variance surfaced in the summary artifact.
+        subledger_total_cents: assets,
+        gl_total_cents: liabilities + equity,
+        totals_variance_cents: bsEquationVariance,
         period_start: startDate,
-        completed_at: new Date().toISOString(),
+        completed_at: new Date(runFinishedAtMs).toISOString(),
       })
       .eq("id", runId);
     return {

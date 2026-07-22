@@ -5,6 +5,7 @@ import { runApResolver } from "./ap-resolver";
 import { runInventoryResolver } from "./inventory-resolver";
 import { runGrniResolver } from "./grni-resolver";
 import { runBsAccountResolver } from "./bs-account-resolver";
+import type { BsClassification } from "./sign-normalize";
 import { runFaRollforwardResolver } from "./fa-rollforward-resolver";
 import { fetchQboAccountList } from "./qbo-reports";
 import type { PolicySnapshot } from "./policy";
@@ -188,6 +189,7 @@ export async function runTieOut(
       let bsAccountName = "";
       let accountType: string | undefined;
       let accountSubType: string | undefined;
+      let classification: BsClassification | null = null;
       try {
         const accts = await fetchQboAccountList({
           realmId: token.realmId,
@@ -198,9 +200,20 @@ export async function runTieOut(
           bsAccountName = match.name;
           accountType = match.accountType;
           accountSubType = match.accountSubType ?? undefined;
+          const c = (match.classification || "").toLowerCase();
+          if (c === "asset") classification = "Asset";
+          else if (c === "liability") classification = "Liability";
+          else if (c === "equity") classification = "Equity";
         }
       } catch {
-        // Non-fatal: proceed without metadata.
+        // Non-fatal: proceed without metadata (classification stays null).
+      }
+      if (classification === null) {
+        return {
+          ok: false,
+          reason: "bs_classification_unavailable",
+          code: "bs_classification_unavailable",
+        };
       }
       const result = await runBsAccountResolver({
         engagementId: input.engagementId,
@@ -211,6 +224,7 @@ export async function runTieOut(
         bsAccountName,
         accountType,
         accountSubType,
+        classification,
         asOfDate: input.asOfDate,
         activityStartDate: input.activityStartDate,
         policy: policy as PolicySnapshot & { policy_mode: string },

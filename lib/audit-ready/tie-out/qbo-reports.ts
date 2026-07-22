@@ -840,7 +840,7 @@ export type QboGlActivityRow = {
   debitCents: number;
   creditCents: number;
   netCents: number; // signed = debit - credit
-  runningBalanceCents: number; // as reported by QBO (Native)
+  runningBalanceCents: number | null; // as reported by QBO (Native); null when the Balance column was empty for this row (distinct from a legit zero balance)
   txnRef: string | null;
 };
 
@@ -851,6 +851,160 @@ export type QboGlDetailResult = {
   reportUrl: string;
   intuitTid: string | null;
 };
+
+/**
+ * Pure parser for a QBO GeneralLedger report response body. Split out from
+ * fetchQboGeneralLedgerDetail so it can be unit-tested without network mocking.
+ *
+ * Contract:
+ *   - Walks the report's row tree, collecting Data rows into activity[].
+ *   - Ignores "Beginning Balance" data rows (extracts beginningBalanceCents from
+ *     the Balance column) and any "Total for ..." rows.
+ *   - Preserves the distinction between "Balance column was empty" (null) and
+ *     "balance is legitimately zero" (0). This matters for endingBalanceCents:
+ *     an account that pays down to exactly zero must report ending=0, not the
+ *     prior non-zero running balance.
+ *   - endingBalanceCents priority:
+ *       1. If any activity row has runningBalanceCents !== null, use the LAST
+ *          such row's value (walking from the end forward).
+ *       2. Else if there is activity, use beginningBalanceCents + sum(netCents).
+ *       3. Else use beginningBalanceCents.
+ */
+export function parseQboGlDetailReport(json: {
+  Rows?: { Row?: unknown[] };
+  Columns?: { Column?: Array<{ ColTitle: string }> };
+}): {
+  beginningBalanceCents: number;
+  endingBalanceCents: number;
+  activity: QboGlActivityRow[];
+} {
+  const cols = json.Columns?.Column ?? [];
+  const colIdx = (title: string) =>
+    cols.findIndex((c) => c.ColTitle?.toLowerCase() === title.toLowerCase());
+  const iDate = colIdx("Date");
+  const iType = colIdx("Transaction Type");
+  const iDoc = colIdx("Num");
+  const iName = colIdx("Name");
+  const iMemo = colIdx("Memo/Description");
+  const iSplit = colIdx("Split");
+  // QBO returns either separate Debit/Credit columns OR a signed "Amount" column
+  // depending on the column codes requested. With subt_nat_amount we get "Amount".
+  const iDebit = colIdx("Debit");
+  const iCredit = colIdx("Credit");
+  const iAmount = colIdx("Amount");
+  const iBalance = colIdx("Balance");
+  const activity: QboGlActivityRow[] = [];
+  let beginningBalanceCents = 0;
+  const toCents = (v: unknown): number => {
+    if (v === null || v === undefined || v === "") return 0;
+    const n = parseFloat(String(v).replace(/,/g, ""));
+    if (!Number.isFinite(n)) return 0;
+    return Math.round(n * 100);
+  };
+  const getCol = (
+    row: { ColData?: Array<{ value?: string; id?: string }> },
+    i: number,
+  ) =>
+    i >= 0 && row.ColData && row.ColData[i]
+      ? row.ColData[i]
+      : { value: "", id: "" };
+  type QboRow = {
+    type?: string;
+    group?: string;
+    ColData?: Array<{ value?: string; id?: string }>;
+    Header?: { ColData?: Array<{ value?: string }> };
+    Summary?: { ColData?: Array<{ value?: string }> };
+    Rows?: { Row?: QboRow[] };
+  };
+  const walk = (node: QboRow | undefined) => {
+    if (!node) return;
+    if (node.type === "Data" && node.ColData) {
+      const dateCell = getCol(node, iDate).value || "";
+      const typeCell = getCol(node, iType).value || "";
+      const isBeginning =
+        /beginning balance/i.test(typeCell) ||
+        /beginning balance/i.test(dateCell);
+      const isTotal =
+        /total for/i.test(typeCell) || /total for/i.test(dateCell);
+      if (isBeginning) {
+        beginningBalanceCents = toCents(getCol(node, iBalance).value);
+        return;
+      }
+      if (isTotal) return;
+      // Distinguish "Balance column empty" (null) from "balance is legitimately 0".
+      // toCents() collapses both cases to the number 0, so we inspect the raw
+      // cell value BEFORE coercion.
+      const balanceCell = getCol(node, iBalance);
+      const balanceRaw = balanceCell.value;
+      const hasBalance =
+        balanceRaw !== undefined &&
+        balanceRaw !== null &&
+        String(balanceRaw).trim() !== "";
+      const runningBalanceCents = hasBalance ? toCents(balanceRaw) : null;
+      const txnRef = getCol(node, iType).id || null;
+      let debitCents = 0;
+      let creditCents = 0;
+      let netCents = 0;
+      if (iDebit >= 0 || iCredit >= 0) {
+        debitCents = toCents(getCol(node, iDebit).value);
+        creditCents = toCents(getCol(node, iCredit).value);
+        netCents = debitCents - creditCents;
+      } else if (iAmount >= 0) {
+        // Signed net amount from QBO. Split into debit/credit halves for
+        // downstream reporting parity with the two-column layout.
+        netCents = toCents(getCol(node, iAmount).value);
+        if (netCents >= 0) {
+          debitCents = netCents;
+        } else {
+          creditCents = -netCents;
+        }
+      }
+      activity.push({
+        txnDate: /^\d{4}-\d{2}-\d{2}$/.test(dateCell) ? dateCell : null,
+        txnType: typeCell || null,
+        docNumber: getCol(node, iDoc).value || null,
+        name: getCol(node, iName).value || null,
+        memo: getCol(node, iMemo).value || null,
+        splitAccount: getCol(node, iSplit).value || null,
+        debitCents,
+        creditCents,
+        netCents,
+        runningBalanceCents,
+        txnRef,
+      });
+    }
+    // Do not treat Section Summary as authoritative for ending balance.
+    // Some QBO column layouts leave the Balance column empty in the summary
+    // and put net activity in the Amount column instead. Ending balance is
+    // derived below from the last activity row's runningBalanceCents.
+    node.Rows?.Row?.forEach(walk);
+  };
+  (json.Rows?.Row as QboRow[] | undefined)?.forEach(walk);
+  // Ending balance: prefer the running balance of the LAST activity row that
+  // reported a Balance column value (null-sentinel means "column empty").
+  // A row whose runningBalanceCents === 0 is a legit zero balance and must be
+  // honored (e.g. an account that paid down to zero during the period).
+  // Fall back to beginning + sum(activity) only if no rows had a usable running
+  // balance at all.
+  let endingBalanceCents = 0;
+  const lastWithRb = [...activity]
+    .reverse()
+    .find(
+      (r) =>
+        r.runningBalanceCents !== null &&
+        Number.isFinite(r.runningBalanceCents),
+    );
+  if (lastWithRb && lastWithRb.runningBalanceCents !== null) {
+    endingBalanceCents = lastWithRb.runningBalanceCents;
+  } else if (activity.length > 0) {
+    endingBalanceCents =
+      beginningBalanceCents +
+      activity.reduce((s, r) => s + r.netCents, 0);
+  } else {
+    endingBalanceCents = beginningBalanceCents;
+  }
+  return { beginningBalanceCents, endingBalanceCents, activity };
+}
 
 /**
  * Fetch QBO GeneralLedger report for a single account over a date range.
@@ -894,127 +1048,16 @@ export async function fetchQboGeneralLedgerDetail(params: {
     );
   }
   const intuitTid = res.intuit_tid ?? null;
-  const json = res.json as {
-    Rows?: { Row?: unknown[] };
-    Columns?: { Column?: Array<{ ColTitle: string }> };
-  };
-  // QBO GL report structure: each account has a Section containing:
-  //   - a "Beginning Balance" data row
-  //   - one or more transaction data rows
-  //   - a Summary row with the ending balance
-  const cols = json.Columns?.Column ?? [];
-  const colIdx = (title: string) =>
-    cols.findIndex((c) => c.ColTitle?.toLowerCase() === title.toLowerCase());
-  const iDate = colIdx("Date");
-  const iType = colIdx("Transaction Type");
-  const iDoc = colIdx("Num");
-  const iName = colIdx("Name");
-  const iMemo = colIdx("Memo/Description");
-  const iSplit = colIdx("Split");
-  // QBO returns either separate Debit/Credit columns OR a signed "Amount" column
-  // depending on the column codes requested. With subt_nat_amount we get "Amount".
-  const iDebit = colIdx("Debit");
-  const iCredit = colIdx("Credit");
-  const iAmount = colIdx("Amount");
-  const iBalance = colIdx("Balance");
-  const activity: QboGlActivityRow[] = [];
-  let beginningBalanceCents = 0;
-  let endingBalanceCents = 0;
-  const toCents = (v: unknown): number => {
-    if (v === null || v === undefined || v === "") return 0;
-    const n = parseFloat(String(v).replace(/,/g, ""));
-    if (!Number.isFinite(n)) return 0;
-    return Math.round(n * 100);
-  };
-  const getCol = (
-    row: { ColData?: Array<{ value?: string; id?: string }> },
-    i: number,
-  ) =>
-    i >= 0 && row.ColData && row.ColData[i]
-      ? row.ColData[i]
-      : { value: "", id: "" };
-  type QboRow = {
-    type?: string;
-    group?: string;
-    ColData?: Array<{ value?: string; id?: string }>;
-    Header?: { ColData?: Array<{ value?: string }> };
-    Summary?: { ColData?: Array<{ value?: string }> };
-    Rows?: { Row?: QboRow[] };
-  };
-  const walk = (node: QboRow | undefined) => {
-    if (!node) return;
-    if (node.type === "Data" && node.ColData) {
-      const dateCell = getCol(node, iDate).value || "";
-      const typeCell = getCol(node, iType).value || "";
-      const isBeginning =
-        /beginning balance/i.test(typeCell) ||
-        /beginning balance/i.test(dateCell);
-      const isTotal =
-        /total for/i.test(typeCell) || /total for/i.test(dateCell);
-      if (isBeginning) {
-        beginningBalanceCents = toCents(getCol(node, iBalance).value);
-        return;
-      }
-      if (isTotal) return;
-      const balance = toCents(getCol(node, iBalance).value);
-      const txnRef = getCol(node, iType).id || null;
-      let debitCents = 0;
-      let creditCents = 0;
-      let netCents = 0;
-      if (iDebit >= 0 || iCredit >= 0) {
-        debitCents = toCents(getCol(node, iDebit).value);
-        creditCents = toCents(getCol(node, iCredit).value);
-        netCents = debitCents - creditCents;
-      } else if (iAmount >= 0) {
-        // Signed net amount from QBO. Split into debit/credit halves for
-        // downstream reporting parity with the two-column layout.
-        netCents = toCents(getCol(node, iAmount).value);
-        if (netCents >= 0) {
-          debitCents = netCents;
-        } else {
-          creditCents = -netCents;
-        }
-      }
-      activity.push({
-        txnDate: /^\d{4}-\d{2}-\d{2}$/.test(dateCell) ? dateCell : null,
-        txnType: typeCell || null,
-        docNumber: getCol(node, iDoc).value || null,
-        name: getCol(node, iName).value || null,
-        memo: getCol(node, iMemo).value || null,
-        splitAccount: getCol(node, iSplit).value || null,
-        debitCents,
-        creditCents,
-        netCents,
-        runningBalanceCents: balance,
-        txnRef,
-      });
-    }
-    // Do not treat Section Summary as authoritative for ending balance.
-    // Some QBO column layouts leave the Balance column empty in the summary
-    // and put net activity in the Amount column instead. Ending balance is
-    // derived below from the last activity row's runningBalanceCents.
-    node.Rows?.Row?.forEach(walk);
-  };
-  (json.Rows?.Row as QboRow[] | undefined)?.forEach(walk);
-  // Ending balance: prefer the running balance of the last activity row
-  // (authoritative per QBO). Fall back to beginning + sum(activity) only if
-  // no rows had a usable running balance.
-  const lastWithRb = [...activity]
-    .reverse()
-    .find((r) => Number.isFinite(r.runningBalanceCents) && r.runningBalanceCents !== 0);
-  if (lastWithRb) {
-    endingBalanceCents = lastWithRb.runningBalanceCents;
-  } else if (activity.length > 0) {
-    endingBalanceCents =
-      beginningBalanceCents +
-      activity.reduce((s, r) => s + r.netCents, 0);
-  } else {
-    endingBalanceCents = beginningBalanceCents;
-  }
+  const parsed = parseQboGlDetailReport(
+    res.json as {
+      Rows?: { Row?: unknown[] };
+      Columns?: { Column?: Array<{ ColTitle: string }> };
+    },
+  );
   return {
-    beginningBalanceCents,
-    endingBalanceCents,
-    activity,
+    beginningBalanceCents: parsed.beginningBalanceCents,
+    endingBalanceCents: parsed.endingBalanceCents,
+    activity: parsed.activity,
     reportUrl: url,
     intuitTid,
   };
