@@ -80,18 +80,31 @@ export type RunBsSummaryResolverResult =
     };
 
 /** Stable per-engagement PBC row so rollup runs satisfy NOT NULL FK. */
-const BS_SUMMARY_PBC_SENTINEL = "BS-SUMMARY-ROLLUP";
+const BS_SUMMARY_PBC_SENTINEL = "SYS-ROLLUP-BS-RECON-SUMMARY";
 
 /**
  * audit_ready_tie_out_runs.pbc_request_id is uuid NOT NULL → FK to
- * audit_ready_pbc_requests. Paste wanted null; we upsert a sentinel PBC
- * row instead and reuse it for the parent run + child bs_account_recon
- * calls (runId is not a valid pbc_request_id).
+ * audit_ready_pbc_requests. Rollup runs need one stable sentinel PBC row
+ * per engagement to satisfy that FK without polluting the PBC inbox with
+ * one row per run.
+ *
+ * Identity: (engagement_id, request_number='SYS-ROLLUP-BS-RECON-SUMMARY',
+ * tie_out_kind='bs_recon_summary'). Enforced at the DB layer by partial
+ * UNIQUE index audit_ready_pbc_requests_sys_rollup_sentinel_key.
+ *
+ * Status: 'accepted' — terminal PBC state meaning "no further bookkeeper
+ * action required". Semantically correct for a system-managed anchor and
+ * avoids extending the status CHECK constraint.
+ *
+ * Race handling: get-or-create with a re-SELECT on unique-violation (Postgres
+ * SQLSTATE 23505) so concurrent first-time callers converge on the row
+ * created by whichever transaction committed first.
  */
 async function ensureBsSummaryPbcAnchor(
   engagementId: string,
 ): Promise<string> {
   const supabase = getSupabaseAdmin();
+  // Fast path: sentinel already exists.
   const { data: existing } = await supabase
     .from("audit_ready_pbc_requests")
     .select("id")
@@ -100,25 +113,40 @@ async function ensureBsSummaryPbcAnchor(
     .eq("tie_out_kind", "bs_recon_summary")
     .maybeSingle();
   if (existing?.id) return existing.id as string;
-
+  // First-time path: insert. The partial UNIQUE index will reject a
+  // concurrent second insert with SQLSTATE 23505; in that case, re-SELECT.
   const { data: created, error } = await supabase
     .from("audit_ready_pbc_requests")
     .insert({
       engagement_id: engagementId,
       request_number: BS_SUMMARY_PBC_SENTINEL,
       request_description:
-        "System anchor for engagement-level BS recon summary rollup runs",
+        "System-managed sentinel PBC anchor for engagement-level BS recon summary rollup runs. Not visible in the bookkeeper PBC inbox; identified by the SYS-ROLLUP-* request_number prefix. Do not modify.",
       tie_out_kind: "bs_recon_summary",
-      status: "in_progress",
+      status: "accepted",
     })
     .select("id")
     .single();
-  if (error || !created) {
+  if (created?.id && !error) return created.id as string;
+  // Race lost — another concurrent caller just inserted the sentinel.
+  // supabase-js surfaces Postgres error codes on error.code.
+  const pgCode = (error as { code?: string } | null)?.code;
+  if (pgCode === "23505") {
+    const { data: reread, error: rereadErr } = await supabase
+      .from("audit_ready_pbc_requests")
+      .select("id")
+      .eq("engagement_id", engagementId)
+      .eq("request_number", BS_SUMMARY_PBC_SENTINEL)
+      .eq("tie_out_kind", "bs_recon_summary")
+      .single();
+    if (reread?.id && !rereadErr) return reread.id as string;
     throw new Error(
-      `pbc_anchor_insert_failed: ${error?.message ?? "unknown"}`,
+      `pbc_anchor_reselect_failed: ${rereadErr?.message ?? "unknown"}`,
     );
   }
-  return created.id as string;
+  throw new Error(
+    `pbc_anchor_insert_failed: ${error?.message ?? "unknown"}`,
+  );
 }
 
 function classificationOf(
