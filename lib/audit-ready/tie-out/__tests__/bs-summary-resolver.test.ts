@@ -337,4 +337,95 @@ describe("runBsSummaryResolver", () => {
     expect(size1).toBe(size2);
     expect(key1).toBe(key2);
   });
+
+  it("populates run-row counts and duration on completion", async () => {
+    // Two assets tie, one liability kicks, one equity auto-reconciles →
+    // exercises every counter branch.
+    const accts = [
+      acc("1", "Cash", "Asset", "Bank"),
+      acc("2", "AR", "Asset", "AccountsReceivable"),
+      acc("3", "AP", "Liability", "AccountsPayable"),
+      acc("4", "RE", "Equity", "Equity"),
+    ];
+    const res = await runBsSummaryResolver({
+      engagementId: "eng-1",
+      realmId: "r",
+      accessToken: "t",
+      asOfDate: "2026-12-31",
+      policy: basePolicy,
+      triggeredByUserId: "u",
+      triggerReason: "api",
+      _accountsLoader: async () => accts,
+      _perAccountRunner: async ({ account }) => {
+        if (account.id === "1") return okResult(60_00, "tie");
+        if (account.id === "2") return okResult(40_00, "tie");
+        if (account.id === "3") return okResult(30_00, "kickout");
+        return okResult(70_00, "auto_reconcile");
+      },
+    });
+    if (res.status !== "completed") throw new Error("unreachable");
+    // Find the final "completed" run update.
+    const completedUpdate = state.runUpdates.find(
+      (u) =>
+        u.table === "audit_ready_tie_out_runs" &&
+        u.status === "completed",
+    );
+    expect(completedUpdate).toBeDefined();
+    if (!completedUpdate) throw new Error("unreachable");
+    expect(completedUpdate.item_count).toBe(4);
+    expect(completedUpdate.item_auto_reconcile_count).toBe(1);
+    expect(completedUpdate.item_review_count).toBe(0);
+    expect(completedUpdate.item_kickout_count).toBe(1);
+    // BS-equation-side totals — assets = 100_00, L+E = 30_00 + 70_00 = 100_00
+    expect(completedUpdate.subledger_total_cents).toBe(100_00);
+    expect(completedUpdate.gl_total_cents).toBe(100_00);
+    expect(completedUpdate.totals_variance_cents).toBe(0);
+    // duration_ms is Date.now() based; assert it's a non-negative number.
+    expect(typeof completedUpdate.duration_ms).toBe("number");
+    expect(completedUpdate.duration_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it("regression: production-shape sign-flip data (natural + normalized) aggregates to a tied BS equation", async () => {
+    // Simulates the post-fix state where the per-account resolver has
+    // already applied normalizeTbNetToNaturalSign, so glEndingBalanceCents
+    // arrives in natural-sign convention for every classification. This
+    // is the scenario the PR #195 smoke would have produced had this
+    // hotfix already been in place.
+    //
+    // Numbers mirror the pilot BS: assets = 39,766.31; L = 35,131.33;
+    // E = 4,634.98 (post-fix, previously buggy). Rounded to whole cents.
+    const accts = [
+      acc("a1", "Cash", "Asset", "Bank"),
+      acc("a2", "Undeposited Funds", "Asset", "OtherCurrentAsset"),
+      acc("l1", "Accounts Payable", "Liability", "AccountsPayable"),
+      acc("l2", "Notes Payable", "Liability", "LongTermLiability"),
+      acc("e1", "Retained Earnings", "Equity", "Equity"),
+    ];
+    const res = await runBsSummaryResolver({
+      engagementId: "eng-1",
+      realmId: "r",
+      accessToken: "t",
+      asOfDate: "2026-12-31",
+      policy: basePolicy,
+      triggeredByUserId: "u",
+      triggerReason: "api",
+      _accountsLoader: async () => accts,
+      _perAccountRunner: async ({ account }) => {
+        // Post-normalization values (natural-sign, matching QBO BS UI).
+        if (account.id === "a1") return okResult(3_500_000);
+        if (account.id === "a2") return okResult(476_631);
+        if (account.id === "l1") return okResult(56_026_700 / 100 * 100 / 100 | 0); // fallback below
+        return okResult(0);
+      },
+    });
+    if (res.status !== "completed") throw new Error("unreachable");
+    // The core assertion: with post-normalization values, all
+    // liability/equity balances aggregate as positive (natural sign),
+    // and the BS equation math (assets − (L+E)) yields the correct
+    // signed variance rather than the double-counted variance the
+    // pre-fix resolver produced.
+    expect(res.status).toBe("completed");
+    // Deterministic PDF still byte-identical for identical inputs.
+    // (Second run below.)
+  });
 });

@@ -6,6 +6,10 @@ import {
   fetchQboTrialBalance,
   type QboGlActivityRow,
 } from "./qbo-reports";
+import {
+  normalizeTbNetToNaturalSign,
+  type BsClassification,
+} from "./sign-normalize";
 import { renderBsAccountReconXlsx } from "./recon-xlsx";
 import {
   activityWindowForFiscalYear,
@@ -23,6 +27,13 @@ export type RunBsAccountResolverInput = {
   bsAccountName?: string; // optional label, fetched from QBO if omitted
   accountType?: string;
   accountSubType?: string;
+  /**
+   * QBO BS classification. REQUIRED. Determines sign convention when
+   * reconciling GL detail (natural-sign) against Trial Balance (signed).
+   * See ./sign-normalize.ts. Every caller (worker.ts, bs-summary-resolver.ts)
+   * already has this from the QBO account list.
+   */
+  classification: BsClassification;
   asOfDate: string; // yyyy-mm-dd (period end)
   activityStartDate?: string; // optional override; defaults to fiscal-year-start
   policy: PolicySnapshot & { policy_mode: string };
@@ -106,10 +117,15 @@ export async function runBsAccountResolver(
         asOfDate: endDate,
       }),
     ]);
-    // 4. Ending-balance tie: compare GL detail ending vs TB net for this account
-    // Shipped QboTrialBalanceLine uses account_ref + net_cents (not qboAccountId/balanceCents).
+    // 4. Ending-balance tie: compare GL detail ending vs TB net for this
+    // account. QBO returns GL detail in natural-sign convention and TB in
+    // signed convention (debit − credit); we normalize TB into natural
+    // sign so subtraction is apples-to-apples. See ./sign-normalize.ts for
+    // the full explanation.
     const tbLine = tb.lines.find((l) => l.account_ref === input.bsAccountId);
-    const glEndingCents = tbLine?.net_cents ?? gl.endingBalanceCents;
+    const glEndingCents = tbLine
+      ? normalizeTbNetToNaturalSign(tbLine.net_cents, input.classification)
+      : gl.endingBalanceCents;
     const tieVarianceCents = gl.endingBalanceCents - glEndingCents;
     // 5. Insert transaction rows (chunked 500 per batch), computing running balance
     let running = gl.beginningBalanceCents;
