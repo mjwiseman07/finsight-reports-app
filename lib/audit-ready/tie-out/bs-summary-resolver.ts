@@ -175,17 +175,15 @@ export async function runBsSummaryResolver(
     };
   }
 
-  // 1. Resolve accounting basis before the run insert so we can stamp it.
+  // 1. Resolve accounting basis once — stamped on the summary artifact
+  //    (not the parent tie_out_runs row). Basis is a property of the
+  //    specific QBO report, not the orchestration run.
   const basisResolver = input._basisResolver ?? resolveAccountingBasis;
   const accountingMethod: AccountingBasis = await basisResolver({
     engagementId: input.engagementId,
   });
 
   // 2. Insert running rollup run row.
-  // Paste 5.7 named `audit_ready_bs_recon_runs`; this codebase persists
-  // rollup runs on `audit_ready_tie_out_runs`. accounting_method is written
-  // here; Step 8 migration may target a sibling table — until then this is
-  // best-effort (extra column ignored if not yet present at runtime).
   const { data: runRow, error: runErr } = await supabase
     .from("audit_ready_tie_out_runs")
     .insert({
@@ -202,7 +200,6 @@ export async function runBsSummaryResolver(
       triggered_by_user_id: input.triggeredByUserId,
       trigger_reason: input.triggerReason,
       period_end: input.asOfDate,
-      accounting_method: accountingMethod,
     })
     .select("id")
     .single();
@@ -485,6 +482,7 @@ export async function runBsSummaryResolver(
         run_id: runId,
         period_start: startDate,
         period_end: endDate,
+        accounting_method: accountingMethod,
         account_count_total: summaryLineInserts.length,
         account_count_tie: cTie,
         account_count_auto_reconcile: cAuto,
