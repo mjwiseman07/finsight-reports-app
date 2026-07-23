@@ -31,8 +31,12 @@ export async function GET(
   }
   const supabase = getSupabaseAdmin();
 
-  // Try bs_account_recon artifacts first, then fa_rollforward.
-  let artifactKind: "bs_account_recon" | "fa_rollforward" | null = null;
+  // Try bs_account_recon, then fa_rollforward, then bs_recon_summary.
+  let artifactKind:
+    | "bs_account_recon"
+    | "fa_rollforward"
+    | "bs_recon_summary"
+    | null = null;
   let art: ReconArtifactRow | null = null;
 
   {
@@ -59,6 +63,20 @@ export async function GET(
       .maybeSingle();
     if (data) {
       artifactKind = "fa_rollforward";
+      art = data as ReconArtifactRow;
+    }
+  }
+
+  if (!art) {
+    const { data } = await supabase
+      .from("audit_ready_bs_recon_summary_artifacts")
+      .select(
+        "id, engagement_id, period_end, format, storage_bucket, storage_object_key, file_size_bytes",
+      )
+      .eq("id", artifactId)
+      .maybeSingle();
+    if (data) {
+      artifactKind = "bs_recon_summary";
       art = data as ReconArtifactRow;
     }
   }
