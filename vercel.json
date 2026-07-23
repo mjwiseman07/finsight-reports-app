@@ -5,6 +5,7 @@
     { "path": "/api/recurring/cron/auto-post", "schedule": "45 6 * * *" },
     { "path": "/api/quickbooks/cdc", "schedule": "0 * * * *" },
     { "path": "/api/cron/qbo-trace-purge", "schedule": "0 4 * * *" },
-    { "path": "/api/cron/subscription-purge-executor", "schedule": "0 * * * *" }
+    { "path": "/api/cron/subscription-purge-executor", "schedule": "0 * * * *" },
+    { "path": "/api/cron/bs-recon-monthly", "schedule": "0 7 1 * *" }
   ]
 }
