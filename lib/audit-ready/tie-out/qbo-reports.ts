@@ -717,6 +717,37 @@ export type QboAccountListEntry = {
 };
 
 /**
+ * A single detail line from the QBO BalanceSheet report.
+ *
+ * Balance sheet reports rows in a nested Section/Header/Detail/Summary
+ * grammar. We flatten to the detail lines only and preserve QBO's own
+ * row order via `sortOrder`. Detail rows always carry a natural-sign
+ * balance in cents.
+ *
+ * Some lines are "computed" — QBO emits them under Equity as summary
+ * outputs of the report engine (most notably "Net Income" = P&L net
+ * over the report period). They have no underlying account; we mark
+ * them with `isComputedLine=true` and `qboAccountId=null` and pass
+ * them through to the summary as tautologically-tied rows.
+ */
+export type QboBalanceSheetLine = {
+  qboAccountId: string | null;
+  qboAccountName: string;
+  qboAccountType: string | null;
+  classification: "Asset" | "Liability" | "Equity";
+  balanceCents: number;
+  isComputedLine: boolean;
+  parentAccountId: string | null;
+  sortOrder: number;
+};
+
+export type QboBalanceSheetReportResult = {
+  asOfDate: string;
+  accountingMethod: "Accrual" | "Cash";
+  lines: QboBalanceSheetLine[];
+};
+
+/**
  * QBO Account.query returns AccountType in **display form with spaces**
  * on minorversions we currently target (e.g. "Fixed Asset",
  * "Accounts Receivable", "Other Current Liability"). We keep the
@@ -1004,6 +1035,224 @@ export function parseQboGlDetailReport(json: {
     endingBalanceCents = beginningBalanceCents;
   }
   return { beginningBalanceCents, endingBalanceCents, activity };
+}
+
+/**
+ * Parse a QBO BalanceSheet report JSON payload into a flat, ordered list
+ * of BalanceSheetLine detail rows. Pure function — no I/O, no side effects.
+ * Structured this way so that unit tests replay from captured JSON fixtures
+ * without hitting the network.
+ *
+ * QBO's BalanceSheet report grammar (minorversion 65-75):
+ *   Rows.Row[] contains Section rows, Data rows (detail), and Summary rows.
+ *   Sections nest recursively via Rows.Row. Section `group` values match
+ *   "Assets" / "Liabilities" / "Equity" (and further sub-sections we walk
+ *   through). Each detail Data row has ColData[0] = { id, value } for the
+ *   account, ColData[last] = { value } for the balance (natural sign).
+ *
+ * Rules:
+ *   - Emit only Data rows (`type === "Data"`) whose parent classification
+ *     resolves to Asset / Liability / Equity.
+ *   - Skip Section headers and Section summaries.
+ *   - Skip the report's outer total row (`type === "Section"` at the top
+ *     level with no `group`).
+ *   - Computed Equity lines (Net Income, Net Loss, "Net Other Income", etc.)
+ *     have empty or missing `ColData[0].id` — emit with qboAccountId=null,
+ *     isComputedLine=true, and the account name from ColData[0].value.
+ *   - Balance parsing: use the same empty-vs-zero preservation as GL Detail
+ *     (empty string ≠ "0.00"; but on BS report both are legitimate zeros —
+ *     we accept both as 0 cents. Unlike GL Detail we don't need the null
+ *     distinction because ending-balance detection isn't a walk).
+ */
+export function parseQboBalanceSheetReport(json: {
+  Header?: {
+    ReportName?: string;
+    ReportBasis?: string;
+    StartPeriod?: string;
+    EndPeriod?: string;
+    Option?: Array<{ Name?: string; Value?: string }>;
+  };
+  Rows?: {
+    Row?: QboBsRawRow[];
+  };
+}): QboBalanceSheetReportResult {
+  const lines: QboBalanceSheetLine[] = [];
+
+  // Resolve as-of date and accounting basis from the report Header.
+  //
+  // Modernized Reports API (post 2026-06-30 cutover) returns accounting
+  // basis in `Header.ReportBasis` — a single top-level field with value
+  // "Accrual" or "Cash". Pre-modernized API returned it in
+  // `Header.Option[]` as `{ Name: "AccountingMethod", Value: "..." }`.
+  //
+  // We read ReportBasis first (canonical for current API), fall back to
+  // the Option[] form (defense-in-depth for older QBO variants and older
+  // fixtures), and finally default to Accrual with a diagnostic marker
+  // so mis-decoded responses fail loudly in tests rather than silently
+  // corrupting Cash-basis client reports.
+  const endPeriod = json.Header?.EndPeriod ?? "";
+  const reportBasis = json.Header?.ReportBasis;
+  const optionAccountingMethod = (json.Header?.Option ?? []).find(
+    (o) => (o.Name ?? "").toLowerCase() === "accountingmethod",
+  )?.Value;
+  const rawBasis = reportBasis ?? optionAccountingMethod ?? "";
+  const accountingMethod: "Accrual" | "Cash" =
+    rawBasis === "Cash" ? "Cash" : rawBasis === "Accrual" ? "Accrual" : "Accrual";
+  if (rawBasis !== "Accrual" && rawBasis !== "Cash") {
+    // Do not throw — parser stays pure and defensive. But surface it.
+    // Tests assert this doesn't happen against real fixtures.
+    console.warn(
+      `[parseQboBalanceSheetReport] Unable to determine accounting basis from ReportBasis="${reportBasis ?? ""}" or Option.AccountingMethod="${optionAccountingMethod ?? ""}"; defaulting to Accrual`,
+    );
+  }
+
+  // Same conversion as parseQboGlDetailReport (local there; duplicated here
+  // so this pure parser stays self-contained).
+  const toCents = (v: unknown): number => {
+    if (v === null || v === undefined || v === "") return 0;
+    const n = parseFloat(String(v).replace(/,/g, ""));
+    if (!Number.isFinite(n)) return 0;
+    return Math.round(n * 100);
+  };
+
+  let cursor = 0;
+
+  function classificationFromGroup(
+    group: string,
+  ): "Asset" | "Liability" | "Equity" | null {
+    const g = group.trim().toLowerCase();
+    // Top-level BS sections that QBO uses in the report grammar. Sub-sections
+    // (e.g. "Bank Accounts", "Fixed Assets") inherit from the top ancestor
+    // through the recursive walk below.
+    //
+    // Post June 30 2026 modernization, Section.group is often a camel/Pascal
+    // token ("TotalAssets", "CurrentAssets", "FixedAssets", "BankAccounts")
+    // rather than the display label "Assets". Match via includes("asset") so
+    // those tokens classify correctly; leaf groups like "BankAccounts" /
+    // "AR" inherit from their parent.
+    if (g === "assets" || g.includes("asset")) return "Asset";
+    if (g === "liabilities" || g.startsWith("liab") || g.includes("liabilit"))
+      return "Liability";
+    if (g === "equity" || g.includes("equity")) return "Equity";
+    return null;
+  }
+
+  function walk(
+    rows: QboBsRawRow[] | undefined,
+    inheritedClass: "Asset" | "Liability" | "Equity" | null,
+  ): void {
+    if (!rows) return;
+    for (const row of rows) {
+      const rowType = row.type ?? "";
+      // Section: recurse. Prefer the row's own `group` over inherited.
+      if (rowType === "Section") {
+        const groupClass = classificationFromGroup(row.group ?? "");
+        const nextClass = groupClass ?? inheritedClass;
+        // Some sections carry a Header (ColData with a group label) and
+        // a nested Rows.Row[]. We only walk the nested rows; we never
+        // emit the Header/Summary of a Section as a detail line.
+        walk(row.Rows?.Row, nextClass);
+        continue;
+      }
+      // Data: emit as a detail line under the inherited classification.
+      if (rowType === "Data") {
+        if (inheritedClass == null) continue; // outside BS classification
+        const cols = row.ColData ?? [];
+        if (cols.length < 2) continue;
+        const idRaw = cols[0]?.id;
+        const nameRaw = cols[0]?.value ?? "";
+        const balRaw = cols[cols.length - 1]?.value ?? "";
+        const qboAccountId =
+          idRaw !== undefined && idRaw !== null && String(idRaw).trim() !== ""
+            ? String(idRaw)
+            : null;
+        const balanceCents = toCents(balRaw);
+        const isComputed = qboAccountId === null;
+        lines.push({
+          qboAccountId,
+          qboAccountName: String(nameRaw).trim(),
+          qboAccountType: null, // Not returned in BS report Data rows; set from CoA if needed later.
+          classification: inheritedClass,
+          balanceCents,
+          isComputedLine: isComputed,
+          parentAccountId: null, // BS report doesn't carry ParentRef; we rely on QBO's own rollup.
+          sortOrder: cursor++,
+        });
+        continue;
+      }
+      // Anything else (Summary, etc.) is skipped.
+    }
+  }
+
+  walk(json.Rows?.Row, null);
+
+  return {
+    asOfDate: endPeriod,
+    accountingMethod,
+    lines,
+  };
+}
+
+/**
+ * Row shape used by the BS parser. QBO's payload is loose — every field
+ * may be absent — so we treat every property as optional in the type.
+ */
+type QboBsRawRow = {
+  type?: string;
+  group?: string;
+  ColData?: Array<{ id?: string; value?: string }>;
+  Rows?: {
+    Row?: QboBsRawRow[];
+  };
+  Header?: {
+    ColData?: Array<{ id?: string; value?: string }>;
+  };
+  Summary?: {
+    ColData?: Array<{ id?: string; value?: string }>;
+  };
+};
+
+/**
+ * Fetch QBO BalanceSheet report as of a given date, on the specified
+ * accounting basis. Returns the parsed report — a flat, ordered list
+ * of BS detail lines including QBO-computed equity lines (Net Income).
+ */
+export async function fetchQboBalanceSheet(params: {
+  realmId: string;
+  accessToken: string;
+  asOfDate: string; // yyyy-mm-dd — the point-in-time balance date
+  accountingMethod: "Accrual" | "Cash";
+}): Promise<QboBalanceSheetReportResult> {
+  // QBO Reports API requires BOTH start_date AND end_date for BalanceSheet;
+  // sending only one (or as_of_date alone) triggers QBO's default
+  // date_macro="This Calendar Year-to-date" which silently clamps end_date
+  // to today. start_date is functionally ignored for the balance calculation
+  // (BS is cumulative from the beginning of ledger history) but syntactically
+  // required. We send a sentinel "1900-01-01" to signal "from the beginning".
+  // Verified against sandbox 2026-07-22 — probe F.
+  //
+  // Also note: as of QBO's June 30 2026 Reports API modernization cutover,
+  // response row order and grouping may differ from pre-modernization
+  // behavior. Our parser reads the Rows.Row grammar generically so this
+  // does not affect us; but if a future QBO change breaks parsing, the
+  // most likely culprits are Section.group case ("Assets" vs "ASSETS") and
+  // the presence/absence of the outer Report Header wrapper.
+  const url =
+    `${qboBaseUrl()}/v3/company/${params.realmId}/reports/BalanceSheet` +
+    `?start_date=1900-01-01` +
+    `&end_date=${encodeURIComponent(params.asOfDate)}` +
+    `&accounting_method=${encodeURIComponent(params.accountingMethod)}` +
+    `&minorversion=75`;
+  const res = await qboApiFetch(url, {
+    accessToken: params.accessToken,
+    method: "GET",
+  });
+  if (!res.ok) {
+    throw new Error(
+      `fetchQboBalanceSheet failed: ${res.status} ${res.text}`,
+    );
+  }
+  return parseQboBalanceSheetReport(res.json as Parameters<typeof parseQboBalanceSheetReport>[0]);
 }
 
 /**

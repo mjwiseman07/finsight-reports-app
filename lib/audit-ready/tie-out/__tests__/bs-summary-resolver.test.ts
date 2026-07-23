@@ -10,9 +10,18 @@ vi.mock("../fiscal-year", () => ({
   }),
 }));
 
-// Mock qbo-reports.fetchQboAccountList (default loader path).
+// Mock qbo-reports default loader path (4B.3.5 uses BalanceSheet).
 vi.mock("../qbo-reports", () => ({
   fetchQboAccountList: async () => [],
+  fetchQboBalanceSheet: async () => ({
+    asOfDate: "2026-12-31",
+    accountingMethod: "Accrual",
+    lines: [],
+  }),
+}));
+
+vi.mock("../basis", () => ({
+  resolveAccountingBasis: async () => "Accrual",
 }));
 
 // Mock the per-account resolver so we never hit QBO.
@@ -107,6 +116,9 @@ vi.mock("@/lib/supabase-admin.js", () => ({
           // Force sentinel PBC insert path each run (no pre-existing anchor).
           return { data: null, error: null };
         },
+        async single() {
+          return { data: null, error: { message: "not found" } };
+        },
       };
       return chain;
     },
@@ -134,6 +146,7 @@ beforeEach(() => {
 
 // Import AFTER mocks are declared.
 import { runBsSummaryResolver } from "../bs-summary-resolver";
+import type { QboBalanceSheetLine } from "../qbo-reports";
 
 const basePolicy = {
   policy_mode: "strict",
@@ -144,23 +157,27 @@ const basePolicy = {
   authoritative_comparison: "tighter_of_both" as const,
 };
 
-const acc = (
+const bsLine = (
   id: string,
   name: string,
-  classification: string,
+  classification: "Asset" | "Liability" | "Equity",
   accountType: string,
-) => ({
-  id,
-  name,
-  fullyQualifiedName: name,
-  accountType,
-  accountSubType: null,
+  sortOrder = 0,
+): QboBalanceSheetLine => ({
+  qboAccountId: id,
+  qboAccountName: name,
+  qboAccountType: accountType,
   classification,
-  currentBalance: null,
-  active: true,
-  isSubAccount: false,
+  balanceCents: 0,
+  isComputedLine: false,
   parentAccountId: null,
-  isRollupParent: false,
+  sortOrder,
+});
+
+const asReport = (lines: QboBalanceSheetLine[]) => ({
+  asOfDate: "2026-12-31" as const,
+  accountingMethod: "Accrual" as const,
+  lines: lines.map((l, i) => ({ ...l, sortOrder: l.sortOrder || i })),
 });
 
 const okResult = (
@@ -180,11 +197,11 @@ const okResult = (
 
 describe("runBsSummaryResolver", () => {
   it("aggregates classifications correctly and ties BS equation", async () => {
-    const accts = [
-      acc("1", "Cash", "Asset", "Bank"),
-      acc("2", "AR", "Asset", "AccountsReceivable"),
-      acc("3", "AP", "Liability", "AccountsPayable"),
-      acc("4", "Common Stock", "Equity", "Equity"),
+    const lines = [
+      bsLine("1", "Cash", "Asset", "Bank", 0),
+      bsLine("2", "AR", "Asset", "AccountsReceivable", 1),
+      bsLine("3", "AP", "Liability", "AccountsPayable", 2),
+      bsLine("4", "Common Stock", "Equity", "Equity", 3),
     ];
     const res = await runBsSummaryResolver({
       engagementId: "eng-1",
@@ -194,11 +211,12 @@ describe("runBsSummaryResolver", () => {
       policy: basePolicy,
       triggeredByUserId: "u",
       triggerReason: "api",
-      _accountsLoader: async () => accts,
+      _basisResolver: async () => "Accrual",
+      _balanceSheetLoader: async () => asReport(lines),
       _perAccountRunner: async ({ account }) => {
-        if (account.id === "1") return okResult(60_00);
-        if (account.id === "2") return okResult(40_00);
-        if (account.id === "3") return okResult(30_00);
+        if (account.qboAccountId === "1") return okResult(60_00);
+        if (account.qboAccountId === "2") return okResult(40_00);
+        if (account.qboAccountId === "3") return okResult(30_00);
         return okResult(70_00);
       },
     });
@@ -216,10 +234,10 @@ describe("runBsSummaryResolver", () => {
   });
 
   it("flags kickout when equation off", async () => {
-    const accts = [
-      acc("1", "Cash", "Asset", "Bank"),
-      acc("2", "AP", "Liability", "AccountsPayable"),
-      acc("3", "Equity", "Equity", "Equity"),
+    const lines = [
+      bsLine("1", "Cash", "Asset", "Bank", 0),
+      bsLine("2", "AP", "Liability", "AccountsPayable", 1),
+      bsLine("3", "Equity", "Equity", "Equity", 2),
     ];
     const res = await runBsSummaryResolver({
       engagementId: "eng-1",
@@ -229,10 +247,11 @@ describe("runBsSummaryResolver", () => {
       policy: basePolicy,
       triggeredByUserId: "u",
       triggerReason: "api",
-      _accountsLoader: async () => accts,
+      _basisResolver: async () => "Accrual",
+      _balanceSheetLoader: async () => asReport(lines),
       _perAccountRunner: async ({ account }) => {
-        if (account.id === "1") return okResult(100_00);
-        if (account.id === "2") return okResult(50_00);
+        if (account.qboAccountId === "1") return okResult(100_00);
+        if (account.qboAccountId === "2") return okResult(50_00);
         return okResult(45_00);
       },
     });
@@ -242,9 +261,9 @@ describe("runBsSummaryResolver", () => {
   });
 
   it("preserves child failure and marks parent kickout", async () => {
-    const accts = [
-      acc("1", "Cash", "Asset", "Bank"),
-      acc("2", "AP", "Liability", "AccountsPayable"),
+    const lines = [
+      bsLine("1", "Cash", "Asset", "Bank", 0),
+      bsLine("2", "AP", "Liability", "AccountsPayable", 1),
     ];
     const res = await runBsSummaryResolver({
       engagementId: "eng-1",
@@ -254,9 +273,10 @@ describe("runBsSummaryResolver", () => {
       policy: basePolicy,
       triggeredByUserId: "u",
       triggerReason: "api",
-      _accountsLoader: async () => accts,
+      _basisResolver: async () => "Accrual",
+      _balanceSheetLoader: async () => asReport(lines),
       _perAccountRunner: async ({ account }) => {
-        if (account.id === "1") return okResult(100_00);
+        if (account.qboAccountId === "1") return okResult(100_00);
         return {
           status: "failed" as const,
           errorCode: "boom",
@@ -274,10 +294,10 @@ describe("runBsSummaryResolver", () => {
   });
 
   it("respects scope filter", async () => {
-    const accts = [
-      acc("1", "Cash", "Asset", "Bank"),
-      acc("2", "AR", "Asset", "AccountsReceivable"),
-      acc("3", "AP", "Liability", "AccountsPayable"),
+    const lines = [
+      bsLine("1", "Cash", "Asset", "Bank", 0),
+      bsLine("2", "AR", "Asset", "AccountsReceivable", 1),
+      bsLine("3", "AP", "Liability", "AccountsPayable", 2),
     ];
     const res = await runBsSummaryResolver({
       engagementId: "eng-1",
@@ -288,9 +308,10 @@ describe("runBsSummaryResolver", () => {
       triggeredByUserId: "u",
       triggerReason: "api",
       bsAccountIds: ["1", "3"],
-      _accountsLoader: async () => accts,
+      _basisResolver: async () => "Accrual",
+      _balanceSheetLoader: async () => asReport(lines),
       _perAccountRunner: async ({ account }) =>
-        okResult(account.id === "1" ? 100_00 : 100_00),
+        okResult(account.qboAccountId === "1" ? 100_00 : 100_00),
     });
     if (res.status !== "completed") throw new Error("unreachable");
     expect(res.accountCountTotal).toBe(2);
@@ -302,10 +323,10 @@ describe("runBsSummaryResolver", () => {
   });
 
   it("produces byte-identical PDF for identical inputs", async () => {
-    const accts = [
-      acc("1", "Cash", "Asset", "Bank"),
-      acc("2", "AP", "Liability", "AccountsPayable"),
-      acc("3", "Equity", "Equity", "Equity"),
+    const lines = [
+      bsLine("1", "Cash", "Asset", "Bank", 0),
+      bsLine("2", "AP", "Liability", "AccountsPayable", 1),
+      bsLine("3", "Equity", "Equity", "Equity", 2),
     ];
     const runOnce = () =>
       runBsSummaryResolver({
@@ -316,10 +337,11 @@ describe("runBsSummaryResolver", () => {
         policy: basePolicy,
         triggeredByUserId: "u",
         triggerReason: "api",
-        _accountsLoader: async () => accts,
+        _basisResolver: async () => "Accrual",
+        _balanceSheetLoader: async () => asReport(lines),
         _perAccountRunner: async ({ account }) => {
-          if (account.id === "1") return okResult(100_00);
-          if (account.id === "2") return okResult(50_00);
+          if (account.qboAccountId === "1") return okResult(100_00);
+          if (account.qboAccountId === "2") return okResult(50_00);
           return okResult(50_00);
         },
       });
@@ -341,11 +363,11 @@ describe("runBsSummaryResolver", () => {
   it("populates run-row counts and duration on completion", async () => {
     // Two assets tie, one liability kicks, one equity auto-reconciles →
     // exercises every counter branch.
-    const accts = [
-      acc("1", "Cash", "Asset", "Bank"),
-      acc("2", "AR", "Asset", "AccountsReceivable"),
-      acc("3", "AP", "Liability", "AccountsPayable"),
-      acc("4", "RE", "Equity", "Equity"),
+    const lines = [
+      bsLine("1", "Cash", "Asset", "Bank", 0),
+      bsLine("2", "AR", "Asset", "AccountsReceivable", 1),
+      bsLine("3", "AP", "Liability", "AccountsPayable", 2),
+      bsLine("4", "RE", "Equity", "Equity", 3),
     ];
     const res = await runBsSummaryResolver({
       engagementId: "eng-1",
@@ -355,11 +377,12 @@ describe("runBsSummaryResolver", () => {
       policy: basePolicy,
       triggeredByUserId: "u",
       triggerReason: "api",
-      _accountsLoader: async () => accts,
+      _basisResolver: async () => "Accrual",
+      _balanceSheetLoader: async () => asReport(lines),
       _perAccountRunner: async ({ account }) => {
-        if (account.id === "1") return okResult(60_00, "tie");
-        if (account.id === "2") return okResult(40_00, "tie");
-        if (account.id === "3") return okResult(30_00, "kickout");
+        if (account.qboAccountId === "1") return okResult(60_00, "tie");
+        if (account.qboAccountId === "2") return okResult(40_00, "tie");
+        if (account.qboAccountId === "3") return okResult(30_00, "kickout");
         return okResult(70_00, "auto_reconcile");
       },
     });
@@ -379,6 +402,8 @@ describe("runBsSummaryResolver", () => {
     // BS-equation-side totals — assets = 100_00, L+E = 30_00 + 70_00 = 100_00
     expect(completedUpdate.subledger_total_cents).toBe(100_00);
     expect(completedUpdate.gl_total_cents).toBe(100_00);
+    // Run-level totals_variance_cents is sum of abs(tie variance) on real
+    // lines only (all 0 in this fixture) — not the equation variance.
     expect(completedUpdate.totals_variance_cents).toBe(0);
     // duration_ms is Date.now() based; assert it's a non-negative number.
     expect(typeof completedUpdate.duration_ms).toBe("number");
@@ -388,18 +413,13 @@ describe("runBsSummaryResolver", () => {
   it("regression: production-shape sign-flip data (natural + normalized) aggregates to a tied BS equation", async () => {
     // Simulates the post-fix state where the per-account resolver has
     // already applied normalizeTbNetToNaturalSign, so glEndingBalanceCents
-    // arrives in natural-sign convention for every classification. This
-    // is the scenario the PR #195 smoke would have produced had this
-    // hotfix already been in place.
-    //
-    // Numbers mirror the pilot BS: assets = 39,766.31; L = 35,131.33;
-    // E = 4,634.98 (post-fix, previously buggy). Rounded to whole cents.
-    const accts = [
-      acc("a1", "Cash", "Asset", "Bank"),
-      acc("a2", "Undeposited Funds", "Asset", "OtherCurrentAsset"),
-      acc("l1", "Accounts Payable", "Liability", "AccountsPayable"),
-      acc("l2", "Notes Payable", "Liability", "LongTermLiability"),
-      acc("e1", "Retained Earnings", "Equity", "Equity"),
+    // arrives in natural-sign convention for every classification.
+    const lines = [
+      bsLine("a1", "Cash", "Asset", "Bank", 0),
+      bsLine("a2", "Undeposited Funds", "Asset", "OtherCurrentAsset", 1),
+      bsLine("l1", "Accounts Payable", "Liability", "AccountsPayable", 2),
+      bsLine("l2", "Notes Payable", "Liability", "LongTermLiability", 3),
+      bsLine("e1", "Retained Earnings", "Equity", "Equity", 4),
     ];
     const res = await runBsSummaryResolver({
       engagementId: "eng-1",
@@ -409,23 +429,231 @@ describe("runBsSummaryResolver", () => {
       policy: basePolicy,
       triggeredByUserId: "u",
       triggerReason: "api",
-      _accountsLoader: async () => accts,
+      _basisResolver: async () => "Accrual",
+      _balanceSheetLoader: async () => asReport(lines),
       _perAccountRunner: async ({ account }) => {
-        // Post-normalization values (natural-sign, matching QBO BS UI).
-        if (account.id === "a1") return okResult(3_500_000);
-        if (account.id === "a2") return okResult(476_631);
-        if (account.id === "l1") return okResult(56_026_700 / 100 * 100 / 100 | 0); // fallback below
+        if (account.qboAccountId === "a1") return okResult(3_500_000);
+        if (account.qboAccountId === "a2") return okResult(476_631);
+        if (account.qboAccountId === "l1") return okResult(0);
         return okResult(0);
       },
     });
     if (res.status !== "completed") throw new Error("unreachable");
-    // The core assertion: with post-normalization values, all
-    // liability/equity balances aggregate as positive (natural sign),
-    // and the BS equation math (assets − (L+E)) yields the correct
-    // signed variance rather than the double-counted variance the
-    // pre-fix resolver produced.
     expect(res.status).toBe("completed");
-    // Deterministic PDF still byte-identical for identical inputs.
-    // (Second run below.)
+  });
+
+  it("resolves accrual basis from firm_clients and passes to loader", async () => {
+    const passedBasis: string[] = [];
+    const res = await runBsSummaryResolver({
+      engagementId: "eng-1",
+      realmId: "r",
+      accessToken: "t",
+      asOfDate: "2026-12-31",
+      policy: basePolicy,
+      triggeredByUserId: "u",
+      triggerReason: "api",
+      _basisResolver: async () => "Accrual",
+      _balanceSheetLoader: async (args) => {
+        passedBasis.push(args.accountingMethod);
+        return { asOfDate: "2026-12-31", accountingMethod: "Accrual", lines: [] };
+      },
+      _perAccountRunner: async () => okResult(0),
+    });
+    expect(res.status).toBe("completed");
+    expect(passedBasis).toEqual(["Accrual"]);
+  });
+
+  it("resolves cash basis and passes it to the loader", async () => {
+    const passedBasis: string[] = [];
+    const res = await runBsSummaryResolver({
+      engagementId: "eng-1",
+      realmId: "r",
+      accessToken: "t",
+      asOfDate: "2026-12-31",
+      policy: basePolicy,
+      triggeredByUserId: "u",
+      triggerReason: "api",
+      _basisResolver: async () => "Cash",
+      _balanceSheetLoader: async (args) => {
+        passedBasis.push(args.accountingMethod);
+        return { asOfDate: "2026-12-31", accountingMethod: "Cash", lines: [] };
+      },
+      _perAccountRunner: async () => okResult(0),
+    });
+    expect(res.status).toBe("completed");
+    expect(passedBasis).toEqual(["Cash"]);
+  });
+
+  it("passes bsEquationVarianceCents=0 when computed Net Income closes the gap", async () => {
+    const lines: QboBalanceSheetLine[] = [
+      {
+        qboAccountId: "1",
+        qboAccountName: "Checking",
+        qboAccountType: "Bank",
+        classification: "Asset",
+        balanceCents: 10000,
+        isComputedLine: false,
+        parentAccountId: null,
+        sortOrder: 0,
+      },
+      {
+        qboAccountId: "2",
+        qboAccountName: "Loan",
+        qboAccountType: "Long Term Liability",
+        classification: "Liability",
+        balanceCents: 8000,
+        isComputedLine: false,
+        parentAccountId: null,
+        sortOrder: 1,
+      },
+      {
+        qboAccountId: null,
+        qboAccountName: "Net Income",
+        qboAccountType: null,
+        classification: "Equity",
+        balanceCents: 2000,
+        isComputedLine: true,
+        parentAccountId: null,
+        sortOrder: 2,
+      },
+    ];
+    const res = await runBsSummaryResolver({
+      engagementId: "eng-1",
+      realmId: "r",
+      accessToken: "t",
+      asOfDate: "2026-12-31",
+      policy: basePolicy,
+      triggeredByUserId: "u",
+      triggerReason: "api",
+      _basisResolver: async () => "Accrual",
+      _balanceSheetLoader: async () => asReport(lines),
+      _perAccountRunner: async ({ account }) =>
+        okResult(account.qboAccountId === "1" ? 10000 : 8000),
+    });
+    if (res.status !== "completed") throw new Error("unreachable");
+    expect(res.bsEquationVarianceCents).toBe(0);
+    expect(state.lines).toHaveLength(3);
+    expect(state.lines.filter((l) => l.is_computed_line === true)).toHaveLength(
+      1,
+    );
+    expect(
+      state.lines.find((l) => l.qbo_account_name === "Net Income"),
+    ).toMatchObject({
+      is_computed_line: true,
+      qbo_account_id: null,
+      tie_variance_cents: 0,
+      totals_status: "tie",
+    });
+  });
+
+  it("excludes computed lines from item_kickout_count and totals_variance_cents", async () => {
+    const lines: QboBalanceSheetLine[] = [
+      {
+        qboAccountId: "1",
+        qboAccountName: "Checking",
+        qboAccountType: "Bank",
+        classification: "Asset",
+        balanceCents: 10000,
+        isComputedLine: false,
+        parentAccountId: null,
+        sortOrder: 0,
+      },
+      {
+        qboAccountId: "2",
+        qboAccountName: "Loan",
+        qboAccountType: "Long Term Liability",
+        classification: "Liability",
+        balanceCents: 5000,
+        isComputedLine: false,
+        parentAccountId: null,
+        sortOrder: 1,
+      },
+      {
+        qboAccountId: null,
+        qboAccountName: "Net Income",
+        qboAccountType: null,
+        classification: "Equity",
+        balanceCents: 5000,
+        isComputedLine: true,
+        parentAccountId: null,
+        sortOrder: 2,
+      },
+    ];
+    const res = await runBsSummaryResolver({
+      engagementId: "eng-1",
+      realmId: "r",
+      accessToken: "t",
+      asOfDate: "2026-12-31",
+      policy: basePolicy,
+      triggeredByUserId: "u",
+      triggerReason: "api",
+      _basisResolver: async () => "Accrual",
+      _balanceSheetLoader: async () => asReport(lines),
+      _perAccountRunner: async ({ account }) => {
+        if (account.qboAccountId === "1") {
+          return {
+            ...okResult(10000, "kickout"),
+            tieVarianceCents: 250,
+          };
+        }
+        return okResult(5000, "tie");
+      },
+    });
+    if (res.status !== "completed") throw new Error("unreachable");
+    expect(res.accountCountKickout).toBe(1);
+    expect(res.bsEquationVarianceCents).toBe(0);
+    const completedUpdate = state.runUpdates.find(
+      (u) =>
+        u.table === "audit_ready_tie_out_runs" && u.status === "completed",
+    );
+    expect(completedUpdate).toBeDefined();
+    expect(completedUpdate!.item_kickout_count).toBe(1);
+    // Real-line variance only (250); computed line variance is 0 and excluded.
+    expect(completedUpdate!.totals_variance_cents).toBe(250);
+  });
+
+  it("byte-identical PDF parity still holds when computed Net Income is present", async () => {
+    const lines: QboBalanceSheetLine[] = [
+      bsLine("1", "Cash", "Asset", "Bank", 0),
+      bsLine("2", "AP", "Liability", "AccountsPayable", 1),
+      {
+        qboAccountId: null,
+        qboAccountName: "Net Income",
+        qboAccountType: null,
+        classification: "Equity",
+        balanceCents: 5000,
+        isComputedLine: true,
+        parentAccountId: null,
+        sortOrder: 2,
+      },
+    ];
+    // Seed balances so equation can close via runner endings + NI line.
+    lines[0] = { ...lines[0], balanceCents: 10000 };
+    lines[1] = { ...lines[1], balanceCents: 5000 };
+    const runOnce = () =>
+      runBsSummaryResolver({
+        engagementId: "eng-1",
+        realmId: "r",
+        accessToken: "t",
+        asOfDate: "2026-12-31",
+        policy: basePolicy,
+        triggeredByUserId: "u",
+        triggerReason: "api",
+        _basisResolver: async () => "Accrual",
+        _balanceSheetLoader: async () => asReport(lines),
+        _perAccountRunner: async ({ account }) =>
+          okResult(account.qboAccountId === "1" ? 10000 : 5000),
+      });
+    const r1 = await runOnce();
+    const key1 = state.uploads.at(-1)?.key;
+    const size1 = state.uploads.at(-1)?.size;
+    const r2 = await runOnce();
+    const key2 = state.uploads.at(-1)?.key;
+    const size2 = state.uploads.at(-1)?.size;
+    if (r1.status !== "completed" || r2.status !== "completed") {
+      throw new Error("unreachable");
+    }
+    expect(size1).toBe(size2);
+    expect(key1).toBe(key2);
   });
 });

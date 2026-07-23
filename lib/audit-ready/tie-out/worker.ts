@@ -39,7 +39,7 @@ export type RunTieOutOutcome =
  * (audit_ready_engagements CHECK). Resolve via firm_clients.company_id —
  * same pattern as lib/pulse-je/resolve-context.ts.
  */
-async function resolveFirmClientIdForEngagement(eng: {
+export async function resolveFirmClientIdForEngagement(eng: {
   firm_client_id: string | null;
   company_id: string | null;
 }): Promise<string | null> {

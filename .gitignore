@@ -51,3 +51,7 @@ next-env.d.ts
 /tmp/smoke/
 tmp/smoke/
 *.smoke.pdf
+
+# One-shot fixture capture scripts (not committed)
+scripts/capture-qbo-bs-fixture.ts
+

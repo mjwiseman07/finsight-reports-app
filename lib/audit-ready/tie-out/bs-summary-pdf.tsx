@@ -74,6 +74,8 @@ export type BsSummaryPdfLine = {
   glEndingCents: number;
   varianceCents: number;
   status: "tie" | "auto_reconcile" | "review" | "kickout" | "failed";
+  /** QBO-computed equity lines (e.g. Net Income) — italic, no GL link. */
+  isComputedLine: boolean;
 };
 
 export type BsSummaryPdfInput = {
@@ -183,18 +185,29 @@ export async function renderBsSummaryPdf(
                   <Text style={styles.c6}>—</Text>
                 </View>
               ) : (
-                rows.map((r, i) => (
-                  <View key={i} style={styles.row}>
-                    <Text style={styles.c1}>{r.accountName}</Text>
-                    <Text style={styles.c2}>{r.accountType}</Text>
-                    <Text style={styles.c3}>{usd(r.endingCents)}</Text>
-                    <Text style={styles.c4}>{usd(r.glEndingCents)}</Text>
-                    <Text style={styles.c5}>{usd(r.varianceCents)}</Text>
-                    <Text style={{ ...styles.c6, color: statusColor(r.status) }}>
-                      {statusLabel(r.status)}
-                    </Text>
-                  </View>
-                ))
+                rows.map((r, i) => {
+                  // Computed lines (Net Income): italic label, no hyperlink
+                  // (none of the rows are linked today — keep that for
+                  // computed lines explicitly; real-account links, if added
+                  // later, must skip isComputedLine === true).
+                  const nameStyle = r.isComputedLine
+                    ? { ...styles.c1, fontStyle: "italic" as const }
+                    : styles.c1;
+                  return (
+                    <View key={i} style={styles.row}>
+                      <Text style={nameStyle}>{r.accountName}</Text>
+                      <Text style={styles.c2}>{r.accountType}</Text>
+                      <Text style={styles.c3}>{usd(r.endingCents)}</Text>
+                      <Text style={styles.c4}>{usd(r.glEndingCents)}</Text>
+                      <Text style={styles.c5}>{usd(r.varianceCents)}</Text>
+                      <Text
+                        style={{ ...styles.c6, color: statusColor(r.status) }}
+                      >
+                        {statusLabel(r.status)}
+                      </Text>
+                    </View>
+                  );
+                })
               )}
               <View style={{ ...styles.row, borderBottomWidth: 0 }}>
                 <Text
