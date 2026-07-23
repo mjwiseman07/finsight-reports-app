@@ -717,6 +717,37 @@ export type QboAccountListEntry = {
 };
 
 /**
+ * A single detail line from the QBO BalanceSheet report.
+ *
+ * Balance sheet reports rows in a nested Section/Header/Detail/Summary
+ * grammar. We flatten to the detail lines only and preserve QBO's own
+ * row order via `sortOrder`. Detail rows always carry a natural-sign
+ * balance in cents.
+ *
+ * Some lines are "computed" — QBO emits them under Equity as summary
+ * outputs of the report engine (most notably "Net Income" = P&L net
+ * over the report period). They have no underlying account; we mark
+ * them with `isComputedLine=true` and `qboAccountId=null` and pass
+ * them through to the summary as tautologically-tied rows.
+ */
+export type QboBalanceSheetLine = {
+  qboAccountId: string | null;
+  qboAccountName: string;
+  qboAccountType: string | null;
+  classification: "Asset" | "Liability" | "Equity";
+  balanceCents: number;
+  isComputedLine: boolean;
+  parentAccountId: string | null;
+  sortOrder: number;
+};
+
+export type QboBalanceSheetReportResult = {
+  asOfDate: string;
+  accountingMethod: "Accrual" | "Cash";
+  lines: QboBalanceSheetLine[];
+};
+
+/**
  * QBO Account.query returns AccountType in **display form with spaces**
  * on minorversions we currently target (e.g. "Fixed Asset",
  * "Accounts Receivable", "Other Current Liability"). We keep the
@@ -840,7 +871,7 @@ export type QboGlActivityRow = {
   debitCents: number;
   creditCents: number;
   netCents: number; // signed = debit - credit
-  runningBalanceCents: number; // as reported by QBO (Native)
+  runningBalanceCents: number | null; // as reported by QBO (Native); null when the Balance column was empty for this row (distinct from a legit zero balance)
   txnRef: string | null;
 };
 
@@ -851,6 +882,378 @@ export type QboGlDetailResult = {
   reportUrl: string;
   intuitTid: string | null;
 };
+
+/**
+ * Pure parser for a QBO GeneralLedger report response body. Split out from
+ * fetchQboGeneralLedgerDetail so it can be unit-tested without network mocking.
+ *
+ * Contract:
+ *   - Walks the report's row tree, collecting Data rows into activity[].
+ *   - Ignores "Beginning Balance" data rows (extracts beginningBalanceCents from
+ *     the Balance column) and any "Total for ..." rows.
+ *   - Preserves the distinction between "Balance column was empty" (null) and
+ *     "balance is legitimately zero" (0). This matters for endingBalanceCents:
+ *     an account that pays down to exactly zero must report ending=0, not the
+ *     prior non-zero running balance.
+ *   - endingBalanceCents priority:
+ *       1. If any activity row has runningBalanceCents !== null, use the LAST
+ *          such row's value (walking from the end forward).
+ *       2. Else if there is activity, use beginningBalanceCents + sum(netCents).
+ *       3. Else use beginningBalanceCents.
+ */
+export function parseQboGlDetailReport(json: {
+  Rows?: { Row?: unknown[] };
+  Columns?: { Column?: Array<{ ColTitle: string }> };
+}): {
+  beginningBalanceCents: number;
+  endingBalanceCents: number;
+  activity: QboGlActivityRow[];
+} {
+  const cols = json.Columns?.Column ?? [];
+  const colIdx = (title: string) =>
+    cols.findIndex((c) => c.ColTitle?.toLowerCase() === title.toLowerCase());
+  const iDate = colIdx("Date");
+  const iType = colIdx("Transaction Type");
+  const iDoc = colIdx("Num");
+  const iName = colIdx("Name");
+  const iMemo = colIdx("Memo/Description");
+  const iSplit = colIdx("Split");
+  // QBO returns either separate Debit/Credit columns OR a signed "Amount" column
+  // depending on the column codes requested. With subt_nat_amount we get "Amount".
+  const iDebit = colIdx("Debit");
+  const iCredit = colIdx("Credit");
+  const iAmount = colIdx("Amount");
+  const iBalance = colIdx("Balance");
+  const activity: QboGlActivityRow[] = [];
+  let beginningBalanceCents = 0;
+  const toCents = (v: unknown): number => {
+    if (v === null || v === undefined || v === "") return 0;
+    const n = parseFloat(String(v).replace(/,/g, ""));
+    if (!Number.isFinite(n)) return 0;
+    return Math.round(n * 100);
+  };
+  const getCol = (
+    row: { ColData?: Array<{ value?: string; id?: string }> },
+    i: number,
+  ) =>
+    i >= 0 && row.ColData && row.ColData[i]
+      ? row.ColData[i]
+      : { value: "", id: "" };
+  type QboRow = {
+    type?: string;
+    group?: string;
+    ColData?: Array<{ value?: string; id?: string }>;
+    Header?: { ColData?: Array<{ value?: string }> };
+    Summary?: { ColData?: Array<{ value?: string }> };
+    Rows?: { Row?: QboRow[] };
+  };
+  const walk = (node: QboRow | undefined) => {
+    if (!node) return;
+    if (node.type === "Data" && node.ColData) {
+      const dateCell = getCol(node, iDate).value || "";
+      const typeCell = getCol(node, iType).value || "";
+      const isBeginning =
+        /beginning balance/i.test(typeCell) ||
+        /beginning balance/i.test(dateCell);
+      const isTotal =
+        /total for/i.test(typeCell) || /total for/i.test(dateCell);
+      if (isBeginning) {
+        beginningBalanceCents = toCents(getCol(node, iBalance).value);
+        return;
+      }
+      if (isTotal) return;
+      // Distinguish "Balance column empty" (null) from "balance is legitimately 0".
+      // toCents() collapses both cases to the number 0, so we inspect the raw
+      // cell value BEFORE coercion.
+      const balanceCell = getCol(node, iBalance);
+      const balanceRaw = balanceCell.value;
+      const hasBalance =
+        balanceRaw !== undefined &&
+        balanceRaw !== null &&
+        String(balanceRaw).trim() !== "";
+      const runningBalanceCents = hasBalance ? toCents(balanceRaw) : null;
+      const txnRef = getCol(node, iType).id || null;
+      let debitCents = 0;
+      let creditCents = 0;
+      let netCents = 0;
+      if (iDebit >= 0 || iCredit >= 0) {
+        debitCents = toCents(getCol(node, iDebit).value);
+        creditCents = toCents(getCol(node, iCredit).value);
+        netCents = debitCents - creditCents;
+      } else if (iAmount >= 0) {
+        // Signed net amount from QBO. Split into debit/credit halves for
+        // downstream reporting parity with the two-column layout.
+        netCents = toCents(getCol(node, iAmount).value);
+        if (netCents >= 0) {
+          debitCents = netCents;
+        } else {
+          creditCents = -netCents;
+        }
+      }
+      activity.push({
+        txnDate: /^\d{4}-\d{2}-\d{2}$/.test(dateCell) ? dateCell : null,
+        txnType: typeCell || null,
+        docNumber: getCol(node, iDoc).value || null,
+        name: getCol(node, iName).value || null,
+        memo: getCol(node, iMemo).value || null,
+        splitAccount: getCol(node, iSplit).value || null,
+        debitCents,
+        creditCents,
+        netCents,
+        runningBalanceCents,
+        txnRef,
+      });
+    }
+    // Do not treat Section Summary as authoritative for ending balance.
+    // Some QBO column layouts leave the Balance column empty in the summary
+    // and put net activity in the Amount column instead. Ending balance is
+    // derived below from the last activity row's runningBalanceCents.
+    node.Rows?.Row?.forEach(walk);
+  };
+  (json.Rows?.Row as QboRow[] | undefined)?.forEach(walk);
+  // Ending balance: prefer the running balance of the LAST activity row that
+  // reported a Balance column value (null-sentinel means "column empty").
+  // A row whose runningBalanceCents === 0 is a legit zero balance and must be
+  // honored (e.g. an account that paid down to zero during the period).
+  // Fall back to beginning + sum(activity) only if no rows had a usable running
+  // balance at all.
+  let endingBalanceCents = 0;
+  const lastWithRb = [...activity]
+    .reverse()
+    .find(
+      (r) =>
+        r.runningBalanceCents !== null &&
+        Number.isFinite(r.runningBalanceCents),
+    );
+  if (lastWithRb && lastWithRb.runningBalanceCents !== null) {
+    endingBalanceCents = lastWithRb.runningBalanceCents;
+  } else if (activity.length > 0) {
+    endingBalanceCents =
+      beginningBalanceCents +
+      activity.reduce((s, r) => s + r.netCents, 0);
+  } else {
+    endingBalanceCents = beginningBalanceCents;
+  }
+  return { beginningBalanceCents, endingBalanceCents, activity };
+}
+
+/**
+ * Parse a QBO BalanceSheet report JSON payload into a flat, ordered list
+ * of BalanceSheetLine detail rows. Pure function — no I/O, no side effects.
+ * Structured this way so that unit tests replay from captured JSON fixtures
+ * without hitting the network.
+ *
+ * QBO's BalanceSheet report grammar (minorversion 65-75):
+ *   Rows.Row[] contains Section rows, Data rows (detail), and Summary rows.
+ *   Sections nest recursively via Rows.Row. Section `group` values match
+ *   "Assets" / "Liabilities" / "Equity" (and further sub-sections we walk
+ *   through). Each detail Data row has ColData[0] = { id, value } for the
+ *   account, ColData[last] = { value } for the balance (natural sign).
+ *
+ * Rules:
+ *   - Emit only Data rows (`type === "Data"`) whose parent classification
+ *     resolves to Asset / Liability / Equity.
+ *   - Skip Section headers and Section summaries.
+ *   - Skip the report's outer total row (`type === "Section"` at the top
+ *     level with no `group`).
+ *   - Computed Equity lines (Net Income, Net Loss, "Net Other Income", etc.)
+ *     have empty or missing `ColData[0].id` — emit with qboAccountId=null,
+ *     isComputedLine=true, and the account name from ColData[0].value.
+ *   - Balance parsing: use the same empty-vs-zero preservation as GL Detail
+ *     (empty string ≠ "0.00"; but on BS report both are legitimate zeros —
+ *     we accept both as 0 cents. Unlike GL Detail we don't need the null
+ *     distinction because ending-balance detection isn't a walk).
+ */
+export function parseQboBalanceSheetReport(json: {
+  Header?: {
+    ReportName?: string;
+    ReportBasis?: string;
+    StartPeriod?: string;
+    EndPeriod?: string;
+    Option?: Array<{ Name?: string; Value?: string }>;
+  };
+  Rows?: {
+    Row?: QboBsRawRow[];
+  };
+}): QboBalanceSheetReportResult {
+  const lines: QboBalanceSheetLine[] = [];
+
+  // Resolve as-of date and accounting basis from the report Header.
+  //
+  // Modernized Reports API (post 2026-06-30 cutover) returns accounting
+  // basis in `Header.ReportBasis` — a single top-level field with value
+  // "Accrual" or "Cash". Pre-modernized API returned it in
+  // `Header.Option[]` as `{ Name: "AccountingMethod", Value: "..." }`.
+  //
+  // We read ReportBasis first (canonical for current API), fall back to
+  // the Option[] form (defense-in-depth for older QBO variants and older
+  // fixtures), and finally default to Accrual with a diagnostic marker
+  // so mis-decoded responses fail loudly in tests rather than silently
+  // corrupting Cash-basis client reports.
+  const endPeriod = json.Header?.EndPeriod ?? "";
+  const reportBasis = json.Header?.ReportBasis;
+  const optionAccountingMethod = (json.Header?.Option ?? []).find(
+    (o) => (o.Name ?? "").toLowerCase() === "accountingmethod",
+  )?.Value;
+  const rawBasis = reportBasis ?? optionAccountingMethod ?? "";
+  const accountingMethod: "Accrual" | "Cash" =
+    rawBasis === "Cash" ? "Cash" : rawBasis === "Accrual" ? "Accrual" : "Accrual";
+  if (rawBasis !== "Accrual" && rawBasis !== "Cash") {
+    // Do not throw — parser stays pure and defensive. But surface it.
+    // Tests assert this doesn't happen against real fixtures.
+    console.warn(
+      `[parseQboBalanceSheetReport] Unable to determine accounting basis from ReportBasis="${reportBasis ?? ""}" or Option.AccountingMethod="${optionAccountingMethod ?? ""}"; defaulting to Accrual`,
+    );
+  }
+
+  // Same conversion as parseQboGlDetailReport (local there; duplicated here
+  // so this pure parser stays self-contained).
+  const toCents = (v: unknown): number => {
+    if (v === null || v === undefined || v === "") return 0;
+    const n = parseFloat(String(v).replace(/,/g, ""));
+    if (!Number.isFinite(n)) return 0;
+    return Math.round(n * 100);
+  };
+
+  let cursor = 0;
+
+  function classificationFromGroup(
+    group: string,
+  ): "Asset" | "Liability" | "Equity" | null {
+    const g = group.trim().toLowerCase();
+    // Top-level BS sections that QBO uses in the report grammar. Sub-sections
+    // (e.g. "Bank Accounts", "Fixed Assets") inherit from the top ancestor
+    // through the recursive walk below.
+    //
+    // Post June 30 2026 modernization, Section.group is often a camel/Pascal
+    // token ("TotalAssets", "CurrentAssets", "FixedAssets", "BankAccounts")
+    // rather than the display label "Assets". Match via includes("asset") so
+    // those tokens classify correctly; leaf groups like "BankAccounts" /
+    // "AR" inherit from their parent.
+    if (g === "assets" || g.includes("asset")) return "Asset";
+    if (g === "liabilities" || g.startsWith("liab") || g.includes("liabilit"))
+      return "Liability";
+    if (g === "equity" || g.includes("equity")) return "Equity";
+    return null;
+  }
+
+  function walk(
+    rows: QboBsRawRow[] | undefined,
+    inheritedClass: "Asset" | "Liability" | "Equity" | null,
+  ): void {
+    if (!rows) return;
+    for (const row of rows) {
+      const rowType = row.type ?? "";
+      // Section: recurse. Prefer the row's own `group` over inherited.
+      if (rowType === "Section") {
+        const groupClass = classificationFromGroup(row.group ?? "");
+        const nextClass = groupClass ?? inheritedClass;
+        // Some sections carry a Header (ColData with a group label) and
+        // a nested Rows.Row[]. We only walk the nested rows; we never
+        // emit the Header/Summary of a Section as a detail line.
+        walk(row.Rows?.Row, nextClass);
+        continue;
+      }
+      // Data: emit as a detail line under the inherited classification.
+      if (rowType === "Data") {
+        if (inheritedClass == null) continue; // outside BS classification
+        const cols = row.ColData ?? [];
+        if (cols.length < 2) continue;
+        const idRaw = cols[0]?.id;
+        const nameRaw = cols[0]?.value ?? "";
+        const balRaw = cols[cols.length - 1]?.value ?? "";
+        const qboAccountId =
+          idRaw !== undefined && idRaw !== null && String(idRaw).trim() !== ""
+            ? String(idRaw)
+            : null;
+        const balanceCents = toCents(balRaw);
+        const isComputed = qboAccountId === null;
+        lines.push({
+          qboAccountId,
+          qboAccountName: String(nameRaw).trim(),
+          qboAccountType: null, // Not returned in BS report Data rows; set from CoA if needed later.
+          classification: inheritedClass,
+          balanceCents,
+          isComputedLine: isComputed,
+          parentAccountId: null, // BS report doesn't carry ParentRef; we rely on QBO's own rollup.
+          sortOrder: cursor++,
+        });
+        continue;
+      }
+      // Anything else (Summary, etc.) is skipped.
+    }
+  }
+
+  walk(json.Rows?.Row, null);
+
+  return {
+    asOfDate: endPeriod,
+    accountingMethod,
+    lines,
+  };
+}
+
+/**
+ * Row shape used by the BS parser. QBO's payload is loose — every field
+ * may be absent — so we treat every property as optional in the type.
+ */
+type QboBsRawRow = {
+  type?: string;
+  group?: string;
+  ColData?: Array<{ id?: string; value?: string }>;
+  Rows?: {
+    Row?: QboBsRawRow[];
+  };
+  Header?: {
+    ColData?: Array<{ id?: string; value?: string }>;
+  };
+  Summary?: {
+    ColData?: Array<{ id?: string; value?: string }>;
+  };
+};
+
+/**
+ * Fetch QBO BalanceSheet report as of a given date, on the specified
+ * accounting basis. Returns the parsed report — a flat, ordered list
+ * of BS detail lines including QBO-computed equity lines (Net Income).
+ */
+export async function fetchQboBalanceSheet(params: {
+  realmId: string;
+  accessToken: string;
+  asOfDate: string; // yyyy-mm-dd — the point-in-time balance date
+  accountingMethod: "Accrual" | "Cash";
+}): Promise<QboBalanceSheetReportResult> {
+  // QBO Reports API requires BOTH start_date AND end_date for BalanceSheet;
+  // sending only one (or as_of_date alone) triggers QBO's default
+  // date_macro="This Calendar Year-to-date" which silently clamps end_date
+  // to today. start_date is functionally ignored for the balance calculation
+  // (BS is cumulative from the beginning of ledger history) but syntactically
+  // required. We send a sentinel "1900-01-01" to signal "from the beginning".
+  // Verified against sandbox 2026-07-22 — probe F.
+  //
+  // Also note: as of QBO's June 30 2026 Reports API modernization cutover,
+  // response row order and grouping may differ from pre-modernization
+  // behavior. Our parser reads the Rows.Row grammar generically so this
+  // does not affect us; but if a future QBO change breaks parsing, the
+  // most likely culprits are Section.group case ("Assets" vs "ASSETS") and
+  // the presence/absence of the outer Report Header wrapper.
+  const url =
+    `${qboBaseUrl()}/v3/company/${params.realmId}/reports/BalanceSheet` +
+    `?start_date=1900-01-01` +
+    `&end_date=${encodeURIComponent(params.asOfDate)}` +
+    `&accounting_method=${encodeURIComponent(params.accountingMethod)}` +
+    `&minorversion=75`;
+  const res = await qboApiFetch(url, {
+    accessToken: params.accessToken,
+    method: "GET",
+  });
+  if (!res.ok) {
+    throw new Error(
+      `fetchQboBalanceSheet failed: ${res.status} ${res.text}`,
+    );
+  }
+  return parseQboBalanceSheetReport(res.json as Parameters<typeof parseQboBalanceSheetReport>[0]);
+}
 
 /**
  * Fetch QBO GeneralLedger report for a single account over a date range.
@@ -894,127 +1297,16 @@ export async function fetchQboGeneralLedgerDetail(params: {
     );
   }
   const intuitTid = res.intuit_tid ?? null;
-  const json = res.json as {
-    Rows?: { Row?: unknown[] };
-    Columns?: { Column?: Array<{ ColTitle: string }> };
-  };
-  // QBO GL report structure: each account has a Section containing:
-  //   - a "Beginning Balance" data row
-  //   - one or more transaction data rows
-  //   - a Summary row with the ending balance
-  const cols = json.Columns?.Column ?? [];
-  const colIdx = (title: string) =>
-    cols.findIndex((c) => c.ColTitle?.toLowerCase() === title.toLowerCase());
-  const iDate = colIdx("Date");
-  const iType = colIdx("Transaction Type");
-  const iDoc = colIdx("Num");
-  const iName = colIdx("Name");
-  const iMemo = colIdx("Memo/Description");
-  const iSplit = colIdx("Split");
-  // QBO returns either separate Debit/Credit columns OR a signed "Amount" column
-  // depending on the column codes requested. With subt_nat_amount we get "Amount".
-  const iDebit = colIdx("Debit");
-  const iCredit = colIdx("Credit");
-  const iAmount = colIdx("Amount");
-  const iBalance = colIdx("Balance");
-  const activity: QboGlActivityRow[] = [];
-  let beginningBalanceCents = 0;
-  let endingBalanceCents = 0;
-  const toCents = (v: unknown): number => {
-    if (v === null || v === undefined || v === "") return 0;
-    const n = parseFloat(String(v).replace(/,/g, ""));
-    if (!Number.isFinite(n)) return 0;
-    return Math.round(n * 100);
-  };
-  const getCol = (
-    row: { ColData?: Array<{ value?: string; id?: string }> },
-    i: number,
-  ) =>
-    i >= 0 && row.ColData && row.ColData[i]
-      ? row.ColData[i]
-      : { value: "", id: "" };
-  type QboRow = {
-    type?: string;
-    group?: string;
-    ColData?: Array<{ value?: string; id?: string }>;
-    Header?: { ColData?: Array<{ value?: string }> };
-    Summary?: { ColData?: Array<{ value?: string }> };
-    Rows?: { Row?: QboRow[] };
-  };
-  const walk = (node: QboRow | undefined) => {
-    if (!node) return;
-    if (node.type === "Data" && node.ColData) {
-      const dateCell = getCol(node, iDate).value || "";
-      const typeCell = getCol(node, iType).value || "";
-      const isBeginning =
-        /beginning balance/i.test(typeCell) ||
-        /beginning balance/i.test(dateCell);
-      const isTotal =
-        /total for/i.test(typeCell) || /total for/i.test(dateCell);
-      if (isBeginning) {
-        beginningBalanceCents = toCents(getCol(node, iBalance).value);
-        return;
-      }
-      if (isTotal) return;
-      const balance = toCents(getCol(node, iBalance).value);
-      const txnRef = getCol(node, iType).id || null;
-      let debitCents = 0;
-      let creditCents = 0;
-      let netCents = 0;
-      if (iDebit >= 0 || iCredit >= 0) {
-        debitCents = toCents(getCol(node, iDebit).value);
-        creditCents = toCents(getCol(node, iCredit).value);
-        netCents = debitCents - creditCents;
-      } else if (iAmount >= 0) {
-        // Signed net amount from QBO. Split into debit/credit halves for
-        // downstream reporting parity with the two-column layout.
-        netCents = toCents(getCol(node, iAmount).value);
-        if (netCents >= 0) {
-          debitCents = netCents;
-        } else {
-          creditCents = -netCents;
-        }
-      }
-      activity.push({
-        txnDate: /^\d{4}-\d{2}-\d{2}$/.test(dateCell) ? dateCell : null,
-        txnType: typeCell || null,
-        docNumber: getCol(node, iDoc).value || null,
-        name: getCol(node, iName).value || null,
-        memo: getCol(node, iMemo).value || null,
-        splitAccount: getCol(node, iSplit).value || null,
-        debitCents,
-        creditCents,
-        netCents,
-        runningBalanceCents: balance,
-        txnRef,
-      });
-    }
-    // Do not treat Section Summary as authoritative for ending balance.
-    // Some QBO column layouts leave the Balance column empty in the summary
-    // and put net activity in the Amount column instead. Ending balance is
-    // derived below from the last activity row's runningBalanceCents.
-    node.Rows?.Row?.forEach(walk);
-  };
-  (json.Rows?.Row as QboRow[] | undefined)?.forEach(walk);
-  // Ending balance: prefer the running balance of the last activity row
-  // (authoritative per QBO). Fall back to beginning + sum(activity) only if
-  // no rows had a usable running balance.
-  const lastWithRb = [...activity]
-    .reverse()
-    .find((r) => Number.isFinite(r.runningBalanceCents) && r.runningBalanceCents !== 0);
-  if (lastWithRb) {
-    endingBalanceCents = lastWithRb.runningBalanceCents;
-  } else if (activity.length > 0) {
-    endingBalanceCents =
-      beginningBalanceCents +
-      activity.reduce((s, r) => s + r.netCents, 0);
-  } else {
-    endingBalanceCents = beginningBalanceCents;
-  }
+  const parsed = parseQboGlDetailReport(
+    res.json as {
+      Rows?: { Row?: unknown[] };
+      Columns?: { Column?: Array<{ ColTitle: string }> };
+    },
+  );
   return {
-    beginningBalanceCents,
-    endingBalanceCents,
-    activity,
+    beginningBalanceCents: parsed.beginningBalanceCents,
+    endingBalanceCents: parsed.endingBalanceCents,
+    activity: parsed.activity,
     reportUrl: url,
     intuitTid,
   };

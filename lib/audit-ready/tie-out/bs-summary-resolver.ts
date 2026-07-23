@@ -4,9 +4,11 @@ import {
   type RunBsAccountResolverResult,
 } from "./bs-account-resolver";
 import {
-  fetchQboAccountList,
-  type QboAccountListEntry,
+  fetchQboBalanceSheet,
+  type QboBalanceSheetLine,
+  type QboBalanceSheetReportResult,
 } from "./qbo-reports";
+import { resolveAccountingBasis, type AccountingBasis } from "./basis";
 import {
   activityWindowForFiscalYear,
   resolveFiscalYearStartMonth,
@@ -24,8 +26,10 @@ export type RunBsSummaryResolverInput = {
   triggeredByUserId: string;
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
   /**
-   * Optional scope. When omitted or empty, every active BS account
-   * returned by fetchQboAccountList is included.
+   * Optional scope. When omitted or empty, every non-computed line from
+   * the QBO BalanceSheet report is included. When provided, only lines
+   * whose qboAccountId matches an entry are included; computed lines are
+   * always excluded from this filter (they are not scopable).
    */
   bsAccountIds?: string[];
   /**
@@ -33,16 +37,21 @@ export type RunBsSummaryResolverInput = {
    * Used exclusively by the vitest suite; production callers do not
    * pass these.
    */
-  _accountsLoader?: (params: {
+  _balanceSheetLoader?: (params: {
     realmId: string;
     accessToken: string;
-  }) => Promise<QboAccountListEntry[]>;
+    asOfDate: string;
+    accountingMethod: AccountingBasis;
+  }) => Promise<QboBalanceSheetReportResult>;
+  _basisResolver?: (params: {
+    engagementId: string;
+  }) => Promise<AccountingBasis>;
   _perAccountRunner?: (args: {
     engagementId: string;
     realmId: string;
     accessToken: string;
     asOfDate: string;
-    account: QboAccountListEntry;
+    account: QboBalanceSheetLine;
     policy: PolicySnapshot & { policy_mode: string };
     triggeredByUserId: string;
     triggerReason:
@@ -149,22 +158,6 @@ async function ensureBsSummaryPbcAnchor(
   );
 }
 
-function classificationOf(
-  a: QboAccountListEntry,
-): "Asset" | "Liability" | "Equity" | null {
-  const c = (a.classification || "").toLowerCase();
-  if (c === "asset") return "Asset";
-  if (c === "liability") return "Liability";
-  if (c === "equity") return "Equity";
-  return null;
-}
-
-function classificationRank(c: "Asset" | "Liability" | "Equity"): number {
-  if (c === "Asset") return 0;
-  if (c === "Liability") return 1;
-  return 2;
-}
-
 export async function runBsSummaryResolver(
   input: RunBsSummaryResolverInput,
 ): Promise<RunBsSummaryResolverResult> {
@@ -182,7 +175,15 @@ export async function runBsSummaryResolver(
     };
   }
 
-  // 1. Insert running rollup run row.
+  // 1. Resolve accounting basis once — stamped on the summary artifact
+  //    (not the parent tie_out_runs row). Basis is a property of the
+  //    specific QBO report, not the orchestration run.
+  const basisResolver = input._basisResolver ?? resolveAccountingBasis;
+  const accountingMethod: AccountingBasis = await basisResolver({
+    engagementId: input.engagementId,
+  });
+
+  // 2. Insert running rollup run row.
   const { data: runRow, error: runErr } = await supabase
     .from("audit_ready_tie_out_runs")
     .insert({
@@ -210,33 +211,35 @@ export async function runBsSummaryResolver(
     };
   }
   const runId = runRow.id as string;
+  const runStartedAtMs = Date.now();
   try {
-    // 2. Load BS-only account universe.
-    const loader = input._accountsLoader ?? fetchQboAccountList;
-    const allBs = await loader({
+    // 3. Load QBO BalanceSheet report as source of truth. QBO's rollup
+    //    rules (sub-accounts, computed Net Income line) are honored by
+    //    definition — we render exactly what the client sees in QBO.
+    const bsLoader = input._balanceSheetLoader ?? fetchQboBalanceSheet;
+    const bsReport = await bsLoader({
       realmId: input.realmId,
       accessToken: input.accessToken,
+      asOfDate: input.asOfDate,
+      accountingMethod,
     });
-    const scoped =
+    // Scope filter: bsAccountIds ONLY applies to non-computed lines.
+    // Computed lines (Net Income) are always included when in-scope of
+    // the report; they cannot be scoped away because they have no id.
+    const scoped: QboBalanceSheetLine[] =
       input.bsAccountIds && input.bsAccountIds.length > 0
-        ? allBs.filter((a) => input.bsAccountIds!.includes(a.id))
-        : allBs;
-    // Deterministic order: classification rank, then case-insensitive name.
-    const accounts = [...scoped]
-      .filter((a) => classificationOf(a) !== null)
-      .sort((x, y) => {
-        const cx = classificationRank(
-          classificationOf(x) as "Asset" | "Liability" | "Equity",
-        );
-        const cy = classificationRank(
-          classificationOf(y) as "Asset" | "Liability" | "Equity",
-        );
-        if (cx !== cy) return cx - cy;
-        return x.name.localeCompare(y.name, undefined, {
-          sensitivity: "base",
-        });
-      });
-    // 3. Fiscal-year window — shipped signatures (positional + { start, end }).
+        ? bsReport.lines.filter(
+            (l) =>
+              l.isComputedLine ||
+              (l.qboAccountId != null &&
+                input.bsAccountIds!.includes(l.qboAccountId)),
+          )
+        : bsReport.lines;
+    // 4. Preserve QBO's own sort order — no independent sort. Matching
+    //    QBO exactly is the product decision (see 4B.3.5 planning doc).
+    const accounts = [...scoped].sort((a, b) => a.sortOrder - b.sortOrder);
+
+    // 5. Fiscal-year window — shipped signatures (positional + { start, end }).
     const fyStart = await resolveFiscalYearStartMonth({
       engagementId: input.engagementId,
       realmId: input.realmId,
@@ -245,41 +248,40 @@ export async function runBsSummaryResolver(
     const window = activityWindowForFiscalYear(input.asOfDate, fyStart);
     const startDate = window.start;
     const endDate = window.end;
-    // 4. Fan out per-account.
+
+    // 6. Fan out per-account (skip computed lines — no underlying account).
     const perAccountRunner =
       input._perAccountRunner ??
       (async (args) => {
+        if (args.account.isComputedLine || args.account.qboAccountId == null) {
+          throw new Error(
+            "perAccountRunner should not be called for computed lines — filter upstream",
+          );
+        }
         return runBsAccountResolver({
           engagementId: args.engagementId,
           // Real PBC UUID (sentinel), not rollup runId — FK to pbc_requests.
           pbcRequestId,
           realmId: args.realmId,
           accessToken: args.accessToken,
-          bsAccountId: args.account.id,
-          bsAccountName: args.account.name,
-          accountType: args.account.accountType,
-          accountSubType: args.account.accountSubType ?? undefined,
-          asOfDate: args.asOfDate,
-          activityStartDate: args.activityStartDate,
+          bsAccountId: args.account.qboAccountId,
+          bsAccountName: args.account.qboAccountName,
+          accountType: args.account.qboAccountType ?? "",
+          classification: args.account.classification,
           policy: args.policy,
           triggeredByUserId: args.triggeredByUserId,
           triggerReason: args.triggerReason,
+          asOfDate: args.asOfDate,
+          activityStartDate: args.activityStartDate,
         });
       });
-    let assets = 0;
-    let liabilities = 0;
-    let equity = 0;
-    let cTie = 0;
-    let cAuto = 0;
-    let cReview = 0;
-    let cKick = 0;
-    let cFail = 0;
-    type LineRow = {
-      run_id: string;
-      engagement_id: string;
-      child_run_id: string | null;
-      child_artifact_id: string | null;
-      qbo_account_id: string;
+
+    // Accumulator for summary-lines batch insert (real + computed).
+    // Columns match the audit_ready_bs_recon_summary_lines schema; every
+    // NOT NULL column receives a value (0 for beginning/activity fields
+    // we do not track per-line for BS reconciliation).
+    const summaryLineInserts: Array<{
+      qbo_account_id: string | null;
       qbo_account_name: string;
       qbo_account_type: string | null;
       qbo_account_subtype: string | null;
@@ -296,118 +298,165 @@ export async function runBsSummaryResolver(
         | "kickout"
         | "failed";
       sort_order: number;
+      is_computed_line: boolean;
+      child_run_id: string | null;
+      child_artifact_id: string | null;
       error_code: string | null;
       error_message: string | null;
-    };
-    const pdfLines: BsSummaryPdfLine[] = [];
-    const rowsForInsert: LineRow[] = [];
-    for (let idx = 0; idx < accounts.length; idx++) {
-      const a = accounts[idx];
-      const cls = classificationOf(a) as "Asset" | "Liability" | "Equity";
+    }> = [];
+
+    for (const account of accounts) {
+      const cls = account.classification;
+      // Computed line (Net Income): insert with QBO-reported balance,
+      // tautologically tied (variance=0), no underlying child run.
+      if (account.isComputedLine || account.qboAccountId == null) {
+        summaryLineInserts.push({
+          qbo_account_id: null,
+          qbo_account_name: account.qboAccountName,
+          qbo_account_type: null,
+          qbo_account_subtype: null,
+          classification: cls,
+          beginning_balance_cents: 0,
+          ending_balance_cents: account.balanceCents,
+          gl_ending_balance_cents: account.balanceCents,
+          tie_variance_cents: 0,
+          activity_count: 0,
+          totals_status: "tie",
+          sort_order: account.sortOrder,
+          is_computed_line: true,
+          child_run_id: null,
+          child_artifact_id: null,
+          error_code: null,
+          error_message: null,
+        });
+        continue;
+      }
+      // Real account: run per-account tie-out.
       const res = await perAccountRunner({
         engagementId: input.engagementId,
         realmId: input.realmId,
         accessToken: input.accessToken,
         asOfDate: input.asOfDate,
-        account: a,
+        account,
         policy: input.policy,
         triggeredByUserId: input.triggeredByUserId,
         triggerReason: input.triggerReason,
         activityStartDate: startDate,
       });
-      if (res.status === "completed") {
-        // Aggregate by classification. GL ending balance uses natural sign
-        // as returned by the per-account resolver (assets positive; L/E
-        // stored as absolute natural credit balance).
-        if (cls === "Asset") assets += res.glEndingBalanceCents;
-        else if (cls === "Liability") liabilities += res.glEndingBalanceCents;
-        else equity += res.glEndingBalanceCents;
-        if (res.totalsStatus === "tie") cTie++;
-        else if (res.totalsStatus === "auto_reconcile") cAuto++;
-        else if (res.totalsStatus === "review") cReview++;
-        else cKick++;
-        rowsForInsert.push({
-          run_id: runId,
-          engagement_id: input.engagementId,
-          child_run_id: res.runId,
-          child_artifact_id: res.artifactId,
-          qbo_account_id: a.id,
-          qbo_account_name: a.name,
-          qbo_account_type: a.accountType,
-          qbo_account_subtype: a.accountSubType,
-          classification: cls,
-          // Per-account resolver does not return beginning balance yet.
-          beginning_balance_cents: 0,
-          ending_balance_cents: res.endingBalanceCents,
-          gl_ending_balance_cents: res.glEndingBalanceCents,
-          tie_variance_cents: res.tieVarianceCents,
-          activity_count: 0,
-          totals_status: res.totalsStatus,
-          sort_order: idx,
-          error_code: null,
-          error_message: null,
-        });
-        pdfLines.push({
-          classification: cls,
-          accountName: a.name,
-          accountType: a.accountType,
-          endingCents: res.endingBalanceCents,
-          glEndingCents: res.glEndingBalanceCents,
-          varianceCents: res.tieVarianceCents,
-          status: res.totalsStatus,
-        });
-      } else {
-        cFail++;
-        rowsForInsert.push({
-          run_id: runId,
-          engagement_id: input.engagementId,
-          child_run_id: res.runId ?? null,
-          child_artifact_id: null,
-          qbo_account_id: a.id,
-          qbo_account_name: a.name,
-          qbo_account_type: a.accountType,
-          qbo_account_subtype: a.accountSubType,
+      // Narrow the discriminated union before reading fields.
+      if (res.status === "failed") {
+        summaryLineInserts.push({
+          qbo_account_id: account.qboAccountId,
+          qbo_account_name: account.qboAccountName,
+          qbo_account_type: account.qboAccountType,
+          qbo_account_subtype: null,
           classification: cls,
           beginning_balance_cents: 0,
-          ending_balance_cents: 0,
+          ending_balance_cents: account.balanceCents,
           gl_ending_balance_cents: 0,
           tie_variance_cents: 0,
           activity_count: 0,
           totals_status: "failed",
-          sort_order: idx,
-          error_code: res.errorCode,
-          error_message: res.errorMessage,
+          sort_order: account.sortOrder,
+          is_computed_line: false,
+          child_run_id: res.runId ?? null,
+          child_artifact_id: null,
+          error_code: res.errorCode ?? null,
+          error_message: res.errorMessage ?? null,
         });
-        pdfLines.push({
-          classification: cls,
-          accountName: a.name,
-          accountType: a.accountType,
-          endingCents: 0,
-          glEndingCents: 0,
-          varianceCents: 0,
-          status: "failed",
-        });
+        continue;
+      }
+      // Completed: read the fields that actually exist on the type.
+      summaryLineInserts.push({
+        qbo_account_id: account.qboAccountId,
+        qbo_account_name: account.qboAccountName,
+        qbo_account_type: account.qboAccountType,
+        qbo_account_subtype: null, // BS report does not carry subtype
+        classification: cls,
+        beginning_balance_cents: 0, // not tracked per-line for BS recon
+        ending_balance_cents: res.endingBalanceCents,
+        gl_ending_balance_cents: res.glEndingBalanceCents,
+        tie_variance_cents: res.tieVarianceCents,
+        activity_count: 0, // not tracked per-line for BS recon
+        totals_status: res.totalsStatus,
+        sort_order: account.sortOrder,
+        is_computed_line: false,
+        child_run_id: res.runId,
+        child_artifact_id: res.artifactId,
+        error_code: null,
+        error_message: null,
+      });
+    }
+
+    // Rollup: equation math iterates the summary lines (which include
+    // QBO's computed Net Income under Equity). This is the source-of-
+    // truth match against the QBO BalanceSheet report itself.
+    //
+    // Note: we sum ending_balance_cents (QBO-reported) rather than
+    // gl_ending_balance_cents (per-account tie-out). The two agree
+    // for real accounts (that IS the tie), and for computed lines
+    // there is no GL-side value.
+    let assetsCents = 0;
+    let liabilitiesCents = 0;
+    let equityCents = 0;
+    for (const line of summaryLineInserts) {
+      if (line.classification === "Asset") {
+        assetsCents += line.ending_balance_cents;
+      } else if (line.classification === "Liability") {
+        liabilitiesCents += line.ending_balance_cents;
+      } else {
+        // Equity — includes computed Net Income line.
+        equityCents += line.ending_balance_cents;
       }
     }
-    const bsEquationVariance = assets - (liabilities + equity);
+    const bsEquationVarianceCents =
+      assetsCents - (liabilitiesCents + equityCents);
+
+    const realLines = summaryLineInserts.filter((l) => !l.is_computed_line);
+    const totalsVarianceCents = realLines.reduce(
+      (s, l) => s + Math.abs(l.tie_variance_cents),
+      0,
+    );
+    // Use real vocabulary from RunBsAccountResolverResult (`auto_reconcile`,
+    // not amendment's `auto_cleared`).
+    const cTie = realLines.filter((l) => l.totals_status === "tie").length;
+    const cAuto = realLines.filter(
+      (l) => l.totals_status === "auto_reconcile",
+    ).length;
+    const cReview = realLines.filter((l) => l.totals_status === "review").length;
+    const cKick = realLines.filter((l) => l.totals_status === "kickout").length;
+    const cFail = realLines.filter((l) => l.totals_status === "failed").length;
+
     const bsEquationStatus: "tie" | "kickout" =
-      bsEquationVariance === 0 ? "tie" : "kickout";
+      bsEquationVarianceCents === 0 ? "tie" : "kickout";
     const totalsStatus: "tie" | "kickout" =
       bsEquationStatus === "tie" && cFail === 0 && cKick === 0
         ? "tie"
         : "kickout";
-    // 5. Render deterministic PDF.
+
+    const pdfLines: BsSummaryPdfLine[] = summaryLineInserts.map((l) => ({
+      classification: l.classification,
+      accountName: l.qbo_account_name,
+      accountType: l.qbo_account_type ?? "",
+      endingCents: l.ending_balance_cents,
+      glEndingCents: l.gl_ending_balance_cents,
+      varianceCents: l.tie_variance_cents,
+      status: l.totals_status,
+      isComputedLine: l.is_computed_line,
+    }));
+
+    // 7. Render deterministic PDF.
     const pdfBuf = await renderBsSummaryPdf({
       engagementId: input.engagementId,
       periodStart: startDate,
       periodEnd: endDate,
       lines: pdfLines,
-      assetsEndingCents: assets,
-      liabilitiesEndingCents: liabilities,
-      equityEndingCents: equity,
-      bsEquationVarianceCents: bsEquationVariance,
+      assetsEndingCents: assetsCents,
+      liabilitiesEndingCents: liabilitiesCents,
+      equityEndingCents: equityCents,
+      bsEquationVarianceCents,
       bsEquationStatus,
-      accountCountTotal: accounts.length,
+      accountCountTotal: summaryLineInserts.length,
       accountCountTie: cTie,
       accountCountAutoReconcile: cAuto,
       accountCountReview: cReview,
@@ -424,7 +473,8 @@ export async function runBsSummaryResolver(
       });
     if (uploadErr)
       throw new Error(`storage_upload_failed: ${uploadErr.message}`);
-    // 6. Insert summary artifact.
+
+    // 8. Insert summary artifact.
     const { data: artRow, error: artErr } = await supabase
       .from("audit_ready_bs_recon_summary_artifacts")
       .insert({
@@ -432,16 +482,17 @@ export async function runBsSummaryResolver(
         run_id: runId,
         period_start: startDate,
         period_end: endDate,
-        account_count_total: accounts.length,
+        accounting_method: accountingMethod,
+        account_count_total: summaryLineInserts.length,
         account_count_tie: cTie,
         account_count_auto_reconcile: cAuto,
         account_count_review: cReview,
         account_count_kickout: cKick,
         account_count_failed: cFail,
-        assets_ending_cents: assets,
-        liabilities_ending_cents: liabilities,
-        equity_ending_cents: equity,
-        bs_equation_variance_cents: bsEquationVariance,
+        assets_ending_cents: assetsCents,
+        liabilities_ending_cents: liabilitiesCents,
+        equity_ending_cents: equityCents,
+        bs_equation_variance_cents: bsEquationVarianceCents,
         bs_equation_status: bsEquationStatus,
         format: "pdf",
         storage_bucket: "audit-ready-recons",
@@ -460,27 +511,49 @@ export async function runBsSummaryResolver(
       );
     }
     const summaryArtifactId = artRow.id as string;
-    // 7. Bulk insert lines with the artifact FK stamped in.
-    const linesPayload = rowsForInsert.map((r) => ({
-      ...r,
-      summary_artifact_id: summaryArtifactId,
-    }));
-    if (linesPayload.length > 0) {
-      const { error: linesErr } = await supabase
+
+    // 9. Batched insert of all summary lines (real + computed) after
+    //    the summary artifact has been created upstream.
+    if (summaryLineInserts.length > 0) {
+      const { error: insertErr } = await supabase
         .from("audit_ready_bs_recon_summary_lines")
-        .insert(linesPayload);
-      if (linesErr)
-        throw new Error(`lines_insert_failed: ${linesErr.message}`);
+        .insert(
+          summaryLineInserts.map((row) => ({
+            ...row,
+            engagement_id: input.engagementId,
+            run_id: runId,
+            summary_artifact_id: summaryArtifactId,
+          })),
+        );
+      if (insertErr) {
+        throw new Error(`lines_insert_failed: ${insertErr.message}`);
+      }
     }
-    // 8. Complete the run.
+
+    // 10. Complete the run. Include per-classification counts, duration,
+    // and BS-equation-side totals so downstream consumers (4B.4 monthly
+    // cron notifications, admin dashboards) can read the run row alone
+    // without joining the summary artifact.
+    //
+    // totals_variance_cents = sum of abs(tie variance) on REAL lines only
+    // (not the equation variance — that lives on the artifact as
+    // bs_equation_variance_cents / return.bsEquationVarianceCents).
+    const runFinishedAtMs = Date.now();
     await supabase
       .from("audit_ready_tie_out_runs")
       .update({
         status: "completed",
         totals_status: totalsStatus,
-        item_count: accounts.length,
+        item_count: summaryLineInserts.length,
+        item_auto_reconcile_count: cAuto,
+        item_review_count: cReview,
+        item_kickout_count: cKick,
+        duration_ms: runFinishedAtMs - runStartedAtMs,
+        subledger_total_cents: assetsCents,
+        gl_total_cents: liabilitiesCents + equityCents,
+        totals_variance_cents: totalsVarianceCents,
         period_start: startDate,
-        completed_at: new Date().toISOString(),
+        completed_at: new Date(runFinishedAtMs).toISOString(),
       })
       .eq("id", runId);
     return {
@@ -489,16 +562,16 @@ export async function runBsSummaryResolver(
       summaryArtifactId,
       storageObjectKey: objectKey,
       totalsStatus,
-      accountCountTotal: accounts.length,
+      accountCountTotal: summaryLineInserts.length,
       accountCountTie: cTie,
       accountCountAutoReconcile: cAuto,
       accountCountReview: cReview,
       accountCountKickout: cKick,
       accountCountFailed: cFail,
-      assetsEndingCents: assets,
-      liabilitiesEndingCents: liabilities,
-      equityEndingCents: equity,
-      bsEquationVarianceCents: bsEquationVariance,
+      assetsEndingCents: assetsCents,
+      liabilitiesEndingCents: liabilitiesCents,
+      equityEndingCents: equityCents,
+      bsEquationVarianceCents,
     };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "unknown";
