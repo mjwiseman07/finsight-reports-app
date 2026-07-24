@@ -11,12 +11,14 @@ export const TIE_OUT_KINDS = [
   "inventory",
   "grni",
   "bank_recon",
-  "fixed_assets",
+  "fixed_asset_rollforward",
   "cash_recon",
   "debt_schedule",
   "equity_rollforward",
   "revenue_cutoff",
   "expense_cutoff",
+  "bs_account_recon",
+  "bs_recon_summary",
   "unclassified",
 ] as const;
 
@@ -97,7 +99,7 @@ const RULES: Rule[] = [
     ],
   },
   {
-    kind: "fixed_assets",
+    kind: "fixed_asset_rollforward",
     weight: 1.0,
     patterns: [
       /fixed\s+assets?/i,
@@ -106,6 +108,7 @@ const RULES: Rule[] = [
       /depreciation\s+schedule/i,
       /capital\s+expenditure/i,
       /\bcapex\s+rollforward\b/i,
+      /fixed\s+asset\s+rollforward/i,
     ],
   },
   {
@@ -208,11 +211,16 @@ const KIND_DOCS: Record<Exclude<TieOutKind, "unclassified">, string> = {
   grni: "Goods received not invoiced / received-not-billed — auditor tests cutoff and completeness.",
   bank_recon: "Bank reconciliation with outstanding checks and deposits in transit.",
   cash_recon: "Cash reconciliation, petty cash count, or cash-on-hand verification.",
-  fixed_assets: "PP&E rollforward, depreciation schedule, or capex activity.",
+  fixed_asset_rollforward:
+    "PP&E rollforward, depreciation schedule, or capex activity.",
   debt_schedule: "Loan or note amortization schedule, line-of-credit activity, or debt covenants.",
   equity_rollforward: "Equity rollforward, stock issuance, dividends, or retained earnings movement.",
   revenue_cutoff: "Revenue cutoff testing — invoices/shipments straddling period end.",
   expense_cutoff: "Expense cutoff testing — accruals, prepaids, or bills dated after period end.",
+  bs_account_recon:
+    "Single balance-sheet account recon — prepared schedule or GL activity tied to trial balance.",
+  bs_recon_summary:
+    "Balance-sheet equation rollup across all accounts for a period end.",
 };
 
 export async function classifyTieOutKindLLMBatch(

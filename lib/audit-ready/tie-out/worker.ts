@@ -379,11 +379,11 @@ export async function runTieOut(
     }
     case "bank_recon":
     case "cash_recon":
-    case "fixed_assets":
     case "debt_schedule":
     case "equity_rollforward":
     case "revenue_cutoff":
     case "expense_cutoff":
+    case "bs_recon_summary":
       return {
         ok: false,
         reason: `resolver_not_yet_shipped: ${pbc.tie_out_kind}`,
