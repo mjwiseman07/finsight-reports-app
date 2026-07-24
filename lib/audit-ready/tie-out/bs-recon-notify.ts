@@ -106,7 +106,7 @@ export interface BsReconTieEmailParams {
 export async function sendBsReconTieEmail(
   params: BsReconTieEmailParams,
 ): Promise<void> {
-  const summaryUrl = `${APP_URL}/audit-ready/tie-out/${params.engagementId}/summary/${params.artifactId}`;
+  const summaryUrl = `${APP_URL}/audit-ready/${params.engagementId}/tie-out-summary?as_of=${params.asOfDate}`;
   const pdfUrl = await generateSignedPdfUrl({
     engagementId: params.engagementId,
     asOfDate: params.asOfDate,
@@ -154,7 +154,7 @@ export interface BsReconKickoutEmailParams {
 export async function sendBsReconKickoutEmail(
   params: BsReconKickoutEmailParams,
 ): Promise<void> {
-  const summaryUrl = `${APP_URL}/audit-ready/tie-out/${params.engagementId}/summary/${params.artifactId}`;
+  const summaryUrl = `${APP_URL}/audit-ready/${params.engagementId}/tie-out-summary?as_of=${params.asOfDate}`;
   const pdfUrl = await generateSignedPdfUrl({
     engagementId: params.engagementId,
     asOfDate: params.asOfDate,
