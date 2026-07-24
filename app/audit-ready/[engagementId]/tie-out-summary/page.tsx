@@ -8,6 +8,8 @@ import {
   parseStrictAsOfDate,
   type BsReconSummaryArtifact,
 } from "@/lib/audit-ready/tie-out/bs-recon-artifacts";
+import { getBsSummaryLines } from "@/lib/audit-ready/tie-out/bs-recon-lines";
+import { BsSummaryLinesTable } from "@/components/audit-ready/BsSummaryLinesTable";
 
 export const dynamic = "force-dynamic";
 
@@ -104,9 +106,6 @@ function BsAsOfBanner(props: {
           </>
         ) : null}
       </p>
-      <p className="mt-2 text-xs text-[#7A7974]">
-        Latent loader only — full artifact table ships in a later phase.
-      </p>
     </div>
   );
 }
@@ -146,6 +145,9 @@ export default async function TieOutSummaryPage({
       : Promise.resolve(null),
   ]);
 
+  // Second wave: load summary lines only if we resolved an artifact
+  const bsLines = bsArtifact ? await getBsSummaryLines(bsArtifact.id) : [];
+
   return (
     <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">
@@ -163,6 +165,21 @@ export default async function TieOutSummaryPage({
           asOfParsed={asOfParsed}
           artifact={bsArtifact}
         />
+        {bsArtifact && bsLines.length > 0 && (
+          <section>
+            <h2
+              className={`${headingFont} mb-3 text-lg font-semibold text-[#ECEBE7]`}
+            >
+              Balance Sheet Reconciliation
+            </h2>
+            <BsSummaryLinesTable
+              engagementId={engagementId}
+              artifactId={bsArtifact.id}
+              periodEnd={bsArtifact.period_end}
+              lines={bsLines}
+            />
+          </section>
+        )}
         <TieOutSummaryClient
           engagementId={engagementId}
           rows={summary.data || []}
