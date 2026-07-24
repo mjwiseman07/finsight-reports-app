@@ -47,10 +47,28 @@ export async function GET(
     );
   }
 
+  const { data: fullLine, error: fullErr } = await supabase
+    .from("audit_ready_bs_recon_summary_lines")
+    .select("*")
+    .eq("id", lineId)
+    .maybeSingle();
+  if (fullErr || !fullLine) {
+    console.error("[api/summary-line] full line lookup failed", {
+      engagementId,
+      lineId,
+      error: fullErr,
+    });
+    return NextResponse.json({ error: "lookup_failed" }, { status: 500 });
+  }
+
   try {
     const { transactions, subledgerSourceUrl } =
       await getBsAccountTransactions(line.child_run_id, line.qbo_account_id);
-    return NextResponse.json({ transactions, subledgerSourceUrl });
+    return NextResponse.json({
+      line: fullLine,
+      transactions,
+      subledgerSourceUrl,
+    });
   } catch (err) {
     console.error("[api/summary-line] txn fetch failed", {
       engagementId,
