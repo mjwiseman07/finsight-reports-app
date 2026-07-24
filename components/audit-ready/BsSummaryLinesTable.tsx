@@ -102,19 +102,6 @@ export function BsSummaryLinesTable({
     return copy;
   }, [filtered, sortKey, sortDir]);
 
-  const totals = useMemo(() => {
-    return lines
-      .filter((l) => !l.is_computed_line)
-      .reduce(
-        (acc, l) => ({
-          ending: acc.ending + l.ending_balance_cents,
-          gl: acc.gl + l.gl_ending_balance_cents,
-          variance: acc.variance + l.tie_variance_cents,
-        }),
-        { ending: 0, gl: 0, variance: 0 },
-      );
-  }, [lines]);
-
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -375,29 +362,6 @@ export function BsSummaryLinesTable({
               </tr>
             )}
           </tbody>
-          {lines.length > 0 && (
-            <tfoot>
-              <tr className="border-t-2 border-[#C9A961]/30 bg-[#1A1A1C] font-semibold text-[#ECEBE7]">
-                <td className="px-3 py-2" colSpan={3}>
-                  Total (real accounts only)
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatCurrency(totals.ending)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatCurrency(totals.gl)}
-                </td>
-                <td
-                  className={`px-3 py-2 text-right tabular-nums ${
-                    totals.variance !== 0 ? "text-red-400" : ""
-                  }`}
-                >
-                  {formatCurrency(totals.variance)}
-                </td>
-                <td colSpan={2} />
-              </tr>
-            </tfoot>
-          )}
         </table>
       </div>
 
