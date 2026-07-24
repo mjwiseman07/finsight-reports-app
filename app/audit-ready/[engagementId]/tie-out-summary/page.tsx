@@ -3,19 +3,131 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { getEngagementActor } from "@/lib/audit-ready/server-auth";
 import { TieOutSummaryClient } from "@/components/audit-ready/TieOutSummaryClient";
 import { headingFont } from "@/components/site-ui";
+import {
+  getBsSummaryArtifactByPeriodEnd,
+  parseStrictAsOfDate,
+  type BsReconSummaryArtifact,
+} from "@/lib/audit-ready/tie-out/bs-recon-artifacts";
 
 export const dynamic = "force-dynamic";
 
+function formatCents(cents: number): string {
+  return (cents / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function BsAsOfBanner(props: {
+  asOfRaw: string | undefined;
+  asOfParsed: string | null;
+  artifact: BsReconSummaryArtifact | null;
+}) {
+  const { asOfRaw, asOfParsed, artifact } = props;
+  if (!asOfRaw) return null;
+
+  if (!asOfParsed) {
+    return (
+      <div
+        className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C]/50 p-4"
+        role="status"
+      >
+        <p className="text-sm font-medium text-[#ECEBE7]">
+          Invalid as-of date
+        </p>
+        <p className="mt-1 text-sm text-[#A29E93]">
+          Expected <code className="text-[#ECEBE7]">YYYY-MM-DD</code>. Got{" "}
+          <code className="text-[#ECEBE7]">{asOfRaw}</code>. Showing the full
+          tie-out summary below.
+        </p>
+      </div>
+    );
+  }
+
+  if (!artifact) {
+    return (
+      <div
+        className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C]/50 p-4"
+        role="status"
+      >
+        <p className="text-sm font-medium text-[#ECEBE7]">
+          No BS reconciliation for {asOfParsed}
+        </p>
+        <p className="mt-1 text-sm text-[#A29E93]">
+          No summary artifact found for this as-of date. Tie-out lines below
+          are unchanged.
+        </p>
+      </div>
+    );
+  }
+
+  const statusLabel =
+    artifact.bs_equation_status === "tie" ? "Tied" : "Needs review";
+  return (
+    <div
+      className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C]/50 p-4"
+      role="status"
+    >
+      <p className={`${headingFont} text-sm font-semibold text-[#ECEBE7]`}>
+        BS reconciliation — as of {artifact.period_end}
+      </p>
+      <p className="mt-1 text-sm text-[#A29E93]">
+        Status:{" "}
+        <span className="text-[#ECEBE7]">{statusLabel}</span>
+        {" · "}
+        Variance:{" "}
+        <span className="text-[#ECEBE7] tabular-nums">
+          {formatCents(artifact.bs_equation_variance_cents)}
+        </span>
+        {" · "}
+        Accounts:{" "}
+        <span className="text-[#ECEBE7] tabular-nums">
+          {artifact.account_count_total}
+        </span>
+        {artifact.account_count_kickout > 0 ? (
+          <>
+            {" "}
+            (
+            <span className="text-[#ECEBE7] tabular-nums">
+              {artifact.account_count_kickout}
+            </span>{" "}
+            kickout)
+          </>
+        ) : null}
+        {artifact.accounting_method ? (
+          <>
+            {" · "}
+            Basis:{" "}
+            <span className="text-[#ECEBE7]">{artifact.accounting_method}</span>
+          </>
+        ) : null}
+      </p>
+      <p className="mt-2 text-xs text-[#7A7974]">
+        Latent loader only — full artifact table ships in a later phase.
+      </p>
+    </div>
+  );
+}
+
 export default async function TieOutSummaryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ engagementId: string }>;
+  searchParams: Promise<{ as_of?: string }>;
 }) {
   const { engagementId } = await params;
+  const sp = await searchParams;
   const actor = await getEngagementActor(engagementId);
   if (!actor) redirect("/dashboard?error=forbidden");
+
+  const asOfRaw = typeof sp.as_of === "string" ? sp.as_of : undefined;
+  const asOfParsed = parseStrictAsOfDate(asOfRaw ?? null);
+
   const supabase = getSupabaseAdmin();
-  const [summary, policy] = await Promise.all([
+  const [summary, policy, bsArtifact] = await Promise.all([
     supabase
       .from("audit_ready_tie_out_summary")
       .select("*")
@@ -26,7 +138,14 @@ export default async function TieOutSummaryPage({
       .select("*")
       .eq("engagement_id", engagementId)
       .maybeSingle(),
+    asOfParsed
+      ? getBsSummaryArtifactByPeriodEnd({
+          engagementId,
+          periodEnd: asOfParsed,
+        })
+      : Promise.resolve(null),
   ]);
+
   return (
     <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">
@@ -39,6 +158,11 @@ export default async function TieOutSummaryPage({
             ready.
           </p>
         </header>
+        <BsAsOfBanner
+          asOfRaw={asOfRaw}
+          asOfParsed={asOfParsed}
+          artifact={bsArtifact}
+        />
         <TieOutSummaryClient
           engagementId={engagementId}
           rows={summary.data || []}

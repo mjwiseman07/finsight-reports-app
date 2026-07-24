@@ -67,7 +67,10 @@ describe("sendBsReconTieEmail", () => {
     expect(call.subject).toContain("July 31, 2026");
     expect(call.html).toContain("14 accounts reconciled");
     expect(call.html).toContain("$0.00 variance");
-    expect(call.html).toContain("/audit-ready/tie-out/eng-1/summary/art-1");
+    expect(call.html).toContain(
+      "/audit-ready/eng-1/tie-out-summary?as_of=2026-07-31",
+    );
+    expect(call.html).not.toContain("/audit-ready/tie-out/");
     expect(call.html).toContain("https://storage.example/signed.pdf");
   });
 });
@@ -99,6 +102,10 @@ describe("sendBsReconKickoutEmail", () => {
     expect(call.html).toContain("$123.45");
     expect(call.html).toContain("$67.89");
     expect(call.html).toContain("3 accounts");
+    expect(call.html).toContain(
+      "/audit-ready/eng-1/tie-out-summary?as_of=2026-07-31",
+    );
+    expect(call.html).not.toContain("/audit-ready/tie-out/");
   });
 });
 
