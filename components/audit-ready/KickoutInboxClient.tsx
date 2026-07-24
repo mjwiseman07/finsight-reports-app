@@ -239,7 +239,7 @@ export function KickoutInboxClient({
                         {row.source_type === "bs_summary_line" ? (
                           <button
                             type="button"
-                            className={`rounded border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
+                            className={`mr-1 rounded border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
                             onClick={() => openBsDrilldown(row)}
                           >
                             View
@@ -247,7 +247,7 @@ export function KickoutInboxClient({
                         ) : (
                           <button
                             type="button"
-                            className={`rounded border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
+                            className={`mr-1 rounded border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
                             onClick={() => openPbcTarget(row)}
                           >
                             Open
