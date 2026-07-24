@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuditReadyUser } from "@/lib/audit-ready/server-auth";
-import { listVisibleEngagementIds } from "@/lib/audit-ready/kickouts/list-visible-engagements.js";
-import { listKickouts } from "@/lib/audit-ready/kickouts/list-kickouts.js";
+import { listVisibleEngagementIds } from "@/lib/audit-ready/kickouts/list-visible-engagements";
+import { listKickouts } from "@/lib/audit-ready/kickouts/list-kickouts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

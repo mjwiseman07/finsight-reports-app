@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeAgeBucket } from "./age-bucket.js";
+import { computeAgeBucket } from "./age-bucket";
 
 describe("computeAgeBucket", () => {
   it("returns new_this_close when period_end matches closed_at", () => {

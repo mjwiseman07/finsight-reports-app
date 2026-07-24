@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
-import { computeAgeBucket, type AgeBucket } from "./age-bucket.js";
+import { computeAgeBucket, type AgeBucket } from "./age-bucket";
 
 export type KickoutSourceType = "bs_summary_line" | "pbc_run";
 export type ResolutionStatus = "pending" | "resolved" | "escalated";

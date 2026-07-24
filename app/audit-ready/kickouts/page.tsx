@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireAuditReadyUser } from "@/lib/audit-ready/server-auth";
-import { listVisibleEngagementIds } from "@/lib/audit-ready/kickouts/list-visible-engagements.js";
-import { listKickouts } from "@/lib/audit-ready/kickouts/list-kickouts.js";
+import { listVisibleEngagementIds } from "@/lib/audit-ready/kickouts/list-visible-engagements";
+import { listKickouts } from "@/lib/audit-ready/kickouts/list-kickouts";
 import { KickoutInboxClient } from "@/components/audit-ready/KickoutInboxClient";
 import { headingFont } from "@/components/site-ui";
 

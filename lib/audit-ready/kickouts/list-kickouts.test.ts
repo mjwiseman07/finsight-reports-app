@@ -4,7 +4,7 @@ vi.mock("@/lib/supabase-admin.js", () => ({
   getSupabaseAdmin: vi.fn(),
 }));
 
-import { listKickouts } from "./list-kickouts.js";
+import { listKickouts } from "./list-kickouts";
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 
 describe("listKickouts", () => {

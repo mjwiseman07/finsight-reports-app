@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { requireAuditReadyUser } from "@/lib/audit-ready/server-auth";
-import { listVisibleEngagementIds } from "@/lib/audit-ready/kickouts/list-visible-engagements.js";
+import { listVisibleEngagementIds } from "@/lib/audit-ready/kickouts/list-visible-engagements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
