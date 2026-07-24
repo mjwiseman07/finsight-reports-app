@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Row = {
   pbc_request_id: string;
@@ -57,11 +57,13 @@ export function TieOutSummaryClient({
   rows: initialRows,
   policy,
   canWrite,
+  highlightRunId = null,
 }: {
   engagementId: string;
   rows: Row[];
   policy: Policy;
   canWrite: boolean;
+  highlightRunId?: string | null;
 }) {
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [busy, setBusy] = useState<null | "classify" | "policy">(null);
@@ -75,6 +77,19 @@ export function TieOutSummaryClient({
   const [runBusy, setRunBusy] = useState(false);
   const [runErr, setRunErr] = useState<string | null>(null);
   const [runResult, setRunResult] = useState<RunOutcome | null>(null);
+
+  useEffect(() => {
+    if (!highlightRunId) return;
+    const el = document.getElementById(`pbc-row-${highlightRunId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-amber-400", "ring-offset-2");
+      const t = setTimeout(() => {
+        el.classList.remove("ring-2", "ring-amber-400", "ring-offset-2");
+      }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [highlightRunId]);
 
   async function refresh() {
     const resp = await fetch(`/api/audit-ready/${engagementId}/tie-out-summary`);
@@ -278,7 +293,14 @@ export function TieOutSummaryClient({
           </thead>
           <tbody className="divide-y divide-[#C9A961]/10">
             {rows.map((r) => (
-              <tr key={r.pbc_request_id}>
+              <tr
+                key={r.pbc_request_id}
+                id={
+                  r.last_tie_out_run_id
+                    ? `pbc-row-${r.last_tie_out_run_id}`
+                    : undefined
+                }
+              >
                 <td className="py-2 font-mono text-xs text-[#A29E93]">
                   {r.request_number}
                 </td>

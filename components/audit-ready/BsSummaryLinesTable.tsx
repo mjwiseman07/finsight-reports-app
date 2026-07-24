@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   BsSummaryLine,
   BsTransaction,
@@ -32,6 +32,7 @@ type Props = {
   artifactId: string;
   periodEnd: string;
   lines: BsSummaryLine[];
+  initialOpenLineId?: string | null;
 };
 
 function formatCurrency(cents: number): string {
@@ -64,6 +65,7 @@ export function BsSummaryLinesTable({
   artifactId: _artifactId,
   periodEnd,
   lines,
+  initialOpenLineId = null,
 }: Props) {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [sortKey, setSortKey] = useState<SortKey>("sort_order");
@@ -73,6 +75,7 @@ export function BsSummaryLinesTable({
   const [drilldownUrl, setDrilldownUrl] = useState<string | null>(null);
   const [drilldownLoading, setDrilldownLoading] = useState(false);
   const [drilldownError, setDrilldownError] = useState<string | null>(null);
+  const [autoOpened, setAutoOpened] = useState(false);
 
   const filtered = useMemo(() => {
     return lines.filter((l) => {
@@ -143,6 +146,15 @@ export function BsSummaryLinesTable({
     setDrilldownUrl(null);
     setDrilldownError(null);
   };
+
+  useEffect(() => {
+    if (!initialOpenLineId || autoOpened) return;
+    const line = lines.find((l) => l.id === initialOpenLineId);
+    if (line && !line.is_computed_line) {
+      setAutoOpened(true);
+      void handleViewDetail(line);
+    }
+  }, [initialOpenLineId, lines, autoOpened]);
 
   const filterChips: { key: FilterKey; label: string; count: number }[] = [
     { key: "all", label: "All", count: lines.length },

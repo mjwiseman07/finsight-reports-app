@@ -115,7 +115,11 @@ export default async function TieOutSummaryPage({
   searchParams,
 }: {
   params: Promise<{ engagementId: string }>;
-  searchParams: Promise<{ as_of?: string }>;
+  searchParams: Promise<{
+    as_of?: string;
+    open_line?: string;
+    highlight_run?: string;
+  }>;
 }) {
   const { engagementId } = await params;
   const sp = await searchParams;
@@ -124,6 +128,10 @@ export default async function TieOutSummaryPage({
 
   const asOfRaw = typeof sp.as_of === "string" ? sp.as_of : undefined;
   const asOfParsed = parseStrictAsOfDate(asOfRaw ?? null);
+  const openLineId =
+    typeof sp.open_line === "string" ? sp.open_line : null;
+  const highlightRunId =
+    typeof sp.highlight_run === "string" ? sp.highlight_run : null;
 
   const supabase = getSupabaseAdmin();
   const [summary, policy, bsArtifact] = await Promise.all([
@@ -177,6 +185,7 @@ export default async function TieOutSummaryPage({
               artifactId={bsArtifact.id}
               periodEnd={bsArtifact.period_end}
               lines={bsLines}
+              initialOpenLineId={openLineId}
             />
           </section>
         )}
@@ -185,6 +194,7 @@ export default async function TieOutSummaryPage({
           rows={summary.data || []}
           policy={policy.data || null}
           canWrite={actor.canWrite}
+          highlightRunId={highlightRunId}
         />
       </div>
     </main>
