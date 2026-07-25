@@ -4,7 +4,7 @@ import {
   type QboUnbilledBillsQueryResult,
 } from "./qbo-reports";
 import { grniEmitter } from "./emitters/grni-emitter";
-import { uploadRunArtifact } from "./upload-artifact";
+import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
 import {
   type PolicySnapshot,
   type VarianceClassification,
@@ -19,6 +19,8 @@ export type GrniResolverInput = {
   policy: PolicySnapshot & { policy_mode: string };
   triggeredByUserId: string;
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
+  regeneratedFromRunId?: string | null;
+  triggerKind?: "initial" | "regenerated" | "cron";
 };
 
 export type GrniResolverOutput = {
@@ -95,6 +97,8 @@ export async function runGrniResolver(
       period_end: input.asOfDate,
       triggered_by_user_id: input.triggeredByUserId,
       trigger_reason: input.triggerReason,
+      regenerated_from_run_id: input.regeneratedFromRunId ?? null,
+      trigger_kind: input.triggerKind ?? "initial",
     })
     .select("id")
     .single();
@@ -356,14 +360,10 @@ export async function runGrniResolver(
   }
   const totalsStatus: GrniResolverOutput["totalsStatus"] = "tie";
   const durationMs = Date.now() - start;
-  // Adaptation vs paste: shipped column names are item_*_count (not
-  // auto_reconcile_count / review_count / kickout_count).
+  const fetchedAt = new Date().toISOString();
   await supabase
     .from("audit_ready_tie_out_runs")
     .update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
-      duration_ms: durationMs,
       subledger_total_cents: subTotalCents,
       gl_total_cents: null,
       totals_variance_cents: 0,
@@ -379,12 +379,11 @@ export async function runGrniResolver(
       raw_qbo_payload_jsonb: {
         version: 1,
         kind: "grni",
-        fetched_at: new Date().toISOString(),
+        fetched_at: fetchedAt,
         qbo_realm_id: input.realmId,
         qbo_connection_id: "",
         unbilled_bills: subledger,
       },
-      // PBC-TIEOUT-3.4: evidence-persistence warning surface. Non-blocking.
       ...(evidenceInsertError
         ? {
             error_message: `WARNING: evidence_insert_failed: ${evidenceInsertError}`,
@@ -392,7 +391,43 @@ export async function runGrniResolver(
         : {}),
     })
     .eq("id", runId);
-  // Adaptation vs paste: PBC CHECK allows review|tie (not needs_review|tied_out).
+
+  // Block E: primary WorkpaperEmitter write (hard-fail — marks run failed, no swallow).
+  try {
+    await dualWriteWorkpaper({
+      emitter: grniEmitter,
+      runId,
+      engagementId: input.engagementId,
+      generatedBy: input.triggeredByUserId ?? null,
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "unknown";
+    await failRun("emit_failed", msg);
+    return {
+      runId,
+      status: "failed",
+      totalsStatus,
+      subledgerTotalCents: subTotalCents,
+      glTotalCents: 0,
+      totalsVarianceCents: 0,
+      itemCount: subledger.bills.length,
+      autoReconcileCount: 0,
+      reviewCount,
+      kickoutCount: 0,
+      durationMs: Date.now() - start,
+      errorCode: "emit_failed",
+      errorMessage: msg,
+    };
+  }
+
+  await supabase
+    .from("audit_ready_tie_out_runs")
+    .update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      duration_ms: durationMs,
+    })
+    .eq("id", runId);
   const pbcLastStatus: "tie" | "review" =
     reviewCount > 0 ? "review" : "tie";
   await supabase
@@ -403,29 +438,6 @@ export async function runGrniResolver(
       last_tie_out_at: new Date().toISOString(),
     })
     .eq("id", input.pbcRequestId);
-
-  // Block C: WorkpaperEmitter dual-write (best-effort — the only artifact path for GRNI).
-  try {
-    const payload = await grniEmitter.build(runId);
-    const xlsxBuf = await grniEmitter.emitXlsx(payload);
-    const pdfBuf = await grniEmitter.emitPdf(payload);
-    await uploadRunArtifact({
-      runId,
-      engagementId: input.engagementId,
-      artifactKind: "xlsx",
-      fileBytes: xlsxBuf,
-      generatedBy: input.triggeredByUserId ?? null,
-    });
-    await uploadRunArtifact({
-      runId,
-      engagementId: input.engagementId,
-      artifactKind: "pdf",
-      fileBytes: pdfBuf,
-      generatedBy: input.triggeredByUserId ?? null,
-    });
-  } catch (err) {
-    console.error("[Block C dual-write] failed for run", runId, err);
-  }
 
   return {
     runId,

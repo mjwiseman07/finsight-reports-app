@@ -7,6 +7,7 @@ import { runGrniResolver } from "./grni-resolver";
 import { runBsAccountResolver } from "./bs-account-resolver";
 import type { BsClassification } from "./sign-normalize";
 import { runFaRollforwardResolver } from "./fa-rollforward-resolver";
+import { runBsSummaryResolver } from "./bs-summary-resolver";
 import { fetchQboAccountList } from "./qbo-reports";
 import type { PolicySnapshot } from "./policy";
 
@@ -377,13 +378,36 @@ export async function runTieOut(
             code: result.errorCode ?? "resolver_failed",
           };
     }
+    case "bs_recon_summary": {
+      const result = await runBsSummaryResolver({
+        engagementId: input.engagementId,
+        realmId: token.realmId,
+        accessToken: token.accessToken,
+        asOfDate: input.asOfDate,
+        policy: policy as PolicySnapshot & { policy_mode: string },
+        triggeredByUserId: input.triggeredByUserId,
+        triggerReason: input.triggerReason,
+      });
+      return result.status === "completed"
+        ? {
+            ok: true,
+            kind: "bs_recon_summary",
+            runId: result.runId,
+            totalsStatus: result.totalsStatus,
+            itemCount: result.accountCountTotal,
+          }
+        : {
+            ok: false,
+            reason: result.errorMessage ?? "resolver_failed",
+            code: result.errorCode ?? "resolver_failed",
+          };
+    }
     case "bank_recon":
     case "cash_recon":
     case "debt_schedule":
     case "equity_rollforward":
     case "revenue_cutoff":
     case "expense_cutoff":
-    case "bs_recon_summary":
       return {
         ok: false,
         reason: `resolver_not_yet_shipped: ${pbc.tie_out_kind}`,

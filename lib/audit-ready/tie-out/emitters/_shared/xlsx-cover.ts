@@ -12,6 +12,14 @@ export function buildCoverSheet(face: ReconFaceSpec): XLSX.WorkSheet {
     ["Tie-Out Kind", face.tieOutKind],
     ["Run ID", face.runId],
     ["Generated At", face.generatedAt],
+    ...(face.regeneratedFromRunId
+      ? [
+          [
+            "Regenerated From",
+            `Run ${face.regeneratedFromRunId.slice(0, 8)} on ${formatIsoDate(face.regeneratedAt)}`,
+          ] as Array<string | number>,
+        ]
+      : []),
     ["Tie Status", face.tieStatus === "ties" ? "TIES" : "KICKOUT"],
     [],
     ["Prepared by", ""],

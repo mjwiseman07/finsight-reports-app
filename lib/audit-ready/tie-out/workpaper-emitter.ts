@@ -37,6 +37,10 @@ export interface ReconFaceSpec {
   tieOutKind: TieOutKind;
   runId: string;
   generatedAt: string;
+  /** Set when this run was created via regenerate (Block E). */
+  regeneratedFromRunId?: string | null;
+  /** completed_at (or started_at) of the parent run, when regenerated. */
+  regeneratedAt?: string | null;
 }
 
 /**

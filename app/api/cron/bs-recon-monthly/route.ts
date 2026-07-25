@@ -288,6 +288,7 @@ export async function POST(req: Request) {
           policy: policy as PolicySnapshot & { policy_mode: string },
           triggeredByUserId,
           triggerReason: "scheduled",
+          triggerKind: "cron",
         });
 
         if (result.status === "failed") {

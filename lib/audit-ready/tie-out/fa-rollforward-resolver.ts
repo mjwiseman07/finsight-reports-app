@@ -28,6 +28,8 @@ export type RunFaRollforwardResolverInput = {
   policy: PolicySnapshot & { policy_mode: string };
   triggeredByUserId: string;
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
+  regeneratedFromRunId?: string | null;
+  triggerKind?: "initial" | "regenerated" | "cron";
 };
 
 export type RunFaRollforwardResolverResult =
@@ -126,6 +128,8 @@ export async function runFaRollforwardResolver(
       authoritative_comparison: input.policy.authoritative_comparison,
       triggered_by_user_id: input.triggeredByUserId,
       trigger_reason: input.triggerReason,
+      regenerated_from_run_id: input.regeneratedFromRunId ?? null,
+      trigger_kind: input.triggerKind ?? "initial",
       period_end: input.asOfDate,
     })
     .select("id")

@@ -154,6 +154,8 @@ export async function buildBsAccountPayload(
       tieOutKind: "bs_account_recon",
       runId,
       generatedAt: ctx.completedAt ?? new Date().toISOString(),
+      regeneratedFromRunId: ctx.regeneratedFromRunId,
+      regeneratedAt: ctx.regeneratedAt,
     },
     backupTabs: [activityTab],
     sourceData: sourceDataFromPayload(ctx.rawQboPayload),

@@ -208,6 +208,8 @@ export async function buildFaRollforwardPayload(
       tieOutKind: "fixed_asset_rollforward",
       runId,
       generatedAt: ctx.completedAt ?? new Date().toISOString(),
+      regeneratedFromRunId: ctx.regeneratedFromRunId,
+      regeneratedAt: ctx.regeneratedAt,
     },
     backupTabs,
     sourceData: sourceDataFromPayload(ctx.rawQboPayload),

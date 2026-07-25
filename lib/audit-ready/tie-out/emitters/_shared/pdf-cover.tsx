@@ -52,6 +52,15 @@ export function PdfCover({ face }: { face: ReconFaceSpec }) {
           Reviewed by: ______________________  Date: __________
         </Text>
       </View>
+      {face.regeneratedFromRunId ? (
+        <View style={[styles.row, { marginTop: 16 }]}>
+          <Text style={styles.label}>Regenerated From</Text>
+          <Text style={styles.value}>
+            Run {face.regeneratedFromRunId.slice(0, 8)} on{" "}
+            {formatIsoDate(face.regeneratedAt)}
+          </Text>
+        </View>
+      ) : null}
       <Text style={styles.footer}>Prepared by Advisacor</Text>
     </Page>
   );

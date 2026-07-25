@@ -379,6 +379,13 @@ export function KickoutInboxClient({
         runId={slideOver?.runId ?? null}
         initialTabName={slideOver?.initialTabName}
         onClose={() => setSlideOver(null)}
+        onRegenerated={(newRunId) =>
+          setSlideOver((prev) =>
+            prev
+              ? { ...prev, runId: newRunId }
+              : { runId: newRunId },
+          )
+        }
       />
     </>
   );

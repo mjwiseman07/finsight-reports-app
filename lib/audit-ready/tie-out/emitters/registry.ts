@@ -25,3 +25,5 @@ export const SHIPPED_EMITTER_KINDS = Object.keys(
 export function getEmitter(kind: TieOutKind): WorkpaperEmitter | null {
   return EMITTER_REGISTRY[kind] ?? null;
 }
+
+export { regenerateRun } from "../regenerate-run";

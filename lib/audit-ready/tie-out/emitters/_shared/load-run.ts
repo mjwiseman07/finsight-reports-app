@@ -15,6 +15,8 @@ export type RunContext = {
   glTotalCents: number | null;
   totalsVarianceCents: number | null;
   completedAt: string | null;
+  regeneratedFromRunId: string | null;
+  regeneratedAt: string | null;
 };
 
 export async function loadRunContext(runId: string): Promise<RunContext> {
@@ -22,7 +24,7 @@ export async function loadRunContext(runId: string): Promise<RunContext> {
   const { data: run, error } = await supabase
     .from("audit_ready_tie_out_runs")
     .select(
-      "id, engagement_id, period_start, period_end, tie_out_kind, totals_status, kickout_min_dollar, raw_qbo_payload_jsonb, subledger_total_cents, gl_total_cents, totals_variance_cents, completed_at",
+      "id, engagement_id, period_start, period_end, tie_out_kind, totals_status, kickout_min_dollar, raw_qbo_payload_jsonb, subledger_total_cents, gl_total_cents, totals_variance_cents, completed_at, regenerated_from_run_id",
     )
     .eq("id", runId)
     .single();
@@ -34,6 +36,20 @@ export async function loadRunContext(runId: string): Promise<RunContext> {
     .select("engagement_name")
     .eq("id", run.engagement_id)
     .maybeSingle();
+
+  let regeneratedAt: string | null = null;
+  const parentId = (run.regenerated_from_run_id as string | null) ?? null;
+  if (parentId) {
+    const { data: parent } = await supabase
+      .from("audit_ready_tie_out_runs")
+      .select("completed_at, started_at")
+      .eq("id", parentId)
+      .maybeSingle();
+    regeneratedAt =
+      (parent?.completed_at as string | null) ??
+      (parent?.started_at as string | null) ??
+      null;
+  }
 
   const raw = run.raw_qbo_payload_jsonb as Record<string, unknown> | null;
   return {
@@ -58,6 +74,8 @@ export async function loadRunContext(runId: string): Promise<RunContext> {
         ? null
         : Number(run.totals_variance_cents),
     completedAt: (run.completed_at as string) || null,
+    regeneratedFromRunId: parentId,
+    regeneratedAt,
   };
 }
 

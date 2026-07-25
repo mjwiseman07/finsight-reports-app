@@ -168,6 +168,8 @@ export async function buildGrniPayload(
       tieOutKind: "grni",
       runId,
       generatedAt: ctx.completedAt ?? new Date().toISOString(),
+      regeneratedFromRunId: ctx.regeneratedFromRunId,
+      regeneratedAt: ctx.regeneratedAt,
     },
     backupTabs: [billsDetail, vendorRollup, agingRollup],
     sourceData: sourceDataFromPayload(raw),
