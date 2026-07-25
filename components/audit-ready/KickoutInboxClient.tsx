@@ -261,8 +261,15 @@ export function KickoutInboxClient({
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        <div className="font-medium text-[#ECEBE7]">
-                          {row.account_or_kind}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-[#ECEBE7]">
+                            {row.account_or_kind}
+                          </span>
+                          {row.similar_count >= 1 && (
+                            <span className="inline-flex items-center gap-1 rounded border border-[#C9A961]/30 bg-[#C9A961]/10 px-2 py-0.5 text-xs text-[#C9A961]">
+                              🧠 {row.similar_count} prior
+                            </span>
+                          )}
                         </div>
                         {row.account_type && (
                           <div className="text-xs text-[#7A7974]">
