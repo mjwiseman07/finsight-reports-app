@@ -24,6 +24,14 @@ vi.mock("../basis", () => ({
   resolveAccountingBasis: async () => "Accrual",
 }));
 
+// Block E: dual-write is primary / hard-fail — stub so unit tests stay offline.
+vi.mock("../emitters/_shared/emit-common", () => ({
+  dualWriteWorkpaper: async () => undefined,
+  writeWorkpaperArtifacts: async () => undefined,
+  emitWorkpaperXlsx: async () => Buffer.from("xlsx"),
+  emitWorkpaperPdf: async () => Buffer.from("pdf"),
+}));
+
 // Mock the per-account resolver so we never hit QBO.
 vi.mock("../bs-account-resolver", () => ({
   runBsAccountResolver: async () => ({

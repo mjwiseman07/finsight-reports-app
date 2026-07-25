@@ -40,8 +40,8 @@ export async function emitWorkpaperXlsx(
 }
 
 /**
- * Best-effort dual-write to audit_ready_run_artifacts.
- * Failures are logged; they must not fail the legacy run path (Block E promotes).
+ * Primary workpaper write to audit_ready_run_artifacts.
+ * Failures propagate — Block E maturity gate (no longer best-effort).
  */
 export async function dualWriteWorkpaper(params: {
   emitter: WorkpaperEmitter;
@@ -50,25 +50,24 @@ export async function dualWriteWorkpaper(params: {
   generatedBy: string | null;
 }): Promise<void> {
   const { emitter, runId, engagementId, generatedBy } = params;
-  try {
-    const payload = await emitter.build(runId);
-    const xlsxBuf = await emitter.emitXlsx(payload);
-    const pdfBuf = await emitter.emitPdf(payload);
-    await uploadRunArtifact({
-      runId,
-      engagementId,
-      artifactKind: "xlsx",
-      fileBytes: xlsxBuf,
-      generatedBy,
-    });
-    await uploadRunArtifact({
-      runId,
-      engagementId,
-      artifactKind: "pdf",
-      fileBytes: pdfBuf,
-      generatedBy,
-    });
-  } catch (err) {
-    console.error("[Block B dual-write] failed for run", runId, err);
-  }
+  const payload = await emitter.build(runId);
+  const xlsxBuf = await emitter.emitXlsx(payload);
+  const pdfBuf = await emitter.emitPdf(payload);
+  await uploadRunArtifact({
+    runId,
+    engagementId,
+    artifactKind: "xlsx",
+    fileBytes: xlsxBuf,
+    generatedBy,
+  });
+  await uploadRunArtifact({
+    runId,
+    engagementId,
+    artifactKind: "pdf",
+    fileBytes: pdfBuf,
+    generatedBy,
+  });
 }
+
+/** Alias — Block E primary path (same as dualWriteWorkpaper after promote). */
+export const writeWorkpaperArtifacts = dualWriteWorkpaper;

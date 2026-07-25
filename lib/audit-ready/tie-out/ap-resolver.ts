@@ -6,7 +6,7 @@ import {
   type QboTrialBalanceResult,
 } from "./qbo-reports";
 import { apEmitter } from "./emitters/ap-emitter";
-import { uploadRunArtifact } from "./upload-artifact";
+import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
 import {
   classifyVariance,
   type PolicySnapshot,
@@ -23,6 +23,8 @@ export type ApResolverInput = {
   policy: PolicySnapshot & { policy_mode: string };
   triggeredByUserId: string;
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
+  regeneratedFromRunId?: string | null;
+  triggerKind?: "initial" | "regenerated" | "cron";
 };
 
 export type ApResolverOutput = {
@@ -77,6 +79,8 @@ export async function runApResolver(
       period_end: input.asOfDate,
       triggered_by_user_id: input.triggeredByUserId,
       trigger_reason: input.triggerReason,
+      regenerated_from_run_id: input.regeneratedFromRunId ?? null,
+      trigger_kind: input.triggerKind ?? "initial",
     })
     .select("id")
     .single();
@@ -228,10 +232,11 @@ export async function runApResolver(
         : totalsStatus === "review"
           ? "review"
           : "kickout";
+  const fetchedAt = new Date().toISOString();
+  // Persist Path Y snapshot first so emitter.build can read it; complete only after emit succeeds.
   await supabase
     .from("audit_ready_tie_out_runs")
     .update({
-      status: "completed",
       subledger_total_cents: subTotalCents,
       gl_total_cents: glTotalCents,
       totals_variance_cents: totalsVariance,
@@ -244,17 +249,52 @@ export async function runApResolver(
       gl_source_url: trial.raw_report_url,
       intuit_tid_subledger: subledger.intuit_tid,
       intuit_tid_gl: trial.intuit_tid,
-      completed_at: new Date().toISOString(),
-      duration_ms: Date.now() - start,
       raw_qbo_payload_jsonb: {
         version: 1,
         kind: "ap_aging",
-        fetched_at: new Date().toISOString(),
+        fetched_at: fetchedAt,
         qbo_realm_id: input.realmId,
         qbo_connection_id: "",
         aging_detail: subledger,
         trial_balance: trial,
       },
+    })
+    .eq("id", runId);
+
+  // Block E: primary WorkpaperEmitter write (hard-fail — marks run failed, no swallow).
+  try {
+    await dualWriteWorkpaper({
+      emitter: apEmitter,
+      runId,
+      engagementId: input.engagementId,
+      generatedBy: input.triggeredByUserId ?? null,
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "unknown";
+    await failRun("emit_failed", msg);
+    return {
+      runId,
+      status: "failed",
+      totalsStatus,
+      subledgerTotalCents: subTotalCents,
+      glTotalCents,
+      totalsVarianceCents: totalsVariance,
+      itemCount,
+      autoReconcileCount: autoCount,
+      reviewCount,
+      kickoutCount,
+      durationMs: Date.now() - start,
+      errorCode: "emit_failed",
+      errorMessage: msg,
+    };
+  }
+
+  await supabase
+    .from("audit_ready_tie_out_runs")
+    .update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      duration_ms: Date.now() - start,
     })
     .eq("id", runId);
   await supabase
@@ -265,29 +305,6 @@ export async function runApResolver(
       last_tie_out_at: new Date().toISOString(),
     })
     .eq("id", input.pbcRequestId);
-
-  // Block C: WorkpaperEmitter dual-write (best-effort — the only artifact path for AP).
-  try {
-    const payload = await apEmitter.build(runId);
-    const xlsxBuf = await apEmitter.emitXlsx(payload);
-    const pdfBuf = await apEmitter.emitPdf(payload);
-    await uploadRunArtifact({
-      runId,
-      engagementId: input.engagementId,
-      artifactKind: "xlsx",
-      fileBytes: xlsxBuf,
-      generatedBy: input.triggeredByUserId ?? null,
-    });
-    await uploadRunArtifact({
-      runId,
-      engagementId: input.engagementId,
-      artifactKind: "pdf",
-      fileBytes: pdfBuf,
-      generatedBy: input.triggeredByUserId ?? null,
-    });
-  } catch (err) {
-    console.error("[Block C dual-write] failed for run", runId, err);
-  }
 
   return {
     runId,

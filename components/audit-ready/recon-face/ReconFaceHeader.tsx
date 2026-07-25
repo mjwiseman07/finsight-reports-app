@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReconFaceSpec } from "@/lib/audit-ready/tie-out/workpaper-emitter";
+import { formatIsoDate } from "@/lib/audit-ready/tie-out/emitters/_shared/format";
 import { headingFont } from "@/components/site-ui";
 
 function formatCents(cents: number | null | undefined): string {
@@ -55,6 +56,14 @@ export function ReconFaceHeader({
           Variance tolerance: {formatCents(face.toleranceCents)}
         </p>
       )}
+      {face.regeneratedFromRunId ? (
+        <p className="text-xs text-[#C9A961]">
+          Regenerated from Run {face.regeneratedFromRunId.slice(0, 8)}
+          {face.regeneratedAt
+            ? ` on ${formatIsoDate(face.regeneratedAt)}`
+            : ""}
+        </p>
+      ) : null}
     </div>
   );
 }

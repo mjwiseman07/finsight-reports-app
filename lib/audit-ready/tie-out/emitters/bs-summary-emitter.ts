@@ -218,6 +218,8 @@ export async function buildBsSummaryPayload(
       tieOutKind: "bs_recon_summary",
       runId,
       generatedAt: ctx.completedAt ?? new Date().toISOString(),
+      regeneratedFromRunId: ctx.regeneratedFromRunId,
+      regeneratedAt: ctx.regeneratedAt,
     },
     backupTabs: [includedTab, ...perAccountTabs],
     sourceData: sourceDataFromPayload(ctx.rawQboPayload),

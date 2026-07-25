@@ -97,6 +97,8 @@ export async function buildArPayload(
       tieOutKind: "ar_aging",
       runId,
       generatedAt: ctx.completedAt ?? new Date().toISOString(),
+      regeneratedFromRunId: ctx.regeneratedFromRunId,
+      regeneratedAt: ctx.regeneratedAt,
     },
     backupTabs: [rollup],
     sourceData: sourceDataFromPayload(raw),

@@ -104,6 +104,8 @@ export async function buildInventoryPayload(
       tieOutKind: "inventory",
       runId,
       generatedAt: ctx.completedAt ?? new Date().toISOString(),
+      regeneratedFromRunId: ctx.regeneratedFromRunId,
+      regeneratedAt: ctx.regeneratedAt,
     },
     backupTabs: [detail],
     sourceData: sourceDataFromPayload(raw),

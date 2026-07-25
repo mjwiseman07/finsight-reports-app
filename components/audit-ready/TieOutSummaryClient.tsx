@@ -399,6 +399,7 @@ export function TieOutSummaryClient({
       <WorkpaperSlideOver
         runId={slideOverRunId}
         onClose={() => setSlideOverRunId(null)}
+        onRegenerated={(newRunId) => setSlideOverRunId(newRunId)}
       />
     </div>
   );
