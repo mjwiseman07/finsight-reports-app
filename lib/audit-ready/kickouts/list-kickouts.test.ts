@@ -5,6 +5,7 @@ vi.mock("@/lib/supabase-admin.js", () => ({
 }));
 
 import {
+  assembleKickoutRows,
   listKickouts,
   dedupeBsKickoutLines,
   dedupePbcKickoutRuns,
@@ -83,6 +84,55 @@ describe("listKickouts", () => {
     expect(api.rpc).toHaveBeenCalledWith(
       "audit_ready_latest_pbc_kickout_runs",
       expect.any(Object),
+    );
+    expect(api.rpc).toHaveBeenCalledWith(
+      "get_similar_kickout_resolution_counts",
+      expect.any(Object),
+    );
+  });
+});
+
+describe("assembleKickoutRows memory counts", () => {
+  it("maps batched BS and PBC counts onto inbox rows", () => {
+    const rows = assembleKickoutRows({
+      engagements: [
+        {
+          id: ENG,
+          engagement_name: "Pilot",
+          closed_at: null,
+          audit_period_end: "2026-12-31",
+        },
+      ],
+      investigations: [],
+      bsLines: [makeBsLine({ id: "line-1", qbo_account_id: "35" })],
+      pbcRuns: [makePbcRun({ id: "run-1", tie_out_kind: "ap_aging" })],
+      similarCounts: [
+        {
+          engagement_id: ENG,
+          source_type: "bs_summary_line",
+          match_key: "35",
+          similar_count: 2,
+        },
+        {
+          engagement_id: ENG,
+          source_type: "pbc_run",
+          match_key: "ap_aging",
+          similar_count: "3",
+        },
+      ],
+    });
+
+    expect(rows.find((row) => row.source_type === "bs_summary_line")).toEqual(
+      expect.objectContaining({
+        qbo_account_id: "35",
+        similar_count: 2,
+      }),
+    );
+    expect(rows.find((row) => row.source_type === "pbc_run")).toEqual(
+      expect.objectContaining({
+        tie_out_kind: "ap_aging",
+        similar_count: 3,
+      }),
     );
   });
 });

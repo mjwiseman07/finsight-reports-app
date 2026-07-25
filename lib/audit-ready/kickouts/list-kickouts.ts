@@ -25,6 +25,9 @@ export type KickoutRow = {
   variance_pct: number | null;
   age_bucket: AgeBucket;
   latest_investigation: KickoutInvestigation | null;
+  qbo_account_id: string | null;
+  tie_out_kind: string | null;
+  similar_count: number;
   bs_line_id: string | null;
   pbc_run_id: string | null;
   /** Parent bs_recon_summary run — set for bs_summary_line rows (Block D ReconFace). */
@@ -67,6 +70,13 @@ export type PbcKickoutRunRpcRow = {
   created_at: string | null;
 };
 
+export type SimilarResolutionCountRpcRow = {
+  engagement_id: string;
+  source_type: KickoutSourceType;
+  match_key: string;
+  similar_count: number | string;
+};
+
 /**
  * Pure mapper — exported for unit tests of Fix 1/2/3 contracts
  * (RPC performs DISTINCT ON; this assembles the Inbox union).
@@ -84,12 +94,20 @@ export function assembleKickoutRows(params: {
   }>;
   bsLines: BsKickoutLineRpcRow[];
   pbcRuns: PbcKickoutRunRpcRow[];
+  similarCounts?: SimilarResolutionCountRpcRow[];
   /** artifact_id → parent bs_recon_summary run_id (from summary artifacts). */
   parentRunByArtifactId?: Map<string, string>;
 }): KickoutRow[] {
   const engMap = new Map<string, EngagementRow>();
   for (const e of params.engagements) engMap.set(e.id, e);
   const parentRunByArtifactId = params.parentRunByArtifactId ?? new Map();
+  const similarCountMap = new Map<string, number>();
+  for (const count of params.similarCounts ?? []) {
+    similarCountMap.set(
+      `${count.engagement_id}:${count.source_type}:${count.match_key}`,
+      Number(count.similar_count),
+    );
+  }
 
   const invMap = new Map<string, KickoutInvestigation>();
   // Caller must pass investigations latest-first
@@ -131,6 +149,12 @@ export function assembleKickoutRows(params: {
         audit_period_end: eng.audit_period_end,
       }),
       latest_investigation: invMap.get(`bs_summary_line:${line.id}`) ?? null,
+      qbo_account_id: line.qbo_account_id,
+      tie_out_kind: null,
+      similar_count:
+        similarCountMap.get(
+          `${line.engagement_id}:bs_summary_line:${line.qbo_account_id ?? ""}`,
+        ) ?? 0,
       bs_line_id: line.id,
       pbc_run_id: null,
       parent_summary_run_id:
@@ -162,6 +186,12 @@ export function assembleKickoutRows(params: {
         audit_period_end: eng.audit_period_end,
       }),
       latest_investigation: invMap.get(`pbc_run:${run.id}`) ?? null,
+      qbo_account_id: null,
+      tie_out_kind: run.tie_out_kind,
+      similar_count:
+        similarCountMap.get(
+          `${run.engagement_id}:pbc_run:${run.tie_out_kind}`,
+        ) ?? 0,
       bs_line_id: null,
       pbc_run_id: run.id,
       parent_summary_run_id: null,
@@ -285,6 +315,15 @@ export async function listKickouts(
     throw pbcErr;
   }
 
+  const { data: similarCountsRaw, error: countsErr } = await supabase.rpc(
+    "get_similar_kickout_resolution_counts",
+    { p_engagement_ids: engagementIds },
+  );
+  if (countsErr) {
+    console.error("[list-kickouts] similar-counts RPC failed", countsErr);
+    throw countsErr;
+  }
+
   const bsLines = (bsLinesRaw ?? []) as BsKickoutLineRpcRow[];
   const artifactIds = [
     ...new Set(bsLines.map((l) => l.artifact_id).filter(Boolean)),
@@ -313,6 +352,7 @@ export async function listKickouts(
     }>,
     bsLines,
     pbcRuns: (pbcRunsRaw ?? []) as PbcKickoutRunRpcRow[],
+    similarCounts: (similarCountsRaw ?? []) as SimilarResolutionCountRpcRow[],
     parentRunByArtifactId,
   });
 }

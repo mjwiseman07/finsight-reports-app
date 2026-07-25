@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { requireAuditReadyUser } from "@/lib/audit-ready/server-auth";
 import { listVisibleEngagementIds } from "@/lib/audit-ready/kickouts/list-visible-engagements";
+import { RESOLUTION_CODES } from "@/lib/audit-ready/memory/similar-resolutions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ALLOWED_SOURCE_TYPES = new Set(["bs_summary_line", "pbc_run"]);
 const ALLOWED_STATUSES = new Set(["pending", "resolved", "escalated"]);
+const ALLOWED_RESOLUTION_CODES = new Set<string>(RESOLUTION_CODES);
 
 export async function POST(req: Request) {
   const auth = await requireAuditReadyUser();
@@ -25,6 +27,7 @@ export async function POST(req: Request) {
   const kickout_source_id = body?.kickout_source_id;
   const note = body?.note;
   const resolution_status = body?.resolution_status;
+  const resolution_code = body?.resolution_code;
 
   if (typeof engagement_id !== "string" || engagement_id.length < 10) {
     return NextResponse.json(
@@ -58,6 +61,28 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  const resolutionCode =
+    typeof resolution_code === "string" && resolution_code.length > 0
+      ? resolution_code
+      : null;
+  if (
+    (status === "resolved" || status === "escalated") &&
+    resolutionCode === null
+  ) {
+    return NextResponse.json(
+      { error: "resolution_code required for resolved or escalated status" },
+      { status: 400 },
+    );
+  }
+  if (
+    resolutionCode !== null &&
+    !ALLOWED_RESOLUTION_CODES.has(resolutionCode)
+  ) {
+    return NextResponse.json(
+      { error: "invalid resolution_code" },
+      { status: 400 },
+    );
+  }
 
   const visible = await listVisibleEngagementIds(auth.user.id);
   if (!visible.includes(engagement_id)) {
@@ -74,6 +99,7 @@ export async function POST(req: Request) {
       investigated_by: auth.user.id,
       note: note.trim(),
       resolution_status: status,
+      resolution_code: resolutionCode,
     })
     .select()
     .single();
@@ -86,5 +112,5 @@ export async function POST(req: Request) {
     );
   }
 
-  return NextResponse.json({ investigation: data });
+  return NextResponse.json({ investigation: data }, { status: 201 });
 }
