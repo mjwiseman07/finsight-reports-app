@@ -15,6 +15,8 @@ import {
   activityWindowForFiscalYear,
   resolveFiscalYearStartMonth,
 } from "./fiscal-year";
+import { faRollforwardEmitter } from "./emitters/fa-rollforward-emitter";
+import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
 
 export type RunFaRollforwardResolverInput = {
   engagementId: string;
@@ -181,6 +183,7 @@ export async function runFaRollforwardResolver(
     let accumReclass = 0;
     let accumEnd = 0;
     const lines: FaLine[] = [];
+    const perAccountGl: Record<string, unknown> = {};
 
     for (const acct of allAccounts) {
       const gl = await fetchQboGeneralLedgerDetail({
@@ -190,6 +193,7 @@ export async function runFaRollforwardResolver(
         startDate,
         endDate,
       });
+      perAccountGl[acct.id] = gl;
       if (acct.side === "cost") {
         costBeg += gl.beginningBalanceCents;
         costEnd += gl.endingBalanceCents;
@@ -380,6 +384,7 @@ export async function runFaRollforwardResolver(
             ? "kickout"
             : "review";
 
+    const fetchedAt = new Date().toISOString();
     await supabase
       .from("audit_ready_tie_out_runs")
       .update({
@@ -390,9 +395,26 @@ export async function runFaRollforwardResolver(
         totals_variance_cents: costEnd - accumEnd - (costGlEnd - accumGlEnd),
         item_count: lines.length,
         period_start: startDate,
-        completed_at: new Date().toISOString(),
+        completed_at: fetchedAt,
+        raw_qbo_payload_jsonb: {
+          version: 1,
+          kind: "fixed_asset_rollforward",
+          fetched_at: fetchedAt,
+          qbo_realm_id: input.realmId,
+          qbo_connection_id: "",
+          account_list: accounts,
+          per_account_gl: perAccountGl,
+          trial_balance: tb,
+        },
       })
       .eq("id", runId);
+
+    await dualWriteWorkpaper({
+      emitter: faRollforwardEmitter,
+      runId,
+      engagementId: input.engagementId,
+      generatedBy: input.triggeredByUserId || null,
+    });
 
     return {
       status: "completed",

@@ -16,6 +16,8 @@ import {
 import type { PolicySnapshot } from "./policy";
 import { renderBsSummaryPdf, type BsSummaryPdfLine } from "./bs-summary-pdf";
 import { createHash } from "node:crypto";
+import { bsSummaryEmitter } from "./emitters/bs-summary-emitter";
+import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
 
 export type RunBsSummaryResolverInput = {
   engagementId: string;
@@ -539,6 +541,7 @@ export async function runBsSummaryResolver(
     // (not the equation variance — that lives on the artifact as
     // bs_equation_variance_cents / return.bsEquationVarianceCents).
     const runFinishedAtMs = Date.now();
+    const fetchedAt = new Date(runFinishedAtMs).toISOString();
     await supabase
       .from("audit_ready_tie_out_runs")
       .update({
@@ -553,9 +556,25 @@ export async function runBsSummaryResolver(
         gl_total_cents: liabilitiesCents + equityCents,
         totals_variance_cents: totalsVarianceCents,
         period_start: startDate,
-        completed_at: new Date(runFinishedAtMs).toISOString(),
+        completed_at: fetchedAt,
+        raw_qbo_payload_jsonb: {
+          version: 1,
+          kind: "bs_recon_summary",
+          fetched_at: fetchedAt,
+          qbo_realm_id: input.realmId,
+          qbo_connection_id: "",
+          balance_sheet: bsReport,
+        },
       })
       .eq("id", runId);
+
+    await dualWriteWorkpaper({
+      emitter: bsSummaryEmitter,
+      runId,
+      engagementId: input.engagementId,
+      generatedBy: input.triggeredByUserId || null,
+    });
+
     return {
       status: "completed",
       runId,
