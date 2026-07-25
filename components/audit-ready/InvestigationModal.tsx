@@ -38,6 +38,22 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
+/** Fire-and-forget. Do not await in caller; do not surface errors to user. */
+function fireCopyClicked(
+  engagementId: string,
+  payload: Record<string, unknown>,
+) {
+  fetch("/api/audit-ready/memory/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      event_type: "copy_clicked",
+      engagement_id: engagementId,
+      payload,
+    }),
+  }).catch(() => {});
+}
+
 export function InvestigationModal({
   row,
   onClose,
@@ -52,6 +68,9 @@ export function InvestigationModal({
   const [resolutionCode, setResolutionCode] = useState<ResolutionCode | null>(
     null,
   );
+  const [copiedFromInvestigationId, setCopiedFromInvestigationId] = useState<
+    string | null
+  >(null);
   const [suggestions, setSuggestions] = useState<SimilarResolution[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +143,7 @@ export function InvestigationModal({
           note: note.trim(),
           resolution_status: status,
           resolution_code: resolutionCode,
+          copied_from_investigation_id: copiedFromInvestigationId,
         }),
       });
       if (!res.ok) {
@@ -203,6 +223,13 @@ export function InvestigationModal({
                         if (suggestion.resolutionCode) {
                           setResolutionCode(suggestion.resolutionCode);
                         }
+                        setCopiedFromInvestigationId(suggestion.investigationId);
+                        fireCopyClicked(row.engagement_id, {
+                          copied_investigation_id: suggestion.investigationId,
+                          copied_resolution_code: suggestion.resolutionCode,
+                          kickout_source_type: row.source_type,
+                          kickout_source_id: row.source_id,
+                        });
                       }}
                       className={`whitespace-nowrap text-xs text-[#C9A961] hover:underline ${focusRing()}`}
                     >

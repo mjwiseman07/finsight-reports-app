@@ -114,6 +114,35 @@ describe("InvestigationModal suggestions", () => {
     );
   });
 
+  it("fires copy_clicked event when Copy is clicked", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [codedSuggestion] }),
+    });
+    renderModal();
+
+    fireEvent.click(await screen.findByText("Copy to my resolution"));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/audit-ready/memory/events",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            event_type: "copy_clicked",
+            engagement_id: "eng-1",
+            payload: {
+              copied_investigation_id: "inv-coded",
+              copied_resolution_code: "timing",
+              kickout_source_type: "bs_summary_line",
+              kickout_source_id: "line-1",
+            },
+          }),
+        }),
+      ),
+    );
+  });
+
   it("disables Save for Resolved without a resolution code", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
@@ -129,7 +158,7 @@ describe("InvestigationModal suggestions", () => {
     ).toBeDisabled();
   });
 
-  it("sends resolution_code when saving an investigation", async () => {
+  it("sends resolution_code and null copied_from when saving without copy", async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -160,7 +189,45 @@ describe("InvestigationModal suggestions", () => {
       expect.objectContaining({
         resolution_status: "resolved",
         resolution_code: "immaterial",
+        copied_from_investigation_id: null,
       }),
     );
+  });
+
+  it("includes copied_from_investigation_id on Save after copy", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ results: [codedSuggestion] }),
+      })
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({ ok: true }),
+      });
+    renderModal();
+
+    fireEvent.click(await screen.findByText("Copy to my resolution"));
+    fireEvent.change(screen.getByLabelText("Resolution status"), {
+      target: { value: "resolved" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save investigation" }),
+    );
+
+    await waitFor(() => {
+      const saveCall = fetchMock.mock.calls.find(
+        ([url]) =>
+          typeof url === "string" &&
+          url.includes("/api/audit-ready/kickouts/investigations"),
+      );
+      expect(saveCall).toBeTruthy();
+      const init = saveCall![1] as RequestInit;
+      expect(JSON.parse(String(init.body))).toEqual(
+        expect.objectContaining({
+          copied_from_investigation_id: "inv-coded",
+          resolution_code: "timing",
+        }),
+      );
+    });
   });
 });

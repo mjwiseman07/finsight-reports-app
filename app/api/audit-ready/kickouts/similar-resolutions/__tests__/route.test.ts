@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requireUser = vi.fn();
 const getActor = vi.fn();
 const getSimilar = vi.fn();
+const emitEvent = vi.fn();
 
 vi.mock("@/lib/audit-ready/server-auth", () => ({
   requireAuditReadyUser: () => requireUser(),
@@ -13,20 +14,28 @@ vi.mock("@/lib/audit-ready/memory/similar-resolutions", () => ({
   getSimilarKickoutResolutions: (...args: unknown[]) => getSimilar(...args),
 }));
 
+vi.mock("@/lib/audit-ready/memory/events", () => ({
+  emitMemoryEvent: (...args: unknown[]) => emitEvent(...args),
+}));
+
 import { POST } from "../route";
 
 function request(body: Record<string, unknown>) {
-  return new Request("http://localhost/api/audit-ready/kickouts/similar-resolutions", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return new Request(
+    "http://localhost/api/audit-ready/kickouts/similar-resolutions",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 beforeEach(() => {
   requireUser.mockReset();
   getActor.mockReset();
   getSimilar.mockReset();
+  emitEvent.mockReset();
   requireUser.mockResolvedValue({ user: { id: "user-1" } });
   getActor.mockResolvedValue({
     userId: "user-1",
@@ -35,6 +44,7 @@ beforeEach(() => {
     scope: "company",
   });
   getSimilar.mockResolvedValue([]);
+  emitEvent.mockResolvedValue(undefined);
 });
 
 describe("POST /api/audit-ready/kickouts/similar-resolutions", () => {
@@ -75,7 +85,7 @@ describe("POST /api/audit-ready/kickouts/similar-resolutions", () => {
     expect(response.status).toBe(403);
   });
 
-  it("returns 200 with empty results", async () => {
+  it("emits suggestions_none when results are empty", async () => {
     const response = await POST(
       request({
         engagement_id: "eng-1",
@@ -85,12 +95,30 @@ describe("POST /api/audit-ready/kickouts/similar-resolutions", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ results: [] });
+    expect(emitEvent).toHaveBeenCalledWith({
+      eventType: "suggestions_none",
+      engagementId: "eng-1",
+      actorUserId: "user-1",
+      payload: {
+        source_type: "pbc_run",
+        kickout_source_key: { tie_out_kind: "ap_aging" },
+        suggestion_count: 0,
+        top_resolution_code: null,
+      },
+    });
   });
 
-  it("returns 200 with three recent results", async () => {
-    const results = Array.from({ length: 3 }, (_, index) => ({
-      investigationId: `inv-${index}`,
-    }));
+  it("emits suggestions_shown with top_resolution_code when results are non-empty", async () => {
+    const results = [
+      {
+        investigationId: "inv-0",
+        resolutionCode: "timing",
+      },
+      {
+        investigationId: "inv-1",
+        resolutionCode: "immaterial",
+      },
+    ];
     getSimilar.mockResolvedValue(results);
     const response = await POST(
       request({
@@ -104,6 +132,17 @@ describe("POST /api/audit-ready/kickouts/similar-resolutions", () => {
     expect(getSimilar).toHaveBeenCalledWith("eng-1", {
       source_type: "bs_summary_line",
       qbo_account_id: "35",
+    });
+    expect(emitEvent).toHaveBeenCalledWith({
+      eventType: "suggestions_shown",
+      engagementId: "eng-1",
+      actorUserId: "user-1",
+      payload: {
+        source_type: "bs_summary_line",
+        kickout_source_key: { qbo_account_id: "35" },
+        suggestion_count: 2,
+        top_resolution_code: "timing",
+      },
     });
   });
 });
