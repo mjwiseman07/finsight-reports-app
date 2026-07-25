@@ -5,13 +5,23 @@ import type { TieOutKind } from "@/lib/audit-ready/tie-out-kind-classifier";
  * If a subledger exists, left = subledger; if not, left = prepared schedule.
  * Right is always the GL.
  */
+/**
+ * two_sided = subledger/schedule ↔ GL with variance + badge.
+ * report_only = single-sided (GRNI): no GL right side, no variance.
+ */
+export type ReconFaceMode = "two_sided" | "report_only";
+
 export interface ReconFaceSpec {
+  /** Defaults to "two_sided" when omitted (Block A/B emitters unaffected). */
+  mode?: ReconFaceMode;
   leftLabel: string;
   leftAmountCents: number;
-  rightLabel: string;
-  rightAmountCents: number;
-  varianceCents: number;
+  /** Nullable for report_only faces. */
+  rightLabel: string | null;
+  rightAmountCents: number | null;
+  varianceCents: number | null;
   toleranceCents: number;
+  /** report_only faces always set "ties". */
   tieStatus: "ties" | "kickout";
   /**
    * Sections of the face — each corresponds to one Backup tab in the XLSX.

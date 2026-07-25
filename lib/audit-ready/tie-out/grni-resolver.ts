@@ -3,6 +3,8 @@ import {
   fetchQboOpenUnbilledBills,
   type QboUnbilledBillsQueryResult,
 } from "./qbo-reports";
+import { grniEmitter } from "./emitters/grni-emitter";
+import { uploadRunArtifact } from "./upload-artifact";
 import {
   type PolicySnapshot,
   type VarianceClassification,
@@ -374,6 +376,14 @@ export async function runGrniResolver(
       gl_source_url: null,
       intuit_tid_subledger: subledger.intuit_tid,
       intuit_tid_gl: null,
+      raw_qbo_payload_jsonb: {
+        version: 1,
+        kind: "grni",
+        fetched_at: new Date().toISOString(),
+        qbo_realm_id: input.realmId,
+        qbo_connection_id: "",
+        unbilled_bills: subledger,
+      },
       // PBC-TIEOUT-3.4: evidence-persistence warning surface. Non-blocking.
       ...(evidenceInsertError
         ? {
@@ -393,6 +403,30 @@ export async function runGrniResolver(
       last_tie_out_at: new Date().toISOString(),
     })
     .eq("id", input.pbcRequestId);
+
+  // Block C: WorkpaperEmitter dual-write (best-effort — the only artifact path for GRNI).
+  try {
+    const payload = await grniEmitter.build(runId);
+    const xlsxBuf = await grniEmitter.emitXlsx(payload);
+    const pdfBuf = await grniEmitter.emitPdf(payload);
+    await uploadRunArtifact({
+      runId,
+      engagementId: input.engagementId,
+      artifactKind: "xlsx",
+      fileBytes: xlsxBuf,
+      generatedBy: input.triggeredByUserId ?? null,
+    });
+    await uploadRunArtifact({
+      runId,
+      engagementId: input.engagementId,
+      artifactKind: "pdf",
+      fileBytes: pdfBuf,
+      generatedBy: input.triggeredByUserId ?? null,
+    });
+  } catch (err) {
+    console.error("[Block C dual-write] failed for run", runId, err);
+  }
+
   return {
     runId,
     status: "completed",

@@ -125,7 +125,7 @@ describe("bs-account-emitter", () => {
     const payload = await buildBsAccountPayload("run-bs-1");
     expect(payload.face.tieOutKind).toBe("bs_account_recon");
     expect(
-      payload.face.leftAmountCents - payload.face.rightAmountCents,
+      payload.face.leftAmountCents - (payload.face.rightAmountCents ?? 0),
     ).toBe(payload.face.varianceCents);
     expect(payload.face.sections.length).toBeGreaterThan(0);
     expect(payload.backupTabs.length).toBeGreaterThan(0);
