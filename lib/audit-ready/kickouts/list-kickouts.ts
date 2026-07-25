@@ -27,6 +27,8 @@ export type KickoutRow = {
   latest_investigation: KickoutInvestigation | null;
   bs_line_id: string | null;
   pbc_run_id: string | null;
+  /** Parent bs_recon_summary run — set for bs_summary_line rows (Block D ReconFace). */
+  parent_summary_run_id: string | null;
   subledger_source_url: string | null;
 };
 
@@ -82,9 +84,12 @@ export function assembleKickoutRows(params: {
   }>;
   bsLines: BsKickoutLineRpcRow[];
   pbcRuns: PbcKickoutRunRpcRow[];
+  /** artifact_id → parent bs_recon_summary run_id (from summary artifacts). */
+  parentRunByArtifactId?: Map<string, string>;
 }): KickoutRow[] {
   const engMap = new Map<string, EngagementRow>();
   for (const e of params.engagements) engMap.set(e.id, e);
+  const parentRunByArtifactId = params.parentRunByArtifactId ?? new Map();
 
   const invMap = new Map<string, KickoutInvestigation>();
   // Caller must pass investigations latest-first
@@ -128,6 +133,8 @@ export function assembleKickoutRows(params: {
       latest_investigation: invMap.get(`bs_summary_line:${line.id}`) ?? null,
       bs_line_id: line.id,
       pbc_run_id: null,
+      parent_summary_run_id:
+        parentRunByArtifactId.get(line.artifact_id) ?? null,
       subledger_source_url: null,
     });
   }
@@ -157,6 +164,7 @@ export function assembleKickoutRows(params: {
       latest_investigation: invMap.get(`pbc_run:${run.id}`) ?? null,
       bs_line_id: null,
       pbc_run_id: run.id,
+      parent_summary_run_id: null,
       subledger_source_url: run.subledger_source_url,
     });
   }
@@ -277,6 +285,21 @@ export async function listKickouts(
     throw pbcErr;
   }
 
+  const bsLines = (bsLinesRaw ?? []) as BsKickoutLineRpcRow[];
+  const artifactIds = [
+    ...new Set(bsLines.map((l) => l.artifact_id).filter(Boolean)),
+  ];
+  const parentRunByArtifactId = new Map<string, string>();
+  if (artifactIds.length > 0) {
+    const { data: arts } = await supabase
+      .from("audit_ready_bs_recon_summary_artifacts")
+      .select("id, run_id")
+      .in("id", artifactIds);
+    for (const a of arts ?? []) {
+      if (a.run_id) parentRunByArtifactId.set(a.id as string, a.run_id as string);
+    }
+  }
+
   return assembleKickoutRows({
     engagements: (engagements ?? []) as EngagementRow[],
     investigations: (investigations ?? []) as Array<{
@@ -288,8 +311,9 @@ export async function listKickouts(
       note: string;
       resolution_status: ResolutionStatus;
     }>,
-    bsLines: (bsLinesRaw ?? []) as BsKickoutLineRpcRow[],
+    bsLines,
     pbcRuns: (pbcRunsRaw ?? []) as PbcKickoutRunRpcRow[],
+    parentRunByArtifactId,
   });
 }
 

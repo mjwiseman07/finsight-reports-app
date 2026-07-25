@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import type {
   KickoutRow,
@@ -8,6 +8,8 @@ import type {
 } from "@/lib/audit-ready/kickouts/list-kickouts";
 import { AccountDrilldown } from "@/components/audit-ready/AccountDrilldown";
 import { InvestigationModal } from "@/components/audit-ready/InvestigationModal";
+import { WorkpaperSlideOver } from "@/components/audit-ready/recon-face/WorkpaperSlideOver";
+import { ReconFace } from "@/components/audit-ready/recon-face/ReconFace";
 import type {
   BsSummaryLine,
   BsTransaction,
@@ -57,6 +59,22 @@ function statusBadge(status: ResolutionStatus | "none") {
   );
 }
 
+function workpaperTarget(row: KickoutRow): {
+  runId: string | null;
+  initialTabName?: string;
+} {
+  if (row.pbc_run_id) {
+    return { runId: row.pbc_run_id };
+  }
+  if (row.parent_summary_run_id) {
+    return {
+      runId: row.parent_summary_run_id,
+      initialTabName: row.account_or_kind,
+    };
+  }
+  return { runId: null };
+}
+
 export function KickoutInboxClient({
   initialRows,
 }: {
@@ -78,6 +96,11 @@ export function KickoutInboxClient({
   );
 
   const [investigateRow, setInvestigateRow] = useState<KickoutRow | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [slideOver, setSlideOver] = useState<{
+    runId: string;
+    initialTabName?: string;
+  } | null>(null);
 
   const filtered = useMemo(() => {
     return initialRows.filter((r) => {
@@ -193,6 +216,7 @@ export function KickoutInboxClient({
           <table className="min-w-full text-sm">
             <thead className="text-xs uppercase tracking-wide text-[#7A7974]">
               <tr>
+                <th className="w-8 px-2 py-2" aria-label="Expand" />
                 <th className="px-3 py-2 text-left">Account / Kind</th>
                 <th className="px-3 py-2 text-left">Engagement</th>
                 <th className="px-3 py-2 text-left">Period</th>
@@ -206,63 +230,120 @@ export function KickoutInboxClient({
               {filtered.map((row) => {
                 const status =
                   row.latest_investigation?.resolution_status ?? "none";
+                const wp = workpaperTarget(row);
+                const expanded = expandedRowId === row.id;
                 return (
-                  <tr
-                    key={row.id}
-                    className="border-t border-[#C9A961]/20 hover:bg-[#1A1A1C]/60"
-                  >
-                    <td className="px-3 py-2">
-                      <div className="font-medium text-[#ECEBE7]">
-                        {row.account_or_kind}
-                      </div>
-                      {row.account_type && (
-                        <div className="text-xs text-[#7A7974]">
-                          {row.account_type}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-[#A29E93]">
-                      {row.engagement_name}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums text-[#A29E93]">
-                      {row.period_end}
-                    </td>
-                    <td className="px-3 py-2 text-right font-medium tabular-nums text-[#ECEBE7]">
-                      {formatCents(row.variance_cents)}
-                    </td>
-                    <td className="px-3 py-2 text-[#A29E93]">
-                      {ageBucketLabel(row.age_bucket)}
-                    </td>
-                    <td className="px-3 py-2">{statusBadge(status)}</td>
-                    <td className="px-3 py-2 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        {row.source_type === "bs_summary_line" ? (
+                  <Fragment key={row.id}>
+                    <tr className="border-t border-[#C9A961]/20 hover:bg-[#1A1A1C]/60">
+                      <td className="px-2 py-2">
+                        {wp.runId ? (
                           <button
                             type="button"
-                            className={`mr-1 rounded border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
-                            onClick={() => openBsDrilldown(row)}
+                            aria-label={
+                              expanded
+                                ? "Collapse workpaper preview"
+                                : "Expand workpaper preview"
+                            }
+                            aria-expanded={expanded}
+                            className={`rounded p-1 text-[#A29E93] hover:text-[#C9A961] ${focusRing()}`}
+                            onClick={() =>
+                              setExpandedRowId(expanded ? null : row.id)
+                            }
                           >
-                            View
+                            <span
+                              className={`inline-block transition-transform ${expanded ? "rotate-90" : ""}`}
+                            >
+                              ▸
+                            </span>
                           </button>
                         ) : (
+                          <span className="inline-block w-4" />
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="font-medium text-[#ECEBE7]">
+                          {row.account_or_kind}
+                        </div>
+                        {row.account_type && (
+                          <div className="text-xs text-[#7A7974]">
+                            {row.account_type}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-[#A29E93]">
+                        {row.engagement_name}
+                      </td>
+                      <td className="px-3 py-2 tabular-nums text-[#A29E93]">
+                        {row.period_end}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium tabular-nums text-[#ECEBE7]">
+                        {formatCents(row.variance_cents)}
+                      </td>
+                      <td className="px-3 py-2 text-[#A29E93]">
+                        {ageBucketLabel(row.age_bucket)}
+                      </td>
+                      <td className="px-3 py-2">{statusBadge(status)}</td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                          {row.source_type === "bs_summary_line" ? (
+                            <button
+                              type="button"
+                              className={`rounded border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
+                              onClick={() => openBsDrilldown(row)}
+                            >
+                              View
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className={`rounded border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
+                              onClick={() => openPbcTarget(row)}
+                            >
+                              Open
+                            </button>
+                          )}
+                          {wp.runId && (
+                            <button
+                              type="button"
+                              className={`rounded border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
+                              onClick={() =>
+                                setSlideOver({
+                                  runId: wp.runId!,
+                                  initialTabName: wp.initialTabName,
+                                })
+                              }
+                            >
+                              Review workpaper
+                            </button>
+                          )}
                           <button
                             type="button"
-                            className={`mr-1 rounded border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
-                            onClick={() => openPbcTarget(row)}
+                            className={`rounded border border-[#C9A961]/40 bg-[#C9A961]/15 px-2 py-1 text-xs font-medium text-[#C9A961] hover:bg-[#C9A961]/25 ${focusRing()}`}
+                            onClick={() => setInvestigateRow(row)}
                           >
-                            Open
+                            Investigate
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          className={`rounded border border-[#C9A961]/40 bg-[#C9A961]/15 px-2 py-1 text-xs font-medium text-[#C9A961] hover:bg-[#C9A961]/25 ${focusRing()}`}
-                          onClick={() => setInvestigateRow(row)}
-                        >
-                          Investigate
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                        </div>
+                      </td>
+                    </tr>
+                    {expanded && wp.runId && (
+                      <tr className="border-t border-[#C9A961]/10 bg-[#111112]/40">
+                        <td colSpan={8} className="px-4 py-4">
+                          <ReconFace
+                            runId={wp.runId}
+                            variant="inline"
+                            initialTabName={wp.initialTabName}
+                            onOpenFull={() =>
+                              setSlideOver({
+                                runId: wp.runId!,
+                                initialTabName: wp.initialTabName,
+                              })
+                            }
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -293,6 +374,12 @@ export function KickoutInboxClient({
           onSuccess={handleInvestigated}
         />
       )}
+
+      <WorkpaperSlideOver
+        runId={slideOver?.runId ?? null}
+        initialTabName={slideOver?.initialTabName}
+        onClose={() => setSlideOver(null)}
+      />
     </>
   );
 }
