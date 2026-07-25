@@ -58,6 +58,14 @@ export function InvestigationModal({
 
   useEffect(() => {
     const controller = new AbortController();
+    const missingKey =
+      (row.source_type === "bs_summary_line" && !row.qbo_account_id) ||
+      (row.source_type === "pbc_run" && !row.tie_out_kind);
+    if (missingKey) {
+      setSuggestions([]);
+      return () => controller.abort();
+    }
+
     const sourceKey =
       row.source_type === "bs_summary_line"
         ? { qbo_account_id: row.qbo_account_id }
