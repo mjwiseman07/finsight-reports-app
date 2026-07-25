@@ -30,6 +30,7 @@ export default defineConfig({
       "lib/audit-ready/tie-out/__tests__/**/*.test.ts",
       "lib/audit-ready/tie-out/emitters/**/*.test.ts",
       "lib/audit-ready/kickouts/**/*.test.ts",
+      "components/audit-ready/recon-face/**/*.test.tsx",
       "lib/__tests__/**/*.test.js",
       "lib/__tests__/**/*.test.ts",
       "tests/apIntake/**/*.test.ts",

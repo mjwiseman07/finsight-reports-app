@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { WorkpaperSlideOver } from "@/components/audit-ready/recon-face/WorkpaperSlideOver";
+import { focusRing } from "@/components/site-ui";
 
 type Row = {
   pbc_request_id: string;
@@ -77,9 +79,11 @@ export function TieOutSummaryClient({
   const [runBusy, setRunBusy] = useState(false);
   const [runErr, setRunErr] = useState<string | null>(null);
   const [runResult, setRunResult] = useState<RunOutcome | null>(null);
+  const [slideOverRunId, setSlideOverRunId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!highlightRunId) return;
+    setSlideOverRunId(highlightRunId);
     const el = document.getElementById(`pbc-row-${highlightRunId}`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -329,31 +333,42 @@ export function TieOutSummaryClient({
                     : "—"}
                 </td>
                 <td className="py-2">
-                  {r.tie_out_state === "ready_to_run" ||
-                  r.tie_out_state === "needs_review" ||
-                  r.tie_out_state === "failed" ||
-                  r.tie_out_state === "kicked_out" ? (
-                    canWrite ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {r.last_tie_out_run_id ? (
                       <button
                         type="button"
-                        onClick={() =>
-                          setRunOpen({
-                            pbcId: r.pbc_request_id,
-                            requestNumber: r.request_number,
-                            tieOutKind: r.tie_out_kind,
-                          })
-                        }
-                        className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                        disabled={runBusy}
+                        onClick={() => setSlideOverRunId(r.last_tie_out_run_id)}
+                        className={`rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C] px-2 py-1 text-xs font-medium text-[#ECEBE7] hover:border-[#C9A961]/50 ${focusRing()}`}
                       >
-                        Run
+                        View workpaper
                       </button>
-                    ) : (
+                    ) : null}
+                    {r.tie_out_state === "ready_to_run" ||
+                    r.tie_out_state === "needs_review" ||
+                    r.tie_out_state === "failed" ||
+                    r.tie_out_state === "kicked_out" ? (
+                      canWrite ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRunOpen({
+                              pbcId: r.pbc_request_id,
+                              requestNumber: r.request_number,
+                              tieOutKind: r.tie_out_kind,
+                            })
+                          }
+                          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                          disabled={runBusy}
+                        >
+                          Run
+                        </button>
+                      ) : r.last_tie_out_run_id ? null : (
+                        "—"
+                      )
+                    ) : r.last_tie_out_run_id ? null : (
                       "—"
-                    )
-                  ) : (
-                    "—"
-                  )}
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -380,6 +395,11 @@ export function TieOutSummaryClient({
           result={runResult}
         />
       )}
+
+      <WorkpaperSlideOver
+        runId={slideOverRunId}
+        onClose={() => setSlideOverRunId(null)}
+      />
     </div>
   );
 }
