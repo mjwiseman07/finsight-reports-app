@@ -52,6 +52,7 @@ export function decodeJwtPayload(token: string): {
   sub?: string;
   aal?: string;
   exp?: number;
+  email?: string;
 } | null {
   try {
     const part = token.split(".")[1];
@@ -62,7 +63,12 @@ export function decodeJwtPayload(token: string): {
       typeof atob === "function"
         ? atob(padded)
         : Buffer.from(padded, "base64").toString("utf8");
-    return JSON.parse(json) as { sub?: string; aal?: string; exp?: number };
+    return JSON.parse(json) as {
+      sub?: string;
+      aal?: string;
+      exp?: number;
+      email?: string;
+    };
   } catch {
     return null;
   }

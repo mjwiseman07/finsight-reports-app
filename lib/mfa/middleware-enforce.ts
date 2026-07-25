@@ -3,6 +3,10 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ADVISACOR_ACCESS_TOKEN_COOKIE } from "@/lib/reviewer/constants";
 import { decodeJwtPayload, isMfaSensitivePath } from "@/lib/mfa/paths";
+import {
+  isPreviewEnvironment,
+  isPreviewSmokeEmail,
+} from "@/lib/preview-smoke/guard";
 
 function readAccessToken(request: NextRequest): string | null {
   const raw = request.cookies.get(ADVISACOR_ACCESS_TOKEN_COOKIE)?.value;
@@ -57,6 +61,14 @@ export async function enforceMfaForRequest(
   if (!payload?.sub) {
     if (isApi) return unauthorizedApi("Invalid session");
     return redirectTo(request, "/signin");
+  }
+
+  // Preview smoke credential: exempt before any role check, so an accidental
+  // role escalation to firm_admin cannot start demanding MFA of an automated
+  // browser run. Preview-scoped only — outside Preview the session has already
+  // been rejected by enforcePreviewSmokeCredential.
+  if (isPreviewEnvironment() && isPreviewSmokeEmail(payload.email)) {
+    return null;
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
