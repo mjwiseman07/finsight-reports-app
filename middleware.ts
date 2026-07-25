@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { enforceMfaForRequest } from "./lib/mfa/middleware-enforce";
+import { enforcePreviewSmokeCredential } from "./lib/preview-smoke/guard";
 import {
   SOLO_BK_GATE_COOKIE,
   REVIEW_ASSIST_GATE_COOKIE,
@@ -150,6 +151,11 @@ function isMarketingAllowed(pathname: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = normalizedHost(request);
+
+  // Preview Smoke Credential — refuse the Preview-only test session anywhere
+  // other than Preview. Runs first so no other gate can be reached with it.
+  const smokeGate = enforcePreviewSmokeCredential(request);
+  if (smokeGate) return smokeGate;
 
   // Phase TCP1 W2.5 Block 10 — MFA / AAL2 enforcement on sensitive routes.
   // Runs before host allowlists so firm_admin without enrollment cannot reach
