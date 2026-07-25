@@ -163,7 +163,7 @@ describe("bs-summary-emitter", () => {
     const payload = await buildBsSummaryPayload("run-sum-1");
     expect(payload.face.tieOutKind).toBe("bs_recon_summary");
     expect(
-      payload.face.leftAmountCents - payload.face.rightAmountCents,
+      payload.face.leftAmountCents - (payload.face.rightAmountCents ?? 0),
     ).toBe(payload.face.varianceCents);
     expect(payload.face.sections.map((s) => s.label)).toEqual(
       expect.arrayContaining(["Assets", "Liabilities", "Equity", "Net Income"]),

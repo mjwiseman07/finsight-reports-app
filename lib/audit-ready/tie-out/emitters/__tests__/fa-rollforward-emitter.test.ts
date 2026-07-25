@@ -141,7 +141,7 @@ describe("fa-rollforward-emitter", () => {
     const payload = await buildFaRollforwardPayload("run-fa-1");
     expect(payload.face.tieOutKind).toBe("fixed_asset_rollforward");
     expect(
-      payload.face.leftAmountCents - payload.face.rightAmountCents,
+      payload.face.leftAmountCents - (payload.face.rightAmountCents ?? 0),
     ).toBe(payload.face.varianceCents);
     expect(payload.face.sections.length).toBeGreaterThanOrEqual(5);
     const tabNames = payload.backupTabs.map((t) => t.tabName);

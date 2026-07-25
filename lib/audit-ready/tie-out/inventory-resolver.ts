@@ -5,6 +5,8 @@ import {
   type QboInventoryValuationResult,
   type QboTrialBalanceResult,
 } from "./qbo-reports";
+import { inventoryEmitter } from "./emitters/inventory-emitter";
+import { uploadRunArtifact } from "./upload-artifact";
 import {
   classifyVariance,
   type PolicySnapshot,
@@ -246,6 +248,15 @@ export async function runInventoryResolver(
       intuit_tid_gl: trial.intuit_tid,
       completed_at: new Date().toISOString(),
       duration_ms: Date.now() - start,
+      raw_qbo_payload_jsonb: {
+        version: 1,
+        kind: "inventory",
+        fetched_at: new Date().toISOString(),
+        qbo_realm_id: input.realmId,
+        qbo_connection_id: "",
+        inventory_valuation: subledger,
+        trial_balance: trial,
+      },
     })
     .eq("id", runId);
   await supabase
@@ -256,6 +267,30 @@ export async function runInventoryResolver(
       last_tie_out_at: new Date().toISOString(),
     })
     .eq("id", input.pbcRequestId);
+
+  // Block C: WorkpaperEmitter dual-write (best-effort — the only artifact path for Inventory).
+  try {
+    const payload = await inventoryEmitter.build(runId);
+    const xlsxBuf = await inventoryEmitter.emitXlsx(payload);
+    const pdfBuf = await inventoryEmitter.emitPdf(payload);
+    await uploadRunArtifact({
+      runId,
+      engagementId: input.engagementId,
+      artifactKind: "xlsx",
+      fileBytes: xlsxBuf,
+      generatedBy: input.triggeredByUserId ?? null,
+    });
+    await uploadRunArtifact({
+      runId,
+      engagementId: input.engagementId,
+      artifactKind: "pdf",
+      fileBytes: pdfBuf,
+      generatedBy: input.triggeredByUserId ?? null,
+    });
+  } catch (err) {
+    console.error("[Block C dual-write] failed for run", runId, err);
+  }
+
   return {
     runId,
     status: "completed",

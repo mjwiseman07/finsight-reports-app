@@ -5,6 +5,8 @@ import {
   type QboArAgingResult,
   type QboTrialBalanceResult,
 } from "./qbo-reports";
+import { arEmitter } from "./emitters/ar-emitter";
+import { uploadRunArtifact } from "./upload-artifact";
 import {
   classifyVariance,
   type PolicySnapshot,
@@ -251,6 +253,15 @@ export async function runArResolver(
       intuit_tid_gl: trial.intuit_tid,
       completed_at: new Date().toISOString(),
       duration_ms: Date.now() - start,
+      raw_qbo_payload_jsonb: {
+        version: 1,
+        kind: "ar_aging",
+        fetched_at: new Date().toISOString(),
+        qbo_realm_id: input.realmId,
+        qbo_connection_id: "",
+        aging_detail: subledger,
+        trial_balance: trial,
+      },
     })
     .eq("id", runId);
   await supabase
@@ -261,6 +272,30 @@ export async function runArResolver(
       last_tie_out_at: new Date().toISOString(),
     })
     .eq("id", input.pbcRequestId);
+
+  // Block C: WorkpaperEmitter dual-write (best-effort — the only artifact path for AR).
+  try {
+    const payload = await arEmitter.build(runId);
+    const xlsxBuf = await arEmitter.emitXlsx(payload);
+    const pdfBuf = await arEmitter.emitPdf(payload);
+    await uploadRunArtifact({
+      runId,
+      engagementId: input.engagementId,
+      artifactKind: "xlsx",
+      fileBytes: xlsxBuf,
+      generatedBy: input.triggeredByUserId ?? null,
+    });
+    await uploadRunArtifact({
+      runId,
+      engagementId: input.engagementId,
+      artifactKind: "pdf",
+      fileBytes: pdfBuf,
+      generatedBy: input.triggeredByUserId ?? null,
+    });
+  } catch (err) {
+    console.error("[Block C dual-write] failed for run", runId, err);
+  }
+
   return {
     runId,
     status: "completed",

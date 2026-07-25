@@ -26,7 +26,11 @@ const styles = StyleSheet.create({
   header: { fontFamily: "Helvetica-Bold", color: ACCENT },
 });
 
+const REPORT_ONLY_NOTE =
+  "Report-only — no GL comparison. Kickouts flagged from data quality (aging, credit balances, negative qty).";
+
 export function PdfFace({ face }: { face: ReconFaceSpec }) {
+  const isReportOnly = face.mode === "report_only";
   const badgeColor = face.tieStatus === "ties" ? GREEN : RED;
   return (
     <Page size="LETTER" style={styles.page}>
@@ -38,21 +42,34 @@ export function PdfFace({ face }: { face: ReconFaceSpec }) {
         <Text style={styles.label}>Per {face.leftLabel}</Text>
         <Text style={styles.num}>{centsToUsd(face.leftAmountCents)}</Text>
       </View>
-      <View style={styles.row}>
-        <Text style={styles.label}>Per {face.rightLabel}</Text>
-        <Text style={styles.num}>{centsToUsd(face.rightAmountCents)}</Text>
-      </View>
-      <View style={styles.row}>
-        <Text style={[styles.label, { fontFamily: "Helvetica-Bold" }]}>
-          Variance
-        </Text>
-        <Text style={[styles.num, { fontFamily: "Helvetica-Bold" }]}>
-          {centsToUsd(face.varianceCents)}
-        </Text>
-      </View>
-      <Text style={[styles.badge, { color: badgeColor }]}>
-        {face.tieStatus === "ties" ? "TIES" : "KICKOUT"}
-      </Text>
+      {isReportOnly ? (
+        <>
+          <Text style={[styles.badge, { color: MUTED }]}>REPORT</Text>
+          <Text style={{ fontSize: 8, color: MUTED, marginBottom: 8 }}>
+            {REPORT_ONLY_NOTE}
+          </Text>
+        </>
+      ) : (
+        <>
+          <View style={styles.row}>
+            <Text style={styles.label}>Per {face.rightLabel}</Text>
+            <Text style={styles.num}>
+              {centsToUsd(face.rightAmountCents ?? 0)}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={[styles.label, { fontFamily: "Helvetica-Bold" }]}>
+              Variance
+            </Text>
+            <Text style={[styles.num, { fontFamily: "Helvetica-Bold" }]}>
+              {centsToUsd(face.varianceCents ?? 0)}
+            </Text>
+          </View>
+          <Text style={[styles.badge, { color: badgeColor }]}>
+            {face.tieStatus === "ties" ? "TIES" : "KICKOUT"}
+          </Text>
+        </>
+      )}
       <Text style={styles.h2}>Sections</Text>
       <View style={[styles.row, styles.header]}>
         <Text style={styles.label}>Section</Text>

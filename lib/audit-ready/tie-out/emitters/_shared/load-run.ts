@@ -61,6 +61,55 @@ export async function loadRunContext(runId: string): Promise<RunContext> {
   };
 }
 
+export type VarianceRow = {
+  entity_kind: string;
+  entity_qbo_id: string | null;
+  entity_display_name: string | null;
+  subledger_amount_cents: number | null;
+  gl_amount_cents: number | null;
+  variance_cents: number;
+  variance_percent: number | null;
+  status: string;
+  classification_reason: string | null;
+};
+
+export async function loadVariances(runId: string): Promise<VarianceRow[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("audit_ready_tie_out_variances")
+    .select(
+      "entity_kind, entity_qbo_id, entity_display_name, subledger_amount_cents, gl_amount_cents, variance_cents, variance_percent, status, classification_reason",
+    )
+    .eq("run_id", runId);
+  if (error) throw new Error(`variance_query_failed: ${error.message}`);
+  return (data ?? []) as VarianceRow[];
+}
+
+export type EvidenceRow = {
+  source_qbo_id: string | null;
+  source_txn_date: string | null;
+  source_doc_number: string | null;
+  vendor_ref: string | null;
+  total_cents: number | null;
+  subtotal_cents: number | null;
+  balance_cents: number | null;
+  linked_po_ids: string[] | null;
+  aging_bucket: string | null;
+  age_days_at_run: number | null;
+};
+
+export async function loadEvidence(runId: string): Promise<EvidenceRow[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("audit_ready_tie_out_variance_evidence")
+    .select(
+      "source_qbo_id, source_txn_date, source_doc_number, vendor_ref, total_cents, subtotal_cents, balance_cents, linked_po_ids, aging_bucket, age_days_at_run",
+    )
+    .eq("run_id", runId);
+  if (error) throw new Error(`evidence_query_failed: ${error.message}`);
+  return (data ?? []) as EvidenceRow[];
+}
+
 export function sourceDataFromPayload(
   raw: Record<string, unknown> | null,
 ): {
