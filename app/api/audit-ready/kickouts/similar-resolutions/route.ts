@@ -7,6 +7,7 @@ import {
   getSimilarKickoutResolutions,
   type SimilarSourceKey,
 } from "@/lib/audit-ready/memory/similar-resolutions";
+import { emitMemoryEvent } from "@/lib/audit-ready/memory/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,6 +74,23 @@ export async function POST(req: Request) {
 
   try {
     const results = await getSimilarKickoutResolutions(engagementId, key);
+    const eventType =
+      results.length > 0 ? "suggestions_shown" : "suggestions_none";
+    const topResolutionCode = results[0]?.resolutionCode ?? null;
+    await emitMemoryEvent({
+      eventType,
+      engagementId,
+      actorUserId: auth.user.id,
+      payload: {
+        source_type: sourceType,
+        kickout_source_key:
+          sourceType === "bs_summary_line"
+            ? { qbo_account_id: body.qbo_account_id }
+            : { tie_out_kind: body.tie_out_kind },
+        suggestion_count: results.length,
+        top_resolution_code: topResolutionCode,
+      },
+    });
     return NextResponse.json({ results });
   } catch (error) {
     console.error("[similar-resolutions POST]", error);

@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { requireAuditReadyUser } from "@/lib/audit-ready/server-auth";
 import { listVisibleEngagementIds } from "@/lib/audit-ready/kickouts/list-visible-engagements";
 import { RESOLUTION_CODES } from "@/lib/audit-ready/memory/similar-resolutions";
+import { emitMemoryEvent } from "@/lib/audit-ready/memory/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
   const note = body?.note;
   const resolution_status = body?.resolution_status;
   const resolution_code = body?.resolution_code;
+  const copied_from_investigation_id = body?.copied_from_investigation_id;
 
   if (typeof engagement_id !== "string" || engagement_id.length < 10) {
     return NextResponse.json(
@@ -111,6 +113,39 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+
+  const wasCopied =
+    typeof copied_from_investigation_id === "string" &&
+    copied_from_investigation_id.length > 0;
+  let matchedCopiedCode = false;
+  if (wasCopied) {
+    const { data: copiedRow } = await admin
+      .from("audit_ready_kickout_investigations")
+      .select("resolution_code")
+      .eq("id", copied_from_investigation_id)
+      .single();
+    if (copiedRow && copiedRow.resolution_code === resolutionCode) {
+      matchedCopiedCode = true;
+    }
+  }
+
+  await emitMemoryEvent({
+    eventType: "resolution_saved",
+    engagementId: engagement_id,
+    actorUserId: auth.user.id,
+    payload: {
+      investigation_id: data.id,
+      kickout_source_type,
+      kickout_source_id,
+      resolution_status: status,
+      resolution_code: resolutionCode,
+      was_copied: wasCopied,
+      matched_copied_code: matchedCopiedCode,
+      copied_from_investigation_id: wasCopied
+        ? copied_from_investigation_id
+        : null,
+    },
+  });
 
   return NextResponse.json({ investigation: data }, { status: 201 });
 }
