@@ -15,6 +15,8 @@ import {
   activityWindowForFiscalYear,
   resolveFiscalYearStartMonth,
 } from "./fiscal-year";
+import { bsAccountEmitter } from "./emitters/bs-account-emitter";
+import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
 
 export { activityWindowForFiscalYear, resolveFiscalYearStartMonth } from "./fiscal-year";
 
@@ -270,6 +272,7 @@ export async function runBsAccountResolver(
       totalsClassification.status === "auto_cleared"
         ? "auto_reconcile"
         : totalsClassification.status;
+    const fetchedAt = new Date().toISOString();
     await supabase
       .from("audit_ready_tie_out_runs")
       .update({
@@ -284,9 +287,27 @@ export async function runBsAccountResolver(
         intuit_tid_subledger: gl.intuitTid,
         intuit_tid_gl: gl.intuitTid,
         period_start: startDate,
-        completed_at: new Date().toISOString(),
+        completed_at: fetchedAt,
+        raw_qbo_payload_jsonb: {
+          version: 1,
+          kind: "bs_account_recon",
+          fetched_at: fetchedAt,
+          qbo_realm_id: input.realmId,
+          qbo_connection_id: "",
+          gl_detail: gl,
+          trial_balance: tb,
+        },
       })
       .eq("id", runId);
+
+    // Block B: best-effort dual-write to WorkpaperEmitter storage.
+    await dualWriteWorkpaper({
+      emitter: bsAccountEmitter,
+      runId,
+      engagementId: input.engagementId,
+      generatedBy: input.triggeredByUserId || null,
+    });
+
     return {
       status: "completed",
       runId,
