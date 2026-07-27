@@ -4,6 +4,7 @@ const createSignedUrl = vi.fn().mockResolvedValue({
   data: { signedUrl: "https://storage.example/signed.pdf" },
   error: null,
 });
+const storageFrom = vi.fn(() => ({ createSignedUrl }));
 const getUserById = vi.fn();
 const fromMock = vi.fn();
 
@@ -18,7 +19,7 @@ vi.mock("@/lib/founder-alerts.js", () => ({
 
 vi.mock("@/lib/supabase-admin.js", () => ({
   getSupabaseAdmin: () => ({
-    storage: { from: () => ({ createSignedUrl }) },
+    storage: { from: (bucket: string) => storageFrom(bucket) },
     auth: { admin: { getUserById } },
     from: fromMock,
   }),
@@ -32,12 +33,40 @@ import {
   sendBsReconFailureAlert,
 } from "../bs-recon-notify";
 
+const baseParams = {
+  toEmail: "book@example.com",
+  clientName: "ACME Ltd",
+  asOfDate: "2026-06-30",
+  accountCount: 12,
+  engagementId: "eng-abc",
+  artifactId: "art-xyz",
+};
+
+function mockStorage(opts: {
+  newSign: { url: string | null; error?: string };
+  legacySign: { url: string | null; error?: string };
+}) {
+  storageFrom.mockImplementation((bucket: string) => ({
+    createSignedUrl: vi.fn(async () => {
+      if (bucket === "audit-ready-workpapers") {
+        return opts.newSign.error
+          ? { data: null, error: { message: opts.newSign.error } }
+          : { data: { signedUrl: opts.newSign.url }, error: null };
+      }
+      return opts.legacySign.error
+        ? { data: null, error: { message: opts.legacySign.error } }
+        : { data: { signedUrl: opts.legacySign.url }, error: null };
+    }),
+  }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   createSignedUrl.mockResolvedValue({
     data: { signedUrl: "https://storage.example/signed.pdf" },
     error: null,
   });
+  storageFrom.mockImplementation(() => ({ createSignedUrl }));
 });
 
 describe("sendBsReconTieEmail", () => {
@@ -129,5 +158,61 @@ describe("sendBsReconFailureAlert", () => {
     expect(arg.subject).toContain("Acme Corp");
     expect(arg.body).toContain("boom");
     expect(arg.context.engagementId).toBe("eng-1");
+  });
+});
+
+describe("bs-recon-notify Block F Part 1 — dual-bucket signing", () => {
+  it("Case A: newPdfObjectKey provided, new bucket sign succeeds → uses new bucket", async () => {
+    mockStorage({
+      newSign: { url: "https://new.example/x" },
+      legacySign: { url: "https://legacy.example/y" },
+    });
+    await sendBsReconTieEmail({
+      ...baseParams,
+      pdfObjectKey: "legacy-key",
+      newPdfObjectKey: "eng/run/pdf-abc.pdf",
+    });
+    const call = (sendEmail as unknown as { mock: { calls: unknown[][] } })
+      .mock.calls[0][0] as { html: string };
+    expect(call.html).toContain("https://new.example/x");
+    expect(call.html).not.toContain("https://legacy.example/y");
+    expect(storageFrom).toHaveBeenCalledWith("audit-ready-workpapers");
+  });
+
+  it("Case B: new bucket sign fails → falls back to legacy", async () => {
+    mockStorage({
+      newSign: { url: null, error: "not_found" },
+      legacySign: { url: "https://legacy.example/y" },
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await sendBsReconTieEmail({
+      ...baseParams,
+      pdfObjectKey: "legacy-key",
+      newPdfObjectKey: "eng/run/pdf-abc.pdf",
+    });
+    const call = (sendEmail as unknown as { mock: { calls: unknown[][] } })
+      .mock.calls[0][0] as { html: string };
+    expect(call.html).toContain("https://legacy.example/y");
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[bs-recon-notify] new bucket sign failed, falling back",
+      expect.any(Object),
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it("Case C: no newPdfObjectKey → legacy only, new bucket never touched", async () => {
+    mockStorage({
+      newSign: { url: "https://new.example/x" },
+      legacySign: { url: "https://legacy.example/y" },
+    });
+    await sendBsReconTieEmail({
+      ...baseParams,
+      pdfObjectKey: "legacy-key",
+    });
+    const call = (sendEmail as unknown as { mock: { calls: unknown[][] } })
+      .mock.calls[0][0] as { html: string };
+    expect(call.html).toContain("https://legacy.example/y");
+    expect(storageFrom).not.toHaveBeenCalledWith("audit-ready-workpapers");
+    expect(storageFrom).toHaveBeenCalledWith("audit-ready-recons");
   });
 });
