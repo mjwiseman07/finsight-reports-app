@@ -150,7 +150,30 @@ function makePosterSupabase(auditRows: AuditRow[]) {
       if (table === "firm_clients") {
         return {
           select: () => ({
-            eq: () => ({ single: async () => ({ data: { accounting_method: "accrual" }, error: null }) }),
+            eq: () => ({
+              single: async () => ({ data: { accounting_method: "accrual" }, error: null }),
+              // MC-3 currency resolver uses maybeSingle for owner_user_id
+              maybeSingle: async () => ({
+                data: { owner_user_id: "owner-1" },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "accounting_connections") {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: () => ({
+                limit: () => ({
+                  maybeSingle: async () => ({
+                    data: { home_currency: "USD" },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
           }),
         };
       }
@@ -196,6 +219,8 @@ describe("poster surgical wire (D6.4b)", () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
+      headers: { get: () => null },
+      text: async () => JSON.stringify({ JournalEntry: { Id: "QBO-JE-1" } }),
       json: async () => ({ JournalEntry: { Id: "QBO-JE-1" } }),
     });
   });
