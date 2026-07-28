@@ -1,15 +1,62 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const maybeSingle = vi.fn();
-const limit = vi.fn(() => ({ maybeSingle }));
-const order = vi.fn(() => ({ limit }));
-const eq2 = vi.fn(() => ({ order }));
-const eq1 = vi.fn(() => ({ eq: eq2 }));
-const select = vi.fn(() => ({ eq: eq1 }));
-const fromMock = vi.fn(() => ({ select }));
+const fromTables: string[] = [];
+let runs: Array<{ id: string }> = [];
+let artifactsByRunId: Record<string, Record<string, unknown>> = {};
+let artifactsByPeriod: Record<string, Record<string, unknown>> = {};
+let runLookupError: { message: string } | null = null;
+let artifactByRunError: { message: string } | null = null;
+let legacyError: { message: string } | null = null;
+
+function makeChain(table: string) {
+  fromTables.push(table);
+  const filters: Array<[string, unknown]> = [];
+  const chain: Record<string, unknown> = {
+    select() {
+      return chain;
+    },
+    eq(col: string, val: unknown) {
+      filters.push([col, val]);
+      return chain;
+    },
+    order() {
+      return chain;
+    },
+    limit() {
+      return chain;
+    },
+    async maybeSingle() {
+      if (table === "audit_ready_tie_out_runs") {
+        if (runLookupError) return { data: null, error: runLookupError };
+        return { data: runs[0] ?? null, error: null };
+      }
+      if (table === "audit_ready_bs_recon_summary_artifacts") {
+        const runId = filters.find((f) => f[0] === "run_id")?.[1];
+        if (runId != null) {
+          if (artifactByRunError) {
+            return { data: null, error: artifactByRunError };
+          }
+          return {
+            data: artifactsByRunId[String(runId)] ?? null,
+            error: null,
+          };
+        }
+        if (legacyError) return { data: null, error: legacyError };
+        const eng = filters.find((f) => f[0] === "engagement_id")?.[1];
+        const period = filters.find((f) => f[0] === "period_end")?.[1];
+        const key = `${eng}|${period}`;
+        return { data: artifactsByPeriod[key] ?? null, error: null };
+      }
+      return { data: null, error: null };
+    },
+  };
+  return chain;
+}
 
 vi.mock("@/lib/supabase-admin.js", () => ({
-  getSupabaseAdmin: () => ({ from: fromMock }),
+  getSupabaseAdmin: () => ({
+    from: (table: string) => makeChain(table),
+  }),
 }));
 
 import {
@@ -17,9 +64,43 @@ import {
   getBsSummaryArtifactByPeriodEnd,
 } from "../bs-recon-artifacts";
 
+const ARTIFACT_ROW = {
+  id: "art-1",
+  engagement_id: "eng-1",
+  run_id: "run-sum-1",
+  period_start: "2026-01-01",
+  period_end: "2026-07-31",
+  account_count_total: 3,
+  account_count_tie: 3,
+  account_count_auto_reconcile: 0,
+  account_count_review: 0,
+  account_count_kickout: 0,
+  account_count_failed: 0,
+  assets_ending_cents: 100,
+  liabilities_ending_cents: 40,
+  equity_ending_cents: 60,
+  bs_equation_variance_cents: 0,
+  bs_equation_status: "tie" as const,
+  format: "pdf",
+  storage_bucket: "audit-ready-recons",
+  storage_object_key: "k",
+  sha256: "abc",
+  file_size_bytes: 1,
+  generated_by: "api",
+  visibility: "owner_visible",
+  accounting_method: null,
+  created_at: "2026-08-01T00:00:00Z",
+  created_by_user_id: null,
+};
+
 beforeEach(() => {
-  vi.clearAllMocks();
-  maybeSingle.mockResolvedValue({ data: null, error: null });
+  fromTables.length = 0;
+  runs = [];
+  artifactsByRunId = {};
+  artifactsByPeriod = {};
+  runLookupError = null;
+  artifactByRunError = null;
+  legacyError = null;
 });
 
 describe("parseStrictAsOfDate", () => {
@@ -40,40 +121,81 @@ describe("parseStrictAsOfDate", () => {
 });
 
 describe("getBsSummaryArtifactByPeriodEnd", () => {
-  it("queries by engagement_id + period_end, latest created_at", async () => {
-    const row = {
-      id: "art-1",
-      engagement_id: "eng-1",
-      period_end: "2026-07-31",
-      bs_equation_status: "tie",
-      created_at: "2026-08-01T00:00:00Z",
-    };
-    maybeSingle.mockResolvedValue({ data: row, error: null });
+  describe("canonical path", () => {
+    it("resolves latest completed summary run then artifact by run_id", async () => {
+      runs = [{ id: "run-sum-1" }];
+      artifactsByRunId["run-sum-1"] = { ...ARTIFACT_ROW };
+      // Poison legacy period lookup so canonical must win
+      artifactsByPeriod["eng-1|2026-07-31"] = {
+        ...ARTIFACT_ROW,
+        id: "art-legacy",
+      };
 
-    const result = await getBsSummaryArtifactByPeriodEnd({
-      engagementId: "eng-1",
-      periodEnd: "2026-07-31",
+      const result = await getBsSummaryArtifactByPeriodEnd({
+        engagementId: "eng-1",
+        periodEnd: "2026-07-31",
+      });
+
+      expect(fromTables[0]).toBe("audit_ready_tie_out_runs");
+      expect(fromTables).toContain("audit_ready_bs_recon_summary_artifacts");
+      expect(result).toEqual(ARTIFACT_ROW);
+      expect(result?.id).toBe("art-1");
     });
-
-    expect(fromMock).toHaveBeenCalledWith(
-      "audit_ready_bs_recon_summary_artifacts",
-    );
-    expect(eq1).toHaveBeenCalledWith("engagement_id", "eng-1");
-    expect(eq2).toHaveBeenCalledWith("period_end", "2026-07-31");
-    expect(order).toHaveBeenCalledWith("created_at", { ascending: false });
-    expect(limit).toHaveBeenCalledWith(1);
-    expect(result).toEqual(row);
   });
 
-  it("returns null on supabase error", async () => {
-    maybeSingle.mockResolvedValue({
-      data: null,
-      error: { message: "boom" },
+  describe("legacy fallback", () => {
+    it("falls back to period_end lookup when no completed summary run", async () => {
+      runs = [];
+      artifactsByPeriod["eng-1|2026-07-31"] = { ...ARTIFACT_ROW, id: "art-legacy" };
+
+      const result = await getBsSummaryArtifactByPeriodEnd({
+        engagementId: "eng-1",
+        periodEnd: "2026-07-31",
+      });
+
+      expect(result?.id).toBe("art-legacy");
     });
-    const result = await getBsSummaryArtifactByPeriodEnd({
-      engagementId: "eng-1",
-      periodEnd: "2026-07-31",
+
+    it("returns null on legacy supabase error", async () => {
+      runs = [];
+      legacyError = { message: "boom" };
+      const result = await getBsSummaryArtifactByPeriodEnd({
+        engagementId: "eng-1",
+        periodEnd: "2026-07-31",
+      });
+      expect(result).toBeNull();
     });
-    expect(result).toBeNull();
+
+    it("falls back when canonical run→artifact lookup returns null", async () => {
+      runs = [{ id: "run-sum-1" }];
+      // no artifactsByRunId entry
+      artifactsByPeriod["eng-1|2026-07-31"] = { ...ARTIFACT_ROW, id: "art-legacy" };
+      const result = await getBsSummaryArtifactByPeriodEnd({
+        engagementId: "eng-1",
+        periodEnd: "2026-07-31",
+      });
+      expect(result?.id).toBe("art-legacy");
+    });
+  });
+
+  describe("byte-identity", () => {
+    it("returns identical artifact from canonical vs fallback given identical data", async () => {
+      runs = [{ id: "run-sum-1" }];
+      artifactsByRunId["run-sum-1"] = { ...ARTIFACT_ROW };
+      const canonical = await getBsSummaryArtifactByPeriodEnd({
+        engagementId: "eng-1",
+        periodEnd: "2026-07-31",
+      });
+
+      runs = [];
+      artifactsByRunId = {};
+      artifactsByPeriod["eng-1|2026-07-31"] = { ...ARTIFACT_ROW };
+      const fallback = await getBsSummaryArtifactByPeriodEnd({
+        engagementId: "eng-1",
+        periodEnd: "2026-07-31",
+      });
+
+      expect(canonical).toEqual(fallback);
+    });
   });
 });
