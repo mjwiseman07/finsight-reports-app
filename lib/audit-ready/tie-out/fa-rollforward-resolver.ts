@@ -401,7 +401,7 @@ export async function runFaRollforwardResolver(
         period_start: startDate,
         completed_at: fetchedAt,
         raw_qbo_payload_jsonb: {
-          version: 1,
+          version: 2, // PBC-TIEOUT-4.1.3: additive rollforward_totals + lines
           kind: "fixed_asset_rollforward",
           fetched_at: fetchedAt,
           qbo_realm_id: input.realmId,
@@ -409,6 +409,28 @@ export async function runFaRollforwardResolver(
           account_list: accounts,
           per_account_gl: perAccountGl,
           trial_balance: tb,
+          // PBC-TIEOUT-4.1.3 additions — same in-memory vars as legacy inserts above
+          rollforward_totals: {
+            cost_beginning_cents: costBeg,
+            cost_additions_cents: costAdds,
+            cost_disposals_cents: costDisp,
+            cost_reclass_cents: costReclass,
+            cost_ending_cents: costEnd,
+            cost_gl_ending_cents: costGlEnd,
+            cost_variance_cents: costVariance,
+            accum_beginning_cents: accumBeg,
+            accum_depreciation_cents: accumDepr,
+            accum_disposals_cents: accumDisp,
+            accum_reclass_cents: accumReclass,
+            accum_ending_cents: accumEnd,
+            accum_gl_ending_cents: accumGlEnd,
+            accum_variance_cents: accumVariance,
+            nbv_beginning_cents: nbvBeg,
+            nbv_ending_cents: nbvEnd,
+            period_end: endDate,
+          },
+          // Exact same row shape written to audit_ready_fa_rollforward_lines
+          lines: lineRows,
         },
       })
       .eq("id", runId);
