@@ -50,6 +50,102 @@ function makePbcRun(
   };
 }
 
+type LinkageFixture = {
+  engagements?: Array<{
+    id: string;
+    engagement_name: string | null;
+    closed_at: string | null;
+    audit_period_end: string | null;
+  }>;
+  bsLines?: BsKickoutLineRpcRow[];
+  /** Rows returned from audit_ready_bs_recon_summary_lines by id. */
+  lineMeta?: Array<{
+    id: string;
+    run_id: string | null;
+    summary_artifact_id: string | null;
+  }>;
+  /** Rows returned from audit_ready_bs_recon_summary_artifacts by id. */
+  artifacts?: Array<{ id: string; run_id: string | null }>;
+};
+
+function installListKickoutsMock(fixture: LinkageFixture) {
+  const fromTables: string[] = [];
+  const empty = { data: [], error: null };
+  const engagements = fixture.engagements ?? [
+    {
+      id: ENG,
+      engagement_name: "Pilot",
+      closed_at: null,
+      audit_period_end: "2026-12-31",
+    },
+  ];
+  const bsLines = fixture.bsLines ?? [];
+  const lineMeta = fixture.lineMeta ?? [];
+  const artifacts = fixture.artifacts ?? [];
+
+  function makeFrom(table: string) {
+    fromTables.push(table);
+    const filters: Array<[string, unknown]> = [];
+    const inFilters: Array<[string, unknown]> = [];
+    const chain: Record<string, unknown> = {
+      select() {
+        return chain;
+      },
+      eq(col: string, val: unknown) {
+        filters.push([col, val]);
+        return chain;
+      },
+      in(col: string, val: unknown) {
+        inFilters.push([col, val]);
+        return chain;
+      },
+      order() {
+        return chain;
+      },
+      then(resolve: (v: unknown) => unknown) {
+        if (table === "audit_ready_engagements") {
+          return Promise.resolve(
+            resolve({ data: engagements, error: null }),
+          );
+        }
+        if (table === "audit_ready_kickout_investigations") {
+          return Promise.resolve(resolve(empty));
+        }
+        if (table === "audit_ready_bs_recon_summary_lines") {
+          const ids = (inFilters.find((f) => f[0] === "id")?.[1] as
+            | string[]
+            | undefined) ?? [];
+          const data = lineMeta.filter((r) => ids.includes(r.id));
+          return Promise.resolve(resolve({ data, error: null }));
+        }
+        if (table === "audit_ready_bs_recon_summary_artifacts") {
+          const ids = (inFilters.find((f) => f[0] === "id")?.[1] as
+            | string[]
+            | undefined) ?? [];
+          const data = artifacts.filter((r) => ids.includes(r.id));
+          return Promise.resolve(resolve({ data, error: null }));
+        }
+        return Promise.resolve(resolve(empty));
+      },
+    };
+    return chain;
+  }
+
+  const api = {
+    from: vi.fn((table: string) => makeFrom(table)),
+    rpc: vi.fn(async (name: string) => {
+      if (name === "audit_ready_latest_bs_kickout_lines") {
+        return { data: bsLines, error: null };
+      }
+      return empty;
+    }),
+  };
+  (getSupabaseAdmin as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+    api,
+  );
+  return { api, fromTables };
+}
+
 describe("listKickouts", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -60,20 +156,7 @@ describe("listKickouts", () => {
   });
 
   it("handles no data gracefully", async () => {
-    const empty = { data: [], error: null };
-    const chain: Record<string, unknown> = {};
-    const api = {
-      from: vi.fn(() => chain),
-      select: vi.fn(() => chain),
-      in: vi.fn(() => chain),
-      order: vi.fn(() => chain),
-      rpc: vi.fn(async () => empty),
-      then: (resolve: (v: unknown) => unknown) => resolve(empty),
-    };
-    Object.assign(chain, api);
-    (getSupabaseAdmin as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-      api,
-    );
+    const { api } = installListKickoutsMock({ bsLines: [] });
 
     const result = await listKickouts(["engagement-1"]);
     expect(result).toEqual([]);
@@ -89,6 +172,107 @@ describe("listKickouts", () => {
       "get_similar_kickout_resolution_counts",
       expect.any(Object),
     );
+  });
+
+  describe("canonical path", () => {
+    it("returns kickouts via summary_lines.run_id direct join", async () => {
+      const line = makeBsLine({
+        id: "line-1",
+        artifact_id: "art-1",
+        qbo_account_id: "44",
+      });
+      const { fromTables } = installListKickoutsMock({
+        bsLines: [line],
+        lineMeta: [
+          {
+            id: "line-1",
+            run_id: "run-sum-1",
+            summary_artifact_id: "art-1",
+          },
+        ],
+        artifacts: [{ id: "art-1", run_id: "run-sum-legacy" }],
+      });
+
+      const rows = await listKickouts([ENG]);
+      const bs = rows.find((r) => r.source_type === "bs_summary_line");
+      expect(bs?.parent_summary_run_id).toBe("run-sum-1");
+      expect(fromTables).toContain("audit_ready_bs_recon_summary_lines");
+      expect(fromTables).not.toContain(
+        "audit_ready_bs_recon_summary_artifacts",
+      );
+    });
+
+    it("returns empty array when no kickouts on run", async () => {
+      installListKickoutsMock({ bsLines: [] });
+      const rows = await listKickouts([ENG]);
+      expect(rows.filter((r) => r.source_type === "bs_summary_line")).toEqual(
+        [],
+      );
+    });
+  });
+
+  describe("legacy fallback", () => {
+    it("falls back to artifact join when summary_lines.run_id linkage missing", async () => {
+      const line = makeBsLine({
+        id: "line-1",
+        artifact_id: "art-1",
+      });
+      const { fromTables } = installListKickoutsMock({
+        bsLines: [line],
+        // No usable run_id on lines → gap → artifact join
+        lineMeta: [
+          {
+            id: "line-1",
+            run_id: null,
+            summary_artifact_id: "art-1",
+          },
+        ],
+        artifacts: [{ id: "art-1", run_id: "run-sum-legacy" }],
+      });
+
+      const rows = await listKickouts([ENG]);
+      const bs = rows.find((r) => r.source_type === "bs_summary_line");
+      expect(fromTables).toContain("audit_ready_bs_recon_summary_artifacts");
+      expect(bs?.parent_summary_run_id).toBe("run-sum-legacy");
+    });
+  });
+
+  describe("byte-identity", () => {
+    it("returns identical rows from canonical vs fallback given identical data", async () => {
+      const line = makeBsLine({
+        id: "line-1",
+        artifact_id: "art-1",
+        qbo_account_id: "44",
+      });
+
+      installListKickoutsMock({
+        bsLines: [line],
+        lineMeta: [
+          {
+            id: "line-1",
+            run_id: "run-sum-1",
+            summary_artifact_id: "art-1",
+          },
+        ],
+        artifacts: [],
+      });
+      const canonical = await listKickouts([ENG]);
+
+      installListKickoutsMock({
+        bsLines: [line],
+        lineMeta: [
+          {
+            id: "line-1",
+            run_id: null,
+            summary_artifact_id: "art-1",
+          },
+        ],
+        artifacts: [{ id: "art-1", run_id: "run-sum-1" }],
+      });
+      const fallback = await listKickouts([ENG]);
+
+      expect(canonical).toEqual(fallback);
+    });
   });
 });
 
