@@ -60,32 +60,24 @@ export async function POST(request) {
     return NextResponse.json({ error: "Supabase did not return a user id" }, { status: 500 });
   }
 
+  // public.users row is created by handle_new_auth_user from raw_user_meta_data
+  // (first_name / last_name / business_name already passed in user_metadata above).
+  // ip_address_signup is request-derived — update-after-create only (FIX-USERS-PKEY).
   const forwardedFor = request.headers.get("x-forwarded-for");
   const ipAddressSignup = forwardedFor || null;
 
-  const { error: insertError } = await supabaseAdmin.from("users").insert({
-    id: userId,
-    email,
-    first_name,
-    last_name,
-    business_name,
-    ip_address_signup: ipAddressSignup,
-    trial_used: false,
-    subscription_status: "trial",
-  });
-
-  if (insertError) {
-    console.error("[api/signup] public.users insert failed", {
-      message: insertError.message,
-      code: insertError.code,
-      details: insertError.details,
-      hint: insertError.hint,
-    });
-
-    return NextResponse.json(
-      { error: insertError.message, code: insertError.code },
-      { status: isDuplicateEmailError(insertError) ? 409 : 500 },
-    );
+  if (ipAddressSignup) {
+    const { error: ipErr } = await supabaseAdmin
+      .from("users")
+      .update({ ip_address_signup: ipAddressSignup })
+      .eq("id", userId);
+    if (ipErr) {
+      console.error("[api/signup] failed to write ip_address_signup", {
+        userId,
+        message: ipErr.message,
+        code: ipErr.code,
+      });
+    }
   }
 
   return NextResponse.json({ success: true, user_id: userId });

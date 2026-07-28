@@ -107,37 +107,6 @@ async function loadUserAccessByEmail(email) {
   };
 }
 
-async function createMissingUserRecord(authUser) {
-  const metadata = authUser.user_metadata || {};
-  const email = authUser.email || "";
-  if (!email) return { data: null, error: null };
-
-  const { data, error } = await supabaseAdmin
-    .from("users")
-    .insert({
-      id: authUser.id,
-      email,
-      first_name: metadata.first_name || "",
-      last_name: metadata.last_name || "",
-      business_name: metadata.business_name || "",
-      trial_used: false,
-      subscription_status: "trial",
-    })
-    .select(fallbackUserAccessColumns)
-    .limit(1);
-
-  return {
-    data: Array.isArray(data)
-      ? {
-          ...(data[0] || {}),
-          subscription_price_id: null,
-          subscription_plan: null,
-        }
-      : null,
-    error,
-  };
-}
-
 export async function POST(request) {
   const rateLimitResponse = rateLimit(request, { key: "check-trial", limit: 30, windowMs: 60_000 });
   if (rateLimitResponse) return rateLimitResponse;
@@ -190,21 +159,11 @@ export async function POST(request) {
   }
 
   if (!userRecord) {
-    const createdUser = await createMissingUserRecord(authData.user);
-
-    if (createdUser.error && isMissingColumnError(createdUser.error)) {
-      return NextResponse.json({ error: "User profile table is missing required onboarding columns." }, { status: 501 });
-    }
-
-    if (createdUser.error) {
-      return NextResponse.json({ error: createdUser.error.message }, { status: 500 });
-    }
-
-    userRecord = createdUser.data;
-  }
-
-  if (!userRecord) {
-    return NextResponse.json({ error: "User record not found" }, { status: 404 });
+    // Trigger failed to populate public.users — do not lazy-create (FIX-USERS-PKEY).
+    console.error("[check-trial] missing users row for authenticated user", {
+      userId,
+    });
+    return NextResponse.json({ error: "USER_ROW_MISSING" }, { status: 500 });
   }
 
   const authSubscriptionStatus =

@@ -164,31 +164,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // 4. Service-role client for user/firm upserts (bypasses RLS).
+  // 4. Service-role client for firm membership writes (bypasses RLS).
+  //    public.users row is created by handle_new_auth_user trigger (FIX-USERS-PKEY).
   const admin = createServiceClient();
-  const userMetadata = (user.user_metadata ?? {}) as Record<string, unknown>;
-  const firstName = String(userMetadata.first_name ?? "");
-  const lastName = String(userMetadata.last_name ?? "");
 
-  // 5. Upsert public.users row.
-  const { error: userUpsertError } = await admin
+  const { data: userRow, error: userLookupError } = await admin
     .from("users")
-    .upsert(
-      {
-        id: user.id,
-        email: user.email ?? "",
-        first_name: firstName || null,
-        last_name: lastName || null,
-        business_name: businessName,
-      },
-      { onConflict: "id" },
-    );
-  if (userUpsertError) {
-    console.error("[create-session] users upsert failed", userUpsertError);
-    return NextResponse.json({ error: "user_upsert_failed" }, { status: 500 });
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (userLookupError) {
+    console.error("[create-session] users lookup failed", userLookupError);
+    return NextResponse.json({ error: "USERS_LOOKUP_FAILED" }, { status: 500 });
+  }
+  if (!userRow) {
+    console.error("[create-session] missing users row for authenticated user", {
+      userId: user.id,
+    });
+    return NextResponse.json({ error: "USER_ROW_MISSING" }, { status: 500 });
   }
 
-  // 6. Look up existing firm_membership.
+  // 5. Look up existing firm_membership.
   const { data: existingMembership, error: membershipLookupError } = await admin
     .from("firm_memberships")
     .select("firm_id")
