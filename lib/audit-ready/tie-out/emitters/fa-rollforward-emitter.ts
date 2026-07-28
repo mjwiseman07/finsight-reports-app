@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import type {
   BackupTabSpec,
+  ReconFaceSpec,
   WorkpaperEmitter,
   WorkpaperPayload,
 } from "@/lib/audit-ready/tie-out/workpaper-emitter";
@@ -10,7 +11,10 @@ import {
 } from "./_shared/emit-common";
 import {
   loadRunContext,
+  loadVariances,
   sourceDataFromPayload,
+  type RunContext,
+  type VarianceRow,
 } from "./_shared/load-run";
 import { mapTotalsToTieStatus } from "./_shared/format";
 
@@ -47,6 +51,9 @@ type LineRow = {
   credit_cents: number;
   signed_cents: number;
 };
+
+/** Shape of rollforward_totals as written by fa-rollforward-resolver (payload v2). */
+type RollforwardTotals = ArtifactRow;
 
 const LINE_COLUMNS: BackupTabSpec["columns"] = [
   { key: "txn_date", label: "Date", format: "date" },
@@ -96,39 +103,13 @@ function linesToTab(tabName: string, lines: LineRow[]): BackupTabSpec {
   };
 }
 
-export async function buildFaRollforwardPayload(
+function buildPayloadFromArtifactAndLines(
+  ctx: RunContext,
   runId: string,
-): Promise<WorkpaperPayload> {
-  const ctx = await loadRunContext(runId);
-  if (ctx.tieOutKind !== "fixed_asset_rollforward") {
-    throw new Error(
-      `wrong_kind: expected fixed_asset_rollforward got ${ctx.tieOutKind}`,
-    );
-  }
-  const supabase = getSupabaseAdmin();
-  const { data: art, error: artErr } = await supabase
-    .from("audit_ready_fa_rollforward_artifacts")
-    .select(
-      "cost_beginning_cents, cost_additions_cents, cost_disposals_cents, cost_reclass_cents, cost_ending_cents, cost_gl_ending_cents, accum_beginning_cents, accum_depreciation_cents, accum_disposals_cents, accum_reclass_cents, accum_ending_cents, accum_gl_ending_cents, nbv_beginning_cents, nbv_ending_cents, period_end",
-    )
-    .eq("run_id", runId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (artErr || !art) {
-    throw new Error(`fa_artifact_not_found: ${artErr?.message ?? runId}`);
-  }
-  const artifact = art as ArtifactRow;
-  const { data: lineRows, error: lineErr } = await supabase
-    .from("audit_ready_fa_rollforward_lines")
-    .select(
-      "side, bucket, qbo_account_id, qbo_account_name, txn_date, txn_type, doc_number, name_display, memo, split_account, debit_cents, credit_cents, signed_cents",
-    )
-    .eq("run_id", runId)
-    .order("ordinal", { ascending: true });
-  if (lineErr) throw new Error(`fa_lines_query_failed: ${lineErr.message}`);
-  const lines = (lineRows ?? []) as LineRow[];
-
+  artifact: ArtifactRow,
+  lines: LineRow[],
+  variances: VarianceRow[],
+): WorkpaperPayload {
   const leftAmountCents = Number(artifact.nbv_ending_cents);
   const rightAmountCents =
     Number(artifact.cost_gl_ending_cents) -
@@ -145,10 +126,6 @@ export async function buildFaRollforwardPayload(
     (l) => l.side === "accum" && l.bucket === "depreciation",
   );
   const reclass = lines.filter((l) => l.bucket === "reclass");
-
-  // Beg Balance Detail is not distinguishable in persisted lines (no
-  // class/location/department either — backlog enrichment). Ship Activity
-  // Detail as the beg/other catch-all with Cover note via section label.
   const activityAll = lines;
 
   const sections = [
@@ -184,13 +161,7 @@ export async function buildFaRollforwardPayload(
     },
   ];
 
-  const backupTabs: BackupTabSpec[] = [
-    linesToTab("Activity Detail", activityAll),
-    linesToTab("Additions", additions),
-    linesToTab("Disposals", disposals),
-    linesToTab("Depreciation", depreciation),
-    linesToTab("Reclass", reclass),
-  ];
+  const totals = variances.find((v) => v.entity_kind === "totals");
 
   return {
     face: {
@@ -200,7 +171,7 @@ export async function buildFaRollforwardPayload(
       rightAmountCents,
       varianceCents,
       toleranceCents: Math.round((ctx.kickoutMinDollar ?? 1) * 100),
-      tieStatus: mapTotalsToTieStatus(ctx.totalsStatus),
+      tieStatus: mapTotalsToTieStatus(totals?.status ?? ctx.totalsStatus),
       sections,
       engagementName: ctx.engagementName,
       engagementId: ctx.engagementId,
@@ -211,8 +182,202 @@ export async function buildFaRollforwardPayload(
       regeneratedFromRunId: ctx.regeneratedFromRunId,
       regeneratedAt: ctx.regeneratedAt,
     },
-    backupTabs,
+    backupTabs: [
+      linesToTab("Activity Detail", activityAll),
+      linesToTab("Additions", additions),
+      linesToTab("Disposals", disposals),
+      linesToTab("Depreciation", depreciation),
+      linesToTab("Reclass", reclass),
+    ],
     sourceData: sourceDataFromPayload(ctx.rawQboPayload),
+  };
+}
+
+function totalsShapeComplete(t: RollforwardTotals | undefined): t is RollforwardTotals {
+  if (!t) return false;
+  return (
+    typeof t.nbv_beginning_cents === "number" &&
+    typeof t.nbv_ending_cents === "number" &&
+    typeof t.cost_additions_cents === "number" &&
+    typeof t.cost_disposals_cents === "number" &&
+    typeof t.cost_reclass_cents === "number" &&
+    typeof t.cost_ending_cents === "number" &&
+    typeof t.cost_gl_ending_cents === "number" &&
+    typeof t.accum_depreciation_cents === "number" &&
+    typeof t.accum_gl_ending_cents === "number" &&
+    typeof t.accum_ending_cents === "number" &&
+    typeof t.accum_beginning_cents === "number"
+  );
+}
+
+function assembleFaFaceFromRun(
+  ctx: RunContext,
+  totals: RollforwardTotals,
+  variances: VarianceRow[],
+): ReconFaceSpec | null {
+  if (
+    ctx.subledgerTotalCents == null ||
+    ctx.glTotalCents == null ||
+    ctx.totalsVarianceCents == null
+  ) {
+    return null;
+  }
+
+  const leftAmountCents = Number(totals.nbv_ending_cents);
+  const rightAmountCents =
+    Number(totals.cost_gl_ending_cents) - Number(totals.accum_gl_ending_cents);
+  const varianceCents = leftAmountCents - rightAmountCents;
+  const totalsVar = variances.find((v) => v.entity_kind === "totals");
+
+  return {
+    leftLabel: "Prepared Schedule",
+    leftAmountCents,
+    rightLabel: "General Ledger",
+    rightAmountCents,
+    varianceCents,
+    toleranceCents: Math.round((ctx.kickoutMinDollar ?? 1) * 100),
+    tieStatus: mapTotalsToTieStatus(totalsVar?.status ?? ctx.totalsStatus),
+    sections: [
+      {
+        label: "Beginning Balance (NBV)",
+        amountCents: Number(totals.nbv_beginning_cents),
+        backupTabName: "Activity Detail",
+      },
+      {
+        label: "Additions",
+        amountCents: Number(totals.cost_additions_cents),
+        backupTabName: "Additions",
+      },
+      {
+        label: "Disposals",
+        amountCents: Number(totals.cost_disposals_cents),
+        backupTabName: "Disposals",
+      },
+      {
+        label: "Depreciation",
+        amountCents: Number(totals.accum_depreciation_cents),
+        backupTabName: "Depreciation",
+      },
+      {
+        label: "Reclass",
+        amountCents: Number(totals.cost_reclass_cents),
+        backupTabName: "Reclass",
+      },
+      {
+        label: "Ending Balance (NBV)",
+        amountCents: leftAmountCents,
+        backupTabName: "Activity Detail",
+      },
+    ],
+    engagementName: ctx.engagementName,
+    engagementId: ctx.engagementId,
+    periodEnd: totals.period_end || ctx.periodEnd,
+    tieOutKind: "fixed_asset_rollforward",
+    runId: ctx.runId,
+    generatedAt: ctx.completedAt ?? new Date().toISOString(),
+    regeneratedFromRunId: ctx.regeneratedFromRunId,
+    regeneratedAt: ctx.regeneratedAt,
+  };
+}
+
+function assembleFaBackupFromPayload(lines: LineRow[]): BackupTabSpec[] | null {
+  if (!Array.isArray(lines)) return null;
+  const additions = lines.filter(
+    (l) => l.side === "cost" && l.bucket === "addition",
+  );
+  const disposals = lines.filter(
+    (l) => l.side === "cost" && l.bucket === "disposal",
+  );
+  const depreciation = lines.filter(
+    (l) => l.side === "accum" && l.bucket === "depreciation",
+  );
+  const reclass = lines.filter((l) => l.bucket === "reclass");
+  return [
+    linesToTab("Activity Detail", lines),
+    linesToTab("Additions", additions),
+    linesToTab("Disposals", disposals),
+    linesToTab("Depreciation", depreciation),
+    linesToTab("Reclass", reclass),
+  ];
+}
+
+// PBC-TIEOUT-4.1.3.b removes this function entirely
+async function readLegacyFaRollforwardArtifact(
+  runId: string,
+): Promise<WorkpaperPayload> {
+  const ctx = await loadRunContext(runId);
+  if (ctx.tieOutKind !== "fixed_asset_rollforward") {
+    throw new Error(
+      `wrong_kind: expected fixed_asset_rollforward got ${ctx.tieOutKind}`,
+    );
+  }
+  const supabase = getSupabaseAdmin();
+  const { data: art, error: artErr } = await supabase
+    .from("audit_ready_fa_rollforward_artifacts")
+    .select(
+      "cost_beginning_cents, cost_additions_cents, cost_disposals_cents, cost_reclass_cents, cost_ending_cents, cost_gl_ending_cents, accum_beginning_cents, accum_depreciation_cents, accum_disposals_cents, accum_reclass_cents, accum_ending_cents, accum_gl_ending_cents, nbv_beginning_cents, nbv_ending_cents, period_end",
+    )
+    .eq("run_id", runId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (artErr || !art) {
+    throw new Error(`fa_artifact_not_found: ${artErr?.message ?? runId}`);
+  }
+  const artifact = art as ArtifactRow;
+  const { data: lineRows, error: lineErr } = await supabase
+    .from("audit_ready_fa_rollforward_lines")
+    .select(
+      "side, bucket, qbo_account_id, qbo_account_name, txn_date, txn_type, doc_number, name_display, memo, split_account, debit_cents, credit_cents, signed_cents",
+    )
+    .eq("run_id", runId)
+    .order("ordinal", { ascending: true });
+  if (lineErr) throw new Error(`fa_lines_query_failed: ${lineErr.message}`);
+  const lines = (lineRows ?? []) as LineRow[];
+  const variances = await loadVariances(runId);
+  return buildPayloadFromArtifactAndLines(ctx, runId, artifact, lines, variances);
+}
+
+export async function buildFaRollforwardPayload(
+  runId: string,
+): Promise<WorkpaperPayload> {
+  const ctx = await loadRunContext(runId);
+  if (ctx.tieOutKind !== "fixed_asset_rollforward") {
+    throw new Error(
+      `wrong_kind: expected fixed_asset_rollforward got ${ctx.tieOutKind}`,
+    );
+  }
+
+  const raw = ctx.rawQboPayload;
+  const rollforwardTotals = raw?.rollforward_totals as
+    | RollforwardTotals
+    | undefined;
+  const payloadLines = raw?.lines as LineRow[] | undefined;
+
+  // Primary — PBC-TIEOUT-4.1.3.b removes this fallback
+  if (
+    !raw ||
+    !totalsShapeComplete(rollforwardTotals) ||
+    !Array.isArray(payloadLines) ||
+    ctx.subledgerTotalCents == null ||
+    ctx.glTotalCents == null ||
+    ctx.totalsVarianceCents == null
+  ) {
+    return readLegacyFaRollforwardArtifact(runId);
+  }
+
+  const variances = await loadVariances(runId);
+  const face = assembleFaFaceFromRun(ctx, rollforwardTotals, variances);
+  const backupTabs = assembleFaBackupFromPayload(payloadLines);
+  // PBC-TIEOUT-4.1.3.b removes this fallback
+  if (!face || !backupTabs) {
+    return readLegacyFaRollforwardArtifact(runId);
+  }
+
+  return {
+    face,
+    backupTabs,
+    sourceData: sourceDataFromPayload(raw),
   };
 }
 
