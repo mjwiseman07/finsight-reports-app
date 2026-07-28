@@ -4,7 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://advisacor.com";
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days — cron-safe TTL
-const STORAGE_BUCKET = "audit-ready-recons";
+const LEGACY_STORAGE_BUCKET = "audit-ready-recons";
+const NEW_STORAGE_BUCKET = "audit-ready-workpapers";
 
 function fromAddress(): string {
   return (
@@ -36,19 +37,39 @@ function formatDate(iso: string): string {
   });
 }
 
+/**
+ * Sign a PDF download URL against the appropriate bucket.
+ * Block F Part 1: prefers audit-ready-workpapers when newPdfObjectKey is provided,
+ * falls back to audit-ready-recons if new-bucket signing fails.
+ * Returns null if both signing attempts fail.
+ */
 async function generateSignedPdfUrl(params: {
   engagementId: string;
   asOfDate: string;
   pdfObjectKey: string;
+  newPdfObjectKey?: string | null;
 }): Promise<string | null> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .createSignedUrl(params.pdfObjectKey, SIGNED_URL_TTL_SECONDS);
-  if (error) {
-    console.error("[bs-recon-notify] Failed to sign PDF URL", {
+  if (params.newPdfObjectKey) {
+    const { data, error } = await supabase.storage
+      .from(NEW_STORAGE_BUCKET)
+      .createSignedUrl(params.newPdfObjectKey, SIGNED_URL_TTL_SECONDS);
+    if (!error && data?.signedUrl) return data.signedUrl;
+    console.error("[bs-recon-notify] new bucket sign failed, falling back", {
       engagementId: params.engagementId,
       asOfDate: params.asOfDate,
+      newPdfObjectKey: params.newPdfObjectKey,
+      error: error?.message,
+    });
+  }
+  const { data, error } = await supabase.storage
+    .from(LEGACY_STORAGE_BUCKET)
+    .createSignedUrl(params.pdfObjectKey, SIGNED_URL_TTL_SECONDS);
+  if (error) {
+    console.error("[bs-recon-notify] legacy bucket sign failed", {
+      engagementId: params.engagementId,
+      asOfDate: params.asOfDate,
+      pdfObjectKey: params.pdfObjectKey,
       error: error.message,
     });
     return null;
@@ -101,6 +122,7 @@ export interface BsReconTieEmailParams {
   engagementId: string;
   artifactId: string;
   pdfObjectKey: string;
+  newPdfObjectKey?: string | null;
 }
 
 export async function sendBsReconTieEmail(
@@ -111,6 +133,7 @@ export async function sendBsReconTieEmail(
     engagementId: params.engagementId,
     asOfDate: params.asOfDate,
     pdfObjectKey: params.pdfObjectKey,
+    newPdfObjectKey: params.newPdfObjectKey ?? null,
   });
   const asOfPretty = formatDate(params.asOfDate);
   const subject = `[Advisacor] BS Reconciliation Complete: ${params.clientName} — ${asOfPretty}`;
@@ -149,6 +172,7 @@ export interface BsReconKickoutEmailParams {
   engagementId: string;
   artifactId: string;
   pdfObjectKey: string;
+  newPdfObjectKey?: string | null;
 }
 
 export async function sendBsReconKickoutEmail(
@@ -159,6 +183,7 @@ export async function sendBsReconKickoutEmail(
     engagementId: params.engagementId,
     asOfDate: params.asOfDate,
     pdfObjectKey: params.pdfObjectKey,
+    newPdfObjectKey: params.newPdfObjectKey ?? null,
   });
   const asOfPretty = formatDate(params.asOfDate);
   const subject = `[Advisacor] BS Reconciliation Needs Review: ${params.clientName} — ${asOfPretty}`;

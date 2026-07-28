@@ -303,6 +303,16 @@ export async function POST(req: Request) {
         const artifactId = result.summaryArtifactId;
         const pdfObjectKey = result.storageObjectKey;
 
+        // Block F Part 1: fetch new-bucket key for dual-bucket notify
+        const { data: newArtifact } = await supabase
+          .from("audit_ready_run_artifacts")
+          .select("storage_path")
+          .eq("tie_out_run_id", result.runId)
+          .eq("artifact_kind", "pdf")
+          .maybeSingle();
+        const newPdfObjectKey =
+          (newArtifact?.storage_path as string | undefined) ?? null;
+
         let totalsVarianceCents = 0;
         if (!isTie) {
           const { data: runRow } = await supabase
@@ -341,6 +351,7 @@ export async function POST(req: Request) {
             engagementId: eng.engagement_id,
             artifactId,
             pdfObjectKey,
+            newPdfObjectKey,
           });
         } else {
           await sendBsReconKickoutEmail({
@@ -353,6 +364,7 @@ export async function POST(req: Request) {
             engagementId: eng.engagement_id,
             artifactId,
             pdfObjectKey,
+            newPdfObjectKey,
           });
         }
 
