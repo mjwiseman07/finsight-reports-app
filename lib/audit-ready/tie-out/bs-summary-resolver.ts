@@ -562,12 +562,24 @@ export async function runBsSummaryResolver(
         period_start: startDate,
         completed_at: fetchedAt,
         raw_qbo_payload_jsonb: {
-          version: 1,
+          version: 2, // PBC-TIEOUT-4.1.3: additive summary_totals + summary_lines
           kind: "bs_recon_summary",
           fetched_at: fetchedAt,
           qbo_realm_id: input.realmId,
           qbo_connection_id: "",
           balance_sheet: bsReport,
+          // PBC-TIEOUT-4.1.3 additions — same in-memory vars as legacy inserts above
+          summary_totals: {
+            assets_ending_cents: assetsCents,
+            liabilities_ending_cents: liabilitiesCents,
+            equity_ending_cents: equityCents,
+            bs_equation_variance_cents: bsEquationVarianceCents,
+            bs_equation_status: bsEquationStatus,
+            period_end: endDate,
+          },
+          // Exact same row shape written to audit_ready_bs_recon_summary_lines
+          // (sans engagement_id / run_id / summary_artifact_id FK columns)
+          summary_lines: summaryLineInserts,
         },
       })
       .eq("id", runId);
