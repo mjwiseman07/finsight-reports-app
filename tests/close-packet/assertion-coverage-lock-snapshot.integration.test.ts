@@ -14,6 +14,9 @@ vi.mock("@/lib/firm-security", () => ({
 vi.mock("@/lib/close-packet/assertion-coverage-snapshot", () => ({
   snapshotCoverageStatement: snapshotMock,
 }));
+vi.mock("@/lib/review-assist/route-guard", () => ({
+  requireFlag: vi.fn().mockResolvedValue(null),
+}));
 
 import { POST as lockPacket } from "@/app/api/close-packets/[packetId]/lock/route";
 import { resolveFirmAccess } from "@/lib/firm-security";
@@ -41,6 +44,7 @@ beforeEach(() => {
     userId: "u1",
     memberships: [{ firm_id: "f1", role: "firm_admin", status: "active" }],
     firmIds: ["f1"],
+    client: { id: FC, firm_id: "f1", name: "Test Client", owner_user_id: "u1" },
   });
 });
 

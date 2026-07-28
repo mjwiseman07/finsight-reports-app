@@ -1102,10 +1102,14 @@ async function executeSuitesS1ThroughS13(
     } catch {
       pureBaseline = "";
     }
-    const pureCurrent = fs.readFileSync(
+    const pureCurrentRaw = fs.readFileSync(
       path.join(REPO_ROOT, "lib/intelligence/synthetic/standards/resolver/resolveTreatmentPure.ts"),
       "utf8",
     );
+    // Normalize CRLF→LF so byte-identity checks are platform-independent.
+    // Pin 20b4bdf was captured with LF; Windows checkouts with core.autocrlf see CRLF.
+    // See FIX-VITEST-SWEEP diagnosis: git hash-object matches; only line endings diverge.
+    const pureCurrent = pureCurrentRaw.replace(/\r\n/g, "\n");
     pushCase(cases, counters, {
       id: "S11-09",
       decision: "pure-core-untouched",
@@ -1192,7 +1196,11 @@ async function executeSuitesS1ThroughS13(
       pureBaseline = "";
     }
     const purePath = path.join(REPO_ROOT, "lib/intelligence/synthetic/standards/resolver/resolveTreatmentPure.ts");
-    const pureCurrent = fs.readFileSync(purePath, "utf8");
+    const pureCurrentRaw = fs.readFileSync(purePath, "utf8");
+    // Normalize CRLF→LF so byte-identity checks are platform-independent.
+    // Pin 20b4bdf was captured with LF; Windows checkouts with core.autocrlf see CRLF.
+    // See FIX-VITEST-SWEEP diagnosis: git hash-object matches; only line endings diverge.
+    const pureCurrent = pureCurrentRaw.replace(/\r\n/g, "\n");
     pushCase(cases, counters, {
       id: "S12-01",
       decision: "byte-identical-pure",
