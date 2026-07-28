@@ -47,9 +47,63 @@ export type BsReconSummaryArtifact = {
 
 /**
  * Load the latest BS recon summary artifact for an engagement + period_end.
- * Duplicate period_end rows: pick created_at DESC (limit 1).
+ * Prefers canonical run stack (latest completed bs_recon_summary run → artifact
+ * by run_id). Falls back to direct legacy period_end lookup.
  */
 export async function getBsSummaryArtifactByPeriodEnd(params: {
+  engagementId: string;
+  periodEnd: string;
+}): Promise<BsReconSummaryArtifact | null> {
+  try {
+    const canonical = await getBsSummaryArtifactByPeriodEndViaRun(params);
+    if (canonical) return canonical;
+  } catch (err) {
+    console.error(
+      "[bs-recon-artifacts] canonical run lookup failed; trying legacy",
+      {
+        engagementId: params.engagementId,
+        periodEnd: params.periodEnd,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    );
+  }
+  // PBC-TIEOUT-4.1.3.b removes this fallback
+  return getBsSummaryArtifactByPeriodEndLegacy(params);
+}
+
+/** Canonical: latest completed summary run for period → artifact by run_id. */
+async function getBsSummaryArtifactByPeriodEndViaRun(params: {
+  engagementId: string;
+  periodEnd: string;
+}): Promise<BsReconSummaryArtifact | null> {
+  const supabase = getSupabaseAdmin();
+  const { data: run, error: runErr } = await supabase
+    .from("audit_ready_tie_out_runs")
+    .select("id")
+    .eq("engagement_id", params.engagementId)
+    .eq("period_end", params.periodEnd)
+    .eq("tie_out_kind", "bs_recon_summary")
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (runErr || !run?.id) return null;
+
+  const { data, error } = await supabase
+    .from("audit_ready_bs_recon_summary_artifacts")
+    .select("*")
+    .eq("run_id", run.id as string)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as BsReconSummaryArtifact;
+}
+
+// PBC-TIEOUT-4.1.3.b removes this function entirely
+async function getBsSummaryArtifactByPeriodEndLegacy(params: {
   engagementId: string;
   periodEnd: string;
 }): Promise<BsReconSummaryArtifact | null> {

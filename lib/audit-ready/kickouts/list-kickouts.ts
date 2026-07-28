@@ -325,19 +325,8 @@ export async function listKickouts(
   }
 
   const bsLines = (bsLinesRaw ?? []) as BsKickoutLineRpcRow[];
-  const artifactIds = [
-    ...new Set(bsLines.map((l) => l.artifact_id).filter(Boolean)),
-  ];
-  const parentRunByArtifactId = new Map<string, string>();
-  if (artifactIds.length > 0) {
-    const { data: arts } = await supabase
-      .from("audit_ready_bs_recon_summary_artifacts")
-      .select("id, run_id")
-      .in("id", artifactIds);
-    for (const a of arts ?? []) {
-      if (a.run_id) parentRunByArtifactId.set(a.id as string, a.run_id as string);
-    }
-  }
+  const parentRunByArtifactId =
+    await resolveParentSummaryRunByArtifactId(bsLines);
 
   return assembleKickoutRows({
     engagements: (engagements ?? []) as EngagementRow[],
@@ -355,6 +344,68 @@ export async function listKickouts(
     similarCounts: (similarCountsRaw ?? []) as SimilarResolutionCountRpcRow[],
     parentRunByArtifactId,
   });
+}
+
+/**
+ * Prefer direct run_id on summary kickout lines (canonical linkage).
+ * Fall back to artifact-table join only for artifact_ids still unresolved.
+ */
+async function resolveParentSummaryRunByArtifactId(
+  bsLines: BsKickoutLineRpcRow[],
+): Promise<Map<string, string>> {
+  const parentRunByArtifactId = new Map<string, string>();
+  if (bsLines.length === 0) return parentRunByArtifactId;
+
+  const lineIds = [...new Set(bsLines.map((l) => l.id).filter(Boolean))];
+  if (lineIds.length > 0) {
+    const supabase = getSupabaseAdmin();
+    const { data: lineMeta } = await supabase
+      .from("audit_ready_bs_recon_summary_lines")
+      .select("id, run_id, summary_artifact_id")
+      .in("id", lineIds);
+    for (const row of lineMeta ?? []) {
+      const artifactId = row.summary_artifact_id as string | null;
+      const runId = row.run_id as string | null;
+      if (artifactId && runId) {
+        parentRunByArtifactId.set(artifactId, runId);
+      }
+    }
+  }
+
+  const artifactIds = [
+    ...new Set(bsLines.map((l) => l.artifact_id).filter(Boolean)),
+  ];
+  const missingArtifactIds = artifactIds.filter(
+    (id) => !parentRunByArtifactId.has(id),
+  );
+  // PBC-TIEOUT-4.1.3.b removes this fallback
+  if (missingArtifactIds.length > 0) {
+    const legacy = await assembleParentRunViaLegacyArtifactJoin(
+      missingArtifactIds,
+    );
+    for (const [artifactId, runId] of legacy) {
+      parentRunByArtifactId.set(artifactId, runId);
+    }
+  }
+
+  return parentRunByArtifactId;
+}
+
+// PBC-TIEOUT-4.1.3.b removes this function entirely
+async function assembleParentRunViaLegacyArtifactJoin(
+  artifactIds: string[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (artifactIds.length === 0) return map;
+  const supabase = getSupabaseAdmin();
+  const { data: arts } = await supabase
+    .from("audit_ready_bs_recon_summary_artifacts")
+    .select("id, run_id")
+    .in("id", artifactIds);
+  for (const a of arts ?? []) {
+    if (a.run_id) map.set(a.id as string, a.run_id as string);
+  }
+  return map;
 }
 
 function humanizeKind(kind: string): string {

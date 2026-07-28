@@ -155,24 +155,16 @@ export async function regenerateRun(
       return assertResolverOk(await runBsSummaryResolver(common));
     }
     case "bs_account_recon": {
-      const { data: artifact } = await supabase
-        .from("audit_ready_bs_recon_artifacts")
-        .select(
-          "qbo_account_id, qbo_account_name, qbo_account_type, qbo_account_subtype",
-        )
-        .eq("run_id", original.id as string)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!artifact?.qbo_account_id) {
+      const accountMeta = await resolveBsAccountMetaForRegenerate(
+        original.id as string,
+      );
+      if (!accountMeta?.qbo_account_id) {
         throw new Error("bs_artifact_not_found");
       }
-      const bsAccountId = artifact.qbo_account_id as string;
-      let bsAccountName = (artifact.qbo_account_name as string) || "";
-      let accountType =
-        (artifact.qbo_account_type as string | null) ?? undefined;
-      let accountSubType =
-        (artifact.qbo_account_subtype as string | null) ?? undefined;
+      const bsAccountId = accountMeta.qbo_account_id;
+      let bsAccountName = accountMeta.qbo_account_name || "";
+      let accountType = accountMeta.qbo_account_type ?? undefined;
+      let accountSubType = accountMeta.qbo_account_subtype ?? undefined;
       let classification: BsClassification | null = null;
       try {
         const accts = await fetchQboAccountList({
@@ -210,4 +202,63 @@ export async function regenerateRun(
     default:
       throw new Error("regenerate_not_supported");
   }
+}
+
+type BsAccountRegenMeta = {
+  qbo_account_id: string;
+  qbo_account_name: string;
+  qbo_account_type: string | null;
+  qbo_account_subtype: string | null;
+};
+
+/**
+ * Prefer totals variance row (canonical run stack) for account identity.
+ * Fall back to legacy bs_recon_artifacts when variances lack entity_qbo_id.
+ */
+async function resolveBsAccountMetaForRegenerate(
+  runId: string,
+): Promise<BsAccountRegenMeta | null> {
+  const supabase = getSupabaseAdmin();
+  const { data: totalsVar } = await supabase
+    .from("audit_ready_tie_out_variances")
+    .select("entity_qbo_id, entity_display_name")
+    .eq("run_id", runId)
+    .eq("entity_kind", "totals")
+    .maybeSingle();
+
+  if (totalsVar?.entity_qbo_id) {
+    return {
+      qbo_account_id: totalsVar.entity_qbo_id as string,
+      qbo_account_name: (totalsVar.entity_display_name as string) || "",
+      qbo_account_type: null,
+      qbo_account_subtype: null,
+    };
+  }
+
+  // PBC-TIEOUT-4.1.3.b removes this fallback
+  return resolveBsAccountMetaFromLegacyArtifact(runId);
+}
+
+// PBC-TIEOUT-4.1.3.b removes this function entirely
+async function resolveBsAccountMetaFromLegacyArtifact(
+  runId: string,
+): Promise<BsAccountRegenMeta | null> {
+  const supabase = getSupabaseAdmin();
+  const { data: artifact } = await supabase
+    .from("audit_ready_bs_recon_artifacts")
+    .select(
+      "qbo_account_id, qbo_account_name, qbo_account_type, qbo_account_subtype",
+    )
+    .eq("run_id", runId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!artifact?.qbo_account_id) return null;
+  return {
+    qbo_account_id: artifact.qbo_account_id as string,
+    qbo_account_name: (artifact.qbo_account_name as string) || "",
+    qbo_account_type: (artifact.qbo_account_type as string | null) ?? null,
+    qbo_account_subtype:
+      (artifact.qbo_account_subtype as string | null) ?? null,
+  };
 }
