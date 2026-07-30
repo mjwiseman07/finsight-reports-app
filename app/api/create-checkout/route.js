@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { rateLimit } from "../../../lib/rate-limit";
 import { getCheckoutTiers, getSubscriptionEntity } from "../../../lib/product-tiers";
+import { ensureStripeCustomerForUser } from "../../../lib/stripe-customer";
 
 function getStripeClient() {
   if (!process.env.STRIPE_SECRET_KEY) return null;
@@ -177,11 +178,36 @@ export async function POST(request) {
     return NextResponse.json({ error: "Trial must be used before checkout" }, { status: 400 });
   }
 
+  const checkoutEmail = userRecord.email || authData.user.email;
+  if (!checkoutEmail) {
+    return NextResponse.json({ error: "Email is required for checkout" }, { status: 400 });
+  }
+
+  // Link the user to a Stripe Customer before checkout so the subscription.*
+  // webhooks can resolve them via users.stripe_customer_id (see
+  // lib/subscription-sync.js resolveSubscriber).
+  let stripeCustomerId;
+  try {
+    ({ stripeCustomerId } = await ensureStripeCustomerForUser({
+      userId: authData.user.id,
+      email: checkoutEmail,
+      admin: supabaseAdmin,
+      stripeClient: stripe,
+    }));
+  } catch (err) {
+    console.error("[create-checkout] stripe customer link failed", err);
+    return NextResponse.json({ error: "Unable to prepare checkout customer" }, { status: 502 });
+  }
+
   const baseUrl = getBaseUrl(request);
 
   const sessionParams = {
     mode: "subscription",
-    customer_email: userRecord.email || authData.user.email,
+    customer: stripeCustomerId,
+    // Only permitted alongside `customer`. Required here because automatic_tax
+    // needs an address on the Customer, which Checkout can only save back with
+    // customer_update.address set.
+    customer_update: { address: "auto", name: "auto" },
     line_items: [
       {
         price: priceId,

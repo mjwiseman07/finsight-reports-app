@@ -21,6 +21,7 @@ import { cookies } from "next/headers";
 import { stripe } from "@/lib/stripe";
 import { getPriceId, getSubscriptionEntity } from "@/lib/product-tiers";
 import { createServiceClient } from "@/lib/supabase/service";
+import { ensureStripeCustomerForUser } from "@/lib/stripe-customer";
 import {
   isSoloBkGated,
   isSoloBkBypassAllowed,
@@ -269,7 +270,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     firm_id: firmId,
   };
 
-  // 10. Create checkout session.
+  // 10. Link this user to a Stripe Customer before checkout. Downstream
+  //     subscription.* webhooks resolve the user via users.stripe_customer_id
+  //     (lib/subscription-sync.js resolveSubscriber), so the link has to exist
+  //     before Stripe can fire anything.
+  if (!user.email) {
+    return NextResponse.json({ error: "email_required_for_checkout" }, { status: 400 });
+  }
+  let stripeCustomerId: string;
+  try {
+    ({ stripeCustomerId } = await ensureStripeCustomerForUser({
+      userId: user.id,
+      email: user.email,
+      admin,
+      stripeClient: stripe,
+    }));
+  } catch (err) {
+    console.error("[create-session] stripe customer link failed", err);
+    return NextResponse.json(
+      {
+        error: "stripe_customer_link_failed",
+        detail: err instanceof Error ? err.message : String(err),
+      },
+      { status: 502 },
+    );
+  }
+
+  // 11. Create checkout session.
   //
   // Phase TCP1 W2.5 Block 9f: explicitly allowlist payment_method_types to
   // card + US bank account (ACH). Excludes Apple Pay, Google Pay, Link,
@@ -290,7 +317,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      customer_email: user.email ?? undefined,
+      customer: stripeCustomerId,
+      // Only permitted alongside `customer`, and required for Checkout to save
+      // the name/address it collects back onto the Customer.
+      customer_update: { address: "auto", name: "auto" },
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: { metadata },
       metadata,
