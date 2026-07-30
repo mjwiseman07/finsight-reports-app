@@ -63,18 +63,42 @@ const TABLE_COLUMNS: Record<string, string[]> = {
   ],
 };
 
-const { upsertCalls, mockSupabase, stripeSub } = vi.hoisted(() => {
+const { upsertCalls, mockSupabase, stripeSub, legacyStripeSub, subToRetrieve } = vi.hoisted(() => {
   const upsertCalls: Array<{ table: string; payload: Record<string, unknown>[] }> = [];
 
+  // Shaped as API version 2026-04-22.dahlia renders a subscription: the
+  // billing period lives on the item, NOT on the subscription. The previous
+  // fixture carried period fields on the subscription (pre-basil shape), which
+  // is why this suite passed while every real sync wrote a NULL period.
   const stripeSub = {
     id: "sub_TEST123",
     customer: "cus_TEST123",
     status: "canceled",
-    current_period_start: 1783747256,
-    current_period_end: 1786425656,
     trial_end: null,
     cancel_at_period_end: false,
     canceled_at: 1783747675,
+    items: {
+      data: [
+        {
+          id: "si_TEST123",
+          quantity: 1,
+          current_period_start: 1783747256,
+          current_period_end: 1786425656,
+          price: {
+            id: "price_TEST123",
+            lookup_key: "review_assist_std_mo",
+            recurring: { usage_type: "licensed" },
+          },
+        },
+      ],
+    },
+  };
+
+  // Pre-basil shape — proves replays of legacy events still resolve a period.
+  const legacyStripeSub = {
+    ...stripeSub,
+    current_period_start: 1783747256,
+    current_period_end: 1786425656,
     items: {
       data: [
         {
@@ -145,7 +169,11 @@ const { upsertCalls, mockSupabase, stripeSub } = vi.hoisted(() => {
     }),
   };
 
-  return { upsertCalls, mockSupabase, stripeSub };
+  // Lets individual tests swap in the legacy payload shape, which is
+  // deliberately a different shape from the current one.
+  const subToRetrieve: { current: unknown } = { current: stripeSub };
+
+  return { upsertCalls, mockSupabase, stripeSub, legacyStripeSub, subToRetrieve };
 });
 
 vi.mock("@/lib/supabase-admin", () => ({
@@ -154,7 +182,7 @@ vi.mock("@/lib/supabase-admin", () => ({
 
 vi.mock("@/lib/stripe", () => ({
   stripe: {
-    subscriptions: { retrieve: () => Promise.resolve(stripeSub) },
+    subscriptions: { retrieve: () => Promise.resolve(subToRetrieve.current) },
   },
 }));
 
@@ -163,6 +191,7 @@ import { syncSubscriptionFromStripe } from "@/lib/subscription-sync";
 describe("syncSubscriptionFromStripe schema contract", () => {
   beforeEach(() => {
     upsertCalls.length = 0;
+    subToRetrieve.current = stripeSub;
   });
 
   it("only writes columns that exist on each table", async () => {
@@ -192,5 +221,27 @@ describe("syncSubscriptionFromStripe schema contract", () => {
     const row = entitlementsCall!.payload[0];
     expect(row).not.toHaveProperty("updated_at");
     expect(typeof row.computed_at).toBe("string");
+  });
+
+  // Regression guard: Stripe moved the billing period from the subscription to
+  // the subscription item in 2025-06-30.basil. Reading it off the subscription
+  // wrote NULL for every sync, which makes activateSeat() throw
+  // "missing current_period_start" and blocks all metered seat activation.
+  it("reads the billing period from the subscription item", async () => {
+    await syncSubscriptionFromStripe("sub_TEST123");
+
+    const row = upsertCalls.find((c) => c.table === "subscriptions")!.payload[0];
+    expect(row.current_period_start).toBe("2026-07-11T05:20:56.000Z");
+    expect(row.current_period_end).toBe("2026-08-11T05:20:56.000Z");
+  });
+
+  it("falls back to the subscription for pre-basil payloads", async () => {
+    subToRetrieve.current = legacyStripeSub;
+
+    await syncSubscriptionFromStripe("sub_TEST123");
+
+    const row = upsertCalls.find((c) => c.table === "subscriptions")!.payload[0];
+    expect(row.current_period_start).toBe("2026-07-11T05:20:56.000Z");
+    expect(row.current_period_end).toBe("2026-08-11T05:20:56.000Z");
   });
 });
