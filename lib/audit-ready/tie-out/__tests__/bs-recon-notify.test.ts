@@ -4,7 +4,11 @@ const createSignedUrl = vi.fn().mockResolvedValue({
   data: { signedUrl: "https://storage.example/signed.pdf" },
   error: null,
 });
-const storageFrom = vi.fn(() => ({ createSignedUrl }));
+const storageFrom = vi.fn(
+  (_bucket: string): { createSignedUrl: typeof createSignedUrl } => ({
+    createSignedUrl,
+  }),
+);
 const getUserById = vi.fn();
 const fromMock = vi.fn();
 
