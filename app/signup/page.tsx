@@ -21,7 +21,7 @@ type SignupPhase =
   | "confirmed_ready"
   | "creating_checkout";
 
-function SignupPageContent() {
+export function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -60,6 +60,15 @@ function SignupPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef<TurnstileInstance | null>(null);
+  // Track 2.5 Follow-up A: Turnstile tokens are single-use. The form-submit
+  // token is consumed by signUp; post-confirmation auto sign-in needs a fresh
+  // one. Mounted during the verify_email phase (see JSX below).
+  const [postConfirmCaptchaToken, setPostConfirmCaptchaToken] = useState("");
+  const postConfirmTurnstileRef = useRef<TurnstileInstance | null>(null);
+  // Poll detects email_confirmed_at, then a useEffect gates the auto sign-in
+  // on postConfirmCaptchaToken being resolved (mirrors /signin).
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
+  const postConfirmSignInStarted = useRef(false);
 
   async function createCheckoutAndRedirect() {
     setPhase("creating_checkout");
@@ -116,16 +125,13 @@ function SignupPageContent() {
   // read via service role). Getting user() would require an active session
   // on THIS tab, but confirmation happens on a different tab.
   //
-  // Phase TCP1 W2.5 Block 9h: after detecting confirmation, sign the user
-  // in on THIS tab so cookies are established before Continue is clicked.
-  // supabase.auth.signUp does NOT create a session when email confirmation
-  // is required — the user's password stays in React state (from the form
-  // submission) and is used here for the auto sign-in. Same security
-  // posture as the original submission; no additional password exposure.
+  // Phase TCP1 W2.5 Block 9h + Track 2.5 Follow-up A: after detecting
+  // confirmation, flip emailConfirmed. A separate effect establishes the
+  // session once a fresh Turnstile token is available — the form-submit
+  // token was already consumed by signUp and cannot be reused.
   async function pollForConfirmation() {
     const pollEmail = email;
-    const pollPassword = password;
-    if (!pollEmail || !pollPassword) {
+    if (!pollEmail) {
       setError("Missing credentials — please refresh and try again.");
       setPhase("form");
       return;
@@ -142,20 +148,7 @@ function SignupPageContent() {
         if (res.ok) {
           const body = (await res.json()) as { confirmed?: boolean };
           if (body?.confirmed === true) {
-            // Block 9h: establish session on this tab before advancing.
-            const { error: signInError } =
-              await supabase.auth.signInWithPassword({
-                email: pollEmail,
-                password: pollPassword,
-              });
-            if (signInError) {
-              setError(
-                "Signed you in failed after confirmation. Please refresh and sign in manually.",
-              );
-              setPhase("form");
-              return;
-            }
-            setPhase("confirmed_ready");
+            setEmailConfirmed(true);
             return;
           }
         }
@@ -168,6 +161,51 @@ function SignupPageContent() {
     setError("Verification link expired. Please try signing up again.");
     setPhase("form");
   }
+
+  // Track 2.5 Follow-up A: gate post-confirmation auto sign-in on a fresh
+  // Turnstile token. Previously this called signInWithPassword with no
+  // options.captchaToken, which returned captcha_failed under enforcement
+  // and blocked the entire signup → confirm → checkout flow.
+  useEffect(() => {
+    if (!emailConfirmed) return;
+    if (phase !== "verify_email") return;
+    if (postConfirmSignInStarted.current) return;
+    if (!password || !email) return;
+
+    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    if (siteKey && !postConfirmCaptchaToken) {
+      // Wait for the verify_email Turnstile widget to resolve.
+      return;
+    }
+
+    postConfirmSignInStarted.current = true;
+    let cancelled = false;
+
+    void (async () => {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken: postConfirmCaptchaToken },
+      });
+      if (cancelled) return;
+      if (signInError) {
+        setError(
+          "Signed you in failed after confirmation. Please refresh and sign in manually.",
+        );
+        setPostConfirmCaptchaToken("");
+        postConfirmTurnstileRef.current?.reset();
+        postConfirmSignInStarted.current = false;
+        setEmailConfirmed(false);
+        setPhase("form");
+        return;
+      }
+      setPhase("confirmed_ready");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [emailConfirmed, postConfirmCaptchaToken, phase, email, password]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -303,17 +341,33 @@ function SignupPageContent() {
               >
                 Verify to continue
               </h2>
-              <p className="mt-4 text-sm leading-6 text-white/70">
+              <p className="mt-4 text-sm leading-6 text-[#A29E93]">
                 We sent a confirmation link to{" "}
-                <span className="font-bold text-white">{email}</span>. Click
+                <span className="font-bold text-[#ECEBE7]">{email}</span>. Click
                 the link in that email, then return to this tab to continue.
               </p>
               <div className="mt-6 rounded-2xl border border-[#C9A961]/40 bg-[#C9A961]/10 p-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#C9A961]">
                 Keep this tab open — do not close until you continue to checkout
               </div>
-              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs text-white/60">
-                Waiting for verification…
+              <div className="mt-4 rounded-2xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-4 text-xs text-[#A29E93]">
+                {emailConfirmed &&
+                !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY &&
+                !postConfirmCaptchaToken
+                  ? "Completing security check…"
+                  : "Waiting for verification…"}
               </div>
+              {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                <div className="mt-4 flex justify-center">
+                  <Turnstile
+                    ref={postConfirmTurnstileRef}
+                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                    onSuccess={(token) => setPostConfirmCaptchaToken(token)}
+                    onError={() => setPostConfirmCaptchaToken("")}
+                    onExpire={() => setPostConfirmCaptchaToken("")}
+                    options={{ theme: "dark" }}
+                  />
+                </div>
+              )}
               {error && (
                 <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200">
                   {error}
