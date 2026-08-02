@@ -4,7 +4,7 @@
 // active as-of. Sourced from getReconRollupByPeriodEnd() server-side.
 //
 // Block A: renders + click-to-open slide-over.
-// Block B: adds ?open_artifact deep-link (via TieOutSummaryClient state).
+// Block B: URL-synced open state via ?open_run=<runId>.
 // Block D: adds skeleton + empty state around this component.
 //
 // Palette: AR internal (slate/amber/emerald + [#C9A961]/[#1A1A1C] chrome).
@@ -12,7 +12,6 @@
 
 "use client";
 
-import { useState } from "react";
 import { WorkpaperSlideOver } from "@/components/audit-ready/recon-face/WorkpaperSlideOver";
 import { focusRing, headingFont } from "@/components/site-ui";
 import {
@@ -24,6 +23,7 @@ import {
   ROLLUP_KIND_LABELS,
   type ReconRollupRow,
 } from "@/lib/audit-ready/tie-out/rollup";
+import { useOpenRunUrl } from "@/lib/audit-ready/tie-out/use-open-run-url";
 
 // -----------------------------------------------------------------------------
 // Formatters
@@ -70,14 +70,17 @@ export type ReconRollupStripProps = {
   engagementId: string;
   periodEnd: string;
   rows: ReconRollupRow[];
+  /** Seeds ?open_run from the server render. null = no run open. */
+  initialOpenRunId?: string | null;
 };
 
 export function ReconRollupStrip({
   engagementId: _engagementId,
   periodEnd,
   rows,
+  initialOpenRunId = null,
 }: ReconRollupStripProps) {
-  const [openRunId, setOpenRunId] = useState<string | null>(null);
+  const { openRunId, setOpenRunId } = useOpenRunUrl(initialOpenRunId);
 
   return (
     <section
@@ -109,6 +112,7 @@ export function ReconRollupStrip({
       <WorkpaperSlideOver
         runId={openRunId}
         onClose={() => setOpenRunId(null)}
+        onRegenerated={(newRunId) => setOpenRunId(newRunId)}
       />
     </section>
   );
