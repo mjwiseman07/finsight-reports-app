@@ -23,6 +23,7 @@ export default async function TieOutSummaryPage({
     as_of?: string;
     open_line?: string;
     highlight_run?: string;
+    open_run?: string;
   }>;
 }) {
   const { engagementId } = await params;
@@ -36,6 +37,8 @@ export default async function TieOutSummaryPage({
     typeof sp.open_line === "string" ? sp.open_line : null;
   const highlightRunId =
     typeof sp.highlight_run === "string" ? sp.highlight_run : null;
+  const openRunId =
+    typeof sp.open_run === "string" ? sp.open_run : null;
 
   const supabase = getSupabaseAdmin();
   const [summary, policy, bsArtifact, rollupRows] = await Promise.all([
@@ -95,6 +98,7 @@ export default async function TieOutSummaryPage({
             engagementId={engagementId}
             periodEnd={asOfParsed}
             rows={rollupRows}
+            initialOpenRunId={openRunId}
           />
         )}
         {bsArtifact && bsLines.length > 0 && (
