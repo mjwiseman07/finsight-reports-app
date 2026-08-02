@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { WorkpaperSlideOver } from "@/components/audit-ready/recon-face/WorkpaperSlideOver";
 import { focusRing } from "@/components/site-ui";
+import { TieOutStatePill } from "@/components/audit-ready/status-pills";
 
 type Row = {
   pbc_request_id: string;
@@ -36,22 +37,6 @@ type RunOutcome = {
   reason?: string;
   code?: string;
   error?: string;
-};
-
-/** Status pills kept as slate/amber/emerald (AR internal surface — paste OK). */
-const PILL_STYLES: Record<string, string> = {
-  // shipped in TIEOUT-1:
-  no_tolerance_policy: "bg-slate-100 text-slate-700 ring-slate-200",
-  not_yet_classified: "bg-amber-50 text-amber-800 ring-amber-200",
-  requires_manual_review: "bg-orange-50 text-orange-800 ring-orange-200",
-  classified: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  // NEW in TIEOUT-2:
-  ready_to_run: "bg-sky-50 text-sky-800 ring-sky-200",
-  tied_out: "bg-emerald-100 text-emerald-900 ring-emerald-300",
-  auto_reconciled: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  needs_review: "bg-amber-50 text-amber-800 ring-amber-200",
-  kicked_out: "bg-rose-50 text-rose-800 ring-rose-200",
-  failed: "bg-rose-50 text-rose-900 ring-rose-300",
 };
 
 export function TieOutSummaryClient({
@@ -318,14 +303,7 @@ export function TieOutSummaryClient({
                     : "—"}
                 </td>
                 <td className="py-2">
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-                      PILL_STYLES[r.tie_out_state] ||
-                      "bg-slate-100 text-slate-700 ring-slate-200"
-                    }`}
-                  >
-                    {String(r.tie_out_state).replace(/_/g, " ")}
-                  </span>
+                  <TieOutStatePill state={r.tie_out_state} />
                 </td>
                 <td className="py-2 text-xs text-[#7A7974]">
                   {r.last_tie_out_status

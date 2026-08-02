@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { getEngagementActor } from "@/lib/audit-ready/server-auth";
 import { TieOutSummaryClient } from "@/components/audit-ready/TieOutSummaryClient";
 import { headingFont } from "@/components/site-ui";
+import { BsStatusPill } from "@/components/audit-ready/status-pills";
 import {
   getBsSummaryArtifactByPeriodEnd,
   parseStrictAsOfDate,
@@ -65,8 +66,6 @@ function BsAsOfBanner(props: {
     );
   }
 
-  const statusLabel =
-    artifact.bs_equation_status === "tie" ? "Tied" : "Needs review";
   return (
     <div
       className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C]/50 p-4"
@@ -77,7 +76,7 @@ function BsAsOfBanner(props: {
       </p>
       <p className="mt-1 text-sm text-[#A29E93]">
         Status:{" "}
-        <span className="text-[#ECEBE7]">{statusLabel}</span>
+        <BsStatusPill status={artifact.bs_equation_status} />
         {" · "}
         Variance:{" "}
         <span className="text-[#ECEBE7] tabular-nums">

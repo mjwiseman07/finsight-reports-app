@@ -33,6 +33,7 @@ export default defineConfig({
       "lib/audit-ready/memory/**/*.test.ts",
       "components/audit-ready/recon-face/**/*.test.tsx",
       "components/audit-ready/kickout-inbox/**/*.test.tsx",
+      "components/audit-ready/__tests__/**/*.test.tsx",
       "lib/__tests__/**/*.test.js",
       "lib/__tests__/**/*.test.ts",
       "tests/apIntake/**/*.test.ts",
