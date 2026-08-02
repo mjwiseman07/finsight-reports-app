@@ -9,8 +9,9 @@ import {
 } from "@/lib/audit-ready/tie-out/bs-recon-artifacts";
 import { getBsSummaryLines } from "@/lib/audit-ready/tie-out/bs-recon-lines";
 import { BsSummaryLinesTable } from "@/components/audit-ready/BsSummaryLinesTable";
-import { ReconRollupStrip } from "@/components/audit-ready/ReconRollupStrip";
-import { getReconRollupByPeriodEnd } from "@/lib/audit-ready/tie-out/rollup";
+import { Suspense } from "react";
+import { ReconRollupSection } from "@/components/audit-ready/ReconRollupSection";
+import { ReconRollupStripSkeleton } from "@/components/audit-ready/ReconRollupStripSkeleton";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function TieOutSummaryPage({
     typeof sp.open_run === "string" ? sp.open_run : null;
 
   const supabase = getSupabaseAdmin();
-  const [summary, policy, bsArtifact, rollupRows] = await Promise.all([
+  const [summary, policy, bsArtifact] = await Promise.all([
     supabase
       .from("audit_ready_tie_out_summary")
       .select("*")
@@ -58,9 +59,6 @@ export default async function TieOutSummaryPage({
           periodEnd: asOfParsed,
         })
       : Promise.resolve(null),
-    asOfParsed
-      ? getReconRollupByPeriodEnd({ engagementId, periodEnd: asOfParsed })
-      : Promise.resolve([]),
   ]);
 
   // Second wave: load summary lines only if we resolved an artifact
@@ -93,13 +91,16 @@ export default async function TieOutSummaryPage({
             </p>
           </div>
         )}
-        {asOfParsed && rollupRows.length > 0 && (
-          <ReconRollupStrip
-            engagementId={engagementId}
-            periodEnd={asOfParsed}
-            rows={rollupRows}
-            initialOpenRunId={openRunId}
-          />
+        {asOfParsed && (
+          <Suspense
+            fallback={<ReconRollupStripSkeleton periodEnd={asOfParsed} />}
+          >
+            <ReconRollupSection
+              engagementId={engagementId}
+              periodEnd={asOfParsed}
+              initialOpenRunId={openRunId}
+            />
+          </Suspense>
         )}
         {bsArtifact && bsLines.length > 0 && (
           <section>

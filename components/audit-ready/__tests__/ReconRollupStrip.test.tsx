@@ -203,4 +203,47 @@ describe("ReconRollupStrip", () => {
     const [url] = mockReplace.mock.calls.at(-1)!;
     expect(url).not.toContain("open_run=");
   });
+
+  it("renders the missing-kinds diagnostic when non-empty", () => {
+    render(
+      <ReconRollupStrip
+        engagementId="eng-1"
+        periodEnd="2026-06-30"
+        rows={[makeRow({ kind: "bs_recon_summary", runId: "r1" })]}
+        missingKinds={["ap_aging", "ar_aging"]}
+      />,
+    );
+    const line = screen.getByTestId("recon-rollup-missing-kinds");
+    expect(line).toBeInTheDocument();
+    expect(line.textContent).toContain("AP Aging");
+    expect(line.textContent).toContain("AR Aging");
+    expect(line.textContent).toContain("Not yet run");
+  });
+
+  it("hides the missing-kinds diagnostic when the prop is empty", () => {
+    render(
+      <ReconRollupStrip
+        engagementId="eng-1"
+        periodEnd="2026-06-30"
+        rows={[makeRow({ kind: "bs_recon_summary", runId: "r1" })]}
+        missingKinds={[]}
+      />,
+    );
+    expect(
+      screen.queryByTestId("recon-rollup-missing-kinds"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the missing-kinds diagnostic when the prop is omitted", () => {
+    render(
+      <ReconRollupStrip
+        engagementId="eng-1"
+        periodEnd="2026-06-30"
+        rows={[makeRow({ kind: "bs_recon_summary", runId: "r1" })]}
+      />,
+    );
+    expect(
+      screen.queryByTestId("recon-rollup-missing-kinds"),
+    ).not.toBeInTheDocument();
+  });
 });

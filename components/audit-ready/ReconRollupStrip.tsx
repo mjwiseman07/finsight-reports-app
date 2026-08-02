@@ -22,6 +22,7 @@ import {
 import {
   ROLLUP_KIND_LABELS,
   type ReconRollupRow,
+  type RollupKind,
 } from "@/lib/audit-ready/tie-out/rollup";
 import { useOpenRunUrl } from "@/lib/audit-ready/tie-out/use-open-run-url";
 
@@ -72,6 +73,12 @@ export type ReconRollupStripProps = {
   rows: ReconRollupRow[];
   /** Seeds ?open_run from the server render. null = no run open. */
   initialOpenRunId?: string | null;
+  /**
+   * Kinds in ROLLUP_KIND_ORDER that have zero runs for this period. Rendered
+   * as a compact diagnostic line under the counter when non-empty. Omit or
+   * pass an empty array to hide the diagnostic.
+   */
+  missingKinds?: RollupKind[];
 };
 
 export function ReconRollupStrip({
@@ -79,6 +86,7 @@ export function ReconRollupStrip({
   periodEnd,
   rows,
   initialOpenRunId = null,
+  missingKinds = [],
 }: ReconRollupStripProps) {
   const { openRunId, setOpenRunId } = useOpenRunUrl(initialOpenRunId);
 
@@ -98,6 +106,17 @@ export function ReconRollupStrip({
           {rows.length} of 7 kinds run
         </span>
       </div>
+      {missingKinds.length > 0 && (
+        <p
+          className="mt-1 text-xs text-[#7A7974]"
+          data-testid="recon-rollup-missing-kinds"
+        >
+          Not yet run:{" "}
+          <span className="text-[#A29E93]">
+            {missingKinds.map((k) => ROLLUP_KIND_LABELS[k]).join(", ")}
+          </span>
+        </p>
+      )}
 
       <ul className="mt-3 divide-y divide-[#C9A961]/10">
         {rows.map((r) => (
