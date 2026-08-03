@@ -1,7 +1,8 @@
 /**
  * V1.5 Stripe SKU Seed
  *
- * Seeds Audit Ready add-on SKUs (4 tiers × 4 prices = 16 SKUs).
+ * Seeds Audit Ready add-on SKUs (Track 4 Option C: Complex + Multi-entity × 4 prices).
+ * Small + Standard removed from seed surface (archived separately).
  * IDEMPOTENT: safe to re-run. Uses stripe.products.search by metadata.internal_key.
  *
  * Usage:
@@ -131,131 +132,11 @@ interface SkuDefinition {
 
 const V1_5_SKUS: SkuDefinition[] = [
   {
-    internal_key: 'ra_pro_audit_ready_small',
-    product_name: 'Audit Ready — Small',
-    product_description:
-      'Audit Ready add-on for Review Assist Pro. Small tier: 1 entity, up to 50 PBC requests per engagement. ' +
-      'Includes PBC ingest, four canonical reconciliations, engagement-scoped auditor portal, ' +
-      'historical inquiry-response drafting.',
-    active: false,
-    metadata: {
-      internal_key: 'ra_pro_audit_ready_small',
-      tier: 'audit_ready',
-      audit_ready_size: 'small',
-      max_entities: '1',
-      max_pbc_requests: '50',
-      max_auditor_users: '3',
-      attaches_to: 'review_assist_pro',
-      launch_phase: 'v1.5_phase_3',
-    },
-    prices: [
-      {
-        internal_price_key: 'audit_ready_small_monthly_standard',
-        unit_amount: 9900,
-        currency: 'usd',
-        recurring: { interval: 'month' },
-        metadata: {
-          billing_mode: 'monthly',
-          plan_variant: 'standard',
-          audit_ready_size: 'small',
-        },
-      },
-      {
-        internal_price_key: 'audit_ready_small_yearly_standard',
-        unit_amount: 99000,
-        currency: 'usd',
-        recurring: { interval: 'year' },
-        metadata: {
-          billing_mode: 'monthly',
-          plan_variant: 'standard',
-          plan_period: 'yearly',
-          audit_ready_size: 'small',
-        },
-      },
-      {
-        internal_price_key: 'audit_ready_small_monthly_pilot',
-        unit_amount: 5900,
-        currency: 'usd',
-        recurring: { interval: 'month' },
-        metadata: {
-          billing_mode: 'monthly',
-          plan_variant: 'pilot',
-          audit_ready_size: 'small',
-        },
-      },
-      {
-        internal_price_key: 'audit_ready_small_per_engagement_standard',
-        unit_amount: 29900,
-        currency: 'usd',
-        metadata: {
-          billing_mode: 'per_engagement',
-          plan_variant: 'standard',
-          audit_ready_size: 'small',
-        },
-      },
-    ],
-  },
-  {
-    internal_key: 'ra_pro_audit_ready_standard',
-    product_name: 'Audit Ready — Standard',
-    product_description:
-      'Audit Ready add-on for Review Assist Pro. Standard tier: 1-2 entities, 50-150 PBC requests per engagement.',
-    active: false,
-    metadata: {
-      internal_key: 'ra_pro_audit_ready_standard',
-      tier: 'audit_ready',
-      audit_ready_size: 'standard',
-      max_entities: '2',
-      max_pbc_requests: '150',
-      max_auditor_users: '5',
-      attaches_to: 'review_assist_pro',
-      launch_phase: 'v1.5_phase_3',
-    },
-    prices: [
-      {
-        internal_price_key: 'audit_ready_standard_monthly_standard',
-        unit_amount: 19900,
-        currency: 'usd',
-        recurring: { interval: 'month' },
-        metadata: { billing_mode: 'monthly', plan_variant: 'standard', audit_ready_size: 'standard' },
-      },
-      {
-        internal_price_key: 'audit_ready_standard_yearly_standard',
-        unit_amount: 199000,
-        currency: 'usd',
-        recurring: { interval: 'year' },
-        metadata: {
-          billing_mode: 'monthly',
-          plan_variant: 'standard',
-          plan_period: 'yearly',
-          audit_ready_size: 'standard',
-        },
-      },
-      {
-        internal_price_key: 'audit_ready_standard_monthly_pilot',
-        unit_amount: 13900,
-        currency: 'usd',
-        recurring: { interval: 'month' },
-        metadata: { billing_mode: 'monthly', plan_variant: 'pilot', audit_ready_size: 'standard' },
-      },
-      {
-        internal_price_key: 'audit_ready_standard_per_engagement_standard',
-        unit_amount: 69900,
-        currency: 'usd',
-        metadata: {
-          billing_mode: 'per_engagement',
-          plan_variant: 'standard',
-          audit_ready_size: 'standard',
-        },
-      },
-    ],
-  },
-  {
     internal_key: 'ra_pro_audit_ready_complex',
     product_name: 'Audit Ready — Complex',
     product_description:
       'Audit Ready add-on for Review Assist Pro. Complex tier: 2-5 entities, 150-400 PBC requests per engagement.',
-    active: false,
+    active: true,
     metadata: {
       internal_key: 'ra_pro_audit_ready_complex',
       tier: 'audit_ready',
@@ -310,7 +191,7 @@ const V1_5_SKUS: SkuDefinition[] = [
     product_name: 'Audit Ready — Multi-entity',
     product_description:
       'Audit Ready add-on for Review Assist Pro. Multi-entity tier: 5+ entities OR any tier with >400 PBC requests per engagement.',
-    active: false,
+    active: true,
     metadata: {
       internal_key: 'ra_pro_audit_ready_multi_entity',
       tier: 'audit_ready',
@@ -423,6 +304,13 @@ async function findOrCreateProduct(def: SkuDefinition) {
   const existing = await findProductByInternalKey(def.internal_key);
   if (existing) {
     console.log(`  [FOUND] Product ${existing.id} (${def.internal_key}) active=${existing.active}`);
+    if (existing.active !== def.active && !dryRun) {
+      const updated = await stripe.products.update(existing.id, { active: def.active });
+      console.log(
+        `  [UPDATED] Product ${updated.id} active ${existing.active} → ${updated.active}`,
+      );
+      return updated;
+    }
     return existing;
   }
 

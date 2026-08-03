@@ -2,7 +2,7 @@
  * Additive v1.5 entitlement types.
  */
 
-export type AuditReadySize = 'small' | 'standard' | 'complex' | 'multi_entity';
+export type AuditReadySize = 'complex' | 'multi_entity';
 export type AuditReadyBillingMode = 'monthly' | 'per_engagement';
 export type AuditReadyEngagementStatus =
   | 'open'
