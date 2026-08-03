@@ -1,19 +1,11 @@
 /**
- * Phase TCP1 W1 — Stripe Checkout session creator for Solo Bookkeeper pilot.
+ * Stripe Checkout session creator.
  *
- * Flow:
- *   1. Verify authenticated Supabase session via SSR cookie helper.
- *   2. Ensure public.users row exists (upsert on auth.uid).
- *   3. Ensure the user has a firm_membership. If none, create a firms row and
- *      a firm_memberships row (role=firm_admin, status=active).
- *   4. Enforce the pilot cap: max 10 active solo_bookkeeper pilot slots.
- *   5. Resolve Stripe price via getPriceId(tier, track, cadence, structure).
- *   6. Create checkout.session with tier_key, pricing_structure, pricing_cadence,
- *      track, firm_id metadata — mirrored on subscription_data.metadata so the
- *      webhook (lib/tcp1/stripe-pilot-checkout.ts) sees consistent shape.
- *
- * W1 accepts only tier_key === "solo_bookkeeper". Other tiers are rejected until
- * their respective launch weeks (W2 owner_pro, W3 accounting_pro, W4 enterprise_firm).
+ * Modes:
+ *   A) Track 4.5 Block A — public marketing checkout via `lookup_key`
+ *      (Review Assist / Review Assist Pro prices). No auth required.
+ *   B) Phase TCP1 — authenticated firm checkout via `tier_key` (+ firm bootstrap,
+ *      pilot cap, customer link). Returns `checkout_url`.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
@@ -30,6 +22,27 @@ import {
 } from "@/lib/tcp1/launch-gates";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const ALLOWED_LOOKUP_KEYS = new Set([
+  "review_assist_std_mo",
+  "review_assist_std_yr",
+  "review_assist_pilot_mo",
+  "review_assist_pilot_yr",
+  "review_assist_pro_std_mo",
+  "review_assist_pro_std_yr",
+  "review_assist_pro_pilot_mo",
+  "review_assist_pro_pilot_yr",
+]);
+
+interface LookupKeyBody {
+  lookup_key: string;
+  overage_quantity?: number;
+  overage_lookup_key?: string;
+  success_path?: string;
+  cancel_path?: string;
+  customer_email?: string;
+}
 
 interface CreateSessionBody {
   tier_key?: string;
@@ -37,6 +50,116 @@ interface CreateSessionBody {
   pricing_cadence?: string;
   track?: string;
   business_name?: string;
+  lookup_key?: string;
+  overage_quantity?: number;
+  overage_lookup_key?: string;
+  success_path?: string;
+  cancel_path?: string;
+  customer_email?: string;
+}
+
+async function createLookupKeySession(
+  req: NextRequest,
+  body: LookupKeyBody,
+): Promise<NextResponse> {
+  if (!body.lookup_key || !ALLOWED_LOOKUP_KEYS.has(body.lookup_key)) {
+    return NextResponse.json(
+      { error: "Unknown or unauthorized lookup_key" },
+      { status: 400 },
+    );
+  }
+
+  // RA Pro prices are always checkoutable from /pricing. Base RA remains subject
+  // to the Review Assist launch gate (parity with tier_key path).
+  const isRaPro = body.lookup_key.startsWith("review_assist_pro_");
+  if (
+    !isRaPro &&
+    body.lookup_key.startsWith("review_assist_") &&
+    isReviewAssistGated() &&
+    !isReviewAssistBypassAllowed(req)
+  ) {
+    return NextResponse.json({ error: "Not available" }, { status: 404 });
+  }
+
+  try {
+    const priceList = await stripe.prices.list({
+      lookup_keys: [body.lookup_key],
+      active: true,
+      limit: 1,
+    });
+    if (priceList.data.length === 0) {
+      return NextResponse.json(
+        { error: `Price not found for lookup_key ${body.lookup_key}` },
+        { status: 404 },
+      );
+    }
+    const primaryPrice = priceList.data[0];
+
+    const lineItems: Array<{ price: string; quantity: number }> = [
+      { price: primaryPrice.id, quantity: 1 },
+    ];
+
+    if (
+      body.overage_quantity &&
+      body.overage_quantity > 0 &&
+      body.overage_lookup_key
+    ) {
+      if (!ALLOWED_LOOKUP_KEYS.has(body.overage_lookup_key)) {
+        return NextResponse.json(
+          { error: "Unknown overage lookup_key" },
+          { status: 400 },
+        );
+      }
+      const overageList = await stripe.prices.list({
+        lookup_keys: [body.overage_lookup_key],
+        active: true,
+        limit: 1,
+      });
+      if (overageList.data.length > 0) {
+        lineItems.push({
+          price: overageList.data[0].id,
+          quantity: body.overage_quantity,
+        });
+      }
+    }
+
+    const origin =
+      req.headers.get("origin") ??
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      req.nextUrl.origin ??
+      "https://www.advisacor.com";
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      payment_method_types: ["card"],
+      line_items: lineItems,
+      allow_promotion_codes: true,
+      customer_email: body.customer_email,
+      success_url: `${origin}${body.success_path ?? "/onboarding"}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${body.cancel_path ?? "/pricing"}?checkout=cancelled`,
+      subscription_data: {
+        metadata: {
+          primary_lookup_key: body.lookup_key,
+          primary_price_id: primaryPrice.id,
+        },
+      },
+      metadata: {
+        primary_lookup_key: body.lookup_key,
+        primary_price_id: primaryPrice.id,
+      },
+    });
+
+    return NextResponse.json({ id: session.id, url: session.url });
+  } catch (err) {
+    console.error("[create-session] lookup_key checkout failed", err);
+    return NextResponse.json(
+      {
+        error: "stripe_checkout_failed",
+        detail: err instanceof Error ? err.message : String(err),
+      },
+      { status: 502 },
+    );
+  }
 }
 
 async function getSupabaseSsr() {
@@ -67,7 +190,20 @@ async function getSupabaseSsr() {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // 1. Auth check.
+  // Parse body once — branch on public lookup_key vs authenticated tier_key.
+  let body: CreateSessionBody;
+  try {
+    body = (await req.json()) as CreateSessionBody;
+  } catch {
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+  }
+
+  // Track 4.5 Block A — public marketing checkout (returns `{ url }`).
+  if (typeof body.lookup_key === "string" && body.lookup_key.length > 0) {
+    return createLookupKeySession(req, body as LookupKeyBody);
+  }
+
+  // 1. Auth check (legacy tier_key path).
   const supabaseSsr = await getSupabaseSsr();
   const {
     data: { user },
@@ -86,14 +222,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // any race where a session appears before verification completes.
   if (!user.email_confirmed_at) {
     return NextResponse.json({ error: "email_not_confirmed" }, { status: 403 });
-  }
-
-  // 2. Parse + validate body.
-  let body: CreateSessionBody;
-  try {
-    body = (await req.json()) as CreateSessionBody;
-  } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
   const tierKey = body.tier_key;

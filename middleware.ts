@@ -22,14 +22,14 @@ const APP_HOSTS = new Set(["app.advisacor.com"]);
 // Blocks public reachability to SBK commerce surfaces until Smoke-SBK passes.
 // Reversible with SOLO_BK_LAUNCH_GATED=false (or unset). See runbook.
 const SOLO_BK_GATED_PATHS = new Set([
-  "/pricing",
+  // Track 4.5 Block A — /pricing is RA + RA Pro marketing surface (not SBK-gated).
   "/for/bookkeeper",
   "/signup",
   "/signup/solo-bookkeeper",
 ]);
-const SOLO_BK_GATED_API_PATHS = new Set([
-  "/api/checkout/create-session",
-]);
+// create-session gate for solo_bookkeeper is enforced inside the route handler
+// (body inspection). Keeping the API ungated so public RA lookup_key checkout works.
+const SOLO_BK_GATED_API_PATHS = new Set<string>([]);
 
 function isSoloBkGatedPath(pathname: string): boolean {
   return (
