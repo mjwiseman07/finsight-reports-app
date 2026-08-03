@@ -28,21 +28,34 @@ export function SignupPageContent() {
   const persona = searchParams?.get("persona") ?? null;
   const plan = searchParams?.get("plan") ?? null;
   const modeParam = searchParams?.get("mode") ?? null;
+  const cadenceParam = searchParams?.get("cadence") ?? "monthly";
+  const trackParam = searchParams?.get("track") ?? null;
+  const resumeParam = searchParams?.get("resume") ?? null;
 
-  // Phase TCP1 W1 supports Solo Bookkeeper. Phase TCP1 W2.5 adds Review Assist.
-  // Anything else → /pricing.
   const isSbkFlow = persona === "bookkeeper" && plan === "solo_bookkeeper";
   const isRaFlow = persona === "bookkeeper" && plan === "review_assist";
-  const isSupportedFlow = isSbkFlow || isRaFlow;
-  // SBK supports flat + per_client. RA is flat-only (single SKU).
-  const pricingStructure: CheckoutPricingStructure = isRaFlow
-    ? "flat"
-    : modeParam === "per_client"
-      ? "perClient"
-      : "flat";
-  // Tier-derived checkout params.
-  const tierKey = isRaFlow ? "review_assist" : "solo_bookkeeper";
-  const track = isRaFlow ? "standard" : "pilot";
+  const isRaProFlow = persona === "bookkeeper" && plan === "review_assist_pro";
+  const isSupportedFlow = isSbkFlow || isRaFlow || isRaProFlow;
+
+  const pricingStructure: CheckoutPricingStructure =
+    isRaFlow || isRaProFlow
+      ? "flat"
+      : modeParam === "per_client"
+        ? "perClient"
+        : "flat";
+
+  const tierKey =
+    isRaProFlow ? "review_assist_pro"
+    : isRaFlow ? "review_assist"
+    : "solo_bookkeeper";
+
+  const track =
+    isRaProFlow ? (trackParam === "standard" ? "standard" : "pilot")
+    : isRaFlow ? "standard"
+    : "pilot";
+
+  const pricingCadence =
+    (isRaFlow || isRaProFlow) && cadenceParam === "yearly" ? "yearly" : "monthly";
 
   useEffect(() => {
     if (!isSupportedFlow) {
@@ -90,7 +103,7 @@ export function SignupPageContent() {
         body: JSON.stringify({
           tier_key: tierKey,
           pricing_structure: pricingStructure,
-          pricing_cadence: "monthly",
+          pricing_cadence: pricingCadence,
           track,
           business_name: resolvedBusinessName,
         }),
@@ -120,6 +133,27 @@ export function SignupPageContent() {
       setPhase("confirmed_ready");
     }
   }
+
+  // Track 4.5 Block B — authenticated resume from /pricing skips the form.
+  useEffect(() => {
+    if (resumeParam === "1" && isSupportedFlow) {
+      void (async () => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const isConfirmed = Boolean(sessionData?.session?.user?.email_confirmed_at);
+        if (isConfirmed) {
+          const bn = String(
+            sessionData?.session?.user?.user_metadata?.business_name ?? "",
+          ).trim();
+          if (bn) {
+            setBusinessName(bn);
+            await createCheckoutAndRedirect();
+          }
+          // If no business_name on file, fall through to form.
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Phase TCP1 W2.5 Block 9g: poll server-side status endpoint (auth.users
   // read via service role). Getting user() would require an active session
@@ -294,24 +328,40 @@ export function SignupPageContent() {
       <section className="mx-auto grid min-h-[calc(100vh-7rem)] max-w-7xl items-center gap-10 py-12 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#C9A961]">
-            {isRaFlow ? "Review Assist" : "Solo Bookkeeper pilot"}
+            {isRaProFlow
+              ? "Review Assist Pro"
+              : isRaFlow
+                ? "Review Assist"
+                : "Solo Bookkeeper pilot"}
           </p>
           <h1
             className={`${headingFont} mt-5 max-w-3xl text-5xl font-semibold leading-[1.05] tracking-tight md:text-7xl`}
           >
-            {isRaFlow
+            {isRaProFlow || isRaFlow
               ? "Start reviewing closes in under 15 minutes."
               : "Start your pilot in under 15 minutes."}
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/70">
-            {isRaFlow
-              ? "$99/mo — read-only Review Assist. Findings across variance, anomalies, reconciliation, cutoff, and duplicates. No write-back to QBO."
-              : pricingStructure === "flat"
-                ? "$279/mo pilot — first 10 slots. Full Advisacor stack for up to 10 QBO clients."
-                : "$69/client/mo pilot — first 10 slots. Metered — pay only for active clients each month."}
+            {isRaProFlow
+              ? track === "pilot"
+                ? "$139/mo pilot — write-back, Ask Pulse, and organizational memory for bookkeeping firms and controllers."
+                : "$199/mo — write-back, Ask Pulse, and organizational memory for bookkeeping firms and controllers."
+              : isRaFlow
+                ? "$99/mo — read-only Review Assist. Findings across variance, anomalies, reconciliation, cutoff, and duplicates. No write-back to QBO."
+                : pricingStructure === "flat"
+                  ? "$279/mo pilot — first 10 slots. Full Advisacor stack for up to 10 QBO clients."
+                  : "$69/client/mo pilot — first 10 slots. Metered — pay only for active clients each month."}
           </p>
           <ul className="mt-6 grid max-w-lg gap-3 text-sm text-white/70">
-            {isRaFlow ? (
+            {isRaProFlow ? (
+              <>
+                <li>• Connect QuickBooks Online with direct write-back</li>
+                <li>• AI-reasoned matching with patented memory substrate</li>
+                <li>• Ask Pulse Command Center + industry templates</li>
+                <li>• Evidence-linked JE proposals with assertion coverage</li>
+                <li>• Cancel any time</li>
+              </>
+            ) : isRaFlow ? (
               <>
                 <li>• Connect QuickBooks Online in read-only mode</li>
                 <li>• 9-source findings feed per close period</li>
@@ -424,9 +474,13 @@ export function SignupPageContent() {
               <h2
                 className={`${headingFont} mt-3 text-4xl font-semibold tracking-tight`}
               >
-                {isRaFlow
-                  ? "Review Assist — $99/mo"
-                  : `Solo Bookkeeper — ${pricingStructure === "flat" ? "$279/mo pilot" : "$69/client/mo pilot"}`}
+                {isRaProFlow
+                  ? track === "pilot"
+                    ? "Review Assist Pro — $139/mo pilot"
+                    : "Review Assist Pro — $199/mo"
+                  : isRaFlow
+                    ? "Review Assist — $99/mo"
+                    : `Solo Bookkeeper — ${pricingStructure === "flat" ? "$279/mo pilot" : "$69/client/mo pilot"}`}
               </h2>
               <p className="mt-3 text-sm leading-6 text-white/60">
                 Fields marked with an asterisk are required. You&apos;ll verify
@@ -525,7 +579,13 @@ export function SignupPageContent() {
                   disabled={isSubmitting || (!!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !captchaToken)}
                   className={`mt-2 rounded-2xl px-5 py-4 text-sm ${primaryCtaClass} disabled:cursor-not-allowed disabled:opacity-60`}
                 >
-                  {isSubmitting ? "Creating workspace…" : isRaFlow ? "Start Review Assist" : "Start pilot"}
+                  {isSubmitting
+                    ? "Creating workspace…"
+                    : isRaProFlow
+                      ? "Start Review Assist Pro"
+                      : isRaFlow
+                        ? "Start Review Assist"
+                        : "Start pilot"}
                 </button>
               </form>
 

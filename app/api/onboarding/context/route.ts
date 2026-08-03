@@ -69,6 +69,7 @@ export async function GET(_req: NextRequest) {
   }
 
   const admin = createServiceClient();
+  const candidates: SlotRow[] = [];
 
   // Prefer firm_memberships (same as checkout/create-session), then owner_user_id.
   let firmId: string | null = null;
@@ -95,38 +96,64 @@ export async function GET(_req: NextRequest) {
 
     if (firmError) {
       console.error("[onboarding/context] firms lookup failed", firmError);
-      return NextResponse.json({
-        auth: true,
-        user_id: user.id,
-        email: user.email ?? null,
-        is_paid_user: false,
-        is_complimentary: false,
-        active_paid_slot: null,
-        tier_key: null,
-      });
+    } else {
+      firmId = (firm?.id as string | undefined) ?? null;
     }
-    firmId = (firm?.id as string | undefined) ?? null;
   }
 
-  let slot: SlotRow | null = null;
   if (firmId) {
-    const { data: slots, error: slotError } = await admin
+    const { data: firmSlots, error: slotError } = await admin
       .from("pilot_slots")
       .select(
         "id, tier_key, pilot_status, stripe_subscription_id, pricing_structure, pricing_cadence, created_at",
       )
       .eq("firm_id", firmId)
       .in("pilot_status", ["active", "complimentary"])
-      .in("tier_key", ["review_assist", "solo_bookkeeper"])
+      .in("tier_key", ["review_assist", "review_assist_pro", "solo_bookkeeper"])
       .order("created_at", { ascending: false })
       .limit(1);
 
     if (slotError) {
-      console.error("[onboarding/context] pilot_slots lookup failed", slotError);
-    } else {
-      slot = (slots?.[0] as SlotRow | undefined) ?? null;
+      console.error("[onboarding/context] firm pilot_slots lookup failed", slotError);
+    } else if (firmSlots?.[0]) {
+      candidates.push(firmSlots[0] as SlotRow);
     }
   }
+
+  // Company-scoped lookup — RA Pro (Track 4.5 Block B)
+  const { data: companyMembership, error: companyMembershipError } = await admin
+    .from("company_users")
+    .select("company_id")
+    .eq("user_id", user.id)
+    .eq("role", "owner_executive")
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (companyMembershipError) {
+    console.error("[onboarding/context] company_users lookup failed", companyMembershipError);
+  } else if (companyMembership?.company_id) {
+    const { data: companySlots, error: companySlotError } = await admin
+      .from("pilot_slots")
+      .select(
+        "id, tier_key, pilot_status, stripe_subscription_id, pricing_structure, pricing_cadence, created_at",
+      )
+      .eq("company_id", companyMembership.company_id)
+      .in("tier_key", ["review_assist_pro"])
+      .in("pilot_status", ["pending", "active", "complimentary"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (companySlotError) {
+      console.error("[onboarding/context] company pilot_slots lookup failed", companySlotError);
+    } else if (companySlots?.[0]) {
+      candidates.push(companySlots[0] as SlotRow);
+    }
+  }
+
+  candidates.sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+  const slot = candidates[0] ?? null;
 
   return NextResponse.json({
     auth: true,

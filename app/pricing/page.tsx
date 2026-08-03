@@ -7,6 +7,8 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { headingFont, focusRing } from "@/components/site-ui";
 import { QboOnlyBadge } from "@/components/QboOnlyBadge";
 import { PricingCard, type BillingInterval } from "@/components/pricing/PricingToggles";
+import { supabase } from "@/lib/supabase";
+import { buildPricingSignupUrl } from "@/lib/pricing/checkout-handlers";
 
 export default function PricingPage() {
   return (
@@ -58,16 +60,13 @@ function ReviewAssistCard() {
   async function handleStart() {
     setLoading(true);
     try {
-      const lookupKey =
-        interval === "yearly" ? "review_assist_std_yr" : "review_assist_std_mo";
-      const res = await fetch("/api/checkout/create-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lookup_key: lookupKey }),
+      const { data: { user } } = await supabase.auth.getUser();
+      window.location.href = buildPricingSignupUrl({
+        plan: "review_assist",
+        cadence: interval,
+        track: "standard",
+        isAuthenticated: Boolean(user),
       });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else setLoading(false);
     } catch {
       setLoading(false);
     }
@@ -136,26 +135,16 @@ function ReviewAssistProCard() {
   const [ratePlan, setRatePlan] = useState<"pilot" | "standard">("pilot");
   const [interval, setInterval] = useState<BillingInterval>("yearly");
 
-  async function handleStart() {
+  async function handleStartPro() {
     setLoading(true);
     try {
-      const suffix =
-        interval === "yearly"
-          ? ratePlan === "pilot"
-            ? "pilot_yr"
-            : "std_yr"
-          : ratePlan === "pilot"
-            ? "pilot_mo"
-            : "std_mo";
-      const lookupKey = `review_assist_pro_${suffix}`;
-      const res = await fetch("/api/checkout/create-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lookup_key: lookupKey }),
+      const { data: { user } } = await supabase.auth.getUser();
+      window.location.href = buildPricingSignupUrl({
+        plan: "review_assist_pro",
+        cadence: interval,
+        track: ratePlan,
+        isAuthenticated: Boolean(user),
       });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else setLoading(false);
     } catch {
       setLoading(false);
     }
@@ -240,7 +229,7 @@ function ReviewAssistProCard() {
 
       <button
         type="button"
-        onClick={handleStart}
+        onClick={handleStartPro}
         disabled={loading}
         className={`w-full text-center rounded-lg bg-[#C9A961] text-[#111112] font-semibold py-3 ${focusRing()} hover:bg-[#DFC084] transition disabled:opacity-60`}
       >

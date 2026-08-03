@@ -3,9 +3,9 @@
  *
  * Modes:
  *   A) Track 4.5 Block A — public marketing checkout via `lookup_key`
- *      (Review Assist / Review Assist Pro prices). No auth required.
- *   B) Phase TCP1 — authenticated firm checkout via `tier_key` (+ firm bootstrap,
- *      pilot cap, customer link). Returns `checkout_url`.
+ *      DEPRECATED in Block B (returns 410). Kept as rollback lever.
+ *   B) Phase TCP1 — authenticated firm/company checkout via `tier_key`
+ *      (+ entity bootstrap, pilot cap, customer link). Returns `checkout_url`.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
@@ -14,16 +14,20 @@ import { stripe } from "@/lib/stripe";
 import { getPriceId, getSubscriptionEntity } from "@/lib/product-tiers";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ensureStripeCustomerForUser } from "@/lib/stripe-customer";
+import { bootstrapCompanyForUser } from "@/lib/tcp1/create-session-company";
 import {
   isSoloBkGated,
   isSoloBkBypassAllowed,
   isReviewAssistGated,
   isReviewAssistBypassAllowed,
+  isReviewAssistProGated,
+  isReviewAssistProBypassAllowed,
 } from "@/lib/tcp1/launch-gates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Preserved for Path A revival — do not delete.
 const ALLOWED_LOOKUP_KEYS = new Set([
   "review_assist_std_mo",
   "review_assist_std_yr",
@@ -34,6 +38,7 @@ const ALLOWED_LOOKUP_KEYS = new Set([
   "review_assist_pro_pilot_mo",
   "review_assist_pro_pilot_yr",
 ]);
+void ALLOWED_LOOKUP_KEYS;
 
 interface LookupKeyBody {
   lookup_key: string;
@@ -59,6 +64,27 @@ interface CreateSessionBody {
 }
 
 async function createLookupKeySession(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _req: NextRequest,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _body: LookupKeyBody,
+): Promise<NextResponse> {
+  // Track 4.5 Block B — Path A (unauthenticated lookup_key checkout) is
+  // deprecated in favor of auth-first flow via /signup?persona=&plan=.
+  // Public /pricing no longer calls this. Kept as 410 for rollback lever.
+  //
+  // See Phase_TRACK_4_5_Block_B_Build_Spec.md.
+  return NextResponse.json(
+    {
+      error: "path_a_deprecated_use_auth_first",
+      hint: "Public checkout requires sign-in. /pricing clicks route through /signup.",
+    },
+    { status: 410 },
+  );
+}
+
+/* ── Path A revival block (commented). Uncomment + restore early body if needed.
+async function createLookupKeySession_REVIVAL(
   req: NextRequest,
   body: LookupKeyBody,
 ): Promise<NextResponse> {
@@ -68,9 +94,6 @@ async function createLookupKeySession(
       { status: 400 },
     );
   }
-
-  // RA Pro prices are always checkoutable from /pricing. Base RA remains subject
-  // to the Review Assist launch gate (parity with tier_key path).
   const isRaPro = body.lookup_key.startsWith("review_assist_pro_");
   if (
     !isRaPro &&
@@ -80,87 +103,9 @@ async function createLookupKeySession(
   ) {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
   }
-
-  try {
-    const priceList = await stripe.prices.list({
-      lookup_keys: [body.lookup_key],
-      active: true,
-      limit: 1,
-    });
-    if (priceList.data.length === 0) {
-      return NextResponse.json(
-        { error: `Price not found for lookup_key ${body.lookup_key}` },
-        { status: 404 },
-      );
-    }
-    const primaryPrice = priceList.data[0];
-
-    const lineItems: Array<{ price: string; quantity: number }> = [
-      { price: primaryPrice.id, quantity: 1 },
-    ];
-
-    if (
-      body.overage_quantity &&
-      body.overage_quantity > 0 &&
-      body.overage_lookup_key
-    ) {
-      if (!ALLOWED_LOOKUP_KEYS.has(body.overage_lookup_key)) {
-        return NextResponse.json(
-          { error: "Unknown overage lookup_key" },
-          { status: 400 },
-        );
-      }
-      const overageList = await stripe.prices.list({
-        lookup_keys: [body.overage_lookup_key],
-        active: true,
-        limit: 1,
-      });
-      if (overageList.data.length > 0) {
-        lineItems.push({
-          price: overageList.data[0].id,
-          quantity: body.overage_quantity,
-        });
-      }
-    }
-
-    const origin =
-      req.headers.get("origin") ??
-      process.env.NEXT_PUBLIC_SITE_URL ??
-      req.nextUrl.origin ??
-      "https://www.advisacor.com";
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      payment_method_types: ["card"],
-      line_items: lineItems,
-      allow_promotion_codes: true,
-      customer_email: body.customer_email,
-      success_url: `${origin}${body.success_path ?? "/onboarding"}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}${body.cancel_path ?? "/pricing"}?checkout=cancelled`,
-      subscription_data: {
-        metadata: {
-          primary_lookup_key: body.lookup_key,
-          primary_price_id: primaryPrice.id,
-        },
-      },
-      metadata: {
-        primary_lookup_key: body.lookup_key,
-        primary_price_id: primaryPrice.id,
-      },
-    });
-
-    return NextResponse.json({ id: session.id, url: session.url });
-  } catch (err) {
-    console.error("[create-session] lookup_key checkout failed", err);
-    return NextResponse.json(
-      {
-        error: "stripe_checkout_failed",
-        detail: err instanceof Error ? err.message : String(err),
-      },
-      { status: 502 },
-    );
-  }
+  // ... remaining Block A body restored from git history before Block B ...
 }
+── */
 
 async function getSupabaseSsr() {
   const cookieStore = await cookies();
@@ -198,7 +143,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  // Track 4.5 Block A — public marketing checkout (returns `{ url }`).
+  // Track 4.5 Block A — public marketing checkout (now 410).
   if (typeof body.lookup_key === "string" && body.lookup_key.length > 0) {
     return createLookupKeySession(req, body as LookupKeyBody);
   }
@@ -213,13 +158,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
   // Phase TCP1 W2.5 (Block 9c) — SERVER IS AUTHORITATIVE ON EMAIL CONFIRMATION.
-  // No path that reaches Stripe checkout may originate from an unconfirmed
-  // email, regardless of client-side flow. `email_confirmed_at` is the field
-  // that flips when the user clicks the Supabase confirmation link — this is
-  // distinct from raw_user_meta_data.email_verified (which is set at signup
-  // time and is not proof of confirmation). Blocks: config drift where email
-  // confirmation is disabled, admin-created users without confirmation, and
-  // any race where a session appears before verification completes.
   if (!user.email_confirmed_at) {
     return NextResponse.json({ error: "email_not_confirmed" }, { status: 403 });
   }
@@ -230,17 +168,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const track = body.track ?? "pilot";
   const businessName = (body.business_name ?? "").trim();
 
-  // Phase TCP1 W2.5 (Block 9b) — accept solo_bookkeeper OR review_assist. Other
-  // tiers still 400 until their respective launch weeks.
-  if (tierKey !== "solo_bookkeeper" && tierKey !== "review_assist") {
+  // Track 4.5 Block B — accept solo_bookkeeper, review_assist, review_assist_pro.
+  if (
+    tierKey !== "solo_bookkeeper" &&
+    tierKey !== "review_assist" &&
+    tierKey !== "review_assist_pro"
+  ) {
     return NextResponse.json(
-      { error: "tier_not_supported_in_w1", tier_key: tierKey },
+      { error: "tier_not_supported", tier_key: tierKey },
       { status: 400 },
     );
   }
   // Launch gates — parity with middleware.ts via shared launch-gates helper.
-  // If gate is on AND request has no valid bypass (token / cookie / IP),
-  // return 404 symmetric with the middleware redirect on the /signup surface.
   if (
     tierKey === "solo_bookkeeper" &&
     isSoloBkGated() &&
@@ -252,6 +191,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     tierKey === "review_assist" &&
     isReviewAssistGated() &&
     !isReviewAssistBypassAllowed(req)
+  ) {
+    return NextResponse.json({ error: "Not available" }, { status: 404 });
+  }
+  if (
+    tierKey === "review_assist_pro" &&
+    isReviewAssistProGated() &&
+    !isReviewAssistProBypassAllowed(req)
   ) {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
   }
@@ -272,8 +218,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { status: 400 },
     );
   }
-  if (pricingCadence !== "monthly") {
+  // RA Pro is flat-only; pilot + standard tracks both allowed.
+  if (tierKey === "review_assist_pro" && pricingStructure !== "flat") {
+    return NextResponse.json(
+      { error: "invalid_pricing_structure_for_tier", tier_key: tierKey, pricing_structure: pricingStructure },
+      { status: 400 },
+    );
+  }
+  if (tierKey === "review_assist_pro" && track !== "pilot" && track !== "standard") {
+    return NextResponse.json(
+      { error: "invalid_track_for_tier", tier_key: tierKey, track },
+      { status: 400 },
+    );
+  }
+  if (pricingCadence !== "monthly" && pricingCadence !== "yearly") {
     return NextResponse.json({ error: "invalid_pricing_cadence" }, { status: 400 });
+  }
+  if (tierKey === "solo_bookkeeper" && pricingCadence !== "monthly") {
+    return NextResponse.json(
+      { error: "invalid_pricing_cadence_for_tier", tier_key: tierKey, pricing_cadence: pricingCadence },
+      { status: 400 },
+    );
   }
   if (track !== "pilot" && track !== "standard") {
     return NextResponse.json({ error: "invalid_track" }, { status: 400 });
@@ -282,19 +247,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "missing_business_name" }, { status: 400 });
   }
 
-  // 3. Invariant: solo_bookkeeper is a firm-tier subscription. If this ever
-  //    flips, the webhook (lib/tcp1/stripe-pilot-checkout.ts) will reject.
-  //    Guard here so the misconfig fails loud at checkout time, not at webhook time.
   const entityType = getSubscriptionEntity(tierKey);
-  if (entityType !== "firm") {
+  if (entityType !== "firm" && entityType !== "company") {
     return NextResponse.json(
-      { error: "tier_entity_mismatch", tier_key: tierKey, entity: entityType },
+      { error: "unknown_subscription_entity", tier_key: tierKey, entity: entityType },
       { status: 500 },
     );
   }
 
-  // 4. Service-role client for firm membership writes (bypasses RLS).
-  //    public.users row is created by handle_new_auth_user trigger (FIX-USERS-PKEY).
+  // 4. Service-role client for membership writes (bypasses RLS).
   const admin = createServiceClient();
 
   const { data: userRow, error: userLookupError } = await admin
@@ -313,51 +274,67 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "USER_ROW_MISSING" }, { status: 500 });
   }
 
-  // 5. Look up existing firm_membership.
-  const { data: existingMembership, error: membershipLookupError } = await admin
-    .from("firm_memberships")
-    .select("firm_id")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
-  if (membershipLookupError) {
-    console.error("[create-session] firm_memberships lookup failed", membershipLookupError);
-    return NextResponse.json({ error: "membership_lookup_failed" }, { status: 500 });
-  }
+  let firmId: string | null = null;
+  let companyId: string | null = null;
 
-  let firmId: string;
-  if (existingMembership?.firm_id) {
-    firmId = existingMembership.firm_id as string;
-  } else {
-    // Create firm + membership.
-    const { data: newFirm, error: firmInsertError } = await admin
-      .from("firms")
-      .insert({ name: businessName, owner_user_id: user.id })
-      .select("id")
-      .single();
-    if (firmInsertError || !newFirm) {
-      console.error("[create-session] firms insert failed", firmInsertError);
-      return NextResponse.json({ error: "firm_create_failed" }, { status: 500 });
-    }
-    firmId = newFirm.id as string;
-
-    const { error: membershipInsertError } = await admin
+  if (entityType === "firm") {
+    // Existing firm bootstrap — keep verbatim.
+    const { data: existingMembership, error: membershipLookupError } = await admin
       .from("firm_memberships")
-      .insert({
-        firm_id: firmId,
-        user_id: user.id,
-        role: "firm_admin",
-        status: "active",
+      .select("firm_id")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (membershipLookupError) {
+      console.error("[create-session] firm_memberships lookup failed", membershipLookupError);
+      return NextResponse.json({ error: "membership_lookup_failed" }, { status: 500 });
+    }
+
+    if (existingMembership?.firm_id) {
+      firmId = existingMembership.firm_id as string;
+    } else {
+      const { data: newFirm, error: firmInsertError } = await admin
+        .from("firms")
+        .insert({ name: businessName, owner_user_id: user.id })
+        .select("id")
+        .single();
+      if (firmInsertError || !newFirm) {
+        console.error("[create-session] firms insert failed", firmInsertError);
+        return NextResponse.json({ error: "firm_create_failed" }, { status: 500 });
+      }
+      firmId = newFirm.id as string;
+
+      const { error: membershipInsertError } = await admin
+        .from("firm_memberships")
+        .insert({
+          firm_id: firmId,
+          user_id: user.id,
+          role: "firm_admin",
+          status: "active",
+        });
+      if (membershipInsertError) {
+        console.error("[create-session] firm_memberships insert failed", membershipInsertError);
+        return NextResponse.json({ error: "membership_create_failed" }, { status: 500 });
+      }
+    }
+  } else {
+    // entityType === "company" — RA Pro path.
+    try {
+      const bootstrap = await bootstrapCompanyForUser({
+        admin,
+        userId: user.id,
+        businessName,
       });
-    if (membershipInsertError) {
-      console.error("[create-session] firm_memberships insert failed", membershipInsertError);
-      return NextResponse.json({ error: "membership_create_failed" }, { status: 500 });
+      companyId = bootstrap.companyId;
+    } catch (err) {
+      console.error("[create-session] company bootstrap failed", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: msg }, { status: 500 });
     }
   }
 
-  // 7. Pilot-cap enforcement — only applies to solo_bookkeeper pilot track.
-  //    Review Assist is standard-track only, so no cap.
+  // 7. Pilot-cap enforcement.
   if (tierKey === "solo_bookkeeper" && track === "pilot") {
     const { count, error: capError } = await admin
       .from("pilot_slots")
@@ -374,12 +351,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
   }
 
+  if (tierKey === "review_assist_pro" && track === "pilot") {
+    const cap = parseInt(process.env.PILOT_CAP_REVIEW_ASSIST_PRO ?? "25", 10);
+    const { count, error: capError } = await admin
+      .from("pilot_slots")
+      .select("id", { count: "exact", head: true })
+      .eq("tier_key", "review_assist_pro")
+      .eq("pilot_status", "active");
+    if (capError) {
+      console.error("[create-session] RA Pro pilot-cap query failed", capError);
+      return NextResponse.json({ error: "pilot_cap_query_failed" }, { status: 500 });
+    }
+    if ((count ?? 0) >= cap) {
+      return NextResponse.json({ error: "pilot_cap_reached" }, { status: 409 });
+    }
+  }
+
   // 8. Resolve Stripe price ID via lookup key.
-  const priceId = await getPriceId(tierKey, track, "monthly", pricingStructure);
+  const priceId = await getPriceId(tierKey, track, pricingCadence, pricingStructure);
   if (!priceId) {
     console.error(
       "[create-session] price resolution failed",
-      { tier_key: tierKey, track, cadence: "monthly", structure: pricingStructure },
+      { tier_key: tierKey, track, cadence: pricingCadence, structure: pricingStructure },
     );
     return NextResponse.json({ error: "price_resolution_failed" }, { status: 500 });
   }
@@ -390,18 +383,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     req.nextUrl.origin ??
     "https://www.advisacor.com";
 
-  const metadata = {
+  const metadata: Record<string, string> = {
     tier_key: tierKey,
     pricing_structure: pricingStructure,
-    pricing_cadence: "monthly",
+    pricing_cadence: pricingCadence,
     track,
-    firm_id: firmId,
   };
+  if (firmId) metadata.firm_id = firmId;
+  if (companyId) metadata.company_id = companyId;
 
-  // 10. Link this user to a Stripe Customer before checkout. Downstream
-  //     subscription.* webhooks resolve the user via users.stripe_customer_id
-  //     (lib/subscription-sync.js resolveSubscriber), so the link has to exist
-  //     before Stripe can fire anything.
+  // 10. Link this user to a Stripe Customer before checkout.
   if (!user.email) {
     return NextResponse.json({ error: "email_required_for_checkout" }, { status: 400 });
   }
@@ -425,29 +416,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // 11. Create checkout session.
-  //
-  // Phase TCP1 W2.5 Block 9f: explicitly allowlist payment_method_types to
-  // card + US bank account (ACH). Excludes Apple Pay, Google Pay, Link,
-  // Amazon Pay, Klarna, Cash App Pay, and any other alternative payment
-  // methods that Stripe may enable by default via the payment_method_configuration.
-  //
-  //   - "card":            Debit + credit
-  //   - "us_bank_account": ACH direct debit with Stripe-collected mandate.
-  //                        For subscriptions Stripe automatically shows the
-  //                        mandate acceptance UI. Verification is "instant"
-  //                        via Financial Connections when supported by the
-  //                        customer's bank, falling back to microdeposits.
-  //
-  // NOTE: setting payment_method_types explicitly disables Stripe's
-  // Dynamic Payment Methods (payment_method_configuration). This is
-  // intentional — we want a hard allowlist, not a bank/geography-driven
-  // dynamic set.
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: stripeCustomerId,
-      // Only permitted alongside `customer`, and required for Checkout to save
-      // the name/address it collects back onto the Customer.
       customer_update: { address: "auto", name: "auto" },
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: { metadata },
@@ -469,7 +441,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       checkout_url: session.url,
       session_id: session.id,
-      firm_id: firmId,
+      ...(firmId ? { firm_id: firmId } : {}),
+      ...(companyId ? { company_id: companyId } : {}),
     });
   } catch (err) {
     console.error("[create-session] stripe checkout.sessions.create failed", err);
