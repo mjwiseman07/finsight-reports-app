@@ -164,7 +164,7 @@ function ReviewAssistProCard() {
           Review Assist Pro
         </h2>
         <p className="text-sm text-[#A29E93] mt-1">
-          Bookkeeping firms and controllers — patented memory substrate, direct QBO write, and Ask Pulse
+          For bookkeepers managing 2+ companies — patented memory substrate, direct QBO write, and Ask Pulse
         </p>
       </div>
 
@@ -206,8 +206,8 @@ function ReviewAssistProCard() {
           base_included: 2,
           overage_step: 1,
           overage_price_monthly_cents: 0, // overage handled via Audit Ready upsell, not per-entity metering
-          unit_label: "client",
-          unit_label_plural: "clients",
+          unit_label: "company",
+          unit_label_plural: "companies",
           min: 1,
           max: 2,
         }}
@@ -224,7 +224,7 @@ function ReviewAssistProCard() {
         <li>24-month historical cleanup + prior-period lookup</li>
         <li>Ask Pulse Command Center + industry templates (15 verticals)</li>
         <li>Evidence-linked JE proposals with assertion coverage</li>
-        <li>Firm variant with 5 seats included</li>
+        <li>Consolidated view across companies with roll-ups</li>
       </ul>
 
       <button
@@ -243,18 +243,14 @@ function ReviewAssistProCard() {
 }
 
 /* ----------------------------------------------------------------
- * Force-Firm callout (30-client threshold)
+ * Firm-scale placeholder
+ * NOTE: Accounting-firm and business-owner personas launch in a later
+ * phase. This callout previously advertised the Firm variant / 30-client
+ * threshold, which does not yet exist. Removed to prevent misleading
+ * bookkeeper prospects.
  * ---------------------------------------------------------------- */
 function ForceFirmCallout() {
-  return (
-    <section className="mx-auto max-w-4xl px-6 pb-12">
-      <div className="rounded-xl border border-[#C9A961]/20 bg-[#1A1A1C]/40 px-5 py-4 text-sm text-[#A29E93]">
-        <span className="font-medium text-[#ECEBE7]">Managing 30+ QBO clients?</span>{" "}
-        Review Assist Pro auto-elevates to the Firm variant. Same $199/mo — additional seats, portfolio workspace,
-        and firm-level dashboards included automatically.
-      </div>
-    </section>
-  );
+  return null;
 }
 
 /* ----------------------------------------------------------------
@@ -311,7 +307,7 @@ function EnterpriseEngagementSection() {
       <div className="mt-6 rounded-xl border border-[#C9A961]/20 bg-[#1A1A1C]/40 px-5 py-4 text-sm text-[#A29E93]">
         <span className="font-medium text-[#ECEBE7]">Requires active Review Assist Pro.</span>{" "}
         Both add-ons attach to your existing RA Pro subscription — one Audit Ready engagement
-        per company subscription, unlimited concurrent engagements on the Firm variant.
+        per company subscription, with concurrent engagements across your included companies.
       </div>
     </section>
   );
