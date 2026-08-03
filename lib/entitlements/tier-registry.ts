@@ -43,14 +43,6 @@ function buildAuditReadyFlags(size: AuditReadySize) {
 }
 
 export const AUDIT_READY_TIER_ENTRIES = {
-  ra_pro_audit_ready_small: {
-    ...AUDIT_READY_SKU_CATALOG.ra_pro_audit_ready_small,
-    default_flags: buildAuditReadyFlags('small'),
-  },
-  ra_pro_audit_ready_standard: {
-    ...AUDIT_READY_SKU_CATALOG.ra_pro_audit_ready_standard,
-    default_flags: buildAuditReadyFlags('standard'),
-  },
   ra_pro_audit_ready_complex: {
     ...AUDIT_READY_SKU_CATALOG.ra_pro_audit_ready_complex,
     default_flags: buildAuditReadyFlags('complex'),

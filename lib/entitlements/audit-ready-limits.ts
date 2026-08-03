@@ -1,10 +1,13 @@
 /**
  * Audit Ready volume-limit enforcement helpers.
  * Used at request time to prevent tier limits from being exceeded.
+ * Track 4 Option C revision — RA Pro base covers ≤2 entities / ≤150 PBC.
+ * Complex + Multi-entity are true upsells for larger engagements.
  */
 
 import {
   AUDIT_READY_SKU_CATALOG,
+  REVIEW_ASSIST_PRO_BASE_LIMITS,
   assignAuditReadyTier,
 } from '../product-tiers.js';
 import type { AuditReadySize } from './types';
@@ -20,8 +23,8 @@ export interface AuditReadyEngagementFacts {
 export interface AuditReadyLimitCheckResult {
   ok: boolean;
   reason?: string;
-  current_tier: AuditReadySize;
-  recommended_tier: AuditReadySize;
+  current_tier: AuditReadySize | 'review_assist_pro_base';
+  recommended_tier: AuditReadySize | 'review_assist_pro_base';
   limits: {
     entities: { current: number; max: number };
     pbc_requests: { current: number; max: number };
@@ -33,42 +36,57 @@ function catalogKeyForSize(size: AuditReadySize) {
   return `ra_pro_audit_ready_${size}` as keyof typeof AUDIT_READY_SKU_CATALOG;
 }
 
+/**
+ * Check if an engagement stays within the caps for its current tier.
+ * When `currentTier` is null, checks against RA Pro base limits.
+ */
 export function checkAuditReadyLimits(
-  currentTier: AuditReadySize,
+  currentTier: AuditReadySize | null,
   facts: AuditReadyEngagementFacts,
 ): AuditReadyLimitCheckResult {
-  const currentEntry = AUDIT_READY_SKU_CATALOG[catalogKeyForSize(currentTier)];
+  const currentLimits = currentTier
+    ? AUDIT_READY_SKU_CATALOG[catalogKeyForSize(currentTier)].limits
+    : {
+        max_entities: REVIEW_ASSIST_PRO_BASE_LIMITS.max_entities,
+        max_pbc_requests: REVIEW_ASSIST_PRO_BASE_LIMITS.max_pbc_requests,
+        max_auditor_users: REVIEW_ASSIST_PRO_BASE_LIMITS.max_auditor_users,
+      };
+
   const recommended = assignAuditReadyTier({
     entity_count: facts.entity_count,
     pbc_request_count: facts.pbc_request_count,
-  }) as AuditReadySize;
+  });
+  const recommendedTier: AuditReadySize | 'review_assist_pro_base' =
+    recommended ?? 'review_assist_pro_base';
+  const currentTierLabel: AuditReadySize | 'review_assist_pro_base' =
+    currentTier ?? 'review_assist_pro_base';
 
   const result: AuditReadyLimitCheckResult = {
     ok: true,
-    current_tier: currentTier,
-    recommended_tier: recommended,
+    current_tier: currentTierLabel,
+    recommended_tier: recommendedTier,
     limits: {
-      entities: { current: facts.entity_count, max: currentEntry.limits.max_entities },
+      entities: { current: facts.entity_count, max: currentLimits.max_entities },
       pbc_requests: {
         current: facts.pbc_request_count,
-        max: currentEntry.limits.max_pbc_requests,
+        max: currentLimits.max_pbc_requests,
       },
       auditor_users: {
         current: facts.auditor_user_count,
-        max: currentEntry.limits.max_auditor_users,
+        max: currentLimits.max_auditor_users,
       },
     },
   };
 
-  if (facts.entity_count > currentEntry.limits.max_entities) {
+  if (facts.entity_count > currentLimits.max_entities) {
     result.ok = false;
-    result.reason = `Entity count ${facts.entity_count} exceeds tier ${currentTier} maximum of ${currentEntry.limits.max_entities}. Recommended upgrade: ${recommended}.`;
-  } else if (facts.pbc_request_count > currentEntry.limits.max_pbc_requests) {
+    result.reason = `Entity count ${facts.entity_count} exceeds tier ${currentTierLabel} maximum of ${currentLimits.max_entities}. Recommended upgrade: ${recommendedTier}.`;
+  } else if (facts.pbc_request_count > currentLimits.max_pbc_requests) {
     result.ok = false;
-    result.reason = `PBC request count ${facts.pbc_request_count} exceeds tier ${currentTier} maximum of ${currentEntry.limits.max_pbc_requests}. Recommended upgrade: ${recommended}.`;
-  } else if (facts.auditor_user_count > currentEntry.limits.max_auditor_users) {
+    result.reason = `PBC request count ${facts.pbc_request_count} exceeds tier ${currentTierLabel} maximum of ${currentLimits.max_pbc_requests}. Recommended upgrade: ${recommendedTier}.`;
+  } else if (facts.auditor_user_count > currentLimits.max_auditor_users) {
     result.ok = false;
-    result.reason = `Auditor user count ${facts.auditor_user_count} exceeds tier ${currentTier} maximum of ${currentEntry.limits.max_auditor_users}. Recommended upgrade: ${recommended}.`;
+    result.reason = `Auditor user count ${facts.auditor_user_count} exceeds tier ${currentTierLabel} maximum of ${currentLimits.max_auditor_users}. Recommended upgrade: ${recommendedTier}.`;
   }
 
   return result;

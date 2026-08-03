@@ -7,23 +7,20 @@ import {
 import { V1_5_FLAGS } from '../v1_5-flags';
 import { withV15RaProFlags, AUDIT_READY_TIER_ENTRIES } from '../tier-registry';
 
-describe('V1.5 — assignAuditReadyTier', () => {
-  it('returns small for 1 entity, <50 PBC', () => {
+describe('V1.5 — assignAuditReadyTier (Track 4 Option C)', () => {
+  it('returns null when RA Pro base scope covers the engagement', () => {
     expect(assignAuditReadyTier({ entity_count: 1, pbc_request_count: 30 })).toBe(
-      'small',
+      null,
+    );
+    expect(assignAuditReadyTier({ entity_count: 2, pbc_request_count: 150 })).toBe(
+      null,
     );
   });
-  it('returns standard for 1-2 entities, 50-150 PBC', () => {
-    expect(assignAuditReadyTier({ entity_count: 1, pbc_request_count: 100 })).toBe(
-      'standard',
+  it('returns complex when base entity or PBC caps are exceeded (but not multi_entity)', () => {
+    expect(assignAuditReadyTier({ entity_count: 3, pbc_request_count: 100 })).toBe(
+      'complex',
     );
-    expect(assignAuditReadyTier({ entity_count: 2, pbc_request_count: 120 })).toBe(
-      'standard',
-    );
-  });
-  it('returns complex for 2-4 entities, 150-400 PBC', () => {
-    // entity_count >= 5 is multi_entity per Block 1 assignAuditReadyTier
-    expect(assignAuditReadyTier({ entity_count: 3, pbc_request_count: 200 })).toBe(
+    expect(assignAuditReadyTier({ entity_count: 2, pbc_request_count: 151 })).toBe(
       'complex',
     );
     expect(assignAuditReadyTier({ entity_count: 4, pbc_request_count: 350 })).toBe(
@@ -47,26 +44,28 @@ describe('V1.5 — assignAuditReadyTier', () => {
 });
 
 describe('V1.5 — checkAuditReadyLimits', () => {
-  it('passes when within limits', () => {
-    const result = checkAuditReadyLimits('standard', {
+  it('passes when within RA Pro base limits (null current tier)', () => {
+    const result = checkAuditReadyLimits(null, {
       entity_count: 2,
       pbc_request_count: 100,
       auditor_user_count: 3,
     });
     expect(result.ok).toBe(true);
+    expect(result.current_tier).toBe('review_assist_pro_base');
+    expect(result.recommended_tier).toBe('review_assist_pro_base');
   });
-  it('fails when PBC exceeds tier max', () => {
-    const result = checkAuditReadyLimits('small', {
+  it('fails when PBC exceeds RA Pro base max', () => {
+    const result = checkAuditReadyLimits(null, {
       entity_count: 1,
-      pbc_request_count: 60,
+      pbc_request_count: 160,
       auditor_user_count: 2,
     });
     expect(result.ok).toBe(false);
-    expect(result.recommended_tier).toBe('standard');
-    expect(result.reason).toContain('exceeds tier small');
+    expect(result.recommended_tier).toBe('complex');
+    expect(result.reason).toContain('exceeds tier review_assist_pro_base');
   });
-  it('fails when entity count exceeds tier max', () => {
-    const result = checkAuditReadyLimits('standard', {
+  it('fails when entity count exceeds complex tier max', () => {
+    const result = checkAuditReadyLimits('complex', {
       entity_count: 6,
       pbc_request_count: 100,
       auditor_user_count: 2,
@@ -149,11 +148,11 @@ describe('V1.5 — RA Pro flag defaults', () => {
     expect(merged.review_assist_evidence_bundles_visible).toBe(true);
     expect(merged.ai_workforce_enabled).toBe(false);
   });
-  it('AUDIT_READY_TIER_ENTRIES enables audit_ready for all four sizes', () => {
-    expect(Object.keys(AUDIT_READY_SKU_CATALOG)).toHaveLength(4);
-    expect(AUDIT_READY_TIER_ENTRIES.ra_pro_audit_ready_small.default_flags.audit_ready_enabled).toBe(
-      true,
-    );
+  it('AUDIT_READY_TIER_ENTRIES enables audit_ready for complex + multi_entity only', () => {
+    expect(Object.keys(AUDIT_READY_SKU_CATALOG)).toHaveLength(2);
+    expect(
+      AUDIT_READY_TIER_ENTRIES.ra_pro_audit_ready_complex.default_flags.audit_ready_enabled,
+    ).toBe(true);
     expect(
       AUDIT_READY_TIER_ENTRIES.ra_pro_audit_ready_multi_entity.default_flags
         .audit_ready_entities_max,
