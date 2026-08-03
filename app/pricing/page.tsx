@@ -340,7 +340,7 @@ function EnterpriseCard(props: {
   // /contact does not exist yet — mailto fallback per Track 4.5 Block A paste.
   return (
     <a
-      href={`mailto:sales@advisacor.com?subject=${encodeURIComponent(`Audit Ready — ${props.title} — Advisacor inquiry`)}`}
+      href={`mailto:sales@advisacor.com?subject=${encodeURIComponent(`${props.title} — Advisacor inquiry`)}`}
       className={`rounded-2xl border border-[#C9A961]/40 bg-[#1A1A1C] p-6 flex flex-col ${focusRing()} hover:border-[#C9A961]/80 transition`}
     >
       <h3 className={`${headingFont} text-xl font-semibold text-[#ECEBE7]`}>
