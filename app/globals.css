@@ -123,3 +123,25 @@ body {
 [class*="bg-[#FF7A1A]"] {
   background-color: rgba(201, 169, 97, 0.15) !important;
 }
+
+/* Track 4.5 Block A — pricing digit fade on interval/usage change */
+@layer utilities {
+  .animate-fade-in {
+    animation: pricing-digit-fade 240ms ease-out;
+  }
+  @keyframes pricing-digit-fade {
+    from {
+      opacity: 0.35;
+      transform: translateY(2px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in {
+      animation: none;
+    }
+  }
+}

@@ -12,7 +12,8 @@ export const MFA_SENSITIVE_PREFIXES = [
   "/api/billing",
   "/api/admin",
   "/api/user/delete",
-  "/api/checkout/create-session",
+  // Track 4.5 Block A — create-session supports public lookup_key checkout from
+  // /pricing. Auth for the legacy tier_key path is enforced inside the route.
 ] as const;
 
 export const MFA_EXEMPT_PREFIXES = [
