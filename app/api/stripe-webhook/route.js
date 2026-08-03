@@ -27,6 +27,17 @@ function shouldRouteToEntitlements(event) {
   return Boolean(engagementId);
 }
 
+// TCP1 handler (/api/webhooks/stripe) owns checkout.session.completed events
+// that originate from the auth-first TCP1 flow. Those sessions carry `tier_key`
+// on session.metadata (set by /api/checkout/create-session for solo_bookkeeper,
+// review_assist, review_assist_pro). Legacy Path A / pre-TCP1 checkout sessions
+// do NOT carry tier_key and are still handled here.
+function shouldRouteCheckoutToTcp1(event) {
+  if (event.type !== 'checkout.session.completed') return false;
+  const tierKey = event?.data?.object?.metadata?.tier_key;
+  return Boolean(tierKey);
+}
+
 async function postImpl(req) {
   // Read the secret at request time (not module load) so runtime configuration
   // and tests observe the current value of the environment variable.
@@ -46,6 +57,16 @@ async function postImpl(req) {
   } catch (err) {
     console.error('[stripe-webhook] signature verification failed', err.message);
     return NextResponse.json({ error: 'invalid_signature' }, { status: 400 });
+  }
+
+  // TCP1 owns checkout.session.completed with tier_key metadata.
+  // Skip WITHOUT inserting a ledger row so the TCP1 handler's own insert wins.
+  if (shouldRouteCheckoutToTcp1(event)) {
+    console.log('[stripe-webhook] routing checkout.session.completed to TCP1 handler', {
+      event_id: event.id,
+      tier_key: event?.data?.object?.metadata?.tier_key,
+    });
+    return NextResponse.json({ received: true, routed: 'tcp1' });
   }
 
   const supabase = getSupabaseAdmin();

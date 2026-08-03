@@ -34,6 +34,7 @@ export async function handleTcp1CheckoutCompleted(
     "solo_bookkeeper",
     "client_seat_alacarte",
     "review_assist",
+    "review_assist_pro",
   ]);
   if (!TCP1_LAUNCHED_TIERS.has(tierKey)) {
     console.warn("[stripe/webhook] tier not yet launched; ignoring", { tierKey });

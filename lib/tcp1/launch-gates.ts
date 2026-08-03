@@ -97,3 +97,45 @@ export function isReviewAssistBypassAllowed(request: NextRequest): boolean {
     hasReviewAssistBypassCookie(request)
   );
 }
+
+// ────────── Review Assist Pro gate (Track 4.5 Block B) ──────────
+// Defaults OFF (permissive): only gates when LAUNCH_GATE_REVIEW_ASSIST_PRO=on.
+// Env names follow the paste block (distinct from REVIEW_ASSIST_LAUNCH_GATED).
+
+export const REVIEW_ASSIST_PRO_GATE_COOKIE = "advisacor_review_assist_pro_gate";
+
+export function isReviewAssistProGated(): boolean {
+  return process.env.LAUNCH_GATE_REVIEW_ASSIST_PRO === "on";
+}
+
+function isReviewAssistProAllowlistedIp(request: NextRequest): boolean {
+  const allow = (process.env.LAUNCH_GATE_REVIEW_ASSIST_PRO_ALLOWED_IPS ?? "").trim();
+  if (!allow) return false;
+  const allowSet = new Set(allow.split(",").map((s) => s.trim()).filter(Boolean));
+  const ip = extractClientIp(request);
+  return ip.length > 0 && allowSet.has(ip);
+}
+
+/** Exported for middleware cookie-persistence (set cookie only when token present). */
+export function hasReviewAssistProBypassToken(request: NextRequest): boolean {
+  const expected = (process.env.LAUNCH_GATE_REVIEW_ASSIST_PRO_BYPASS_TOKEN ?? "").trim();
+  if (!expected) return false;
+  const supplied = request.nextUrl.searchParams.get("internal");
+  return supplied === expected;
+}
+
+/** Exported for middleware cookie-persistence. */
+export function hasReviewAssistProBypassCookie(request: NextRequest): boolean {
+  const expected = (process.env.LAUNCH_GATE_REVIEW_ASSIST_PRO_BYPASS_TOKEN ?? "").trim();
+  if (!expected) return false;
+  const cookieValue = request.cookies.get(REVIEW_ASSIST_PRO_GATE_COOKIE)?.value;
+  return cookieValue === expected;
+}
+
+export function isReviewAssistProBypassAllowed(request: NextRequest): boolean {
+  return (
+    isReviewAssistProAllowlistedIp(request) ||
+    hasReviewAssistProBypassToken(request) ||
+    hasReviewAssistProBypassCookie(request)
+  );
+}

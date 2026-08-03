@@ -19,8 +19,11 @@ type PaidUserWelcomeProps = {
 export function PaidUserWelcome({ tierKey, email, businessName }: PaidUserWelcomeProps) {
   const router = useRouter();
   const isReviewAssist = tierKey === "review_assist";
-  const eyebrow = isReviewAssist
-    ? "Review Assist — Welcome"
+  const isReviewAssistPro = tierKey === "review_assist_pro";
+
+  const eyebrow =
+    isReviewAssistPro ? "Review Assist Pro — Welcome"
+    : isReviewAssist ? "Review Assist — Welcome"
     : "Solo Bookkeeper — Welcome";
   const headline = businessName
     ? `You're in, ${businessName}. Let's connect your first client.`
@@ -39,9 +42,11 @@ export function PaidUserWelcome({ tierKey, email, businessName }: PaidUserWelcom
           {headline}
         </h1>
         <p className="mt-6 text-lg md:text-xl text-white/70 max-w-2xl leading-relaxed">
-          {isReviewAssist
-            ? "Your Review Assist subscription is active. Choose how you'd like to connect your first client's books to get your first findings review."
-            : "Your Solo Bookkeeper subscription is active. Choose how you'd like to connect your first client's books."}
+          {isReviewAssistPro
+            ? "Your Review Assist Pro subscription is active. Connect your first client's books to unlock AI-reasoned findings, Ask Pulse Command Center, and organizational memory."
+            : isReviewAssist
+              ? "Your Review Assist subscription is active. Choose how you'd like to connect your first client's books to get your first findings review."
+              : "Your Solo Bookkeeper subscription is active. Choose how you'd like to connect your first client's books."}
           {email ? (
             <>
               {" "}
