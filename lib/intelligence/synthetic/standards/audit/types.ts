@@ -19,7 +19,12 @@ export type AuditEventKind =
   | "org-edge.override.applied"
   | "org-edge.disagreement.emitted"
   | "orgEdge.reconciliation"
-  | "escalation.evaluated";
+  | "escalation.evaluated"
+  // Phase MEM-LIFECYCLE Block 3 — pilot-slot lifecycle events.
+  // Twinned with the DB hash chain in pilot_lifecycle_events.
+  | "pilot.lifecycle.created"
+  | "pilot.lifecycle.transition"
+  | "pilot.lifecycle.assertion.evidence-attached";
 
 export interface AuditEntry {
   readonly sequenceNumber: number;
