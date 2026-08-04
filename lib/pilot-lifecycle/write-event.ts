@@ -1,5 +1,6 @@
 /**
- * Phase MEM-LIFECYCLE Block 3 — the ONE place that writes to pilot_lifecycle_events.
+ * Phase MEM-LIFECYCLE Block 3 / 3.5 — the ONE place that writes to
+ * pilot_lifecycle_events.
  *
  * Every recordX function in this module funnels through writeLifecycleEvent().
  * No other caller in the codebase writes to this table.
@@ -12,6 +13,9 @@
  *
  * If either tier throws, we surface the error to the caller — this is the
  * fail-closed contract from doctrine (failClosedOnAuditWriteFailure: true).
+ *
+ * Block 3.5: event_kind is first-class on the DB (created + evidence-attached);
+ * to_status may be null only for evidence-attached; no payload.ssot_event_kind.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -25,7 +29,6 @@ import type {
   PilotLifecycleActor,
   PilotLifecycleActorKind,
   PilotLifecycleDbActorKind,
-  PilotLifecycleDbEventKind,
   PilotLifecycleEventKind,
   PilotLifecycleEventRecord,
   PilotLifecycleSubject,
@@ -72,24 +75,6 @@ export function toDbActorKind(kind: PilotLifecycleActorKind): PilotLifecycleDbAc
   }
 }
 
-/**
- * Block 1 event_kind CHECK has no created / evidence-attached yet.
- * Persist those as transition; logical kind is in payload.ssot_event_kind
- * and in the returned record / AuditLogWriter.
- */
-export function toDbEventKind(kind: PilotLifecycleEventKind): PilotLifecycleDbEventKind {
-  switch (kind) {
-    case "pilot.lifecycle.transition":
-    case "pilot.lifecycle.created":
-    case "pilot.lifecycle.assertion.evidence-attached":
-      return "pilot.lifecycle.transition";
-    default: {
-      const _exhaustive: never = kind;
-      throw new Error(`unhandled PilotLifecycleEventKind: ${_exhaustive as string}`);
-    }
-  }
-}
-
 // ActorRef.via is a closed union that does NOT include stripe-webhook or
 // cdc-auditor. When a lifecycle actor is one of those DB-only vias, we map
 // to the closest ActorRef.via for the mirror-append.
@@ -110,37 +95,41 @@ function toActorRefVia(via: PilotLifecycleActor["via"]): ActorRef["via"] {
   }
 }
 
+function resolveToStatusForDb(
+  eventKind: PilotLifecycleEventKind,
+  toStatus: string | null,
+): string | null {
+  if (eventKind === "pilot.lifecycle.assertion.evidence-attached") {
+    return toStatus; // null is legal for this kind (Block 3.5)
+  }
+  if (toStatus == null || toStatus.length === 0) {
+    throw new Error(
+      `[pilot-lifecycle] to_status is required for event_kind=${eventKind}`,
+    );
+  }
+  return toStatus;
+}
+
 export async function writeLifecycleEvent(
   input: WriteLifecycleEventInput,
   deps: WriteLifecycleEventDeps,
 ): Promise<PilotLifecycleEventRecord> {
   const { supabase, auditWriter } = deps;
   const eventAtIso = input.eventAt.toISOString();
-  const dbEventKind = toDbEventKind(input.eventKind);
-
-  if (input.toStatus == null || input.toStatus.length === 0) {
-    throw new Error(
-      "[pilot-lifecycle] toStatus is required for DB write (to_status NOT NULL)",
-    );
-  }
-
-  const dbPayload: Record<string, unknown> = {
-    ...input.payload,
-    ssot_event_kind: input.eventKind,
-  };
+  const toStatus = resolveToStatusForDb(input.eventKind, input.toStatus);
 
   // --- Tier 1: DB event row (hash-chain trigger runs inside this INSERT) ---
   const { data: dbRow, error: dbError } = await supabase
     .from("pilot_lifecycle_events")
     .insert({
-      event_kind: dbEventKind,
+      event_kind: input.eventKind,
       event_at: eventAtIso,
       schema_version: SCHEMA_VERSION,
       pilot_slot_id: input.subject.pilotSlotId,
       company_id: input.subject.companyId ?? null,
       firm_id: input.subject.firmId ?? null,
       from_status: input.fromStatus,
-      to_status: input.toStatus,
+      to_status: toStatus,
       classification_hint: input.classificationHint,
       actor_kind: toDbActorKind(input.actor.kind),
       actor_user_id: input.actor.userId,
@@ -149,7 +138,8 @@ export async function writeLifecycleEvent(
       evidence_refs: input.evidenceRefs as unknown as object,
       reason_code: input.reasonCode,
       reason_text: input.reasonText,
-      payload: dbPayload,
+      // Block 3.5: do not add payload.ssot_event_kind — event_kind is first-class.
+      payload: input.payload,
     })
     .select("id, chain_seq, event_kind, event_at, row_hash, prev_hash")
     .single();
@@ -175,12 +165,11 @@ export async function writeLifecycleEvent(
     payload: {
       pilotSlotId: input.subject.pilotSlotId,
       eventKind: input.eventKind,
-      dbEventKind,
       dbRowId: dbRow.id as string,
       dbChainSeq: dbRow.chain_seq as number,
       dbRowHash: dbRow.row_hash as string,
       fromStatus: input.fromStatus,
-      toStatus: input.toStatus,
+      toStatus,
       reasonCode: input.reasonCode,
       classificationHint: input.classificationHint,
       assertionsCovered: input.assertionsCovered,
@@ -197,7 +186,7 @@ export async function writeLifecycleEvent(
   return {
     id: dbRow.id as string,
     chainSeq: dbRow.chain_seq as number,
-    eventKind: input.eventKind,
+    eventKind: dbRow.event_kind as PilotLifecycleEventKind,
     eventAt: dbRow.event_at as string,
     rowHash: dbRow.row_hash as string,
     prevHash: (dbRow.prev_hash as string | null) ?? null,

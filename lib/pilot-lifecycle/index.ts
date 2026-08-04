@@ -1,5 +1,5 @@
 /**
- * Phase MEM-LIFECYCLE Block 3 — public SSOT surface for pilot lifecycle events.
+ * Phase MEM-LIFECYCLE Block 3 / 3.5 — public SSOT surface for pilot lifecycle events.
  *
  * This is the ONLY module that mutates pilot lifecycle state. Block 4 rewrites
  * subscription-sync + stripe-pilot-checkout to consume from here.
@@ -13,7 +13,6 @@ import type {
   RecordCreationInput,
   RecordTransitionInput,
 } from "./types";
-import { EVIDENCE_ONLY_TO_STATUS } from "./types";
 import {
   recordAssertionEvidenceInputSchema,
   recordCreationInputSchema,
@@ -85,8 +84,8 @@ export async function recordAssertionEvidence(
       subject: parsed.subject,
       actor: parsed.actor,
       fromStatus: null,
-      // DB to_status NOT NULL — sentinel until CHECK / schema allows null semantics.
-      toStatus: EVIDENCE_ONLY_TO_STATUS,
+      // Block 3.5: to_status NULL is legal for evidence-attached (no state change).
+      toStatus: null,
       reasonCode: parsed.reasonCode,
       reasonText: parsed.reasonText,
       assertionsCovered: parsed.assertionsCovered,
@@ -114,5 +113,5 @@ export type {
   PilotStatus,
 } from "./types";
 
-export { EVIDENCE_ONLY_TO_STATUS, PILOT_LIFECYCLE_TO_AUDIT_KIND } from "./types";
-export { toDbActorKind, toDbEventKind } from "./write-event";
+export { PILOT_LIFECYCLE_TO_AUDIT_KIND } from "./types";
+export { toDbActorKind } from "./write-event";

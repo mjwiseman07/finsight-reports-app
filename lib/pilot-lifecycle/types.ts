@@ -105,7 +105,7 @@ export interface RecordAssertionEvidenceInput {
 export interface PilotLifecycleEventRecord {
   readonly id: string;
   readonly chainSeq: number;
-  /** SSOT logical kind (may differ from DB column until event_kind CHECK widens). */
+  /** DB event_kind (first-class as of Block 3.5). */
   readonly eventKind: PilotLifecycleEventKind;
   readonly eventAt: string; // ISO-8601
   readonly rowHash: string; // sha256:... from Block 2 trigger
@@ -113,27 +113,26 @@ export interface PilotLifecycleEventRecord {
 }
 
 /**
- * SSOT / AuditLogWriter event kinds.
- * Block 1 DB CHECK only allows transition|drift-detected|auto-reconciled|escalated|recurred.
- * created + evidence-attached persist as transition rows with ssot_event_kind in payload
- * until a follow-up migration widens the CHECK (no migration in Block 3).
+ * SSOT / AuditLogWriter / DB event kinds (Block 3.5 first-class CHECK).
  */
 export type PilotLifecycleEventKind =
   | "pilot.lifecycle.created"
   | "pilot.lifecycle.transition"
   | "pilot.lifecycle.assertion.evidence-attached";
 
-/** DB CHECK–legal event_kind values written today. */
+/** DB CHECK–legal event_kind values (includes Block 3.5 additions). */
 export type PilotLifecycleDbEventKind =
   | "pilot.lifecycle.transition"
   | "pilot.lifecycle.drift-detected"
   | "pilot.lifecycle.auto-reconciled"
   | "pilot.lifecycle.escalated"
-  | "pilot.lifecycle.recurred";
+  | "pilot.lifecycle.recurred"
+  | "pilot.lifecycle.created"
+  | "pilot.lifecycle.assertion.evidence-attached";
 
 /**
- * Sentinel for evidence-only rows: DB requires to_status NOT NULL, but evidence
- * does not change slot status. Stored in to_status; SSOT kind lives in payload.
+ * @deprecated Block 3.5 — evidence-attached rows use to_status NULL.
+ * Kept briefly so any accidental import fails closed at compile if removed later.
  */
 export const EVIDENCE_ONLY_TO_STATUS = "__unchanged__" as const;
 
