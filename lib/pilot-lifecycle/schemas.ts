@@ -15,9 +15,9 @@ const pcaobAssertionSchema = z.enum(ASSERTIONS);
 const pilotStatusSchema = z.enum([
   "pending",
   "active",
-  "paused",
+  "converted",
   "cancelled",
-  "expired",
+  "complimentary",
 ]);
 
 const actorViaSchema = z.enum([

@@ -1,20 +1,20 @@
 /**
- * Phase MEM-LIFECYCLE Block 4 — canonical mapping from Stripe subscription
+ * Phase MEM-LIFECYCLE Block 4/6 — canonical mapping from Stripe subscription
  * status to Advisacor pilot_slots.pilot_status.
  *
- * past_due → active is intentional. Stripe holds the sub in past_due during
- * dunning; entitlements remain active until the terminal cancel. The
- * invoice.payment_failed handler surfaces the dunning signal separately.
+ * DB CHECK: pending | active | converted | cancelled | complimentary.
  *
- * DB CHECK only allows: pending | active | converted | cancelled | complimentary.
- * Paste-literal "suspended" is mapped to the nearest legal values below.
+ * Block 6 D8: active → pending is illegal. Stripe `paused` therefore maps to
+ * cancelled (fail closed) rather than pending.
+ *
+ * past_due → active is intentional (dunning still entitled).
  */
 export const PILOT_STATUS_FROM_STRIPE_STATUS: Record<string, string> = {
   active: "active",
   trialing: "active",
-  past_due: "active", // dunning — still entitled
-  unpaid: "cancelled", // no DB "suspended" — fail closed
-  paused: "pending", // parked / not actively entitled
+  past_due: "active",
+  unpaid: "cancelled",
+  paused: "cancelled", // Block 6: was pending; active→pending banned
   canceled: "cancelled",
   incomplete: "pending",
   incomplete_expired: "cancelled",

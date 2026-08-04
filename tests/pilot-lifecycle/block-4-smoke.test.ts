@@ -123,7 +123,7 @@ describe("Block 4 — SSOT call-site rewrite", () => {
     expect(derivePilotStatusFromStripe("past_due")).toBe("active");
     expect(derivePilotStatusFromStripe("canceled")).toBe("cancelled");
     expect(derivePilotStatusFromStripe("unpaid")).toBe("cancelled");
-    expect(derivePilotStatusFromStripe("paused")).toBe("pending");
+    expect(derivePilotStatusFromStripe("paused")).toBe("cancelled");
     expect(derivePilotStatusFromStripe("incomplete")).toBe("pending");
     expect(derivePilotStatusFromStripe("bogus_status")).toBe("cancelled");
   });

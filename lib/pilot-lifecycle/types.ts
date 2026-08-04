@@ -59,7 +59,13 @@ export interface PilotLifecycleSubject {
 
 // --- Event-specific inputs ---
 
-export type PilotStatus = "pending" | "active" | "paused" | "cancelled" | "expired";
+/** Matches pilot_slots.pilot_status CHECK + Block 6 state machine. */
+export type PilotStatus =
+  | "pending"
+  | "active"
+  | "converted"
+  | "cancelled"
+  | "complimentary";
 
 export interface RecordTransitionInput {
   readonly subject: PilotLifecycleSubject;
@@ -120,7 +126,7 @@ export type PilotLifecycleEventKind =
   | "pilot.lifecycle.transition"
   | "pilot.lifecycle.assertion.evidence-attached";
 
-/** DB CHECK–legal event_kind values (includes Block 3.5 additions). */
+/** DB CHECK–legal event_kind values (Block 3.5 + Block 6 rejected). */
 export type PilotLifecycleDbEventKind =
   | "pilot.lifecycle.transition"
   | "pilot.lifecycle.drift-detected"
@@ -128,7 +134,8 @@ export type PilotLifecycleDbEventKind =
   | "pilot.lifecycle.escalated"
   | "pilot.lifecycle.recurred"
   | "pilot.lifecycle.created"
-  | "pilot.lifecycle.assertion.evidence-attached";
+  | "pilot.lifecycle.assertion.evidence-attached"
+  | "pilot.lifecycle.transition.rejected";
 
 /**
  * @deprecated Block 3.5 — evidence-attached rows use to_status NULL.

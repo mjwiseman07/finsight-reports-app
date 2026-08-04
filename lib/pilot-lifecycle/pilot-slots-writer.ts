@@ -18,6 +18,7 @@ import type {
   EvidenceRef,
 } from "./types";
 import { toDbActorKind } from "./write-event";
+import { guardAtomicWriteOrReject } from "./state-machine-wiring";
 
 const SCHEMA_VERSION = "42.7E.1" as const;
 
@@ -69,6 +70,10 @@ export async function writePilotSlotAndEventAtomic(
   input: AtomicWriteInput,
   supabase: SupabaseClient,
 ): Promise<AtomicWriteResult> {
+  // Block 6: declarative state-machine guard (pre-RPC). Illegal attempts
+  // emit transition.rejected (+ lifecycle_issues) then throw — no slot mutate.
+  await guardAtomicWriteOrReject(input, supabase);
+
   const p_slot_op = input.slotOp.op;
   const p_slot_payload =
     input.slotOp.op === "upsert"
