@@ -67,14 +67,30 @@ export default async function TieOutSummaryPage({
   return (
     <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">
-        <header>
-          <h1 className={`${headingFont} text-2xl font-semibold text-[#ECEBE7]`}>
-            Tie-Out Summary
-          </h1>
-          <p className="mt-1 text-sm text-[#A29E93]">
-            Tie-out state per PBC line. Run AR aging resolvers when a line is
-            ready.
-          </p>
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className={`${headingFont} text-2xl font-semibold text-[#ECEBE7]`}>
+              Tie-Out Summary
+            </h1>
+            <p className="mt-1 text-sm text-[#A29E93]">
+              Tie-out state per PBC line. Run AR aging resolvers when a line is
+              ready.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <a
+              href={`/audit-ready/${engagementId}/timeline`}
+              className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C] px-3 py-1.5 text-sm font-medium text-[#ECEBE7] hover:bg-[#1A1A1C]/80"
+            >
+              Timeline
+            </a>
+            <a
+              href={`/audit-ready/${engagementId}/pbc-list`}
+              className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C] px-3 py-1.5 text-sm font-medium text-[#ECEBE7] hover:bg-[#1A1A1C]/80"
+            >
+              PBC List
+            </a>
+          </div>
         </header>
         {asOfRaw && !asOfParsed && (
           <div

@@ -26,12 +26,20 @@ export default function PbcListPage() {
               links matching evidence from your books.
             </p>
           </div>
-          <a
-            href={`/audit-ready/${engagementId}/tie-out-summary`}
-            className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C] px-3 py-1.5 text-sm font-medium text-[#ECEBE7] hover:bg-[#1A1A1C]/80"
-          >
-            Tie-Out Summary
-          </a>
+          <div className="flex gap-2">
+            <a
+              href={`/audit-ready/${engagementId}/timeline`}
+              className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C] px-3 py-1.5 text-sm font-medium text-[#ECEBE7] hover:bg-[#1A1A1C]/80"
+            >
+              Timeline
+            </a>
+            <a
+              href={`/audit-ready/${engagementId}/tie-out-summary`}
+              className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C] px-3 py-1.5 text-sm font-medium text-[#ECEBE7] hover:bg-[#1A1A1C]/80"
+            >
+              Tie-Out Summary
+            </a>
+          </div>
         </header>
 
         <EngagementCostTile engagementId={engagementId} />
