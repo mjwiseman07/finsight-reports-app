@@ -13,6 +13,29 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // MEM-LIFECYCLE Block 4: forbid direct pilot_slots mutations outside SSOT.
+  {
+    files: ["**/*.{ts,tsx,js,jsx}"],
+    ignores: [
+      "lib/pilot-lifecycle/**",
+      "supabase/migrations/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "tests/**",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.object.callee.property.name='from'][callee.object.arguments.0.value='pilot_slots'][callee.property.name=/^(upsert|insert|update|delete)$/]",
+          message:
+            "Direct pilot_slots mutations are forbidden. Use lib/pilot-lifecycle/ SSOT (recordCreation / recordTransition / recordAssertionEvidence) or writePilotSlotAndEventAtomic.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

@@ -70,7 +70,9 @@ export async function handleStripeWebhook(
         customer?: string | null;
         metadata?: Record<string, string | undefined>;
       };
-      await handleTcp1CheckoutCompleted(session);
+      await handleTcp1CheckoutCompleted(session, {
+        livemode: Boolean(event.livemode),
+      });
       await markProcessed(event.id, "processed");
       return { status: "processed" };
     }
@@ -86,7 +88,10 @@ export async function handleStripeWebhook(
     if (event.type === "customer.subscription.deleted") {
       await deactivateBySubscription(sub.items?.data.map((i) => i.id) ?? []);
       if (sub.id) {
-        await handleTcp1SubscriptionDeleted(sub.id);
+        await handleTcp1SubscriptionDeleted(sub.id, {
+          livemode: Boolean(event.livemode),
+          stripeEventId: event.id,
+        });
       }
       await markProcessed(event.id, "processed");
       return { status: "processed" };

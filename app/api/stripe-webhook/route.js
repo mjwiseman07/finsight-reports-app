@@ -140,7 +140,10 @@ async function handleEvent(event) {
           typeof session.subscription === 'string'
             ? session.subscription
             : session.subscription.id;
-        await syncSubscriptionFromStripe(subscriptionId);
+        await syncSubscriptionFromStripe(subscriptionId, {
+          livemode: Boolean(event.livemode),
+          stripeEventId: event.id,
+        });
       }
       break;
     }
@@ -151,7 +154,10 @@ async function handleEvent(event) {
       // Non-D-Entitlements subscriptions (phase-1 subs without engagement_id)
       // continue to be handled here for backward compatibility.
       const sub = event.data.object;
-      await syncSubscriptionFromStripe(sub.id);
+      await syncSubscriptionFromStripe(sub.id, {
+        livemode: Boolean(event.livemode),
+        stripeEventId: event.id,
+      });
       // Gap 2: reactivation cancels a pending purge
       if (sub.status === 'active' || sub.status === 'trialing') {
         const firmId = await resolveFirmIdFromSubscription(sub.id);
@@ -167,7 +173,10 @@ async function handleEvent(event) {
     }
     case 'customer.subscription.deleted': {
       const sub = event.data.object;
-      await syncSubscriptionFromStripe(sub.id);
+      await syncSubscriptionFromStripe(sub.id, {
+        livemode: Boolean(event.livemode),
+        stripeEventId: event.id,
+      });
       // Gap 2: schedule 30-day cascade purge
       const firmId = await resolveFirmIdFromSubscription(sub.id);
       if (firmId) {
@@ -183,7 +192,10 @@ async function handleEvent(event) {
     }
     case 'customer.subscription.trial_will_end': {
       const sub = event.data.object;
-      await syncSubscriptionFromStripe(sub.id);
+      await syncSubscriptionFromStripe(sub.id, {
+        livemode: Boolean(event.livemode),
+        stripeEventId: event.id,
+      });
       break;
     }
     case 'invoice.paid': {
@@ -193,7 +205,10 @@ async function handleEvent(event) {
           typeof invoice.subscription === 'string'
             ? invoice.subscription
             : invoice.subscription.id;
-        await syncSubscriptionFromStripe(subscriptionId);
+        await syncSubscriptionFromStripe(subscriptionId, {
+          livemode: Boolean(event.livemode),
+          stripeEventId: event.id,
+        });
       }
       if (invoice.subscription && invoice.status === 'paid') {
         const supabase = getSupabaseAdmin();
@@ -219,7 +234,10 @@ async function handleEvent(event) {
           typeof invoice.subscription === 'string'
             ? invoice.subscription
             : invoice.subscription.id;
-        await syncSubscriptionFromStripe(subscriptionId);
+        await syncSubscriptionFromStripe(subscriptionId, {
+          livemode: Boolean(event.livemode),
+          stripeEventId: event.id,
+        });
       }
       break;
     }

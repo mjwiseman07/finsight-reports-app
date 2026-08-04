@@ -1,22 +1,55 @@
 /**
- * Phase TCP1 W1 — Stripe checkout.session.completed → pilot_slots upsert.
+ * Phase TCP1 W1 — Stripe checkout.session.completed → pilot_slots.
+ *
+ * Phase MEM-LIFECYCLE Block 4: all mutating pilot_slots writes flow through
+ * writePilotSlotAndEventAtomic (SSOT-adjacent). Every state change emits a
+ * hash-chained pilot_lifecycle_events row.
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { getSubscriptionEntity } from "@/lib/product-tiers";
+import { writePilotSlotAndEventAtomic } from "@/lib/pilot-lifecycle/pilot-slots-writer";
+import { getPilotLifecycleAuditWriter } from "@/lib/pilot-lifecycle/get-audit-writer";
+
+/** Empty-content sha256 — used when Stripe provides no payload bytes to hash. */
+const STRIPE_EVIDENCE_SHA256_PLACEHOLDER =
+  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 export interface CheckoutSessionPayload {
   id: string;
   subscription?: string | null;
   customer?: string | null;
   metadata?: Record<string, string | undefined>;
+  livemode?: boolean;
 }
+
+export interface CheckoutContext {
+  /** Stripe event.livemode flag propagated from the webhook. */
+  readonly livemode: boolean;
+}
+
+const EXPECT_LIVEMODE = process.env.STRIPE_EXPECT_LIVEMODE === "true";
 
 export async function handleTcp1CheckoutCompleted(
   session: CheckoutSessionPayload,
+  context: CheckoutContext = { livemode: Boolean(session.livemode) },
 ): Promise<{ handled: boolean; reason?: string }> {
+  // --- C2: livemode guard ---
+  if (EXPECT_LIVEMODE && !context.livemode) {
+    console.error("[stripe/webhook] REJECTED test-mode event on live env", {
+      session_id: session.id,
+    });
+    return { handled: false, reason: "livemode_mismatch_expected_live" };
+  }
+  if (!EXPECT_LIVEMODE && context.livemode) {
+    console.error("[stripe/webhook] REJECTED live-mode event on test env", {
+      session_id: session.id,
+    });
+    return { handled: false, reason: "livemode_mismatch_expected_test" };
+  }
+
   const tierKey = session.metadata?.tier_key;
-  const pricingStructure = session.metadata?.pricing_structure;
-  const pricingCadence = session.metadata?.pricing_cadence;
+  const pricingStructure = session.metadata?.pricing_structure ?? "flat";
+  const pricingCadence = session.metadata?.pricing_cadence ?? "monthly";
   const track = session.metadata?.track;
   const firmId = session.metadata?.firm_id;
   const companyId = session.metadata?.company_id;
@@ -28,8 +61,6 @@ export async function handleTcp1CheckoutCompleted(
     return { handled: false, reason: "missing_tier_key" };
   }
 
-  // W1 + W2.5 scope guard — expand this list as later weeks launch.
-  // W2.5 (Jul 22): review_assist joins the firm-tier family.
   const TCP1_LAUNCHED_TIERS = new Set([
     "solo_bookkeeper",
     "client_seat_alacarte",
@@ -41,19 +72,12 @@ export async function handleTcp1CheckoutCompleted(
     return { handled: false, reason: "out_of_scope_tier" };
   }
 
-  // Add-on tiers (client_seat_alacarte) attach to an existing parent slot and
-  // do NOT create their own pilot_slots row. W1 add-on billing is handled by
-  // metered usage on the parent solo_bookkeeper subscription, not by a new row.
   const entityType = getSubscriptionEntity(tierKey);
   if (entityType === null) {
     console.log("[stripe/webhook] add-on tier — no pilot_slots row written", { tierKey });
     return { handled: true, reason: "addon_no_slot_row" };
   }
 
-  // Firm-tier: require firm_id, reject company_id.
-  // Owner-tier: require company_id, reject firm_id.
-  // Loud failure on the wrong metadata prevents silent schema violations
-  // when the CHECK constraint would otherwise reject the insert.
   if (entityType === "firm") {
     if (!firmId) {
       console.error("[stripe/webhook] firm-tier checkout missing firm_id metadata", {
@@ -90,8 +114,6 @@ export async function handleTcp1CheckoutCompleted(
 
   const supabase = createServiceClient();
 
-  // Pilot-cap enforcement is entity-agnostic — the pilot cohort is capped by
-  // tier_key regardless of firm or company scope.
   let assignedSlot: number | null = null;
   if (track === "pilot") {
     const { data: existingSlots } = await supabase
@@ -114,42 +136,162 @@ export async function handleTcp1CheckoutCompleted(
     }
   }
 
-  // Standard-track subscribers do NOT occupy a pilot slot number (Bug 2).
   const slotNumberForRow: number | null = track === "pilot" ? assignedSlot : null;
 
-  const baseRow = {
-    tier_key: tierKey,
-    pilot_slot_number: slotNumberForRow,
-    pilot_status: "active" as const,
-    pricing_structure: pricingStructure ?? "flat",
-    pricing_cadence: pricingCadence ?? "monthly",
-    stripe_subscription_id:
-      typeof session.subscription === "string" ? session.subscription : null,
-    stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
-  };
+  const stripeSubscriptionId =
+    typeof session.subscription === "string" ? session.subscription : null;
+  const stripeCustomerId =
+    typeof session.customer === "string" ? session.customer : null;
 
-  const { error } =
-    entityType === "firm"
-      ? await supabase.from("pilot_slots").upsert(
-          { ...baseRow, firm_id: firmId, company_id: null },
-          { onConflict: "tier_key,firm_id" },
-        )
-      : await supabase.from("pilot_slots").upsert(
-          { ...baseRow, firm_id: null, company_id: companyId },
-          { onConflict: "tier_key,company_id" },
-        );
+  await writePilotSlotAndEventAtomic(
+    {
+      slotOp: {
+        op: "upsert",
+        tier_key: tierKey,
+        firm_id: entityType === "firm" ? (firmId as string) : null,
+        company_id: entityType === "company" ? (companyId as string) : null,
+        pilot_slot_number: slotNumberForRow,
+        pilot_status: "active",
+        pricing_structure: pricingStructure,
+        pricing_cadence: pricingCadence,
+        stripe_subscription_id: stripeSubscriptionId,
+        stripe_customer_id: stripeCustomerId,
+        _on_conflict:
+          entityType === "firm" ? "tier_key,firm_id" : "tier_key,company_id",
+      },
+      eventKind: "pilot.lifecycle.created",
+      subject: {
+        // RPC rebinds pilot_slot_id after upsert; placeholder satisfies the type.
+        pilotSlotId: "00000000-0000-4000-8000-000000000000",
+        ...(entityType === "firm"
+          ? { firmId: firmId as string }
+          : { companyId: companyId as string }),
+      },
+      actor: {
+        kind: "system",
+        userId: null,
+        via: "stripe-webhook",
+      },
+      fromStatus: null,
+      toStatus: "active",
+      reasonCode: "stripe.checkout.session.completed",
+      reasonText: `Checkout ${session.id} → pilot_slot creation`,
+      classificationHint: null,
+      assertionsCovered: ["existence", "rights_obligations"],
+      evidenceRefs: [
+        {
+          kind: "stripe_event",
+          uri: `stripe://checkout_session/${session.id}`,
+          sha256: STRIPE_EVIDENCE_SHA256_PLACEHOLDER,
+        },
+      ],
+      payload: {
+        stripe_session_id: session.id,
+        stripe_subscription_id: stripeSubscriptionId,
+        stripe_customer_id: stripeCustomerId,
+        track,
+        tier_key: tierKey,
+        pilot_slot_number: slotNumberForRow,
+        entity_type: entityType,
+      },
+      eventAt: new Date(),
+    },
+    supabase,
+  );
 
-  if (error) throw error;
+  try {
+    const auditWriter = getPilotLifecycleAuditWriter();
+    auditWriter.append({
+      kind: "pilot.lifecycle.created",
+      actor: {
+        kind: "system",
+        id: "stripe:webhook",
+        via: "direct-api",
+      },
+      subject: {
+        tenantId: entityType === "firm" ? (firmId as string) : (companyId as string),
+        orgId: entityType === "firm" ? (firmId as string) : (companyId as string),
+      },
+      payload: {
+        stripe_session_id: session.id,
+        tier_key: tierKey,
+        entity_type: entityType,
+        pilot_slot_number: slotNumberForRow,
+      },
+    });
+  } catch (err) {
+    console.error("[pilot-lifecycle] AuditLogWriter append failed (non-fatal)", err);
+  }
+
   return { handled: true };
 }
 
-export async function handleTcp1SubscriptionDeleted(subscriptionId: string): Promise<void> {
-  // Unchanged — cancellation is scoped by stripe_subscription_id regardless of
-  // whether the row is firm-tier or company-tier.
+export interface SubscriptionDeletedContext {
+  readonly livemode: boolean;
+  readonly stripeEventId: string;
+}
+
+export async function handleTcp1SubscriptionDeleted(
+  subscriptionId: string,
+  context: SubscriptionDeletedContext,
+): Promise<void> {
+  if (EXPECT_LIVEMODE && !context.livemode) {
+    console.error("[stripe/webhook] REJECTED test-mode subscription.deleted on live env", {
+      subscriptionId,
+    });
+    return;
+  }
+  if (!EXPECT_LIVEMODE && context.livemode) {
+    console.error("[stripe/webhook] REJECTED live-mode subscription.deleted on test env", {
+      subscriptionId,
+    });
+    return;
+  }
+
   const supabase = createServiceClient();
-  const { error } = await supabase
+
+  const { data: slots, error: slotErr } = await supabase
     .from("pilot_slots")
-    .update({ pilot_status: "cancelled" })
+    .select("id, firm_id, company_id, pilot_status, tier_key")
     .eq("stripe_subscription_id", subscriptionId);
-  if (error) throw error;
+  if (slotErr) throw slotErr;
+  if (!slots || slots.length === 0) return;
+
+  for (const slot of slots) {
+    if (slot.pilot_status === "cancelled") continue;
+
+    const subject =
+      slot.firm_id != null
+        ? { pilotSlotId: slot.id as string, firmId: slot.firm_id as string }
+        : { pilotSlotId: slot.id as string, companyId: slot.company_id as string };
+
+    await writePilotSlotAndEventAtomic(
+      {
+        slotOp: { op: "update_status", id: slot.id, pilot_status: "cancelled" },
+        eventKind: "pilot.lifecycle.transition",
+        subject,
+        actor: { kind: "system", userId: null, via: "stripe-webhook" },
+        fromStatus: slot.pilot_status,
+        toStatus: "cancelled",
+        reasonCode: "stripe.customer.subscription.deleted",
+        reasonText: `Subscription ${subscriptionId} deleted → pilot_status cancelled`,
+        classificationHint: null,
+        assertionsCovered: ["existence", "rights_obligations"],
+        evidenceRefs: [
+          {
+            kind: "stripe_event",
+            uri: `stripe://event/${context.stripeEventId}`,
+            sha256: STRIPE_EVIDENCE_SHA256_PLACEHOLDER,
+          },
+        ],
+        payload: {
+          stripe_subscription_id: subscriptionId,
+          stripe_event_id: context.stripeEventId,
+          tier_key: slot.tier_key,
+        },
+        eventAt: new Date(),
+      },
+      supabase,
+    );
+  }
 }
