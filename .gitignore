@@ -28,6 +28,9 @@
 # misc
 .DS_Store
 *.pem
+# Block 9.1 — hash-pinned TSA roots + freetsa ASN.1 fixture (public certs only)
+!public/tsa-roots/*.pem
+!lib/pilot-lifecycle/__fixtures__/freetsa_cacert.pem
 
 # debug
 npm-debug.log*
