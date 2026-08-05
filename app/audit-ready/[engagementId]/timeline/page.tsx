@@ -33,6 +33,14 @@ export default function LifecycleTimelinePage() {
               PBC List
             </a>
             <a
+              href={`/api/audit-ready/${engagementId}/assertion-coverage/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C] px-3 py-1.5 text-sm font-medium text-[#C9A961] hover:bg-[#1A1A1C]/80"
+            >
+              Coverage PDF
+            </a>
+            <a
               href={`/audit-ready/${engagementId}/tie-out-summary`}
               className="rounded-lg border border-[#C9A961]/30 bg-[#1A1A1C] px-3 py-1.5 text-sm font-medium text-[#ECEBE7] hover:bg-[#1A1A1C]/80"
             >
