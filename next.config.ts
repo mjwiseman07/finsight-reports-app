@@ -56,6 +56,25 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Phase MEM_LIFECYCLE Block 8 — Apex canonicalization.
+  // Vercel-edge 308 redirect from www.advisacor.com → advisacor.com.
+  // permanent: true → 308 in Next.js App Router redirects().
+  // app.advisacor.com is NOT redirected (product surface).
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "www.advisacor.com",
+          },
+        ],
+        destination: "https://advisacor.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Terms of Service | Advisacor™",
   description:
     "Terms of Service for the Advisacor™ platform, operated by Wiseman Financial Technologies, LLC.",
+  alternates: {
+    canonical: "/terms",
+  },
 };
 export default function TermsPage() {
   return (

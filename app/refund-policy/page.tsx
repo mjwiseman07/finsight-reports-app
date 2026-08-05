@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Refund Policy | Advisacor™",
   description:
     "Advisacor™ 30-day money-back guarantee and refund procedures.",
+  alternates: {
+    canonical: "/refund-policy",
+  },
 };
 export default function RefundPolicyPage() {
   return (

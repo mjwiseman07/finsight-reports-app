@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     "Advisacor for solo bookkeepers — handle 25 clients like you handle 10",
   description:
     "AI drafts the monthly close on your QuickBooks Online clients. You review, adjust, and send. Built for solo bookkeepers with 1–10 QBO clients. Start free.",
+  alternates: {
+    canonical: "/for/bookkeeper",
+  },
   openGraph: {
     title:
       "Advisacor for solo bookkeepers — handle 25 clients like you handle 10",

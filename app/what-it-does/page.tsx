@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   title: "What Advisacor Does — AI-powered close, review, and CFO insight",
   description:
     "Advisacor is an AI teammate for accounting teams: draft the close, catch what a second reviewer would catch, deliver CFO-level insight, and prove every number with an immutable audit trail.",
+  alternates: {
+    canonical: "/what-it-does",
+  },
 };
 
 const capabilities = [

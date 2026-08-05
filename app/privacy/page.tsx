@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Privacy Policy | Advisacor™",
   description:
     "Privacy policy for Wiseman Financial Technologies, LLC and the Advisacor™ platform. How we collect, use, and protect customer data — including QuickBooks Online data.",
+  alternates: {
+    canonical: "/privacy",
+  },
 };
 export default function PrivacyPage() {
   return (

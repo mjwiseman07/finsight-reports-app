@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "About Wiseman Financial Technologies | Advisacor™",
   description:
     "Enterprise SaaS that turns complex financial and operational work into powerful intelligence. Meet the founders behind Advisacor™.",
+  alternates: {
+    canonical: "/about",
+  },
 };
 
 const founders = [

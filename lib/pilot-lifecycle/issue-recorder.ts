@@ -11,7 +11,8 @@ export type IssueKind =
   | "pilot.lifecycle.drift.detected"
   | "pilot.lifecycle.transition.rejected"
   | "pilot.lifecycle.chain.integrity.broken"
-  | "pilot.lifecycle.monitor.error";
+  | "pilot.lifecycle.monitor.error"
+  | "marketing.seo.drift";
 
 export type IssueInput = {
   fingerprint: string;
@@ -68,7 +69,8 @@ async function forwardToSentryBestEffort(
 export async function recordIssue(
   input: IssueInput,
 ): Promise<IssueRecordResult> {
-  if (!input.companyId && !input.firmId) {
+  const isSeoDrift = input.issueKind === "marketing.seo.drift";
+  if (!isSeoDrift && !input.companyId && !input.firmId) {
     throw new Error(
       "recordIssue: at least one of companyId or firmId is required",
     );

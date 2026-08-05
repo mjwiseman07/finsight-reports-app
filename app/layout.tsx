@@ -18,6 +18,20 @@ export const metadata: Metadata = {
   description:
     "Advisacor is an AI-powered enterprise financial intelligence platform built for operational analytics, forecasting, advisory insights, and executive reporting.",
   metadataBase: new URL("https://advisacor.com"),
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
     title: "Advisacor | AI Powered Financial Intelligence",
     description:

@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     "Advisacor for business owners — a CFO's brain without a CFO's salary",
   description:
     "Connect QuickBooks or Xero, or upload a trial balance. Get a plain-English readout of what is actually happening in your business. Built for owners of $500K–$20M businesses.",
+  alternates: {
+    canonical: "/for/owner",
+  },
   openGraph: {
     title:
       "Advisacor for business owners — a CFO's brain without a CFO's salary",

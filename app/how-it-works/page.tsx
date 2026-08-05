@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   title: "How Advisacor Works — Connect, baseline, run, approve",
   description:
     "Four steps: connect your ledgers and feeds, baseline your book, run AI teammates on your cadence, and approve every entry with a full audit trail.",
+  alternates: {
+    canonical: "/how-it-works",
+  },
 };
 
 const steps = [

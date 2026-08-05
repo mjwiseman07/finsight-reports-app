@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     "Advisacor for bookkeeping and accounting firms — never scramble when staff leaves",
   description:
     "Multi-client dashboard, AI review assist across your book of business, and Full Close elastic capacity for when your team is short-staffed. Built for 3–30 person firms.",
+  alternates: {
+    canonical: "/for/firm",
+  },
   openGraph: {
     title:
       "Advisacor for bookkeeping and accounting firms — never scramble when staff leaves",

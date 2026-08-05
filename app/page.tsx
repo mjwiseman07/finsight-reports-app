@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     "Advisacor — AI-powered close, review, and CFO insight for the people who keep the books",
   description:
     "Advisacor gives bookkeepers, firms, and business owners an AI teammate that drafts closes, reviews the books, and surfaces CFO-level insights — without replacing the humans who own the relationship.",
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default function HomePage() {
