@@ -4,6 +4,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import Stripe from "stripe";
 import { handleStripeWebhook, type MinimalStripeEvent } from "@/lib/entitlements/stripe-sync";
+import { checkLivemode } from "@/lib/stripe/livemode-guard";
 
 export const runtime = "nodejs";
 
@@ -41,6 +42,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
       { status: 400 },
     );
+  }
+
+  // CRITICAL #2 — Livemode enforcement. See /lib/stripe/livemode-guard.js
+  // and /Critical_1_2_Webhook_Hardening_Research.md § Q1.
+  const livemodeCheck = checkLivemode(event as { livemode?: boolean });
+  if (!livemodeCheck.ok) {
+    console.warn("[webhooks/stripe TCP1] livemode mismatch — rejecting event", {
+      event_id: event.id,
+      event_type: event.type,
+      expected: livemodeCheck.expected,
+      actual: livemodeCheck.actual,
+    });
+    return NextResponse.json({ received: true, rejected: "livemode_mismatch" });
   }
 
   const result = await handleStripeWebhook(
