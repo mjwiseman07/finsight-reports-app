@@ -1,28 +1,34 @@
 /**
- * Phase MEM_LIFECYCLE Block 9 — HONEST browser-side anchor verifier.
+ * Phase MEM_LIFECYCLE Block 9 + 9.1 — HONEST browser-side anchor verifier.
  *
- * Honesty contract:
- *  - Runs entirely in the browser.
- *  - Uses Web Crypto subtle.digest for SHA-256.
- *  - Does not "trust the server" for Merkle math — recomputation uses raw
- *    row_hash leaf bytes the caller already obtained (Timeline / read API).
- *  - TSA root certificates are BUNDLED as static assets (see public/tsa-roots);
- *    no live fetch from Advisacor OR from the TSA at verify time (Block 9.1).
- *
- * Scope of this module: the Merkle side + TSR presence / parseability.
- * Full CMS SignedData signature verification (subtle.verify walk against
- * bundled TSA roots as of TSTInfo.genTime) ships in Block 9.1 — deferred
- * explicitly via VerifyReport.notes (never silently missing).
+ * v1 (Block 9): Merkle-inclusion recomputation + TSR presence/parseability.
+ * v2 (Block 9.1): full CMS SignedData signature verification against bundled
+ *   TSA roots, with as-of-genTime chain validity.
  */
 
-import { AsnParser } from "@peculiar/asn1-schema";
+import { AsnParser, AsnSerializer } from "@peculiar/asn1-schema";
 import { TimeStampResp, TSTInfo } from "@peculiar/asn1-tsp";
 import { SignedData } from "@peculiar/asn1-cms";
+import { Certificate } from "@peculiar/asn1-x509";
 import {
   merkleInclusionProof,
   verifyMerkleProof,
   type MerkleProofStep,
 } from "./merkle";
+import {
+  findSignerCert,
+  splitCertChainDer,
+  walkChainToTrustedRoot,
+  checkTsaLeafEku,
+  checkChainValidityAsOfGenTime,
+  type ChainWalkResult,
+} from "./cert-chain";
+import {
+  reencodeSignedAttrsAsSet,
+  verifySignedAttrs,
+  verifySignerInfoSignature,
+} from "./cms-verify";
+import { TRUSTED_ROOTS, fingerprintCertDer } from "./tsa-trust";
 
 async function subtleSha256(data: Uint8Array): Promise<Uint8Array> {
   const copy = new Uint8Array(data.byteLength);
@@ -33,7 +39,7 @@ async function subtleSha256(data: Uint8Array): Promise<Uint8Array> {
 
 export type AnchorBatch = {
   id: number;
-  merkle_root: Uint8Array; // 32 bytes
+  merkle_root: Uint8Array;
   leaf_count: number;
   batch_start_chain_seq: number;
   batch_end_chain_seq: number;
@@ -50,7 +56,33 @@ export type AnchorTsr = {
   tsa_name: "digicert" | "sectigo" | "identrust";
   tsa_url: string;
   tsr_der: Uint8Array;
-  gen_time: string; // ISO 8601 from DB (informational; prefer TSTInfo when parsed)
+  gen_time: string;
+  tsa_cert_chain?: Uint8Array | null;
+};
+
+export type TsrReport = {
+  tsa_name: string;
+  tsa_url: string;
+  genTime: string;
+  messageImprintMatches: boolean;
+  cmsSignatureOk: boolean;
+  chainOk: boolean;
+  trustPinMatched: boolean;
+  trustPinFilename: string | null;
+  signerCertFingerprintHex: string | null;
+  ekuOk: boolean;
+  validityAsOfGenTime: {
+    overallOk: boolean;
+    perCert: Array<{
+      fingerprintHex: string;
+      notBefore: string;
+      notAfter: string;
+      validAtGenTime: boolean;
+      reason?: string;
+    }>;
+  };
+  algorithm: string | null;
+  cmsNotes: string[];
 };
 
 export type VerifyReport = {
@@ -60,22 +92,12 @@ export type VerifyReport = {
   merkle_ok: boolean;
   merkle_expected_root_hex: string;
   merkle_actual_root_hex: string;
-  tsrs: Array<{
-    tsa_name: string;
-    tsa_url: string;
-    genTime: string;
-    messageImprintMatches: boolean;
-    // NOTE: cmsSignatureOk is INTENTIONALLY absent in v1 — see module header.
-    // Block 9.1 will add {cmsSignatureOk, chainOk, notBeforeGenTime, notAfterGenTime}.
-  }>;
+  tsrs: TsrReport[];
   overallOk: boolean;
   notes: string[];
+  version: "9.1";
 };
 
-/**
- * Verify that a given event (identified by chain_seq) is included under the
- * batch's Merkle root AND that at least one TSA response embeds a matching imprint.
- */
 export async function verifyEventAnchored(params: {
   targetChainSeq: number;
   batch: AnchorBatch;
@@ -97,6 +119,7 @@ export async function verifyEventAnchored(params: {
       tsrs: [],
       overallOk: false,
       notes: ["target chain_seq not found in batch leaves"],
+      version: "9.1",
     };
   }
 
@@ -113,20 +136,44 @@ export async function verifyEventAnchored(params: {
     target.leaf_index,
     subtleSha256,
   );
-
   const merkle_ok = await verifyMerkleProof(
     target.row_hash_bytes,
     proof,
     batch.merkle_root,
     subtleSha256,
   );
-
   const actualRoot = await recomputeRoot(leafBytes, subtleSha256);
 
-  const tsrReports: VerifyReport["tsrs"] = [];
+  const bundledRootCerts = TRUSTED_ROOTS.map((r) => {
+    const copy = new Uint8Array(r.der.byteLength);
+    copy.set(r.der);
+    const cert = AsnParser.parse(copy, Certificate);
+    return { cert, derBytes: r.der };
+  });
+
+  const tsrReports: TsrReport[] = [];
+
   for (const t of tsrs) {
+    const report: TsrReport = {
+      tsa_name: t.tsa_name,
+      tsa_url: t.tsa_url,
+      genTime: t.gen_time,
+      messageImprintMatches: false,
+      cmsSignatureOk: false,
+      chainOk: false,
+      trustPinMatched: false,
+      trustPinFilename: null,
+      signerCertFingerprintHex: null,
+      ekuOk: false,
+      validityAsOfGenTime: { overallOk: false, perCert: [] },
+      algorithm: null,
+      cmsNotes: [],
+    };
+
     try {
-      const tsr = AsnParser.parse(t.tsr_der, TimeStampResp);
+      const tsrCopy = new Uint8Array(t.tsr_der.byteLength);
+      tsrCopy.set(t.tsr_der);
+      const tsr = AsnParser.parse(tsrCopy, TimeStampResp);
       if (!tsr.timeStampToken) throw new Error("no timeStampToken");
       const signedData = AsnParser.parse(tsr.timeStampToken.content, SignedData);
       const encap = signedData.encapContentInfo.eContent;
@@ -139,34 +186,149 @@ export async function verifyEventAnchored(params: {
       if (!tstDer) throw new Error("empty eContent");
       const tstInfo = AsnParser.parse(tstDer, TSTInfo);
       const imprint = new Uint8Array(tstInfo.messageImprint.hashedMessage.buffer);
-      const messageImprintMatches = bytesEqual(imprint, batch.merkle_root);
-      tsrReports.push({
-        tsa_name: t.tsa_name,
-        tsa_url: t.tsa_url,
-        genTime: tstInfo.genTime.toISOString(),
-        messageImprintMatches,
-      });
+      report.messageImprintMatches = bytesEqual(imprint, batch.merkle_root);
+      report.genTime = tstInfo.genTime.toISOString();
+
+      if (signedData.signerInfos.length === 0) {
+        throw new Error("SignedData has no signerInfos");
+      }
+      const signerInfo = signedData.signerInfos[0];
+      if (signedData.signerInfos.length > 1) {
+        report.cmsNotes.push(
+          `SignedData has ${signedData.signerInfos.length} signerInfos; verifying only the first (RFC 3161 typical)`,
+        );
+      }
+
+      let chainCerts: Array<{ cert: Certificate; derBytes: Uint8Array }> = [];
+      if (t.tsa_cert_chain && t.tsa_cert_chain.length > 0) {
+        chainCerts = splitCertChainDer(t.tsa_cert_chain).map((c) => ({
+          cert: c,
+          derBytes: new Uint8Array(AsnSerializer.serialize(c)),
+        }));
+      } else if (signedData.certificates) {
+        for (const choice of signedData.certificates) {
+          if (choice.certificate) {
+            chainCerts.push({
+              cert: choice.certificate,
+              derBytes: new Uint8Array(
+                AsnSerializer.serialize(choice.certificate),
+              ),
+            });
+          }
+        }
+      }
+      if (chainCerts.length === 0) {
+        throw new Error("no TSA certificates available for chain verification");
+      }
+
+      const signer = findSignerCert(
+        signerInfo,
+        chainCerts.map((c) => c.cert),
+      );
+      if (!signer) {
+        throw new Error("SignerInfo.sid does not match any cert in the chain");
+      }
+      report.signerCertFingerprintHex = await fingerprintCertDer(signer.derBytes);
+
+      const ekuCheck = checkTsaLeafEku(signer.cert);
+      report.ekuOk = ekuCheck.ok;
+      if (!ekuCheck.ok) report.cmsNotes.push(`EKU: ${ekuCheck.reason}`);
+
+      const signerFp = report.signerCertFingerprintHex;
+      const intermediates = [];
+      for (const c of chainCerts) {
+        const fp = await fingerprintCertDer(c.derBytes);
+        if (fp !== signerFp) intermediates.push(c);
+      }
+      const walk: ChainWalkResult = await walkChainToTrustedRoot(
+        signer,
+        intermediates,
+        bundledRootCerts,
+      );
+      report.chainOk =
+        walk.trustReason === "hash-pin" && walk.rootTrustedFilename !== null;
+      report.trustPinMatched = report.chainOk;
+      report.trustPinFilename = walk.rootTrustedFilename;
+      for (const f of walk.failures) report.cmsNotes.push(`chain: ${f}`);
+
+      const validity = await checkChainValidityAsOfGenTime(
+        walk.chain,
+        tstInfo.genTime,
+      );
+      report.validityAsOfGenTime = validity;
+      for (const pc of validity.perCert) {
+        if (!pc.validAtGenTime && pc.reason) {
+          report.cmsNotes.push(
+            `validity: cert ${pc.fingerprintHex.slice(0, 16)}… ${pc.reason}`,
+          );
+        }
+      }
+
+      const digestHash =
+        signerInfo.digestAlgorithm.algorithm === "2.16.840.1.101.3.4.2.2"
+          ? "SHA-384"
+          : signerInfo.digestAlgorithm.algorithm === "2.16.840.1.101.3.4.2.3"
+            ? "SHA-512"
+            : "SHA-256";
+      const attrsCheck = await verifySignedAttrs(
+        signerInfo,
+        tstDer,
+        signedData.encapContentInfo.eContentType,
+        digestHash,
+      );
+      for (const r of attrsCheck.reasons) report.cmsNotes.push(`signedAttrs: ${r}`);
+
+      const spki = new Uint8Array(
+        AsnSerializer.serialize(signer.cert.tbsCertificate.subjectPublicKeyInfo),
+      );
+      const reencoded = reencodeSignedAttrsAsSet(signerInfo);
+      const sigResult = await verifySignerInfoSignature(
+        signerInfo,
+        spki,
+        reencoded,
+      );
+      report.cmsSignatureOk = sigResult.ok && attrsCheck.ok;
+      report.algorithm = sigResult.algo
+        ? `${sigResult.algo.kind}${"hash" in sigResult.algo ? "-" + sigResult.algo.hash : ""}`
+        : null;
+      if (sigResult.reason) report.cmsNotes.push(`signature: ${sigResult.reason}`);
+      if (
+        sigResult.algo &&
+        (sigResult.algo.kind === "rsa-pss" || sigResult.algo.kind === "ecdsa")
+      ) {
+        report.cmsNotes.push(
+          `algorithm ${sigResult.algo.kind}: NOTE — no live TSA uses this algorithm as of Block 9.1 (2026-08-05). Verified against synthetic vectors only.`,
+        );
+      }
     } catch (err) {
-      tsrReports.push({
-        tsa_name: t.tsa_name,
-        tsa_url: t.tsa_url,
-        genTime: t.gen_time,
-        messageImprintMatches: false,
-      });
-      notes.push(
-        `TSR parse failed for ${t.tsa_name}: ${err instanceof Error ? err.message : String(err)}`,
+      report.cmsNotes.push(
+        `TSR verification error: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+
+    tsrReports.push(report);
   }
 
-  const overallOk =
-    merkle_ok &&
-    tsrReports.length > 0 &&
-    tsrReports.some((r) => r.messageImprintMatches);
-
-  notes.push(
-    "Block 9 v1 verifier: honest Merkle-inclusion + TSR presence. Block 9.1 adds full CMS SignedData signature verification against bundled TSA roots as of TSTInfo.genTime.",
+  const anyTsrFullyValid = tsrReports.some(
+    (r) =>
+      r.messageImprintMatches &&
+      r.cmsSignatureOk &&
+      r.chainOk &&
+      r.ekuOk &&
+      r.validityAsOfGenTime.overallOk,
   );
+
+  const overallOk = merkle_ok && anyTsrFullyValid;
+
+  if (overallOk) {
+    notes.push(
+      "Block 9.1 full CMS verification active — signature, cert chain, EKU, and as-of-genTime validity all confirmed in-browser against bundled TSA roots.",
+    );
+  } else if (merkle_ok) {
+    notes.push(
+      "Block 9.1: Merkle-inclusion proof passed but no TSR passed full CMS verification. See tsrs[].cmsNotes for specific failures.",
+    );
+  }
 
   return {
     chain_seq: target.chain_seq,
@@ -178,6 +340,7 @@ export async function verifyEventAnchored(params: {
     tsrs: tsrReports,
     overallOk,
     notes,
+    version: "9.1",
   };
 }
 
