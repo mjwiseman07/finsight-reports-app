@@ -31,7 +31,8 @@ export async function runDriftDetector(): Promise<DriftDetectorResult> {
   }
 
   const stripe = new Stripe(stripeSecret, {
-    apiVersion: "2026-04-22.dahlia" as Stripe.LatestApiVersion,
+    // Stripe SDK typings no longer export LatestApiVersion; pin deployed API version.
+    apiVersion: "2026-04-22.dahlia" as never,
   });
   const admin = getSupabaseAdmin();
 

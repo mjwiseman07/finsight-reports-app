@@ -12,6 +12,7 @@ export type IssueKind =
   | "pilot.lifecycle.transition.rejected"
   | "pilot.lifecycle.chain.integrity.broken"
   | "pilot.lifecycle.monitor.error"
+  | "pilot.lifecycle.chain.anchor"
   | "marketing.seo.drift";
 
 export type IssueInput = {
@@ -69,8 +70,10 @@ async function forwardToSentryBestEffort(
 export async function recordIssue(
   input: IssueInput,
 ): Promise<IssueRecordResult> {
-  const isSeoDrift = input.issueKind === "marketing.seo.drift";
-  if (!isSeoDrift && !input.companyId && !input.firmId) {
+  const isPartitionless =
+    input.issueKind === "marketing.seo.drift" ||
+    input.issueKind === "pilot.lifecycle.chain.anchor";
+  if (!isPartitionless && !input.companyId && !input.firmId) {
     throw new Error(
       "recordIssue: at least one of companyId or firmId is required",
     );

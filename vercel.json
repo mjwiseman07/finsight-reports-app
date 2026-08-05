@@ -7,6 +7,7 @@
     { "path": "/api/cron/qbo-trace-purge", "schedule": "0 4 * * *" },
     { "path": "/api/cron/subscription-purge-executor", "schedule": "0 * * * *" },
     { "path": "/api/cron/pilot-lifecycle-monitor", "schedule": "0 * * * *" },
+    { "path": "/api/cron/pilot-lifecycle-anchor", "schedule": "30 * * * *" },
     { "path": "/api/cron/seo-drift-monitor", "schedule": "0 8 * * 0" },
     { "path": "/api/cron/bs-recon-monthly", "schedule": "0 7 1 * *" }
   ]

@@ -134,6 +134,10 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1079.0",
     "@marsidev/react-turnstile": "^1.5.3",
+    "@peculiar/asn1-cms": "^2.8.0",
+    "@peculiar/asn1-schema": "^2.8.0",
+    "@peculiar/asn1-tsp": "^2.8.0",
+    "@peculiar/asn1-x509": "^2.8.0",
     "@react-pdf/renderer": "^4.5.1",
     "@sentry/nextjs": "^10.65.0",
     "@simplewebauthn/browser": "^11.0.0",
