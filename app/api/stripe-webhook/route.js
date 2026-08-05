@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { syncSubscriptionFromStripe } from '@/lib/subscription-sync';
+import { checkLivemode } from '@/lib/stripe/livemode-guard';
 import { withAutoFile } from '@/lib/support/api-error-wrapper';
 import {
   scheduleGap2Purge,
@@ -57,6 +58,46 @@ async function postImpl(req) {
   } catch (err) {
     console.error('[stripe-webhook] signature verification failed', err.message);
     return NextResponse.json({ error: 'invalid_signature' }, { status: 400 });
+  }
+
+  // CRITICAL #2 — Livemode enforcement. Reject sandbox events on LIVE endpoint
+  // (and vice versa). Return 200 to stop Stripe retry cycles (see
+  // /Critical_1_2_Webhook_Hardening_Research.md § Q1).
+  const livemodeCheck = checkLivemode(event);
+  if (!livemodeCheck.ok) {
+    console.warn('[stripe-webhook] livemode mismatch — rejecting event', {
+      event_id: event.id,
+      event_type: event.type,
+      expected: livemodeCheck.expected,
+      actual: livemodeCheck.actual,
+    });
+
+    // Best-effort audit trail — do not fail the response if this insert
+    // conflicts on a re-delivered event.
+    try {
+      const supabase = getSupabaseAdmin();
+      const { error: auditErr } = await supabase.from('stripe_webhook_events').insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        raw_payload: event,
+        received_at: new Date().toISOString(),
+        processing_status: 'rejected_livemode',
+        processing_error: `expected livemode=${livemodeCheck.expected}, got livemode=${livemodeCheck.actual}`,
+        livemode: Boolean(event.livemode),
+      });
+      if (auditErr && auditErr.code !== '23505') {
+        console.error('[stripe-webhook] livemode-reject audit insert failed', auditErr);
+      }
+    } catch (auditErr) {
+      // 23505 (already logged as duplicate) is fine — the event is being
+      // rejected either way. Any other error just gets console'd.
+      const code = auditErr && typeof auditErr === 'object' ? auditErr.code : null;
+      if (code !== '23505') {
+        console.error('[stripe-webhook] livemode-reject audit insert failed', auditErr);
+      }
+    }
+
+    return NextResponse.json({ received: true, rejected: 'livemode_mismatch' });
   }
 
   // TCP1 owns checkout.session.completed with tier_key metadata.

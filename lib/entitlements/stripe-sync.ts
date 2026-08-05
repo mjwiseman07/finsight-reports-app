@@ -8,6 +8,7 @@ import {
   handleTcp1CheckoutCompleted,
   handleTcp1SubscriptionDeleted,
 } from "@/lib/tcp1/stripe-pilot-checkout";
+import { reconcilePilotSlotStatus } from "@/lib/subscription-sync";
 
 export interface MinimalStripeEvent {
   id: string;
@@ -79,7 +80,18 @@ export async function handleStripeWebhook(
     const engagementId = sub.metadata?.engagement_id;
 
     if (!engagementId) {
-      await markProcessed(event.id, "skipped", "no engagement_id in subscription metadata");
+      // No engagement metadata = pilot-tier subscription (Solo BK, Review Assist,
+      // Review Assist Pro). D-Entitlements does not own these, but we still
+      // must reconcile pilot_slots on status transitions. This closes the
+      // CRITICAL #1 hole where customer.subscription.updated → canceled/unpaid
+      // never reached the pilot_slots table.
+      if (event.type === "customer.subscription.deleted" && sub.id) {
+        await reconcilePilotSlotStatus(sub.id, "canceled");
+      } else if (event.type === "customer.subscription.updated" && sub.id) {
+        const stripeStatus = sub.status ?? "active";
+        await reconcilePilotSlotStatus(sub.id, stripeStatus);
+      }
+      await markProcessed(event.id, "skipped", "no engagement_id in subscription metadata (pilot_slots reconciled)");
       return { status: "skipped" };
     }
 
@@ -87,6 +99,11 @@ export async function handleStripeWebhook(
       await deactivateBySubscription(sub.items?.data.map((i) => i.id) ?? []);
       if (sub.id) {
         await handleTcp1SubscriptionDeleted(sub.id);
+        // Belt-and-suspenders: reconcile via the shared mapping in case the
+        // subscription has no engagement metadata but does have a pilot_slots
+        // row (pilot-tier subs go through the create-session flow which sets
+        // tier_key but not engagement_id).
+        await reconcilePilotSlotStatus(sub.id, "canceled");
       }
       await markProcessed(event.id, "processed");
       return { status: "processed" };
