@@ -5,7 +5,7 @@
   "scripts": {
     "predev": "npm run gen-tsa-trust && node scripts/seed-super-admin.js",
     "prebuild": "npm run gen-tsa-trust",
-    "gen-tsa-trust": "tsx scripts/gen-tsa-trust-bundle.ts",
+    "gen-tsa-trust": "npx tsx scripts/gen-tsa-trust-bundle.ts",
     "dev": "next dev",
     "seed:super-admin": "node scripts/seed-super-admin.js",
     "seed:background-jobs": "node scripts/seed-background-jobs.js",
