@@ -9,6 +9,7 @@ import { QboOnlyBadge } from "@/components/QboOnlyBadge";
 import { PricingCard, type BillingInterval } from "@/components/pricing/PricingToggles";
 import { supabase } from "@/lib/supabase";
 import { buildPricingSignupUrl } from "@/lib/pricing/checkout-handlers";
+import { useLaunchStatus } from "@/lib/tcp1/use-launch-status";
 
 export default function PricingPage() {
   return (
@@ -56,6 +57,7 @@ export default function PricingPage() {
 function ReviewAssistCard() {
   const [loading, setLoading] = useState(false);
   const [interval, setInterval] = useState<BillingInterval>("yearly");
+  const gate = useLaunchStatus("review_assist");
 
   async function handleStart() {
     setLoading(true);
@@ -72,11 +74,25 @@ function ReviewAssistCard() {
     }
   }
 
+  // MINOR N2 — Do not render the card at all while the auth check is in flight.
+  // Prevents a flash-of-visible-CTA on non-super-admin loads. The grid slot
+  // simply stays empty until `ready`; parent's `md:grid-cols-2` collapses
+  // gracefully because siblings are laid out with `grid-cols-1 md:grid-cols-2`.
+  if (!gate.ready) return null;
+  if (!gate.visible) return null;
+
+  // Status pill: "Live now" for live tiers; "Testing (super-admin preview)"
+  // when a super-admin is seeing a non-live tier via bypass. Prevents Matt from
+  // shipping "Live now" for a TESTING tier just because he can see it.
+  const statusPill = gate.bypassing
+    ? "Testing — super-admin preview"
+    : "Live now";
+
   return (
     <div className="rounded-2xl border border-[#C9A961]/40 bg-[#1A1A1C] p-6 flex flex-col">
       <div className="mb-4">
         <p className="text-xs uppercase tracking-wider text-[#C9A961] mb-1">
-          Live now
+          {statusPill}
         </p>
         <h2 className={`${headingFont} text-2xl font-semibold`}>
           Review Assist
