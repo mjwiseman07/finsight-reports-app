@@ -145,3 +145,18 @@ body {
     }
   }
 }
+
+/* Anchor badge verifying-state spinner (Block 9.2) */
+@keyframes anchor-badge-spin {
+  from { transform: rotate(0deg); transform-origin: center; }
+  to   { transform: rotate(360deg); transform-origin: center; }
+}
+.anchor-badge-spin {
+  animation: anchor-badge-spin 1.1s linear infinite;
+  transform-origin: 10px 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .anchor-badge-spin {
+    animation: none;
+  }
+}

@@ -155,6 +155,7 @@
     "next": "16.2.6",
     "node-quickbooks": "^2.0.50",
     "otplib": "^13.4.1",
+    "p-limit": "^6.2.0",
     "papaparse": "^5.5.3",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
