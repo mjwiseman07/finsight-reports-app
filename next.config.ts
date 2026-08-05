@@ -56,6 +56,49 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // MAJOR #3 — Hyphenated persona URLs are historic inbound links (external
+      // shares, ads, bookmarks). Canonical pages live at /for/owner, /for/bookkeeper,
+      // /for/firm and are allowlisted in middleware.ts (PUBLIC_MARKETING_PATHS).
+      // 308 permanent (default when permanent: true) preserves SEO equity and
+      // preempts the middleware.ts:244–251 fallthrough that otherwise 307s to /.
+      // Deliberately NOT a regex catch-all — future /for-* slugs must be added
+      // explicitly so no unintended surface becomes reachable via redirect.
+      {
+        source: "/for-owner",
+        destination: "/for/owner",
+        permanent: true,
+      },
+      {
+        source: "/for-bookkeeper",
+        destination: "/for/bookkeeper",
+        permanent: true,
+      },
+      {
+        source: "/for-firm",
+        destination: "/for/firm",
+        permanent: true,
+      },
+      // Also catch trailing-slash variants (Next normalizes, but be defensive
+      // against clients that send exact "/for-firm/" without following canonical).
+      {
+        source: "/for-owner/",
+        destination: "/for/owner",
+        permanent: true,
+      },
+      {
+        source: "/for-bookkeeper/",
+        destination: "/for/bookkeeper",
+        permanent: true,
+      },
+      {
+        source: "/for-firm/",
+        destination: "/for/firm",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
