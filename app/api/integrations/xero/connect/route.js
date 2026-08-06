@@ -78,19 +78,17 @@ async function handleConnect(request) {
       returnTo: returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard",
     });
 
-    const wantsJson = request.headers.get("accept")?.includes("application/json");
-    if (wantsJson) {
-      return NextResponse.json({
-        url: result.url,
-        provider: "xero",
-        environment: process.env.XERO_ENV || "development",
-      });
-    }
-
-    const response = NextResponse.redirect(result.url);
-    response.cookies.set("advisacor_oauth_token", "", { path: "/", maxAge: 0 });
-    response.cookies.set("advisacor_oauth_return_to", "", { path: "/", maxAge: 0 });
-    return response;
+    // DASH_1A.1.2 fix: after Bearer-authenticated startConnection, always return JSON.
+    // The `handleConnectXero` fetch in app/dashboard/page.jsx needs a JSON body containing
+    // `url` so it can call `window.location.assign(result.url)`. Returning a 302 here would
+    // send fetch cross-origin → opaqueredirect → silent failure. The leadId-only redirect
+    // path above (lines 33-60) still 302s intentionally because that's a direct browser
+    // navigation, not a fetch.
+    return NextResponse.json({
+      url: result.url,
+      provider: "xero",
+      environment: process.env.XERO_ENV || "development",
+    });
   } catch (error) {
     console.error("[integrations/xero/connect] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to start Xero connection" }, { status: 500 });
