@@ -53,7 +53,7 @@ async function resetFreshCustomerData(supabaseAdmin, userId) {
     await safeDelete("pulse conversations", supabaseAdmin.from("pulse_conversation_memory").delete().in("company_id", companyIds));
     await safeDelete("pulse insights", supabaseAdmin.from("pulse_insight_memory").delete().in("company_id", companyIds));
     await safeDelete("pulse snapshots", supabaseAdmin.from("pulse_historical_snapshots").delete().in("company_id", companyIds));
-    await safeDelete("accounting connections", supabaseAdmin.from("accounting_connections").delete().in("company_id", companyIds));
+    // accounting_connections is keyed by user_id (not company_id) — cleaned below.
     await safeDelete("delivery settings", supabaseAdmin.from("delivery_settings").delete().in("company_id", companyIds));
     await safeDelete("company settings", supabaseAdmin.from("company_settings").delete().in("company_id", companyIds));
     await safeDelete("onboarding progress", supabaseAdmin.from("onboarding_progress").delete().in("company_id", companyIds));
@@ -62,6 +62,7 @@ async function resetFreshCustomerData(supabaseAdmin, userId) {
     await safeDelete("companies", supabaseAdmin.from("companies").delete().in("id", companyIds));
   }
 
+  await safeDelete("accounting connections", supabaseAdmin.from("accounting_connections").delete().eq("user_id", userId));
   await safeDelete("user pulse usage events", supabaseAdmin.from("pulse_usage_events").delete().eq("user_id", userId));
   await safeDelete("user pulse conversations", supabaseAdmin.from("pulse_conversation_memory").delete().eq("user_id", userId));
   await safeDelete("user pulse insights", supabaseAdmin.from("pulse_insight_memory").delete().eq("user_id", userId));

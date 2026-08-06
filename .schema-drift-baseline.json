@@ -1,0 +1,93 @@
+{
+  "$schema": "internal:advisacor/schema-drift-baseline/v1",
+  "generated_at": "2026-08-06T01:00:00.000Z",
+  "debt_ticket": "MAJOR-2.2",
+  "notes": "Pre-existing product drift accepted at MAJOR #2.1 ship. Each entry MUST be resolved in MAJOR #2.2. Do NOT extend this file without an accompanying debt ticket.",
+  "entries": [
+    {
+      "table": "company_users",
+      "column": "name",
+      "note": "likely PostgREST embed of companies.name mis-attributed to company_users",
+      "call_sites": [
+        "app/api/support/tickets/route.js:18"
+      ]
+    },
+    {
+      "table": "company_users",
+      "column": "package_level",
+      "note": "likely PostgREST embed of companies.package_level mis-attributed to company_users",
+      "call_sites": [
+        "app/api/support/tickets/route.js:18"
+      ]
+    },
+    {
+      "table": "ledger_events",
+      "column": "created_at",
+      "note": "use occurred_at or recorded_at; call sites still reference created_at",
+      "call_sites": [
+        "lib/reviewer/review-detail.ts:45",
+        "app/api/reviewer/manual-tests/[id]/route.ts:52"
+      ]
+    },
+    {
+      "table": "ledger_events",
+      "column": "payload",
+      "note": "renamed to event_payload; call sites still reference legacy name",
+      "call_sites": [
+        "lib/reviewer/review-detail.ts:45",
+        "app/api/reviewer/manual-tests/[id]/route.ts:52"
+      ]
+    },
+    {
+      "table": "payment_batch_lines",
+      "column": "currency",
+      "note": "currency lives on parent batch or was dropped from lines",
+      "call_sites": [
+        "lib/ap-intake/payments/service.ts:235"
+      ]
+    },
+    {
+      "table": "refund_requests",
+      "column": "stripe_subscription_id",
+      "note": "likely embed column on subscriptions join; live refund_requests has subscription_id",
+      "call_sites": [
+        "lib/refund-execution.js:15"
+      ]
+    },
+    {
+      "table": "users",
+      "column": "internal_admin",
+      "note": "column does not exist on public.users",
+      "call_sites": [
+        "scripts/verify-customer-test-account.js:55"
+      ]
+    },
+    {
+      "table": "users",
+      "column": "role",
+      "note": "column does not exist on public.users (role lives in auth metadata / company_users)",
+      "call_sites": [
+        "scripts/verify-customer-test-account.js:55"
+      ]
+    },
+    {
+      "table": "users",
+      "column": "subscription_plan",
+      "note": "column does not exist on public.users; only subscription_status / stripe_customer_id",
+      "call_sites": [
+        "lib/pulse-context-engine.js:644",
+        "scripts/verify-customer-test-account.js:55",
+        "app/api/pulse/ask/route.js:38",
+        "app/api/quickbooks/detect-capabilities/route.js:28"
+      ]
+    },
+    {
+      "table": "users",
+      "column": "subscription_price_id",
+      "note": "column does not exist on public.users",
+      "call_sites": [
+        "app/api/quickbooks/detect-capabilities/route.js:28"
+      ]
+    }
+  ]
+}
