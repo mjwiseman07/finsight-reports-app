@@ -12,6 +12,8 @@ import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPoi
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
+import { usePlatformIntegrity } from "@/lib/platform-integrity/use-platform-integrity";
+import { isPlatformIntegrityEnabled } from "@/lib/platform-integrity/feature-flag";
 import {
   PulseJeAccountPicker,
   PulseJePreviewModal,
@@ -1733,6 +1735,14 @@ export default function DashboardPage() {
             >
               Account &amp; Support
             </button>
+            {isPlatformIntegrityEnabled() && (
+              <Link
+                href="/dashboard/platform-integrity"
+                className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-5 py-2 text-sm font-bold text-[#C9A961] transition hover:border-[#C9A961]/70 hover:bg-[#C9A961]/20 inline-flex items-center`}
+              >
+                Platform Integrity
+              </Link>
+            )}
             <Link
               href="/dashboard/account"
               className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-5 py-2 text-sm font-bold text-[#C9A961] transition hover:border-[#C9A961]/70 hover:bg-[#C9A961]/20 inline-flex items-center`}
@@ -2626,6 +2636,117 @@ export default function DashboardPage() {
   );
 }
 
+/**
+ * MAJOR #2.3 Block B.3 — Platform Integrity KPI tile (flag-gated).
+ * Consumes B.2 usePlatformIntegrity; deep-links to /dashboard/platform-integrity.
+ */
+function PlatformIntegrityDashboardTile() {
+  const enabled = isPlatformIntegrityEnabled();
+  const { data, loading, error } = usePlatformIntegrity();
+
+  if (!enabled) return null;
+
+  const total = data?.findings?.length ?? 0;
+  const highSignal = (data?.findings ?? []).filter(
+    (f) =>
+      f.assertion_confidence === "grounded" &&
+      f.financial_reporting_relevance === "in_scope",
+  ).length;
+  const chainIntact = data?.chain?.chain_intact ?? true;
+  const chainGap = data?.chain?.chain_gap_count ?? 0;
+
+  return (
+    <Link
+      href="/dashboard/platform-integrity"
+      className={`group flex flex-col gap-2 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 p-5 transition hover:border-[#C9A961]/50 ${focusRing("rounded-3xl")}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>
+          Platform Integrity
+        </p>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+            chainIntact
+              ? "border-[#C9A961]/40 bg-[#C9A961]/10 text-[#C9A961]"
+              : "border-[#DFC084]/40 bg-[#DFC084]/10 text-[#DFC084]"
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`h-1.5 w-1.5 rounded-full ${chainIntact ? "bg-[#C9A961]" : "bg-[#DFC084]"}`}
+          />
+          {chainIntact ? "Chain intact" : `${chainGap} gap`}
+        </span>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-[#A29E93]">Loading…</p>
+      ) : error ? (
+        <p className="text-xs text-[#DFC084]">Unable to load signals</p>
+      ) : (
+        <>
+          <div className="flex items-baseline gap-2">
+            <span className={`${headingFont} text-3xl font-black tabular-nums text-[#C9A961]`}>
+              {total}
+            </span>
+            <span className="text-xs text-[#A29E93]">
+              contingent risk indicator{total === 1 ? "" : "s"}
+            </span>
+          </div>
+          <p className="text-[11px] text-[#7A7974]">
+            {highSignal > 0
+              ? `${highSignal} framework-grounded · in scope`
+              : "None framework-grounded + in scope"}
+          </p>
+        </>
+      )}
+
+      <p className={`mt-auto text-[11px] text-[#C9A961] ${headingFont}`}>View surface →</p>
+    </Link>
+  );
+}
+
+/**
+ * MAJOR #2.3 Block B.3 — Pulse Advisory Data Integrity read-through row.
+ */
+function PulseAdvisoryDataIntegrityRow() {
+  const enabled = isPlatformIntegrityEnabled();
+  const { data, loading, error } = usePlatformIntegrity();
+
+  if (!enabled) return null;
+
+  const total = data?.findings?.length ?? 0;
+  const grounded = (data?.findings ?? []).filter(
+    (f) => f.assertion_confidence === "grounded",
+  ).length;
+  const judgmentRequired = (data?.findings ?? []).filter(
+    (f) => f.assertion_confidence === "judgment_required",
+  ).length;
+
+  return (
+    <div className="mt-5 flex items-center justify-between gap-3 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 px-5 py-4">
+      <div className="flex flex-col gap-0.5">
+        <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Data Integrity</p>
+        <p className="text-[11px] text-[#A29E93]">
+          {loading
+            ? "Loading signals…"
+            : error
+              ? "Unable to load signals"
+              : total === 0
+                ? "No data-integrity findings detected"
+                : `${total} indicator${total === 1 ? "" : "s"} · ${grounded} grounded · ${judgmentRequired} judgment`}
+        </p>
+      </div>
+      <Link
+        href="/dashboard/platform-integrity"
+        className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/40 px-3 py-1 text-[11px] font-bold text-[#C9A961] transition hover:border-[#C9A961]/60`}
+      >
+        Open
+      </Link>
+    </div>
+  );
+}
+
 function FinancialHealthOverview({ onAskMetric }) {
   const scores = [
     ["Overall Health Score", "82 / 100", "Healthy"],
@@ -2704,6 +2825,11 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
             <p className="mt-2 text-sm leading-6 text-[#A29E93]">{detail}</p>
           </div>
         ))}
+      </div>
+
+      {/* MAJOR #2.3 B.3 — Option B: dedicated row under 4-col KPI grid */}
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <PlatformIntegrityDashboardTile />
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-3">
@@ -3336,6 +3462,8 @@ function PulseAdvisoryIntelligencePanel({ intelligence, onRefresh, onRun, onDism
           </div>
         </div>
       </div>
+
+      <PulseAdvisoryDataIntegrityRow />
     </div>
   );
 }
