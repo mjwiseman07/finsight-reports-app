@@ -92,7 +92,7 @@ export async function GET(request) {
 
       const expectedState = request.cookies.get("xero_oauth_state")?.value || "";
       const leadId = request.cookies.get("xero_oauth_lead_id")?.value || "";
-      const returnTo = request.cookies.get("xero_oauth_return_to")?.value || "/onboarding";
+      const returnTo = request.cookies.get("xero_oauth_return_to")?.value || "/dashboard";
       const code = requestUrl.searchParams.get("code") || "";
       const state = requestUrl.searchParams.get("state") || "";
 
@@ -160,10 +160,11 @@ export async function GET(request) {
         });
       }
 
-      const redirectUrl = new URL(returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/onboarding", request.url);
+      const redirectUrl = new URL(returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard", request.url);
       redirectUrl.searchParams.set("accountingConnected", "true");
       redirectUrl.searchParams.set("provider", "xero");
       redirectUrl.searchParams.set("xeroConnected", "true");
+      redirectUrl.searchParams.set("connected", "xero");
       redirectUrl.searchParams.set("leadId", leadId);
       if (connectionId) redirectUrl.searchParams.set("connectionId", connectionId);
       if (selectedEntity?.name) redirectUrl.searchParams.set("organizationName", selectedEntity.name);
@@ -195,6 +196,7 @@ export async function GET(request) {
     const redirectUrl = new URL(result.returnTo || "/dashboard", request.url);
     redirectUrl.searchParams.set("accountingConnected", "true");
     redirectUrl.searchParams.set("provider", "xero");
+    redirectUrl.searchParams.set("connected", "xero");
     redirectUrl.searchParams.set("xeroOrganizationSelection", "required");
     if (result.connectionId) redirectUrl.searchParams.set("connectionId", result.connectionId);
     return NextResponse.redirect(redirectUrl);

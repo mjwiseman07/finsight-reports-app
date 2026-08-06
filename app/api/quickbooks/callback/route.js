@@ -424,6 +424,7 @@ async function getImpl(request) {
     const landing = await resolvePostConnectLanding(authData.user.id, returnTo);
     const redirectUrl = new URL(landing, request.url);
     redirectUrl.searchParams.set("quickBooksConnected", "true");
+    redirectUrl.searchParams.set("connected", "quickbooks");
     if (savedConnection?.id) redirectUrl.searchParams.set("connectionId", savedConnection.id);
     const response = NextResponse.redirect(redirectUrl);
     response.cookies.delete("qb_oauth_state");

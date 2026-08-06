@@ -53,7 +53,7 @@ async function handleConnect(request) {
         response.cookies.set("xero_oauth_state", state, cookieOptions);
         response.cookies.set("xero_oauth_mode", "lead", cookieOptions);
         response.cookies.set("xero_oauth_lead_id", leadId, cookieOptions);
-        response.cookies.set("xero_oauth_return_to", returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/onboarding", cookieOptions);
+        response.cookies.set("xero_oauth_return_to", returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard", cookieOptions);
         response.cookies.set("advisacor_oauth_lead_id", "", { path: "/", maxAge: 0 });
         response.cookies.set("advisacor_oauth_return_to", "", { path: "/", maxAge: 0 });
         return response;

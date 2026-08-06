@@ -3,6 +3,7 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { focusRing, headingFont } from "@/components/site-ui";
 import { resolveNorthStar } from "@/lib/scorecard/industry-north-star";
+import ProviderPickerEmptyState from "./ProviderPickerEmptyState";
 
 type ActiveReportSummary = {
   revenue: number;
@@ -27,6 +28,18 @@ type CashFlowTrailing = {
   monthlyAverageBurn: number;
 };
 
+type HydrationTileKey =
+  | "cash_position"
+  | "net_op_cash_flow"
+  | "ar_aging"
+  | "net_profit_margin"
+  | "north_star";
+
+type HydrationTileState = {
+  status: "pending" | "loading" | "ready";
+  statusText?: string;
+};
+
 type ScorecardProps = {
   activeReportSummary: ActiveReportSummary | null;
   arAgingSchedule: ArAgingSchedule | null;
@@ -34,9 +47,14 @@ type ScorecardProps = {
   industryType: string;
   companyName: string;
   integrationChoice?: string | null;
-  onConnect?: () => void;
+  onConnectQBO?: () => void;
+  onConnectXero?: () => void;
+  hydrationActive?: boolean;
+  hydrationTiles?: Partial<Record<HydrationTileKey, HydrationTileState>>;
   onAskAboutKpi: (kpiCode: string, question: string) => void;
   onOpenProvenance: (kpiCode: string) => void;
+  /** @deprecated DASH_1A.1.2 — prefer onConnectQBO / onConnectXero */
+  onConnect?: () => void;
 };
 
 const CURRENCY_FORMAT = new Intl.NumberFormat("en-US", {
@@ -57,7 +75,6 @@ function getIntegrationLabel(choice?: string | null): string {
   const normalized = (choice || "").toLowerCase().trim();
   if (normalized === "xero") return "Xero";
   if (normalized === "quickbooks" || normalized === "qbo" || normalized === "") return "QuickBooks";
-  // Any other declared value — render "your accounting system" for a graceful catchall
   return "your accounting system";
 }
 
@@ -71,6 +88,8 @@ function CardShell({
   isFirst,
   coachMarkVisible,
   onDismissCoachMark,
+  hydrationStatus,
+  hydrationStatusText,
 }: {
   label: string;
   value: ReactNode;
@@ -81,7 +100,12 @@ function CardShell({
   isFirst: boolean;
   coachMarkVisible: boolean;
   onDismissCoachMark: () => void;
+  hydrationStatus?: "pending" | "loading" | "ready";
+  hydrationStatusText?: string;
 }) {
+  const showHydration = hydrationStatus === "loading" && Boolean(hydrationStatusText);
+  const showPending = !showHydration && isPending;
+
   return (
     <div className="relative rounded-2xl border border-[#3A3A3D] bg-[#1B1B1D] p-5 transition hover:border-[#C9A961]/40">
       <div className="flex items-start justify-between gap-2">
@@ -108,7 +132,11 @@ function CardShell({
         </div>
       </div>
       <div className="mt-3">
-        {isPending ? (
+        {showHydration ? (
+          <p aria-live="polite" className="text-xs italic leading-5 text-[#BB653B]">
+            {hydrationStatusText}
+          </p>
+        ) : showPending ? (
           <span className="inline-flex items-center rounded-full bg-[#3A3A3D] px-3 py-1 text-xs font-semibold text-[#ECEBE7]/70">
             Refreshing…
           </span>
@@ -120,7 +148,7 @@ function CardShell({
       </div>
       <p className="mt-2 text-sm text-[#ECEBE7]/70">{helperText}</p>
 
-      {isFirst && coachMarkVisible && (
+      {isFirst && coachMarkVisible && !showHydration && (
         <div
           role="dialog"
           aria-label="Accuracy Contract coach mark"
@@ -154,10 +182,13 @@ export default function Scorecard({
   cashFlowTrailing12M,
   industryType,
   companyName,
-  integrationChoice,
-  onConnect,
+  onConnectQBO,
+  onConnectXero,
+  hydrationActive = false,
+  hydrationTiles,
   onAskAboutKpi,
   onOpenProvenance,
+  onConnect: onConnectDeprecated,
 }: ScorecardProps) {
   const [coachMarkVisible, setCoachMarkVisible] = useState(false);
   const northStar = resolveNorthStar(industryType);
@@ -182,44 +213,27 @@ export default function Scorecard({
     }
   }
 
-  // Unconnected / no report yet — honest skeleton with actionable CTA (DASH_1A.1.1)
-  if (!activeReportSummary) {
-    const providerLabel = getIntegrationLabel(integrationChoice);
+  const connectQBO = onConnectQBO ?? onConnectDeprecated ?? (() => {});
+  const connectXero = onConnectXero ?? (() => {});
+
+  // Unconnected / no report yet — DASH_1A.1.2 tile-grid provider picker
+  if (!activeReportSummary && !hydrationActive) {
     return (
-      <div className="rounded-[2rem] border border-[#3A3A3D] bg-[#111113] p-6">
-        <p className={`${headingFont} text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A961]`}>
-          Your Scorecard
-        </p>
-        <p className={`${headingFont} mt-2 text-lg font-semibold text-[#ECEBE7]`}>
-          Connect {providerLabel} to see your live scorecard.
-        </p>
-        {onConnect ? (
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={onConnect}
-              className={focusRing(
-                "inline-flex items-center gap-2 rounded-xl border-2 border-[#C9A961] bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#1B1B1D] transition-colors hover:bg-[#DFC084] hover:border-[#DFC084]"
-              )}
-            >
-              Connect {providerLabel}
-              <span aria-hidden>→</span>
-            </button>
-          </div>
-        ) : null}
-        <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-2xl border border-dashed border-[#3A3A3D] bg-[#1B1B1D]/50" />
-          ))}
-        </div>
-      </div>
+      <ProviderPickerEmptyState
+        onConnectQBO={connectQBO}
+        onConnectXero={connectXero}
+        companyName={companyName}
+      />
     );
   }
 
-  const cashValue = CURRENCY_FORMAT.format(activeReportSummary.cash);
-  const netMarginPct = activeReportSummary.revenue > 0
-    ? activeReportSummary.netIncome / activeReportSummary.revenue
-    : null;
+  const cashValue = activeReportSummary
+    ? CURRENCY_FORMAT.format(activeReportSummary.cash)
+    : "";
+  const netMarginPct =
+    activeReportSummary && activeReportSummary.revenue > 0
+      ? activeReportSummary.netIncome / activeReportSummary.revenue
+      : null;
   const netMarginValue = netMarginPct !== null ? PERCENT_FORMAT.format(netMarginPct) : "—";
 
   const arTotal = arAgingSchedule
@@ -231,8 +245,6 @@ export default function Scorecard({
     ? CURRENCY_FORMAT.format(cashFlowTrailing12M.netOperatingCashFlow)
     : null;
 
-  // Industry north-star values are labeled when computationShipped, but live
-  // figure wiring lands in a later DASH block — never invent a number here.
   const northStarPending = true;
   const northStarValue = "";
 
@@ -243,7 +255,10 @@ export default function Scorecard({
           Your Scorecard
         </p>
         <p className="text-sm text-[#ECEBE7]/60">
-          {companyName ? `${companyName} · ` : ""}Live from your books
+          {companyName ? `${companyName} · ` : ""}
+          {hydrationActive && !activeReportSummary
+            ? `Fetching 6 months of ${getIntegrationLabel(null)} data — usually 20-40 seconds`
+            : "Live from your books"}
         </p>
       </div>
 
@@ -254,10 +269,12 @@ export default function Scorecard({
           helperText="Total cash across connected accounts"
           onAsk={() => onAskAboutKpi("cash_position", `What's driving my current cash position for ${companyName}?`)}
           onProvenance={() => onOpenProvenance("cash_position")}
-          isPending={false}
+          isPending={!activeReportSummary}
           isFirst={true}
           coachMarkVisible={coachMarkVisible}
           onDismissCoachMark={dismissCoachMark}
+          hydrationStatus={hydrationTiles?.cash_position?.status}
+          hydrationStatusText={hydrationTiles?.cash_position?.statusText}
         />
 
         <CardShell
@@ -270,6 +287,8 @@ export default function Scorecard({
           isFirst={false}
           coachMarkVisible={false}
           onDismissCoachMark={dismissCoachMark}
+          hydrationStatus={hydrationTiles?.net_op_cash_flow?.status}
+          hydrationStatusText={hydrationTiles?.net_op_cash_flow?.statusText}
         />
 
         <CardShell
@@ -282,6 +301,8 @@ export default function Scorecard({
           isFirst={false}
           coachMarkVisible={false}
           onDismissCoachMark={dismissCoachMark}
+          hydrationStatus={hydrationTiles?.ar_aging?.status}
+          hydrationStatusText={hydrationTiles?.ar_aging?.statusText}
         />
 
         <CardShell
@@ -294,6 +315,8 @@ export default function Scorecard({
           isFirst={false}
           coachMarkVisible={false}
           onDismissCoachMark={dismissCoachMark}
+          hydrationStatus={hydrationTiles?.net_profit_margin?.status}
+          hydrationStatusText={hydrationTiles?.net_profit_margin?.statusText}
         />
 
         <CardShell
@@ -306,10 +329,12 @@ export default function Scorecard({
           isFirst={false}
           coachMarkVisible={false}
           onDismissCoachMark={dismissCoachMark}
+          hydrationStatus={hydrationTiles?.north_star?.status}
+          hydrationStatusText={hydrationTiles?.north_star?.statusText}
         />
       </div>
 
-      {(!northStar.computationShipped || northStarPending) && (
+      {(!northStar.computationShipped || northStarPending) && activeReportSummary && (
         <p className="mt-4 text-xs text-[#ECEBE7]/50">
           {northStar.label} — {northStar.computationShipped
             ? "figure wiring for this vertical is coming up in your next brief."

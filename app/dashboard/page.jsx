@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
@@ -658,6 +658,15 @@ export default function DashboardPage() {
   const [activeExploreSection, setActiveExploreSection] = useState("");
   const [arAgingSchedule, setArAgingSchedule] = useState(null);
   const [cashFlowTrailing12M, setCashFlowTrailing12M] = useState(null);
+  const [hydrationActive, setHydrationActive] = useState(false);
+  const [hydrationTiles, setHydrationTiles] = useState({
+    cash_position: { status: "pending", statusText: "" },
+    net_op_cash_flow: { status: "pending", statusText: "" },
+    ar_aging: { status: "pending", statusText: "" },
+    net_profit_margin: { status: "pending", statusText: "" },
+    north_star: { status: "pending", statusText: "" },
+  });
+  const [hydrationToast, setHydrationToast] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiQuestion, setAiQuestion] = useState("");
   const [executiveQuestion, setExecutiveQuestion] = useState("");
@@ -1108,6 +1117,123 @@ export default function DashboardPage() {
     };
   }, [activeSourceSystem, token, activeReportPayload, dashboardCompanyId]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const connected = url.searchParams.get("connected");
+    if (connected !== "quickbooks" && connected !== "xero") return;
+
+    const providerLabel = connected === "xero" ? "Xero" : "QuickBooks";
+    setHydrationActive(true);
+    setHydrationToast(`${providerLabel} connected. Building your first financial picture…`);
+    setHydrationTiles({
+      cash_position: {
+        status: "loading",
+        statusText: `Pulling your bank and ${providerLabel} cash balances…`,
+      },
+      net_op_cash_flow: {
+        status: "loading",
+        statusText: "Reading 12 months of cash flow activity…",
+      },
+      ar_aging: {
+        status: "loading",
+        statusText: "Reading 6 months of invoices…",
+      },
+      net_profit_margin: {
+        status: "loading",
+        statusText: "Categorizing recent transactions…",
+      },
+      north_star: {
+        status: "loading",
+        statusText: "Building your industry-native north-star metric…",
+      },
+    });
+
+    url.searchParams.delete("connected");
+    window.history.replaceState({}, "", url.toString());
+
+    const t = setTimeout(() => setHydrationToast(null), 5000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrationActive) return;
+    if (!activeReportSummary) return;
+    setHydrationTiles((prev) => ({
+      ...prev,
+      cash_position: { status: "ready", statusText: "" },
+      net_profit_margin: { status: "ready", statusText: "" },
+    }));
+  }, [hydrationActive, activeReportSummary]);
+
+  useEffect(() => {
+    if (!hydrationActive) return;
+    if (!arAgingSchedule) return;
+    setHydrationTiles((prev) => ({
+      ...prev,
+      ar_aging: { status: "ready", statusText: "" },
+    }));
+  }, [hydrationActive, arAgingSchedule]);
+
+  useEffect(() => {
+    if (!hydrationActive) return;
+    if (!cashFlowTrailing12M) return;
+    setHydrationTiles((prev) => ({
+      ...prev,
+      net_op_cash_flow: { status: "ready", statusText: "" },
+    }));
+  }, [hydrationActive, cashFlowTrailing12M]);
+
+  useEffect(() => {
+    if (!hydrationActive) return;
+    const readyCount = Object.values(hydrationTiles).filter((t) => t.status === "ready").length;
+    if (readyCount < 4) return;
+    setHydrationToast("Sync complete. 6 months of data loaded.");
+    const t = setTimeout(() => {
+      setHydrationToast(null);
+      setHydrationActive(false);
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [hydrationActive, hydrationTiles]);
+
+  const suggestedPulseQuestions = useMemo(() => {
+    if (!activeReportSummary) {
+      return [
+        "What can Pulse help me with?",
+        "How does Advisacor use my QuickBooks data?",
+        "What will my dashboard show once I connect?",
+      ];
+    }
+
+    const money = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    });
+    const chips = [];
+    if (activeReportSummary.cash) {
+      chips.push(`Why is my current cash position ${money.format(activeReportSummary.cash)}?`);
+    }
+    if (arAgingSchedule && arAgingSchedule.days_over_90 > 0) {
+      chips.push(`Why did AR aging over 90 spike to ${money.format(arAgingSchedule.days_over_90)}?`);
+    }
+    if (activeReportSummary.revenue > 0) {
+      const marginPct = ((activeReportSummary.netIncome / activeReportSummary.revenue) * 100).toFixed(1);
+      chips.push(`Why did my net profit margin land at ${marginPct}%?`);
+    }
+    if (cashFlowTrailing12M && cashFlowTrailing12M.netOperatingCashFlow) {
+      chips.push("What's driving my trailing 12-month operating cash flow?");
+    }
+    if (activeReportSummary.expenses > 0) {
+      chips.push("Which vendors increased spend 30%+ this quarter?");
+    }
+    if (chips.length < 3) {
+      chips.push("Show me this month vs last month.");
+      chips.push("What's my biggest financial risk right now?");
+    }
+    return chips.slice(0, 6);
+  }, [activeReportSummary, arAgingSchedule, cashFlowTrailing12M]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.localStorage.removeItem("supabase_access_token");
@@ -1285,6 +1411,30 @@ export default function DashboardPage() {
       window.location.assign(result.url);
     } catch {
       setError("Unable to start QuickBooks connection.");
+    }
+  };
+
+  const handleConnectXero = async () => {
+    setError("");
+    try {
+      const authToken = await getAuthToken();
+      if (!authToken) {
+        setError("Sign in first, then connect Xero.");
+        return;
+      }
+
+      const response = await fetch("/api/integrations/xero/connect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.url) {
+        setError(result.error || "Unable to start Xero connection.");
+        return;
+      }
+      window.location.assign(result.url);
+    } catch {
+      setError("Unable to start Xero connection.");
     }
   };
 
@@ -1816,6 +1966,15 @@ export default function DashboardPage() {
 
           {!isLoading && access?.allowed === true && (
             <div className="grid gap-8">
+              {hydrationToast ? (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-full border border-[#C9A961]/50 bg-[#1B1B1D] px-5 py-2.5 text-sm text-[#ECEBE7] shadow-lg"
+                >
+                  {hydrationToast}
+                </div>
+              ) : null}
               <Suspense fallback={null}>
                 <StartingPointDeepLinkHandler
                   onExecutivePackage={() => handleExploreCardClick("Executive Package")}
@@ -1823,7 +1982,33 @@ export default function DashboardPage() {
                   onAskPulse={() => setAiOpen(true)}
                 />
               </Suspense>
-              <StartingPointCard persona={primaryPersona || deliveryPersona} />
+              <StartingPointCard
+                persona={primaryPersona || null}
+                onSetPersona={async (personaId) => {
+                  try {
+                    const authToken = await getAuthToken();
+                    const response = await fetch("/api/user/persona", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${authToken}`,
+                      },
+                      body: JSON.stringify({
+                        persona: personaId,
+                        companyId: dashboardCompanyId || undefined,
+                      }),
+                    });
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                      setError(result.error || "Unable to save your role. Please try again.");
+                      return;
+                    }
+                    setPrimaryPersona(result.persona || personaId);
+                  } catch {
+                    setError("Unable to save your role. Please try again.");
+                  }
+                }}
+              />
               <PendingApprovalsCard />
               <PostedJesCard />
               {activeReportSummary && (
@@ -1955,6 +2140,7 @@ export default function DashboardPage() {
                 expanded={aiOpen}
                 onCollapse={() => setAiOpen(false)}
                 onUpgradePackage={() => handleSubscribe(currentPlanKey === "pulse_pro" ? "professional" : "pulse_pro")}
+                suggestedQuestions={suggestedPulseQuestions}
               />
 
               <Scorecard
@@ -1963,11 +2149,11 @@ export default function DashboardPage() {
                 cashFlowTrailing12M={cashFlowTrailing12M}
                 industryType={onboardingIndustryType}
                 companyName={onboardingCompanyName}
-                // TODO(DASH_1A.2): wire onboardingIntegrationChoice from user_metadata or onboarding_profile,
-                // and add integration-aware handler dispatch (handleConnectXero, etc.) instead of always
-                // firing handleConnectQuickBooks.
                 integrationChoice={null}
-                onConnect={handleConnectQuickBooks}
+                onConnectQBO={handleConnectQuickBooks}
+                onConnectXero={handleConnectXero}
+                hydrationActive={hydrationActive}
+                hydrationTiles={hydrationTiles}
                 onAskAboutKpi={(kpiCode, question) => {
                   setExecutiveQuestion(question);
                   setAiOpen(true);
@@ -2823,17 +3009,19 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
   );
 }
 
-function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages = [], expanded = false, onCollapse, onUpgradePackage }) {
-  const examples = [
-    "I need to reduce expenses. Where should I start?",
-    "Why is cash lower this month?",
-    "What is causing margins to decline?",
-    "What is my biggest financial risk?",
-    "What should I focus on this month?",
-    "What expenses seem unusually high?",
-    "Which customers are most profitable?",
-    "What should I do to improve cash flow?",
-  ];
+function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages = [], expanded = false, onCollapse, onUpgradePackage, suggestedQuestions }) {
+  const examples = suggestedQuestions?.length
+    ? suggestedQuestions
+    : [
+        "I need to reduce expenses. Where should I start?",
+        "Why is cash lower this month?",
+        "What is causing margins to decline?",
+        "What is my biggest financial risk?",
+        "What should I focus on this month?",
+        "What expenses seem unusually high?",
+        "Which customers are most profitable?",
+        "What should I do to improve cash flow?",
+      ];
   const recentMessagePairs = [];
   const conversationMessages = messages.filter((message) => message.role === "user" || message.role === "advisacor");
   for (let index = 0; index < conversationMessages.length; index += 1) {
