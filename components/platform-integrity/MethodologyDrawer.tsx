@@ -1,16 +1,16 @@
 "use client";
 
 import * as React from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { PlatformIntegrityMethodology } from "@/lib/platform-integrity/types";
+import { platformIntegrityCopy } from "@/lib/platform-integrity/copy";
+import { platformIntegrityMarkdownComponents } from "@/lib/platform-integrity/markdown-components";
 import { focusRing, headingFont } from "@/components/site-ui";
 
 /**
- * Renders the research report inline. The report is served as static markdown
- * at /research/schema_drift_assertion_mapping_research.md (copied in Step 2).
- *
- * We fetch as text on open and render inside a pre-formatted block. B.4 will
- * swap to a proper markdown renderer; for B.2, this preserves every citation,
- * list, and heading verbatim.
+ * Renders the research report inline via react-markdown + remark-gfm (B.4).
+ * Static MD fetched from /research/schema_drift_assertion_mapping_research.md.
  */
 export function MethodologyDrawer({
   open,
@@ -23,6 +23,7 @@ export function MethodologyDrawer({
 }) {
   const [report, setReport] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const copy = platformIntegrityCopy.methodology;
 
   React.useEffect(() => {
     if (!open) return;
@@ -57,7 +58,7 @@ export function MethodologyDrawer({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Data-Integrity Monitoring Methodology"
+      aria-label={copy.drawerTitle}
       className="fixed inset-0 z-[1000] flex justify-end bg-black/60"
       onClick={onClose}
     >
@@ -70,10 +71,10 @@ export function MethodologyDrawer({
             <div
               className={`${headingFont} text-lg font-semibold text-[#ECEBE7]`}
             >
-              {methodology.headline}
+              {methodology.headline || copy.drawerTitle}
             </div>
             <div className="mt-1 max-w-[560px] text-xs text-[#7A7974]">
-              {methodology.subtitle}
+              {methodology.subtitle || copy.drawerSubtitle}
             </div>
           </div>
           <button
@@ -81,13 +82,13 @@ export function MethodologyDrawer({
             onClick={onClose}
             className={`${focusRing()} rounded-md border border-[#C9A961]/25 bg-[#1A1A1C]/50 px-3 py-1.5 text-[13px] text-[#ECEBE7] hover:border-[#C9A961]/40`}
           >
-            Close
+            {copy.closeLabel}
           </button>
         </header>
 
         <section className="border-b border-[#C9A961]/15 px-5 py-4">
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#7A7974]">
-            Primary sources
+            {copy.primarySourcesEyebrow}
           </div>
           <ul className="m-0 list-disc space-y-1 pl-5 text-[13px] text-[#ECEBE7]">
             {methodology.primary_sources.map((s) => (
@@ -105,18 +106,25 @@ export function MethodologyDrawer({
           </ul>
         </section>
 
-        <div className="flex-1 overflow-auto whitespace-pre-wrap px-5 py-4 font-mono text-xs leading-relaxed text-[#A29E93]">
+        <div className="flex-1 overflow-auto px-5 py-4">
           {error ? (
             <div className="text-red-400">{error}</div>
           ) : report === null ? (
-            <div className="text-[#7A7974]">Loading methodology…</div>
+            <div className="text-[#7A7974]">{copy.loadingLabel}</div>
           ) : (
-            report
+            <article className="platform-integrity-methodology max-w-none text-sm">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={platformIntegrityMarkdownComponents}
+              >
+                {report}
+              </ReactMarkdown>
+            </article>
           )}
         </div>
 
         <footer className="border-t border-[#C9A961]/20 bg-[#1A1A1C] px-5 py-3 text-[11px] text-[#7A7974]">
-          {methodology.disclosure}
+          {methodology.disclosure || platformIntegrityCopy.page.disclosure}
         </footer>
       </aside>
     </div>

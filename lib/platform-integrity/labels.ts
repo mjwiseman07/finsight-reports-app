@@ -1,11 +1,8 @@
 /**
- * MAJOR #2.3 Block B.2 — display labels + chip tones for Platform Integrity.
+ * MAJOR #2.3 Block B.2 / B.4 — display labels + chip tones for Platform Integrity.
  *
- * Every string here is the exact label enumerated in
- * Phase_MAJOR_2_3_Block_B_Planning_Doc.md, which traces to
- * research/schema_drift_assertion_mapping_research.md.
- *
- * DO NOT add or change strings here without also updating the planning doc.
+ * Chip *labels* re-export from copy.ts (B.4). full_text tooltips remain research
+ * citations. DO NOT add or change customer-facing strings without updating copy.ts.
  */
 
 import type {
@@ -13,6 +10,7 @@ import type {
   AssertionConfidence,
   FinancialReportingRelevance,
 } from "./types";
+import { platformIntegrityCopy } from "./copy";
 
 export function assertionLabel(a: AssertionId | string): string {
   switch (a) {
@@ -44,35 +42,32 @@ export interface ChipDescriptor {
 }
 
 export function confidenceChip(c: AssertionConfidence | string): ChipDescriptor {
+  const f = platformIntegrityCopy.finding;
   switch (c) {
     case "grounded":
       return {
-        label: "Framework-grounded",
+        label: f.confidenceGrounded,
         tone: "teal",
-        full_text:
-          "Direct textual grounding in ISA 315 Para A190(a)(i)-(iii). See methodology.",
+        full_text: f.confidenceGroundedFull,
       };
     case "framework_definition":
       return {
-        label: "Framework-definition minimum",
+        label: f.confidenceFrameworkFallback,
         tone: "neutral",
-        full_text:
-          "Grounded in ISA 315 Para 12(d)/(i) definition of information integrity: completeness + accuracy + validity. See methodology.",
+        full_text: f.confidenceFrameworkFull,
       };
     case "judgment_required":
       return {
-        label: "Auditor judgment required",
+        label: f.confidenceJudgmentRequired,
         tone: "amber",
-        full_text:
-          "Table linkage supported by literature but the specific assertion determination requires auditor judgment against account and materiality per ISA 315 Appendix 5 §19 and KPMG Q3.4.20. See methodology.",
+        full_text: f.confidenceJudgmentFull,
       };
     case "unknown":
     default:
       return {
-        label: "Requires review",
+        label: f.confidenceUnknown,
         tone: "gray",
-        full_text:
-          "Confidence cannot be determined without additional context. See methodology.",
+        full_text: f.confidenceUnknownFull,
       };
   }
 }
@@ -80,28 +75,26 @@ export function confidenceChip(c: AssertionConfidence | string): ChipDescriptor 
 export function frRelevanceChip(
   r: FinancialReportingRelevance | string,
 ): ChipDescriptor {
+  const f = platformIntegrityCopy.finding;
   switch (r) {
     case "in_scope":
       return {
-        label: "Financial reporting relevant",
+        label: f.relevanceInScope,
         tone: "teal",
-        full_text:
-          "Table feeds financial-statement-relevant accounts per ISA 315 Para 12(g)(i) and KPMG Handbook Q3.4.20 materiality gate.",
+        full_text: f.relevanceInScopeFull,
       };
     case "out_of_scope":
       return {
-        label: "Outside financial reporting scope",
+        label: f.relevanceOutOfScope,
         tone: "gray",
-        full_text:
-          "Table does not feed financial-statement-relevant accounts. Per ISA 315 Appendix 5 §19, such drift may not affect financial reporting.",
+        full_text: f.relevanceOutFull,
       };
     case "unknown":
     default:
       return {
-        label: "Scope pending review",
+        label: f.relevanceScopePending,
         tone: "amber",
-        full_text:
-          "Financial reporting relevance not determined. Per ISA 315 Appendix 5 §19, this determination requires materiality analysis.",
+        full_text: f.relevancePendingFull,
       };
   }
 }

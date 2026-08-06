@@ -9,6 +9,7 @@ import {
   issueKindLabel,
   severityDot,
 } from "@/lib/platform-integrity/labels";
+import { platformIntegrityCopy } from "@/lib/platform-integrity/copy";
 import type { PlatformIntegrityFinding } from "@/lib/platform-integrity/types";
 import { focusRing } from "@/components/site-ui";
 
@@ -56,7 +57,7 @@ export function IntegrityFindingCard({
 
       <section>
         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#7A7974]">
-          Contingent assertion risk indicators
+          {platformIntegrityCopy.finding.assertionRiskEyebrow}
         </div>
         <div className="flex flex-wrap gap-1.5">
           {finding.assertion_impact.length === 0 ? (
@@ -83,7 +84,9 @@ export function IntegrityFindingCard({
       </section>
 
       <footer className="border-t border-[#C9A961]/20 pt-2.5 text-xs text-[#A29E93]">
-        <span className="mr-1.5">Source:</span>
+        <span className="mr-1.5">
+          {platformIntegrityCopy.finding.citationSourceLabelPrefix}
+        </span>
         <a
           href={finding.citation.url}
           target="_blank"
@@ -97,7 +100,7 @@ export function IntegrityFindingCard({
           onClick={onOpenMethodology}
           className={`${focusRing()} ml-3 border-0 bg-transparent p-0 text-xs text-[#C9A961] underline underline-offset-[3px] hover:text-[#DFC084]`}
         >
-          Methodology
+          {platformIntegrityCopy.finding.citationCtaLabel}
         </button>
         <div className="mt-1.5 text-[11px] text-[#7A7974]">
           {finding.citation.note}

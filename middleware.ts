@@ -66,6 +66,8 @@ const PUBLIC_MARKETING_PATHS = new Set([
   "/for/firm",
   // Phase TCP1 W1 — pilot checkout surface (smoke-unblock).
   "/pricing",
+  // MAJOR #2.3 B.4 — public methodology / trust paper (unauthenticated).
+  "/methodology/platform-integrity",
   // App routes reachable from marketing hosts (auth + primary product surfaces).
   // Role/auth gating happens inside these routes; middleware only controls reachability.
   "/signin",
@@ -110,7 +112,7 @@ function isStaticAsset(pathname: string) {
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
-    /\.(?:avif|gif|ico|jpg|jpeg|png|svg|webp|css|js|map|txt|xml|woff|woff2)$/i.test(pathname)
+    /\.(?:avif|gif|ico|jpg|jpeg|png|svg|webp|css|js|map|txt|xml|md|woff|woff2)$/i.test(pathname)
   );
 }
 
@@ -122,6 +124,8 @@ function isMarketingAllowed(pathname: string) {
     pathname.startsWith("/admin/") ||
     pathname.startsWith("/reviewer/") ||
     pathname.startsWith("/dashboard/") ||
+    pathname.startsWith("/methodology/") ||
+    pathname.startsWith("/research/") ||
     pathname.startsWith("/audit-ready/") ||
     pathname.startsWith("/onboarding/") ||
     pathname.startsWith("/signin/") ||

@@ -42,6 +42,14 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
+                <Link
+                  href="/methodology/platform-integrity"
+                  className={`font-medium text-slate-700 transition-colors hover:text-[#111112] ${focusRing("rounded")}`}
+                >
+                  Platform Integrity Methodology
+                </Link>
+              </li>
+              <li>
                 <a
                   href="https://www.linkedin.com/in/matthew-wiseman-807bb155"
                   target="_blank"

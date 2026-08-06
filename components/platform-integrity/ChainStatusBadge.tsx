@@ -1,14 +1,14 @@
 "use client";
 
 import type { ChainStatus } from "@/lib/platform-integrity/types";
+import { platformIntegrityCopy } from "@/lib/platform-integrity/copy";
 
 export function ChainStatusBadge({ chain }: { chain: ChainStatus }) {
   const intact = chain.chain_intact;
+  const copy = platformIntegrityCopy.chain;
 
-  // Positive/primary = brand gold. Caution = same amber as Chip "judgment_required"
-  // / severityDot warn on this surface. Hexes match Chip.tsx exactly — zero net-new.
-  // TODO(brand-tokens): promote #C9A961 / #DFC084 to shared CSS custom properties
-  // (--brand-gold / warning) once Phase TCP1 W2.5 tokens land in the components layer.
+  // Positive/primary = brand gold. Caution = page amber #DFC084.
+  // TODO(brand-tokens): promote hexes to shared CSS custom properties.
   const style = intact
     ? {
         color: "#C9A961",
@@ -22,17 +22,19 @@ export function ChainStatusBadge({ chain }: { chain: ChainStatus }) {
       };
 
   const label = intact
-    ? "Chain intact"
-    : `Chain gap: ${chain.chain_gap_count} event${
-        chain.chain_gap_count === 1 ? "" : "s"
-      } unlinked`;
+    ? copy.intactLabel
+    : chain.chain_gap_count === 1
+      ? copy.gapLabelSingular
+      : copy.gapLabelPlural(chain.chain_gap_count);
 
   return (
     <div
       title={
-        chain.latest_event_at
-          ? `Latest event: ${new Date(chain.latest_event_at).toLocaleString()}`
-          : "No lifecycle events recorded yet"
+        intact
+          ? copy.intactDescription
+          : chain.latest_event_at
+            ? `${copy.gapDescription} Latest event: ${new Date(chain.latest_event_at).toLocaleString()}`
+            : copy.gapDescription
       }
       style={{
         display: "inline-flex",

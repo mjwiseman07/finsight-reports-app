@@ -14,6 +14,7 @@ import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import { usePlatformIntegrity } from "@/lib/platform-integrity/use-platform-integrity";
 import { isPlatformIntegrityEnabled } from "@/lib/platform-integrity/feature-flag";
+import { platformIntegrityCopy } from "@/lib/platform-integrity/copy";
 import {
   PulseJeAccountPicker,
   PulseJePreviewModal,
@@ -1740,7 +1741,7 @@ export default function DashboardPage() {
                 href="/dashboard/platform-integrity"
                 className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-5 py-2 text-sm font-bold text-[#C9A961] transition hover:border-[#C9A961]/70 hover:bg-[#C9A961]/20 inline-flex items-center`}
               >
-                Platform Integrity
+                {platformIntegrityCopy.headerNav.label}
               </Link>
             )}
             <Link
@@ -2639,6 +2640,7 @@ export default function DashboardPage() {
 /**
  * MAJOR #2.3 Block B.3 — Platform Integrity KPI tile (flag-gated).
  * Consumes B.2 usePlatformIntegrity; deep-links to /dashboard/platform-integrity.
+ * Copy centralized in B.4 via platformIntegrityCopy.
  */
 function PlatformIntegrityDashboardTile() {
   const enabled = isPlatformIntegrityEnabled();
@@ -2654,6 +2656,8 @@ function PlatformIntegrityDashboardTile() {
   ).length;
   const chainIntact = data?.chain?.chain_intact ?? true;
   const chainGap = data?.chain?.chain_gap_count ?? 0;
+  const kpi = platformIntegrityCopy.kpiTile;
+  const chain = platformIntegrityCopy.chain;
 
   return (
     <Link
@@ -2662,7 +2666,7 @@ function PlatformIntegrityDashboardTile() {
     >
       <div className="flex items-center justify-between gap-2">
         <p className={`${headingFont} text-xs font-black uppercase tracking-[0.16em] text-[#7A7974]`}>
-          Platform Integrity
+          {kpi.eyebrow}
         </p>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
@@ -2675,14 +2679,18 @@ function PlatformIntegrityDashboardTile() {
             aria-hidden="true"
             className={`h-1.5 w-1.5 rounded-full ${chainIntact ? "bg-[#C9A961]" : "bg-[#DFC084]"}`}
           />
-          {chainIntact ? "Chain intact" : `${chainGap} gap`}
+          {chainIntact
+            ? chain.intactLabel
+            : chainGap === 1
+              ? chain.gapLabelSingular
+              : chain.gapLabelPlural(chainGap)}
         </span>
       </div>
 
       {loading ? (
-        <p className="text-sm text-[#A29E93]">Loading…</p>
+        <p className="text-sm text-[#A29E93]">{kpi.loading}</p>
       ) : error ? (
-        <p className="text-xs text-[#DFC084]">Unable to load signals</p>
+        <p className="text-xs text-[#DFC084]">{kpi.error}</p>
       ) : (
         <>
           <div className="flex items-baseline gap-2">
@@ -2690,24 +2698,25 @@ function PlatformIntegrityDashboardTile() {
               {total}
             </span>
             <span className="text-xs text-[#A29E93]">
-              contingent risk indicator{total === 1 ? "" : "s"}
+              {total === 1 ? kpi.unitSingular : kpi.unitPlural}
             </span>
           </div>
           <p className="text-[11px] text-[#7A7974]">
             {highSignal > 0
-              ? `${highSignal} framework-grounded · in scope`
-              : "None framework-grounded + in scope"}
+              ? `${highSignal} ${kpi.highSignalSuffix}`
+              : kpi.highSignalEmpty}
           </p>
         </>
       )}
 
-      <p className={`mt-auto text-[11px] text-[#C9A961] ${headingFont}`}>View surface →</p>
+      <p className={`mt-auto text-[11px] text-[#C9A961] ${headingFont}`}>{kpi.cta}</p>
     </Link>
   );
 }
 
 /**
  * MAJOR #2.3 Block B.3 — Pulse Advisory Data Integrity read-through row.
+ * Copy centralized in B.4 via platformIntegrityCopy.
  */
 function PulseAdvisoryDataIntegrityRow() {
   const enabled = isPlatformIntegrityEnabled();
@@ -2722,26 +2731,27 @@ function PulseAdvisoryDataIntegrityRow() {
   const judgmentRequired = (data?.findings ?? []).filter(
     (f) => f.assertion_confidence === "judgment_required",
   ).length;
+  const pulse = platformIntegrityCopy.pulseRow;
 
   return (
     <div className="mt-5 flex items-center justify-between gap-3 rounded-3xl border border-[#C9A961]/20 bg-[#111112]/70 px-5 py-4">
       <div className="flex flex-col gap-0.5">
-        <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>Data Integrity</p>
+        <p className={`${headingFont} text-sm font-black text-[#ECEBE7]`}>{pulse.title}</p>
         <p className="text-[11px] text-[#A29E93]">
           {loading
-            ? "Loading signals…"
+            ? pulse.loading
             : error
-              ? "Unable to load signals"
+              ? pulse.error
               : total === 0
-                ? "No data-integrity findings detected"
-                : `${total} indicator${total === 1 ? "" : "s"} · ${grounded} grounded · ${judgmentRequired} judgment`}
+                ? pulse.empty
+                : pulse.counts(total, grounded, judgmentRequired)}
         </p>
       </div>
       <Link
         href="/dashboard/platform-integrity"
         className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/40 px-3 py-1 text-[11px] font-bold text-[#C9A961] transition hover:border-[#C9A961]/60`}
       >
-        Open
+        {pulse.openCta}
       </Link>
     </div>
   );
