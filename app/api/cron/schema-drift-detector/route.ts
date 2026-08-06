@@ -78,7 +78,9 @@ interface UpsertResult {
 
 async function upsertDriftIssue(sig: DriftSignature): Promise<UpsertResult> {
   const db = createServiceClient();
-  const assertions = resolveAssertionImpact(sig.table);
+  // MAJOR #2.3 Block A.1 — contingent risk indicator (not ALL_ASSERTIONS).
+  const indicator = resolveAssertionImpact(sig.table);
+  const assertions = indicator.assertion_impact;
   const nowIso = new Date().toISOString();
 
   // The lifecycle_issues_fingerprint_hour_uidx unique index is
@@ -105,7 +107,11 @@ async function upsertDriftIssue(sig: DriftSignature): Promise<UpsertResult> {
         message: `Schema drift detected: ${sig.driftClass} on ${sig.table ?? "?"}.${sig.subject}`,
         raw_line: sig.rawLine,
         assertion_ids: assertions,
-        detector_version: "1.0.0",
+        assertion_impact: assertions,
+        assertion_confidence: indicator.assertion_confidence,
+        financial_reporting_relevance: indicator.financial_reporting_relevance,
+        mapping_source: indicator.mapping_source,
+        detector_version: "1.1.0",
         remediation_hint: remediationHint(sig),
       },
     })
