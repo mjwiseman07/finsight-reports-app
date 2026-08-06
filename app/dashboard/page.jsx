@@ -11,6 +11,7 @@ import StartingPointCard from "../../components/dashboard/StartingPointCard";
 import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPointDeepLinkHandler";
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
+import Scorecard from "../../components/dashboard/Scorecard";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import {
   PulseJeAccountPicker,
@@ -655,6 +656,8 @@ export default function DashboardPage() {
   const [executivePackageMessage, setExecutivePackageMessage] = useState("");
   const [executivePackageRefreshStatus, setExecutivePackageRefreshStatus] = useState([]);
   const [activeExploreSection, setActiveExploreSection] = useState("");
+  const [arAgingSchedule, setArAgingSchedule] = useState(null);
+  const [cashFlowTrailing12M, setCashFlowTrailing12M] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiQuestion, setAiQuestion] = useState("");
   const [executiveQuestion, setExecutiveQuestion] = useState("");
@@ -1061,6 +1064,49 @@ export default function DashboardPage() {
     await refreshAdvisoryIntelligence();
     return result.packageQueueItem;
   }, [dashboardCompanyId, getAuthToken, refreshAdvisoryIntelligence, token]);
+
+  useEffect(() => {
+    if (!activeSourceSystem || !token || !dashboardCompanyId) return;
+    let cancelled = false;
+    const params = new URLSearchParams({
+      companyId: dashboardCompanyId,
+      sourceSystem: activeSourceSystem,
+    });
+    const connectionId = activeReportContext?.connectionId || activeReportPayload?.connectionId || "";
+    if (connectionId) params.set("connectionId", String(connectionId));
+    fetch(`/api/dashboard/ar-aging?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data && !data.pending) setArAgingSchedule(data);
+        else setArAgingSchedule(null);
+      })
+      .catch(() => {
+        /* honest silent — Scorecard shows Refreshing… */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSourceSystem, token, activeReportPayload, dashboardCompanyId, activeReportContext?.connectionId]);
+
+  useEffect(() => {
+    if (!activeSourceSystem || !token || !dashboardCompanyId) return;
+    let cancelled = false;
+    const params = new URLSearchParams({ companyId: dashboardCompanyId });
+    fetch(`/api/dashboard/cash-flow-trailing?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data && !data.pending) setCashFlowTrailing12M(data);
+        else setCashFlowTrailing12M(null);
+      })
+      .catch(() => {
+        /* honest silent — Scorecard shows Refreshing… */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSourceSystem, token, activeReportPayload, dashboardCompanyId]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -1909,6 +1955,26 @@ export default function DashboardPage() {
                 expanded={aiOpen}
                 onCollapse={() => setAiOpen(false)}
                 onUpgradePackage={() => handleSubscribe(currentPlanKey === "pulse_pro" ? "professional" : "pulse_pro")}
+              />
+
+              <Scorecard
+                activeReportSummary={activeReportSummary}
+                arAgingSchedule={arAgingSchedule}
+                cashFlowTrailing12M={cashFlowTrailing12M}
+                industryType={onboardingIndustryType}
+                companyName={onboardingCompanyName}
+                onAskAboutKpi={(kpiCode, question) => {
+                  setExecutiveQuestion(question);
+                  setAiOpen(true);
+                  submitExecutiveQuestion(question);
+                }}
+                onOpenProvenance={(kpiCode) => {
+                  // DASH_1A.1 will wire this to the Accuracy Contract drawer.
+                  // For now, deep-link into the methodology page filtered by kpi.
+                  if (typeof window !== "undefined") {
+                    window.location.hash = `#accuracy-contract-${kpiCode}`;
+                  }
+                }}
               />
 
               <SimplifiedFeatureCards onExploreSection={handleExploreCardClick} />
