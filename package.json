@@ -118,7 +118,9 @@
     "start": "next start",
     "lint": "eslint",
     "brand:lint": "node scripts/brand-lint.mjs",
-    "schema:drift-scan": "npx tsx scripts/schema-drift-scan.ts",
+    "schema:drift-scan": "npx tsx scripts/schema-drift-scan.ts --baseline=.schema-drift-baseline.json",
+    "schema:drift-scan:strict": "npx tsx scripts/schema-drift-scan.ts --strict",
+    "schema:drift-scan:update-baseline": "npx tsx scripts/schema-drift-scan.ts --update-baseline=.schema-drift-baseline.json",
     "test": "vitest run",
     "smoke:d-assertions-e2e-lock": "tsx scripts/smoke/d-assertions-e2e-lock.ts",
     "smoke:d-assertions-part3": "tsx scripts/smoke/d-assertions-part3-verify-live.ts",
@@ -178,6 +180,7 @@
     "jsdom": "^29.1.1",
     "pg": "^8.21.0",
     "tailwindcss": "^4",
+    "ts-morph": "^24.0.0",
     "typescript": "^5",
     "vitest": "4.1.9"
   }
