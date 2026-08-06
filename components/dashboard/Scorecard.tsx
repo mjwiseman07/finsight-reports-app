@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect, type ReactNode } from "react";
 import { focusRing, headingFont } from "@/components/site-ui";
 import { resolveNorthStar } from "@/lib/scorecard/industry-north-star";
@@ -35,6 +34,7 @@ type ScorecardProps = {
   industryType: string;
   companyName: string;
   integrationChoice?: string | null;
+  onConnect?: () => void;
   onAskAboutKpi: (kpiCode: string, question: string) => void;
   onOpenProvenance: (kpiCode: string) => void;
 };
@@ -59,15 +59,6 @@ function getIntegrationLabel(choice?: string | null): string {
   if (normalized === "quickbooks" || normalized === "qbo" || normalized === "") return "QuickBooks";
   // Any other declared value — render "your accounting system" for a graceful catchall
   return "your accounting system";
-}
-
-function getConnectHref(choice?: string | null): string {
-  const normalized = (choice || "").toLowerCase().trim();
-  if (normalized === "xero") return "/account?connectIntent=xero";
-  if (normalized === "quickbooks" || normalized === "qbo" || normalized === "") {
-    return "/account?connectIntent=quickbooks";
-  }
-  return "/account/integrations";
 }
 
 function CardShell({
@@ -164,6 +155,7 @@ export default function Scorecard({
   industryType,
   companyName,
   integrationChoice,
+  onConnect,
   onAskAboutKpi,
   onOpenProvenance,
 }: ScorecardProps) {
@@ -190,10 +182,9 @@ export default function Scorecard({
     }
   }
 
-  // Unconnected / no report yet — honest skeleton with actionable CTA (DASH_1A.1)
+  // Unconnected / no report yet — honest skeleton with actionable CTA (DASH_1A.1.1)
   if (!activeReportSummary) {
     const providerLabel = getIntegrationLabel(integrationChoice);
-    const connectHref = getConnectHref(integrationChoice);
     return (
       <div className="rounded-[2rem] border border-[#3A3A3D] bg-[#111113] p-6">
         <p className={`${headingFont} text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A961]`}>
@@ -202,17 +193,20 @@ export default function Scorecard({
         <p className={`${headingFont} mt-2 text-lg font-semibold text-[#ECEBE7]`}>
           Connect {providerLabel} to see your live scorecard.
         </p>
-        <div className="mt-4">
-          <Link
-            href={connectHref}
-            className={focusRing(
-              "inline-flex items-center gap-2 rounded-xl border-2 border-[#C9A961] bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#1B1B1D] transition-colors hover:bg-[#DFC084] hover:border-[#DFC084]"
-            )}
-          >
-            Connect {providerLabel}
-            <span aria-hidden>→</span>
-          </Link>
-        </div>
+        {onConnect ? (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={onConnect}
+              className={focusRing(
+                "inline-flex items-center gap-2 rounded-xl border-2 border-[#C9A961] bg-[#C9A961] px-5 py-3 text-sm font-semibold text-[#1B1B1D] transition-colors hover:bg-[#DFC084] hover:border-[#DFC084]"
+              )}
+            >
+              Connect {providerLabel}
+              <span aria-hidden>→</span>
+            </button>
+          </div>
+        ) : null}
         <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
           {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="h-32 rounded-2xl border border-dashed border-[#3A3A3D] bg-[#1B1B1D]/50" />

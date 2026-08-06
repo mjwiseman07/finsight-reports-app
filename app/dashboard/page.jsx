@@ -1963,8 +1963,11 @@ export default function DashboardPage() {
                 cashFlowTrailing12M={cashFlowTrailing12M}
                 industryType={onboardingIndustryType}
                 companyName={onboardingCompanyName}
-                // TODO(DASH_1A.2): wire onboardingIntegrationChoice from user_metadata or onboarding_profile
+                // TODO(DASH_1A.2): wire onboardingIntegrationChoice from user_metadata or onboarding_profile,
+                // and add integration-aware handler dispatch (handleConnectXero, etc.) instead of always
+                // firing handleConnectQuickBooks.
                 integrationChoice={null}
+                onConnect={handleConnectQuickBooks}
                 onAskAboutKpi={(kpiCode, question) => {
                   setExecutiveQuestion(question);
                   setAiOpen(true);
