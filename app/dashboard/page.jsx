@@ -1963,6 +1963,8 @@ export default function DashboardPage() {
                 cashFlowTrailing12M={cashFlowTrailing12M}
                 industryType={onboardingIndustryType}
                 companyName={onboardingCompanyName}
+                // TODO(DASH_1A.2): wire onboardingIntegrationChoice from user_metadata or onboarding_profile
+                integrationChoice={null}
                 onAskAboutKpi={(kpiCode, question) => {
                   setExecutiveQuestion(question);
                   setAiOpen(true);
