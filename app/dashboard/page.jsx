@@ -618,6 +618,22 @@ export default function DashboardPage() {
   const [access, setAccess] = useState(null);
   const [primaryPersona, setPrimaryPersona] = useState(null);
   const [error, setError] = useState("");
+  // DASH_1A.1.2: scroll the top-level error banner (role="alert") into view
+  // whenever a connect handler surfaces a user-visible failure. Prevents the
+  // silent-button UX class of bugs where an error IS set but rendered above
+  // the fold and the user staring at the Scorecard never sees it.
+  const scrollErrorIntoView = () => {
+    if (typeof window === "undefined") return;
+    // Defer to next tick so React has committed the error banner to the DOM.
+    setTimeout(() => {
+      const banner = document.querySelector('[role="alert"]');
+      if (banner instanceof HTMLElement) {
+        banner.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Optional: also flash focus for screen reader users.
+        banner.focus?.();
+      }
+    }, 0);
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [checkoutPlan, setCheckoutPlan] = useState("");
   const [quickBooksCapabilities, setQuickBooksCapabilities] = useState(null);
@@ -1396,21 +1412,27 @@ export default function DashboardPage() {
       const authToken = await getAuthToken();
       if (!authToken) {
         setError("Sign in first, then connect QuickBooks.");
+        scrollErrorIntoView();
         return;
       }
 
       const response = await fetch("/api/integrations/quickbooks/connect", {
         method: "POST",
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          Accept: "application/json",
+        },
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.url) {
         setError(result.error || "Unable to start QuickBooks connection.");
+        scrollErrorIntoView();
         return;
       }
       window.location.assign(result.url);
     } catch {
       setError("Unable to start QuickBooks connection.");
+      scrollErrorIntoView();
     }
   };
 
@@ -1420,21 +1442,27 @@ export default function DashboardPage() {
       const authToken = await getAuthToken();
       if (!authToken) {
         setError("Sign in first, then connect Xero.");
+        scrollErrorIntoView();
         return;
       }
 
       const response = await fetch("/api/integrations/xero/connect", {
         method: "POST",
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          Accept: "application/json",
+        },
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.url) {
         setError(result.error || "Unable to start Xero connection.");
+        scrollErrorIntoView();
         return;
       }
       window.location.assign(result.url);
     } catch {
       setError("Unable to start Xero connection.");
+      scrollErrorIntoView();
     }
   };
 
