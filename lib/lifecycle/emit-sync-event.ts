@@ -55,6 +55,10 @@ export async function emitSyncLifecycleEvent(params: EmitSyncLifecycleEventParam
     actor_via: "accounting-sync",
     from_status: "active",
     to_status: "active", // Option 2: self-transition. Outcome is in payload.
+    reason_code:
+      eventKind === "pilot.lifecycle.accounting-sync-completed"
+        ? "accounting.sync.completed"
+        : "accounting.sync.failed",
     payload,
     // DO NOT SET: prev_hash, row_hash, chain_seq, company_id, firm_id.
     // The BEFORE-INSERT trigger derives/overwrites these.
