@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { cookies } from "next/headers";
+import type { NextRequest, NextResponse as NextResponseType } from "next/server";
 import { assertReadyForSourceAgnosticOutputs } from "./advisacor-data-model";
 import { buildReportDataContext } from "./report-data-context";
 import { getAccountingProviderMappingAdapter } from "./provider-adapters";
@@ -578,16 +578,17 @@ export async function startConnection(providerKey: AccountingProvider, user: { i
   return { url, state, provider: provider.provider };
 }
 
-export async function saveOAuthCookies({
-  state,
-  token,
-  returnTo,
-}: {
-  state: string;
-  token: string;
-  returnTo?: string;
-}) {
-  const cookieStore = await cookies();
+/**
+ * Persist OAuth cookies onto a specific outgoing response.
+ *
+ * IMPORTANT: In App Router Route Handlers, cookies set via `next/headers` do NOT
+ * propagate onto a freshly-constructed NextResponse that the handler returns.
+ * Attach cookies to the exact response object that will be returned.
+ */
+export function saveOAuthCookiesOnResponse(
+  response: NextResponseType,
+  { state, token, returnTo }: { state: string; token: string; returnTo?: string },
+): void {
   const options = {
     httpOnly: true,
     sameSite: "lax" as const,
@@ -595,34 +596,45 @@ export async function saveOAuthCookies({
     maxAge: 10 * 60,
     path: "/",
   };
-  cookieStore.set(STATE_COOKIE, state, options);
-  cookieStore.set(TOKEN_COOKIE, token, options);
-  if (returnTo) cookieStore.set(RETURN_COOKIE, returnTo, options);
+  response.cookies.set(STATE_COOKIE, state, options);
+  response.cookies.set(TOKEN_COOKIE, token, options);
+  if (returnTo) response.cookies.set(RETURN_COOKIE, returnTo, options);
 }
 
-export async function clearOAuthCookies() {
-  const cookieStore = await cookies();
-  cookieStore.delete(STATE_COOKIE);
-  cookieStore.delete(TOKEN_COOKIE);
-  cookieStore.delete(RETURN_COOKIE);
+export function clearOAuthCookiesOnResponse(response: NextResponseType): void {
+  response.cookies.delete(STATE_COOKIE);
+  response.cookies.delete(TOKEN_COOKIE);
+  response.cookies.delete(RETURN_COOKIE);
 }
 
-export async function readOAuthCookies() {
-  const cookieStore = await cookies();
+/**
+ * Read OAuth cookies from an incoming request.
+ * Uses request.cookies (always populated in Route Handlers) rather than
+ * `next/headers` cookies().
+ */
+export function readOAuthCookiesFromRequest(request: NextRequest): {
+  state: string;
+  token: string;
+  returnTo: string;
+} {
   return {
-    state: cookieStore.get(STATE_COOKIE)?.value || "",
-    token: cookieStore.get(TOKEN_COOKIE)?.value || "",
-    returnTo: cookieStore.get(RETURN_COOKIE)?.value || "",
+    state: request.cookies.get(STATE_COOKIE)?.value || "",
+    token: request.cookies.get(TOKEN_COOKIE)?.value || "",
+    returnTo: request.cookies.get(RETURN_COOKIE)?.value || "",
   };
 }
 
-export async function handleCallback(providerKey: AccountingProvider, requestUrl: URL) {
+export async function handleCallback(
+  providerKey: AccountingProvider,
+  request: NextRequest,
+) {
+  const requestUrl = new URL(request.url);
   const supabase = requireSupabase();
   const provider = getAccountingProvider(providerKey);
   const code = requestUrl.searchParams.get("code") || "";
   const state = requestUrl.searchParams.get("state") || "";
   const tenantOrRealmId = requestUrl.searchParams.get("realmId") || requestUrl.searchParams.get("tenant") || "";
-  const oauth = await readOAuthCookies();
+  const oauth = readOAuthCookiesFromRequest(request);
 
   if (!code || !state || state !== oauth.state || !oauth.token) {
     throw new Error("Missing or invalid accounting OAuth state");
@@ -704,7 +716,8 @@ export async function handleCallback(providerKey: AccountingProvider, requestUrl
   if (error) throw error;
   if (provider.provider === "xero") console.log("CONNECTION SAVED SUCCESSFULLY", { connectionId: data?.[0]?.id });
 
-  await clearOAuthCookies();
+  // Cookie clear is done by the Route Handler on the returned redirect response
+  // via clearOAuthCookiesOnResponse — not via next/headers.
   return { connectionId: data?.[0]?.id, returnTo: oauth.returnTo || "/dashboard" };
 }
 

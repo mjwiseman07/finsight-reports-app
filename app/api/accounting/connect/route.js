@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { startConnection, saveOAuthCookies } from "../../../../lib/integrations/accounting";
+import { startConnection, saveOAuthCookiesOnResponse } from "../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
 
@@ -20,13 +20,6 @@ async function handleConnect(request) {
 
     const result = await startConnection(provider, authData.user, returnTo);
     const safeReturnTo = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "";
-    // Keep saveOAuthCookies for shared callers; Next.js 16 Route Handlers must also
-    // attach cookies directly to the returned NextResponse (same class as xero/connect).
-    await saveOAuthCookies({
-      state: result.state,
-      token,
-      returnTo: safeReturnTo,
-    });
 
     console.log("[accounting/connect] authorization URL generated", {
       provider,
@@ -34,19 +27,12 @@ async function handleConnect(request) {
       stateLength: result.state.length,
     });
 
-    const oauthCookieOptions = {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 10 * 60,
-      path: "/",
-    };
     const jsonResponse = NextResponse.json({ url: result.url, provider: result.provider });
-    jsonResponse.cookies.set("accounting_oauth_state", result.state, oauthCookieOptions);
-    jsonResponse.cookies.set("accounting_oauth_token", token, oauthCookieOptions);
-    if (safeReturnTo) {
-      jsonResponse.cookies.set("accounting_oauth_return_to", safeReturnTo, oauthCookieOptions);
-    }
+    saveOAuthCookiesOnResponse(jsonResponse, {
+      state: result.state,
+      token,
+      returnTo: safeReturnTo,
+    });
     return jsonResponse;
   } catch (error) {
     console.error("[accounting/connect] failed", { message: error?.message });

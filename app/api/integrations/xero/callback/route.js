@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAccountingProvider, handleCallback } from "../../../../../lib/integrations/accounting";
+import { getAccountingProvider, handleCallback, clearOAuthCookiesOnResponse } from "../../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../../lib/supabase";
 import { encryptAccountingToken } from "../../../../../lib/integrations/accounting/token-encryption";
 
@@ -192,14 +192,16 @@ export async function GET(request) {
       return response;
     }
 
-    const result = await handleCallback("xero", requestUrl);
+    const result = await handleCallback("xero", request);
     const redirectUrl = new URL(result.returnTo || "/dashboard", request.url);
     redirectUrl.searchParams.set("accountingConnected", "true");
     redirectUrl.searchParams.set("provider", "xero");
     redirectUrl.searchParams.set("connected", "xero");
     redirectUrl.searchParams.set("xeroOrganizationSelection", "required");
     if (result.connectionId) redirectUrl.searchParams.set("connectionId", result.connectionId);
-    return NextResponse.redirect(redirectUrl);
+    const response = NextResponse.redirect(redirectUrl);
+    clearOAuthCookiesOnResponse(response);
+    return response;
   } catch (error) {
     console.error("[integrations/xero/callback] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Xero OAuth callback failed" }, { status: 500 });

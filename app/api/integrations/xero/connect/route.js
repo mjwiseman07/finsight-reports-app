@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { getAccountingProvider, startConnection, saveOAuthCookies } from "../../../../../lib/integrations/accounting";
+import { getAccountingProvider, startConnection, saveOAuthCookiesOnResponse } from "../../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../../lib/supabase";
 import { rateLimit } from "../../../../../lib/rate-limit";
 
@@ -73,40 +73,19 @@ async function handleConnect(request) {
 
     const result = await startConnection("xero", authData.user, returnTo);
     const safeReturnTo = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard";
-    // Keep saveOAuthCookies for shared callers / Server Action paths; Next.js 16 Route
-    // Handlers also need cookies attached directly to the returned NextResponse.
-    await saveOAuthCookies({
-      state: result.state,
-      token,
-      returnTo: safeReturnTo,
-    });
 
-    const oauthCookieOptions = {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 10 * 60,
-      path: "/",
-    };
-
-    // DASH_1A.1.2 fix: after Bearer-authenticated startConnection, always return JSON.
-    // The `handleConnectXero` fetch in app/dashboard/page.jsx needs a JSON body containing
-    // `url` so it can call `window.location.assign(result.url)`. Returning a 302 here would
-    // send fetch cross-origin → opaqueredirect → silent failure. The leadId-only redirect
-    // path above (lines 33-60) still 302s intentionally because that's a direct browser
-    // navigation, not a fetch.
-    //
-    // Also attach accounting_oauth_* on the response: cookies().set from next/headers does
-    // not auto-attach to Route Handler NextResponse.json() in Next.js 16 (Datadog: callback
-    // failed with "Missing or invalid accounting OAuth state").
+    // DASH_1A.1.2: always return JSON on Bearer path so dashboard fetch().json() works.
+    // Attach accounting_oauth_* on that same NextResponse (Next 16 does not auto-apply next/headers).
     const jsonResponse = NextResponse.json({
       url: result.url,
       provider: "xero",
       environment: process.env.XERO_ENV || "development",
     });
-    jsonResponse.cookies.set("accounting_oauth_state", result.state, oauthCookieOptions);
-    jsonResponse.cookies.set("accounting_oauth_token", token, oauthCookieOptions);
-    jsonResponse.cookies.set("accounting_oauth_return_to", safeReturnTo, oauthCookieOptions);
+    saveOAuthCookiesOnResponse(jsonResponse, {
+      state: result.state,
+      token,
+      returnTo: safeReturnTo,
+    });
     jsonResponse.cookies.set("advisacor_oauth_token", "", { path: "/", maxAge: 0 });
     jsonResponse.cookies.set("advisacor_oauth_return_to", "", { path: "/", maxAge: 0 });
     return jsonResponse;

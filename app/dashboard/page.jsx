@@ -1660,6 +1660,7 @@ export default function DashboardPage() {
 
       const response = await fetch("/api/integrations/quickbooks/connect", {
         method: "POST",
+        credentials: "include",
         headers: {
           Authorization: `Bearer ${authToken}`,
           Accept: "application/json",
@@ -1690,6 +1691,7 @@ export default function DashboardPage() {
 
       const response = await fetch("/api/integrations/xero/connect", {
         method: "POST",
+        credentials: "include",
         headers: {
           Authorization: `Bearer ${authToken}`,
           Accept: "application/json",
