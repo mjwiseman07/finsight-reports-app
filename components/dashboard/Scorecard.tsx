@@ -182,6 +182,7 @@ export default function Scorecard({
   cashFlowTrailing12M,
   industryType,
   companyName,
+  integrationChoice,
   onConnectQBO,
   onConnectXero,
   hydrationActive = false,
