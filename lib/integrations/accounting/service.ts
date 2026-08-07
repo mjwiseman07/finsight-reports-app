@@ -1012,125 +1012,225 @@ export async function fetchCanonicalReports({
   dateRange: AccountingDateRange;
   sourceSystem: string;
 }) {
-  if (!sourceSystem) throw new Error("sourceSystem is required when fetching canonical reports.");
-  const selectedSourceSystem = sourceSystem === "dynamics" ? "dynamics365" : sourceSystem;
-  const connection = await getConnectionForUser(connectionId, userId);
-  if (selectedSourceSystem !== connection.provider) {
-    throw new Error(`Provider mismatch: active ${sourceSystem} but normalized data is ${connection.provider}`);
-  }
-  const provider = getAccountingProvider(connection.provider);
-  const mappingAdapter = getAccountingProviderMappingAdapter(selectedSourceSystem);
-  const syncId = crypto.randomUUID();
-  const tenantId = connection.tenant_or_realm_id || connection.external_entity_id || null;
-  const tenantName = connection.external_entity_name || String(connection.metadata_json?.tenant_name || connection.metadata_json?.company_name || "");
-  const rawReports = await mappingAdapter.fetchRawReports(connection, dateRange);
-  const rawBundleDiagnostics = ((rawReports.bundle.sourceMetadata.raw as Record<string, unknown> | undefined)?.diagnostics as Record<string, unknown> | undefined) || {};
-  const normalizedData = await mappingAdapter.normalize(rawReports, {
-    connection,
-    reportPeriod: dateRange,
-    syncId,
-    tenantId,
-    tenantName,
-  }).catch((error) => {
-    (error as Error & { diagnostics?: Record<string, unknown> }).diagnostics = {
-      sourceSystem: connection.provider,
-      tenantName,
-      ...rawBundleDiagnostics,
-    };
-    throw error;
-  });
-  console.info("NORMALIZATION COMPLETE", {
-    companyId: normalizedData.companyId || String(connection.metadata_json?.company_id || connection.user_id || ""),
-    connectionId,
-    tenantId,
-    tenantName,
-    sourceSystem: normalizedData.sourceSystem,
-    reportPeriod: dateRange,
-  });
-  mappingAdapter.validate(normalizedData);
-  if (normalizedData.sourceSystem !== selectedSourceSystem) throw new Error("Provider adapter mismatch");
-  if (normalizedData.adapterName !== mappingAdapter.adapterName) throw new Error("Mapping adapter mismatch");
-  assertProviderMatchesSelectedProvider(selectedSourceSystem, normalizedData);
-  assertReadyForSourceAgnosticOutputs(normalizedData);
-  const diagnostics = buildSyncDiagnostics(connection, normalizedData, rawBundleDiagnostics);
-  const message = isEmptyXeroFinancialActivityMessage(normalizedData) ? "Connected to Xero. No financial activity found." : undefined;
-  const reportDataContext = buildReportDataContext({
-    companyId: normalizedData.companyId,
-    connectionId,
-    sourceSystem: connection.provider,
-    adapterName: mappingAdapter.adapterName,
-    tenantId,
-    tenantName: diagnostics.tenantName,
-    reportPeriod: dateRange,
-    normalizedData,
-    syncId,
-    diagnostics,
-  });
-  const preflight = validateReportPreflight(reportDataContext, {
-    requiresLiveData: true,
-    providerConfirmedNoActivity: Boolean(message),
-  });
-  console.info("Active Report Context:", {
-    sourceSystem: connection.provider,
-    connectionId,
-    syncId,
-    reportPeriod: dateRange,
-    normalizedAccounts: normalizedData.normalizedAccounts?.length || 0,
-    normalizedTrialBalance: normalizedData.normalizedTrialBalance?.length || 0,
-    normalizedBalanceSheet: normalizedData.normalizedBalanceSheet?.length || 0,
-    normalizedIncomeStatement: normalizedData.normalizedIncomeStatement?.length || 0,
-  });
-  await persistNormalizedAccountingSync({
-    connection,
+  // Phase DASH_1B.2 — failure-path emitter context (Option B + Option 2).
+  let anchorCtx: { userId: string; connectionId: string; syncId: string | null } = {
     userId,
-    syncId,
-    reportPeriod: dateRange,
-    normalizedData,
-    diagnostics,
-    sourceSystem: connection.provider,
-    adapterName: mappingAdapter.adapterName,
-    tenantId,
-    tenantName: diagnostics.tenantName,
-    preflight,
-  });
-  console.info("Saved Sync:", {
-    companyId: normalizedData.companyId || null,
     connectionId,
-    tenantId: connection.tenant_or_realm_id || connection.external_entity_id || null,
-    syncId,
-  });
-  if (preflight.passed && preflight.warnings.length) {
-    await createPreflightWarningSupportTickets({
+    syncId: null,
+  };
+  let selectedSourceSystem = sourceSystem === "dynamics" ? "dynamics365" : sourceSystem;
+
+  try {
+    if (!sourceSystem) throw new Error("sourceSystem is required when fetching canonical reports.");
+    selectedSourceSystem = sourceSystem === "dynamics" ? "dynamics365" : sourceSystem;
+    const connection = await getConnectionForUser(connectionId, userId);
+    if (selectedSourceSystem !== connection.provider) {
+      throw new Error(`Provider mismatch: active ${sourceSystem} but normalized data is ${connection.provider}`);
+    }
+    const provider = getAccountingProvider(connection.provider);
+    const mappingAdapter = getAccountingProviderMappingAdapter(selectedSourceSystem);
+    const syncId = crypto.randomUUID();
+    anchorCtx.syncId = syncId;
+    const tenantId = connection.tenant_or_realm_id || connection.external_entity_id || null;
+    const tenantName = connection.external_entity_name || String(connection.metadata_json?.tenant_name || connection.metadata_json?.company_name || "");
+    const rawReports = await mappingAdapter.fetchRawReports(connection, dateRange);
+    const rawBundleDiagnostics = ((rawReports.bundle.sourceMetadata.raw as Record<string, unknown> | undefined)?.diagnostics as Record<string, unknown> | undefined) || {};
+    const normalizedData = await mappingAdapter.normalize(rawReports, {
+      connection,
+      reportPeriod: dateRange,
+      syncId,
+      tenantId,
+      tenantName,
+    }).catch((error) => {
+      (error as Error & { diagnostics?: Record<string, unknown> }).diagnostics = {
+        sourceSystem: connection.provider,
+        tenantName,
+        ...rawBundleDiagnostics,
+      };
+      throw error;
+    });
+    console.info("NORMALIZATION COMPLETE", {
+      companyId: normalizedData.companyId || String(connection.metadata_json?.company_id || connection.user_id || ""),
+      connectionId,
+      tenantId,
+      tenantName,
+      sourceSystem: normalizedData.sourceSystem,
+      reportPeriod: dateRange,
+    });
+    mappingAdapter.validate(normalizedData);
+    if (normalizedData.sourceSystem !== selectedSourceSystem) throw new Error("Provider adapter mismatch");
+    if (normalizedData.adapterName !== mappingAdapter.adapterName) throw new Error("Mapping adapter mismatch");
+    assertProviderMatchesSelectedProvider(selectedSourceSystem, normalizedData);
+    assertReadyForSourceAgnosticOutputs(normalizedData);
+    const diagnostics = buildSyncDiagnostics(connection, normalizedData, rawBundleDiagnostics);
+    const message = isEmptyXeroFinancialActivityMessage(normalizedData) ? "Connected to Xero. No financial activity found." : undefined;
+    const reportDataContext = buildReportDataContext({
       companyId: normalizedData.companyId,
       connectionId,
       sourceSystem: connection.provider,
+      adapterName: mappingAdapter.adapterName,
+      tenantId,
+      tenantName: diagnostics.tenantName,
+      reportPeriod: dateRange,
+      normalizedData,
+      syncId,
+      diagnostics,
+    });
+    const preflight = validateReportPreflight(reportDataContext, {
+      requiresLiveData: true,
+      providerConfirmedNoActivity: Boolean(message),
+    });
+    console.info("Active Report Context:", {
+      sourceSystem: connection.provider,
+      connectionId,
       syncId,
       reportPeriod: dateRange,
-      tenantName: diagnostics.tenantName,
-      warnings: preflight.warnings,
+      normalizedAccounts: normalizedData.normalizedAccounts?.length || 0,
+      normalizedTrialBalance: normalizedData.normalizedTrialBalance?.length || 0,
+      normalizedBalanceSheet: normalizedData.normalizedBalanceSheet?.length || 0,
+      normalizedIncomeStatement: normalizedData.normalizedIncomeStatement?.length || 0,
     });
+    await persistNormalizedAccountingSync({
+      connection,
+      userId,
+      syncId,
+      reportPeriod: dateRange,
+      normalizedData,
+      diagnostics,
+      sourceSystem: connection.provider,
+      adapterName: mappingAdapter.adapterName,
+      tenantId,
+      tenantName: diagnostics.tenantName,
+      preflight,
+    });
+    console.info("Saved Sync:", {
+      companyId: normalizedData.companyId || null,
+      connectionId,
+      tenantId: connection.tenant_or_realm_id || connection.external_entity_id || null,
+      syncId,
+    });
+
+    if (preflight.passed && preflight.warnings.length) {
+      await createPreflightWarningSupportTickets({
+        companyId: normalizedData.companyId,
+        connectionId,
+        sourceSystem: connection.provider,
+        syncId,
+        reportPeriod: dateRange,
+        tenantName: diagnostics.tenantName,
+        warnings: preflight.warnings,
+      });
+    }
+    if (!preflight.passed) {
+      const error = new Error("We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.");
+      (error as Error & { preflight?: typeof preflight; status?: number }).preflight = preflight;
+      (error as Error & { preflight?: typeof preflight; status?: number }).status = 422;
+      (error as Error & { diagnostics?: typeof diagnostics }).diagnostics = diagnostics;
+      throw error;
+    }
+
+    // Phase DASH_1B.2 — anchor bootstrap + lifecycle event (success path).
+    // Emits only after preflight passes so a 422 validation failure does not
+    // also write accounting-sync-completed (failure path handles that).
+    // Never blocks the sync return; every failure here is best-effort logged.
+    try {
+      const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
+      const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
+      const { supabaseAdmin } = await import("../../supabase");
+      if (supabaseAdmin && userId) {
+        const { pilotSlotId } = await ensureLifecycleAnchor({
+          admin: supabaseAdmin,
+          userId,
+          sourceSystemCompanyName: diagnostics.tenantName || tenantName || "Unnamed Company",
+        });
+        await emitSyncLifecycleEvent({
+          admin: supabaseAdmin,
+          pilotSlotId,
+          eventKind: "pilot.lifecycle.accounting-sync-completed",
+          payload: {
+            connection_id: connectionId,
+            tenant_id: tenantId,
+            tenant_name: diagnostics.tenantName || tenantName || "",
+            sync_id: syncId,
+            source_system: connection.provider,
+            outcome: "succeeded",
+            records_synced:
+              (normalizedData.normalizedTrialBalance?.length || 0) +
+              (normalizedData.normalizedBalanceSheet?.length || 0) +
+              (normalizedData.normalizedIncomeStatement?.length || 0),
+            provenance: "live",
+          },
+        });
+      }
+    } catch (anchorErr) {
+      console.error("[fetchCanonicalReports] lifecycle anchor/emit failed (non-blocking)", {
+        connectionId,
+        syncId,
+        error: anchorErr instanceof Error ? anchorErr.message : String(anchorErr),
+      });
+    }
+
+    return {
+      ok: true,
+      provider: connection.provider,
+      connectionId,
+      bundle: rawReports.bundle,
+      normalizedData,
+      reportDataContext,
+      preflight,
+      syncId,
+      diagnostics,
+      message,
+      missingReports: rawReports.bundle.missingReports,
+      warnings: [...(provider.getCapabilities().fallback_notes || []), ...normalizedData.validation.warnings],
+    };
+  } catch (fatalErr) {
+    // Phase DASH_1B.2 — emit failure event, non-blocking.
+    try {
+      const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
+      const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
+      const { supabaseAdmin } = await import("../../supabase");
+      if (supabaseAdmin && anchorCtx.userId) {
+        // Best-effort: only if we already know the company name from a prior connection.
+        // If ensureLifecycleAnchor fails on first-ever connect (before connection lookup succeeded),
+        // we just log and skip — we cannot invent a company name.
+        const { data: conn } = await supabaseAdmin
+          .from("accounting_connections")
+          .select("external_entity_name")
+          .eq("id", anchorCtx.connectionId)
+          .maybeSingle();
+        const companyName = conn?.external_entity_name || "";
+        if (companyName) {
+          const { pilotSlotId } = await ensureLifecycleAnchor({
+            admin: supabaseAdmin,
+            userId: anchorCtx.userId,
+            sourceSystemCompanyName: companyName,
+          });
+          await emitSyncLifecycleEvent({
+            admin: supabaseAdmin,
+            pilotSlotId,
+            eventKind: "pilot.lifecycle.accounting-sync-failed",
+            payload: {
+              connection_id: anchorCtx.connectionId,
+              tenant_id: null,
+              tenant_name: companyName,
+              sync_id: anchorCtx.syncId || "unknown",
+              source_system: selectedSourceSystem,
+              outcome: "failed",
+              error_code: (fatalErr as { code?: string })?.code || "UNKNOWN",
+              error_message: fatalErr instanceof Error ? fatalErr.message.slice(0, 500) : String(fatalErr).slice(0, 500),
+              provenance: "live",
+            },
+          });
+        }
+      }
+    } catch (emitErr) {
+      console.error("[fetchCanonicalReports] failure-event emission itself failed (swallowed)", {
+        error: emitErr instanceof Error ? emitErr.message : String(emitErr),
+      });
+    }
+    throw fatalErr;
   }
-  if (!preflight.passed) {
-    const error = new Error("We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.");
-    (error as Error & { preflight?: typeof preflight; status?: number }).preflight = preflight;
-    (error as Error & { preflight?: typeof preflight; status?: number }).status = 422;
-    (error as Error & { diagnostics?: typeof diagnostics }).diagnostics = diagnostics;
-    throw error;
-  }
-  return {
-    ok: true,
-    provider: connection.provider,
-    connectionId,
-    bundle: rawReports.bundle,
-    normalizedData,
-    reportDataContext,
-    preflight,
-    syncId,
-    diagnostics,
-    message,
-    missingReports: rawReports.bundle.missingReports,
-    warnings: [...(provider.getCapabilities().fallback_notes || []), ...normalizedData.validation.warnings],
-  };
 }
 
 export async function disconnectConnection(connectionId: string, userId: string) {
