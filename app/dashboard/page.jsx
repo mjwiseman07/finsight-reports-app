@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { SUPER_ADMIN_ROLE, isAllowedSuperAdminEmail } from "../../lib/super-admin";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
 import { AccountSupportModal } from "../../components/AccountSupportModal";
@@ -640,6 +641,29 @@ export default function DashboardPage() {
   const [quickBooksDetecting, setQuickBooksDetecting] = useState(false);
   const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const [userIsFirmAdmin, setUserIsFirmAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  // Mirrors lib/tcp1/use-launch-status.ts — email allowlist AND role. Server
+  // audits the same predicates before granting privilege (super-admin-security.js).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled || !user?.email) return;
+        const emailAllowed = isAllowedSuperAdminEmail(user.email);
+        const appRole = user.app_metadata?.role;
+        const userRole = user.user_metadata?.role;
+        const roleMatch = appRole === SUPER_ADMIN_ROLE || userRole === SUPER_ADMIN_ROLE;
+        if (!cancelled) setIsSuperAdmin(emailAllowed && roleMatch);
+      } catch {
+        if (!cancelled) setIsSuperAdmin(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [accountSaving, setAccountSaving] = useState(false);
@@ -2257,7 +2281,7 @@ export default function DashboardPage() {
               />
               <PendingApprovalsCard />
               <PostedJesCard />
-              {activeReportSummary && (
+              {isSuperAdmin && activeReportSummary && (
                 <div className="rounded-3xl border border-[#5591C7]/30 bg-[#5591C7]/10 p-5">
                   <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#DFC084]`}>Report Source: {activeReportSummary.sourceSystem}</p>
                   <div className="mt-3 grid gap-3 text-sm md:grid-cols-3 xl:grid-cols-6">
