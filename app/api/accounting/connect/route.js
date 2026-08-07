@@ -19,10 +19,13 @@ async function handleConnect(request) {
     if (authError || !authData?.user?.id) return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
 
     const result = await startConnection(provider, authData.user, returnTo);
+    const safeReturnTo = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "";
+    // Keep saveOAuthCookies for shared callers; Next.js 16 Route Handlers must also
+    // attach cookies directly to the returned NextResponse (same class as xero/connect).
     await saveOAuthCookies({
       state: result.state,
       token,
-      returnTo: returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "",
+      returnTo: safeReturnTo,
     });
 
     console.log("[accounting/connect] authorization URL generated", {
@@ -31,7 +34,20 @@ async function handleConnect(request) {
       stateLength: result.state.length,
     });
 
-    return NextResponse.json({ url: result.url, provider: result.provider });
+    const oauthCookieOptions = {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 10 * 60,
+      path: "/",
+    };
+    const jsonResponse = NextResponse.json({ url: result.url, provider: result.provider });
+    jsonResponse.cookies.set("accounting_oauth_state", result.state, oauthCookieOptions);
+    jsonResponse.cookies.set("accounting_oauth_token", token, oauthCookieOptions);
+    if (safeReturnTo) {
+      jsonResponse.cookies.set("accounting_oauth_return_to", safeReturnTo, oauthCookieOptions);
+    }
+    return jsonResponse;
   } catch (error) {
     console.error("[accounting/connect] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to start accounting connection" }, { status: 500 });
