@@ -257,7 +257,7 @@ export default function Scorecard({
         <p className="text-sm text-[#ECEBE7]/60">
           {companyName ? `${companyName} · ` : ""}
           {hydrationActive && !activeReportSummary
-            ? `Fetching 6 months of ${getIntegrationLabel(null)} data — usually 20-40 seconds`
+            ? `Fetching 6 months of ${getIntegrationLabel(integrationChoice)} data — usually 20-40 seconds`
             : "Live from your books"}
         </p>
       </div>

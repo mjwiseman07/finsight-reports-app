@@ -1214,9 +1214,15 @@ export default function DashboardPage() {
 
   const suggestedPulseQuestions = useMemo(() => {
     if (!activeReportSummary) {
+      const providerName =
+        activeSourceSystem === "xero"
+          ? "Xero"
+          : activeSourceSystem === "quickbooks" || activeSourceSystem === "qbo"
+          ? "QuickBooks"
+          : "accounting";
       return [
         "What can Pulse help me with?",
-        "How does Advisacor use my QuickBooks data?",
+        `How does Advisacor use my ${providerName} data?`,
         "What will my dashboard show once I connect?",
       ];
     }
@@ -1248,7 +1254,7 @@ export default function DashboardPage() {
       chips.push("What's my biggest financial risk right now?");
     }
     return chips.slice(0, 6);
-  }, [activeReportSummary, arAgingSchedule, cashFlowTrailing12M]);
+  }, [activeReportSummary, arAgingSchedule, cashFlowTrailing12M, activeSourceSystem]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -2177,7 +2183,7 @@ export default function DashboardPage() {
                 cashFlowTrailing12M={cashFlowTrailing12M}
                 industryType={onboardingIndustryType}
                 companyName={onboardingCompanyName}
-                integrationChoice={null}
+                integrationChoice={activeSourceSystem || dashboardParams.get("provider") || dashboardParams.get("connected") || null}
                 onConnectQBO={handleConnectQuickBooks}
                 onConnectXero={handleConnectXero}
                 hydrationActive={hydrationActive}
