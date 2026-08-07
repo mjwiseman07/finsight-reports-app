@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
@@ -1170,6 +1170,218 @@ export default function DashboardPage() {
 
     const t = setTimeout(() => setHydrationToast(null), 5000);
     return () => clearTimeout(t);
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Phase DASH_1B.1 — Post-OAuth Hydration Bridge (client-driven, slice 1)
+  //
+  // When the user lands on /dashboard?connected=xero|quickbooks&connectionId=…
+  // this effect:
+  //   1. calls /api/accounting/active-context to get sourceSystem + connectionId
+  //      + existing activeReportPayload (if any)
+  //   2. hydrates local activeReportPayload state so tile-fetches can gate on
+  //      a real activeSourceSystem
+  //   3. if no recent reportDataContext, fires /api/accounting/fetch-reports
+  //      for the last 6 months (idempotent — existing lifecycle chain de-dupes)
+  //   4. on failure, leaves the dashboard shell up and surfaces a
+  //      reconnect banner via setHydrationToast (never blanks tiles)
+  //
+  // Idempotency is guarded by hydrationBridgeStartedRef so Strict Mode
+  // double-mount + navigation replays are no-ops.
+  //
+  // Vendor precedent applied: Merge relink-needed shell preservation, Nango
+  // autoStart-on-connection, NNGroup staged loading. See planning doc.
+  // Explicit connection state machine + Realtime push land in slice 3.
+  // ─────────────────────────────────────────────────────────────────────────
+  const hydrationBridgeStartedRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (hydrationBridgeStartedRef.current) return;
+    const url = new URL(window.location.href);
+    const connectedParam = url.searchParams.get("connected") ||
+                           url.searchParams.get("accountingConnected");
+    // The prior effect deletes ?connected= before this runs on some paths, so
+    // also check the alternate param name the callback route sets.
+    const providerHint = connectedParam === "xero" || connectedParam === "quickbooks"
+      ? connectedParam
+      : null;
+    // If neither param present AND we already have an activeReportPayload,
+    // there's nothing to do — normal dashboard render path.
+    if (!providerHint && activeReportPayload) return;
+    // If neither param present AND we have no payload, we still try once —
+    // this handles the case where the user hard-refreshed after OAuth.
+    // But we only do it if the URL had connectionId (proof of recent OAuth).
+    const urlConnectionId = url.searchParams.get("connectionId") || "";
+    if (!providerHint && !urlConnectionId && activeReportPayload) return;
+    // Zero effect on normal dashboard visits with no OAuth landing params.
+    if (!providerHint && !urlConnectionId) return;
+
+    hydrationBridgeStartedRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const authToken = await getAuthToken();
+        if (!authToken) {
+          console.warn("[DASH_1B.1] no auth token, skipping hydration bridge");
+          return;
+        }
+
+        // Step 1 — read active context from DB via /api/accounting/active-context
+        const ctxRes = await fetch("/api/accounting/active-context", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            connectionId: urlConnectionId || undefined,
+            sourceSystem: providerHint || undefined,
+            forceRefresh: false,
+          }),
+        });
+
+        if (cancelled) return;
+
+        if (!ctxRes.ok) {
+          const errBody = await ctxRes.json().catch(() => ({}));
+          console.warn("[DASH_1B.1] active-context failed", ctxRes.status, errBody);
+          if (ctxRes.status === 404) {
+            // Merge "relink_needed" — surface banner, keep shell up
+            setHydrationToast("Reconnect your accounting system to finish syncing.");
+          }
+          return;
+        }
+
+        const ctx = await ctxRes.json();
+        const activeContext = ctx?.activeContext || ctx;
+        const resolvedSourceSystem = activeContext?.sourceSystem ||
+                                     activeContext?.provider ||
+                                     providerHint ||
+                                     null;
+        const resolvedConnectionId = activeContext?.connectionId || urlConnectionId || "";
+        const resolvedCompanyId = activeContext?.companyId ||
+                                  activeContext?.reportDataContext?.companyId ||
+                                  null;
+        const existingReportContext = activeContext?.reportDataContext || null;
+
+        // Step 2 — if active-context already gave us a normalized report, use it
+        if (existingReportContext && existingReportContext.normalizedData) {
+          const payload = {
+            ...activeContext,
+            reportDataContext: existingReportContext,
+            normalizedData: existingReportContext.normalizedData || activeContext.normalizedData,
+            connectionId: resolvedConnectionId,
+            companyId: resolvedCompanyId,
+            sourceSystem: resolvedSourceSystem,
+          };
+          setActiveReportPayload(payload);
+          try {
+            window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload));
+          } catch {}
+          return;
+        }
+
+        // Step 3 — no cached normalized data, fire fetch-reports for last 6 months
+        if (!resolvedConnectionId || !resolvedSourceSystem) {
+          console.warn("[DASH_1B.1] active-context returned but missing connectionId or sourceSystem", {
+            resolvedConnectionId,
+            resolvedSourceSystem,
+          });
+          setHydrationToast("We connected your accounting system but couldn't identify the org. Refresh in a moment.");
+          return;
+        }
+
+        const now = new Date();
+        const end = now.toISOString().slice(0, 10);
+        const startDt = new Date(now);
+        startDt.setMonth(startDt.getMonth() - 6);
+        const start = startDt.toISOString().slice(0, 10);
+
+        const syncRes = await fetch("/api/accounting/fetch-reports", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            connectionId: resolvedConnectionId,
+            startDate: start,
+            endDate: end,
+            sourceSystem: resolvedSourceSystem,
+          }),
+        });
+
+        if (cancelled) return;
+
+        if (!syncRes.ok) {
+          const errBody = await syncRes.json().catch(() => ({}));
+          console.warn("[DASH_1B.1] fetch-reports failed", syncRes.status, errBody);
+          if (syncRes.status === 401 || syncRes.status === 403) {
+            // Merge "relink_needed"
+            setHydrationToast("Your accounting connection expired. Reconnect to finish syncing.");
+          } else {
+            setHydrationToast("Sync is taking longer than expected. We'll keep trying in the background.");
+          }
+          return;
+        }
+
+        const syncBody = await syncRes.json();
+
+        // Step 4 — re-read active-context now that fetch-reports has landed a row
+        const ctxRes2 = await fetch("/api/accounting/active-context", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            connectionId: resolvedConnectionId,
+            sourceSystem: resolvedSourceSystem,
+            forceRefresh: true,
+          }),
+        });
+
+        if (cancelled) return;
+
+        if (ctxRes2.ok) {
+          const ctx2 = await ctxRes2.json();
+          const activeContext2 = ctx2?.activeContext || ctx2;
+          const payload2 = {
+            ...activeContext2,
+            connectionId: activeContext2?.connectionId || resolvedConnectionId,
+            companyId: activeContext2?.companyId || resolvedCompanyId,
+            sourceSystem: activeContext2?.sourceSystem || resolvedSourceSystem,
+          };
+          setActiveReportPayload(payload2);
+          try {
+            window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload2));
+          } catch {}
+        } else {
+          // fetch-reports succeeded but re-fetch of context failed — fall back
+          // to what fetch-reports gave us if it included normalized data
+          if (syncBody?.reportDataContext || syncBody?.normalizedData) {
+            const fallback = {
+              ...syncBody,
+              connectionId: resolvedConnectionId,
+              companyId: resolvedCompanyId,
+              sourceSystem: resolvedSourceSystem,
+            };
+            setActiveReportPayload(fallback);
+          }
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error("[DASH_1B.1] hydration bridge failed", err);
+        setHydrationToast("Sync hit an unexpected error. Refresh in a moment to retry.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally runs once on mount — this is the OAuth landing bridge.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
