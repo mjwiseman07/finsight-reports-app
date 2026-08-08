@@ -328,6 +328,62 @@ async function buildAndPersistLiveAccountingSync({
     tenantName,
     preflight: { hydratedFromActiveContext: true },
   });
+
+  // Phase DASH_1B.2 — anchor bootstrap + lifecycle event (active-context path).
+  // Mirrors the emit block in fetchCanonicalReports (~L1148-1183). Required
+  // because the first-connect dashboard hydration flows through this function,
+  // not fetchCanonicalReports, and without this block the hash-chained
+  // pilot_lifecycle_events log has no accounting-sync-completed row for
+  // the very first sync — violating the single-subject anchor invariant.
+  //
+  // Best-effort only. Never blocks the sync return. Every failure logged.
+  try {
+    const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
+    const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
+    const { supabaseAdmin } = await import("../../supabase");
+    if (supabaseAdmin && userId) {
+      const { pilotSlotId } = await ensureLifecycleAnchor({
+        admin: supabaseAdmin,
+        userId,
+        sourceSystemCompanyName: diagnostics.tenantName || tenantName || "Unnamed Company",
+      });
+      await emitSyncLifecycleEvent({
+        admin: supabaseAdmin,
+        pilotSlotId,
+        eventKind: "pilot.lifecycle.accounting-sync-completed",
+        payload: {
+          connection_id: decryptedConnection.id,
+          tenant_id: tenantId,
+          tenant_name: diagnostics.tenantName || tenantName || "",
+          sync_id: syncId,
+          source_system: sourceSystem,
+          outcome: "succeeded",
+          records_synced:
+            (normalizedData.normalizedTrialBalance?.length || 0) +
+            (normalizedData.normalizedBalanceSheet?.length || 0) +
+            (normalizedData.normalizedIncomeStatement?.length || 0),
+          provenance: "live",
+        },
+      });
+      console.info("[buildAndPersistLiveAccountingSync] lifecycle event emitted", {
+        connectionId: decryptedConnection.id,
+        syncId,
+        pilotSlotId,
+      });
+    } else {
+      console.warn("[buildAndPersistLiveAccountingSync] lifecycle emit skipped: supabaseAdmin or userId missing", {
+        hasAdmin: Boolean(supabaseAdmin),
+        hasUserId: Boolean(userId),
+      });
+    }
+  } catch (anchorErr) {
+    console.error("[buildAndPersistLiveAccountingSync] lifecycle anchor/emit failed (non-blocking)", {
+      connectionId: decryptedConnection.id,
+      syncId,
+      error: anchorErr instanceof Error ? anchorErr.message : String(anchorErr),
+    });
+  }
+
   return buildMetadataSyncRow({
     metadata: {
       ...(decryptedConnection.metadata_json || {}),
