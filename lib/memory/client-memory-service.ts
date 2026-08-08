@@ -25,7 +25,8 @@ export type MemoryType =
   | "company_context"
   | "vendor_cadence"
   | "recurring_je_template"
-  | "posted_je";
+  | "posted_je"
+  | "accounts_cache_refresh"; // WBP W1c.4a — populated by refreshAccountsCache in 4b
 
 export type EvidenceStrength = "weak" | "moderate" | "strong";
 

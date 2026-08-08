@@ -114,7 +114,8 @@ export type WriteLifecycleEventKind =
   | "pilot.lifecycle.write-posted"
   | "pilot.lifecycle.write-drifted"
   | "pilot.lifecycle.write-void-succeeded"
-  | "pilot.lifecycle.write-failed";
+  | "pilot.lifecycle.write-failed"
+  | "pilot.lifecycle.cache-refreshed"; // WBP W1c.4a — emitted by refreshAccountsCache
 
 export type WriteLifecyclePayload = {
   connection_id: string;
@@ -159,3 +160,46 @@ export type WriteLifecyclePayload = {
   provenance: "live" | "backfill_reconciliation";
   triggered_by?: string;
 };
+
+/**
+ * WBP W1c.4a — Payload for pilot.lifecycle.cache-refreshed events.
+ *
+ * Emitted by QuickBooksWriteProvider.refreshAccountsCache /
+ * XeroWriteProvider.refreshAccountsCache (after W1c.4b replaces the naive
+ * count-delta implementations with a precise readAll+diff+markInactive path).
+ *
+ * The same payload shape is ALSO written to client_memory
+ * (memory_type='accounts_cache_refresh') so the lifecycle event and the
+ * customer-visible memory row stay byte-identical. This enables Pulse to
+ * surface "3 new accounts added since last review" insights from either
+ * the hash-chained event stream OR the client_memory table without
+ * transformation logic.
+ */
+export type CacheRefreshedPayload = {
+  connection_id: string;
+  tenant_id: string;
+  source_system: "xero" | "quickbooks";
+  total_accounts: number;
+  added_accounts: number;
+  updated_accounts: number;
+  removed_accounts: number;
+  refreshed_at: string; // ISO8601
+  trigger: "manual" | "scheduled" | "write-preflight";
+  api_call_duration_ms: number;
+  pagination_pages: number; // 1 for Xero; QBO can be >1
+  /**
+   * Optional list of account codes/IDs that changed in this refresh.
+   * Populated when any of added/updated/removed > 0.
+   * Enables Pulse to surface "3 new accounts added since last review".
+   */
+  changed_account_codes?: string[];
+};
+
+/**
+ * WBP W1c.4a — Discriminated union for the emitter's payload parameter.
+ *
+ * The 6 write kinds carry WriteLifecyclePayload; cache-refreshed carries
+ * CacheRefreshedPayload. Emitter accepts the union and stamps the correct
+ * reason_code via reasonCodeForWriteEvent(eventKind).
+ */
+export type WriteBoundaryLifecyclePayload = WriteLifecyclePayload | CacheRefreshedPayload;

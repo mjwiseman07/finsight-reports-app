@@ -8,16 +8,21 @@
 
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { JournalEntry, WriteLifecycleEventKind, WriteLifecyclePayload } from "./types";
+import type {
+  JournalEntry,
+  WriteLifecycleEventKind,
+  WriteBoundaryLifecyclePayload,
+} from "./types";
 
 export type EmitWriteLifecycleEventParams = {
   admin: SupabaseClient;
   pilotSlotId: string;
   eventKind: WriteLifecycleEventKind;
-  payload: WriteLifecyclePayload;
+  payload: WriteBoundaryLifecyclePayload;
 };
 
-function reasonCodeForWriteEvent(kind: WriteLifecycleEventKind): string {
+/** Exported for unit tests; used by emitWriteLifecycleEvent for reason_code. */
+export function reasonCodeForWriteEvent(kind: WriteLifecycleEventKind): string {
   switch (kind) {
     case "pilot.lifecycle.write-validated":
       return "accounting.write.validated";
@@ -31,6 +36,8 @@ function reasonCodeForWriteEvent(kind: WriteLifecycleEventKind): string {
       return "accounting.write.void_succeeded";
     case "pilot.lifecycle.write-failed":
       return "accounting.write.failed";
+    case "pilot.lifecycle.cache-refreshed":
+      return "accounting.cache.refreshed"; // WBP W1c.4a
   }
 }
 

@@ -30,6 +30,8 @@ export type {
   ProviderWriteResponse,
   WriteLifecycleEventKind,
   WriteLifecyclePayload,
+  CacheRefreshedPayload,
+  WriteBoundaryLifecyclePayload,
 } from "./types";
 
 // Re-exports from the W1a contract for consumer convenience
