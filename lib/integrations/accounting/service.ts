@@ -1312,5 +1312,60 @@ export async function disconnectConnection(connectionId: string, userId: string)
     .eq("id", connectionId)
     .eq("user_id", userId);
   if (error) throw error;
+
+  // DASH_1B.3 — tamper-evident lifecycle event so disconnect is memory-covered.
+  // Mirrors the emit block in buildAndPersistLiveAccountingSync (adapted to
+  // ensureLifecycleAnchor / emitSyncLifecycleEvent signatures).
+  try {
+    const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
+    const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
+    const { supabaseAdmin } = await import("../../supabase");
+    const companyName =
+      connection.external_entity_name ||
+      String(connection.metadata_json?.tenant_name || connection.metadata_json?.company_name || "");
+    if (supabaseAdmin && companyName) {
+      const { pilotSlotId } = await ensureLifecycleAnchor({
+        admin: supabaseAdmin,
+        userId,
+        sourceSystemCompanyName: companyName,
+      });
+      await emitSyncLifecycleEvent({
+        admin: supabaseAdmin,
+        pilotSlotId,
+        eventKind: "pilot.lifecycle.accounting-connection-disconnected",
+        payload: {
+          connection_id: connectionId,
+          source_system: connection.provider,
+          tenant_id:
+            connection.tenant_or_realm_id ||
+            (typeof connection.metadata_json?.tenant_id === "string" ? connection.metadata_json.tenant_id : null),
+          tenant_name:
+            connection.external_entity_name ||
+            (typeof connection.metadata_json?.tenant_name === "string" ? connection.metadata_json.tenant_name : companyName),
+          outcome: "succeeded",
+          provenance: "live",
+        },
+      });
+      console.info("[disconnectConnection] lifecycle event emitted", {
+        pilotSlotId,
+        connectionId,
+        provider: connection.provider,
+      });
+    } else {
+      console.warn("[disconnectConnection] lifecycle emit skipped: supabaseAdmin or company name missing", {
+        connectionId,
+        userId,
+        hasAdmin: Boolean(supabaseAdmin),
+        hasCompanyName: Boolean(companyName),
+      });
+    }
+  } catch (emitError) {
+    console.error("[disconnectConnection] lifecycle emit failed (non-blocking)", {
+      message: emitError instanceof Error ? emitError.message : String(emitError),
+      connectionId,
+      userId,
+    });
+  }
+
   return { ok: true };
 }

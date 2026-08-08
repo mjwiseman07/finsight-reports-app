@@ -49,6 +49,7 @@ type ScorecardProps = {
   integrationChoice?: string | null;
   onConnectQBO?: () => void;
   onConnectXero?: () => void;
+  onDisconnect?: () => void; // DASH_1B.3
   hydrationActive?: boolean;
   hydrationTiles?: Partial<Record<HydrationTileKey, HydrationTileState>>;
   onAskAboutKpi: (kpiCode: string, question: string) => void;
@@ -185,6 +186,7 @@ export default function Scorecard({
   integrationChoice,
   onConnectQBO,
   onConnectXero,
+  onDisconnect,
   hydrationActive = false,
   hydrationTiles,
   onAskAboutKpi,
@@ -255,12 +257,24 @@ export default function Scorecard({
         <p className={`${headingFont} text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A961]`}>
           Your Scorecard
         </p>
-        <p className="text-sm text-[#ECEBE7]/60">
-          {companyName ? `${companyName} · ` : ""}
-          {hydrationActive && !activeReportSummary
-            ? `Fetching 6 months of ${getIntegrationLabel(integrationChoice)} data — usually 20-40 seconds`
-            : "Live from your books"}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-[#A29E93]">
+            {companyName ? `${companyName} · ` : ""}
+            {hydrationActive && !activeReportSummary
+              ? `Fetching 6 months of ${getIntegrationLabel(integrationChoice)} data — usually 20-40 seconds`
+              : `${getIntegrationLabel(integrationChoice)} · Live from your books`}
+          </p>
+          {onDisconnect && activeReportSummary ? (
+            <button
+              type="button"
+              onClick={onDisconnect}
+              className={`${focusRing("rounded-full")} rounded-full border border-[#C9A961]/30 bg-transparent px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#A29E93] transition hover:border-[#C9A961]/60 hover:text-[#C9A961]`}
+              aria-label="Disconnect accounting provider"
+            >
+              Disconnect
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">

@@ -1493,9 +1493,125 @@ export default function DashboardPage() {
   }, [activeReportSummary, arAgingSchedule, cashFlowTrailing12M, activeSourceSystem]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    window.localStorage.removeItem("supabase_access_token");
-    router.push("/signin");
+    // DASH_1B.3 — signOut is best-effort; UI navigation must ALWAYS run.
+    // We also sweep every sb-* localStorage key + advisacor client cache so a
+    // stale token or cached payload can never re-hydrate the dashboard after logout.
+    let signOutError = null;
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) signOutError = error;
+    } catch (e) {
+      signOutError = e;
+    }
+    if (signOutError) {
+      console.warn("[DASH_1B.3] supabase.auth.signOut failed (non-blocking)", {
+        message: signOutError?.message || String(signOutError),
+      });
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        // Advisacor client cache — must be flushed so an unconnected DB doesn't
+        // render as "connected" via cached React state on next signin.
+        window.localStorage.removeItem("advisacor_active_report_payload");
+        window.localStorage.removeItem("advisacor_active_report_context");
+        window.localStorage.removeItem("supabase_access_token");
+        // Sweep every sb-* Supabase auth key.
+        const keysToRemove = [];
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+          const key = window.localStorage.key(i);
+          if (key && key.startsWith("sb-")) keysToRemove.push(key);
+        }
+        keysToRemove.forEach((k) => {
+          try { window.localStorage.removeItem(k); } catch { /* no-op */ }
+        });
+      } catch (e) {
+        console.warn("[DASH_1B.3] localStorage sweep failed (non-blocking)", {
+          message: e?.message || String(e),
+        });
+      }
+    }
+
+    // Try router.push first (soft nav), fall back to hard nav if the router
+    // is unavailable or an auth effect bounces the user back to /dashboard.
+    try {
+      router.push("/signin");
+    } catch (e) {
+      console.warn("[DASH_1B.3] router.push failed, falling back to hard nav", {
+        message: e?.message || String(e),
+      });
+    }
+    // Hard-nav fallback (200ms grace so router.push wins in the happy path).
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        try {
+          if (window.location.pathname !== "/signin") {
+            window.location.assign("/signin");
+          }
+        } catch { /* no-op */ }
+      }, 200);
+    }
+  };
+
+  const handleDisconnectAccounting = async () => {
+    const connectionId = activeReportContext?.connectionId || activeReportPayload?.connectionId || "";
+    const provider = activeSourceSystem || activeReportPayload?.sourceSystem || null;
+    if (!connectionId) {
+      console.warn("[DASH_1B.3] disconnect skipped — no active connectionId");
+      return;
+    }
+    // Best UX: confirm before disconnect since it will clear the dashboard.
+    if (typeof window !== "undefined") {
+      const providerLabel = provider === "xero" ? "Xero" : provider === "quickbooks" ? "QuickBooks" : "your accounting system";
+      const ok = window.confirm(
+        `Disconnect ${providerLabel}? Your synced data stays in Advisacor but the dashboard will show the connect prompt until you reconnect.`
+      );
+      if (!ok) return;
+    }
+
+    let serverOk = false;
+    try {
+      const authToken = token || (await getAuthToken());
+      const res = await fetch("/api/accounting/disconnect", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ connectionId }),
+      });
+      serverOk = res.ok;
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.warn("[DASH_1B.3] disconnect API failed (non-blocking)", {
+          status: res.status,
+          error: errBody?.error,
+        });
+      }
+    } catch (e) {
+      console.warn("[DASH_1B.3] disconnect fetch threw (non-blocking)", {
+        message: e?.message || String(e),
+      });
+    }
+
+    // Flush client cache regardless of server outcome — UI must NEVER lie
+    // about connection state. If the server call failed we still show the
+    // connect prompt; the next reconnect will heal the DB row.
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem("advisacor_active_report_payload");
+        window.localStorage.removeItem("advisacor_active_report_context");
+      } catch { /* no-op */ }
+    }
+    setActiveReportPayload(null);
+
+    if (!serverOk) {
+      // Surface a toast so support can see the state divergence in Datadog.
+      setHydrationToast("Disconnected locally — server sync may take a moment.");
+    } else {
+      setHydrationToast("Disconnected. Click Connect to sync a fresh dataset.");
+    }
   };
 
   const handleSubscribe = async (planKey) => {
@@ -2424,6 +2540,7 @@ export default function DashboardPage() {
                 integrationChoice={activeSourceSystem || dashboardParams.get("provider") || dashboardParams.get("connected") || null}
                 onConnectQBO={handleConnectQuickBooks}
                 onConnectXero={handleConnectXero}
+                onDisconnect={handleDisconnectAccounting}
                 hydrationActive={hydrationActive}
                 hydrationTiles={hydrationTiles}
                 onAskAboutKpi={(kpiCode, question) => {

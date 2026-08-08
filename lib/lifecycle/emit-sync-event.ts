@@ -1,27 +1,17 @@
 /**
- * Phase DASH_1B.2 — Sync lifecycle event emitter.
+ * Phase DASH_1B.2 / DASH_1B.3 — Sync + connection lifecycle event emitter.
  *
- * Emits a `pilot.lifecycle.accounting-sync-completed` or
- * `pilot.lifecycle.accounting-sync-failed` event into the hash-chained
- * pilot_lifecycle_events table.
- *
- * State-modeling contract (Option 2 — synthetic self-transition):
- *   - from_status = to_status = 'active' (the pilot_slot's current status)
- *   - Outcome (succeeded/failed) lives in payload.outcome
- *   - Rationale documented in Phase_DASH_1B_2_SyncEventModel_Research.md
- *
- * Trigger behavior (verified from pg_proc.prosrc):
- *   - The BEFORE-INSERT trigger overwrites chain_seq/prev_hash/row_hash inside
- *     a pg_advisory_xact_lock. Do NOT pass those columns — they will be rejected.
- *   - The trigger derives company_id/firm_id from pilot_slot_id. Do NOT pass
- *     them either.
+ * Emits hash-chained pilot_lifecycle_events rows for accounting sync and
+ * connection offboarding. State-modeling contract (Option 2): from_status =
+ * to_status = 'active'; outcome lives in payload.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type SyncLifecycleEventKind =
   | "pilot.lifecycle.accounting-sync-completed"
-  | "pilot.lifecycle.accounting-sync-failed";
+  | "pilot.lifecycle.accounting-sync-failed"
+  | "pilot.lifecycle.accounting-connection-disconnected";
 
 export type EmitSyncLifecycleEventParams = {
   admin: SupabaseClient;
@@ -31,7 +21,7 @@ export type EmitSyncLifecycleEventParams = {
     connection_id: string;
     tenant_id: string | null;
     tenant_name: string;
-    sync_id: string;
+    sync_id?: string;
     source_system: string;
     outcome: "succeeded" | "failed";
     // For failures:
@@ -45,6 +35,17 @@ export type EmitSyncLifecycleEventParams = {
   };
 };
 
+function reasonCodeForEvent(eventKind: SyncLifecycleEventKind): string {
+  if (eventKind === "pilot.lifecycle.accounting-sync-completed") return "accounting.sync.completed";
+  if (eventKind === "pilot.lifecycle.accounting-sync-failed") return "accounting.sync.failed";
+  return "accounting.connection.disconnected";
+}
+
+function actorViaForEvent(eventKind: SyncLifecycleEventKind): string {
+  if (eventKind === "pilot.lifecycle.accounting-connection-disconnected") return "user-initiated";
+  return "accounting-sync";
+}
+
 export async function emitSyncLifecycleEvent(params: EmitSyncLifecycleEventParams): Promise<void> {
   const { admin, pilotSlotId, eventKind, payload } = params;
 
@@ -52,13 +53,10 @@ export async function emitSyncLifecycleEvent(params: EmitSyncLifecycleEventParam
     pilot_slot_id: pilotSlotId,
     event_kind: eventKind,
     actor_kind: "system",
-    actor_via: "accounting-sync",
+    actor_via: actorViaForEvent(eventKind),
     from_status: "active",
     to_status: "active", // Option 2: self-transition. Outcome is in payload.
-    reason_code:
-      eventKind === "pilot.lifecycle.accounting-sync-completed"
-        ? "accounting.sync.completed"
-        : "accounting.sync.failed",
+    reason_code: reasonCodeForEvent(eventKind),
     payload,
     // DO NOT SET: prev_hash, row_hash, chain_seq, company_id, firm_id.
     // The BEFORE-INSERT trigger derives/overwrites these.
@@ -66,8 +64,6 @@ export async function emitSyncLifecycleEvent(params: EmitSyncLifecycleEventParam
 
   if (error) {
     console.error("[emitSyncLifecycleEvent] insert failed", { eventKind, pilotSlotId, error });
-    // Do NOT throw. Lifecycle emission MUST NOT block the sync path. Alert via log
-    // and continue — the schema-drift detector will flag missing events via
-    // separate rails (lifecycle_issues.accounting-sync.stale).
+    // Do NOT throw. Lifecycle emission MUST NOT block the sync/disconnect path.
   }
 }
