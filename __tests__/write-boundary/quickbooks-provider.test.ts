@@ -150,7 +150,25 @@ function fakeSupabase(opts: FakeOpts = {}) {
       return {
         select: () => ({
           eq: () => ({
+            // W1b validator / readQboAccounts: .eq("active", true) terminal
             eq: async () => ({ data: accountRows, error: null }),
+            // W1c.4c preflight miss check: .in("account_id", ...)
+            in: async () => ({
+              data: (accountRows as typeof goodAccounts).map((r) => ({
+                account_id: r.account_id,
+                active: r.active,
+              })),
+              error: null,
+            }),
+            // W1c.4c preflight age check
+            order: () => ({
+              limit: () => ({
+                maybeSingle: async () => ({
+                  data: { cached_at: new Date().toISOString() },
+                  error: null,
+                }),
+              }),
+            }),
           }),
         }),
       };

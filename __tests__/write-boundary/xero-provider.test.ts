@@ -122,6 +122,21 @@ function fakeSupabase(opts: { priorHit?: unknown } = {}) {
         select: () => ({
           eq: () => ({
             eq: async () => ({ data: goodAccounts, error: null }),
+            in: async () => ({
+              data: goodAccounts.map((r) => ({
+                account_code: r.account_code,
+                status: r.status,
+              })),
+              error: null,
+            }),
+            order: () => ({
+              limit: () => ({
+                maybeSingle: async () => ({
+                  data: { cached_at: new Date().toISOString() },
+                  error: null,
+                }),
+              }),
+            }),
           }),
         }),
       };

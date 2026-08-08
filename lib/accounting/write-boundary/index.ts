@@ -27,6 +27,13 @@ export {
   diffXeroAccounts,
   type AccountsCacheDiff,
 } from "./accounts-cache-diff";
+export {
+  checkQboCacheForWrite,
+  checkXeroCacheForWrite,
+  type PreflightCacheDecision,
+  type QboPreflightCacheInput,
+  type XeroPreflightCacheInput,
+} from "./preflight-cache-check";
 export { writeEnabled, writeDisabledReason } from "./kill-switch";
 export { findPriorWriteByExternalRef } from "./idempotency";
 export type { PriorWriteHit } from "./idempotency";
@@ -51,6 +58,7 @@ export type {
   ValidationResult,
   WriteReceipt,
   AccountsCacheRefreshResult,
+  AccountsCacheRefreshOptions,
 } from "@/lib/integrations/shared/contracts/AccountingSystemAdapter";
 export {
   WriteBoundaryError,

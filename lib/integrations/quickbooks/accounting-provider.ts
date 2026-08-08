@@ -40,6 +40,7 @@ import {
   type QboAccountUpsertInput,
   type ProviderWriteResponse,
   type CacheRefreshedPayload,
+  checkQboCacheForWrite,
 } from "@/lib/accounting/write-boundary";
 import type {
   AccountingSystemAdapter,
@@ -47,6 +48,7 @@ import type {
   ValidationResult,
   WriteReceipt,
   AccountsCacheRefreshResult,
+  AccountsCacheRefreshOptions,
   ValidationIssue,
 } from "@/lib/integrations/shared/contracts/AccountingSystemAdapter";
 import { qboPreflight, typeAdapters } from "@/lib/accounting/write-boundary";
@@ -55,7 +57,7 @@ import {
   resolveFirmClientIdForConnection,
   resolvePilotSlotIdForConnection,
 } from "@/lib/integrations/shared/resolve-write-context";
-import { recordMemory } from "@/lib/memory/client-memory-service";
+import { upsertMemory } from "@/lib/memory/client-memory-service";
 
 const {
   canPostToQBO,
@@ -191,6 +193,21 @@ export class QuickBooksWriteProvider implements AccountingSystemAdapter {
     if (!wbValidation.valid) {
       const ids = await emitReject(admin, pilotSlotId, entry, wbConn, wbValidation.issues);
       throw new WriteRejected(wbValidation.issues, ids);
+    }
+
+    // WBP W1c.4c — accounts-cache preflight self-heal (before edition preflight).
+    {
+      const referencedAccountIds = entry.lines
+        .map((l) => String(l.accountCode ?? ""))
+        .filter((id) => id.length > 0);
+      const decision = await checkQboCacheForWrite({
+        admin,
+        connectionId: connection.id,
+        referencedAccountIds,
+      });
+      if (decision.shouldRefresh) {
+        await this.refreshAccountsCache(connection, { trigger: decision.trigger });
+      }
     }
 
     // --- W1c.1 Q7 preflight (edition + subscription + health) ------------
@@ -513,10 +530,11 @@ export class QuickBooksWriteProvider implements AccountingSystemAdapter {
 
   async refreshAccountsCache(
     connection: AccountingConnectionRecord,
+    options?: AccountsCacheRefreshOptions,
   ): Promise<AccountsCacheRefreshResult> {
-    // WBP W1c.4b — precise diff refresh with lifecycle event + memory emission.
+    // WBP W1c.4b/4c — precise diff refresh with lifecycle event + memory upsert.
     // Replaces the prior count-delta estimate that could not detect renames or
-    // removed accounts.
+    // removed accounts. options.trigger defaults to "manual".
     const admin = getSupabaseAdmin();
     const firmClientId = await resolveFirmClientIdForConnection(admin, connection);
     const pilotSlotId = await resolvePilotSlotIdForConnection(admin, connection, firmClientId);
@@ -588,7 +606,7 @@ export class QuickBooksWriteProvider implements AccountingSystemAdapter {
     const apiCallDurationMs = Date.now() - startedAt;
 
     // Build the payload — SAME shape for lifecycle event AND client_memory row.
-    const trigger: CacheRefreshedPayload["trigger"] = "manual";
+    const trigger: CacheRefreshedPayload["trigger"] = options?.trigger ?? "manual";
     const payload: CacheRefreshedPayload = {
       connection_id: connection.id,
       tenant_id: tokenBundle.realmId,
@@ -613,12 +631,14 @@ export class QuickBooksWriteProvider implements AccountingSystemAdapter {
       payload,
     });
 
-    // Write the customer-visible memory row. Byte-identical payload so Pulse
-    // can surface deltas from either source without transformation.
+    // Same-day dedupe: upsertMemory with deterministic memoryId derived from
+    // (connection_id, refreshDate) keeps a single canonical daily row that
+    // mutates in place. Lifecycle events still append separately.
     const refreshDate = refreshedAtIso.slice(0, 10);
-    await recordMemory({
+    await upsertMemory({
       firmClientId,
       memoryType: "accounts_cache_refresh",
+      memoryId: `mem_cache_refresh_${connection.id}_${refreshDate}`,
       memoryKey: `cache_refresh_${connection.id}_${refreshDate}`,
       domain: "accounting",
       subdomain: "connections",

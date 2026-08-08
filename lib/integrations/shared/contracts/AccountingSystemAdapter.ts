@@ -140,11 +140,21 @@ export type WriteReceipt = {
 };
 
 export type AccountsCacheRefreshResult = {
-  refreshedAt: string;      // ISO8601
+  refreshedAt: string; // ISO8601
   totalAccounts: number;
   addedAccounts: number;
   updatedAccounts: number;
-  removedAccounts: number;  // now-inactive accounts
+  removedAccounts: number; // now-inactive accounts
+};
+
+export type AccountsCacheRefreshOptions = {
+  /** Origin of this refresh — flows into the CacheRefreshedPayload.trigger field. */
+  trigger?:
+    | "manual"
+    | "scheduled"
+    | "write-preflight"
+    | "preflight-stale"
+    | "preflight-miss";
 };
 
 // =========================================================================
@@ -224,7 +234,10 @@ export interface AccountingSystemAdapter {
   validateJournalEntry(entry: JournalEntry, connection: AccountingConnectionRecord): Promise<ValidationResult>;
   writeJournalEntry(entry: JournalEntry, connection: AccountingConnectionRecord): Promise<WriteReceipt>;
   voidJournalEntry(providerJournalId: string, reason: string, connection: AccountingConnectionRecord): Promise<void>;
-  refreshAccountsCache(connection: AccountingConnectionRecord): Promise<AccountsCacheRefreshResult>;
+  refreshAccountsCache(
+    connection: AccountingConnectionRecord,
+    options?: AccountsCacheRefreshOptions,
+  ): Promise<AccountsCacheRefreshResult>;
 }
 
 // =========================================================================

@@ -7,6 +7,7 @@
     { "path": "/api/cron/qbo-trace-purge", "schedule": "0 4 * * *" },
     { "path": "/api/cron/subscription-purge-executor", "schedule": "0 * * * *" },
     { "path": "/api/cron/bs-recon-monthly", "schedule": "0 7 1 * *" },
-    { "path": "/api/cron/schema-drift-detector", "schedule": "10 * * * *" }
+    { "path": "/api/cron/schema-drift-detector", "schedule": "10 * * * *" },
+    { "path": "/api/cron/refresh-accounts-cache", "schedule": "0 5 * * *" }
   ]
 }

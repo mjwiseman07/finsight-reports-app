@@ -35,6 +35,7 @@ import {
   type XeroAccountUpsertInput,
   type ProviderWriteResponse,
   type CacheRefreshedPayload,
+  checkXeroCacheForWrite,
 } from "@/lib/accounting/write-boundary";
 import type {
   AccountingSystemAdapter,
@@ -42,6 +43,7 @@ import type {
   ValidationResult,
   WriteReceipt,
   AccountsCacheRefreshResult,
+  AccountsCacheRefreshOptions,
   ValidationIssue,
 } from "@/lib/integrations/shared/contracts/AccountingSystemAdapter";
 import { xeroLaneAdapter } from "@/lib/integrations/xero/adapter";
@@ -49,7 +51,7 @@ import {
   resolveFirmClientIdForConnection,
   resolvePilotSlotIdForConnection,
 } from "@/lib/integrations/shared/resolve-write-context";
-import { recordMemory } from "@/lib/memory/client-memory-service";
+import { upsertMemory } from "@/lib/memory/client-memory-service";
 
 const XERO_API_BASE = "https://api.xero.com/api.xro/2.0";
 
@@ -173,6 +175,21 @@ export class XeroWriteProvider implements AccountingSystemAdapter {
     if (!wbValidation.valid) {
       const ids = await emitReject(admin, pilotSlotId, entry, wbConn, wbValidation.issues);
       throw new WriteRejected(wbValidation.issues, ids);
+    }
+
+    // WBP W1c.4c — accounts-cache preflight self-heal (before emit validated).
+    {
+      const referencedAccountCodes = entry.lines
+        .map((l) => String(l.accountCode ?? ""))
+        .filter((c) => c.length > 0);
+      const decision = await checkXeroCacheForWrite({
+        admin,
+        connectionId: connection.id,
+        referencedAccountCodes,
+      });
+      if (decision.shouldRefresh) {
+        await this.refreshAccountsCache(connection, { trigger: decision.trigger });
+      }
     }
 
     const validatedId = await emitWriteLifecycleEvent({
@@ -368,8 +385,9 @@ export class XeroWriteProvider implements AccountingSystemAdapter {
 
   async refreshAccountsCache(
     connection: AccountingConnectionRecord,
+    options?: AccountsCacheRefreshOptions,
   ): Promise<AccountsCacheRefreshResult> {
-    // WBP W1c.4b — precise diff refresh with lifecycle event + memory emission.
+    // WBP W1c.4b/4c — precise diff refresh with lifecycle event + memory upsert.
     const admin = getSupabaseAdmin();
     const firmClientId = await resolveFirmClientIdForConnection(admin, connection);
     const pilotSlotId = await resolvePilotSlotIdForConnection(admin, connection, firmClientId);
@@ -413,7 +431,7 @@ export class XeroWriteProvider implements AccountingSystemAdapter {
 
     const apiCallDurationMs = Date.now() - startedAt;
 
-    const trigger: CacheRefreshedPayload["trigger"] = "manual";
+    const trigger: CacheRefreshedPayload["trigger"] = options?.trigger ?? "manual";
     const payload: CacheRefreshedPayload = {
       connection_id: connection.id,
       tenant_id: connection.tenant_or_realm_id ?? "",
@@ -438,9 +456,10 @@ export class XeroWriteProvider implements AccountingSystemAdapter {
     });
 
     const refreshDate = refreshedAtIso.slice(0, 10);
-    await recordMemory({
+    await upsertMemory({
       firmClientId,
       memoryType: "accounts_cache_refresh",
+      memoryId: `mem_cache_refresh_${connection.id}_${refreshDate}`,
       memoryKey: `cache_refresh_${connection.id}_${refreshDate}`,
       domain: "accounting",
       subdomain: "connections",

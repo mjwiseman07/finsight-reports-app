@@ -162,18 +162,18 @@ export type WriteLifecyclePayload = {
 };
 
 /**
- * WBP W1c.4a — Payload for pilot.lifecycle.cache-refreshed events.
+ * WBP W1c.4a/4c — Payload for pilot.lifecycle.cache-refreshed events.
  *
  * Emitted by QuickBooksWriteProvider.refreshAccountsCache /
- * XeroWriteProvider.refreshAccountsCache (after W1c.4b replaces the naive
- * count-delta implementations with a precise readAll+diff+markInactive path).
+ * XeroWriteProvider.refreshAccountsCache after every cache hydration
+ * (manual admin POST, daily cron, or write-preflight self-heal).
  *
- * The same payload shape is ALSO written to client_memory
+ * trigger values (W1c.4c widened additively to 5):
+ *   manual | scheduled | write-preflight | preflight-stale | preflight-miss
+ *
+ * The same payload shape is ALSO upserted to company_memory_records
  * (memory_type='accounts_cache_refresh') so the lifecycle event and the
- * customer-visible memory row stay byte-identical. This enables Pulse to
- * surface "3 new accounts added since last review" insights from either
- * the hash-chained event stream OR the client_memory table without
- * transformation logic.
+ * customer-visible memory row stay byte-identical.
  */
 export type CacheRefreshedPayload = {
   connection_id: string;
@@ -184,7 +184,12 @@ export type CacheRefreshedPayload = {
   updated_accounts: number;
   removed_accounts: number;
   refreshed_at: string; // ISO8601
-  trigger: "manual" | "scheduled" | "write-preflight";
+  trigger:
+    | "manual" // admin POST route
+    | "scheduled" // vercel cron daily run
+    | "write-preflight" // legacy — retained for W1c.4a call sites
+    | "preflight-stale" // W1c.4c: cache age exceeded ACCOUNTS_CACHE_MAX_AGE_HOURS
+    | "preflight-miss"; // W1c.4c: write referenced an account not in cache
   api_call_duration_ms: number;
   pagination_pages: number; // 1 for Xero; QBO can be >1
   /**
