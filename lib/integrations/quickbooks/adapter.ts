@@ -1,18 +1,19 @@
 import { getAccountingProviderMappingAdapter } from "../accounting/provider-adapters";
 import type {
-  AccountingSystemAdapter,
   HistoricalPeriodPullInput,
   InitialPeriodPullInput,
   NormalizedDataContext,
   ReturnNormalizedFinancialDataInput,
 } from "../shared/contracts";
+import { withStubWriteMethods } from "../shared/contracts";
 
 const mappingAdapter = getAccountingProviderMappingAdapter("quickbooks");
 
-export const quickBooksLaneAdapter: AccountingSystemAdapter = {
-  sourceSystem: "quickbooks",
+/** W1a: read surface only; write methods are stubs until W1c. */
+export const quickBooksLaneAdapter = withStubWriteMethods({
+  sourceSystem: "quickbooks" as const,
   async connect() {
-    return { ...await mappingAdapter.connect(), provider: "quickbooks" };
+    return { ...(await mappingAdapter.connect()), provider: "quickbooks" as const };
   },
   async fetchInitialPeriodData({ connection, reportPeriod }: InitialPeriodPullInput) {
     return mappingAdapter.fetchRawReports(connection, reportPeriod);
@@ -27,7 +28,7 @@ export const quickBooksLaneAdapter: AccountingSystemAdapter = {
     return mappingAdapter.validate(normalizedData);
   },
   async returnNormalizedFinancialData(input: ReturnNormalizedFinancialDataInput) {
-    const rawReports = input.rawReports || await mappingAdapter.fetchRawReports(input.connection, input.reportPeriod);
+    const rawReports = input.rawReports || (await mappingAdapter.fetchRawReports(input.connection, input.reportPeriod));
     return mappingAdapter.normalize(rawReports, {
       connection: input.connection,
       reportPeriod: input.reportPeriod,
@@ -36,4 +37,4 @@ export const quickBooksLaneAdapter: AccountingSystemAdapter = {
       tenantName: input.tenantName,
     });
   },
-};
+});

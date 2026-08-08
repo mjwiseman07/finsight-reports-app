@@ -1,18 +1,19 @@
 import { getAccountingProviderMappingAdapter } from "../accounting/provider-adapters";
 import type {
-  AccountingSystemAdapter,
   HistoricalPeriodPullInput,
   InitialPeriodPullInput,
   NormalizedDataContext,
   ReturnNormalizedFinancialDataInput,
 } from "../shared/contracts";
+import { withStubWriteMethods } from "../shared/contracts";
 
 const mappingAdapter = getAccountingProviderMappingAdapter("xero");
 
-export const xeroLaneAdapter: AccountingSystemAdapter = {
-  sourceSystem: "xero",
+/** W1a: read surface only; write methods are stubs until W1c. */
+export const xeroLaneAdapter = withStubWriteMethods({
+  sourceSystem: "xero" as const,
   async connect() {
-    return { ...await mappingAdapter.connect(), provider: "xero" };
+    return { ...(await mappingAdapter.connect()), provider: "xero" as const };
   },
   async fetchInitialPeriodData({ connection, reportPeriod }: InitialPeriodPullInput) {
     return mappingAdapter.fetchRawReports(connection, reportPeriod);
@@ -27,7 +28,7 @@ export const xeroLaneAdapter: AccountingSystemAdapter = {
     return mappingAdapter.validate(normalizedData);
   },
   async returnNormalizedFinancialData(input: ReturnNormalizedFinancialDataInput) {
-    const rawReports = input.rawReports || await mappingAdapter.fetchRawReports(input.connection, input.reportPeriod);
+    const rawReports = input.rawReports || (await mappingAdapter.fetchRawReports(input.connection, input.reportPeriod));
     return mappingAdapter.normalize(rawReports, {
       connection: input.connection,
       reportPeriod: input.reportPeriod,
@@ -36,4 +37,4 @@ export const xeroLaneAdapter: AccountingSystemAdapter = {
       tenantName: input.tenantName,
     });
   },
-};
+});
