@@ -86,7 +86,7 @@ function isEmptyXeroFinancialActivityMessage(normalizedData: {
   return normalizedData.sourceSystem === "xero" && normalizedData.validation.warnings.includes("Connected to Xero. No financial activity found.");
 }
 
-function uuidOrNull(value: string | null) {
+function uuidOrNull(value: string | null | undefined) {
   return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
 }
 
@@ -196,7 +196,36 @@ async function saveNormalizedSyncMetadata({
   preflight: unknown;
   normalizedDataForStorage: Awaited<ReturnType<typeof buildReportDataContext>>["normalizedData"] & { syncStatus: string };
 }) {
-  const companyId = normalizedData.companyId || String(connection.metadata_json?.company_id || connection.user_id || "");
+  const metaCompanyIdRaw = connection.metadata_json?.company_id;
+  const safeMetaCompanyId =
+    typeof metaCompanyIdRaw === "string" &&
+    metaCompanyIdRaw &&
+    metaCompanyIdRaw !== connection.user_id
+      ? metaCompanyIdRaw
+      : null;
+  let rawCompanyId = normalizedData.companyId || safeMetaCompanyId || null;
+  if (!rawCompanyId) {
+    try {
+      const { supabaseAdmin } = await import("../../supabase");
+      const { resolveCompanyIdForUser } = await import("./resolve-company-id");
+      if (supabaseAdmin) {
+        rawCompanyId = await resolveCompanyIdForUser(supabaseAdmin, connection.user_id);
+      }
+    } catch (resolveErr) {
+      console.warn("[SYNC] resolveCompanyIdForUser failed", {
+        connectionId: connection.id,
+        message: resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
+      });
+    }
+  }
+  if (!rawCompanyId) {
+    console.warn("[SYNC] company_id resolution failed — persisting sync with company_id=null (previously would have used user_id, which corrupted scorecard queries)", {
+      connectionId: connection.id,
+      userId: connection.user_id,
+      sourceSystem,
+    });
+  }
+  const companyId = rawCompanyId ? String(rawCompanyId) : null;
   const { error } = await requireSupabase()
     .from("accounting_connections")
     .update({
@@ -262,7 +291,7 @@ function buildMetadataSyncRow({
   const reportPeriod = (entry.reportPeriod as Partial<AccountingDateRange> | undefined) || {};
   return {
     id: String(entry.syncId || metadata.active_normalized_sync_id || metadata.last_sync_id || ""),
-    company_id: entry.companyId || metadata.company_id || connection.user_id || "",
+    company_id: entry.companyId || metadata.company_id || null,
     connection_id: entry.connectionId || connection.id,
     source_system: entry.sourceSystem || sourceSystem,
     adapter_name: entry.adapterName || "",
@@ -302,7 +331,7 @@ async function buildAndPersistLiveAccountingSync({
     tenantName,
   });
   console.info("NORMALIZATION COMPLETE", {
-    companyId: normalizedData.companyId || String(decryptedConnection.metadata_json?.company_id || decryptedConnection.user_id || ""),
+    companyId: normalizedData.companyId || (decryptedConnection.metadata_json?.company_id ? String(decryptedConnection.metadata_json.company_id) : null),
     connectionId: decryptedConnection.id,
     tenantId,
     tenantName,
@@ -392,7 +421,7 @@ async function buildAndPersistLiveAccountingSync({
       latest_sync_by_source: {
         ...((decryptedConnection.metadata_json?.latest_sync_by_source as Record<string, unknown>) || {}),
         [sourceSystem]: {
-          companyId: normalizedData.companyId || String(decryptedConnection.metadata_json?.company_id || decryptedConnection.user_id || ""),
+          companyId: normalizedData.companyId || (decryptedConnection.metadata_json?.company_id ? String(decryptedConnection.metadata_json.company_id) : null),
           connectionId: decryptedConnection.id,
           sourceSystem,
           adapterName: mappingAdapter.adapterName,
@@ -800,6 +829,19 @@ export async function selectEntity(connectionId: string, userId: string, entityI
   const provider = getAccountingProvider(connection.provider);
   const entity = await provider.selectEntity({ connection, entityId });
   const selectedAt = new Date().toISOString();
+  const { supabaseAdmin } = await import("../../supabase");
+  const { resolveCompanyIdForUser } = await import("./resolve-company-id");
+  const resolvedCompanyId = supabaseAdmin
+    ? await resolveCompanyIdForUser(supabaseAdmin, userId)
+    : (connection.metadata_json?.company_id && connection.metadata_json.company_id !== userId
+        ? String(connection.metadata_json.company_id)
+        : null);
+  if (!resolvedCompanyId) {
+    console.warn("[selectEntity] company_id resolution failed — storing null (never user_id)", {
+      connectionId,
+      userId,
+    });
+  }
   const { error } = await supabase
     .from("accounting_connections")
     .update({
@@ -811,7 +853,7 @@ export async function selectEntity(connectionId: string, userId: string, entityI
         ...(connection.metadata_json || {}),
         source_system: connection.provider,
         active_provider: connection.provider,
-        company_id: connection.user_id,
+        company_id: resolvedCompanyId,
         tenant_id: entity.tenantOrRealmId || entity.externalId,
         tenant_name: entity.name,
         selected_at: selectedAt,
@@ -939,7 +981,18 @@ export async function getActiveAccountingContext({
 
   const metadata = connection.metadata_json || {};
   const resolvedSourceSystem = sourceSystem || connection.provider;
-  const resolvedCompanyId = String(companyId || metadata.company_id || connection.user_id || "");
+  const metaCompanyId =
+    typeof metadata.company_id === "string" && metadata.company_id !== connection.user_id
+      ? metadata.company_id
+      : null;
+  const resolvedCompanyId = companyId || metaCompanyId || null;
+  if (!resolvedCompanyId) {
+    console.warn("[getLatestNormalizedAccountingData] company_id unresolved — not falling back to user_id", {
+      connectionId: connection.id,
+      userId: connection.user_id,
+      sourceSystem: resolvedSourceSystem,
+    });
+  }
   const resolvedTenantId = String(connection.tenant_or_realm_id || metadata.tenant_id || connection.external_entity_id || "");
   const resolvedTenantName = String(connection.external_entity_name || metadata.tenant_name || metadata.company_name || "");
   const activeSyncId = String(metadata.active_normalized_sync_id || metadata.last_sync_id || "");
@@ -1119,7 +1172,7 @@ export async function fetchCanonicalReports({
       throw error;
     });
     console.info("NORMALIZATION COMPLETE", {
-      companyId: normalizedData.companyId || String(connection.metadata_json?.company_id || connection.user_id || ""),
+      companyId: normalizedData.companyId || (connection.metadata_json?.company_id ? String(connection.metadata_json.company_id) : null),
       connectionId,
       tenantId,
       tenantName,

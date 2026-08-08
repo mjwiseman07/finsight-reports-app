@@ -8,10 +8,20 @@ function getTokenExpiry(tokenPayload) {
   return new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 }
 
+async function resolveCompanyIdForUser(userId) {
+  if (!userId || !supabaseAdmin) return null;
+  const { resolveCompanyIdForUser: resolve } = await import("../../../../../lib/integrations/accounting/resolve-company-id");
+  return resolve(supabaseAdmin, userId);
+}
+
 async function saveLeadXeroConnection({ leadId, tokenPayload, selectedEntity, entities }) {
   const connectedAt = new Date().toISOString();
   const tenantId = selectedEntity?.tenantOrRealmId || selectedEntity?.externalId || null;
   const tenantName = selectedEntity?.name || null;
+
+  // CRITICAL: resolve real company_id, NEVER default to leadId (user_id)
+  const resolvedCompanyId = await resolveCompanyIdForUser(leadId);
+
   const connectionPayload = {
     user_id: leadId,
     provider: "xero",
@@ -29,7 +39,7 @@ async function saveLeadXeroConnection({ leadId, tokenPayload, selectedEntity, en
       token_type: tokenPayload.token_type || null,
       source_system: "xero",
       active_provider: "xero",
-      company_id: leadId,
+      company_id: resolvedCompanyId, // real company_id or null, never user_id
       tenant_id: tenantId,
       tenant_name: tenantName,
       available_organizations: entities.map((entity) => ({
