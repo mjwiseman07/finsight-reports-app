@@ -1,7 +1,7 @@
 # W1c.4c Sandbox Smoke Evidence
 
 **Date:** 2026-08-08  
-**Commit:** _(fill after commit)_  
+**Commit:** _ce123d33516492ccdc3c29866630ce34e88213b4_  
 **Branch:** `dash-1-scorecard-and-onboarding`
 
 ## Tenants smoked
