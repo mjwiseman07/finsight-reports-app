@@ -48,3 +48,9 @@ export {
   WriteFailed,
   WriteBoundaryDisabled,
 } from "@/lib/integrations/shared/contracts/AccountingSystemAdapter";
+
+// W1c.1 — Q7-parity subsurface. Ports of lib/erp/quickbooks/* preflight
+// helpers, callable via the same signatures. The W1c.2 provider imports
+// from these barrels, not from lib/erp/quickbooks/*.
+export * as qboPreflight from "./qbo-preflight";
+export * as typeAdapters from "./type-adapters";

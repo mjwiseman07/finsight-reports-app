@@ -102,7 +102,9 @@ export type ValidationIssue = {
     | "forbidden-account"
     | "invalid-date"
     | "missing-narration"
-    | "duplicate-external-ref";
+    | "duplicate-external-ref"
+    /** Q7/provider-level rejection surfaced via type-adapters.toWriteReceipt (W1c.1). */
+    | "provider-rejected";
   message: string;
   lineIndex?: number;
   accountCode?: string;
