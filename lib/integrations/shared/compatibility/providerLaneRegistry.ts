@@ -1,10 +1,10 @@
-import { quickBooksLaneAdapter } from "../../quickbooks";
-import { xeroLaneAdapter } from "../../xero";
+import { quickBooksWriteProvider } from "../../quickbooks/accounting-provider";
+import { xeroWriteProvider } from "../../xero/accounting-provider";
 import type { AccountingSystemAdapter, AccountingSystemAdapterSource } from "../contracts";
 
 export const accountingProviderLaneRegistry: Record<AccountingSystemAdapterSource, AccountingSystemAdapter> = {
-  quickbooks: quickBooksLaneAdapter,
-  xero: xeroLaneAdapter,
+  quickbooks: quickBooksWriteProvider,
+  xero: xeroWriteProvider,
 };
 
 export function getProviderLaneAdapter(sourceSystem: AccountingSystemAdapterSource): AccountingSystemAdapter {
