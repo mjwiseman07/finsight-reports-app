@@ -23,8 +23,10 @@ import {
   detectDrift,
   emitWriteLifecycleEvent,
   computeRequestHash,
-  countXeroAccounts,
   upsertXeroAccounts,
+  readAllXeroAccounts,
+  markXeroAccountsInactive,
+  diffXeroAccounts,
   WriteBoundaryDisabled,
   WriteRejected,
   WriteDrifted,
@@ -32,6 +34,7 @@ import {
   type WriteBoundaryConnection,
   type XeroAccountUpsertInput,
   type ProviderWriteResponse,
+  type CacheRefreshedPayload,
 } from "@/lib/accounting/write-boundary";
 import type {
   AccountingSystemAdapter,
@@ -42,7 +45,11 @@ import type {
   ValidationIssue,
 } from "@/lib/integrations/shared/contracts/AccountingSystemAdapter";
 import { xeroLaneAdapter } from "@/lib/integrations/xero/adapter";
-import { resolvePilotSlotIdForConnection } from "@/lib/integrations/shared/resolve-write-context";
+import {
+  resolveFirmClientIdForConnection,
+  resolvePilotSlotIdForConnection,
+} from "@/lib/integrations/shared/resolve-write-context";
+import { recordMemory } from "@/lib/memory/client-memory-service";
 
 const XERO_API_BASE = "https://api.xero.com/api.xro/2.0";
 
@@ -362,14 +369,24 @@ export class XeroWriteProvider implements AccountingSystemAdapter {
   async refreshAccountsCache(
     connection: AccountingConnectionRecord,
   ): Promise<AccountsCacheRefreshResult> {
+    // WBP W1c.4b — precise diff refresh with lifecycle event + memory emission.
     const admin = getSupabaseAdmin();
-    const before = await countXeroAccounts(admin, connection.id);
+    const firmClientId = await resolveFirmClientIdForConnection(admin, connection);
+    const pilotSlotId = await resolvePilotSlotIdForConnection(admin, connection, firmClientId);
+
+    const startedAt = Date.now();
+    const refreshedAtIso = new Date(startedAt).toISOString();
+
+    // Snapshot cache BEFORE upsert so we can compute an accurate diff.
+    const cached = await readAllXeroAccounts(admin, connection.id);
+
+    // Fetch all accounts from Xero — single call returns all accounts.
     const response = await xeroFetch(connection, "Accounts", { method: "GET" });
     if (!response.ok) {
       throw new WriteFailed(`xero_${response.status}_accounts`, [], response.status);
     }
     const list = Array.isArray(response.json?.Accounts) ? response.json.Accounts : [];
-    const rows: XeroAccountUpsertInput[] = list.map((a: Record<string, unknown>) => ({
+    const upstream: XeroAccountUpsertInput[] = list.map((a: Record<string, unknown>) => ({
       connection_id: connection.id,
       tenant_id: connection.tenant_or_realm_id ?? "",
       account_id: String(a.AccountID ?? ""),
@@ -385,15 +402,61 @@ export class XeroWriteProvider implements AccountingSystemAdapter {
       updated_date_utc: parseXeroDate(a.UpdatedDateUTC as string | undefined),
       raw_payload: a,
     }));
-    await upsertXeroAccounts(admin, rows);
-    const after = await countXeroAccounts(admin, connection.id);
-    const added = Math.max(0, after - before);
+
+    // Compute precise diff BEFORE upsert.
+    const diff = diffXeroAccounts(cached, upstream);
+
+    // Persist: upsert everything upstream, then mark anything not-upstream ARCHIVED.
+    await upsertXeroAccounts(admin, upstream);
+    const upstreamCodes = upstream.map((r) => r.account_code).filter((c) => c.length > 0);
+    await markXeroAccountsInactive(admin, connection.id, upstreamCodes);
+
+    const apiCallDurationMs = Date.now() - startedAt;
+
+    const trigger: CacheRefreshedPayload["trigger"] = "manual";
+    const payload: CacheRefreshedPayload = {
+      connection_id: connection.id,
+      tenant_id: connection.tenant_or_realm_id ?? "",
+      source_system: "xero",
+      total_accounts: upstream.length,
+      added_accounts: diff.addedCount,
+      updated_accounts: diff.updatedCount,
+      removed_accounts: diff.removedCount,
+      refreshed_at: refreshedAtIso,
+      trigger,
+      api_call_duration_ms: apiCallDurationMs,
+      pagination_pages: 1,
+      changed_account_codes:
+        diff.changedIdentifiers.length > 0 ? diff.changedIdentifiers : undefined,
+    };
+
+    await emitWriteLifecycleEvent({
+      admin,
+      pilotSlotId,
+      eventKind: "pilot.lifecycle.cache-refreshed",
+      payload,
+    });
+
+    const refreshDate = refreshedAtIso.slice(0, 10);
+    await recordMemory({
+      firmClientId,
+      memoryType: "accounts_cache_refresh",
+      memoryKey: `cache_refresh_${connection.id}_${refreshDate}`,
+      domain: "accounting",
+      subdomain: "connections",
+      topic: "accounts_cache",
+      entityType: "accounting_connection",
+      entityId: connection.id,
+      payload: payload as unknown as Record<string, unknown>,
+      sourceSystem: "cache_refresh",
+    });
+
     return {
-      refreshedAt: new Date().toISOString(),
-      totalAccounts: after,
-      addedAccounts: added,
-      updatedAccounts: rows.length - added,
-      removedAccounts: 0,
+      refreshedAt: refreshedAtIso,
+      totalAccounts: upstream.length,
+      addedAccounts: diff.addedCount,
+      updatedAccounts: diff.updatedCount,
+      removedAccounts: diff.removedCount,
     };
   }
 }

@@ -235,13 +235,16 @@ export interface AccountingSystemAdapter {
 // =========================================================================
 
 export type PartialAccountingSystemAdapter =
-  Omit<AccountingSystemAdapter, "validateJournalEntry" | "writeJournalEntry" | "voidJournalEntry" | "refreshAccountsCache">;
+  Omit<AccountingSystemAdapter, "validateJournalEntry" | "writeJournalEntry" | "voidJournalEntry">;
 
 /**
  * Attaches stub write methods to a read-only adapter so it satisfies AccountingSystemAdapter
  * at compile time without providing real writes. Use ONLY as an intermediate step during
  * W1a → W1c. In W1c, XeroAccountingProvider and QuickBooksAccountingProvider implement the
  * write methods directly and this helper is deleted.
+ *
+ * WBP W1c.4b: refreshAccountsCache is no longer stubbed — callers must supply a real
+ * implementation (both write providers do).
  */
 export function withStubWriteMethods<T extends PartialAccountingSystemAdapter>(
   readOnlyAdapter: T,
@@ -255,6 +258,5 @@ export function withStubWriteMethods<T extends PartialAccountingSystemAdapter>(
     validateJournalEntry: stub as unknown as AccountingSystemAdapter["validateJournalEntry"],
     writeJournalEntry: stub as unknown as AccountingSystemAdapter["writeJournalEntry"],
     voidJournalEntry: stub as unknown as AccountingSystemAdapter["voidJournalEntry"],
-    refreshAccountsCache: stub as unknown as AccountingSystemAdapter["refreshAccountsCache"],
   }) as T & AccountingSystemAdapter;
 }

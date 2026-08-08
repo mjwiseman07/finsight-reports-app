@@ -12,12 +12,21 @@ export type { ForbiddenAccountReason } from "./forbidden-accounts";
 export {
   readXeroAccounts,
   readQboAccounts,
+  readAllXeroAccounts,
+  readAllQboAccounts,
   upsertXeroAccounts,
   upsertQboAccounts,
   countXeroAccounts,
   countQboAccounts,
+  markXeroAccountsInactive,
+  markQboAccountsInactive,
 } from "./accounts-cache-repo";
 export type { XeroAccountUpsertInput, QboAccountUpsertInput } from "./accounts-cache-repo";
+export {
+  diffQboAccounts,
+  diffXeroAccounts,
+  type AccountsCacheDiff,
+} from "./accounts-cache-diff";
 export { writeEnabled, writeDisabledReason } from "./kill-switch";
 export { findPriorWriteByExternalRef } from "./idempotency";
 export type { PriorWriteHit } from "./idempotency";

@@ -28,8 +28,10 @@ import {
   detectDrift,
   emitWriteLifecycleEvent,
   computeRequestHash,
-  countQboAccounts,
   upsertQboAccounts,
+  readAllQboAccounts,
+  markQboAccountsInactive,
+  diffQboAccounts,
   WriteBoundaryDisabled,
   WriteRejected,
   WriteDrifted,
@@ -37,6 +39,7 @@ import {
   type WriteBoundaryConnection,
   type QboAccountUpsertInput,
   type ProviderWriteResponse,
+  type CacheRefreshedPayload,
 } from "@/lib/accounting/write-boundary";
 import type {
   AccountingSystemAdapter,
@@ -52,6 +55,7 @@ import {
   resolveFirmClientIdForConnection,
   resolvePilotSlotIdForConnection,
 } from "@/lib/integrations/shared/resolve-write-context";
+import { recordMemory } from "@/lib/memory/client-memory-service";
 
 const {
   canPostToQBO,
@@ -510,19 +514,30 @@ export class QuickBooksWriteProvider implements AccountingSystemAdapter {
   async refreshAccountsCache(
     connection: AccountingConnectionRecord,
   ): Promise<AccountsCacheRefreshResult> {
+    // WBP W1c.4b — precise diff refresh with lifecycle event + memory emission.
+    // Replaces the prior count-delta estimate that could not detect renames or
+    // removed accounts.
     const admin = getSupabaseAdmin();
     const firmClientId = await resolveFirmClientIdForConnection(admin, connection);
+    const pilotSlotId = await resolvePilotSlotIdForConnection(admin, connection, firmClientId);
     const tokenBundle = await resolveQBOTokenForFirmClient(firmClientId);
     if (!tokenBundle) {
       throw new WriteFailed("no_qbo_token", [], undefined, "token_missing");
     }
-    const before = await countQboAccounts(admin, connection.id);
 
-    // Query all accounts. QBO paginates via STARTPOSITION + MAXRESULTS (max 1000).
+    const startedAt = Date.now();
+    const refreshedAtIso = new Date(startedAt).toISOString();
+
+    // Snapshot cache BEFORE upsert so we can compute an accurate diff.
+    const cached = await readAllQboAccounts(admin, connection.id);
+
+    // Fetch all accounts upstream. QBO paginates via STARTPOSITION + MAXRESULTS.
     const { qboApiFetch } = await import("@/lib/qbo/api-fetch.js");
-    const rows: QboAccountUpsertInput[] = [];
+    const upstream: QboAccountUpsertInput[] = [];
     let startPos = 1;
     const pageSize = 1000;
+    let paginationPages = 0;
+
     while (true) {
       const query = `SELECT * FROM Account STARTPOSITION ${startPos} MAXRESULTS ${pageSize}`;
       const url = `${qboApiBase()}/v3/company/${tokenBundle.realmId}/query?minorversion=73&query=${encodeURIComponent(query)}`;
@@ -536,10 +551,11 @@ export class QuickBooksWriteProvider implements AccountingSystemAdapter {
       if (!resp.ok) {
         throw new WriteFailed(`qbo_${resp.status}_accounts_query`, [], resp.status);
       }
+      paginationPages += 1;
       const page = resp.json?.QueryResponse?.Account ?? [];
       if (page.length === 0) break;
       for (const a of page as Array<Record<string, unknown>>) {
-        rows.push({
+        upstream.push({
           connection_id: connection.id,
           realm_id: tokenBundle.realmId,
           account_id: String(a.Id ?? ""),
@@ -552,7 +568,8 @@ export class QuickBooksWriteProvider implements AccountingSystemAdapter {
           currency_ref: ((a.CurrencyRef as { value?: string } | undefined)?.value) ?? null,
           parent_ref: ((a.ParentRef as { value?: string } | undefined)?.value) ?? null,
           meta_created_time: ((a.MetaData as { CreateTime?: string } | undefined)?.CreateTime) ?? null,
-          meta_last_updated_time: ((a.MetaData as { LastUpdatedTime?: string } | undefined)?.LastUpdatedTime) ?? null,
+          meta_last_updated_time:
+            ((a.MetaData as { LastUpdatedTime?: string } | undefined)?.LastUpdatedTime) ?? null,
           raw_payload: a,
         });
       }
@@ -560,19 +577,64 @@ export class QuickBooksWriteProvider implements AccountingSystemAdapter {
       startPos += pageSize;
     }
 
-    await upsertQboAccounts(admin, rows);
-    const after = await countQboAccounts(admin, connection.id);
+    // Compute precise diff BEFORE upsert (upsert would mutate cached snapshots).
+    const diff = diffQboAccounts(cached, upstream);
 
-    // We can only estimate added vs updated since Supabase upsert doesn't distinguish.
-    const added = Math.max(0, after - before);
-    const updated = rows.length - added;
-    // We do not currently mark removed accounts; W1d spec covers a full diff pass.
+    // Persist: upsert everything upstream, then mark anything not-upstream inactive.
+    await upsertQboAccounts(admin, upstream);
+    const upstreamIds = upstream.map((r) => r.account_id).filter((id) => id.length > 0);
+    await markQboAccountsInactive(admin, connection.id, upstreamIds);
+
+    const apiCallDurationMs = Date.now() - startedAt;
+
+    // Build the payload — SAME shape for lifecycle event AND client_memory row.
+    const trigger: CacheRefreshedPayload["trigger"] = "manual";
+    const payload: CacheRefreshedPayload = {
+      connection_id: connection.id,
+      tenant_id: tokenBundle.realmId,
+      source_system: "quickbooks",
+      total_accounts: upstream.length,
+      added_accounts: diff.addedCount,
+      updated_accounts: diff.updatedCount,
+      removed_accounts: diff.removedCount,
+      refreshed_at: refreshedAtIso,
+      trigger,
+      api_call_duration_ms: apiCallDurationMs,
+      pagination_pages: paginationPages,
+      changed_account_codes:
+        diff.changedIdentifiers.length > 0 ? diff.changedIdentifiers : undefined,
+    };
+
+    // Emit patented lifecycle event to the hash-chained pilot_lifecycle_events table.
+    await emitWriteLifecycleEvent({
+      admin,
+      pilotSlotId,
+      eventKind: "pilot.lifecycle.cache-refreshed",
+      payload,
+    });
+
+    // Write the customer-visible memory row. Byte-identical payload so Pulse
+    // can surface deltas from either source without transformation.
+    const refreshDate = refreshedAtIso.slice(0, 10);
+    await recordMemory({
+      firmClientId,
+      memoryType: "accounts_cache_refresh",
+      memoryKey: `cache_refresh_${connection.id}_${refreshDate}`,
+      domain: "accounting",
+      subdomain: "connections",
+      topic: "accounts_cache",
+      entityType: "accounting_connection",
+      entityId: connection.id,
+      payload: payload as unknown as Record<string, unknown>,
+      sourceSystem: "cache_refresh",
+    });
+
     return {
-      refreshedAt: new Date().toISOString(),
-      totalAccounts: after,
-      addedAccounts: added,
-      updatedAccounts: updated,
-      removedAccounts: 0,
+      refreshedAt: refreshedAtIso,
+      totalAccounts: upstream.length,
+      addedAccounts: diff.addedCount,
+      updatedAccounts: diff.updatedCount,
+      removedAccounts: diff.removedCount,
     };
   }
 }
