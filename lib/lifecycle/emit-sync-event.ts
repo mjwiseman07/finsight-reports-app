@@ -11,6 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type SyncLifecycleEventKind =
   | "pilot.lifecycle.accounting-sync-completed"
   | "pilot.lifecycle.accounting-sync-failed"
+  | "pilot.lifecycle.accounting-connection-connected"
   | "pilot.lifecycle.accounting-connection-disconnected";
 
 export type EmitSyncLifecycleEventParams = {
@@ -32,17 +33,21 @@ export type EmitSyncLifecycleEventParams = {
     duration_ms?: number;
     // Universal:
     provenance: "live" | "backfill_reconciliation";
+    triggered_by?: string;
   };
 };
 
 function reasonCodeForEvent(eventKind: SyncLifecycleEventKind): string {
   if (eventKind === "pilot.lifecycle.accounting-sync-completed") return "accounting.sync.completed";
   if (eventKind === "pilot.lifecycle.accounting-sync-failed") return "accounting.sync.failed";
+  if (eventKind === "pilot.lifecycle.accounting-connection-connected") return "accounting.connection.connected";
   return "accounting.connection.disconnected";
 }
 
 function actorViaForEvent(eventKind: SyncLifecycleEventKind): string {
-  if (eventKind === "pilot.lifecycle.accounting-connection-disconnected") return "user-initiated";
+  // v2: disconnect/connect retain actor_via=accounting-sync (CHECK already allows it).
+  // Intent lives in payload.triggered_by when present.
+  void eventKind;
   return "accounting-sync";
 }
 

@@ -1322,8 +1322,14 @@ export async function disconnectConnection(connectionId: string, userId: string)
     const { supabaseAdmin } = await import("../../supabase");
     const companyName =
       connection.external_entity_name ||
-      String(connection.metadata_json?.tenant_name || connection.metadata_json?.company_name || "");
-    if (supabaseAdmin && companyName) {
+      (typeof connection.metadata_json?.tenant_name === "string"
+        ? connection.metadata_json.tenant_name
+        : null) ||
+      (typeof connection.metadata_json?.company_name === "string"
+        ? connection.metadata_json.company_name
+        : null) ||
+      "Unnamed Company";
+    if (supabaseAdmin) {
       const { pilotSlotId } = await ensureLifecycleAnchor({
         admin: supabaseAdmin,
         userId,
@@ -1339,11 +1345,10 @@ export async function disconnectConnection(connectionId: string, userId: string)
           tenant_id:
             connection.tenant_or_realm_id ||
             (typeof connection.metadata_json?.tenant_id === "string" ? connection.metadata_json.tenant_id : null),
-          tenant_name:
-            connection.external_entity_name ||
-            (typeof connection.metadata_json?.tenant_name === "string" ? connection.metadata_json.tenant_name : companyName),
+          tenant_name: companyName,
           outcome: "succeeded",
           provenance: "live",
+          triggered_by: "user-initiated",
         },
       });
       console.info("[disconnectConnection] lifecycle event emitted", {
@@ -1352,11 +1357,9 @@ export async function disconnectConnection(connectionId: string, userId: string)
         provider: connection.provider,
       });
     } else {
-      console.warn("[disconnectConnection] lifecycle emit skipped: supabaseAdmin or company name missing", {
+      console.warn("[disconnectConnection] lifecycle emit skipped: supabaseAdmin missing", {
         connectionId,
         userId,
-        hasAdmin: Boolean(supabaseAdmin),
-        hasCompanyName: Boolean(companyName),
       });
     }
   } catch (emitError) {
