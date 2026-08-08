@@ -12,7 +12,8 @@ export type SyncLifecycleEventKind =
   | "pilot.lifecycle.accounting-sync-completed"
   | "pilot.lifecycle.accounting-sync-failed"
   | "pilot.lifecycle.accounting-connection-connected"
-  | "pilot.lifecycle.accounting-connection-disconnected";
+  | "pilot.lifecycle.accounting-connection-disconnected"
+  | "pilot.lifecycle.wbp-probe-result";
 
 export type EmitSyncLifecycleEventParams = {
   admin: SupabaseClient;
@@ -34,6 +35,11 @@ export type EmitSyncLifecycleEventParams = {
     // Universal:
     provenance: "live" | "backfill_reconciliation";
     triggered_by?: string;
+    // WBP W0.5 probe:
+    probe?: string;
+    run_id?: string;
+    result_hash?: string;
+    summary?: Record<string, unknown>;
   };
 };
 
@@ -41,6 +47,7 @@ function reasonCodeForEvent(eventKind: SyncLifecycleEventKind): string {
   if (eventKind === "pilot.lifecycle.accounting-sync-completed") return "accounting.sync.completed";
   if (eventKind === "pilot.lifecycle.accounting-sync-failed") return "accounting.sync.failed";
   if (eventKind === "pilot.lifecycle.accounting-connection-connected") return "accounting.connection.connected";
+  if (eventKind === "pilot.lifecycle.wbp-probe-result") return "wbp.probe.result";
   return "accounting.connection.disconnected";
 }
 
