@@ -264,7 +264,7 @@ export default function Scorecard({
               ? `Fetching 6 months of ${getIntegrationLabel(integrationChoice)} data — usually 20-40 seconds`
               : `${getIntegrationLabel(integrationChoice)} · Live from your books`}
           </p>
-          {onDisconnect && activeReportSummary ? (
+          {onDisconnect && (activeReportSummary || hydrationActive || (integrationChoice && integrationChoice !== "none")) ? (
             <button
               type="button"
               onClick={onDisconnect}
