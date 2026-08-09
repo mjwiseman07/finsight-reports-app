@@ -203,7 +203,62 @@ async function saveNormalizedSyncMetadata({
     metaCompanyIdRaw !== connection.user_id
       ? metaCompanyIdRaw
       : null;
-  let rawCompanyId = normalizedData.companyId || safeMetaCompanyId || null;
+
+  // Phase W1c.4c.2 — guard against user_id-shaped normalizedData.companyId
+  // (legacy connections poisoned by pre-fix handleCallback).
+  const safeNormalizedCompanyId =
+    typeof normalizedData.companyId === "string" &&
+    normalizedData.companyId &&
+    normalizedData.companyId !== connection.user_id
+      ? normalizedData.companyId
+      : null;
+
+  // Phase W1c.4c.2 — provider-aware resolution FIRST. Keyed by tenant identity,
+  // so one user connecting multiple Xero orgs resolves to distinct companies.
+  let rawCompanyId: string | null = null;
+  try {
+    const { supabaseAdmin } = await import("../../supabase");
+    if (supabaseAdmin) {
+      // Best-effort firm_id via company_users → pilot_slots.firm_id.
+      let firmId: string | null = null;
+      const { data: memberRows } = await supabaseAdmin
+        .from("company_users")
+        .select("company_id")
+        .eq("user_id", connection.user_id)
+        .eq("status", "active")
+        .limit(5);
+      const companyIds = (memberRows || [])
+        .map((r) => (typeof r.company_id === "string" ? r.company_id : null))
+        .filter((v): v is string => Boolean(v));
+      if (companyIds.length) {
+        const { data: slotRows } = await supabaseAdmin
+          .from("pilot_slots")
+          .select("firm_id")
+          .in("company_id", companyIds)
+          .not("firm_id", "is", null)
+          .limit(1);
+        if (slotRows?.[0]?.firm_id) firmId = String(slotRows[0].firm_id);
+      }
+
+      const { resolveOrCreateCompanyForProvider } = await import("./resolve-or-create-company");
+      const providerResolvedCompanyId = await resolveOrCreateCompanyForProvider(supabaseAdmin, {
+        provider: sourceSystem as "xero" | "quickbooks",
+        tenantId: tenantId || String(connection.tenant_or_realm_id || "") || null,
+        userId: connection.user_id,
+        firmId,
+        tenantName: tenantName || connection.external_entity_name || null,
+      });
+      if (providerResolvedCompanyId) rawCompanyId = providerResolvedCompanyId;
+    }
+  } catch (resolveErr) {
+    console.warn("[SYNC] resolveOrCreateCompanyForProvider failed", {
+      connectionId: connection.id,
+      message: resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
+    });
+  }
+
+  // Fallback chain: legacy sources, in order.
+  if (!rawCompanyId) rawCompanyId = safeNormalizedCompanyId || safeMetaCompanyId || null;
   if (!rawCompanyId) {
     try {
       const { supabaseAdmin } = await import("../../supabase");
@@ -394,7 +449,28 @@ async function buildAndPersistLiveAccountingSync({
           provenance: "live",
         },
       });
-      console.info("[buildAndPersistLiveAccountingSync] lifecycle event emitted", {
+      // Phase W1c.4c.2 — cache-refreshed parity emit. QBO emits chain_seq +1
+      // here via a separate code path; Xero needs its own explicit emit so
+      // the hash-chained lifecycle log records the tile hydration event too.
+      await emitSyncLifecycleEvent({
+        admin: supabaseAdmin,
+        pilotSlotId,
+        eventKind: "pilot.lifecycle.cache-refreshed",
+        payload: {
+          connection_id: decryptedConnection.id,
+          tenant_id: tenantId,
+          tenant_name: diagnostics.tenantName || tenantName || "",
+          source_system: sourceSystem,
+          sync_id: syncId,
+          outcome: "succeeded",
+          added_accounts: normalizedData.normalizedAccounts?.length || 0,
+          added_bs_rows: normalizedData.normalizedBalanceSheet?.length || 0,
+          added_pl_rows: normalizedData.normalizedIncomeStatement?.length || 0,
+          added_tb_rows: normalizedData.normalizedTrialBalance?.length || 0,
+          provenance: "live",
+        },
+      });
+      console.info("[buildAndPersistLiveAccountingSync] lifecycle events emitted (sync-completed + cache-refreshed)", {
         connectionId: decryptedConnection.id,
         syncId,
         pilotSlotId,
@@ -784,7 +860,9 @@ export async function handleCallback(
         token_type: tokenPayload.token_type || null,
         source_system: provider.provider,
         active_provider: provider.provider,
-        company_id: authData.user.id,
+        // Phase W1c.4c.2 — never poison metadata with user_id. company_id is resolved
+        // at first sync via resolveOrCreateCompanyForProvider using tenant_id.
+        company_id: null,
         tenant_id: selectedTenantId || null,
         tenant_name: selectedTenantName || null,
         available_organizations: xeroEntities.map((entity) => ({

@@ -707,6 +707,7 @@ export default function DashboardPage() {
     north_star: { status: "pending", statusText: "" },
   });
   const [hydrationToast, setHydrationToast] = useState(null);
+  const [hydrationRetryNonce, setHydrationRetryNonce] = useState(0);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiQuestion, setAiQuestion] = useState("");
   const [executiveQuestion, setExecutiveQuestion] = useState("");
@@ -1229,16 +1230,20 @@ export default function DashboardPage() {
     const providerHint = connectedParam === "xero" || connectedParam === "quickbooks"
       ? connectedParam
       : null;
+    const urlConnectionId = url.searchParams.get("connectionId") || "";
+    const isRetry = hydrationRetryNonce > 0;
     // If neither param present AND we already have an activeReportPayload,
     // there's nothing to do — normal dashboard render path.
-    if (!providerHint && activeReportPayload) return;
-    // If neither param present AND we have no payload, we still try once —
-    // this handles the case where the user hard-refreshed after OAuth.
-    // But we only do it if the URL had connectionId (proof of recent OAuth).
-    const urlConnectionId = url.searchParams.get("connectionId") || "";
-    if (!providerHint && !urlConnectionId && activeReportPayload) return;
-    // Zero effect on normal dashboard visits with no OAuth landing params.
-    if (!providerHint && !urlConnectionId) return;
+    // Retry from the error card intentionally re-runs even with an __error payload.
+    if (!isRetry) {
+      if (!providerHint && activeReportPayload) return;
+      // If neither param present AND we have no payload, we still try once —
+      // this handles the case where the user hard-refreshed after OAuth.
+      // But we only do it if the URL had connectionId (proof of recent OAuth).
+      if (!providerHint && !urlConnectionId && activeReportPayload) return;
+      // Zero effect on normal dashboard visits with no OAuth landing params.
+      if (!providerHint && !urlConnectionId) return;
+    }
 
     hydrationBridgeStartedRef.current = true;
     let cancelled = false;
@@ -1259,17 +1264,25 @@ export default function DashboardPage() {
             authorization: `Bearer ${authToken}`,
           },
           body: JSON.stringify({
-            connectionId: urlConnectionId || undefined,
-            sourceSystem: providerHint || undefined,
-            forceRefresh: false,
+            connectionId: urlConnectionId || activeReportPayload?.connectionId || undefined,
+            sourceSystem: providerHint || activeReportPayload?.sourceSystem || undefined,
+            forceRefresh: isRetry,
           }),
         });
 
         if (cancelled) return;
 
         if (!ctxRes.ok) {
-          const errBody = await ctxRes.json().catch(() => ({}));
-          console.warn("[DASH_1B.1] active-context failed", ctxRes.status, errBody);
+          // Phase W1c.4c.2 — surface fetch failure on the tile surface (not silent).
+          const errText = await ctxRes.text().catch(() => "");
+          console.warn("[DASH_1B.1] active-context failed", ctxRes.status, errText);
+          setActiveReportPayload({
+            __error: true,
+            __errorMessage: errText || `active-context failed with HTTP ${ctxRes.status}`,
+            diagnostics: null,
+            connectionId: urlConnectionId || activeReportPayload?.connectionId || "",
+            sourceSystem: providerHint || activeReportPayload?.sourceSystem || null,
+          });
           if (ctxRes.status === 404) {
             // Merge "relink_needed" — surface banner, keep shell up
             setHydrationToast("Reconnect your accounting system to finish syncing.");
@@ -1404,9 +1417,9 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-    // Intentionally runs once on mount — this is the OAuth landing bridge.
+    // OAuth landing bridge + W1c.4c.2 Retry remount key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hydrationRetryNonce]);
 
   useEffect(() => {
     if (!hydrationActive) return;
@@ -2531,6 +2544,43 @@ export default function DashboardPage() {
                 suggestedQuestions={suggestedPulseQuestions}
               />
 
+              {activeReportPayload?.__error ? (
+                <div
+                  style={{
+                    padding: 24,
+                    borderRadius: 12,
+                    border: "1px solid rgba(201, 169, 97, 0.35)",
+                    background: "rgba(26, 26, 28, 0.85)",
+                    color: "#ECEBE7",
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: "#C9A961" }}>
+                    Couldn't load your latest sync
+                  </div>
+                  <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 16 }}>
+                    {activeReportPayload.__errorMessage}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hydrationBridgeStartedRef.current = false;
+                      setHydrationRetryNonce((n) => n + 1);
+                    }}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 8,
+                      border: "1px solid #C9A961",
+                      background: "transparent",
+                      color: "#C9A961",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
               <Scorecard
                 activeReportSummary={activeReportSummary}
                 arAgingSchedule={arAgingSchedule}
@@ -2556,6 +2606,7 @@ export default function DashboardPage() {
                   }
                 }}
               />
+              )}
 
               <SimplifiedFeatureCards onExploreSection={handleExploreCardClick} />
 

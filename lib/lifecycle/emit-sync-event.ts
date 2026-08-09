@@ -13,7 +13,8 @@ export type SyncLifecycleEventKind =
   | "pilot.lifecycle.accounting-sync-failed"
   | "pilot.lifecycle.accounting-connection-connected"
   | "pilot.lifecycle.accounting-connection-disconnected"
-  | "pilot.lifecycle.wbp-probe-result";
+  | "pilot.lifecycle.wbp-probe-result"
+  | "pilot.lifecycle.cache-refreshed"; // WBP W1c.4c.2 — Xero parity with QBO accounts-cache emit
 
 export type EmitSyncLifecycleEventParams = {
   admin: SupabaseClient;
@@ -25,7 +26,7 @@ export type EmitSyncLifecycleEventParams = {
     tenant_name: string;
     sync_id?: string;
     source_system: string;
-    outcome: "succeeded" | "failed";
+    outcome?: "succeeded" | "failed";
     // For failures:
     error_code?: string;
     error_message?: string;
@@ -40,6 +41,11 @@ export type EmitSyncLifecycleEventParams = {
     run_id?: string;
     result_hash?: string;
     summary?: Record<string, unknown>;
+    // WBP W1c.4c.2 cache-refreshed extras (live sync hydration parity):
+    added_accounts?: number;
+    added_bs_rows?: number;
+    added_pl_rows?: number;
+    added_tb_rows?: number;
   };
 };
 
@@ -48,6 +54,7 @@ function reasonCodeForEvent(eventKind: SyncLifecycleEventKind): string {
   if (eventKind === "pilot.lifecycle.accounting-sync-failed") return "accounting.sync.failed";
   if (eventKind === "pilot.lifecycle.accounting-connection-connected") return "accounting.connection.connected";
   if (eventKind === "pilot.lifecycle.wbp-probe-result") return "wbp.probe.result";
+  if (eventKind === "pilot.lifecycle.cache-refreshed") return "accounting.cache.refreshed";
   return "accounting.connection.disconnected";
 }
 
