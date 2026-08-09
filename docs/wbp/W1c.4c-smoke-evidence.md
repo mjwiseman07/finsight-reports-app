@@ -7,7 +7,7 @@
 ## Tenants smoked
 
 - QBO: Sandbox Company US 3acd, realm `9341457151063823`, connection UUID `0858b9a0-9c7f-4899-bf4d-2e02f0b2063a`
-- Xero: Demo Company US, tenant `ceaea696-081f-491e-9daa-a9263a023ca9`
+- Xero: Demo Company US, tenant `ceaea696-081f-491e-9daa-a9263a023ca9`, connection UUID `85123b5c-2e30-4a87-9dc5-2c012259da72` (resolved via Supabase MCP on Preview readiness sweep 2026-08-08)
 
 ## Smoke script (PowerShell)
 
@@ -23,7 +23,7 @@ Invoke-RestMethod -Uri "$PreviewUrl/api/admin/write-boundary/refresh-accounts-ca
   -Headers @{ "Authorization" = "Bearer $env:SUPER_ADMIN_TOKEN" }
 
 # 2. Xero manual refresh via admin POST
-$xeroBody = @{ connection_id = "<xero-connection-uuid>"; provider = "xero" } | ConvertTo-Json
+$xeroBody = @{ connection_id = "85123b5c-2e30-4a87-9dc5-2c012259da72"; provider = "xero" } | ConvertTo-Json
 Invoke-RestMethod -Uri "$PreviewUrl/api/admin/write-boundary/refresh-accounts-cache" `
   -Method POST -Body $xeroBody -ContentType "application/json" `
   -Headers @{ "Authorization" = "Bearer $env:SUPER_ADMIN_TOKEN" }
@@ -84,7 +84,7 @@ from pilot_lifecycle_events
 where event_kind = 'pilot.lifecycle.cache-refreshed'
   and payload->>'connection_id' in (
     '0858b9a0-9c7f-4899-bf4d-2e02f0b2063a'
-    -- , '<xero-connection-uuid>'
+    , '85123b5c-2e30-4a87-9dc5-2c012259da72'
   )
 order by chain_seq;
 ```
