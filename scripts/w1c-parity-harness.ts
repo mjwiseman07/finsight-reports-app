@@ -17,7 +17,7 @@
  * Rejects any realm ID not starting with "9341" as a safety guard.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
-import { legacyQboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster.legacy";
+import { qboJournalEntryPoster as legacyQboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster.legacy";
 import { postViaWriteBoundary } from "@/lib/erp/quickbooks/journal-entry-poster.wb-delegate";
 import type { JEPostRequest } from "@/lib/erp/types";
 

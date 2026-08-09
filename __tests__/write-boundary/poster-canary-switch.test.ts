@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 
 vi.mock("@/lib/erp/quickbooks/journal-entry-poster.legacy", () => ({
-  legacyQboJournalEntryPoster: {
+  qboJournalEntryPoster: {
     post: vi.fn(async () => ({ status: "posted", attempt_id: "legacy-att", qbo_je_id: "legacy-je-1" })),
     reverse: vi.fn(async () => ({ status: "posted", attempt_id: "legacy-rev-att", qbo_je_id: "legacy-je-rev" })),
   },
@@ -12,7 +12,7 @@ vi.mock("@/lib/erp/quickbooks/journal-entry-poster.wb-delegate", () => ({
 }));
 
 import { qboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster";
-import { legacyQboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster.legacy";
+import { qboJournalEntryPoster as legacyQboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster.legacy";
 import { postViaWriteBoundary } from "@/lib/erp/quickbooks/journal-entry-poster.wb-delegate";
 
 const validReq = {

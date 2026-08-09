@@ -13,7 +13,7 @@ import type {
   JEPostRequest,
   JEPostResult,
 } from "@/lib/erp/types";
-import { legacyQboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster.legacy";
+import { qboJournalEntryPoster as legacyQboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster.legacy";
 
 function writeBoundaryEnabled(): boolean {
   return process.env.WRITE_BOUNDARY_ENABLED === "true";
