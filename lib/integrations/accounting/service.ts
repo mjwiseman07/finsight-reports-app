@@ -7,6 +7,7 @@ import { getAccountingProviderMappingAdapter } from "./provider-adapters";
 import { getAccountingProvider, getEnabledProviders } from "./registry";
 import { decryptAccountingToken, encryptAccountingToken } from "./token-encryption";
 import type { AccountingDateRange, AccountingProvider, AccountingConnectionRecord } from "./types";
+import type { EnsureAnchorConnection } from "../../lifecycle/ensure-anchor";
 import { validateReportPreflight, type PreflightIssue } from "../../reporting/report-preflight-validation";
 import { supabaseAdmin } from "../../supabase";
 
@@ -648,6 +649,7 @@ async function buildAndPersistLiveAccountingSync({
         admin: supabaseAdmin,
         userId,
         sourceSystemCompanyName: resolvedCompanyName,
+        connection: decryptedConnection,
       });
       await emitSyncLifecycleEvent({
         admin: supabaseAdmin,
@@ -1569,6 +1571,7 @@ export async function fetchCanonicalReports({
           admin: supabaseAdmin,
           userId,
           sourceSystemCompanyName: resolvedCompanyName,
+          connection: connection as EnsureAnchorConnection,
         });
         await emitSyncLifecycleEvent({
           admin: supabaseAdmin,
@@ -1661,6 +1664,7 @@ export async function fetchCanonicalReports({
             admin: supabaseAdmin,
             userId: anchorCtx.userId,
             sourceSystemCompanyName: resolvedCompanyName,
+            connection: conn as EnsureAnchorConnection,
           });
           await emitSyncLifecycleEvent({
             admin: supabaseAdmin,
@@ -1730,6 +1734,7 @@ export async function disconnectConnection(connectionId: string, userId: string)
         admin: supabaseAdmin,
         userId,
         sourceSystemCompanyName: resolvedCompanyName,
+        connection: connection as EnsureAnchorConnection,
       });
       await emitSyncLifecycleEvent({
         admin: supabaseAdmin,
