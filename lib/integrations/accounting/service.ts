@@ -44,6 +44,118 @@ function decryptConnectionTokens(connection: AccountingConnectionRecord): Accoun
   };
 }
 
+// Phase W1c.4c.3 — Proactive OAuth refresh.
+//
+// Root cause of the 2026-08-09 smoke failure: xeroGet + qboGet call the provider
+// API using connection.access_token directly. There is no 401 handler, no
+// proactive refresh, and the last refresh in service.ts is at OAuth callback
+// (~L855). If token_expires_at is in the past when a sync runs, the provider
+// returns 401 → normalization errors populate → validator throws
+// "Normalized Advisacor financial data is incomplete".
+//
+// This helper ensures fresh tokens BEFORE the provider is called. It preserves
+// the hash-chain memory contract: on refresh failure it still lets the sync
+// throw with a taxonomy'd error so the lifecycle-failed emit at the outer
+// try/catch fires with the FK-clean company_id resolved by
+// resolveOrCreateCompanyForProvider (W1c.4c.2).
+async function ensureFreshTokens(connection: AccountingConnectionRecord): Promise<AccountingConnectionRecord> {
+  const decrypted = decryptConnectionTokens(connection);
+  if (decrypted.provider !== "xero" && decrypted.provider !== "quickbooks") return decrypted;
+  if (!decrypted.refresh_token) return decrypted;
+
+  const skewMs = 5 * 60 * 1000;
+  const expiresAt = decrypted.token_expires_at ? new Date(decrypted.token_expires_at).getTime() : 0;
+  const nowMs = Date.now();
+  const needsRefresh = !expiresAt || expiresAt - nowMs < skewMs;
+  if (!needsRefresh) return decrypted;
+
+  const provider = getAccountingProvider(decrypted.provider);
+  let tokenPayload: Record<string, unknown>;
+  try {
+    tokenPayload = await provider.refreshAccessToken({ refreshToken: decrypted.refresh_token });
+  } catch (refreshError) {
+    console.warn("[accounting/token-refresh] refresh_failed", {
+      connectionId: decrypted.id,
+      provider: decrypted.provider,
+      tokenExpiresAt: decrypted.token_expires_at,
+      exceptionMessage: refreshError instanceof Error ? refreshError.message : String(refreshError),
+    });
+    // Mark the connection as needing reconnect so the UI can surface it, but
+    // still throw so the outer sync-failed lifecycle event captures the reason.
+    try {
+      await requireSupabase()
+        .from("accounting_connections")
+        .update({ status: "needs_reconnect", updated_at: new Date().toISOString() })
+        .eq("id", decrypted.id);
+    } catch (statusError) {
+      console.warn("[accounting/token-refresh] status_update_failed", {
+        connectionId: decrypted.id,
+        exceptionMessage: statusError instanceof Error ? statusError.message : String(statusError),
+      });
+    }
+    const wrapped = new Error(
+      `OAuth refresh failed for ${decrypted.provider} connection ${decrypted.id}. The user must reconnect their accounting system.`
+    ) as Error & { code?: string; connectionId?: string };
+    wrapped.code = "OAUTH_REFRESH_FAILED";
+    wrapped.connectionId = decrypted.id;
+    throw wrapped;
+  }
+
+  const newAccessToken = typeof tokenPayload.access_token === "string" ? tokenPayload.access_token : null;
+  const newRefreshToken = typeof tokenPayload.refresh_token === "string" ? tokenPayload.refresh_token : decrypted.refresh_token;
+  if (!newAccessToken) {
+    console.warn("[accounting/token-refresh] no_access_token_in_payload", {
+      connectionId: decrypted.id,
+      provider: decrypted.provider,
+      payloadKeys: Object.keys(tokenPayload || {}),
+    });
+    const wrapped = new Error(
+      `OAuth refresh returned no access_token for ${decrypted.provider} connection ${decrypted.id}.`
+    ) as Error & { code?: string; connectionId?: string };
+    wrapped.code = "OAUTH_REFRESH_NO_TOKEN";
+    wrapped.connectionId = decrypted.id;
+    throw wrapped;
+  }
+
+  const newExpiry = getTokenExpiry(tokenPayload);
+  try {
+    const { error: updateError } = await requireSupabase()
+      .from("accounting_connections")
+      .update({
+        access_token: secureTokenForStorage(decrypted.provider, newAccessToken),
+        refresh_token: secureTokenForStorage(decrypted.provider, newRefreshToken),
+        token_expires_at: newExpiry,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", decrypted.id);
+    if (updateError) {
+      console.warn("[accounting/token-refresh] persist_failed", {
+        connectionId: decrypted.id,
+        provider: decrypted.provider,
+        exceptionMessage: updateError.message,
+      });
+    } else {
+      console.info("[accounting/token-refresh] refresh_success", {
+        connectionId: decrypted.id,
+        provider: decrypted.provider,
+        newExpiry,
+      });
+    }
+  } catch (persistError) {
+    console.warn("[accounting/token-refresh] persist_threw", {
+      connectionId: decrypted.id,
+      exceptionMessage: persistError instanceof Error ? persistError.message : String(persistError),
+    });
+  }
+
+  return {
+    ...decrypted,
+    access_token: newAccessToken,
+    refresh_token: newRefreshToken,
+    token_expires_at: newExpiry,
+  };
+}
+
 function assertProviderMatchesSelectedProvider(selectedProvider: string | undefined, normalizedData: { sourceSystem: AccountingProvider }) {
   if (selectedProvider && normalizedData.sourceSystem !== selectedProvider) {
     throw new Error(`Provider mismatch: active ${selectedProvider} but normalized data is ${normalizedData.sourceSystem}`);
@@ -372,7 +484,7 @@ async function buildAndPersistLiveAccountingSync({
   if (!["quickbooks", "xero"].includes(sourceSystem) || connection.provider !== sourceSystem) return null;
   const reportPeriod = latestCompletedAccountingMonth();
   const syncId = crypto.randomUUID();
-  const decryptedConnection = decryptConnectionTokens(connection);
+  const decryptedConnection = await ensureFreshTokens(connection);
   const tenantId = decryptedConnection.tenant_or_realm_id || decryptedConnection.external_entity_id || null;
   const tenantName = decryptedConnection.external_entity_name || String(decryptedConnection.metadata_json?.tenant_name || decryptedConnection.metadata_json?.company_name || (sourceSystem === "xero" ? "Xero Organization" : "QuickBooks Company"));
   const mappingAdapter = getAccountingProviderMappingAdapter(sourceSystem);
@@ -893,7 +1005,7 @@ export async function getConnectionForUser(connectionId: string, userId: string)
     .limit(1);
   if (error) throw error;
   if (!data?.[0]) throw new Error("Accounting connection not found");
-  return decryptConnectionTokens(data[0] as AccountingConnectionRecord);
+  return await ensureFreshTokens(data[0] as AccountingConnectionRecord);
 }
 
 export async function listEntities(connectionId: string, userId: string) {
