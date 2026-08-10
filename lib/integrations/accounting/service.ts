@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import type { NextRequest, NextResponse as NextResponseType } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertReadyForSourceAgnosticOutputs } from "./advisacor-data-model";
 import { buildReportDataContext } from "./report-data-context";
 import { getAccountingProviderMappingAdapter } from "./provider-adapters";
@@ -154,6 +155,107 @@ async function ensureFreshTokens(connection: AccountingConnectionRecord): Promis
     refresh_token: newRefreshToken,
     token_expires_at: newExpiry,
   };
+}
+
+/**
+ * Phase W1c.4c.4 — Memory-contract emit resolver.
+ *
+ * Canonical resolution chain for the companyName required by
+ * ensureLifecycleAnchor + emitSyncLifecycleEvent, walking our own patented
+ * memory system rather than inventing a fallback name.
+ *
+ * Order of preference:
+ *   1. connection.external_entity_name (OAuth-callback-populated, canonical)
+ *   2. companies.name via resolveOrCreateCompanyForProvider (SoR fallback)
+ *   3. Throws OAUTH_MISSING_COMPANY_NAME if neither resolves. Callers should
+ *      swallow into their non-blocking emit try/catch.
+ *
+ * Side effect: when step 2 succeeds, opportunistically backfills
+ * accounting_connections.external_entity_name so subsequent syncs are
+ * self-healing and step 1 succeeds directly.
+ *
+ * Never returns invented fallbacks such as Unnamed Company, Xero Organization,
+ * or QuickBooks Company — see Rule 1 in the memory contract.
+ */
+async function resolveEmitCompanyName(
+  admin: SupabaseClient,
+  connection: AccountingConnectionRecord,
+  args: { userId: string; firmId?: string | null },
+): Promise<string> {
+  // Step 1 — canonical source-system name
+  const canonical = (connection.external_entity_name || "").trim();
+  if (canonical) return canonical;
+
+  // Step 2 — SoR lookup via the W1c.4c.2 resolver
+  const tenantId = connection.tenant_or_realm_id || connection.external_entity_id || null;
+  if (!tenantId) {
+    const err = new Error(
+      `[resolveEmitCompanyName] no tenant_or_realm_id on connection ${connection.id}; cannot resolve companyName`,
+    );
+    (err as Error & { code?: string }).code = "OAUTH_MISSING_COMPANY_NAME";
+    throw err;
+  }
+
+  const { resolveOrCreateCompanyForProvider } = await import("./resolve-or-create-company");
+  const companyId = await resolveOrCreateCompanyForProvider(admin, {
+    provider: connection.provider as "xero" | "quickbooks",
+    tenantId,
+    userId: args.userId,
+    firmId: args.firmId ?? null,
+    tenantName: null,
+  });
+  if (!companyId) {
+    const err = new Error(
+      `[resolveEmitCompanyName] resolveOrCreateCompanyForProvider returned null for ${connection.provider} ${tenantId}`,
+    );
+    (err as Error & { code?: string }).code = "OAUTH_MISSING_COMPANY_NAME";
+    throw err;
+  }
+
+  const { data: companyRow, error: companyErr } = await admin
+    .from("companies")
+    .select("name")
+    .eq("id", companyId)
+    .maybeSingle();
+  if (companyErr || !companyRow?.name) {
+    const err = new Error(
+      `[resolveEmitCompanyName] companies row ${companyId} has no name; cannot resolve`,
+    );
+    (err as Error & { code?: string }).code = "OAUTH_MISSING_COMPANY_NAME";
+    throw err;
+  }
+  const resolvedName = String(companyRow.name).trim();
+  if (!resolvedName) {
+    const err = new Error(
+      `[resolveEmitCompanyName] companies.name blank for ${companyId}`,
+    );
+    (err as Error & { code?: string }).code = "OAUTH_MISSING_COMPANY_NAME";
+    throw err;
+  }
+
+  // Opportunistic backfill — self-healing for future syncs.
+  try {
+    await admin
+      .from("accounting_connections")
+      .update({
+        external_entity_name: resolvedName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", connection.id);
+    console.info("[resolveEmitCompanyName] backfilled external_entity_name from companies.name", {
+      connectionId: connection.id,
+      companyId,
+      resolvedName,
+    });
+  } catch (backfillErr) {
+    console.warn("[resolveEmitCompanyName] backfill of external_entity_name failed (non-blocking)", {
+      connectionId: connection.id,
+      companyId,
+      error: backfillErr instanceof Error ? backfillErr.message : String(backfillErr),
+    });
+  }
+
+  return resolvedName;
 }
 
 function assertProviderMatchesSelectedProvider(selectedProvider: string | undefined, normalizedData: { sourceSystem: AccountingProvider }) {
@@ -486,7 +588,7 @@ async function buildAndPersistLiveAccountingSync({
   const syncId = crypto.randomUUID();
   const decryptedConnection = await ensureFreshTokens(connection);
   const tenantId = decryptedConnection.tenant_or_realm_id || decryptedConnection.external_entity_id || null;
-  const tenantName = decryptedConnection.external_entity_name || String(decryptedConnection.metadata_json?.tenant_name || decryptedConnection.metadata_json?.company_name || (sourceSystem === "xero" ? "Xero Organization" : "QuickBooks Company"));
+  const tenantName = decryptedConnection.external_entity_name || String(decryptedConnection.metadata_json?.tenant_name || decryptedConnection.metadata_json?.company_name || "");
   const mappingAdapter = getAccountingProviderMappingAdapter(sourceSystem);
   const rawReports = await mappingAdapter.fetchRawReports(decryptedConnection, reportPeriod);
   const rawBundleDiagnostics = ((rawReports.bundle.sourceMetadata.raw as Record<string, unknown> | undefined)?.diagnostics as Record<string, unknown> | undefined) || {};
@@ -538,10 +640,14 @@ async function buildAndPersistLiveAccountingSync({
     const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
     const { supabaseAdmin } = await import("../../supabase");
     if (supabaseAdmin && userId) {
+      const resolvedCompanyName = await resolveEmitCompanyName(supabaseAdmin, decryptedConnection, {
+        userId,
+        firmId: null,
+      });
       const { pilotSlotId } = await ensureLifecycleAnchor({
         admin: supabaseAdmin,
         userId,
-        sourceSystemCompanyName: diagnostics.tenantName || tenantName || "Unnamed Company",
+        sourceSystemCompanyName: resolvedCompanyName,
       });
       await emitSyncLifecycleEvent({
         admin: supabaseAdmin,
@@ -550,7 +656,7 @@ async function buildAndPersistLiveAccountingSync({
         payload: {
           connection_id: decryptedConnection.id,
           tenant_id: tenantId,
-          tenant_name: diagnostics.tenantName || tenantName || "",
+          tenant_name: resolvedCompanyName,
           sync_id: syncId,
           source_system: sourceSystem,
           outcome: "succeeded",
@@ -571,7 +677,7 @@ async function buildAndPersistLiveAccountingSync({
         payload: {
           connection_id: decryptedConnection.id,
           tenant_id: tenantId,
-          tenant_name: diagnostics.tenantName || tenantName || "",
+          tenant_name: resolvedCompanyName,
           source_system: sourceSystem,
           sync_id: syncId,
           outcome: "succeeded",
@@ -1437,6 +1543,7 @@ export async function fetchCanonicalReports({
       const error = new Error("We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.");
       (error as Error & { preflight?: typeof preflight; status?: number }).preflight = preflight;
       (error as Error & { preflight?: typeof preflight; status?: number }).status = 422;
+      (error as Error & { code?: string }).code = preflight.blockers?.[0]?.code || "PREFLIGHT_FAILED";
       (error as Error & { diagnostics?: typeof diagnostics }).diagnostics = diagnostics;
       throw error;
     }
@@ -1445,15 +1552,23 @@ export async function fetchCanonicalReports({
     // Emits only after preflight passes so a 422 validation failure does not
     // also write accounting-sync-completed (failure path handles that).
     // Never blocks the sync return; every failure here is best-effort logged.
+    //
+    // Phase W1c.4c.4 — cache-refreshed parity emit added so this path
+    // produces the same two-event pair (sync-completed + cache-refreshed)
+    // as buildAndPersistLiveAccountingSync. Symmetric memory contract.
     try {
       const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
       const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
       const { supabaseAdmin } = await import("../../supabase");
       if (supabaseAdmin && userId) {
+        const resolvedCompanyName = await resolveEmitCompanyName(supabaseAdmin, connection, {
+          userId,
+          firmId: null,
+        });
         const { pilotSlotId } = await ensureLifecycleAnchor({
           admin: supabaseAdmin,
           userId,
-          sourceSystemCompanyName: diagnostics.tenantName || tenantName || "Unnamed Company",
+          sourceSystemCompanyName: resolvedCompanyName,
         });
         await emitSyncLifecycleEvent({
           admin: supabaseAdmin,
@@ -1462,7 +1577,7 @@ export async function fetchCanonicalReports({
           payload: {
             connection_id: connectionId,
             tenant_id: tenantId,
-            tenant_name: diagnostics.tenantName || tenantName || "",
+            tenant_name: resolvedCompanyName,
             sync_id: syncId,
             source_system: connection.provider,
             outcome: "succeeded",
@@ -1472,6 +1587,29 @@ export async function fetchCanonicalReports({
               (normalizedData.normalizedIncomeStatement?.length || 0),
             provenance: "live",
           },
+        });
+        await emitSyncLifecycleEvent({
+          admin: supabaseAdmin,
+          pilotSlotId,
+          eventKind: "pilot.lifecycle.cache-refreshed",
+          payload: {
+            connection_id: connectionId,
+            tenant_id: tenantId,
+            tenant_name: resolvedCompanyName,
+            source_system: connection.provider,
+            sync_id: syncId,
+            outcome: "succeeded",
+            added_accounts: normalizedData.normalizedAccounts?.length || 0,
+            added_bs_rows: normalizedData.normalizedBalanceSheet?.length || 0,
+            added_pl_rows: normalizedData.normalizedIncomeStatement?.length || 0,
+            added_tb_rows: normalizedData.normalizedTrialBalance?.length || 0,
+            provenance: "live",
+          },
+        });
+        console.info("[fetchCanonicalReports] lifecycle events emitted (sync-completed + cache-refreshed)", {
+          connectionId,
+          syncId,
+          pilotSlotId,
         });
       }
     } catch (anchorErr) {
@@ -1498,25 +1636,31 @@ export async function fetchCanonicalReports({
     };
   } catch (fatalErr) {
     // Phase DASH_1B.2 — emit failure event, non-blocking.
+    // Phase W1c.4c.4 — Bug A fix: use resolveEmitCompanyName instead of
+    // the external_entity_name presence gate that silently skipped emission whenever
+    // external_entity_name IS NULL (legacy QBO seed pre-dating callback
+    // populate). Now walks the SoR resolution chain and only skips if
+    // even that fails — with a loud log line, never silent.
     try {
       const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
       const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
       const { supabaseAdmin } = await import("../../supabase");
       if (supabaseAdmin && anchorCtx.userId) {
-        // Best-effort: only if we already know the company name from a prior connection.
-        // If ensureLifecycleAnchor fails on first-ever connect (before connection lookup succeeded),
-        // we just log and skip — we cannot invent a company name.
         const { data: conn } = await supabaseAdmin
           .from("accounting_connections")
-          .select("external_entity_name")
+          .select("*")
           .eq("id", anchorCtx.connectionId)
           .maybeSingle();
-        const companyName = conn?.external_entity_name || "";
-        if (companyName) {
+        if (conn) {
+          const resolvedCompanyName = await resolveEmitCompanyName(
+            supabaseAdmin,
+            conn as AccountingConnectionRecord,
+            { userId: anchorCtx.userId, firmId: null },
+          );
           const { pilotSlotId } = await ensureLifecycleAnchor({
             admin: supabaseAdmin,
             userId: anchorCtx.userId,
-            sourceSystemCompanyName: companyName,
+            sourceSystemCompanyName: resolvedCompanyName,
           });
           await emitSyncLifecycleEvent({
             admin: supabaseAdmin,
@@ -1524,8 +1668,11 @@ export async function fetchCanonicalReports({
             eventKind: "pilot.lifecycle.accounting-sync-failed",
             payload: {
               connection_id: anchorCtx.connectionId,
-              tenant_id: null,
-              tenant_name: companyName,
+              tenant_id:
+                (conn as AccountingConnectionRecord).tenant_or_realm_id ||
+                (conn as AccountingConnectionRecord).external_entity_id ||
+                null,
+              tenant_name: resolvedCompanyName,
               sync_id: anchorCtx.syncId || "unknown",
               source_system: selectedSourceSystem,
               outcome: "failed",
@@ -1534,11 +1681,22 @@ export async function fetchCanonicalReports({
               provenance: "live",
             },
           });
+          console.info("[fetchCanonicalReports] sync-failed lifecycle event emitted", {
+            connectionId: anchorCtx.connectionId,
+            syncId: anchorCtx.syncId,
+            pilotSlotId,
+            errorCode: (fatalErr as { code?: string })?.code || "UNKNOWN",
+          });
+        } else {
+          console.warn("[fetchCanonicalReports] failure emit skipped: connection row not found", {
+            connectionId: anchorCtx.connectionId,
+          });
         }
       }
     } catch (emitErr) {
       console.error("[fetchCanonicalReports] failure-event emission itself failed (swallowed)", {
         error: emitErr instanceof Error ? emitErr.message : String(emitErr),
+        errorCode: (emitErr as Error & { code?: string })?.code,
       });
     }
     throw fatalErr;
@@ -1563,20 +1721,15 @@ export async function disconnectConnection(connectionId: string, userId: string)
     const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
     const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
     const { supabaseAdmin } = await import("../../supabase");
-    const companyName =
-      connection.external_entity_name ||
-      (typeof connection.metadata_json?.tenant_name === "string"
-        ? connection.metadata_json.tenant_name
-        : null) ||
-      (typeof connection.metadata_json?.company_name === "string"
-        ? connection.metadata_json.company_name
-        : null) ||
-      "Unnamed Company";
     if (supabaseAdmin) {
+      const resolvedCompanyName = await resolveEmitCompanyName(supabaseAdmin, connection, {
+        userId,
+        firmId: null,
+      });
       const { pilotSlotId } = await ensureLifecycleAnchor({
         admin: supabaseAdmin,
         userId,
-        sourceSystemCompanyName: companyName,
+        sourceSystemCompanyName: resolvedCompanyName,
       });
       await emitSyncLifecycleEvent({
         admin: supabaseAdmin,
@@ -1588,7 +1741,7 @@ export async function disconnectConnection(connectionId: string, userId: string)
           tenant_id:
             connection.tenant_or_realm_id ||
             (typeof connection.metadata_json?.tenant_id === "string" ? connection.metadata_json.tenant_id : null),
-          tenant_name: companyName,
+          tenant_name: resolvedCompanyName,
           outcome: "succeeded",
           provenance: "live",
           triggered_by: "user-initiated",
