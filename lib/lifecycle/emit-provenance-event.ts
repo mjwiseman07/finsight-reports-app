@@ -3,8 +3,9 @@
  *
  * Actor: authenticated user (owner_executive on the company).
  * Purpose: hash-chained audit record that "user X saw the accuracy contract
- *          for KPI Y bound to sync Z at chain_seq N". Provisional #6 SoR
- *          chain — every consumer-facing accuracy claim gets a receipt.
+ *          for KPI Y bound to sync Z at chain_seq N", plus (A2) which company
+ *          routing tier selected identity (`payload.routing.resolver_tier`).
+ *          Provisional #6 SoR chain — accuracy + identity both receipted.
  *
  * The BEFORE-INSERT trigger derives company_id, prev_hash, row_hash, chain_seq.
  * Never set them from application code.
@@ -14,6 +15,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ProvenanceLifecycleEventKind =
   | "pilot.lifecycle.provenance-drawer-opened";
+
+/** A2 — which identity signal selected company_id for this open (Patent #6 payload). */
+export type ResolverTier =
+  | "explicit_company_id"
+  | "explicit_pilot_slot_id"
+  | "active_company_fallback"
+  | "resolver_fallback";
 
 export type EmitProvenanceLifecycleEventParams = {
   admin: SupabaseClient;
@@ -28,6 +36,12 @@ export type EmitProvenanceLifecycleEventParams = {
     computation_status: "computed" | "pending_subledger";
     request_id: string;
     user_agent?: string | null;
+    /**
+     * Rule 2 / A2: identity-routing provenance. actor_via column stays
+     * CHECK-allowlisted `dashboard-provenance-drawer`; the resolver tier is
+     * chain-receipted here so SoR proves which signal picked the company.
+     */
+    routing: { resolver_tier: ResolverTier };
   };
 };
 
