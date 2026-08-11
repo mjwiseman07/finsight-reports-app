@@ -1,13 +1,38 @@
 /**
  * Phase L2 — Resolve the real companies.id for a user.
  *
- * Never fall back to user_id. Prefer a company that owns an active pilot slot;
- * otherwise owner_executive membership; otherwise null.
+ * Never fall back to user_id. Prefer a company that owns an active/trialing
+ * pilot slot; otherwise owner_executive membership; otherwise null.
+ *
+ * ------------------------------------------------------------------
+ * pilot_status vocabulary (DASH_1C.A1 / 2026-08-10)
+ * ------------------------------------------------------------------
+ * Schema CHECK (TCP1 W1): pending | active | converted | cancelled | complimentary
+ *   (and runtime may also see 'trialing' where writers produce it).
+ *
+ * Live-written values observed/expected: active, trialing, cancelled, complimentary.
+ * Schema-reserved / unused by live writers: pending, converted (0 prod rows;
+ * no Stripe/app writer as of DASH_1C.A1).
+ *
+ * Predicate allow-lists for "eligible company context" MUST use only
+ * live-written paid-eligible statuses: active | trialing.
+ * - Do NOT use 'trial' (bug — never a pilot_slots.pilot_status value).
+ * - Do NOT use 'converted' (legacy reserved; 0 rows).
+ * - Do NOT include 'complimentary' here — comps intentionally do not grant
+ *   paid-tier identity preference via this resolver.
+ *
+ * See Phase_DASH_1C_A1_Converted_Status_Investigation.md.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const ACTIVE_PILOT_STATUSES = ["active", "trial", "converted"] as const;
+// pilot_status enum: pending | active | trialing | converted | cancelled | complimentary
+// Live writers only produce: active, trialing, cancelled, complimentary.
+// 'converted' is a legacy schema-reserved value with 0 rows in prod (see
+// Phase_DASH_1C_A1_Converted_Status_Investigation.md). 'trial' was a bug —
+// the actual live status is 'trialing'. 'complimentary' is intentionally excluded
+// because comp slots don't grant paid-tier entitlement.
+const ACTIVE_PILOT_STATUSES = ["active", "trialing"] as const;
 
 export async function resolveCompanyIdForUser(
   admin: SupabaseClient,

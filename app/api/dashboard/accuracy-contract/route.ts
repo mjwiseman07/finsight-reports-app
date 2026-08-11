@@ -177,15 +177,14 @@ async function resolveCompanyId(
       .maybeSingle();
     if (data?.company_id) return data.company_id as string;
   }
-  const { data: cu } = await admin
-    .from("company_users")
-    .select("company_id")
-    .eq("user_id", args.userId)
-    .eq("status", "active")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  return (cu?.company_id as string | undefined) ?? null;
+
+  // Prefer a company that owns an active/trialing pilot slot (same SoR path
+  // as accounting sync writes). Falls back to owner_executive membership —
+  // never oldest company_users row by created_at.
+  const { resolveCompanyIdForUser } = await import(
+    "@/lib/integrations/accounting/resolve-company-id"
+  );
+  return resolveCompanyIdForUser(admin, args.userId);
 }
 
 function jsonError(
