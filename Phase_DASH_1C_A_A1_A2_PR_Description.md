@@ -107,23 +107,39 @@ Tier 3 fallback resolves to the user’s **oldest / first** active `company_user
 - Block C verify / TSR anchor
 - Ask Pulse Command Center
 
+## Schema Drift Acknowledgement
+
+Main's `pilot_status` CHECK constraint does not include `trialing`. Preview does (added by DASH_1B.2 widening migration, not included in this PR to keep scope surgical). DASH_1C code is defensive: A1 allow-list and A2 tier-2 slot filter both include `trialing`, but on main these queries return 0 rows for that status. This is correct behavior — no live rows use `trialing` today. Follow-up PR must include the DASH_1B.2 widening migration to close the drift before any production writer sets `trialing`.
+
+## Isolation note (Rule 1)
+
+This PR is cut via **δ surgical helpers** onto `main` (not the mega `dash-1-scorecard-and-onboarding` branch):
+
+1. `chore(dash-1c-prep)` — content-only extracts of `resolve-company-id.ts` (A1 tip) + `active-company.ts` (DASH_1A tip)
+2. Cherry-picks of Block A → A1 → A2 → docs
+
+Does **not** include L2 `service.ts` / xero callback / FK migration, Scorecard UI, DASH_1B, or WBP. See `DASH_1C_Cherry_Pick_Dependency_Trace.md` / `DASH_1C_Surgical_Helper_Verification.md` (local verification artifacts; optional follow-up commit if desired).
+
 ## 9. Follow-ups tracked
 
 - [`Phase_QBO_Sync_Receipt_Gap_Investigation.md`](./Phase_QBO_Sync_Receipt_Gap_Investigation.md) — QBO SUCCESS sync without `accounting-sync-completed` (separate Rule 2 hole; do not fix here)
 - Repo-wide `lint --fix` debt (pre-existing)
 - Server-side active-company truth source (v1.1)
+- **Schema drift close-out:** land DASH_1B.2 `pilot_status` / lifecycle widenings so `trialing` is schema-legal before writers use it
 
 ## Commits (Accuracy Contract wave)
 
-- `bc907c59` — Block A Accuracy Contract server foundation
-- `d0c53e8f` — A1 resolver allow-list + type-check + investigation docs
-- `a1369379` — A2 three-tier resolver + routing-tier lifecycle attribution
+- surgical prep — helpers only (`resolve-company-id` + `active-company`)
+- Block A — Accuracy Contract server foundation
+- A1 — resolver allow-list + type-check + investigation docs
+- A2 — three-tier resolver + routing-tier lifecycle attribution
+- docs — combined PR description + Block B routing refine
 
 ## Test plan
 
-- [x] `npm run type-check` clean for A2 paths
-- [x] Block A with-slot smoke (seqs 67–73)
+- [x] `npm run type-check` clean for Acc Contract paths (after clearing stale `.next` from other branch)
+- [x] Block A with-slot smoke (seqs 67–73) on prior preview
 - [x] A2 Sub-test 1 explicit `companyId` smoke (seqs 75–81 + `explicit_company_id`)
 - [x] A2 Sub-tests 2/3 expected 403 documented
-- [ ] Matt reviews PR diff summary before merge
-- [ ] Do **not** merge until Matt says go
+- [ ] Matt reviews isolated PR diff before merge
+- [ ] Do **not** merge / do **not** promote from draft until Matt says go
