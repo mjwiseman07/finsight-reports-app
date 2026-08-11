@@ -1243,6 +1243,30 @@ export default function DashboardPage() {
     }
   };
 
+  const handleConnectXero = async () => {
+    setError("");
+    try {
+      const authToken = await getAuthToken();
+      if (!authToken) {
+        setError("Sign in first, then connect Xero.");
+        return;
+      }
+
+      const response = await fetch("/api/integrations/xero/connect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.url) {
+        setError(result.error || "Unable to start Xero connection.");
+        return;
+      }
+      window.location.assign(result.url);
+    } catch {
+      setError("Unable to start Xero connection.");
+    }
+  };
+
   const handleDetectQuickBooksCapabilities = async () => {
     setError("");
     setQuickBooksDetecting(true);
@@ -1921,14 +1945,7 @@ export default function DashboardPage() {
                 companyName={onboardingCompanyName}
                 integrationChoice={activeSourceSystem || null}
                 onConnectQBO={handleConnectQuickBooks}
-                // TODO(DASH_1A.1.2): replace with real Xero OAuth handler; blocking passenger pull from 06aab26a
-                onConnectXero={() => {
-                  if (typeof window !== "undefined") {
-                    window.alert(
-                      "Xero connect is coming in the next release. If you have a QuickBooks account, use Connect QuickBooks below. If you're a Xero-only pilot, email support@advisacor.com and we'll get you set up manually."
-                    );
-                  }
-                }}
+                onConnectXero={handleConnectXero}
                 hydrationActive={false}
                 onAskAboutKpi={(_kpiCode, question) => {
                   setExecutiveQuestion(question);
