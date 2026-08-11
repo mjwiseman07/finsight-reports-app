@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { handleCallback } from "../../../../../lib/integrations/accounting";
+import { handleCallback, clearOAuthCookiesOnResponse } from "../../../../../lib/integrations/accounting";
 
 export async function GET(request, { params }) {
   const provider = params?.provider || "";
@@ -17,12 +17,14 @@ export async function GET(request, { params }) {
   }
 
   try {
-    const result = await handleCallback(provider, requestUrl);
+    const result = await handleCallback(provider, request);
     const redirectUrl = new URL(result.returnTo || "/dashboard", request.url);
     redirectUrl.searchParams.set("accountingConnected", "true");
     redirectUrl.searchParams.set("provider", provider);
     if (result.connectionId) redirectUrl.searchParams.set("connectionId", result.connectionId);
-    return NextResponse.redirect(redirectUrl);
+    const response = NextResponse.redirect(redirectUrl);
+    clearOAuthCookiesOnResponse(response);
+    return response;
   } catch (error) {
     console.error("[accounting/callback] failed", { provider, message: error?.message });
     return NextResponse.json({ error: error?.message || "Accounting OAuth callback failed" }, { status: 500 });

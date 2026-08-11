@@ -64,16 +64,72 @@ const FIRM_PERSONAS = new Set([
   "firm",
 ]);
 
+const PERSONA_CHIPS = [
+  { id: "owner", label: "Owner" },
+  { id: "bookkeeper", label: "Bookkeeper" },
+  { id: "controller", label: "Controller" },
+  { id: "fractional-cfo", label: "Fractional CFO" },
+];
+
 function isFirmPersona(persona: string) {
   return FIRM_PERSONAS.has((persona || "").toLowerCase());
 }
 
-export default function StartingPointCard({ persona }: { persona: string }) {
+type StartingPointCardProps = {
+  persona: string | null | undefined;
+  onSetPersona?: (personaId: string) => Promise<void>;
+};
+
+export default function StartingPointCard({ persona, onSetPersona }: StartingPointCardProps) {
   const [dismissed, setDismissed] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setDismissed(window.localStorage.getItem(DISMISS_KEY) === "true");
   }, []);
+
+  if (!persona) {
+    return (
+      <div className="rounded-[2rem] border border-[#3A3A3D] bg-[#111113] p-6">
+        <p className={`${headingFont} text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A961]`}>
+          Your starting point
+        </p>
+        <p className={`${headingFont} mt-2 text-lg font-semibold text-[#ECEBE7]`}>
+          Which best describes you?
+        </p>
+        <p className="mt-1 text-sm text-[#ECEBE7]/60">
+          Advisacor tailors your dashboard tiles based on your role.
+        </p>
+        <div
+          role="group"
+          aria-label="Choose your persona"
+          className="mt-4 flex flex-wrap gap-2"
+        >
+          {PERSONA_CHIPS.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              disabled={saving}
+              onClick={async () => {
+                if (!onSetPersona || saving) return;
+                setSaving(true);
+                try {
+                  await onSetPersona(chip.id);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className={focusRing(
+                "rounded-full border-2 border-[#3A3A3D] bg-[#1B1B1D] px-4 py-2 text-sm font-semibold text-[#ECEBE7] transition-colors hover:border-[#C9A961] hover:text-[#C9A961] disabled:opacity-60"
+              )}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (dismissed) return null;
 
@@ -104,7 +160,7 @@ export default function StartingPointCard({ persona }: { persona: string }) {
             key={tile.key}
             href={tile.href}
             className={focusRing(
-              "block rounded-xl border border-white/10 bg-white/5 p-4 transition-colors hover:border-[#C9A961]/60 hover:bg-white/10",
+              "block rounded-xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-4 transition-colors hover:border-[#C9A961]/60 hover:bg-[#1A1A1C]/70",
             )}
           >
             <p className={`${headingFont} font-semibold text-[#ECEBE7]`}>{tile.title}</p>
@@ -115,7 +171,7 @@ export default function StartingPointCard({ persona }: { persona: string }) {
           type="button"
           onClick={dismiss}
           className={focusRing(
-            "block rounded-xl border border-dashed border-white/15 bg-transparent p-4 text-left transition-colors hover:border-white/30",
+            "block rounded-xl border border-dashed border-[#C9A961]/25 bg-transparent p-4 text-left transition-colors hover:border-[#C9A961]/50",
           )}
         >
           <p className={`${headingFont} font-semibold text-[#ECEBE7]`}>Explore Dashboard</p>

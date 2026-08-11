@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { startConnection, saveOAuthCookies } from "../../../../lib/integrations/accounting";
+import { startConnection, saveOAuthCookiesOnResponse } from "../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
 
@@ -19,11 +19,7 @@ async function handleConnect(request) {
     if (authError || !authData?.user?.id) return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
 
     const result = await startConnection(provider, authData.user, returnTo);
-    await saveOAuthCookies({
-      state: result.state,
-      token,
-      returnTo: returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "",
-    });
+    const safeReturnTo = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "";
 
     console.log("[accounting/connect] authorization URL generated", {
       provider,
@@ -31,7 +27,13 @@ async function handleConnect(request) {
       stateLength: result.state.length,
     });
 
-    return NextResponse.json({ url: result.url, provider: result.provider });
+    const jsonResponse = NextResponse.json({ url: result.url, provider: result.provider });
+    saveOAuthCookiesOnResponse(jsonResponse, {
+      state: result.state,
+      token,
+      returnTo: safeReturnTo,
+    });
+    return jsonResponse;
   } catch (error) {
     console.error("[accounting/connect] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to start accounting connection" }, { status: 500 });

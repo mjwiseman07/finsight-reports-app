@@ -1,3 +1,8 @@
+-- SUPERSEDED by 20260807040400. Do not run.
+-- Phase DASH_1B.2: this June-dated migration was authored but never applied to
+-- supabase_migrations.schema_migrations. The canonical apply is
+-- 20260807040400_dash_1b_2_apply_accounting_syncs_table.sql.
+
 create table if not exists public.accounting_syncs (
   id uuid primary key default gen_random_uuid(),
   company_id uuid,

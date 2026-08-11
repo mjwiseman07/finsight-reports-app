@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAccountingProvider, handleCallback } from "../../../../../lib/integrations/accounting";
+import { getAccountingProvider, handleCallback, clearOAuthCookiesOnResponse } from "../../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../../lib/supabase";
 import { encryptAccountingToken } from "../../../../../lib/integrations/accounting/token-encryption";
 
@@ -8,10 +8,20 @@ function getTokenExpiry(tokenPayload) {
   return new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 }
 
+async function resolveCompanyIdForUser(userId) {
+  if (!userId || !supabaseAdmin) return null;
+  const { resolveCompanyIdForUser: resolve } = await import("../../../../../lib/integrations/accounting/resolve-company-id");
+  return resolve(supabaseAdmin, userId);
+}
+
 async function saveLeadXeroConnection({ leadId, tokenPayload, selectedEntity, entities }) {
   const connectedAt = new Date().toISOString();
   const tenantId = selectedEntity?.tenantOrRealmId || selectedEntity?.externalId || null;
   const tenantName = selectedEntity?.name || null;
+
+  // CRITICAL: resolve real company_id, NEVER default to leadId (user_id)
+  const resolvedCompanyId = await resolveCompanyIdForUser(leadId);
+
   const connectionPayload = {
     user_id: leadId,
     provider: "xero",
@@ -29,7 +39,7 @@ async function saveLeadXeroConnection({ leadId, tokenPayload, selectedEntity, en
       token_type: tokenPayload.token_type || null,
       source_system: "xero",
       active_provider: "xero",
-      company_id: leadId,
+      company_id: resolvedCompanyId, // real company_id or null, never user_id
       tenant_id: tenantId,
       tenant_name: tenantName,
       available_organizations: entities.map((entity) => ({
@@ -92,7 +102,7 @@ export async function GET(request) {
 
       const expectedState = request.cookies.get("xero_oauth_state")?.value || "";
       const leadId = request.cookies.get("xero_oauth_lead_id")?.value || "";
-      const returnTo = request.cookies.get("xero_oauth_return_to")?.value || "/onboarding";
+      const returnTo = request.cookies.get("xero_oauth_return_to")?.value || "/dashboard";
       const code = requestUrl.searchParams.get("code") || "";
       const state = requestUrl.searchParams.get("state") || "";
 
@@ -160,10 +170,11 @@ export async function GET(request) {
         });
       }
 
-      const redirectUrl = new URL(returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/onboarding", request.url);
+      const redirectUrl = new URL(returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard", request.url);
       redirectUrl.searchParams.set("accountingConnected", "true");
       redirectUrl.searchParams.set("provider", "xero");
       redirectUrl.searchParams.set("xeroConnected", "true");
+      redirectUrl.searchParams.set("connected", "xero");
       redirectUrl.searchParams.set("leadId", leadId);
       if (connectionId) redirectUrl.searchParams.set("connectionId", connectionId);
       if (selectedEntity?.name) redirectUrl.searchParams.set("organizationName", selectedEntity.name);
@@ -191,13 +202,16 @@ export async function GET(request) {
       return response;
     }
 
-    const result = await handleCallback("xero", requestUrl);
+    const result = await handleCallback("xero", request);
     const redirectUrl = new URL(result.returnTo || "/dashboard", request.url);
     redirectUrl.searchParams.set("accountingConnected", "true");
     redirectUrl.searchParams.set("provider", "xero");
+    redirectUrl.searchParams.set("connected", "xero");
     redirectUrl.searchParams.set("xeroOrganizationSelection", "required");
     if (result.connectionId) redirectUrl.searchParams.set("connectionId", result.connectionId);
-    return NextResponse.redirect(redirectUrl);
+    const response = NextResponse.redirect(redirectUrl);
+    clearOAuthCookiesOnResponse(response);
+    return response;
   } catch (error) {
     console.error("[integrations/xero/callback] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Xero OAuth callback failed" }, { status: 500 });

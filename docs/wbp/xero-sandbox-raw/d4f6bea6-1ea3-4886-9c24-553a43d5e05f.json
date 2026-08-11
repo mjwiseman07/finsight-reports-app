@@ -1,0 +1,2364 @@
+{
+  "ok": true,
+  "resultHash": "c8df1a824b36bf78f7fad5a24e9b4b4d8327b19784eb1f1152fa08fff40fb46b",
+  "result": {
+    "runId": "d4f6bea6-1ea3-4886-9c24-553a43d5e05f",
+    "startedAt": "2026-08-08T06:19:56.392Z",
+    "finishedAt": "2026-08-08T06:20:01.443Z",
+    "tenantId": "ceaea696-081f-491e-9daa-a9263a023ca9",
+    "tokenRefreshed": true,
+    "connectionId": "671afdab-8f46-4862-a1f2-6ba09b0aec35",
+    "connectionUserId": "a4ebf834-a698-4f79-a945-8498f2e6c45d",
+    "tests": {
+      "currency": {
+        "variants": [
+          {
+            "variant": "no_code",
+            "posted": true,
+            "httpStatus": 200,
+            "journalId": "05f8bbee-819b-4d52-9d69-bc625216684a",
+            "rawRequest": {
+              "Narration": "WBP W0.5 T1a \u2014 no currency code",
+              "Status": "DRAFT",
+              "Date": "2026-08-08",
+              "JournalLines": [
+                {
+                  "LineAmount": 10,
+                  "AccountCode": "140",
+                  "Description": "T1a debit"
+                },
+                {
+                  "LineAmount": -10,
+                  "AccountCode": "150",
+                  "Description": "T1a credit"
+                }
+              ]
+            },
+            "rawResponse": {
+              "Id": "6d71385b-a292-4f93-90f2-f6aa8b738d2e",
+              "Status": "OK",
+              "ProviderName": "Advisacor",
+              "DateTimeUTC": "/Date(1786169998090)/",
+              "ManualJournals": [
+                {
+                  "Date": "/Date(1786147200000+0000)/",
+                  "Status": "DRAFT",
+                  "LineAmountTypes": "NoTax",
+                  "UpdatedDateUTC": "/Date(1786169997870+0000)/",
+                  "ManualJournalID": "05f8bbee-819b-4d52-9d69-bc625216684a",
+                  "Narration": "WBP W0.5 T1a \u2014 no currency code",
+                  "JournalLines": [
+                    {
+                      "Description": "T1a debit",
+                      "TaxType": "NONE",
+                      "LineAmount": 10,
+                      "AccountCode": "140",
+                      "Tracking": [],
+                      "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                      "IsBlank": false
+                    },
+                    {
+                      "Description": "T1a credit",
+                      "TaxType": "NONE",
+                      "LineAmount": -10,
+                      "AccountCode": "150",
+                      "Tracking": [],
+                      "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                      "IsBlank": false
+                    }
+                  ],
+                  "ShowOnCashBasisReports": true,
+                  "DebitTotal": 10,
+                  "CreditTotal": -10
+                }
+              ]
+            }
+          },
+          {
+            "variant": "header_code",
+            "posted": true,
+            "httpStatus": 200,
+            "journalId": "5fcffce0-6d6f-4870-a847-2db3603a9c64",
+            "rawRequest": {
+              "Narration": "WBP W0.5 T1b \u2014 header CurrencyCode",
+              "Status": "DRAFT",
+              "Date": "2026-08-08",
+              "CurrencyCode": "USD",
+              "JournalLines": [
+                {
+                  "LineAmount": 10,
+                  "AccountCode": "140",
+                  "Description": "T1b debit"
+                },
+                {
+                  "LineAmount": -10,
+                  "AccountCode": "150",
+                  "Description": "T1b credit"
+                }
+              ]
+            },
+            "rawResponse": {
+              "Id": "1588c69d-56a2-43cc-9b4a-77ff6940a532",
+              "Status": "OK",
+              "ProviderName": "Advisacor",
+              "DateTimeUTC": "/Date(1786169998489)/",
+              "ManualJournals": [
+                {
+                  "Date": "/Date(1786147200000+0000)/",
+                  "Status": "DRAFT",
+                  "LineAmountTypes": "NoTax",
+                  "UpdatedDateUTC": "/Date(1786169998370+0000)/",
+                  "ManualJournalID": "5fcffce0-6d6f-4870-a847-2db3603a9c64",
+                  "Narration": "WBP W0.5 T1b \u2014 header CurrencyCode",
+                  "JournalLines": [
+                    {
+                      "Description": "T1b debit",
+                      "TaxType": "NONE",
+                      "LineAmount": 10,
+                      "AccountCode": "140",
+                      "Tracking": [],
+                      "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                      "IsBlank": false
+                    },
+                    {
+                      "Description": "T1b credit",
+                      "TaxType": "NONE",
+                      "LineAmount": -10,
+                      "AccountCode": "150",
+                      "Tracking": [],
+                      "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                      "IsBlank": false
+                    }
+                  ],
+                  "ShowOnCashBasisReports": true,
+                  "DebitTotal": 10,
+                  "CreditTotal": -10
+                }
+              ]
+            }
+          },
+          {
+            "variant": "line_code",
+            "posted": true,
+            "httpStatus": 200,
+            "journalId": "754ed116-4dab-414f-a1e7-4d1be4c3a96f",
+            "rawRequest": {
+              "Narration": "WBP W0.5 T1c \u2014 line CurrencyCode (expected reject)",
+              "Status": "DRAFT",
+              "Date": "2026-08-08",
+              "JournalLines": [
+                {
+                  "LineAmount": 10,
+                  "AccountCode": "140",
+                  "Description": "T1c debit",
+                  "CurrencyCode": "USD"
+                },
+                {
+                  "LineAmount": -10,
+                  "AccountCode": "150",
+                  "Description": "T1c credit",
+                  "CurrencyCode": "USD"
+                }
+              ]
+            },
+            "rawResponse": {
+              "Id": "1000ec73-edc5-4b58-82cf-24425846a3a6",
+              "Status": "OK",
+              "ProviderName": "Advisacor",
+              "DateTimeUTC": "/Date(1786169999014)/",
+              "ManualJournals": [
+                {
+                  "Date": "/Date(1786147200000+0000)/",
+                  "Status": "DRAFT",
+                  "LineAmountTypes": "NoTax",
+                  "UpdatedDateUTC": "/Date(1786169998837+0000)/",
+                  "ManualJournalID": "754ed116-4dab-414f-a1e7-4d1be4c3a96f",
+                  "Narration": "WBP W0.5 T1c \u2014 line CurrencyCode (expected reject)",
+                  "JournalLines": [
+                    {
+                      "Description": "T1c debit",
+                      "TaxType": "NONE",
+                      "LineAmount": 10,
+                      "AccountCode": "140",
+                      "Tracking": [],
+                      "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                      "IsBlank": false
+                    },
+                    {
+                      "Description": "T1c credit",
+                      "TaxType": "NONE",
+                      "LineAmount": -10,
+                      "AccountCode": "150",
+                      "Tracking": [],
+                      "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                      "IsBlank": false
+                    }
+                  ],
+                  "ShowOnCashBasisReports": true,
+                  "DebitTotal": 10,
+                  "CreditTotal": -10
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "signConvention": {
+        "posted": true,
+        "journalId": "f7939e43-8d47-407b-9b94-35a729a60616",
+        "readback": {
+          "line1": {
+            "accountCode": "140",
+            "description": "T2 +100",
+            "taxType": "NONE",
+            "grossAmount": 100,
+            "netAmount": 100
+          },
+          "line2": {
+            "accountCode": "150",
+            "description": "T2 -100",
+            "taxType": "NONE",
+            "grossAmount": -100,
+            "netAmount": -100
+          }
+        },
+        "rawRequest": {
+          "Narration": "WBP W0.5 T2 \u2014 sign convention (+100 debit / -100 credit)",
+          "Status": "DRAFT",
+          "Date": "2026-08-08",
+          "JournalLines": [
+            {
+              "LineAmount": 100,
+              "AccountCode": "140",
+              "Description": "T2 +100"
+            },
+            {
+              "LineAmount": -100,
+              "AccountCode": "150",
+              "Description": "T2 -100"
+            }
+          ]
+        },
+        "rawResponse": {
+          "Id": "632bf0c5-3fcd-48af-b4d6-ae6593b98c11",
+          "Status": "OK",
+          "ProviderName": "Advisacor",
+          "DateTimeUTC": "/Date(1786169999575)/",
+          "ManualJournals": [
+            {
+              "Date": "/Date(1786147200000+0000)/",
+              "Status": "DRAFT",
+              "LineAmountTypes": "NoTax",
+              "UpdatedDateUTC": "/Date(1786169999260+0000)/",
+              "ManualJournalID": "f7939e43-8d47-407b-9b94-35a729a60616",
+              "Narration": "WBP W0.5 T2 \u2014 sign convention (+100 debit / -100 credit)",
+              "JournalLines": [
+                {
+                  "Description": "T2 +100",
+                  "TaxType": "NONE",
+                  "LineAmount": 100,
+                  "AccountCode": "140",
+                  "Tracking": [],
+                  "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                  "IsBlank": false
+                },
+                {
+                  "Description": "T2 -100",
+                  "TaxType": "NONE",
+                  "LineAmount": -100,
+                  "AccountCode": "150",
+                  "Tracking": [],
+                  "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                  "IsBlank": false
+                }
+              ],
+              "ShowOnCashBasisReports": true,
+              "DebitTotal": 100,
+              "CreditTotal": -100,
+              "HasAttachments": false,
+              "Attachments": []
+            }
+          ]
+        }
+      },
+      "forbiddenAccounts": {
+        "attempts": [
+          {
+            "accountCode": "090",
+            "accountName": "Checking Account",
+            "accountType": "BANK",
+            "systemAccount": false,
+            "posted": true,
+            "httpStatus": 200,
+            "rawResponse": {
+              "Id": "29f542e8-679c-4e57-b211-196c32956d09",
+              "Status": "OK",
+              "ProviderName": "Advisacor",
+              "DateTimeUTC": "/Date(1786170000097)/",
+              "ManualJournals": [
+                {
+                  "Date": "/Date(1786147200000+0000)/",
+                  "Status": "DRAFT",
+                  "LineAmountTypes": "NoTax",
+                  "UpdatedDateUTC": "/Date(1786169999887+0000)/",
+                  "ManualJournalID": "1546bcde-428a-4e1e-947d-75938076b75d",
+                  "Narration": "WBP W0.5 T3 \u2014 forbidden BANK",
+                  "JournalLines": [
+                    {
+                      "Description": "T3 forbidden BANK",
+                      "TaxType": "NONE",
+                      "LineAmount": 1,
+                      "AccountCode": "",
+                      "Tracking": [],
+                      "IsBlank": false
+                    },
+                    {
+                      "Description": "T3 offset",
+                      "TaxType": "NONE",
+                      "LineAmount": -1,
+                      "AccountCode": "140",
+                      "Tracking": [],
+                      "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                      "IsBlank": false
+                    }
+                  ],
+                  "ShowOnCashBasisReports": true,
+                  "DebitTotal": 1,
+                  "CreditTotal": -1,
+                  "Warnings": [
+                    {
+                      "Message": "Account code '090' has been removed as it does not match a recognised account."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "accountCode": "120",
+            "accountName": "Accounts Receivable",
+            "accountType": "CURRENT",
+            "systemAccount": true,
+            "posted": true,
+            "httpStatus": 200,
+            "rawResponse": {
+              "Id": "ef9d0985-2ad3-415d-ac04-cced8f73c46d",
+              "Status": "OK",
+              "ProviderName": "Advisacor",
+              "DateTimeUTC": "/Date(1786170000720)/",
+              "ManualJournals": [
+                {
+                  "Date": "/Date(1786147200000+0000)/",
+                  "Status": "DRAFT",
+                  "LineAmountTypes": "NoTax",
+                  "UpdatedDateUTC": "/Date(1786170000553+0000)/",
+                  "ManualJournalID": "2a45922d-e5ba-4e07-b860-aa982f580aa2",
+                  "Narration": "WBP W0.5 T3 \u2014 forbidden ACCREC",
+                  "JournalLines": [
+                    {
+                      "Description": "T3 forbidden ACCREC",
+                      "TaxType": "NONE",
+                      "LineAmount": 1,
+                      "AccountCode": "",
+                      "Tracking": [],
+                      "IsBlank": false
+                    },
+                    {
+                      "Description": "T3 offset",
+                      "TaxType": "NONE",
+                      "LineAmount": -1,
+                      "AccountCode": "140",
+                      "Tracking": [],
+                      "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                      "IsBlank": false
+                    }
+                  ],
+                  "ShowOnCashBasisReports": true,
+                  "DebitTotal": 1,
+                  "CreditTotal": -1,
+                  "Warnings": [
+                    {
+                      "Message": "Account code '120' has been removed as it does not match a recognised account."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "accountCode": "200",
+            "accountName": "Accounts Payable",
+            "accountType": "CURRLIAB",
+            "systemAccount": true,
+            "posted": true,
+            "httpStatus": 200,
+            "rawResponse": {
+              "Id": "40157bf3-da7b-48ba-9cee-0221c4c57cb7",
+              "Status": "OK",
+              "ProviderName": "Advisacor",
+              "DateTimeUTC": "/Date(1786170001222)/",
+              "ManualJournals": [
+                {
+                  "Date": "/Date(1786147200000+0000)/",
+                  "Status": "DRAFT",
+                  "LineAmountTypes": "NoTax",
+                  "UpdatedDateUTC": "/Date(1786170001057+0000)/",
+                  "ManualJournalID": "8bd03eb5-cd34-49c5-9c9f-5c5c12c106e3",
+                  "Narration": "WBP W0.5 T3 \u2014 forbidden ACCPAY",
+                  "JournalLines": [
+                    {
+                      "Description": "T3 forbidden ACCPAY",
+                      "TaxType": "NONE",
+                      "LineAmount": 1,
+                      "AccountCode": "",
+                      "Tracking": [],
+                      "IsBlank": false
+                    },
+                    {
+                      "Description": "T3 offset",
+                      "TaxType": "NONE",
+                      "LineAmount": -1,
+                      "AccountCode": "140",
+                      "Tracking": [],
+                      "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                      "IsBlank": false
+                    }
+                  ],
+                  "ShowOnCashBasisReports": true,
+                  "DebitTotal": 1,
+                  "CreditTotal": -1,
+                  "Warnings": [
+                    {
+                      "Message": "Account code '200' has been removed as it does not match a recognised account."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "accountCode": "320",
+            "accountName": "Retained Earnings",
+            "accountType": "EQUITY",
+            "systemAccount": true,
+            "posted": true,
+            "httpStatus": 200,
+            "rawResponse": {
+              "Id": "2fba16e6-7bdc-4b23-9b37-1c50c030b3a6",
+              "Status": "OK",
+              "ProviderName": "Advisacor",
+              "DateTimeUTC": "/Date(1786170001423)/",
+              "ManualJournals": [
+                {
+                  "Date": "/Date(1786147200000+0000)/",
+                  "Status": "DRAFT",
+                  "LineAmountTypes": "NoTax",
+                  "UpdatedDateUTC": "/Date(1786170001407+0000)/",
+                  "ManualJournalID": "2eab087d-88b0-4611-a766-be2a19f81fb4",
+                  "Narration": "WBP W0.5 T3 \u2014 forbidden RETAINEDEARNINGS",
+                  "JournalLines": [
+                    {
+                      "Description": "T3 forbidden RETAINEDEARNINGS",
+                      "TaxType": "NONE",
+                      "LineAmount": 1,
+                      "AccountCode": "320",
+                      "Tracking": [],
+                      "AccountID": "c4753a8e-47ee-4adb-86ad-e2713d5ae461",
+                      "IsBlank": false
+                    },
+                    {
+                      "Description": "T3 offset",
+                      "TaxType": "NONE",
+                      "LineAmount": -1,
+                      "AccountCode": "140",
+                      "Tracking": [],
+                      "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                      "IsBlank": false
+                    }
+                  ],
+                  "ShowOnCashBasisReports": true,
+                  "DebitTotal": 1,
+                  "CreditTotal": -1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "raw": {
+      "calls": [
+        {
+          "url": "https://api.xero.com/api.xro/2.0/Organisation",
+          "method": "GET",
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "a2920f02-4dc6-46cb-b2e7-c9e1fd551c1f",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786169997400)/",
+            "Organisations": [
+              {
+                "Name": "Demo Company (US)",
+                "LegalName": "Demo Company (US)",
+                "PaysTax": true,
+                "Version": "US",
+                "OrganisationType": "COMPANY",
+                "BaseCurrency": "USD",
+                "CountryCode": "US",
+                "IsDemoCompany": true,
+                "OrganisationStatus": "ACTIVE",
+                "TaxNumber": "123456789",
+                "FinancialYearEndDay": 31,
+                "FinancialYearEndMonth": 12,
+                "SalesTaxBasis": "ACCRUALS",
+                "SalesTaxPeriod": "1MONTHLY",
+                "DefaultSalesTax": "Tax Exclusive",
+                "DefaultPurchasesTax": "No Tax",
+                "PeriodLockDate": "/Date(1280534400000+0000)/",
+                "CreatedDateUTC": "/Date(1786051950823)/",
+                "OrganisationEntityType": "COMPANY",
+                "Timezone": "PACIFICSTANDARDTIME",
+                "ShortCode": "!Sdn9b",
+                "OrganisationID": "ceaea696-081f-491e-9daa-a9263a023ca9",
+                "Edition": "BUSINESS",
+                "Class": "DEMO",
+                "Addresses": [
+                  {
+                    "AddressType": "POBOX",
+                    "AddressLine1": "23 Main Street",
+                    "AddressLine2": "Central City",
+                    "City": "Oaktown",
+                    "Region": "NY",
+                    "PostalCode": "12123",
+                    "Country": "USA",
+                    "AttentionTo": ""
+                  },
+                  {
+                    "AddressType": "STREET",
+                    "AddressLine1": "79 Madison Ave, Fl 2",
+                    "City": "New York",
+                    "Region": "NY",
+                    "PostalCode": "10016",
+                    "Country": "USA",
+                    "AttentionTo": ""
+                  }
+                ],
+                "Phones": [
+                  {
+                    "PhoneType": "OFFICE",
+                    "PhoneNumber": "800 1234 5678"
+                  }
+                ],
+                "ExternalLinks": [],
+                "PaymentTerms": {
+                  "Bills": {
+                    "Day": 14,
+                    "Type": "DAYSAFTERBILLDATE"
+                  },
+                  "Sales": {
+                    "Day": 14,
+                    "Type": "DAYSAFTERBILLDATE"
+                  }
+                },
+                "TaxNumberName": "e.g. State Tax ID"
+              }
+            ]
+          },
+          "durationMs": 237
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/Accounts?where=Status==\"ACTIVE\"",
+          "method": "GET",
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "2e378d19-960a-4230-af77-bb5fadebc42b",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786169997567)/",
+            "Accounts": [
+              {
+                "AccountID": "ceef66a5-a545-413b-9312-78a53caadbc4",
+                "Code": "090",
+                "Name": "Checking Account",
+                "Status": "ACTIVE",
+                "Type": "BANK",
+                "TaxType": "NONE",
+                "Class": "ASSET",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountNumber": "132435465",
+                "BankAccountType": "BANK",
+                "CurrencyCode": "USD",
+                "ReportingCode": "ASS",
+                "ReportingCodeName": "Assets",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "3d09fd49-434d-4c18-a57b-831663ab70d2",
+                "Code": "091",
+                "Name": "Savings Account",
+                "Status": "ACTIVE",
+                "Type": "BANK",
+                "TaxType": "NONE",
+                "Class": "ASSET",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountNumber": "987654321",
+                "BankAccountType": "BANK",
+                "CurrencyCode": "USD",
+                "ReportingCode": "ASS",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "5f5e1b00-5331-4ee5-bc84-39dbd9a27db3",
+                "Code": "120",
+                "Name": "Accounts Receivable",
+                "Status": "ACTIVE",
+                "Type": "CURRENT",
+                "TaxType": "NONE",
+                "Description": "Outstanding invoices the company has issued out to the client but has not yet received in cash at balance date.",
+                "Class": "ASSET",
+                "SystemAccount": "DEBTORS",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "b0a23f8d-1b6d-4209-96f9-8046f794e1f4",
+                "Code": "130",
+                "Name": "Prepayments",
+                "Status": "ACTIVE",
+                "Type": "CURRENT",
+                "TaxType": "NONE",
+                "Description": "An expenditure that has been paid for in advance.",
+                "Class": "ASSET",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "ASS",
+                "ReportingCodeName": "Assets",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                "Code": "140",
+                "Name": "Inventory",
+                "Status": "ACTIVE",
+                "Type": "INVENTORY",
+                "TaxType": "NONE",
+                "Description": "Value of tracked inventory items for resale.",
+                "Class": "ASSET",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "ASS.CUR.INY",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": true
+              },
+              {
+                "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                "Code": "150",
+                "Name": "Office Equipment",
+                "Status": "ACTIVE",
+                "Type": "FIXED",
+                "TaxType": "TAX002",
+                "Description": "Office equipment that is owned and controlled by the business",
+                "Class": "ASSET",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "ASS",
+                "ReportingCodeName": "Assets",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "1e589d1c-bd7d-4a04-bc01-08d872e3a97d",
+                "Code": "151",
+                "Name": "Less Accumulated Depreciation on Office Equipment",
+                "Status": "ACTIVE",
+                "Type": "FIXED",
+                "TaxType": "NONE",
+                "Description": "The total amount of office equipment cost that has been consumed by the entity (based on the useful life)",
+                "Class": "ASSET",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "ASS",
+                "ReportingCodeName": "Assets",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "afe53f21-1221-451c-a8c4-08457e129d84",
+                "Code": "160",
+                "Name": "Computer Equipment",
+                "Status": "ACTIVE",
+                "Type": "FIXED",
+                "TaxType": "TAX002",
+                "Description": "Computer equipment that is owned and controlled by the business",
+                "Class": "ASSET",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "ASS",
+                "ReportingCodeName": "Assets",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "b7e1f170-d238-41d7-ab2b-d0a89b16838f",
+                "Code": "161",
+                "Name": "Less Accumulated Depreciation on Computer Equipment",
+                "Status": "ACTIVE",
+                "Type": "FIXED",
+                "TaxType": "NONE",
+                "Description": "The total amount of computer equipment cost that has been consumed by the business (based on the useful life)",
+                "Class": "ASSET",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "ASS",
+                "ReportingCodeName": "Assets",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "6a334513-3d82-40e2-9463-3fcb022a02a1",
+                "Code": "200",
+                "Name": "Accounts Payable",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "Outstanding invoices the company has received from suppliers but has not yet paid at balance date",
+                "Class": "LIABILITY",
+                "SystemAccount": "CREDITORS",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "423febf5-5e50-4d7e-9f27-1d6be3fa2912",
+                "Code": "205",
+                "Name": "Accruals",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "Any services the business has received but have not yet been invoiced for e.g. Accountancy Fees",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "ReportingCodeName": "Liabilities",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "c077812b-f4f0-4997-b05e-7cba7eef9b28",
+                "Code": "210",
+                "Name": "Unpaid Expense Claims",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "Expense claims typically made by employees/shareholder employees still outstanding.",
+                "Class": "LIABILITY",
+                "SystemAccount": "UNPAIDEXPCLM",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "ee507b3b-5b78-46c2-ac14-8a62b0792d57",
+                "Code": "215",
+                "Name": "Wages Payable",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "Xero automatically updates this account for payroll entries created using Payroll and will store the payroll amount to be paid to the employee for the pay run. This account enables you to maintain separate accounts for employee Wages Payable amounts and Accounts Payable amounts",
+                "Class": "LIABILITY",
+                "SystemAccount": "WAGEPAYABLES",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCodeName": "Liabilities",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "f1f489fb-9267-429e-a1dc-bc63a7c3f71e",
+                "Code": "216",
+                "Name": "Wages Payable \u2013 Payroll",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "10a2c6aa-5487-499b-9199-39c4366a1060",
+                "Code": "220",
+                "Name": "Sales Tax",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "The balance in this account represents Sales Tax owing to or from your tax authority. At the end of the tax period, it is this account that should be used to code against either the 'refunds from' or 'payments to' your tax authority that will appear on the bank statement. Xero has been designed to use only one sales tax account to track sales taxes on income and expenses, so there is no need to add any new sales tax accounts to Xero.",
+                "Class": "LIABILITY",
+                "SystemAccount": "GST",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "5b318de0-ab19-403f-9265-1da88cf0ac69",
+                "Code": "230",
+                "Name": "Employee Tax Payable",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "The amount of tax that has been deducted from wages or salaries paid to employes and is due to be paid",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "ReportingCodeName": "Liabilities",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "029a42a0-cfb6-4859-b61e-09b36b0864e9",
+                "Code": "231",
+                "Name": "Federal Tax withholding",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "5d1b21c1-fd62-42dd-b2ec-8999dd568866",
+                "Code": "232",
+                "Name": "State Tax withholding",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "44e331ff-aa75-4fb1-8757-e2872675f4fc",
+                "Code": "233",
+                "Name": "Employee Benefits payable",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "d555c8a4-245f-4fcf-8e45-6ff1680ecf31",
+                "Code": "234",
+                "Name": "Employee Deductions payable",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "6f7094eb-3a95-4ce1-aa22-32019e79f1d1",
+                "Code": "235",
+                "Name": "PTO payable",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "1869c0ad-712b-4961-88f8-dbcadf3a8f85",
+                "Code": "240",
+                "Name": "Income Tax Payable",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "The amount of income tax that is due to be paid, also resident withholding tax paid on interest received.",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "ReportingCodeName": "Liabilities",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "f6987f65-04a2-4be3-90ea-d46f8c3aca8b",
+                "Code": "250",
+                "Name": "Suspense",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "An entry that allows an unknown transaction to be entered, so the accounts can still be worked on in balance and the entry can be dealt with later.",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": true,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "ReportingCodeName": "Liabilities",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "dd517756-1b24-4db3-8aee-51d331039012",
+                "Code": "255",
+                "Name": "Historical Adjustment",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "For accountant adjustments",
+                "Class": "LIABILITY",
+                "SystemAccount": "HISTORICAL",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "0671d2f9-c67f-4698-b9e7-4e6682202ddd",
+                "Code": "260",
+                "Name": "Rounding",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "An adjustment entry to allow for rounding",
+                "Class": "LIABILITY",
+                "SystemAccount": "ROUNDING",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "acb72f90-3a73-4c6f-8e11-f0cab9dbf627",
+                "Code": "265",
+                "Name": "Tracking Transfers",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "Transfers between tracking categories",
+                "Class": "LIABILITY",
+                "SystemAccount": "TRACKINGTRANSFERS",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "cd64b2a3-7df6-46ca-9cc4-beffd2c897bc",
+                "Code": "290",
+                "Name": "Loan",
+                "Status": "ACTIVE",
+                "Type": "TERMLIAB",
+                "TaxType": "NONE",
+                "Description": "Money that has been borrowed from a creditor",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "ReportingCodeName": "Liabilities",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "6587d701-6371-48ee-aaba-c4779005d7f1",
+                "Code": "300",
+                "Name": "Owners Contribution",
+                "Status": "ACTIVE",
+                "Type": "EQUITY",
+                "TaxType": "NONE",
+                "Description": "Funds contributed by the owner",
+                "Class": "EQUITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EQU",
+                "ReportingCodeName": "Equity/Members funds",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "925ef2c6-99c1-4907-8692-7de53b0ced1c",
+                "Code": "310",
+                "Name": "Owners Draw",
+                "Status": "ACTIVE",
+                "Type": "EQUITY",
+                "TaxType": "NONE",
+                "Description": "Withdrawals by the owners",
+                "Class": "EQUITY",
+                "EnablePaymentsToAccount": true,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EQU",
+                "ReportingCodeName": "Equity/Members funds",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "c4753a8e-47ee-4adb-86ad-e2713d5ae461",
+                "Code": "320",
+                "Name": "Retained Earnings",
+                "Status": "ACTIVE",
+                "Type": "EQUITY",
+                "TaxType": "NONE",
+                "Description": "Do not Use",
+                "Class": "EQUITY",
+                "SystemAccount": "RETAINEDEARNINGS",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "701a8c4b-2250-4db8-b706-065f7f137d53",
+                "Code": "330",
+                "Name": "Common Stock",
+                "Status": "ACTIVE",
+                "Type": "EQUITY",
+                "TaxType": "NONE",
+                "Description": "The value of shares purchased by the shareholders",
+                "Class": "EQUITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EQU",
+                "ReportingCodeName": "Equity/Members funds",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "e21ef153-577e-4132-94b0-3d0108d97def",
+                "Code": "400",
+                "Name": "Sales",
+                "Status": "ACTIVE",
+                "Type": "REVENUE",
+                "TaxType": "OUTPUT",
+                "Description": "Income from any normal business activity",
+                "Class": "REVENUE",
+                "EnablePaymentsToAccount": true,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "REV",
+                "ReportingCodeName": "Revenue",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": true
+              },
+              {
+                "AccountID": "7176bb30-dee4-43ce-b8b7-6696a76ef930",
+                "Code": "460",
+                "Name": "Other Revenue",
+                "Status": "ACTIVE",
+                "Type": "REVENUE",
+                "TaxType": "OUTPUT",
+                "Description": "Any other income that does not relate to normal business activities and is not recurring",
+                "Class": "REVENUE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "REV",
+                "ReportingCodeName": "Revenue",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "9a82a3d2-4603-45bf-9cd4-300032a9ae67",
+                "Code": "470",
+                "Name": "Interest Income",
+                "Status": "ACTIVE",
+                "Type": "REVENUE",
+                "TaxType": "NONE",
+                "Description": "Interest income",
+                "Class": "REVENUE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "REV",
+                "ReportingCodeName": "Revenue",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "ddf7049b-4fc5-43b3-8888-54f5690b52da",
+                "Code": "500",
+                "Name": "Cost of Goods Sold",
+                "Status": "ACTIVE",
+                "Type": "DIRECTCOSTS",
+                "TaxType": "NONE",
+                "Description": "Costs of goods made by the business include material, labor, and other modification costs.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "2ec3335a-b20b-43b3-b6dc-40a5846936e2",
+                "Code": "600",
+                "Name": "Advertising",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses incurred for advertising while trying to increase sales",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": true
+              },
+              {
+                "AccountID": "c46440f5-8969-4bc5-b1a3-49623a28de29",
+                "Code": "604",
+                "Name": "Bank Service Charges",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "Fees charged by your bank for transactions regarding your bank account(s).",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "00c61213-3858-46bd-a352-cd20da25beb4",
+                "Code": "608",
+                "Name": "Janitorial Expenses",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses incurred for cleaning business property.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "48845453-b8e0-441a-8e28-50936f8e3ef0",
+                "Code": "612",
+                "Name": "Consulting & Accounting",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses related to paying consultants",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "b02ea61a-fb02-41a6-a6bf-a615d570f862",
+                "Code": "620",
+                "Name": "Entertainment",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "Expenses paid by company for the business but are not deductable for income tax purposes.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": true
+              },
+              {
+                "AccountID": "506db822-2ab4-4c1a-9f08-abb55a5fb9cb",
+                "Code": "624",
+                "Name": "Postage & Delivery",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses incurred on postage & delivery costs.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "65aba7e4-58e1-4294-ba5b-07ebc95c87f6",
+                "Code": "628",
+                "Name": "General Expenses",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "General expenses related to the running of the business.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "5b9bafc7-c949-4b2d-986e-d8296fac6de4",
+                "Code": "632",
+                "Name": "Insurance",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses incurred for insuring the business' assets",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "08802776-19c1-4759-a9d7-82f2588d08b3",
+                "Code": "640",
+                "Name": "Legal Expenses",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses incurred on any legal matters",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "ae5af670-5289-48d8-9415-19557e9bf437",
+                "Code": "644",
+                "Name": "Utilities",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "Expenses incurred for lighting, powering or heating the premises",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "93881bb4-94a1-4204-8fae-467bbad5402c",
+                "Code": "648",
+                "Name": "Automobile Expenses",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses incurred on the running of company automobiles.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "7ff6ccdb-7c26-4fbd-97cf-3f6f48f00eb6",
+                "Code": "652",
+                "Name": "Office Expenses",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "General expenses related to the running of the business office.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "760e5d35-37e1-4bb8-b293-8bfa2cd5085f",
+                "Code": "656",
+                "Name": "Printing & Stationery",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses incurred by the entity as a result of printing and stationery",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "57f0a6c2-9f0d-41d3-ba4e-f02f97d40a58",
+                "Code": "660",
+                "Name": "Rent",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "The payment to lease a building or area.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "4367d7c8-1af3-47da-950d-8a377b6f8d8e",
+                "Code": "664",
+                "Name": "Repairs and Maintenance",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses incurred on a damaged or run down asset that will bring the asset back to its original condition.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "5a855b6a-1fd4-4fb5-844b-431e6dc9e58c",
+                "Code": "668",
+                "Name": "Wages and Salaries",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "Payment to employees in exchange for their resources",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "ff2ae00d-8193-496f-8ea6-318be3bec247",
+                "Code": "669",
+                "Name": "Wages & Salaries - California",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "9c157f75-941a-41d5-9d7b-6172e3e625d8",
+                "Code": "672",
+                "Name": "Payroll Tax Expense",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "The amount of payroll tax that is due to be paid",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "191e1dfe-1b4d-48b0-8cbb-03880d114986",
+                "Code": "676",
+                "Name": "Dues & Subscriptions",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "E.g. Magazines, professional bodies",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "bc7c187b-05c9-42d9-b490-f3af99cba4e6",
+                "Code": "680",
+                "Name": "Telephone & Internet",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenditure incurred from any business-related phone calls, phone lines, or internet connections",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "8ee64f7d-aa4a-4786-990b-174f6ed0eda0",
+                "Code": "684",
+                "Name": "Travel",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "TAX002",
+                "Description": "Expenses incurred from travel which has a business purpose",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "78596f8a-7449-4e97-8f73-489004dcf431",
+                "Code": "690",
+                "Name": "Bad Debts",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "Noncollectable accounts receivable which have been written off.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "9a30bb28-6d9d-428b-8a98-b0b591518d5b",
+                "Code": "700",
+                "Name": "Depreciation",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "The amount of the asset's cost (based on the useful life) that was consumed during the period",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "c722b5f9-50c0-4369-b47f-43888ef59d40",
+                "Code": "710",
+                "Name": "Income Tax Expense",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "A percentage of total earnings paid to the government.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "2abc645a-8b4d-416a-a8a1-41a06c18b047",
+                "Code": "720",
+                "Name": "Federal Tax expense",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "eaa5bebc-fccd-4b5b-b5bd-9927810dd45b",
+                "Code": "721",
+                "Name": "State Tax expense",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "4fcdb95f-858c-4f9c-98b2-543c9ee70d26",
+                "Code": "722",
+                "Name": "Employee Benefits expense",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "85e4524f-5d17-4bb8-b616-7a11d9d077ab",
+                "Code": "723",
+                "Name": "PTO expense",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "98a7f82f-a92c-46fb-9289-241a010c85ec",
+                "Code": "800",
+                "Name": "Interest Expense",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "Any interest expenses paid to your tax authority, business bank accounts or credit card accounts.",
+                "Class": "EXPENSE",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": true,
+                "BankAccountType": "",
+                "ReportingCode": "EXP",
+                "ReportingCodeName": "Expense",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "77035675-ebfe-4aa8-a084-09222453a7ac",
+                "Code": "810",
+                "Name": "Bank Revaluations",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "Bank account revaluations due for foreign exchange rate changes",
+                "Class": "EXPENSE",
+                "SystemAccount": "BANKCURRENCYGAIN",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786052011843+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "a73e604a-a429-44fd-81ac-cd5a2872552b",
+                "Code": "815",
+                "Name": "Unrealized Currency Gains",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "Unrealized gains on outstanding items",
+                "Class": "EXPENSE",
+                "SystemAccount": "UNREALISEDCURRENCYGAIN",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786052011843+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "4d5577f1-205c-476f-ad59-e4b6b3d5f9d3",
+                "Code": "820",
+                "Name": "Realized Currency Gains",
+                "Status": "ACTIVE",
+                "Type": "EXPENSE",
+                "TaxType": "NONE",
+                "Description": "Gains or losses made due to currency exchange rates",
+                "Class": "EXPENSE",
+                "SystemAccount": "REALISEDCURRENCYGAIN",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786052011843+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "cbfdf59a-c751-42e1-a934-538a27eb4772",
+                "Code": "835",
+                "Name": "Revenue Received in Advance",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "When customers have paid in advance of work/services.",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": false,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "ReportingCodeName": "Liabilities",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              },
+              {
+                "AccountID": "e6cf9136-e202-40b4-a206-ba6d157a1616",
+                "Code": "855",
+                "Name": "Clearing Account",
+                "Status": "ACTIVE",
+                "Type": "CURRLIAB",
+                "TaxType": "NONE",
+                "Description": "",
+                "Class": "LIABILITY",
+                "EnablePaymentsToAccount": true,
+                "ShowInExpenseClaims": false,
+                "BankAccountType": "",
+                "ReportingCode": "LIA",
+                "HasAttachments": false,
+                "UpdatedDateUTC": "/Date(1786051951153+0000)/",
+                "AddToWatchlist": false
+              }
+            ]
+          },
+          "durationMs": 232
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/ManualJournals",
+          "method": "POST",
+          "requestBody": {
+            "Narration": "WBP W0.5 T1a \u2014 no currency code",
+            "Status": "DRAFT",
+            "Date": "2026-08-08",
+            "JournalLines": [
+              {
+                "LineAmount": 10,
+                "AccountCode": "140",
+                "Description": "T1a debit"
+              },
+              {
+                "LineAmount": -10,
+                "AccountCode": "150",
+                "Description": "T1a credit"
+              }
+            ]
+          },
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "6d71385b-a292-4f93-90f2-f6aa8b738d2e",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786169998090)/",
+            "ManualJournals": [
+              {
+                "Date": "/Date(1786147200000+0000)/",
+                "Status": "DRAFT",
+                "LineAmountTypes": "NoTax",
+                "UpdatedDateUTC": "/Date(1786169997870+0000)/",
+                "ManualJournalID": "05f8bbee-819b-4d52-9d69-bc625216684a",
+                "Narration": "WBP W0.5 T1a \u2014 no currency code",
+                "JournalLines": [
+                  {
+                    "Description": "T1a debit",
+                    "TaxType": "NONE",
+                    "LineAmount": 10,
+                    "AccountCode": "140",
+                    "Tracking": [],
+                    "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                    "IsBlank": false
+                  },
+                  {
+                    "Description": "T1a credit",
+                    "TaxType": "NONE",
+                    "LineAmount": -10,
+                    "AccountCode": "150",
+                    "Tracking": [],
+                    "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                    "IsBlank": false
+                  }
+                ],
+                "ShowOnCashBasisReports": true,
+                "DebitTotal": 10,
+                "CreditTotal": -10
+              }
+            ]
+          },
+          "durationMs": 476
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/ManualJournals",
+          "method": "POST",
+          "requestBody": {
+            "Narration": "WBP W0.5 T1b \u2014 header CurrencyCode",
+            "Status": "DRAFT",
+            "Date": "2026-08-08",
+            "CurrencyCode": "USD",
+            "JournalLines": [
+              {
+                "LineAmount": 10,
+                "AccountCode": "140",
+                "Description": "T1b debit"
+              },
+              {
+                "LineAmount": -10,
+                "AccountCode": "150",
+                "Description": "T1b credit"
+              }
+            ]
+          },
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "1588c69d-56a2-43cc-9b4a-77ff6940a532",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786169998489)/",
+            "ManualJournals": [
+              {
+                "Date": "/Date(1786147200000+0000)/",
+                "Status": "DRAFT",
+                "LineAmountTypes": "NoTax",
+                "UpdatedDateUTC": "/Date(1786169998370+0000)/",
+                "ManualJournalID": "5fcffce0-6d6f-4870-a847-2db3603a9c64",
+                "Narration": "WBP W0.5 T1b \u2014 header CurrencyCode",
+                "JournalLines": [
+                  {
+                    "Description": "T1b debit",
+                    "TaxType": "NONE",
+                    "LineAmount": 10,
+                    "AccountCode": "140",
+                    "Tracking": [],
+                    "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                    "IsBlank": false
+                  },
+                  {
+                    "Description": "T1b credit",
+                    "TaxType": "NONE",
+                    "LineAmount": -10,
+                    "AccountCode": "150",
+                    "Tracking": [],
+                    "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                    "IsBlank": false
+                  }
+                ],
+                "ShowOnCashBasisReports": true,
+                "DebitTotal": 10,
+                "CreditTotal": -10
+              }
+            ]
+          },
+          "durationMs": 381
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/ManualJournals",
+          "method": "POST",
+          "requestBody": {
+            "Narration": "WBP W0.5 T1c \u2014 line CurrencyCode (expected reject)",
+            "Status": "DRAFT",
+            "Date": "2026-08-08",
+            "JournalLines": [
+              {
+                "LineAmount": 10,
+                "AccountCode": "140",
+                "Description": "T1c debit",
+                "CurrencyCode": "USD"
+              },
+              {
+                "LineAmount": -10,
+                "AccountCode": "150",
+                "Description": "T1c credit",
+                "CurrencyCode": "USD"
+              }
+            ]
+          },
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "1000ec73-edc5-4b58-82cf-24425846a3a6",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786169999014)/",
+            "ManualJournals": [
+              {
+                "Date": "/Date(1786147200000+0000)/",
+                "Status": "DRAFT",
+                "LineAmountTypes": "NoTax",
+                "UpdatedDateUTC": "/Date(1786169998837+0000)/",
+                "ManualJournalID": "754ed116-4dab-414f-a1e7-4d1be4c3a96f",
+                "Narration": "WBP W0.5 T1c \u2014 line CurrencyCode (expected reject)",
+                "JournalLines": [
+                  {
+                    "Description": "T1c debit",
+                    "TaxType": "NONE",
+                    "LineAmount": 10,
+                    "AccountCode": "140",
+                    "Tracking": [],
+                    "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                    "IsBlank": false
+                  },
+                  {
+                    "Description": "T1c credit",
+                    "TaxType": "NONE",
+                    "LineAmount": -10,
+                    "AccountCode": "150",
+                    "Tracking": [],
+                    "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                    "IsBlank": false
+                  }
+                ],
+                "ShowOnCashBasisReports": true,
+                "DebitTotal": 10,
+                "CreditTotal": -10
+              }
+            ]
+          },
+          "durationMs": 521
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/ManualJournals",
+          "method": "POST",
+          "requestBody": {
+            "Narration": "WBP W0.5 T2 \u2014 sign convention (+100 debit / -100 credit)",
+            "Status": "DRAFT",
+            "Date": "2026-08-08",
+            "JournalLines": [
+              {
+                "LineAmount": 100,
+                "AccountCode": "140",
+                "Description": "T2 +100"
+              },
+              {
+                "LineAmount": -100,
+                "AccountCode": "150",
+                "Description": "T2 -100"
+              }
+            ]
+          },
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "6dae34f1-8f9a-46c7-8721-bcf276373067",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786169999386)/",
+            "ManualJournals": [
+              {
+                "Date": "/Date(1786147200000+0000)/",
+                "Status": "DRAFT",
+                "LineAmountTypes": "NoTax",
+                "UpdatedDateUTC": "/Date(1786169999260+0000)/",
+                "ManualJournalID": "f7939e43-8d47-407b-9b94-35a729a60616",
+                "Narration": "WBP W0.5 T2 \u2014 sign convention (+100 debit / -100 credit)",
+                "JournalLines": [
+                  {
+                    "Description": "T2 +100",
+                    "TaxType": "NONE",
+                    "LineAmount": 100,
+                    "AccountCode": "140",
+                    "Tracking": [],
+                    "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                    "IsBlank": false
+                  },
+                  {
+                    "Description": "T2 -100",
+                    "TaxType": "NONE",
+                    "LineAmount": -100,
+                    "AccountCode": "150",
+                    "Tracking": [],
+                    "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                    "IsBlank": false
+                  }
+                ],
+                "ShowOnCashBasisReports": true,
+                "DebitTotal": 100,
+                "CreditTotal": -100
+              }
+            ]
+          },
+          "durationMs": 373
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/ManualJournals/f7939e43-8d47-407b-9b94-35a729a60616",
+          "method": "GET",
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "632bf0c5-3fcd-48af-b4d6-ae6593b98c11",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786169999575)/",
+            "ManualJournals": [
+              {
+                "Date": "/Date(1786147200000+0000)/",
+                "Status": "DRAFT",
+                "LineAmountTypes": "NoTax",
+                "UpdatedDateUTC": "/Date(1786169999260+0000)/",
+                "ManualJournalID": "f7939e43-8d47-407b-9b94-35a729a60616",
+                "Narration": "WBP W0.5 T2 \u2014 sign convention (+100 debit / -100 credit)",
+                "JournalLines": [
+                  {
+                    "Description": "T2 +100",
+                    "TaxType": "NONE",
+                    "LineAmount": 100,
+                    "AccountCode": "140",
+                    "Tracking": [],
+                    "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                    "IsBlank": false
+                  },
+                  {
+                    "Description": "T2 -100",
+                    "TaxType": "NONE",
+                    "LineAmount": -100,
+                    "AccountCode": "150",
+                    "Tracking": [],
+                    "AccountID": "270f7d77-ec0c-43d3-802f-be84f687c36e",
+                    "IsBlank": false
+                  }
+                ],
+                "ShowOnCashBasisReports": true,
+                "DebitTotal": 100,
+                "CreditTotal": -100,
+                "HasAttachments": false,
+                "Attachments": []
+              }
+            ]
+          },
+          "durationMs": 190
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/ManualJournals",
+          "method": "POST",
+          "requestBody": {
+            "Narration": "WBP W0.5 T3 \u2014 forbidden BANK",
+            "Status": "DRAFT",
+            "Date": "2026-08-08",
+            "JournalLines": [
+              {
+                "LineAmount": 1,
+                "AccountCode": "090",
+                "Description": "T3 forbidden BANK"
+              },
+              {
+                "LineAmount": -1,
+                "AccountCode": "140",
+                "Description": "T3 offset"
+              }
+            ]
+          },
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "29f542e8-679c-4e57-b211-196c32956d09",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786170000097)/",
+            "ManualJournals": [
+              {
+                "Date": "/Date(1786147200000+0000)/",
+                "Status": "DRAFT",
+                "LineAmountTypes": "NoTax",
+                "UpdatedDateUTC": "/Date(1786169999887+0000)/",
+                "ManualJournalID": "1546bcde-428a-4e1e-947d-75938076b75d",
+                "Narration": "WBP W0.5 T3 \u2014 forbidden BANK",
+                "JournalLines": [
+                  {
+                    "Description": "T3 forbidden BANK",
+                    "TaxType": "NONE",
+                    "LineAmount": 1,
+                    "AccountCode": "",
+                    "Tracking": [],
+                    "IsBlank": false
+                  },
+                  {
+                    "Description": "T3 offset",
+                    "TaxType": "NONE",
+                    "LineAmount": -1,
+                    "AccountCode": "140",
+                    "Tracking": [],
+                    "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                    "IsBlank": false
+                  }
+                ],
+                "ShowOnCashBasisReports": true,
+                "DebitTotal": 1,
+                "CreditTotal": -1,
+                "Warnings": [
+                  {
+                    "Message": "Account code '090' has been removed as it does not match a recognised account."
+                  }
+                ]
+              }
+            ]
+          },
+          "durationMs": 569
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/ManualJournals",
+          "method": "POST",
+          "requestBody": {
+            "Narration": "WBP W0.5 T3 \u2014 forbidden ACCREC",
+            "Status": "DRAFT",
+            "Date": "2026-08-08",
+            "JournalLines": [
+              {
+                "LineAmount": 1,
+                "AccountCode": "120",
+                "Description": "T3 forbidden ACCREC"
+              },
+              {
+                "LineAmount": -1,
+                "AccountCode": "140",
+                "Description": "T3 offset"
+              }
+            ]
+          },
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "ef9d0985-2ad3-415d-ac04-cced8f73c46d",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786170000720)/",
+            "ManualJournals": [
+              {
+                "Date": "/Date(1786147200000+0000)/",
+                "Status": "DRAFT",
+                "LineAmountTypes": "NoTax",
+                "UpdatedDateUTC": "/Date(1786170000553+0000)/",
+                "ManualJournalID": "2a45922d-e5ba-4e07-b860-aa982f580aa2",
+                "Narration": "WBP W0.5 T3 \u2014 forbidden ACCREC",
+                "JournalLines": [
+                  {
+                    "Description": "T3 forbidden ACCREC",
+                    "TaxType": "NONE",
+                    "LineAmount": 1,
+                    "AccountCode": "",
+                    "Tracking": [],
+                    "IsBlank": false
+                  },
+                  {
+                    "Description": "T3 offset",
+                    "TaxType": "NONE",
+                    "LineAmount": -1,
+                    "AccountCode": "140",
+                    "Tracking": [],
+                    "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                    "IsBlank": false
+                  }
+                ],
+                "ShowOnCashBasisReports": true,
+                "DebitTotal": 1,
+                "CreditTotal": -1,
+                "Warnings": [
+                  {
+                    "Message": "Account code '120' has been removed as it does not match a recognised account."
+                  }
+                ]
+              }
+            ]
+          },
+          "durationMs": 630
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/ManualJournals",
+          "method": "POST",
+          "requestBody": {
+            "Narration": "WBP W0.5 T3 \u2014 forbidden ACCPAY",
+            "Status": "DRAFT",
+            "Date": "2026-08-08",
+            "JournalLines": [
+              {
+                "LineAmount": 1,
+                "AccountCode": "200",
+                "Description": "T3 forbidden ACCPAY"
+              },
+              {
+                "LineAmount": -1,
+                "AccountCode": "140",
+                "Description": "T3 offset"
+              }
+            ]
+          },
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "40157bf3-da7b-48ba-9cee-0221c4c57cb7",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786170001222)/",
+            "ManualJournals": [
+              {
+                "Date": "/Date(1786147200000+0000)/",
+                "Status": "DRAFT",
+                "LineAmountTypes": "NoTax",
+                "UpdatedDateUTC": "/Date(1786170001057+0000)/",
+                "ManualJournalID": "8bd03eb5-cd34-49c5-9c9f-5c5c12c106e3",
+                "Narration": "WBP W0.5 T3 \u2014 forbidden ACCPAY",
+                "JournalLines": [
+                  {
+                    "Description": "T3 forbidden ACCPAY",
+                    "TaxType": "NONE",
+                    "LineAmount": 1,
+                    "AccountCode": "",
+                    "Tracking": [],
+                    "IsBlank": false
+                  },
+                  {
+                    "Description": "T3 offset",
+                    "TaxType": "NONE",
+                    "LineAmount": -1,
+                    "AccountCode": "140",
+                    "Tracking": [],
+                    "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                    "IsBlank": false
+                  }
+                ],
+                "ShowOnCashBasisReports": true,
+                "DebitTotal": 1,
+                "CreditTotal": -1,
+                "Warnings": [
+                  {
+                    "Message": "Account code '200' has been removed as it does not match a recognised account."
+                  }
+                ]
+              }
+            ]
+          },
+          "durationMs": 476
+        },
+        {
+          "url": "https://api.xero.com/api.xro/2.0/ManualJournals",
+          "method": "POST",
+          "requestBody": {
+            "Narration": "WBP W0.5 T3 \u2014 forbidden RETAINEDEARNINGS",
+            "Status": "DRAFT",
+            "Date": "2026-08-08",
+            "JournalLines": [
+              {
+                "LineAmount": 1,
+                "AccountCode": "320",
+                "Description": "T3 forbidden RETAINEDEARNINGS"
+              },
+              {
+                "LineAmount": -1,
+                "AccountCode": "140",
+                "Description": "T3 offset"
+              }
+            ]
+          },
+          "responseStatus": 200,
+          "responseBody": {
+            "Id": "2fba16e6-7bdc-4b23-9b37-1c50c030b3a6",
+            "Status": "OK",
+            "ProviderName": "Advisacor",
+            "DateTimeUTC": "/Date(1786170001423)/",
+            "ManualJournals": [
+              {
+                "Date": "/Date(1786147200000+0000)/",
+                "Status": "DRAFT",
+                "LineAmountTypes": "NoTax",
+                "UpdatedDateUTC": "/Date(1786170001407+0000)/",
+                "ManualJournalID": "2eab087d-88b0-4611-a766-be2a19f81fb4",
+                "Narration": "WBP W0.5 T3 \u2014 forbidden RETAINEDEARNINGS",
+                "JournalLines": [
+                  {
+                    "Description": "T3 forbidden RETAINEDEARNINGS",
+                    "TaxType": "NONE",
+                    "LineAmount": 1,
+                    "AccountCode": "320",
+                    "Tracking": [],
+                    "AccountID": "c4753a8e-47ee-4adb-86ad-e2713d5ae461",
+                    "IsBlank": false
+                  },
+                  {
+                    "Description": "T3 offset",
+                    "TaxType": "NONE",
+                    "LineAmount": -1,
+                    "AccountCode": "140",
+                    "Tracking": [],
+                    "AccountID": "ce67231e-c087-4195-818e-dc15615ae8b0",
+                    "IsBlank": false
+                  }
+                ],
+                "ShowOnCashBasisReports": true,
+                "DebitTotal": 1,
+                "CreditTotal": -1
+              }
+            ]
+          },
+          "durationMs": 172
+        }
+      ]
+    }
+  }
+}

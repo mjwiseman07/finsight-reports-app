@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { getAccountingProvider, startConnection, saveOAuthCookies } from "../../../../../lib/integrations/accounting";
+import { getAccountingProvider, startConnection, saveOAuthCookiesOnResponse } from "../../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../../lib/supabase";
 import { rateLimit } from "../../../../../lib/rate-limit";
 
@@ -53,7 +53,7 @@ async function handleConnect(request) {
         response.cookies.set("xero_oauth_state", state, cookieOptions);
         response.cookies.set("xero_oauth_mode", "lead", cookieOptions);
         response.cookies.set("xero_oauth_lead_id", leadId, cookieOptions);
-        response.cookies.set("xero_oauth_return_to", returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/onboarding", cookieOptions);
+        response.cookies.set("xero_oauth_return_to", returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard", cookieOptions);
         response.cookies.set("advisacor_oauth_lead_id", "", { path: "/", maxAge: 0 });
         response.cookies.set("advisacor_oauth_return_to", "", { path: "/", maxAge: 0 });
         return response;
@@ -72,25 +72,23 @@ async function handleConnect(request) {
     }
 
     const result = await startConnection("xero", authData.user, returnTo);
-    await saveOAuthCookies({
+    const safeReturnTo = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard";
+
+    // DASH_1A.1.2: always return JSON on Bearer path so dashboard fetch().json() works.
+    // Attach accounting_oauth_* on that same NextResponse (Next 16 does not auto-apply next/headers).
+    const jsonResponse = NextResponse.json({
+      url: result.url,
+      provider: "xero",
+      environment: process.env.XERO_ENV || "development",
+    });
+    saveOAuthCookiesOnResponse(jsonResponse, {
       state: result.state,
       token,
-      returnTo: returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard",
+      returnTo: safeReturnTo,
     });
-
-    const wantsJson = request.headers.get("accept")?.includes("application/json");
-    if (wantsJson) {
-      return NextResponse.json({
-        url: result.url,
-        provider: "xero",
-        environment: process.env.XERO_ENV || "development",
-      });
-    }
-
-    const response = NextResponse.redirect(result.url);
-    response.cookies.set("advisacor_oauth_token", "", { path: "/", maxAge: 0 });
-    response.cookies.set("advisacor_oauth_return_to", "", { path: "/", maxAge: 0 });
-    return response;
+    jsonResponse.cookies.set("advisacor_oauth_token", "", { path: "/", maxAge: 0 });
+    jsonResponse.cookies.set("advisacor_oauth_return_to", "", { path: "/", maxAge: 0 });
+    return jsonResponse;
   } catch (error) {
     console.error("[integrations/xero/connect] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to start Xero connection" }, { status: 500 });

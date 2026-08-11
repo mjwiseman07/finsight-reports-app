@@ -1,11 +1,13 @@
 import crypto from "crypto";
-import { cookies } from "next/headers";
+import type { NextRequest, NextResponse as NextResponseType } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertReadyForSourceAgnosticOutputs } from "./advisacor-data-model";
 import { buildReportDataContext } from "./report-data-context";
 import { getAccountingProviderMappingAdapter } from "./provider-adapters";
 import { getAccountingProvider, getEnabledProviders } from "./registry";
 import { decryptAccountingToken, encryptAccountingToken } from "./token-encryption";
 import type { AccountingDateRange, AccountingProvider, AccountingConnectionRecord } from "./types";
+import type { EnsureAnchorConnection } from "../../lifecycle/ensure-anchor";
 import { validateReportPreflight, type PreflightIssue } from "../../reporting/report-preflight-validation";
 import { supabaseAdmin } from "../../supabase";
 
@@ -42,6 +44,219 @@ function decryptConnectionTokens(connection: AccountingConnectionRecord): Accoun
     access_token: decryptAccountingToken(connection.access_token),
     refresh_token: decryptAccountingToken(connection.refresh_token),
   };
+}
+
+// Phase W1c.4c.3 — Proactive OAuth refresh.
+//
+// Root cause of the 2026-08-09 smoke failure: xeroGet + qboGet call the provider
+// API using connection.access_token directly. There is no 401 handler, no
+// proactive refresh, and the last refresh in service.ts is at OAuth callback
+// (~L855). If token_expires_at is in the past when a sync runs, the provider
+// returns 401 → normalization errors populate → validator throws
+// "Normalized Advisacor financial data is incomplete".
+//
+// This helper ensures fresh tokens BEFORE the provider is called. It preserves
+// the hash-chain memory contract: on refresh failure it still lets the sync
+// throw with a taxonomy'd error so the lifecycle-failed emit at the outer
+// try/catch fires with the FK-clean company_id resolved by
+// resolveOrCreateCompanyForProvider (W1c.4c.2).
+async function ensureFreshTokens(connection: AccountingConnectionRecord): Promise<AccountingConnectionRecord> {
+  const decrypted = decryptConnectionTokens(connection);
+  if (decrypted.provider !== "xero" && decrypted.provider !== "quickbooks") return decrypted;
+  if (!decrypted.refresh_token) return decrypted;
+
+  const skewMs = 5 * 60 * 1000;
+  const expiresAt = decrypted.token_expires_at ? new Date(decrypted.token_expires_at).getTime() : 0;
+  const nowMs = Date.now();
+  const needsRefresh = !expiresAt || expiresAt - nowMs < skewMs;
+  if (!needsRefresh) return decrypted;
+
+  const provider = getAccountingProvider(decrypted.provider);
+  let tokenPayload: Record<string, unknown>;
+  try {
+    tokenPayload = await provider.refreshAccessToken({ refreshToken: decrypted.refresh_token });
+  } catch (refreshError) {
+    console.warn("[accounting/token-refresh] refresh_failed", {
+      connectionId: decrypted.id,
+      provider: decrypted.provider,
+      tokenExpiresAt: decrypted.token_expires_at,
+      exceptionMessage: refreshError instanceof Error ? refreshError.message : String(refreshError),
+    });
+    // Mark the connection as needing reconnect so the UI can surface it, but
+    // still throw so the outer sync-failed lifecycle event captures the reason.
+    try {
+      await requireSupabase()
+        .from("accounting_connections")
+        .update({ status: "needs_reconnect", updated_at: new Date().toISOString() })
+        .eq("id", decrypted.id);
+    } catch (statusError) {
+      console.warn("[accounting/token-refresh] status_update_failed", {
+        connectionId: decrypted.id,
+        exceptionMessage: statusError instanceof Error ? statusError.message : String(statusError),
+      });
+    }
+    const wrapped = new Error(
+      `OAuth refresh failed for ${decrypted.provider} connection ${decrypted.id}. The user must reconnect their accounting system.`
+    ) as Error & { code?: string; connectionId?: string };
+    wrapped.code = "OAUTH_REFRESH_FAILED";
+    wrapped.connectionId = decrypted.id;
+    throw wrapped;
+  }
+
+  const newAccessToken = typeof tokenPayload.access_token === "string" ? tokenPayload.access_token : null;
+  const newRefreshToken = typeof tokenPayload.refresh_token === "string" ? tokenPayload.refresh_token : decrypted.refresh_token;
+  if (!newAccessToken) {
+    console.warn("[accounting/token-refresh] no_access_token_in_payload", {
+      connectionId: decrypted.id,
+      provider: decrypted.provider,
+      payloadKeys: Object.keys(tokenPayload || {}),
+    });
+    const wrapped = new Error(
+      `OAuth refresh returned no access_token for ${decrypted.provider} connection ${decrypted.id}.`
+    ) as Error & { code?: string; connectionId?: string };
+    wrapped.code = "OAUTH_REFRESH_NO_TOKEN";
+    wrapped.connectionId = decrypted.id;
+    throw wrapped;
+  }
+
+  const newExpiry = getTokenExpiry(tokenPayload);
+  try {
+    const { error: updateError } = await requireSupabase()
+      .from("accounting_connections")
+      .update({
+        access_token: secureTokenForStorage(decrypted.provider, newAccessToken),
+        refresh_token: secureTokenForStorage(decrypted.provider, newRefreshToken),
+        token_expires_at: newExpiry,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", decrypted.id);
+    if (updateError) {
+      console.warn("[accounting/token-refresh] persist_failed", {
+        connectionId: decrypted.id,
+        provider: decrypted.provider,
+        exceptionMessage: updateError.message,
+      });
+    } else {
+      console.info("[accounting/token-refresh] refresh_success", {
+        connectionId: decrypted.id,
+        provider: decrypted.provider,
+        newExpiry,
+      });
+    }
+  } catch (persistError) {
+    console.warn("[accounting/token-refresh] persist_threw", {
+      connectionId: decrypted.id,
+      exceptionMessage: persistError instanceof Error ? persistError.message : String(persistError),
+    });
+  }
+
+  return {
+    ...decrypted,
+    access_token: newAccessToken,
+    refresh_token: newRefreshToken,
+    token_expires_at: newExpiry,
+  };
+}
+
+/**
+ * Phase W1c.4c.4 — Memory-contract emit resolver.
+ *
+ * Canonical resolution chain for the companyName required by
+ * ensureLifecycleAnchor + emitSyncLifecycleEvent, walking our own patented
+ * memory system rather than inventing a fallback name.
+ *
+ * Order of preference:
+ *   1. connection.external_entity_name (OAuth-callback-populated, canonical)
+ *   2. companies.name via resolveOrCreateCompanyForProvider (SoR fallback)
+ *   3. Throws OAUTH_MISSING_COMPANY_NAME if neither resolves. Callers should
+ *      swallow into their non-blocking emit try/catch.
+ *
+ * Side effect: when step 2 succeeds, opportunistically backfills
+ * accounting_connections.external_entity_name so subsequent syncs are
+ * self-healing and step 1 succeeds directly.
+ *
+ * Never returns invented fallbacks such as Unnamed Company, Xero Organization,
+ * or QuickBooks Company — see Rule 1 in the memory contract.
+ */
+async function resolveEmitCompanyName(
+  admin: SupabaseClient,
+  connection: AccountingConnectionRecord,
+  args: { userId: string; firmId?: string | null },
+): Promise<string> {
+  // Step 1 — canonical source-system name
+  const canonical = (connection.external_entity_name || "").trim();
+  if (canonical) return canonical;
+
+  // Step 2 — SoR lookup via the W1c.4c.2 resolver
+  const tenantId = connection.tenant_or_realm_id || connection.external_entity_id || null;
+  if (!tenantId) {
+    const err = new Error(
+      `[resolveEmitCompanyName] no tenant_or_realm_id on connection ${connection.id}; cannot resolve companyName`,
+    );
+    (err as Error & { code?: string }).code = "OAUTH_MISSING_COMPANY_NAME";
+    throw err;
+  }
+
+  const { resolveOrCreateCompanyForProvider } = await import("./resolve-or-create-company");
+  const companyId = await resolveOrCreateCompanyForProvider(admin, {
+    provider: connection.provider as "xero" | "quickbooks",
+    tenantId,
+    userId: args.userId,
+    firmId: args.firmId ?? null,
+    tenantName: null,
+  });
+  if (!companyId) {
+    const err = new Error(
+      `[resolveEmitCompanyName] resolveOrCreateCompanyForProvider returned null for ${connection.provider} ${tenantId}`,
+    );
+    (err as Error & { code?: string }).code = "OAUTH_MISSING_COMPANY_NAME";
+    throw err;
+  }
+
+  const { data: companyRow, error: companyErr } = await admin
+    .from("companies")
+    .select("name")
+    .eq("id", companyId)
+    .maybeSingle();
+  if (companyErr || !companyRow?.name) {
+    const err = new Error(
+      `[resolveEmitCompanyName] companies row ${companyId} has no name; cannot resolve`,
+    );
+    (err as Error & { code?: string }).code = "OAUTH_MISSING_COMPANY_NAME";
+    throw err;
+  }
+  const resolvedName = String(companyRow.name).trim();
+  if (!resolvedName) {
+    const err = new Error(
+      `[resolveEmitCompanyName] companies.name blank for ${companyId}`,
+    );
+    (err as Error & { code?: string }).code = "OAUTH_MISSING_COMPANY_NAME";
+    throw err;
+  }
+
+  // Opportunistic backfill — self-healing for future syncs.
+  try {
+    await admin
+      .from("accounting_connections")
+      .update({
+        external_entity_name: resolvedName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", connection.id);
+    console.info("[resolveEmitCompanyName] backfilled external_entity_name from companies.name", {
+      connectionId: connection.id,
+      companyId,
+      resolvedName,
+    });
+  } catch (backfillErr) {
+    console.warn("[resolveEmitCompanyName] backfill of external_entity_name failed (non-blocking)", {
+      connectionId: connection.id,
+      companyId,
+      error: backfillErr instanceof Error ? backfillErr.message : String(backfillErr),
+    });
+  }
+
+  return resolvedName;
 }
 
 function assertProviderMatchesSelectedProvider(selectedProvider: string | undefined, normalizedData: { sourceSystem: AccountingProvider }) {
@@ -86,7 +301,7 @@ function isEmptyXeroFinancialActivityMessage(normalizedData: {
   return normalizedData.sourceSystem === "xero" && normalizedData.validation.warnings.includes("Connected to Xero. No financial activity found.");
 }
 
-function uuidOrNull(value: string | null) {
+function uuidOrNull(value: string | null | undefined) {
   return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
 }
 
@@ -196,7 +411,91 @@ async function saveNormalizedSyncMetadata({
   preflight: unknown;
   normalizedDataForStorage: Awaited<ReturnType<typeof buildReportDataContext>>["normalizedData"] & { syncStatus: string };
 }) {
-  const companyId = normalizedData.companyId || String(connection.metadata_json?.company_id || connection.user_id || "");
+  const metaCompanyIdRaw = connection.metadata_json?.company_id;
+  const safeMetaCompanyId =
+    typeof metaCompanyIdRaw === "string" &&
+    metaCompanyIdRaw &&
+    metaCompanyIdRaw !== connection.user_id
+      ? metaCompanyIdRaw
+      : null;
+
+  // Phase W1c.4c.2 — guard against user_id-shaped normalizedData.companyId
+  // (legacy connections poisoned by pre-fix handleCallback).
+  const safeNormalizedCompanyId =
+    typeof normalizedData.companyId === "string" &&
+    normalizedData.companyId &&
+    normalizedData.companyId !== connection.user_id
+      ? normalizedData.companyId
+      : null;
+
+  // Phase W1c.4c.2 — provider-aware resolution FIRST. Keyed by tenant identity,
+  // so one user connecting multiple Xero orgs resolves to distinct companies.
+  let rawCompanyId: string | null = null;
+  try {
+    const { supabaseAdmin } = await import("../../supabase");
+    if (supabaseAdmin) {
+      // Best-effort firm_id via company_users → pilot_slots.firm_id.
+      let firmId: string | null = null;
+      const { data: memberRows } = await supabaseAdmin
+        .from("company_users")
+        .select("company_id")
+        .eq("user_id", connection.user_id)
+        .eq("status", "active")
+        .limit(5);
+      const companyIds = (memberRows || [])
+        .map((r) => (typeof r.company_id === "string" ? r.company_id : null))
+        .filter((v): v is string => Boolean(v));
+      if (companyIds.length) {
+        const { data: slotRows } = await supabaseAdmin
+          .from("pilot_slots")
+          .select("firm_id")
+          .in("company_id", companyIds)
+          .not("firm_id", "is", null)
+          .limit(1);
+        if (slotRows?.[0]?.firm_id) firmId = String(slotRows[0].firm_id);
+      }
+
+      const { resolveOrCreateCompanyForProvider } = await import("./resolve-or-create-company");
+      const providerResolvedCompanyId = await resolveOrCreateCompanyForProvider(supabaseAdmin, {
+        provider: sourceSystem as "xero" | "quickbooks",
+        tenantId: tenantId || String(connection.tenant_or_realm_id || "") || null,
+        userId: connection.user_id,
+        firmId,
+        tenantName: tenantName || connection.external_entity_name || null,
+      });
+      if (providerResolvedCompanyId) rawCompanyId = providerResolvedCompanyId;
+    }
+  } catch (resolveErr) {
+    console.warn("[SYNC] resolveOrCreateCompanyForProvider failed", {
+      connectionId: connection.id,
+      message: resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
+    });
+  }
+
+  // Fallback chain: legacy sources, in order.
+  if (!rawCompanyId) rawCompanyId = safeNormalizedCompanyId || safeMetaCompanyId || null;
+  if (!rawCompanyId) {
+    try {
+      const { supabaseAdmin } = await import("../../supabase");
+      const { resolveCompanyIdForUser } = await import("./resolve-company-id");
+      if (supabaseAdmin) {
+        rawCompanyId = await resolveCompanyIdForUser(supabaseAdmin, connection.user_id);
+      }
+    } catch (resolveErr) {
+      console.warn("[SYNC] resolveCompanyIdForUser failed", {
+        connectionId: connection.id,
+        message: resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
+      });
+    }
+  }
+  if (!rawCompanyId) {
+    console.warn("[SYNC] company_id resolution failed — persisting sync with company_id=null (previously would have used user_id, which corrupted scorecard queries)", {
+      connectionId: connection.id,
+      userId: connection.user_id,
+      sourceSystem,
+    });
+  }
+  const companyId = rawCompanyId ? String(rawCompanyId) : null;
   const { error } = await requireSupabase()
     .from("accounting_connections")
     .update({
@@ -262,7 +561,7 @@ function buildMetadataSyncRow({
   const reportPeriod = (entry.reportPeriod as Partial<AccountingDateRange> | undefined) || {};
   return {
     id: String(entry.syncId || metadata.active_normalized_sync_id || metadata.last_sync_id || ""),
-    company_id: entry.companyId || metadata.company_id || connection.user_id || "",
+    company_id: entry.companyId || metadata.company_id || null,
     connection_id: entry.connectionId || connection.id,
     source_system: entry.sourceSystem || sourceSystem,
     adapter_name: entry.adapterName || "",
@@ -288,9 +587,9 @@ async function buildAndPersistLiveAccountingSync({
   if (!["quickbooks", "xero"].includes(sourceSystem) || connection.provider !== sourceSystem) return null;
   const reportPeriod = latestCompletedAccountingMonth();
   const syncId = crypto.randomUUID();
-  const decryptedConnection = decryptConnectionTokens(connection);
+  const decryptedConnection = await ensureFreshTokens(connection);
   const tenantId = decryptedConnection.tenant_or_realm_id || decryptedConnection.external_entity_id || null;
-  const tenantName = decryptedConnection.external_entity_name || String(decryptedConnection.metadata_json?.tenant_name || decryptedConnection.metadata_json?.company_name || (sourceSystem === "xero" ? "Xero Organization" : "QuickBooks Company"));
+  const tenantName = decryptedConnection.external_entity_name || String(decryptedConnection.metadata_json?.tenant_name || decryptedConnection.metadata_json?.company_name || "");
   const mappingAdapter = getAccountingProviderMappingAdapter(sourceSystem);
   const rawReports = await mappingAdapter.fetchRawReports(decryptedConnection, reportPeriod);
   const rawBundleDiagnostics = ((rawReports.bundle.sourceMetadata.raw as Record<string, unknown> | undefined)?.diagnostics as Record<string, unknown> | undefined) || {};
@@ -302,7 +601,7 @@ async function buildAndPersistLiveAccountingSync({
     tenantName,
   });
   console.info("NORMALIZATION COMPLETE", {
-    companyId: normalizedData.companyId || String(decryptedConnection.metadata_json?.company_id || decryptedConnection.user_id || ""),
+    companyId: normalizedData.companyId || (decryptedConnection.metadata_json?.company_id ? String(decryptedConnection.metadata_json.company_id) : null),
     connectionId: decryptedConnection.id,
     tenantId,
     tenantName,
@@ -328,6 +627,88 @@ async function buildAndPersistLiveAccountingSync({
     tenantName,
     preflight: { hydratedFromActiveContext: true },
   });
+
+  // Phase DASH_1B.2 — anchor bootstrap + lifecycle event (active-context path).
+  // Mirrors the emit block in fetchCanonicalReports (~L1148-1183). Required
+  // because the first-connect dashboard hydration flows through this function,
+  // not fetchCanonicalReports, and without this block the hash-chained
+  // pilot_lifecycle_events log has no accounting-sync-completed row for
+  // the very first sync — violating the single-subject anchor invariant.
+  //
+  // Best-effort only. Never blocks the sync return. Every failure logged.
+  try {
+    const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
+    const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
+    const { supabaseAdmin } = await import("../../supabase");
+    if (supabaseAdmin && userId) {
+      const resolvedCompanyName = await resolveEmitCompanyName(supabaseAdmin, decryptedConnection, {
+        userId,
+        firmId: null,
+      });
+      const { pilotSlotId } = await ensureLifecycleAnchor({
+        admin: supabaseAdmin,
+        userId,
+        sourceSystemCompanyName: resolvedCompanyName,
+        connection: decryptedConnection,
+      });
+      await emitSyncLifecycleEvent({
+        admin: supabaseAdmin,
+        pilotSlotId,
+        eventKind: "pilot.lifecycle.accounting-sync-completed",
+        payload: {
+          connection_id: decryptedConnection.id,
+          tenant_id: tenantId,
+          tenant_name: resolvedCompanyName,
+          sync_id: syncId,
+          source_system: sourceSystem,
+          outcome: "succeeded",
+          records_synced:
+            (normalizedData.normalizedTrialBalance?.length || 0) +
+            (normalizedData.normalizedBalanceSheet?.length || 0) +
+            (normalizedData.normalizedIncomeStatement?.length || 0),
+          provenance: "live",
+        },
+      });
+      // Phase W1c.4c.2 — cache-refreshed parity emit. QBO emits chain_seq +1
+      // here via a separate code path; Xero needs its own explicit emit so
+      // the hash-chained lifecycle log records the tile hydration event too.
+      await emitSyncLifecycleEvent({
+        admin: supabaseAdmin,
+        pilotSlotId,
+        eventKind: "pilot.lifecycle.cache-refreshed",
+        payload: {
+          connection_id: decryptedConnection.id,
+          tenant_id: tenantId,
+          tenant_name: resolvedCompanyName,
+          source_system: sourceSystem,
+          sync_id: syncId,
+          outcome: "succeeded",
+          added_accounts: normalizedData.normalizedAccounts?.length || 0,
+          added_bs_rows: normalizedData.normalizedBalanceSheet?.length || 0,
+          added_pl_rows: normalizedData.normalizedIncomeStatement?.length || 0,
+          added_tb_rows: normalizedData.normalizedTrialBalance?.length || 0,
+          provenance: "live",
+        },
+      });
+      console.info("[buildAndPersistLiveAccountingSync] lifecycle events emitted (sync-completed + cache-refreshed)", {
+        connectionId: decryptedConnection.id,
+        syncId,
+        pilotSlotId,
+      });
+    } else {
+      console.warn("[buildAndPersistLiveAccountingSync] lifecycle emit skipped: supabaseAdmin or userId missing", {
+        hasAdmin: Boolean(supabaseAdmin),
+        hasUserId: Boolean(userId),
+      });
+    }
+  } catch (anchorErr) {
+    console.error("[buildAndPersistLiveAccountingSync] lifecycle anchor/emit failed (non-blocking)", {
+      connectionId: decryptedConnection.id,
+      syncId,
+      error: anchorErr instanceof Error ? anchorErr.message : String(anchorErr),
+    });
+  }
+
   return buildMetadataSyncRow({
     metadata: {
       ...(decryptedConnection.metadata_json || {}),
@@ -336,7 +717,7 @@ async function buildAndPersistLiveAccountingSync({
       latest_sync_by_source: {
         ...((decryptedConnection.metadata_json?.latest_sync_by_source as Record<string, unknown>) || {}),
         [sourceSystem]: {
-          companyId: normalizedData.companyId || String(decryptedConnection.metadata_json?.company_id || decryptedConnection.user_id || ""),
+          companyId: normalizedData.companyId || (decryptedConnection.metadata_json?.company_id ? String(decryptedConnection.metadata_json.company_id) : null),
           connectionId: decryptedConnection.id,
           sourceSystem,
           adapterName: mappingAdapter.adapterName,
@@ -578,16 +959,17 @@ export async function startConnection(providerKey: AccountingProvider, user: { i
   return { url, state, provider: provider.provider };
 }
 
-export async function saveOAuthCookies({
-  state,
-  token,
-  returnTo,
-}: {
-  state: string;
-  token: string;
-  returnTo?: string;
-}) {
-  const cookieStore = await cookies();
+/**
+ * Persist OAuth cookies onto a specific outgoing response.
+ *
+ * IMPORTANT: In App Router Route Handlers, cookies set via `next/headers` do NOT
+ * propagate onto a freshly-constructed NextResponse that the handler returns.
+ * Attach cookies to the exact response object that will be returned.
+ */
+export function saveOAuthCookiesOnResponse(
+  response: NextResponseType,
+  { state, token, returnTo }: { state: string; token: string; returnTo?: string },
+): void {
   const options = {
     httpOnly: true,
     sameSite: "lax" as const,
@@ -595,34 +977,45 @@ export async function saveOAuthCookies({
     maxAge: 10 * 60,
     path: "/",
   };
-  cookieStore.set(STATE_COOKIE, state, options);
-  cookieStore.set(TOKEN_COOKIE, token, options);
-  if (returnTo) cookieStore.set(RETURN_COOKIE, returnTo, options);
+  response.cookies.set(STATE_COOKIE, state, options);
+  response.cookies.set(TOKEN_COOKIE, token, options);
+  if (returnTo) response.cookies.set(RETURN_COOKIE, returnTo, options);
 }
 
-export async function clearOAuthCookies() {
-  const cookieStore = await cookies();
-  cookieStore.delete(STATE_COOKIE);
-  cookieStore.delete(TOKEN_COOKIE);
-  cookieStore.delete(RETURN_COOKIE);
+export function clearOAuthCookiesOnResponse(response: NextResponseType): void {
+  response.cookies.delete(STATE_COOKIE);
+  response.cookies.delete(TOKEN_COOKIE);
+  response.cookies.delete(RETURN_COOKIE);
 }
 
-export async function readOAuthCookies() {
-  const cookieStore = await cookies();
+/**
+ * Read OAuth cookies from an incoming request.
+ * Uses request.cookies (always populated in Route Handlers) rather than
+ * `next/headers` cookies().
+ */
+export function readOAuthCookiesFromRequest(request: NextRequest): {
+  state: string;
+  token: string;
+  returnTo: string;
+} {
   return {
-    state: cookieStore.get(STATE_COOKIE)?.value || "",
-    token: cookieStore.get(TOKEN_COOKIE)?.value || "",
-    returnTo: cookieStore.get(RETURN_COOKIE)?.value || "",
+    state: request.cookies.get(STATE_COOKIE)?.value || "",
+    token: request.cookies.get(TOKEN_COOKIE)?.value || "",
+    returnTo: request.cookies.get(RETURN_COOKIE)?.value || "",
   };
 }
 
-export async function handleCallback(providerKey: AccountingProvider, requestUrl: URL) {
+export async function handleCallback(
+  providerKey: AccountingProvider,
+  request: NextRequest,
+) {
+  const requestUrl = new URL(request.url);
   const supabase = requireSupabase();
   const provider = getAccountingProvider(providerKey);
   const code = requestUrl.searchParams.get("code") || "";
   const state = requestUrl.searchParams.get("state") || "";
   const tenantOrRealmId = requestUrl.searchParams.get("realmId") || requestUrl.searchParams.get("tenant") || "";
-  const oauth = await readOAuthCookies();
+  const oauth = readOAuthCookiesFromRequest(request);
 
   if (!code || !state || state !== oauth.state || !oauth.token) {
     throw new Error("Missing or invalid accounting OAuth state");
@@ -687,7 +1080,9 @@ export async function handleCallback(providerKey: AccountingProvider, requestUrl
         token_type: tokenPayload.token_type || null,
         source_system: provider.provider,
         active_provider: provider.provider,
-        company_id: authData.user.id,
+        // Phase W1c.4c.2 — never poison metadata with user_id. company_id is resolved
+        // at first sync via resolveOrCreateCompanyForProvider using tenant_id.
+        company_id: null,
         tenant_id: selectedTenantId || null,
         tenant_name: selectedTenantName || null,
         available_organizations: xeroEntities.map((entity) => ({
@@ -704,7 +1099,8 @@ export async function handleCallback(providerKey: AccountingProvider, requestUrl
   if (error) throw error;
   if (provider.provider === "xero") console.log("CONNECTION SAVED SUCCESSFULLY", { connectionId: data?.[0]?.id });
 
-  await clearOAuthCookies();
+  // Cookie clear is done by the Route Handler on the returned redirect response
+  // via clearOAuthCookiesOnResponse — not via next/headers.
   return { connectionId: data?.[0]?.id, returnTo: oauth.returnTo || "/dashboard" };
 }
 
@@ -717,7 +1113,7 @@ export async function getConnectionForUser(connectionId: string, userId: string)
     .limit(1);
   if (error) throw error;
   if (!data?.[0]) throw new Error("Accounting connection not found");
-  return decryptConnectionTokens(data[0] as AccountingConnectionRecord);
+  return await ensureFreshTokens(data[0] as AccountingConnectionRecord);
 }
 
 export async function listEntities(connectionId: string, userId: string) {
@@ -731,6 +1127,19 @@ export async function selectEntity(connectionId: string, userId: string, entityI
   const provider = getAccountingProvider(connection.provider);
   const entity = await provider.selectEntity({ connection, entityId });
   const selectedAt = new Date().toISOString();
+  const { supabaseAdmin } = await import("../../supabase");
+  const { resolveCompanyIdForUser } = await import("./resolve-company-id");
+  const resolvedCompanyId = supabaseAdmin
+    ? await resolveCompanyIdForUser(supabaseAdmin, userId)
+    : (connection.metadata_json?.company_id && connection.metadata_json.company_id !== userId
+        ? String(connection.metadata_json.company_id)
+        : null);
+  if (!resolvedCompanyId) {
+    console.warn("[selectEntity] company_id resolution failed — storing null (never user_id)", {
+      connectionId,
+      userId,
+    });
+  }
   const { error } = await supabase
     .from("accounting_connections")
     .update({
@@ -742,7 +1151,7 @@ export async function selectEntity(connectionId: string, userId: string, entityI
         ...(connection.metadata_json || {}),
         source_system: connection.provider,
         active_provider: connection.provider,
-        company_id: connection.user_id,
+        company_id: resolvedCompanyId,
         tenant_id: entity.tenantOrRealmId || entity.externalId,
         tenant_name: entity.name,
         selected_at: selectedAt,
@@ -870,7 +1279,18 @@ export async function getActiveAccountingContext({
 
   const metadata = connection.metadata_json || {};
   const resolvedSourceSystem = sourceSystem || connection.provider;
-  const resolvedCompanyId = String(companyId || metadata.company_id || connection.user_id || "");
+  const metaCompanyId =
+    typeof metadata.company_id === "string" && metadata.company_id !== connection.user_id
+      ? metadata.company_id
+      : null;
+  const resolvedCompanyId = companyId || metaCompanyId || null;
+  if (!resolvedCompanyId) {
+    console.warn("[getLatestNormalizedAccountingData] company_id unresolved — not falling back to user_id", {
+      connectionId: connection.id,
+      userId: connection.user_id,
+      sourceSystem: resolvedSourceSystem,
+    });
+  }
   const resolvedTenantId = String(connection.tenant_or_realm_id || metadata.tenant_id || connection.external_entity_id || "");
   const resolvedTenantName = String(connection.external_entity_name || metadata.tenant_name || metadata.company_name || "");
   const activeSyncId = String(metadata.active_normalized_sync_id || metadata.last_sync_id || "");
@@ -1012,125 +1432,279 @@ export async function fetchCanonicalReports({
   dateRange: AccountingDateRange;
   sourceSystem: string;
 }) {
-  if (!sourceSystem) throw new Error("sourceSystem is required when fetching canonical reports.");
-  const selectedSourceSystem = sourceSystem === "dynamics" ? "dynamics365" : sourceSystem;
-  const connection = await getConnectionForUser(connectionId, userId);
-  if (selectedSourceSystem !== connection.provider) {
-    throw new Error(`Provider mismatch: active ${sourceSystem} but normalized data is ${connection.provider}`);
-  }
-  const provider = getAccountingProvider(connection.provider);
-  const mappingAdapter = getAccountingProviderMappingAdapter(selectedSourceSystem);
-  const syncId = crypto.randomUUID();
-  const tenantId = connection.tenant_or_realm_id || connection.external_entity_id || null;
-  const tenantName = connection.external_entity_name || String(connection.metadata_json?.tenant_name || connection.metadata_json?.company_name || "");
-  const rawReports = await mappingAdapter.fetchRawReports(connection, dateRange);
-  const rawBundleDiagnostics = ((rawReports.bundle.sourceMetadata.raw as Record<string, unknown> | undefined)?.diagnostics as Record<string, unknown> | undefined) || {};
-  const normalizedData = await mappingAdapter.normalize(rawReports, {
-    connection,
-    reportPeriod: dateRange,
-    syncId,
-    tenantId,
-    tenantName,
-  }).catch((error) => {
-    (error as Error & { diagnostics?: Record<string, unknown> }).diagnostics = {
-      sourceSystem: connection.provider,
-      tenantName,
-      ...rawBundleDiagnostics,
-    };
-    throw error;
-  });
-  console.info("NORMALIZATION COMPLETE", {
-    companyId: normalizedData.companyId || String(connection.metadata_json?.company_id || connection.user_id || ""),
-    connectionId,
-    tenantId,
-    tenantName,
-    sourceSystem: normalizedData.sourceSystem,
-    reportPeriod: dateRange,
-  });
-  mappingAdapter.validate(normalizedData);
-  if (normalizedData.sourceSystem !== selectedSourceSystem) throw new Error("Provider adapter mismatch");
-  if (normalizedData.adapterName !== mappingAdapter.adapterName) throw new Error("Mapping adapter mismatch");
-  assertProviderMatchesSelectedProvider(selectedSourceSystem, normalizedData);
-  assertReadyForSourceAgnosticOutputs(normalizedData);
-  const diagnostics = buildSyncDiagnostics(connection, normalizedData, rawBundleDiagnostics);
-  const message = isEmptyXeroFinancialActivityMessage(normalizedData) ? "Connected to Xero. No financial activity found." : undefined;
-  const reportDataContext = buildReportDataContext({
-    companyId: normalizedData.companyId,
-    connectionId,
-    sourceSystem: connection.provider,
-    adapterName: mappingAdapter.adapterName,
-    tenantId,
-    tenantName: diagnostics.tenantName,
-    reportPeriod: dateRange,
-    normalizedData,
-    syncId,
-    diagnostics,
-  });
-  const preflight = validateReportPreflight(reportDataContext, {
-    requiresLiveData: true,
-    providerConfirmedNoActivity: Boolean(message),
-  });
-  console.info("Active Report Context:", {
-    sourceSystem: connection.provider,
-    connectionId,
-    syncId,
-    reportPeriod: dateRange,
-    normalizedAccounts: normalizedData.normalizedAccounts?.length || 0,
-    normalizedTrialBalance: normalizedData.normalizedTrialBalance?.length || 0,
-    normalizedBalanceSheet: normalizedData.normalizedBalanceSheet?.length || 0,
-    normalizedIncomeStatement: normalizedData.normalizedIncomeStatement?.length || 0,
-  });
-  await persistNormalizedAccountingSync({
-    connection,
+  // Phase DASH_1B.2 — failure-path emitter context (Option B + Option 2).
+  let anchorCtx: { userId: string; connectionId: string; syncId: string | null } = {
     userId,
-    syncId,
-    reportPeriod: dateRange,
-    normalizedData,
-    diagnostics,
-    sourceSystem: connection.provider,
-    adapterName: mappingAdapter.adapterName,
-    tenantId,
-    tenantName: diagnostics.tenantName,
-    preflight,
-  });
-  console.info("Saved Sync:", {
-    companyId: normalizedData.companyId || null,
     connectionId,
-    tenantId: connection.tenant_or_realm_id || connection.external_entity_id || null,
-    syncId,
-  });
-  if (preflight.passed && preflight.warnings.length) {
-    await createPreflightWarningSupportTickets({
+    syncId: null,
+  };
+  let selectedSourceSystem = sourceSystem === "dynamics" ? "dynamics365" : sourceSystem;
+
+  try {
+    if (!sourceSystem) throw new Error("sourceSystem is required when fetching canonical reports.");
+    selectedSourceSystem = sourceSystem === "dynamics" ? "dynamics365" : sourceSystem;
+    const connection = await getConnectionForUser(connectionId, userId);
+    if (selectedSourceSystem !== connection.provider) {
+      throw new Error(`Provider mismatch: active ${sourceSystem} but normalized data is ${connection.provider}`);
+    }
+    const provider = getAccountingProvider(connection.provider);
+    const mappingAdapter = getAccountingProviderMappingAdapter(selectedSourceSystem);
+    const syncId = crypto.randomUUID();
+    anchorCtx.syncId = syncId;
+    const tenantId = connection.tenant_or_realm_id || connection.external_entity_id || null;
+    const tenantName = connection.external_entity_name || String(connection.metadata_json?.tenant_name || connection.metadata_json?.company_name || "");
+    const rawReports = await mappingAdapter.fetchRawReports(connection, dateRange);
+    const rawBundleDiagnostics = ((rawReports.bundle.sourceMetadata.raw as Record<string, unknown> | undefined)?.diagnostics as Record<string, unknown> | undefined) || {};
+    const normalizedData = await mappingAdapter.normalize(rawReports, {
+      connection,
+      reportPeriod: dateRange,
+      syncId,
+      tenantId,
+      tenantName,
+    }).catch((error) => {
+      (error as Error & { diagnostics?: Record<string, unknown> }).diagnostics = {
+        sourceSystem: connection.provider,
+        tenantName,
+        ...rawBundleDiagnostics,
+      };
+      throw error;
+    });
+    console.info("NORMALIZATION COMPLETE", {
+      companyId: normalizedData.companyId || (connection.metadata_json?.company_id ? String(connection.metadata_json.company_id) : null),
+      connectionId,
+      tenantId,
+      tenantName,
+      sourceSystem: normalizedData.sourceSystem,
+      reportPeriod: dateRange,
+    });
+    mappingAdapter.validate(normalizedData);
+    if (normalizedData.sourceSystem !== selectedSourceSystem) throw new Error("Provider adapter mismatch");
+    if (normalizedData.adapterName !== mappingAdapter.adapterName) throw new Error("Mapping adapter mismatch");
+    assertProviderMatchesSelectedProvider(selectedSourceSystem, normalizedData);
+    assertReadyForSourceAgnosticOutputs(normalizedData);
+    const diagnostics = buildSyncDiagnostics(connection, normalizedData, rawBundleDiagnostics);
+    const message = isEmptyXeroFinancialActivityMessage(normalizedData) ? "Connected to Xero. No financial activity found." : undefined;
+    const reportDataContext = buildReportDataContext({
       companyId: normalizedData.companyId,
       connectionId,
       sourceSystem: connection.provider,
+      adapterName: mappingAdapter.adapterName,
+      tenantId,
+      tenantName: diagnostics.tenantName,
+      reportPeriod: dateRange,
+      normalizedData,
+      syncId,
+      diagnostics,
+    });
+    const preflight = validateReportPreflight(reportDataContext, {
+      requiresLiveData: true,
+      providerConfirmedNoActivity: Boolean(message),
+    });
+    console.info("Active Report Context:", {
+      sourceSystem: connection.provider,
+      connectionId,
       syncId,
       reportPeriod: dateRange,
-      tenantName: diagnostics.tenantName,
-      warnings: preflight.warnings,
+      normalizedAccounts: normalizedData.normalizedAccounts?.length || 0,
+      normalizedTrialBalance: normalizedData.normalizedTrialBalance?.length || 0,
+      normalizedBalanceSheet: normalizedData.normalizedBalanceSheet?.length || 0,
+      normalizedIncomeStatement: normalizedData.normalizedIncomeStatement?.length || 0,
     });
+    await persistNormalizedAccountingSync({
+      connection,
+      userId,
+      syncId,
+      reportPeriod: dateRange,
+      normalizedData,
+      diagnostics,
+      sourceSystem: connection.provider,
+      adapterName: mappingAdapter.adapterName,
+      tenantId,
+      tenantName: diagnostics.tenantName,
+      preflight,
+    });
+    console.info("Saved Sync:", {
+      companyId: normalizedData.companyId || null,
+      connectionId,
+      tenantId: connection.tenant_or_realm_id || connection.external_entity_id || null,
+      syncId,
+    });
+
+    if (preflight.passed && preflight.warnings.length) {
+      await createPreflightWarningSupportTickets({
+        companyId: normalizedData.companyId,
+        connectionId,
+        sourceSystem: connection.provider,
+        syncId,
+        reportPeriod: dateRange,
+        tenantName: diagnostics.tenantName,
+        warnings: preflight.warnings,
+      });
+    }
+    if (!preflight.passed) {
+      const error = new Error("We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.");
+      (error as Error & { preflight?: typeof preflight; status?: number }).preflight = preflight;
+      (error as Error & { preflight?: typeof preflight; status?: number }).status = 422;
+      (error as Error & { code?: string }).code = preflight.blockers?.[0]?.code || "PREFLIGHT_FAILED";
+      (error as Error & { diagnostics?: typeof diagnostics }).diagnostics = diagnostics;
+      throw error;
+    }
+
+    // Phase DASH_1B.2 — anchor bootstrap + lifecycle event (success path).
+    // Emits only after preflight passes so a 422 validation failure does not
+    // also write accounting-sync-completed (failure path handles that).
+    // Never blocks the sync return; every failure here is best-effort logged.
+    //
+    // Phase W1c.4c.4 — cache-refreshed parity emit added so this path
+    // produces the same two-event pair (sync-completed + cache-refreshed)
+    // as buildAndPersistLiveAccountingSync. Symmetric memory contract.
+    try {
+      const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
+      const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
+      const { supabaseAdmin } = await import("../../supabase");
+      if (supabaseAdmin && userId) {
+        const resolvedCompanyName = await resolveEmitCompanyName(supabaseAdmin, connection, {
+          userId,
+          firmId: null,
+        });
+        const { pilotSlotId } = await ensureLifecycleAnchor({
+          admin: supabaseAdmin,
+          userId,
+          sourceSystemCompanyName: resolvedCompanyName,
+          connection: connection as EnsureAnchorConnection,
+        });
+        await emitSyncLifecycleEvent({
+          admin: supabaseAdmin,
+          pilotSlotId,
+          eventKind: "pilot.lifecycle.accounting-sync-completed",
+          payload: {
+            connection_id: connectionId,
+            tenant_id: tenantId,
+            tenant_name: resolvedCompanyName,
+            sync_id: syncId,
+            source_system: connection.provider,
+            outcome: "succeeded",
+            records_synced:
+              (normalizedData.normalizedTrialBalance?.length || 0) +
+              (normalizedData.normalizedBalanceSheet?.length || 0) +
+              (normalizedData.normalizedIncomeStatement?.length || 0),
+            provenance: "live",
+          },
+        });
+        await emitSyncLifecycleEvent({
+          admin: supabaseAdmin,
+          pilotSlotId,
+          eventKind: "pilot.lifecycle.cache-refreshed",
+          payload: {
+            connection_id: connectionId,
+            tenant_id: tenantId,
+            tenant_name: resolvedCompanyName,
+            source_system: connection.provider,
+            sync_id: syncId,
+            outcome: "succeeded",
+            added_accounts: normalizedData.normalizedAccounts?.length || 0,
+            added_bs_rows: normalizedData.normalizedBalanceSheet?.length || 0,
+            added_pl_rows: normalizedData.normalizedIncomeStatement?.length || 0,
+            added_tb_rows: normalizedData.normalizedTrialBalance?.length || 0,
+            provenance: "live",
+          },
+        });
+        console.info("[fetchCanonicalReports] lifecycle events emitted (sync-completed + cache-refreshed)", {
+          connectionId,
+          syncId,
+          pilotSlotId,
+        });
+      }
+    } catch (anchorErr) {
+      console.error("[fetchCanonicalReports] lifecycle anchor/emit failed (non-blocking)", {
+        connectionId,
+        syncId,
+        error: anchorErr instanceof Error ? anchorErr.message : String(anchorErr),
+      });
+    }
+
+    return {
+      ok: true,
+      provider: connection.provider,
+      connectionId,
+      bundle: rawReports.bundle,
+      normalizedData,
+      reportDataContext,
+      preflight,
+      syncId,
+      diagnostics,
+      message,
+      missingReports: rawReports.bundle.missingReports,
+      warnings: [...(provider.getCapabilities().fallback_notes || []), ...normalizedData.validation.warnings],
+    };
+  } catch (fatalErr) {
+    // Phase DASH_1B.2 — emit failure event, non-blocking.
+    // Phase W1c.4c.4 — Bug A fix: use resolveEmitCompanyName instead of
+    // the external_entity_name presence gate that silently skipped emission whenever
+    // external_entity_name IS NULL (legacy QBO seed pre-dating callback
+    // populate). Now walks the SoR resolution chain and only skips if
+    // even that fails — with a loud log line, never silent.
+    try {
+      const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
+      const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
+      const { supabaseAdmin } = await import("../../supabase");
+      if (supabaseAdmin && anchorCtx.userId) {
+        const { data: conn } = await supabaseAdmin
+          .from("accounting_connections")
+          .select("*")
+          .eq("id", anchorCtx.connectionId)
+          .maybeSingle();
+        if (conn) {
+          const resolvedCompanyName = await resolveEmitCompanyName(
+            supabaseAdmin,
+            conn as AccountingConnectionRecord,
+            { userId: anchorCtx.userId, firmId: null },
+          );
+          const { pilotSlotId } = await ensureLifecycleAnchor({
+            admin: supabaseAdmin,
+            userId: anchorCtx.userId,
+            sourceSystemCompanyName: resolvedCompanyName,
+            connection: conn as EnsureAnchorConnection,
+          });
+          await emitSyncLifecycleEvent({
+            admin: supabaseAdmin,
+            pilotSlotId,
+            eventKind: "pilot.lifecycle.accounting-sync-failed",
+            payload: {
+              connection_id: anchorCtx.connectionId,
+              tenant_id:
+                (conn as AccountingConnectionRecord).tenant_or_realm_id ||
+                (conn as AccountingConnectionRecord).external_entity_id ||
+                null,
+              tenant_name: resolvedCompanyName,
+              sync_id: anchorCtx.syncId || "unknown",
+              source_system: selectedSourceSystem,
+              outcome: "failed",
+              error_code: (fatalErr as { code?: string })?.code || "UNKNOWN",
+              error_message: fatalErr instanceof Error ? fatalErr.message.slice(0, 500) : String(fatalErr).slice(0, 500),
+              provenance: "live",
+            },
+          });
+          console.info("[fetchCanonicalReports] sync-failed lifecycle event emitted", {
+            connectionId: anchorCtx.connectionId,
+            syncId: anchorCtx.syncId,
+            pilotSlotId,
+            errorCode: (fatalErr as { code?: string })?.code || "UNKNOWN",
+          });
+        } else {
+          console.warn("[fetchCanonicalReports] failure emit skipped: connection row not found", {
+            connectionId: anchorCtx.connectionId,
+          });
+        }
+      }
+    } catch (emitErr) {
+      console.error("[fetchCanonicalReports] failure-event emission itself failed (swallowed)", {
+        error: emitErr instanceof Error ? emitErr.message : String(emitErr),
+        errorCode: (emitErr as Error & { code?: string })?.code,
+      });
+    }
+    throw fatalErr;
   }
-  if (!preflight.passed) {
-    const error = new Error("We could not generate this report because the accounting data failed validation. Please review the issues below and sync again.");
-    (error as Error & { preflight?: typeof preflight; status?: number }).preflight = preflight;
-    (error as Error & { preflight?: typeof preflight; status?: number }).status = 422;
-    (error as Error & { diagnostics?: typeof diagnostics }).diagnostics = diagnostics;
-    throw error;
-  }
-  return {
-    ok: true,
-    provider: connection.provider,
-    connectionId,
-    bundle: rawReports.bundle,
-    normalizedData,
-    reportDataContext,
-    preflight,
-    syncId,
-    diagnostics,
-    message,
-    missingReports: rawReports.bundle.missingReports,
-    warnings: [...(provider.getCapabilities().fallback_notes || []), ...normalizedData.validation.warnings],
-  };
 }
 
 export async function disconnectConnection(connectionId: string, userId: string) {
@@ -1143,5 +1717,59 @@ export async function disconnectConnection(connectionId: string, userId: string)
     .eq("id", connectionId)
     .eq("user_id", userId);
   if (error) throw error;
+
+  // DASH_1B.3 — tamper-evident lifecycle event so disconnect is memory-covered.
+  // Mirrors the emit block in buildAndPersistLiveAccountingSync (adapted to
+  // ensureLifecycleAnchor / emitSyncLifecycleEvent signatures).
+  try {
+    const { ensureLifecycleAnchor } = await import("../../lifecycle/ensure-anchor");
+    const { emitSyncLifecycleEvent } = await import("../../lifecycle/emit-sync-event");
+    const { supabaseAdmin } = await import("../../supabase");
+    if (supabaseAdmin) {
+      const resolvedCompanyName = await resolveEmitCompanyName(supabaseAdmin, connection, {
+        userId,
+        firmId: null,
+      });
+      const { pilotSlotId } = await ensureLifecycleAnchor({
+        admin: supabaseAdmin,
+        userId,
+        sourceSystemCompanyName: resolvedCompanyName,
+        connection: connection as EnsureAnchorConnection,
+      });
+      await emitSyncLifecycleEvent({
+        admin: supabaseAdmin,
+        pilotSlotId,
+        eventKind: "pilot.lifecycle.accounting-connection-disconnected",
+        payload: {
+          connection_id: connectionId,
+          source_system: connection.provider,
+          tenant_id:
+            connection.tenant_or_realm_id ||
+            (typeof connection.metadata_json?.tenant_id === "string" ? connection.metadata_json.tenant_id : null),
+          tenant_name: resolvedCompanyName,
+          outcome: "succeeded",
+          provenance: "live",
+          triggered_by: "user-initiated",
+        },
+      });
+      console.info("[disconnectConnection] lifecycle event emitted", {
+        pilotSlotId,
+        connectionId,
+        provider: connection.provider,
+      });
+    } else {
+      console.warn("[disconnectConnection] lifecycle emit skipped: supabaseAdmin missing", {
+        connectionId,
+        userId,
+      });
+    }
+  } catch (emitError) {
+    console.error("[disconnectConnection] lifecycle emit failed (non-blocking)", {
+      message: emitError instanceof Error ? emitError.message : String(emitError),
+      connectionId,
+      userId,
+    });
+  }
+
   return { ok: true };
 }

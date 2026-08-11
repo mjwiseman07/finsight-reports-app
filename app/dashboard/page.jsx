@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { SUPER_ADMIN_ROLE, isAllowedSuperAdminEmail } from "../../lib/super-admin";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
 import { AccountSupportModal } from "../../components/AccountSupportModal";
@@ -11,6 +12,7 @@ import StartingPointCard from "../../components/dashboard/StartingPointCard";
 import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPointDeepLinkHandler";
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
+import Scorecard from "../../components/dashboard/Scorecard";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import {
   PulseJeAccountPicker,
@@ -617,12 +619,51 @@ export default function DashboardPage() {
   const [access, setAccess] = useState(null);
   const [primaryPersona, setPrimaryPersona] = useState(null);
   const [error, setError] = useState("");
+  // DASH_1A.1.2: scroll the top-level error banner (role="alert") into view
+  // whenever a connect handler surfaces a user-visible failure. Prevents the
+  // silent-button UX class of bugs where an error IS set but rendered above
+  // the fold and the user staring at the Scorecard never sees it.
+  const scrollErrorIntoView = () => {
+    if (typeof window === "undefined") return;
+    // Defer to next tick so React has committed the error banner to the DOM.
+    setTimeout(() => {
+      const banner = document.querySelector('[role="alert"]');
+      if (banner instanceof HTMLElement) {
+        banner.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Optional: also flash focus for screen reader users.
+        banner.focus?.();
+      }
+    }, 0);
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [checkoutPlan, setCheckoutPlan] = useState("");
   const [quickBooksCapabilities, setQuickBooksCapabilities] = useState(null);
   const [quickBooksDetecting, setQuickBooksDetecting] = useState(false);
   const [recommendationDismissed, setRecommendationDismissed] = useState(false);
   const [userIsFirmAdmin, setUserIsFirmAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  // Mirrors lib/tcp1/use-launch-status.ts — email allowlist AND role. Server
+  // audits the same predicates before granting privilege (super-admin-security.js).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled || !user?.email) return;
+        const emailAllowed = isAllowedSuperAdminEmail(user.email);
+        const appRole = user.app_metadata?.role;
+        const userRole = user.user_metadata?.role;
+        const roleMatch = appRole === SUPER_ADMIN_ROLE || userRole === SUPER_ADMIN_ROLE;
+        if (!cancelled) setIsSuperAdmin(emailAllowed && roleMatch);
+      } catch {
+        if (!cancelled) setIsSuperAdmin(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [accountSaving, setAccountSaving] = useState(false);
@@ -655,6 +696,18 @@ export default function DashboardPage() {
   const [executivePackageMessage, setExecutivePackageMessage] = useState("");
   const [executivePackageRefreshStatus, setExecutivePackageRefreshStatus] = useState([]);
   const [activeExploreSection, setActiveExploreSection] = useState("");
+  const [arAgingSchedule, setArAgingSchedule] = useState(null);
+  const [cashFlowTrailing12M, setCashFlowTrailing12M] = useState(null);
+  const [hydrationActive, setHydrationActive] = useState(false);
+  const [hydrationTiles, setHydrationTiles] = useState({
+    cash_position: { status: "pending", statusText: "" },
+    net_op_cash_flow: { status: "pending", statusText: "" },
+    ar_aging: { status: "pending", statusText: "" },
+    net_profit_margin: { status: "pending", statusText: "" },
+    north_star: { status: "pending", statusText: "" },
+  });
+  const [hydrationToast, setHydrationToast] = useState(null);
+  const [hydrationRetryNonce, setHydrationRetryNonce] = useState(0);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiQuestion, setAiQuestion] = useState("");
   const [executiveQuestion, setExecutiveQuestion] = useState("");
@@ -1062,10 +1115,516 @@ export default function DashboardPage() {
     return result.packageQueueItem;
   }, [dashboardCompanyId, getAuthToken, refreshAdvisoryIntelligence, token]);
 
+  useEffect(() => {
+    if (!activeSourceSystem || !token || !dashboardCompanyId) return;
+    let cancelled = false;
+    const params = new URLSearchParams({
+      companyId: dashboardCompanyId,
+      sourceSystem: activeSourceSystem,
+    });
+    const connectionId = activeReportContext?.connectionId || activeReportPayload?.connectionId || "";
+    if (connectionId) params.set("connectionId", String(connectionId));
+    fetch(`/api/dashboard/ar-aging?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data && !data.pending) setArAgingSchedule(data);
+        else setArAgingSchedule(null);
+      })
+      .catch(() => {
+        /* honest silent — Scorecard shows Refreshing… */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSourceSystem, token, activeReportPayload, dashboardCompanyId, activeReportContext?.connectionId]);
+
+  useEffect(() => {
+    if (!activeSourceSystem || !token || !dashboardCompanyId) return;
+    let cancelled = false;
+    const params = new URLSearchParams({ companyId: dashboardCompanyId });
+    fetch(`/api/dashboard/cash-flow-trailing?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data && !data.pending) setCashFlowTrailing12M(data);
+        else setCashFlowTrailing12M(null);
+      })
+      .catch(() => {
+        /* honest silent — Scorecard shows Refreshing… */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSourceSystem, token, activeReportPayload, dashboardCompanyId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const connected = url.searchParams.get("connected");
+    if (connected !== "quickbooks" && connected !== "xero") return;
+
+    const providerLabel = connected === "xero" ? "Xero" : "QuickBooks";
+    setHydrationActive(true);
+    setHydrationToast(`${providerLabel} connected. Building your first financial picture…`);
+    setHydrationTiles({
+      cash_position: {
+        status: "loading",
+        statusText: `Pulling your bank and ${providerLabel} cash balances…`,
+      },
+      net_op_cash_flow: {
+        status: "loading",
+        statusText: "Reading 12 months of cash flow activity…",
+      },
+      ar_aging: {
+        status: "loading",
+        statusText: "Reading 6 months of invoices…",
+      },
+      net_profit_margin: {
+        status: "loading",
+        statusText: "Categorizing recent transactions…",
+      },
+      north_star: {
+        status: "loading",
+        statusText: "Building your industry-native north-star metric…",
+      },
+    });
+
+    url.searchParams.delete("connected");
+    window.history.replaceState({}, "", url.toString());
+
+    const t = setTimeout(() => setHydrationToast(null), 5000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Phase DASH_1B.1 — Post-OAuth Hydration Bridge (client-driven, slice 1)
+  //
+  // When the user lands on /dashboard?connected=xero|quickbooks&connectionId=…
+  // this effect:
+  //   1. calls /api/accounting/active-context to get sourceSystem + connectionId
+  //      + existing activeReportPayload (if any)
+  //   2. hydrates local activeReportPayload state so tile-fetches can gate on
+  //      a real activeSourceSystem
+  //   3. if no recent reportDataContext, fires /api/accounting/fetch-reports
+  //      for the last 6 months (idempotent — existing lifecycle chain de-dupes)
+  //   4. on failure, leaves the dashboard shell up and surfaces a
+  //      reconnect banner via setHydrationToast (never blanks tiles)
+  //
+  // Idempotency is guarded by hydrationBridgeStartedRef so Strict Mode
+  // double-mount + navigation replays are no-ops.
+  //
+  // Vendor precedent applied: Merge relink-needed shell preservation, Nango
+  // autoStart-on-connection, NNGroup staged loading. See planning doc.
+  // Explicit connection state machine + Realtime push land in slice 3.
+  // ─────────────────────────────────────────────────────────────────────────
+  const hydrationBridgeStartedRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (hydrationBridgeStartedRef.current) return;
+    const url = new URL(window.location.href);
+    const connectedParam = url.searchParams.get("connected") ||
+                           url.searchParams.get("accountingConnected");
+    // The prior effect deletes ?connected= before this runs on some paths, so
+    // also check the alternate param name the callback route sets.
+    const providerHint = connectedParam === "xero" || connectedParam === "quickbooks"
+      ? connectedParam
+      : null;
+    const urlConnectionId = url.searchParams.get("connectionId") || "";
+    const isRetry = hydrationRetryNonce > 0;
+    // If neither param present AND we already have an activeReportPayload,
+    // there's nothing to do — normal dashboard render path.
+    // Retry from the error card intentionally re-runs even with an __error payload.
+    if (!isRetry) {
+      if (!providerHint && activeReportPayload) return;
+      // If neither param present AND we have no payload, we still try once —
+      // this handles the case where the user hard-refreshed after OAuth.
+      // But we only do it if the URL had connectionId (proof of recent OAuth).
+      if (!providerHint && !urlConnectionId && activeReportPayload) return;
+      // Zero effect on normal dashboard visits with no OAuth landing params.
+      if (!providerHint && !urlConnectionId) return;
+    }
+
+    hydrationBridgeStartedRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const authToken = await getAuthToken();
+        if (!authToken) {
+          console.warn("[DASH_1B.1] no auth token, skipping hydration bridge");
+          return;
+        }
+
+        // Step 1 — read active context from DB via /api/accounting/active-context
+        const ctxRes = await fetch("/api/accounting/active-context", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            connectionId: urlConnectionId || activeReportPayload?.connectionId || undefined,
+            sourceSystem: providerHint || activeReportPayload?.sourceSystem || undefined,
+            forceRefresh: isRetry,
+          }),
+        });
+
+        if (cancelled) return;
+
+        if (!ctxRes.ok) {
+          // Phase W1c.4c.2 — surface fetch failure on the tile surface (not silent).
+          const errText = await ctxRes.text().catch(() => "");
+          console.warn("[DASH_1B.1] active-context failed", ctxRes.status, errText);
+          setActiveReportPayload({
+            __error: true,
+            __errorMessage: errText || `active-context failed with HTTP ${ctxRes.status}`,
+            diagnostics: null,
+            connectionId: urlConnectionId || activeReportPayload?.connectionId || "",
+            sourceSystem: providerHint || activeReportPayload?.sourceSystem || null,
+          });
+          if (ctxRes.status === 404) {
+            // Merge "relink_needed" — surface banner, keep shell up
+            setHydrationToast("Reconnect your accounting system to finish syncing.");
+          }
+          return;
+        }
+
+        const ctx = await ctxRes.json();
+        const activeContext = ctx?.activeContext || ctx;
+        const resolvedSourceSystem = activeContext?.sourceSystem ||
+                                     activeContext?.provider ||
+                                     providerHint ||
+                                     null;
+        const resolvedConnectionId = activeContext?.connectionId || urlConnectionId || "";
+        const resolvedCompanyId = activeContext?.companyId ||
+                                  activeContext?.reportDataContext?.companyId ||
+                                  null;
+        const existingReportContext = activeContext?.reportDataContext || null;
+
+        // Step 2 — if active-context already gave us a normalized report, use it
+        if (existingReportContext && existingReportContext.normalizedData) {
+          const payload = {
+            ...activeContext,
+            reportDataContext: existingReportContext,
+            normalizedData: existingReportContext.normalizedData || activeContext.normalizedData,
+            connectionId: resolvedConnectionId,
+            companyId: resolvedCompanyId,
+            sourceSystem: resolvedSourceSystem,
+          };
+          setActiveReportPayload(payload);
+          try {
+            window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload));
+          } catch {}
+          return;
+        }
+
+        // Step 3 — no cached normalized data, fire fetch-reports for last 6 months
+        if (!resolvedConnectionId || !resolvedSourceSystem) {
+          console.warn("[DASH_1B.1] active-context returned but missing connectionId or sourceSystem", {
+            resolvedConnectionId,
+            resolvedSourceSystem,
+          });
+          setHydrationToast("We connected your accounting system but couldn't identify the org. Refresh in a moment.");
+          return;
+        }
+
+        const now = new Date();
+        const end = now.toISOString().slice(0, 10);
+        const startDt = new Date(now);
+        startDt.setMonth(startDt.getMonth() - 6);
+        const start = startDt.toISOString().slice(0, 10);
+
+        const syncRes = await fetch("/api/accounting/fetch-reports", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            connectionId: resolvedConnectionId,
+            startDate: start,
+            endDate: end,
+            sourceSystem: resolvedSourceSystem,
+          }),
+        });
+
+        if (cancelled) return;
+
+        if (!syncRes.ok) {
+          const errBody = await syncRes.json().catch(() => ({}));
+          console.warn("[DASH_1B.1] fetch-reports failed", syncRes.status, errBody);
+          if (syncRes.status === 401 || syncRes.status === 403) {
+            // Merge "relink_needed"
+            setHydrationToast("Your accounting connection expired. Reconnect to finish syncing.");
+          } else {
+            setHydrationToast("Sync is taking longer than expected. We'll keep trying in the background.");
+          }
+          return;
+        }
+
+        const syncBody = await syncRes.json();
+
+        // Step 4 — re-read active-context now that fetch-reports has landed a row
+        const ctxRes2 = await fetch("/api/accounting/active-context", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            connectionId: resolvedConnectionId,
+            sourceSystem: resolvedSourceSystem,
+            forceRefresh: true,
+          }),
+        });
+
+        if (cancelled) return;
+
+        if (ctxRes2.ok) {
+          const ctx2 = await ctxRes2.json();
+          const activeContext2 = ctx2?.activeContext || ctx2;
+          const payload2 = {
+            ...activeContext2,
+            connectionId: activeContext2?.connectionId || resolvedConnectionId,
+            companyId: activeContext2?.companyId || resolvedCompanyId,
+            sourceSystem: activeContext2?.sourceSystem || resolvedSourceSystem,
+          };
+          setActiveReportPayload(payload2);
+          try {
+            window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload2));
+          } catch {}
+        } else {
+          // fetch-reports succeeded but re-fetch of context failed — fall back
+          // to what fetch-reports gave us if it included normalized data
+          if (syncBody?.reportDataContext || syncBody?.normalizedData) {
+            const fallback = {
+              ...syncBody,
+              connectionId: resolvedConnectionId,
+              companyId: resolvedCompanyId,
+              sourceSystem: resolvedSourceSystem,
+            };
+            setActiveReportPayload(fallback);
+          }
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error("[DASH_1B.1] hydration bridge failed", err);
+        setHydrationToast("Sync hit an unexpected error. Refresh in a moment to retry.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // OAuth landing bridge + W1c.4c.2 Retry remount key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrationRetryNonce]);
+
+  useEffect(() => {
+    if (!hydrationActive) return;
+    if (!activeReportSummary) return;
+    setHydrationTiles((prev) => ({
+      ...prev,
+      cash_position: { status: "ready", statusText: "" },
+      net_profit_margin: { status: "ready", statusText: "" },
+    }));
+  }, [hydrationActive, activeReportSummary]);
+
+  useEffect(() => {
+    if (!hydrationActive) return;
+    if (!arAgingSchedule) return;
+    setHydrationTiles((prev) => ({
+      ...prev,
+      ar_aging: { status: "ready", statusText: "" },
+    }));
+  }, [hydrationActive, arAgingSchedule]);
+
+  useEffect(() => {
+    if (!hydrationActive) return;
+    if (!cashFlowTrailing12M) return;
+    setHydrationTiles((prev) => ({
+      ...prev,
+      net_op_cash_flow: { status: "ready", statusText: "" },
+    }));
+  }, [hydrationActive, cashFlowTrailing12M]);
+
+  useEffect(() => {
+    if (!hydrationActive) return;
+    const readyCount = Object.values(hydrationTiles).filter((t) => t.status === "ready").length;
+    if (readyCount < 4) return;
+    setHydrationToast("Sync complete. 6 months of data loaded.");
+    const t = setTimeout(() => {
+      setHydrationToast(null);
+      setHydrationActive(false);
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [hydrationActive, hydrationTiles]);
+
+  const suggestedPulseQuestions = useMemo(() => {
+    if (!activeReportSummary) {
+      const providerName =
+        activeSourceSystem === "xero"
+          ? "Xero"
+          : activeSourceSystem === "quickbooks" || activeSourceSystem === "qbo"
+          ? "QuickBooks"
+          : "accounting";
+      return [
+        "What can Pulse help me with?",
+        `How does Advisacor use my ${providerName} data?`,
+        "What will my dashboard show once I connect?",
+      ];
+    }
+
+    const money = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    });
+    const chips = [];
+    if (activeReportSummary.cash) {
+      chips.push(`Why is my current cash position ${money.format(activeReportSummary.cash)}?`);
+    }
+    if (arAgingSchedule && arAgingSchedule.days_over_90 > 0) {
+      chips.push(`Why did AR aging over 90 spike to ${money.format(arAgingSchedule.days_over_90)}?`);
+    }
+    if (activeReportSummary.revenue > 0) {
+      const marginPct = ((activeReportSummary.netIncome / activeReportSummary.revenue) * 100).toFixed(1);
+      chips.push(`Why did my net profit margin land at ${marginPct}%?`);
+    }
+    if (cashFlowTrailing12M && cashFlowTrailing12M.netOperatingCashFlow) {
+      chips.push("What's driving my trailing 12-month operating cash flow?");
+    }
+    if (activeReportSummary.expenses > 0) {
+      chips.push("Which vendors increased spend 30%+ this quarter?");
+    }
+    if (chips.length < 3) {
+      chips.push("Show me this month vs last month.");
+      chips.push("What's my biggest financial risk right now?");
+    }
+    return chips.slice(0, 6);
+  }, [activeReportSummary, arAgingSchedule, cashFlowTrailing12M, activeSourceSystem]);
+
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    window.localStorage.removeItem("supabase_access_token");
-    router.push("/signin");
+    // DASH_1B.3 — signOut is best-effort; UI navigation must ALWAYS run.
+    // We also sweep every sb-* localStorage key + advisacor client cache so a
+    // stale token or cached payload can never re-hydrate the dashboard after logout.
+    let signOutError = null;
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) signOutError = error;
+    } catch (e) {
+      signOutError = e;
+    }
+    if (signOutError) {
+      console.warn("[DASH_1B.3] supabase.auth.signOut failed (non-blocking)", {
+        message: signOutError?.message || String(signOutError),
+      });
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        // Advisacor client cache — must be flushed so an unconnected DB doesn't
+        // render as "connected" via cached React state on next signin.
+        window.localStorage.removeItem("advisacor_active_report_payload");
+        window.localStorage.removeItem("advisacor_active_report_context");
+        window.localStorage.removeItem("supabase_access_token");
+        // Sweep every sb-* Supabase auth key.
+        const keysToRemove = [];
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+          const key = window.localStorage.key(i);
+          if (key && key.startsWith("sb-")) keysToRemove.push(key);
+        }
+        keysToRemove.forEach((k) => {
+          try { window.localStorage.removeItem(k); } catch { /* no-op */ }
+        });
+      } catch (e) {
+        console.warn("[DASH_1B.3] localStorage sweep failed (non-blocking)", {
+          message: e?.message || String(e),
+        });
+      }
+    }
+
+    // Try router.push first (soft nav), fall back to hard nav if the router
+    // is unavailable or an auth effect bounces the user back to /dashboard.
+    try {
+      router.push("/signin");
+    } catch (e) {
+      console.warn("[DASH_1B.3] router.push failed, falling back to hard nav", {
+        message: e?.message || String(e),
+      });
+    }
+    // Hard-nav fallback (200ms grace so router.push wins in the happy path).
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        try {
+          if (window.location.pathname !== "/signin") {
+            window.location.assign("/signin");
+          }
+        } catch { /* no-op */ }
+      }, 200);
+    }
+  };
+
+  const handleDisconnectAccounting = async () => {
+    const connectionId = activeReportContext?.connectionId || activeReportPayload?.connectionId || "";
+    const provider = activeSourceSystem || activeReportPayload?.sourceSystem || null;
+    if (!connectionId) {
+      console.warn("[DASH_1B.3] disconnect skipped — no active connectionId");
+      return;
+    }
+    // Best UX: confirm before disconnect since it will clear the dashboard.
+    if (typeof window !== "undefined") {
+      const providerLabel = provider === "xero" ? "Xero" : provider === "quickbooks" ? "QuickBooks" : "your accounting system";
+      const ok = window.confirm(
+        `Disconnect ${providerLabel}? Your synced data stays in Advisacor but the dashboard will show the connect prompt until you reconnect.`
+      );
+      if (!ok) return;
+    }
+
+    let serverOk = false;
+    try {
+      const authToken = token || (await getAuthToken());
+      const res = await fetch("/api/accounting/disconnect", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ connectionId }),
+      });
+      serverOk = res.ok;
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.warn("[DASH_1B.3] disconnect API failed (non-blocking)", {
+          status: res.status,
+          error: errBody?.error,
+        });
+      }
+    } catch (e) {
+      console.warn("[DASH_1B.3] disconnect fetch threw (non-blocking)", {
+        message: e?.message || String(e),
+      });
+    }
+
+    // Flush client cache regardless of server outcome — UI must NEVER lie
+    // about connection state. If the server call failed we still show the
+    // connect prompt; the next reconnect will heal the DB row.
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem("advisacor_active_report_payload");
+        window.localStorage.removeItem("advisacor_active_report_context");
+      } catch { /* no-op */ }
+    }
+    setActiveReportPayload(null);
+
+    if (!serverOk) {
+      // Surface a toast so support can see the state divergence in Datadog.
+      setHydrationToast("Disconnected locally — server sync may take a moment.");
+    } else {
+      setHydrationToast("Disconnected. Click Connect to sync a fresh dataset.");
+    }
   };
 
   const handleSubscribe = async (planKey) => {
@@ -1224,21 +1783,59 @@ export default function DashboardPage() {
       const authToken = await getAuthToken();
       if (!authToken) {
         setError("Sign in first, then connect QuickBooks.");
+        scrollErrorIntoView();
         return;
       }
 
       const response = await fetch("/api/integrations/quickbooks/connect", {
         method: "POST",
-        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          Accept: "application/json",
+        },
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.url) {
         setError(result.error || "Unable to start QuickBooks connection.");
+        scrollErrorIntoView();
         return;
       }
       window.location.assign(result.url);
     } catch {
       setError("Unable to start QuickBooks connection.");
+      scrollErrorIntoView();
+    }
+  };
+
+  const handleConnectXero = async () => {
+    setError("");
+    try {
+      const authToken = await getAuthToken();
+      if (!authToken) {
+        setError("Sign in first, then connect Xero.");
+        scrollErrorIntoView();
+        return;
+      }
+
+      const response = await fetch("/api/integrations/xero/connect", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          Accept: "application/json",
+        },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.url) {
+        setError(result.error || "Unable to start Xero connection.");
+        scrollErrorIntoView();
+        return;
+      }
+      window.location.assign(result.url);
+    } catch {
+      setError("Unable to start Xero connection.");
+      scrollErrorIntoView();
     }
   };
 
@@ -1770,6 +2367,15 @@ export default function DashboardPage() {
 
           {!isLoading && access?.allowed === true && (
             <div className="grid gap-8">
+              {hydrationToast ? (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-full border border-[#C9A961]/50 bg-[#1B1B1D] px-5 py-2.5 text-sm text-[#ECEBE7] shadow-lg"
+                >
+                  {hydrationToast}
+                </div>
+              ) : null}
               <Suspense fallback={null}>
                 <StartingPointDeepLinkHandler
                   onExecutivePackage={() => handleExploreCardClick("Executive Package")}
@@ -1777,10 +2383,36 @@ export default function DashboardPage() {
                   onAskPulse={() => setAiOpen(true)}
                 />
               </Suspense>
-              <StartingPointCard persona={primaryPersona || deliveryPersona} />
+              <StartingPointCard
+                persona={primaryPersona || null}
+                onSetPersona={async (personaId) => {
+                  try {
+                    const authToken = await getAuthToken();
+                    const response = await fetch("/api/user/persona", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${authToken}`,
+                      },
+                      body: JSON.stringify({
+                        persona: personaId,
+                        companyId: dashboardCompanyId || undefined,
+                      }),
+                    });
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                      setError(result.error || "Unable to save your role. Please try again.");
+                      return;
+                    }
+                    setPrimaryPersona(result.persona || personaId);
+                  } catch {
+                    setError("Unable to save your role. Please try again.");
+                  }
+                }}
+              />
               <PendingApprovalsCard />
               <PostedJesCard />
-              {activeReportSummary && (
+              {isSuperAdmin && activeReportSummary && (
                 <div className="rounded-3xl border border-[#5591C7]/30 bg-[#5591C7]/10 p-5">
                   <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#DFC084]`}>Report Source: {activeReportSummary.sourceSystem}</p>
                   <div className="mt-3 grid gap-3 text-sm md:grid-cols-3 xl:grid-cols-6">
@@ -1909,7 +2541,72 @@ export default function DashboardPage() {
                 expanded={aiOpen}
                 onCollapse={() => setAiOpen(false)}
                 onUpgradePackage={() => handleSubscribe(currentPlanKey === "pulse_pro" ? "professional" : "pulse_pro")}
+                suggestedQuestions={suggestedPulseQuestions}
               />
+
+              {activeReportPayload?.__error ? (
+                <div
+                  style={{
+                    padding: 24,
+                    borderRadius: 12,
+                    border: "1px solid rgba(201, 169, 97, 0.35)",
+                    background: "rgba(26, 26, 28, 0.85)",
+                    color: "#ECEBE7",
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: "#C9A961" }}>
+                    Couldn't load your latest sync
+                  </div>
+                  <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 16 }}>
+                    {activeReportPayload.__errorMessage}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hydrationBridgeStartedRef.current = false;
+                      setHydrationRetryNonce((n) => n + 1);
+                    }}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 8,
+                      border: "1px solid #C9A961",
+                      background: "transparent",
+                      color: "#C9A961",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+              <Scorecard
+                activeReportSummary={activeReportSummary}
+                arAgingSchedule={arAgingSchedule}
+                cashFlowTrailing12M={cashFlowTrailing12M}
+                industryType={onboardingIndustryType}
+                companyName={onboardingCompanyName}
+                integrationChoice={activeSourceSystem || dashboardParams.get("provider") || dashboardParams.get("connected") || null}
+                onConnectQBO={handleConnectQuickBooks}
+                onConnectXero={handleConnectXero}
+                onDisconnect={handleDisconnectAccounting}
+                hydrationActive={hydrationActive}
+                hydrationTiles={hydrationTiles}
+                onAskAboutKpi={(kpiCode, question) => {
+                  setExecutiveQuestion(question);
+                  setAiOpen(true);
+                  submitExecutiveQuestion(question);
+                }}
+                onOpenProvenance={(kpiCode) => {
+                  // DASH_1A.1 will wire this to the Accuracy Contract drawer.
+                  // For now, deep-link into the methodology page filtered by kpi.
+                  if (typeof window !== "undefined") {
+                    window.location.hash = `#accuracy-contract-${kpiCode}`;
+                  }
+                }}
+              />
+              )}
 
               <SimplifiedFeatureCards onExploreSection={handleExploreCardClick} />
 
@@ -2752,17 +3449,19 @@ function OperationalDashboardSnapshot({ companyName, industryType, readOnly = fa
   );
 }
 
-function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages = [], expanded = false, onCollapse, onUpgradePackage }) {
-  const examples = [
-    "I need to reduce expenses. Where should I start?",
-    "Why is cash lower this month?",
-    "What is causing margins to decline?",
-    "What is my biggest financial risk?",
-    "What should I focus on this month?",
-    "What expenses seem unusually high?",
-    "Which customers are most profitable?",
-    "What should I do to improve cash flow?",
-  ];
+function ExecutiveQuestionBar({ question, onQuestionChange, onSubmit, messages = [], expanded = false, onCollapse, onUpgradePackage, suggestedQuestions }) {
+  const examples = suggestedQuestions?.length
+    ? suggestedQuestions
+    : [
+        "I need to reduce expenses. Where should I start?",
+        "Why is cash lower this month?",
+        "What is causing margins to decline?",
+        "What is my biggest financial risk?",
+        "What should I focus on this month?",
+        "What expenses seem unusually high?",
+        "Which customers are most profitable?",
+        "What should I do to improve cash flow?",
+      ];
   const recentMessagePairs = [];
   const conversationMessages = messages.filter((message) => message.role === "user" || message.role === "advisacor");
   for (let index = 0; index < conversationMessages.length; index += 1) {
