@@ -1,10 +1,11 @@
 # Phase DASH_1C Block B — Accuracy Contract Drawer UI (Build Spec)
 
-**Date:** 2026-08-10  
+**Date:** 2026-08-11 (refined vs A2 routing)  
 **Branch:** `dash-1-scorecard-and-onboarding`  
-**Upstream (shipped):** Block A — `GET /api/dashboard/accuracy-contract` (`app/api/dashboard/accuracy-contract/route.ts`)  
+**Upstream (shipped):** Block A + A1 + A2 — `GET /api/dashboard/accuracy-contract` (`app/api/dashboard/accuracy-contract/route.ts`)  
 **Depends on:** `components/dashboard/Scorecard.tsx` `onOpenProvenance` affordance (link icon per tile)  
-**Constraint:** Cursor-executable paste block. Do not invent fields beyond `AccuracyContract` in `lib/dashboard/accuracy-contract/types.ts`.
+**Constraint:** Cursor-executable paste block. Do not invent fields beyond `AccuracyContract` in `lib/dashboard/accuracy-contract/types.ts`.  
+**A2 routing (mandatory for Block B):** Production drawer fetches **must** pass explicit `companyId` (= `dashboardCompanyId` from `app/dashboard/page.jsx`). Do **not** rely on Tier 3/4 fallback — that resolves to the user’s first `company_users` row (often a non-pilot demo company) and yields `403 entitlement_denied`. Expect SoR emits with `routing.resolver_tier = "explicit_company_id"`. `pilot_slot_id` remains smoke/defense-in-depth only — not normal UX.
 
 ---
 
@@ -16,10 +17,10 @@ Wire the **Accuracy Contract drawer** (slide-over) to Scorecard tile provenance 
 
 1. **Formula** — recursive factor tree (`FormulaNode`)
 2. **Composition** — leaf-level source pointers with amounts
-3. **Chain Receipt** — Patent #6 SoR row (`chain_receipt`: `event_id`, `chain_seq`, `row_hash`, `prev_hash`, `anchor_status`, …)
+3. **Chain Receipt** — Patent #6 SoR row (`chain_receipt`: `event_id`, `chain_seq`, `row_hash`, `prev_hash`, `anchor_status`, …) plus (A2) identity routing when surfaced from the mint emit / optional future read of latest provenance payload
 4. **Freshness** — sync + chain staleness (`freshness.is_stale`, `latest_sync_at`, seq comparison)
 
-Data loads from Block A API. **Server already emits** `pilot.lifecycle.provenance-drawer-opened` on every successful GET (`emitProvenanceLifecycleEvent` in the route). **Client must not emit lifecycle events** or duplicate that receipt.
+Data loads from Block A API. **Server already emits** `pilot.lifecycle.provenance-drawer-opened` on every successful GET (`emitProvenanceLifecycleEvent` in the route), now including `payload.routing.resolver_tier`. **Client must not emit lifecycle events** or duplicate that receipt.
 
 ### Non-goals (Block B)
 
@@ -28,7 +29,7 @@ Data loads from Block A API. **Server already emits** `pilot.lifecycle.provenanc
 - New KPI codes beyond the five supported by Block A
 - Marketing-page redesign; dashboard keeps **Scorecard product aesthetic** (charcoal cards, gold accent — not purple/cream AI themes)
 - Replacing Scorecard tile values with contract values (drawer is provenance overlay only)
-- `pilot_slot_id` in normal UX (optional query param exists for smoke; resolver auto-picks company via `resolveCompanyIdForUser`)
+- Relying on Tier 3/4 (no-query) or `pilot_slot_id` for normal UX — **always pass `companyId`** (A2). Optional `pilot_slot_id` remains for smoke/defense only.
 
 ---
 
@@ -205,7 +206,7 @@ export function deriveAccuracyContractPeriod(reportPeriod?: {
 }
 ```
 
-Pass `period` on every fetch. Do **not** pass `pilot_slot_id` in production UI.
+Pass `period` **and** `companyId` (`dashboardCompanyId`) on every fetch. Do **not** pass `pilot_slot_id` in production UI. Do **not** omit `companyId` (Tier 3 will pick a non-pilot membership for multi-company users).
 
 ---
 
@@ -247,12 +248,15 @@ Render sibling to Scorecard (same conditional branch where Scorecard mounts):
 <AccuracyContractDrawer
   open={provenanceDrawer.open}
   tileKpiCode={provenanceDrawer.tileKpiCode}
+  companyId={dashboardCompanyId}
   period={deriveAccuracyContractPeriod(activeReportContext?.reportPeriod)}
   onClose={() => setProvenanceDrawer({ open: false, tileKpiCode: null })}
 />
 ```
 
-Drawer owns fetch lifecycle internally (fetch when `open && tileKpiCode`). Parent does **not** call lifecycle emitters.
+If `!dashboardCompanyId`, drawer should show an honest empty/error state (“Select or reconnect a company”) and **must not** call the API without `companyId`.
+
+Drawer owns fetch lifecycle internally (fetch when `open && tileKpiCode && companyId`). Parent does **not** call lifecycle emitters.
 
 ---
 
@@ -279,11 +283,14 @@ export type AccuracyContractError = {
 export async function fetchAccuracyContract(args: {
   kpiCode: KpiCode;
   period: string;
+  /** A2: required — Scorecard dashboardCompanyId (Tier 1 explicit_company_id). */
+  companyId: string;
   signal?: AbortSignal;
 }): Promise<AccuracyContractSuccess> {
   const qs = new URLSearchParams({
     kpi_code: args.kpiCode,
     period: args.period,
+    companyId: args.companyId,
   });
   const res = await fetch(`/api/dashboard/accuracy-contract?${qs}`, {
     method: "GET",
@@ -326,7 +333,7 @@ Before saving any component file:
 ### Manual (dashboard)
 
 1. Sign in as owner executive with connected books and active pilot slot.
-2. Click link icon on **Cash Position** → drawer opens without passing `pilot_slot_id`.
+2. Click link icon on **Cash Position** → drawer opens; network request includes **`companyId=<dashboardCompanyId>`** (never omit; never send `pilot_slot_id` in production).
 3. Response includes `contract.chain_receipt.row_hash`; Chain Receipt tab shows it.
 4. Close drawer; re-open same tile → network response has `contract.cache.hit === true` (second open).
 5. Click **Net Op Cash Flow** (or **north star** tile) → `computation_status === "pending_subledger"` shows `kpi_value_display` banner; drawer does not crash on empty formula/composition.
