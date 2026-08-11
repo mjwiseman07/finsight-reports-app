@@ -1,3 +1,31 @@
+# Phase DASH_1C A2 — Accuracy Contract route (full contents for review)
+
+**Status:** Approved for commit after Q1 Tier-2 `pilot_status` fail-closed fix + static Tier-4 import.  
+**Do not smoke. Do not open PR until Matt smoke is green.**
+
+## Files touched
+
+| Path | Change |
+|------|--------|
+| `app/api/dashboard/accuracy-contract/route.ts` | Three-tier + fallback resolver; Tier-2 `pilot_status IN ('active','trialing')`; static `resolveCompanyIdForUser`; `routing.resolver_tier` on emit |
+| `lib/lifecycle/emit-provenance-event.ts` | `ResolverTier` type; required `payload.routing` |
+
+## Companion emit helper (`lib/lifecycle/emit-provenance-event.ts`)
+
+- Adds `ResolverTier` union.
+- Requires `payload.routing: { resolver_tier: ResolverTier }` on every emit (compile-time).
+- Keeps `actor_via: "dashboard-provenance-drawer"` (DB CHECK allow-list).
+- Tier is hash-chained via `payload` (Patent #6 SoR).
+
+## Clarification — Tier 4 import
+
+Dynamic `await import(...)` was an accidental Block A leftover (no circular dependency, no bundle need). A2 uses a normal static import at the top of the route file.
+
+---
+
+## Full contents: `app/api/dashboard/accuracy-contract/route.ts`
+
+```ts
 /**
  * Phase DASH_1C Block A / A2 — GET /api/dashboard/accuracy-contract
  *
@@ -297,3 +325,4 @@ function jsonError(
     { status, headers: { "x-advisacor-request-id": requestId } },
   );
 }
+```
