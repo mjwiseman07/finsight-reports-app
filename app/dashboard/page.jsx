@@ -11,6 +11,7 @@ import StartingPointCard from "../../components/dashboard/StartingPointCard";
 import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPointDeepLinkHandler";
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
+import Scorecard from "../../components/dashboard/Scorecard";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import {
   PulseJeAccountPicker,
@@ -1909,6 +1910,37 @@ export default function DashboardPage() {
                 expanded={aiOpen}
                 onCollapse={() => setAiOpen(false)}
                 onUpgradePackage={() => handleSubscribe(currentPlanKey === "pulse_pro" ? "professional" : "pulse_pro")}
+              />
+
+              {/* DASH_1A δ-A: Scorecard + hash provenance stub. Block B swaps onOpenProvenance for Acc Contract drawer. */}
+              <Scorecard
+                activeReportSummary={activeReportSummary}
+                arAgingSchedule={null}
+                cashFlowTrailing12M={null}
+                industryType={onboardingIndustryType}
+                companyName={onboardingCompanyName}
+                integrationChoice={activeSourceSystem || null}
+                onConnectQBO={handleConnectQuickBooks}
+                // TODO(DASH_1A.1.2): replace with real Xero OAuth handler; blocking passenger pull from 06aab26a
+                onConnectXero={() => {
+                  if (typeof window !== "undefined") {
+                    window.alert(
+                      "Xero connect is coming in the next release. If you have a QuickBooks account, use Connect QuickBooks below. If you're a Xero-only pilot, email support@advisacor.com and we'll get you set up manually."
+                    );
+                  }
+                }}
+                hydrationActive={false}
+                onAskAboutKpi={(_kpiCode, question) => {
+                  setExecutiveQuestion(question);
+                  setAiOpen(true);
+                  submitExecutiveQuestion(question);
+                }}
+                onOpenProvenance={(kpiCode) => {
+                  // DASH_1C Block B: open Accuracy Contract drawer.
+                  if (typeof window !== "undefined") {
+                    window.location.hash = `#accuracy-contract-${kpiCode}`;
+                  }
+                }}
               />
 
               <SimplifiedFeatureCards onExploreSection={handleExploreCardClick} />
