@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS public.idx_pilot_lifecycle_company_kind_syncid;
+DROP INDEX IF EXISTS public.idx_pilot_lifecycle_company_chain_seq_desc;
