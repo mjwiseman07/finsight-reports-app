@@ -694,7 +694,14 @@ export default function DashboardPage() {
   });
   const [activeReportPayload, setActiveReportPayload] = useState(() => safeReadJsonStorage("advisacor_active_report_payload"));
   const [hydrationActive, setHydrationActive] = useState(false);
-  const xeroHydrationStartedRef = useRef(false);
+  // idle → in_flight → settled. Cleanup of an in-flight run returns to idle (StrictMode-safe).
+  // settled blocks duplicate network calls after a completed hydration.
+  const xeroHydrationLifecycleRef = useRef({
+    phase: "idle",
+    connectionId: "",
+    sourceSystem: "",
+    runId: 0,
+  });
 
   const currentPlanKey = access?.subscription_plan || null;
   const currentProductTier = getProductTier(currentPlanKey);
@@ -923,25 +930,74 @@ export default function DashboardPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (isLoading) return;
-    if (xeroHydrationStartedRef.current) return;
+
+    const lifecycle = xeroHydrationLifecycleRef.current;
+    if (lifecycle.phase === "settled") return;
+    if (lifecycle.phase === "in_flight") return;
 
     const url = new URL(window.location.href);
     const accountingConnected = url.searchParams.get("accountingConnected") === "true";
     const connected = url.searchParams.get("connected") || "";
     const providerParam = url.searchParams.get("provider") || "";
-    const connectionId = url.searchParams.get("connectionId") || "";
-    const isXeroCallback =
-      Boolean(connectionId) &&
+    const connectionIdFromUrl = url.searchParams.get("connectionId") || "";
+    const isXeroFromUrl =
+      Boolean(connectionIdFromUrl) &&
       (providerParam === "xero" || connected === "xero" || (accountingConnected && providerParam === "xero"));
-    if (!isXeroCallback) return;
-    if (!(accountingConnected || connected === "xero" || providerParam === "xero")) return;
 
-    xeroHydrationStartedRef.current = true;
+    if (isXeroFromUrl) {
+      lifecycle.connectionId = connectionIdFromUrl;
+      lifecycle.sourceSystem = "xero";
+    }
+
+    if (!lifecycle.connectionId || lifecycle.sourceSystem !== "xero") return;
+    if (!(isXeroFromUrl || lifecycle.connectionId)) return;
+
+    lifecycle.phase = "in_flight";
+    lifecycle.runId += 1;
+    const runId = lifecycle.runId;
     let cancelled = false;
+    const capturedConnectionId = lifecycle.connectionId;
 
+    // buildActiveReportSummary reads:
+    //   context = payload.reportDataContext || payload
+    //   normalizedData = context.normalizedData
+    // and requires normalizedData.sourceSystem plus income/balance sheet arrays.
     const hasUsableNormalized = (payload) => {
       const context = payload?.reportDataContext || payload;
       return Boolean(context?.normalizedData?.sourceSystem);
+    };
+
+    const toSummaryCompatiblePayload = ({
+      connectionId: nextConnectionId,
+      sourceSystem,
+      tenantName,
+      lastSyncedAt,
+      diagnostics,
+      normalizedData,
+      reportDataContext,
+      extras = {},
+    }) => {
+      if (!normalizedData?.sourceSystem) return null;
+      const context = {
+        ...(reportDataContext && typeof reportDataContext === "object" ? reportDataContext : {}),
+        ...extras,
+        connectionId: nextConnectionId || reportDataContext?.connectionId || capturedConnectionId,
+        sourceSystem: sourceSystem || reportDataContext?.sourceSystem || normalizedData.sourceSystem,
+        tenantName: tenantName || reportDataContext?.tenantName || extras.tenantName || "",
+        lastSyncedAt:
+          lastSyncedAt ||
+          reportDataContext?.lastSyncedAt ||
+          normalizedData.lastSyncedAt ||
+          extras.lastSyncedAt ||
+          "",
+        diagnostics: diagnostics || reportDataContext?.diagnostics || extras.diagnostics || null,
+        normalizedData,
+      };
+      return {
+        ...context,
+        reportDataContext: context,
+        normalizedData,
+      };
     };
 
     const persistPayload = (payload) => {
@@ -953,6 +1009,25 @@ export default function DashboardPage() {
       }
     };
 
+    const cleanOAuthQueryParams = () => {
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("accountingConnected");
+      cleanUrl.searchParams.delete("provider");
+      cleanUrl.searchParams.delete("connectionId");
+      cleanUrl.searchParams.delete("xeroOrganizationSelection");
+      cleanUrl.searchParams.delete("xeroOrganizationCount");
+      cleanUrl.searchParams.delete("connected");
+      cleanUrl.searchParams.delete("organizationName");
+      window.history.replaceState({}, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+    };
+
+    const settle = ({ persistCleanUrl }) => {
+      if (cancelled || lifecycle.runId !== runId) return;
+      lifecycle.phase = "settled";
+      setHydrationActive(false);
+      if (persistCleanUrl) cleanOAuthQueryParams();
+    };
+
     (async () => {
       setHydrationActive(true);
       try {
@@ -960,20 +1035,10 @@ export default function DashboardPage() {
         if (!authToken) {
           if (!cancelled) {
             setError("Sign in to finish loading your Xero connection.");
-            setHydrationActive(false);
+            settle({ persistCleanUrl: false });
           }
           return;
         }
-
-        const capturedConnectionId = connectionId;
-        url.searchParams.delete("accountingConnected");
-        url.searchParams.delete("provider");
-        url.searchParams.delete("connectionId");
-        url.searchParams.delete("xeroOrganizationSelection");
-        url.searchParams.delete("xeroOrganizationCount");
-        url.searchParams.delete("connected");
-        url.searchParams.delete("organizationName");
-        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 
         const ctxRes = await fetch("/api/accounting/active-context", {
           method: "POST",
@@ -994,14 +1059,18 @@ export default function DashboardPage() {
         if (ctxRes.ok) {
           const ctx = await ctxRes.json().catch(() => ({}));
           const activeContext = ctx?.activeContext || ctx;
-          payload = {
-            ...activeContext,
+          const normalizedData =
+            activeContext?.normalizedData || activeContext?.reportDataContext?.normalizedData || null;
+          payload = toSummaryCompatiblePayload({
             connectionId: activeContext?.connectionId || capturedConnectionId,
-            companyId: activeContext?.companyId || null,
             sourceSystem: activeContext?.sourceSystem || activeContext?.provider || "xero",
-            normalizedData: activeContext?.normalizedData || activeContext?.reportDataContext?.normalizedData || null,
+            tenantName: activeContext?.tenantName || activeContext?.reportDataContext?.tenantName || "",
+            lastSyncedAt: activeContext?.lastSyncedAt || activeContext?.reportDataContext?.lastSyncedAt || "",
+            diagnostics: activeContext?.diagnostics || activeContext?.reportDataContext?.diagnostics || null,
+            normalizedData,
             reportDataContext: activeContext?.reportDataContext || null,
-          };
+            extras: activeContext && typeof activeContext === "object" ? activeContext : {},
+          });
         } else {
           const errBody = await ctxRes.json().catch(() => ({}));
           if (!cancelled) {
@@ -1031,15 +1100,18 @@ export default function DashboardPage() {
 
           if (syncRes.ok) {
             const syncBody = await syncRes.json().catch(() => ({}));
-            if (syncBody?.reportDataContext || syncBody?.normalizedData) {
-              payload = {
-                ...syncBody,
-                connectionId: syncBody.connectionId || capturedConnectionId,
-                sourceSystem: syncBody.sourceSystem || syncBody.provider || "xero",
-                normalizedData: syncBody.normalizedData || syncBody.reportDataContext?.normalizedData || null,
-                reportDataContext: syncBody.reportDataContext || null,
-              };
-            }
+            const normalizedData =
+              syncBody?.normalizedData || syncBody?.reportDataContext?.normalizedData || null;
+            payload = toSummaryCompatiblePayload({
+              connectionId: syncBody.connectionId || capturedConnectionId,
+              sourceSystem: syncBody.sourceSystem || syncBody.provider || "xero",
+              tenantName: syncBody.tenantName || syncBody.reportDataContext?.tenantName || "",
+              lastSyncedAt: syncBody.lastSyncedAt || syncBody.reportDataContext?.lastSyncedAt || "",
+              diagnostics: syncBody.diagnostics || syncBody.reportDataContext?.diagnostics || null,
+              normalizedData,
+              reportDataContext: syncBody.reportDataContext || null,
+              extras: syncBody && typeof syncBody === "object" ? syncBody : {},
+            });
           } else if (!payload) {
             const errBody = await syncRes.json().catch(() => ({}));
             if (!cancelled) {
@@ -1052,20 +1124,28 @@ export default function DashboardPage() {
 
         if (hasUsableNormalized(payload)) {
           persistPayload(payload);
-        } else if (!cancelled) {
+          settle({ persistCleanUrl: true });
+        } else {
           setError((current) => current || "Xero connected, but financial data is not ready yet. Refresh in a moment.");
+          settle({ persistCleanUrl: true });
         }
       } catch {
         if (!cancelled) {
           setError("Unable to load your Xero financial data.");
+          settle({ persistCleanUrl: false });
         }
       } finally {
-        if (!cancelled) setHydrationActive(false);
+        if (cancelled && lifecycle.runId === runId && lifecycle.phase === "in_flight") {
+          lifecycle.phase = "idle";
+        }
       }
     })();
 
     return () => {
       cancelled = true;
+      if (lifecycle.runId === runId && lifecycle.phase === "in_flight") {
+        lifecycle.phase = "idle";
+      }
     };
   }, [getAuthToken, isLoading]);
 
