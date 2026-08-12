@@ -20,6 +20,8 @@ const summary: ActiveReportSummary = {
   assets: 200000,
   liabilities: 50000,
   cash: 9082,
+  cogs: 40000,
+  grossProfit: 60000,
 };
 
 const noop = () => {};
@@ -95,6 +97,27 @@ describe("Scorecard tile state resolvers", () => {
     ).toMatchObject({ status: "coming_soon" });
   });
 
+  it("F2: General operating_gross_margin ready / unavailable from factor", () => {
+    expect(
+      resolveNorthStarTileState({
+        computationShipped: true,
+        valueWired: true,
+        hasSummary: true,
+        factorStatus: "ready",
+      }).status,
+    ).toBe("ready");
+    expect(
+      resolveNorthStarTileState({
+        computationShipped: true,
+        valueWired: true,
+        hasSummary: true,
+        factorStatus: "unavailable",
+        unavailableMessage:
+          "Operating gross margin is not available because no positive revenue was found for this period.",
+      }),
+    ).toMatchObject({ status: "unavailable" });
+  });
+
   it("G: explicit loading still returns loading", () => {
     expect(
       resolveCashTileState({ hydrationActive: true, summary: null }).status,
@@ -103,9 +126,9 @@ describe("Scorecard tile state resolvers", () => {
 });
 
 describe("Scorecard DOM settlement contract", () => {
-  it("settled smoke: no Refreshing for AR / CF / north star; cash ready; no fabricated 0%", () => {
+  it("settled smoke: no Refreshing for AR / CF; cash ready; OGM unavailable when revenue 0", () => {
     renderScorecard({
-      activeReportSummary: { ...summary, revenue: 0, netIncome: -50 },
+      activeReportSummary: { ...summary, revenue: 0, netIncome: -50, grossProfit: 0 },
       hydrationActive: false,
       preflightWarningCodes: ["AR_AGING_MISSING"],
     });
@@ -116,7 +139,12 @@ describe("Scorecard DOM settlement contract", () => {
     expect(
       screen.getByText("Net margin is not available because no positive revenue was found for this period."),
     ).toBeTruthy();
-    expect(screen.getByText("Coming soon")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Operating gross margin is not available because no positive revenue was found for this period.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("Coming soon")).toBeNull();
 
     expect(screen.queryByText("Refreshing…")).toBeNull();
     expect(screen.queryByText("AR_AGING_MISSING")).toBeNull();
@@ -139,5 +167,17 @@ describe("Scorecard DOM settlement contract", () => {
       preflightWarningCodes: ["AR_AGING_MISSING"],
     });
     expect(screen.getByText("30.0%")).toBeTruthy();
+    expect(screen.getByText("60.0%")).toBeTruthy();
+  });
+
+  it("non-General industry keeps north star Coming soon", () => {
+    renderScorecard({
+      activeReportSummary: summary,
+      industryType: "SaaS",
+      hydrationActive: false,
+      preflightWarningCodes: ["AR_AGING_MISSING"],
+    });
+    expect(screen.getByText("Coming soon")).toBeTruthy();
+    expect(screen.getByText("MRR / NRR")).toBeTruthy();
   });
 });

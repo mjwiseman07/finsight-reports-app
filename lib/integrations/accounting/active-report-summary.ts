@@ -16,6 +16,10 @@ export type ActiveReportSummaryView = {
   lastSyncedAt?: string;
   diagnostics: Record<string, unknown>;
   revenue: number;
+  /** Canonical mapped COGS — same source as Scorecard / Accuracy Contract. */
+  cogs: number;
+  /** Canonical mapped gross profit — never recomputed in Scorecard. */
+  grossProfit: number;
   expenses: number;
   netIncome: number;
   assets: number;
@@ -205,6 +209,8 @@ export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null
       incomeStatementCount: incomeStatement.length,
     },
     revenue: mapped.revenue,
+    cogs: mapped.cogs,
+    grossProfit: mapped.grossProfit,
     expenses: mapped.expenses,
     netIncome: mapped.netIncome,
     assets: mapped.totalAssets,

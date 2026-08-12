@@ -3,10 +3,15 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { focusRing, headingFont } from "@/components/site-ui";
 import { resolveNorthStar } from "@/lib/scorecard/industry-north-star";
+import { factorizeOperatingGrossMargin } from "@/lib/scorecard/operating-gross-margin";
 import ProviderPickerEmptyState from "./ProviderPickerEmptyState";
 
 export type ActiveReportSummary = {
   revenue: number;
+  /** Canonical mapped COGS when available (from buildActiveReportSummary). */
+  cogs?: number;
+  /** Canonical mapped gross profit — required for General north-star wiring. */
+  grossProfit?: number;
   expenses: number;
   netIncome: number;
   assets: number;
@@ -162,6 +167,10 @@ export function resolveNetMarginTileState(args: {
 export function resolveNorthStarTileState(args: {
   computationShipped: boolean;
   valueWired: boolean;
+  hydrationActive?: boolean;
+  hasSummary?: boolean;
+  factorStatus?: "ready" | "unavailable";
+  unavailableMessage?: string;
 }): ScorecardTileState {
   if (!args.computationShipped || !args.valueWired) {
     return {
@@ -169,7 +178,31 @@ export function resolveNorthStarTileState(args: {
       message: "Coming soon",
     };
   }
+  if (!args.hasSummary) {
+    if (args.hydrationActive) {
+      return { status: "loading", message: "Refreshing…" };
+    }
+    return {
+      status: "unavailable",
+      message:
+        args.unavailableMessage ||
+        "Operating gross margin is not available because no positive revenue was found for this period.",
+    };
+  }
+  if (args.factorStatus === "unavailable") {
+    return {
+      status: "unavailable",
+      message:
+        args.unavailableMessage ||
+        "Operating gross margin is not available because no positive revenue was found for this period.",
+    };
+  }
   return { status: "ready" };
+}
+
+/** General north star is wired when the KPI code is operating_gross_margin. */
+export function isOperatingGrossMarginWired(northStarCode: string): boolean {
+  return northStarCode === "operating_gross_margin";
 }
 
 function CardShell({
@@ -290,8 +323,8 @@ export default function Scorecard({
 }: ScorecardProps) {
   const [coachMarkVisible, setCoachMarkVisible] = useState(false);
   const northStar = resolveNorthStar(industryType);
-  // Value wiring for north-star KPI is not shipped on this mount.
-  const northStarValueWired = false;
+  // Only General operating_gross_margin is value-wired from canonical summary.
+  const northStarValueWired = isOperatingGrossMarginWired(northStar.code);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -363,10 +396,26 @@ export default function Scorecard({
     summary: activeReportSummary,
   });
 
+  const operatingGrossMarginFactor =
+    northStarValueWired && activeReportSummary
+      ? typeof activeReportSummary.grossProfit === "number"
+        ? factorizeOperatingGrossMargin({
+            revenue: activeReportSummary.revenue,
+            grossProfit: activeReportSummary.grossProfit,
+          })
+        : factorizeOperatingGrossMargin(null)
+      : null;
+
   const northStarState = resolveNorthStarTileState({
     computationShipped: northStar.computationShipped,
     valueWired: northStarValueWired,
+    hydrationActive,
+    hasSummary: Boolean(activeReportSummary),
+    factorStatus: operatingGrossMarginFactor?.status,
+    unavailableMessage: operatingGrossMarginFactor?.message,
   });
+  const northStarValue =
+    northStarState.status === "ready" ? operatingGrossMarginFactor?.display ?? "" : "";
 
   return (
     <div className="rounded-[2rem] border border-[#3A3A3D] bg-[#111113] p-6">
@@ -440,9 +489,16 @@ export default function Scorecard({
 
         <CardShell
           label={northStar.label}
-          value=""
+          value={northStarValue}
           helperText={northStar.helperText}
-          onAsk={() => onAskAboutKpi(northStar.code, `Show me my ${northStar.label} and how it's trending.`)}
+          onAsk={() =>
+            onAskAboutKpi(
+              northStar.code,
+              northStarValue
+                ? `Show me my ${northStar.label} at ${northStarValue} and how it's trending.`
+                : `Show me my ${northStar.label} and how it's trending.`,
+            )
+          }
           onProvenance={() => onOpenProvenance(northStar.code)}
           tileState={northStarState}
           isFirst={false}

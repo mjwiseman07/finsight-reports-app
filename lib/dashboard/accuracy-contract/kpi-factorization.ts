@@ -5,6 +5,13 @@ import type {
   ProvenanceSourcePointer,
   Unit,
 } from './types';
+import { buildMappedFinancialSummary } from '@/lib/integrations/accounting/normalizers/financial-statements';
+import type {
+  CanonicalBalanceSheetRow,
+  CanonicalPnLRow,
+} from '@/lib/integrations/accounting/types';
+import { resolveNorthStar } from '@/lib/scorecard/industry-north-star';
+import { factorizeOperatingGrossMargin } from '@/lib/scorecard/operating-gross-margin';
 
 type NormalizedRow = {
   label: string;
@@ -369,16 +376,110 @@ export function factorizeNorthStar(
   industryType: string,
   payload: NormalizedPayload,
 ): FactorizedKpi {
-  void industryType;
-  void payload;
+  const northStar = resolveNorthStar(industryType);
+  if (northStar.code !== 'operating_gross_margin') {
+    return {
+      numeric: null,
+      display: 'Vertical north-star engine coming online',
+      unit: 'percent',
+      formula: null,
+      composition: [],
+      reported_by_provider: null,
+      computation_status: 'pending_subledger',
+    };
+  }
+
+  const mapped = buildMappedFinancialSummary(
+    (payload.normalizedBalanceSheet || []) as unknown as CanonicalBalanceSheetRow[],
+    (payload.normalizedIncomeStatement || []) as unknown as CanonicalPnLRow[],
+  );
+  const factor = factorizeOperatingGrossMargin({
+    revenue: mapped.revenue,
+    grossProfit: mapped.grossProfit,
+  });
+
+  if (factor.status !== 'ready' || factor.numeric == null) {
+    return {
+      numeric: null,
+      display: '—',
+      unit: 'percent',
+      formula: null,
+      composition: [],
+      reported_by_provider: null,
+      computation_status: 'pending_subledger',
+    };
+  }
+
+  const seed = payload.normalizedIncomeStatement?.[0];
+  const stubPointer: ProvenanceSourcePointer = seed
+    ? rowToPointer(seed)
+    : {
+        provider: 'quickbooks',
+        providerFamily: 'quickbooks',
+        providerProduct: 'quickbooks',
+        sourceReport: 'ProfitAndLoss',
+        externalEntityId: 'mapped',
+        externalRecordId: 'operating_gross_margin',
+        hierarchyPath: ['Income Statement'],
+        section: 'Revenue',
+        reportAmount: null,
+      };
+
+  const grossProfitSource: ProvenanceSourcePointer = {
+    ...stubPointer,
+    externalRecordId: 'grossProfit',
+    hierarchyPath: ['Income Statement', 'Gross Profit'],
+    reportAmount: mapped.grossProfit,
+  };
+  const revenueSource: ProvenanceSourcePointer = {
+    ...stubPointer,
+    externalRecordId: 'revenue',
+    hierarchyPath: ['Income Statement', 'Revenue'],
+    reportAmount: mapped.revenue,
+  };
+
+  const formula: FormulaNode = {
+    kind: 'div',
+    label: 'Operating Gross Margin',
+    numerator: {
+      kind: 'ref',
+      label: 'Gross Profit',
+      amount: mapped.grossProfit,
+      source: grossProfitSource,
+    },
+    denominator: {
+      kind: 'ref',
+      label: 'Revenue',
+      amount: mapped.revenue,
+      source: revenueSource,
+    },
+  };
+
   return {
-    numeric: null,
-    display: "Vertical north-star engine coming online",
-    unit: "percent",
-    formula: null,
-    composition: [],
+    numeric: factor.numeric,
+    display: factor.display || formatPercent(factor.numeric),
+    unit: 'percent',
+    formula,
+    composition: [
+      {
+        label: 'Gross Profit',
+        amount: mapped.grossProfit,
+        section: 'Revenue',
+        hierarchyPath: ['Income Statement', 'Gross Profit'],
+        source: grossProfitSource,
+        contribution_pct: 1,
+      },
+      {
+        label: 'Revenue',
+        amount: mapped.revenue,
+        section: 'Revenue',
+        hierarchyPath: ['Income Statement', 'Revenue'],
+        source: revenueSource,
+        contribution_pct: 1,
+      },
+    ],
     reported_by_provider: null,
-    computation_status: "pending_subledger",
+    computation_status: 'computed',
   };
 }
 
