@@ -1254,7 +1254,10 @@ export default function DashboardPage() {
 
       const response = await fetch("/api/integrations/xero/connect", {
         method: "POST",
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          Accept: "application/json",
+        },
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.url) {
