@@ -7,6 +7,7 @@ import type {
   CanonicalSourceMetadata,
   AccountingDateRange,
 } from "./types";
+import { applyCanonicalBankOverdraftClassification } from "./bank-overdraft";
 import { buildMappedFinancialSummary } from "./normalizers/financial-statements";
 
 const REQUIRED_REPORTING_OBJECTS: Array<keyof AdvisacorNormalizedFinancialData> = [
@@ -123,7 +124,9 @@ export function buildAdvisacorNormalizedFinancialData({
     normalizedAccounts: bundle.chartOfAccounts || [],
     normalizedTransactions: isEmptyXeroFinancialActivity ? [] : normalizedEntitiesOrUnavailable(bundle.normalizedTransactions, source),
     normalizedTrialBalance: bundle.trialBalance || [],
-    normalizedBalanceSheet: isEmptyXeroFinancialActivity ? buildEmptyXeroBalanceSheetRows(source) : bundle.balanceSheet || [],
+    normalizedBalanceSheet: isEmptyXeroFinancialActivity
+      ? buildEmptyXeroBalanceSheetRows(source)
+      : applyCanonicalBankOverdraftClassification(bundle.balanceSheet || []),
     normalizedIncomeStatement: isEmptyXeroFinancialActivity ? buildEmptyXeroIncomeStatementRows(source) : bundle.profitAndLoss || [],
     normalizedIncomeStatementYtd: bundle.profitAndLossYtd || [],
     normalizedARAging: normalizedEntitiesOrUnavailable(bundle.normalizedARAging, source),
