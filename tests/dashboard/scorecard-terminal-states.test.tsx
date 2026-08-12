@@ -22,6 +22,7 @@ const summary: ActiveReportSummary = {
   cash: 9082,
   cogs: 40000,
   grossProfit: 60000,
+  grossProfitSupported: true,
 };
 
 const noop = () => {};
@@ -128,7 +129,13 @@ describe("Scorecard tile state resolvers", () => {
 describe("Scorecard DOM settlement contract", () => {
   it("settled smoke: no Refreshing for AR / CF; cash ready; OGM unavailable when revenue 0", () => {
     renderScorecard({
-      activeReportSummary: { ...summary, revenue: 0, netIncome: -50, grossProfit: 0 },
+      activeReportSummary: {
+        ...summary,
+        revenue: 0,
+        netIncome: -50,
+        grossProfit: 0,
+        grossProfitSupported: true,
+      },
       hydrationActive: false,
       preflightWarningCodes: ["AR_AGING_MISSING"],
     });
@@ -150,6 +157,26 @@ describe("Scorecard DOM settlement contract", () => {
     expect(screen.queryByText("AR_AGING_MISSING")).toBeNull();
     expect(screen.queryByText("0.0%")).toBeNull();
     expect(screen.queryByText("$0")).toBeNull();
+  });
+
+  it("OGM unavailable when gross profit unsupported (missing COGS ≠ zero)", () => {
+    renderScorecard({
+      activeReportSummary: {
+        ...summary,
+        revenue: 100,
+        grossProfit: 100,
+        cogs: 0,
+        grossProfitSupported: false,
+      },
+      hydrationActive: false,
+      preflightWarningCodes: ["AR_AGING_MISSING"],
+    });
+    expect(
+      screen.getByText(
+        "Operating gross margin is not available because gross profit could not be reliably determined for this period.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("100.0%")).toBeNull();
   });
 
   it("H: true loading during hydration shows Refreshing", () => {

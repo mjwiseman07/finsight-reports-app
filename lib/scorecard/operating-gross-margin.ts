@@ -5,6 +5,8 @@
 export type OperatingGrossMarginInput = {
   revenue: number;
   grossProfit: number;
+  /** Explicit GP row and/or mapped COGS evidence — required for ready. */
+  grossProfitSupported: boolean;
 };
 
 export type OperatingGrossMarginFactor = {
@@ -21,12 +23,20 @@ const PERCENT_FORMAT = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
 });
 
-const UNAVAILABLE_NO_REVENUE =
+export const UNAVAILABLE_NO_REVENUE =
   "Operating gross margin is not available because no positive revenue was found for this period.";
 
+export const UNAVAILABLE_NO_GROSS_PROFIT_SUPPORT =
+  "Operating gross margin is not available because gross profit could not be reliably determined for this period.";
+
 /**
- * operatingGrossMargin = revenue > 0 ? grossProfit / revenue : unavailable
+ * operatingGrossMargin =
+ *   revenue > 0 && grossProfitSupported
+ *     ? grossProfit / revenue
+ *     : unavailable
+ *
  * grossProfit must already come from buildMappedFinancialSummary.
+ * grossProfitSupported distinguishes true-zero COGS / explicit GP from missing mapping.
  */
 export function factorizeOperatingGrossMargin(
   summary: OperatingGrossMarginInput | null | undefined,
@@ -36,7 +46,7 @@ export function factorizeOperatingGrossMargin(
       status: "unavailable",
       numeric: null,
       display: null,
-      message: UNAVAILABLE_NO_REVENUE,
+      message: UNAVAILABLE_NO_GROSS_PROFIT_SUPPORT,
       formula: null,
     };
   }
@@ -47,6 +57,16 @@ export function factorizeOperatingGrossMargin(
       numeric: null,
       display: null,
       message: UNAVAILABLE_NO_REVENUE,
+      formula: null,
+    };
+  }
+
+  if (!summary.grossProfitSupported) {
+    return {
+      status: "unavailable",
+      numeric: null,
+      display: null,
+      message: UNAVAILABLE_NO_GROSS_PROFIT_SUPPORT,
       formula: null,
     };
   }
