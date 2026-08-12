@@ -20,6 +20,11 @@ export type ActiveReportSummaryView = {
   cogs: number;
   /** Canonical mapped gross profit — never recomputed in Scorecard. */
   grossProfit: number;
+  /**
+   * Whether mapped grossProfit is backed by explicit GP or COGS evidence.
+   * Missing COGS must not be treated as zero COGS for Operating Gross Margin.
+   */
+  grossProfitSupported: boolean;
   expenses: number;
   netIncome: number;
   assets: number;
@@ -211,6 +216,7 @@ export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null
     revenue: mapped.revenue,
     cogs: mapped.cogs,
     grossProfit: mapped.grossProfit,
+    grossProfitSupported: mapped.grossProfitSupported,
     expenses: mapped.expenses,
     netIncome: mapped.netIncome,
     assets: mapped.totalAssets,

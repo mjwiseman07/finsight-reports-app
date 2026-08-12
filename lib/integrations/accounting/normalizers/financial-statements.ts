@@ -32,10 +32,71 @@ export type FinancialSummary = {
   otherIncome: number;
   otherExpenses: number;
   grossProfit: number;
+  /**
+   * True when Gross Profit is backed by report evidence:
+   * explicit Gross Profit row, OR Cost of Sales / COGS mapping present
+   * (including true-zero COGS totals). False when GP would only be
+   * revenue - 0 from absent COGS — missing ≠ zero.
+   */
+  grossProfitSupported: boolean;
   netIncome: number;
   balanceSheetValid: boolean;
   incomeStatementValid: boolean;
 };
+
+const COGS_TOTAL_LABEL = [/^total (cost of sales|cost of goods sold|cogs)$/i];
+const GROSS_PROFIT_LABEL = [/gross profit/i];
+
+/** Explicit Gross Profit line present on the statement (ignores synthetic mapper totals). */
+export function hasExplicitGrossProfitRow(
+  rows: Array<{ label: string; source?: { raw?: unknown } }> = [],
+): boolean {
+  return rows.some((row) => {
+    if (!GROSS_PROFIT_LABEL.some((pattern) => pattern.test(row.label))) return false;
+    const raw = row.source?.raw;
+    if (raw && typeof raw === "object" && (raw as RawReportRow).__advisacorSyntheticTotal) {
+      return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Cost of Sales / COGS is demonstrably present on the statement
+ * (explicit total and/or Cost of Sales section rows), including amount 0.
+ * Ignores synthetic mapper totals that were invented from revenue - 0.
+ */
+export function hasCogsMappingEvidence(
+  rows: Array<{ label: string; section?: string; source?: { raw?: unknown } }> = [],
+): boolean {
+  if (
+    rows.some((row) => {
+      if (!COGS_TOTAL_LABEL.some((pattern) => pattern.test(row.label))) return false;
+      const raw = row.source?.raw;
+      if (raw && typeof raw === "object" && (raw as RawReportRow).__advisacorSyntheticTotal) {
+        return false;
+      }
+      return true;
+    })
+  ) {
+    return true;
+  }
+  return rows.some((row) => {
+    if (normalizeText(row.section) !== "Cost of Sales") return false;
+    const raw = row.source?.raw;
+    if (raw && typeof raw === "object" && (raw as RawReportRow).__advisacorSyntheticTotal) {
+      return false;
+    }
+    return true;
+  });
+}
+
+/** Operating Gross Margin may treat mapped grossProfit as authoritative only when true. */
+export function isGrossProfitSupported(
+  rows: Array<{ label: string; section?: string; source?: { raw?: unknown } }> = [],
+): boolean {
+  return hasExplicitGrossProfitRow(rows) || hasCogsMappingEvidence(rows);
+}
 
 // Phase MC-2e.2 (Issue #6, Gap I-3): local parseAmount replaced by shared
 // locale-aware parser. Preserves paren-negative + leading-minus + whitespace
@@ -219,12 +280,57 @@ function appendIncomeStatementTotals(rows: CanonicalPnLRow[]) {
   if (!rows.length) return rows;
   const summary = incomeStatementSummary(rows);
   const fallbackSource = rows[0].source;
+  const syntheticSource = (kind: string): CanonicalSourceMetadata => ({
+    ...fallbackSource,
+    raw: {
+      ...(fallbackSource.raw && typeof fallbackSource.raw === "object"
+        ? (fallbackSource.raw as Record<string, unknown>)
+        : {}),
+      __advisacorSyntheticTotal: true,
+      __advisacorSyntheticKind: kind,
+    },
+  });
   const nextRows = [...rows];
-  if (findExplicit(nextRows, [/^total (income|revenue|sales)$/i]) === undefined) nextRows.push({ label: "Total Revenue", amount: summary.revenue, section: "Revenue", source: fallbackSource });
-  if (findExplicit(nextRows, [/^total (cost of sales|cost of goods sold|cogs)$/i]) === undefined && summary.cogs) nextRows.push({ label: "Total Cost of Sales", amount: summary.cogs, section: "Cost of Sales", source: fallbackSource });
-  if (findExplicit(nextRows, [/gross profit/i]) === undefined) nextRows.push({ label: "Gross Profit", amount: summary.grossProfit, section: "Revenue", source: fallbackSource });
-  if (findExplicit(nextRows, [/^total (operating )?expenses$/i]) === undefined) nextRows.push({ label: "Total Expenses", amount: summary.expenses, section: "Expenses", source: fallbackSource });
-  if (findExplicit(nextRows, [/net (income|profit)/i]) === undefined) nextRows.push({ label: "Net Income", amount: summary.netIncome, section: "Net Income", source: fallbackSource });
+  if (findExplicit(nextRows, [/^total (income|revenue|sales)$/i]) === undefined) {
+    nextRows.push({
+      label: "Total Revenue",
+      amount: summary.revenue,
+      section: "Revenue",
+      source: syntheticSource("total_revenue"),
+    });
+  }
+  if (findExplicit(nextRows, [/^total (cost of sales|cost of goods sold|cogs)$/i]) === undefined && summary.cogs) {
+    nextRows.push({
+      label: "Total Cost of Sales",
+      amount: summary.cogs,
+      section: "Cost of Sales",
+      source: syntheticSource("total_cogs"),
+    });
+  }
+  if (findExplicit(nextRows, [/gross profit/i]) === undefined) {
+    nextRows.push({
+      label: "Gross Profit",
+      amount: summary.grossProfit,
+      section: "Revenue",
+      source: syntheticSource("gross_profit"),
+    });
+  }
+  if (findExplicit(nextRows, [/^total (operating )?expenses$/i]) === undefined) {
+    nextRows.push({
+      label: "Total Expenses",
+      amount: summary.expenses,
+      section: "Expenses",
+      source: syntheticSource("total_expenses"),
+    });
+  }
+  if (findExplicit(nextRows, [/net (income|profit)/i]) === undefined) {
+    nextRows.push({
+      label: "Net Income",
+      amount: summary.netIncome,
+      section: "Net Income",
+      source: syntheticSource("net_income"),
+    });
+  }
   return nextRows;
 }
 
@@ -371,6 +477,7 @@ export function buildMappedFinancialSummary(balanceSheet: CanonicalBalanceSheetR
   return {
     ...balance,
     ...income,
+    grossProfitSupported: isGrossProfitSupported(incomeStatement),
     balanceSheetValid: Math.abs(balance.totalAssets - (balance.totalLiabilities + balance.totalEquity)) <= 1,
     incomeStatementValid: Math.abs(income.netIncome - (income.revenue - income.cogs - income.expenses + income.otherIncome - income.otherExpenses)) <= 1,
   };

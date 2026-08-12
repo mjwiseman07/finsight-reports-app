@@ -92,6 +92,7 @@ describe("canonical activeReportSummary", () => {
     expect(summary?.revenue).toBe(100);
     expect(summary?.cogs).toBe(40);
     expect(summary?.grossProfit).toBe(60);
+    expect(summary?.grossProfitSupported).toBe(true);
     expect(summary?.netIncome).toBe(20);
     expect(summary?.revenue).not.toBe(180);
     expect(summary?.revenue).not.toBe(220);

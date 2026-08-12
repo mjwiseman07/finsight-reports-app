@@ -12,6 +12,8 @@ export type ActiveReportSummary = {
   cogs?: number;
   /** Canonical mapped gross profit — required for General north-star wiring. */
   grossProfit?: number;
+  /** Explicit GP or COGS evidence from canonical summary — required for ready OGM. */
+  grossProfitSupported?: boolean;
   expenses: number;
   netIncome: number;
   assets: number;
@@ -402,6 +404,7 @@ export default function Scorecard({
         ? factorizeOperatingGrossMargin({
             revenue: activeReportSummary.revenue,
             grossProfit: activeReportSummary.grossProfit,
+            grossProfitSupported: Boolean(activeReportSummary.grossProfitSupported),
           })
         : factorizeOperatingGrossMargin(null)
       : null;
