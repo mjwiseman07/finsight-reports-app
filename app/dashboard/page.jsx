@@ -12,6 +12,7 @@ import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPoi
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
+import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import {
   PulseJeAccountPicker,
@@ -123,41 +124,6 @@ function formatDashboardCurrency(amount) {
         ? `$${Math.round(absoluteAmount / 1000)}K`
         : `$${Math.round(absoluteAmount).toLocaleString()}`;
   return numericAmount < 0 ? `(${formatted})` : formatted;
-}
-
-function sumRows(rows = [], matcher = () => true) {
-  return rows.filter(matcher).reduce((total, row) => total + Number(row.amount || row.netAmount || 0), 0);
-}
-
-function buildActiveReportSummary(reportPayload) {
-  const context = reportPayload?.reportDataContext || reportPayload;
-  const normalizedData = context?.normalizedData;
-  if (!normalizedData?.sourceSystem) return null;
-  const revenue = sumRows(normalizedData.normalizedIncomeStatement, (row) => /revenue|income|sales/i.test(`${row.label} ${row.section}`));
-  const expenses = sumRows(normalizedData.normalizedIncomeStatement, (row) => /expense|cost|cogs|payroll|rent|utilities|materials/i.test(`${row.label} ${row.section}`));
-  const netIncomeRow = normalizedData.normalizedIncomeStatement.find((row) => /net income|net profit/i.test(row.label));
-  const netIncome = netIncomeRow ? Number(netIncomeRow.amount || 0) : revenue - expenses;
-  const assets = sumRows(normalizedData.normalizedBalanceSheet, (row) => /asset/i.test(`${row.label} ${row.section}`));
-  const liabilities = sumRows(normalizedData.normalizedBalanceSheet, (row) => /liabilit/i.test(`${row.label} ${row.section}`));
-  return {
-    sourceSystem: normalizedData.sourceSystem,
-    tenantName: context.tenantName || context.diagnostics?.tenantName || "",
-    lastSyncedAt: normalizedData.lastSyncedAt || context.lastSyncedAt || context.generatedAt,
-    diagnostics: context.diagnostics || {
-      sourceSystem: normalizedData.sourceSystem,
-      tenantName: reportPayload.tenantName || "",
-      accountsCount: normalizedData.normalizedAccounts?.length || 0,
-      trialBalanceCount: normalizedData.normalizedTrialBalance?.length || 0,
-      balanceSheetCount: normalizedData.normalizedBalanceSheet?.length || 0,
-      incomeStatementCount: normalizedData.normalizedIncomeStatement?.length || 0,
-    },
-    revenue,
-    expenses,
-    netIncome,
-    assets,
-    liabilities,
-    cash: sumRows(normalizedData.normalizedBalanceSheet, (row) => /cash|bank|checking|savings/i.test(`${row.label} ${row.section}`)),
-  };
 }
 
 function assertSingleSourcePayload(activeSourceSystem, reportPayload) {

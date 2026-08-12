@@ -21,7 +21,7 @@ type FlattenedProviderReportRow = {
   raw: unknown;
 };
 
-type FinancialSummary = {
+export type FinancialSummary = {
   totalAssets: number;
   totalLiabilities: number;
   totalEquity: number;
@@ -155,6 +155,20 @@ function sumSection(rows: Array<{ label: string; section?: string; amount: numbe
     .reduce((total, row) => total + rowAmount(row), 0);
 }
 
+/** Sum leaf rows for the first section that actually has rows (even if amounts are 0). */
+function sumFirstPresentSection(
+  rows: Array<{ label: string; section?: string; amount: number }>,
+  sections: string[],
+) {
+  for (const section of sections) {
+    const sectionRows = rows.filter((row) => row.section === section && !isTotalRow(row.label));
+    if (sectionRows.length) {
+      return sectionRows.reduce((total, row) => total + rowAmount(row), 0);
+    }
+  }
+  return 0;
+}
+
 function balanceSheetSummary(rows: CanonicalBalanceSheetRow[]) {
   const totalAssets = findExplicit(rows, [/^total assets$/i]) ?? sumSection(rows, "Current Assets") + sumSection(rows, "Fixed Assets");
   const totalLiabilities = findExplicit(rows, [/^total liabilities$/i]) ?? sumSection(rows, "Current Liabilities") + sumSection(rows, "Long-Term Liabilities");
@@ -164,13 +178,26 @@ function balanceSheetSummary(rows: CanonicalBalanceSheetRow[]) {
 }
 
 function incomeStatementSummary(rows: CanonicalPnLRow[]) {
-  const revenue = findExplicit(rows, [/^total (income|revenue|sales)$/i]) ?? sumSection(rows, "Revenue");
-  const cogs = Math.abs(findExplicit(rows, [/^total (cost of sales|cost of goods sold|cogs)$/i]) ?? sumSection(rows, "Cost of Sales"));
-  const expenses = Math.abs(findExplicit(rows, [/^total (operating )?expenses$/i]) ?? sumSection(rows, "Expenses"));
+  // Prefer explicit Total Income/Revenue; else leaf sum. Xero keeps section title "Income"
+  // when hierarchy metadata is present — include it so we do not invent a second formula.
+  const revenue =
+    findExplicit(rows, [/^total (income|revenue|sales)$/i]) ??
+    sumFirstPresentSection(rows, ["Revenue", "Income", "Sales"]);
+  const cogs = Math.abs(
+    findExplicit(rows, [/^total (cost of sales|cost of goods sold|cogs)$/i]) ??
+      sumSection(rows, "Cost of Sales"),
+  );
+  const expenses = Math.abs(
+    findExplicit(rows, [/^total (operating )?expenses$/i]) ?? sumSection(rows, "Expenses"),
+  );
   const otherIncome = findExplicit(rows, [/^total other income$/i]) ?? sumSection(rows, "Other Income");
-  const otherExpenses = Math.abs(findExplicit(rows, [/^total other expenses$/i]) ?? sumSection(rows, "Other Expenses"));
+  const otherExpenses = Math.abs(
+    findExplicit(rows, [/^total other expenses$/i]) ?? sumSection(rows, "Other Expenses"),
+  );
   const grossProfit = findExplicit(rows, [/gross profit/i]) ?? revenue - cogs;
-  const netIncome = findExplicit(rows, [/net (income|profit)/i]) ?? revenue - cogs - expenses + otherIncome - otherExpenses;
+  const netIncome =
+    findExplicit(rows, [/net (income|profit)/i]) ??
+    revenue - cogs - expenses + otherIncome - otherExpenses;
   return { revenue, cogs, expenses, otherIncome, otherExpenses, grossProfit, netIncome };
 }
 
