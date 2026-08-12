@@ -9,6 +9,7 @@ import type {
 } from "./types";
 import { applyCanonicalBankOverdraftClassification } from "./bank-overdraft";
 import { buildMappedFinancialSummary } from "./normalizers/financial-statements";
+import { ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION } from "./payload-schema";
 
 const REQUIRED_REPORTING_OBJECTS: Array<keyof AdvisacorNormalizedFinancialData> = [
   "normalizedBalanceSheet",
@@ -121,6 +122,7 @@ export function buildAdvisacorNormalizedFinancialData({
     },
     syncStatus: "RUNNING",
     lastSyncedAt: mappedAt,
+    schemaVersion: ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
     normalizedAccounts: bundle.chartOfAccounts || [],
     normalizedTransactions: isEmptyXeroFinancialActivity ? [] : normalizedEntitiesOrUnavailable(bundle.normalizedTransactions, source),
     normalizedTrialBalance: bundle.trialBalance || [],

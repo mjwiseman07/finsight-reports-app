@@ -13,6 +13,10 @@ import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCar
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
 import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
+import {
+  resolveXeroDashboardHydrationPlan,
+  shouldDiscardStalePayloadAfterFailedRefresh,
+} from "../../lib/integrations/accounting/payload-schema";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import {
   PulseJeAccountPicker,
@@ -902,9 +906,9 @@ export default function DashboardPage() {
     loadAccess();
   }, [getAuthToken, router]);
 
-  // DASH_1A.1.2 — hydrate a saved Xero connection after OAuth callback landing.
-  // Real callback shape: accountingConnected=true&provider=xero&connectionId=…
-  // Also accepts historical connected=xero for compatibility. No QBO path here.
+  // DASH_1A.1.2 — hydrate Xero after OAuth callback, and force-refresh when the
+  // persisted localStorage payload predates ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION.
+  // Ordinary /dashboard visits must not keep a SUCCESS sync normalized under a prior schema.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (isLoading) return;
@@ -922,19 +926,26 @@ export default function DashboardPage() {
       Boolean(connectionIdFromUrl) &&
       (providerParam === "xero" || connected === "xero" || (accountingConnected && providerParam === "xero"));
 
-    if (isXeroFromUrl) {
-      lifecycle.connectionId = connectionIdFromUrl;
-      lifecycle.sourceSystem = "xero";
+    const storedPayload = activeReportPayload || safeReadJsonStorage("advisacor_active_report_payload");
+    const hydrationPlan = resolveXeroDashboardHydrationPlan({
+      connectionIdFromUrl,
+      isXeroFromUrl,
+      storedPayload,
+    });
+
+    if (!hydrationPlan.shouldHydrate || hydrationPlan.sourceSystem !== "xero" || !hydrationPlan.connectionId) {
+      return;
     }
 
-    if (!lifecycle.connectionId || lifecycle.sourceSystem !== "xero") return;
-    if (!(isXeroFromUrl || lifecycle.connectionId)) return;
-
+    lifecycle.connectionId = hydrationPlan.connectionId;
+    lifecycle.sourceSystem = "xero";
     lifecycle.phase = "in_flight";
     lifecycle.runId += 1;
     const runId = lifecycle.runId;
     let cancelled = false;
     const capturedConnectionId = lifecycle.connectionId;
+    const forceRefresh = hydrationPlan.forceRefresh;
+    const schemaStale = hydrationPlan.schemaStale;
 
     // buildActiveReportSummary reads:
     //   context = payload.reportDataContext || payload
@@ -987,6 +998,15 @@ export default function DashboardPage() {
       }
     };
 
+    const discardStaleAuthoritativePayload = () => {
+      setActiveReportPayload(null);
+      try {
+        window.localStorage.removeItem("advisacor_active_report_payload");
+      } catch {
+        // ignore storage failures
+      }
+    };
+
     const cleanOAuthQueryParams = () => {
       const cleanUrl = new URL(window.location.href);
       cleanUrl.searchParams.delete("accountingConnected");
@@ -1013,6 +1033,9 @@ export default function DashboardPage() {
         if (!authToken) {
           if (!cancelled) {
             setError("Sign in to finish loading your Xero connection.");
+            if (shouldDiscardStalePayloadAfterFailedRefresh(schemaStale, false)) {
+              discardStaleAuthoritativePayload();
+            }
             settle({ persistCleanUrl: false });
           }
           return;
@@ -1027,7 +1050,7 @@ export default function DashboardPage() {
           body: JSON.stringify({
             connectionId: capturedConnectionId,
             sourceSystem: "xero",
-            forceRefresh: true,
+            forceRefresh,
           }),
         });
 
@@ -1104,11 +1127,17 @@ export default function DashboardPage() {
           persistPayload(payload);
           settle({ persistCleanUrl: true });
         } else {
+          if (shouldDiscardStalePayloadAfterFailedRefresh(schemaStale, false)) {
+            discardStaleAuthoritativePayload();
+          }
           setError((current) => current || "Xero connected, but financial data is not ready yet. Refresh in a moment.");
           settle({ persistCleanUrl: true });
         }
       } catch {
         if (!cancelled) {
+          if (shouldDiscardStalePayloadAfterFailedRefresh(schemaStale, false)) {
+            discardStaleAuthoritativePayload();
+          }
           setError("Unable to load your Xero financial data.");
           settle({ persistCleanUrl: false });
         }
@@ -1125,7 +1154,7 @@ export default function DashboardPage() {
         lifecycle.phase = "idle";
       }
     };
-  }, [getAuthToken, isLoading]);
+  }, [getAuthToken, isLoading, activeReportPayload]);
 
   useEffect(() => {
     const loadPulseMemory = async () => {
