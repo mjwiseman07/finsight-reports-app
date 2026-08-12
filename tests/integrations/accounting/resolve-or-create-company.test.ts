@@ -18,8 +18,10 @@ vi.mock("@/lib/integrations/accounting/resolve-company-id", () => ({
 }));
 
 import {
+  AccountingCompanyResolutionError,
   deriveProviderTenantId,
   rejectUserIdShapedCompanyId,
+  requireCompanyIdForTenantBackedSync,
   resolveCompanyIdForSyncPersist,
   resolveOrCreateCompanyForProvider,
 } from "@/lib/integrations/accounting/resolve-or-create-company";
@@ -246,7 +248,7 @@ describe("resolve-or-create-company (provider tenant → companies.id)", () => {
     expect(selectCount).toBe(2);
   });
 
-  it("H: resolution failure never falls back to user_id", async () => {
+  it("H: resolution failure never falls back to user_id; tenant-backed gate fails closed", async () => {
     expect(rejectUserIdShapedCompanyId(USER_ID, USER_ID)).toBeNull();
     expect(rejectUserIdShapedCompanyId(DEMO_COMPANY_ID, USER_ID)).toBe(DEMO_COMPANY_ID);
 
@@ -271,6 +273,62 @@ describe("resolve-or-create-company (provider tenant → companies.id)", () => {
     expect(id).toBeNull();
     expect(id).not.toBe(USER_ID);
     expect(resolveCompanyIdForUser).not.toHaveBeenCalled();
+
+    expect(() =>
+      requireCompanyIdForTenantBackedSync({
+        companyId: id,
+        resolvedTenantId: DEMO_XERO_TENANT,
+        connectionId: "conn-1",
+        provider: "xero",
+        tenantName: "Demo Company (US)",
+      }),
+    ).toThrow(AccountingCompanyResolutionError);
+  });
+
+  it("fail-closed: tenant present + null companyId => ACCOUNTING_COMPANY_RESOLUTION_FAILED", () => {
+    try {
+      requireCompanyIdForTenantBackedSync({
+        companyId: null,
+        resolvedTenantId: DEMO_XERO_TENANT,
+        connectionId: "ce526f9b-5d2c-46fc-b6f3-46617ab375bf",
+        provider: "xero",
+        tenantName: "Demo Company (US)",
+      });
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(AccountingCompanyResolutionError);
+      expect(err).toMatchObject({
+        code: "ACCOUNTING_COMPANY_RESOLUTION_FAILED",
+        connectionId: "ce526f9b-5d2c-46fc-b6f3-46617ab375bf",
+        provider: "xero",
+        tenantId: DEMO_XERO_TENANT,
+        tenantName: "Demo Company (US)",
+      });
+      const serialized = JSON.stringify(err, Object.getOwnPropertyNames(err));
+      expect(serialized).not.toContain("access_token");
+      expect(serialized).not.toContain("refresh_token");
+    }
+  });
+
+  it("fail-closed: tenant present + resolver success => canonical id allowed through", () => {
+    const id = requireCompanyIdForTenantBackedSync({
+      companyId: DEMO_COMPANY_ID,
+      resolvedTenantId: DEMO_XERO_TENANT,
+      connectionId: "conn-1",
+      provider: "xero",
+    });
+    expect(id).toBe(DEMO_COMPANY_ID);
+  });
+
+  it("tenant-less legacy: null companyId allowed (no throw)", () => {
+    expect(
+      requireCompanyIdForTenantBackedSync({
+        companyId: null,
+        resolvedTenantId: null,
+        connectionId: "conn-legacy",
+        provider: "xero",
+      }),
+    ).toBeNull();
   });
 
   it("I: multi-company — tenant identity wins; user lookup not consulted when tenant present", async () => {

@@ -55,6 +55,60 @@ export function deriveProviderTenantId(raw: string | null | undefined): string |
   return trimmed.replace(/^(xero|qbo|quickbooks):/i, "") || null;
 }
 
+export type AccountingCompanyResolutionErrorCode = "ACCOUNTING_COMPANY_RESOLUTION_FAILED";
+
+/**
+ * Fail-closed when a known provider tenant cannot be anchored to companies.id.
+ * Safe diagnostics only — never tokens/secrets.
+ */
+export class AccountingCompanyResolutionError extends Error {
+  code: AccountingCompanyResolutionErrorCode = "ACCOUNTING_COMPANY_RESOLUTION_FAILED";
+  connectionId: string;
+  provider: string;
+  tenantId: string | null;
+  tenantName: string | null;
+
+  constructor(args: {
+    connectionId: string;
+    provider: string;
+    tenantId: string | null;
+    tenantName?: string | null;
+    causeMessage?: string;
+  }) {
+    super(
+      `Accounting company resolution failed for ${args.provider} connection ${args.connectionId}` +
+        (args.causeMessage ? `: ${args.causeMessage}` : ""),
+    );
+    this.name = "AccountingCompanyResolutionError";
+    this.connectionId = args.connectionId;
+    this.provider = args.provider;
+    this.tenantId = args.tenantId;
+    this.tenantName = args.tenantName ?? null;
+  }
+}
+
+/**
+ * Known provider tenant + unresolved companies.id => throw (do not persist orphan sync).
+ * Tenant-less legacy paths may return null.
+ */
+export function requireCompanyIdForTenantBackedSync(args: {
+  companyId: string | null;
+  resolvedTenantId: string | null;
+  connectionId: string;
+  provider: string;
+  tenantName?: string | null;
+}): string | null {
+  if (args.resolvedTenantId && !args.companyId) {
+    throw new AccountingCompanyResolutionError({
+      connectionId: args.connectionId,
+      provider: args.provider,
+      tenantId: args.resolvedTenantId,
+      tenantName: args.tenantName ?? null,
+    });
+  }
+  return args.companyId;
+}
+
 export async function resolveOrCreateCompanyForProvider(
   admin: SupabaseClient,
   args: ResolveOrCreateCompanyArgs,
