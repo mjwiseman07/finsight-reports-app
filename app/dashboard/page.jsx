@@ -2198,6 +2198,7 @@ export default function DashboardPage() {
                 onConnectQBO={handleConnectQuickBooks}
                 onConnectXero={handleConnectXero}
                 hydrationActive={hydrationActive}
+                preflightWarningCodes={(activeReportPreflight?.warnings || []).map((issue) => issue.code).filter(Boolean)}
                 onAskAboutKpi={(_kpiCode, question) => {
                   setExecutiveQuestion(question);
                   setAiOpen(true);
