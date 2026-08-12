@@ -14,6 +14,8 @@ import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
 import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
 import {
+  canPromoteClientPayloadAsAuthoritative,
+  canUseFetchReportsFallbackAsSchemaPromotion,
   resolveXeroDashboardHydrationPlan,
   shouldDiscardStalePayloadAfterFailedRefresh,
 } from "../../lib/integrations/accounting/payload-schema";
@@ -964,6 +966,8 @@ export default function DashboardPage() {
       diagnostics,
       normalizedData,
       reportDataContext,
+      syncId = "",
+      authoritativePersistence = null,
       extras = {},
     }) => {
       if (!normalizedData?.sourceSystem) return null;
@@ -980,12 +984,16 @@ export default function DashboardPage() {
           extras.lastSyncedAt ||
           "",
         diagnostics: diagnostics || reportDataContext?.diagnostics || extras.diagnostics || null,
+        syncId: syncId || reportDataContext?.syncId || normalizedData.syncId || extras.syncId || "",
+        authoritativePersistence,
         normalizedData,
       };
       return {
         ...context,
         reportDataContext: context,
         normalizedData,
+        syncId: context.syncId,
+        authoritativePersistence,
       };
     };
 
@@ -1057,9 +1065,11 @@ export default function DashboardPage() {
         if (cancelled) return;
 
         let payload = null;
+        let authoritativePersistence = null;
         if (ctxRes.ok) {
           const ctx = await ctxRes.json().catch(() => ({}));
           const activeContext = ctx?.activeContext || ctx;
+          authoritativePersistence = activeContext?.authoritativePersistence || ctx?.authoritativePersistence || null;
           const normalizedData =
             activeContext?.normalizedData || activeContext?.reportDataContext?.normalizedData || null;
           payload = toSummaryCompatiblePayload({
@@ -1070,6 +1080,12 @@ export default function DashboardPage() {
             diagnostics: activeContext?.diagnostics || activeContext?.reportDataContext?.diagnostics || null,
             normalizedData,
             reportDataContext: activeContext?.reportDataContext || null,
+            syncId:
+              activeContext?.syncId ||
+              activeContext?.latestSuccessfulSyncId ||
+              activeContext?.persistedSyncRecord?.syncId ||
+              "",
+            authoritativePersistence,
             extras: activeContext && typeof activeContext === "object" ? activeContext : {},
           });
         } else {
@@ -1079,7 +1095,14 @@ export default function DashboardPage() {
           }
         }
 
-        if (!cancelled && !hasUsableNormalized(payload)) {
+        const activeContextIsAuthoritative = canPromoteClientPayloadAsAuthoritative({
+          payload,
+          persistence: authoritativePersistence,
+        });
+
+        // Schema-stale hydration must not promote a transient fetch-reports body
+        // when active-context did not prove durable persistence.
+        if (!cancelled && !activeContextIsAuthoritative && !hasUsableNormalized(payload)) {
           const endDt = new Date();
           const startDt = new Date();
           startDt.setUTCMonth(startDt.getUTCMonth() - 6);
@@ -1101,9 +1124,10 @@ export default function DashboardPage() {
 
           if (syncRes.ok) {
             const syncBody = await syncRes.json().catch(() => ({}));
+            const fallbackPersistence = syncBody?.authoritativePersistence || null;
             const normalizedData =
               syncBody?.normalizedData || syncBody?.reportDataContext?.normalizedData || null;
-            payload = toSummaryCompatiblePayload({
+            const fallbackPayload = toSummaryCompatiblePayload({
               connectionId: syncBody.connectionId || capturedConnectionId,
               sourceSystem: syncBody.sourceSystem || syncBody.provider || "xero",
               tenantName: syncBody.tenantName || syncBody.reportDataContext?.tenantName || "",
@@ -1111,8 +1135,24 @@ export default function DashboardPage() {
               diagnostics: syncBody.diagnostics || syncBody.reportDataContext?.diagnostics || null,
               normalizedData,
               reportDataContext: syncBody.reportDataContext || null,
+              syncId: syncBody.syncId || "",
+              authoritativePersistence: fallbackPersistence,
               extras: syncBody && typeof syncBody === "object" ? syncBody : {},
             });
+            if (
+              canUseFetchReportsFallbackAsSchemaPromotion({
+                schemaStale,
+                persistence: fallbackPersistence,
+                payload: fallbackPayload,
+              })
+            ) {
+              payload = fallbackPayload;
+              authoritativePersistence = fallbackPersistence;
+            } else if (!cancelled) {
+              setError(
+                "Xero data refreshed transiently but authoritative accounting memory was not persisted. Retry required.",
+              );
+            }
           } else if (!payload) {
             const errBody = await syncRes.json().catch(() => ({}));
             if (!cancelled) {
@@ -1123,14 +1163,30 @@ export default function DashboardPage() {
 
         if (cancelled) return;
 
-        if (hasUsableNormalized(payload)) {
+        const mayPersistAuthoritative = canPromoteClientPayloadAsAuthoritative({
+          payload,
+          persistence: authoritativePersistence,
+        });
+
+        if (mayPersistAuthoritative && hasUsableNormalized(payload)) {
+          persistPayload(payload);
+          settle({ persistCleanUrl: true });
+        } else if (hasUsableNormalized(payload) && !schemaStale) {
+          // Non-schema refresh path: keep prior behavior for usable payloads that
+          // do not carry the new proof field yet, but never stamp schema-current.
           persistPayload(payload);
           settle({ persistCleanUrl: true });
         } else {
-          if (shouldDiscardStalePayloadAfterFailedRefresh(schemaStale, false)) {
+          if (shouldDiscardStalePayloadAfterFailedRefresh(schemaStale, mayPersistAuthoritative)) {
             discardStaleAuthoritativePayload();
           }
-          setError((current) => current || "Xero connected, but financial data is not ready yet. Refresh in a moment.");
+          setError(
+            (current) =>
+              current ||
+              (schemaStale
+                ? "Unable to persist refreshed accounting memory. Scorecard will not use stale numbers as current."
+                : "Xero connected, but financial data is not ready yet. Refresh in a moment."),
+          );
           settle({ persistCleanUrl: true });
         }
       } catch {
