@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildActiveReportSummary } from "@/lib/integrations/accounting/active-report-summary";
+import {
+  buildActiveReportSummary,
+  isBalanceSheetSummaryOrTotalRow,
+  sumCashFromBalanceSheet,
+} from "@/lib/integrations/accounting/active-report-summary";
 import { buildMappedFinancialSummary } from "@/lib/integrations/accounting/normalizers/financial-statements";
 import type { CanonicalBalanceSheetRow, CanonicalPnLRow, CanonicalSourceMetadata } from "@/lib/integrations/accounting/types";
 
@@ -36,17 +40,23 @@ function bs(
   label: string,
   amount: number,
   section: string,
+  raw: Record<string, unknown> = {},
+  provider: "xero" | "quickbooks" = "xero",
 ): CanonicalBalanceSheetRow {
   return {
     label,
     amount,
     section,
     source: {
-      provider: "xero",
-      providerFamily: "xero",
-      providerProduct: "xero",
+      provider,
+      providerFamily: provider,
+      providerProduct: provider,
       sourceReport: "BalanceSheet",
-      raw: {},
+      raw: {
+        __advisacorHierarchyPath: [section, label].filter(Boolean),
+        __advisacorSourceSection: section,
+        ...raw,
+      },
     },
   };
 }
@@ -79,7 +89,6 @@ describe("canonical activeReportSummary", () => {
     const summary = buildActiveReportSummary(payload(incomeStatement, [], "quickbooks"));
     expect(summary?.revenue).toBe(100);
     expect(summary?.netIncome).toBe(20);
-    // Prove we did not sum Sales + Total Income + Net Income + COS.
     expect(summary?.revenue).not.toBe(180);
     expect(summary?.revenue).not.toBe(220);
   });
@@ -139,9 +148,9 @@ describe("canonical activeReportSummary", () => {
       pnl("Net Income", 80, "Net Income", qboSource()),
     ];
     const balanceSheet = [
-      bs("Checking", 1500, "Current Assets"),
-      bs("Total Assets", 5000, "Assets"),
-      bs("Total Liabilities", 1000, "Liabilities"),
+      bs("Checking", 1500, "Current Assets", {}, "quickbooks"),
+      bs("Total Assets", 5000, "Assets", {}, "quickbooks"),
+      bs("Total Liabilities", 1000, "Liabilities", {}, "quickbooks"),
     ];
     const summary = buildActiveReportSummary(payload(incomeStatement, balanceSheet, "quickbooks"));
     const mapped = buildMappedFinancialSummary(balanceSheet, incomeStatement);
@@ -172,7 +181,103 @@ describe("canonical activeReportSummary", () => {
     expect(summary?.revenue).toBe(100);
     expect(summary?.netIncome).toBe(20);
     expect(summary?.cash).toBe(9082);
-    // Old regex would also match Cost of Sales / Net Income and drift away from 100.
     expect(summary?.revenue).not.toBe(100 + 40 + 20);
+  });
+});
+
+describe("canonical cash selection", () => {
+  it("1: Xero live-shape — leaf + Total Cash does not double-count", () => {
+    const rows = [
+      bs("Checking Account", 4540.98, "Cash and Cash Equivalents", {
+        rowType: "Row",
+        __advisacorHierarchyPath: ["Cash and Cash Equivalents", "Checking Account"],
+      }),
+      bs("Total Cash and Cash Equivalents", 4540.98, "Cash and Cash Equivalents", {
+        rowType: "SummaryRow",
+        __advisacorHierarchyPath: ["Cash and Cash Equivalents", "Total Cash and Cash Equivalents"],
+      }),
+    ];
+    expect(isBalanceSheetSummaryOrTotalRow(rows[1])).toBe(true);
+    expect(sumCashFromBalanceSheet(rows)).toBe(4540.98);
+    expect(sumCashFromBalanceSheet(rows)).not.toBe(9081.96);
+    expect(buildActiveReportSummary(payload([], rows))?.cash).toBe(4540.98);
+  });
+
+  it("2: multiple leaves + total prefers the total once", () => {
+    const rows = [
+      bs("Checking", 4000, "Cash and Cash Equivalents"),
+      bs("Savings", 1000, "Cash and Cash Equivalents"),
+      bs("Total Cash", 5000, "Cash and Cash Equivalents", { rowType: "Summary" }),
+    ];
+    expect(sumCashFromBalanceSheet(rows)).toBe(5000);
+  });
+
+  it("3: no explicit total sums leaves only", () => {
+    const rows = [
+      bs("Checking", 4000, "Bank Accounts"),
+      bs("Savings", 1000, "Bank Accounts"),
+    ];
+    expect(sumCashFromBalanceSheet(rows)).toBe(5000);
+  });
+
+  it("4: zero cash remains zero", () => {
+    const rows = [
+      bs("Checking", 0, "Cash and Cash Equivalents"),
+      bs("Total Cash", 0, "Cash and Cash Equivalents", { rowType: "SummaryRow" }),
+    ];
+    expect(sumCashFromBalanceSheet(rows)).toBe(0);
+  });
+
+  it("5: negative bank/cash balance is preserved (no abs)", () => {
+    const rows = [bs("Checking", -250.5, "Bank Accounts")];
+    expect(sumCashFromBalanceSheet(rows)).toBe(-250.5);
+  });
+
+  it("6: QBO hierarchy leaf + parent/summary does not double-count", () => {
+    const rows = [
+      bs(
+        "Checking",
+        1200,
+        "Bank Accounts",
+        {
+          rowType: "Data",
+          __advisacorHierarchyPath: ["Assets", "Current Assets", "Bank Accounts", "Checking"],
+        },
+        "quickbooks",
+      ),
+      bs(
+        "Savings",
+        800,
+        "Bank Accounts",
+        {
+          rowType: "Data",
+          __advisacorHierarchyPath: ["Assets", "Current Assets", "Bank Accounts", "Savings"],
+        },
+        "quickbooks",
+      ),
+      bs(
+        "Total Bank Accounts",
+        2000,
+        "Bank Accounts",
+        {
+          rowType: "Summary",
+          __advisacorHierarchyPath: ["Assets", "Current Assets", "Bank Accounts", "Total Bank Accounts"],
+        },
+        "quickbooks",
+      ),
+    ];
+    expect(sumCashFromBalanceSheet(rows)).toBe(2000);
+    expect(buildActiveReportSummary(payload([], rows, "quickbooks"))?.cash).toBe(2000);
+  });
+
+  it("7: unrelated assets are excluded despite ambiguous section labels", () => {
+    const rows = [
+      bs("Checking", 1000, "Cash and Cash Equivalents"),
+      bs("Accounts Receivable", 5000, "Current Assets"),
+      bs("Inventory", 2000, "Current Assets"),
+      bs("Total Current Assets", 8000, "Current Assets", { rowType: "Summary" }),
+      bs("Total Assets", 12000, "Assets", { rowType: "Summary" }),
+    ];
+    expect(sumCashFromBalanceSheet(rows)).toBe(1000);
   });
 });
