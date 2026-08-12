@@ -5,7 +5,9 @@ import { buildReportDataContext } from "./report-data-context";
 import { getAccountingProviderMappingAdapter } from "./provider-adapters";
 import { getAccountingProvider, getEnabledProviders } from "./registry";
 import {
+  AccountingCompanyResolutionError,
   deriveProviderTenantId,
+  requireCompanyIdForTenantBackedSync,
   resolveCompanyIdForSyncPersist,
 } from "./resolve-or-create-company";
 import { decryptAccountingToken, encryptAccountingToken } from "./token-encryption";
@@ -202,7 +204,13 @@ async function saveNormalizedSyncMetadata({
 }) {
   // Provider/tenant → companies.id. Never persist connection.user_id as company_id
   // (historical poison: metadata_json.company_id === user_id).
+  // Known tenant + unresolved company => fail closed (no orphan accounting_syncs).
   let companyId: string | null = null;
+  const resolvedTenantId =
+    deriveProviderTenantId(tenantId) ||
+    deriveProviderTenantId(connection.tenant_or_realm_id) ||
+    deriveProviderTenantId(connection.external_entity_id);
+
   if (sourceSystem === "xero" || sourceSystem === "quickbooks") {
     try {
       const supabase = requireSupabase();
@@ -226,11 +234,6 @@ async function saveNormalizedSyncMetadata({
         if (slotRows?.[0]?.firm_id) firmId = String(slotRows[0].firm_id);
       }
 
-      const resolvedTenantId =
-        deriveProviderTenantId(tenantId) ||
-        deriveProviderTenantId(connection.tenant_or_realm_id) ||
-        deriveProviderTenantId(connection.external_entity_id);
-
       companyId = await resolveCompanyIdForSyncPersist(supabase, {
         provider: sourceSystem,
         tenantId: resolvedTenantId,
@@ -244,20 +247,40 @@ async function saveNormalizedSyncMetadata({
             : null,
       });
     } catch (resolveErr) {
+      if (resolveErr instanceof AccountingCompanyResolutionError) throw resolveErr;
       console.warn("[SYNC] resolveCompanyIdForSyncPersist failed", {
         connectionId: connection.id,
         provider: sourceSystem,
+        tenantId: resolvedTenantId,
+        tenantName: tenantName || connection.external_entity_name || null,
         message: resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
       });
+      if (resolvedTenantId) {
+        throw new AccountingCompanyResolutionError({
+          connectionId: connection.id,
+          provider: sourceSystem,
+          tenantId: resolvedTenantId,
+          tenantName: tenantName || connection.external_entity_name || null,
+          causeMessage: resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
+        });
+      }
       companyId = null;
     }
+
+    companyId = requireCompanyIdForTenantBackedSync({
+      companyId,
+      resolvedTenantId,
+      connectionId: connection.id,
+      provider: sourceSystem,
+      tenantName: tenantName || connection.external_entity_name || null,
+    });
   }
 
   if (!companyId) {
-    console.warn("[SYNC] company_id unresolved — persisting sync with company_id=null (user_id fallback banned)", {
+    // Tenant-less legacy only — never reach here for known Xero/QBO tenant identity.
+    console.warn("[SYNC] company_id unresolved — tenant-less legacy path; persisting with company_id=null (user_id fallback banned)", {
       connectionId: connection.id,
       provider: sourceSystem,
-      userId: connection.user_id,
     });
   }
 
