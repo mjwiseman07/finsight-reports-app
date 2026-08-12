@@ -56,6 +56,49 @@ function structuralRowType(row: CanonicalBalanceSheetRow): string {
   return String(raw.rowType || raw.RowType || "").trim().toLowerCase();
 }
 
+function classificationHints(row: CanonicalBalanceSheetRow): string[] {
+  const raw = rawMeta(row);
+  return [
+    ...hierarchyPath(row),
+    String(raw.__advisacorSourceSection || ""),
+    String(row.section || ""),
+    String(raw.accountClass || raw.AccountClass || ""),
+    String(raw.accountType || raw.AccountType || ""),
+    String(raw.Classification || raw.classification || ""),
+  ]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean);
+}
+
+const NON_ASSET_SECTION =
+  /^(liabilit(y|ies)|current liabilit(y|ies)|long.?term liabilit(y|ies)|non.?current liabilit(y|ies)|equity|accounts?\s+payable|credit cards?)$/i;
+
+const ASSET_SECTION =
+  /^(assets?|current assets?|fixed assets?|non.?current assets?|cash and cash equivalents|bank accounts?|cash at bank|cash at bank and in hand)$/i;
+
+/**
+ * Cash Position may only use asset-side Balance Sheet rows.
+ * Prefer hierarchy / sourceSection / account classification over label tokens.
+ * Fail closed when structural side cannot be established.
+ */
+export function isAssetSideBalanceSheetRow(row: CanonicalBalanceSheetRow): boolean {
+  const hints = classificationHints(row);
+  if (!hints.length) return false;
+
+  // Explicit non-asset sections anywhere in structural context → exclude.
+  if (hints.some((hint) => NON_ASSET_SECTION.test(hint))) return false;
+
+  // Positive asset-side evidence required.
+  if (hints.some((hint) => ASSET_SECTION.test(hint))) return true;
+
+  // Broader classification strings (provider account class/type).
+  const joined = hints.join(" | ");
+  if (/\bliabilit|\bequity\b|\bpayable\b/i.test(joined)) return false;
+  if (/\basset\b|\bcash and cash equivalents\b|\bbank accounts?\b/i.test(joined)) return true;
+
+  return false;
+}
+
 /**
  * Summary / rollup detection prefers structural metadata (rowType, hierarchy),
  * then falls back to Total* labels. Provider-neutral — no sourceSystem branching.
@@ -83,28 +126,27 @@ function isExcludedNonCashLabel(label: string): boolean {
   );
 }
 
-/** Candidate for cash/bank selection (leaf or aggregate). */
-function isCashOrBankRelated(row: CanonicalBalanceSheetRow): boolean {
+/** Candidate for cash/bank selection (leaf or aggregate) — label/section only. */
+export function isCashOrBankRelated(row: CanonicalBalanceSheetRow): boolean {
   const label = String(row.label || "");
   const section = String(row.section || "");
   if (isExcludedNonCashLabel(label)) return false;
-  // Require cash/bank semantics on the label itself for totals, or on label/section for leaves.
   if (/cash|bank|checking|savings/i.test(label)) return true;
   if (/cash|bank|checking|savings/i.test(section) && !isBalanceSheetSummaryOrTotalRow(row)) {
-    // Leaf under a cash section whose account name omits those tokens (rare) —
-    // only accept when section is clearly a cash/bank grouping.
     return /cash and cash equivalents|bank accounts?|cash at bank/i.test(section);
   }
   return false;
 }
 
+function isEligibleCashRow(row: CanonicalBalanceSheetRow): boolean {
+  return isAssetSideBalanceSheetRow(row) && isCashOrBankRelated(row);
+}
+
 function isExplicitCashAggregate(row: CanonicalBalanceSheetRow): boolean {
-  if (!isCashOrBankRelated(row)) return false;
+  if (!isEligibleCashRow(row)) return false;
   const label = String(row.label || "");
-  // Must be a cash/bank total — never Total Assets / Total Current Assets.
   if (!/cash|bank/i.test(label)) return false;
   if (isBalanceSheetSummaryOrTotalRow(row)) return true;
-  // Some providers emit the section total without Summary rowType but with Total* label.
   return /^(total\s+)?cash and cash equivalents$/i.test(label) || /^total\s+bank/i.test(label);
 }
 
@@ -121,9 +163,10 @@ function cashAggregateRank(label: string): number {
  * Canonical cash selector for activeReportSummary.
  *
  * Precedence:
- * A. One explicit cash/bank aggregate (Total Cash / Cash and Cash Equivalents / …)
- * B. Else sum leaf cash/bank accounts only
+ * A. One explicit ASSET-SIDE cash/bank aggregate
+ * B. Else sum ASSET-SIDE leaf cash/bank accounts only
  *
+ * Never include liability/equity bank-like rows.
  * Never sum leaves + their rollup. Never abs() negatives. Never fabricate.
  */
 export function sumCashFromBalanceSheet(rows: CanonicalBalanceSheetRow[] = []): number {
@@ -136,7 +179,7 @@ export function sumCashFromBalanceSheet(rows: CanonicalBalanceSheetRow[] = []): 
   }
 
   return rows
-    .filter((row) => isCashOrBankRelated(row) && !isBalanceSheetSummaryOrTotalRow(row))
+    .filter((row) => isEligibleCashRow(row) && !isBalanceSheetSummaryOrTotalRow(row))
     .reduce((total, row) => total + Number(row.amount || 0), 0);
 }
 
