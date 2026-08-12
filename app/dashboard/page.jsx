@@ -53,6 +53,10 @@ import {
 import { downloadFinancialPackagePdf, downloadFluxAnalysisPdf } from "../../lib/financial-package-pdf";
 import { assertReportDataContext } from "../../lib/integrations/accounting/report-data-context";
 import { assertReportPreflight, validateReportPreflight } from "../../lib/reporting/report-preflight-validation";
+import {
+  isExplicitAccountingDiagnosticsMode,
+  shouldShowAccountingDiagnostics,
+} from "../../lib/dashboard/accounting-diagnostics-visibility";
 
 const plans = getCheckoutTiers().map((tier) => ({
   key: tier.key,
@@ -703,6 +707,14 @@ export default function DashboardPage() {
   const firstPackageReady = dashboardParams.get("firstPackage") === "ready";
   const customerViewMode = dashboardParams.get("customerView") === "true";
   const readOnlyCustomerView = dashboardParams.get("readOnly") === "true";
+  // Accounting diagnostics grid is internal-only: privileged role + explicit
+  // superAdmin/debugAccounting mode. Query params alone never unlock it.
+  // customerView=true always suppresses (customer simulation must not leak).
+  const showAccountingDiagnostics = shouldShowAccountingDiagnostics({
+    customerViewMode,
+    isPrivilegedRole: Boolean(userIsFirmAdmin),
+    explicitInternalMode: isExplicitAccountingDiagnosticsMode(dashboardParams),
+  });
   const onboardingCompanyName = dashboardParams.get("companyName") || accountBusinessName;
   const onboardingIndustryType = dashboardParams.get("industryType") || "Industry Intelligence";
   const dashboardCompanyId =
@@ -1780,7 +1792,7 @@ export default function DashboardPage() {
               <StartingPointCard persona={primaryPersona || deliveryPersona} />
               <PendingApprovalsCard />
               <PostedJesCard />
-              {activeReportSummary && (
+              {activeReportSummary && showAccountingDiagnostics && (
                 <div className="rounded-3xl border border-[#5591C7]/30 bg-[#5591C7]/10 p-5">
                   <p className={`${headingFont} text-xs font-black uppercase tracking-[0.18em] text-[#DFC084]`}>Report Source: {activeReportSummary.sourceSystem}</p>
                   <div className="mt-3 grid gap-3 text-sm md:grid-cols-3 xl:grid-cols-6">
