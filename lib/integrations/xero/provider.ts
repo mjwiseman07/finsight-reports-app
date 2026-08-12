@@ -121,13 +121,30 @@ function extractAccountCodeFromLabel(label: string) {
   return label.match(/^(\d{2,})\s+(.+)$/)?.[1] || "";
 }
 
-function numericCellValue(cells: unknown[]) {
+/**
+ * Select the as-of / requested-period amount from a Xero report row.
+ *
+ * Xero Balance Sheet defaults to current period first, then prior-year
+ * comparison columns (Current Year Earnings cell Attributes prove:
+ * Cells[1] toDate = current year, Cells[2] toDate = prior year).
+ * Always take the first finite amount cell — never the last.
+ * Walking `.reverse()` previously selected prior-year Checking (4540.98)
+ * instead of the current-period amount (-4520.08).
+ *
+ * Preserves 0 and negatives. Does not abs(). Does not infer "current"
+ * from the last numeric cell.
+ */
+export function selectXeroReportPeriodAmount(cells: unknown[]): number {
   const amountCells = cells.length > 1 ? cells.slice(1) : cells;
-  for (const cell of [...amountCells].reverse()) {
+  for (const cell of amountCells) {
     const amount = xeroCellAmount(cell);
     if (amount !== null) return amount;
   }
   return 0;
+}
+
+function numericCellValue(cells: unknown[]) {
+  return selectXeroReportPeriodAmount(cells);
 }
 
 function countXeroReportRows(rows: unknown[] = []): number {
