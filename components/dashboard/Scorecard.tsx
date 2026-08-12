@@ -232,7 +232,7 @@ function CardShell({
       </div>
       <div className="mt-3">
         {showLoading ? (
-          <span className="inline-flex items-center rounded-full bg-[#3A3A3D] px-3 py-1 text-xs font-semibold text-[#A29E93]">
+          <span className="inline-flex items-center rounded-full bg-[#3A3A3D] px-3 py-1 text-xs font-semibold text-[#ECEBE7]/70">
             {terminalMessage || "Refreshing…"}
           </span>
         ) : showReady ? (
@@ -240,10 +240,10 @@ function CardShell({
             {value}
           </p>
         ) : (
-          <p className="text-sm leading-5 text-[#A29E93]">{terminalMessage}</p>
+          <p className="text-sm leading-5 text-[#ECEBE7]/70">{terminalMessage}</p>
         )}
       </div>
-      <p className="mt-2 text-sm text-[#A29E93]">{helperText}</p>
+      <p className="mt-2 text-sm text-[#ECEBE7]/70">{helperText}</p>
 
       {isFirst && coachMarkVisible && showReady && (
         <div
@@ -259,7 +259,7 @@ function CardShell({
               type="button"
               onClick={onDismissCoachMark}
               aria-label="Dismiss coach mark"
-              className={`${focusRing("rounded-full")} text-[#A29E93] hover:text-[#ECEBE7]`}
+              className={`${focusRing("rounded-full")} text-[#ECEBE7]/50 hover:text-[#ECEBE7]`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
@@ -297,31 +297,31 @@ export default function Scorecard({
     if (typeof window === "undefined") return;
     if (!activeReportSummary) return;
     try {
-      if (!window.localStorage.getItem(COACH_MARK_KEY)) {
-        setCoachMarkVisible(true);
-      }
+      const dismissed = localStorage.getItem(COACH_MARK_KEY);
+      if (!dismissed) setCoachMarkVisible(true);
     } catch {
-      // ignore storage failures
+      // localStorage unavailable — skip coach mark
     }
   }, [activeReportSummary]);
 
-  const dismissCoachMark = () => {
+  function dismissCoachMark() {
     setCoachMarkVisible(false);
     try {
-      window.localStorage.setItem(COACH_MARK_KEY, "1");
+      localStorage.setItem(COACH_MARK_KEY, new Date().toISOString());
     } catch {
-      // ignore
+      // no-op
     }
-  };
+  }
 
-  const connectQBO = onConnectQBO || onConnectDeprecated;
-  const connectXero = onConnectXero || onConnectDeprecated;
+  const connectQBO = onConnectQBO ?? onConnectDeprecated ?? (() => {});
+  const connectXero = onConnectXero ?? (() => {});
 
+  // Unconnected / no report yet — DASH_1A.1.2 tile-grid provider picker
   if (!activeReportSummary && !hydrationActive) {
     return (
       <ProviderPickerEmptyState
-        onConnectQBO={connectQBO || (() => {})}
-        onConnectXero={connectXero || (() => {})}
+        onConnectQBO={connectQBO}
+        onConnectXero={connectXero}
         companyName={companyName}
       />
     );
@@ -374,7 +374,7 @@ export default function Scorecard({
         <p className={`${headingFont} text-xs font-semibold uppercase tracking-[0.2em] text-[#C9A961]`}>
           Your Scorecard
         </p>
-        <p className="text-sm text-[#A29E93]">
+        <p className="text-sm text-[#ECEBE7]/60">
           {companyName ? `${companyName} · ` : ""}
           {hydrationActive && !activeReportSummary
             ? `Fetching 6 months of ${getIntegrationLabel(integrationChoice)} data — usually 20-40 seconds`
@@ -452,7 +452,7 @@ export default function Scorecard({
       </div>
 
       {northStarState.status === "coming_soon" && activeReportSummary && (
-        <p className="mt-4 text-xs text-[#7A7974]">
+        <p className="mt-4 text-xs text-[#ECEBE7]/50">
           {northStar.label} — {northStar.computationShipped
             ? "figure wiring for this vertical is coming up in your next brief."
             : `computation for the ${industryType} vertical is coming up in your next brief.`}{" "}
