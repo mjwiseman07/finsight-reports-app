@@ -7,7 +7,7 @@ export type KpiCode =
 
 export type Unit = "currency" | "percent" | "ratio" | "days" | "count";
 
-export type ComputationStatus = "computed" | "pending_subledger";
+export type ComputationStatus = "computed" | "pending_subledger" | "not_supported";
 
 export type ProvenanceSourcePointer = {
   provider: "xero" | "quickbooks";
