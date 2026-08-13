@@ -37,6 +37,41 @@ type NormalizedRow = {
 type NormalizedPayload = {
   normalizedIncomeStatement: NormalizedRow[];
   normalizedBalanceSheet: NormalizedRow[];
+  canonicalArAgingSchedule?: {
+    current: number;
+    days_1_30: number;
+    days_31_60: number;
+    days_61_90: number;
+    days_over_90: number;
+    pastDueTotal?: number;
+    total?: number;
+    provider?: 'xero' | 'quickbooks';
+    customers?: Array<{
+      contactId: string | null;
+      contactName: string;
+      current: number;
+      days_1_30: number;
+      days_31_60: number;
+      days_61_90: number;
+      days_over_90: number;
+      invoices?: Array<{
+        invoiceId: string;
+        openBalance: number;
+        bucket: string;
+        provenance?: {
+          provider: 'xero' | 'quickbooks';
+          providerFamily: string;
+          providerProduct: string;
+          sourceReport: string;
+          externalEntityId: string;
+          externalRecordId: string;
+          hierarchyPath?: string[];
+          section?: string;
+          reportAmount?: number | null;
+        };
+      }>;
+    }>;
+  };
   normalizedARAging?: {
     current: number;
     days_1_30: number;
@@ -252,7 +287,8 @@ export function factorizeNetProfitMargin(
 }
 
 export function factorizeArAging(payload: NormalizedPayload): FactorizedKpi {
-  const ar = payload.normalizedARAging;
+  const schedule = payload.canonicalArAgingSchedule;
+  const ar = schedule || payload.normalizedARAging;
   if (!ar) {
     return {
       numeric: null,
@@ -265,96 +301,63 @@ export function factorizeArAging(payload: NormalizedPayload): FactorizedKpi {
     };
   }
   const total =
-    ar.days_1_30 + ar.days_31_60 + ar.days_61_90 + ar.days_over_90;
+    typeof (ar as { pastDueTotal?: number }).pastDueTotal === 'number'
+      ? (ar as { pastDueTotal: number }).pastDueTotal
+      : ar.days_1_30 + ar.days_31_60 + ar.days_61_90 + ar.days_over_90;
 
-  const stubPointer: ProvenanceSourcePointer = {
-    provider: 'xero',
-    providerFamily: 'xero',
-    providerProduct: 'xero_accounting',
-    sourceReport: 'ARAgingSummary',
-    externalEntityId: 'ar-aging',
-    externalRecordId: 'ar-aging-bucket',
-    hierarchyPath: ['AR Aging'],
-    section: 'Receivables',
-    reportAmount: null,
-  };
-
-  const bucketRow = (label: string, amount: number): CompositionRow => ({
-    label,
-    amount,
-    section: 'Receivables',
-    hierarchyPath: ['AR Aging', label],
-    source: { ...stubPointer, externalRecordId: label },
-    contribution_pct: total !== 0 ? amount / total : null,
-  });
-
-  const composition: CompositionRow[] = [
-    bucketRow('1-30 days', ar.days_1_30),
-    bucketRow('31-60 days', ar.days_31_60),
-    bucketRow('61-90 days', ar.days_61_90),
-    bucketRow('90+ days', ar.days_over_90),
-  ];
-
-  if (ar.perCustomer && ar.perCustomer.length > 0) {
-    const pastDuePerCustomer = ar.perCustomer
-      .map((c) => ({
-        ...c,
-        pastDue:
-          c.days_1_30 + c.days_31_60 + c.days_61_90 + c.days_over_90,
-      }))
-      .filter((c) => c.pastDue > 0)
-      .sort((a, b) => b.pastDue - a.pastDue)
-      .slice(0, 10);
-    for (const c of pastDuePerCustomer) {
+  // Derived KPI: never fabricate provider identity. Composition only includes
+  // invoice/report lines that carry real ERP provenance (Option A/B), else
+  // numeric-only with empty composition (Option C — same rule as OGM).
+  const composition: CompositionRow[] = [];
+  if (schedule && Array.isArray(schedule.customers)) {
+    const pastDueLines = schedule.customers
+      .flatMap((customer) =>
+        (customer.invoices || [])
+          .filter((invoice) => invoice.bucket !== 'current' && invoice.provenance)
+          .map((invoice) => ({ customer, invoice })),
+      )
+      .sort(
+        (a, b) => Math.abs(b.invoice.openBalance) - Math.abs(a.invoice.openBalance),
+      )
+      .slice(0, 20);
+    for (const { customer, invoice } of pastDueLines) {
+      const provenance = invoice.provenance!;
+      if (provenance.provider !== 'xero' && provenance.provider !== 'quickbooks') {
+        continue;
+      }
+      // Truthful ERP record id required — never Advisacor-local composites.
+      if (!provenance.externalRecordId || provenance.externalRecordId.startsWith('advisacor:')) {
+        continue;
+      }
       composition.push({
-        label: c.customerName,
-        amount: c.pastDue,
-        section: 'Receivables (customer)',
-        hierarchyPath: ['AR Aging', 'By Customer', c.customerName],
-        source: { ...stubPointer, externalRecordId: c.customerId },
-        contribution_pct: total !== 0 ? c.pastDue / total : null,
+        label: `${customer.contactName} · ${invoice.invoiceId}`,
+        amount: invoice.openBalance,
+        section: provenance.section || 'Receivables',
+        hierarchyPath: provenance.hierarchyPath || ['AR Aging', customer.contactName],
+        source: {
+          provider: provenance.provider,
+          providerFamily: provenance.providerFamily,
+          providerProduct: provenance.providerProduct,
+          sourceReport: provenance.sourceReport,
+          externalEntityId: provenance.externalEntityId,
+          externalRecordId: provenance.externalRecordId,
+          hierarchyPath: provenance.hierarchyPath || [],
+          section: provenance.section || 'Receivables',
+          reportAmount: provenance.reportAmount ?? invoice.openBalance,
+        },
+        contribution_pct: total !== 0 ? invoice.openBalance / total : null,
       });
     }
   }
 
-  const formula: FormulaNode = {
-    kind: 'sum',
-    label: 'AR Aging Exposure',
-    operands: [
-      {
-        kind: 'ref',
-        label: '1-30 days',
-        amount: ar.days_1_30,
-        source: stubPointer,
-      },
-      {
-        kind: 'ref',
-        label: '31-60 days',
-        amount: ar.days_31_60,
-        source: stubPointer,
-      },
-      {
-        kind: 'ref',
-        label: '61-90 days',
-        amount: ar.days_61_90,
-        source: stubPointer,
-      },
-      {
-        kind: 'ref',
-        label: '90+ days',
-        amount: ar.days_over_90,
-        source: stubPointer,
-      },
-    ],
-  };
-
+  // No fabricated bucket refs — AR exposure is derived from the schedule.
   return {
     numeric: total,
     display: formatCurrency(total),
     unit: 'currency',
-    formula,
+    formula: null,
     composition,
-    reported_by_provider: total,
+    reported_by_provider: null,
     computation_status: 'computed',
   };
 }

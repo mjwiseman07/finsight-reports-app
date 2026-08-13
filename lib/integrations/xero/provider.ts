@@ -3,6 +3,20 @@ import { buildCertificationFixtureReportBundle } from "../accounting/normalizers
 import { availabilityFromRows, notAvailableSchedule } from "../../accounting/supporting-schedules/fetchSupportingSchedules";
 import { buildMappedFinancialSummary, normalizeXeroFinancialStatement } from "../accounting/normalizers/financial-statements";
 import { emptyReportBundle } from "../accounting/normalizers/reports";
+import {
+  buildCanonicalArAgingSchedule,
+  canonicalArAgingScheduleToEntities,
+  isHistoricalArAsOfDate,
+  type CanonicalArOpenReceivable,
+} from "../accounting/ar-aging";
+import {
+  mapPool,
+  parseXeroAgedReceivablesByContactReport,
+  assertHistoricalAgedContactsWithinLimit,
+  XERO_AGED_RECEIVABLES_MAX_CONTACTS,
+  XERO_AGED_RECEIVABLES_SYNC_CONCURRENCY,
+  type XeroAgedReportRow,
+} from "./aged-receivables-as-of";
 import type {
   AccountingDateRange,
   AccountingProviderAdapter,
@@ -697,6 +711,19 @@ function storedConnectionScopes(connection: ProviderRequestParams["connection"])
   return Array.isArray(connection.scopes) ? connection.scopes.map(String) : [];
 }
 
+function xeroDateToIso(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  const asString = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(asString)) return asString.slice(0, 10);
+  const match = /\/Date\((-?\d+)/.exec(asString);
+  if (match) {
+    const date = new Date(Number(match[1]));
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
 function assertXeroScopesAllowSync(connection: ProviderRequestParams["connection"]) {
   const scopes = storedConnectionScopes(connection);
   if (!scopes.length) return;
@@ -950,6 +977,186 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
     return rows.map((row, index) =>
       normalizedEntity(report, row, params.connection.external_entity_id || undefined, `${report}:${index}`),
     );
+  }
+
+  /**
+   * Open AR invoices + credit notes for CURRENT as-of aging only.
+   * Do not use for historical asOfDate — current AmountDue omits invoices
+   * that were open historically but paid after the period end.
+   */
+  async getOpenArReceivables(params: ProviderRequestParams): Promise<CanonicalArOpenReceivable[]> {
+    const reportPeriod = normalizeXeroReportPeriod(params.dateRange);
+    const receivables: CanonicalArOpenReceivable[] = [];
+    const excludedStatuses = new Set(["DRAFT", "DELETED", "VOIDED"]);
+    const externalEntityId = params.connection.external_entity_id || undefined;
+
+    const fetchPaged = async (pathBase: string, collectionKey: string) => {
+      const items: Record<string, unknown>[] = [];
+      for (let page = 1; page <= 20; page += 1) {
+        const separator = pathBase.includes("?") ? "&" : "?";
+        const payload = await this.xeroGet(params.connection, `${pathBase}${separator}page=${page}`);
+        const batch = Array.isArray(payload?.[collectionKey]) ? payload[collectionKey] : [];
+        items.push(...batch);
+        if (batch.length < 100) break;
+      }
+      return items;
+    };
+
+    try {
+      const invoices = await fetchPaged(
+        `Invoices?where=${encodeURIComponent('Type=="ACCREC"')}`,
+        "Invoices",
+      );
+      for (const invoice of invoices) {
+        const status = String(invoice.Status || "").toUpperCase();
+        if (excludedStatuses.has(status)) continue;
+        const amountDue = Number(invoice.AmountDue);
+        if (!Number.isFinite(amountDue) || Math.abs(amountDue) <= 0.005) continue;
+        const dueDate = xeroDateToIso(invoice.DueDateString || invoice.DueDate);
+        if (!dueDate) continue;
+        const contact = (invoice.Contact || {}) as Record<string, unknown>;
+        const invoiceId = String(invoice.InvoiceID || invoice.InvoiceNumber || "");
+        receivables.push({
+          invoiceId,
+          invoiceDate: xeroDateToIso(invoice.DateString || invoice.Date),
+          dueDate,
+          contactId: contact.ContactID ? String(contact.ContactID) : null,
+          contactName: String(contact.Name || invoice.ContactName || "Unknown"),
+          openBalance: amountDue,
+          currency: invoice.CurrencyCode ? String(invoice.CurrencyCode) : null,
+          status,
+          provider: "xero",
+          sourceKind: "invoice",
+          provenance: {
+            provider: "xero",
+            providerFamily: "xero",
+            providerProduct: "xero",
+            sourceReport: "Invoices",
+            externalEntityId: externalEntityId || String(contact.ContactID || ""),
+            externalRecordId: invoiceId,
+            hierarchyPath: ["Invoices", String(contact.Name || "Customer")],
+            section: "Receivables",
+            reportAmount: amountDue,
+          },
+        });
+      }
+    } catch (error) {
+      logXeroNormalizationError("Open AR Invoices", error, { phase: "fetch", reportPeriod });
+      throw error;
+    }
+
+    try {
+      const creditNotes = await fetchPaged(
+        `CreditNotes?where=${encodeURIComponent('Type=="ACCRECCREDIT"')}`,
+        "CreditNotes",
+      );
+      for (const note of creditNotes) {
+        const status = String(note.Status || "").toUpperCase();
+        if (excludedStatuses.has(status)) continue;
+        const remaining = Number(note.RemainingCredit ?? note.Total);
+        if (!Number.isFinite(remaining) || Math.abs(remaining) <= 0.005) continue;
+        const dueDate = xeroDateToIso(note.DueDateString || note.DueDate || note.DateString || note.Date);
+        if (!dueDate) continue;
+        const contact = (note.Contact || {}) as Record<string, unknown>;
+        const creditNoteId = String(note.CreditNoteID || note.CreditNoteNumber || "");
+        receivables.push({
+          invoiceId: creditNoteId,
+          invoiceDate: xeroDateToIso(note.DateString || note.Date),
+          dueDate,
+          contactId: contact.ContactID ? String(contact.ContactID) : null,
+          contactName: String(contact.Name || "Unknown"),
+          openBalance: -Math.abs(remaining),
+          currency: note.CurrencyCode ? String(note.CurrencyCode) : null,
+          status,
+          provider: "xero",
+          sourceKind: "credit_note",
+          provenance: {
+            provider: "xero",
+            providerFamily: "xero",
+            providerProduct: "xero",
+            sourceReport: "CreditNotes",
+            externalEntityId: externalEntityId || String(contact.ContactID || ""),
+            externalRecordId: creditNoteId,
+            hierarchyPath: ["Credit Notes", String(contact.Name || "Customer")],
+            section: "Receivables",
+            reportAmount: -Math.abs(remaining),
+          },
+        });
+      }
+    } catch (error) {
+      logXeroNormalizationError("Open AR Credit Notes", error, { phase: "fetch", reportPeriod });
+      throw error;
+    }
+
+    logXeroDiagnostics("open_ar_receivables_pulled", {
+      tenantId: params.connection.tenant_or_realm_id || params.connection.external_entity_id,
+      reportPeriod,
+      openReceivableCount: receivables.length,
+    });
+    return receivables;
+  }
+
+  /**
+   * Historical as-of AR via AgedReceivablesByContact?date=asOfDate per contact.
+   * Batched at sync time with bounded concurrency. Failures propagate (fail closed).
+   */
+  async getHistoricalAgedReceivablesAsOf(params: {
+    connection: ProviderRequestParams["connection"];
+    asOfDate: string;
+    contacts: Array<{ contactId: string; contactName: string }>;
+  }): Promise<{
+    receivables: CanonicalArOpenReceivable[];
+    contactReportsFetched: number;
+    contactReportsFailed: number;
+  }> {
+    assertHistoricalAgedContactsWithinLimit({
+      contactsAvailable: params.contacts.length,
+      contactsLimit: XERO_AGED_RECEIVABLES_MAX_CONTACTS,
+      asOfDate: params.asOfDate,
+    });
+    const externalEntityId = params.connection.external_entity_id || undefined;
+    const contacts = params.contacts;
+    let contactReportsFailed = 0;
+    const results = await mapPool(contacts, XERO_AGED_RECEIVABLES_SYNC_CONCURRENCY, async (contact) => {
+      try {
+        const payload = await this.xeroGet(
+          params.connection,
+          `Reports/AgedReceivablesByContact?contactID=${encodeURIComponent(contact.contactId)}&date=${encodeURIComponent(params.asOfDate)}&toDate=${encodeURIComponent(params.asOfDate)}`,
+        );
+        const reportRows = (payload?.Reports?.[0]?.Rows || []) as XeroAgedReportRow[];
+        return parseXeroAgedReceivablesByContactReport({
+          reportRows,
+          asOfDate: params.asOfDate,
+          contactId: contact.contactId,
+          contactName: contact.contactName,
+          externalEntityId,
+        });
+      } catch (error) {
+        contactReportsFailed += 1;
+        logXeroNormalizationError("AgedReceivablesByContact", error, {
+          phase: "fetch",
+          contactId: contact.contactId,
+          asOfDate: params.asOfDate,
+        });
+        throw error;
+      }
+    });
+    const receivables = results.flat();
+    logXeroDiagnostics("historical_aged_receivables_pulled", {
+      tenantId: params.connection.tenant_or_realm_id || params.connection.external_entity_id,
+      asOfDate: params.asOfDate,
+      contactsAvailable: contacts.length,
+      contactsLimit: XERO_AGED_RECEIVABLES_MAX_CONTACTS,
+      contactReportsFetched: contacts.length,
+      contactReportsFailed,
+      openReceivableCount: receivables.length,
+      concurrency: XERO_AGED_RECEIVABLES_SYNC_CONCURRENCY,
+    });
+    return {
+      receivables,
+      contactReportsFetched: contacts.length,
+      contactReportsFailed,
+    };
   }
 
   async getBudgetSummary(params: ProviderRequestParams) {
@@ -1232,13 +1439,132 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
       xeroMappedBalanceSheetRowsCount: xeroFetchDiagnostics.xeroMappedBalanceSheetRowsCount,
     });
     logXeroDiagnostics("mapped_financial_summary", mappedFinancialSummary);
+    const historicalAsOf = isHistoricalArAsOfDate(reportPeriod.endDate);
+    let canonicalArAgingSchedule = null as ReturnType<typeof buildCanonicalArAgingSchedule> | null;
+    let openArReceivableCount = 0;
+    let historicalContactReportsFetched = 0;
+    let arAgingSourceError: string | null = null;
+
+    try {
+      if (historicalAsOf) {
+        const customerContacts = (contacts.customers || [])
+          .map((customer) => {
+            const raw = (customer.source?.raw || {}) as Record<string, unknown>;
+            const contactId = String(
+              customer.source?.externalRecordId ||
+                raw.ContactID ||
+                String(customer.id || "").replace(/^xero:Contact:/, "") ||
+                "",
+            ).trim();
+            if (!contactId || contactId.startsWith("customer:")) return null;
+            return { contactId, contactName: customer.name || "Customer" };
+          })
+          .filter(Boolean) as Array<{ contactId: string; contactName: string }>;
+        const uniqueContacts = [
+          ...new Map(customerContacts.map((c) => [c.contactId, c])).values(),
+        ];
+        if (!uniqueContacts.length) {
+          arAgingSourceError = "historical_aged_receivables_no_customer_contacts";
+          logXeroDiagnostics("canonical_ar_aging_unavailable", {
+            tenantId: entity.tenantOrRealmId,
+            reportPeriod,
+            reason: arAgingSourceError,
+          });
+        } else {
+          const historical = await this.getHistoricalAgedReceivablesAsOf({
+            connection: params.connection,
+            asOfDate: reportPeriod.endDate,
+            contacts: uniqueContacts,
+          });
+          historicalContactReportsFetched = historical.contactReportsFetched;
+          openArReceivableCount = historical.receivables.length;
+          canonicalArAgingSchedule = buildCanonicalArAgingSchedule({
+            asOfDate: reportPeriod.endDate,
+            receivables: historical.receivables,
+            balanceSheet,
+            provider: this.provider,
+            companyId: params.connection.metadata_json?.company_id
+              ? String(params.connection.metadata_json.company_id)
+              : null,
+            connectionId: params.connection.id,
+            syncId: null,
+            sourceKind: "provider_aged_report_as_of",
+            historicalAsOf: true,
+            contactReportsFetched: historical.contactReportsFetched,
+            notes: [
+              "Historical AR from AgedReceivablesByContact?date=asOfDate (payments up to date).",
+              `Sync-time batch: ${historical.contactReportsFetched} contacts @ concurrency ${XERO_AGED_RECEIVABLES_SYNC_CONCURRENCY}.`,
+              "Current AmountDue was NOT used for historical as-of.",
+            ],
+          });
+        }
+      } else {
+        const openArReceivables = await this.getOpenArReceivables({ ...params, dateRange: reportPeriod });
+        openArReceivableCount = openArReceivables.length;
+        if (openArReceivables.length > 0) {
+          canonicalArAgingSchedule = buildCanonicalArAgingSchedule({
+            asOfDate: reportPeriod.endDate,
+            receivables: openArReceivables,
+            balanceSheet,
+            provider: this.provider,
+            companyId: params.connection.metadata_json?.company_id
+              ? String(params.connection.metadata_json.company_id)
+              : null,
+            connectionId: params.connection.id,
+            syncId: null,
+            sourceKind: "open_receivables_current",
+            historicalAsOf: false,
+            notes: [
+              "Current as-of schedule from open ACCREC invoices + ACCRECCREDIT notes (AmountDue/RemainingCredit).",
+            ],
+          });
+        }
+      }
+    } catch (error) {
+      const err = error as Error & { code?: string; diagnostics?: Record<string, unknown> };
+      arAgingSourceError =
+        err.code ||
+        (error instanceof Error ? error.message : String(error));
+      canonicalArAgingSchedule = null;
+      logXeroDiagnostics("canonical_ar_aging_fail_closed", {
+        tenantId: entity.tenantOrRealmId,
+        reportPeriod,
+        historicalAsOf,
+        error: arAgingSourceError,
+        ...(err.diagnostics || {}),
+      });
+    }
+
+    if (canonicalArAgingSchedule) {
+      logXeroDiagnostics("canonical_ar_aging_built", {
+        tenantId: entity.tenantOrRealmId,
+        reportPeriod,
+        historicalAsOf,
+        sourceKind: canonicalArAgingSchedule.source.kind,
+        total: canonicalArAgingSchedule.total,
+        pastDueTotal: canonicalArAgingSchedule.pastDueTotal,
+        current: canonicalArAgingSchedule.current,
+        tieOutStatus: canonicalArAgingSchedule.tieOut.status,
+        tieOutVariance: canonicalArAgingSchedule.tieOut.variance,
+        invoiceCount: canonicalArAgingSchedule.source.invoiceCount,
+        contactReportsFetched: historicalContactReportsFetched,
+      });
+    }
     bundle.chartOfAccounts = chartOfAccounts;
     bundle.trialBalance = trialBalance;
     bundle.profitAndLoss = profitAndLoss;
     bundle.profitAndLossYtd = profitAndLossYtd;
     bundle.balanceSheet = balanceSheet;
     bundle.normalizedTransactions = bankSummary.length ? bankSummary : transactions.length ? transactions : notAvailableSchedule(this.provider, "Bank Summary");
-    bundle.normalizedARAging = arAging.length ? arAging : notAvailableSchedule(this.provider, "Aged Receivables");
+    bundle.canonicalArAgingSchedule = canonicalArAgingSchedule;
+    bundle.normalizedARAging = canonicalArAgingSchedule
+      ? canonicalArAgingScheduleToEntities(canonicalArAgingSchedule, {
+          provider: this.provider,
+          externalEntityId: entity.externalId,
+        })
+      : arAging.length
+        ? arAging
+        : notAvailableSchedule(this.provider, "Aged Receivables");
     bundle.normalizedAPAging = apAging.length ? apAging : notAvailableSchedule(this.provider, "Aged Payables");
     bundle.normalizedBudgets = budgets.length ? budgets : notAvailableSchedule(this.provider, "Budget Summary");
     bundle.normalizedDepartments = trackingDimensions.departments;
@@ -1254,6 +1580,14 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
         ...xeroFetchDiagnostics,
         arAgingRowsCount: arAging.length,
         apAgingRowsCount: apAging.length,
+        openArReceivableCount,
+        historicalAsOf,
+        historicalContactReportsFetched,
+        arAgingSourceError,
+        canonicalArAgingTotal: canonicalArAgingSchedule?.total ?? null,
+        canonicalArAgingPastDueTotal: canonicalArAgingSchedule?.pastDueTotal ?? null,
+        canonicalArAgingTieOut: canonicalArAgingSchedule?.tieOut ?? null,
+        canonicalArAgingSourceKind: canonicalArAgingSchedule?.source.kind ?? null,
       },
     };
     logXeroDiagnostics("raw_reports_mapped", (bundle.sourceMetadata.raw as Record<string, unknown>).diagnostics as Record<string, unknown>);

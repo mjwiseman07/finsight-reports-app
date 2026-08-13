@@ -69,6 +69,56 @@ describe("Scorecard tile state resolvers", () => {
     expect(state.status === "unavailable" && state.message).not.toContain("AR_AGING_MISSING");
   });
 
+  it("C2: AR schedule with passing Tie-Out -> ready", () => {
+    expect(
+      resolveArAgingTileState({
+        hydrationActive: false,
+        hasSummary: true,
+        arAgingSchedule: {
+          current: 7752.05,
+          days_1_30: 290.58,
+          days_31_60: 250,
+          days_61_90: 250,
+          days_over_90: 0,
+          pastDueTotal: 790.58,
+          tieOut: {
+            status: "tie",
+            scheduleTotal: 8542.63,
+            balanceSheetAr: 8542.63,
+            variance: 0,
+            tolerance: 1,
+            passesForScorecard: true,
+          },
+        },
+      }).status,
+    ).toBe("ready");
+  });
+
+  it("C3: AR schedule with material Tie-Out fail -> error (not READY)", () => {
+    expect(
+      resolveArAgingTileState({
+        hydrationActive: false,
+        hasSummary: true,
+        arAgingSchedule: {
+          current: 0,
+          days_1_30: 1000,
+          days_31_60: 0,
+          days_61_90: 0,
+          days_over_90: 0,
+          pastDueTotal: 1000,
+          tieOut: {
+            status: "kickout",
+            scheduleTotal: 1000,
+            balanceSheetAr: 500,
+            variance: 500,
+            tolerance: 1,
+            passesForScorecard: false,
+          },
+        },
+      }),
+    ).toMatchObject({ status: "error" });
+  });
+
   it("D: Net Op CF settled + null source -> unavailable", () => {
     expect(
       resolveNetOpCashFlowTileState({

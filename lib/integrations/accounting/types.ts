@@ -146,6 +146,11 @@ export interface AdvisacorNormalizedFinancialData {
   normalizedIncomeStatement: CanonicalPnLRow[];
   normalizedIncomeStatementYtd?: CanonicalPnLRow[];
   normalizedARAging: AdvisacorNormalizedEntity[];
+  /**
+   * Provider-neutral due-date AR aging schedule (Scorecard / Tie-Out / memory).
+   * Prefer this over flattening AgedReceivables report rows for KPI work.
+   */
+  canonicalArAgingSchedule?: import("./ar-aging").CanonicalArAgingSchedule | null;
   normalizedAPAging: AdvisacorNormalizedEntity[];
   normalizedBudgets: AdvisacorNormalizedEntity[];
   normalizedDepartments: AdvisacorNormalizedEntity[];
@@ -180,6 +185,8 @@ export interface CanonicalReportBundle {
   cashFlow: CanonicalCashFlowRow[];
   normalizedTransactions?: AdvisacorNormalizedEntity[];
   normalizedARAging?: AdvisacorNormalizedEntity[];
+  /** Invoice-derived (or report-summary) canonical AR aging; stamped at sync. */
+  canonicalArAgingSchedule?: import("./ar-aging").CanonicalArAgingSchedule | null;
   normalizedAPAging?: AdvisacorNormalizedEntity[];
   normalizedBudgets?: AdvisacorNormalizedEntity[];
   normalizedDepartments?: AdvisacorNormalizedEntity[];
