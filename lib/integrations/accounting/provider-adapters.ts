@@ -1,4 +1,5 @@
 import { buildAdvisacorNormalizedFinancialData, validateAdvisacorNormalizedFinancialData } from "./advisacor-data-model";
+import { sumCashFromBalanceSheet } from "./active-report-summary";
 import { buildMappedFinancialSummary } from "./normalizers/financial-statements";
 import { dynamics365AccountingProvider } from "./providers/dynamics365";
 import { netSuiteAccountingProvider } from "./providers/netsuite";
@@ -41,9 +42,7 @@ function sumAbsAmounts(rows: Array<{ amount?: number }>) {
 function mappingDiagnostics(normalizedData: Awaited<ReturnType<typeof buildAdvisacorNormalizedFinancialData>>) {
   const balanceSheet = normalizedData.normalizedBalanceSheet;
   const incomeStatement = normalizedData.normalizedIncomeStatement;
-  const cashBalance = balanceSheet
-    .filter((row) => /cash|bank|checking|savings/i.test(`${row.label} ${row.section || ""}`))
-    .reduce((total, row) => total + Number(row.amount || 0), 0);
+  const cashBalance = sumCashFromBalanceSheet(balanceSheet);
   const mappedFinancialSummary = buildMappedFinancialSummary(balanceSheet, incomeStatement);
   const diagnostics = {
     sourceSystem: normalizedData.sourceSystem,
