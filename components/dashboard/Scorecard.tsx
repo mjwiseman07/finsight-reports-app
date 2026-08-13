@@ -28,6 +28,19 @@ export type ArAgingSchedule = {
   days_31_60: number;
   days_61_90: number;
   days_over_90: number;
+  /** Full AR subledger total (Current + past due). Not Scorecard exposure. */
+  total?: number;
+  /** Scorecard exposure = past-due buckets only. */
+  pastDueTotal?: number;
+  tieOut?: {
+    status: "tie" | "auto_cleared" | "review" | "kickout" | "unavailable";
+    scheduleTotal: number;
+    balanceSheetAr: number;
+    variance: number;
+    tolerance: number;
+    reason?: string;
+    passesForScorecard?: boolean;
+  };
 };
 
 export type CashFlowTrailing = {
@@ -69,6 +82,13 @@ const CURRENCY_FORMAT = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
   maximumFractionDigits: 0,
+});
+
+const CURRENCY_FORMAT_PRECISE = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 const PERCENT_FORMAT = new Intl.NumberFormat("en-US", {
@@ -121,7 +141,23 @@ export function resolveArAgingTileState(args: {
   arAgingSchedule: ArAgingSchedule | null;
   preflightWarningCodes?: string[];
 }): ScorecardTileState {
-  if (args.arAgingSchedule) return { status: "ready" };
+  if (args.arAgingSchedule) {
+    const tie = args.arAgingSchedule.tieOut;
+    const passes =
+      tie?.passesForScorecard === true ||
+      tie?.status === "tie" ||
+      tie?.status === "auto_cleared";
+    if (tie && !passes) {
+      return {
+        status: "error",
+        message:
+          tie.status === "kickout" || tie.status === "review"
+            ? "AR aging does not tie to the Balance Sheet."
+            : "AR aging Tie-Out is unavailable for this period.",
+      };
+    }
+    return { status: "ready" };
+  }
   if (args.hydrationActive && !args.hasSummary) {
     return { status: "loading", message: "Refreshing…" };
   }
@@ -386,12 +422,14 @@ export default function Scorecard({
     preflightWarningCodes,
   });
   const arTotal = arAgingSchedule
-    ? arAgingSchedule.days_1_30 +
-      arAgingSchedule.days_31_60 +
-      arAgingSchedule.days_61_90 +
-      arAgingSchedule.days_over_90
+    ? typeof arAgingSchedule.pastDueTotal === "number"
+      ? arAgingSchedule.pastDueTotal
+      : arAgingSchedule.days_1_30 +
+        arAgingSchedule.days_31_60 +
+        arAgingSchedule.days_61_90 +
+        arAgingSchedule.days_over_90
     : null;
-  const arValue = arTotal !== null ? CURRENCY_FORMAT.format(arTotal) : "";
+  const arValue = arTotal !== null ? CURRENCY_FORMAT_PRECISE.format(arTotal) : "";
 
   const { state: netMarginState, value: netMarginValue } = resolveNetMarginTileState({
     hydrationActive,

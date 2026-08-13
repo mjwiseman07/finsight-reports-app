@@ -37,6 +37,24 @@ type NormalizedRow = {
 type NormalizedPayload = {
   normalizedIncomeStatement: NormalizedRow[];
   normalizedBalanceSheet: NormalizedRow[];
+  canonicalArAgingSchedule?: {
+    current: number;
+    days_1_30: number;
+    days_31_60: number;
+    days_61_90: number;
+    days_over_90: number;
+    pastDueTotal?: number;
+    total?: number;
+    customers?: Array<{
+      contactId: string | null;
+      contactName: string;
+      current: number;
+      days_1_30: number;
+      days_31_60: number;
+      days_61_90: number;
+      days_over_90: number;
+    }>;
+  };
   normalizedARAging?: {
     current: number;
     days_1_30: number;
@@ -252,7 +270,9 @@ export function factorizeNetProfitMargin(
 }
 
 export function factorizeArAging(payload: NormalizedPayload): FactorizedKpi {
-  const ar = payload.normalizedARAging;
+  const ar =
+    payload.canonicalArAgingSchedule ||
+    payload.normalizedARAging;
   if (!ar) {
     return {
       numeric: null,
@@ -265,7 +285,9 @@ export function factorizeArAging(payload: NormalizedPayload): FactorizedKpi {
     };
   }
   const total =
-    ar.days_1_30 + ar.days_31_60 + ar.days_61_90 + ar.days_over_90;
+    typeof (ar as { pastDueTotal?: number }).pastDueTotal === 'number'
+      ? (ar as { pastDueTotal: number }).pastDueTotal
+      : ar.days_1_30 + ar.days_31_60 + ar.days_61_90 + ar.days_over_90;
 
   const stubPointer: ProvenanceSourcePointer = {
     provider: 'xero',
@@ -295,12 +317,38 @@ export function factorizeArAging(payload: NormalizedPayload): FactorizedKpi {
     bucketRow('90+ days', ar.days_over_90),
   ];
 
-  if (ar.perCustomer && ar.perCustomer.length > 0) {
-    const pastDuePerCustomer = ar.perCustomer
+  const legacyPerCustomer =
+    "perCustomer" in ar && Array.isArray(ar.perCustomer) ? ar.perCustomer : null;
+  if (legacyPerCustomer && legacyPerCustomer.length > 0) {
+    const pastDuePerCustomer = legacyPerCustomer
       .map((c) => ({
         ...c,
         pastDue:
           c.days_1_30 + c.days_31_60 + c.days_61_90 + c.days_over_90,
+      }))
+      .filter((c) => c.pastDue > 0)
+      .sort((a, b) => b.pastDue - a.pastDue)
+      .slice(0, 10);
+    for (const c of pastDuePerCustomer) {
+      composition.push({
+        label: c.customerName,
+        amount: c.pastDue,
+        section: 'Receivables (customer)',
+        hierarchyPath: ['AR Aging', 'By Customer', c.customerName],
+        source: { ...stubPointer, externalRecordId: c.customerId },
+        contribution_pct: total !== 0 ? c.pastDue / total : null,
+      });
+    }
+  } else if (
+    'customers' in ar &&
+    Array.isArray(ar.customers) &&
+    ar.customers.length > 0
+  ) {
+    const pastDuePerCustomer = ar.customers
+      .map((c) => ({
+        customerId: c.contactId || c.contactName,
+        customerName: c.contactName,
+        pastDue: c.days_1_30 + c.days_31_60 + c.days_61_90 + c.days_over_90,
       }))
       .filter((c) => c.pastDue > 0)
       .sort((a, b) => b.pastDue - a.pastDue)

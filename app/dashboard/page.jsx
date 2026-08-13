@@ -13,6 +13,7 @@ import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCar
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
 import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
+import { toScorecardArAgingView } from "../../lib/integrations/accounting/ar-aging";
 import {
   canPromoteClientPayloadAsAuthoritative,
   canUseFetchReportsFallbackAsSchemaPromotion,
@@ -704,6 +705,13 @@ export default function DashboardPage() {
     dashboardParams.get("connected") ||
     "";
   const activeReportSummary = buildActiveReportSummary(activeReportPayload);
+  const canonicalArAgingSchedule =
+    activeReportContext?.normalizedData?.canonicalArAgingSchedule ||
+    activeReportPayload?.normalizedData?.canonicalArAgingSchedule ||
+    null;
+  const arAgingSchedule = canonicalArAgingSchedule
+    ? toScorecardArAgingView(canonicalArAgingSchedule)
+    : null;
   const activeReportPreflight = activeReportContext?.normalizedData
     ? validateReportPreflight(activeReportContext, { requiresLiveData: true })
     : null;
@@ -2229,7 +2237,7 @@ export default function DashboardPage() {
               {/* DASH_1A δ-A: Scorecard + hash provenance stub. Block B swaps onOpenProvenance for Acc Contract drawer. */}
               <Scorecard
                 activeReportSummary={activeReportSummary}
-                arAgingSchedule={null}
+                arAgingSchedule={arAgingSchedule}
                 cashFlowTrailing12M={null}
                 industryType={onboardingIndustryType}
                 companyName={onboardingCompanyName}

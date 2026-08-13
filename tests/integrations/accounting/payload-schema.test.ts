@@ -60,7 +60,7 @@ const stalePayload = {
 const okPersistence = {
   ok: true,
   syncId: newSyncId,
-  schemaVersion: 2,
+  schemaVersion: ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
   activeNormalizedSyncId: newSyncId,
   companyId,
   connectionId,
@@ -96,7 +96,7 @@ describe("authoritative accounting persistence contract", () => {
           authoritativePersistence: {
             ok: false,
             syncId: newSyncId,
-            schemaVersion: 2,
+            schemaVersion: ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
             activeNormalizedSyncId: newSyncId,
             persisted: false,
             reason: "metadata_only",
@@ -125,11 +125,12 @@ describe("authoritative accounting persistence contract", () => {
   });
 
   it("5: current persisted schema does not require rebuild", () => {
-    expect(persistedSyncNeedsSchemaRebuild(2)).toBe(false);
+    expect(persistedSyncNeedsSchemaRebuild(ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION)).toBe(false);
+    expect(persistedSyncNeedsSchemaRebuild(2)).toBe(true);
     expect(
       shouldRebuildPersistedAccountingSync({
         forceRefresh: false,
-        persistedSchemaVersion: 2,
+        persistedSchemaVersion: ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
         sourceSystem: "xero",
       }),
     ).toBe(false);
@@ -138,7 +139,7 @@ describe("authoritative accounting persistence contract", () => {
   it("6: stale localStorage + current server => accept server", () => {
     const authority = resolveAccountingAuthority({
       localSchemaVersion: 0,
-      serverSchemaVersion: 2,
+      serverSchemaVersion: ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
       serverSyncId: newSyncId,
     });
     expect(authority.acceptServerPayload).toBe(true);
@@ -147,7 +148,7 @@ describe("authoritative accounting persistence contract", () => {
 
   it("7: current localStorage + stale server => server authority wins / rebuild required", () => {
     const authority = resolveAccountingAuthority({
-      localSchemaVersion: 2,
+      localSchemaVersion: ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
       serverSchemaVersion: 0,
       serverSyncId: "dd59d698-200b-42cd-9810-4a4c455c9816",
     });
@@ -196,7 +197,7 @@ describe("authoritative accounting persistence contract", () => {
         persistence: {
           ok: false,
           syncId: newSyncId,
-          schemaVersion: 2,
+          schemaVersion: ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
           activeNormalizedSyncId: "dd59d698-200b-42cd-9810-4a4c455c9816",
           persisted: false,
           reason: "pointer_not_updated",
