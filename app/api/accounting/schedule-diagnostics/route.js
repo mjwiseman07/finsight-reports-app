@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getActiveAccountingContext } from "../../../../lib/integrations/accounting";
+import {
+  AccountingConnectionSelectionError,
+  accountingConnectionSelectionErrorBody,
+  getActiveAccountingContext,
+} from "../../../../lib/integrations/accounting";
 import { buildScheduleDiagnostics } from "../../../../lib/accounting/supporting-schedules/scheduleDiagnostics";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
@@ -39,6 +43,9 @@ export async function GET(request) {
       ...buildScheduleDiagnostics(context.normalizedData),
     });
   } catch (error) {
+    if (error instanceof AccountingConnectionSelectionError) {
+      return NextResponse.json(accountingConnectionSelectionErrorBody(error), { status: error.httpStatus });
+    }
     console.error("[accounting/schedule-diagnostics] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to load schedule diagnostics" }, { status: 500 });
   }

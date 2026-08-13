@@ -17,10 +17,19 @@ import {
   requireCompanyIdForTenantBackedSync,
   resolveCompanyIdForSyncPersist,
 } from "./resolve-or-create-company";
+import { selectAccountingConnectionForActiveContext } from "./connection-selection";
 import { decryptAccountingToken, encryptAccountingToken } from "./token-encryption";
 import type { AccountingDateRange, AccountingProvider, AccountingConnectionRecord } from "./types";
 import { validateReportPreflight, type PreflightIssue } from "../../reporting/report-preflight-validation";
 import { supabaseAdmin } from "../../supabase";
+
+export {
+  AccountingConnectionSelectionError,
+  accountingConnectionSelectionErrorBody,
+  assertExplicitConnectionAuthoritative,
+  selectAccountingConnectionForActiveContext,
+  type AccountingConnectionSelectionErrorCode,
+} from "./connection-selection";
 
 const STATE_COOKIE = "accounting_oauth_state";
 const TOKEN_COOKIE = "accounting_oauth_token";
@@ -974,27 +983,14 @@ export async function getActiveAccountingContext({
   forceRefresh?: boolean;
 }) {
   const supabase = requireSupabase();
-  let connectionQuery = supabase
-    .from("accounting_connections")
-    .select("*")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
-  if (connectionId) connectionQuery = connectionQuery.eq("id", connectionId);
-  if (sourceSystem) connectionQuery = connectionQuery.eq("provider", sourceSystem);
-  const { data: connections, error: connectionError } = await connectionQuery.limit(1);
-  if (connectionError) throw connectionError;
-  let connection = connections?.[0] as AccountingConnectionRecord | undefined;
-  if (!connection && connectionId && sourceSystem) {
-    const { data: fallbackConnections, error: fallbackConnectionError } = await supabase
-      .from("accounting_connections")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("provider", sourceSystem)
-      .order("updated_at", { ascending: false })
-      .limit(1);
-    if (fallbackConnectionError) throw fallbackConnectionError;
-    connection = fallbackConnections?.[0] as AccountingConnectionRecord | undefined;
-  }
+  // PR A: explicit connectionId is fail-closed (no latest-row fallback).
+  // No-ID path only considers status = connected.
+  const connection = await selectAccountingConnectionForActiveContext({
+    supabase,
+    userId,
+    connectionId,
+    sourceSystem,
+  });
   if (!connection) return null;
 
   const metadata = connection.metadata_json || {};

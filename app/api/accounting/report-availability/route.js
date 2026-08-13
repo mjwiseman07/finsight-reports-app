@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getActiveAccountingContext } from "../../../../lib/integrations/accounting";
+import {
+  AccountingConnectionSelectionError,
+  accountingConnectionSelectionErrorBody,
+  getActiveAccountingContext,
+} from "../../../../lib/integrations/accounting";
 import { availabilityFromNormalizedData } from "../../../../lib/accounting/supporting-schedules/fetchSupportingSchedules";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
@@ -48,6 +52,9 @@ export async function GET(request) {
       reports: reportAvailability,
     });
   } catch (error) {
+    if (error instanceof AccountingConnectionSelectionError) {
+      return NextResponse.json(accountingConnectionSelectionErrorBody(error), { status: error.httpStatus });
+    }
     console.error("[accounting/report-availability] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to load report availability" }, { status: 500 });
   }
