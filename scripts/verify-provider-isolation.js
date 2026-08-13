@@ -75,9 +75,26 @@ for (const marker of [
   "Validation Status",
   "Connection ID",
   "Sync ID",
+  "showAccountingDiagnostics",
+  "shouldShowAccountingDiagnostics",
 ]) {
   if (dashboardSource.includes(marker)) pass(`dashboard isolation marker present: ${marker}`);
   else fail(`dashboard isolation marker missing: ${marker}`);
+}
+
+if (
+  dashboardSource.includes("activeReportSummary && showAccountingDiagnostics") ||
+  dashboardSource.includes("activeReportSummary&&showAccountingDiagnostics")
+) {
+  pass("dashboard Report Source panel is privilege-gated");
+} else {
+  fail("dashboard Report Source panel must be gated by showAccountingDiagnostics");
+}
+
+if (dashboardSource.includes("validateReportPreflight")) {
+  pass("dashboard preflight evidence computation preserved");
+} else {
+  fail("dashboard must still compute activeReportPreflight via validateReportPreflight");
 }
 
 const pdfSource = read("lib/financial-package-pdf.ts");

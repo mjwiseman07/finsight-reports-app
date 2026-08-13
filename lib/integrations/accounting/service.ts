@@ -10,6 +10,13 @@ import {
 import { buildReportDataContext } from "./report-data-context";
 import { getAccountingProviderMappingAdapter } from "./provider-adapters";
 import { getAccountingProvider, getEnabledProviders } from "./registry";
+import { ensureFreshTokens } from "./ensure-fresh-tokens";
+import {
+  AccountingCompanyResolutionError,
+  deriveProviderTenantId,
+  requireCompanyIdForTenantBackedSync,
+  resolveCompanyIdForSyncPersist,
+} from "./resolve-or-create-company";
 import { decryptAccountingToken, encryptAccountingToken } from "./token-encryption";
 import type { AccountingDateRange, AccountingProvider, AccountingConnectionRecord } from "./types";
 import { validateReportPreflight, type PreflightIssue } from "../../reporting/report-preflight-validation";
@@ -92,7 +99,7 @@ function isEmptyXeroFinancialActivityMessage(normalizedData: {
   return normalizedData.sourceSystem === "xero" && normalizedData.validation.warnings.includes("Connected to Xero. No financial activity found.");
 }
 
-function uuidOrNull(value: string | null) {
+function uuidOrNull(value: string | null | undefined) {
   return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) ? value : null;
 }
 
@@ -202,7 +209,88 @@ async function saveNormalizedSyncMetadata({
   preflight: unknown;
   normalizedDataForStorage: Awaited<ReturnType<typeof buildReportDataContext>>["normalizedData"] & { syncStatus: string };
 }) {
-  const companyId = normalizedData.companyId || String(connection.metadata_json?.company_id || connection.user_id || "");
+  // Provider/tenant → companies.id. Never persist connection.user_id as company_id
+  // (historical poison: metadata_json.company_id === user_id).
+  // Known tenant + unresolved company => fail closed (no orphan accounting_syncs).
+  let companyId: string | null = null;
+  const resolvedTenantId =
+    deriveProviderTenantId(tenantId) ||
+    deriveProviderTenantId(connection.tenant_or_realm_id) ||
+    deriveProviderTenantId(connection.external_entity_id);
+
+  if (sourceSystem === "xero" || sourceSystem === "quickbooks") {
+    try {
+      const supabase = requireSupabase();
+      let firmId: string | null = null;
+      const { data: memberRows } = await supabase
+        .from("company_users")
+        .select("company_id")
+        .eq("user_id", connection.user_id)
+        .eq("status", "active")
+        .limit(5);
+      const memberCompanyIds = (memberRows || [])
+        .map((row) => (typeof row.company_id === "string" ? row.company_id : null))
+        .filter((id): id is string => Boolean(id));
+      if (memberCompanyIds.length) {
+        const { data: slotRows } = await supabase
+          .from("pilot_slots")
+          .select("firm_id")
+          .in("company_id", memberCompanyIds)
+          .not("firm_id", "is", null)
+          .limit(1);
+        if (slotRows?.[0]?.firm_id) firmId = String(slotRows[0].firm_id);
+      }
+
+      companyId = await resolveCompanyIdForSyncPersist(supabase, {
+        provider: sourceSystem,
+        tenantId: resolvedTenantId,
+        userId: connection.user_id,
+        firmId,
+        tenantName: tenantName || connection.external_entity_name || null,
+        normalizedCompanyId: normalizedData.companyId || null,
+        metadataCompanyId:
+          typeof connection.metadata_json?.company_id === "string"
+            ? connection.metadata_json.company_id
+            : null,
+      });
+    } catch (resolveErr) {
+      if (resolveErr instanceof AccountingCompanyResolutionError) throw resolveErr;
+      console.warn("[SYNC] resolveCompanyIdForSyncPersist failed", {
+        connectionId: connection.id,
+        provider: sourceSystem,
+        tenantId: resolvedTenantId,
+        tenantName: tenantName || connection.external_entity_name || null,
+        message: resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
+      });
+      if (resolvedTenantId) {
+        throw new AccountingCompanyResolutionError({
+          connectionId: connection.id,
+          provider: sourceSystem,
+          tenantId: resolvedTenantId,
+          tenantName: tenantName || connection.external_entity_name || null,
+          causeMessage: resolveErr instanceof Error ? resolveErr.message : String(resolveErr),
+        });
+      }
+      companyId = null;
+    }
+
+    companyId = requireCompanyIdForTenantBackedSync({
+      companyId,
+      resolvedTenantId,
+      connectionId: connection.id,
+      provider: sourceSystem,
+      tenantName: tenantName || connection.external_entity_name || null,
+    });
+  }
+
+  if (!companyId) {
+    // Tenant-less legacy only — never reach here for known Xero/QBO tenant identity.
+    console.warn("[SYNC] company_id unresolved — tenant-less legacy path; persisting with company_id=null (user_id fallback banned)", {
+      connectionId: connection.id,
+      provider: sourceSystem,
+    });
+  }
+
   const { error } = await requireSupabase()
     .from("accounting_connections")
     .update({
@@ -268,7 +356,7 @@ function buildMetadataSyncRow({
   const reportPeriod = (entry.reportPeriod as Partial<AccountingDateRange> | undefined) || {};
   return {
     id: String(entry.syncId || metadata.active_normalized_sync_id || metadata.last_sync_id || ""),
-    company_id: entry.companyId || metadata.company_id || connection.user_id || "",
+    company_id: entry.companyId || metadata.company_id || null,
     connection_id: entry.connectionId || connection.id,
     source_system: entry.sourceSystem || sourceSystem,
     adapter_name: entry.adapterName || "",
@@ -294,7 +382,9 @@ async function buildAndPersistLiveAccountingSync({
   if (!["quickbooks", "xero"].includes(sourceSystem) || connection.provider !== sourceSystem) return null;
   const reportPeriod = latestCompletedAccountingMonth();
   const syncId = crypto.randomUUID();
-  const decryptedConnection = decryptConnectionTokens(connection);
+  // Proactive OAuth refresh (Xero) before any provider API read.
+  // Single lifecycle owner — do not also refresh inside xeroGet in this PR.
+  const decryptedConnection = await ensureFreshTokens(connection);
   const tenantId = decryptedConnection.tenant_or_realm_id || decryptedConnection.external_entity_id || null;
   const tenantName = decryptedConnection.external_entity_name || String(decryptedConnection.metadata_json?.tenant_name || decryptedConnection.metadata_json?.company_name || (sourceSystem === "xero" ? "Xero Organization" : "QuickBooks Company"));
   const mappingAdapter = getAccountingProviderMappingAdapter(sourceSystem);
@@ -321,6 +411,8 @@ async function buildAndPersistLiveAccountingSync({
     (error as Error & { diagnostics?: Record<string, unknown> }).diagnostics = diagnostics;
     throw error;
   }
+  // companyId already resolved via resolveCompanyIdForSyncPersist inside
+  // persistNormalizedAccountingSync (#244) and written to accounting_syncs.
   await persistNormalizedAccountingSync({
     connection: decryptedConnection,
     userId,
@@ -336,8 +428,9 @@ async function buildAndPersistLiveAccountingSync({
     requireDurableAccountingSyncRow: true,
   });
 
-  // Authoritative return must come from durable accounting_syncs readback, not
-  // an in-memory metadata fabrication that could diverge from DB memory.
+  // Authoritative return must come from durable accounting_syncs readback (#252),
+  // not an in-memory metadata fabrication that could diverge from DB memory.
+  // Readback includes company_id so #244 identity is not lost.
   const { data: persistedRows, error: persistedError } = await requireSupabase()
     .from("accounting_syncs")
     .select(
@@ -750,7 +843,10 @@ export async function getConnectionForUser(connectionId: string, userId: string)
     .limit(1);
   if (error) throw error;
   if (!data?.[0]) throw new Error("Accounting connection not found");
-  return decryptConnectionTokens(data[0] as AccountingConnectionRecord);
+  // Fresh tokens for entity list / fetch-reports / any path that reads via this helper.
+  // If the caller later hits buildAndPersistLiveAccountingSync, skew + single-flight
+  // skip a second refresh in the same request.
+  return ensureFreshTokens(data[0] as AccountingConnectionRecord);
 }
 
 export async function listEntities(connectionId: string, userId: string) {
