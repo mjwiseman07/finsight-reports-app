@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getActiveAccountingContext } from "../../../../lib/integrations/accounting";
+import {
+  AccountingConnectionSelectionError,
+  accountingConnectionSelectionErrorBody,
+  getActiveAccountingContext,
+} from "../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
 
@@ -36,6 +40,9 @@ export async function POST(request) {
     if (!context) return NextResponse.json({ error: "No active accounting context found" }, { status: 404 });
     return NextResponse.json({ ok: true, activeContext: context, ...context });
   } catch (error) {
+    if (error instanceof AccountingConnectionSelectionError) {
+      return NextResponse.json(accountingConnectionSelectionErrorBody(error), { status: error.httpStatus });
+    }
     console.error("[accounting/active-context] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to load active accounting context" }, { status: 500 });
   }
