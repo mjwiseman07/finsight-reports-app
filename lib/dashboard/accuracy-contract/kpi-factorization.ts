@@ -434,55 +434,43 @@ export function factorizeNetOpCashFlow(payload: NormalizedPayload): FactorizedKp
   const provenance = schedule.provenance;
   const composition: CompositionRow[] = [];
 
-  // Prefer the actual provider operating subtotal row when present in operatingRows.
+  // Path A only: actual operating subtotal row with a truthful provider externalRecordId.
+  // Numeric NOCF may still be computed without line-level provenance (Path B).
   const subtotalLabel = provenance?.operatingSubtotalLabel;
-  const subtotalRow = (schedule.operatingRows || []).find(
-    (row) => subtotalLabel && row.label === subtotalLabel && row.source?.externalRecordId,
-  );
+  const subtotalRow = (schedule.operatingRows || []).find((row) => {
+    if (!subtotalLabel || row.label !== subtotalLabel) return false;
+    const id = String(row.source?.externalRecordId || "").trim();
+    if (!id || id.startsWith("advisacor:") || id === "operating-subtotal") return false;
+    if (id === row.label) return false;
+    // Must match schedule provenance when present — never invent a pointer.
+    if (
+      provenance?.operatingSubtotalExternalRecordId &&
+      id !== provenance.operatingSubtotalExternalRecordId
+    ) {
+      return false;
+    }
+    return true;
+  });
   if (
     subtotalRow &&
-    (subtotalRow.source.provider === 'xero' || subtotalRow.source.provider === 'quickbooks') &&
-    subtotalRow.source.externalRecordId &&
-    !String(subtotalRow.source.externalRecordId).startsWith('advisacor:')
+    provenance?.operatingSubtotalExternalRecordId &&
+    (subtotalRow.source.provider === "xero" || subtotalRow.source.provider === "quickbooks")
   ) {
     composition.push({
       label: subtotalRow.label,
       amount: subtotalRow.amount,
-      section: subtotalRow.section || 'operating',
+      section: subtotalRow.section || "operating",
       hierarchyPath: subtotalRow.hierarchyPath || [],
       source: {
         provider: subtotalRow.source.provider,
         providerFamily: subtotalRow.source.providerFamily,
         providerProduct: subtotalRow.source.providerProduct,
         sourceReport: subtotalRow.source.sourceReport,
-        externalEntityId: String(subtotalRow.source.externalEntityId || ''),
-        externalRecordId: String(subtotalRow.source.externalRecordId),
-        hierarchyPath: subtotalRow.hierarchyPath || [],
-        section: subtotalRow.section || 'operating',
-        reportAmount: subtotalRow.amount,
-      },
-    });
-  } else if (
-    provenance?.operatingSubtotalExternalRecordId &&
-    provenance.sourceReport &&
-    !String(provenance.operatingSubtotalExternalRecordId).startsWith('advisacor:') &&
-    (schedule.provider === 'xero' || schedule.provider === 'quickbooks')
-  ) {
-    composition.push({
-      label: provenance.operatingSubtotalLabel || 'Net cash from operating activities',
-      amount,
-      section: 'operating',
-      hierarchyPath: ['Operating Activities'],
-      source: {
-        provider: schedule.provider,
-        providerFamily: schedule.provider,
-        providerProduct: schedule.provider,
-        sourceReport: provenance.sourceReport,
-        externalEntityId: '',
+        externalEntityId: String(subtotalRow.source.externalEntityId || ""),
         externalRecordId: provenance.operatingSubtotalExternalRecordId,
-        hierarchyPath: ['Operating Activities'],
-        section: 'operating',
-        reportAmount: amount,
+        hierarchyPath: subtotalRow.hierarchyPath || [],
+        section: subtotalRow.section || "operating",
+        reportAmount: subtotalRow.amount,
       },
     });
   }
@@ -490,7 +478,7 @@ export function factorizeNetOpCashFlow(payload: NormalizedPayload): FactorizedKp
   const formula: FormulaNode | null =
     composition.length === 1
       ? {
-          kind: 'ref',
+          kind: "ref",
           label: composition[0].label,
           amount: composition[0].amount,
           source: composition[0].source,
@@ -499,16 +487,17 @@ export function factorizeNetOpCashFlow(payload: NormalizedPayload): FactorizedKp
 
   return {
     numeric: amount,
-    display: new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    display: new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
       maximumFractionDigits: 0,
     }).format(amount),
-    unit: 'currency',
+    unit: "currency",
     formula,
     composition,
+    // Amount taken from provider SoCF subtotal — independent of line-level IDs.
     reported_by_provider: amount,
-    computation_status: 'computed',
+    computation_status: "computed",
   };
 }
 

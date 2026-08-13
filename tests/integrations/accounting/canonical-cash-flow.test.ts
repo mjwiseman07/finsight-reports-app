@@ -25,7 +25,7 @@ function cfSource(label: string, overrides: Partial<CanonicalSourceMetadata> = {
     providerProduct: "quickbooks",
     sourceReport: "CashFlow",
     externalEntityId: "realm-1",
-    externalRecordId: `qbo-cf:${label}`,
+    // Default: no externalRecordId — mirrors normalizeTabularReportRows / QBO CashFlow.
     raw: {
       __advisacorHierarchyPath: ["Operating Activities", label],
       __advisacorSourceSection: "Operating Activities",
@@ -34,7 +34,12 @@ function cfSource(label: string, overrides: Partial<CanonicalSourceMetadata> = {
   };
 }
 
-function cfRow(label: string, amount: number, section = "Operating Activities"): CanonicalCashFlowRow {
+function cfRow(
+  label: string,
+  amount: number,
+  section = "Operating Activities",
+  sourceOverrides: Partial<CanonicalSourceMetadata> = {},
+): CanonicalCashFlowRow {
   return {
     label,
     amount,
@@ -44,6 +49,7 @@ function cfRow(label: string, amount: number, section = "Operating Activities"):
         __advisacorHierarchyPath: [section, label],
         __advisacorSourceSection: section,
       },
+      ...sourceOverrides,
     }),
   };
 }
@@ -392,23 +398,80 @@ describe("Scorecard + Accuracy Contract", () => {
     });
   });
 
-  it("13: Accuracy Contract QBO uses real provenance only", () => {
+  it("13a: Accuracy Contract keeps numeric without fabricating composition when no ERP id", () => {
     const schedule = buildCanonicalCashFlowScheduleFromProviderRows({
       endDate: "2026-07-31",
       provider: "quickbooks",
       rows: [cfRow("Net cash provided by operating activities", 250)],
     });
+    expect(schedule.provenance.operatingSubtotalExternalRecordId).toBeNull();
+    expect(schedule.provenance.operatingSubtotalLabel).toBe(
+      "Net cash provided by operating activities",
+    );
     const factor = factorizeNetOpCashFlow({
       normalizedIncomeStatement: [],
       normalizedBalanceSheet: [],
       canonicalCashFlowSchedule: schedule,
     } as any);
     expect(factor.numeric).toBe(250);
+    expect(factor.reported_by_provider).toBe(250);
     expect(factor.computation_status).toBe("computed");
-    expect(JSON.stringify(factor)).not.toContain("advisacor:");
-    expect(JSON.stringify(factor)).not.toContain("BankSummary");
-    expect(factor.composition.length).toBeGreaterThan(0);
+    expect(factor.composition).toEqual([]);
+    expect(factor.formula).toBeNull();
+    expect(JSON.stringify(factor)).not.toContain("operating-subtotal");
+    expect(JSON.stringify(schedule)).not.toContain("operating-subtotal");
+  });
+
+  it("13b: Accuracy Contract composition only when real externalRecordId exists", () => {
+    const schedule = buildCanonicalCashFlowScheduleFromProviderRows({
+      endDate: "2026-07-31",
+      provider: "quickbooks",
+      rows: [
+        cfRow("Net cash provided by operating activities", 250, "Operating Activities", {
+          externalRecordId: "qbo-report-row-9f3a2c1b",
+        }),
+      ],
+    });
+    expect(schedule.provenance.operatingSubtotalExternalRecordId).toBe("qbo-report-row-9f3a2c1b");
+    const factor = factorizeNetOpCashFlow({
+      normalizedIncomeStatement: [],
+      normalizedBalanceSheet: [],
+      canonicalCashFlowSchedule: schedule,
+    } as any);
+    expect(factor.numeric).toBe(250);
+    expect(factor.composition).toHaveLength(1);
+    expect(factor.composition[0].source.externalRecordId).toBe("qbo-report-row-9f3a2c1b");
     expect(factor.composition[0].source.sourceReport).toBe("CashFlow");
+    expect(factor.formula).not.toBeNull();
+  });
+
+  it("label must never become operatingSubtotalExternalRecordId", () => {
+    const label = "Net cash provided by operating activities";
+    const schedule = buildCanonicalCashFlowScheduleFromProviderRows({
+      endDate: "2026-07-31",
+      provider: "quickbooks",
+      rows: [
+        cfRow(label, 100, "Operating Activities", {
+          // Fabrication attempt: mirror label into externalRecordId
+          externalRecordId: label,
+        }),
+      ],
+    });
+    expect(schedule.provenance.operatingSubtotalExternalRecordId).toBeNull();
+    expect(schedule.netOperatingCashFlow).toBe(100);
+  });
+
+  it('"operating-subtotal" must never become externalRecordId', () => {
+    const schedule = buildCanonicalCashFlowScheduleFromProviderRows({
+      endDate: "2026-07-31",
+      provider: "quickbooks",
+      rows: [
+        cfRow("Net cash provided by operating activities", 100, "Operating Activities", {
+          externalRecordId: "operating-subtotal",
+        }),
+      ],
+    });
+    expect(schedule.provenance.operatingSubtotalExternalRecordId).toBeNull();
   });
 
   it("14: Accuracy Contract Xero not_supported", () => {
