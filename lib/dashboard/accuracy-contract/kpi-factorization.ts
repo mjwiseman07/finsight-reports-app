@@ -325,6 +325,10 @@ export function factorizeArAging(payload: NormalizedPayload): FactorizedKpi {
       if (provenance.provider !== 'xero' && provenance.provider !== 'quickbooks') {
         continue;
       }
+      // Truthful ERP record id required — never Advisacor-local composites.
+      if (!provenance.externalRecordId || provenance.externalRecordId.startsWith('advisacor:')) {
+        continue;
+      }
       composition.push({
         label: `${customer.contactName} · ${invoice.invoiceId}`,
         amount: invoice.openBalance,
