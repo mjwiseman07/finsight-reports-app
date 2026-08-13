@@ -8,7 +8,14 @@ export type AccountingMappingAdapterName =
   | "sageAdapter";
 export type AccountingSyncStatus = "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
 
-export type AccountingConnectionStatus = "pending" | "connected" | "needs_entity_selection" | "expired" | "disconnected" | "failed";
+export type AccountingConnectionStatus =
+  | "pending"
+  | "connected"
+  | "needs_entity_selection"
+  | "expired"
+  | "disconnected"
+  | "failed"
+  | "superseded";
 
 export interface AccountingConnectionRecord {
   id: string;
@@ -24,6 +31,8 @@ export interface AccountingConnectionRecord {
   tenant_or_realm_id?: string | null;
   scopes: string[];
   status: AccountingConnectionStatus;
+  /** Canonical successor when status = superseded. Never self-referential. */
+  superseded_by_connection_id?: string | null;
   metadata_json: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;

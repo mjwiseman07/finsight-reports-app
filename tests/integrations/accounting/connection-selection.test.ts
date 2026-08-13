@@ -3,10 +3,15 @@
  * Explicit connectionId fails closed; no-ID selects connected-only.
  */
 import { describe, expect, it, vi } from "vitest";
-import type { AccountingConnectionRecord } from "@/lib/integrations/accounting/types";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { AccountingConnectionRecord, AccountingConnectionStatus } from "@/lib/integrations/accounting/types";
 import {
   AccountingConnectionSelectionError,
+  accountingConnectionSelectionErrorBody,
   assertExplicitConnectionAuthoritative,
+  isExposableSupersessionSuccessor,
+  isSelfSupersession,
   selectAccountingConnectionForActiveContext,
 } from "@/lib/integrations/accounting/connection-selection";
 
@@ -362,5 +367,231 @@ describe("selectAccountingConnectionForActiveContext", () => {
     expect(result?.id).toBe(LIVE_CONNECTED);
     expect(calls[0].orderedBy).toBe("updated_at");
     expect(calls[0].filters.status).toBe("connected");
+  });
+});
+
+describe("PR B supersession lifecycle (selection + types; no backfill)", () => {
+  const TENANT = "ceaea696-081f-491e-9daa-a9263a023ca9";
+
+  it("1. status union accepts superseded", () => {
+    const status: AccountingConnectionStatus = "superseded";
+    const row = makeRow({
+      id: STALE_CONNECTED,
+      status,
+      superseded_by_connection_id: LIVE_CONNECTED,
+    });
+    expect(row.status).toBe("superseded");
+    expect(row.superseded_by_connection_id).toBe(LIVE_CONNECTED);
+  });
+
+  it("rejects self-successor at business layer", () => {
+    expect(isSelfSupersession({ id: LIVE_CONNECTED, superseded_by_connection_id: LIVE_CONNECTED })).toBe(true);
+    expect(isSelfSupersession({ id: STALE_CONNECTED, superseded_by_connection_id: LIVE_CONNECTED })).toBe(false);
+  });
+
+  it("2. explicit superseded row → ACCOUNTING_CONNECTION_SUPERSEDED", async () => {
+    const superseded = makeRow({
+      id: STALE_CONNECTED,
+      status: "superseded",
+      superseded_by_connection_id: null,
+    });
+    const { supabase } = createSupabaseMock(() => superseded);
+    await expect(
+      selectAccountingConnectionForActiveContext({
+        supabase,
+        userId: USER,
+        connectionId: STALE_CONNECTED,
+        sourceSystem: "xero",
+      }),
+    ).rejects.toMatchObject({
+      code: "ACCOUNTING_CONNECTION_SUPERSEDED",
+      httpStatus: 409,
+      connectionId: STALE_CONNECTED,
+    });
+  });
+
+  it("3. valid successor → successorConnectionId exposed", async () => {
+    const predecessor = makeRow({
+      id: STALE_CONNECTED,
+      status: "superseded",
+      tenant_or_realm_id: TENANT,
+      superseded_by_connection_id: LIVE_CONNECTED,
+    });
+    const successor = makeRow({
+      id: LIVE_CONNECTED,
+      status: "connected",
+      tenant_or_realm_id: TENANT,
+    });
+    const { supabase } = createSupabaseMock((call) => {
+      if (call.filters.id === STALE_CONNECTED && call.filters.user_id) return predecessor;
+      if (call.filters.id === LIVE_CONNECTED && !call.filters.user_id) return successor;
+      return null;
+    });
+    try {
+      await selectAccountingConnectionForActiveContext({
+        supabase,
+        userId: USER,
+        connectionId: STALE_CONNECTED,
+        sourceSystem: "xero",
+      });
+      throw new Error("expected throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AccountingConnectionSelectionError);
+      const err = error as AccountingConnectionSelectionError;
+      expect(err.code).toBe("ACCOUNTING_CONNECTION_SUPERSEDED");
+      expect(err.successorConnectionId).toBe(LIVE_CONNECTED);
+      expect(accountingConnectionSelectionErrorBody(err).successorConnectionId).toBe(LIVE_CONNECTED);
+    }
+  });
+
+  it("4. successor wrong user → do NOT expose successorConnectionId", async () => {
+    const predecessor = makeRow({
+      id: STALE_CONNECTED,
+      status: "superseded",
+      superseded_by_connection_id: LIVE_CONNECTED,
+    });
+    const successor = makeRow({
+      id: LIVE_CONNECTED,
+      user_id: OTHER_USER,
+      status: "connected",
+    });
+    expect(isExposableSupersessionSuccessor({ predecessor, successor })).toBe(false);
+    const { supabase } = createSupabaseMock((call) => {
+      if (call.filters.id === STALE_CONNECTED && call.filters.user_id) return predecessor;
+      if (call.filters.id === LIVE_CONNECTED) return successor;
+      return null;
+    });
+    try {
+      await selectAccountingConnectionForActiveContext({
+        supabase,
+        userId: USER,
+        connectionId: STALE_CONNECTED,
+        sourceSystem: "xero",
+      });
+      throw new Error("expected throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AccountingConnectionSelectionError);
+      const err = error as AccountingConnectionSelectionError;
+      expect(err.code).toBe("ACCOUNTING_CONNECTION_SUPERSEDED");
+      expect(err.successorConnectionId).toBeUndefined();
+      expect(accountingConnectionSelectionErrorBody(err).successorConnectionId).toBeUndefined();
+    }
+  });
+
+  it("5. successor wrong provider → do NOT expose", () => {
+    const predecessor = makeRow({ id: STALE_CONNECTED, status: "superseded", provider: "xero" });
+    const successor = makeRow({ id: LIVE_CONNECTED, status: "connected", provider: "quickbooks" });
+    expect(isExposableSupersessionSuccessor({ predecessor, successor })).toBe(false);
+  });
+
+  it("6. successor wrong tenant → do NOT expose", () => {
+    const predecessor = makeRow({
+      id: STALE_CONNECTED,
+      status: "superseded",
+      tenant_or_realm_id: TENANT,
+    });
+    const successor = makeRow({
+      id: LIVE_CONNECTED,
+      status: "connected",
+      tenant_or_realm_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    expect(isExposableSupersessionSuccessor({ predecessor, successor })).toBe(false);
+  });
+
+  it("7. successor non-connected → do NOT expose", () => {
+    const predecessor = makeRow({ id: STALE_CONNECTED, status: "superseded" });
+    const successor = makeRow({ id: LIVE_CONNECTED, status: "expired" });
+    expect(isExposableSupersessionSuccessor({ predecessor, successor })).toBe(false);
+  });
+
+  it("8. superseded with null successor → 409 without successor id", async () => {
+    const predecessor = makeRow({
+      id: STALE_CONNECTED,
+      status: "superseded",
+      superseded_by_connection_id: null,
+    });
+    const { supabase } = createSupabaseMock(() => predecessor);
+    try {
+      await selectAccountingConnectionForActiveContext({
+        supabase,
+        userId: USER,
+        connectionId: STALE_CONNECTED,
+        sourceSystem: "xero",
+      });
+      throw new Error("expected throw");
+    } catch (error) {
+      const err = error as AccountingConnectionSelectionError;
+      expect(err.code).toBe("ACCOUNTING_CONNECTION_SUPERSEDED");
+      expect(err.successorConnectionId).toBeUndefined();
+      expect(accountingConnectionSelectionErrorBody(err)).not.toHaveProperty("successorConnectionId");
+    }
+  });
+
+  it("9. connected behavior unchanged", async () => {
+    const { supabase } = createSupabaseMock(() => makeRow());
+    const result = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      connectionId: LIVE_CONNECTED,
+      sourceSystem: "xero",
+    });
+    expect(result?.id).toBe(LIVE_CONNECTED);
+  });
+
+  it("10. expired/disconnected/failed behavior unchanged", async () => {
+    for (const [status, code] of [
+      ["expired", "ACCOUNTING_CONNECTION_EXPIRED"],
+      ["disconnected", "ACCOUNTING_CONNECTION_DISCONNECTED"],
+      ["failed", "ACCOUNTING_CONNECTION_FAILED"],
+    ] as const) {
+      const { supabase } = createSupabaseMock(() => makeRow({ id: STALE_CONNECTED, status }));
+      await expect(
+        selectAccountingConnectionForActiveContext({
+          supabase,
+          userId: USER,
+          connectionId: STALE_CONNECTED,
+          sourceSystem: "xero",
+        }),
+      ).rejects.toMatchObject({ code });
+    }
+  });
+
+  it("11. no-ID still filters connected only (excludes superseded)", async () => {
+    const { supabase, calls } = createSupabaseMock((call) => {
+      expect(call.filters.status).toBe("connected");
+      return makeRow();
+    });
+    await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      sourceSystem: "xero",
+    });
+    expect(calls[0].filters.status).toBe("connected");
+  });
+
+  it("12. production unchanged: still-connected ce526f9b remains selectable until PR C", async () => {
+    const stillConnected = makeRow({ id: STALE_CONNECTED, status: "connected" });
+    const { supabase } = createSupabaseMock(() => stillConnected);
+    const result = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      connectionId: STALE_CONNECTED,
+      sourceSystem: "xero",
+    });
+    expect(result?.id).toBe(STALE_CONNECTED);
+  });
+
+  it("migration is expand-only (no UPDATE/backfill/unique connected)", () => {
+    const sql = readFileSync(
+      join(process.cwd(), "supabase/migrations/20260813220000_accounting_connection_supersession.sql"),
+      "utf8",
+    );
+    expect(sql).toContain("superseded_by_connection_id");
+    expect(sql).toContain("ON DELETE SET NULL");
+    expect(sql).toContain("accounting_connections_superseded_by_not_self");
+    expect(sql.toLowerCase()).not.toMatch(/\bupdate\s+public\.accounting_connections\b/);
+    expect(sql).not.toContain("UNIQUE");
+    expect(sql).not.toMatch(/status\s*=\s*'superseded'/);
+    expect(sql).not.toMatch(/CHECK\s*\(\s*status\s+in/i);
   });
 });
