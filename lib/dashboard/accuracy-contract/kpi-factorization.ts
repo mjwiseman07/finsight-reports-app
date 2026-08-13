@@ -5,6 +5,13 @@ import type {
   ProvenanceSourcePointer,
   Unit,
 } from './types';
+import { buildMappedFinancialSummary } from '@/lib/integrations/accounting/normalizers/financial-statements';
+import type {
+  CanonicalBalanceSheetRow,
+  CanonicalPnLRow,
+} from '@/lib/integrations/accounting/types';
+import { resolveNorthStar } from '@/lib/scorecard/industry-north-star';
+import { factorizeOperatingGrossMargin } from '@/lib/scorecard/operating-gross-margin';
 
 type NormalizedRow = {
   label: string;
@@ -369,17 +376,149 @@ export function factorizeNorthStar(
   industryType: string,
   payload: NormalizedPayload,
 ): FactorizedKpi {
-  void industryType;
-  void payload;
+  const northStar = resolveNorthStar(industryType);
+  if (northStar.code !== 'operating_gross_margin') {
+    return {
+      numeric: null,
+      display: 'Vertical north-star engine coming online',
+      unit: 'percent',
+      formula: null,
+      composition: [],
+      reported_by_provider: null,
+      computation_status: 'pending_subledger',
+    };
+  }
+
+  const incomeRows = (payload.normalizedIncomeStatement ||
+    []) as unknown as CanonicalPnLRow[];
+  const balanceRows = (payload.normalizedBalanceSheet ||
+    []) as unknown as CanonicalBalanceSheetRow[];
+  const mapped = buildMappedFinancialSummary(balanceRows, incomeRows);
+  const factor = factorizeOperatingGrossMargin({
+    revenue: mapped.revenue,
+    grossProfit: mapped.grossProfit,
+    grossProfitSupported: mapped.grossProfitSupported,
+  });
+
+  if (factor.status !== 'ready' || factor.numeric == null) {
+    return {
+      numeric: null,
+      display: '—',
+      unit: 'percent',
+      formula: null,
+      composition: [],
+      reported_by_provider: null,
+      computation_status: 'pending_subledger',
+    };
+  }
+
+  // Derived KPI provenance: only attach ERP pointers from rows actually selected.
+  // Never synthesize QuickBooks/Xero pointers or fake external IDs.
+  const asNormalized = (payload.normalizedIncomeStatement || []) as NormalizedRow[];
+  const revenueRow = findLabeledRow(asNormalized, [
+    /^total (income|revenue|sales)$/i,
+  ]);
+  const grossProfitRow = findLabeledRow(asNormalized, [/gross profit/i], {
+    excludeSynthetic: true,
+  });
+  const cogsRow = findLabeledRow(asNormalized, [
+    /^total (cost of sales|cost of goods sold|cogs)$/i,
+  ], { excludeSynthetic: true });
+
+  const revenuePointer =
+    revenueRow && hasUsableErpSource(revenueRow)
+      ? rowToPointer(revenueRow)
+      : null;
+  const grossProfitPointer =
+    grossProfitRow && hasUsableErpSource(grossProfitRow)
+      ? rowToPointer(grossProfitRow)
+      : null;
+  const cogsPointer =
+    cogsRow && hasUsableErpSource(cogsRow) ? rowToPointer(cogsRow) : null;
+
+  let formula: FormulaNode | null = null;
+  const composition: CompositionRow[] = [];
+
+  if (grossProfitPointer && revenuePointer && grossProfitRow && revenueRow) {
+    // Option A — explicit GP + revenue totals from mapped source rows.
+    formula = {
+      kind: 'div',
+      label: 'Operating Gross Margin',
+      numerator: rowToRef(grossProfitRow, 'Gross Profit'),
+      denominator: rowToRef(revenueRow, 'Revenue'),
+    };
+    composition.push({
+      label: grossProfitRow.label,
+      amount: grossProfitRow.amount,
+      section: grossProfitRow.section,
+      hierarchyPath: grossProfitRow.source.raw.__advisacorHierarchyPath || [],
+      source: grossProfitPointer,
+      contribution_pct: 1,
+    });
+    composition.push({
+      label: revenueRow.label,
+      amount: revenueRow.amount,
+      section: revenueRow.section,
+      hierarchyPath: revenueRow.source.raw.__advisacorHierarchyPath || [],
+      source: revenuePointer,
+      contribution_pct: 1,
+    });
+  } else if (revenuePointer && cogsPointer && revenueRow && cogsRow) {
+    // Option B — derived GP from mapped revenue + COGS totals; composition only.
+    // Formula left null until Accuracy Contract can express (rev - cogs) / rev
+    // without inventing refs.
+    composition.push({
+      label: revenueRow.label,
+      amount: revenueRow.amount,
+      section: revenueRow.section,
+      hierarchyPath: revenueRow.source.raw.__advisacorHierarchyPath || [],
+      source: revenuePointer,
+      contribution_pct: null,
+    });
+    composition.push({
+      label: cogsRow.label,
+      amount: cogsRow.amount,
+      section: cogsRow.section,
+      hierarchyPath: cogsRow.source.raw.__advisacorHierarchyPath || [],
+      source: cogsPointer,
+      contribution_pct: null,
+    });
+  }
+  // Option C — numeric ready from canonical mapped inputs; no fabricated pointers.
+
   return {
-    numeric: null,
-    display: "Vertical north-star engine coming online",
-    unit: "percent",
-    formula: null,
-    composition: [],
-    reported_by_provider: null,
-    computation_status: "pending_subledger",
+    numeric: factor.numeric,
+    display: factor.display || formatPercent(factor.numeric),
+    unit: 'percent',
+    formula,
+    composition,
+    reported_by_provider: grossProfitPointer ? mapped.grossProfit : null,
+    computation_status: 'computed',
   };
+}
+
+function findLabeledRow(
+  rows: NormalizedRow[],
+  patterns: RegExp[],
+  opts?: { excludeSynthetic?: boolean },
+): NormalizedRow | null {
+  return (
+    rows.find((row) => {
+      if (!patterns.some((pattern) => pattern.test(String(row?.label || '')))) {
+        return false;
+      }
+      if (opts?.excludeSynthetic) {
+        const raw = row?.source?.raw as { __advisacorSyntheticTotal?: boolean } | undefined;
+        if (raw?.__advisacorSyntheticTotal) return false;
+      }
+      return true;
+    }) ?? null
+  );
+}
+
+function hasUsableErpSource(row: NormalizedRow): boolean {
+  const provider = row?.source?.provider;
+  return provider === 'xero' || provider === 'quickbooks';
 }
 
 export function factorizeKpi(
