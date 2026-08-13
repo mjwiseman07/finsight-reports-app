@@ -506,8 +506,21 @@ function xeroSumSection(rows: CanonicalPnLRow[], section: string) {
     .reduce((total, row) => total + xeroAmount(row.amount), 0);
 }
 
+function xeroSumFirstPresentSection(rows: CanonicalPnLRow[], sections: string[]) {
+  for (const section of sections) {
+    const sectionRows = rows.filter((row) => row.section === section && !isXeroTotalRow(String(row.label || "")));
+    if (sectionRows.length) {
+      return sectionRows.reduce((total, row) => total + xeroAmount(row.amount), 0);
+    }
+  }
+  return 0;
+}
+
 function xeroIncomeStatementTotals(rows: CanonicalPnLRow[]) {
-  const revenue = xeroAmount(xeroFindAmount(rows, [/^total (income|revenue|sales)$/i]) ?? xeroSumSection(rows, "Revenue"));
+  const revenue = xeroAmount(
+    xeroFindAmount(rows, [/^total (income|revenue|sales)$/i]) ??
+      xeroSumFirstPresentSection(rows, ["Revenue", "Income", "Sales"]),
+  );
   const costOfSales = Math.abs(xeroAmount(xeroFindAmount(rows, [/^total (cost of sales|cost of goods sold|cogs)$/i]) ?? xeroSumSection(rows, "Cost of Sales")));
   const operatingExpenses = Math.abs(xeroAmount(xeroFindAmount(rows, [/^total (operating )?expenses$/i]) ?? xeroSumSection(rows, "Expenses")));
   const otherIncome = xeroAmount(xeroFindAmount(rows, [/^total other income$/i]) ?? xeroSumSection(rows, "Other Income"));
