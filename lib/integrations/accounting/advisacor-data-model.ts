@@ -178,6 +178,17 @@ export function buildAdvisacorNormalizedFinancialData({
     normalizedIncomeStatementYtd: bundle.profitAndLossYtd || [],
     normalizedARAging: normalizedEntitiesOrUnavailable(arAgingEntities, source),
     canonicalArAgingSchedule: canonicalArAgingSchedule || null,
+    canonicalCashFlowSchedule: bundle.canonicalCashFlowSchedule
+      ? {
+          ...bundle.canonicalCashFlowSchedule,
+          syncId: bundle.canonicalCashFlowSchedule.syncId || syncId,
+          companyId:
+            bundle.canonicalCashFlowSchedule.companyId ??
+            (connection.metadata_json?.company_id ? String(connection.metadata_json.company_id) : null),
+          connectionId: bundle.canonicalCashFlowSchedule.connectionId || connection.id,
+        }
+      : null,
+    normalizedCashFlow: Array.isArray(bundle.cashFlow) ? bundle.cashFlow : [],
     normalizedAPAging: normalizedEntitiesOrUnavailable(bundle.normalizedAPAging, source),
     normalizedBudgets: normalizedEntitiesOrUnavailable(bundle.normalizedBudgets, source),
     normalizedDepartments: normalizedEntitiesOrUnavailable(bundle.normalizedDepartments, source),

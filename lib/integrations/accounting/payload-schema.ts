@@ -10,11 +10,15 @@
  * v3 — Canonical due-date AR Aging schedule (open receivables + BS Tie-Out)
  * is persisted on normalized payloads for Scorecard past-due exposure.
  *
+ * v4 — Canonical trailing-12-month cash-flow schedule is persisted
+ * (QBO: provider Statement of Cash Flows; Xero US: truthful not_supported).
+ * Old v3 syncs lack this memory and must rebuild for Scorecard NOCF.
+ *
  * Hard rule: a corrected browser/localStorage calculation cannot outrank
  * stale authoritative accounting memory. Refresh is only complete when a
  * SUCCESS accounting_syncs row is persisted, active, and returned.
  */
-export const ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION = 3;
+export const ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION = 4;
 
 type PayloadLike = {
   schemaVersion?: number | null;

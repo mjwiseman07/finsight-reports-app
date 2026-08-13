@@ -129,6 +129,24 @@ describe("Scorecard tile state resolvers", () => {
     ).toMatchObject({ status: "unavailable" });
   });
 
+  it("D2: Net Op CF Xero not_supported -> not_supported (not unavailable)", () => {
+    expect(
+      resolveNetOpCashFlowTileState({
+        hydrationActive: false,
+        hasSummary: true,
+        cashFlowTrailing12M: {
+          netOperatingCashFlow: null,
+          supportStatus: "not_supported",
+          customerMessage:
+            "Net operating cash flow is not supported for this Xero configuration.",
+        },
+      }),
+    ).toEqual({
+      status: "not_supported",
+      message: "Net operating cash flow is not supported for this Xero configuration.",
+    });
+  });
+
   it("E: Net Margin revenue > 0 ready; revenue <= 0 terminal non-loading", () => {
     expect(resolveNetMarginTileState({ hydrationActive: false, summary }).state.status).toBe("ready");
     expect(

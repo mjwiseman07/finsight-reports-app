@@ -1,6 +1,11 @@
 import { parseAmountOrZero } from "@/lib/parse/amount";
 import { QuickBooksAdapter } from "../../erp-adapters/quickbooks-adapter";
 import { availabilityFromRows, notAvailableSchedule } from "../../accounting/supporting-schedules/fetchSupportingSchedules";
+import {
+  assertNotBankSummaryCashFlowSource,
+  buildCanonicalCashFlowScheduleFromProviderRows,
+} from "../accounting/cash-flow";
+import { trailingTwelveMonthPeriod } from "../accounting/report-period";
 import { buildCertificationFixtureReportBundle } from "../accounting/normalizers/certification-fixtures";
 import { normalizeAccounts } from "../accounting/normalizers/accounts";
 import { emptyReportBundle, normalizeTabularReportRows } from "../accounting/normalizers/reports";
@@ -273,6 +278,45 @@ export class QuickBooksAccountingProvider implements AccountingProviderAdapter {
     bundle.profitAndLossYtd = normalizeTabularReportRows(this.provider, "ProfitAndLossYtd", reports.profitAndLossYtd?.data?.Rows?.Row || [], externalEntityId);
     bundle.balanceSheet = normalizeTabularReportRows(this.provider, "BalanceSheet", reports.balanceSheet?.data?.Rows?.Row || [], externalEntityId);
     bundle.cashFlow = normalizeTabularReportRows(this.provider, "CashFlow", reports.cashFlowStatement?.data?.Rows?.Row || [], externalEntityId);
+
+    // Scorecard NOCF requires trailing-12M SoCF, not the single-month sync window.
+    const t12m = trailingTwelveMonthPeriod(dateRange.endDate);
+    let t12mCashFlowRows = bundle.cashFlow;
+    const periodMatchesT12m =
+      dateRange.startDate === t12m.startDate && dateRange.endDate === t12m.endDate;
+    if (!periodMatchesT12m && params.connection.access_token && params.connection.refresh_token) {
+      const t12mReport = await userAdapter.fetchCashFlowStatementForAccountingConnection({
+        connection: params.connection,
+        start_date: t12m.startDate,
+        end_date: t12m.endDate,
+      });
+      if (t12mReport?.ok && t12mReport.data) {
+        t12mCashFlowRows = normalizeTabularReportRows(
+          this.provider,
+          "CashFlow",
+          t12mReport.data?.Rows?.Row || [],
+          externalEntityId,
+        );
+      } else {
+        t12mCashFlowRows = [];
+      }
+    }
+    for (const row of t12mCashFlowRows) {
+      assertNotBankSummaryCashFlowSource(row.source?.sourceReport);
+    }
+    bundle.cashFlow = t12mCashFlowRows;
+    bundle.canonicalCashFlowSchedule = buildCanonicalCashFlowScheduleFromProviderRows({
+      endDate: dateRange.endDate,
+      rows: t12mCashFlowRows,
+      provider: this.provider,
+      companyId: params.connection.metadata_json?.company_id
+        ? String(params.connection.metadata_json.company_id)
+        : null,
+      connectionId: params.connection.id,
+      syncId: null,
+      sourceReport: "CashFlow",
+    });
+
     bundle.normalizedARAging = arReport ? normalizeQuickBooksReportEntities(arReport.key, arReport.report, externalEntityId) : notAvailableSchedule(this.provider, "AR Aging");
     bundle.normalizedAPAging = apReport ? normalizeQuickBooksReportEntities(apReport.key, apReport.report, externalEntityId) : notAvailableSchedule(this.provider, "AP Aging");
     bundle.normalizedBudgets = reports.budgetVsActuals?.ok ? normalizeQuickBooksReportEntities("BudgetVsActual", reports.budgetVsActuals, externalEntityId) : notAvailableSchedule(this.provider, "Budget");
@@ -325,6 +369,12 @@ export class QuickBooksAccountingProvider implements AccountingProviderAdapter {
       supports_pnl: true,
       supports_balance_sheet: true,
       supports_cash_flow: true,
+      cash_flow: {
+        supported: true,
+        sourceKind: "provider_statement_of_cash_flows",
+        reason: null,
+        customerMessage: null,
+      },
       supports_webhooks: false,
       supports_writeback: false,
       requires_entity_selection: false,

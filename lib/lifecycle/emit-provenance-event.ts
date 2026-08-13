@@ -33,7 +33,7 @@ export type EmitProvenanceLifecycleEventParams = {
     accounting_syncs_id: string;
     receipt_chain_seq: number;
     receipt_row_hash: string;
-    computation_status: "computed" | "pending_subledger";
+    computation_status: "computed" | "pending_subledger" | "not_supported";
     request_id: string;
     user_agent?: string | null;
     /**

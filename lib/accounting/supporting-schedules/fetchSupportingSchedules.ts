@@ -53,6 +53,8 @@ export const XERO_SUPPORTING_REPORTS = {
   arAging: ["Reports/AgedReceivablesByContact"],
   apAging: ["Reports/AgedPayablesByContact"],
   budget: ["Reports/BudgetSummary"],
+  // BankSummary is bank activity — NOT Statement of Cash Flows. Kept for
+  // supporting-schedule availability diagnostics only; never maps to NOCF.
   cash: ["Reports/BankSummary"],
   departments: ["TrackingCategories"],
   classes: ["TrackingCategories"],
