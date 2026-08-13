@@ -5,7 +5,7 @@ import { focusRing, headingFont } from "@/components/site-ui";
 import { resolveNorthStar } from "@/lib/scorecard/industry-north-star";
 import ProviderPickerEmptyState from "./ProviderPickerEmptyState";
 
-type ActiveReportSummary = {
+export type ActiveReportSummary = {
   revenue: number;
   expenses: number;
   netIncome: number;
@@ -15,7 +15,7 @@ type ActiveReportSummary = {
   lastSyncedAt?: string;
 };
 
-type ArAgingSchedule = {
+export type ArAgingSchedule = {
   current: number;
   days_1_30: number;
   days_31_60: number;
@@ -23,22 +23,21 @@ type ArAgingSchedule = {
   days_over_90: number;
 };
 
-type CashFlowTrailing = {
+export type CashFlowTrailing = {
   netOperatingCashFlow: number;
   monthlyAverageBurn: number;
 };
 
-type HydrationTileKey =
-  | "cash_position"
-  | "net_op_cash_flow"
-  | "ar_aging"
-  | "net_profit_margin"
-  | "north_star";
-
-type HydrationTileState = {
-  status: "pending" | "loading" | "ready";
-  statusText?: string;
-};
+/**
+ * Explicit per-tile display state. Loading must never be inferred from null values.
+ */
+export type ScorecardTileState =
+  | { status: "loading"; message?: string }
+  | { status: "ready" }
+  | { status: "unavailable"; message: string; evidenceCode?: string }
+  | { status: "not_supported"; message: string }
+  | { status: "error"; message: string }
+  | { status: "coming_soon"; message: string };
 
 type ScorecardProps = {
   activeReportSummary: ActiveReportSummary | null;
@@ -49,8 +48,10 @@ type ScorecardProps = {
   integrationChoice?: string | null;
   onConnectQBO?: () => void;
   onConnectXero?: () => void;
+  /** True while post-connect hydration request is in flight. */
   hydrationActive?: boolean;
-  hydrationTiles?: Partial<Record<HydrationTileKey, HydrationTileState>>;
+  /** Preflight warning codes (e.g. AR_AGING_MISSING) — never shown raw to customers. */
+  preflightWarningCodes?: string[];
   onAskAboutKpi: (kpiCode: string, question: string) => void;
   onOpenProvenance: (kpiCode: string) => void;
   /** @deprecated DASH_1A.1.2 — prefer onConnectQBO / onConnectXero */
@@ -78,33 +79,131 @@ function getIntegrationLabel(choice?: string | null): string {
   return "your accounting system";
 }
 
+function hasWarningCode(codes: string[] | undefined, code: string) {
+  return Boolean(codes?.includes(code));
+}
+
+/** Pure helpers exported for focused unit tests. */
+export function resolveCashTileState(args: {
+  hydrationActive: boolean;
+  summary: ActiveReportSummary | null;
+}): ScorecardTileState {
+  if (args.summary) return { status: "ready" };
+  if (args.hydrationActive) {
+    return { status: "loading", message: "Refreshing…" };
+  }
+  return { status: "unavailable", message: "Not available for this period" };
+}
+
+export function resolveNetOpCashFlowTileState(args: {
+  hydrationActive: boolean;
+  hasSummary: boolean;
+  cashFlowTrailing12M: CashFlowTrailing | null;
+}): ScorecardTileState {
+  if (args.cashFlowTrailing12M) return { status: "ready" };
+  if (args.hydrationActive && !args.hasSummary) {
+    return { status: "loading", message: "Refreshing…" };
+  }
+  // Settled mount currently has no trailing-CF source wired — unavailable, not loading.
+  return { status: "unavailable", message: "Not available for this period" };
+}
+
+export function resolveArAgingTileState(args: {
+  hydrationActive: boolean;
+  hasSummary: boolean;
+  arAgingSchedule: ArAgingSchedule | null;
+  preflightWarningCodes?: string[];
+}): ScorecardTileState {
+  if (args.arAgingSchedule) return { status: "ready" };
+  if (args.hydrationActive && !args.hasSummary) {
+    return { status: "loading", message: "Refreshing…" };
+  }
+  if (hasWarningCode(args.preflightWarningCodes, "AR_AGING_MISSING") || args.hasSummary) {
+    return {
+      status: "unavailable",
+      message: "AR aging was not available for this period.",
+      evidenceCode: hasWarningCode(args.preflightWarningCodes, "AR_AGING_MISSING")
+        ? "AR_AGING_MISSING"
+        : undefined,
+    };
+  }
+  return { status: "unavailable", message: "AR aging was not available for this period." };
+}
+
+export function resolveNetMarginTileState(args: {
+  hydrationActive: boolean;
+  summary: ActiveReportSummary | null;
+}): { state: ScorecardTileState; value: string | null } {
+  if (!args.summary) {
+    if (args.hydrationActive) {
+      return { state: { status: "loading", message: "Refreshing…" }, value: null };
+    }
+    return {
+      state: { status: "unavailable", message: "Not available for this period" },
+      value: null,
+    };
+  }
+  if (args.summary.revenue > 0) {
+    const pct = args.summary.netIncome / args.summary.revenue;
+    return {
+      state: { status: "ready" },
+      value: PERCENT_FORMAT.format(pct),
+    };
+  }
+  return {
+    state: {
+      status: "unavailable",
+      message: "Net margin is not available because no positive revenue was found for this period.",
+    },
+    value: null,
+  };
+}
+
+export function resolveNorthStarTileState(args: {
+  computationShipped: boolean;
+  valueWired: boolean;
+}): ScorecardTileState {
+  if (!args.computationShipped || !args.valueWired) {
+    return {
+      status: "coming_soon",
+      message: "Coming soon",
+    };
+  }
+  return { status: "ready" };
+}
+
 function CardShell({
   label,
   value,
   helperText,
   onAsk,
   onProvenance,
-  isPending,
+  tileState,
   isFirst,
   coachMarkVisible,
   onDismissCoachMark,
-  hydrationStatus,
-  hydrationStatusText,
 }: {
   label: string;
   value: ReactNode;
   helperText: string;
   onAsk: () => void;
   onProvenance: () => void;
-  isPending: boolean;
+  tileState: ScorecardTileState;
   isFirst: boolean;
   coachMarkVisible: boolean;
   onDismissCoachMark: () => void;
-  hydrationStatus?: "pending" | "loading" | "ready";
-  hydrationStatusText?: string;
 }) {
-  const showHydration = hydrationStatus === "loading" && Boolean(hydrationStatusText);
-  const showPending = !showHydration && isPending;
+  const showLoading = tileState.status === "loading";
+  const showReady = tileState.status === "ready";
+  const terminalMessage =
+    tileState.status === "unavailable" ||
+    tileState.status === "not_supported" ||
+    tileState.status === "error" ||
+    tileState.status === "coming_soon"
+      ? tileState.message
+      : tileState.status === "loading"
+        ? tileState.message || "Refreshing…"
+        : null;
 
   return (
     <div className="relative rounded-2xl border border-[#3A3A3D] bg-[#1B1B1D] p-5 transition hover:border-[#C9A961]/40">
@@ -132,23 +231,21 @@ function CardShell({
         </div>
       </div>
       <div className="mt-3">
-        {showHydration ? (
-          <p aria-live="polite" className="text-xs italic leading-5 text-[#BB653B]">
-            {hydrationStatusText}
-          </p>
-        ) : showPending ? (
+        {showLoading ? (
           <span className="inline-flex items-center rounded-full bg-[#3A3A3D] px-3 py-1 text-xs font-semibold text-[#ECEBE7]/70">
-            Refreshing…
+            {terminalMessage || "Refreshing…"}
           </span>
-        ) : (
+        ) : showReady ? (
           <p className={`${headingFont} text-3xl font-semibold text-[#ECEBE7] tabular-nums`}>
             {value}
           </p>
+        ) : (
+          <p className="text-sm leading-5 text-[#ECEBE7]/70">{terminalMessage}</p>
         )}
       </div>
       <p className="mt-2 text-sm text-[#ECEBE7]/70">{helperText}</p>
 
-      {isFirst && coachMarkVisible && !showHydration && (
+      {isFirst && coachMarkVisible && showReady && (
         <div
           role="dialog"
           aria-label="Accuracy Contract coach mark"
@@ -186,13 +283,15 @@ export default function Scorecard({
   onConnectQBO,
   onConnectXero,
   hydrationActive = false,
-  hydrationTiles,
+  preflightWarningCodes = [],
   onAskAboutKpi,
   onOpenProvenance,
   onConnect: onConnectDeprecated,
 }: ScorecardProps) {
   const [coachMarkVisible, setCoachMarkVisible] = useState(false);
   const northStar = resolveNorthStar(industryType);
+  // Value wiring for north-star KPI is not shipped on this mount.
+  const northStarValueWired = false;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -228,26 +327,46 @@ export default function Scorecard({
     );
   }
 
+  const cashState = resolveCashTileState({
+    hydrationActive,
+    summary: activeReportSummary,
+  });
   const cashValue = activeReportSummary
     ? CURRENCY_FORMAT.format(activeReportSummary.cash)
     : "";
-  const netMarginPct =
-    activeReportSummary && activeReportSummary.revenue > 0
-      ? activeReportSummary.netIncome / activeReportSummary.revenue
-      : null;
-  const netMarginValue = netMarginPct !== null ? PERCENT_FORMAT.format(netMarginPct) : "—";
 
-  const arTotal = arAgingSchedule
-    ? arAgingSchedule.days_1_30 + arAgingSchedule.days_31_60 + arAgingSchedule.days_61_90 + arAgingSchedule.days_over_90
-    : null;
-  const arValue = arTotal !== null ? CURRENCY_FORMAT.format(arTotal) : null;
-
+  const netOpState = resolveNetOpCashFlowTileState({
+    hydrationActive,
+    hasSummary: Boolean(activeReportSummary),
+    cashFlowTrailing12M,
+  });
   const runwayValue = cashFlowTrailing12M
     ? CURRENCY_FORMAT.format(cashFlowTrailing12M.netOperatingCashFlow)
-    : null;
+    : "";
 
-  const northStarPending = true;
-  const northStarValue = "";
+  const arState = resolveArAgingTileState({
+    hydrationActive,
+    hasSummary: Boolean(activeReportSummary),
+    arAgingSchedule,
+    preflightWarningCodes,
+  });
+  const arTotal = arAgingSchedule
+    ? arAgingSchedule.days_1_30 +
+      arAgingSchedule.days_31_60 +
+      arAgingSchedule.days_61_90 +
+      arAgingSchedule.days_over_90
+    : null;
+  const arValue = arTotal !== null ? CURRENCY_FORMAT.format(arTotal) : "";
+
+  const { state: netMarginState, value: netMarginValue } = resolveNetMarginTileState({
+    hydrationActive,
+    summary: activeReportSummary,
+  });
+
+  const northStarState = resolveNorthStarTileState({
+    computationShipped: northStar.computationShipped,
+    valueWired: northStarValueWired,
+  });
 
   return (
     <div className="rounded-[2rem] border border-[#3A3A3D] bg-[#111113] p-6">
@@ -270,72 +389,69 @@ export default function Scorecard({
           helperText="Total cash across connected accounts"
           onAsk={() => onAskAboutKpi("cash_position", `What's driving my current cash position for ${companyName}?`)}
           onProvenance={() => onOpenProvenance("cash_position")}
-          isPending={!activeReportSummary}
+          tileState={cashState}
           isFirst={true}
           coachMarkVisible={coachMarkVisible}
           onDismissCoachMark={dismissCoachMark}
-          hydrationStatus={hydrationTiles?.cash_position?.status}
-          hydrationStatusText={hydrationTiles?.cash_position?.statusText}
         />
 
         <CardShell
           label="Net Op Cash Flow"
-          value={runwayValue ?? ""}
+          value={runwayValue}
           helperText="Trailing 12 months, cash from operations"
           onAsk={() => onAskAboutKpi("net_op_cash_flow", `Explain my trailing net operating cash flow.`)}
           onProvenance={() => onOpenProvenance("net_op_cash_flow")}
-          isPending={runwayValue === null}
+          tileState={netOpState}
           isFirst={false}
           coachMarkVisible={false}
           onDismissCoachMark={dismissCoachMark}
-          hydrationStatus={hydrationTiles?.net_op_cash_flow?.status}
-          hydrationStatusText={hydrationTiles?.net_op_cash_flow?.statusText}
         />
 
         <CardShell
           label="AR Aging Exposure"
-          value={arValue ?? ""}
+          value={arValue}
           helperText="Total AR past due — 1-30, 31-60, 61-90, 90+"
           onAsk={() => onAskAboutKpi("ar_aging", `What's my past-due AR exposure and which customers are driving it?`)}
           onProvenance={() => onOpenProvenance("ar_aging")}
-          isPending={arValue === null}
+          tileState={arState}
           isFirst={false}
           coachMarkVisible={false}
           onDismissCoachMark={dismissCoachMark}
-          hydrationStatus={hydrationTiles?.ar_aging?.status}
-          hydrationStatusText={hydrationTiles?.ar_aging?.statusText}
         />
 
         <CardShell
           label="Net Profit Margin"
-          value={netMarginValue}
+          value={netMarginValue ?? ""}
           helperText="Net income divided by revenue this period"
-          onAsk={() => onAskAboutKpi("net_profit_margin", `Why did my net profit margin land at ${netMarginValue}? What are the top drivers?`)}
+          onAsk={() =>
+            onAskAboutKpi(
+              "net_profit_margin",
+              netMarginValue
+                ? `Why did my net profit margin land at ${netMarginValue}? What are the top drivers?`
+                : "Why is my net profit margin unavailable for this period?",
+            )
+          }
           onProvenance={() => onOpenProvenance("net_profit_margin")}
-          isPending={netMarginPct === null}
+          tileState={netMarginState}
           isFirst={false}
           coachMarkVisible={false}
           onDismissCoachMark={dismissCoachMark}
-          hydrationStatus={hydrationTiles?.net_profit_margin?.status}
-          hydrationStatusText={hydrationTiles?.net_profit_margin?.statusText}
         />
 
         <CardShell
           label={northStar.label}
-          value={northStarValue}
+          value=""
           helperText={northStar.helperText}
           onAsk={() => onAskAboutKpi(northStar.code, `Show me my ${northStar.label} and how it's trending.`)}
           onProvenance={() => onOpenProvenance(northStar.code)}
-          isPending={northStarPending || !northStar.computationShipped}
+          tileState={northStarState}
           isFirst={false}
           coachMarkVisible={false}
           onDismissCoachMark={dismissCoachMark}
-          hydrationStatus={hydrationTiles?.north_star?.status}
-          hydrationStatusText={hydrationTiles?.north_star?.statusText}
         />
       </div>
 
-      {(!northStar.computationShipped || northStarPending) && activeReportSummary && (
+      {northStarState.status === "coming_soon" && activeReportSummary && (
         <p className="mt-4 text-xs text-[#ECEBE7]/50">
           {northStar.label} — {northStar.computationShipped
             ? "figure wiring for this vertical is coming up in your next brief."

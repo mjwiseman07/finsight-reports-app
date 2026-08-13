@@ -1,0 +1,143 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import Scorecard, {
+  resolveArAgingTileState,
+  resolveCashTileState,
+  resolveNetMarginTileState,
+  resolveNetOpCashFlowTileState,
+  resolveNorthStarTileState,
+  type ActiveReportSummary,
+} from "@/components/dashboard/Scorecard";
+
+const summary: ActiveReportSummary = {
+  revenue: 100000,
+  expenses: 70000,
+  netIncome: 30000,
+  assets: 200000,
+  liabilities: 50000,
+  cash: 9082,
+};
+
+const noop = () => {};
+
+function renderScorecard(props: Partial<ComponentProps<typeof Scorecard>> = {}) {
+  return render(
+    <Scorecard
+      activeReportSummary={null}
+      arAgingSchedule={null}
+      cashFlowTrailing12M={null}
+      industryType="General"
+      companyName="Demo Co"
+      hydrationActive={false}
+      preflightWarningCodes={[]}
+      onAskAboutKpi={noop}
+      onOpenProvenance={noop}
+      {...props}
+    />,
+  );
+}
+
+describe("Scorecard tile state resolvers", () => {
+  it("A: Cash summary exists -> ready", () => {
+    expect(resolveCashTileState({ hydrationActive: false, summary })).toEqual({ status: "ready" });
+  });
+
+  it("B: Cash during hydration without summary -> loading", () => {
+    expect(resolveCashTileState({ hydrationActive: true, summary: null })).toMatchObject({
+      status: "loading",
+    });
+  });
+
+  it("C: AR settled + AR_AGING_MISSING -> unavailable with evidenceCode", () => {
+    const state = resolveArAgingTileState({
+      hydrationActive: false,
+      hasSummary: true,
+      arAgingSchedule: null,
+      preflightWarningCodes: ["AR_AGING_MISSING"],
+    });
+    expect(state).toMatchObject({
+      status: "unavailable",
+      evidenceCode: "AR_AGING_MISSING",
+    });
+    expect(state.status === "unavailable" && state.message).not.toContain("AR_AGING_MISSING");
+  });
+
+  it("D: Net Op CF settled + null source -> unavailable", () => {
+    expect(
+      resolveNetOpCashFlowTileState({
+        hydrationActive: false,
+        hasSummary: true,
+        cashFlowTrailing12M: null,
+      }),
+    ).toMatchObject({ status: "unavailable" });
+  });
+
+  it("E: Net Margin revenue > 0 ready; revenue <= 0 terminal non-loading", () => {
+    expect(resolveNetMarginTileState({ hydrationActive: false, summary }).state.status).toBe("ready");
+    expect(
+      resolveNetMarginTileState({
+        hydrationActive: false,
+        summary: { ...summary, revenue: 0, netIncome: -100 },
+      }).state.status,
+    ).toBe("unavailable");
+  });
+
+  it("F: North Star unwired / not shipped -> coming_soon", () => {
+    expect(
+      resolveNorthStarTileState({ computationShipped: true, valueWired: false }),
+    ).toMatchObject({ status: "coming_soon" });
+    expect(
+      resolveNorthStarTileState({ computationShipped: false, valueWired: false }),
+    ).toMatchObject({ status: "coming_soon" });
+  });
+
+  it("G: explicit loading still returns loading", () => {
+    expect(
+      resolveCashTileState({ hydrationActive: true, summary: null }).status,
+    ).toBe("loading");
+  });
+});
+
+describe("Scorecard DOM settlement contract", () => {
+  it("settled smoke: no Refreshing for AR / CF / north star; cash ready; no fabricated 0%", () => {
+    renderScorecard({
+      activeReportSummary: { ...summary, revenue: 0, netIncome: -50 },
+      hydrationActive: false,
+      preflightWarningCodes: ["AR_AGING_MISSING"],
+    });
+
+    expect(screen.getByText("$9,082")).toBeTruthy();
+    expect(screen.getByText("AR aging was not available for this period.")).toBeTruthy();
+    expect(screen.getByText("Not available for this period")).toBeTruthy();
+    expect(
+      screen.getByText("Net margin is not available because no positive revenue was found for this period."),
+    ).toBeTruthy();
+    expect(screen.getByText("Coming soon")).toBeTruthy();
+
+    expect(screen.queryByText("Refreshing…")).toBeNull();
+    expect(screen.queryByText("AR_AGING_MISSING")).toBeNull();
+    expect(screen.queryByText("0.0%")).toBeNull();
+    expect(screen.queryByText("$0")).toBeNull();
+  });
+
+  it("H: true loading during hydration shows Refreshing", () => {
+    renderScorecard({
+      activeReportSummary: null,
+      hydrationActive: true,
+    });
+    expect(screen.getAllByText("Refreshing…").length).toBeGreaterThan(0);
+  });
+
+  it("ready margin when revenue > 0", () => {
+    renderScorecard({
+      activeReportSummary: summary,
+      hydrationActive: false,
+      preflightWarningCodes: ["AR_AGING_MISSING"],
+    });
+    expect(screen.getByText("30.0%")).toBeTruthy();
+  });
+});
