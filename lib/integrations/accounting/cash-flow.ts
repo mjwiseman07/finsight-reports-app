@@ -299,11 +299,8 @@ export function buildCanonicalCashFlowScheduleFromProviderRows(input: {
   const investing = findSubtotal(input.rows, INVESTING_NET_PATTERNS);
   const financing = findSubtotal(input.rows, FINANCING_NET_PATTERNS);
   const netChange = findSubtotal(input.rows, NET_CHANGE_PATTERNS);
-  const externalRecordId = String(
-    operating.row.source?.externalRecordId ||
-      operating.row.label ||
-      "operating-subtotal",
-  );
+  // Truthful ERP/report-row id only — never promote label or local placeholders.
+  const externalRecordId = truthfulCashFlowExternalRecordId(operating.row);
 
   return {
     ...base,
@@ -326,6 +323,22 @@ export function buildCanonicalCashFlowScheduleFromProviderRows(input: {
       notes: ["Operating subtotal taken from provider Statement of Cash Flows."],
     },
   };
+}
+
+/**
+ * Only accept a real provider-supplied externalRecordId.
+ * Reject missing, Advisacor-local, and label/placeholder substitutes.
+ */
+export function truthfulCashFlowExternalRecordId(
+  row: Pick<CanonicalCashFlowRow, "label" | "source">,
+): string | null {
+  const id = String(row.source?.externalRecordId || "").trim();
+  if (!id) return null;
+  if (id.startsWith("advisacor:")) return null;
+  if (id === "operating-subtotal") return null;
+  // Label is not an ERP external record id (common fabrication path).
+  if (id === String(row.label || "").trim()) return null;
+  return id;
 }
 
 /** Guard: BankSummary / bank entities must never become a cash-flow schedule. */
