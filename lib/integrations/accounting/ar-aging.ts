@@ -1,8 +1,12 @@
 /**
  * Provider-neutral canonical AR Aging schedule.
  *
- * PRIMARY: open receivable / invoice detail aged strictly by DUE DATE.
- * CORROBORATION: provider aged-receivables reports (optional Tie-Out evidence).
+ * Source strategy:
+ * - HISTORICAL asOfDate (< today UTC): provider as-of aged report only
+ *   (Xero: AgedReceivablesByContact?date=asOfDate, batched at sync time).
+ *   Never reconstruct historical balances from current AmountDue.
+ * - CURRENT asOfDate (today): open receivables (AmountDue / RemainingCredit)
+ *   are acceptable.
  *
  * Scorecard "AR Aging Exposure" = past-due buckets only (excludes Current).
  *
@@ -15,13 +19,11 @@
  *
  * Treatment (explicit):
  * - Zero open balance: excluded from schedule
- * - Draft / void / deleted: excluded at source mapping
- * - Partial payments: age remaining open balance only
+ * - Draft / void / deleted: excluded at source mapping (current path)
+ * - Partial payments: age remaining open balance only (as reported by source)
  * - Credit balances (negative open): included (signed) in the due-date bucket
- *   so schedule total can tie to Balance Sheet AR; pastDueTotal is signed sum
- *   of past-due buckets
- * - Foreign currency: open balance used as reported (no FX conversion here);
- *   callers should prefer home-currency AmountDue when available
+ * - Historical credits/payments: reflected only via as-of aged report Due amount
+ * - Foreign currency: open balance used as reported (no FX conversion here)
  */
 
 import {
@@ -54,6 +56,19 @@ export type ArAgingBucket =
   | "days_61_90"
   | "days_over_90";
 
+/** Truthful ERP provenance carried from the actual source row/entity. */
+export type CanonicalArLineProvenance = {
+  provider: "xero" | "quickbooks";
+  providerFamily: string;
+  providerProduct: string;
+  sourceReport: string;
+  externalEntityId: string;
+  externalRecordId: string;
+  hierarchyPath?: string[];
+  section?: string;
+  reportAmount?: number | null;
+};
+
 export type CanonicalArOpenReceivable = {
   invoiceId: string;
   invoiceDate: string | null;
@@ -65,6 +80,7 @@ export type CanonicalArOpenReceivable = {
   status: string;
   provider: AccountingProvider;
   sourceKind?: "invoice" | "credit_note" | "aging_report_row";
+  provenance?: CanonicalArLineProvenance;
 };
 
 export type CanonicalArAgingInvoiceLine = {
@@ -77,6 +93,7 @@ export type CanonicalArAgingInvoiceLine = {
   bucket: ArAgingBucket;
   daysPastDue: number;
   sourceKind?: string;
+  provenance?: CanonicalArLineProvenance;
 };
 
 export type CanonicalArAgingCustomer = {
@@ -104,11 +121,19 @@ export type CanonicalArAgingTieOut = {
   passesForScorecard: boolean;
 };
 
+export type CanonicalArAgingSourceKind =
+  | "provider_aged_report_as_of"
+  | "open_receivables_current"
+  | "aging_report_summary";
+
 export type CanonicalArAgingSource = {
-  kind: "open_invoices" | "aging_report_summary" | "hybrid";
+  kind: CanonicalArAgingSourceKind;
+  /** True when asOfDate is before today UTC — requires as-of-correct source. */
+  historicalAsOf: boolean;
   invoiceCount: number;
   excludedZeroBalance: number;
   corroboratingReportTotal?: number | null;
+  contactReportsFetched?: number;
   notes?: string[];
 };
 
@@ -138,6 +163,7 @@ export type CanonicalArAgingSchedule = {
     partialPaymentsUseOpenBalance: true;
     draftVoidExcludedAtSource: true;
     foreignCurrencyNoFxInV1: true;
+    historicalUsesAsOfReportOnly: true;
   };
 };
 
@@ -152,6 +178,14 @@ function parseIsoDateUtc(value: string): Date | null {
   const day = Number(match[3]);
   if (!year || !month || !day) return null;
   return new Date(Date.UTC(year, month - 1, day));
+}
+
+/** True when asOfDate is strictly before today (UTC calendar day). */
+export function isHistoricalArAsOfDate(asOfDate: string, now: Date = new Date()): boolean {
+  const asOf = parseIsoDateUtc(asOfDate);
+  if (!asOf) return true;
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return asOf.getTime() < todayUtc;
 }
 
 /** Calendar days past due; negative or zero means current / not yet due. */
@@ -257,12 +291,19 @@ export function buildCanonicalArAgingSchedule(input: {
   companyId?: string | null;
   connectionId?: string | null;
   syncId?: string | null;
-  sourceKind?: CanonicalArAgingSource["kind"];
+  sourceKind: CanonicalArAgingSourceKind;
+  historicalAsOf?: boolean;
   corroboratingReportTotal?: number | null;
+  contactReportsFetched?: number;
   policy?: PolicySnapshot;
   computedAt?: string;
   notes?: string[];
+  now?: Date;
 }): CanonicalArAgingSchedule {
+  const historicalAsOf =
+    typeof input.historicalAsOf === "boolean"
+      ? input.historicalAsOf
+      : isHistoricalArAsOfDate(input.asOfDate, input.now);
   const buckets = emptyBuckets();
   const customerMap = new Map<string, CanonicalArAgingCustomer>();
   let excludedZeroBalance = 0;
@@ -304,6 +345,7 @@ export function buildCanonicalArAgingSchedule(input: {
       bucket,
       daysPastDue,
       sourceKind: row.sourceKind,
+      provenance: row.provenance,
     });
   }
 
@@ -331,10 +373,12 @@ export function buildCanonicalArAgingSchedule(input: {
       a.contactName.localeCompare(b.contactName),
     ),
     source: {
-      kind: input.sourceKind || "open_invoices",
+      kind: input.sourceKind,
+      historicalAsOf,
       invoiceCount,
       excludedZeroBalance,
       corroboratingReportTotal: input.corroboratingReportTotal ?? null,
+      contactReportsFetched: input.contactReportsFetched,
       notes: input.notes,
     },
     companyId: input.companyId ?? null,
@@ -351,6 +395,7 @@ export function buildCanonicalArAgingSchedule(input: {
       partialPaymentsUseOpenBalance: true,
       draftVoidExcludedAtSource: true,
       foreignCurrencyNoFxInV1: true,
+      historicalUsesAsOfReportOnly: true,
     },
   };
 }
@@ -358,6 +403,7 @@ export function buildCanonicalArAgingSchedule(input: {
 /**
  * QBO / legacy path: map provider aging-summary entity rows into the same
  * canonical contract. Does not invent invoice-level memory.
+ * Not valid as a silent historical fallback for Xero current-AmountDue.
  */
 export function buildCanonicalArAgingScheduleFromAgingEntities(input: {
   asOfDate: string;
@@ -369,6 +415,7 @@ export function buildCanonicalArAgingScheduleFromAgingEntities(input: {
   syncId?: string | null;
   policy?: PolicySnapshot;
   computedAt?: string;
+  now?: Date;
 }): CanonicalArAgingSchedule | null {
   const real = (input.entities || []).filter(
     (row) => row.type !== "not_available" && !String(row.id || "").endsWith(":not_available"),
@@ -403,6 +450,7 @@ export function buildCanonicalArAgingScheduleFromAgingEntities(input: {
     balanceSheetAr,
     policy: input.policy,
   });
+  const historicalAsOf = isHistoricalArAsOfDate(input.asOfDate, input.now);
   return {
     asOfDate: input.asOfDate,
     agingBasis: AR_AGING_BASIS,
@@ -412,6 +460,7 @@ export function buildCanonicalArAgingScheduleFromAgingEntities(input: {
     customers: [],
     source: {
       kind: "aging_report_summary",
+      historicalAsOf,
       invoiceCount: 0,
       excludedZeroBalance: 0,
       corroboratingReportTotal: buckets.total,
@@ -434,6 +483,7 @@ export function buildCanonicalArAgingScheduleFromAgingEntities(input: {
       partialPaymentsUseOpenBalance: true,
       draftVoidExcludedAtSource: true,
       foreignCurrencyNoFxInV1: true,
+      historicalUsesAsOfReportOnly: true,
     },
   };
 }
@@ -486,6 +536,7 @@ export function canonicalArAgingScheduleToEntities(
   const entities: AdvisacorNormalizedEntity[] = [];
   for (const customer of schedule.customers) {
     for (const invoice of customer.invoices) {
+      const provenance = invoice.provenance;
       entities.push({
         id: `${source.provider}:ARAging:${invoice.invoiceId}`,
         name: customer.contactName,
@@ -493,7 +544,7 @@ export function canonicalArAgingScheduleToEntities(
         amount: invoice.openBalance,
         balance: invoice.openBalance,
         metadata: {
-          source_system: source.provider,
+          source_system: provenance?.provider || source.provider,
           invoiceId: invoice.invoiceId,
           invoiceDate: invoice.invoiceDate,
           dueDate: invoice.dueDate,
@@ -508,14 +559,16 @@ export function canonicalArAgingScheduleToEntities(
           syncId: schedule.syncId,
           connectionId: schedule.connectionId,
           companyId: schedule.companyId,
+          sourceKind: schedule.source.kind,
+          historicalAsOf: schedule.source.historicalAsOf,
         },
         source: {
-          provider: source.provider,
-          providerFamily: source.provider,
-          providerProduct: source.provider,
-          externalEntityId: source.externalEntityId,
-          externalRecordId: invoice.invoiceId,
-          sourceReport: "OpenReceivables",
+          provider: provenance?.provider || source.provider,
+          providerFamily: provenance?.providerFamily || source.provider,
+          providerProduct: provenance?.providerProduct || source.provider,
+          externalEntityId: provenance?.externalEntityId || source.externalEntityId,
+          externalRecordId: provenance?.externalRecordId || invoice.invoiceId,
+          sourceReport: provenance?.sourceReport || "OpenReceivables",
           raw: invoice,
         },
       });
@@ -540,6 +593,8 @@ export function canonicalArAgingScheduleToEntities(
           asOfDate: schedule.asOfDate,
           agingBasis: schedule.agingBasis,
           bucket: label,
+          sourceKind: schedule.source.kind,
+          historicalAsOf: schedule.source.historicalAsOf,
         },
         source: {
           provider: source.provider,
