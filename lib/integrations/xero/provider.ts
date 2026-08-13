@@ -12,6 +12,7 @@ import {
 import {
   mapPool,
   parseXeroAgedReceivablesByContactReport,
+  assertHistoricalAgedContactsWithinLimit,
   XERO_AGED_RECEIVABLES_MAX_CONTACTS,
   XERO_AGED_RECEIVABLES_SYNC_CONCURRENCY,
   type XeroAgedReportRow,
@@ -1108,8 +1109,13 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
     contactReportsFetched: number;
     contactReportsFailed: number;
   }> {
+    assertHistoricalAgedContactsWithinLimit({
+      contactsAvailable: params.contacts.length,
+      contactsLimit: XERO_AGED_RECEIVABLES_MAX_CONTACTS,
+      asOfDate: params.asOfDate,
+    });
     const externalEntityId = params.connection.external_entity_id || undefined;
-    const contacts = params.contacts.slice(0, XERO_AGED_RECEIVABLES_MAX_CONTACTS);
+    const contacts = params.contacts;
     let contactReportsFailed = 0;
     const results = await mapPool(contacts, XERO_AGED_RECEIVABLES_SYNC_CONCURRENCY, async (contact) => {
       try {
@@ -1139,7 +1145,8 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
     logXeroDiagnostics("historical_aged_receivables_pulled", {
       tenantId: params.connection.tenant_or_realm_id || params.connection.external_entity_id,
       asOfDate: params.asOfDate,
-      contactsRequested: contacts.length,
+      contactsAvailable: contacts.length,
+      contactsLimit: XERO_AGED_RECEIVABLES_MAX_CONTACTS,
       contactReportsFetched: contacts.length,
       contactReportsFailed,
       openReceivableCount: receivables.length,
@@ -1514,13 +1521,17 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
         }
       }
     } catch (error) {
-      arAgingSourceError = error instanceof Error ? error.message : String(error);
+      const err = error as Error & { code?: string; diagnostics?: Record<string, unknown> };
+      arAgingSourceError =
+        err.code ||
+        (error instanceof Error ? error.message : String(error));
       canonicalArAgingSchedule = null;
       logXeroDiagnostics("canonical_ar_aging_fail_closed", {
         tenantId: entity.tenantOrRealmId,
         reportPeriod,
         historicalAsOf,
         error: arAgingSourceError,
+        ...(err.diagnostics || {}),
       });
     }
 

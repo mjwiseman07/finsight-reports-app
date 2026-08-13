@@ -146,6 +146,66 @@ describe("Xero aged-report as-of parser — payment/credit timing", () => {
     expect(rows[0].openBalance).toBeCloseTo(1000, 2);
     expect(rows[0].provenance?.provider).toBe("xero");
     expect(rows[0].provenance?.sourceReport).toBe("AgedReceivablesByContact");
+    expect(rows[0].provenance?.externalRecordId).toBe("inv-paid-after");
+  });
+
+  it("real invoiceID becomes externalRecordId; absent invoiceID omits ERP provenance", () => {
+    const withId = parseXeroAgedReceivablesByContactReport({
+      reportRows: [
+        header,
+        {
+          RowType: "Section",
+          Rows: [
+            invoiceRow({
+              invoiceId: "real-xero-invoice",
+              invoiceDate: "2026-07-01",
+              dueDate: "2026-07-15",
+              total: "10.00",
+              paid: "0.00",
+              credited: "0.00",
+              due: "10.00",
+            }),
+          ],
+        },
+      ],
+      asOfDate: AS_OF,
+      contactId: "contact-1",
+      contactName: "Acme",
+    });
+    expect(withId[0].provenance?.externalRecordId).toBe("real-xero-invoice");
+    expect(withId[0].invoiceId).toBe("real-xero-invoice");
+
+    const withoutId = parseXeroAgedReceivablesByContactReport({
+      reportRows: [
+        header,
+        {
+          RowType: "Section",
+          Rows: [
+            {
+              RowType: "Row",
+              Cells: [
+                { Value: "2026-07-01T00:00:00" },
+                { Value: "" },
+                { Value: "2026-07-15T00:00:00" },
+                { Value: "" },
+                { Value: "25.00" },
+                { Value: "0.00" },
+                { Value: "0.00" },
+                { Value: "25.00" },
+              ],
+            },
+          ],
+        },
+      ],
+      asOfDate: AS_OF,
+      contactId: "contact-1",
+      contactName: "Acme",
+    });
+    expect(withoutId).toHaveLength(1);
+    expect(withoutId[0].provenance).toBeUndefined();
+    expect(withoutId[0].invoiceId.startsWith("advisacor:ar-line:")).toBe(true);
+    expect(withoutId[0].invoiceId).not.toContain("contact-1:2026-07-15:25");
+    expect(JSON.stringify(withoutId[0])).not.toMatch(/contact-1:2026-07-15:25/);
   });
 
   it("2: payment before asOfDate reduces historical Due", () => {
@@ -428,8 +488,14 @@ describe("Accuracy Contract provenance", () => {
             externalRecordId: "x-1",
           },
         }),
+        receivable({
+          invoiceId: "advisacor:ar-line:c1:2026-07-31:1",
+          dueDate: "2026-07-01",
+          openBalance: 50,
+          provenance: undefined,
+        }),
       ],
-      balanceSheet: bsAr(100),
+      balanceSheet: bsAr(150),
       provider: "xero",
       sourceKind: "provider_aged_report_as_of",
       historicalAsOf: true,
@@ -441,11 +507,13 @@ describe("Accuracy Contract provenance", () => {
       canonicalArAgingSchedule: schedule as never,
     });
     expect(factor.formula).toBeNull();
+    expect(factor.numeric).toBeCloseTo(150, 2);
     expect(factor.composition).toHaveLength(1);
     expect(factor.composition[0].source.provider).toBe("xero");
     expect(factor.composition[0].source.sourceReport).toBe("AgedReceivablesByContact");
     expect(factor.composition[0].source.externalRecordId).toBe("x-1");
     expect(JSON.stringify(factor)).not.toContain("ar-aging-bucket");
+    expect(JSON.stringify(factor)).not.toContain("advisacor:ar-line");
   });
 
   it("without real provenance, emits numeric only (no fabricated pointers)", () => {
@@ -473,6 +541,46 @@ describe("Accuracy Contract provenance", () => {
     expect(factor.numeric).toBeCloseTo(50, 2);
     expect(factor.composition).toHaveLength(0);
     expect(factor.formula).toBeNull();
+  });
+});
+
+describe("historical contact population limit", () => {
+  it("500 contacts allowed; 501 fail closed without partial schedule", async () => {
+    const {
+      assertHistoricalAgedContactsWithinLimit,
+      HISTORICAL_AGED_RECEIVABLES_CONTACT_LIMIT_EXCEEDED,
+      XERO_AGED_RECEIVABLES_MAX_CONTACTS,
+    } = await import("@/lib/integrations/xero/aged-receivables-as-of");
+
+    expect(() =>
+      assertHistoricalAgedContactsWithinLimit({
+        contactsAvailable: XERO_AGED_RECEIVABLES_MAX_CONTACTS,
+        asOfDate: AS_OF,
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      assertHistoricalAgedContactsWithinLimit({
+        contactsAvailable: XERO_AGED_RECEIVABLES_MAX_CONTACTS + 1,
+        asOfDate: AS_OF,
+      }),
+    ).toThrow(HISTORICAL_AGED_RECEIVABLES_CONTACT_LIMIT_EXCEEDED);
+
+    try {
+      assertHistoricalAgedContactsWithinLimit({
+        contactsAvailable: 501,
+        asOfDate: AS_OF,
+      });
+      expect.unreachable("expected fail closed");
+    } catch (error) {
+      const err = error as Error & { diagnostics?: Record<string, unknown> };
+      expect(err.diagnostics).toMatchObject({
+        reason: HISTORICAL_AGED_RECEIVABLES_CONTACT_LIMIT_EXCEEDED,
+        contactsAvailable: 501,
+        contactsLimit: 500,
+        asOfDate: AS_OF,
+      });
+    }
   });
 });
 

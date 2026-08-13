@@ -562,15 +562,29 @@ export function canonicalArAgingScheduleToEntities(
           sourceKind: schedule.source.kind,
           historicalAsOf: schedule.source.historicalAsOf,
         },
-        source: {
-          provider: provenance?.provider || source.provider,
-          providerFamily: provenance?.providerFamily || source.provider,
-          providerProduct: provenance?.providerProduct || source.provider,
-          externalEntityId: provenance?.externalEntityId || source.externalEntityId,
-          externalRecordId: provenance?.externalRecordId || invoice.invoiceId,
-          sourceReport: provenance?.sourceReport || "OpenReceivables",
-          raw: invoice,
-        },
+        source: provenance
+          ? {
+              provider: provenance.provider,
+              providerFamily: provenance.providerFamily,
+              providerProduct: provenance.providerProduct,
+              externalEntityId: provenance.externalEntityId || source.externalEntityId,
+              externalRecordId: provenance.externalRecordId,
+              sourceReport: provenance.sourceReport,
+              raw: invoice,
+            }
+          : {
+              // Schedule line without ERP record id — do not fabricate externalRecordId.
+              provider: source.provider,
+              providerFamily: source.provider,
+              providerProduct: source.provider,
+              externalEntityId: source.externalEntityId,
+              sourceReport: schedule.source.kind,
+              raw: {
+                ...invoice,
+                localLineId: invoice.invoiceId,
+                erpExternalRecordId: null,
+              },
+            },
       });
     }
   }
@@ -601,9 +615,9 @@ export function canonicalArAgingScheduleToEntities(
           providerFamily: source.provider,
           providerProduct: source.provider,
           externalEntityId: source.externalEntityId,
-          externalRecordId: label,
+          // Bucket summary is Advisacor-derived — not an ERP record id.
           sourceReport: "ARAgingSchedule",
-          raw: { label, amount },
+          raw: { label, amount, advisacorDerived: true },
         },
       });
     }

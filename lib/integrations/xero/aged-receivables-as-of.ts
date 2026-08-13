@@ -67,6 +67,10 @@ function walkRows(rows: XeroAgedReportRow[] = [], visit: (row: XeroAgedReportRow
 /**
  * Parse one AgedReceivablesByContact report payload into open receivable lines
  * using the report's Due amount (payments/credits applied only up to `date`).
+ *
+ * Provenance rule: only attach ERP provenance when Xero supplies a real
+ * invoiceID attribute. Never fabricate externalRecordId from contact/due/amount.
+ * A local Advisacor line key may be used for entity identity only.
  */
 export function parseXeroAgedReceivablesByContactReport(input: {
   reportRows: XeroAgedReportRow[];
@@ -77,6 +81,7 @@ export function parseXeroAgedReceivablesByContactReport(input: {
 }): CanonicalArOpenReceivable[] {
   let columnMap: Record<string, number> | null = null;
   const receivables: CanonicalArOpenReceivable[] = [];
+  let localLineSeq = 0;
 
   walkRows(input.reportRows, (row) => {
     if (row.RowType === "Header" && Array.isArray(row.Cells)) {
@@ -99,24 +104,30 @@ export function parseXeroAgedReceivablesByContactReport(input: {
     const dueDate = xeroDateToIso(dueDateCell?.Value);
     if (!dueDate) return;
 
-    const invoiceId =
+    const xeroInvoiceId =
       cellAttrId(dueCell, "invoiceID") ||
       cellAttrId(dueDateCell, "invoiceID") ||
       cellAttrId(dateCell, "invoiceID") ||
-      cellAttrId(row.Cells[0], "invoiceID") ||
-      `${input.contactId}:${dueDate}:${openBalance}`;
+      cellAttrId(row.Cells[0], "invoiceID");
 
-    const provenance: CanonicalArLineProvenance = {
-      provider: "xero",
-      providerFamily: "xero",
-      providerProduct: "xero",
-      sourceReport: "AgedReceivablesByContact",
-      externalEntityId: input.externalEntityId || input.contactId,
-      externalRecordId: invoiceId,
-      hierarchyPath: ["Aged Receivables", input.contactName],
-      section: "Receivables",
-      reportAmount: openBalance,
-    };
+    localLineSeq += 1;
+    // Local identity only — never presented as Xero externalRecordId.
+    const localLineId = `advisacor:ar-line:${input.contactId}:${input.asOfDate}:${localLineSeq}`;
+    const invoiceId = xeroInvoiceId || localLineId;
+
+    const provenance: CanonicalArLineProvenance | undefined = xeroInvoiceId
+      ? {
+          provider: "xero",
+          providerFamily: "xero",
+          providerProduct: "xero",
+          sourceReport: "AgedReceivablesByContact",
+          externalEntityId: input.externalEntityId || input.contactId,
+          externalRecordId: xeroInvoiceId,
+          hierarchyPath: ["Aged Receivables", input.contactName],
+          section: "Receivables",
+          reportAmount: openBalance,
+        }
+      : undefined;
 
     receivables.push({
       invoiceId,
@@ -156,3 +167,32 @@ export async function mapPool<T, R>(
 
 export const XERO_AGED_RECEIVABLES_SYNC_CONCURRENCY = 3;
 export const XERO_AGED_RECEIVABLES_MAX_CONTACTS = 500;
+
+export const HISTORICAL_AGED_RECEIVABLES_CONTACT_LIMIT_EXCEEDED =
+  "historical_aged_receivables_contact_limit_exceeded";
+
+/**
+ * Fail closed when the unique customer population exceeds the sync-safe maximum.
+ * Never silently truncate — partial schedules must not become authoritative.
+ */
+export function assertHistoricalAgedContactsWithinLimit(input: {
+  contactsAvailable: number;
+  contactsLimit?: number;
+  asOfDate: string;
+}): void {
+  const contactsLimit = input.contactsLimit ?? XERO_AGED_RECEIVABLES_MAX_CONTACTS;
+  if (input.contactsAvailable > contactsLimit) {
+    const error = new Error(HISTORICAL_AGED_RECEIVABLES_CONTACT_LIMIT_EXCEEDED) as Error & {
+      code?: string;
+      diagnostics?: Record<string, unknown>;
+    };
+    error.code = HISTORICAL_AGED_RECEIVABLES_CONTACT_LIMIT_EXCEEDED;
+    error.diagnostics = {
+      reason: HISTORICAL_AGED_RECEIVABLES_CONTACT_LIMIT_EXCEEDED,
+      contactsAvailable: input.contactsAvailable,
+      contactsLimit,
+      asOfDate: input.asOfDate,
+    };
+    throw error;
+  }
+}
