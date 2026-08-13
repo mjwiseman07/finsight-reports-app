@@ -44,8 +44,11 @@ export type ArAgingSchedule = {
 };
 
 export type CashFlowTrailing = {
-  netOperatingCashFlow: number;
-  monthlyAverageBurn: number;
+  netOperatingCashFlow: number | null;
+  monthlyAverageBurn?: number;
+  supportStatus?: "supported" | "not_supported" | "unavailable" | "error";
+  supportReason?: string | null;
+  customerMessage?: string | null;
 };
 
 /**
@@ -127,11 +130,33 @@ export function resolveNetOpCashFlowTileState(args: {
   hasSummary: boolean;
   cashFlowTrailing12M: CashFlowTrailing | null;
 }): ScorecardTileState {
-  if (args.cashFlowTrailing12M) return { status: "ready" };
+  const schedule = args.cashFlowTrailing12M;
+  if (schedule?.supportStatus === "not_supported") {
+    return {
+      status: "not_supported",
+      message:
+        schedule.customerMessage ||
+        "Net operating cash flow is not supported for this provider configuration.",
+    };
+  }
+  if (schedule?.supportStatus === "error") {
+    return {
+      status: "error",
+      message:
+        schedule.customerMessage ||
+        "Net operating cash flow could not be computed from the Statement of Cash Flows.",
+    };
+  }
+  if (
+    schedule &&
+    (schedule.supportStatus === "supported" || schedule.supportStatus == null) &&
+    typeof schedule.netOperatingCashFlow === "number"
+  ) {
+    return { status: "ready" };
+  }
   if (args.hydrationActive && !args.hasSummary) {
     return { status: "loading", message: "Refreshing…" };
   }
-  // Settled mount currently has no trailing-CF source wired — unavailable, not loading.
   return { status: "unavailable", message: "Not available for this period" };
 }
 
@@ -411,9 +436,10 @@ export default function Scorecard({
     hasSummary: Boolean(activeReportSummary),
     cashFlowTrailing12M,
   });
-  const runwayValue = cashFlowTrailing12M
-    ? CURRENCY_FORMAT.format(cashFlowTrailing12M.netOperatingCashFlow)
-    : "";
+  const runwayValue =
+    cashFlowTrailing12M && typeof cashFlowTrailing12M.netOperatingCashFlow === "number"
+      ? CURRENCY_FORMAT.format(cashFlowTrailing12M.netOperatingCashFlow)
+      : "";
 
   const arState = resolveArAgingTileState({
     hydrationActive,

@@ -10,6 +10,10 @@ import {
   type CanonicalArOpenReceivable,
 } from "../accounting/ar-aging";
 import {
+  buildNotSupportedCashFlowSchedule,
+  xeroCashFlowCapability,
+} from "../accounting/cash-flow";
+import {
   mapPool,
   parseXeroAgedReceivablesByContactReport,
   assertHistoricalAgedContactsWithinLimit,
@@ -944,6 +948,7 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
   }
 
   async getCashFlow() {
+    // Accounting API has no Statement of Cash Flows. Never synthesize from BankSummary.
     return [];
   }
 
@@ -1555,7 +1560,29 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
     bundle.profitAndLoss = profitAndLoss;
     bundle.profitAndLossYtd = profitAndLossYtd;
     bundle.balanceSheet = balanceSheet;
+    bundle.cashFlow = [];
+    // BankSummary is bank activity, NOT Statement of Cash Flows. Prefer it for
+    // normalizedTransactions diagnostics only — never for canonical cash flow.
     bundle.normalizedTransactions = bankSummary.length ? bankSummary : transactions.length ? transactions : notAvailableSchedule(this.provider, "Bank Summary");
+    const orgCountry =
+      (organization && (organization.CountryCode || organization.countryCode)) ||
+      null;
+    const cashFlowCapability = xeroCashFlowCapability({
+      countryCode: orgCountry ? String(orgCountry) : "US",
+    });
+    bundle.canonicalCashFlowSchedule = buildNotSupportedCashFlowSchedule({
+      endDate: reportPeriod.endDate,
+      provider: this.provider,
+      companyId: params.connection.metadata_json?.company_id
+        ? String(params.connection.metadata_json.company_id)
+        : null,
+      connectionId: params.connection.id,
+      syncId: null,
+      reason: cashFlowCapability.reason || "xero_statement_of_cash_flows_not_available_via_accounting_api",
+      customerMessage:
+        cashFlowCapability.customerMessage ||
+        "Net operating cash flow is not supported for this Xero configuration.",
+    });
     bundle.canonicalArAgingSchedule = canonicalArAgingSchedule;
     bundle.normalizedARAging = canonicalArAgingSchedule
       ? canonicalArAgingScheduleToEntities(canonicalArAgingSchedule, {
@@ -1597,6 +1624,7 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
   async disconnect() {}
 
   getCapabilities(): ProviderCapabilities {
+    const cashFlow = xeroCashFlowCapability({ countryCode: "US" });
     return {
       supports_oauth: true,
       supports_multi_entity: true,
@@ -1605,11 +1633,20 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
       supports_pnl: true,
       supports_balance_sheet: true,
       supports_cash_flow: false,
+      cash_flow: {
+        supported: false,
+        sourceKind: "not_supported",
+        reason: cashFlow.reason,
+        customerMessage: cashFlow.customerMessage,
+      },
       supports_webhooks: true,
       supports_writeback: false,
       requires_entity_selection: true,
       supports_incremental_sync: false,
-      fallback_notes: ["Cash flow may require file import/manual upload depending on Xero plan and region."],
+      fallback_notes: [
+        "Statement of Cash Flows is not available via the Xero Accounting API for this configuration (US Demo: not_supported).",
+        "BankSummary must never be treated as operating cash flow.",
+      ],
     };
   }
 }

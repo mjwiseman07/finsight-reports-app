@@ -14,6 +14,7 @@ import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
 import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
 import { toScorecardArAgingView } from "../../lib/integrations/accounting/ar-aging";
+import { toScorecardCashFlowTrailing } from "../../lib/integrations/accounting/cash-flow";
 import {
   canPromoteClientPayloadAsAuthoritative,
   canUseFetchReportsFallbackAsSchemaPromotion,
@@ -724,6 +725,11 @@ export default function DashboardPage() {
   const arAgingSchedule = canonicalArAgingSchedule
     ? toScorecardArAgingView(canonicalArAgingSchedule)
     : null;
+  const canonicalCashFlowSchedule =
+    activeReportContext?.normalizedData?.canonicalCashFlowSchedule ||
+    activeReportPayload?.normalizedData?.canonicalCashFlowSchedule ||
+    null;
+  const cashFlowTrailing12M = toScorecardCashFlowTrailing(canonicalCashFlowSchedule);
   const activeReportPreflight = activeReportContext?.normalizedData
     ? validateReportPreflight(activeReportContext, { requiresLiveData: true })
     : null;
@@ -2250,7 +2256,7 @@ export default function DashboardPage() {
               <Scorecard
                 activeReportSummary={activeReportSummary}
                 arAgingSchedule={arAgingSchedule}
-                cashFlowTrailing12M={null}
+                cashFlowTrailing12M={cashFlowTrailing12M}
                 industryType={onboardingIndustryType}
                 companyName={onboardingCompanyName}
                 integrationChoice={activeSourceSystem || null}

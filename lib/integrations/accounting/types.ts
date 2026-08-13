@@ -151,6 +151,13 @@ export interface AdvisacorNormalizedFinancialData {
    * Prefer this over flattening AgedReceivables report rows for KPI work.
    */
   canonicalArAgingSchedule?: import("./ar-aging").CanonicalArAgingSchedule | null;
+  /**
+   * Provider-neutral trailing-12M Statement of Cash Flows schedule.
+   * Scorecard Net Op Cash Flow reads netOperatingCashFlow only when supported.
+   */
+  canonicalCashFlowSchedule?: import("./cash-flow").CanonicalCashFlowSchedule | null;
+  /** Supporting SoCF rows when the provider returned a real cash-flow statement. */
+  normalizedCashFlow?: CanonicalCashFlowRow[];
   normalizedAPAging: AdvisacorNormalizedEntity[];
   normalizedBudgets: AdvisacorNormalizedEntity[];
   normalizedDepartments: AdvisacorNormalizedEntity[];
@@ -187,6 +194,8 @@ export interface CanonicalReportBundle {
   normalizedARAging?: AdvisacorNormalizedEntity[];
   /** Invoice-derived (or report-summary) canonical AR aging; stamped at sync. */
   canonicalArAgingSchedule?: import("./ar-aging").CanonicalArAgingSchedule | null;
+  /** Trailing-12M cash-flow schedule stamped at sync (QBO SoCF / Xero not_supported). */
+  canonicalCashFlowSchedule?: import("./cash-flow").CanonicalCashFlowSchedule | null;
   normalizedAPAging?: AdvisacorNormalizedEntity[];
   normalizedBudgets?: AdvisacorNormalizedEntity[];
   normalizedDepartments?: AdvisacorNormalizedEntity[];
@@ -274,6 +283,13 @@ export interface ProviderCapabilities {
   supports_pnl: boolean;
   supports_balance_sheet: boolean;
   supports_cash_flow: boolean;
+  /** Structured cash-flow capability (preferred over boolean alone). */
+  cash_flow?: {
+    supported: boolean;
+    sourceKind?: string;
+    reason?: string | null;
+    customerMessage?: string | null;
+  };
   supports_webhooks: boolean;
   supports_writeback: boolean;
   requires_entity_selection: boolean;

@@ -88,6 +88,33 @@ type NormalizedPayload = {
       days_over_90: number;
     }>;
   };
+  canonicalCashFlowSchedule?: {
+    netOperatingCashFlow: number | null;
+    supportStatus: 'supported' | 'not_supported' | 'unavailable' | 'error';
+    supportReason?: string | null;
+    customerMessage?: string | null;
+    sourceKind?: string;
+    provider?: 'xero' | 'quickbooks';
+    provenance?: {
+      sourceReport: string | null;
+      operatingSubtotalLabel: string | null;
+      operatingSubtotalExternalRecordId: string | null;
+    };
+    operatingRows?: Array<{
+      label: string;
+      amount: number;
+      section: string;
+      hierarchyPath: string[];
+      source: {
+        provider: 'xero' | 'quickbooks';
+        providerFamily: string;
+        providerProduct: string;
+        sourceReport: string;
+        externalEntityId?: string;
+        externalRecordId?: string;
+      };
+    }>;
+  };
 };
 
 const CASH_LABEL_PATTERNS = [
@@ -164,7 +191,7 @@ export type FactorizedKpi = {
   formula: FormulaNode | null;
   composition: CompositionRow[];
   reported_by_provider: number | null;
-  computation_status: 'computed' | 'pending_subledger';
+  computation_status: 'computed' | 'pending_subledger' | 'not_supported';
 };
 
 export function factorizeCashPosition(payload: NormalizedPayload): FactorizedKpi {
@@ -363,15 +390,114 @@ export function factorizeArAging(payload: NormalizedPayload): FactorizedKpi {
 }
 
 export function factorizeNetOpCashFlow(payload: NormalizedPayload): FactorizedKpi {
-  void payload;
+  const schedule = payload.canonicalCashFlowSchedule;
+  if (!schedule) {
+    return {
+      numeric: null,
+      display: '—',
+      unit: 'currency',
+      formula: null,
+      composition: [],
+      reported_by_provider: null,
+      computation_status: 'pending_subledger',
+    };
+  }
+
+  if (schedule.supportStatus === 'not_supported') {
+    return {
+      numeric: null,
+      display: '—',
+      unit: 'currency',
+      formula: null,
+      composition: [],
+      reported_by_provider: null,
+      computation_status: 'not_supported',
+    };
+  }
+
+  if (
+    schedule.supportStatus !== 'supported' ||
+    typeof schedule.netOperatingCashFlow !== 'number'
+  ) {
+    return {
+      numeric: null,
+      display: '—',
+      unit: 'currency',
+      formula: null,
+      composition: [],
+      reported_by_provider: null,
+      computation_status: 'pending_subledger',
+    };
+  }
+
+  const amount = schedule.netOperatingCashFlow;
+  const provenance = schedule.provenance;
+  const composition: CompositionRow[] = [];
+
+  // Path A only: actual operating subtotal row with a truthful provider externalRecordId.
+  // Numeric NOCF may still be computed without line-level provenance (Path B).
+  const subtotalLabel = provenance?.operatingSubtotalLabel;
+  const subtotalRow = (schedule.operatingRows || []).find((row) => {
+    if (!subtotalLabel || row.label !== subtotalLabel) return false;
+    const id = String(row.source?.externalRecordId || "").trim();
+    if (!id || id.startsWith("advisacor:") || id === "operating-subtotal") return false;
+    if (id === row.label) return false;
+    // Must match schedule provenance when present — never invent a pointer.
+    if (
+      provenance?.operatingSubtotalExternalRecordId &&
+      id !== provenance.operatingSubtotalExternalRecordId
+    ) {
+      return false;
+    }
+    return true;
+  });
+  if (
+    subtotalRow &&
+    provenance?.operatingSubtotalExternalRecordId &&
+    (subtotalRow.source.provider === "xero" || subtotalRow.source.provider === "quickbooks")
+  ) {
+    composition.push({
+      label: subtotalRow.label,
+      amount: subtotalRow.amount,
+      section: subtotalRow.section || "operating",
+      hierarchyPath: subtotalRow.hierarchyPath || [],
+      source: {
+        provider: subtotalRow.source.provider,
+        providerFamily: subtotalRow.source.providerFamily,
+        providerProduct: subtotalRow.source.providerProduct,
+        sourceReport: subtotalRow.source.sourceReport,
+        externalEntityId: String(subtotalRow.source.externalEntityId || ""),
+        externalRecordId: provenance.operatingSubtotalExternalRecordId,
+        hierarchyPath: subtotalRow.hierarchyPath || [],
+        section: subtotalRow.section || "operating",
+        reportAmount: subtotalRow.amount,
+      },
+    });
+  }
+
+  const formula: FormulaNode | null =
+    composition.length === 1
+      ? {
+          kind: "ref",
+          label: composition[0].label,
+          amount: composition[0].amount,
+          source: composition[0].source,
+        }
+      : null;
+
   return {
-    numeric: null,
-    display: "Pending T12M cash-flow synthesis",
+    numeric: amount,
+    display: new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(amount),
     unit: "currency",
-    formula: null,
-    composition: [],
-    reported_by_provider: null,
-    computation_status: "pending_subledger",
+    formula,
+    composition,
+    // Amount taken from provider SoCF subtotal — independent of line-level IDs.
+    reported_by_provider: amount,
+    computation_status: "computed",
   };
 }
 
