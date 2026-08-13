@@ -137,6 +137,8 @@ export interface AdvisacorNormalizedFinancialData {
   };
   syncStatus: AccountingSyncStatus;
   lastSyncedAt: string;
+  /** Bumped when persisted sync must be rebuilt (see payload-schema.ts). */
+  schemaVersion?: number;
   normalizedAccounts: CanonicalChartOfAccountsItem[];
   normalizedTransactions: AdvisacorNormalizedEntity[];
   normalizedTrialBalance: CanonicalTrialBalanceRow[];

@@ -1,6 +1,12 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
 import { assertReadyForSourceAgnosticOutputs } from "./advisacor-data-model";
+import {
+  ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
+  persistedSyncNeedsSchemaRebuild,
+  shouldRebuildPersistedAccountingSync,
+  type AuthoritativePersistenceProof,
+} from "./payload-schema";
 import { buildReportDataContext } from "./report-data-context";
 import { getAccountingProviderMappingAdapter } from "./provider-adapters";
 import { getAccountingProvider, getEnabledProviders } from "./registry";
@@ -405,7 +411,9 @@ async function buildAndPersistLiveAccountingSync({
     (error as Error & { diagnostics?: Record<string, unknown> }).diagnostics = diagnostics;
     throw error;
   }
-  const persisted = await persistNormalizedAccountingSync({
+  // companyId already resolved via resolveCompanyIdForSyncPersist inside
+  // persistNormalizedAccountingSync (#244) and written to accounting_syncs.
+  await persistNormalizedAccountingSync({
     connection: decryptedConnection,
     userId,
     syncId,
@@ -417,39 +425,27 @@ async function buildAndPersistLiveAccountingSync({
     tenantId,
     tenantName,
     preflight: { hydratedFromActiveContext: true },
+    requireDurableAccountingSyncRow: true,
   });
-  const resolvedCompanyId = persisted.companyId || null;
-  return buildMetadataSyncRow({
-    metadata: {
-      ...(decryptedConnection.metadata_json || {}),
-      company_id: resolvedCompanyId,
-      active_normalized_sync_id: syncId,
-      last_sync_id: syncId,
-      latest_sync_by_source: {
-        ...((decryptedConnection.metadata_json?.latest_sync_by_source as Record<string, unknown>) || {}),
-        [sourceSystem]: {
-          companyId: resolvedCompanyId,
-          connectionId: decryptedConnection.id,
-          sourceSystem,
-          adapterName: mappingAdapter.adapterName,
-          syncId,
-          tenantId,
-          tenantName,
-          reportPeriod,
-          normalizedPayload: {
-            ...normalizedData,
-            syncStatus: SYNC_STATUS.SUCCESS,
-          },
-          rawReportsPulled: normalizedData.rawReportsPulled,
-          validationStatus: SYNC_STATUS.SUCCESS,
-          preflight: { hydratedFromActiveContext: true },
-          createdAt: normalizedData.lastSyncedAt,
-        },
-      },
-    },
-    sourceSystem,
-    connection: decryptedConnection,
-  });
+
+  // Authoritative return must come from durable accounting_syncs readback (#252),
+  // not an in-memory metadata fabrication that could diverge from DB memory.
+  // Readback includes company_id so #244 identity is not lost.
+  const { data: persistedRows, error: persistedError } = await requireSupabase()
+    .from("accounting_syncs")
+    .select(
+      "id, company_id, connection_id, source_system, adapter_name, tenant_id, tenant_name, report_period_start, report_period_end, normalized_payload, validation_status, created_at",
+    )
+    .eq("id", syncId)
+    .limit(1);
+  if (persistedError || !persistedRows?.[0]) {
+    const error = new Error(
+      `Accounting sync persistence failed: durable readback missing for ${syncId}${persistedError ? ` (${persistedError.message})` : ""}.`,
+    );
+    (error as Error & { status?: number }).status = 500;
+    throw error;
+  }
+  return persistedRows[0];
 }
 
 export async function persistNormalizedAccountingSync({
@@ -464,6 +460,7 @@ export async function persistNormalizedAccountingSync({
   tenantId,
   tenantName,
   preflight = null,
+  requireDurableAccountingSyncRow = true,
 }: {
   connection: AccountingConnectionRecord;
   userId: string;
@@ -476,9 +473,12 @@ export async function persistNormalizedAccountingSync({
   tenantId: string | null;
   tenantName: string;
   preflight?: unknown;
+  /** When true (default), metadata-only fallback is a hard failure — not authoritative memory. */
+  requireDurableAccountingSyncRow?: boolean;
 }) {
   const normalizedDataForStorage = {
     ...normalizedData,
+    schemaVersion: Number(normalizedData.schemaVersion || ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION),
     syncStatus: SYNC_STATUS.SUCCESS,
   };
   const companyId = await saveNormalizedSyncMetadata({
@@ -495,6 +495,30 @@ export async function persistNormalizedAccountingSync({
     preflight,
     normalizedDataForStorage,
   });
+
+  // Prove metadata pointer actually moved. Supabase update with 0 matching rows does not error.
+  const { data: connectionReadback, error: connectionReadbackError } = await requireSupabase()
+    .from("accounting_connections")
+    .select("id, metadata_json")
+    .eq("id", connection.id)
+    .limit(1)
+    .maybeSingle();
+  if (connectionReadbackError) {
+    const error = new Error(`Accounting connection metadata readback failed: ${connectionReadbackError.message}`);
+    (error as Error & { status?: number }).status = 500;
+    throw error;
+  }
+  const activePointer = String(
+    (connectionReadback?.metadata_json as Record<string, unknown> | undefined)?.active_normalized_sync_id || "",
+  );
+  if (activePointer !== syncId) {
+    const error = new Error(
+      `Accounting sync persistence failed: active_normalized_sync_id was not updated to ${syncId} (found ${activePointer || "empty"}).`,
+    );
+    (error as Error & { status?: number }).status = 500;
+    throw error;
+  }
+
   const syncInsertPayload = {
     id: syncId,
     company_id: uuidOrNull(companyId),
@@ -520,6 +544,7 @@ export async function persistNormalizedAccountingSync({
       tenantId,
       tenantName,
       reportPeriod,
+      schemaVersion: normalizedDataForStorage.schemaVersion,
       syncStatus: SYNC_STATUS.SUCCESS,
       normalizedAccounts: normalizedData.normalizedAccounts?.length || 0,
       normalizedTrialBalance: normalizedData.normalizedTrialBalance?.length || 0,
@@ -527,18 +552,11 @@ export async function persistNormalizedAccountingSync({
       normalizedIncomeStatement: normalizedData.normalizedIncomeStatement?.length || 0,
     },
   });
-  console.info("SYNC WRITE:", {
-    syncId,
-    companyId,
-    connectionId: connection.id,
-    sourceSystem,
-    syncStatus: SYNC_STATUS.SUCCESS,
-  });
   const { error: syncInsertError } = await requireSupabase()
     .from("accounting_syncs")
     .insert(syncInsertPayload);
   if (syncInsertError) {
-    if (isMissingAccountingSyncsTableError(syncInsertError)) {
+    if (!requireDurableAccountingSyncRow && isMissingAccountingSyncsTableError(syncInsertError)) {
       console.warn("SYNC READBACK:", {
         syncId,
         syncStatus: SYNC_STATUS.SUCCESS,
@@ -547,6 +565,7 @@ export async function persistNormalizedAccountingSync({
         tenantId,
         storage: "accounting_connections.metadata_json.latest_sync_by_source",
         fallbackReason: syncInsertError.message,
+        authoritative: false,
       });
       return {
         syncId,
@@ -554,6 +573,8 @@ export async function persistNormalizedAccountingSync({
         companyId,
         connectionId: connection.id,
         tenantId: String(tenantId || ""),
+        persistedToAccountingSyncs: false,
+        schemaVersion: normalizedDataForStorage.schemaVersion,
       };
     }
     const error = new Error(`Accounting sync persistence failed: ${syncInsertError.message}`);
@@ -562,12 +583,22 @@ export async function persistNormalizedAccountingSync({
   }
   const { data: syncReadback, error: syncReadbackError } = await requireSupabase()
     .from("accounting_syncs")
-    .select("id, company_id, connection_id, source_system, tenant_id, validation_status, last_synced_at, created_at")
+    .select("id, company_id, connection_id, source_system, tenant_id, validation_status, last_synced_at, created_at, normalized_payload")
     .eq("id", syncId)
     .limit(1)
     .maybeSingle();
   if (syncReadbackError || !syncReadback) {
     const error = new Error(`Accounting sync readback failed: ${syncReadbackError?.message || "record was not found after insert"}`);
+    (error as Error & { status?: number }).status = 500;
+    throw error;
+  }
+  const readbackSchemaVersion = Number(
+    (syncReadback.normalized_payload as { schemaVersion?: number } | null | undefined)?.schemaVersion || 0,
+  );
+  if (persistedSyncNeedsSchemaRebuild(readbackSchemaVersion)) {
+    const error = new Error(
+      `Accounting sync persistence failed: persisted schemaVersion ${readbackSchemaVersion} is below required ${ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION}.`,
+    );
     (error as Error & { status?: number }).status = 500;
     throw error;
   }
@@ -577,6 +608,7 @@ export async function persistNormalizedAccountingSync({
     companyId: syncReadback.company_id,
     connectionId: syncReadback.connection_id,
     tenantId: syncReadback.tenant_id,
+    schemaVersion: readbackSchemaVersion,
   });
   return {
     syncId: String(syncReadback.id),
@@ -584,6 +616,8 @@ export async function persistNormalizedAccountingSync({
     companyId: String(syncReadback.company_id || companyId || ""),
     connectionId: String(syncReadback.connection_id || connection.id),
     tenantId: String(syncReadback.tenant_id || tenantId || ""),
+    persistedToAccountingSyncs: true,
+    schemaVersion: readbackSchemaVersion,
   };
 }
 
@@ -1004,7 +1038,43 @@ export async function getActiveAccountingContext({
     row = latestError ? metadataSyncRow : await promoteSuccessfulSyncStatus(latestRows?.[0]);
   }
   if (!row && metadataSyncRow) row = metadataSyncRow;
-  if ((forceRefresh && resolvedSourceSystem === "xero") || (!row && ["quickbooks", "xero"].includes(resolvedSourceSystem))) {
+
+  const persistedSchemaVersion = Number(
+    (row?.normalized_payload as { schemaVersion?: number } | null | undefined)?.schemaVersion || 0,
+  );
+  const rebuildRequired = shouldRebuildPersistedAccountingSync({
+    forceRefresh,
+    persistedSchemaVersion,
+    sourceSystem: resolvedSourceSystem,
+  });
+
+  if (rebuildRequired) {
+    console.info("Hydrated Context: rebuilding live accounting sync for authoritative schema", {
+      connectionId: connection.id,
+      tenantId: resolvedTenantId || null,
+      sourceSystem: resolvedSourceSystem,
+      forceRefresh,
+      persistedSchemaVersion,
+      requiredSchemaVersion: ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
+    });
+    try {
+      row = await buildAndPersistLiveAccountingSync({
+        connection,
+        userId,
+        sourceSystem: resolvedSourceSystem,
+      });
+    } catch (error) {
+      if (metadataSyncRow && resolvedSourceSystem === "quickbooks" && /429|rate limit|too many requests/i.test(String((error as Error)?.message || ""))) {
+        console.warn("Hydrated Context: QuickBooks live sync rate-limited; using metadata sync fallback", {
+          connectionId: connection.id,
+          sourceSystem: resolvedSourceSystem,
+        });
+        row = metadataSyncRow;
+      } else {
+        throw error;
+      }
+    }
+  } else if (!row && ["quickbooks", "xero"].includes(resolvedSourceSystem)) {
     console.info("Hydrated Context: no persisted sync found; attempting live accounting sync fallback", {
       connectionId: connection.id,
       tenantId: resolvedTenantId || null,
@@ -1031,24 +1101,56 @@ export async function getActiveAccountingContext({
   }
 
   const normalizedData = row?.normalized_payload as Awaited<ReturnType<typeof buildReportDataContext>>["normalizedData"] | undefined;
+  const returnedSchemaVersion = Number(normalizedData?.schemaVersion || 0);
+  const syncId = String(row?.id || "");
+  const authoritativePersistence: AuthoritativePersistenceProof = {
+    ok:
+      Boolean(syncId) &&
+      String(row?.validation_status || "") === SYNC_STATUS.SUCCESS &&
+      !persistedSyncNeedsSchemaRebuild(returnedSchemaVersion),
+    syncId,
+    schemaVersion: returnedSchemaVersion,
+    activeNormalizedSyncId: syncId,
+    companyId: String(row?.company_id || normalizedData?.companyId || resolvedCompanyId || ""),
+    connectionId: String(row?.connection_id || connection.id),
+    persisted: Boolean(syncId) && !String(syncId).startsWith("metadata:"),
+    reason: persistedSyncNeedsSchemaRebuild(returnedSchemaVersion)
+      ? "persisted_schema_still_stale"
+      : syncId
+        ? "durable_success_sync"
+        : "missing_sync",
+  };
+
+  if (rebuildRequired && !authoritativePersistence.ok) {
+    const error = new Error(
+      `Authoritative accounting refresh failed: ${authoritativePersistence.reason || "persistence_unproven"}.`,
+    );
+    (error as Error & { status?: number; authoritativePersistence?: AuthoritativePersistenceProof }).status = 500;
+    (error as Error & { authoritativePersistence?: AuthoritativePersistenceProof }).authoritativePersistence =
+      authoritativePersistence;
+    throw error;
+  }
+
   const context = {
     companyId: String(row?.company_id || normalizedData?.companyId || resolvedCompanyId || ""),
     connectionId: String(row?.connection_id || connection.id),
     sourceSystem: String(row?.source_system || resolvedSourceSystem),
     tenantId: String(row?.tenant_id || normalizedData?.tenantId || resolvedTenantId || ""),
     tenantName: String(row?.tenant_name || normalizedData?.tenantName || resolvedTenantName || ""),
-    latestSuccessfulSyncId: String(row?.id || ""),
-    latestSyncId: String(latestAnyRow?.id || row?.id || ""),
+    latestSuccessfulSyncId: syncId,
+    latestSyncId: String(latestAnyRow?.id || syncId || ""),
     latestSyncStatus: String(latestAnyRow?.validation_status || row?.validation_status || ""),
     packageGeneratorExpectedStatus: SYNC_STATUS.SUCCESS,
     packageGeneratorFoundStatus: String(row?.validation_status || latestAnyRow?.validation_status || ""),
     persistedSyncRecord: {
-      syncId: String((row || latestAnyRow)?.id || ""),
+      syncId,
       syncStatus: String((row || latestAnyRow)?.validation_status || ""),
       companyId: String((row || latestAnyRow)?.company_id || normalizedData?.companyId || resolvedCompanyId || ""),
       connectionId: String((row || latestAnyRow)?.connection_id || connection.id),
       tenantId: String((row || latestAnyRow)?.tenant_id || resolvedTenantId || ""),
+      schemaVersion: returnedSchemaVersion,
     },
+    authoritativePersistence,
   };
   const reportPeriod = {
     startDate: String(row?.report_period_start || normalizedData?.reportPeriod?.startDate || ""),
@@ -1084,6 +1186,8 @@ export async function getActiveAccountingContext({
     tenantId: context.tenantId || null,
     syncId: context.latestSuccessfulSyncId || null,
     latestSyncStatus: context.latestSyncStatus || null,
+    schemaVersion: returnedSchemaVersion,
+    authoritativePersistence: authoritativePersistence.ok,
   });
   return {
     ...context,
@@ -1093,6 +1197,9 @@ export async function getActiveAccountingContext({
     validationStatus: row?.validation_status || null,
     lastSyncedAt: row?.created_at || String(metadata.last_synced_at || connection.updated_at || ""),
     diagnostics,
+    authoritativePersistence,
+    syncId,
+    schemaVersion: returnedSchemaVersion,
   };
 }
 
@@ -1187,12 +1294,14 @@ export async function fetchCanonicalReports({
     tenantId,
     tenantName: diagnostics.tenantName,
     preflight,
+    requireDurableAccountingSyncRow: true,
   });
   console.info("Saved Sync:", {
     companyId: normalizedData.companyId || null,
     connectionId,
     tenantId: connection.tenant_or_realm_id || connection.external_entity_id || null,
     syncId,
+    schemaVersion: normalizedData.schemaVersion || ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
   });
   if (preflight.passed && preflight.warnings.length) {
     await createPreflightWarningSupportTickets({
@@ -1212,6 +1321,17 @@ export async function fetchCanonicalReports({
     (error as Error & { diagnostics?: typeof diagnostics }).diagnostics = diagnostics;
     throw error;
   }
+  const schemaVersion = Number(normalizedData.schemaVersion || ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION);
+  const authoritativePersistence: AuthoritativePersistenceProof = {
+    ok: true,
+    syncId,
+    schemaVersion,
+    activeNormalizedSyncId: syncId,
+    companyId: normalizedData.companyId || null,
+    connectionId,
+    persisted: true,
+    reason: "durable_success_sync",
+  };
   return {
     ok: true,
     provider: connection.provider,
@@ -1221,6 +1341,8 @@ export async function fetchCanonicalReports({
     reportDataContext,
     preflight,
     syncId,
+    schemaVersion,
+    authoritativePersistence,
     diagnostics,
     message,
     missingReports: rawReports.bundle.missingReports,
