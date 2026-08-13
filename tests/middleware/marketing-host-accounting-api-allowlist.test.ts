@@ -19,8 +19,8 @@ async function middlewareStatus(host: string, pathname: string, method = "POST")
   return {
     status: response.status,
     body: await response.clone().text(),
-    // NextResponse.next() is the "continue" signal for Edge middleware.
-    continued: response.headers.get("x-middleware-next") === "1" || response.status === 200 && !response.headers.get("location"),
+    // Exact NextResponse.next() signal — do not treat arbitrary 200s as continue.
+    continued: response.headers.get("x-middleware-next") === "1",
   };
 }
 
