@@ -141,6 +141,10 @@ function isMarketingAllowed(pathname: string) {
     // (not via the /api/integrations shim), and status/detect-capabilities/
     // fetch-reports are called from marketing-host authenticated pages.
     pathname.startsWith("/api/quickbooks/") ||
+    // Dashboard accounting sync / active-context / Xero+QBO companion routes.
+    // Marketing hosts serve /dashboard; product accounting APIs must be reachable
+    // there (auth still enforced by the route). Do NOT broaden to all /api/*.
+    pathname.startsWith("/api/accounting/") ||
     pathname.startsWith("/api/webhooks/") ||
     // Free Review lead-capture funnel (lives on marketing host).
     pathname.startsWith("/api/free-review/") ||
