@@ -11,6 +11,7 @@ import StartingPointCard from "../../components/dashboard/StartingPointCard";
 import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPointDeepLinkHandler";
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
+import Scorecard from "../../components/dashboard/Scorecard";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import {
   PulseJeAccountPicker,
@@ -1242,6 +1243,33 @@ export default function DashboardPage() {
     }
   };
 
+  const handleConnectXero = async () => {
+    setError("");
+    try {
+      const authToken = await getAuthToken();
+      if (!authToken) {
+        setError("Sign in first, then connect Xero.");
+        return;
+      }
+
+      const response = await fetch("/api/integrations/xero/connect", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          Accept: "application/json",
+        },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.url) {
+        setError(result.error || "Unable to start Xero connection.");
+        return;
+      }
+      window.location.assign(result.url);
+    } catch {
+      setError("Unable to start Xero connection.");
+    }
+  };
+
   const handleDetectQuickBooksCapabilities = async () => {
     setError("");
     setQuickBooksDetecting(true);
@@ -1909,6 +1937,30 @@ export default function DashboardPage() {
                 expanded={aiOpen}
                 onCollapse={() => setAiOpen(false)}
                 onUpgradePackage={() => handleSubscribe(currentPlanKey === "pulse_pro" ? "professional" : "pulse_pro")}
+              />
+
+              {/* DASH_1A δ-A: Scorecard + hash provenance stub. Block B swaps onOpenProvenance for Acc Contract drawer. */}
+              <Scorecard
+                activeReportSummary={activeReportSummary}
+                arAgingSchedule={null}
+                cashFlowTrailing12M={null}
+                industryType={onboardingIndustryType}
+                companyName={onboardingCompanyName}
+                integrationChoice={activeSourceSystem || null}
+                onConnectQBO={handleConnectQuickBooks}
+                onConnectXero={handleConnectXero}
+                hydrationActive={false}
+                onAskAboutKpi={(_kpiCode, question) => {
+                  setExecutiveQuestion(question);
+                  setAiOpen(true);
+                  submitExecutiveQuestion(question);
+                }}
+                onOpenProvenance={(kpiCode) => {
+                  // DASH_1C Block B: open Accuracy Contract drawer.
+                  if (typeof window !== "undefined") {
+                    window.location.hash = `#accuracy-contract-${kpiCode}`;
+                  }
+                }}
               />
 
               <SimplifiedFeatureCards onExploreSection={handleExploreCardClick} />
