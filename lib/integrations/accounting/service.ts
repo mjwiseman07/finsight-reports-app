@@ -4,6 +4,7 @@ import { assertReadyForSourceAgnosticOutputs } from "./advisacor-data-model";
 import { buildReportDataContext } from "./report-data-context";
 import { getAccountingProviderMappingAdapter } from "./provider-adapters";
 import { getAccountingProvider, getEnabledProviders } from "./registry";
+import { ensureFreshTokens } from "./ensure-fresh-tokens";
 import { decryptAccountingToken, encryptAccountingToken } from "./token-encryption";
 import type { AccountingDateRange, AccountingProvider, AccountingConnectionRecord } from "./types";
 import { validateReportPreflight, type PreflightIssue } from "../../reporting/report-preflight-validation";
@@ -288,7 +289,9 @@ async function buildAndPersistLiveAccountingSync({
   if (!["quickbooks", "xero"].includes(sourceSystem) || connection.provider !== sourceSystem) return null;
   const reportPeriod = latestCompletedAccountingMonth();
   const syncId = crypto.randomUUID();
-  const decryptedConnection = decryptConnectionTokens(connection);
+  // Proactive OAuth refresh (Xero) before any provider API read.
+  // Single lifecycle owner — do not also refresh inside xeroGet in this PR.
+  const decryptedConnection = await ensureFreshTokens(connection);
   const tenantId = decryptedConnection.tenant_or_realm_id || decryptedConnection.external_entity_id || null;
   const tenantName = decryptedConnection.external_entity_name || String(decryptedConnection.metadata_json?.tenant_name || decryptedConnection.metadata_json?.company_name || (sourceSystem === "xero" ? "Xero Organization" : "QuickBooks Company"));
   const mappingAdapter = getAccountingProviderMappingAdapter(sourceSystem);
@@ -717,7 +720,10 @@ export async function getConnectionForUser(connectionId: string, userId: string)
     .limit(1);
   if (error) throw error;
   if (!data?.[0]) throw new Error("Accounting connection not found");
-  return decryptConnectionTokens(data[0] as AccountingConnectionRecord);
+  // Fresh tokens for entity list / fetch-reports / any path that reads via this helper.
+  // If the caller later hits buildAndPersistLiveAccountingSync, skew + single-flight
+  // skip a second refresh in the same request.
+  return ensureFreshTokens(data[0] as AccountingConnectionRecord);
 }
 
 export async function listEntities(connectionId: string, userId: string) {
