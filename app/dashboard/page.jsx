@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { HelpTip } from "../../components/HelpTip";
 import { SupportHelpButton } from "../../components/SupportHelpButton";
@@ -693,6 +693,15 @@ export default function DashboardPage() {
     error: "",
   });
   const [activeReportPayload, setActiveReportPayload] = useState(() => safeReadJsonStorage("advisacor_active_report_payload"));
+  const [hydrationActive, setHydrationActive] = useState(false);
+  // idle → in_flight → settled. Cleanup of an in-flight run returns to idle (StrictMode-safe).
+  // settled blocks duplicate network calls after a completed hydration.
+  const xeroHydrationLifecycleRef = useRef({
+    phase: "idle",
+    connectionId: "",
+    sourceSystem: "",
+    runId: 0,
+  });
 
   const currentPlanKey = access?.subscription_plan || null;
   const currentProductTier = getProductTier(currentPlanKey);
@@ -719,6 +728,8 @@ export default function DashboardPage() {
     activeReportContext?.sourceSystem ||
     leadDashboardSession?.accountingProvider ||
     dashboardParams.get("sourceSystem") ||
+    dashboardParams.get("provider") ||
+    dashboardParams.get("connected") ||
     "";
   const activeReportSummary = buildActiveReportSummary(activeReportPayload);
   const activeReportPreflight = activeReportContext?.normalizedData
@@ -912,6 +923,231 @@ export default function DashboardPage() {
 
     loadAccess();
   }, [getAuthToken, router]);
+
+  // DASH_1A.1.2 — hydrate a saved Xero connection after OAuth callback landing.
+  // Real callback shape: accountingConnected=true&provider=xero&connectionId=…
+  // Also accepts historical connected=xero for compatibility. No QBO path here.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (isLoading) return;
+
+    const lifecycle = xeroHydrationLifecycleRef.current;
+    if (lifecycle.phase === "settled") return;
+    if (lifecycle.phase === "in_flight") return;
+
+    const url = new URL(window.location.href);
+    const accountingConnected = url.searchParams.get("accountingConnected") === "true";
+    const connected = url.searchParams.get("connected") || "";
+    const providerParam = url.searchParams.get("provider") || "";
+    const connectionIdFromUrl = url.searchParams.get("connectionId") || "";
+    const isXeroFromUrl =
+      Boolean(connectionIdFromUrl) &&
+      (providerParam === "xero" || connected === "xero" || (accountingConnected && providerParam === "xero"));
+
+    if (isXeroFromUrl) {
+      lifecycle.connectionId = connectionIdFromUrl;
+      lifecycle.sourceSystem = "xero";
+    }
+
+    if (!lifecycle.connectionId || lifecycle.sourceSystem !== "xero") return;
+    if (!(isXeroFromUrl || lifecycle.connectionId)) return;
+
+    lifecycle.phase = "in_flight";
+    lifecycle.runId += 1;
+    const runId = lifecycle.runId;
+    let cancelled = false;
+    const capturedConnectionId = lifecycle.connectionId;
+
+    // buildActiveReportSummary reads:
+    //   context = payload.reportDataContext || payload
+    //   normalizedData = context.normalizedData
+    // and requires normalizedData.sourceSystem plus income/balance sheet arrays.
+    const hasUsableNormalized = (payload) => {
+      const context = payload?.reportDataContext || payload;
+      return Boolean(context?.normalizedData?.sourceSystem);
+    };
+
+    const toSummaryCompatiblePayload = ({
+      connectionId: nextConnectionId,
+      sourceSystem,
+      tenantName,
+      lastSyncedAt,
+      diagnostics,
+      normalizedData,
+      reportDataContext,
+      extras = {},
+    }) => {
+      if (!normalizedData?.sourceSystem) return null;
+      const context = {
+        ...(reportDataContext && typeof reportDataContext === "object" ? reportDataContext : {}),
+        ...extras,
+        connectionId: nextConnectionId || reportDataContext?.connectionId || capturedConnectionId,
+        sourceSystem: sourceSystem || reportDataContext?.sourceSystem || normalizedData.sourceSystem,
+        tenantName: tenantName || reportDataContext?.tenantName || extras.tenantName || "",
+        lastSyncedAt:
+          lastSyncedAt ||
+          reportDataContext?.lastSyncedAt ||
+          normalizedData.lastSyncedAt ||
+          extras.lastSyncedAt ||
+          "",
+        diagnostics: diagnostics || reportDataContext?.diagnostics || extras.diagnostics || null,
+        normalizedData,
+      };
+      return {
+        ...context,
+        reportDataContext: context,
+        normalizedData,
+      };
+    };
+
+    const persistPayload = (payload) => {
+      setActiveReportPayload(payload);
+      try {
+        window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload));
+      } catch {
+        // localStorage unavailable — in-memory payload still drives Scorecard
+      }
+    };
+
+    const cleanOAuthQueryParams = () => {
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("accountingConnected");
+      cleanUrl.searchParams.delete("provider");
+      cleanUrl.searchParams.delete("connectionId");
+      cleanUrl.searchParams.delete("xeroOrganizationSelection");
+      cleanUrl.searchParams.delete("xeroOrganizationCount");
+      cleanUrl.searchParams.delete("connected");
+      cleanUrl.searchParams.delete("organizationName");
+      window.history.replaceState({}, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+    };
+
+    const settle = ({ persistCleanUrl }) => {
+      if (cancelled || lifecycle.runId !== runId) return;
+      lifecycle.phase = "settled";
+      setHydrationActive(false);
+      if (persistCleanUrl) cleanOAuthQueryParams();
+    };
+
+    (async () => {
+      setHydrationActive(true);
+      try {
+        const authToken = await getAuthToken();
+        if (!authToken) {
+          if (!cancelled) {
+            setError("Sign in to finish loading your Xero connection.");
+            settle({ persistCleanUrl: false });
+          }
+          return;
+        }
+
+        const ctxRes = await fetch("/api/accounting/active-context", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            connectionId: capturedConnectionId,
+            sourceSystem: "xero",
+            forceRefresh: true,
+          }),
+        });
+
+        if (cancelled) return;
+
+        let payload = null;
+        if (ctxRes.ok) {
+          const ctx = await ctxRes.json().catch(() => ({}));
+          const activeContext = ctx?.activeContext || ctx;
+          const normalizedData =
+            activeContext?.normalizedData || activeContext?.reportDataContext?.normalizedData || null;
+          payload = toSummaryCompatiblePayload({
+            connectionId: activeContext?.connectionId || capturedConnectionId,
+            sourceSystem: activeContext?.sourceSystem || activeContext?.provider || "xero",
+            tenantName: activeContext?.tenantName || activeContext?.reportDataContext?.tenantName || "",
+            lastSyncedAt: activeContext?.lastSyncedAt || activeContext?.reportDataContext?.lastSyncedAt || "",
+            diagnostics: activeContext?.diagnostics || activeContext?.reportDataContext?.diagnostics || null,
+            normalizedData,
+            reportDataContext: activeContext?.reportDataContext || null,
+            extras: activeContext && typeof activeContext === "object" ? activeContext : {},
+          });
+        } else {
+          const errBody = await ctxRes.json().catch(() => ({}));
+          if (!cancelled) {
+            setError(errBody.error || "Unable to load your Xero connection context.");
+          }
+        }
+
+        if (!cancelled && !hasUsableNormalized(payload)) {
+          const endDt = new Date();
+          const startDt = new Date();
+          startDt.setUTCMonth(startDt.getUTCMonth() - 6);
+          const syncRes = await fetch("/api/accounting/fetch-reports", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              connectionId: capturedConnectionId,
+              sourceSystem: "xero",
+              startDate: startDt.toISOString().slice(0, 10),
+              endDate: endDt.toISOString().slice(0, 10),
+            }),
+          });
+
+          if (cancelled) return;
+
+          if (syncRes.ok) {
+            const syncBody = await syncRes.json().catch(() => ({}));
+            const normalizedData =
+              syncBody?.normalizedData || syncBody?.reportDataContext?.normalizedData || null;
+            payload = toSummaryCompatiblePayload({
+              connectionId: syncBody.connectionId || capturedConnectionId,
+              sourceSystem: syncBody.sourceSystem || syncBody.provider || "xero",
+              tenantName: syncBody.tenantName || syncBody.reportDataContext?.tenantName || "",
+              lastSyncedAt: syncBody.lastSyncedAt || syncBody.reportDataContext?.lastSyncedAt || "",
+              diagnostics: syncBody.diagnostics || syncBody.reportDataContext?.diagnostics || null,
+              normalizedData,
+              reportDataContext: syncBody.reportDataContext || null,
+              extras: syncBody && typeof syncBody === "object" ? syncBody : {},
+            });
+          } else if (!payload) {
+            const errBody = await syncRes.json().catch(() => ({}));
+            if (!cancelled) {
+              setError(errBody.error || "Unable to load your Xero financial data.");
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        if (hasUsableNormalized(payload)) {
+          persistPayload(payload);
+          settle({ persistCleanUrl: true });
+        } else {
+          setError((current) => current || "Xero connected, but financial data is not ready yet. Refresh in a moment.");
+          settle({ persistCleanUrl: true });
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Unable to load your Xero financial data.");
+          settle({ persistCleanUrl: false });
+        }
+      } finally {
+        if (cancelled && lifecycle.runId === runId && lifecycle.phase === "in_flight") {
+          lifecycle.phase = "idle";
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (lifecycle.runId === runId && lifecycle.phase === "in_flight") {
+        lifecycle.phase = "idle";
+      }
+    };
+  }, [getAuthToken, isLoading]);
 
   useEffect(() => {
     const loadPulseMemory = async () => {
@@ -1949,7 +2185,7 @@ export default function DashboardPage() {
                 integrationChoice={activeSourceSystem || null}
                 onConnectQBO={handleConnectQuickBooks}
                 onConnectXero={handleConnectXero}
-                hydrationActive={false}
+                hydrationActive={hydrationActive}
                 onAskAboutKpi={(_kpiCode, question) => {
                   setExecutiveQuestion(question);
                   setAiOpen(true);
