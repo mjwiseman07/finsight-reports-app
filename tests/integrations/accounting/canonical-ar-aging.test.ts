@@ -323,6 +323,43 @@ describe("Xero aged-report as-of parser — payment/credit timing", () => {
     expect(rows).toHaveLength(0);
   });
 
+  it("6b: invoice dated after asOfDate is excluded even if report returns it", () => {
+    const rows = parseXeroAgedReceivablesByContactReport({
+      reportRows: [
+        header,
+        {
+          RowType: "Section",
+          Rows: [
+            invoiceRow({
+              invoiceId: "post-asof",
+              invoiceDate: "2026-08-02",
+              dueDate: "2026-08-12",
+              total: "234.00",
+              paid: "0.00",
+              credited: "0.00",
+              due: "234.00",
+            }),
+            invoiceRow({
+              invoiceId: "on-asof",
+              invoiceDate: "2026-07-31",
+              dueDate: "2026-08-10",
+              total: "100.00",
+              paid: "0.00",
+              credited: "0.00",
+              due: "100.00",
+            }),
+          ],
+        },
+      ],
+      asOfDate: AS_OF,
+      contactId: "c1",
+      contactName: "Acme",
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].invoiceId).toBe("on-asof");
+    expect(rows[0].openBalance).toBeCloseTo(100, 2);
+  });
+
   it("zero Due excluded", () => {
     const rows = parseXeroAgedReceivablesByContactReport({
       reportRows: [

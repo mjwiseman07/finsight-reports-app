@@ -1121,7 +1121,7 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
       try {
         const payload = await this.xeroGet(
           params.connection,
-          `Reports/AgedReceivablesByContact?contactID=${encodeURIComponent(contact.contactId)}&date=${encodeURIComponent(params.asOfDate)}`,
+          `Reports/AgedReceivablesByContact?contactID=${encodeURIComponent(contact.contactId)}&date=${encodeURIComponent(params.asOfDate)}&toDate=${encodeURIComponent(params.asOfDate)}`,
         );
         const reportRows = (payload?.Reports?.[0]?.Rows || []) as XeroAgedReportRow[];
         return parseXeroAgedReceivablesByContactReport({

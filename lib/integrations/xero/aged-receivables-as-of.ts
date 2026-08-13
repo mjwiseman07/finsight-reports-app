@@ -104,6 +104,11 @@ export function parseXeroAgedReceivablesByContactReport(input: {
     const dueDate = xeroDateToIso(dueDateCell?.Value);
     if (!dueDate) return;
 
+    const invoiceDate = xeroDateToIso(dateCell?.Value);
+    // Defense in depth: invoices dated after asOfDate are not historical open AR.
+    // Prefer Xero toDate=asOfDate on the request; still filter here if date present.
+    if (invoiceDate && invoiceDate > input.asOfDate) return;
+
     const xeroInvoiceId =
       cellAttrId(dueCell, "invoiceID") ||
       cellAttrId(dueDateCell, "invoiceID") ||
@@ -131,7 +136,7 @@ export function parseXeroAgedReceivablesByContactReport(input: {
 
     receivables.push({
       invoiceId,
-      invoiceDate: xeroDateToIso(dateCell?.Value),
+      invoiceDate,
       dueDate,
       contactId: input.contactId,
       contactName: input.contactName,
