@@ -7,11 +7,14 @@
  * v2 — Xero multi-column BS selects the current-period amount cell, and
  * canonical bank-overdraft classification is applied during normalize.
  *
+ * v3 — Canonical due-date AR Aging schedule (open receivables + BS Tie-Out)
+ * is persisted on normalized payloads for Scorecard past-due exposure.
+ *
  * Hard rule: a corrected browser/localStorage calculation cannot outrank
  * stale authoritative accounting memory. Refresh is only complete when a
  * SUCCESS accounting_syncs row is persisted, active, and returned.
  */
-export const ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION = 2;
+export const ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION = 3;
 
 type PayloadLike = {
   schemaVersion?: number | null;

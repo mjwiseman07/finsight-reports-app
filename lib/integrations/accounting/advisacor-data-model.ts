@@ -8,6 +8,12 @@ import type {
   AccountingDateRange,
 } from "./types";
 import { applyCanonicalBankOverdraftClassification } from "./bank-overdraft";
+import {
+  buildCanonicalArAgingScheduleFromAgingEntities,
+  buildArAgingTieOut,
+  canonicalArAgingScheduleToEntities,
+  sumBalanceSheetAccountsReceivable,
+} from "./ar-aging";
 import { buildMappedFinancialSummary } from "./normalizers/financial-statements";
 import { ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION } from "./payload-schema";
 
@@ -94,6 +100,47 @@ export function buildAdvisacorNormalizedFinancialData({
     !hasRealEntities(bundle.normalizedTransactions) &&
     !bundle.balanceSheet?.length &&
     !bundle.profitAndLoss?.length;
+  const balanceSheetRows = isEmptyXeroFinancialActivity
+    ? buildEmptyXeroBalanceSheetRows(source)
+    : applyCanonicalBankOverdraftClassification(bundle.balanceSheet || []);
+  const canonicalArAgingSchedule = (() => {
+    const schedule =
+      bundle.canonicalArAgingSchedule ||
+      buildCanonicalArAgingScheduleFromAgingEntities({
+        asOfDate: reportPeriod.endDate,
+        entities: bundle.normalizedARAging || [],
+        balanceSheet: balanceSheetRows,
+        provider: connection.provider,
+        companyId: connection.metadata_json?.company_id ? String(connection.metadata_json.company_id) : null,
+        connectionId: connection.id,
+        syncId,
+        computedAt: mappedAt,
+      });
+    if (!schedule) return null;
+    const balanceSheetAr = sumBalanceSheetAccountsReceivable(balanceSheetRows);
+    const tieOut = buildArAgingTieOut({
+      scheduleTotal: schedule.total,
+      balanceSheetAr,
+      policy: schedule.tieOut?.policy,
+    });
+    return {
+      ...schedule,
+      syncId,
+      companyId:
+        schedule.companyId ??
+        (connection.metadata_json?.company_id ? String(connection.metadata_json.company_id) : null),
+      connectionId: schedule.connectionId || connection.id,
+      tieOut,
+    };
+  })();
+  const arAgingEntities = canonicalArAgingSchedule
+    ? hasRealEntities(bundle.normalizedARAging)
+      ? bundle.normalizedARAging
+      : canonicalArAgingScheduleToEntities(canonicalArAgingSchedule, {
+          provider: connection.provider,
+          externalEntityId: source.externalEntityId || undefined,
+        })
+    : bundle.normalizedARAging;
   const normalizedData: AdvisacorNormalizedFinancialData = {
     sourceSystem: connection.provider,
     adapterName,
@@ -117,7 +164,7 @@ export function buildAdvisacorNormalizedFinancialData({
       trialBalance: Boolean(bundle.trialBalance?.length),
       balanceSheet: Boolean(bundle.balanceSheet?.length),
       incomeStatement: Boolean(bundle.profitAndLoss?.length),
-      arAging: Boolean(bundle.normalizedARAging?.length),
+      arAging: Boolean(canonicalArAgingSchedule || hasRealEntities(bundle.normalizedARAging)),
       apAging: Boolean(bundle.normalizedAPAging?.length),
     },
     syncStatus: "RUNNING",
@@ -126,12 +173,11 @@ export function buildAdvisacorNormalizedFinancialData({
     normalizedAccounts: bundle.chartOfAccounts || [],
     normalizedTransactions: isEmptyXeroFinancialActivity ? [] : normalizedEntitiesOrUnavailable(bundle.normalizedTransactions, source),
     normalizedTrialBalance: bundle.trialBalance || [],
-    normalizedBalanceSheet: isEmptyXeroFinancialActivity
-      ? buildEmptyXeroBalanceSheetRows(source)
-      : applyCanonicalBankOverdraftClassification(bundle.balanceSheet || []),
+    normalizedBalanceSheet: balanceSheetRows,
     normalizedIncomeStatement: isEmptyXeroFinancialActivity ? buildEmptyXeroIncomeStatementRows(source) : bundle.profitAndLoss || [],
     normalizedIncomeStatementYtd: bundle.profitAndLossYtd || [],
-    normalizedARAging: normalizedEntitiesOrUnavailable(bundle.normalizedARAging, source),
+    normalizedARAging: normalizedEntitiesOrUnavailable(arAgingEntities, source),
+    canonicalArAgingSchedule: canonicalArAgingSchedule || null,
     normalizedAPAging: normalizedEntitiesOrUnavailable(bundle.normalizedAPAging, source),
     normalizedBudgets: normalizedEntitiesOrUnavailable(bundle.normalizedBudgets, source),
     normalizedDepartments: normalizedEntitiesOrUnavailable(bundle.normalizedDepartments, source),
