@@ -1,18 +1,20 @@
 /**
  * Live provider access vs historical connection identity.
  *
- * Only status=connected (and needs_entity_selection for pre-connect entity pick)
- * may use live provider authorization. superseded rows are permanent historical
- * evidence but credential-dead — never refresh or provider-fetch through them.
+ * Only status=connected and needs_entity_selection may use live provider
+ * authorization (entity onboarding needs tokens before the grant is "connected").
+ * superseded rows are permanent historical evidence but credential-dead.
  *
- * Split responsibilities:
+ * Contracts stay distinct from active-context selection:
+ * - selectAccountingConnectionForActiveContext: connected-only (needs_entity_selection → 422)
+ * - getLiveProviderConnectionForUser: connected + needs_entity_selection (after supersession checks)
  * - getAccountingConnectionRecordForUser: evidence / identity lookup (no tokens)
- * - getLiveProviderConnectionForUser / getConnectionForUser: live-token gateway
  */
 import { supabaseAdmin } from "../../supabase";
 import {
   AccountingConnectionSelectionError,
-  selectAccountingConnectionForActiveContext,
+  mapNonConnectedStatus,
+  throwSupersededSelectionError,
 } from "./connection-selection";
 import { ensureFreshTokens } from "./ensure-fresh-tokens";
 import type { AccountingConnectionRecord, AccountingConnectionStatus } from "./types";
@@ -53,38 +55,40 @@ export async function getAccountingConnectionRecordForUser(
 }
 
 /**
- * Live-token gateway. Fail-closed via connection selection (409 SUPERSEDED with
- * validated successor when applicable). Only connected grants receive ensureFreshTokens.
+ * Live-token gateway for provider authorization (entity list/select, report fetch helpers
+ * that intentionally allow needs_entity_selection).
+ *
+ * Does NOT call selectAccountingConnectionForActiveContext — that selector rejects
+ * needs_entity_selection with 422 by design. Active dashboard/report context must use
+ * the active-context selector separately.
+ *
+ * Fail-closed: superseded → 409 + validated successor; disconnected/other → mapped errors.
  */
 export async function getLiveProviderConnectionForUser(
   connectionId: string,
   userId: string,
   sourceSystem?: string | null,
 ): Promise<AccountingConnectionRecord> {
-  const selected = await selectAccountingConnectionForActiveContext({
-    supabase: requireSupabase(),
-    userId,
-    connectionId,
-    sourceSystem,
-  });
-  if (!selected) {
+  const row = await getAccountingConnectionRecordForUser(connectionId, userId);
+  const providerFilter = String(sourceSystem || "").trim();
+  if (providerFilter && String(row.provider) !== providerFilter) {
     throw new Error("Accounting connection not found");
   }
-  if (!isLiveProviderConnectionStatus(selected.status)) {
-    throw new AccountingConnectionSelectionError({
-      code: "ACCOUNTING_CONNECTION_NOT_READY",
-      message: `Accounting connection status "${selected.status}" is not authorized for live provider access.`,
-      connectionId: String(selected.id),
-      status: selected.status,
-      httpStatus: 422,
-    });
+
+  const status = String(row.status || "");
+  if (status === "superseded") {
+    await throwSupersededSelectionError(requireSupabase(), row);
   }
-  return ensureFreshTokens(selected);
+  if (!isLiveProviderConnectionStatus(status)) {
+    throw mapNonConnectedStatus(row);
+  }
+  return ensureFreshTokens(row);
 }
 
 /**
  * Backward-compatible name for the live-token gateway.
  * Historical/audit readers must use getAccountingConnectionRecordForUser instead.
+ * Active-context (connected-only) readers must use selectAccountingConnectionForActiveContext.
  */
 export async function getConnectionForUser(
   connectionId: string,

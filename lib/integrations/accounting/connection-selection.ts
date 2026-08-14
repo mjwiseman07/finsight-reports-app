@@ -80,7 +80,8 @@ export function isExposableSupersessionSuccessor(args: {
   return true;
 }
 
-function mapNonConnectedStatus(connection: AccountingConnectionRecord): AccountingConnectionSelectionError {
+/** Map a non-connected status to the fail-closed selection error (active-context contract). */
+export function mapNonConnectedStatus(connection: AccountingConnectionRecord): AccountingConnectionSelectionError {
   const status = String(connection.status || "");
   const id = String(connection.id);
   switch (status) {
@@ -169,7 +170,11 @@ async function loadConnectionById(
   return ((data?.[0] as AccountingConnectionRecord | undefined) || null);
 }
 
-async function throwSupersededSelectionError(
+/**
+ * Throw ACCOUNTING_CONNECTION_SUPERSEDED (409). Exposes successorConnectionId only
+ * after validating the successor grant identity (same user/provider/tenant, connected).
+ */
+export async function throwSupersededSelectionError(
   supabase: ConnectionQueryClient,
   connection: AccountingConnectionRecord,
 ): Promise<never> {

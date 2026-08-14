@@ -1243,7 +1243,16 @@ export async function fetchCanonicalReports({
 }) {
   if (!sourceSystem) throw new Error("sourceSystem is required when fetching canonical reports.");
   const selectedSourceSystem = sourceSystem === "dynamics" ? "dynamics365" : sourceSystem;
-  const connection = await getLiveProviderConnectionForUser(connectionId, userId);
+  // Active-context: connected-only. needs_entity_selection stays 422 here; entity
+  // onboarding uses getLiveProviderConnectionForUser via listEntities/selectEntity.
+  const selected = await selectAccountingConnectionForActiveContext({
+    supabase: requireSupabase(),
+    userId,
+    connectionId,
+    sourceSystem: selectedSourceSystem,
+  });
+  if (!selected) throw new Error("Accounting connection not found");
+  const connection = await ensureFreshTokens(selected);
   if (selectedSourceSystem !== connection.provider) {
     throw new Error(`Provider mismatch: active ${sourceSystem} but normalized data is ${connection.provider}`);
   }
@@ -1379,7 +1388,8 @@ export async function fetchCanonicalReports({
 
 export async function disconnectConnection(connectionId: string, userId: string) {
   const supabase = requireSupabase();
-  // Evidence lookup: disconnect must not refresh tokens. Provider disconnect is best-effort.
+  // Evidence lookup: disconnect must not refresh or resurrect. Decrypt only so a
+  // provider revoke path (if implemented) receives usable credential form.
   const connection = await getAccountingConnectionRecordForUser(connectionId, userId);
   if (String(connection.status || "") === "superseded") {
     throw new AccountingConnectionSelectionError({
@@ -1390,7 +1400,8 @@ export async function disconnectConnection(connectionId: string, userId: string)
       httpStatus: 409,
     });
   }
-  await getAccountingProvider(connection.provider).disconnect({ connection });
+  const forProvider = decryptConnectionTokens(connection);
+  await getAccountingProvider(connection.provider).disconnect({ connection: forProvider });
   const { error } = await supabase
     .from("accounting_connections")
     .update({ status: "disconnected", updated_at: new Date().toISOString() })

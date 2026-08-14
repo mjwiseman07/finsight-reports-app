@@ -17,7 +17,9 @@ describe("PR F superseded credential retirement migration (static)", () => {
     expect(sql).toMatch(/access_token\s*=\s*NULL/);
     expect(sql).toMatch(/refresh_token\s*=\s*NULL/);
     expect(sql).toMatch(/token_expires_at\s*=\s*NULL/);
-    expect(sql).toMatch(/credentials_cleared_at\s*=/);
+    expect(sql).toMatch(
+      /credentials_cleared_at\s*=\s*COALESCE\(\s*credentials_cleared_at\s*,\s*timezone\(\s*'utc'\s*,\s*now\(\)\s*\)\s*\)/,
+    );
     expect(sql).toMatch(/WHERE status\s*=\s*'superseded'/);
   });
 
