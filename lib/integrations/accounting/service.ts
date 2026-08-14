@@ -27,6 +27,8 @@ export {
   AccountingConnectionSelectionError,
   accountingConnectionSelectionErrorBody,
   assertExplicitConnectionAuthoritative,
+  isExposableSupersessionSuccessor,
+  isSelfSupersession,
   selectAccountingConnectionForActiveContext,
   type AccountingConnectionSelectionErrorCode,
 } from "./connection-selection";
