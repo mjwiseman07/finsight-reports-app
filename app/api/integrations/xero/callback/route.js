@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAccountingProvider, handleCallback } from "../../../../../lib/integrations/accounting";
+import { persistCanonicalAccountingConnectionGrant } from "../../../../../lib/integrations/accounting/persist-canonical-connection-grant";
+import { resolveOrCreateCompanyForProvider } from "../../../../../lib/integrations/accounting/resolve-or-create-company";
 import { supabaseAdmin } from "../../../../../lib/supabase";
 import { encryptAccountingToken } from "../../../../../lib/integrations/accounting/token-encryption";
 
@@ -12,24 +14,39 @@ async function saveLeadXeroConnection({ leadId, tokenPayload, selectedEntity, en
   const connectedAt = new Date().toISOString();
   const tenantId = selectedEntity?.tenantOrRealmId || selectedEntity?.externalId || null;
   const tenantName = selectedEntity?.name || null;
-  const connectionPayload = {
-    user_id: leadId,
+
+  // Tenant-aware reconnect (never tenant-blind overwrite of another org grant).
+  // Never write leadId as company_id — resolve canonical companies.id when tenant known.
+  let companyId = null;
+  if (tenantId) {
+    companyId = await resolveOrCreateCompanyForProvider(supabaseAdmin, {
+      provider: "xero",
+      tenantId,
+      userId: leadId,
+      tenantName,
+    });
+  }
+
+  const persisted = await persistCanonicalAccountingConnectionGrant({
+    admin: supabaseAdmin,
+    userId: leadId,
     provider: "xero",
-    provider_family: "xero",
-    provider_product: "xero_accounting",
-    external_entity_id: tenantId ? `xero:${tenantId}` : null,
-    external_entity_name: tenantName,
-    access_token: typeof tokenPayload.access_token === "string" ? encryptAccountingToken(tokenPayload.access_token) : null,
-    refresh_token: typeof tokenPayload.refresh_token === "string" ? encryptAccountingToken(tokenPayload.refresh_token) : null,
-    token_expires_at: getTokenExpiry(tokenPayload),
-    tenant_or_realm_id: tenantId,
+    providerFamily: "xero",
+    providerProduct: "xero_accounting",
+    externalEntityId: tenantId ? `xero:${tenantId}` : null,
+    externalEntityName: tenantName,
+    accessToken: typeof tokenPayload.access_token === "string" ? encryptAccountingToken(tokenPayload.access_token) : null,
+    refreshToken: typeof tokenPayload.refresh_token === "string" ? encryptAccountingToken(tokenPayload.refresh_token) : null,
+    tokenExpiresAt: getTokenExpiry(tokenPayload),
+    tenantOrRealmId: tenantId,
     scopes: String(tokenPayload.scope || "").split(" ").filter(Boolean),
     status: tenantId ? "connected" : "needs_entity_selection",
-    metadata_json: {
+    companyId,
+    nowIso: connectedAt,
+    metadataPatch: {
       token_type: tokenPayload.token_type || null,
       source_system: "xero",
       active_provider: "xero",
-      company_id: leadId,
       tenant_id: tenantId,
       tenant_name: tenantName,
       available_organizations: entities.map((entity) => ({
@@ -37,37 +54,11 @@ async function saveLeadXeroConnection({ leadId, tokenPayload, selectedEntity, en
         tenant_name: entity.name,
       })),
       connected_at: connectedAt,
-      last_synced_at: connectedAt,
       tokens_encrypted: true,
       lead_mode: true,
     },
-    updated_at: connectedAt,
-  };
-
-  const { data: existing, error: existingError } = await supabaseAdmin
-    .from("accounting_connections")
-    .select("id")
-    .eq("user_id", leadId)
-    .eq("provider", "xero")
-    .order("updated_at", { ascending: false })
-    .limit(1);
-  if (existingError) throw existingError;
-
-  const query = existing?.[0]?.id
-    ? supabaseAdmin
-        .from("accounting_connections")
-        .update(connectionPayload)
-        .eq("id", existing[0].id)
-        .select("id")
-        .limit(1)
-    : supabaseAdmin
-        .from("accounting_connections")
-        .insert(connectionPayload)
-        .select("id")
-        .limit(1);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data?.[0]?.id || existing?.[0]?.id || "";
+  });
+  return persisted.connectionId;
 }
 
 export async function GET(request) {
