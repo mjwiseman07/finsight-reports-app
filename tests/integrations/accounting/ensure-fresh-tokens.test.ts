@@ -253,7 +253,7 @@ describe("ensureFreshTokens (Xero OAuth lifecycle)", () => {
     expect(tokenNeedsRefresh(null, now)).toBe(true);
   });
 
-  it("superseded: throws OAUTH_REFRESH_STATUS_FORBIDDEN; never provider-refresh", async () => {
+  it("Xero superseded: throws OAUTH_REFRESH_STATUS_FORBIDDEN; never provider-refresh", async () => {
     const row = makeRow({
       status: "superseded",
       token_expires_at: new Date(Date.now() - 60_000).toISOString(),
@@ -269,7 +269,50 @@ describe("ensureFreshTokens (Xero OAuth lifecycle)", () => {
     expect(updateEq).not.toHaveBeenCalled();
   });
 
-  it("disconnected: decrypt-only; never refresh or resurrect to connected", async () => {
+  it("QBO superseded: provider-neutral reject before any credential use", async () => {
+    const qboSecret = "qbo-access-should-not-be-used";
+    const row = makeRow({
+      provider: "quickbooks",
+      provider_family: "intuit",
+      provider_product: "qbo",
+      status: "superseded",
+      access_token: qboSecret,
+      refresh_token: "qbo-refresh-should-not-be-used",
+      token_expires_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+    await expect(ensureFreshTokens(row)).rejects.toMatchObject({
+      code: "OAUTH_REFRESH_STATUS_FORBIDDEN",
+      connectionId: CONNECTION_ID,
+      status: "superseded",
+    });
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+    expect(selectLimit).not.toHaveBeenCalled();
+    expect(updateEq).not.toHaveBeenCalled();
+  });
+
+  it("non-live QBO: no refresh / no connected resurrection", async () => {
+    const row = makeRow({
+      provider: "quickbooks",
+      provider_family: "intuit",
+      provider_product: "qbo",
+      status: "disconnected",
+      access_token: "qbo-access-stored",
+      refresh_token: "qbo-refresh-stored",
+      token_expires_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+    const result = await ensureFreshTokens(row);
+
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+    expect(selectLimit).not.toHaveBeenCalled();
+    expect(updateEq).not.toHaveBeenCalled();
+    expect(result.status).toBe("disconnected");
+    expect(result.provider).toBe("quickbooks");
+    expect(result.access_token).toBe("qbo-access-stored");
+  });
+
+  it("disconnected Xero: decrypt-only; never refresh or resurrect to connected", async () => {
     const row = makeRow({
       status: "disconnected",
       token_expires_at: new Date(Date.now() - 60_000).toISOString(),

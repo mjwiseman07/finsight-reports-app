@@ -216,14 +216,12 @@ async function refreshXeroConnection(connection: AccountingConnectionRecord): Pr
 
 /**
  * Ensure a connection has a usable access token for provider API reads.
- * Xero-only refresh — other providers return decrypt-passthrough / unchanged.
- * superseded: throws (credential-dead). disconnected: decrypt only, no refresh.
+ * Lifecycle is provider-neutral: superseded never decrypts or refreshes (any ERP).
+ * Non-live statuses never refresh or resurrect. Xero-only refresh when live;
+ * other live providers return decrypt-passthrough / unchanged.
  */
 export async function ensureFreshTokens(connection: AccountingConnectionRecord): Promise<AccountingConnectionRecord> {
-  if (connection.provider !== "xero") {
-    return decryptXeroTokens(connection);
-  }
-
+  // Status guards before provider branching — QBO/etc. must not bypass superseded.
   if (String(connection.status || "") === "superseded") {
     throw new OAuthRefreshError(
       "OAUTH_REFRESH_STATUS_FORBIDDEN",
@@ -234,6 +232,11 @@ export async function ensureFreshTokens(connection: AccountingConnectionRecord):
   }
 
   if (!canRefreshLiveProviderTokens(connection.status)) {
+    // disconnected / expired / failed / pending: never refresh or resurrect.
+    return decryptXeroTokens(connection);
+  }
+
+  if (connection.provider !== "xero") {
     return decryptXeroTokens(connection);
   }
 

@@ -22,7 +22,7 @@ SET
   access_token = NULL,
   refresh_token = NULL,
   token_expires_at = NULL,
-  credentials_cleared_at = COALESCE(credentials_cleared_at, timezone('utc', now()))
+  credentials_cleared_at = COALESCE(credentials_cleared_at, now())
 WHERE status = 'superseded'
   AND (
     access_token IS NOT NULL
