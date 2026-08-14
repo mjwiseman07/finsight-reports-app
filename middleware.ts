@@ -93,12 +93,10 @@ const PUBLIC_MARKETING_API_PATHS = new Set([
   "/api/waitlist",
   "/api/checkout/create-session",
   "/api/onboarding/context",
-  // Dashboard shell on www/advisacor.com — access gate (without this, /dashboard
-  // renders NOTICE "Not found" and never hydrates Scorecard).
+  // Proven production gap (#260): /dashboard on www/advisacor.com calls this for
+  // access.allowed. Without it, middleware returns { error: "Not found" } and the
+  // Scorecard never mounts. Exact path only — do not broaden to /api/*.
   "/api/check-trial",
-  "/api/account",
-  "/api/create-checkout",
-  "/api/create-billing-portal",
 ]);
 
 function normalizedHost(request: NextRequest) {
@@ -154,10 +152,6 @@ function isMarketingAllowed(pathname: string) {
     pathname.startsWith("/api/webhooks/") ||
     // Free Review lead-capture funnel (lives on marketing host).
     pathname.startsWith("/api/free-review/") ||
-    // Dashboard companion APIs used by signed-in users on www/advisacor.com.
-    pathname.startsWith("/api/user/") ||
-    pathname.startsWith("/api/owner/") ||
-    pathname.startsWith("/api/advisory-intelligence/") ||
     pathname.startsWith("/#")
   );
 }

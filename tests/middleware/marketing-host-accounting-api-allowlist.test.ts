@@ -68,19 +68,20 @@ describe("marketing-host API allowlist — /api/accounting/", () => {
         expect(result.continued).toBe(true);
       });
 
-      it("allows dashboard companion APIs used on marketing host", async () => {
+      it("still 404s speculative dashboard companion APIs not proven required", async () => {
         for (const pathname of [
           "/api/account",
           "/api/user/role",
+          "/api/user/some-private-route",
           "/api/owner/delivery-settings",
           "/api/advisory-intelligence/signals",
           "/api/create-checkout",
           "/api/create-billing-portal",
         ]) {
           const result = await middlewareStatus(host, pathname);
-          expect(result.status, pathname).not.toBe(404);
-          expect(result.body, pathname).not.toContain('"Not found"');
-          expect(result.continued, pathname).toBe(true);
+          expect(result.status, pathname).toBe(404);
+          expect(result.body, pathname).toContain("Not found");
+          expect(result.continued, pathname).toBe(false);
         }
       });
 
