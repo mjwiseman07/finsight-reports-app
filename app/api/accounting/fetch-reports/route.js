@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { fetchCanonicalReports } from "../../../../lib/integrations/accounting";
+import {
+  AccountingConnectionSelectionError,
+  accountingConnectionSelectionErrorBody,
+  fetchCanonicalReports,
+} from "../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
 import { auditSecurityEvent } from "../../../../lib/security-audit";
@@ -37,6 +41,9 @@ export async function POST(request) {
     });
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof AccountingConnectionSelectionError) {
+      return NextResponse.json(accountingConnectionSelectionErrorBody(error), { status: error.httpStatus });
+    }
     console.error("[accounting/fetch-reports] failed", { message: error?.message });
     if (error?.status === 422 || error?.preflight) {
       return NextResponse.json({

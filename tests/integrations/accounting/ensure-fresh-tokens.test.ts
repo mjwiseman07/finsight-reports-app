@@ -31,7 +31,9 @@ vi.mock("@/lib/supabase", () => ({
           }),
         }),
         update: (payload: Record<string, unknown>) => ({
-          eq: (...args: unknown[]) => updateEq(payload, ...args),
+          eq: () => ({
+            in: () => updateEq(payload),
+          }),
         }),
       };
     },
@@ -249,5 +251,36 @@ describe("ensureFreshTokens (Xero OAuth lifecycle)", () => {
     expect(tokenNeedsRefresh(new Date(now + 10 * 60 * 1000).toISOString(), now)).toBe(false);
     expect(tokenNeedsRefresh(new Date(now + 2 * 60 * 1000).toISOString(), now)).toBe(true);
     expect(tokenNeedsRefresh(null, now)).toBe(true);
+  });
+
+  it("superseded: throws OAUTH_REFRESH_STATUS_FORBIDDEN; never provider-refresh", async () => {
+    const row = makeRow({
+      status: "superseded",
+      token_expires_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+    await expect(ensureFreshTokens(row)).rejects.toMatchObject({
+      code: "OAUTH_REFRESH_STATUS_FORBIDDEN",
+      connectionId: CONNECTION_ID,
+      status: "superseded",
+    });
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+    expect(selectLimit).not.toHaveBeenCalled();
+    expect(updateEq).not.toHaveBeenCalled();
+  });
+
+  it("disconnected: decrypt-only; never refresh or resurrect to connected", async () => {
+    const row = makeRow({
+      status: "disconnected",
+      token_expires_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+    const result = await ensureFreshTokens(row);
+
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+    expect(selectLimit).not.toHaveBeenCalled();
+    expect(updateEq).not.toHaveBeenCalled();
+    expect(result.status).toBe("disconnected");
+    expect(result.access_token).toBe("access-token-plain-v1");
   });
 });
