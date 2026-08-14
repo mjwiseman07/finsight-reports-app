@@ -21,6 +21,12 @@ import {
   resolveXeroDashboardHydrationPlan,
   shouldDiscardStalePayloadAfterFailedRefresh,
 } from "../../lib/integrations/accounting/payload-schema";
+import {
+  applySupersededClientContextReplacement,
+  buildSupersededRecoveryObservation,
+  decideSupersededClientRecovery,
+  recordSupersededRecoveryObservation,
+} from "../../lib/integrations/accounting/client-superseded-connection-recovery";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import {
   PulseJeAccountPicker,
@@ -360,6 +366,109 @@ function trackRecommendationEvent(eventType, metadata = {}) {
   const currentEvents = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
   currentEvents.push({ eventType, metadata, createdAt: new Date().toISOString() });
   window.localStorage.setItem(storageKey, JSON.stringify(currentEvents.slice(-50)));
+}
+
+/**
+ * POST an accounting API once; on recoverable 409 SUPERSEDED, replace only the
+ * stale client connection context and retry exactly once with successorConnectionId.
+ */
+async function postAccountingWithSupersededRecovery({
+  path,
+  authToken,
+  body,
+  connectionId,
+  getClientHref,
+  getClientPayload,
+  onRecoveredContext,
+}) {
+  const postOnce = (nextConnectionId) =>
+    fetch(path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
+      body: JSON.stringify({
+        ...body,
+        connectionId: nextConnectionId,
+      }),
+    });
+
+  let activeConnectionId = String(connectionId || "").trim();
+  let alreadyRetried = false;
+  let response = await postOnce(activeConnectionId);
+
+  if (response.ok) {
+    return { response, connectionId: activeConnectionId, recovered: false, errorBody: null };
+  }
+
+  const errorBody = await response.clone().json().catch(() => ({}));
+  const decision = decideSupersededClientRecovery({
+    httpStatus: response.status,
+    body: errorBody,
+    requestedConnectionId: activeConnectionId,
+    alreadyRetried,
+  });
+
+  if (!decision.shouldRetry) {
+    recordSupersededRecoveryObservation(
+      buildSupersededRecoveryObservation({
+        recovered: false,
+        staleConnectionId: activeConnectionId,
+        successorConnectionId: decision.successorConnectionId,
+        reason: decision.reason,
+        path,
+      }),
+    );
+    return { response, connectionId: activeConnectionId, recovered: false, errorBody };
+  }
+
+  const staleConnectionId = activeConnectionId;
+  const successorConnectionId = decision.successorConnectionId;
+  const href =
+    typeof getClientHref === "function"
+      ? getClientHref()
+      : typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : "";
+  const payload = typeof getClientPayload === "function" ? getClientPayload() : null;
+  const applied = applySupersededClientContextReplacement({
+    href,
+    payload,
+    staleConnectionId,
+    successorConnectionId,
+  });
+
+  if (typeof onRecoveredContext === "function") {
+    onRecoveredContext({
+      staleConnectionId,
+      successorConnectionId,
+      href: applied.href,
+      payload: applied.payload,
+    });
+  }
+
+  recordSupersededRecoveryObservation(
+    buildSupersededRecoveryObservation({
+      recovered: true,
+      staleConnectionId,
+      successorConnectionId,
+      reason: decision.reason,
+      path,
+    }),
+  );
+
+  alreadyRetried = true;
+  activeConnectionId = successorConnectionId;
+  response = await postOnce(activeConnectionId);
+  const secondErrorBody = response.ok ? null : await response.clone().json().catch(() => ({}));
+  return {
+    response,
+    connectionId: activeConnectionId,
+    recovered: true,
+    errorBody: secondErrorBody || errorBody,
+    alreadyRetried,
+  };
 }
 
 const defaultAiQuestions = [
@@ -959,7 +1068,7 @@ export default function DashboardPage() {
     lifecycle.runId += 1;
     const runId = lifecycle.runId;
     let cancelled = false;
-    const capturedConnectionId = lifecycle.connectionId;
+    let capturedConnectionId = lifecycle.connectionId;
     const forceRefresh = hydrationPlan.forceRefresh;
     const schemaStale = hydrationPlan.schemaStale;
 
@@ -1020,6 +1129,17 @@ export default function DashboardPage() {
       }
     };
 
+    const applyRecoveredConnectionContext = ({ successorConnectionId, href, payload }) => {
+      capturedConnectionId = successorConnectionId;
+      lifecycle.connectionId = successorConnectionId;
+      if (typeof window !== "undefined" && href) {
+        window.history.replaceState({}, "", href);
+      }
+      if (payload && typeof payload === "object") {
+        persistPayload(payload);
+      }
+    };
+
     const discardStaleAuthoritativePayload = () => {
       setActiveReportPayload(null);
       try {
@@ -1063,18 +1183,24 @@ export default function DashboardPage() {
           return;
         }
 
-        const ctxRes = await fetch("/api/accounting/active-context", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            connectionId: capturedConnectionId,
+        const {
+          response: ctxRes,
+          connectionId: contextConnectionId,
+          errorBody: contextErrorBody,
+        } = await postAccountingWithSupersededRecovery({
+          path: "/api/accounting/active-context",
+          authToken,
+          body: {
             sourceSystem: "xero",
             forceRefresh,
-          }),
+          },
+          connectionId: capturedConnectionId,
+          getClientHref: () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
+          getClientPayload: () =>
+            activeReportPayload || safeReadJsonStorage("advisacor_active_report_payload") || storedPayload,
+          onRecoveredContext: applyRecoveredConnectionContext,
         });
+        capturedConnectionId = contextConnectionId;
 
         if (cancelled) return;
 
@@ -1102,11 +1228,8 @@ export default function DashboardPage() {
             authoritativePersistence,
             extras: activeContext && typeof activeContext === "object" ? activeContext : {},
           });
-        } else {
-          const errBody = await ctxRes.json().catch(() => ({}));
-          if (!cancelled) {
-            setError(errBody.error || "Unable to load your Xero connection context.");
-          }
+        } else if (!cancelled) {
+          setError(contextErrorBody?.error || "Unable to load your Xero connection context.");
         }
 
         const activeContextIsAuthoritative = canPromoteClientPayloadAsAuthoritative({
@@ -1120,19 +1243,25 @@ export default function DashboardPage() {
           const endDt = new Date();
           const startDt = new Date();
           startDt.setUTCMonth(startDt.getUTCMonth() - 6);
-          const syncRes = await fetch("/api/accounting/fetch-reports", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authToken}`,
-            },
-            body: JSON.stringify({
-              connectionId: capturedConnectionId,
+          const {
+            response: syncRes,
+            connectionId: syncConnectionId,
+            errorBody: syncErrorBody,
+          } = await postAccountingWithSupersededRecovery({
+            path: "/api/accounting/fetch-reports",
+            authToken,
+            body: {
               sourceSystem: "xero",
               startDate: startDt.toISOString().slice(0, 10),
               endDate: endDt.toISOString().slice(0, 10),
-            }),
+            },
+            connectionId: capturedConnectionId,
+            getClientHref: () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
+            getClientPayload: () =>
+              activeReportPayload || safeReadJsonStorage("advisacor_active_report_payload") || storedPayload,
+            onRecoveredContext: applyRecoveredConnectionContext,
           });
+          capturedConnectionId = syncConnectionId;
 
           if (cancelled) return;
 
@@ -1168,9 +1297,8 @@ export default function DashboardPage() {
               );
             }
           } else if (!payload) {
-            const errBody = await syncRes.json().catch(() => ({}));
             if (!cancelled) {
-              setError(errBody.error || "Unable to load your Xero financial data.");
+              setError(syncErrorBody?.error || "Unable to load your Xero financial data.");
             }
           }
         }
@@ -1728,22 +1856,37 @@ export default function DashboardPage() {
       }
     })();
     if (!authToken && !leadId) return activeReportPayload;
-    const response = await fetch("/api/accounting/active-context", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      },
-      body: JSON.stringify({
+    const staleConnectionId = activeReportContext?.connectionId || activeReportPayload?.connectionId || "";
+    const {
+      response,
+      connectionId: recoveredConnectionId,
+      errorBody,
+    } = await postAccountingWithSupersededRecovery({
+      path: "/api/accounting/active-context",
+      authToken,
+      body: {
         companyId: dashboardCompanyId || activeReportContext?.companyId || null,
-        connectionId: activeReportContext?.connectionId || activeReportPayload?.connectionId || "",
         sourceSystem: "xero",
         leadId,
         forceRefresh: true,
-      }),
+      },
+      connectionId: staleConnectionId,
+      getClientHref: () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      getClientPayload: () => activeReportPayload || safeReadJsonStorage("advisacor_active_report_payload"),
+      onRecoveredContext: ({ href, payload }) => {
+        if (href) window.history.replaceState({}, "", href);
+        if (payload && typeof payload === "object") {
+          setActiveReportPayload(payload);
+          try {
+            window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload));
+          } catch {
+            // ignore storage failures
+          }
+        }
+      },
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || (!result.normalizedData && !result.reportDataContext)) {
+    const result = response.ok ? await response.json().catch(() => ({})) : errorBody || {};
+    if (!response.ok || (!result.normalizedData && !result.reportDataContext && !result.activeContext)) {
       throw new Error(result.error || "Unable to refresh Xero report context before PDF generation.");
     }
     const nextPayload = {
@@ -1752,11 +1895,16 @@ export default function DashboardPage() {
       tenantId: result.tenantId || result.activeContext?.tenantId || result.normalizedData?.tenantId || result.reportDataContext?.tenantId || null,
       tenantName: result.tenantName || result.activeContext?.tenantName || result.normalizedData?.tenantName || result.reportDataContext?.tenantName || "",
       lastSyncedAt: result.lastSyncedAt || result.normalizedData?.lastSyncedAt || "",
-      connectionId: result.connectionId || result.activeContext?.connectionId || activeReportContext?.connectionId || "",
+      connectionId:
+        result.connectionId ||
+        result.activeContext?.connectionId ||
+        recoveredConnectionId ||
+        activeReportContext?.connectionId ||
+        "",
       syncId: result.syncId || result.activeContext?.latestSuccessfulSyncId || result.reportDataContext?.syncId || "",
       diagnostics: result.diagnostics || null,
-      normalizedData: result.normalizedData || null,
-      reportDataContext: result.reportDataContext || null,
+      normalizedData: result.normalizedData || result.activeContext?.normalizedData || null,
+      reportDataContext: result.reportDataContext || result.activeContext?.reportDataContext || null,
       preflight: null,
     };
     window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(nextPayload));
