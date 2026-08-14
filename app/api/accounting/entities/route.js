@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { listEntities } from "../../../../lib/integrations/accounting";
+import {
+  AccountingConnectionSelectionError,
+  accountingConnectionSelectionErrorBody,
+  listEntities,
+} from "../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
 
@@ -19,6 +23,9 @@ export async function GET(request) {
     if (authError || !authData?.user?.id) return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
     return NextResponse.json({ entities: await listEntities(connectionId, authData.user.id) });
   } catch (error) {
+    if (error instanceof AccountingConnectionSelectionError) {
+      return NextResponse.json(accountingConnectionSelectionErrorBody(error), { status: error.httpStatus });
+    }
     console.error("[accounting/entities] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to list accounting entities" }, { status: 500 });
   }

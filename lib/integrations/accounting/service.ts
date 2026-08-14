@@ -19,7 +19,14 @@ import {
   resolveOrCreateCompanyForProvider,
 } from "./resolve-or-create-company";
 import { persistCanonicalAccountingConnectionGrant } from "./persist-canonical-connection-grant";
-import { selectAccountingConnectionForActiveContext } from "./connection-selection";
+import {
+  AccountingConnectionSelectionError,
+  selectAccountingConnectionForActiveContext,
+} from "./connection-selection";
+import {
+  getAccountingConnectionRecordForUser,
+  getLiveProviderConnectionForUser,
+} from "./live-provider-connection";
 import { decryptAccountingToken, encryptAccountingToken } from "./token-encryption";
 import type { AccountingDateRange, AccountingProvider, AccountingConnectionRecord } from "./types";
 import { validateReportPreflight, type PreflightIssue } from "../../reporting/report-preflight-validation";
@@ -34,6 +41,20 @@ export {
   selectAccountingConnectionForActiveContext,
   type AccountingConnectionSelectionErrorCode,
 } from "./connection-selection";
+
+export {
+  getAccountingConnectionRecordForUser,
+  getConnectionForUser,
+  getLiveProviderConnectionForUser,
+  isLiveProviderConnectionStatus,
+} from "./live-provider-connection";
+
+export {
+  OAuthRefreshError,
+  canRefreshLiveProviderTokens,
+  ensureFreshTokens,
+  tokenNeedsRefresh,
+} from "./ensure-fresh-tokens";
 
 export {
   mergeConnectionGrantMetadata,
@@ -868,29 +889,14 @@ export async function handleCallback(providerKey: AccountingProvider, requestUrl
   return { connectionId: persisted.connectionId, returnTo: oauth.returnTo || "/dashboard" };
 }
 
-export async function getConnectionForUser(connectionId: string, userId: string): Promise<AccountingConnectionRecord> {
-  const { data, error } = await requireSupabase()
-    .from("accounting_connections")
-    .select("*")
-    .eq("id", connectionId)
-    .eq("user_id", userId)
-    .limit(1);
-  if (error) throw error;
-  if (!data?.[0]) throw new Error("Accounting connection not found");
-  // Fresh tokens for entity list / fetch-reports / any path that reads via this helper.
-  // If the caller later hits buildAndPersistLiveAccountingSync, skew + single-flight
-  // skip a second refresh in the same request.
-  return ensureFreshTokens(data[0] as AccountingConnectionRecord);
-}
-
 export async function listEntities(connectionId: string, userId: string) {
-  const connection = await getConnectionForUser(connectionId, userId);
+  const connection = await getLiveProviderConnectionForUser(connectionId, userId);
   return getAccountingProvider(connection.provider).getEntities({ connection });
 }
 
 export async function selectEntity(connectionId: string, userId: string, entityId: string) {
   const supabase = requireSupabase();
-  const connection = await getConnectionForUser(connectionId, userId);
+  const connection = await getLiveProviderConnectionForUser(connectionId, userId);
   const provider = getAccountingProvider(connection.provider);
   const entity = await provider.selectEntity({ connection, entityId });
   const selectedAt = new Date().toISOString();
@@ -1237,7 +1243,16 @@ export async function fetchCanonicalReports({
 }) {
   if (!sourceSystem) throw new Error("sourceSystem is required when fetching canonical reports.");
   const selectedSourceSystem = sourceSystem === "dynamics" ? "dynamics365" : sourceSystem;
-  const connection = await getConnectionForUser(connectionId, userId);
+  // Active-context: connected-only. needs_entity_selection stays 422 here; entity
+  // onboarding uses getLiveProviderConnectionForUser via listEntities/selectEntity.
+  const selected = await selectAccountingConnectionForActiveContext({
+    supabase: requireSupabase(),
+    userId,
+    connectionId,
+    sourceSystem: selectedSourceSystem,
+  });
+  if (!selected) throw new Error("Accounting connection not found");
+  const connection = await ensureFreshTokens(selected);
   if (selectedSourceSystem !== connection.provider) {
     throw new Error(`Provider mismatch: active ${sourceSystem} but normalized data is ${connection.provider}`);
   }
@@ -1373,8 +1388,20 @@ export async function fetchCanonicalReports({
 
 export async function disconnectConnection(connectionId: string, userId: string) {
   const supabase = requireSupabase();
-  const connection = await getConnectionForUser(connectionId, userId);
-  await getAccountingProvider(connection.provider).disconnect({ connection });
+  // Evidence lookup: disconnect must not refresh or resurrect. Decrypt only so a
+  // provider revoke path (if implemented) receives usable credential form.
+  const connection = await getAccountingConnectionRecordForUser(connectionId, userId);
+  if (String(connection.status || "") === "superseded") {
+    throw new AccountingConnectionSelectionError({
+      code: "ACCOUNTING_CONNECTION_SUPERSEDED",
+      message: "Accounting connection has been superseded; use the successor connection.",
+      connectionId: String(connection.id),
+      status: "superseded",
+      httpStatus: 409,
+    });
+  }
+  const forProvider = decryptConnectionTokens(connection);
+  await getAccountingProvider(connection.provider).disconnect({ connection: forProvider });
   const { error } = await supabase
     .from("accounting_connections")
     .update({ status: "disconnected", updated_at: new Date().toISOString() })

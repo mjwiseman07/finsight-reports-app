@@ -28,6 +28,8 @@ export interface AccountingConnectionRecord {
   access_token?: string | null;
   refresh_token?: string | null;
   token_expires_at?: string | null;
+  /** Set when live OAuth secrets were intentionally cleared (e.g. superseded retirement). */
+  credentials_cleared_at?: string | null;
   tenant_or_realm_id?: string | null;
   scopes: string[];
   status: AccountingConnectionStatus;

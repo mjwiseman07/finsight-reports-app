@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { selectEntity } from "../../../../lib/integrations/accounting";
+import {
+  AccountingConnectionSelectionError,
+  accountingConnectionSelectionErrorBody,
+  selectEntity,
+} from "../../../../lib/integrations/accounting";
 import { supabaseAdmin } from "../../../../lib/supabase";
 import { rateLimit } from "../../../../lib/rate-limit";
 
@@ -20,6 +24,9 @@ export async function POST(request) {
     if (authError || !authData?.user?.id) return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
     return NextResponse.json({ entity: await selectEntity(connectionId, authData.user.id, entityId) });
   } catch (error) {
+    if (error instanceof AccountingConnectionSelectionError) {
+      return NextResponse.json(accountingConnectionSelectionErrorBody(error), { status: error.httpStatus });
+    }
     console.error("[accounting/select-entity] failed", { message: error?.message });
     return NextResponse.json({ error: error?.message || "Unable to select accounting entity" }, { status: 500 });
   }

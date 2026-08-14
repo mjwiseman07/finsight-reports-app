@@ -13,30 +13,41 @@
  * - Residual cross-instance simultaneous refresh is bounded by Xero's documented
  *   ~30-minute grace window for the previous refresh token after rotation.
  *   This does not claim to eliminate every distributed race.
+ *
+ * PR F: only live provider statuses may refresh. superseded is credential-dead
+ * (throw, never provider-call). disconnected must not refresh or resurrect.
  */
 import { supabaseAdmin } from "../../supabase";
 import { getAccountingProvider } from "./registry";
 import { decryptAccountingToken, encryptAccountingToken } from "./token-encryption";
-import type { AccountingConnectionRecord, AccountingProvider } from "./types";
+import type { AccountingConnectionRecord, AccountingConnectionStatus, AccountingProvider } from "./types";
 
 const REFRESH_SKEW_MS = 5 * 60 * 1000;
+
+const LIVE_REFRESH_STATUSES = new Set<AccountingConnectionStatus>([
+  "connected",
+  "needs_entity_selection",
+]);
 
 const xeroRefreshFlights = new Map<string, Promise<AccountingConnectionRecord>>();
 
 export type OAuthRefreshErrorCode =
   | "OAUTH_REFRESH_FAILED"
   | "OAUTH_REFRESH_NO_TOKEN"
-  | "OAUTH_REFRESH_PERSIST_FAILED";
+  | "OAUTH_REFRESH_PERSIST_FAILED"
+  | "OAUTH_REFRESH_STATUS_FORBIDDEN";
 
 export class OAuthRefreshError extends Error {
   code: OAuthRefreshErrorCode;
   connectionId: string;
+  status?: string;
 
-  constructor(code: OAuthRefreshErrorCode, message: string, connectionId: string) {
+  constructor(code: OAuthRefreshErrorCode, message: string, connectionId: string, status?: string) {
     super(message);
     this.name = "OAuthRefreshError";
     this.code = code;
     this.connectionId = connectionId;
+    if (status) this.status = status;
   }
 }
 
@@ -70,6 +81,12 @@ export function tokenNeedsRefresh(tokenExpiresAt: string | null | undefined, now
   return expiresAt - nowMs < skewMs;
 }
 
+export function canRefreshLiveProviderTokens(
+  status: AccountingConnectionStatus | string | null | undefined,
+): boolean {
+  return LIVE_REFRESH_STATUSES.has(String(status || "") as AccountingConnectionStatus);
+}
+
 async function loadConnectionRowById(connectionId: string): Promise<AccountingConnectionRecord | null> {
   const { data, error } = await requireSupabase()
     .from("accounting_connections")
@@ -77,11 +94,27 @@ async function loadConnectionRowById(connectionId: string): Promise<AccountingCo
     .eq("id", connectionId)
     .limit(1);
   if (error) throw error;
-  return (data?.[0] as AccountingConnectionRecord | undefined) || null;
+  return ((data?.[0] as AccountingConnectionRecord | undefined) || null);
 }
 
 async function refreshXeroConnection(connection: AccountingConnectionRecord): Promise<AccountingConnectionRecord> {
   const latestRow = (await loadConnectionRowById(connection.id)) || connection;
+  const status = String(latestRow.status || connection.status || "");
+
+  if (status === "superseded") {
+    throw new OAuthRefreshError(
+      "OAUTH_REFRESH_STATUS_FORBIDDEN",
+      `OAuth refresh forbidden for superseded connection ${connection.id}; use the successor grant.`,
+      connection.id,
+      status,
+    );
+  }
+
+  if (!canRefreshLiveProviderTokens(status)) {
+    // disconnected / expired / failed / pending: never refresh or resurrect to connected.
+    return decryptXeroTokens(latestRow);
+  }
+
   const decrypted = decryptXeroTokens(latestRow);
 
   if (!decrypted.refresh_token) {
@@ -103,12 +136,12 @@ async function refreshXeroConnection(connection: AccountingConnectionRecord): Pr
       tokenExpiresAt: decrypted.token_expires_at,
       exceptionMessage: refreshError instanceof Error ? refreshError.message : String(refreshError),
     });
-    // Schema has no CHECK on status; TS union includes "expired" (not needs_reconnect).
     try {
       await requireSupabase()
         .from("accounting_connections")
         .update({ status: "expired", updated_at: new Date().toISOString() })
-        .eq("id", decrypted.id);
+        .eq("id", decrypted.id)
+        .in("status", ["connected", "needs_entity_selection"]);
     } catch (statusError) {
       console.warn("[accounting/token-refresh] status_update_failed", {
         connectionId: decrypted.id,
@@ -149,7 +182,9 @@ async function refreshXeroConnection(connection: AccountingConnectionRecord): Pr
       status: "connected",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", decrypted.id);
+    .eq("id", decrypted.id)
+    // Never resurrect superseded/disconnected via refresh persistence.
+    .in("status", ["connected", "needs_entity_selection"]);
 
   if (updateError) {
     console.warn("[accounting/token-refresh] persist_failed", {
@@ -181,9 +216,26 @@ async function refreshXeroConnection(connection: AccountingConnectionRecord): Pr
 
 /**
  * Ensure a connection has a usable access token for provider API reads.
- * Xero-only in this PR — other providers return decrypt-passthrough / unchanged.
+ * Lifecycle is provider-neutral: superseded never decrypts or refreshes (any ERP).
+ * Non-live statuses never refresh or resurrect. Xero-only refresh when live;
+ * other live providers return decrypt-passthrough / unchanged.
  */
 export async function ensureFreshTokens(connection: AccountingConnectionRecord): Promise<AccountingConnectionRecord> {
+  // Status guards before provider branching — QBO/etc. must not bypass superseded.
+  if (String(connection.status || "") === "superseded") {
+    throw new OAuthRefreshError(
+      "OAUTH_REFRESH_STATUS_FORBIDDEN",
+      `OAuth refresh forbidden for superseded connection ${connection.id}; use the successor grant.`,
+      connection.id,
+      "superseded",
+    );
+  }
+
+  if (!canRefreshLiveProviderTokens(connection.status)) {
+    // disconnected / expired / failed / pending: never refresh or resurrect.
+    return decryptXeroTokens(connection);
+  }
+
   if (connection.provider !== "xero") {
     return decryptXeroTokens(connection);
   }

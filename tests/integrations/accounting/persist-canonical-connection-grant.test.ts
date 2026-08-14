@@ -488,7 +488,7 @@ describe("PR D source wiring (static)", () => {
   it("authenticated handleCallback no longer blind-inserts company_id=user.id", () => {
     const service = readFileSync(join(process.cwd(), "lib/integrations/accounting/service.ts"), "utf8");
     const handleStart = service.indexOf("export async function handleCallback");
-    const handleEnd = service.indexOf("export async function getConnectionForUser");
+    const handleEnd = service.indexOf("export async function listEntities");
     const body = service.slice(handleStart, handleEnd);
     expect(body).toContain("persistCanonicalAccountingConnectionGrant");
     expect(body).toContain("resolveOrCreateCompanyForProvider");
