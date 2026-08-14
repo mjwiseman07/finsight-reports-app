@@ -61,6 +61,29 @@ describe("marketing-host API allowlist — /api/accounting/", () => {
         expect(result.continued).toBe(true);
       });
 
+      it("allows /api/check-trial (dashboard access gate)", async () => {
+        const result = await middlewareStatus(host, "/api/check-trial");
+        expect(result.status).not.toBe(404);
+        expect(result.body).not.toContain('"Not found"');
+        expect(result.continued).toBe(true);
+      });
+
+      it("allows dashboard companion APIs used on marketing host", async () => {
+        for (const pathname of [
+          "/api/account",
+          "/api/user/role",
+          "/api/owner/delivery-settings",
+          "/api/advisory-intelligence/signals",
+          "/api/create-checkout",
+          "/api/create-billing-portal",
+        ]) {
+          const result = await middlewareStatus(host, pathname);
+          expect(result.status, pathname).not.toBe(404);
+          expect(result.body, pathname).not.toContain('"Not found"');
+          expect(result.continued, pathname).toBe(true);
+        }
+      });
+
       it("still 404s unrelated non-allowlisted private API", async () => {
         const result = await middlewareStatus(host, "/api/cron/schema-drift-detector", "GET");
         expect(result.status).toBe(404);
