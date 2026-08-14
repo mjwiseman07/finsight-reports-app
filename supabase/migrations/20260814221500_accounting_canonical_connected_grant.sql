@@ -8,28 +8,39 @@
 --
 -- Previously accepted production authority for this Demo tenant/user:
 --   connection: b718823a-0eb8-437d-beba-05c41f6482f9
+--   company:    02edb6c6-a4f1-4bae-825d-2680136dad24
 --   sync:       95da07be-8e2c-4b84-9dcc-8a98fa841273 (schema v4)
 --
 -- This migration:
---   1) asserts the exact Demo connected-duplicate shape
---   2) asserts there are no other connected-duplicate groups
---   3) supersedes the four competing CONNECTED rows only
---   4) leaves disconnected rows untouched
---   5) does NOT move/delete accounting_syncs
---   6) does NOT clear token fields
---   7) installs partial UNIQUE for one connected grant per
+--   1) locks accounting_connections against concurrent writes
+--   2) asserts the exact Demo connected-duplicate shape
+--   3) asserts canonical company mapping + schemaVersion 4 SUCCESS sync
+--   4) asserts there are no other connected-duplicate groups
+--   5) supersedes the four competing CONNECTED rows only
+--   6) leaves disconnected rows untouched
+--   7) does NOT move/delete accounting_syncs
+--   8) does NOT clear token fields
+--   9) installs partial UNIQUE for one connected grant per
 --      (user_id, provider, tenant_or_realm_id)
 --
 -- connected + disconnected for the same key remains allowed.
--- Manual rollback: set the four superseded rows back to connected,
--- clear superseded_by_connection_id, then DROP the unique index.
--- Do not delete syncs.
+--
+-- Manual rollback (ORDER MATTERS — unique index must drop first):
+--   1) DROP INDEX IF EXISTS public.accounting_connections_one_connected_grant_uidx;
+--   2) UPDATE the four superseded rows back to status='connected'
+--      and superseded_by_connection_id = NULL;
+-- Do not delete syncs. Restoring duplicate connected rows before dropping
+-- the unique index will fail.
+
+-- Serialize against concurrent connection grant writes for this migration txn.
+LOCK TABLE public.accounting_connections IN SHARE ROW EXCLUSIVE MODE;
 
 DO $$
 DECLARE
   demo_user constant uuid := 'a4ebf834-a698-4f79-a945-8498f2e6c45d';
   demo_tenant constant text := 'ceaea696-081f-491e-9daa-a9263a023ca9';
   canonical constant uuid := 'b718823a-0eb8-437d-beba-05c41f6482f9';
+  canonical_company constant uuid := '02edb6c6-a4f1-4bae-825d-2680136dad24';
   canonical_sync constant uuid := '95da07be-8e2c-4b84-9dcc-8a98fa841273';
   expected_supersede constant uuid[] := ARRAY[
     'ce526f9b-5d2c-46fc-b6f3-46617ab375bf'::uuid,
@@ -43,6 +54,7 @@ DECLARE
   matched_supersede int;
   extra_connected int;
   canonical_ok int;
+  canonical_company_ok int;
   canonical_sync_ok int;
 BEGIN
   -- Global: only this known connected-duplicate group may exist.
@@ -90,23 +102,37 @@ BEGIN
     AND provider = 'xero'
     AND tenant_or_realm_id = demo_tenant
     AND status = 'connected'
-    AND coalesce(superseded_by_connection_id::text, '') = '';
+    AND coalesce(superseded_by_connection_id::text, '') = ''
+    AND metadata_json->>'company_id' = canonical_company::text;
 
   IF canonical_ok <> 1 THEN
     RAISE EXCEPTION
-      'PR C precondition failed: canonical connection % is not an eligible connected grant',
-      canonical;
+      'PR C precondition failed: canonical connection % is not an eligible connected grant with company %',
+      canonical, canonical_company;
+  END IF;
+
+  SELECT count(*) INTO canonical_company_ok
+  FROM public.companies
+  WHERE id = canonical_company
+    AND xero_tenant_id = demo_tenant;
+
+  IF canonical_company_ok <> 1 THEN
+    RAISE EXCEPTION
+      'PR C precondition failed: canonical company % missing or xero_tenant_id mismatch for %',
+      canonical_company, demo_tenant;
   END IF;
 
   SELECT count(*) INTO canonical_sync_ok
   FROM public.accounting_syncs
   WHERE id = canonical_sync
     AND connection_id = canonical
-    AND validation_status = 'SUCCESS';
+    AND company_id = canonical_company
+    AND validation_status = 'SUCCESS'
+    AND (normalized_payload->>'schemaVersion') = '4';
 
   IF canonical_sync_ok <> 1 THEN
     RAISE EXCEPTION
-      'PR C precondition failed: canonical sync % missing or not SUCCESS on %',
+      'PR C precondition failed: canonical sync % missing, not SUCCESS, wrong company, or schemaVersion != 4 on %',
       canonical_sync, canonical;
   END IF;
 
@@ -221,8 +247,11 @@ BEGIN
     SELECT 1 FROM public.accounting_syncs
     WHERE id = '95da07be-8e2c-4b84-9dcc-8a98fa841273'::uuid
       AND connection_id = 'b718823a-0eb8-437d-beba-05c41f6482f9'::uuid
+      AND company_id = '02edb6c6-a4f1-4bae-825d-2680136dad24'::uuid
+      AND validation_status = 'SUCCESS'
+      AND (normalized_payload->>'schemaVersion') = '4'
   ) THEN
-    RAISE EXCEPTION 'PR C postcondition failed: canonical sync 95da07be was moved or deleted';
+    RAISE EXCEPTION 'PR C postcondition failed: canonical sync 95da07be integrity check failed';
   END IF;
 
   SELECT count(*) INTO connected_dup_groups

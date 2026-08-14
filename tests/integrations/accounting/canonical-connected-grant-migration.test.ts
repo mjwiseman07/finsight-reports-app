@@ -9,6 +9,7 @@ import { join } from "node:path";
 const MIGRATION = "supabase/migrations/20260814221500_accounting_canonical_connected_grant.sql";
 
 const CANONICAL = "b718823a-0eb8-437d-beba-05c41f6482f9";
+const CANONICAL_COMPANY = "02edb6c6-a4f1-4bae-825d-2680136dad24";
 const CANONICAL_SYNC = "95da07be-8e2c-4b84-9dcc-8a98fa841273";
 const CE526 = "ce526f9b-5d2c-46fc-b6f3-46617ab375bf";
 const CE526_SYNC = "774e6be2-ad1b-41fa-859d-163b0805c3ca";
@@ -25,9 +26,33 @@ describe("PR C canonical connected-grant migration (static)", () => {
   it("preserves previously accepted Demo authority (not recency ranking)", () => {
     expect(sql).toContain(CANONICAL);
     expect(sql).toContain(CANONICAL_SYNC);
+    expect(sql).toContain(CANONICAL_COMPANY);
     expect(sql).toMatch(/Activity is not authority/i);
     expect(sql).not.toMatch(/order by[\s\S]*updated_at[\s\S]*desc/i);
     expect(sql).not.toMatch(/row_number\s*\(/i);
+  });
+
+  it("locks accounting_connections against concurrent writes", () => {
+    expect(sql).toMatch(
+      /LOCK TABLE public\.accounting_connections IN SHARE ROW EXCLUSIVE MODE/,
+    );
+  });
+
+  it("asserts canonical company mapping and schemaVersion 4 SUCCESS sync", () => {
+    expect(sql).toContain(`metadata_json->>'company_id' = canonical_company::text`);
+    expect(sql).toMatch(/FROM public\.companies/);
+    expect(sql).toContain(`xero_tenant_id = demo_tenant`);
+    expect(sql).toContain(`validation_status = 'SUCCESS'`);
+    expect(sql).toContain(`(normalized_payload->>'schemaVersion') = '4'`);
+  });
+
+  it("documents correct rollback order (drop unique index first)", () => {
+    expect(sql).toMatch(/ORDER MATTERS/i);
+    const dropIdx = sql.indexOf("DROP INDEX IF EXISTS public.accounting_connections_one_connected_grant_uidx");
+    const restoreConnected = sql.indexOf("UPDATE the four superseded rows back to status='connected'");
+    expect(dropIdx).toBeGreaterThan(-1);
+    expect(restoreConnected).toBeGreaterThan(-1);
+    expect(dropIdx).toBeLessThan(restoreConnected);
   });
 
   it("targets exactly four competing connected rows for supersession", () => {
