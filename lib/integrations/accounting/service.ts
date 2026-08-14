@@ -16,7 +16,9 @@ import {
   deriveProviderTenantId,
   requireCompanyIdForTenantBackedSync,
   resolveCompanyIdForSyncPersist,
+  resolveOrCreateCompanyForProvider,
 } from "./resolve-or-create-company";
+import { persistCanonicalAccountingConnectionGrant } from "./persist-canonical-connection-grant";
 import { selectAccountingConnectionForActiveContext } from "./connection-selection";
 import { decryptAccountingToken, encryptAccountingToken } from "./token-encryption";
 import type { AccountingDateRange, AccountingProvider, AccountingConnectionRecord } from "./types";
@@ -32,6 +34,13 @@ export {
   selectAccountingConnectionForActiveContext,
   type AccountingConnectionSelectionErrorCode,
 } from "./connection-selection";
+
+export {
+  mergeConnectionGrantMetadata,
+  persistCanonicalAccountingConnectionGrant,
+  isAccountingConnectionsUniqueViolation,
+  PRESERVED_CONNECTION_METADATA_KEYS,
+} from "./persist-canonical-connection-grant";
 
 const STATE_COOKIE = "accounting_oauth_state";
 const TOKEN_COOKIE = "accounting_oauth_token";
@@ -805,44 +814,58 @@ export async function handleCallback(providerKey: AccountingProvider, requestUrl
   const status = provider.getCapabilities().requires_entity_selection && !selectedTenantId ? "needs_entity_selection" : "connected";
   const connectedAt = new Date().toISOString();
 
-  const { data, error } = await supabase
-    .from("accounting_connections")
-    .insert({
-      user_id: authData.user.id,
+  // Canonical company identity — never persist user_id as company_id.
+  let companyId: string | null = null;
+  if (selectedTenantId && (provider.provider === "xero" || provider.provider === "quickbooks")) {
+    companyId = await resolveOrCreateCompanyForProvider(supabase, {
       provider: provider.provider,
-      provider_family: provider.providerFamily,
-      provider_product: provider.providerProduct,
-      external_entity_id: externalEntityId,
-      external_entity_name: selectedTenantName || null,
-      access_token: secureTokenForStorage(provider.provider, tokenPayload.access_token),
-      refresh_token: secureTokenForStorage(provider.provider, tokenPayload.refresh_token),
-      token_expires_at: getTokenExpiry(tokenPayload),
-      tenant_or_realm_id: selectedTenantId || null,
-      scopes: String(tokenPayload.scope || "").split(" ").filter(Boolean),
-      status,
-      metadata_json: {
-        token_type: tokenPayload.token_type || null,
-        source_system: provider.provider,
-        active_provider: provider.provider,
-        company_id: authData.user.id,
-        tenant_id: selectedTenantId || null,
-        tenant_name: selectedTenantName || null,
-        available_organizations: xeroEntities.map((entity) => ({
-          tenant_id: entity.externalId,
-          tenant_name: entity.name,
-        })),
-        connected_at: connectedAt,
-        last_synced_at: connectedAt,
-        tokens_encrypted: provider.provider === "xero",
-      },
-    })
-    .select("id")
-    .limit(1);
-  if (error) throw error;
-  if (provider.provider === "xero") console.log("CONNECTION SAVED SUCCESSFULLY", { connectionId: data?.[0]?.id });
+      tenantId: selectedTenantId,
+      userId: authData.user.id,
+      tenantName: selectedTenantName || null,
+    });
+  }
+
+  // Reconnect-in-place: refresh authorization on the canonical grant.
+  // Does not re-elect accounting truth (stable connection id + sync pointers).
+  const persisted = await persistCanonicalAccountingConnectionGrant({
+    admin: supabase,
+    userId: authData.user.id,
+    provider: provider.provider,
+    providerFamily: provider.providerFamily,
+    providerProduct: provider.providerProduct,
+    externalEntityId,
+    externalEntityName: selectedTenantName || null,
+    accessToken: secureTokenForStorage(provider.provider, tokenPayload.access_token),
+    refreshToken: secureTokenForStorage(provider.provider, tokenPayload.refresh_token),
+    tokenExpiresAt: getTokenExpiry(tokenPayload),
+    tenantOrRealmId: selectedTenantId || null,
+    scopes: String(tokenPayload.scope || "").split(" ").filter(Boolean),
+    status,
+    companyId,
+    nowIso: connectedAt,
+    metadataPatch: {
+      token_type: tokenPayload.token_type || null,
+      source_system: provider.provider,
+      active_provider: provider.provider,
+      tenant_id: selectedTenantId || null,
+      tenant_name: selectedTenantName || null,
+      available_organizations: xeroEntities.map((entity) => ({
+        tenant_id: entity.externalId,
+        tenant_name: entity.name,
+      })),
+      connected_at: connectedAt,
+      tokens_encrypted: provider.provider === "xero",
+    },
+  });
+  if (provider.provider === "xero") {
+    console.log("CONNECTION SAVED SUCCESSFULLY", {
+      connectionId: persisted.connectionId,
+      outcome: persisted.outcome,
+    });
+  }
 
   await clearOAuthCookies();
-  return { connectionId: data?.[0]?.id, returnTo: oauth.returnTo || "/dashboard" };
+  return { connectionId: persisted.connectionId, returnTo: oauth.returnTo || "/dashboard" };
 }
 
 export async function getConnectionForUser(connectionId: string, userId: string): Promise<AccountingConnectionRecord> {

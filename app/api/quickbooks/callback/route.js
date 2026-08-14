@@ -5,6 +5,8 @@ import { resolveEntitlementsForSubject } from "../../../../lib/entitlements";
 import { parseOfferingSku, parseSubscriptionStatus } from "@/lib/erp/quickbooks/qbo-editions";
 import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
 import { verifyHolderUserIdCookie, HOLDER_USER_ID_COOKIE_NAME } from "@/lib/demo/holder-cookie";
+import { persistCanonicalAccountingConnectionGrant } from "@/lib/integrations/accounting/persist-canonical-connection-grant";
+import { resolveOrCreateCompanyForProvider } from "@/lib/integrations/accounting/resolve-or-create-company";
 
 function getQuickBooksTokenExpiry(token) {
   const expiresInSeconds = Number(token?.expires_in || 3600);
@@ -14,25 +16,38 @@ function getQuickBooksTokenExpiry(token) {
 async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, companyProfile, oauthMode = "lead" }) {
   const companyName = companyProfile.legal_name || companyProfile.company_name || "QuickBooks Company";
   const now = new Date().toISOString();
-  const payload = {
-    user_id: leadId,
+
+  // Tenant-aware reconnect on accounting_connections (user + quickbooks + realm).
+  // Authenticated dashboard QBO still uses erp_connections via adapter — unchanged.
+  const companyId = await resolveOrCreateCompanyForProvider(supabaseAdmin, {
     provider: "quickbooks",
-    provider_family: "intuit",
-    provider_product: "quickbooks_online",
-    external_entity_id: `qbo:${realmId}`,
-    external_entity_name: companyName,
-    access_token: token.access_token,
-    refresh_token: token.refresh_token,
-    token_expires_at: getQuickBooksTokenExpiry(token),
-    tenant_or_realm_id: realmId,
+    tenantId: realmId,
+    userId: leadId,
+    tenantName: companyName,
+  });
+
+  const persisted = await persistCanonicalAccountingConnectionGrant({
+    admin: supabaseAdmin,
+    userId: leadId,
+    provider: "quickbooks",
+    providerFamily: "intuit",
+    providerProduct: "quickbooks_online",
+    externalEntityId: `qbo:${realmId}`,
+    externalEntityName: companyName,
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token,
+    tokenExpiresAt: getQuickBooksTokenExpiry(token),
+    tenantOrRealmId: realmId,
     scopes: ["com.intuit.quickbooks.accounting"],
     status: "connected",
-    // Phase MC-1 (Issue #6, Gap DB-1): first-class home currency column.
-    home_currency: companyProfile.home_currency || null,
-    // Phase Q7 (Issue #7): normalized edition + subscription status.
-    qbo_edition: parseOfferingSku(companyProfile.qbo_edition_raw),
-    qbo_subscription_status: parseSubscriptionStatus(companyProfile.qbo_subscription_status_raw),
-    metadata_json: {
+    companyId,
+    nowIso: now,
+    extraColumns: {
+      home_currency: companyProfile.home_currency || null,
+      qbo_edition: parseOfferingSku(companyProfile.qbo_edition_raw),
+      qbo_subscription_status: parseSubscriptionStatus(companyProfile.qbo_subscription_status_raw),
+    },
+    metadataPatch: {
       ...(oauthMode === "lead" ? { lead_id: leadId } : {}),
       realm_id: realmId,
       company_name: companyName,
@@ -41,52 +56,23 @@ async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, 
       active_provider: "quickbooks",
       connected_at: now,
       oauth_mode: oauthMode,
-      // Phase MC-1 (Issue #6): currency context mirrored for callers that read metadata_json.
       home_currency: companyProfile.home_currency || null,
       multicurrency_enabled: Boolean(companyProfile.multicurrency_enabled),
-      // Phase Q7 (Issue #7): mirror edition context into metadata_json for
-      // callers reading from JSON.
       qbo_edition: parseOfferingSku(companyProfile.qbo_edition_raw),
       qbo_subscription_status: parseSubscriptionStatus(companyProfile.qbo_subscription_status_raw),
       qbo_edition_raw: companyProfile.qbo_edition_raw || null,
       qbo_subscription_status_raw: companyProfile.qbo_subscription_status_raw || null,
     },
-    updated_at: now,
+  });
+
+  return {
+    id: persisted.connectionId,
+    user_id: leadId,
+    provider: "quickbooks",
+    tenant_or_realm_id: realmId,
+    external_entity_name: companyName,
+    status: "connected",
   };
-
-  const { data: existing, error: lookupError } = await supabaseAdmin
-    .from("accounting_connections")
-    .select("id, metadata_json")
-    .eq("user_id", leadId)
-    .eq("provider", "quickbooks")
-    .eq("external_entity_id", `qbo:${realmId}`)
-    .maybeSingle();
-  if (lookupError) throw lookupError;
-
-  const result = existing?.id
-    ? await supabaseAdmin
-        .from("accounting_connections")
-        .update({
-          ...payload,
-          metadata_json: {
-            ...(existing.metadata_json || {}),
-            ...payload.metadata_json,
-          },
-        })
-        .eq("id", existing.id)
-        .select("id, user_id, provider, tenant_or_realm_id, external_entity_name, status")
-        .single()
-    : await supabaseAdmin
-        .from("accounting_connections")
-        .insert({
-          ...payload,
-          created_at: now,
-        })
-        .select("id, user_id, provider, tenant_or_realm_id, external_entity_name, status")
-        .single();
-
-  if (result.error) throw result.error;
-  return result.data;
 }
 
 /**
