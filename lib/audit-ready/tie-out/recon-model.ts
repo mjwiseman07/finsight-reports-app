@@ -6,22 +6,26 @@
  * Persistence note (locked for URM-2):
  * - `audit_ready_tie_out_variances` remains the measurement layer.
  * - Identified reconciling items become their own workpaper/remediation objects.
+ * - Unidentified residual is always derived (never a ReconcilingItem).
  * - This module defines the conceptual contract only.
  */
 
 import type { VarianceClassification } from "@/lib/audit-ready/tie-out/policy";
 
-/** Classification of a first-class reconciling item on the recon face. */
+/**
+ * Classification of an identified reconciling item (workpaper/remediation object).
+ * Unidentified residual is NOT a class — it is derived:
+ * GrossVariance − Σ IdentifiedReconcilingItems.
+ */
 export type ReconcilingItemClass =
   | "identified_timing"
   | "identified_documented"
   | "identified_reclass"
-  | "identified_error"
-  | "unidentified_residual";
+  | "identified_error";
 
 /**
  * Whether an identified item may contribute to a reconciled outcome.
- * Unidentified residual never uses may_reconcile_with_timing.
+ * Clearance authority requires an explicit approved policy snapshot.
  */
 export type ReconcilingItemClearancePolicy =
   | "may_reconcile_with_timing"
@@ -29,9 +33,11 @@ export type ReconcilingItemClearancePolicy =
   | "immaterial_ok";
 
 /**
- * First-class reconciling item (workpaper/remediation object in URM-2).
+ * First-class identified reconciling item (workpaper/remediation object in URM-2).
  * Optional measurementLinkVarianceId ties to the variance measurement layer
  * without making variances the item identity.
+ *
+ * Never represents unidentified residual — that is derived only.
  */
 export type ReconcilingItem = {
   /** Stable workpaper identity once persisted (URM-2). */
@@ -68,7 +74,7 @@ export type ReconOutcome =
 
 /** Policy flags that affect outcome derivation (snapshot at compute time). */
 export type ReconOutcomePolicy = {
-  /** When true, timing-only identified items may yield reconciled_with_timing. */
+  /** When true, timing identified items may yield reconciled_with_timing. */
   allowTimingReconciled: boolean;
   /** Absolute dollar cap for immaterial unidentified residual (dollars, not cents). */
   immaterialResidualMaxDollar: number;
@@ -84,7 +90,11 @@ export type ReconOutcomePolicy = {
 export type ReconBridgeInput = {
   /** Left − Right (or prepared schedule − GL), in cents. */
   grossVarianceCents: number;
-  items: ReadonlyArray<Pick<ReconcilingItem, "itemClass" | "amountCents" | "clearancePolicy" | "status">>;
+  /** Identified reconciling items only — never residual rows. */
+  items: ReadonlyArray<
+    Pick<ReconcilingItem, "itemClass" | "amountCents" | "clearancePolicy" | "status">
+  >;
+  /** Explicit approved policy snapshot required for clearance authority. */
   policy: ReconOutcomePolicy;
   /** Force failed / provider_action_required when the run itself failed. */
   forceOutcome?: Extract<ReconOutcome, "failed" | "provider_action_required">;
@@ -93,6 +103,7 @@ export type ReconBridgeInput = {
 export type ReconBridgeResult = {
   grossVarianceCents: number;
   identifiedItemsTotalCents: number;
+  /** Always Gross − Σ Identified (single mathematical source). */
   unidentifiedResidualCents: number;
   reconcilingItemCount: number;
   unresolvedMaterialCount: number;
@@ -103,49 +114,22 @@ export type ReconBridgeResult = {
   isCentExact: boolean;
 };
 
-const IDENTIFIED_CLASSES: ReadonlySet<ReconcilingItemClass> = new Set([
-  "identified_timing",
-  "identified_documented",
-  "identified_reclass",
-  "identified_error",
-]);
-
 /**
- * Sum identified item amounts (excludes unidentified_residual rows).
+ * Sum identified item amounts (all ReconcilingItem rows are identified).
  */
 export function sumIdentifiedItemsCents(
-  items: ReadonlyArray<Pick<ReconcilingItem, "itemClass" | "amountCents">>,
+  items: ReadonlyArray<Pick<ReconcilingItem, "amountCents">>,
 ): number {
   let total = 0;
   for (const item of items) {
-    if (IDENTIFIED_CLASSES.has(item.itemClass)) {
-      total += item.amountCents;
-    }
+    total += item.amountCents;
   }
   return total;
 }
 
 /**
- * Sum explicit unidentified_residual rows, if any.
- * When none are present, residual is derived as gross − identified.
- */
-export function sumUnidentifiedResidualRowsCents(
-  items: ReadonlyArray<Pick<ReconcilingItem, "itemClass" | "amountCents">>,
-): number | null {
-  let found = false;
-  let total = 0;
-  for (const item of items) {
-    if (item.itemClass === "unidentified_residual") {
-      found = true;
-      total += item.amountCents;
-    }
-  }
-  return found ? total : null;
-}
-
-/**
- * Cent-exact bridge:
- * GrossVariance − Σ Identified = UnidentifiedResidual
+ * Cent-exact bridge — sole source of unidentified residual:
+ * GrossVariance − Σ IdentifiedReconcilingItems = UnidentifiedResidual
  */
 export function computeUnidentifiedResidualCents(
   grossVarianceCents: number,
@@ -155,7 +139,8 @@ export function computeUnidentifiedResidualCents(
 }
 
 /**
- * Validate that residual rows (if present) match the formula residual.
+ * Validate a candidate residual against the derived formula.
+ * Callers that project residual into exception/kickout records must use this.
  */
 export function assertCentExactResidual(params: {
   grossVarianceCents: number;
@@ -175,6 +160,8 @@ export function assertCentExactResidual(params: {
 /**
  * Material unidentified residual must never silently clear.
  * Returns true when residual is material under policy.
+ *
+ * Fail-closed: with zero immaterial caps, any non-zero residual is material.
  */
 export function isMaterialUnidentifiedResidual(
   unidentifiedResidualCents: number,
@@ -222,7 +209,7 @@ export function legacyTieStatusFromOutcome(
 }
 
 /**
- * Count unresolved material identified items (excludes residual rows).
+ * Count unresolved material identified items.
  * identified_error or requires_resolution that are not cleared → count.
  */
 export function countUnresolvedMaterialItems(
@@ -232,7 +219,6 @@ export function countUnresolvedMaterialItems(
 ): number {
   let count = 0;
   for (const item of items) {
-    if (!IDENTIFIED_CLASSES.has(item.itemClass)) continue;
     if (item.itemClass === "identified_error" && item.status !== "tie") {
       count += 1;
       continue;
@@ -262,28 +248,23 @@ function hasTimingItems(
  * Derive run-level reconOutcome + bridge totals.
  *
  * Hard rules:
+ * - Unidentified residual is purely derived (single mathematical source)
  * - Material unidentified residual → never reconciled_*
  * - Timing items + allowTimingReconciled → reconciled_with_timing when residual is 0
  * - Exact zero gross with no residual → reconciled_exact
+ * - Missing/fail-closed policy cannot grant clearance authority
  */
 export function deriveReconBridge(input: ReconBridgeInput): ReconBridgeResult {
   const { grossVarianceCents, items, policy, forceOutcome } = input;
 
   const identifiedItemsTotalCents = sumIdentifiedItemsCents(items);
-  const residualFromRows = sumUnidentifiedResidualRowsCents(items);
-  const formulaResidual = computeUnidentifiedResidualCents(
+  const unidentifiedResidualCents = computeUnidentifiedResidualCents(
     grossVarianceCents,
     identifiedItemsTotalCents,
   );
-  const unidentifiedResidualCents =
-    residualFromRows === null ? formulaResidual : residualFromRows;
 
-  const centCheck = assertCentExactResidual({
-    grossVarianceCents,
-    identifiedItemsTotalCents,
-    unidentifiedResidualCents,
-  });
-  const isCentExact = centCheck.ok;
+  // Pure derivation is always cent-exact by construction.
+  const isCentExact = true;
 
   const residualIsMaterial = isMaterialUnidentifiedResidual(
     unidentifiedResidualCents,
@@ -299,8 +280,6 @@ export function deriveReconBridge(input: ReconBridgeInput): ReconBridgeResult {
   let reconOutcome: ReconOutcome;
   if (forceOutcome) {
     reconOutcome = forceOutcome;
-  } else if (!isCentExact) {
-    reconOutcome = "failed";
   } else if (unresolvedIdentified > 0) {
     reconOutcome = "open_material";
   } else if (unidentifiedResidualCents === 0) {
@@ -309,7 +288,7 @@ export function deriveReconBridge(input: ReconBridgeInput): ReconBridgeResult {
     } else if (policy.allowTimingReconciled && hasTimingItems(items)) {
       reconOutcome = "reconciled_with_timing";
     } else {
-      // Fully explained by documented/reclass (or timing with policy off → still exact bridge).
+      // Fully explained by documented/reclass (or timing with policy off).
       reconOutcome =
         hasTimingItems(items) && !policy.allowTimingReconciled
           ? "open_review"
@@ -349,10 +328,14 @@ export function materialUnidentifiedBlocksReconcile(
   );
 }
 
-/** Default outcome policy used when emitters have not yet supplied one. */
+/**
+ * Fail-closed foundation default — missing policy must not grant clearance.
+ * Timing does not auto-reconcile; any non-zero residual is material.
+ * Callers that want permissive behavior must pass an explicit approved policy.
+ */
 export const DEFAULT_RECON_OUTCOME_POLICY: ReconOutcomePolicy = {
-  allowTimingReconciled: true,
-  immaterialResidualMaxDollar: 1,
-  immaterialResidualMaxPercent: 0.001,
+  allowTimingReconciled: false,
+  immaterialResidualMaxDollar: 0,
+  immaterialResidualMaxPercent: 0,
   immaterialComparison: "tighter_of_both",
 };

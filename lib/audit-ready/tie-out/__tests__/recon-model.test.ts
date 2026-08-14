@@ -9,14 +9,17 @@ import {
   materialUnidentifiedBlocksReconcile,
   sumIdentifiedItemsCents,
   type ReconcilingItem,
+  type ReconcilingItemClass,
   type ReconOutcome,
   type ReconOutcomePolicy,
 } from "@/lib/audit-ready/tie-out/recon-model";
 
-const basePolicy: ReconOutcomePolicy = {
-  ...DEFAULT_RECON_OUTCOME_POLICY,
+/** Explicit permissive policy for tests that exercise clearance paths. */
+const permissivePolicy: ReconOutcomePolicy = {
+  allowTimingReconciled: true,
   immaterialResidualMaxDollar: 1, // $1
   immaterialResidualMaxPercent: 0.05, // 5%
+  immaterialComparison: "tighter_of_both",
 };
 
 function item(
@@ -28,15 +31,26 @@ function item(
     clearancePolicy:
       partial.itemClass === "identified_timing"
         ? "may_reconcile_with_timing"
-        : partial.itemClass === "unidentified_residual"
-          ? "requires_resolution"
-          : "requires_resolution",
+        : "requires_resolution",
     status: "review",
     ...partial,
   };
 }
 
-describe("URM-1 — cent-exact residual formula", () => {
+describe("URM-1 — ReconcilingItemClass is identified-only", () => {
+  it("does not include unidentified_residual", () => {
+    const classes: ReconcilingItemClass[] = [
+      "identified_timing",
+      "identified_documented",
+      "identified_reclass",
+      "identified_error",
+    ];
+    expect(classes).toHaveLength(4);
+    expect(classes).not.toContain("unidentified_residual");
+  });
+});
+
+describe("URM-1 — cent-exact residual is purely derived", () => {
   it("Gross − Σ Identified = UnidentifiedResidual", () => {
     const gross = 12_500;
     const identified = sumIdentifiedItemsCents([
@@ -56,7 +70,7 @@ describe("URM-1 — cent-exact residual formula", () => {
     expect(computeUnidentifiedResidualCents(gross, identified)).toBe(-500);
   });
 
-  it("assertCentExactResidual rejects drift", () => {
+  it("assertCentExactResidual rejects drift when a projected residual is wrong", () => {
     const check = assertCentExactResidual({
       grossVarianceCents: 1000,
       identifiedItemsTotalCents: 700,
@@ -69,61 +83,104 @@ describe("URM-1 — cent-exact residual formula", () => {
     }
   });
 
-  it("deriveReconBridge is cent-exact when residual derived", () => {
+  it("deriveReconBridge always derives residual (single mathematical source)", () => {
     const bridge = deriveReconBridge({
       grossVarianceCents: 5000,
       items: [
         item({
           itemClass: "identified_documented",
-          amountCents: 5000,
+          amountCents: 4200,
           clearancePolicy: "immaterial_ok",
           status: "auto_cleared",
         }),
       ],
-      policy: basePolicy,
+      policy: permissivePolicy,
     });
     expect(bridge.isCentExact).toBe(true);
-    expect(bridge.unidentifiedResidualCents).toBe(0);
+    expect(bridge.unidentifiedResidualCents).toBe(800);
     expect(
       bridge.identifiedItemsTotalCents + bridge.unidentifiedResidualCents,
     ).toBe(bridge.grossVarianceCents);
   });
 
-  it("marks failed when explicit residual row breaks the invariant", () => {
+  it("large-value bridge stays cent-exact", () => {
     const bridge = deriveReconBridge({
-      grossVarianceCents: 1000,
+      grossVarianceCents: 12_345_678_901,
       items: [
         item({
           itemClass: "identified_documented",
-          amountCents: 400,
+          amountCents: 12_345_678_000,
           clearancePolicy: "immaterial_ok",
           status: "tie",
         }),
+      ],
+      policy: permissivePolicy,
+    });
+    expect(bridge.unidentifiedResidualCents).toBe(901);
+    expect(
+      bridge.identifiedItemsTotalCents + bridge.unidentifiedResidualCents,
+    ).toBe(bridge.grossVarianceCents);
+  });
+});
+
+describe("URM-1 — fail-closed default policy", () => {
+  it("DEFAULT_RECON_OUTCOME_POLICY grants no clearance authority", () => {
+    expect(DEFAULT_RECON_OUTCOME_POLICY.allowTimingReconciled).toBe(false);
+    expect(DEFAULT_RECON_OUTCOME_POLICY.immaterialResidualMaxDollar).toBe(0);
+    expect(DEFAULT_RECON_OUTCOME_POLICY.immaterialResidualMaxPercent).toBe(0);
+  });
+
+  it("timing item does NOT auto reconcile under default policy", () => {
+    const bridge = deriveReconBridge({
+      grossVarianceCents: 25_000,
+      items: [
         item({
-          itemClass: "unidentified_residual",
-          amountCents: 100, // formula expects 600
-          clearancePolicy: "requires_resolution",
-          status: "kickout",
+          itemClass: "identified_timing",
+          amountCents: 25_000,
+          clearancePolicy: "may_reconcile_with_timing",
+          status: "review",
         }),
       ],
-      policy: basePolicy,
+      policy: DEFAULT_RECON_OUTCOME_POLICY,
     });
-    expect(bridge.isCentExact).toBe(false);
-    expect(bridge.reconOutcome).toBe("failed");
+    expect(bridge.unidentifiedResidualCents).toBe(0);
+    expect(bridge.reconOutcome).toBe("open_review");
+    expect(bridge.legacyTieStatus).toBe("kickout");
+  });
+
+  it("1-cent unidentified residual does NOT auto clear under default policy", () => {
+    const bridge = deriveReconBridge({
+      grossVarianceCents: 10_001,
+      items: [
+        item({
+          itemClass: "identified_documented",
+          amountCents: 10_000,
+          clearancePolicy: "immaterial_ok",
+          status: "tie",
+        }),
+      ],
+      policy: DEFAULT_RECON_OUTCOME_POLICY,
+    });
+    expect(bridge.unidentifiedResidualCents).toBe(1);
+    expect(isMaterialUnidentifiedResidual(1, 10_001, DEFAULT_RECON_OUTCOME_POLICY)).toBe(
+      true,
+    );
+    expect(bridge.reconOutcome).toBe("open_material");
+    expect(bridge.reconOutcome.startsWith("reconciled_")).toBe(false);
     expect(bridge.legacyTieStatus).toBe("kickout");
   });
 });
 
 describe("URM-1 — material unidentified never silently clears", () => {
-  it("isMaterialUnidentifiedResidual is true above policy", () => {
+  it("isMaterialUnidentifiedResidual is true above explicit policy", () => {
     expect(
-      isMaterialUnidentifiedResidual(50_000, 100_000, basePolicy),
+      isMaterialUnidentifiedResidual(50_000, 100_000, permissivePolicy),
     ).toBe(true);
   });
 
   it("materialUnidentifiedBlocksReconcile is true for material residual", () => {
     expect(
-      materialUnidentifiedBlocksReconcile(50_000, 100_000, basePolicy),
+      materialUnidentifiedBlocksReconcile(50_000, 100_000, permissivePolicy),
     ).toBe(true);
   });
 
@@ -137,37 +194,17 @@ describe("URM-1 — material unidentified never silently clears", () => {
           clearancePolicy: "may_reconcile_with_timing",
           status: "review",
         }),
-        // residual = 90_000 → material
       ],
-      policy: basePolicy,
+      policy: permissivePolicy,
     });
     expect(bridge.unidentifiedResidualCents).toBe(90_000);
     expect(bridge.reconOutcome).toBe("open_material");
     expect(bridge.reconOutcome.startsWith("reconciled_")).toBe(false);
     expect(bridge.legacyTieStatus).toBe("kickout");
   });
-
-  it("immaterial residual may reconcile", () => {
-    // $0.50 residual on $100 gross — within $1 and 5%
-    const bridge = deriveReconBridge({
-      grossVarianceCents: 10_000,
-      items: [
-        item({
-          itemClass: "identified_documented",
-          amountCents: 9_950,
-          clearancePolicy: "immaterial_ok",
-          status: "tie",
-        }),
-      ],
-      policy: basePolicy,
-    });
-    expect(bridge.unidentifiedResidualCents).toBe(50);
-    expect(bridge.reconOutcome).toBe("reconciled_immaterial_residual");
-    expect(bridge.legacyTieStatus).toBe("ties");
-  });
 });
 
-describe("URM-1 — timing-item policy behavior", () => {
+describe("URM-1 — explicit policy may grant clearance", () => {
   it("allows reconciled_with_timing when residual is 0 and policy permits", () => {
     const bridge = deriveReconBridge({
       grossVarianceCents: 25_000,
@@ -179,14 +216,33 @@ describe("URM-1 — timing-item policy behavior", () => {
           status: "review",
         }),
       ],
-      policy: { ...basePolicy, allowTimingReconciled: true },
+      policy: { ...permissivePolicy, allowTimingReconciled: true },
     });
     expect(bridge.unidentifiedResidualCents).toBe(0);
     expect(bridge.reconOutcome).toBe("reconciled_with_timing");
     expect(bridge.legacyTieStatus).toBe("ties");
   });
 
-  it("does not silently reconcile timing when policy disallows", () => {
+  it("immaterial residual may reconcile under explicit policy", () => {
+    // $0.50 residual on $100 gross — within $1 and 5%
+    const bridge = deriveReconBridge({
+      grossVarianceCents: 10_000,
+      items: [
+        item({
+          itemClass: "identified_documented",
+          amountCents: 9_950,
+          clearancePolicy: "immaterial_ok",
+          status: "tie",
+        }),
+      ],
+      policy: permissivePolicy,
+    });
+    expect(bridge.unidentifiedResidualCents).toBe(50);
+    expect(bridge.reconOutcome).toBe("reconciled_immaterial_residual");
+    expect(bridge.legacyTieStatus).toBe("ties");
+  });
+
+  it("does not silently reconcile timing when explicit policy disallows", () => {
     const bridge = deriveReconBridge({
       grossVarianceCents: 25_000,
       items: [
@@ -197,7 +253,7 @@ describe("URM-1 — timing-item policy behavior", () => {
           status: "review",
         }),
       ],
-      policy: { ...basePolicy, allowTimingReconciled: false },
+      policy: { ...permissivePolicy, allowTimingReconciled: false },
     });
     expect(bridge.reconOutcome).toBe("open_review");
     expect(bridge.legacyTieStatus).toBe("kickout");
@@ -225,7 +281,7 @@ describe("URM-1 — legacy tieStatus compatibility", () => {
     const bridge = deriveReconBridge({
       grossVarianceCents: 0,
       items: [],
-      policy: basePolicy,
+      policy: DEFAULT_RECON_OUTCOME_POLICY,
     });
     expect(bridge.reconOutcome).toBe("reconciled_exact");
     expect(bridge.legacyTieStatus).toBe("ties");
@@ -242,7 +298,7 @@ describe("URM-1 — legacy tieStatus compatibility", () => {
           status: "kickout",
         }),
       ],
-      policy: basePolicy,
+      policy: permissivePolicy,
     });
     expect(bridge.reconOutcome).toBe("open_material");
     expect(bridge.unresolvedMaterialCount).toBeGreaterThan(0);
