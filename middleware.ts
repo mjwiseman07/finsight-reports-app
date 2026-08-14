@@ -93,6 +93,10 @@ const PUBLIC_MARKETING_API_PATHS = new Set([
   "/api/waitlist",
   "/api/checkout/create-session",
   "/api/onboarding/context",
+  // Proven production gap (#260): /dashboard on www/advisacor.com calls this for
+  // access.allowed. Without it, middleware returns { error: "Not found" } and the
+  // Scorecard never mounts. Exact path only — do not broaden to /api/*.
+  "/api/check-trial",
 ]);
 
 function normalizedHost(request: NextRequest) {
