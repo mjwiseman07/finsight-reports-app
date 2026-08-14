@@ -71,19 +71,25 @@ export interface PersistCanonicalConnectionGrantResult {
 
 type GrantRow = Pick<AccountingConnectionRecord, "id" | "status" | "metadata_json">;
 
+/** Partial unique index enforcing one connected grant per authority key. */
+export const ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX =
+  "accounting_connections_one_connected_grant_uidx";
+
 function asErrorRecord(error: unknown): { code?: string; message?: string } {
   if (!error || typeof error !== "object") return {};
   return error as { code?: string; message?: string };
 }
 
+/**
+ * True only for a unique violation on the connected-grant authority index.
+ * Bare 23505 is not enough — unrelated unique constraints must not trigger
+ * reconnect race recovery (credential redirect onto an existing grant).
+ */
 export function isAccountingConnectionsUniqueViolation(error: unknown): boolean {
   const { code, message } = asErrorRecord(error);
-  if (code === "23505") return true;
+  if (code !== "23505") return false;
   const text = String(message || "");
-  return (
-    /duplicate key|unique constraint|unique_violation/i.test(text) &&
-    /accounting_connections_one_connected_grant_uidx|accounting_connections/i.test(text)
-  );
+  return text.includes(ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX);
 }
 
 /**

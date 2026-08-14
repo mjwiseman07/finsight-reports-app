@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX,
   isAccountingConnectionsUniqueViolation,
   mergeConnectionGrantMetadata,
   persistCanonicalAccountingConnectionGrant,
@@ -53,11 +54,28 @@ function makeRow(overrides: Partial<StoreRow> = {}): StoreRow {
 
 function createStoreAdmin(
   initial: StoreRow[],
-  opts?: { failInsertOnce?: boolean; onInsertRace?: (rows: StoreRow[]) => void },
+  opts?: {
+    failInsertOnce?: boolean;
+    failInsertUnrelatedUniqueOnce?: boolean;
+    failUpdateOnce?: boolean;
+    onInsertRace?: (rows: StoreRow[]) => void;
+    onUpdateRace?: (rows: StoreRow[]) => void;
+  },
 ) {
   const rows = initial.map((r) => ({ ...r, metadata_json: { ...r.metadata_json } }));
   let failInsertOnce = Boolean(opts?.failInsertOnce);
+  let failInsertUnrelatedUniqueOnce = Boolean(opts?.failInsertUnrelatedUniqueOnce);
+  let failUpdateOnce = Boolean(opts?.failUpdateOnce);
   const writes: Array<{ op: string; id?: string; payload?: Record<string, unknown> }> = [];
+
+  const targetUniqueError = {
+    code: "23505",
+    message: `duplicate key value violates unique constraint "${ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX}"`,
+  };
+  const unrelatedUniqueError = {
+    code: "23505",
+    message: 'duplicate key value violates unique constraint "accounting_connections_pkey"',
+  };
 
   function matches(row: StoreRow, filters: Record<string, unknown>) {
     for (const [key, value] of Object.entries(filters)) {
@@ -122,6 +140,12 @@ function createStoreAdmin(
           const id = String(filters.id);
           const idx = rows.findIndex((r) => r.id === id);
           if (idx < 0) return { data: [], error: { message: "not found" } };
+          if (failUpdateOnce) {
+            failUpdateOnce = false;
+            writes.push({ op: "update_race", id });
+            opts?.onUpdateRace?.(rows);
+            return { data: null, error: { ...targetUniqueError } };
+          }
           const nextStatus = String(updatePayload.status || rows[idx].status);
           const nextTenant = (updatePayload.tenant_or_realm_id as string | null) ?? rows[idx].tenant_or_realm_id;
           if (
@@ -136,14 +160,7 @@ function createStoreAdmin(
                 r.status === "connected",
             )
           ) {
-            return {
-              data: null,
-              error: {
-                code: "23505",
-                message:
-                  'duplicate key value violates unique constraint "accounting_connections_one_connected_grant_uidx"',
-              },
-            };
+            return { data: null, error: { ...targetUniqueError } };
           }
           rows[idx] = {
             ...rows[idx],
@@ -162,14 +179,12 @@ function createStoreAdmin(
             failInsertOnce = false;
             writes.push({ op: "insert_race" });
             opts?.onInsertRace?.(rows);
-            return {
-              data: null,
-              error: {
-                code: "23505",
-                message:
-                  'duplicate key value violates unique constraint "accounting_connections_one_connected_grant_uidx"',
-              },
-            };
+            return { data: null, error: { ...targetUniqueError } };
+          }
+          if (failInsertUnrelatedUniqueOnce) {
+            failInsertUnrelatedUniqueOnce = false;
+            writes.push({ op: "insert_unrelated_unique" });
+            return { data: null, error: { ...unrelatedUniqueError } };
           }
           const tenant = insertPayload.tenant_or_realm_id as string | null;
           if (
@@ -183,14 +198,7 @@ function createStoreAdmin(
                 r.status === "connected",
             )
           ) {
-            return {
-              data: null,
-              error: {
-                code: "23505",
-                message:
-                  'duplicate key value violates unique constraint "accounting_connections_one_connected_grant_uidx"',
-              },
-            };
+            return { data: null, error: { ...targetUniqueError } };
           }
           const id = `new-${rows.length + 1}`;
           rows.push({
@@ -376,14 +384,88 @@ describe("persistCanonicalAccountingConnectionGrant", () => {
     expect(rows[0].metadata_json.active_normalized_sync_id).toBe(CANONICAL_SYNC);
   });
 
-  it("detects Postgres 23505 unique violations", () => {
+  it("recovers from revive race onto connected grant using target index", async () => {
+    const { admin, rows, writes } = createStoreAdmin(
+      [
+        makeRow({
+          id: DISCONNECTED,
+          status: "disconnected",
+          metadata_json: {
+            company_id: CANONICAL_COMPANY,
+            active_normalized_sync_id: CANONICAL_SYNC,
+            connected_at: "2026-08-01T00:00:00.000Z",
+          },
+        }),
+      ],
+      {
+        failUpdateOnce: true,
+        onUpdateRace: (store) => {
+          store.push(makeRow());
+        },
+      },
+    );
+
+    const result = await persistCanonicalAccountingConnectionGrant(baseArgs(admin));
+    expect(result.connectionId).toBe(CANONICAL);
+    expect(result.outcome).toBe("updated_connected");
+    expect(writes.some((w) => w.op === "update_race" && w.id === DISCONNECTED)).toBe(true);
+    expect(writes.some((w) => w.op === "update" && w.id === CANONICAL)).toBe(true);
+    expect(rows.find((r) => r.id === DISCONNECTED)?.status).toBe("disconnected");
+    expect(rows.find((r) => r.id === CANONICAL)?.access_token).toBe("new-access");
+    expect(rows.find((r) => r.id === CANONICAL)?.metadata_json.active_normalized_sync_id).toBe(CANONICAL_SYNC);
+  });
+
+  it("throws unrelated unique violation during insert without redirecting credentials", async () => {
+    const { admin, rows, writes } = createStoreAdmin([], {
+      failInsertUnrelatedUniqueOnce: true,
+    });
+
+    await expect(persistCanonicalAccountingConnectionGrant(baseArgs(admin))).rejects.toMatchObject({
+      code: "23505",
+      message: expect.stringContaining("accounting_connections_pkey"),
+    });
+    expect(writes.some((w) => w.op === "insert_unrelated_unique")).toBe(true);
+    expect(writes.some((w) => w.op === "update")).toBe(false);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("matches only 23505 on the connected-grant authority index", () => {
+    // 5/6 happy path: target index + 23505
     expect(
       isAccountingConnectionsUniqueViolation({
         code: "23505",
-        message: 'duplicate key value violates unique constraint "accounting_connections_one_connected_grant_uidx"',
+        message: `duplicate key value violates unique constraint "${ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX}"`,
       }),
     ).toBe(true);
-    expect(isAccountingConnectionsUniqueViolation({ code: "42501", message: "permission" })).toBe(false);
+
+    // 4: non-23505 + target index text -> false
+    expect(
+      isAccountingConnectionsUniqueViolation({
+        code: "42501",
+        message: `duplicate key value violates unique constraint "${ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX}"`,
+      }),
+    ).toBe(false);
+
+    // 7: unrelated 23505 -> false
+    expect(
+      isAccountingConnectionsUniqueViolation({
+        code: "23505",
+        message: 'duplicate key value violates unique constraint "accounting_connections_pkey"',
+      }),
+    ).toBe(false);
+
+    expect(
+      isAccountingConnectionsUniqueViolation({
+        code: "23505",
+        message: "duplicate key value violates unique constraint",
+      }),
+    ).toBe(false);
+
+    expect(
+      isAccountingConnectionsUniqueViolation({
+        message: `duplicate key value violates unique constraint "${ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX}"`,
+      }),
+    ).toBe(false);
   });
 
   it("tenant-less path does not overwrite a tenant-scoped connected grant", async () => {
