@@ -3,6 +3,8 @@ import {
   ACCOUNTING_CONNECTION_SUPERSEDED_CODE,
   DEMO_CANONICAL_CONNECTION_ID,
   DEMO_SUPERSEDED_CONNECTION_ID,
+  PROVENANCE_CONNECTION_ID_FIELDS,
+  REPAIRABLE_CLIENT_CONNECTION_ID_FIELDS,
   SUPERSEDED_RECOVERY_OBSERVABILITY_KEY,
   applySupersededClientContextReplacement,
   buildSupersededRecoveryObservation,
@@ -15,6 +17,10 @@ import {
 
 const STALE = DEMO_SUPERSEDED_CONNECTION_ID;
 const LIVE = DEMO_CANONICAL_CONNECTION_ID;
+
+function deepClone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
 
 describe("client superseded connection recovery", () => {
   describe("exact 409 detection", () => {
@@ -143,7 +149,22 @@ describe("client superseded connection recovery", () => {
     });
   });
 
-  describe("URL + storage replacement", () => {
+  describe("URL + routing-context replacement", () => {
+    it("documents repairable vs provenance field contracts", () => {
+      expect([...REPAIRABLE_CLIENT_CONNECTION_ID_FIELDS]).toEqual([
+        "connectionId",
+        "reportDataContext.connectionId",
+      ]);
+      expect([...PROVENANCE_CONNECTION_ID_FIELDS]).toEqual([
+        "normalizedData.connectionId",
+        "reportDataContext.normalizedData.connectionId",
+        "authoritativePersistence.connectionId",
+        "persistedSyncRecord.connectionId",
+        "reportDataContext.authoritativePersistence.connectionId",
+        "reportDataContext.persistedSyncRecord.connectionId",
+      ]);
+    });
+
     it("replaces only connectionId query param and preserves others", () => {
       const href =
         `/dashboard?accountingConnected=true&provider=xero&connectionId=${STALE}&xeroOrganizationSelection=required&companyId=02edb6c6-a4f1-4bae-825d-2680136dad24#scorecard`;
@@ -162,7 +183,7 @@ describe("client superseded connection recovery", () => {
       expect(replaceStaleConnectionIdInUrl(href, STALE, LIVE)).toBe(href);
     });
 
-    it("replaces stale ids in client payload / reportDataContext only", () => {
+    it("repairs only routing/context connectionId fields", () => {
       const payload = {
         connectionId: STALE,
         sourceSystem: "xero",
@@ -171,22 +192,21 @@ describe("client superseded connection recovery", () => {
           connectionId: STALE,
           companyId: "02edb6c6-a4f1-4bae-825d-2680136dad24",
           normalizedData: { connectionId: STALE, sourceSystem: "xero" },
+          authoritativePersistence: { connectionId: STALE, ok: true },
+          persistedSyncRecord: { connectionId: STALE, syncId: "sync-old" },
         },
         normalizedData: { connectionId: STALE, sourceSystem: "xero" },
         authoritativePersistence: { connectionId: STALE, ok: true },
+        persistedSyncRecord: { connectionId: STALE, syncId: "sync-old" },
       };
       const next = replaceStaleConnectionIdInClientPayload(payload, STALE, LIVE);
       expect(next.connectionId).toBe(LIVE);
       expect(next.reportDataContext.connectionId).toBe(LIVE);
-      expect(next.reportDataContext.normalizedData.connectionId).toBe(LIVE);
-      expect(next.normalizedData.connectionId).toBe(LIVE);
-      expect(next.authoritativePersistence.connectionId).toBe(LIVE);
-      // Non-connectionId fields are not rewritten even if equal to the UUID.
       expect(next.unrelated).toBe(STALE);
       expect(next.reportDataContext.companyId).toBe("02edb6c6-a4f1-4bae-825d-2680136dad24");
     });
 
-    it("applySupersededClientContextReplacement updates URL + payload together", () => {
+    it("applySupersededClientContextReplacement updates URL + routing fields together", () => {
       const applied = applySupersededClientContextReplacement({
         href: `/dashboard?foo=1&connectionId=${STALE}`,
         payload: { connectionId: STALE, reportDataContext: { connectionId: STALE } },
@@ -198,6 +218,151 @@ describe("client superseded connection recovery", () => {
       expect((applied.payload as { reportDataContext: { connectionId: string } }).reportDataContext.connectionId).toBe(
         LIVE,
       );
+    });
+  });
+
+  describe("provenance integrity", () => {
+    it("never rewrites normalizedData or authoritativePersistence connectionIds", () => {
+      const original = {
+        connectionId: STALE,
+        reportDataContext: {
+          connectionId: STALE,
+          normalizedData: { connectionId: STALE, syncId: "old-sync", sourceSystem: "xero" },
+          authoritativePersistence: {
+            connectionId: STALE,
+            ok: true,
+            syncId: "old-sync",
+            reason: "durable_success_sync",
+          },
+          persistedSyncRecord: { connectionId: STALE, syncId: "old-sync" },
+        },
+        normalizedData: { connectionId: STALE, syncId: "old-sync", sourceSystem: "xero" },
+        authoritativePersistence: {
+          connectionId: STALE,
+          ok: true,
+          syncId: "old-sync",
+          reason: "durable_success_sync",
+        },
+        persistedSyncRecord: { connectionId: STALE, syncId: "old-sync" },
+      };
+      const before = deepClone(original);
+      const next = replaceStaleConnectionIdInClientPayload(original, STALE, LIVE);
+
+      expect(next.normalizedData).toEqual(before.normalizedData);
+      expect(next.authoritativePersistence).toEqual(before.authoritativePersistence);
+      expect(next.persistedSyncRecord).toEqual(before.persistedSyncRecord);
+      expect(next.reportDataContext.normalizedData).toEqual(before.reportDataContext.normalizedData);
+      expect(next.reportDataContext.authoritativePersistence).toEqual(
+        before.reportDataContext.authoritativePersistence,
+      );
+      expect(next.reportDataContext.persistedSyncRecord).toEqual(before.reportDataContext.persistedSyncRecord);
+
+      // Routing fields repaired; evidence still attributes origin to ce526.
+      expect(next.connectionId).toBe(LIVE);
+      expect(next.reportDataContext.connectionId).toBe(LIVE);
+      expect(next.normalizedData.connectionId).toBe(STALE);
+      expect(next.authoritativePersistence.connectionId).toBe(STALE);
+    });
+
+    it("pre-retry must not persist routing repair as successor-origin evidence", () => {
+      // Contract for dashboard callers: URL/routing may change pre-retry, but
+      // localStorage evidence stays untouched until a successful successor fetch.
+      const storedEvidence = {
+        connectionId: STALE,
+        normalizedData: { connectionId: STALE, sourceSystem: "xero" },
+        authoritativePersistence: { connectionId: STALE, ok: true },
+        reportDataContext: {
+          connectionId: STALE,
+          normalizedData: { connectionId: STALE },
+        },
+      };
+      const storage = new Map<string, string>([
+        ["advisacor_active_report_payload", JSON.stringify(storedEvidence)],
+      ]);
+
+      const applied = applySupersededClientContextReplacement({
+        href: `/dashboard?connectionId=${STALE}`,
+        payload: deepClone(storedEvidence),
+        staleConnectionId: STALE,
+        successorConnectionId: LIVE,
+      });
+
+      // Helper may return a routing-repaired in-memory view...
+      expect(applied.href).toContain(`connectionId=${LIVE}`);
+      expect(applied.payload?.connectionId).toBe(LIVE);
+      // ...but provenance nested ids remain ce526, and storage is unchanged unless
+      // the caller explicitly persists (dashboard must not persist pre-retry).
+      expect((applied.payload as { normalizedData: { connectionId: string } }).normalizedData.connectionId).toBe(
+        STALE,
+      );
+      expect(JSON.parse(storage.get("advisacor_active_report_payload") || "{}")).toEqual(storedEvidence);
+    });
+
+    it("post-success replaces storage with fresh successor payload (not patched old evidence)", () => {
+      const storage = new Map<string, string>([
+        [
+          "advisacor_active_report_payload",
+          JSON.stringify({
+            connectionId: STALE,
+            normalizedData: { connectionId: STALE, syncId: "old" },
+            authoritativePersistence: { connectionId: STALE, syncId: "old" },
+          }),
+        ],
+      ]);
+
+      const freshFromSuccessor = {
+        connectionId: LIVE,
+        sourceSystem: "xero",
+        syncId: "f2643856-b112-4053-99ef-77048580942e",
+        normalizedData: {
+          connectionId: LIVE,
+          sourceSystem: "xero",
+          syncId: "f2643856-b112-4053-99ef-77048580942e",
+        },
+        authoritativePersistence: {
+          connectionId: LIVE,
+          ok: true,
+          syncId: "f2643856-b112-4053-99ef-77048580942e",
+          reason: "durable_success_sync",
+        },
+        reportDataContext: {
+          connectionId: LIVE,
+          normalizedData: {
+            connectionId: LIVE,
+            syncId: "f2643856-b112-4053-99ef-77048580942e",
+          },
+        },
+      };
+
+      // Simulated dashboard post-success persist of server response.
+      storage.set("advisacor_active_report_payload", JSON.stringify(freshFromSuccessor));
+      const persisted = JSON.parse(storage.get("advisacor_active_report_payload") || "{}");
+      expect(persisted.connectionId).toBe(LIVE);
+      expect(persisted.normalizedData.connectionId).toBe(LIVE);
+      expect(persisted.authoritativePersistence.connectionId).toBe(LIVE);
+      expect(persisted.normalizedData.syncId).toBe("f2643856-b112-4053-99ef-77048580942e");
+    });
+
+    it("retry-failure leaves prior evidence attributed to the superseded connection", () => {
+      const priorEvidence = {
+        connectionId: STALE,
+        normalizedData: { connectionId: STALE, syncId: "old-from-ce526" },
+        authoritativePersistence: { connectionId: STALE, syncId: "old-from-ce526" },
+      };
+      const storage = new Map<string, string>([
+        ["advisacor_active_report_payload", JSON.stringify(priorEvidence)],
+      ]);
+
+      // Pre-retry routing repair happens; caller must not write patched evidence.
+      applySupersededClientContextReplacement({
+        href: `/dashboard?connectionId=${STALE}`,
+        payload: deepClone(priorEvidence),
+        staleConnectionId: STALE,
+        successorConnectionId: LIVE,
+      });
+
+      // Retry fails → storage still truthfully attributes evidence to ce526.
+      expect(JSON.parse(storage.get("advisacor_active_report_payload") || "{}")).toEqual(priorEvidence);
     });
   });
 
@@ -235,6 +400,8 @@ describe("client superseded connection recovery", () => {
       expect(events).toHaveLength(2);
       expect(events[0].eventType).toBe("accounting_connection_superseded_recovered");
       expect(events[0].metadata.successorConnectionId).toBe(LIVE);
+      expect(events[0].metadata).not.toHaveProperty("token");
+      expect(events[0].metadata).not.toHaveProperty("authorization");
       expect(events[1].eventType).toBe("accounting_connection_superseded_retry_skipped");
     });
 

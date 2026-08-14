@@ -2,9 +2,13 @@
  * Client-side recovery when an explicit connectionId points at a superseded grant.
  *
  * Server remains fail-closed (409 ACCOUNTING_CONNECTION_SUPERSEDED). When the
- * response includes a validated successorConnectionId, the client may replace
- * only that stale connection context and retry once — never invent a successor,
- * never silently fall back without the server-exposed id, never loop.
+ * response includes a validated successorConnectionId, the client may repair
+ * navigation/routing identity and retry once — then fetch fresh authoritative
+ * data from the successor.
+ *
+ * Never rewrite historical evidence (normalizedData / authoritativePersistence /
+ * persistedSyncRecord) so an old payload appears to have originated from the
+ * successor connection.
  */
 
 export const ACCOUNTING_CONNECTION_SUPERSEDED_CODE = "ACCOUNTING_CONNECTION_SUPERSEDED" as const;
@@ -14,6 +18,22 @@ export const DEMO_SUPERSEDED_CONNECTION_ID = "ce526f9b-5d2c-46fc-b6f3-46617ab375
 export const DEMO_CANONICAL_CONNECTION_ID = "b718823a-0eb8-437d-beba-05c41f6482f9";
 
 export const SUPERSEDED_RECOVERY_OBSERVABILITY_KEY = "advisacor_accounting_lifecycle_events";
+
+/** Client routing/context identity fields that may be repaired pre-retry. */
+export const REPAIRABLE_CLIENT_CONNECTION_ID_FIELDS = [
+  "connectionId",
+  "reportDataContext.connectionId",
+] as const;
+
+/** Provenance / evidence fields that must never be rewritten by client recovery. */
+export const PROVENANCE_CONNECTION_ID_FIELDS = [
+  "normalizedData.connectionId",
+  "reportDataContext.normalizedData.connectionId",
+  "authoritativePersistence.connectionId",
+  "persistedSyncRecord.connectionId",
+  "reportDataContext.authoritativePersistence.connectionId",
+  "reportDataContext.persistedSyncRecord.connectionId",
+] as const;
 
 export type SupersededRecoveryDecision =
   | {
@@ -125,21 +145,20 @@ export function replaceStaleConnectionIdInUrl(
 
 type PayloadLike = Record<string, unknown> | null | undefined;
 
-function replaceConnectionIdField(
-  target: Record<string, unknown>,
-  stale: string,
-  successor: string,
-): Record<string, unknown> {
-  const next = { ...target };
-  if (String(next.connectionId || "") === stale) {
-    next.connectionId = successor;
-  }
-  return next;
-}
-
 /**
- * Replace stale connectionId only in known client context locations.
- * Does not rewrite unrelated UUID strings.
+ * Repair only client routing/context identity:
+ *   - payload.connectionId
+ *   - reportDataContext.connectionId
+ *
+ * Does NOT rewrite provenance evidence:
+ *   - normalizedData.connectionId
+ *   - reportDataContext.normalizedData.connectionId
+ *   - authoritativePersistence.connectionId
+ *   - persistedSyncRecord.connectionId
+ *
+ * Callers must not persist a pre-retry routing repair as if it were a fresh
+ * authoritative payload from the successor. Persist only after a successful
+ * fetch of successor-backed data.
  */
 export function replaceStaleConnectionIdInClientPayload<T extends PayloadLike>(
   payload: T,
@@ -151,35 +170,20 @@ export function replaceStaleConnectionIdInClientPayload<T extends PayloadLike>(
   const successor = String(successorConnectionId || "").trim();
   if (!stale || !successor || stale === successor) return payload;
 
-  let next = replaceConnectionIdField({ ...payload }, stale, successor);
+  const next: Record<string, unknown> = { ...payload };
+  if (String(next.connectionId || "") === stale) {
+    next.connectionId = successor;
+  }
 
   const reportDataContext = asRecord(next.reportDataContext);
   if (reportDataContext) {
-    let contextNext = replaceConnectionIdField({ ...reportDataContext }, stale, successor);
-    const nestedNormalized = asRecord(contextNext.normalizedData);
-    if (nestedNormalized) {
-      contextNext = {
-        ...contextNext,
-        normalizedData: replaceConnectionIdField({ ...nestedNormalized }, stale, successor),
-      };
+    const contextNext = { ...reportDataContext };
+    if (String(contextNext.connectionId || "") === stale) {
+      contextNext.connectionId = successor;
     }
-    next = { ...next, reportDataContext: contextNext };
-  }
-
-  const normalizedData = asRecord(next.normalizedData);
-  if (normalizedData) {
-    next = {
-      ...next,
-      normalizedData: replaceConnectionIdField({ ...normalizedData }, stale, successor),
-    };
-  }
-
-  const authoritativePersistence = asRecord(next.authoritativePersistence);
-  if (authoritativePersistence) {
-    next = {
-      ...next,
-      authoritativePersistence: replaceConnectionIdField({ ...authoritativePersistence }, stale, successor),
-    };
+    // Intentionally leave nested normalizedData / authoritativePersistence /
+    // persistedSyncRecord untouched — those are historical evidence.
+    next.reportDataContext = contextNext;
   }
 
   return next as T;
@@ -223,8 +227,9 @@ export function recordSupersededRecoveryObservation(
 }
 
 /**
- * Apply URL + in-memory/storage payload replacement for a recoverable 409.
- * Caller owns the single retry.
+ * Apply URL + routing-context identity repair for a recoverable 409.
+ * Does not mutate provenance evidence. Caller owns the single retry and must
+ * persist storage only after a successful successor fetch.
  */
 export function applySupersededClientContextReplacement(args: {
   href: string;

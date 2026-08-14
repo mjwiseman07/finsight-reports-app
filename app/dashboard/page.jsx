@@ -22,10 +22,10 @@ import {
   shouldDiscardStalePayloadAfterFailedRefresh,
 } from "../../lib/integrations/accounting/payload-schema";
 import {
-  applySupersededClientContextReplacement,
   buildSupersededRecoveryObservation,
   decideSupersededClientRecovery,
   recordSupersededRecoveryObservation,
+  replaceStaleConnectionIdInUrl,
 } from "../../lib/integrations/accounting/client-superseded-connection-recovery";
 import { focusRing, headingFont, primaryCtaClass } from "../../components/site-ui";
 import {
@@ -369,8 +369,9 @@ function trackRecommendationEvent(eventType, metadata = {}) {
 }
 
 /**
- * POST an accounting API once; on recoverable 409 SUPERSEDED, replace only the
- * stale client connection context and retry exactly once with successorConnectionId.
+ * POST an accounting API once; on recoverable 409 SUPERSEDED, repair only
+ * navigation/routing connection identity and retry exactly once with
+ * successorConnectionId. Do not rewrite or persist historical evidence pre-retry.
  */
 async function postAccountingWithSupersededRecovery({
   path,
@@ -378,7 +379,6 @@ async function postAccountingWithSupersededRecovery({
   body,
   connectionId,
   getClientHref,
-  getClientPayload,
   onRecoveredContext,
 }) {
   const postOnce = (nextConnectionId) =>
@@ -431,20 +431,14 @@ async function postAccountingWithSupersededRecovery({
       : typeof window !== "undefined"
         ? `${window.location.pathname}${window.location.search}${window.location.hash}`
         : "";
-  const payload = typeof getClientPayload === "function" ? getClientPayload() : null;
-  const applied = applySupersededClientContextReplacement({
-    href,
-    payload,
-    staleConnectionId,
-    successorConnectionId,
-  });
+  // Routing-only repair: URL + request connectionId. Never rewrite stored evidence.
+  const appliedHref = replaceStaleConnectionIdInUrl(href, staleConnectionId, successorConnectionId);
 
   if (typeof onRecoveredContext === "function") {
     onRecoveredContext({
       staleConnectionId,
       successorConnectionId,
-      href: applied.href,
-      payload: applied.payload,
+      href: appliedHref,
     });
   }
 
@@ -1129,14 +1123,13 @@ export default function DashboardPage() {
       }
     };
 
-    const applyRecoveredConnectionContext = ({ successorConnectionId, href, payload }) => {
+    const applyRecoveredConnectionContext = ({ successorConnectionId, href }) => {
+      // Pre-retry: repair navigation + in-flight request identity only.
+      // Do not rewrite or persist stored evidence as if it came from the successor.
       capturedConnectionId = successorConnectionId;
       lifecycle.connectionId = successorConnectionId;
       if (typeof window !== "undefined" && href) {
         window.history.replaceState({}, "", href);
-      }
-      if (payload && typeof payload === "object") {
-        persistPayload(payload);
       }
     };
 
@@ -1196,8 +1189,6 @@ export default function DashboardPage() {
           },
           connectionId: capturedConnectionId,
           getClientHref: () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
-          getClientPayload: () =>
-            activeReportPayload || safeReadJsonStorage("advisacor_active_report_payload") || storedPayload,
           onRecoveredContext: applyRecoveredConnectionContext,
         });
         capturedConnectionId = contextConnectionId;
@@ -1257,8 +1248,6 @@ export default function DashboardPage() {
             },
             connectionId: capturedConnectionId,
             getClientHref: () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
-            getClientPayload: () =>
-              activeReportPayload || safeReadJsonStorage("advisacor_active_report_payload") || storedPayload,
             onRecoveredContext: applyRecoveredConnectionContext,
           });
           capturedConnectionId = syncConnectionId;
@@ -1872,17 +1861,9 @@ export default function DashboardPage() {
       },
       connectionId: staleConnectionId,
       getClientHref: () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
-      getClientPayload: () => activeReportPayload || safeReadJsonStorage("advisacor_active_report_payload"),
-      onRecoveredContext: ({ href, payload }) => {
+      onRecoveredContext: ({ href }) => {
+        // Pre-retry routing repair only — fresh successor payload is persisted after success.
         if (href) window.history.replaceState({}, "", href);
-        if (payload && typeof payload === "object") {
-          setActiveReportPayload(payload);
-          try {
-            window.localStorage.setItem("advisacor_active_report_payload", JSON.stringify(payload));
-          } catch {
-            // ignore storage failures
-          }
-        }
       },
     });
     const result = response.ok ? await response.json().catch(() => ({})) : errorBody || {};
