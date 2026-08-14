@@ -1,8 +1,12 @@
 /**
  * Phase DASH_1C Block A / A2 — GET /api/dashboard/accuracy-contract
  *
- * Query: kpi_code, period, companyId (optional), pilot_slot_id (optional).
+ * Query: kpi_code, period, syncId (required), companyId (optional),
+ * connectionId (optional), pilot_slot_id (optional).
  * Emits a hash-chained provenance receipt on every successful response.
+ *
+ * PR G: syncId is required and must match Scorecard / CanonicalFinancialContext.
+ * This route does not independently select a "latest" or "last 20" sync.
  *
  * Company identity (A2): three-tier + identity fallback — never data-driven.
  * See resolveCompanyIdWithRoutingTier below (Rule 1).
@@ -50,12 +54,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       url.searchParams.get("companyId") || url.searchParams.get("company_id") || "",
     ).trim();
     const pilotSlotIdParam = String(url.searchParams.get("pilot_slot_id") || "").trim();
+    const syncId = String(
+      url.searchParams.get("syncId") || url.searchParams.get("accounting_syncs_id") || "",
+    ).trim();
+    const connectionId = String(
+      url.searchParams.get("connectionId") || url.searchParams.get("connection_id") || "",
+    ).trim();
 
     if (!kpiCode || !SUPPORTED_KPIS.includes(kpiCode as KpiCode)) {
       return jsonError(400, "kpi_unsupported", { kpi_code: kpiCode }, requestId);
     }
     if (!period || !/^\d{4}-\d{2}(\.\.\d{4}-\d{2})?$/.test(period)) {
       return jsonError(400, "invalid_period", { period }, requestId);
+    }
+    if (!syncId) {
+      return jsonError(400, "sync_id_required", {}, requestId);
     }
 
     const ctx = await requireFirmAuth(request);
@@ -79,17 +92,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return jsonError(403, "entitlement_denied", { reason: gate.reason }, requestId);
     }
 
-    const { data: latestSync } = await admin
-      .from("accounting_syncs")
-      .select("id")
-      .eq("company_id", companyId)
-      .order("last_synced_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!latestSync?.id) {
-      return jsonError(404, "no_sync_for_company", {}, requestId);
-    }
-    const accountingSyncsId = latestSync.id as string;
+    // PR G: pin to caller-supplied syncId (Scorecard / CanonicalFinancialContext).
+    // Do not query "latest sync" here — that reintroduced parallel authority.
+    const accountingSyncsId = syncId;
 
     const cached = await readCachedContract(admin, {
       companyId,
@@ -113,6 +118,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const composed = await composeAccuracyContract({
         admin,
         companyId,
+        syncId: accountingSyncsId,
+        connectionId: connectionId || null,
         industryType,
         kpiCode: kpiCode as KpiCode,
         period,
@@ -159,6 +166,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         request_id: requestId,
         duration_ms: durationMs,
         contract,
+        accounting_syncs_id: accountingSyncsId,
       },
       { headers: { "x-advisacor-request-id": requestId } },
     );

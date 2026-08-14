@@ -2,9 +2,18 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { factorizeKpi } from './kpi-factorization';
 import type { AccuracyContract, ChainReceipt, KpiCode } from './types';
 
+/**
+ * PR G — Accuracy Contract compose is sync-pinned.
+ * Callers MUST supply the Scorecard / CanonicalFinancialContext syncId.
+ * Independent last-N sync listing or first-candidate fallback selection is forbidden.
+ */
 export type ComposeAccuracyContractParams = {
   admin: SupabaseClient;
   companyId: string;
+  /** Required: authoritative accounting_syncs.id from Scorecard / active context. */
+  syncId: string;
+  /** Optional: fail closed if sync.connection_id does not match. */
+  connectionId?: string | null;
   industryType: string;
   kpiCode: KpiCode;
   period: string;
@@ -18,29 +27,52 @@ export async function composeAccuracyContract(
   syncCompletedEventId: string | null;
 }> {
   const { admin, companyId, industryType, kpiCode, period } = params;
+  const syncId = String(params.syncId || "").trim();
+  const connectionId = String(params.connectionId || "").trim();
 
-  const { data: candidates, error: syncErr } = await admin
-    .from('accounting_syncs')
-    .select(
-      'id, normalized_payload, report_period_start, report_period_end, last_synced_at',
-    )
-    .eq('company_id', companyId)
-    .order('last_synced_at', { ascending: false })
-    .limit(20);
-
-  if (syncErr) throw new Error(`accounting_syncs_query_failed: ${syncErr.message}`);
-  if (!candidates || candidates.length === 0) {
-    throw Object.assign(new Error('no_sync_for_company'), { httpStatus: 404 });
+  if (!syncId) {
+    throw Object.assign(new Error('sync_id_required'), { httpStatus: 400 });
   }
 
-  const [yearStr, monthStr] = period.split('-');
-  const periodStart = new Date(`${yearStr}-${monthStr ?? '01'}-01T00:00:00Z`);
-  const anchored =
-    candidates.find(
-      (c) =>
-        new Date(c.report_period_start) <= periodStart &&
-        new Date(c.report_period_end) >= periodStart,
-    ) || candidates[0];
+  const { data: anchored, error: syncErr } = await admin
+    .from('accounting_syncs')
+    .select(
+      'id, company_id, connection_id, validation_status, normalized_payload, report_period_start, report_period_end, last_synced_at',
+    )
+    .eq('id', syncId)
+    .limit(1)
+    .maybeSingle();
+
+  if (syncErr) throw new Error(`accounting_syncs_query_failed: ${syncErr.message}`);
+  if (!anchored?.id) {
+    throw Object.assign(new Error('sync_not_found'), {
+      httpStatus: 404,
+      detail: { syncId, companyId },
+    });
+  }
+  if (String(anchored.company_id || '') !== companyId) {
+    throw Object.assign(new Error('sync_company_mismatch'), {
+      httpStatus: 409,
+      detail: { syncId, companyId, syncCompanyId: anchored.company_id },
+    });
+  }
+  if (connectionId && String(anchored.connection_id || '') !== connectionId) {
+    throw Object.assign(new Error('sync_connection_mismatch'), {
+      httpStatus: 409,
+      detail: { syncId, connectionId, syncConnectionId: anchored.connection_id },
+    });
+  }
+  if (String(anchored.validation_status || '') !== 'SUCCESS') {
+    throw Object.assign(new Error('sync_not_success'), {
+      httpStatus: 409,
+      detail: { syncId, validation_status: anchored.validation_status },
+    });
+  }
+
+  assertPeriodAlignedWithSync(period, {
+    start: String(anchored.report_period_start || ''),
+    end: String(anchored.report_period_end || ''),
+  });
 
   const payload =
     anchored.normalized_payload as Parameters<typeof factorizeKpi>[2];
@@ -48,7 +80,7 @@ export async function composeAccuracyContract(
 
   const receipt = await lookupChainReceipt(admin, {
     companyId,
-    accountingSyncsId: anchored.id as string,
+    accountingSyncsId: String(anchored.id),
   });
 
   const { data: latestRow } = await admin
@@ -102,9 +134,42 @@ export async function composeAccuracyContract(
 
   return {
     contract,
-    accountingSyncsId: anchored.id as string,
+    accountingSyncsId: String(anchored.id),
     syncCompletedEventId: receipt.event_id,
   };
+}
+
+/**
+ * Period is a display/cache key (YYYY-MM or range). It must align with the
+ * pinned sync's report_period window — never select a different sync.
+ */
+export function assertPeriodAlignedWithSync(
+  period: string,
+  reportPeriod: { start: string; end: string },
+): void {
+  const [yearStr, monthStr] = period.split('-');
+  const periodStart = new Date(`${yearStr}-${monthStr ?? '01'}-01T00:00:00Z`);
+  if (!Number.isFinite(periodStart.getTime())) {
+    throw Object.assign(new Error('invalid_period'), { httpStatus: 400, detail: { period } });
+  }
+  const start = reportPeriod.start ? new Date(reportPeriod.start) : null;
+  const end = reportPeriod.end ? new Date(reportPeriod.end) : null;
+  if (!start || !end || !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+    throw Object.assign(new Error('sync_period_missing'), {
+      httpStatus: 409,
+      detail: { period, reportPeriod },
+    });
+  }
+  // Allow YYYY-MM that falls inside the sync window, or matches the end month.
+  const endMonthKey = `${end.getUTCFullYear()}-${String(end.getUTCMonth() + 1).padStart(2, '0')}`;
+  const periodKey = `${yearStr}-${String(monthStr || '').padStart(2, '0')}`.slice(0, 7);
+  const insideWindow = periodStart >= start && periodStart <= end;
+  if (!insideWindow && periodKey !== endMonthKey) {
+    throw Object.assign(new Error('period_sync_mismatch'), {
+      httpStatus: 409,
+      detail: { period, reportPeriod, endMonthKey },
+    });
+  }
 }
 
 function kpiLabel(kpi: KpiCode, industryType: string): string {
