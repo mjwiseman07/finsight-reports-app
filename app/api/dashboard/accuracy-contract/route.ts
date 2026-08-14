@@ -1,8 +1,13 @@
 /**
  * Phase DASH_1C Block A / A2 — GET /api/dashboard/accuracy-contract
  *
- * Query: kpi_code, period, companyId (optional), pilot_slot_id (optional).
+ * Query: kpi_code, period (YYYY-MM only), syncId (required), companyId (optional),
+ * connectionId (optional), pilot_slot_id (optional).
  * Emits a hash-chained provenance receipt on every successful response.
+ *
+ * PR G: syncId is required and must match Scorecard / CanonicalFinancialContext.
+ * This route does not independently select a "latest" or "last 20" sync.
+ * Pinned sync authority is validated BEFORE cache read/return.
  *
  * Company identity (A2): three-tier + identity fallback — never data-driven.
  * See resolveCompanyIdWithRoutingTier below (Rule 1).
@@ -14,7 +19,7 @@ import { requireFirmAuth, authErrorResponse } from "@/lib/reviewer/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getActiveCompanyForUser } from "@/lib/companies/active-company";
 import { resolveCompanyIdForUser } from "@/lib/integrations/accounting/resolve-company-id";
-import { composeAccuracyContract } from "@/lib/dashboard/accuracy-contract/compose-contract";
+import { composeAccuracyContract, assertPinnedAccountingSyncAuthority, isValidAccuracyContractPeriod } from "@/lib/dashboard/accuracy-contract/compose-contract";
 import {
   readCachedContract,
   writeCachedContract,
@@ -50,12 +55,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       url.searchParams.get("companyId") || url.searchParams.get("company_id") || "",
     ).trim();
     const pilotSlotIdParam = String(url.searchParams.get("pilot_slot_id") || "").trim();
+    const syncId = String(
+      url.searchParams.get("syncId") || url.searchParams.get("accounting_syncs_id") || "",
+    ).trim();
+    const connectionId = String(
+      url.searchParams.get("connectionId") || url.searchParams.get("connection_id") || "",
+    ).trim();
 
     if (!kpiCode || !SUPPORTED_KPIS.includes(kpiCode as KpiCode)) {
       return jsonError(400, "kpi_unsupported", { kpi_code: kpiCode }, requestId);
     }
-    if (!period || !/^\d{4}-\d{2}(\.\.\d{4}-\d{2})?$/.test(period)) {
-      return jsonError(400, "invalid_period", { period }, requestId);
+    // PR G: monthly keys only. Range syntax deferred to historical-period work.
+    if (!isValidAccuracyContractPeriod(period)) {
+      return jsonError(400, "invalid_period", { period, expected: "YYYY-MM" }, requestId);
+    }
+    const periodKey = period as string;
+    if (!syncId) {
+      return jsonError(400, "sync_id_required", {}, requestId);
     }
 
     const ctx = await requireFirmAuth(request);
@@ -79,22 +95,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return jsonError(403, "entitlement_denied", { reason: gate.reason }, requestId);
     }
 
-    const { data: latestSync } = await admin
-      .from("accounting_syncs")
-      .select("id")
-      .eq("company_id", companyId)
-      .order("last_synced_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!latestSync?.id) {
-      return jsonError(404, "no_sync_for_company", {}, requestId);
-    }
-    const accountingSyncsId = latestSync.id as string;
+    // PR G: pin to caller-supplied syncId (Scorecard / CanonicalFinancialContext).
+    // Do not query "latest sync" here — that reintroduced parallel authority.
+    const accountingSyncsId = syncId;
+
+    // Authority before cache: company/connection/SUCCESS/schema/period.
+    // Cache cannot become an alternate trust path.
+    await assertPinnedAccountingSyncAuthority({
+      admin,
+      companyId,
+      syncId: accountingSyncsId,
+      connectionId: connectionId || null,
+      period: periodKey,
+    });
 
     const cached = await readCachedContract(admin, {
       companyId,
       kpiCode: kpiCode as KpiCode,
-      period,
+      period: periodKey,
       accountingSyncsId,
     });
 
@@ -113,9 +131,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const composed = await composeAccuracyContract({
         admin,
         companyId,
+        syncId: accountingSyncsId,
+        connectionId: connectionId || null,
         industryType,
         kpiCode: kpiCode as KpiCode,
-        period,
+        period: periodKey,
       });
       contract = composed.contract;
       await writeCachedContract(
@@ -123,7 +143,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         {
           companyId,
           kpiCode: kpiCode as KpiCode,
-          period,
+          period: periodKey,
           accountingSyncsId,
         },
         contract,
@@ -140,7 +160,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         userId: ctx.userId,
         payload: {
           kpi_code: kpiCode as string,
-          period,
+          period: periodKey,
           accounting_syncs_id: accountingSyncsId,
           receipt_chain_seq: contract.chain_receipt.chain_seq,
           receipt_row_hash: contract.chain_receipt.row_hash,
@@ -159,6 +179,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         request_id: requestId,
         duration_ms: durationMs,
         contract,
+        accounting_syncs_id: accountingSyncsId,
       },
       { headers: { "x-advisacor-request-id": requestId } },
     );

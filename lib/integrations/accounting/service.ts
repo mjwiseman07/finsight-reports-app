@@ -63,6 +63,16 @@ export {
   PRESERVED_CONNECTION_METADATA_KEYS,
 } from "./persist-canonical-connection-grant";
 
+export {
+  buildAccuracyContractQuery,
+  buildCanonicalFinancialContext,
+  deriveAccuracyContractPeriod,
+  resolveActiveAuthoritativeSyncId,
+  type AccountingAuthorityIdentity,
+  type CanonicalFinancialContext,
+  type TruthClass,
+} from "./canonical-financial-context";
+
 const STATE_COOKIE = "accounting_oauth_state";
 const TOKEN_COOKIE = "accounting_oauth_token";
 const RETURN_COOKIE = "accounting_oauth_return_to";

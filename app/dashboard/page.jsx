@@ -16,6 +16,11 @@ import { buildActiveReportSummary } from "../../lib/integrations/accounting/acti
 import { toScorecardArAgingView } from "../../lib/integrations/accounting/ar-aging";
 import { toScorecardCashFlowTrailing } from "../../lib/integrations/accounting/cash-flow";
 import {
+  buildAccuracyContractQuery,
+  buildCanonicalFinancialContext,
+  resolveActiveAuthoritativeSyncId,
+} from "../../lib/integrations/accounting/canonical-financial-context";
+import {
   canPromoteClientPayloadAsAuthoritative,
   canUseFetchReportsFallbackAsSchemaPromotion,
   resolveXeroDashboardHydrationPlan,
@@ -833,6 +838,36 @@ export default function DashboardPage() {
     activeReportPayload?.normalizedData?.canonicalCashFlowSchedule ||
     null;
   const cashFlowTrailing12M = toScorecardCashFlowTrailing(canonicalCashFlowSchedule);
+  const canonicalFinancialContext = buildCanonicalFinancialContext({
+    activeContext: {
+      companyId: dashboardCompanyId || activeReportContext?.companyId || null,
+      connectionId: activeReportContext?.connectionId || null,
+      sourceSystem: activeSourceSystem || null,
+      tenantId: activeReportContext?.tenantId || null,
+      tenantName: activeReportContext?.tenantName || null,
+      syncId: activeReportContext?.syncId || activeReportPayload?.syncId || null,
+      latestSuccessfulSyncId: activeReportPayload?.latestSuccessfulSyncId || null,
+      schemaVersion: activeReportPayload?.schemaVersion || activeReportContext?.normalizedData?.schemaVersion || null,
+      reportPeriod: activeReportContext?.reportPeriod || null,
+      normalizedData: activeReportContext?.normalizedData || activeReportPayload?.normalizedData || null,
+      reportDataContext:
+        activeReportPayload?.reportDataContext ||
+        (activeReportContext?.normalizedData && activeReportContext?.connectionId && activeReportContext?.syncId
+          ? activeReportContext
+          : null),
+      authoritativePersistence: activeReportPayload?.authoritativePersistence || null,
+    },
+    industryType: onboardingIndustryType,
+    companyNameFallback: onboardingCompanyName,
+  });
+  const pinnedScorecardSyncId =
+    canonicalFinancialContext?.identity.syncId ||
+    resolveActiveAuthoritativeSyncId({
+      syncId: activeReportContext?.syncId || activeReportPayload?.syncId || null,
+      latestSuccessfulSyncId: activeReportPayload?.latestSuccessfulSyncId || null,
+      reportDataContext: activeReportPayload?.reportDataContext || null,
+      authoritativePersistence: activeReportPayload?.authoritativePersistence || null,
+    });
   const activeReportPreflight = activeReportContext?.normalizedData
     ? validateReportPreflight(activeReportContext, { requiresLiveData: true })
     : null;
@@ -2399,10 +2434,26 @@ export default function DashboardPage() {
                   submitExecutiveQuestion(question);
                 }}
                 onOpenProvenance={(kpiCode) => {
-                  // DASH_1C Block B: open Accuracy Contract drawer.
-                  if (typeof window !== "undefined") {
-                    window.location.hash = `#accuracy-contract-${kpiCode}`;
+                  // DASH_1C Block B + PR G: pin Accuracy Contract to Scorecard syncId.
+                  if (typeof window === "undefined") return;
+                  const pinned = canonicalFinancialContext?.provenance.accuracyContractParams;
+                  const syncId = pinned?.syncId || pinnedScorecardSyncId || "";
+                  const companyId = pinned?.companyId || dashboardCompanyId || "";
+                  const period = pinned?.period || "";
+                  const connectionId = pinned?.connectionId || activeReportContext?.connectionId || "";
+                  if (syncId && companyId && period) {
+                    const qs = buildAccuracyContractQuery({
+                      kpiCode,
+                      companyId,
+                      syncId,
+                      period,
+                      connectionId,
+                    });
+                    window.location.hash = `#accuracy-contract-${kpiCode}?${qs.toString()}`;
+                    return;
                   }
+                  // Fail closed for provenance navigation without a pinned sync.
+                  window.location.hash = `#accuracy-contract-${kpiCode}?error=sync_id_required`;
                 }}
               />
 
