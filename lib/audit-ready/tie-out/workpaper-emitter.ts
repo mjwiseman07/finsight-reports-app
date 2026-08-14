@@ -1,4 +1,5 @@
 import type { TieOutKind } from "@/lib/audit-ready/tie-out-kind-classifier";
+import type { ReconOutcome } from "@/lib/audit-ready/tie-out/recon-model";
 
 /**
  * The face of a recon — tie-out proof shown at the top of every workpaper.
@@ -21,7 +22,11 @@ export interface ReconFaceSpec {
   rightAmountCents: number | null;
   varianceCents: number | null;
   toleranceCents: number;
-  /** report_only faces always set "ties". */
+  /**
+   * Legacy badge. Prefer `reconOutcome` when present.
+   * report_only faces always set "ties".
+   * Compat: derived from reconOutcome via legacyTieStatusFromOutcome when URM fields set.
+   */
   tieStatus: "ties" | "kickout";
   /**
    * Sections of the face — each corresponds to one Backup tab in the XLSX.
@@ -41,6 +46,22 @@ export interface ReconFaceSpec {
   regeneratedFromRunId?: string | null;
   /** completed_at (or started_at) of the parent run, when regenerated. */
   regeneratedAt?: string | null;
+
+  // ── URM-1 additive fields (optional; emitters may omit until URM-4+) ──
+  /** Σ identified reconciling item amounts (cents). */
+  identifiedItemsTotalCents?: number;
+  /** Gross − identified; must never silently clear when material. */
+  unidentifiedResidualCents?: number;
+  reconcilingItemCount?: number;
+  unresolvedMaterialCount?: number;
+  /** Richer than tieStatus; new UI prefers this when set. */
+  reconOutcome?: ReconOutcome;
+  /** Policy snapshot flag used for this face (timing may still reconcile). */
+  allowsTimingReconciled?: boolean;
+  /** Patent custody pin when available (Accuracy Contract / sync authority). */
+  baselineSyncId?: string | null;
+  /** Provider family for evidence adapters (neutral face contract). */
+  providerFamily?: "quickbooks" | "xero" | "generic";
 }
 
 /**
