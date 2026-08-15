@@ -55,6 +55,24 @@ vi.mock("@/lib/supabase-admin.js", () => ({
   }),
 }));
 
+vi.mock("@/lib/audit-ready/tie-out/reconciling-items-persistence", () => ({
+  loadReconBridgeForRun: vi.fn(async () => ({
+    runId: "run-ap-1",
+    engagementId: "eng-1",
+    pbcRequestId: "pbc-1",
+    grossVarianceCents: 0,
+    identifiedItemsTotalCents: 0,
+    unidentifiedResidualCents: 0,
+    reconcilingItemCount: 0,
+    unresolvedMaterialCount: 0,
+    reconOutcome: "reconciled_exact",
+    allowsTimingReconciled: false,
+    baselineSyncId: null,
+    urmBridgePersistedAt: "2026-07-24T12:00:00Z",
+    items: [],
+  })),
+}));
+
 import { apEmitter, buildApPayload } from "../ap-emitter";
 
 beforeEach(() => {
@@ -75,16 +93,17 @@ beforeEach(() => {
       qbo_realm_id: "realm-1",
       qbo_connection_id: "",
       aging_detail: {
-        total_cents: 30000,
+        total_cents: 25000,
         vendors: [
           { vendor_ref: "v1", vendor_display_name: "Acme Supply", total_cents: 20000 },
           { vendor_ref: "v2", vendor_display_name: "Beta Parts", total_cents: 10000 },
+          { vendor_ref: "v3", vendor_display_name: "Credit Memo Co", total_cents: -5000 },
         ],
       },
       trial_balance: { lines: [] },
     },
-    subledger_total_cents: 30000,
-    gl_total_cents: 30000,
+    subledger_total_cents: 25000,
+    gl_total_cents: 25000,
     totals_variance_cents: 0,
     completed_at: "2026-07-24T12:00:00Z",
   };
@@ -93,8 +112,8 @@ beforeEach(() => {
       entity_kind: "totals",
       entity_qbo_id: "ap-ctrl",
       entity_display_name: "AP subledger vs GL",
-      subledger_amount_cents: 30000,
-      gl_amount_cents: 30000,
+      subledger_amount_cents: 25000,
+      gl_amount_cents: 25000,
       variance_cents: 0,
       variance_percent: 0,
       status: "tie",
@@ -111,6 +130,17 @@ beforeEach(() => {
       status: "auto_cleared",
       classification_reason: null,
     },
+    {
+      entity_kind: "vendor",
+      entity_qbo_id: "v3",
+      entity_display_name: "Credit Memo Co",
+      subledger_amount_cents: -5000,
+      gl_amount_cents: null,
+      variance_cents: 0,
+      variance_percent: null,
+      status: "review",
+      classification_reason: "vendor_debit_balance_review",
+    },
   ];
 });
 
@@ -121,19 +151,26 @@ describe("ap-emitter", () => {
     expect(payload.face.mode).toBe("two_sided");
     expect(payload.face.leftLabel).toContain("AP Subledger");
     expect(payload.face.rightLabel).toContain("GL AP Account");
-    expect(payload.face.leftAmountCents).toBe(30000);
-    expect(payload.face.rightAmountCents).toBe(30000);
+    expect(payload.face.leftAmountCents).toBe(25000);
+    expect(payload.face.rightAmountCents).toBe(25000);
     expect(payload.face.varianceCents).toBe(0);
+    expect(payload.face.reconOutcome).toBe("reconciled_exact");
+    expect(payload.face.unidentifiedResidualCents).toBe(0);
     expect(payload.backupTabs.length).toBeGreaterThan(0);
     expect(payload.backupTabs[0]!.tabName).toBe("Vendor Rollup");
-    expect(payload.backupTabs[0]!.rows.length).toBe(2);
+    expect(payload.backupTabs[0]!.rows.length).toBe(3);
+    expect(payload.backupTabs.some((t) => t.tabName === "Reconciling Items")).toBe(
+      true,
+    );
+    const debitRow = payload.backupTabs[0]!.rows.find((r) => r.vendor_ref === "v3");
+    expect(String(debitRow?.status)).toContain("debit balance");
     expect(payload.sourceData.apiResponseJson).toMatchObject({
       kind: "ap_aging",
       qbo_realm_id: "realm-1",
     });
   });
 
-  it("emitXlsx() produces workbook with Cover/Face/Vendor Rollup/Source", async () => {
+  it("emitXlsx() produces workbook with Cover/Face/Vendor Rollup/Reconciling Items/Source", async () => {
     const payload = await buildApPayload("run-ap-1");
     const buf = await apEmitter.emitXlsx(payload);
     expect(Buffer.isBuffer(buf)).toBe(true);
@@ -141,7 +178,13 @@ describe("ap-emitter", () => {
     const XLSX = await import("xlsx");
     const wb = XLSX.read(buf, { type: "buffer" });
     expect(wb.SheetNames).toEqual(
-      expect.arrayContaining(["Cover", "Recon Face", "Vendor Rollup", "Source Data"]),
+      expect.arrayContaining([
+        "Cover",
+        "Recon Face",
+        "Vendor Rollup",
+        "Reconciling Items",
+        "Source Data",
+      ]),
     );
   });
 

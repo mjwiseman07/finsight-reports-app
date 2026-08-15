@@ -10,6 +10,11 @@ import {
   sourceDataFromPayload,
 } from "./_shared/load-run";
 import { mapTotalsToTieStatus } from "./_shared/format";
+import {
+  applyUrmBridgeToFace,
+  buildReconcilingItemsBackupTab,
+} from "@/lib/audit-ready/tie-out/ar-ap-urm";
+import { loadReconBridgeForRun } from "@/lib/audit-ready/tie-out/reconciling-items-persistence";
 
 type AgingCustomer = {
   customer_ref: string | null;
@@ -74,8 +79,15 @@ export async function buildArPayload(
     },
   };
 
-  return {
-    face: {
+  let bridge = null;
+  try {
+    bridge = await loadReconBridgeForRun(runId);
+  } catch {
+    bridge = null;
+  }
+
+  const face = applyUrmBridgeToFace(
+    {
       mode: "two_sided",
       leftLabel: "AR Subledger",
       leftAmountCents,
@@ -90,6 +102,15 @@ export async function buildArPayload(
           amountCents: leftAmountCents,
           backupTabName: "Customer Rollup",
         },
+        ...(bridge?.reconOutcome
+          ? [
+              {
+                label: "Reconciling Items",
+                amountCents: bridge.identifiedItemsTotalCents ?? 0,
+                backupTabName: "Reconciling Items",
+              },
+            ]
+          : []),
       ],
       engagementName: ctx.engagementName,
       engagementId: ctx.engagementId,
@@ -100,7 +121,17 @@ export async function buildArPayload(
       regeneratedFromRunId: ctx.regeneratedFromRunId,
       regeneratedAt: ctx.regeneratedAt,
     },
-    backupTabs: [rollup],
+    bridge,
+  );
+
+  const backupTabs: BackupTabSpec[] = [rollup];
+  if (bridge?.reconOutcome) {
+    backupTabs.push(buildReconcilingItemsBackupTab(bridge));
+  }
+
+  return {
+    face,
+    backupTabs,
     sourceData: sourceDataFromPayload(raw),
   };
 }

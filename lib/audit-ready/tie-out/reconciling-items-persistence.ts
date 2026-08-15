@@ -2,7 +2,7 @@
  * URM-2 — Persist universal reconciliation outcomes.
  *
  * Does not change reconciliation math (uses URM-1 deriveReconBridge).
- * Does not migrate resolvers — callers opt in when ready (URM-4+).
+ * AR/AP resolvers opt in via ar-ap-urm helpers (URM-4). Other kinds remain deferred.
  *
  * Gross variance authority: audit_ready_tie_out_runs.totals_variance_cents.
  * Run identity authority: engagement_id / pbc_request_id always derived from the run

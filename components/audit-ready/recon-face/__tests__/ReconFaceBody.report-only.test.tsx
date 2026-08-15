@@ -65,4 +65,25 @@ describe("ReconFaceBody", () => {
     expect(screen.queryByText("Variance")).not.toBeInTheDocument();
     expect(screen.queryByText("KICKOUT")).not.toBeInTheDocument();
   });
+
+  it("two_sided with URM fields shows residual and reconOutcome", () => {
+    const face: ReconFaceSpec = {
+      ...base,
+      mode: "two_sided",
+      leftLabel: "AR Subledger",
+      leftAmountCents: 10000,
+      rightLabel: "GL AR Account",
+      rightAmountCents: 7000,
+      varianceCents: 3000,
+      tieStatus: "kickout",
+      identifiedItemsTotalCents: 0,
+      unidentifiedResidualCents: 3000,
+      reconOutcome: "open_material",
+    };
+    render(<ReconFaceBody face={face} />);
+    expect(screen.getByText("Identified items")).toBeInTheDocument();
+    expect(screen.getByText("Unidentified residual")).toBeInTheDocument();
+    expect(screen.getByText("open_material")).toBeInTheDocument();
+    expect(screen.getByText("KICKOUT")).toBeInTheDocument();
+  });
 });

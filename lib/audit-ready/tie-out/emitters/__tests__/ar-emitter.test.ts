@@ -55,6 +55,24 @@ vi.mock("@/lib/supabase-admin.js", () => ({
   }),
 }));
 
+vi.mock("@/lib/audit-ready/tie-out/reconciling-items-persistence", () => ({
+  loadReconBridgeForRun: vi.fn(async () => ({
+    runId: "run-ar-1",
+    engagementId: "eng-1",
+    pbcRequestId: "pbc-1",
+    grossVarianceCents: 0,
+    identifiedItemsTotalCents: 0,
+    unidentifiedResidualCents: 0,
+    reconcilingItemCount: 0,
+    unresolvedMaterialCount: 0,
+    reconOutcome: "reconciled_exact",
+    allowsTimingReconciled: false,
+    baselineSyncId: null,
+    urmBridgePersistedAt: "2026-07-24T12:00:00Z",
+    items: [],
+  })),
+}));
+
 import { arEmitter, buildArPayload } from "../ar-emitter";
 
 beforeEach(() => {
@@ -121,7 +139,13 @@ describe("ar-emitter", () => {
     expect(payload.face.mode).toBe("two_sided");
     expect(payload.face.leftLabel).toContain("AR Subledger");
     expect(payload.face.rightLabel).toContain("GL AR Account");
+    expect(payload.face.reconOutcome).toBe("reconciled_exact");
+    expect(payload.face.unidentifiedResidualCents).toBe(0);
+    expect(payload.face.identifiedItemsTotalCents).toBe(0);
     expect(payload.backupTabs[0]!.tabName).toBe("Customer Rollup");
+    expect(payload.backupTabs.some((t) => t.tabName === "Reconciling Items")).toBe(
+      true,
+    );
     const creditRow = payload.backupTabs[0]!.rows.find(
       (r) => r.customer_ref === "c2",
     );
@@ -129,7 +153,7 @@ describe("ar-emitter", () => {
     expect(payload.sourceData.apiResponseJson).toMatchObject({ kind: "ar_aging" });
   });
 
-  it("emitXlsx() produces workbook with Cover/Face/Customer Rollup/Source", async () => {
+  it("emitXlsx() produces workbook with Cover/Face/Customer Rollup/Reconciling Items/Source", async () => {
     const payload = await buildArPayload("run-ar-1");
     const buf = await arEmitter.emitXlsx(payload);
     expect(Buffer.isBuffer(buf)).toBe(true);
@@ -137,7 +161,13 @@ describe("ar-emitter", () => {
     const XLSX = await import("xlsx");
     const wb = XLSX.read(buf, { type: "buffer" });
     expect(wb.SheetNames).toEqual(
-      expect.arrayContaining(["Cover", "Recon Face", "Customer Rollup", "Source Data"]),
+      expect.arrayContaining([
+        "Cover",
+        "Recon Face",
+        "Customer Rollup",
+        "Reconciling Items",
+        "Source Data",
+      ]),
     );
   });
 
