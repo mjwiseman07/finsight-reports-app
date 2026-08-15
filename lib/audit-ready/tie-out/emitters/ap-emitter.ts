@@ -10,6 +10,12 @@ import {
   sourceDataFromPayload,
 } from "./_shared/load-run";
 import { mapTotalsToTieStatus } from "./_shared/format";
+import {
+  applyUrmBridgeToFace,
+  buildReconcilingItemsBackupTab,
+  countEvidenceByReconcilingItemIds,
+} from "@/lib/audit-ready/tie-out/ar-ap-urm";
+import { loadReconBridgeForRun } from "@/lib/audit-ready/tie-out/reconciling-items-persistence";
 
 type AgingVendor = {
   vendor_ref: string | null;
@@ -49,12 +55,18 @@ export async function buildApPayload(
     ],
     rows: vendors.map((v) => {
       const vv = byRef.get(v.vendor_ref ?? "");
+      const isDebit = Number(v.total_cents) < 0;
+      const status = vv
+        ? vv.status === "review" && isDebit
+          ? "review — debit balance"
+          : vv.status
+        : "not_applicable";
       return {
         vendor_ref: v.vendor_ref,
         vendor_name: v.vendor_display_name,
         subledger_total: Number(v.total_cents),
         variance_vs_gl: vv ? Number(vv.variance_cents) : 0,
-        status: vv?.status ?? "not_applicable",
+        status,
       };
     }),
     subtotalRow: {
@@ -66,8 +78,16 @@ export async function buildApPayload(
     },
   };
 
-  return {
-    face: {
+  // Fail closed: real DB/schema read errors must fail emit — never silently
+  // fall back to legacy TIES when URM persisted open_material.
+  // Pre-URM runs load successfully with reconOutcome = null.
+  const bridge = await loadReconBridgeForRun(runId);
+  const evidenceCounts = await countEvidenceByReconcilingItemIds(
+    bridge.items.map((item) => item.id),
+  );
+
+  const face = applyUrmBridgeToFace(
+    {
       mode: "two_sided",
       leftLabel: "AP Subledger",
       leftAmountCents,
@@ -82,6 +102,15 @@ export async function buildApPayload(
           amountCents: leftAmountCents,
           backupTabName: "Vendor Rollup",
         },
+        ...(bridge.reconOutcome
+          ? [
+              {
+                label: "Reconciling Items",
+                amountCents: bridge.identifiedItemsTotalCents ?? 0,
+                backupTabName: "Reconciling Items",
+              },
+            ]
+          : []),
       ],
       engagementName: ctx.engagementName,
       engagementId: ctx.engagementId,
@@ -92,7 +121,17 @@ export async function buildApPayload(
       regeneratedFromRunId: ctx.regeneratedFromRunId,
       regeneratedAt: ctx.regeneratedAt,
     },
-    backupTabs: [rollup],
+    bridge,
+  );
+
+  const backupTabs: BackupTabSpec[] = [rollup];
+  if (bridge.reconOutcome) {
+    backupTabs.push(buildReconcilingItemsBackupTab(bridge, evidenceCounts));
+  }
+
+  return {
+    face,
+    backupTabs,
     sourceData: sourceDataFromPayload(raw),
   };
 }

@@ -7,6 +7,7 @@ import {
 } from "./qbo-reports";
 import { arEmitter } from "./emitters/ar-emitter";
 import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
+import { persistArUrmBridge } from "./ar-ap-urm";
 import {
   classifyVariance,
   type PolicySnapshot,
@@ -266,6 +267,42 @@ export async function runArResolver(
       },
     })
     .eq("id", runId);
+
+  // URM-4: persist universal bridge after measurement gross is authoritative,
+  // before workpaper emit (emitter reads bridge for face + Reconciling Items tab).
+  try {
+    await persistArUrmBridge({
+      runId,
+      totalsVarianceCents: totalsVariance,
+      customerRows: variances
+        .filter((v) => v.entity_kind === "customer")
+        .map((v) => ({
+          entityQboId: v.entity_qbo_id,
+          entityDisplayName: v.entity_display_name,
+          subledgerAmountCents: v.subledger_amount_cents,
+          status: v.status,
+          classificationReason: v.classification_reason,
+        })),
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "unknown";
+    await failRun("urm_bridge_persist_failed", msg);
+    return {
+      runId,
+      status: "failed",
+      totalsStatus,
+      subledgerTotalCents: subTotalCents,
+      glTotalCents,
+      totalsVarianceCents: totalsVariance,
+      itemCount,
+      autoReconcileCount: autoCount,
+      reviewCount,
+      kickoutCount,
+      durationMs: Date.now() - start,
+      errorCode: "urm_bridge_persist_failed",
+      errorMessage: msg,
+    };
+  }
 
   // Block E: primary WorkpaperEmitter write (hard-fail — marks run failed, no swallow).
   try {

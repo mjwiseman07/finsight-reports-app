@@ -46,6 +46,9 @@ export function ReconFaceBody({
   }
 
   const isTies = face.tieStatus === "ties";
+  const hasUrm =
+    face.reconOutcome != null || face.unidentifiedResidualCents != null;
+
   return (
     <div
       className={`rounded-lg border border-[#C9A961]/20 bg-[#1A1A1C]/50 ${compact ? "p-3" : "p-4"}`}
@@ -75,7 +78,25 @@ export function ReconFaceBody({
             </span>
           </div>
         </div>
-        <div className="pt-1">
+        {hasUrm ? (
+          <div className="space-y-1 border-t border-[#C9A961]/20 pt-2">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-[#A29E93]">Identified items</span>
+              <span className="text-sm tabular-nums text-[#ECEBE7]">
+                {formatCents(face.identifiedItemsTotalCents ?? 0)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-[#A29E93]">
+                Unidentified residual
+              </span>
+              <span className="text-sm tabular-nums text-[#ECEBE7]">
+                {formatCents(face.unidentifiedResidualCents ?? 0)}
+              </span>
+            </div>
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           <span
             className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
               isTies
@@ -85,6 +106,11 @@ export function ReconFaceBody({
           >
             {isTies ? "TIES" : "KICKOUT"}
           </span>
+          {face.reconOutcome ? (
+            <span className="inline-flex rounded-full bg-[#C9A961]/20 px-2.5 py-0.5 text-xs font-medium text-[#C9A961]">
+              {face.reconOutcome}
+            </span>
+          ) : null}
         </div>
       </div>
     </div>
