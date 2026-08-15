@@ -381,6 +381,56 @@ describe("URM-3.1 hash normalization order fix", () => {
   });
 });
 
+describe("URM-3.2 storage requires non-null hash", () => {
+  const FIX =
+    "supabase/migrations/20260815140000_urm3_storage_requires_hash_not_null.sql";
+  const ORIGINAL =
+    "supabase/migrations/20260815120000_urm3_universal_evidence_spine.sql";
+  const HASH_ORDER_FIX =
+    "supabase/migrations/20260815130000_urm3_hash_normalization_order.sql";
+  const HASH_REGEX_SQL = "content_hash ~ '^[a-f0-9]{64}$'";
+  const CORRECT_NOT_NULL_GUARD = "content_hash IS NOT NULL";
+  const readSql = (rel: string) =>
+    readFileSync(join(process.cwd(), rel), "utf8").replace(/\r\n/g, "\n");
+
+  it("corrective migration requires NOT NULL hash when storage_path set", () => {
+    const fixSql = readSql(FIX);
+    expect(fixSql).toContain("arte_storage_requires_content_hash");
+    expect(fixSql).toContain(CORRECT_NOT_NULL_GUARD);
+    expect(fixSql).toContain(HASH_REGEX_SQL);
+    // Explicit conjunction — not the NULL-passing OR-only form.
+    expect(fixSql).toMatch(
+      /content_hash IS NOT NULL\s+AND\s+content_hash\s*~\s*'\^\[a-f0-9\]\{64\}\$'/,
+    );
+    // Must not use only: storage_path IS NULL OR content_hash ~ '...'
+    // without the NOT NULL guard in the same CHECK.
+    const storageCheck = fixSql.match(
+      /ADD CONSTRAINT arte_storage_requires_content_hash\s+CHECK\s*\(([\s\S]*?)\)\s*;/,
+    );
+    expect(storageCheck?.[1]).toBeTruthy();
+    const checkBody = storageCheck![1];
+    expect(checkBody).toContain(CORRECT_NOT_NULL_GUARD);
+    expect(checkBody).toContain(HASH_REGEX_SQL);
+    expect(checkBody).not.toMatch(
+      /^\s*storage_path IS NULL\s+OR\s+content_hash\s*~\s*'\^\[a-f0-9\]\{64\}\$'\s*$/,
+    );
+  });
+
+  it("does not mutate prior applied URM-3 migrations", () => {
+    const originalSql = readSql(ORIGINAL);
+    const hashOrderSql = readSql(HASH_ORDER_FIX);
+    // Historical applied migration retains the buggy OR-only storage check.
+    expect(originalSql).toContain(
+      "storage_path IS NULL\n    OR content_hash ~ '^[a-f0-9]{64}$'",
+    );
+    expect(originalSql).not.toContain(
+      "content_hash IS NOT NULL\n      AND content_hash ~",
+    );
+    // Hash-order fix must remain trigger-only (no storage CHECK rewrite).
+    expect(hashOrderSql).not.toContain("arte_storage_requires_content_hash");
+  });
+});
+
 describe("URM-3 hash convention", () => {
   it("matches upload-artifact SHA-256 hex convention", () => {
     expect(HASH_EMPTY).toMatch(EVIDENCE_CONTENT_HASH_REGEX);
