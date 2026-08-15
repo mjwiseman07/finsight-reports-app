@@ -5,15 +5,23 @@
  * "latest connection for user/provider".
  *
  * No connectionId authority model (provider-neutral):
- *   1. company- and/or tenant-scoped connected candidates
- *   2. otherwise exactly one unambiguous connected candidate for the user
- *   3. otherwise fail closed — never "latest wins" across tenants/companies
+ *   1. company scope → companies.<provider>_tenant/realm → exact tenant match
+ *   2. tenant scope → exact tenant_or_realm_id match
+ *   3. otherwise exactly one unambiguous connected candidate for the user
+ *   4. otherwise fail closed — never "latest wins" / never recency windows
+ *
+ * Company identity is canonical companies row identity, NOT metadata_json.company_id
+ * (historical poison: metadata_json.company_id === user_id).
  *
  * status = superseded is never authoritative. When an explicit superseded row is
  * requested, throw ACCOUNTING_CONNECTION_SUPERSEDED. successorConnectionId is
  * only exposed after validating the successor grant identity.
  */
 import type { AccountingConnectionRecord, AccountingConnectionStatus } from "./types";
+import {
+  deriveProviderTenantId,
+  rejectUserIdShapedCompanyId,
+} from "./resolve-or-create-company";
 
 export type AccountingConnectionSelectionErrorCode =
   | "ACCOUNTING_CONNECTION_EXPIRED"
@@ -22,7 +30,8 @@ export type AccountingConnectionSelectionErrorCode =
   | "ACCOUNTING_CONNECTION_NOT_READY"
   | "ACCOUNTING_CONNECTION_ENTITY_SELECTION_REQUIRED"
   | "ACCOUNTING_CONNECTION_SUPERSEDED"
-  | "ACCOUNTING_CONNECTION_AMBIGUOUS";
+  | "ACCOUNTING_CONNECTION_AMBIGUOUS"
+  | "ACCOUNTING_CONNECTION_SCOPE_MISMATCH";
 
 export class AccountingConnectionSelectionError extends Error {
   code: AccountingConnectionSelectionErrorCode;
@@ -54,6 +63,20 @@ export class AccountingConnectionSelectionError extends Error {
 type ConnectionQueryClient = {
   from: (table: string) => any;
 };
+
+type ProviderKind = "xero" | "quickbooks";
+
+const TENANT_COLUMN_BY_PROVIDER: Record<ProviderKind, "xero_tenant_id" | "qbo_realm_id"> = {
+  xero: "xero_tenant_id",
+  quickbooks: "qbo_realm_id",
+};
+
+function normalizeProvider(sourceSystem: string | null | undefined): ProviderKind | null {
+  const raw = String(sourceSystem || "").trim().toLowerCase();
+  if (raw === "xero") return "xero";
+  if (raw === "quickbooks" || raw === "qbo") return "quickbooks";
+  return null;
+}
 
 /** Reject self-successor links at the business layer. */
 export function isSelfSupersession(connection: {
@@ -201,11 +224,6 @@ export async function throwSupersededSelectionError(
   });
 }
 
-function connectionCompanyId(row: AccountingConnectionRecord): string {
-  const meta = (row.metadata_json || {}) as Record<string, unknown>;
-  return String(meta.company_id || "").trim();
-}
-
 function throwAmbiguousSelection(args: {
   candidates: AccountingConnectionRecord[];
   scoped: boolean;
@@ -222,13 +240,150 @@ function throwAmbiguousSelection(args: {
   });
 }
 
+function throwScopeMismatch(args: {
+  connectionId: string;
+  message: string;
+}): never {
+  throw new AccountingConnectionSelectionError({
+    code: "ACCOUNTING_CONNECTION_SCOPE_MISMATCH",
+    message: args.message,
+    connectionId: args.connectionId,
+    status: "connected",
+    httpStatus: 409,
+  });
+}
+
+export type CanonicalCompanyTenantResolution = {
+  companyId: string;
+  provider: ProviderKind;
+  tenantId: string;
+};
+
+/**
+ * Resolve company → provider tenant/realm from the canonical companies row.
+ * Never uses metadata_json.company_id.
+ */
+export async function resolveCanonicalCompanyProviderTenant(
+  supabase: ConnectionQueryClient,
+  args: {
+    companyId: string;
+    userId: string;
+    sourceSystem?: string | null;
+  },
+): Promise<CanonicalCompanyTenantResolution | null> {
+  const safeCompanyId = rejectUserIdShapedCompanyId(args.companyId, args.userId);
+  if (!safeCompanyId) return null;
+
+  const { data, error } = await supabase
+    .from("companies")
+    .select("id, xero_tenant_id, qbo_realm_id")
+    .eq("id", safeCompanyId)
+    .limit(1);
+  if (error) throw error;
+  const company = (data?.[0] as
+    | { id?: string; xero_tenant_id?: string | null; qbo_realm_id?: string | null }
+    | undefined) || null;
+  if (!company?.id) return null;
+
+  const xeroTenant = deriveProviderTenantId(company.xero_tenant_id);
+  const qboRealm = deriveProviderTenantId(company.qbo_realm_id);
+  const requested = normalizeProvider(args.sourceSystem);
+
+  let provider: ProviderKind | null = requested;
+  if (!provider) {
+    if (xeroTenant && !qboRealm) provider = "xero";
+    else if (qboRealm && !xeroTenant) provider = "quickbooks";
+    else return null; // ambiguous or unbound without explicit provider
+  }
+
+  const tenantId = provider === "xero" ? xeroTenant : qboRealm;
+  if (!tenantId) return null;
+
+  return { companyId: String(company.id), provider, tenantId };
+}
+
+async function assertOptionalScopeMatchesConnection(args: {
+  supabase: ConnectionQueryClient;
+  connection: AccountingConnectionRecord;
+  userId: string;
+  companyId?: string | null;
+  tenantOrRealmId?: string | null;
+  sourceSystem?: string | null;
+}): Promise<void> {
+  const companyId = String(args.companyId || "").trim();
+  const requestedTenant = deriveProviderTenantId(args.tenantOrRealmId);
+  if (!companyId && !requestedTenant) return;
+
+  const connectionTenant = deriveProviderTenantId(args.connection.tenant_or_realm_id);
+  if (requestedTenant && connectionTenant && requestedTenant !== connectionTenant) {
+    throwScopeMismatch({
+      connectionId: String(args.connection.id),
+      message:
+        "Explicit accounting connection tenant does not match the requested tenantOrRealmId scope.",
+    });
+  }
+
+  if (!companyId) return;
+
+  const canonical = await resolveCanonicalCompanyProviderTenant(args.supabase, {
+    companyId,
+    userId: args.userId,
+    sourceSystem: args.sourceSystem || args.connection.provider,
+  });
+  if (!canonical) {
+    throwScopeMismatch({
+      connectionId: String(args.connection.id),
+      message:
+        "Explicit accounting connection could not be verified against the requested company scope.",
+    });
+  }
+  if (connectionTenant && canonical.tenantId !== connectionTenant) {
+    throwScopeMismatch({
+      connectionId: String(args.connection.id),
+      message:
+        "Explicit accounting connection tenant does not match the company's canonical provider tenant.",
+    });
+  }
+  if (requestedTenant && requestedTenant !== canonical.tenantId) {
+    throwScopeMismatch({
+      connectionId: String(args.connection.id),
+      message:
+        "Requested company and tenantOrRealmId disagree on the canonical provider tenant.",
+    });
+  }
+}
+
+async function selectConnectedByExactTenant(args: {
+  supabase: ConnectionQueryClient;
+  userId: string;
+  tenantId: string;
+  provider?: ProviderKind | null;
+}): Promise<AccountingConnectionRecord | null> {
+  let query = args.supabase
+    .from("accounting_connections")
+    .select("*")
+    .eq("user_id", args.userId)
+    .eq("status", "connected")
+    .eq("tenant_or_realm_id", args.tenantId);
+  if (args.provider) query = query.eq("provider", args.provider);
+  // limit 2 only to detect ambiguity — not an authority window over a larger set.
+  const { data, error } = await query.limit(2);
+  if (error) throw error;
+  const rows = (data || []) as AccountingConnectionRecord[];
+  if (rows.length === 1) return rows[0];
+  if (rows.length === 0) return null;
+  throwAmbiguousSelection({ candidates: rows, scoped: true });
+}
+
 /**
  * Select a connection for active accounting context.
  * - Explicit connectionId: exact id + user (+ provider when supplied). No fallback.
+ * - Optional company/tenant args on explicit path must not contradict the row.
  * - No connectionId:
- *     company and/or tenant scope → exactly one matching connected grant
+ *     company → companies.xero_tenant_id / qbo_realm_id → exact tenant match
+ *     else tenant → exact tenant match
  *     else exactly one connected grant for the user (+ provider)
- *     else fail closed (never newest-updated_at wins across tenants/companies)
+ *     else fail closed (never newest-updated_at / never metadata company_id)
  */
 export async function selectAccountingConnectionForActiveContext(args: {
   supabase: ConnectionQueryClient;
@@ -239,9 +394,9 @@ export async function selectAccountingConnectionForActiveContext(args: {
   tenantOrRealmId?: string | null;
 }): Promise<AccountingConnectionRecord | null> {
   const explicitId = String(args.connectionId || "").trim();
-  const provider = String(args.sourceSystem || "").trim();
+  const provider = normalizeProvider(args.sourceSystem);
   const companyId = String(args.companyId || "").trim();
-  const tenantOrRealmId = String(args.tenantOrRealmId || "").trim();
+  const tenantOrRealmId = deriveProviderTenantId(args.tenantOrRealmId);
 
   if (explicitId) {
     let query = args.supabase
@@ -254,42 +409,68 @@ export async function selectAccountingConnectionForActiveContext(args: {
     if (error) throw error;
     const row = (data?.[0] as AccountingConnectionRecord | undefined) || null;
     if (!row) return null;
-    if (row.status === "connected") return row;
+    if (row.status === "connected") {
+      await assertOptionalScopeMatchesConnection({
+        supabase: args.supabase,
+        connection: row,
+        userId: args.userId,
+        companyId,
+        tenantOrRealmId,
+        sourceSystem: args.sourceSystem,
+      });
+      return row;
+    }
     if (row.status === "superseded") {
       await throwSupersededSelectionError(args.supabase, row);
     }
     throw mapNonConnectedStatus(row);
   }
 
+  if (companyId) {
+    const canonical = await resolveCanonicalCompanyProviderTenant(args.supabase, {
+      companyId,
+      userId: args.userId,
+      sourceSystem: args.sourceSystem,
+    });
+    if (!canonical) return null;
+    if (tenantOrRealmId && tenantOrRealmId !== canonical.tenantId) {
+      throwScopeMismatch({
+        connectionId: "",
+        message:
+          "Requested company and tenantOrRealmId disagree on the canonical provider tenant.",
+      });
+    }
+    return selectConnectedByExactTenant({
+      supabase: args.supabase,
+      userId: args.userId,
+      tenantId: canonical.tenantId,
+      provider: provider || canonical.provider,
+    });
+  }
+
+  if (tenantOrRealmId) {
+    return selectConnectedByExactTenant({
+      supabase: args.supabase,
+      userId: args.userId,
+      tenantId: tenantOrRealmId,
+      provider,
+    });
+  }
+
+  // Unscoped: exactly one connected candidate, else fail closed.
+  // limit 2 detects ambiguity without a recency-ordered authority window.
   let query = args.supabase
     .from("accounting_connections")
     .select("*")
     .eq("user_id", args.userId)
-    .eq("status", "connected")
-    .order("updated_at", { ascending: false });
+    .eq("status", "connected");
   if (provider) query = query.eq("provider", provider);
-  // Cap candidate set; ambiguity is decided in memory after company/tenant filters.
-  const { data, error } = await query.limit(25);
+  const { data, error } = await query.limit(2);
   if (error) throw error;
-
-  const connected = ((data || []) as AccountingConnectionRecord[]).filter(
-    (row) => String(row.status || "") === "connected",
-  );
-
-  const scoped = Boolean(companyId || tenantOrRealmId);
-  let candidates = connected;
-  if (companyId) {
-    candidates = candidates.filter((row) => connectionCompanyId(row) === companyId);
-  }
-  if (tenantOrRealmId) {
-    candidates = candidates.filter(
-      (row) => String(row.tenant_or_realm_id || "").trim() === tenantOrRealmId,
-    );
-  }
-
-  if (candidates.length === 1) return candidates[0];
-  if (candidates.length === 0) return null;
-  throwAmbiguousSelection({ candidates, scoped });
+  const rows = (data || []) as AccountingConnectionRecord[];
+  if (rows.length === 1) return rows[0];
+  if (rows.length === 0) return null;
+  throwAmbiguousSelection({ candidates: rows, scoped: false });
 }
 
 export function accountingConnectionSelectionErrorBody(error: AccountingConnectionSelectionError) {
