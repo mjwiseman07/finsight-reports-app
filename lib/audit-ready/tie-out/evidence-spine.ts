@@ -16,13 +16,21 @@
  *
  * URM-2 transition:
  * - `reconciling_item_id` FK is source of truth for item↔evidence
- * - `evidence_ids uuid[]` is denormalized cache (dual-written on attach/detach)
+ * - `evidence_ids uuid[]` is denormalized repairable cache (best-effort sync;
+ *   rebuildEvidenceIdsCacheForItem repairs drift). Cache failure never fails
+ *   a successful canonical insert/delete.
+ *
+ * Content hash convention (Advisacor):
+ * - Same as upload-artifact / FA / BS: createHash("sha256").digest("hex")
+ * - Stored as 64 lowercase hex chars: /^[a-f0-9]{64}$/
+ * - Malformed hash → fail closed; storage_path requires a valid hash.
  *
  * GRNI compatibility:
  * - Variance-only rows (source_kind bill|invoice|inventory_adjustment, no item FK)
  *   remain valid; attachEvidenceToVariance mirrors that path.
  */
 
+import { createHash } from "node:crypto";
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 
 /** Pre-URM-3 source_kind values (PBC-TIEOUT-3.4 / GRNI). */
@@ -36,10 +44,16 @@ export const LEGACY_EVIDENCE_SOURCE_KINDS = [
 export const URM3_EVIDENCE_SOURCE_KINDS = [
   "bank_statement",
   "vendor_statement",
+  "customer_statement",
   "confirmation",
   "count_sheet",
   "amort_schedule",
   "reserve_model",
+  "fixed_asset_register",
+  "debt_statement",
+  "tax_document",
+  "lease_schedule",
+  "system_generated_schedule",
   "provider_txn",
   "pbc_upload",
   "manual_attachment",
@@ -52,8 +66,17 @@ export const EVIDENCE_SOURCE_KINDS = [
 
 export type EvidenceSourceKind = (typeof EVIDENCE_SOURCE_KINDS)[number];
 
-export const EVIDENCE_PROVIDERS = ["quickbooks", "xero", "external"] as const;
+export const EVIDENCE_PROVIDERS = [
+  "quickbooks",
+  "xero",
+  "external",
+  "system",
+  "manual",
+] as const;
 export type EvidenceProvider = (typeof EVIDENCE_PROVIDERS)[number];
+
+/** Advisacor SHA-256 hex digest (matches upload-artifact / FA / BS writers). */
+export const EVIDENCE_CONTENT_HASH_REGEX = /^[a-f0-9]{64}$/;
 
 export type VarianceEvidenceRow = {
   id: string;
@@ -79,6 +102,10 @@ export type VarianceEvidenceRow = {
   external_ref: string | null;
   storage_path: string | null;
   content_hash: string | null;
+  file_name: string | null;
+  content_type: string | null;
+  source_date: string | null;
+  fetched_at: string | null;
   created_at: string;
 };
 
@@ -102,10 +129,16 @@ export type AttachEvidenceBase = {
   externalRef?: string | null;
   storagePath?: string | null;
   /**
-   * Integrity hash of attached document bytes (caller-computed).
-   * Recommended when storagePath is set. Never affects recon math.
+   * SHA-256 of document bytes as 64 lowercase hex (or normalizable form).
+   * Required when storagePath is set. Never affects recon math.
    */
   contentHash?: string | null;
+  fileName?: string | null;
+  contentType?: string | null;
+  /** Document/source as-of date (YYYY-MM-DD). */
+  sourceDate?: string | null;
+  /** When bytes/metadata were fetched or uploaded (ISO timestamptz). */
+  fetchedAt?: string | null;
 };
 
 export type AttachEvidenceToItemInput = AttachEvidenceBase & {
@@ -125,7 +158,7 @@ const EVIDENCE_SELECT =
   "source_qbo_id, source_txn_date, source_doc_number, vendor_ref, customer_ref, " +
   "total_cents, subtotal_cents, balance_cents, linked_po_ids, linked_invoice_ids, " +
   "enrichment_error, aging_bucket, age_days_at_run, provider, external_ref, " +
-  "storage_path, content_hash, created_at";
+  "storage_path, content_hash, file_name, content_type, source_date, fetched_at, created_at";
 
 function requireAdmin() {
   return getSupabaseAdmin();
@@ -136,8 +169,27 @@ function isSourceKind(value: string): value is EvidenceSourceKind {
 }
 
 /**
- * Source identity: at least one of source_qbo_id | external_ref | storage_path.
- * Mirrors DB constraint arte_source_identity_required.
+ * Compute SHA-256 hex for evidence bytes — same convention as
+ * `uploadRunArtifact` / FA / BS artifact writers.
+ */
+export function hashEvidenceBytes(bytes: Buffer | string): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+/**
+ * Normalize + validate content hash. Fail-closed on malformed input.
+ * Accepts optional `sha256:` prefix and mixed case; stores lowercase hex.
+ */
+export function normalizeEvidenceContentHash(raw: string): string {
+  const normalized = raw.trim().toLowerCase().replace(/^sha256:/, "");
+  if (!EVIDENCE_CONTENT_HASH_REGEX.test(normalized)) {
+    throw new Error("urm3_invalid_content_hash");
+  }
+  return normalized;
+}
+
+/**
+ * Source identity + hash integrity gates (mirrors DB constraints).
  */
 export function assertEvidenceSourceIdentity(input: AttachEvidenceBase): void {
   if (!isSourceKind(input.sourceKind)) {
@@ -149,12 +201,21 @@ export function assertEvidenceSourceIdentity(input: AttachEvidenceBase): void {
   if (!qbo && !ext && !path) {
     throw new Error("urm3_source_identity_required");
   }
-  if (input.provider != null && !(EVIDENCE_PROVIDERS as readonly string[]).includes(input.provider)) {
+  if (
+    input.provider != null &&
+    !(EVIDENCE_PROVIDERS as readonly string[]).includes(input.provider)
+  ) {
     throw new Error("urm3_invalid_provider");
   }
-  if (path && !input.contentHash?.trim()) {
-    // Soft guidance only — still allow; callers should hash uploads.
-    // Hard-fail would break intentional placeholder stubs in tests.
+
+  const rawHash = input.contentHash?.trim() || null;
+  if (path) {
+    if (!rawHash) {
+      throw new Error("urm3_content_hash_required_for_storage");
+    }
+    normalizeEvidenceContentHash(rawHash);
+  } else if (rawHash) {
+    normalizeEvidenceContentHash(rawHash);
   }
 }
 
@@ -172,6 +233,8 @@ function toInsertRow(
   const total = input.totalCents ?? 0;
   const subtotal = input.subtotalCents ?? total;
   const balance = input.balanceCents ?? total;
+  const rawHash = input.contentHash?.trim() || null;
+  const contentHash = rawHash ? normalizeEvidenceContentHash(rawHash) : null;
 
   return {
     // run_id / engagement_id stamped by DB trigger from variance/item
@@ -194,48 +257,72 @@ function toInsertRow(
     provider: input.provider ?? null,
     external_ref: input.externalRef?.trim() || null,
     storage_path: input.storagePath?.trim() || null,
-    content_hash: input.contentHash?.trim() || null,
+    content_hash: contentHash,
+    file_name: input.fileName?.trim() || null,
+    content_type: input.contentType?.trim() || null,
+    source_date: input.sourceDate ?? null,
+    fetched_at: input.fetchedAt ?? null,
   };
 }
 
 /**
- * Append evidence id onto URM-2 denormalized cache (no math columns touched).
+ * Best-effort URM-2 cache sync. Never throws — FK table is authoritative;
+ * rebuildEvidenceIdsCacheForItem repairs drift.
  */
-async function dualWriteEvidenceIdsCache(
+async function syncEvidenceIdsCacheBestEffort(
   reconcilingItemId: string,
   evidenceId: string,
   mode: "add" | "remove",
-): Promise<void> {
+): Promise<{ synced: boolean }> {
+  try {
+    const supabase = requireAdmin();
+    const { data: item, error } = await supabase
+      .from("audit_ready_reconciling_items")
+      .select("id, evidence_ids")
+      .eq("id", reconcilingItemId)
+      .maybeSingle();
+    if (error || !item) return { synced: false };
+
+    const current = Array.isArray(item.evidence_ids)
+      ? (item.evidence_ids as string[])
+      : [];
+    const next =
+      mode === "add"
+        ? current.includes(evidenceId)
+          ? current
+          : [...current, evidenceId]
+        : current.filter((id) => id !== evidenceId);
+
+    const { error: updErr } = await supabase
+      .from("audit_ready_reconciling_items")
+      .update({ evidence_ids: next })
+      .eq("id", reconcilingItemId);
+    if (updErr) return { synced: false };
+    return { synced: true };
+  } catch {
+    return { synced: false };
+  }
+}
+
+async function findExistingItemEvidenceByHash(
+  reconcilingItemId: string,
+  contentHash: string,
+): Promise<VarianceEvidenceRow | null> {
   const supabase = requireAdmin();
-  const { data: item, error } = await supabase
-    .from("audit_ready_reconciling_items")
-    .select("id, evidence_ids")
-    .eq("id", reconcilingItemId)
+  const { data, error } = await supabase
+    .from("audit_ready_tie_out_variance_evidence")
+    .select(EVIDENCE_SELECT)
+    .eq("reconciling_item_id", reconcilingItemId)
+    .eq("content_hash", contentHash)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!item) throw new Error("urm3_reconciling_item_not_found");
-
-  const current = Array.isArray(item.evidence_ids)
-    ? (item.evidence_ids as string[])
-    : [];
-  const next =
-    mode === "add"
-      ? current.includes(evidenceId)
-        ? current
-        : [...current, evidenceId]
-      : current.filter((id) => id !== evidenceId);
-
-  const { error: updErr } = await supabase
-    .from("audit_ready_reconciling_items")
-    .update({ evidence_ids: next })
-    .eq("id", reconcilingItemId);
-  if (updErr) throw new Error(updErr.message);
+  return (data as VarianceEvidenceRow | null) ?? null;
 }
 
 /**
  * Attach evidence to an identified reconciling item.
- * Optionally also links a same-run measurement variance.
- * Dual-writes URM-2 evidence_ids[] cache.
+ * Canonical insert is authoritative; evidence_ids[] sync is best-effort.
+ * Idempotent on (reconciling_item_id, content_hash) when hash present.
  */
 export async function attachEvidenceToReconcilingItem(
   input: AttachEvidenceToItemInput,
@@ -247,6 +334,22 @@ export async function attachEvidenceToReconcilingItem(
     reconcilingItemId: input.reconcilingItemId,
   });
 
+  const hash = row.content_hash as string | null;
+  if (hash) {
+    const existing = await findExistingItemEvidenceByHash(
+      input.reconcilingItemId,
+      hash,
+    );
+    if (existing) {
+      await syncEvidenceIdsCacheBestEffort(
+        input.reconcilingItemId,
+        existing.id,
+        "add",
+      );
+      return existing;
+    }
+  }
+
   const { data, error } = await supabase
     .from("audit_ready_tie_out_variance_evidence")
     .insert(row)
@@ -256,13 +359,17 @@ export async function attachEvidenceToReconcilingItem(
   if (!data) throw new Error("urm3_evidence_insert_failed");
 
   const evidence = data as VarianceEvidenceRow;
-  await dualWriteEvidenceIdsCache(input.reconcilingItemId, evidence.id, "add");
+  await syncEvidenceIdsCacheBestEffort(
+    input.reconcilingItemId,
+    evidence.id,
+    "add",
+  );
   return evidence;
 }
 
 /**
  * Attach evidence to a measurement variance (GRNI / AR / AP path).
- * Optionally also links a reconciling item (dual-write cache when set).
+ * Optionally also links a reconciling item (best-effort cache when set).
  */
 export async function attachEvidenceToVariance(
   input: AttachEvidenceToVarianceInput,
@@ -274,6 +381,21 @@ export async function attachEvidenceToVariance(
     reconcilingItemId: input.reconcilingItemId ?? null,
   });
 
+  if (input.reconcilingItemId && row.content_hash) {
+    const existing = await findExistingItemEvidenceByHash(
+      input.reconcilingItemId,
+      row.content_hash as string,
+    );
+    if (existing) {
+      await syncEvidenceIdsCacheBestEffort(
+        input.reconcilingItemId,
+        existing.id,
+        "add",
+      );
+      return existing;
+    }
+  }
+
   const { data, error } = await supabase
     .from("audit_ready_tie_out_variance_evidence")
     .insert(row)
@@ -284,7 +406,7 @@ export async function attachEvidenceToVariance(
 
   const evidence = data as VarianceEvidenceRow;
   if (input.reconcilingItemId) {
-    await dualWriteEvidenceIdsCache(
+    await syncEvidenceIdsCacheBestEffort(
       input.reconcilingItemId,
       evidence.id,
       "add",
@@ -333,8 +455,8 @@ export async function listEvidenceForVariance(
 }
 
 /**
- * Detach (delete) an evidence row. Updates denormalized evidence_ids when linked.
- * Does not change residual / outcome / measurement totals.
+ * Detach (delete) canonical evidence. Cache update is best-effort.
+ * Canonical delete success → operation success even if cache sync fails.
  */
 export async function detachEvidence(evidenceId: string): Promise<void> {
   const supabase = requireAdmin();
@@ -355,13 +477,13 @@ export async function detachEvidence(evidenceId: string): Promise<void> {
   if (delErr) throw new Error(delErr.message);
 
   if (itemId) {
-    await dualWriteEvidenceIdsCache(itemId, evidenceId, "remove");
+    await syncEvidenceIdsCacheBestEffort(itemId, evidenceId, "remove");
   }
 }
 
 /**
  * Rebuild URM-2 evidence_ids[] from FK source of truth for one item.
- * Transition helper — does not affect recon math.
+ * Transition / repair helper — does not affect recon math.
  */
 export async function rebuildEvidenceIdsCacheForItem(
   reconcilingItemId: string,

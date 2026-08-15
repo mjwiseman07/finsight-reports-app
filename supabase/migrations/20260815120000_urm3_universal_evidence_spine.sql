@@ -6,6 +6,9 @@
 -- - Evidence NEVER authors GL/subledger balances or changes unidentified residual math.
 -- - GRNI continues to write variance-only evidence rows (variance_id set, reconciling_item_id null).
 -- - URM-2 evidence_ids[] remains a denormalized cache; FK reconciling_item_id is source of truth.
+-- - content_hash is SHA-256 hex (64 lowercase [a-f0-9]) when present; required for storage_path rows.
+--
+-- READY ONLY — do not apply to production until authorized live smoke.
 
 BEGIN;
 
@@ -60,13 +63,19 @@ ALTER TABLE public.audit_ready_tie_out_variance_evidence
     'bill',
     'invoice',
     'inventory_adjustment',
-    -- Provider-neutral / third-party spine
+    -- Provider-neutral / third-party spine (URM-3 lock)
     'bank_statement',
     'vendor_statement',
+    'customer_statement',
     'confirmation',
     'count_sheet',
     'amort_schedule',
     'reserve_model',
+    'fixed_asset_register',
+    'debt_statement',
+    'tax_document',
+    'lease_schedule',
+    'system_generated_schedule',
     'provider_txn',
     'pbc_upload',
     'manual_attachment'
@@ -86,7 +95,7 @@ ALTER TABLE public.audit_ready_tie_out_variance_evidence
   ADD CONSTRAINT audit_ready_tie_out_variance_evidence_provider_check
   CHECK (
     provider IS NULL
-    OR provider IN ('quickbooks', 'xero', 'external')
+    OR provider IN ('quickbooks', 'xero', 'external', 'system', 'manual')
   );
 
 ALTER TABLE public.audit_ready_tie_out_variance_evidence
@@ -98,6 +107,19 @@ ALTER TABLE public.audit_ready_tie_out_variance_evidence
 ALTER TABLE public.audit_ready_tie_out_variance_evidence
   ADD COLUMN IF NOT EXISTS content_hash text NULL;
 
+-- Workpaper / document display metadata (URM-3 lock)
+ALTER TABLE public.audit_ready_tie_out_variance_evidence
+  ADD COLUMN IF NOT EXISTS file_name text NULL;
+
+ALTER TABLE public.audit_ready_tie_out_variance_evidence
+  ADD COLUMN IF NOT EXISTS content_type text NULL;
+
+ALTER TABLE public.audit_ready_tie_out_variance_evidence
+  ADD COLUMN IF NOT EXISTS source_date date NULL;
+
+ALTER TABLE public.audit_ready_tie_out_variance_evidence
+  ADD COLUMN IF NOT EXISTS fetched_at timestamptz NULL;
+
 ALTER TABLE public.audit_ready_tie_out_variance_evidence
   DROP CONSTRAINT IF EXISTS arte_source_identity_required;
 
@@ -108,6 +130,34 @@ ALTER TABLE public.audit_ready_tie_out_variance_evidence
     OR external_ref IS NOT NULL
     OR storage_path IS NOT NULL
   );
+
+-- Integrity hash: Advisacor convention = sha256 hex digest (64 lowercase hex),
+-- same as upload-artifact / FA / BS recon artifact writers.
+ALTER TABLE public.audit_ready_tie_out_variance_evidence
+  DROP CONSTRAINT IF EXISTS arte_content_hash_sha256_hex;
+
+ALTER TABLE public.audit_ready_tie_out_variance_evidence
+  ADD CONSTRAINT arte_content_hash_sha256_hex
+  CHECK (
+    content_hash IS NULL
+    OR content_hash ~ '^[a-f0-9]{64}$'
+  );
+
+-- Uploaded/static storage evidence must carry a real integrity hash.
+ALTER TABLE public.audit_ready_tie_out_variance_evidence
+  DROP CONSTRAINT IF EXISTS arte_storage_requires_content_hash;
+
+ALTER TABLE public.audit_ready_tie_out_variance_evidence
+  ADD CONSTRAINT arte_storage_requires_content_hash
+  CHECK (
+    storage_path IS NULL
+    OR content_hash ~ '^[a-f0-9]{64}$'
+  );
+
+-- Idempotency for item-linked hashed documents (retry-safe).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_arte_item_content_hash
+  ON public.audit_ready_tie_out_variance_evidence(reconciling_item_id, content_hash)
+  WHERE reconciling_item_id IS NOT NULL AND content_hash IS NOT NULL;
 
 -- Document / third-party rows may carry zero contribution cents.
 -- Keep total/subtotal/balance NOT NULL (callers pass 0).
@@ -121,15 +171,23 @@ CREATE INDEX IF NOT EXISTS idx_arte_content_hash
   WHERE content_hash IS NOT NULL;
 
 COMMENT ON COLUMN public.audit_ready_tie_out_variance_evidence.reconciling_item_id IS
-  'URM-3: optional FK to identified reconciling item. Source of truth for item↔evidence; URM-2 evidence_ids[] is denormalized cache.';
+  'URM-3: optional FK to identified reconciling item. Source of truth for item↔evidence; URM-2 evidence_ids[] is denormalized repairable cache.';
 COMMENT ON COLUMN public.audit_ready_tie_out_variance_evidence.provider IS
-  'URM-3: quickbooks | xero | external. Null allowed for legacy GRNI rows.';
+  'URM-3: quickbooks | xero | external | system | manual. Null allowed for legacy GRNI rows.';
 COMMENT ON COLUMN public.audit_ready_tie_out_variance_evidence.external_ref IS
   'URM-3: provider-neutral external id (replaces sole reliance on source_qbo_id for non-QBO evidence).';
 COMMENT ON COLUMN public.audit_ready_tie_out_variance_evidence.storage_path IS
-  'URM-3: uploaded third-party document path (PBC / statement / confirmation).';
+  'URM-3: uploaded third-party document path (PBC / statement / confirmation). Requires content_hash.';
 COMMENT ON COLUMN public.audit_ready_tie_out_variance_evidence.content_hash IS
-  'URM-3: content hash of attached document bytes (integrity). Does not affect recon math.';
+  'URM-3: SHA-256 of attached document bytes as 64 lowercase hex (createHash("sha256").digest("hex")). Fail-closed format. Does not affect recon math.';
+COMMENT ON COLUMN public.audit_ready_tie_out_variance_evidence.file_name IS
+  'URM-3: original file name for workpaper display.';
+COMMENT ON COLUMN public.audit_ready_tie_out_variance_evidence.content_type IS
+  'URM-3: MIME type for workpaper display (e.g. application/pdf).';
+COMMENT ON COLUMN public.audit_ready_tie_out_variance_evidence.source_date IS
+  'URM-3: document/source as-of date (statement period end, confirmation date, etc.).';
+COMMENT ON COLUMN public.audit_ready_tie_out_variance_evidence.fetched_at IS
+  'URM-3: when the evidence bytes/metadata were fetched or uploaded.';
 
 COMMENT ON TABLE public.audit_ready_tie_out_variance_evidence IS
   'URM-3 universal evidence spine (extends PBC-TIEOUT-3.4). Measurement variance and/or identified reconciling item evidence. Never authors residual/outcome math.';
@@ -182,6 +240,14 @@ BEGIN
     NEW.engagement_id := v_engagement_id;
   END IF;
 
+  -- Normalize content_hash when provided (lowercase; strip optional sha256: prefix).
+  IF NEW.content_hash IS NOT NULL THEN
+    NEW.content_hash := lower(regexp_replace(btrim(NEW.content_hash), '^sha256:', ''));
+    IF NEW.content_hash !~ '^[a-f0-9]{64}$' THEN
+      RAISE EXCEPTION 'urm3_invalid_content_hash';
+    END IF;
+  END IF;
+
   RETURN NEW;
 END;
 $$;
@@ -189,7 +255,7 @@ $$;
 DROP TRIGGER IF EXISTS trg_arte_stamp_run_identity
   ON public.audit_ready_tie_out_variance_evidence;
 CREATE TRIGGER trg_arte_stamp_run_identity
-  BEFORE INSERT OR UPDATE OF variance_id, reconciling_item_id, run_id, engagement_id
+  BEFORE INSERT OR UPDATE OF variance_id, reconciling_item_id, run_id, engagement_id, content_hash
   ON public.audit_ready_tie_out_variance_evidence
   FOR EACH ROW
   EXECUTE FUNCTION public.trg_arte_stamp_run_identity();
@@ -198,32 +264,36 @@ REVOKE ALL ON FUNCTION public.trg_arte_stamp_run_identity()
   FROM PUBLIC, anon, authenticated;
 
 COMMENT ON FUNCTION public.trg_arte_stamp_run_identity() IS
-  'URM-3: stamps evidence run/engagement from variance and/or reconciling item; forbids cross-run linkage.';
+  'URM-3: stamps evidence run/engagement from variance and/or reconciling item; forbids cross-run linkage; normalizes/validates content_hash.';
 
 -- ─────────────────────────────────────────────────────────────
--- 4) RLS — keep variance-path SELECT; add item-path SELECT
+-- 4) RLS — explicit engagement membership (cross-engagement denied)
 -- ─────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "arte_select_via_variance" ON public.audit_ready_tie_out_variance_evidence;
-CREATE POLICY "arte_select_via_variance"
+DROP POLICY IF EXISTS arte_select_engagement_read ON public.audit_ready_tie_out_variance_evidence;
+CREATE POLICY arte_select_engagement_read
   ON public.audit_ready_tie_out_variance_evidence
   FOR SELECT
   TO authenticated
   USING (
-    (
-      variance_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1
-        FROM public.audit_ready_tie_out_variances v
-        WHERE v.id = audit_ready_tie_out_variance_evidence.variance_id
-      )
-    )
-    OR (
-      reconciling_item_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1
-        FROM public.audit_ready_reconciling_items i
-        WHERE i.id = audit_ready_tie_out_variance_evidence.reconciling_item_id
-      )
+    EXISTS (
+      SELECT 1 FROM public.audit_ready_engagements e
+      WHERE e.id = audit_ready_tie_out_variance_evidence.engagement_id
+        AND (
+          (e.company_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM public.company_users cu
+            WHERE cu.company_id = e.company_id
+              AND cu.user_id = (SELECT auth.uid())
+              AND cu.status = 'active'
+          ))
+          OR
+          (e.firm_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM public.firm_memberships fm
+            WHERE fm.firm_id = e.firm_id
+              AND fm.user_id = (SELECT auth.uid())
+              AND fm.status = 'active'
+          ))
+        )
     )
   );
 
