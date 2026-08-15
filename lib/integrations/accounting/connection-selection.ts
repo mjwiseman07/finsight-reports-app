@@ -1,9 +1,13 @@
 /**
- * Accounting connection selection safety (PR A) + supersession recognition (PR B).
+ * Accounting connection selection safety.
  *
  * Explicit connectionId: exact identity or fail closed — never fall back to
  * "latest connection for user/provider".
- * No connectionId: only status = connected rows are candidates.
+ *
+ * No connectionId authority model (provider-neutral):
+ *   1. company- and/or tenant-scoped connected candidates
+ *   2. otherwise exactly one unambiguous connected candidate for the user
+ *   3. otherwise fail closed — never "latest wins" across tenants/companies
  *
  * status = superseded is never authoritative. When an explicit superseded row is
  * requested, throw ACCOUNTING_CONNECTION_SUPERSEDED. successorConnectionId is
@@ -17,7 +21,8 @@ export type AccountingConnectionSelectionErrorCode =
   | "ACCOUNTING_CONNECTION_FAILED"
   | "ACCOUNTING_CONNECTION_NOT_READY"
   | "ACCOUNTING_CONNECTION_ENTITY_SELECTION_REQUIRED"
-  | "ACCOUNTING_CONNECTION_SUPERSEDED";
+  | "ACCOUNTING_CONNECTION_SUPERSEDED"
+  | "ACCOUNTING_CONNECTION_AMBIGUOUS";
 
 export class AccountingConnectionSelectionError extends Error {
   code: AccountingConnectionSelectionErrorCode;
@@ -196,19 +201,47 @@ export async function throwSupersededSelectionError(
   });
 }
 
+function connectionCompanyId(row: AccountingConnectionRecord): string {
+  const meta = (row.metadata_json || {}) as Record<string, unknown>;
+  return String(meta.company_id || "").trim();
+}
+
+function throwAmbiguousSelection(args: {
+  candidates: AccountingConnectionRecord[];
+  scoped: boolean;
+}): never {
+  const ids = args.candidates.map((row) => String(row.id));
+  throw new AccountingConnectionSelectionError({
+    code: "ACCOUNTING_CONNECTION_AMBIGUOUS",
+    message: args.scoped
+      ? "Multiple connected accounting grants match the requested company/tenant scope; pass an explicit connectionId."
+      : "Multiple connected accounting grants exist for this user; pass companyId, tenantOrRealmId, or an explicit connectionId.",
+    connectionId: ids[0] || "",
+    status: "connected",
+    httpStatus: 409,
+  });
+}
+
 /**
  * Select a connection for active accounting context.
  * - Explicit connectionId: exact id + user (+ provider when supplied). No fallback.
- * - No connectionId: status=connected only, newest updated_at.
+ * - No connectionId:
+ *     company and/or tenant scope → exactly one matching connected grant
+ *     else exactly one connected grant for the user (+ provider)
+ *     else fail closed (never newest-updated_at wins across tenants/companies)
  */
 export async function selectAccountingConnectionForActiveContext(args: {
   supabase: ConnectionQueryClient;
   userId: string;
   connectionId?: string | null;
   sourceSystem?: string | null;
+  companyId?: string | null;
+  tenantOrRealmId?: string | null;
 }): Promise<AccountingConnectionRecord | null> {
   const explicitId = String(args.connectionId || "").trim();
   const provider = String(args.sourceSystem || "").trim();
+  const companyId = String(args.companyId || "").trim();
+  const tenantOrRealmId = String(args.tenantOrRealmId || "").trim();
 
   if (explicitId) {
     let query = args.supabase
@@ -235,9 +268,28 @@ export async function selectAccountingConnectionForActiveContext(args: {
     .eq("status", "connected")
     .order("updated_at", { ascending: false });
   if (provider) query = query.eq("provider", provider);
-  const { data, error } = await query.limit(1);
+  // Cap candidate set; ambiguity is decided in memory after company/tenant filters.
+  const { data, error } = await query.limit(25);
   if (error) throw error;
-  return ((data?.[0] as AccountingConnectionRecord | undefined) || null);
+
+  const connected = ((data || []) as AccountingConnectionRecord[]).filter(
+    (row) => String(row.status || "") === "connected",
+  );
+
+  const scoped = Boolean(companyId || tenantOrRealmId);
+  let candidates = connected;
+  if (companyId) {
+    candidates = candidates.filter((row) => connectionCompanyId(row) === companyId);
+  }
+  if (tenantOrRealmId) {
+    candidates = candidates.filter(
+      (row) => String(row.tenant_or_realm_id || "").trim() === tenantOrRealmId,
+    );
+  }
+
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 0) return null;
+  throwAmbiguousSelection({ candidates, scoped });
 }
 
 export function accountingConnectionSelectionErrorBody(error: AccountingConnectionSelectionError) {

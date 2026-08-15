@@ -20,6 +20,8 @@ export async function POST(request) {
     const companyId = body.companyId || body.company_id || null;
     const connectionId = String(body.connectionId || body.connection_id || "");
     const sourceSystem = String(body.sourceSystem || body.source_system || "");
+    const tenantOrRealmId =
+      body.tenantOrRealmId || body.tenant_or_realm_id || body.tenantId || body.tenant_id || null;
     const forceRefresh = Boolean(body.forceRefresh || body.force_refresh);
 
     let userId = leadId;
@@ -34,6 +36,7 @@ export async function POST(request) {
       companyId,
       connectionId,
       sourceSystem,
+      tenantOrRealmId,
       userId,
       forceRefresh,
     });

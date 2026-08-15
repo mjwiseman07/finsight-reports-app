@@ -1,6 +1,7 @@
 /**
- * PR A — accounting connection selection safety.
- * Explicit connectionId fails closed; no-ID selects connected-only.
+ * Accounting connection selection safety.
+ * Explicit connectionId fails closed; no-ID is company/tenant-scoped or
+ * exactly-one unambiguous connected candidate — never newest-updated_at wins.
  */
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
@@ -19,6 +20,11 @@ const USER = "a4ebf834-a698-4f79-a945-8498f2e6c45d";
 const OTHER_USER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const STALE_CONNECTED = "ce526f9b-5d2c-46fc-b6f3-46617ab375bf";
 const LIVE_CONNECTED = "b718823a-0eb8-437d-beba-05c41f6482f9";
+const COMPANY_A = "02edb6c6-a4f1-4bae-825d-2680136dad24";
+const COMPANY_B = "11111111-1111-4111-8111-111111111111";
+const TENANT_A = "ceaea696-081f-491e-9daa-a9263a023ca9";
+const TENANT_B = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const XERO_B = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 function makeRow(overrides: Partial<AccountingConnectionRecord> = {}): AccountingConnectionRecord {
   return {
@@ -27,13 +33,13 @@ function makeRow(overrides: Partial<AccountingConnectionRecord> = {}): Accountin
     provider: "xero",
     provider_family: "xero",
     provider_product: "xero_accounting",
-    external_entity_id: "xero:ceaea696-081f-491e-9daa-a9263a023ca9",
+    external_entity_id: `xero:${TENANT_A}`,
     external_entity_name: "Demo Company (US)",
-    tenant_or_realm_id: "ceaea696-081f-491e-9daa-a9263a023ca9",
+    tenant_or_realm_id: TENANT_A,
     scopes: [],
     status: "connected",
     metadata_json: {
-      company_id: "02edb6c6-a4f1-4bae-825d-2680136dad24",
+      company_id: COMPANY_A,
       active_normalized_sync_id: "95da07be-8e2c-4b84-9dcc-8a98fa841273",
     },
     updated_at: "2026-08-13T03:28:57.315Z",
@@ -46,9 +52,12 @@ type QueryCall = {
   filters: Record<string, string>;
   orderedBy?: string;
   ascending?: boolean;
+  limit?: number;
 };
 
-function createSupabaseMock(resolver: (call: QueryCall) => AccountingConnectionRecord | null) {
+function createSupabaseMock(
+  resolver: (call: QueryCall) => AccountingConnectionRecord | AccountingConnectionRecord[] | null,
+) {
   const calls: QueryCall[] = [];
   const from = vi.fn(() => {
     const call: QueryCall = { filters: {} };
@@ -63,10 +72,12 @@ function createSupabaseMock(resolver: (call: QueryCall) => AccountingConnectionR
         call.ascending = opts?.ascending;
         return api;
       },
-      limit: async () => {
+      limit: async (n?: number) => {
+        call.limit = n;
         calls.push({ ...call, filters: { ...call.filters } });
-        const row = resolver(call);
-        return { data: row ? [row] : [], error: null };
+        const resolved = resolver(call);
+        const rows = Array.isArray(resolved) ? resolved : resolved ? [resolved] : [];
+        return { data: typeof n === "number" ? rows.slice(0, n) : rows, error: null };
       },
     };
     return api;
@@ -174,7 +185,6 @@ describe("selectAccountingConnectionForActiveContext", () => {
 
   it("3. explicit wrong-user ID → null (non-disclosing); no latest fallback", async () => {
     const { supabase, calls } = createSupabaseMock((call) => {
-      // Ownership enforced by user_id filter; foreign id yields empty result set.
       if (call.filters.user_id === OTHER_USER && call.filters.id === LIVE_CONNECTED) return null;
       return makeRow();
     });
@@ -231,10 +241,10 @@ describe("selectAccountingConnectionForActiveContext", () => {
     }
   });
 
-  it("10. no explicit ID → connected newest selected", async () => {
+  it("10. no explicit ID + single connected → unambiguous candidate", async () => {
     const live = makeRow();
     const { supabase, calls } = createSupabaseMock((call) => {
-      if (call.filters.status === "connected") return live;
+      if (call.filters.status === "connected") return [live];
       return null;
     });
     const result = await selectAccountingConnectionForActiveContext({
@@ -244,8 +254,7 @@ describe("selectAccountingConnectionForActiveContext", () => {
     });
     expect(result?.id).toBe(LIVE_CONNECTED);
     expect(calls[0].filters.status).toBe("connected");
-    expect(calls[0].orderedBy).toBe("updated_at");
-    expect(calls[0].ascending).toBe(false);
+    expect(calls[0].limit).toBe(25);
   });
 
   it("11. no explicit ID: newer expired ignored vs older connected", async () => {
@@ -256,7 +265,7 @@ describe("selectAccountingConnectionForActiveContext", () => {
     });
     const { supabase, calls } = createSupabaseMock((call) => {
       expect(call.filters.status).toBe("connected");
-      return olderConnected;
+      return [olderConnected];
     });
     const result = await selectAccountingConnectionForActiveContext({
       supabase,
@@ -270,7 +279,7 @@ describe("selectAccountingConnectionForActiveContext", () => {
   it("12. no explicit ID: newer disconnected ignored (status filter)", async () => {
     const { supabase, calls } = createSupabaseMock((call) => {
       expect(call.filters.status).toBe("connected");
-      return makeRow();
+      return [makeRow()];
     });
     await selectAccountingConnectionForActiveContext({
       supabase,
@@ -281,7 +290,9 @@ describe("selectAccountingConnectionForActiveContext", () => {
   });
 
   it("13. provider supplied: only that provider", async () => {
-    const { supabase, calls } = createSupabaseMock(() => makeRow({ provider: "quickbooks", id: "qbo-1" }));
+    const { supabase, calls } = createSupabaseMock(() => [
+      makeRow({ provider: "quickbooks", id: "qbo-1" }),
+    ]);
     const result = await selectAccountingConnectionForActiveContext({
       supabase,
       userId: USER,
@@ -302,9 +313,9 @@ describe("selectAccountingConnectionForActiveContext", () => {
     expect(result).toBeNull();
   });
 
-  it("15. Demo live connected remains selectable (no-ID)", async () => {
+  it("15. Demo live connected remains selectable (no-ID single candidate)", async () => {
     const live = makeRow();
-    const { supabase } = createSupabaseMock(() => live);
+    const { supabase } = createSupabaseMock(() => [live]);
     const result = await selectAccountingConnectionForActiveContext({
       supabase,
       userId: USER,
@@ -319,7 +330,7 @@ describe("selectAccountingConnectionForActiveContext", () => {
       id: STALE_CONNECTED,
       updated_at: "2026-08-12T03:52:17.164Z",
       metadata_json: {
-        company_id: "02edb6c6-a4f1-4bae-825d-2680136dad24",
+        company_id: COMPANY_A,
         active_normalized_sync_id: "dd59d698-200b-42cd-9810-4a4c455c9816",
       },
     });
@@ -342,7 +353,6 @@ describe("selectAccountingConnectionForActiveContext", () => {
       if (call.filters.id === STALE_CONNECTED) {
         return makeRow({ id: STALE_CONNECTED, status: "disconnected" });
       }
-      // Would be the dangerous fallback target — must never be queried.
       return makeRow();
     });
     await expect(
@@ -357,21 +367,127 @@ describe("selectAccountingConnectionForActiveContext", () => {
     expect(calls[0].filters.id).toBe(STALE_CONNECTED);
   });
 
-  it("regression: no-ID prefers b718823a over older connected ce526f9b via updated_at order", async () => {
-    const { supabase, calls } = createSupabaseMock(() => makeRow());
+  it("company-scoped: selects matching company even when another tenant is newer", async () => {
+    const companyA = makeRow({
+      id: LIVE_CONNECTED,
+      tenant_or_realm_id: TENANT_A,
+      updated_at: "2026-08-10T00:00:00.000Z",
+      metadata_json: { company_id: COMPANY_A },
+    });
+    const companyBNewer = makeRow({
+      id: XERO_B,
+      tenant_or_realm_id: TENANT_B,
+      external_entity_id: `xero:${TENANT_B}`,
+      external_entity_name: "Other Org",
+      updated_at: "2026-08-14T00:00:00.000Z",
+      metadata_json: { company_id: COMPANY_B },
+    });
+    const { supabase } = createSupabaseMock(() => [companyBNewer, companyA]);
     const result = await selectAccountingConnectionForActiveContext({
       supabase,
       userId: USER,
       sourceSystem: "xero",
+      companyId: COMPANY_A,
     });
     expect(result?.id).toBe(LIVE_CONNECTED);
-    expect(calls[0].orderedBy).toBe("updated_at");
-    expect(calls[0].filters.status).toBe("connected");
+    expect(result?.tenant_or_realm_id).toBe(TENANT_A);
+  });
+
+  it("tenant-scoped: two connected Xero tenants cannot cross-select", async () => {
+    const tenantA = makeRow({
+      id: LIVE_CONNECTED,
+      tenant_or_realm_id: TENANT_A,
+      updated_at: "2026-08-10T00:00:00.000Z",
+      metadata_json: { company_id: COMPANY_A },
+    });
+    const tenantB = makeRow({
+      id: XERO_B,
+      tenant_or_realm_id: TENANT_B,
+      external_entity_id: `xero:${TENANT_B}`,
+      updated_at: "2026-08-14T00:00:00.000Z",
+      metadata_json: { company_id: COMPANY_B },
+    });
+    const { supabase } = createSupabaseMock(() => [tenantB, tenantA]);
+    const forA = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      sourceSystem: "xero",
+      tenantOrRealmId: TENANT_A,
+    });
+    const forB = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      sourceSystem: "xero",
+      tenantOrRealmId: TENANT_B,
+    });
+    expect(forA?.id).toBe(LIVE_CONNECTED);
+    expect(forB?.id).toBe(XERO_B);
+  });
+
+  it("updated_at cannot override company scope", async () => {
+    const scopedOlder = makeRow({
+      id: LIVE_CONNECTED,
+      updated_at: "2026-01-01T00:00:00.000Z",
+      metadata_json: { company_id: COMPANY_A },
+    });
+    const otherNewer = makeRow({
+      id: XERO_B,
+      tenant_or_realm_id: TENANT_B,
+      updated_at: "2026-08-14T23:59:59.000Z",
+      metadata_json: { company_id: COMPANY_B },
+    });
+    const { supabase } = createSupabaseMock(() => [otherNewer, scopedOlder]);
+    const result = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      sourceSystem: "xero",
+      companyId: COMPANY_A,
+    });
+    expect(result?.id).toBe(LIVE_CONNECTED);
+  });
+
+  it("unscoped multi-tenant → ACCOUNTING_CONNECTION_AMBIGUOUS (never latest wins)", async () => {
+    const tenantA = makeRow({
+      id: LIVE_CONNECTED,
+      tenant_or_realm_id: TENANT_A,
+      updated_at: "2026-08-10T00:00:00.000Z",
+      metadata_json: { company_id: COMPANY_A },
+    });
+    const tenantB = makeRow({
+      id: XERO_B,
+      tenant_or_realm_id: TENANT_B,
+      updated_at: "2026-08-14T00:00:00.000Z",
+      metadata_json: { company_id: COMPANY_B },
+    });
+    const { supabase } = createSupabaseMock(() => [tenantB, tenantA]);
+    await expect(
+      selectAccountingConnectionForActiveContext({
+        supabase,
+        userId: USER,
+        sourceSystem: "xero",
+      }),
+    ).rejects.toMatchObject({
+      code: "ACCOUNTING_CONNECTION_AMBIGUOUS",
+      httpStatus: 409,
+    });
+  });
+
+  it("company scope with zero matches → null", async () => {
+    const { supabase } = createSupabaseMock(() => [
+      makeRow({ metadata_json: { company_id: COMPANY_A } }),
+    ]);
+    const result = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      sourceSystem: "xero",
+      companyId: COMPANY_B,
+    });
+    expect(result).toBeNull();
   });
 });
 
 describe("PR B supersession lifecycle (selection + types; no backfill)", () => {
-  const TENANT = "ceaea696-081f-491e-9daa-a9263a023ca9";
+  const TENANT = TENANT_A;
 
   it("1. status union accepts superseded", () => {
     const status: AccountingConnectionStatus = "superseded";
@@ -559,7 +675,7 @@ describe("PR B supersession lifecycle (selection + types; no backfill)", () => {
   it("11. no-ID still filters connected only (excludes superseded)", async () => {
     const { supabase, calls } = createSupabaseMock((call) => {
       expect(call.filters.status).toBe("connected");
-      return makeRow();
+      return [makeRow()];
     });
     await selectAccountingConnectionForActiveContext({
       supabase,
@@ -579,6 +695,25 @@ describe("PR B supersession lifecycle (selection + types; no backfill)", () => {
       sourceSystem: "xero",
     });
     expect(result?.id).toBe(STALE_CONNECTED);
+  });
+
+  it("historical superseded cannot win no-ID path even if newer updated_at", async () => {
+    const live = makeRow({
+      id: LIVE_CONNECTED,
+      status: "connected",
+      updated_at: "2026-08-10T00:00:00.000Z",
+    });
+    const { supabase, calls } = createSupabaseMock((call) => {
+      expect(call.filters.status).toBe("connected");
+      return [live];
+    });
+    const result = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      sourceSystem: "xero",
+    });
+    expect(result?.id).toBe(LIVE_CONNECTED);
+    expect(calls[0].filters.status).toBe("connected");
   });
 
   it("migration is expand-only (no UPDATE/backfill/unique connected)", () => {

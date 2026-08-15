@@ -20,6 +20,11 @@ export async function GET(request) {
     const companyId = url.searchParams.get("companyId") || "";
     const connectionId = url.searchParams.get("connectionId") || "";
     const sourceSystem = url.searchParams.get("sourceSystem") || "";
+    const tenantOrRealmId =
+      url.searchParams.get("tenantOrRealmId") ||
+      url.searchParams.get("tenant_or_realm_id") ||
+      url.searchParams.get("tenantId") ||
+      "";
 
     let userId = leadId;
     if (token) {
@@ -33,6 +38,7 @@ export async function GET(request) {
       companyId,
       connectionId,
       sourceSystem,
+      tenantOrRealmId,
       userId,
       forceRefresh: false,
     });
