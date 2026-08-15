@@ -34,6 +34,10 @@ export const MFA_EXEMPT_PREFIXES = [
   // tools must be reachable from server-to-server test contexts (AAL1
   // Bearer sessions).
   "/api/admin/qbo-inspector",
+  // QuotaGuard / Undici transport diagnostics (proxy-verify family).
+  // Same super-admin gate; AAL1 needed so production "fetch failed"
+  // cause chains can be captured without an interactive MFA session.
+  "/api/admin/proxy-verify",
 ] as const;
 
 export function isMfaExemptPath(pathname: string): boolean {
