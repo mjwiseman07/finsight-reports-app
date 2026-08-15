@@ -1241,6 +1241,21 @@ export default function DashboardPage() {
           return;
         }
 
+        const hydrationCompanyId = String(
+          url.searchParams.get("companyId") ||
+            storedContext?.companyId ||
+            storedPayload?.companyId ||
+            storedPayload?.normalizedData?.companyId ||
+            "",
+        ).trim();
+        const hydrationTenantId = String(
+          url.searchParams.get("tenantId") ||
+            url.searchParams.get("tenantOrRealmId") ||
+            storedContext?.tenantId ||
+            storedPayload?.tenantId ||
+            "",
+        ).trim();
+
         const {
           response: ctxRes,
           connectionId: contextConnectionId,
@@ -1251,6 +1266,8 @@ export default function DashboardPage() {
           body: {
             sourceSystem,
             forceRefresh,
+            ...(hydrationCompanyId ? { companyId: hydrationCompanyId } : {}),
+            ...(hydrationTenantId ? { tenantOrRealmId: hydrationTenantId } : {}),
           },
           connectionId: capturedConnectionId,
           getClientHref: () => `${window.location.pathname}${window.location.search}${window.location.hash}`,

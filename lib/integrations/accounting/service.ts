@@ -1014,23 +1014,27 @@ export async function getActiveAccountingContext({
   companyId,
   connectionId,
   sourceSystem,
+  tenantOrRealmId,
   userId,
   forceRefresh = false,
 }: {
   companyId?: string | null;
   connectionId?: string | null;
   sourceSystem?: string | null;
+  tenantOrRealmId?: string | null;
   userId: string;
   forceRefresh?: boolean;
 }) {
   const supabase = requireSupabase();
-  // PR A: explicit connectionId is fail-closed (no latest-row fallback).
-  // No-ID path only considers status = connected.
+  // Explicit connectionId is fail-closed (no latest-row fallback).
+  // No-ID path: company/tenant scope, else exactly one connected candidate, else fail closed.
   const connection = await selectAccountingConnectionForActiveContext({
     supabase,
     userId,
     connectionId,
     sourceSystem,
+    companyId,
+    tenantOrRealmId,
   });
   if (!connection) return null;
 
