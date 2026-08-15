@@ -191,9 +191,217 @@ describe("resolveCanonicalCompanyProviderTenant", () => {
     expect(resolved).toBeNull();
     expect(calls.filter((c) => c.table === "companies")).toHaveLength(0);
   });
+
+  it("dual-provider company without sourceSystem → AMBIGUOUS", async () => {
+    const { supabase } = createSupabaseMock({
+      companies: {
+        [COMPANY_A]: {
+          id: COMPANY_A,
+          xero_tenant_id: TENANT_A,
+          qbo_realm_id: QBO_REALM,
+        },
+      },
+    });
+    await expect(
+      resolveCanonicalCompanyProviderTenant(supabase, {
+        companyId: COMPANY_A,
+        userId: USER,
+      }),
+    ).rejects.toMatchObject({
+      code: "ACCOUNTING_CONNECTION_AMBIGUOUS",
+      httpStatus: 409,
+    });
+  });
+
+  it("dual-provider company with Xero scope → xero tenant", async () => {
+    const { supabase } = createSupabaseMock({
+      companies: {
+        [COMPANY_A]: {
+          id: COMPANY_A,
+          xero_tenant_id: TENANT_A,
+          qbo_realm_id: QBO_REALM,
+        },
+      },
+    });
+    const resolved = await resolveCanonicalCompanyProviderTenant(supabase, {
+      companyId: COMPANY_A,
+      userId: USER,
+      sourceSystem: "xero",
+    });
+    expect(resolved).toEqual({
+      companyId: COMPANY_A,
+      provider: "xero",
+      tenantId: TENANT_A,
+    });
+  });
+
+  it("dual-provider company with QBO scope → qbo realm", async () => {
+    const { supabase } = createSupabaseMock({
+      companies: {
+        [COMPANY_A]: {
+          id: COMPANY_A,
+          xero_tenant_id: TENANT_A,
+          qbo_realm_id: QBO_REALM,
+        },
+      },
+    });
+    const resolved = await resolveCanonicalCompanyProviderTenant(supabase, {
+      companyId: COMPANY_A,
+      userId: USER,
+      sourceSystem: "quickbooks",
+    });
+    expect(resolved).toEqual({
+      companyId: COMPANY_A,
+      provider: "quickbooks",
+      tenantId: QBO_REALM,
+    });
+  });
 });
 
 describe("selectAccountingConnectionForActiveContext", () => {
+  it("unsupported sourceSystem → SCOPE_MISMATCH (never drops provider filter)", async () => {
+    const { supabase, calls } = createSupabaseMock({
+      connections: () => makeRow(),
+    });
+    await expect(
+      selectAccountingConnectionForActiveContext({
+        supabase,
+        userId: USER,
+        connectionId: LIVE_CONNECTED,
+        sourceSystem: "foo",
+      }),
+    ).rejects.toMatchObject({
+      code: "ACCOUNTING_CONNECTION_SCOPE_MISMATCH",
+      httpStatus: 409,
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("explicit provider mismatch (xero id + quickbooks scope) → null", async () => {
+    const { supabase, calls } = createSupabaseMock({
+      connections: (call) => {
+        if (call.filters.provider === "quickbooks") return null;
+        return makeRow();
+      },
+    });
+    const result = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      connectionId: LIVE_CONNECTED,
+      sourceSystem: "quickbooks",
+    });
+    expect(result).toBeNull();
+    expect(calls[0].filters.provider).toBe("quickbooks");
+    expect(calls[0].filters.id).toBe(LIVE_CONNECTED);
+  });
+
+  it("dual-provider companyId without sourceSystem → AMBIGUOUS", async () => {
+    const { supabase } = createSupabaseMock({
+      companies: {
+        [COMPANY_A]: {
+          id: COMPANY_A,
+          xero_tenant_id: TENANT_A,
+          qbo_realm_id: QBO_REALM,
+        },
+      },
+      connections: () => [makeRow()],
+    });
+    await expect(
+      selectAccountingConnectionForActiveContext({
+        supabase,
+        userId: USER,
+        companyId: COMPANY_A,
+      }),
+    ).rejects.toMatchObject({ code: "ACCOUNTING_CONNECTION_AMBIGUOUS" });
+  });
+
+  it("dual-provider companyId + Xero scope selects Xero tenant grant", async () => {
+    const xero = makeRow({ id: LIVE_CONNECTED, tenant_or_realm_id: TENANT_A, provider: "xero" });
+    const qbo = makeRow({
+      id: QBO_CONN,
+      provider: "quickbooks",
+      tenant_or_realm_id: QBO_REALM,
+    });
+    const { supabase } = createSupabaseMock({
+      companies: {
+        [COMPANY_A]: {
+          id: COMPANY_A,
+          xero_tenant_id: TENANT_A,
+          qbo_realm_id: QBO_REALM,
+        },
+      },
+      connections: () => [xero, qbo],
+    });
+    const result = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      companyId: COMPANY_A,
+      sourceSystem: "xero",
+    });
+    expect(result?.id).toBe(LIVE_CONNECTED);
+    expect(result?.provider).toBe("xero");
+  });
+
+  it("dual-provider companyId + QBO scope selects QBO realm grant", async () => {
+    const xero = makeRow({ id: LIVE_CONNECTED, tenant_or_realm_id: TENANT_A, provider: "xero" });
+    const qbo = makeRow({
+      id: QBO_CONN,
+      provider: "quickbooks",
+      tenant_or_realm_id: QBO_REALM,
+    });
+    const { supabase } = createSupabaseMock({
+      companies: {
+        [COMPANY_A]: {
+          id: COMPANY_A,
+          xero_tenant_id: TENANT_A,
+          qbo_realm_id: QBO_REALM,
+        },
+      },
+      connections: () => [xero, qbo],
+    });
+    const result = await selectAccountingConnectionForActiveContext({
+      supabase,
+      userId: USER,
+      companyId: COMPANY_A,
+      sourceSystem: "quickbooks",
+    });
+    expect(result?.id).toBe(QBO_CONN);
+    expect(result?.tenant_or_realm_id).toBe(QBO_REALM);
+  });
+
+  it("explicit connection missing tenant cannot prove tenant scope", async () => {
+    const { supabase } = createSupabaseMock({
+      connections: () => makeRow({ tenant_or_realm_id: null as unknown as string }),
+    });
+    await expect(
+      selectAccountingConnectionForActiveContext({
+        supabase,
+        userId: USER,
+        connectionId: LIVE_CONNECTED,
+        sourceSystem: "xero",
+        tenantOrRealmId: TENANT_A,
+      }),
+    ).rejects.toMatchObject({ code: "ACCOUNTING_CONNECTION_SCOPE_MISMATCH" });
+  });
+
+  it("explicit connection missing tenant cannot prove company scope", async () => {
+    const { supabase } = createSupabaseMock({
+      companies: {
+        [COMPANY_A]: { id: COMPANY_A, xero_tenant_id: TENANT_A, qbo_realm_id: null },
+      },
+      connections: () => makeRow({ tenant_or_realm_id: null as unknown as string }),
+    });
+    await expect(
+      selectAccountingConnectionForActiveContext({
+        supabase,
+        userId: USER,
+        connectionId: LIVE_CONNECTED,
+        sourceSystem: "xero",
+        companyId: COMPANY_A,
+      }),
+    ).rejects.toMatchObject({ code: "ACCOUNTING_CONNECTION_SCOPE_MISMATCH" });
+  });
+
   it("1. explicit connected ID returns exact row", async () => {
     const live = makeRow();
     const { supabase, calls } = createSupabaseMock({

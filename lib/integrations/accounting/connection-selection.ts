@@ -66,16 +66,39 @@ type ConnectionQueryClient = {
 
 type ProviderKind = "xero" | "quickbooks";
 
-const TENANT_COLUMN_BY_PROVIDER: Record<ProviderKind, "xero_tenant_id" | "qbo_realm_id"> = {
-  xero: "xero_tenant_id",
-  quickbooks: "qbo_realm_id",
-};
+type ProviderScope =
+  | { kind: "absent" }
+  | { kind: "valid"; provider: ProviderKind }
+  | { kind: "invalid"; raw: string };
 
-function normalizeProvider(sourceSystem: string | null | undefined): ProviderKind | null {
-  const raw = String(sourceSystem || "").trim().toLowerCase();
-  if (raw === "xero") return "xero";
-  if (raw === "quickbooks" || raw === "qbo") return "quickbooks";
-  return null;
+/**
+ * Parse caller provider scope.
+ * - absent/empty → no provider constraint (only when truly omitted)
+ * - xero / quickbooks / qbo → valid constraint (must be preserved)
+ * - anything else → invalid (never collapse to "no provider")
+ */
+function parseProviderScope(sourceSystem: string | null | undefined): ProviderScope {
+  const raw = String(sourceSystem || "").trim();
+  if (!raw) return { kind: "absent" };
+  const normalized = raw.toLowerCase();
+  if (normalized === "xero") return { kind: "valid", provider: "xero" };
+  if (normalized === "quickbooks" || normalized === "qbo") {
+    return { kind: "valid", provider: "quickbooks" };
+  }
+  return { kind: "invalid", raw };
+}
+
+function throwUnsupportedProvider(args: {
+  raw: string;
+  connectionId?: string;
+}): never {
+  throw new AccountingConnectionSelectionError({
+    code: "ACCOUNTING_CONNECTION_SCOPE_MISMATCH",
+    message: `Unsupported accounting provider scope "${args.raw}"; expected xero or quickbooks.`,
+    connectionId: args.connectionId || "",
+    status: "connected",
+    httpStatus: 409,
+  });
 }
 
 /** Reject self-successor links at the business layer. */
@@ -262,6 +285,9 @@ export type CanonicalCompanyTenantResolution = {
 /**
  * Resolve company → provider tenant/realm from the canonical companies row.
  * Never uses metadata_json.company_id.
+ *
+ * Dual-bound company (both xero_tenant_id and qbo_realm_id) without an explicit
+ * provider is ambiguity — not absence.
  */
 export async function resolveCanonicalCompanyProviderTenant(
   supabase: ConnectionQueryClient,
@@ -273,6 +299,11 @@ export async function resolveCanonicalCompanyProviderTenant(
 ): Promise<CanonicalCompanyTenantResolution | null> {
   const safeCompanyId = rejectUserIdShapedCompanyId(args.companyId, args.userId);
   if (!safeCompanyId) return null;
+
+  const providerScope = parseProviderScope(args.sourceSystem);
+  if (providerScope.kind === "invalid") {
+    throwUnsupportedProvider({ raw: providerScope.raw });
+  }
 
   const { data, error } = await supabase
     .from("companies")
@@ -287,17 +318,27 @@ export async function resolveCanonicalCompanyProviderTenant(
 
   const xeroTenant = deriveProviderTenantId(company.xero_tenant_id);
   const qboRealm = deriveProviderTenantId(company.qbo_realm_id);
-  const requested = normalizeProvider(args.sourceSystem);
 
-  let provider: ProviderKind | null = requested;
+  let provider: ProviderKind | null =
+    providerScope.kind === "valid" ? providerScope.provider : null;
   if (!provider) {
+    if (xeroTenant && qboRealm) {
+      throw new AccountingConnectionSelectionError({
+        code: "ACCOUNTING_CONNECTION_AMBIGUOUS",
+        message:
+          "Company is bound to both Xero and QuickBooks; pass sourceSystem to select the provider authority.",
+        connectionId: "",
+        status: "connected",
+        httpStatus: 409,
+      });
+    }
     if (xeroTenant && !qboRealm) provider = "xero";
     else if (qboRealm && !xeroTenant) provider = "quickbooks";
-    else return null; // ambiguous or unbound without explicit provider
+    else return null; // unbound for any accounting provider
   }
 
   const tenantId = provider === "xero" ? xeroTenant : qboRealm;
-  if (!tenantId) return null;
+  if (!tenantId) return null; // requested provider not bound on this company
 
   return { companyId: String(company.id), provider, tenantId };
 }
@@ -315,15 +356,32 @@ async function assertOptionalScopeMatchesConnection(args: {
   if (!companyId && !requestedTenant) return;
 
   const connectionTenant = deriveProviderTenantId(args.connection.tenant_or_realm_id);
-  if (requestedTenant && connectionTenant && requestedTenant !== connectionTenant) {
-    throwScopeMismatch({
-      connectionId: String(args.connection.id),
-      message:
-        "Explicit accounting connection tenant does not match the requested tenantOrRealmId scope.",
-    });
+  if (requestedTenant) {
+    if (!connectionTenant) {
+      throwScopeMismatch({
+        connectionId: String(args.connection.id),
+        message:
+          "Explicit accounting connection is missing tenant_or_realm_id; cannot prove tenant scope.",
+      });
+    }
+    if (requestedTenant !== connectionTenant) {
+      throwScopeMismatch({
+        connectionId: String(args.connection.id),
+        message:
+          "Explicit accounting connection tenant does not match the requested tenantOrRealmId scope.",
+      });
+    }
   }
 
   if (!companyId) return;
+
+  if (!connectionTenant) {
+    throwScopeMismatch({
+      connectionId: String(args.connection.id),
+      message:
+        "Explicit accounting connection is missing tenant_or_realm_id; cannot prove company scope.",
+    });
+  }
 
   const canonical = await resolveCanonicalCompanyProviderTenant(args.supabase, {
     companyId,
@@ -337,7 +395,7 @@ async function assertOptionalScopeMatchesConnection(args: {
         "Explicit accounting connection could not be verified against the requested company scope.",
     });
   }
-  if (connectionTenant && canonical.tenantId !== connectionTenant) {
+  if (canonical.tenantId !== connectionTenant) {
     throwScopeMismatch({
       connectionId: String(args.connection.id),
       message:
@@ -394,7 +452,14 @@ export async function selectAccountingConnectionForActiveContext(args: {
   tenantOrRealmId?: string | null;
 }): Promise<AccountingConnectionRecord | null> {
   const explicitId = String(args.connectionId || "").trim();
-  const provider = normalizeProvider(args.sourceSystem);
+  const providerScope = parseProviderScope(args.sourceSystem);
+  if (providerScope.kind === "invalid") {
+    throwUnsupportedProvider({
+      raw: providerScope.raw,
+      connectionId: explicitId || undefined,
+    });
+  }
+  const provider = providerScope.kind === "valid" ? providerScope.provider : null;
   const companyId = String(args.companyId || "").trim();
   const tenantOrRealmId = deriveProviderTenantId(args.tenantOrRealmId);
 
@@ -404,6 +469,7 @@ export async function selectAccountingConnectionForActiveContext(args: {
       .select("*")
       .eq("id", explicitId)
       .eq("user_id", args.userId);
+    // Valid provider scope must remain a predicate (never dropped).
     if (provider) query = query.eq("provider", provider);
     const { data, error } = await query.limit(1);
     if (error) throw error;
@@ -416,7 +482,7 @@ export async function selectAccountingConnectionForActiveContext(args: {
         userId: args.userId,
         companyId,
         tenantOrRealmId,
-        sourceSystem: args.sourceSystem,
+        sourceSystem: provider || row.provider,
       });
       return row;
     }
