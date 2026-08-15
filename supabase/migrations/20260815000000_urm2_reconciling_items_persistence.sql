@@ -236,6 +236,7 @@ DECLARE
   v_new_id uuid;
   v_class text;
   v_evidence uuid[];
+  v_items_sum_cents bigint;
 BEGIN
   SELECT r.engagement_id, r.pbc_request_id, r.totals_variance_cents
     INTO v_engagement_id, v_pbc_request_id, v_totals_variance_cents
@@ -253,6 +254,12 @@ BEGIN
 
   IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' THEN
     RAISE EXCEPTION 'urm2_items_must_be_json_array';
+  END IF;
+
+  IF p_identified_items_total_cents IS NULL
+     OR p_unidentified_residual_cents IS NULL
+  THEN
+    RAISE EXCEPTION 'urm2_bridge_totals_required';
   END IF;
 
   IF p_recon_outcome IS NULL OR p_recon_outcome NOT IN (
@@ -283,6 +290,22 @@ BEGIN
       RAISE EXCEPTION 'urm2_unidentified_residual_not_persistable';
     END IF;
   END LOOP;
+
+  -- Persistence integrity assertions (NOT a second formula engine).
+  -- All checks run BEFORE DELETE/INSERT/UPDATE so failures leave prior state intact.
+  SELECT COALESCE(SUM((e.value->>'amount_cents')::bigint), 0)
+    INTO v_items_sum_cents
+  FROM jsonb_array_elements(p_items) AS e(value);
+
+  IF v_items_sum_cents <> p_identified_items_total_cents THEN
+    RAISE EXCEPTION 'urm2_identified_total_mismatch';
+  END IF;
+
+  IF (p_identified_items_total_cents + p_unidentified_residual_cents)
+       <> v_totals_variance_cents
+  THEN
+    RAISE EXCEPTION 'urm2_cent_exact_bridge_mismatch';
+  END IF;
 
   DELETE FROM public.audit_ready_reconciling_items
   WHERE run_id = p_run_id;
@@ -403,7 +426,7 @@ REVOKE ALL ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity()
 COMMENT ON FUNCTION public.persist_audit_ready_recon_bridge(
   uuid, jsonb, bigint, bigint, integer, integer, text, boolean, timestamptz
 ) IS
-  'URM-2: atomic replace of identified reconciling items + run URM columns. Run identity authoritative. Does not set baseline_sync_id. Does not compute residual/outcome math.';
+  'URM-2: atomic replace of identified reconciling items + run URM columns. Run identity authoritative. Asserts SUM(items)=identified_total and identified+residual=totals_variance_cents BEFORE mutation. Does not set baseline_sync_id. Does not compute residual/outcome math.';
 
 COMMENT ON FUNCTION public.clear_audit_ready_recon_bridge(uuid) IS
   'URM-2: atomic clear of identified items + run URM columns; retains baseline_sync_id.';
