@@ -154,10 +154,20 @@ ALTER TABLE public.audit_ready_tie_out_variance_evidence
     OR content_hash ~ '^[a-f0-9]{64}$'
   );
 
--- Idempotency for item-linked hashed documents (retry-safe).
-CREATE UNIQUE INDEX IF NOT EXISTS uq_arte_item_content_hash
+-- Idempotency for logical attachment identity (retry-safe).
+-- Same document may support multiple items and/or multiple variances;
+-- uniqueness is per attachment identity, not merely (item, hash).
+DROP INDEX IF EXISTS uq_arte_item_content_hash;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_arte_item_only_content_hash
   ON public.audit_ready_tie_out_variance_evidence(reconciling_item_id, content_hash)
-  WHERE reconciling_item_id IS NOT NULL AND content_hash IS NOT NULL;
+  WHERE reconciling_item_id IS NOT NULL
+    AND content_hash IS NOT NULL
+    AND variance_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_arte_item_variance_content_hash
+  ON public.audit_ready_tie_out_variance_evidence(reconciling_item_id, variance_id, content_hash)
+  WHERE reconciling_item_id IS NOT NULL
+    AND variance_id IS NOT NULL
+    AND content_hash IS NOT NULL;
 
 -- Document / third-party rows may carry zero contribution cents.
 -- Keep total/subtotal/balance NOT NULL (callers pass 0).

@@ -118,6 +118,10 @@ function makeChain(table: string) {
       filters.push([col, val]);
       return chain;
     },
+    is(col: string, val: unknown) {
+      filters.push([col, val]);
+      return chain;
+    },
     order(col: string) {
       orderCol = col;
       return chain;
@@ -127,17 +131,22 @@ function makeChain(table: string) {
         const raw = Array.isArray(pendingInsert)
           ? pendingInsert[0]
           : pendingInsert;
-        // Simulate unique (item, content_hash)
+        // Simulate scoped unique indexes by logical attachment identity.
         if (raw.reconciling_item_id && raw.content_hash) {
-          const dup = state.evidence.find(
-            (e) =>
-              e.reconciling_item_id === raw.reconciling_item_id &&
-              e.content_hash === raw.content_hash,
-          );
+          const dup = state.evidence.find((e) => {
+            if (e.reconciling_item_id !== raw.reconciling_item_id) return false;
+            if (e.content_hash !== raw.content_hash) return false;
+            if (raw.variance_id == null) {
+              return e.variance_id == null;
+            }
+            return e.variance_id === raw.variance_id;
+          });
           if (dup) {
             return {
               data: null,
-              error: { message: "duplicate key uq_arte_item_content_hash" },
+              error: {
+                message: "duplicate key uq_arte_item_variance_content_hash",
+              },
             };
           }
         }
@@ -170,7 +179,11 @@ function makeChain(table: string) {
       if (table === "audit_ready_tie_out_variance_evidence") {
         let rows = [...state.evidence];
         for (const [col, val] of filters) {
-          rows = rows.filter((r) => r[col] === val);
+          if (val === null) {
+            rows = rows.filter((r) => r[col] == null);
+          } else {
+            rows = rows.filter((r) => r[col] === val);
+          }
         }
         return { data: rows[0] ?? null, error: null };
       }
@@ -324,6 +337,16 @@ describe("URM-3 migration contract", () => {
     expect(sql).not.toContain("persist_audit_ready_recon_bridge");
     expect(sql).not.toContain("baseline_sync_id");
   });
+
+  it("scopes uniqueness to logical attachment identity (not bare item+hash)", () => {
+    expect(sql).toContain("uq_arte_item_only_content_hash");
+    expect(sql).toContain("uq_arte_item_variance_content_hash");
+    expect(sql).toContain("AND variance_id IS NULL");
+    expect(sql).toContain("AND variance_id IS NOT NULL");
+    expect(sql).not.toMatch(
+      /CREATE UNIQUE INDEX IF NOT EXISTS uq_arte_item_content_hash\b/,
+    );
+  });
 });
 
 describe("URM-3 hash convention", () => {
@@ -425,6 +448,11 @@ describe("URM-3 evidence helpers", () => {
         run_id: "run-a",
         engagement_id: "eng-a",
       },
+      "var-2": {
+        id: "var-2",
+        run_id: "run-a",
+        engagement_id: "eng-a",
+      },
       "var-other-run": {
         id: "var-other-run",
         run_id: "run-b",
@@ -505,6 +533,80 @@ describe("URM-3 evidence helpers", () => {
     expect(row.content_hash).toBeNull();
   });
 
+  it("item-only then item+variance creates a second attachment with both IDs", async () => {
+    const itemOnly = await attachEvidenceToReconcilingItem({
+      reconcilingItemId: "item-1",
+      sourceKind: "bank_statement",
+      storagePath: "pbc/bank.pdf",
+      contentHash: HASH_DOC_A,
+      provider: "external",
+      fileName: "bank.pdf",
+      contentType: "application/pdf",
+    });
+    expect(itemOnly.variance_id).toBeNull();
+    expect(itemOnly.reconciling_item_id).toBe("item-1");
+
+    const dual = await attachEvidenceToVariance({
+      varianceId: "var-1",
+      reconcilingItemId: "item-1",
+      sourceKind: "bank_statement",
+      storagePath: "pbc/bank.pdf",
+      contentHash: HASH_DOC_A,
+      provider: "external",
+      fileName: "bank.pdf",
+      contentType: "application/pdf",
+    });
+    expect(dual.id).not.toBe(itemOnly.id);
+    expect(dual.reconciling_item_id).toBe("item-1");
+    expect(dual.variance_id).toBe("var-1");
+    expect(dual.content_hash).toBe(HASH_DOC_A);
+    expect(state.evidence).toHaveLength(2);
+  });
+
+  it("same document may support multiple variances on the same item", async () => {
+    const a = await attachEvidenceToReconcilingItem({
+      reconcilingItemId: "item-1",
+      varianceId: "var-1",
+      sourceKind: "reserve_model",
+      storagePath: "pbc/reserve.xlsx",
+      contentHash: HASH_DOC_A,
+      provider: "system",
+    });
+    const b = await attachEvidenceToReconcilingItem({
+      reconcilingItemId: "item-1",
+      varianceId: "var-2",
+      sourceKind: "reserve_model",
+      storagePath: "pbc/reserve.xlsx",
+      contentHash: HASH_DOC_A,
+      provider: "system",
+    });
+    expect(a.id).not.toBe(b.id);
+    expect(a.variance_id).toBe("var-1");
+    expect(b.variance_id).toBe("var-2");
+    expect(state.evidence).toHaveLength(2);
+  });
+
+  it("exact duplicate item+variance+hash returns existing (no duplicate)", async () => {
+    const first = await attachEvidenceToReconcilingItem({
+      reconcilingItemId: "item-1",
+      varianceId: "var-1",
+      sourceKind: "confirmation",
+      storagePath: "pbc/conf.pdf",
+      contentHash: HASH_DOC_B,
+      provider: "external",
+    });
+    const second = await attachEvidenceToReconcilingItem({
+      reconcilingItemId: "item-1",
+      varianceId: "var-1",
+      sourceKind: "confirmation",
+      storagePath: "pbc/conf.pdf",
+      contentHash: HASH_DOC_B,
+      provider: "external",
+    });
+    expect(second.id).toBe(first.id);
+    expect(state.evidence).toHaveLength(1);
+  });
+
   it("cache failure after insert does not throw or duplicate on retry", async () => {
     state.failCacheUpdate = true;
     const first = await attachEvidenceToReconcilingItem({
@@ -521,7 +623,7 @@ describe("URM-3 evidence helpers", () => {
     expect(state.items["item-1"].evidence_ids).toEqual([]);
     expect(state.evidence).toHaveLength(1);
 
-    // Retry must return same canonical row (idempotent by content_hash), not insert again.
+    // Exact logical retry (item-only + same hash) returns same row.
     const second = await attachEvidenceToReconcilingItem({
       reconcilingItemId: "item-1",
       sourceKind: "lease_schedule",

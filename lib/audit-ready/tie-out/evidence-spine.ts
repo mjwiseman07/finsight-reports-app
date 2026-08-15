@@ -25,6 +25,11 @@
  * - Stored as 64 lowercase hex chars: /^[a-f0-9]{64}$/
  * - Malformed hash → fail closed; storage_path requires a valid hash.
  *
+ * Idempotency (logical attachment, not bare document):
+ * - item-only: unique (item, hash) WHERE variance_id IS NULL
+ * - item+variance: unique (item, variance, hash) WHERE variance_id IS NOT NULL
+ * - Same document may support multiple items and multiple variances.
+ *
  * GRNI compatibility:
  * - Variance-only rows (source_kind bill|invoice|inventory_adjustment, no item FK)
  *   remain valid; attachEvidenceToVariance mirrors that path.
@@ -304,17 +309,28 @@ async function syncEvidenceIdsCacheBestEffort(
   }
 }
 
-async function findExistingItemEvidenceByHash(
-  reconcilingItemId: string,
-  contentHash: string,
-): Promise<VarianceEvidenceRow | null> {
+/**
+ * Lookup by exact logical attachment identity.
+ * Item-only (variance null) is never treated as equivalent to item+variance.
+ */
+async function findExistingLogicalAttachment(args: {
+  reconcilingItemId: string;
+  varianceId: string | null;
+  contentHash: string;
+}): Promise<VarianceEvidenceRow | null> {
   const supabase = requireAdmin();
-  const { data, error } = await supabase
+  let query = supabase
     .from("audit_ready_tie_out_variance_evidence")
     .select(EVIDENCE_SELECT)
-    .eq("reconciling_item_id", reconcilingItemId)
-    .eq("content_hash", contentHash)
-    .maybeSingle();
+    .eq("reconciling_item_id", args.reconcilingItemId)
+    .eq("content_hash", args.contentHash);
+
+  query =
+    args.varianceId == null
+      ? query.is("variance_id", null)
+      : query.eq("variance_id", args.varianceId);
+
+  const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);
   return (data as VarianceEvidenceRow | null) ?? null;
 }
@@ -322,24 +338,28 @@ async function findExistingItemEvidenceByHash(
 /**
  * Attach evidence to an identified reconciling item.
  * Canonical insert is authoritative; evidence_ids[] sync is best-effort.
- * Idempotent on (reconciling_item_id, content_hash) when hash present.
+ * Idempotent on logical attachment:
+ *   item-only → (item, hash) where variance IS NULL
+ *   item+variance → (item, variance, hash)
  */
 export async function attachEvidenceToReconcilingItem(
   input: AttachEvidenceToItemInput,
 ): Promise<VarianceEvidenceRow> {
   const supabase = requireAdmin();
+  const varianceId = input.varianceId ?? null;
   const row = toInsertRow({
     ...input,
-    varianceId: input.varianceId ?? null,
+    varianceId,
     reconcilingItemId: input.reconcilingItemId,
   });
 
   const hash = row.content_hash as string | null;
   if (hash) {
-    const existing = await findExistingItemEvidenceByHash(
-      input.reconcilingItemId,
-      hash,
-    );
+    const existing = await findExistingLogicalAttachment({
+      reconcilingItemId: input.reconcilingItemId,
+      varianceId,
+      contentHash: hash,
+    });
     if (existing) {
       await syncEvidenceIdsCacheBestEffort(
         input.reconcilingItemId,
@@ -370,6 +390,7 @@ export async function attachEvidenceToReconcilingItem(
 /**
  * Attach evidence to a measurement variance (GRNI / AR / AP path).
  * Optionally also links a reconciling item (best-effort cache when set).
+ * When item+hash present, idempotency uses exact (item, variance, hash).
  */
 export async function attachEvidenceToVariance(
   input: AttachEvidenceToVarianceInput,
@@ -382,10 +403,11 @@ export async function attachEvidenceToVariance(
   });
 
   if (input.reconcilingItemId && row.content_hash) {
-    const existing = await findExistingItemEvidenceByHash(
-      input.reconcilingItemId,
-      row.content_hash as string,
-    );
+    const existing = await findExistingLogicalAttachment({
+      reconcilingItemId: input.reconcilingItemId,
+      varianceId: input.varianceId,
+      contentHash: row.content_hash as string,
+    });
     if (existing) {
       await syncEvidenceIdsCacheBestEffort(
         input.reconcilingItemId,
