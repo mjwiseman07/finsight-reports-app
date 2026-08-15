@@ -70,7 +70,7 @@ COMMENT ON COLUMN public.audit_ready_tie_out_runs.unidentified_residual_cents IS
 COMMENT ON COLUMN public.audit_ready_tie_out_runs.recon_outcome IS
   'URM-2: run-level reconOutcome from deriveReconBridge (not legacy totals_status).';
 COMMENT ON COLUMN public.audit_ready_tie_out_runs.baseline_sync_id IS
-  'URM-2: optional Patent/Accuracy Contract sync pin. NULL until explicitly supplied.';
+  'URM-2 schema hook for Patent/Accuracy Contract sync pin. Column+FK only; URM-2 helpers MUST NOT populate it. Later custody PR sets from canonical financial context.';
 
 -- ─────────────────────────────────────────────────────────────
 -- 2) audit_ready_reconciling_items — identified workpaper items only
@@ -164,5 +164,248 @@ CREATE POLICY ar_reconciling_items_engagement_read
         )
     )
   );
+
+-- ─────────────────────────────────────────────────────────────
+-- 4) Run identity is authoritative — stamp engagement/pbc from run
+-- ─────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.trg_ar_reconciling_items_stamp_run_identity()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_engagement_id uuid;
+  v_pbc_request_id uuid;
+BEGIN
+  SELECT r.engagement_id, r.pbc_request_id
+    INTO v_engagement_id, v_pbc_request_id
+  FROM public.audit_ready_tie_out_runs r
+  WHERE r.id = NEW.run_id;
+
+  IF v_engagement_id IS NULL THEN
+    RAISE EXCEPTION 'run_not_found';
+  END IF;
+
+  -- Always overwrite caller-supplied engagement/pbc — run is sole authority.
+  NEW.engagement_id := v_engagement_id;
+  NEW.pbc_request_id := v_pbc_request_id;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_ar_reconciling_items_stamp_run_identity
+  ON public.audit_ready_reconciling_items;
+CREATE TRIGGER trg_ar_reconciling_items_stamp_run_identity
+  BEFORE INSERT OR UPDATE OF run_id, engagement_id, pbc_request_id
+  ON public.audit_ready_reconciling_items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.trg_ar_reconciling_items_stamp_run_identity();
+
+COMMENT ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity() IS
+  'URM-2: forces engagement_id/pbc_request_id from audit_ready_tie_out_runs; callers cannot stamp cross-engagement identity.';
+
+-- ─────────────────────────────────────────────────────────────
+-- 5) Atomic persist / clear RPCs (single state transition)
+-- TS owns deriveReconBridge math; this RPC only persists already-derived values.
+-- Does NOT set baseline_sync_id (custody PR later).
+-- ─────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.persist_audit_ready_recon_bridge(
+  p_run_id uuid,
+  p_items jsonb,
+  p_identified_items_total_cents bigint,
+  p_unidentified_residual_cents bigint,
+  p_reconciling_item_count integer,
+  p_unresolved_material_count integer,
+  p_recon_outcome text,
+  p_allows_timing_reconciled boolean,
+  p_persisted_at timestamptz DEFAULT now()
+)
+RETURNS uuid[]
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_engagement_id uuid;
+  v_pbc_request_id uuid;
+  v_totals_variance_cents bigint;
+  v_item jsonb;
+  v_idx integer := 0;
+  v_item_ids uuid[] := '{}';
+  v_new_id uuid;
+  v_class text;
+  v_evidence uuid[];
+BEGIN
+  SELECT r.engagement_id, r.pbc_request_id, r.totals_variance_cents
+    INTO v_engagement_id, v_pbc_request_id, v_totals_variance_cents
+  FROM public.audit_ready_tie_out_runs r
+  WHERE r.id = p_run_id
+  FOR UPDATE;
+
+  IF v_engagement_id IS NULL THEN
+    RAISE EXCEPTION 'run_not_found';
+  END IF;
+
+  IF v_totals_variance_cents IS NULL THEN
+    RAISE EXCEPTION 'urm2_gross_variance_authority_missing';
+  END IF;
+
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' THEN
+    RAISE EXCEPTION 'urm2_items_must_be_json_array';
+  END IF;
+
+  IF p_recon_outcome IS NULL OR p_recon_outcome NOT IN (
+    'reconciled_exact',
+    'reconciled_with_timing',
+    'reconciled_immaterial_residual',
+    'open_review',
+    'open_material',
+    'provider_action_required',
+    'failed'
+  ) THEN
+    RAISE EXCEPTION 'urm2_invalid_recon_outcome';
+  END IF;
+
+  -- Reject residual-as-item before any mutation.
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
+  LOOP
+    v_class := v_item->>'item_class';
+    IF v_class IS NULL
+       OR v_class = 'unidentified_residual'
+       OR v_class NOT IN (
+         'identified_timing',
+         'identified_documented',
+         'identified_reclass',
+         'identified_error'
+       )
+    THEN
+      RAISE EXCEPTION 'urm2_unidentified_residual_not_persistable';
+    END IF;
+  END LOOP;
+
+  DELETE FROM public.audit_ready_reconciling_items
+  WHERE run_id = p_run_id;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
+  LOOP
+    v_evidence := COALESCE(
+      ARRAY(
+        SELECT jsonb_array_elements_text(COALESCE(v_item->'evidence_ids', '[]'::jsonb))::uuid
+      ),
+      '{}'::uuid[]
+    );
+
+    INSERT INTO public.audit_ready_reconciling_items (
+      run_id,
+      engagement_id,
+      pbc_request_id,
+      item_class,
+      amount_cents,
+      entity_kind,
+      entity_display_name,
+      expected_clear_date,
+      clearance_policy,
+      status,
+      measurement_link_variance_id,
+      evidence_ids,
+      narrative,
+      sort_order
+    ) VALUES (
+      p_run_id,
+      v_engagement_id,
+      v_pbc_request_id,
+      v_item->>'item_class',
+      (v_item->>'amount_cents')::bigint,
+      NULLIF(v_item->>'entity_kind', ''),
+      NULLIF(v_item->>'entity_display_name', ''),
+      NULLIF(v_item->>'expected_clear_date', '')::date,
+      v_item->>'clearance_policy',
+      v_item->>'status',
+      NULLIF(v_item->>'measurement_link_variance_id', '')::uuid,
+      v_evidence,
+      NULLIF(v_item->>'narrative', ''),
+      v_idx
+    )
+    RETURNING id INTO v_new_id;
+
+    v_item_ids := array_append(v_item_ids, v_new_id);
+    v_idx := v_idx + 1;
+  END LOOP;
+
+  UPDATE public.audit_ready_tie_out_runs
+  SET
+    identified_items_total_cents = p_identified_items_total_cents,
+    unidentified_residual_cents = p_unidentified_residual_cents,
+    reconciling_item_count = p_reconciling_item_count,
+    unresolved_material_count = p_unresolved_material_count,
+    recon_outcome = p_recon_outcome,
+    allows_timing_reconciled = p_allows_timing_reconciled,
+    urm_bridge_persisted_at = p_persisted_at
+    -- baseline_sync_id intentionally NOT touched
+  WHERE id = p_run_id;
+
+  RETURN v_item_ids;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.clear_audit_ready_recon_bridge(
+  p_run_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_exists boolean;
+BEGIN
+  SELECT EXISTS(
+    SELECT 1 FROM public.audit_ready_tie_out_runs WHERE id = p_run_id
+  ) INTO v_exists;
+
+  IF NOT v_exists THEN
+    RAISE EXCEPTION 'run_not_found';
+  END IF;
+
+  DELETE FROM public.audit_ready_reconciling_items
+  WHERE run_id = p_run_id;
+
+  UPDATE public.audit_ready_tie_out_runs
+  SET
+    identified_items_total_cents = NULL,
+    unidentified_residual_cents = NULL,
+    reconciling_item_count = NULL,
+    unresolved_material_count = NULL,
+    recon_outcome = NULL,
+    allows_timing_reconciled = NULL,
+    urm_bridge_persisted_at = NULL
+    -- baseline_sync_id intentionally retained
+  WHERE id = p_run_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.persist_audit_ready_recon_bridge(
+  uuid, jsonb, bigint, bigint, integer, integer, text, boolean, timestamptz
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.persist_audit_ready_recon_bridge(
+  uuid, jsonb, bigint, bigint, integer, integer, text, boolean, timestamptz
+) TO service_role;
+
+REVOKE ALL ON FUNCTION public.clear_audit_ready_recon_bridge(uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.clear_audit_ready_recon_bridge(uuid)
+  TO service_role;
+
+REVOKE ALL ON FUNCTION public.trg_ar_reconciling_items_stamp_run_identity()
+  FROM PUBLIC, anon, authenticated;
+
+COMMENT ON FUNCTION public.persist_audit_ready_recon_bridge(
+  uuid, jsonb, bigint, bigint, integer, integer, text, boolean, timestamptz
+) IS
+  'URM-2: atomic replace of identified reconciling items + run URM columns. Run identity authoritative. Does not set baseline_sync_id. Does not compute residual/outcome math.';
+
+COMMENT ON FUNCTION public.clear_audit_ready_recon_bridge(uuid) IS
+  'URM-2: atomic clear of identified items + run URM columns; retains baseline_sync_id.';
 
 COMMIT;

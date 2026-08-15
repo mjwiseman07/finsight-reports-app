@@ -4,8 +4,11 @@
  * Does not change reconciliation math (uses URM-1 deriveReconBridge).
  * Does not migrate resolvers — callers opt in when ready (URM-4+).
  *
- * Gross variance authority: audit_ready_tie_out_runs.totals_variance_cents
- * (measurement layer already written by resolvers).
+ * Gross variance authority: audit_ready_tie_out_runs.totals_variance_cents.
+ * Run identity authority: engagement_id / pbc_request_id always derived from the run
+ * (DB trigger + atomic RPC). Callers cannot stamp cross-engagement identity.
+ *
+ * baseline_sync_id: schema hook only — this helper NEVER sets it.
  */
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
@@ -47,8 +50,6 @@ export type PersistReconBridgeInput = {
   >;
   /** Explicit approved policy — required (no silent DEFAULT clearance). */
   policy: ReconOutcomePolicy;
-  /** Optional Patent/Accuracy Contract sync pin. Never auto-inferred. */
-  baselineSyncId?: string | null;
   forceOutcome?: Extract<ReconOutcome, "failed" | "provider_action_required">;
 };
 
@@ -58,6 +59,7 @@ export type PersistReconBridgeResult = {
   /** Gross variance used as authority (from run.totals_variance_cents). */
   grossVarianceCents: number;
   itemIds: string[];
+  /** Read-back only — never assigned by this helper. */
   baselineSyncId: string | null;
   persistedAt: string;
 };
@@ -66,7 +68,6 @@ export type LoadedReconBridge = {
   runId: string;
   engagementId: string;
   pbcRequestId: string;
-  /** Measurement authority: run.totals_variance_cents (null if run never completed totals). */
   grossVarianceCents: number | null;
   identifiedItemsTotalCents: number | null;
   unidentifiedResidualCents: number | null;
@@ -84,48 +85,30 @@ type RunAuthorityRow = {
   engagement_id: string;
   pbc_request_id: string;
   totals_variance_cents: number | null;
+  baseline_sync_id: string | null;
 };
 
 function requireAdmin() {
   return getSupabaseAdmin();
 }
 
-/**
- * Replace-all identified items for a run (idempotent write path).
- * Does not update run-level outcome columns — use persistReconBridgeForRun.
- */
-export async function replaceReconcilingItemsForRun(params: {
-  runId: string;
-  engagementId: string;
-  pbcRequestId: string;
-  items: ReadonlyArray<
-    Omit<ReconcilingItem, "runId" | "id"> & { runId?: string; id?: string }
-  >;
-}): Promise<string[]> {
-  const supabase = requireAdmin();
-  const { runId, engagementId, pbcRequestId, items } = params;
-
+function assertIdentifiedOnly(
+  items: ReadonlyArray<{ itemClass: string }>,
+): void {
   for (const item of items) {
     if (
-      (item.itemClass as string) === "unidentified_residual" ||
+      item.itemClass === "unidentified_residual" ||
       !item.itemClass?.startsWith("identified_")
     ) {
       throw new Error("urm2_unidentified_residual_not_persistable");
     }
   }
+}
 
-  const { error: delErr } = await supabase
-    .from("audit_ready_reconciling_items")
-    .delete()
-    .eq("run_id", runId);
-  if (delErr) throw new Error(delErr.message);
-
-  if (items.length === 0) return [];
-
-  const rows = items.map((item, index) => ({
-    run_id: runId,
-    engagement_id: engagementId,
-    pbc_request_id: pbcRequestId,
+function itemsToRpcPayload(
+  items: PersistReconBridgeInput["items"],
+): Array<Record<string, unknown>> {
+  return items.map((item, index) => ({
     item_class: item.itemClass,
     amount_cents: item.amountCents,
     entity_kind: item.entityKind ?? null,
@@ -135,54 +118,20 @@ export async function replaceReconcilingItemsForRun(params: {
     status: item.status,
     measurement_link_variance_id: item.measurementLinkVarianceId ?? null,
     evidence_ids: (item.evidenceIds ?? []).filter(Boolean),
+    narrative: null,
     sort_order: index,
   }));
-
-  const { data, error: insErr } = await supabase
-    .from("audit_ready_reconciling_items")
-    .insert(rows)
-    .select("id");
-  if (insErr) throw new Error(insErr.message);
-  return (data ?? []).map((r: { id: string }) => r.id);
 }
 
 /**
- * Clear URM bridge columns + items for a run (idempotent reset).
- * Does not delete the run or measurement variances.
- */
-export async function clearReconBridgeForRun(runId: string): Promise<void> {
-  const supabase = requireAdmin();
-  const { error: delErr } = await supabase
-    .from("audit_ready_reconciling_items")
-    .delete()
-    .eq("run_id", runId);
-  if (delErr) throw new Error(delErr.message);
-
-  const { error: updErr } = await supabase
-    .from("audit_ready_tie_out_runs")
-    .update({
-      identified_items_total_cents: null,
-      unidentified_residual_cents: null,
-      reconciling_item_count: null,
-      unresolved_material_count: null,
-      recon_outcome: null,
-      allows_timing_reconciled: null,
-      // baseline_sync_id intentionally retained unless caller clears separately
-      urm_bridge_persisted_at: null,
-    })
-    .eq("id", runId);
-  if (updErr) throw new Error(updErr.message);
-}
-
-/**
- * Persist identified items + derived run-level URM outcome for a completed run.
+ * Persist identified items + derived run-level URM outcome atomically.
  *
  * Authority:
  * - Gross variance = run.totals_variance_cents (measurement; required)
- * - Residual / outcome = deriveReconBridge (URM-1 pure math; unchanged)
+ * - Residual / outcome = deriveReconBridge (URM-1; sole formula authority)
+ * - engagement_id / pbc_request_id = derived inside DB from run_id
  *
- * Idempotency: replace-all items for run_id, then overwrite run URM columns.
- * Regeneration creates a new run — prior run items remain as audit history.
+ * baseline_sync_id is never written here (custody PR later).
  */
 export async function persistReconBridgeForRun(
   input: PersistReconBridgeInput,
@@ -190,9 +139,13 @@ export async function persistReconBridgeForRun(
   const supabase = requireAdmin();
   const { runId, items, policy, forceOutcome } = input;
 
+  assertIdentifiedOnly(items);
+
   const { data: run, error: runErr } = await supabase
     .from("audit_ready_tie_out_runs")
-    .select("id, engagement_id, pbc_request_id, totals_variance_cents")
+    .select(
+      "id, engagement_id, pbc_request_id, totals_variance_cents, baseline_sync_id",
+    )
     .eq("id", runId)
     .maybeSingle();
   if (runErr) throw new Error(runErr.message);
@@ -211,6 +164,7 @@ export async function persistReconBridgeForRun(
     throw new Error("urm2_gross_variance_authority_invalid");
   }
 
+  // URM-1 remains the sole formula authority.
   const bridge = deriveReconBridge({
     grossVarianceCents,
     items: items.map((i) => ({
@@ -223,56 +177,44 @@ export async function persistReconBridgeForRun(
     forceOutcome,
   });
 
-  const itemIds = await replaceReconcilingItemsForRun({
-    runId,
-    engagementId: authority.engagement_id,
-    pbcRequestId: authority.pbc_request_id,
-    items,
-  });
-
   const persistedAt = new Date().toISOString();
-  const baselineSyncId =
-    input.baselineSyncId === undefined ? undefined : input.baselineSyncId;
 
-  const updatePayload: Record<string, unknown> = {
-    identified_items_total_cents: bridge.identifiedItemsTotalCents,
-    unidentified_residual_cents: bridge.unidentifiedResidualCents,
-    reconciling_item_count: bridge.reconcilingItemCount,
-    unresolved_material_count: bridge.unresolvedMaterialCount,
-    recon_outcome: bridge.reconOutcome,
-    allows_timing_reconciled: policy.allowTimingReconciled,
-    urm_bridge_persisted_at: persistedAt,
-  };
-  if (baselineSyncId !== undefined) {
-    updatePayload.baseline_sync_id = baselineSyncId;
-  }
-
-  const { error: updErr } = await supabase
-    .from("audit_ready_tie_out_runs")
-    .update(updatePayload)
-    .eq("id", runId);
-  if (updErr) throw new Error(updErr.message);
-
-  // Read back baseline if we didn't set it this call.
-  let resolvedBaseline: string | null = baselineSyncId ?? null;
-  if (baselineSyncId === undefined) {
-    const { data: after } = await supabase
-      .from("audit_ready_tie_out_runs")
-      .select("baseline_sync_id")
-      .eq("id", runId)
-      .maybeSingle();
-    resolvedBaseline =
-      (after?.baseline_sync_id as string | null | undefined) ?? null;
-  }
+  const { data: itemIds, error: rpcErr } = await supabase.rpc(
+    "persist_audit_ready_recon_bridge",
+    {
+      p_run_id: runId,
+      p_items: itemsToRpcPayload(items),
+      p_identified_items_total_cents: bridge.identifiedItemsTotalCents,
+      p_unidentified_residual_cents: bridge.unidentifiedResidualCents,
+      p_reconciling_item_count: bridge.reconcilingItemCount,
+      p_unresolved_material_count: bridge.unresolvedMaterialCount,
+      p_recon_outcome: bridge.reconOutcome,
+      p_allows_timing_reconciled: policy.allowTimingReconciled,
+      p_persisted_at: persistedAt,
+    },
+  );
+  if (rpcErr) throw new Error(rpcErr.message);
 
   return {
     runId,
     bridge,
     grossVarianceCents,
-    itemIds,
-    baselineSyncId: resolvedBaseline,
+    itemIds: (itemIds as string[] | null) ?? [],
+    baselineSyncId: authority.baseline_sync_id ?? null,
     persistedAt,
   };
+}
+
+/**
+ * Atomically clear URM bridge items + run columns.
+ * Does not delete the run, measurement variances, or baseline_sync_id.
+ */
+export async function clearReconBridgeForRun(runId: string): Promise<void> {
+  const supabase = requireAdmin();
+  const { error } = await supabase.rpc("clear_audit_ready_recon_bridge", {
+    p_run_id: runId,
+  });
+  if (error) throw new Error(error.message);
 }
 
 /**
