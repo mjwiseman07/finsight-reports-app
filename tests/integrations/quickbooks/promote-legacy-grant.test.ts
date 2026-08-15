@@ -3,7 +3,10 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { planPromoteLegacyQboGrant } from "@/lib/integrations/quickbooks/promote-legacy-grant-plan";
-import { executePromoteLegacyQboGrant } from "@/lib/integrations/quickbooks/promote-legacy-grant-execute";
+import {
+  bindExistingCompanyRealmVerified,
+  executePromoteLegacyQboGrant,
+} from "@/lib/integrations/quickbooks/promote-legacy-grant-execute";
 
 const baseLegacy = {
   id: "e53c49f0-9686-44eb-b0ea-040ceedd02e4",
@@ -260,5 +263,144 @@ describe("executePromoteLegacyQboGrant", () => {
     });
     expect(result.ok).toBe(true);
     expect(persistGrant).toHaveBeenCalled();
+  });
+
+  it("does not claim bind or persist grant when verified bind fails", async () => {
+    const persistGrant = vi.fn();
+    const result = await executePromoteLegacyQboGrant({
+      admin: {} as never,
+      legacyConnectionId: baseLegacy.id,
+      expectedRealmId: "9341454381415870",
+      firmClientId: firmClient.id,
+      dryRun: false,
+      context,
+      bindCompanyRealm: async () => {
+        throw new Error("Company realm bind affected zero rows and qbo_realm_id is still null");
+      },
+      persistGrant,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.mutations).toEqual([]);
+    expect(persistGrant).not.toHaveBeenCalled();
+  });
+});
+
+describe("bindExistingCompanyRealmVerified", () => {
+  const companyId = firmClient.companyId;
+  const expectedRealmId = "9341454381415870";
+
+  function mockAdmin(handlers: {
+    updateResult: { data: unknown; error: unknown };
+    rereadResult: { data: unknown; error: unknown };
+  }) {
+    const selectAfterUpdate = vi.fn(async () => handlers.updateResult);
+    const updateChain = {
+      eq: vi.fn(() => updateChain),
+      is: vi.fn(() => updateChain),
+      select: selectAfterUpdate,
+    };
+    const maybeSingle = vi.fn(async () => handlers.rereadResult);
+    const selectChain = {
+      eq: vi.fn(() => selectChain),
+      maybeSingle,
+    };
+    return {
+      from: vi.fn((table: string) => {
+        expect(table).toBe("companies");
+        return {
+          update: vi.fn(() => updateChain),
+          select: vi.fn(() => selectChain),
+        };
+      }),
+      _spies: { selectAfterUpdate, maybeSingle },
+    };
+  }
+
+  it("succeeds when update returns the expected realm row", async () => {
+    const admin = mockAdmin({
+      updateResult: {
+        data: [{ id: companyId, qbo_realm_id: expectedRealmId }],
+        error: null,
+      },
+      rereadResult: { data: null, error: null },
+    });
+    await bindExistingCompanyRealmVerified({
+      admin: admin as never,
+      companyId,
+      expectedRealmId,
+      nowIso: "2099-01-01T00:00:00.000Z",
+    });
+    expect(admin._spies.maybeSingle).not.toHaveBeenCalled();
+  });
+
+  it("zero-row concurrent same-realm is idempotent success", async () => {
+    const admin = mockAdmin({
+      updateResult: { data: [], error: null },
+      rereadResult: {
+        data: { id: companyId, qbo_realm_id: expectedRealmId },
+        error: null,
+      },
+    });
+    await bindExistingCompanyRealmVerified({
+      admin: admin as never,
+      companyId,
+      expectedRealmId,
+      nowIso: "2099-01-01T00:00:00.000Z",
+    });
+    expect(admin._spies.maybeSingle).toHaveBeenCalled();
+  });
+
+  it("zero-row still NULL fails and must block grant", async () => {
+    const admin = mockAdmin({
+      updateResult: { data: [], error: null },
+      rereadResult: {
+        data: { id: companyId, qbo_realm_id: null },
+        error: null,
+      },
+    });
+    await expect(
+      bindExistingCompanyRealmVerified({
+        admin: admin as never,
+        companyId,
+        expectedRealmId,
+        nowIso: "2099-01-01T00:00:00.000Z",
+      }),
+    ).rejects.toThrow(/still null/);
+  });
+
+  it("zero-row conflicting realm fails closed", async () => {
+    const admin = mockAdmin({
+      updateResult: { data: [], error: null },
+      rereadResult: {
+        data: { id: companyId, qbo_realm_id: "1111111111111111" },
+        error: null,
+      },
+    });
+    await expect(
+      bindExistingCompanyRealmVerified({
+        admin: admin as never,
+        companyId,
+        expectedRealmId,
+        nowIso: "2099-01-01T00:00:00.000Z",
+      }),
+    ).rejects.toThrow(/conflicts with expected/);
+  });
+
+  it("unique violation during realm bind fails before grant", async () => {
+    const admin = mockAdmin({
+      updateResult: {
+        data: null,
+        error: { code: "23505", message: "duplicate key value violates unique constraint" },
+      },
+      rereadResult: { data: null, error: null },
+    });
+    await expect(
+      bindExistingCompanyRealmVerified({
+        admin: admin as never,
+        companyId,
+        expectedRealmId,
+        nowIso: "2099-01-01T00:00:00.000Z",
+      }),
+    ).rejects.toThrow(/unique violation/);
   });
 });

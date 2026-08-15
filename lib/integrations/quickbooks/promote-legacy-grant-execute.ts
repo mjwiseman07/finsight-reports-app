@@ -47,6 +47,85 @@ export type LoadedPromoteContext = {
   otherCompanyOwningRealm: { id: string; name?: string | null } | null;
 };
 
+function asErrorRecord(error: unknown): { code?: string; message?: string } {
+  if (!error || typeof error !== "object") return {};
+  return error as { code?: string; message?: string };
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  const { code, message } = asErrorRecord(error);
+  if (code === "23505") return true;
+  return /duplicate key|unique constraint/i.test(String(message || ""));
+}
+
+/**
+ * Compare-and-set bind of companies.qbo_realm_id.
+ * Proves the postcondition before returning. Zero-row updates are re-read:
+ *   expected realm → idempotent success
+ *   still null → fail
+ *   other realm → fail closed
+ * Unique violation → fail (grant must not proceed).
+ */
+export async function bindExistingCompanyRealmVerified(args: {
+  admin: SupabaseClient;
+  companyId: string;
+  expectedRealmId: string;
+  nowIso: string;
+}): Promise<void> {
+  const { admin, companyId, expectedRealmId, nowIso } = args;
+
+  const { data, error } = await admin
+    .from("companies")
+    .update({
+      qbo_realm_id: expectedRealmId,
+      updated_at: nowIso,
+    })
+    .eq("id", companyId)
+    .is("qbo_realm_id", null)
+    .select("id, qbo_realm_id");
+
+  if (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error(
+        `Realm bind unique violation for company ${companyId} / realm ${expectedRealmId}: ${error.message}`,
+      );
+    }
+    throw new Error(`Failed to bind company realm: ${error.message}`);
+  }
+
+  const updatedRealm = data?.[0]?.qbo_realm_id ? String(data[0].qbo_realm_id) : "";
+  if (updatedRealm === expectedRealmId) {
+    return;
+  }
+
+  // Zero-row update is not an error — re-read and classify.
+  const { data: current, error: readErr } = await admin
+    .from("companies")
+    .select("id, qbo_realm_id")
+    .eq("id", companyId)
+    .maybeSingle();
+  if (readErr) {
+    throw new Error(`Failed to re-read company after realm bind: ${readErr.message}`);
+  }
+  if (!current) {
+    throw new Error(`Company ${companyId} missing after realm bind attempt`);
+  }
+
+  const currentRealm = current.qbo_realm_id ? String(current.qbo_realm_id).trim() : "";
+  if (currentRealm === expectedRealmId) {
+    // Concurrent writer already bound the same realm — safe/idempotent.
+    return;
+  }
+  if (!currentRealm) {
+    throw new Error(
+      `Company ${companyId} realm bind affected zero rows and qbo_realm_id is still null`,
+    );
+  }
+  throw new Error(
+    `Company ${companyId} realm bind affected zero rows; current realm ${currentRealm} conflicts with expected ${expectedRealmId}`,
+  );
+}
+
 export async function loadPromoteLegacyGrantContext(args: {
   admin: SupabaseClient;
   legacyConnectionId: string;
@@ -160,7 +239,7 @@ export async function executePromoteLegacyQboGrant(args: {
   nowIso?: string;
   /** Injected for tests — defaults to persistCanonicalAccountingConnectionGrant. */
   persistGrant?: typeof persistCanonicalAccountingConnectionGrant;
-  /** Injected for tests — defaults to companies update. */
+  /** Injected for tests — replaces verified CAS bind. */
   bindCompanyRealm?: (companyId: string, realmId: string) => Promise<void>;
   /** Injected for tests — skip DB load. */
   context?: LoadedPromoteContext;
@@ -209,22 +288,21 @@ export async function executePromoteLegacyQboGrant(args: {
 
   try {
     if (plan.companyBind === "bind_existing_company") {
+      // Do not record bind mutation until postcondition is proven.
       if (args.bindCompanyRealm) {
         await args.bindCompanyRealm(plan.companyId, plan.expectedRealmId);
       } else {
-        const { error } = await args.admin
-          .from("companies")
-          .update({
-            qbo_realm_id: plan.expectedRealmId,
-            updated_at: nowIso,
-          })
-          .eq("id", plan.companyId)
-          .is("qbo_realm_id", null);
-        if (error) throw new Error(`Failed to bind company realm: ${error.message}`);
+        await bindExistingCompanyRealmVerified({
+          admin: args.admin,
+          companyId: plan.companyId,
+          expectedRealmId: plan.expectedRealmId,
+          nowIso,
+        });
       }
       mutations.push("bind_company_realm");
     }
 
+    // Canonical grant only after company/realm postcondition is proven (or already bound).
     const persisted = await persistGrant({
       admin: args.admin,
       userId: plan.ownerUserId,
