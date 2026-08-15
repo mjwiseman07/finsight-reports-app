@@ -349,6 +349,38 @@ describe("URM-3 migration contract", () => {
   });
 });
 
+describe("URM-3.1 hash normalization order fix", () => {
+  const FIX =
+    "supabase/migrations/20260815130000_urm3_hash_normalization_order.sql";
+  const ORIGINAL =
+    "supabase/migrations/20260815120000_urm3_universal_evidence_spine.sql";
+  const CORRECT =
+    "regexp_replace(lower(btrim(NEW.content_hash)), '^sha256:', '')";
+  const BUGGY =
+    "lower(regexp_replace(btrim(NEW.content_hash), '^sha256:', ''))";
+
+  it("corrective migration uses lower-then-strip order matching TS", () => {
+    const fixSql = readFileSync(join(process.cwd(), FIX), "utf8");
+    expect(fixSql).toContain(CORRECT);
+    expect(fixSql).not.toContain(BUGGY);
+    expect(fixSql).toContain("CREATE OR REPLACE FUNCTION public.trg_arte_stamp_run_identity()");
+  });
+
+  it("does not mutate the already-applied URM-3 migration file", () => {
+    const originalSql = readFileSync(join(process.cwd(), ORIGINAL), "utf8");
+    // Historical applied migration retains the live defect expression until
+    // the corrective migration replaces the function in-place.
+    expect(originalSql).toContain(BUGGY);
+    expect(originalSql).not.toContain(CORRECT);
+  });
+
+  it("TS normalizeEvidenceContentHash accepts uppercase SHA256: prefix", () => {
+    expect(
+      normalizeEvidenceContentHash(`SHA256:${HASH_EMPTY.toUpperCase()}`),
+    ).toBe(HASH_EMPTY);
+  });
+});
+
 describe("URM-3 hash convention", () => {
   it("matches upload-artifact SHA-256 hex convention", () => {
     expect(HASH_EMPTY).toMatch(EVIDENCE_CONTENT_HASH_REGEX);
