@@ -168,6 +168,77 @@ describe("URM-4 face + reconciling items tab", () => {
     expect(tab.subtotalRow?.amount_cents).toBe(3_000);
   });
 
+  it("zero-item Reconciling Items tab remains valid", () => {
+    const tab = buildReconcilingItemsBackupTab(bridge({ items: [] }), {});
+    expect(tab.rows).toEqual([]);
+    expect(tab.subtotalRow?.amount_cents).toBe(3_000);
+  });
+
+  it("canonical FK evidence count wins over stale evidence_ids cache", () => {
+    const itemId = "item-stale";
+    const tab = buildReconcilingItemsBackupTab(
+      bridge({
+        items: [
+          {
+            id: itemId,
+            run_id: "run",
+            engagement_id: "eng",
+            pbc_request_id: "pbc",
+            item_class: "identified_timing",
+            amount_cents: 100,
+            entity_kind: "customer",
+            entity_display_name: "Acme",
+            expected_clear_date: null,
+            clearance_policy: "may_reconcile_with_timing",
+            status: "review",
+            measurement_link_variance_id: null,
+            // Stale cache claims 2 evidence rows; FK spine says 0.
+            evidence_ids: ["ghost-1", "ghost-2"],
+            narrative: null,
+            sort_order: 0,
+            created_at: "2026-08-01T00:00:00Z",
+          },
+        ],
+        identifiedItemsTotalCents: 100,
+        unidentifiedResidualCents: 2_900,
+        reconcilingItemCount: 1,
+      }),
+      { [itemId]: 0 },
+    );
+    expect(tab.rows).toHaveLength(1);
+    expect(tab.rows[0]!.evidence_count).toBe(0);
+    // Must not bake evidence_ids[].length (2) into the workpaper.
+    expect(tab.rows[0]!.evidence_count).not.toBe(2);
+  });
+
+  it("does not treat evidence_ids[] as authoritative when counts omitted", () => {
+    const tab = buildReconcilingItemsBackupTab(
+      bridge({
+        items: [
+          {
+            id: "item-1",
+            run_id: "run",
+            engagement_id: "eng",
+            pbc_request_id: "pbc",
+            item_class: "identified_documented",
+            amount_cents: 50,
+            entity_kind: null,
+            entity_display_name: null,
+            expected_clear_date: null,
+            clearance_policy: "immaterial_ok",
+            status: "tie",
+            measurement_link_variance_id: null,
+            evidence_ids: ["stale-a", "stale-b", "stale-c"],
+            narrative: null,
+            sort_order: 0,
+            created_at: "2026-08-01T00:00:00Z",
+          },
+        ],
+      }),
+    );
+    expect(tab.rows[0]!.evidence_count).toBeNull();
+  });
+
   it("documents legacy-vs-URM conflict: measurement auto_cleared can still be URM open_material", () => {
     // Measurement classifyVariance may mark a small Gross as auto_cleared → legacy ties.
     // URM with empty identified items + fail-closed policy keeps residual = Gross → open_material.

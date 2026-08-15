@@ -14,6 +14,9 @@ function makeChain(table: string) {
       filters.push([col, val]);
       return chain;
     },
+    in() {
+      return chain;
+    },
     order() {
       return chain;
     },

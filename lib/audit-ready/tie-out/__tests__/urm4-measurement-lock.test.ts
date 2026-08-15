@@ -38,4 +38,21 @@ describe("URM-4 measurement formulas locked", () => {
     expect(urm).toContain("return [];");
     expect(urm).toContain("AR_AP_URM_OUTCOME_POLICY");
   });
+
+  it("emitters fail closed on bridge load (no silent legacy fallback)", () => {
+    const arEmit = read("lib/audit-ready/tie-out/emitters/ar-emitter.ts");
+    const apEmit = read("lib/audit-ready/tie-out/emitters/ap-emitter.ts");
+    expect(arEmit).toContain("const bridge = await loadReconBridgeForRun(runId);");
+    expect(apEmit).toContain("const bridge = await loadReconBridgeForRun(runId);");
+    expect(arEmit).not.toMatch(/catch\s*\{\s*bridge\s*=\s*null\s*\}/);
+    expect(apEmit).not.toMatch(/catch\s*\{\s*bridge\s*=\s*null\s*\}/);
+    expect(arEmit).toContain("countEvidenceByReconcilingItemIds");
+    expect(apEmit).toContain("countEvidenceByReconcilingItemIds");
+  });
+
+  it("Reconciling Items evidence count uses FK helper, not evidence_ids cache", () => {
+    const urm = read("lib/audit-ready/tie-out/ar-ap-urm.ts");
+    expect(urm).toContain("countEvidenceByReconcilingItemIds");
+    expect(urm).not.toMatch(/evidence_count:\s*\(item\.evidence_ids/);
+  });
 });

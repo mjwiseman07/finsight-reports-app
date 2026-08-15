@@ -21,6 +21,7 @@ import {
 } from "@/lib/audit-ready/tie-out/recon-model";
 import type { LoadedReconBridge } from "@/lib/audit-ready/tie-out/reconciling-items-persistence";
 import { persistReconBridgeForRun } from "@/lib/audit-ready/tie-out/reconciling-items-persistence";
+import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 
 /**
  * Explicit AR/AP URM outcome policy.
@@ -136,9 +137,46 @@ export function applyUrmBridgeToFace(
   };
 }
 
-/** Reconciling Items backup tab — identified rows + derived residual footer. */
+/**
+ * Canonical evidence counts from URM-3 FK spine
+ * (`audit_ready_tie_out_variance_evidence.reconciling_item_id`).
+ * Never reads `evidence_ids[]` cache.
+ */
+export async function countEvidenceByReconcilingItemIds(
+  reconcilingItemIds: ReadonlyArray<string>,
+): Promise<Record<string, number>> {
+  const counts: Record<string, number> = {};
+  for (const id of reconcilingItemIds) {
+    counts[id] = 0;
+  }
+  const ids = reconcilingItemIds.filter(Boolean);
+  if (ids.length === 0) return counts;
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("audit_ready_tie_out_variance_evidence")
+    .select("reconciling_item_id")
+    .in("reconciling_item_id", ids);
+  if (error) throw new Error(error.message);
+
+  for (const row of data ?? []) {
+    const itemId = row.reconciling_item_id as string | null;
+    if (!itemId) continue;
+    counts[itemId] = (counts[itemId] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * Reconciling Items backup tab — identified rows + derived residual footer.
+ *
+ * `evidenceCountsByItemId` must come from the FK spine (see
+ * countEvidenceByReconcilingItemIds). Passing nothing yields null counts
+ * (omitted), never a stale evidence_ids[] length.
+ */
 export function buildReconcilingItemsBackupTab(
   bridge: LoadedReconBridge,
+  evidenceCountsByItemId?: Readonly<Record<string, number>>,
 ): BackupTabSpec {
   const residual = bridge.unidentifiedResidualCents ?? 0;
   return {
@@ -158,7 +196,13 @@ export function buildReconcilingItemsBackupTab(
       amount_cents: item.amount_cents,
       clearance_policy: item.clearance_policy,
       status: item.status,
-      evidence_count: (item.evidence_ids ?? []).length,
+      evidence_count:
+        evidenceCountsByItemId && Object.prototype.hasOwnProperty.call(
+          evidenceCountsByItemId,
+          item.id,
+        )
+          ? evidenceCountsByItemId[item.id]!
+          : null,
       narrative: item.narrative,
     })),
     subtotalRow: {

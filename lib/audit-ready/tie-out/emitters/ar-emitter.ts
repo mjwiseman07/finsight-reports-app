@@ -13,6 +13,7 @@ import { mapTotalsToTieStatus } from "./_shared/format";
 import {
   applyUrmBridgeToFace,
   buildReconcilingItemsBackupTab,
+  countEvidenceByReconcilingItemIds,
 } from "@/lib/audit-ready/tie-out/ar-ap-urm";
 import { loadReconBridgeForRun } from "@/lib/audit-ready/tie-out/reconciling-items-persistence";
 
@@ -79,12 +80,13 @@ export async function buildArPayload(
     },
   };
 
-  let bridge = null;
-  try {
-    bridge = await loadReconBridgeForRun(runId);
-  } catch {
-    bridge = null;
-  }
+  // Fail closed: real DB/schema read errors must fail emit — never silently
+  // fall back to legacy TIES when URM persisted open_material.
+  // Pre-URM runs load successfully with reconOutcome = null.
+  const bridge = await loadReconBridgeForRun(runId);
+  const evidenceCounts = await countEvidenceByReconcilingItemIds(
+    bridge.items.map((item) => item.id),
+  );
 
   const face = applyUrmBridgeToFace(
     {
@@ -102,7 +104,7 @@ export async function buildArPayload(
           amountCents: leftAmountCents,
           backupTabName: "Customer Rollup",
         },
-        ...(bridge?.reconOutcome
+        ...(bridge.reconOutcome
           ? [
               {
                 label: "Reconciling Items",
@@ -125,8 +127,8 @@ export async function buildArPayload(
   );
 
   const backupTabs: BackupTabSpec[] = [rollup];
-  if (bridge?.reconOutcome) {
-    backupTabs.push(buildReconcilingItemsBackupTab(bridge));
+  if (bridge.reconOutcome) {
+    backupTabs.push(buildReconcilingItemsBackupTab(bridge, evidenceCounts));
   }
 
   return {
