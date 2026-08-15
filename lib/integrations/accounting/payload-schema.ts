@@ -148,25 +148,31 @@ export function resolveAccountingAuthority(input: {
   };
 }
 
-export type XeroDashboardHydrationPlan = {
+export type AccountingDashboardHydrationSource = "xero" | "quickbooks";
+
+export type AccountingDashboardHydrationPlan = {
   shouldHydrate: boolean;
   connectionId: string;
   forceRefresh: boolean;
   schemaStale: boolean;
-  sourceSystem: "xero" | "";
+  sourceSystem: AccountingDashboardHydrationSource | "";
   reconcileWithServer: boolean;
 };
 
+/** @deprecated Prefer AccountingDashboardHydrationPlan — alias for existing Xero tests. */
+export type XeroDashboardHydrationPlan = AccountingDashboardHydrationPlan;
+
 /**
- * Connected Xero dashboards always reconcile once with active-context so a
+ * Connected accounting dashboards always reconcile once with active-context so a
  * falsely-current local schemaVersion cannot suppress server rebuild.
  * forceRefresh is a client hint; server rebuilds whenever persisted schema is stale.
  */
-export function resolveXeroDashboardHydrationPlan(input: {
+export function resolveAccountingDashboardHydrationPlan(input: {
   connectionIdFromUrl?: string | null;
-  isXeroFromUrl: boolean;
+  isProviderFromUrl: boolean;
+  provider: AccountingDashboardHydrationSource;
   storedPayload: PayloadLike;
-}): XeroDashboardHydrationPlan {
+}): AccountingDashboardHydrationPlan {
   const storedContext = input.storedPayload?.reportDataContext || input.storedPayload || null;
   const storedConnectionId = String(
     input.connectionIdFromUrl ||
@@ -181,9 +187,11 @@ export function resolveXeroDashboardHydrationPlan(input: {
       "",
   ).toLowerCase();
   const schemaStale = accountingPayloadNeedsSchemaRefresh(input.storedPayload);
-  const hasXeroConnection = Boolean(storedConnectionId) && (storedSourceSystem === "xero" || input.isXeroFromUrl);
+  const hasConnection =
+    Boolean(storedConnectionId) &&
+    (storedSourceSystem === input.provider || input.isProviderFromUrl);
 
-  if (!hasXeroConnection) {
+  if (!hasConnection) {
     return {
       shouldHydrate: false,
       connectionId: "",
@@ -197,11 +205,29 @@ export function resolveXeroDashboardHydrationPlan(input: {
   return {
     shouldHydrate: true,
     connectionId: String(input.connectionIdFromUrl || storedConnectionId),
-    forceRefresh: Boolean(input.isXeroFromUrl || schemaStale),
+    forceRefresh: Boolean(input.isProviderFromUrl || schemaStale),
     schemaStale,
-    sourceSystem: "xero",
+    sourceSystem: input.provider,
     reconcileWithServer: true,
   };
+}
+
+/**
+ * Connected Xero dashboards always reconcile once with active-context so a
+ * falsely-current local schemaVersion cannot suppress server rebuild.
+ * forceRefresh is a client hint; server rebuilds whenever persisted schema is stale.
+ */
+export function resolveXeroDashboardHydrationPlan(input: {
+  connectionIdFromUrl?: string | null;
+  isXeroFromUrl: boolean;
+  storedPayload: PayloadLike;
+}): AccountingDashboardHydrationPlan {
+  return resolveAccountingDashboardHydrationPlan({
+    connectionIdFromUrl: input.connectionIdFromUrl,
+    isProviderFromUrl: input.isXeroFromUrl,
+    provider: "xero",
+    storedPayload: input.storedPayload,
+  });
 }
 
 /**

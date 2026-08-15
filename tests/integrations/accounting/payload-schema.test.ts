@@ -7,6 +7,7 @@ import {
   getAccountingPayloadSchemaVersion,
   persistedSyncNeedsSchemaRebuild,
   resolveAccountingAuthority,
+  resolveAccountingDashboardHydrationPlan,
   resolveXeroDashboardHydrationPlan,
   shouldDiscardStalePayloadAfterFailedRefresh,
   shouldRebuildPersistedAccountingSync,
@@ -218,5 +219,44 @@ describe("authoritative accounting persistence contract", () => {
   it("legacy: missing schemaVersion is stale", () => {
     expect(getAccountingPayloadSchemaVersion(stalePayload)).toBe(0);
     expect(accountingPayloadNeedsSchemaRefresh(stalePayload)).toBe(true);
+  });
+
+  it("QBO OAuth callback forces hydration with quickbooks sourceSystem", () => {
+    const plan = resolveAccountingDashboardHydrationPlan({
+      connectionIdFromUrl: "acct-canonical-qbo",
+      isProviderFromUrl: true,
+      provider: "quickbooks",
+      storedPayload: null,
+    });
+    expect(plan.shouldHydrate).toBe(true);
+    expect(plan.sourceSystem).toBe("quickbooks");
+    expect(plan.connectionId).toBe("acct-canonical-qbo");
+    expect(plan.forceRefresh).toBe(true);
+  });
+
+  it("QBO stored payload hydrates without URL forceRefresh when schema current", () => {
+    const qboPayload = {
+      connectionId: "acct-canonical-qbo",
+      sourceSystem: "quickbooks",
+      syncId: newSyncId,
+      normalizedData: {
+        sourceSystem: "quickbooks",
+        companyId,
+        syncId: newSyncId,
+        schemaVersion: ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION,
+      },
+      reportDataContext: {
+        connectionId: "acct-canonical-qbo",
+        sourceSystem: "quickbooks",
+      },
+    };
+    const plan = resolveAccountingDashboardHydrationPlan({
+      isProviderFromUrl: false,
+      provider: "quickbooks",
+      storedPayload: qboPayload,
+    });
+    expect(plan.shouldHydrate).toBe(true);
+    expect(plan.sourceSystem).toBe("quickbooks");
+    expect(plan.forceRefresh).toBe(false);
   });
 });

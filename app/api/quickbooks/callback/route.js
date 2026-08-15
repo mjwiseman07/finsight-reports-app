@@ -7,6 +7,7 @@ import { withAutoFile } from "../../../../lib/support/api-error-wrapper";
 import { verifyHolderUserIdCookie, HOLDER_USER_ID_COOKIE_NAME } from "@/lib/demo/holder-cookie";
 import { persistCanonicalAccountingConnectionGrant } from "@/lib/integrations/accounting/persist-canonical-connection-grant";
 import { resolveOrCreateCompanyForProvider } from "@/lib/integrations/accounting/resolve-or-create-company";
+import { persistAuthenticatedQuickBooksGrant } from "@/lib/integrations/quickbooks/persist-authenticated-grant";
 
 function getQuickBooksTokenExpiry(token) {
   const expiresInSeconds = Number(token?.expires_in || 3600);
@@ -18,7 +19,7 @@ async function saveLeadQuickBooksAccountingConnection({ leadId, realmId, token, 
   const now = new Date().toISOString();
 
   // Tenant-aware reconnect on accounting_connections (user + quickbooks + realm).
-  // Authenticated dashboard QBO still uses erp_connections via adapter — unchanged.
+  // Authenticated dashboard QBO also dual-writes ERP via adapter, then this grant.
   const companyId = await resolveOrCreateCompanyForProvider(supabaseAdmin, {
     provider: "quickbooks",
     tenantId: realmId,
@@ -380,37 +381,46 @@ async function getImpl(request) {
     console.log("[quickbooks/callback] saving QuickBooks connection", {
       userId: authData.user.id,
       hasRealmId: Boolean(realmId),
-      table: "erp_connections",
+      tables: ["erp_or_quickbooks_connections", "accounting_connections"],
       platform: "quickbooks",
     });
 
-    const userAdapter = getERPAdapter("quickbooks", authData.user.id);
-    let savedConnection;
+    let savedGrant;
     try {
-      savedConnection = await userAdapter.saveConnection({
+      savedGrant = await persistAuthenticatedQuickBooksGrant({
+        userId: authData.user.id,
         realmId,
         token,
+        companyProfile,
       });
     } catch (saveErr) {
-      console.error("[quickbooks/callback] user connection save failed", {
+      console.error("[quickbooks/callback] user dual-write connection save failed", {
         message: saveErr?.message,
         code: saveErr?.code,
+        realmId,
       });
       return redirectWithQbError(request, "connection_save_failed");
     }
 
-    console.log("[quickbooks/callback] Supabase save succeeded", {
-      connectionId: savedConnection?.id || null,
-      userId: savedConnection?.user_id || authData.user.id,
-      tokenExpiry: savedConnection?.token_expiry || null,
-      updatedAt: savedConnection?.updated_at || null,
+    console.log("[quickbooks/callback] user flow — saved ERP + canonical accounting connection", {
+      accountingConnectionId: savedGrant.accountingConnectionId || null,
+      erpConnectionId: savedGrant.erpConnectionId || null,
+      companyId: savedGrant.companyId || null,
+      userId: authData.user.id,
+      realmId,
     });
 
     // Phase TCP1 W3 — tier-aware landing.
+    // Redirect connectionId is the CANONICAL accounting_connections id so
+    // dashboard active-context / fetch-reports hydrate the authority lane.
     const landing = await resolvePostConnectLanding(authData.user.id, returnTo);
     const redirectUrl = new URL(landing, request.url);
     redirectUrl.searchParams.set("quickBooksConnected", "true");
-    if (savedConnection?.id) redirectUrl.searchParams.set("connectionId", savedConnection.id);
+    redirectUrl.searchParams.set("accountingConnected", "true");
+    redirectUrl.searchParams.set("provider", "quickbooks");
+    if (savedGrant.accountingConnectionId) {
+      redirectUrl.searchParams.set("connectionId", savedGrant.accountingConnectionId);
+    }
     const response = NextResponse.redirect(redirectUrl);
     response.cookies.delete("qb_oauth_state");
     response.cookies.delete("qb_oauth_mode");

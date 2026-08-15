@@ -23,6 +23,7 @@ import {
 import {
   canPromoteClientPayloadAsAuthoritative,
   canUseFetchReportsFallbackAsSchemaPromotion,
+  resolveAccountingDashboardHydrationPlan,
   resolveXeroDashboardHydrationPlan,
   shouldDiscardStalePayloadAfterFailedRefresh,
 } from "../../lib/integrations/accounting/payload-schema";
@@ -1060,7 +1061,7 @@ export default function DashboardPage() {
     loadAccess();
   }, [getAuthToken, router]);
 
-  // DASH_1A.1.2 — hydrate Xero after OAuth callback, and force-refresh when the
+  // DASH_1A.1.2 — hydrate Xero/QBO after OAuth callback, and force-refresh when the
   // persisted localStorage payload predates ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION.
   // Ordinary /dashboard visits must not keep a SUCCESS sync normalized under a prior schema.
   useEffect(() => {
@@ -1073,26 +1074,54 @@ export default function DashboardPage() {
 
     const url = new URL(window.location.href);
     const accountingConnected = url.searchParams.get("accountingConnected") === "true";
+    const quickBooksConnected = url.searchParams.get("quickBooksConnected") === "true";
     const connected = url.searchParams.get("connected") || "";
     const providerParam = url.searchParams.get("provider") || "";
     const connectionIdFromUrl = url.searchParams.get("connectionId") || "";
     const isXeroFromUrl =
       Boolean(connectionIdFromUrl) &&
       (providerParam === "xero" || connected === "xero" || (accountingConnected && providerParam === "xero"));
+    const isQboFromUrl =
+      Boolean(connectionIdFromUrl) &&
+      (providerParam === "quickbooks" ||
+        quickBooksConnected ||
+        (accountingConnected && providerParam === "quickbooks"));
 
     const storedPayload = activeReportPayload || safeReadJsonStorage("advisacor_active_report_payload");
-    const hydrationPlan = resolveXeroDashboardHydrationPlan({
-      connectionIdFromUrl,
-      isXeroFromUrl,
-      storedPayload,
-    });
+    const storedContext = storedPayload?.reportDataContext || storedPayload || null;
+    const storedSourceSystem = String(
+      storedContext?.sourceSystem ||
+        storedPayload?.normalizedData?.sourceSystem ||
+        storedPayload?.sourceSystem ||
+        "",
+    ).toLowerCase();
 
-    if (!hydrationPlan.shouldHydrate || hydrationPlan.sourceSystem !== "xero" || !hydrationPlan.connectionId) {
+    const hydrationPlan = isQboFromUrl || storedSourceSystem === "quickbooks"
+      ? resolveAccountingDashboardHydrationPlan({
+          connectionIdFromUrl,
+          isProviderFromUrl: isQboFromUrl,
+          provider: "quickbooks",
+          storedPayload,
+        })
+      : resolveXeroDashboardHydrationPlan({
+          connectionIdFromUrl,
+          isXeroFromUrl,
+          storedPayload,
+        });
+
+    if (
+      !hydrationPlan.shouldHydrate ||
+      (hydrationPlan.sourceSystem !== "xero" && hydrationPlan.sourceSystem !== "quickbooks") ||
+      !hydrationPlan.connectionId
+    ) {
       return;
     }
 
+    const sourceSystem = hydrationPlan.sourceSystem;
+    const providerLabel = sourceSystem === "quickbooks" ? "QuickBooks" : "Xero";
+
     lifecycle.connectionId = hydrationPlan.connectionId;
-    lifecycle.sourceSystem = "xero";
+    lifecycle.sourceSystem = sourceSystem;
     lifecycle.phase = "in_flight";
     lifecycle.runId += 1;
     const runId = lifecycle.runId;
@@ -1112,7 +1141,7 @@ export default function DashboardPage() {
 
     const toSummaryCompatiblePayload = ({
       connectionId: nextConnectionId,
-      sourceSystem,
+      sourceSystem: nextSourceSystem,
       tenantName,
       lastSyncedAt,
       diagnostics,
@@ -1127,7 +1156,7 @@ export default function DashboardPage() {
         ...(reportDataContext && typeof reportDataContext === "object" ? reportDataContext : {}),
         ...extras,
         connectionId: nextConnectionId || reportDataContext?.connectionId || capturedConnectionId,
-        sourceSystem: sourceSystem || reportDataContext?.sourceSystem || normalizedData.sourceSystem,
+        sourceSystem: nextSourceSystem || reportDataContext?.sourceSystem || normalizedData.sourceSystem,
         tenantName: tenantName || reportDataContext?.tenantName || extras.tenantName || "",
         lastSyncedAt:
           lastSyncedAt ||
@@ -1180,6 +1209,7 @@ export default function DashboardPage() {
     const cleanOAuthQueryParams = () => {
       const cleanUrl = new URL(window.location.href);
       cleanUrl.searchParams.delete("accountingConnected");
+      cleanUrl.searchParams.delete("quickBooksConnected");
       cleanUrl.searchParams.delete("provider");
       cleanUrl.searchParams.delete("connectionId");
       cleanUrl.searchParams.delete("xeroOrganizationSelection");
@@ -1202,7 +1232,7 @@ export default function DashboardPage() {
         const authToken = await getAuthToken();
         if (!authToken) {
           if (!cancelled) {
-            setError("Sign in to finish loading your Xero connection.");
+            setError(`Sign in to finish loading your ${providerLabel} connection.`);
             if (shouldDiscardStalePayloadAfterFailedRefresh(schemaStale, false)) {
               discardStaleAuthoritativePayload();
             }
@@ -1219,7 +1249,7 @@ export default function DashboardPage() {
           path: "/api/accounting/active-context",
           authToken,
           body: {
-            sourceSystem: "xero",
+            sourceSystem,
             forceRefresh,
           },
           connectionId: capturedConnectionId,
@@ -1240,7 +1270,7 @@ export default function DashboardPage() {
             activeContext?.normalizedData || activeContext?.reportDataContext?.normalizedData || null;
           payload = toSummaryCompatiblePayload({
             connectionId: activeContext?.connectionId || capturedConnectionId,
-            sourceSystem: activeContext?.sourceSystem || activeContext?.provider || "xero",
+            sourceSystem: activeContext?.sourceSystem || activeContext?.provider || sourceSystem,
             tenantName: activeContext?.tenantName || activeContext?.reportDataContext?.tenantName || "",
             lastSyncedAt: activeContext?.lastSyncedAt || activeContext?.reportDataContext?.lastSyncedAt || "",
             diagnostics: activeContext?.diagnostics || activeContext?.reportDataContext?.diagnostics || null,
@@ -1255,7 +1285,7 @@ export default function DashboardPage() {
             extras: activeContext && typeof activeContext === "object" ? activeContext : {},
           });
         } else if (!cancelled) {
-          setError(contextErrorBody?.error || "Unable to load your Xero connection context.");
+          setError(contextErrorBody?.error || `Unable to load your ${providerLabel} connection context.`);
         }
 
         const activeContextIsAuthoritative = canPromoteClientPayloadAsAuthoritative({
@@ -1277,7 +1307,7 @@ export default function DashboardPage() {
             path: "/api/accounting/fetch-reports",
             authToken,
             body: {
-              sourceSystem: "xero",
+              sourceSystem,
               startDate: startDt.toISOString().slice(0, 10),
               endDate: endDt.toISOString().slice(0, 10),
             },
@@ -1296,7 +1326,7 @@ export default function DashboardPage() {
               syncBody?.normalizedData || syncBody?.reportDataContext?.normalizedData || null;
             const fallbackPayload = toSummaryCompatiblePayload({
               connectionId: syncBody.connectionId || capturedConnectionId,
-              sourceSystem: syncBody.sourceSystem || syncBody.provider || "xero",
+              sourceSystem: syncBody.sourceSystem || syncBody.provider || sourceSystem,
               tenantName: syncBody.tenantName || syncBody.reportDataContext?.tenantName || "",
               lastSyncedAt: syncBody.lastSyncedAt || syncBody.reportDataContext?.lastSyncedAt || "",
               diagnostics: syncBody.diagnostics || syncBody.reportDataContext?.diagnostics || null,
@@ -1317,12 +1347,12 @@ export default function DashboardPage() {
               authoritativePersistence = fallbackPersistence;
             } else if (!cancelled) {
               setError(
-                "Xero data refreshed transiently but authoritative accounting memory was not persisted. Retry required.",
+                `${providerLabel} data refreshed transiently but authoritative accounting memory was not persisted. Retry required.`,
               );
             }
           } else if (!payload) {
             if (!cancelled) {
-              setError(syncErrorBody?.error || "Unable to load your Xero financial data.");
+              setError(syncErrorBody?.error || `Unable to load your ${providerLabel} financial data.`);
             }
           }
         }
@@ -1351,7 +1381,7 @@ export default function DashboardPage() {
               current ||
               (schemaStale
                 ? "Unable to persist refreshed accounting memory. Scorecard will not use stale numbers as current."
-                : "Xero connected, but financial data is not ready yet. Refresh in a moment."),
+                : `${providerLabel} connected, but financial data is not ready yet. Refresh in a moment.`),
           );
           settle({ persistCleanUrl: true });
         }
@@ -1360,7 +1390,7 @@ export default function DashboardPage() {
           if (shouldDiscardStalePayloadAfterFailedRefresh(schemaStale, false)) {
             discardStaleAuthoritativePayload();
           }
-          setError("Unable to load your Xero financial data.");
+          setError(`Unable to load your ${providerLabel} financial data.`);
           settle({ persistCleanUrl: false });
         }
       } finally {
