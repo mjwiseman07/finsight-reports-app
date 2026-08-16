@@ -147,7 +147,7 @@ export function resolveCashTileState(args: {
       return {
         status: "unavailable",
         message:
-          "Cash position is not available because canonical cash did not tie to the provider Balance Sheet.",
+          "Cash position is not available because native Balance Sheet cash did not tie to canonical Advisacor cash.",
       };
     }
     return { status: "ready" };
@@ -257,7 +257,7 @@ export function resolveNetMarginTileState(args: {
         state: {
           status: "unavailable",
           message:
-            "Net margin is not available because canonical P&L facts did not tie to the provider Profit and Loss statement.",
+            "Net margin is not available because native period P&L controls did not authorize canonical Profit and Loss facts.",
         },
         value: null,
       };

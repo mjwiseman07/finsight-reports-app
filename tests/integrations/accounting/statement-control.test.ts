@@ -158,11 +158,12 @@ function demoBQboRawEnvelope() {
           Rows: {
             Row: [
               {
-                Header: { ColData: [{ value: "BankAccounts" }] },
+                type: "Section",
+                Header: { ColData: [{ value: "Cash and Cash Equivalent" }, { value: "" }] },
                 Rows: {
-                  Row: [{ ColData: [{ value: "Chequing" }, { value: "21095.57" }] }],
+                  Row: [{ type: "Data", ColData: [{ value: "Chequing" }, { value: "21095.57" }] }],
                 },
-                Summary: { ColData: [{ value: "Total Bank Accounts" }, { value: "21095.57" }] },
+                Summary: { ColData: [{ value: "Total Cash and Cash Equivalent" }, { value: "21095.57" }] },
               },
               { ColData: [{ value: "Accounts Receivable" }, { value: "18402.04" }] },
               { ColData: [{ value: "Inventory" }, { value: "7781.91" }] },
