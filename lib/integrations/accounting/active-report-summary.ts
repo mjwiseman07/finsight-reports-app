@@ -14,6 +14,7 @@ import type {
   CanonicalPnLRow,
 } from "./types";
 import type { StatementControlResult } from "./statement-control";
+import { statementControlAllowsKpi } from "./statement-control";
 
 /** Provider-neutral cash position availability (missing ≠ zero). */
 export type CashPositionStatus = "VALUE_ZERO" | "VALUE_NONZERO" | "SOURCE_MISSING";
@@ -264,11 +265,25 @@ export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null
   const evidence = assessPeriodIncomeStatementEvidence(incomeStatement);
   const statementControl =
     (normalizedData as { statementControl?: StatementControlResult | null }).statementControl ?? null;
+  const contractVersion =
+    (normalizedData as { statementControlContractVersion?: number }).statementControlContractVersion ?? 0;
 
-  // Legacy payloads without statementControl must not break working Xero Scorecard values.
-  const controlAllowsCash = !statementControl || statementControl.cashControlPasses;
-  const controlAllowsNpm = !statementControl || statementControl.netProfitMarginControlPasses;
-  const controlAllowsOgm = !statementControl || statementControl.operatingGrossMarginControlPasses;
+  // Contract v1+: missing control fails closed. Legacy (no version): allow.
+  const controlAllowsCash = statementControlAllowsKpi({
+    contractVersion,
+    statementControl,
+    gate: "cash",
+  });
+  const controlAllowsNpm = statementControlAllowsKpi({
+    contractVersion,
+    statementControl,
+    gate: "npm",
+  });
+  const controlAllowsOgm = statementControlAllowsKpi({
+    contractVersion,
+    statementControl,
+    gate: "ogm",
+  });
 
   const netProfitMarginReady = evidence.netProfitMarginReady && controlAllowsNpm;
   const operatingGrossMarginReady = evidence.operatingGrossMarginReady && controlAllowsOgm;

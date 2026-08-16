@@ -1,15 +1,16 @@
 /**
  * Sync-time financial statement control.
  *
- * Architecture:
- *   Provider sync → native BS/P&L rows (already fetched)
- *   → canonical normalization
- *   → statement control (native totals vs canonical facts)
- *   → validated snapshot on accounting_syncs.normalized_payload
+ * Architecture (independence is mandatory):
+ *   Provider sync
+ *   → native BS/P&L totals from RAW provider report objects
+ *   → adapter normalize → Advisacor rows
+ *   → canonical facts from normalized rows ONLY
+ *   → compare native vs canonical (provider-neutral math)
+ *   → stamp statementControl + statementControlContractVersion on payload
  *   → Scorecard reads snapshot only (zero ERP calls on dashboard load)
  *
- * Control math is provider-neutral. Adapters supply normalized rows with
- * explicit totals; this module never branches on NetSuite/SAP/Sage/Dynamics.
+ * Never derive native and canonical from the same already-normalized row set.
  */
 
 import {
@@ -28,8 +29,16 @@ import type {
   CanonicalBalanceSheetRow,
   CanonicalPnLRow,
 } from "./types";
+import type {
+  CanonicalStatementFacts,
+  NativeStatementTotals,
+} from "./native-statement-totals";
 
-export const STATEMENT_CONTROL_TOLERANCE_DOLLAR = 1;
+/** Exact cent tolerance for USD/CAD statement validation (not $1). */
+export const STATEMENT_CONTROL_TOLERANCE_DOLLAR = 0.01;
+
+/** Contract version stamped on new syncs — missing control fails closed when >= 1. */
+export const STATEMENT_CONTROL_CONTRACT_VERSION = 1;
 
 export type StatementControlLineStatus =
   | "tie"
@@ -40,6 +49,9 @@ export type StatementControlLineStatus =
 export type StatementControlLineKey =
   | "cash"
   | "ar"
+  | "inventory"
+  | "net_fixed_assets"
+  | "ap"
   | "total_assets"
   | "total_liabilities"
   | "total_equity"
@@ -64,8 +76,12 @@ export type StatementControlLine = {
 
 export type StatementControlResult = {
   computedAt: string;
-  /** Dollar tolerance for native ↔ canonical ties (matches existing $1 footing). */
+  /** Cent-level tolerance for native ↔ canonical ties. */
   toleranceDollar: number;
+  /** Provenance: which raw native object was compared. */
+  nativeSource: NativeStatementTotals["source"] | null;
+  nativeBalanceSheetReportRef: string | null;
+  nativeProfitAndLossReportRef: string | null;
   /** True when native and canonical periods were compared and matched (or not both provided). */
   periodAligned: boolean;
   periodMismatchReason: string | null;
@@ -98,7 +114,7 @@ function isSyntheticRow(row: AmountRow): boolean {
   return Boolean(raw && typeof raw === "object" && (raw as Record<string, unknown>).__advisacorSyntheticTotal);
 }
 
-function findNativeExplicit(rows: AmountRow[], patterns: RegExp[]): number | null {
+function findCanonicalExplicit(rows: AmountRow[], patterns: RegExp[]): number | null {
   const match = rows.find(
     (row) => !isSyntheticRow(row) && patterns.some((pattern) => pattern.test(String(row.label || ""))),
   );
@@ -107,15 +123,7 @@ function findNativeExplicit(rows: AmountRow[], patterns: RegExp[]): number | nul
   return Number.isFinite(amount) ? amount : null;
 }
 
-/** Prefer explicit Total* rows before bare account labels. */
-function findNativePreferTotal(rows: AmountRow[], totalPatterns: RegExp[], fallbackPatterns: RegExp[] = []): number | null {
-  const total = findNativeExplicit(rows, totalPatterns);
-  if (total != null) return total;
-  if (!fallbackPatterns.length) return null;
-  return findNativeExplicit(rows, fallbackPatterns);
-}
-
-function sumNativeSectionLeaves(rows: AmountRow[], sectionPattern: RegExp): number | null {
+function sumCanonicalSectionLeaves(rows: AmountRow[], sectionPattern: RegExp): number | null {
   const leaves = rows.filter((row) => {
     if (isSyntheticRow(row)) return false;
     if (!sectionPattern.test(String(row.section || ""))) return false;
@@ -125,17 +133,6 @@ function sumNativeSectionLeaves(rows: AmountRow[], sectionPattern: RegExp): numb
   });
   if (!leaves.length) return null;
   return leaves.reduce((total, row) => total + Number(row.amount || 0), 0);
-}
-
-/** Native cash total from provider BS rows (aggregates preferred; else bank/cash leaves). */
-export function extractNativeCashTotal(rows: CanonicalBalanceSheetRow[] = []): number | null {
-  const explicit = findNativeExplicit(rows, [
-    /^(total\s+)?cash and cash equivalents?$/i,
-    /^total\s+bank accounts?$/i,
-    /^total\s+cash$/i,
-  ]);
-  if (explicit != null) return explicit;
-  return sumNativeSectionLeaves(rows, /cash and cash equivalents?|bank accounts?/i);
 }
 
 /**
@@ -153,21 +150,6 @@ export function sumCanonicalCashLeaves(rows: CanonicalBalanceSheetRow[] = []): n
   return leaves.reduce((total, row) => total + Number(row.amount || 0), 0);
 }
 
-/** Native AR total from provider BS rows. */
-export function extractNativeArTotal(rows: CanonicalBalanceSheetRow[] = []): number | null {
-  const explicit = findNativePreferTotal(
-    rows,
-    [/^total accounts? receivable$/i, /^total\s+a\/?r$/i],
-    [/^accounts? receivable$/i],
-  );
-  if (explicit != null) return explicit;
-  return sumNativeSectionLeaves(rows, /accounts? receivable|^a\/?r$/i);
-}
-
-export function extractNativeRevenue(rows: CanonicalPnLRow[] = []): number | null {
-  return findNativeExplicit(rows, [/^total (income|revenue|sales)$/i]);
-}
-
 /** Leaf revenue sum (excludes totals) — canonical side of revenue control. */
 export function sumCanonicalRevenueLeaves(rows: CanonicalPnLRow[] = []): number | null {
   const leaves = rows.filter((row) => {
@@ -183,13 +165,6 @@ export function sumCanonicalRevenueLeaves(rows: CanonicalPnLRow[] = []): number 
   return leaves.reduce((total, row) => total + Number(row.amount || 0), 0);
 }
 
-export function extractNativeCogs(rows: CanonicalPnLRow[] = []): number | null {
-  const explicit = findNativeExplicit(rows, [/^total (cost of sales|cost of goods sold|cogs)$/i]);
-  if (explicit != null) return Math.abs(explicit);
-  const sectionSum = sumNativeSectionLeaves(rows, /cost of sales|cogs/i);
-  return sectionSum == null ? null : Math.abs(sectionSum);
-}
-
 export function sumCanonicalCogsLeaves(rows: CanonicalPnLRow[] = []): number | null {
   const leaves = rows.filter((row) => {
     if (isSyntheticRow(row)) return false;
@@ -202,20 +177,84 @@ export function sumCanonicalCogsLeaves(rows: CanonicalPnLRow[] = []): number | n
   return Math.abs(leaves.reduce((total, row) => total + Number(row.amount || 0), 0));
 }
 
-export function extractNativeGrossProfit(rows: CanonicalPnLRow[] = []): number | null {
-  if (!hasExplicitGrossProfitRow(rows)) return null;
-  return findNativeExplicit(rows, [/gross profit/i]);
+export function sumCanonicalInventoryLeaves(rows: CanonicalBalanceSheetRow[] = []): number | null {
+  const explicit = findCanonicalExplicit(rows, [/^total inventory$/i, /^inventory$/i]);
+  if (explicit != null) return explicit;
+  return sumCanonicalSectionLeaves(rows, /inventory/i);
 }
 
-export function extractNativeNetIncome(rows: CanonicalPnLRow[] = []): number | null {
-  return findNativeExplicit(rows, [/^net (income|profit)$/i, /^profit$/i]);
+export function sumCanonicalNetFixedAssets(rows: CanonicalBalanceSheetRow[] = []): number | null {
+  const explicit = findCanonicalExplicit(rows, [
+    /^net (fixed assets|property,? plant)/i,
+    /^total fixed assets$/i,
+    /^net property and equipment$/i,
+  ]);
+  if (explicit != null) return explicit;
+  return sumCanonicalSectionLeaves(rows, /fixed assets|property.?plant|ppe/i);
+}
+
+export function sumCanonicalApLeaves(rows: CanonicalBalanceSheetRow[] = []): number | null {
+  const explicit = findCanonicalExplicit(rows, [/^total accounts? payable$/i, /^accounts? payable$/i]);
+  if (explicit != null) return explicit;
+  return sumCanonicalSectionLeaves(rows, /accounts? payable|^a\/?p$/i);
 }
 
 /** Reconstruct NI from statement components — never trust the explicit NI line alone. */
 export function reconstructCanonicalNetIncome(rows: CanonicalPnLRow[] = []): number | null {
   const mapped = buildMappedFinancialSummary([], rows);
-  if (!extractNativeRevenue(rows) && sumCanonicalRevenueLeaves(rows) == null) return null;
+  if (sumCanonicalRevenueLeaves(rows) == null && findCanonicalExplicit(rows, [/^total (income|revenue|sales)$/i]) == null) {
+    return null;
+  }
   return mapped.revenue - mapped.cogs - mapped.expenses + mapped.otherIncome - mapped.otherExpenses;
+}
+
+/**
+ * Canonical facts from Advisacor-normalized rows ONLY.
+ * Must never read sourceMetadata.raw report trees.
+ */
+export function buildCanonicalStatementFactsFromNormalized(input: {
+  balanceSheet?: CanonicalBalanceSheetRow[];
+  incomeStatement?: CanonicalPnLRow[];
+  cashPosition?: CashPositionResolution;
+}): CanonicalStatementFacts {
+  const balanceSheet = input.balanceSheet || [];
+  const incomeStatement = input.incomeStatement || [];
+  const mapped = buildMappedFinancialSummary(balanceSheet, incomeStatement);
+  const cashPosition = input.cashPosition ?? resolveCashPositionFromBalanceSheet(balanceSheet);
+  const cashLeaves = sumCanonicalCashLeaves(balanceSheet);
+  const revenueLeaves = sumCanonicalRevenueLeaves(incomeStatement);
+  const cogsLeaves = sumCanonicalCogsLeaves(incomeStatement);
+  const ar = sumBalanceSheetAccountsReceivable(balanceSheet);
+  const revenue = revenueLeaves ?? findCanonicalExplicit(incomeStatement, [/^total (income|revenue|sales)$/i]);
+  const cogs = cogsLeaves ?? (() => {
+    const explicit = findCanonicalExplicit(incomeStatement, [/^total (cost of sales|cost of goods sold|cogs)$/i]);
+    return explicit == null ? null : Math.abs(explicit);
+  })();
+  const gpExplicit = hasExplicitGrossProfitRow(incomeStatement)
+    ? findCanonicalExplicit(incomeStatement, [/gross profit/i])
+    : null;
+  const grossProfit =
+    revenue != null && cogs != null ? revenue - cogs : gpExplicit;
+
+  return {
+    cash:
+      cashLeaves != null
+        ? cashLeaves
+        : cashPosition.status === "SOURCE_MISSING"
+          ? null
+          : cashPosition.amount,
+    ar: Number.isFinite(ar) ? ar : null,
+    inventory: sumCanonicalInventoryLeaves(balanceSheet),
+    netFixedAssets: sumCanonicalNetFixedAssets(balanceSheet),
+    ap: sumCanonicalApLeaves(balanceSheet),
+    totalAssets: Number.isFinite(mapped.totalAssets) ? mapped.totalAssets : null,
+    totalLiabilities: Number.isFinite(mapped.totalLiabilities) ? mapped.totalLiabilities : null,
+    totalEquity: Number.isFinite(mapped.totalEquity) ? mapped.totalEquity : null,
+    revenue,
+    cogs,
+    grossProfit,
+    netIncome: reconstructCanonicalNetIncome(incomeStatement),
+  };
 }
 
 function buildLine(input: {
@@ -280,15 +319,18 @@ function linePassesOrUnavailable(line: StatementControlLine | undefined): boolea
 }
 
 /**
- * Compare native statement totals (from already-normalized provider rows)
- * to canonical Advisacor facts. No provider API calls.
+ * Compare independently extracted native totals to independently computed
+ * canonical facts. No provider API calls. No shared row-set extraction.
  *
  * When both nativePeriod and canonicalPeriod are provided and differ,
  * fail closed — all KPI control gates become false.
  */
 export function buildStatementControl(input: {
-  balanceSheet?: CanonicalBalanceSheetRow[];
-  incomeStatement?: CanonicalPnLRow[];
+  /** Required: totals from RAW QBO report JSON or Xero pre-normalize flattened cells. */
+  native: NativeStatementTotals | null;
+  /** Required: facts from Advisacor-normalized rows only. */
+  canonical: CanonicalStatementFacts;
+  /** Optional cash position for SOURCE_MISSING gating. */
   cashPosition?: CashPositionResolution;
   computedAt?: string;
   toleranceDollar?: number;
@@ -298,13 +340,12 @@ export function buildStatementControl(input: {
   canonicalPeriod?: { startDate?: string | null; endDate?: string | null } | null;
 }): StatementControlResult {
   const toleranceDollar = input.toleranceDollar ?? STATEMENT_CONTROL_TOLERANCE_DOLLAR;
-  const balanceSheet = input.balanceSheet || [];
-  const incomeStatement = input.incomeStatement || [];
-  const mapped = buildMappedFinancialSummary(balanceSheet, incomeStatement);
-  const cashPosition = input.cashPosition ?? resolveCashPositionFromBalanceSheet(balanceSheet);
+  const native = input.native;
+  const canonical = input.canonical;
+  const cashPosition = input.cashPosition;
 
-  const nativeStart = String(input.nativePeriod?.startDate || "").trim();
-  const nativeEnd = String(input.nativePeriod?.endDate || "").trim();
+  const nativeStart = String(input.nativePeriod?.startDate ?? native?.period.startDate ?? "").trim();
+  const nativeEnd = String(input.nativePeriod?.endDate ?? native?.period.endDate ?? "").trim();
   const canonicalStart = String(input.canonicalPeriod?.startDate || "").trim();
   const canonicalEnd = String(input.canonicalPeriod?.endDate || "").trim();
   const bothPeriodsProvided =
@@ -316,65 +357,78 @@ export function buildStatementControl(input: {
     ? null
     : `Same-sync period mismatch — native ${nativeStart || "?"}→${nativeEnd || "?"} vs canonical ${canonicalStart || "?"}→${canonicalEnd || "?"}`;
 
-  const cashCanonicalLeaves = sumCanonicalCashLeaves(balanceSheet);
-  const cashNative = extractNativeCashTotal(balanceSheet);
-  // Prefer aggregate↔leaves when aggregate exists; else fall back to position resolver.
-  const cashCanonical =
-    cashNative != null && cashCanonicalLeaves != null
-      ? cashCanonicalLeaves
-      : cashPosition.status === "SOURCE_MISSING"
-        ? null
-        : cashPosition.amount;
+  const missingNative = !native;
   const cashLine = buildLine({
     key: "cash",
     label: "Cash",
-    nativeAmount: cashNative,
-    canonicalAmount: cashCanonical,
+    nativeAmount: missingNative ? null : native.cash,
+    canonicalAmount: canonical.cash,
     toleranceDollar,
   });
-
-  const arNative = extractNativeArTotal(balanceSheet);
-  const arCanonicalLeaves = sumBalanceSheetAccountsReceivable(balanceSheet);
   const arLine = buildLine({
     key: "ar",
     label: "Accounts Receivable",
-    nativeAmount: arNative,
-    canonicalAmount: Number.isFinite(arCanonicalLeaves) ? arCanonicalLeaves : null,
+    nativeAmount: missingNative ? null : native.ar,
+    canonicalAmount: canonical.ar,
     toleranceDollar,
   });
-
+  const inventoryLine = buildLine({
+    key: "inventory",
+    label: "Inventory",
+    nativeAmount: missingNative ? null : native.inventory,
+    canonicalAmount: canonical.inventory,
+    toleranceDollar,
+  });
+  const netFaLine = buildLine({
+    key: "net_fixed_assets",
+    label: "Net Fixed Assets",
+    nativeAmount: missingNative ? null : native.netFixedAssets,
+    canonicalAmount: canonical.netFixedAssets,
+    toleranceDollar,
+  });
+  const apLine = buildLine({
+    key: "ap",
+    label: "Accounts Payable",
+    nativeAmount: missingNative ? null : native.ap,
+    canonicalAmount: canonical.ap,
+    toleranceDollar,
+  });
   const assetsLine = buildLine({
     key: "total_assets",
     label: "Total Assets",
-    nativeAmount: findNativeExplicit(balanceSheet, [/^total assets$/i]),
-    canonicalAmount: mapped.totalAssets,
+    nativeAmount: missingNative ? null : native.totalAssets,
+    canonicalAmount: canonical.totalAssets,
     toleranceDollar,
   });
-
   const liabilitiesLine = buildLine({
     key: "total_liabilities",
     label: "Total Liabilities",
-    nativeAmount: findNativeExplicit(balanceSheet, [/^total liabilities$/i]),
-    canonicalAmount: mapped.totalLiabilities,
+    nativeAmount: missingNative ? null : native.totalLiabilities,
+    canonicalAmount: canonical.totalLiabilities,
     toleranceDollar,
   });
-
   const equityLine = buildLine({
     key: "total_equity",
     label: "Total Equity",
-    nativeAmount: findNativeExplicit(balanceSheet, [/^total equity$/i]),
-    canonicalAmount: mapped.totalEquity,
+    nativeAmount: missingNative ? null : native.totalEquity,
+    canonicalAmount: canonical.totalEquity,
     toleranceDollar,
   });
 
+  const assets = canonical.totalAssets;
+  const liabilities = canonical.totalLiabilities;
+  const equity = canonical.totalEquity;
   const equationVariance =
-    Number.isFinite(mapped.totalAssets) &&
-    Number.isFinite(mapped.totalLiabilities) &&
-    Number.isFinite(mapped.totalEquity)
-      ? mapped.totalAssets - (mapped.totalLiabilities + mapped.totalEquity)
+    assets != null &&
+    liabilities != null &&
+    equity != null &&
+    Number.isFinite(assets) &&
+    Number.isFinite(liabilities) &&
+    Number.isFinite(equity)
+      ? assets - (liabilities + equity)
       : null;
   const equationLine: StatementControlLine =
-    equationVariance == null
+    equationVariance == null || assets == null || liabilities == null || equity == null
       ? {
           key: "bs_equation",
           label: "Accounting equation (A = L + E)",
@@ -390,8 +444,8 @@ export function buildStatementControl(input: {
       : {
           key: "bs_equation",
           label: "Accounting equation (A = L + E)",
-          nativeAmount: mapped.totalLiabilities + mapped.totalEquity,
-          canonicalAmount: mapped.totalAssets,
+          nativeAmount: liabilities + equity,
+          canonicalAmount: assets,
           variance: equationVariance,
           varianceAbs: Math.abs(equationVariance),
           toleranceDollar,
@@ -403,101 +457,102 @@ export function buildStatementControl(input: {
               : "Accounting equation failure — assets do not equal liabilities + equity",
         };
 
-  const revenueNative = extractNativeRevenue(incomeStatement);
-  const revenueLeaves = sumCanonicalRevenueLeaves(incomeStatement);
   const revenueLine = buildLine({
     key: "revenue",
     label: "Revenue",
-    nativeAmount: revenueNative,
-    canonicalAmount: revenueLeaves ?? (revenueNative != null ? mapped.revenue : null),
+    nativeAmount: missingNative ? null : native.revenue,
+    canonicalAmount: canonical.revenue,
     toleranceDollar,
   });
-
-  const cogsNative = extractNativeCogs(incomeStatement);
-  const cogsLeaves = sumCanonicalCogsLeaves(incomeStatement);
   const cogsLine = buildLine({
     key: "cogs",
     label: "COGS",
-    nativeAmount: cogsNative,
-    canonicalAmount: cogsLeaves ?? (cogsNative != null ? mapped.cogs : null),
+    nativeAmount: missingNative ? null : native.cogs,
+    canonicalAmount: canonical.cogs,
     toleranceDollar,
   });
-
-  const gpNative = extractNativeGrossProfit(incomeStatement);
-  const gpCanonical =
-    revenueNative != null && cogsNative != null
-      ? revenueNative - cogsNative
-      : mapped.grossProfit;
   const gpLine = buildLine({
     key: "gross_profit",
     label: "Gross Profit",
-    nativeAmount: gpNative,
-    canonicalAmount: gpNative != null ? gpCanonical : null,
+    nativeAmount: missingNative ? null : native.grossProfit,
+    canonicalAmount: canonical.grossProfit,
     toleranceDollar,
   });
-
-  const niNative = extractNativeNetIncome(incomeStatement);
-  const niReconstructed = reconstructCanonicalNetIncome(incomeStatement);
   const niLine = buildLine({
     key: "net_income",
     label: "Net Income",
-    nativeAmount: niNative,
-    canonicalAmount: niReconstructed,
+    nativeAmount: missingNative ? null : native.netIncome,
+    canonicalAmount: canonical.netIncome,
     toleranceDollar,
   });
 
-  const bsLines = [cashLine, arLine, assetsLine, liabilitiesLine, equityLine, equationLine];
+  const bsLines = [
+    cashLine,
+    arLine,
+    inventoryLine,
+    netFaLine,
+    apLine,
+    assetsLine,
+    liabilitiesLine,
+    equityLine,
+    equationLine,
+  ];
   const plLines = [revenueLine, cogsLine, gpLine, niLine];
 
   const equationPasses = equationLine.passes || equationLine.status === "unavailable";
-  // BS "passes" for overall reporting when equation holds and material totals that exist tie.
   const balanceSheetPasses =
     equationPasses &&
     [assetsLine, liabilitiesLine, equityLine].every(linePassesOrUnavailable) &&
     cashLine.status !== "fail" &&
-    arLine.status !== "fail";
+    arLine.status !== "fail" &&
+    inventoryLine.status !== "fail" &&
+    netFaLine.status !== "fail" &&
+    apLine.status !== "fail";
 
   const incomeStatementPasses =
     [revenueLine, niLine].every(linePassesOrUnavailable) &&
     cogsLine.status !== "fail" &&
     gpLine.status !== "fail";
 
-  // KPI gates (granular):
-  // - Cash requires cash line pass when cash is present
-  // - NPM requires revenue + NI control pass
-  // - OGM requires revenue + (COGS or explicit GP) control pass
-  // - Period mismatch fail-closed blocks every dependent KPI gate
+  const cashMissing =
+    cashPosition?.status === "SOURCE_MISSING" ||
+    (canonical.cash == null && (missingNative || native.cash == null));
   const cashControlPasses =
     periodAligned &&
-    (cashPosition.status === "SOURCE_MISSING" ? true : cashLine.passes);
+    !missingNative &&
+    (cashMissing ? true : cashLine.passes);
   const arControlPasses =
-    periodAligned && (arLine.status === "unavailable" ? true : arLine.passes);
+    periodAligned && !missingNative && (arLine.status === "unavailable" ? true : arLine.passes);
   const netProfitMarginControlPasses =
-    periodAligned && revenueLine.passes && niLine.passes;
+    periodAligned && !missingNative && revenueLine.passes && niLine.passes;
   const operatingGrossMarginControlPasses =
     periodAligned &&
+    !missingNative &&
     revenueLine.passes &&
     (cogsLine.passes || (gpLine.status !== "unavailable" && gpLine.passes));
 
   return {
     computedAt: input.computedAt || new Date().toISOString(),
     toleranceDollar,
+    nativeSource: native?.source ?? null,
+    nativeBalanceSheetReportRef: native?.balanceSheetReportRef ?? null,
+    nativeProfitAndLossReportRef: native?.profitAndLossReportRef ?? null,
     periodAligned,
     periodMismatchReason,
     balanceSheet: {
       lines: bsLines,
-      passes: periodAligned && balanceSheetPasses,
+      passes: periodAligned && !missingNative && balanceSheetPasses,
       equationPasses: periodAligned && equationPasses,
     },
     incomeStatement: {
       lines: plLines,
-      passes: periodAligned && incomeStatementPasses,
+      passes: periodAligned && !missingNative && incomeStatementPasses,
     },
     cashControlPasses,
     arControlPasses,
     netProfitMarginControlPasses,
     operatingGrossMarginControlPasses,
-    overallPasses: periodAligned && balanceSheetPasses && incomeStatementPasses,
+    overallPasses: periodAligned && !missingNative && balanceSheetPasses && incomeStatementPasses,
   };
 }
 
@@ -512,4 +567,30 @@ export function getStatementControlLine(
     control.incomeStatement.lines.find((line) => line.key === key) ||
     null
   );
+}
+
+/**
+ * Scorecard gate helper: contract v1+ fails closed when control is missing.
+ * Legacy payloads (no contract version) preserve pre-control Scorecard behavior.
+ */
+export function statementControlAllowsKpi(input: {
+  contractVersion?: number | null;
+  statementControl?: StatementControlResult | null;
+  gate: "cash" | "ar" | "npm" | "ogm";
+}): boolean {
+  const version = Number(input.contractVersion || 0);
+  const control = input.statementControl ?? null;
+  if (version >= STATEMENT_CONTROL_CONTRACT_VERSION) {
+    if (!control) return false;
+    if (input.gate === "cash") return control.cashControlPasses === true;
+    if (input.gate === "ar") return control.arControlPasses === true;
+    if (input.gate === "npm") return control.netProfitMarginControlPasses === true;
+    return control.operatingGrossMarginControlPasses === true;
+  }
+  // Legacy: missing control allows (pre-#277 snapshots).
+  if (!control) return true;
+  if (input.gate === "cash") return control.cashControlPasses !== false;
+  if (input.gate === "ar") return control.arControlPasses !== false;
+  if (input.gate === "npm") return control.netProfitMarginControlPasses !== false;
+  return control.operatingGrossMarginControlPasses !== false;
 }

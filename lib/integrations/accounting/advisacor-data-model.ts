@@ -16,7 +16,13 @@ import {
 } from "./ar-aging";
 import { buildMappedFinancialSummary } from "./normalizers/financial-statements";
 import { ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION } from "./payload-schema";
-import { buildStatementControl } from "./statement-control";
+import {
+  buildCanonicalStatementFactsFromNormalized,
+  buildStatementControl,
+  STATEMENT_CONTROL_CONTRACT_VERSION,
+} from "./statement-control";
+import { readNativeStatementTotalsFromBundleRaw } from "./native-statement-totals";
+import { resolveCashPositionFromBalanceSheet } from "./active-report-summary";
 
 const REQUIRED_REPORTING_OBJECTS: Array<keyof AdvisacorNormalizedFinancialData> = [
   "normalizedBalanceSheet",
@@ -205,23 +211,32 @@ export function buildAdvisacorNormalizedFinancialData({
     },
   };
 
-  const statementControl = isEmptyXeroFinancialActivity
-    ? null
-    : buildStatementControl({
-        balanceSheet: normalizedData.normalizedBalanceSheet,
-        incomeStatement: normalizedData.normalizedIncomeStatement,
-        computedAt: mappedAt,
-        // Same-sync: native provider window and canonical sync period must align.
-        // Bundle dateRange is the period used for the already-fetched reports.
-        nativePeriod: bundle.dateRange,
-        canonicalPeriod: reportPeriod,
-      });
+  const cashPosition = resolveCashPositionFromBalanceSheet(normalizedData.normalizedBalanceSheet || []);
+  const nativeTotals = readNativeStatementTotalsFromBundleRaw(bundle.sourceMetadata?.raw);
+  const canonicalFacts = buildCanonicalStatementFactsFromNormalized({
+    balanceSheet: normalizedData.normalizedBalanceSheet,
+    incomeStatement: normalizedData.normalizedIncomeStatement,
+    cashPosition,
+  });
+  // Always stamp control + contract version on new syncs (fail-closed if native missing).
+  const statementControl = buildStatementControl({
+    native: isEmptyXeroFinancialActivity ? null : nativeTotals,
+    canonical: canonicalFacts,
+    cashPosition,
+    computedAt: mappedAt,
+    nativePeriod: nativeTotals?.period ?? bundle.dateRange,
+    canonicalPeriod: reportPeriod,
+  });
 
   const validation = validateAdvisacorNormalizedFinancialData({
     ...normalizedData,
     statementControl,
+    statementControlContractVersion: STATEMENT_CONTROL_CONTRACT_VERSION,
   });
   const controlWarnings: string[] = [];
+  if (!nativeTotals && !isEmptyXeroFinancialActivity) {
+    controlWarnings.push("Statement control: native provider totals missing — control failed closed.");
+  }
   if (statementControl && !statementControl.balanceSheet.equationPasses) {
     controlWarnings.push("Statement control: Balance Sheet accounting equation failed.");
   }
@@ -238,6 +253,7 @@ export function buildAdvisacorNormalizedFinancialData({
   return {
     ...normalizedData,
     statementControl,
+    statementControlContractVersion: STATEMENT_CONTROL_CONTRACT_VERSION,
     syncStatus: validation.readyForReporting ? "SUCCESS" : "FAILED",
     validation: isEmptyXeroFinancialActivity
       ? {

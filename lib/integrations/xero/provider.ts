@@ -13,6 +13,7 @@ import {
   buildNotSupportedCashFlowSchedule,
   xeroCashFlowCapability,
 } from "../accounting/cash-flow";
+import { extractNativeTotalsFromXeroFlattenedRows } from "../accounting/native-statement-totals";
 import {
   mapPool,
   parseXeroAgedReceivablesByContactReport,
@@ -1601,6 +1602,12 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
     bundle.normalizedVendors = contacts.vendors;
     bundle.normalizedCustomers = contacts.customers;
     bundle.sourceMetadata.raw = {
+      nativeStatementTotals: extractNativeTotalsFromXeroFlattenedRows({
+        balanceSheetRows: flattenedBalanceSheetRows,
+        profitAndLossRows: flattenedProfitAndLossRows,
+        startDate: reportPeriod.startDate,
+        endDate: reportPeriod.endDate,
+      }),
       diagnostics: {
         tenantId: entity.tenantOrRealmId,
         reportPeriod,
@@ -1615,6 +1622,11 @@ export class XeroAccountingProvider implements AccountingProviderAdapter {
         canonicalArAgingPastDueTotal: canonicalArAgingSchedule?.pastDueTotal ?? null,
         canonicalArAgingTieOut: canonicalArAgingSchedule?.tieOut ?? null,
         canonicalArAgingSourceKind: canonicalArAgingSchedule?.source.kind ?? null,
+        nativeStatementTotalsSource: "xero_raw_report_rows",
+        nativeStatementTotalsRefs: {
+          balanceSheet: "Reports/BalanceSheet → flattenXeroReportRows (pre-normalize)",
+          profitAndLoss: "Reports/ProfitAndLoss → flattenXeroReportRows (pre-normalize)",
+        },
       },
     };
     logXeroDiagnostics("raw_reports_mapped", (bundle.sourceMetadata.raw as Record<string, unknown>).diagnostics as Record<string, unknown>);

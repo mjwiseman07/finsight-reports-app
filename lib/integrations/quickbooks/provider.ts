@@ -18,6 +18,7 @@ import type {
   ProviderCapabilities,
   ProviderRequestParams,
 } from "../accounting/types";
+import { extractNativeTotalsFromQuickBooksRaw } from "../accounting/native-statement-totals";
 
 // Phase MC-2e.2 (Issue #6, Gap I-3): local parseAmount replaced by shared
 // locale-aware parser. Intuit QBO Report API returns en-US-formatted numeric
@@ -345,11 +346,20 @@ export class QuickBooksAccountingProvider implements AccountingProviderAdapter {
       availabilityFromRows({ provider: this.provider, companyId: entity.externalId, selectedPeriod: dateRange, reportName: "Projects", attemptedEndpoint: "query Project", rows: bundle.normalizedProjects, normalizedKey: "normalizedProjects" }),
     ];
     bundle.sourceMetadata.raw = raw;
+    const nativeStatementTotals = extractNativeTotalsFromQuickBooksRaw(raw);
     bundle.sourceMetadata.raw = {
       ...(raw as Record<string, unknown>),
+      ...(nativeStatementTotals ? { nativeStatementTotals } : {}),
       diagnostics: {
         ...((raw as Record<string, unknown>).diagnostics as Record<string, unknown> | undefined),
         reportAvailability,
+        nativeStatementTotalsSource: nativeStatementTotals?.source ?? null,
+        nativeStatementTotalsRefs: nativeStatementTotals
+          ? {
+              balanceSheet: nativeStatementTotals.balanceSheetReportRef,
+              profitAndLoss: nativeStatementTotals.profitAndLossReportRef,
+            }
+          : null,
       },
     };
     // Phase MC-1 (Issue #6, Gap I-2): thread home currency onto the bundle so

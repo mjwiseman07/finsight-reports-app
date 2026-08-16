@@ -172,6 +172,12 @@ export interface AdvisacorNormalizedFinancialData {
    * snapshot — never re-fetches provider BS/P&L on dashboard load.
    */
   statementControl?: import("./statement-control").StatementControlResult | null;
+  /**
+   * Contract version for statement-control fail-closed gating.
+   * >= 1: missing statementControl fails closed on Scorecard KPI gates.
+   * unset/0: legacy allow (pre-#277 snapshots).
+   */
+  statementControlContractVersion?: number;
   /** Supporting SoCF rows when the provider returned a real cash-flow statement. */
   normalizedCashFlow?: CanonicalCashFlowRow[];
   normalizedAPAging: AdvisacorNormalizedEntity[];
