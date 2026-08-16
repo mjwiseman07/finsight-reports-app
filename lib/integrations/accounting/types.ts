@@ -167,6 +167,11 @@ export interface AdvisacorNormalizedFinancialData {
    * Scorecard Net Op Cash Flow reads netOperatingCashFlow only when supported.
    */
   canonicalCashFlowSchedule?: import("./cash-flow").CanonicalCashFlowSchedule | null;
+  /**
+   * Sync-time native↔canonical statement control. Scorecard gates KPIs on this
+   * snapshot — never re-fetches provider BS/P&L on dashboard load.
+   */
+  statementControl?: import("./statement-control").StatementControlResult | null;
   /** Supporting SoCF rows when the provider returned a real cash-flow statement. */
   normalizedCashFlow?: CanonicalCashFlowRow[];
   normalizedAPAging: AdvisacorNormalizedEntity[];

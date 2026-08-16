@@ -16,6 +16,7 @@ import {
 } from "./ar-aging";
 import { buildMappedFinancialSummary } from "./normalizers/financial-statements";
 import { ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION } from "./payload-schema";
+import { buildStatementControl } from "./statement-control";
 
 const REQUIRED_REPORTING_OBJECTS: Array<keyof AdvisacorNormalizedFinancialData> = [
   "normalizedBalanceSheet",
@@ -204,16 +205,49 @@ export function buildAdvisacorNormalizedFinancialData({
     },
   };
 
-  const validation = validateAdvisacorNormalizedFinancialData(normalizedData);
+  const statementControl = isEmptyXeroFinancialActivity
+    ? null
+    : buildStatementControl({
+        balanceSheet: normalizedData.normalizedBalanceSheet,
+        incomeStatement: normalizedData.normalizedIncomeStatement,
+        computedAt: mappedAt,
+      });
+
+  const validation = validateAdvisacorNormalizedFinancialData({
+    ...normalizedData,
+    statementControl,
+  });
+  const controlWarnings: string[] = [];
+  if (statementControl && !statementControl.balanceSheet.equationPasses) {
+    controlWarnings.push("Statement control: Balance Sheet accounting equation failed.");
+  }
+  if (statementControl && !statementControl.cashControlPasses) {
+    controlWarnings.push("Statement control: Cash did not tie to the provider Balance Sheet.");
+  }
+  if (statementControl && !statementControl.netProfitMarginControlPasses) {
+    controlWarnings.push("Statement control: Net Profit Margin facts did not tie to the provider P&L.");
+  }
+  if (statementControl && !statementControl.operatingGrossMarginControlPasses) {
+    controlWarnings.push("Statement control: Operating Gross Margin facts did not tie to the provider P&L.");
+  }
+
   return {
     ...normalizedData,
+    statementControl,
     syncStatus: validation.readyForReporting ? "SUCCESS" : "FAILED",
     validation: isEmptyXeroFinancialActivity
       ? {
           ...validation,
-          warnings: [...validation.warnings, "Connected to Xero. No financial activity found."],
+          warnings: [
+            ...validation.warnings,
+            ...controlWarnings,
+            "Connected to Xero. No financial activity found.",
+          ],
         }
-      : validation,
+      : {
+          ...validation,
+          warnings: [...validation.warnings, ...controlWarnings],
+        },
   };
 }
 

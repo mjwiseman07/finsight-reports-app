@@ -13,6 +13,7 @@ import type {
   CanonicalBalanceSheetRow,
   CanonicalPnLRow,
 } from "./types";
+import type { StatementControlResult } from "./statement-control";
 
 /** Provider-neutral cash position availability (missing ≠ zero). */
 export type CashPositionStatus = "VALUE_ZERO" | "VALUE_NONZERO" | "SOURCE_MISSING";
@@ -59,6 +60,12 @@ export type ActiveReportSummaryView = {
   operatingGrossMarginEvidenceReady: boolean;
   netIncomeEvidencePath: PeriodPnLNetIncomePath;
   hasRevenueEvidence: boolean;
+  /** Sync-time statement control snapshot (null on legacy payloads). */
+  statementControl: StatementControlResult | null;
+  /** Evidence ∧ statement control (legacy missing control = allow). */
+  netProfitMarginReady: boolean;
+  operatingGrossMarginReady: boolean;
+  cashReady: boolean;
 };
 
 type ReportPayloadLike = {
@@ -74,6 +81,7 @@ type ReportPayloadLike = {
     normalizedBalanceSheet?: CanonicalBalanceSheetRow[];
     normalizedAccounts?: unknown[];
     normalizedTrialBalance?: unknown[];
+    statementControl?: StatementControlResult | null;
   };
 };
 
@@ -254,6 +262,18 @@ export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null
   const mapped = buildMappedFinancialSummary(balanceSheet, incomeStatement);
   const cashPosition = resolveCashPositionFromBalanceSheet(balanceSheet);
   const evidence = assessPeriodIncomeStatementEvidence(incomeStatement);
+  const statementControl =
+    (normalizedData as { statementControl?: StatementControlResult | null }).statementControl ?? null;
+
+  // Legacy payloads without statementControl must not break working Xero Scorecard values.
+  const controlAllowsCash = !statementControl || statementControl.cashControlPasses;
+  const controlAllowsNpm = !statementControl || statementControl.netProfitMarginControlPasses;
+  const controlAllowsOgm = !statementControl || statementControl.operatingGrossMarginControlPasses;
+
+  const netProfitMarginReady = evidence.netProfitMarginReady && controlAllowsNpm;
+  const operatingGrossMarginReady = evidence.operatingGrossMarginReady && controlAllowsOgm;
+  const cashReady =
+    cashPosition.status !== "SOURCE_MISSING" && controlAllowsCash;
 
   return {
     sourceSystem: normalizedData.sourceSystem,
@@ -267,22 +287,24 @@ export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null
       balanceSheetCount: balanceSheet.length,
       incomeStatementCount: incomeStatement.length,
     },
-    // Always surface mapped amounts when present; KPI tiles gate on evidence flags.
-    // Without revenue evidence, keep zeros so stub NI-only statements cannot drive margins.
     revenue: evidence.hasRevenueEvidence ? mapped.revenue : 0,
     cogs: evidence.hasRevenueEvidence ? mapped.cogs : 0,
-    grossProfit: evidence.operatingGrossMarginReady ? mapped.grossProfit : 0,
-    grossProfitSupported: evidence.operatingGrossMarginReady,
+    grossProfit: operatingGrossMarginReady ? mapped.grossProfit : 0,
+    grossProfitSupported: operatingGrossMarginReady,
     expenses: evidence.hasRevenueEvidence ? mapped.expenses : 0,
-    netIncome: evidence.netProfitMarginReady ? mapped.netIncome : 0,
+    netIncome: netProfitMarginReady ? mapped.netIncome : 0,
     assets: mapped.totalAssets,
     liabilities: mapped.totalLiabilities,
     cash: cashPosition.amount,
     cashStatus: cashPosition.status,
-    incomeStatementComplete: evidence.netProfitMarginReady,
+    incomeStatementComplete: netProfitMarginReady,
     netProfitMarginEvidenceReady: evidence.netProfitMarginReady,
     operatingGrossMarginEvidenceReady: evidence.operatingGrossMarginReady,
     netIncomeEvidencePath: evidence.netIncomeEvidencePath,
     hasRevenueEvidence: evidence.hasRevenueEvidence,
+    statementControl,
+    netProfitMarginReady,
+    operatingGrossMarginReady,
+    cashReady,
   };
 }
