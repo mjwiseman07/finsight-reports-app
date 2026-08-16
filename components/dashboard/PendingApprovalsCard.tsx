@@ -32,11 +32,27 @@ export default function PendingApprovalsCard({
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Wait briefly for magic-link hash → session persistence on dashboard load.
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const token =
+          typeof window !== "undefined"
+            ? window.localStorage.getItem("supabase_access_token") || ""
+            : "";
+        if (token) break;
+        await new Promise((r) => setTimeout(r, 150));
+        if (cancelled) return;
+      }
+
       try {
         const url = engagementId
           ? `/api/reviewer/pending?engagement_id=${encodeURIComponent(engagementId)}`
           : "/api/reviewer/pending/default";
         const res = await fetch(url, { cache: "no-store", headers: authHeaders() });
+        if (res.status === 401) {
+          // No durable session yet (e.g. hash handoff still settling) — stay quiet.
+          if (!cancelled) setItems([]);
+          return;
+        }
         if (!res.ok) throw new Error(`http_${res.status}`);
         const data = await res.json();
         if (!cancelled) setItems(data.items ?? []);

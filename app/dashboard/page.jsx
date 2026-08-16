@@ -25,6 +25,7 @@ import {
   readResumeConnectProvider,
   redirectToMfaForAccountingConnect,
 } from "../../lib/mfa/connect-step-up";
+import { consumeAuthHashFromUrl } from "../../lib/auth/consume-auth-hash";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
 import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
@@ -1004,6 +1005,9 @@ export default function DashboardPage() {
       const dashboardSearch = new URLSearchParams(window.location.search);
       // UX hint only — never grants access.allowed by itself.
       bootstrapLeadSessionFromSearchParams(dashboardSearch);
+
+      // Magic-link / implicit OAuth can land as #access_token=… — persist before any API calls.
+      await consumeAuthHashFromUrl(supabase);
 
       const devBypass =
         process.env.NODE_ENV === "development" &&
