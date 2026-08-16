@@ -16,6 +16,13 @@ import {
 } from "./ar-aging";
 import { buildMappedFinancialSummary } from "./normalizers/financial-statements";
 import { ACCOUNTING_NORMALIZED_PAYLOAD_SCHEMA_VERSION } from "./payload-schema";
+import {
+  buildCanonicalStatementFactsFromNormalized,
+  buildStatementControl,
+  STATEMENT_CONTROL_CONTRACT_VERSION,
+} from "./statement-control";
+import { readNativeStatementTotalsFromBundleRaw } from "./native-statement-totals";
+import { resolveCashPositionFromBalanceSheet } from "./active-report-summary";
 
 const REQUIRED_REPORTING_OBJECTS: Array<keyof AdvisacorNormalizedFinancialData> = [
   "normalizedBalanceSheet",
@@ -204,16 +211,63 @@ export function buildAdvisacorNormalizedFinancialData({
     },
   };
 
-  const validation = validateAdvisacorNormalizedFinancialData(normalizedData);
+  const cashPosition = resolveCashPositionFromBalanceSheet(normalizedData.normalizedBalanceSheet || []);
+  const nativeTotals = readNativeStatementTotalsFromBundleRaw(bundle.sourceMetadata?.raw);
+  const canonicalFacts = buildCanonicalStatementFactsFromNormalized({
+    balanceSheet: normalizedData.normalizedBalanceSheet,
+    incomeStatement: normalizedData.normalizedIncomeStatement,
+    cashPosition,
+  });
+  // Always stamp control + contract version on new syncs (fail-closed if native missing).
+  const statementControl = buildStatementControl({
+    native: isEmptyXeroFinancialActivity ? null : nativeTotals,
+    canonical: canonicalFacts,
+    cashPosition,
+    computedAt: mappedAt,
+    nativePeriod: nativeTotals?.period ?? bundle.dateRange,
+    canonicalPeriod: reportPeriod,
+  });
+
+  const validation = validateAdvisacorNormalizedFinancialData({
+    ...normalizedData,
+    statementControl,
+    statementControlContractVersion: STATEMENT_CONTROL_CONTRACT_VERSION,
+  });
+  const controlWarnings: string[] = [];
+  if (!nativeTotals && !isEmptyXeroFinancialActivity) {
+    controlWarnings.push("Statement control: native provider totals missing — control failed closed.");
+  }
+  if (statementControl && !statementControl.balanceSheet.equationPasses) {
+    controlWarnings.push("Statement control: Balance Sheet accounting equation failed.");
+  }
+  if (statementControl && !statementControl.cashControlPasses) {
+    controlWarnings.push("Statement control: Cash did not tie to the provider Balance Sheet.");
+  }
+  if (statementControl && !statementControl.netProfitMarginControlPasses) {
+    controlWarnings.push("Statement control: Net Profit Margin facts did not tie to the provider P&L.");
+  }
+  if (statementControl && !statementControl.operatingGrossMarginControlPasses) {
+    controlWarnings.push("Statement control: Operating Gross Margin facts did not tie to the provider P&L.");
+  }
+
   return {
     ...normalizedData,
+    statementControl,
+    statementControlContractVersion: STATEMENT_CONTROL_CONTRACT_VERSION,
     syncStatus: validation.readyForReporting ? "SUCCESS" : "FAILED",
     validation: isEmptyXeroFinancialActivity
       ? {
           ...validation,
-          warnings: [...validation.warnings, "Connected to Xero. No financial activity found."],
+          warnings: [
+            ...validation.warnings,
+            ...controlWarnings,
+            "Connected to Xero. No financial activity found.",
+          ],
         }
-      : validation,
+      : {
+          ...validation,
+          warnings: [...validation.warnings, ...controlWarnings],
+        },
   };
 }
 

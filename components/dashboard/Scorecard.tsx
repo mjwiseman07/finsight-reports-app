@@ -32,6 +32,10 @@ export type ActiveReportSummary = {
   operatingGrossMarginEvidenceReady?: boolean;
   netIncomeEvidencePath?: "explicit_totals" | "reconstructable" | "none";
   hasRevenueEvidence?: boolean;
+  statementControl?: import("@/lib/integrations/accounting/statement-control").StatementControlResult | null;
+  netProfitMarginReady?: boolean;
+  operatingGrossMarginReady?: boolean;
+  cashReady?: boolean;
   lastSyncedAt?: string;
 };
 
@@ -139,6 +143,13 @@ export function resolveCashTileState(args: {
         message: "Cash position is not available because no cash or bank balances were provided on the Balance Sheet.",
       };
     }
+    if (args.summary.cashReady === false) {
+      return {
+        status: "unavailable",
+        message:
+          "Cash position is not available because canonical cash did not tie to the provider Balance Sheet.",
+      };
+    }
     return { status: "ready" };
   }
   if (args.hydrationActive) {
@@ -234,11 +245,23 @@ export function resolveNetMarginTileState(args: {
     };
   }
   const npmReady =
-    args.summary.netProfitMarginEvidenceReady === true ||
-    (args.summary.netProfitMarginEvidenceReady == null &&
-      args.summary.incomeStatementComplete !== false &&
-      args.summary.revenue > 0);
+    args.summary.netProfitMarginReady === true ||
+    (args.summary.netProfitMarginReady == null &&
+      (args.summary.netProfitMarginEvidenceReady === true ||
+        (args.summary.netProfitMarginEvidenceReady == null &&
+          args.summary.incomeStatementComplete !== false &&
+          args.summary.revenue > 0)));
   if (!npmReady) {
+    if (args.summary.statementControl && args.summary.statementControl.netProfitMarginControlPasses === false) {
+      return {
+        state: {
+          status: "unavailable",
+          message:
+            "Net margin is not available because canonical P&L facts did not tie to the provider Profit and Loss statement.",
+        },
+        value: null,
+      };
+    }
     if (args.summary.hasRevenueEvidence || args.summary.revenue > 0) {
       return {
         state: {
