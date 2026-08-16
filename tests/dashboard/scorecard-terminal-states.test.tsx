@@ -20,6 +20,8 @@ const summary: ActiveReportSummary = {
   assets: 200000,
   liabilities: 50000,
   cash: 9082,
+  cashStatus: "VALUE_NONZERO",
+  incomeStatementComplete: true,
   cogs: 40000,
   grossProfit: 60000,
   grossProfitSupported: true,

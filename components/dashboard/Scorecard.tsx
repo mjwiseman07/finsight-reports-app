@@ -18,7 +18,13 @@ export type ActiveReportSummary = {
   netIncome: number;
   assets: number;
   liabilities: number;
-  cash: number;
+  /**
+   * Cash amount when present. Null means SOURCE_MISSING (never display as $0).
+   */
+  cash: number | null;
+  cashStatus?: "VALUE_ZERO" | "VALUE_NONZERO" | "SOURCE_MISSING";
+  /** False when period P&L lacks revenue evidence. */
+  incomeStatementComplete?: boolean;
   lastSyncedAt?: string;
 };
 
@@ -118,7 +124,16 @@ export function resolveCashTileState(args: {
   hydrationActive: boolean;
   summary: ActiveReportSummary | null;
 }): ScorecardTileState {
-  if (args.summary) return { status: "ready" };
+  if (args.summary) {
+    const status = args.summary.cashStatus;
+    if (status === "SOURCE_MISSING" || (status == null && args.summary.cash == null)) {
+      return {
+        status: "unavailable",
+        message: "Cash position is not available because no cash or bank balances were provided on the Balance Sheet.",
+      };
+    }
+    return { status: "ready" };
+  }
   if (args.hydrationActive) {
     return { status: "loading", message: "Refreshing…" };
   }
@@ -208,6 +223,16 @@ export function resolveNetMarginTileState(args: {
     }
     return {
       state: { status: "unavailable", message: "Not available for this period" },
+      value: null,
+    };
+  }
+  if (args.summary.incomeStatementComplete === false) {
+    return {
+      state: {
+        status: "unavailable",
+        message:
+          "Net margin is not available because the period Profit and Loss statement is incomplete.",
+      },
       value: null,
     };
   }
@@ -427,9 +452,12 @@ export default function Scorecard({
     hydrationActive,
     summary: activeReportSummary,
   });
-  const cashValue = activeReportSummary
-    ? CURRENCY_FORMAT.format(activeReportSummary.cash)
-    : "";
+  const cashValue =
+    activeReportSummary &&
+    cashState.status === "ready" &&
+    typeof activeReportSummary.cash === "number"
+      ? CURRENCY_FORMAT.format(activeReportSummary.cash)
+      : "";
 
   const netOpState = resolveNetOpCashFlowTileState({
     hydrationActive,

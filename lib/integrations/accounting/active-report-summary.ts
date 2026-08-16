@@ -3,12 +3,24 @@
  * P&L and BS totals come from buildMappedFinancialSummary — never from
  * dashboard-local regex aggregation over income/sales labels.
  */
-import { buildMappedFinancialSummary } from "./normalizers/financial-statements";
+import {
+  buildMappedFinancialSummary,
+  isPeriodIncomeStatementComplete,
+} from "./normalizers/financial-statements";
 import type {
   AccountingSourceSystem,
   CanonicalBalanceSheetRow,
   CanonicalPnLRow,
 } from "./types";
+
+/** Provider-neutral cash position availability (missing ≠ zero). */
+export type CashPositionStatus = "VALUE_ZERO" | "VALUE_NONZERO" | "SOURCE_MISSING";
+
+export type CashPositionResolution = {
+  status: CashPositionStatus;
+  /** Null only when status is SOURCE_MISSING. */
+  amount: number | null;
+};
 
 export type ActiveReportSummaryView = {
   sourceSystem: AccountingSourceSystem | string;
@@ -29,7 +41,14 @@ export type ActiveReportSummaryView = {
   netIncome: number;
   assets: number;
   liabilities: number;
-  cash: number;
+  /**
+   * Cash amount when cashStatus is VALUE_ZERO or VALUE_NONZERO.
+   * Null when cashStatus is SOURCE_MISSING (never coerce missing → 0).
+   */
+  cash: number | null;
+  cashStatus: CashPositionStatus;
+  /** False when period P&L lacks revenue evidence (stub / incomplete normalize). */
+  incomeStatementComplete: boolean;
 };
 
 type ReportPayloadLike = {
@@ -83,7 +102,7 @@ const NON_ASSET_SECTION =
   /^(liabilit(y|ies)|current liabilit(y|ies)|long.?term liabilit(y|ies)|non.?current liabilit(y|ies)|equity|accounts?\s+payable|credit cards?)$/i;
 
 const ASSET_SECTION =
-  /^(assets?|current assets?|fixed assets?|non.?current assets?|cash and cash equivalents|bank accounts?|cash at bank|cash at bank and in hand)$/i;
+  /^(assets?|current assets?|other current assets?|fixed assets?|non.?current assets?|cash and cash equivalents?|bank accounts?|cash at bank|cash at bank and in hand)$/i;
 
 /**
  * Cash Position may only use asset-side Balance Sheet rows.
@@ -142,7 +161,7 @@ export function isCashOrBankRelated(row: CanonicalBalanceSheetRow): boolean {
   if (isExcludedNonCashLabel(label)) return false;
   if (/cash|bank|checking|savings/i.test(label)) return true;
   if (/cash|bank|checking|savings/i.test(section) && !isBalanceSheetSummaryOrTotalRow(row)) {
-    return /cash and cash equivalents|bank accounts?|cash at bank/i.test(section);
+    return /cash and cash equivalents?|bank accounts?|cash at bank/i.test(section);
   }
   return false;
 }
@@ -156,11 +175,11 @@ function isExplicitCashAggregate(row: CanonicalBalanceSheetRow): boolean {
   const label = String(row.label || "");
   if (!/cash|bank/i.test(label)) return false;
   if (isBalanceSheetSummaryOrTotalRow(row)) return true;
-  return /^(total\s+)?cash and cash equivalents$/i.test(label) || /^total\s+bank/i.test(label);
+  return /^(total\s+)?cash and cash equivalents?$/i.test(label) || /^total\s+bank/i.test(label);
 }
 
 function cashAggregateRank(label: string): number {
-  if (/cash and cash equivalents/i.test(label)) return 40;
+  if (/cash and cash equivalents?/i.test(label)) return 40;
   if (/total bank accounts/i.test(label)) return 30;
   if (/^total cash$/i.test(label)) return 20;
   if (/^total banks?$/i.test(label)) return 15;
@@ -169,27 +188,50 @@ function cashAggregateRank(label: string): number {
 }
 
 /**
- * Canonical cash selector for activeReportSummary.
+ * Resolve cash with missing≠zero semantics.
  *
  * Precedence:
  * A. One explicit ASSET-SIDE cash/bank aggregate
  * B. Else sum ASSET-SIDE leaf cash/bank accounts only
  *
- * Never include liability/equity bank-like rows.
- * Never sum leaves + their rollup. Never abs() negatives. Never fabricate.
+ * When no eligible cash/bank evidence exists on the Balance Sheet → SOURCE_MISSING
+ * (never fabricate 0). True zero balances remain VALUE_ZERO.
  */
-export function sumCashFromBalanceSheet(rows: CanonicalBalanceSheetRow[] = []): number {
+export function resolveCashPositionFromBalanceSheet(
+  rows: CanonicalBalanceSheetRow[] = [],
+): CashPositionResolution {
   const aggregates = rows.filter(isExplicitCashAggregate);
   if (aggregates.length) {
     const best = [...aggregates].sort(
       (a, b) => cashAggregateRank(String(b.label || "")) - cashAggregateRank(String(a.label || "")),
     )[0];
-    return Number(best.amount || 0);
+    const amount = Number(best.amount || 0);
+    return {
+      status: amount === 0 ? "VALUE_ZERO" : "VALUE_NONZERO",
+      amount,
+    };
   }
 
-  return rows
-    .filter((row) => isEligibleCashRow(row) && !isBalanceSheetSummaryOrTotalRow(row))
-    .reduce((total, row) => total + Number(row.amount || 0), 0);
+  const leaves = rows.filter((row) => isEligibleCashRow(row) && !isBalanceSheetSummaryOrTotalRow(row));
+  if (!leaves.length) {
+    return { status: "SOURCE_MISSING", amount: null };
+  }
+
+  const amount = leaves.reduce((total, row) => total + Number(row.amount || 0), 0);
+  return {
+    status: amount === 0 ? "VALUE_ZERO" : "VALUE_NONZERO",
+    amount,
+  };
+}
+
+/**
+ * Numeric cash selector for callers that still require a number.
+ * SOURCE_MISSING collapses to 0 only for legacy numeric APIs — Scorecard must
+ * use resolveCashPositionFromBalanceSheet / cashStatus instead.
+ */
+export function sumCashFromBalanceSheet(rows: CanonicalBalanceSheetRow[] = []): number {
+  const resolved = resolveCashPositionFromBalanceSheet(rows);
+  return resolved.amount ?? 0;
 }
 
 export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null | undefined): ActiveReportSummaryView | null {
@@ -200,6 +242,8 @@ export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null
   const incomeStatement = normalizedData.normalizedIncomeStatement || [];
   const balanceSheet = normalizedData.normalizedBalanceSheet || [];
   const mapped = buildMappedFinancialSummary(balanceSheet, incomeStatement);
+  const cashPosition = resolveCashPositionFromBalanceSheet(balanceSheet);
+  const incomeStatementComplete = isPeriodIncomeStatementComplete(incomeStatement);
 
   return {
     sourceSystem: normalizedData.sourceSystem,
@@ -213,14 +257,16 @@ export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null
       balanceSheetCount: balanceSheet.length,
       incomeStatementCount: incomeStatement.length,
     },
-    revenue: mapped.revenue,
-    cogs: mapped.cogs,
-    grossProfit: mapped.grossProfit,
-    grossProfitSupported: mapped.grossProfitSupported,
-    expenses: mapped.expenses,
-    netIncome: mapped.netIncome,
+    revenue: incomeStatementComplete ? mapped.revenue : 0,
+    cogs: incomeStatementComplete ? mapped.cogs : 0,
+    grossProfit: incomeStatementComplete ? mapped.grossProfit : 0,
+    grossProfitSupported: incomeStatementComplete ? mapped.grossProfitSupported : false,
+    expenses: incomeStatementComplete ? mapped.expenses : 0,
+    netIncome: incomeStatementComplete ? mapped.netIncome : 0,
     assets: mapped.totalAssets,
     liabilities: mapped.totalLiabilities,
-    cash: sumCashFromBalanceSheet(balanceSheet),
+    cash: cashPosition.amount,
+    cashStatus: cashPosition.status,
+    incomeStatementComplete,
   };
 }
