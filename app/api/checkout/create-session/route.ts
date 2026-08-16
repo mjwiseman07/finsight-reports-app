@@ -424,7 +424,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: { metadata },
       metadata,
-      success_url: `${origin}/onboarding?checkout=success&tier=${tierKey}`,
+      success_url: `${origin}/dashboard?checkout=success&tier=${tierKey}`,
       cancel_url: `${origin}/pricing?checkout=cancelled`,
       allow_promotion_codes: false,
       payment_method_types: ["card", "us_bank_account"],

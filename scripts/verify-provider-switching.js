@@ -17,35 +17,28 @@ function fail(message) {
   process.exitCode = 1;
 }
 
+// Provider switching lives on the dashboard activation OS (legacy /onboarding
+// is a compatibility redirect only).
+const dashboard = read("app/dashboard/page.jsx");
 const onboarding = read("app/onboarding/page.tsx");
 
-for (const marker of [
-  "const onProviderChange",
-  "clearReportContext()",
-  "fetchLatestSyncForProvider(provider",
-  "providerReportPayloadKey(provider)",
-  "setSelectedIntegration(provider)",
-  "window.localStorage.removeItem(\"advisacor_active_report_payload\")",
-  "window.sessionStorage.removeItem(\"advisacor_active_report_payload\")",
-  "const activeProvider = selectedIntegration",
-]) {
-  if (onboarding.includes(marker)) pass(`provider switching contains ${marker}`);
-  else fail(`provider switching missing ${marker}`);
-}
-
 if (
-  onboarding.includes("providerReportPayloadKey(selectedIntegration)") ||
-  (onboarding.includes("providerReportPayloadKey(provider)") && onboarding.includes("setReportContextForProvider(selectedIntegration"))
+  onboarding.includes("buildDashboardCompatibilityHref") ||
+  onboarding.includes("redirect(")
 ) {
-  pass("sync writes active and provider-specific report payloads");
+  pass("legacy /onboarding is compatibility redirect");
 } else {
-  fail("sync does not write provider-specific report payloads");
+  fail("legacy /onboarding is not a compatibility redirect");
 }
 
-if (onboarding.includes("Provider mismatch: active") && onboarding.includes("reportPayloadSourceSystem(reportPayload) !== activeProvider")) {
-  pass("mixed provider context remains blocked");
-} else {
-  fail("mixed provider context guard missing");
+for (const marker of [
+  "handleConnectQuickBooks",
+  "handleConnectXero",
+  "resolveAccountingDashboardHydrationPlan",
+  "Provider mismatch: active",
+]) {
+  if (dashboard.includes(marker)) pass(`dashboard activation/provider path contains ${marker}`);
+  else fail(`dashboard activation/provider path missing ${marker}`);
 }
 
 if (process.exitCode) {

@@ -83,7 +83,11 @@ export async function GET(request) {
 
       const expectedState = request.cookies.get("xero_oauth_state")?.value || "";
       const leadId = request.cookies.get("xero_oauth_lead_id")?.value || "";
-      const returnTo = request.cookies.get("xero_oauth_return_to")?.value || "/onboarding";
+      const rawReturnTo = request.cookies.get("xero_oauth_return_to")?.value || "/dashboard";
+      const returnTo =
+        rawReturnTo === "/onboarding" || rawReturnTo.startsWith("/onboarding?")
+          ? "/dashboard"
+          : rawReturnTo;
       const code = requestUrl.searchParams.get("code") || "";
       const state = requestUrl.searchParams.get("state") || "";
 
@@ -151,7 +155,12 @@ export async function GET(request) {
         });
       }
 
-      const redirectUrl = new URL(returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/onboarding", request.url);
+      const redirectUrl = new URL(
+        returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") && returnTo !== "/onboarding"
+          ? returnTo
+          : "/dashboard",
+        request.url,
+      );
       redirectUrl.searchParams.set("accountingConnected", "true");
       redirectUrl.searchParams.set("provider", "xero");
       redirectUrl.searchParams.set("xeroConnected", "true");

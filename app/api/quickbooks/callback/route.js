@@ -102,12 +102,12 @@ async function resolvePostConnectLanding(userId, returnTo) {
 }
 
 /**
- * Phase TCP1 W3 — Every error path redirects to /onboarding?qbError=<code>
- * so the user sees a friendly banner instead of raw JSON. Cookies are cleaned
- * up on the redirect so a retry starts fresh.
+ * Phase TCP1 W3 — Every error path redirects to /dashboard?qbError=<code>
+ * (dashboard-first activation OS). Cookies are cleaned up on the redirect
+ * so a retry starts fresh.
  */
 function redirectWithQbError(request, code, extraParams = {}) {
-  const url = new URL("/onboarding", request.url);
+  const url = new URL("/dashboard", request.url);
   url.searchParams.set("qbError", code);
   for (const [k, v] of Object.entries(extraParams)) {
     if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
@@ -135,7 +135,11 @@ async function getImpl(request) {
   const oauthMode = request.cookies.get("qb_oauth_mode")?.value || "user";
   const supabaseToken = request.cookies.get("qb_oauth_token")?.value || "";
   const leadId = request.cookies.get("qb_oauth_lead_id")?.value || "";
-  const returnTo = request.cookies.get("qb_oauth_return_to")?.value || "";
+  const returnToRaw = request.cookies.get("qb_oauth_return_to")?.value || "";
+  const returnTo =
+    returnToRaw === "/onboarding" || returnToRaw.startsWith("/onboarding?")
+      ? "/dashboard"
+      : returnToRaw;
   const holderCookie = request.cookies.get(HOLDER_USER_ID_COOKIE_NAME)?.value || "";
   const holderUserId = oauthMode === "super_admin_holder" ? verifyHolderUserIdCookie(holderCookie) : null;
 
@@ -343,12 +347,15 @@ async function getImpl(request) {
         status: savedAccountingConnection.status,
       });
 
-      // Lead flow always lands on /free-review (existing behavior) — leads
-      // don't have a resolved tier yet.
+      // Lead flow lands on dashboard activation OS (consume leadId once client-side).
       const leadLanding =
-        returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
+        returnTo &&
+        returnTo.startsWith("/") &&
+        !returnTo.startsWith("//") &&
+        returnTo !== "/onboarding" &&
+        !returnTo.startsWith("/onboarding?")
           ? returnTo
-          : "/free-review";
+          : "/dashboard";
       const redirectUrl = new URL(leadLanding, request.url);
       redirectUrl.searchParams.set("quickBooksConnected", "true");
       redirectUrl.searchParams.set("leadId", leadId);

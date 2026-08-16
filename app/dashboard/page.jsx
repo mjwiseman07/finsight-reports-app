@@ -9,6 +9,8 @@ import { SupportHelpButton } from "../../components/SupportHelpButton";
 import { AccountSupportModal } from "../../components/AccountSupportModal";
 import StartingPointCard from "../../components/dashboard/StartingPointCard";
 import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPointDeepLinkHandler";
+import ActivationCard from "../../components/dashboard/ActivationCard";
+import LeadIdActivationHandler from "../../components/dashboard/LeadIdActivationHandler";
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
@@ -1740,7 +1742,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const response = await fetch("/api/integrations/quickbooks/connect", {
+      const response = await fetch("/api/integrations/quickbooks/connect?returnTo=/dashboard", {
         method: "POST",
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -1764,7 +1766,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const response = await fetch("/api/integrations/xero/connect", {
+      const response = await fetch("/api/integrations/xero/connect?returnTo=/dashboard", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -2323,12 +2325,45 @@ export default function DashboardPage() {
           {!isLoading && access?.allowed === true && (
             <div className="grid gap-8">
               <Suspense fallback={null}>
+                <LeadIdActivationHandler />
                 <StartingPointDeepLinkHandler
                   onExecutivePackage={() => handleExploreCardClick("Executive Package")}
                   onFinancialHealthScore={() => handleExploreCardClick("Financial Health Score")}
                   onAskPulse={() => setAiOpen(true)}
                 />
               </Suspense>
+              <ActivationCard
+                facts={{
+                  hasConnectedBooks: Boolean(
+                    activeReportContext?.connectionId ||
+                      dashboardParams.get("connectionId") ||
+                      dashboardParams.get("quickBooksConnected") === "true" ||
+                      dashboardParams.get("accountingConnected") === "true" ||
+                      dashboardParams.get("xeroConnected") === "true" ||
+                      leadDashboardSession?.accountingProvider,
+                  ),
+                  companyName:
+                    onboardingCompanyName ||
+                    activeReportSummary?.tenantName ||
+                    leadDashboardSession?.companyName ||
+                    null,
+                  provider:
+                    activeSourceSystem ||
+                    dashboardParams.get("provider") ||
+                    leadDashboardSession?.accountingProvider ||
+                    null,
+                  industryType:
+                    onboardingIndustryType && onboardingIndustryType !== "Industry Intelligence"
+                      ? onboardingIndustryType
+                      : null,
+                  isAuthenticated: Boolean(access?.user_id || access?.allowed),
+                  isLeadSession: Boolean(leadDashboardSession?.leadId),
+                }}
+                qbErrorCode={dashboardParams.get("qbError")}
+                checkoutSuccess={dashboardParams.get("checkout") === "success"}
+                onConnectQuickBooks={handleConnectQuickBooks}
+                onConnectXero={handleConnectXero}
+              />
               <StartingPointCard persona={primaryPersona || deliveryPersona} />
               <PendingApprovalsCard />
               <PostedJesCard />

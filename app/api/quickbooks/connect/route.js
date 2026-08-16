@@ -81,8 +81,16 @@ async function handleConnect(request) {
     const adapter = getERPAdapter("quickbooks", connectContext.userId || null);
     const { url, config: quickBooksConfig } = adapter.connect({ state });
     const parsedUrl = new URL(url);
-    const returnTo = requestUrl.searchParams.get("returnTo") || "";
-    const safeReturnTo = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "";
+    const rawReturnTo = requestUrl.searchParams.get("returnTo") || "/dashboard";
+    // Stale /onboarding returnTo from legacy cookies/links must not win.
+    const normalizedReturnTo =
+      rawReturnTo === "/onboarding" || rawReturnTo.startsWith("/onboarding?")
+        ? "/dashboard"
+        : rawReturnTo;
+    const safeReturnTo =
+      normalizedReturnTo.startsWith("/") && !normalizedReturnTo.startsWith("//")
+        ? normalizedReturnTo
+        : "/dashboard";
 
     console.log("[quickbooks/connect] authorization URL generated", {
       mode: connectContext.mode,
@@ -108,7 +116,7 @@ async function handleConnect(request) {
     response.cookies.set("qb_oauth_mode", connectContext.mode, cookieOptions);
     if (connectContext.token) response.cookies.set("qb_oauth_token", connectContext.token, cookieOptions);
     if (connectContext.leadId) response.cookies.set("qb_oauth_lead_id", connectContext.leadId, cookieOptions);
-    if (safeReturnTo) response.cookies.set("qb_oauth_return_to", safeReturnTo, cookieOptions);
+    response.cookies.set("qb_oauth_return_to", safeReturnTo, cookieOptions);
 
     return response;
   } catch (error) {

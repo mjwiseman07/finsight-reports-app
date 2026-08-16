@@ -89,7 +89,7 @@ export default function HealthcareIntelligencePage() {
               <Link href="/industry-intelligence" className="rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#ECEBE7] hover:border-[#C9A961]/50">
                 Industry Framework
               </Link>
-              <Link href="/onboarding" className="rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#ECEBE7] hover:border-[#C9A961]/50">
+              <Link href="/dashboard" className="rounded-full border border-[#C9A961]/25 bg-[#1A1A1C] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#ECEBE7] hover:border-[#C9A961]/50">
                 Industry Onboarding
               </Link>
             </div>

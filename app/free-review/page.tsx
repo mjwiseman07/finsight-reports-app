@@ -55,7 +55,7 @@ function FreeReviewLeadCapture() {
       }
       window.localStorage.setItem("advisacor_free_review_lead_id", result.lead.id);
       window.localStorage.setItem("advisacor_free_review_lead_email", result.lead.email || form.email);
-      router.push(`/onboarding?leadId=${encodeURIComponent(result.lead.id)}`);
+      router.push(`/dashboard?leadId=${encodeURIComponent(result.lead.id)}`);
     } catch {
       setError("Unable to save your free review information.");
     } finally {
