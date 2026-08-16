@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { focusRing, headingFont, primaryCtaClass } from "../site-ui";
 import { qbErrorCopy } from "@/lib/onboarding/qb-error-messages";
-import { activationDismissStorageKey } from "@/lib/activation/lead-session";
+import {
+  activationDismissStorageKey,
+  isUsableCompanyName,
+} from "@/lib/activation/lead-session";
 
 type ActivationFacts = {
   hasConnectedBooks: boolean;
@@ -25,7 +28,9 @@ type Props = {
   checkoutSuccess?: boolean;
   onConnectQuickBooks: () => void | Promise<void>;
   onConnectXero: () => void | Promise<void>;
+  onConfirmCompanyIdentity: (companyName: string) => Promise<void> | void;
   connecting?: boolean;
+  identitySaving?: boolean;
 };
 
 /**
@@ -39,10 +44,14 @@ export default function ActivationCard({
   checkoutSuccess,
   onConnectQuickBooks,
   onConnectXero,
+  onConfirmCompanyIdentity,
   connecting = false,
+  identitySaving = false,
 }: Props) {
   const router = useRouter();
   const [dismissed, setDismissed] = useState(false);
+  const [identityDraft, setIdentityDraft] = useState("");
+  const [identityError, setIdentityError] = useState("");
   const errorCopy = qbErrorCode ? qbErrorCopy(qbErrorCode) : null;
   const dismissKey = activationDismissStorageKey({
     companyId: facts.companyId,
@@ -59,12 +68,18 @@ export default function ActivationCard({
     setDismissed(window.localStorage.getItem(dismissKey) === "true");
   }, [qbErrorCode, checkoutSuccess, dismissKey]);
 
+  useEffect(() => {
+    if (isUsableCompanyName(facts.companyName)) {
+      setIdentityDraft(String(facts.companyName));
+    }
+  }, [facts.companyName]);
+
   const needsConnect = !facts.hasConnectedBooks;
   const needsIdentityConfirm =
-    facts.hasConnectedBooks && !String(facts.companyName || "").trim();
+    facts.hasConnectedBooks && !isUsableCompanyName(facts.companyName);
   const needsIndustry =
     facts.hasConnectedBooks &&
-    Boolean(String(facts.companyName || "").trim()) &&
+    isUsableCompanyName(facts.companyName) &&
     !String(facts.industryType || "").trim();
 
   /** Blocking checklist complete (industry is optional enrichment). */
@@ -127,8 +142,20 @@ export default function ActivationCard({
     router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false });
   }, [router]);
 
-  // Hide when blocking work is done, optional industry dismissed or absent,
-  // and there is no checkout banner / error.
+  const submitIdentity = useCallback(async () => {
+    setIdentityError("");
+    const nextName = identityDraft.trim();
+    if (!isUsableCompanyName(nextName)) {
+      setIdentityError("Enter the company name Advisacor should use.");
+      return;
+    }
+    try {
+      await onConfirmCompanyIdentity(nextName);
+    } catch (err) {
+      setIdentityError(err instanceof Error ? err.message : "Unable to save company name.");
+    }
+  }, [identityDraft, onConfirmCompanyIdentity]);
+
   const shouldHide =
     blockingComplete &&
     !showOptionalIndustry &&
@@ -138,7 +165,6 @@ export default function ActivationCard({
 
   if (shouldHide) return null;
 
-  // Nothing meaningful to show
   if (
     blockingComplete &&
     !showOptionalIndustry &&
@@ -152,7 +178,7 @@ export default function ActivationCard({
 
   return (
     <section className="relative rounded-2xl border border-[#C9A961]/30 bg-[#1A1A1C]/50 p-6 text-[#ECEBE7]">
-      {!errorCopy && !needsConnect && (
+      {!errorCopy && !needsConnect && !needsIdentityConfirm && (
         <button
           type="button"
           aria-label="Dismiss activation"
@@ -171,13 +197,44 @@ export default function ActivationCard({
       <h2 className={`${headingFont} mt-2 text-xl font-semibold text-[#ECEBE7]`}>{headline}</h2>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-[#A29E93]">{body}</p>
 
-      {facts.hasConnectedBooks && facts.companyName && (
+      {facts.hasConnectedBooks && isUsableCompanyName(facts.companyName) && (
         <p className="mt-3 text-sm text-[#ECEBE7]">
           Connected
           {facts.provider ? ` via ${facts.provider}` : ""}
           {": "}
           <span className="font-semibold">{facts.companyName}</span>
         </p>
+      )}
+
+      {needsIdentityConfirm && (
+        <div className="mt-5 max-w-xl space-y-3">
+          <label className="block text-sm font-semibold text-[#ECEBE7]" htmlFor="activation-company-name">
+            Company name
+          </label>
+          <input
+            id="activation-company-name"
+            type="text"
+            value={identityDraft}
+            onChange={(e) => setIdentityDraft(e.target.value)}
+            placeholder="e.g. Sandbox Company CA b483"
+            className={focusRing(
+              "w-full rounded-xl border border-[#C9A961]/25 bg-[#111112] px-4 py-2.5 text-sm text-[#ECEBE7] placeholder:text-[#7A7974]",
+            )}
+          />
+          {identityError && (
+            <p role="alert" className="text-sm font-semibold text-[#F0BFBF]">
+              {identityError}
+            </p>
+          )}
+          <button
+            type="button"
+            disabled={identitySaving}
+            onClick={() => void submitIdentity()}
+            className={focusRing(primaryCtaClass)}
+          >
+            {identitySaving ? "Saving…" : "Confirm company name"}
+          </button>
+        </div>
       )}
 
       <div className="mt-5 flex flex-wrap gap-3">
@@ -229,7 +286,8 @@ export default function ActivationCard({
             Add industry later
           </a>
         )}
-        {(showOptionalIndustry || (!needsConnect && !errorCopy && !needsIdentityConfirm)) && (
+        {(showOptionalIndustry ||
+          (!needsConnect && !errorCopy && !needsIdentityConfirm)) && (
           <button
             type="button"
             onClick={dismiss}

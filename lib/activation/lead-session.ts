@@ -1,8 +1,7 @@
 /**
- * Free-review lead session bootstrap for dashboard-first activation.
- * Writes lead context to localStorage so the existing dashboard access gate
- * (`lead_free_review`) can authorize lead-safe capabilities — without mounting
- * product UI first, and without treating localStorage as a general auth token.
+ * Free-review lead UX helpers (localStorage/URL hints only).
+ * Dashboard lead AUTHORITY is established only by GET /api/free-review/session
+ * using the HttpOnly free_review_lead_id cookie + live free_review_leads row.
  */
 
 export const LEAD_SESSION_KEY = "advisacor_lead_dashboard_session";
@@ -15,8 +14,25 @@ export type LeadSessionRecord = {
   companyName?: string;
   packageLevel?: string;
   accountingProvider?: string;
+  serverValidated?: boolean;
   [key: string]: unknown;
 };
+
+const PLACEHOLDER_COMPANY_NAMES = new Set(
+  [
+    "not provided",
+    "free review company",
+    "quickbooks company",
+    "xero organization",
+    "industry intelligence",
+  ].map((s) => s.toLowerCase()),
+);
+
+export function isUsableCompanyName(value: string | null | undefined): boolean {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return false;
+  return !PLACEHOLDER_COMPANY_NAMES.has(trimmed.toLowerCase());
+}
 
 export function readLeadSessionFromStorage(
   storage: Pick<Storage, "getItem"> | null | undefined = typeof window !== "undefined" ? window.localStorage : null,
@@ -36,9 +52,7 @@ export function readLeadSessionFromStorage(
 }
 
 /**
- * If the URL carries leadId, persist lead session keys then return the leadId.
- * Does not grant dashboard access by itself — callers must still run the
- * existing lead_free_review / auth access gate.
+ * Persist URL leadId as a UX hint only. Never grants dashboard access.
  */
 export function bootstrapLeadSessionFromSearchParams(
   searchParams: URLSearchParams | { get: (key: string) => string | null },
@@ -55,10 +69,33 @@ export function bootstrapLeadSessionFromSearchParams(
     leadId,
     capturedAt: new Date().toISOString(),
     source: existing.source || "dashboard_activation",
+    serverValidated: false,
   };
   storage.setItem(LEAD_ID_KEY, leadId);
   storage.setItem(LEAD_SESSION_KEY, JSON.stringify(next));
   return leadId;
+}
+
+export function rememberValidatedLeadSession(
+  lead: { lead_id: string; business_name?: string | null },
+  storage: Pick<Storage, "getItem" | "setItem"> | null | undefined = typeof window !== "undefined"
+    ? window.localStorage
+    : null,
+): void {
+  if (!storage || !lead?.lead_id) return;
+  const existing = readLeadSessionFromStorage(storage) || ({} as Partial<LeadSessionRecord>);
+  storage.setItem(LEAD_ID_KEY, lead.lead_id);
+  storage.setItem(
+    LEAD_SESSION_KEY,
+    JSON.stringify({
+      ...existing,
+      leadId: lead.lead_id,
+      companyName: lead.business_name || existing.companyName,
+      capturedAt: new Date().toISOString(),
+      source: "server_validated",
+      serverValidated: true,
+    }),
+  );
 }
 
 /** Scope optional activation dismissal so Company A prefs do not leak to Company B. */

@@ -14,7 +14,9 @@ import LeadIdActivationHandler from "../../components/dashboard/LeadIdActivation
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
 import {
   bootstrapLeadSessionFromSearchParams,
+  isUsableCompanyName,
   readLeadSessionFromStorage,
+  rememberValidatedLeadSession,
 } from "../../lib/activation/lead-session";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
@@ -993,9 +995,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const loadAccess = async () => {
       const dashboardSearch = new URLSearchParams(window.location.search);
-      // Architecture B: bootstrap lead session from ?leadId= BEFORE the access
-      // gate so existing lead_free_review authorization can see it. localStorage
-      // alone never authorizes the authenticated product path (/api/check-trial).
+      // UX hint only — never grants access.allowed by itself.
       bootstrapLeadSessionFromSearchParams(dashboardSearch);
 
       const devBypass =
@@ -1005,27 +1005,37 @@ export default function DashboardPage() {
         process.env.NODE_ENV === "development" &&
         dashboardSearch.get("superAdmin") === "true";
       const storedToken = await getAuthToken();
-      const leadDashboardSession = readLeadSessionFromStorage();
-      const leadSessionMode =
-        Boolean(leadDashboardSession?.leadId) ||
-        (dashboardSearch.get("leadSession") === "true" && Boolean(dashboardSearch.get("leadId")));
 
-      if (!storedToken && leadSessionMode) {
-        const leadAccess = {
-          allowed: true,
-          reason: "lead_free_review",
-          email: window.localStorage.getItem("advisacor_free_review_lead_email") || "Lead captured",
-          business_name: leadDashboardSession?.companyName || dashboardSearch.get("companyName") || "Free Review Company",
-          subscription_plan: leadDashboardSession?.packageLevel || dashboardSearch.get("packageLevel") || "pulse_starter",
-          subscription_status: "free_review",
-        };
-        setAccess(leadAccess);
-        setBusinessNameDraft(leadAccess.business_name || "");
-        setIsLoading(false);
-        return;
-      }
-
+      // Authenticated users always take precedence (Demo B USER-mode safe).
       if (!storedToken && !devBypass && !superAdminJourney) {
+        try {
+          const leadResponse = await fetch("/api/free-review/session", {
+            method: "GET",
+            credentials: "include",
+          });
+          const leadResult = await leadResponse.json().catch(() => ({}));
+          if (leadResponse.ok && leadResult?.allowed === true && leadResult?.lead_id) {
+            rememberValidatedLeadSession({
+              lead_id: leadResult.lead_id,
+              business_name: leadResult.business_name,
+            });
+            setAccess({
+              allowed: true,
+              reason: "lead_free_review",
+              lead_id: leadResult.lead_id,
+              email: leadResult.email || "Lead captured",
+              business_name: leadResult.business_name || "",
+              subscription_plan: leadResult.subscription_plan || "pulse_starter",
+              subscription_status: "free_review",
+            });
+            setBusinessNameDraft(leadResult.business_name || "");
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // Fall through to sign-in — do not trust localStorage lead hints.
+        }
+
         router.replace("/signin");
         return;
       }
@@ -1737,6 +1747,68 @@ export default function DashboardPage() {
     }
   };
 
+  const handleConfirmCompanyIdentity = async (companyName) => {
+    setError("");
+    setAccountSaving(true);
+    try {
+      const authToken = await getAuthToken();
+      const leadSession = readLeadSessionFromStorage();
+
+      if (authToken) {
+        const response = await fetch("/api/account", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ business_name: companyName }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(result.error || "Unable to save company name.");
+        }
+        setBusinessNameDraft(result.business_name || companyName);
+        setAccess((current) => ({
+          ...current,
+          business_name: result.business_name || companyName,
+        }));
+        return;
+      }
+
+      if (access?.reason === "lead_free_review" && (access?.lead_id || leadSession?.leadId)) {
+        const leadId = access?.lead_id || leadSession?.leadId;
+        const response = await fetch("/api/free-review/leads", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lead_id: leadId,
+            business_name: companyName,
+            legal_company_name: companyName,
+            status: "onboarding_started",
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(result.error || "Unable to save company name.");
+        }
+        const savedName =
+          result.lead?.legal_company_name || result.lead?.business_name || companyName;
+        rememberValidatedLeadSession({ lead_id: leadId, business_name: savedName });
+        setBusinessNameDraft(savedName);
+        setAccess((current) => ({
+          ...current,
+          business_name: savedName,
+        }));
+        return;
+      }
+
+      throw new Error("Sign in or complete Free Review lead capture first.");
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
   const handleConnectQuickBooks = async () => {
     setError("");
     try {
@@ -2355,11 +2427,16 @@ export default function DashboardPage() {
                       dashboardParams.get("xeroConnected") === "true" ||
                       leadDashboardSession?.accountingProvider,
                   ),
-                  companyName:
-                    onboardingCompanyName ||
-                    activeReportSummary?.tenantName ||
-                    leadDashboardSession?.companyName ||
-                    null,
+                  companyName: (() => {
+                    const candidates = [
+                      activeReportSummary?.tenantName,
+                      leadDashboardSession?.companyName,
+                      access?.business_name,
+                      dashboardParams.get("companyName"),
+                    ];
+                    const usable = candidates.find((value) => isUsableCompanyName(value));
+                    return usable || null;
+                  })(),
                   provider:
                     activeSourceSystem ||
                     dashboardParams.get("provider") ||
@@ -2373,12 +2450,14 @@ export default function DashboardPage() {
                   isLeadSession:
                     access?.reason === "lead_free_review" || Boolean(leadDashboardSession?.leadId),
                   companyId: dashboardCompanyId || null,
-                  leadId: leadDashboardSession?.leadId || null,
+                  leadId: access?.lead_id || leadDashboardSession?.leadId || null,
                 }}
                 qbErrorCode={dashboardParams.get("qbError")}
                 checkoutSuccess={dashboardParams.get("checkout") === "success"}
                 onConnectQuickBooks={handleConnectQuickBooks}
                 onConnectXero={handleConnectXero}
+                onConfirmCompanyIdentity={handleConfirmCompanyIdentity}
+                identitySaving={accountSaving}
               />
               <StartingPointCard persona={primaryPersona || deliveryPersona} />
               <PendingApprovalsCard />
