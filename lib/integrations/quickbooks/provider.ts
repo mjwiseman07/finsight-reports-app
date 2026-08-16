@@ -30,7 +30,8 @@ function quickBooksColValue(col: unknown) {
 }
 
 function flattenQuickBooksReportRows(rows: unknown[] = [], section = ""): Array<{ label: string; amount: number; section: string; raw: unknown; colValues: string[] }> {
-  return rows.flatMap((row) => {
+  const rowList = Array.isArray(rows) ? rows : rows && typeof rows === "object" ? [rows] : [];
+  return rowList.flatMap((row) => {
     const record = row as Record<string, unknown>;
     const header = record.Header as Record<string, unknown> | undefined;
     const summary = record.Summary as Record<string, unknown> | undefined;
@@ -38,8 +39,12 @@ function flattenQuickBooksReportRows(rows: unknown[] = [], section = ""): Array<
     const headerColData = Array.isArray(header?.ColData) ? header.ColData as unknown[] : [];
     const summaryColData = Array.isArray(summary?.ColData) ? summary.ColData as unknown[] : [];
     const nextSection = quickBooksColValue(headerColData[0]) || String(record.group || record.Group || section || "");
-    const children = Array.isArray((record.Rows as Record<string, unknown> | undefined)?.Row)
-      ? flattenQuickBooksReportRows((record.Rows as Record<string, unknown>).Row as unknown[], nextSection || section)
+    const nested = (record.Rows as Record<string, unknown> | undefined)?.Row;
+    const children = nested != null
+      ? flattenQuickBooksReportRows(
+          Array.isArray(nested) ? nested : [nested],
+          nextSection || section,
+        )
       : [];
     const label = quickBooksColValue(colData[0]);
     const colValues = colData.map(quickBooksColValue);

@@ -18,7 +18,20 @@ export type ActiveReportSummary = {
   netIncome: number;
   assets: number;
   liabilities: number;
-  cash: number;
+  /**
+   * Cash amount when present. Null means SOURCE_MISSING (never display as $0).
+   */
+  cash: number | null;
+  cashStatus?: "VALUE_ZERO" | "VALUE_NONZERO" | "SOURCE_MISSING";
+  /**
+   * Net Profit Margin evidence ready (Path A or Path B).
+   * Revenue-only statements are incomplete.
+   */
+  incomeStatementComplete?: boolean;
+  netProfitMarginEvidenceReady?: boolean;
+  operatingGrossMarginEvidenceReady?: boolean;
+  netIncomeEvidencePath?: "explicit_totals" | "reconstructable" | "none";
+  hasRevenueEvidence?: boolean;
   lastSyncedAt?: string;
 };
 
@@ -118,7 +131,16 @@ export function resolveCashTileState(args: {
   hydrationActive: boolean;
   summary: ActiveReportSummary | null;
 }): ScorecardTileState {
-  if (args.summary) return { status: "ready" };
+  if (args.summary) {
+    const status = args.summary.cashStatus;
+    if (status === "SOURCE_MISSING" || (status == null && args.summary.cash == null)) {
+      return {
+        status: "unavailable",
+        message: "Cash position is not available because no cash or bank balances were provided on the Balance Sheet.",
+      };
+    }
+    return { status: "ready" };
+  }
   if (args.hydrationActive) {
     return { status: "loading", message: "Refreshing…" };
   }
@@ -208,6 +230,31 @@ export function resolveNetMarginTileState(args: {
     }
     return {
       state: { status: "unavailable", message: "Not available for this period" },
+      value: null,
+    };
+  }
+  const npmReady =
+    args.summary.netProfitMarginEvidenceReady === true ||
+    (args.summary.netProfitMarginEvidenceReady == null &&
+      args.summary.incomeStatementComplete !== false &&
+      args.summary.revenue > 0);
+  if (!npmReady) {
+    if (args.summary.hasRevenueEvidence || args.summary.revenue > 0) {
+      return {
+        state: {
+          status: "unavailable",
+          message:
+            "Net margin is not available because the period Profit and Loss statement is missing required evidence (net income totals, or reconstructable COGS/expenses).",
+        },
+        value: null,
+      };
+    }
+    return {
+      state: {
+        status: "unavailable",
+        message:
+          "Net margin is not available because the period Profit and Loss statement is incomplete.",
+      },
       value: null,
     };
   }
@@ -427,9 +474,12 @@ export default function Scorecard({
     hydrationActive,
     summary: activeReportSummary,
   });
-  const cashValue = activeReportSummary
-    ? CURRENCY_FORMAT.format(activeReportSummary.cash)
-    : "";
+  const cashValue =
+    activeReportSummary &&
+    cashState.status === "ready" &&
+    typeof activeReportSummary.cash === "number"
+      ? CURRENCY_FORMAT.format(activeReportSummary.cash)
+      : "";
 
   const netOpState = resolveNetOpCashFlowTileState({
     hydrationActive,
