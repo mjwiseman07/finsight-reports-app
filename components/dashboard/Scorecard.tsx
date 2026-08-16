@@ -23,8 +23,15 @@ export type ActiveReportSummary = {
    */
   cash: number | null;
   cashStatus?: "VALUE_ZERO" | "VALUE_NONZERO" | "SOURCE_MISSING";
-  /** False when period P&L lacks revenue evidence. */
+  /**
+   * Net Profit Margin evidence ready (Path A or Path B).
+   * Revenue-only statements are incomplete.
+   */
   incomeStatementComplete?: boolean;
+  netProfitMarginEvidenceReady?: boolean;
+  operatingGrossMarginEvidenceReady?: boolean;
+  netIncomeEvidencePath?: "explicit_totals" | "reconstructable" | "none";
+  hasRevenueEvidence?: boolean;
   lastSyncedAt?: string;
 };
 
@@ -226,7 +233,22 @@ export function resolveNetMarginTileState(args: {
       value: null,
     };
   }
-  if (args.summary.incomeStatementComplete === false) {
+  const npmReady =
+    args.summary.netProfitMarginEvidenceReady === true ||
+    (args.summary.netProfitMarginEvidenceReady == null &&
+      args.summary.incomeStatementComplete !== false &&
+      args.summary.revenue > 0);
+  if (!npmReady) {
+    if (args.summary.hasRevenueEvidence || args.summary.revenue > 0) {
+      return {
+        state: {
+          status: "unavailable",
+          message:
+            "Net margin is not available because the period Profit and Loss statement is missing required evidence (net income totals, or reconstructable COGS/expenses).",
+        },
+        value: null,
+      };
+    }
     return {
       state: {
         status: "unavailable",

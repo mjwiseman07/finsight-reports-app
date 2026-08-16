@@ -102,6 +102,196 @@ export function isGrossProfitSupported(
   return hasExplicitGrossProfitRow(rows) || hasCogsMappingEvidence(rows);
 }
 
+function isSyntheticMappedRow(row: { source?: { raw?: unknown } }): boolean {
+  const raw = row.source?.raw;
+  return Boolean(raw && typeof raw === "object" && (raw as RawReportRow).__advisacorSyntheticTotal);
+}
+
+function isTotalLikeLabel(label: string): boolean {
+  return /^total\b/i.test(label);
+}
+
+/** Revenue evidence: explicit total or Income/Revenue/Sales leaf rows (not NI stubs). */
+export function hasRevenueEvidence(
+  rows: Array<{ label: string; section?: string; source?: { raw?: unknown } }> = [],
+): boolean {
+  if (!rows.length) return false;
+  if (
+    rows.some(
+      (row) =>
+        !isSyntheticMappedRow(row) &&
+        /^total (income|revenue|sales)$/i.test(String(row.label || "")),
+    )
+  ) {
+    return true;
+  }
+  return rows.some((row) => {
+    if (isSyntheticMappedRow(row)) return false;
+    const section = String(row.section || "");
+    const label = String(row.label || "");
+    if (!/^(revenue|income|sales)$/i.test(section)) return false;
+    if (isTotalLikeLabel(label) || /net (income|profit)|^profit$/i.test(label)) return false;
+    return true;
+  });
+}
+
+/** Explicit Net Income / Net Profit row from the provider statement (not synthetic). */
+export function hasExplicitNetIncomeEvidence(
+  rows: Array<{ label: string; section?: string; source?: { raw?: unknown } }> = [],
+): boolean {
+  return rows.some((row) => {
+    if (isSyntheticMappedRow(row)) return false;
+    const label = String(row.label || "");
+    if (/^net (income|profit)$/i.test(label)) return true;
+    if (/net (income|profit)/i.test(label) && !isTotalLikeLabel(label)) return true;
+    // CA / localized stub after adapter humanization still lands as Net Income.
+    if (/^profit$/i.test(label) && /net\s*income/i.test(String(row.section || ""))) return true;
+    return false;
+  });
+}
+
+/** Operating expense evidence: Total Expenses and/or Expenses section leaves. */
+export function hasExpenseEvidence(
+  rows: Array<{ label: string; section?: string; source?: { raw?: unknown } }> = [],
+): boolean {
+  if (
+    rows.some(
+      (row) =>
+        !isSyntheticMappedRow(row) && /^total (operating )?expenses$/i.test(String(row.label || "")),
+    )
+  ) {
+    return true;
+  }
+  return rows.some((row) => {
+    if (isSyntheticMappedRow(row)) return false;
+    if (normalizeText(row.section) !== "Expenses") return false;
+    const label = String(row.label || "");
+    if (isTotalLikeLabel(label) || /net (income|profit)|^profit$/i.test(label)) return false;
+    return true;
+  });
+}
+
+function hasOtherIncomeEvidence(
+  rows: Array<{ label: string; section?: string; source?: { raw?: unknown } }> = [],
+): boolean {
+  if (rows.some((row) => !isSyntheticMappedRow(row) && /^total other income$/i.test(String(row.label || "")))) {
+    return true;
+  }
+  return rows.some((row) => {
+    if (isSyntheticMappedRow(row)) return false;
+    if (normalizeText(row.section) !== "Other Income") return false;
+    return !isTotalLikeLabel(String(row.label || ""));
+  });
+}
+
+function hasOtherExpenseEvidence(
+  rows: Array<{ label: string; section?: string; source?: { raw?: unknown } }> = [],
+): boolean {
+  if (rows.some((row) => !isSyntheticMappedRow(row) && /^total other expenses$/i.test(String(row.label || "")))) {
+    return true;
+  }
+  return rows.some((row) => {
+    if (isSyntheticMappedRow(row)) return false;
+    if (normalizeText(row.section) !== "Other Expenses") return false;
+    return !isTotalLikeLabel(String(row.label || ""));
+  });
+}
+
+function hasOtherIncomeSectionMarker(
+  rows: Array<{ label: string; section?: string }> = [],
+): boolean {
+  return rows.some(
+    (row) =>
+      /^other income$/i.test(String(row.section || "")) ||
+      /^other income$/i.test(String(row.label || "")),
+  );
+}
+
+function hasOtherExpenseSectionMarker(
+  rows: Array<{ label: string; section?: string }> = [],
+): boolean {
+  return rows.some(
+    (row) =>
+      /^other expenses?$/i.test(String(row.section || "")) ||
+      /^other expenses?$/i.test(String(row.label || "")),
+  );
+}
+
+export type PeriodPnLNetIncomePath = "explicit_totals" | "reconstructable" | "none";
+
+/**
+ * Evidence-based period P&L readiness for Scorecard KPIs.
+ * Gross margin and net margin have different evidence requirements.
+ */
+export type PeriodPnLEvidenceAssessment = {
+  hasRevenueEvidence: boolean;
+  hasExplicitNetIncomeEvidence: boolean;
+  hasGrossMarginEvidence: boolean;
+  hasExpenseEvidence: boolean;
+  hasOtherIncomeEvidence: boolean;
+  hasOtherExpenseEvidence: boolean;
+  /** revenue + (explicit Gross Profit OR COGS evidence) */
+  operatingGrossMarginReady: boolean;
+  /**
+   * Path A — explicit totals: revenue + net income
+   * Path B — reconstructable: revenue + gross-margin evidence + expense evidence
+   *          (+ other income/expense evidence when those sections are present)
+   */
+  netProfitMarginReady: boolean;
+  netIncomeEvidencePath: PeriodPnLNetIncomePath;
+};
+
+/**
+ * Assess whether the period income statement has enough source evidence
+ * to authorize Scorecard margin KPIs. Revenue alone is never sufficient.
+ */
+export function assessPeriodIncomeStatementEvidence(
+  rows: Array<{ label: string; section?: string; amount?: number; source?: { raw?: unknown } }> = [],
+): PeriodPnLEvidenceAssessment {
+  const hasRevenue = hasRevenueEvidence(rows);
+  const hasExplicitNi = hasExplicitNetIncomeEvidence(rows);
+  const hasGrossMargin = isGrossProfitSupported(rows);
+  const hasExpenses = hasExpenseEvidence(rows);
+  const hasOtherIncome = hasOtherIncomeEvidence(rows);
+  const hasOtherExpense = hasOtherExpenseEvidence(rows);
+
+  // When Other Income / Other Expenses sections appear, Path B must include them
+  // (missing ≠ zero). Absence of the section means not applicable.
+  const otherIncomeOk = !hasOtherIncomeSectionMarker(rows) || hasOtherIncome;
+  const otherExpenseOk = !hasOtherExpenseSectionMarker(rows) || hasOtherExpense;
+
+  const pathA = hasRevenue && hasExplicitNi;
+  const pathB =
+    hasRevenue && hasGrossMargin && hasExpenses && otherIncomeOk && otherExpenseOk;
+
+  let netIncomeEvidencePath: PeriodPnLNetIncomePath = "none";
+  if (pathA) netIncomeEvidencePath = "explicit_totals";
+  else if (pathB) netIncomeEvidencePath = "reconstructable";
+
+  return {
+    hasRevenueEvidence: hasRevenue,
+    hasExplicitNetIncomeEvidence: hasExplicitNi,
+    hasGrossMarginEvidence: hasGrossMargin,
+    hasExpenseEvidence: hasExpenses,
+    hasOtherIncomeEvidence: hasOtherIncome,
+    hasOtherExpenseEvidence: hasOtherExpense,
+    operatingGrossMarginReady: hasRevenue && hasGrossMargin,
+    netProfitMarginReady: pathA || pathB,
+    netIncomeEvidencePath,
+  };
+}
+
+/**
+ * @deprecated Prefer assessPeriodIncomeStatementEvidence().
+ * True only when Net Profit Margin evidence is ready (Path A or Path B).
+ * Revenue-only statements return false.
+ */
+export function isPeriodIncomeStatementComplete(
+  rows: Array<{ label: string; section?: string; amount?: number; source?: { raw?: unknown } }> = [],
+): boolean {
+  return assessPeriodIncomeStatementEvidence(rows).netProfitMarginReady;
+}
+
 // Phase MC-2e.2 (Issue #6, Gap I-3): local parseAmount replaced by shared
 // locale-aware parser. Preserves paren-negative + leading-minus + whitespace
 // stripping behavior via the shared module's stripPresentational stage.
@@ -144,27 +334,6 @@ function readAmountTextFromColData(colData: unknown[]): string {
     if (value !== "") return value;
   }
   return "";
-}
-
-/**
- * Period P&L is complete for Scorecard when revenue evidence exists
- * (explicit total or Income/Revenue/Sales leaf rows). A Net Income stub alone
- * is incomplete — missing ≠ zero revenue.
- */
-export function isPeriodIncomeStatementComplete(
-  rows: Array<{ label: string; section?: string; amount?: number }> = [],
-): boolean {
-  if (!rows.length) return false;
-  if (rows.some((row) => /^total (income|revenue|sales)$/i.test(String(row.label || "")))) {
-    return true;
-  }
-  return rows.some((row) => {
-    const section = String(row.section || "");
-    const label = String(row.label || "");
-    if (!/^(revenue|income|sales)$/i.test(section)) return false;
-    if (/^total\b/i.test(label) || /net (income|profit)|^profit$/i.test(label)) return false;
-    return true;
-  });
 }
 
 function normalizeText(value: unknown) {

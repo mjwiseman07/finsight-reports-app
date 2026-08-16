@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   asReportRowArray,
+  assessPeriodIncomeStatementEvidence,
   isPeriodIncomeStatementComplete,
   normalizeQuickBooksFinancialStatement,
   buildMappedFinancialSummary,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/integrations/accounting/active-report-summary";
 import { toScorecardCapabilityContract } from "@/lib/integrations/accounting/provider-capability-contract";
 import { resolveCashTileState, resolveNetMarginTileState } from "@/components/dashboard/Scorecard";
+import { factorizeOperatingGrossMargin } from "@/lib/scorecard/operating-gross-margin";
 import type { CanonicalBalanceSheetRow, CanonicalPnLRow, CanonicalSourceMetadata } from "@/lib/integrations/accounting/types";
 import { quickBooksAccountingProvider } from "@/lib/integrations/quickbooks/provider";
 import { xeroAccountingProvider } from "@/lib/integrations/xero/provider";
@@ -95,7 +97,7 @@ describe("QBO report token humanization", () => {
   });
 });
 
-describe("QBO period P&L completeness / single-object Row", () => {
+describe("QBO period P&L row flatten + evidence model", () => {
   it("coerces a single Row object into an array", () => {
     expect(asReportRowArray({ ColData: [{ value: "Sales" }] })).toHaveLength(1);
     expect(asReportRowArray([{ ColData: [{ value: "A" }] }, { ColData: [{ value: "B" }] }])).toHaveLength(2);
@@ -116,15 +118,128 @@ describe("QBO period P&L completeness / single-object Row", () => {
     ]);
     expect(rows.some((row) => row.label === "Sales" && row.amount === 100)).toBe(true);
     expect(rows.some((row) => /^total income$/i.test(row.label) && row.amount === 100)).toBe(true);
-    expect(isPeriodIncomeStatementComplete(rows)).toBe(true);
+    // Revenue alone is NOT complete for NPM.
+    expect(isPeriodIncomeStatementComplete(rows)).toBe(false);
+    expect(assessPeriodIncomeStatementEvidence(rows).hasRevenueEvidence).toBe(true);
+    expect(assessPeriodIncomeStatementEvidence(rows).operatingGrossMarginReady).toBe(false);
+    expect(assessPeriodIncomeStatementEvidence(rows).netProfitMarginReady).toBe(false);
   });
 
   it("treats Net Income stub alone as incomplete", () => {
-    expect(
-      isPeriodIncomeStatementComplete([
-        pnl("Net Income", 0, "Net Income"),
-      ]),
-    ).toBe(false);
+    const evidence = assessPeriodIncomeStatementEvidence([
+      pnl("Net Income", 0, "Net Income"),
+    ]);
+    expect(evidence.hasRevenueEvidence).toBe(false);
+    expect(evidence.netProfitMarginReady).toBe(false);
+    expect(isPeriodIncomeStatementComplete([pnl("Net Income", 0, "Net Income")])).toBe(false);
+  });
+
+  it("rejects revenue-only as NPM/OGM incomplete (partial revenue-only)", () => {
+    const rows = [
+      pnl("Total Income", 39169.8, "Income"),
+      pnl("Sales", 3500, "Income"),
+    ];
+    const evidence = assessPeriodIncomeStatementEvidence(rows);
+    expect(evidence.hasRevenueEvidence).toBe(true);
+    expect(evidence.operatingGrossMarginReady).toBe(false);
+    expect(evidence.netProfitMarginReady).toBe(false);
+    expect(evidence.netIncomeEvidencePath).toBe("none");
+
+    const active = buildActiveReportSummary({
+      reportDataContext: {
+        tenantName: "Partial",
+        normalizedData: {
+          sourceSystem: "quickbooks",
+          normalizedIncomeStatement: rows,
+          normalizedBalanceSheet: [],
+          normalizedAccounts: [],
+          normalizedTrialBalance: [],
+        },
+      },
+    });
+    expect(active?.hasRevenueEvidence).toBe(true);
+    expect(active?.revenue).toBeCloseTo(39169.8, 2);
+    expect(active?.netProfitMarginEvidenceReady).toBe(false);
+    expect(active?.operatingGrossMarginEvidenceReady).toBe(false);
+    expect(active?.netIncome).toBe(0);
+    expect(resolveNetMarginTileState({ hydrationActive: false, summary: active }).state.status).toBe(
+      "unavailable",
+    );
+    expect(factorizeOperatingGrossMargin(active).status).toBe("unavailable");
+  });
+
+  it("accepts Path A — revenue + explicit Net Income (revenue+NI)", () => {
+    const rows = [
+      pnl("Total Income", 39169.8, "Income"),
+      pnl("Net Income", -13034.03, "Net Income"),
+    ];
+    const evidence = assessPeriodIncomeStatementEvidence(rows);
+    expect(evidence.operatingGrossMarginReady).toBe(false);
+    expect(evidence.netProfitMarginReady).toBe(true);
+    expect(evidence.netIncomeEvidencePath).toBe("explicit_totals");
+
+    const active = buildActiveReportSummary({
+      reportDataContext: {
+        tenantName: "Path A",
+        normalizedData: {
+          sourceSystem: "quickbooks",
+          normalizedIncomeStatement: rows,
+          normalizedBalanceSheet: [],
+          normalizedAccounts: [],
+          normalizedTrialBalance: [],
+        },
+      },
+    });
+    expect(active?.netProfitMarginEvidenceReady).toBe(true);
+    expect(active?.netIncome).toBeCloseTo(-13034.03, 2);
+    expect(active?.operatingGrossMarginEvidenceReady).toBe(false);
+    expect(resolveNetMarginTileState({ hydrationActive: false, summary: active }).state.status).toBe(
+      "ready",
+    );
+    expect(factorizeOperatingGrossMargin(active).status).toBe("unavailable");
+  });
+
+  it("accepts OGM from revenue+COGS but still blocks NPM without expenses/NI", () => {
+    const rows = [
+      pnl("Total Income", 39169.8, "Income"),
+      pnl("Total Cost of Goods Sold", 38662.43, "Cost of Sales"),
+    ];
+    const evidence = assessPeriodIncomeStatementEvidence(rows);
+    expect(evidence.operatingGrossMarginReady).toBe(true);
+    expect(evidence.netProfitMarginReady).toBe(false);
+    expect(evidence.netIncomeEvidencePath).toBe("none");
+
+    const active = buildActiveReportSummary({
+      reportDataContext: {
+        tenantName: "Revenue+COGS",
+        normalizedData: {
+          sourceSystem: "quickbooks",
+          normalizedIncomeStatement: rows,
+          normalizedBalanceSheet: [],
+          normalizedAccounts: [],
+          normalizedTrialBalance: [],
+        },
+      },
+    });
+    expect(active?.operatingGrossMarginEvidenceReady).toBe(true);
+    expect(active?.grossProfitSupported).toBe(true);
+    expect(active?.netProfitMarginEvidenceReady).toBe(false);
+    expect(factorizeOperatingGrossMargin(active).status).toBe("ready");
+    expect(resolveNetMarginTileState({ hydrationActive: false, summary: active }).state.status).toBe(
+      "unavailable",
+    );
+  });
+
+  it("accepts Path B reconstructable statement (revenue+COGS+expenses)", () => {
+    const rows = [
+      pnl("Total Income", 39169.8, "Income"),
+      pnl("Total Cost of Goods Sold", 38662.43, "Cost of Sales"),
+      pnl("Total Expenses", 13541.4, "Expenses"),
+    ];
+    const evidence = assessPeriodIncomeStatementEvidence(rows);
+    expect(evidence.netProfitMarginReady).toBe(true);
+    expect(evidence.netIncomeEvidencePath).toBe("reconstructable");
+    expect(evidence.operatingGrossMarginReady).toBe(true);
   });
 });
 
@@ -286,10 +401,14 @@ describe("QBO CA control fixtures (adapter → shared KPI)", () => {
     expect(active?.cash).toBe(21095.57);
     expect(active?.cashStatus).toBe("VALUE_NONZERO");
     expect(active?.incomeStatementComplete).toBe(true);
+    expect(active?.netProfitMarginEvidenceReady).toBe(true);
+    expect(active?.operatingGrossMarginEvidenceReady).toBe(true);
+    expect(active?.netIncomeEvidencePath).toBe("explicit_totals");
     expect(active?.revenue).toBeCloseTo(39169.8, 2);
 
     const margin = resolveNetMarginTileState({ hydrationActive: false, summary: active });
     expect(margin.state.status).toBe("ready");
+    expect(factorizeOperatingGrossMargin(active).status).toBe("ready");
   });
 });
 

@@ -4,8 +4,9 @@
  * dashboard-local regex aggregation over income/sales labels.
  */
 import {
+  assessPeriodIncomeStatementEvidence,
   buildMappedFinancialSummary,
-  isPeriodIncomeStatementComplete,
+  type PeriodPnLNetIncomePath,
 } from "./normalizers/financial-statements";
 import type {
   AccountingSourceSystem,
@@ -33,8 +34,8 @@ export type ActiveReportSummaryView = {
   /** Canonical mapped gross profit — never recomputed in Scorecard. */
   grossProfit: number;
   /**
-   * Whether mapped grossProfit is backed by explicit GP or COGS evidence.
-   * Missing COGS must not be treated as zero COGS for Operating Gross Margin.
+   * True only when Operating Gross Margin evidence is ready:
+   * revenue + (explicit Gross Profit OR COGS evidence).
    */
   grossProfitSupported: boolean;
   expenses: number;
@@ -47,8 +48,17 @@ export type ActiveReportSummaryView = {
    */
   cash: number | null;
   cashStatus: CashPositionStatus;
-  /** False when period P&L lacks revenue evidence (stub / incomplete normalize). */
+  /**
+   * True when Net Profit Margin evidence is ready (Path A or Path B).
+   * Not the same as operating gross margin readiness.
+   */
   incomeStatementComplete: boolean;
+  /** Explicit NPM evidence gate (same as incomeStatementComplete; clearer name). */
+  netProfitMarginEvidenceReady: boolean;
+  /** OGM evidence gate (mirrors grossProfitSupported for Scorecard wiring). */
+  operatingGrossMarginEvidenceReady: boolean;
+  netIncomeEvidencePath: PeriodPnLNetIncomePath;
+  hasRevenueEvidence: boolean;
 };
 
 type ReportPayloadLike = {
@@ -243,7 +253,7 @@ export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null
   const balanceSheet = normalizedData.normalizedBalanceSheet || [];
   const mapped = buildMappedFinancialSummary(balanceSheet, incomeStatement);
   const cashPosition = resolveCashPositionFromBalanceSheet(balanceSheet);
-  const incomeStatementComplete = isPeriodIncomeStatementComplete(incomeStatement);
+  const evidence = assessPeriodIncomeStatementEvidence(incomeStatement);
 
   return {
     sourceSystem: normalizedData.sourceSystem,
@@ -257,16 +267,22 @@ export function buildActiveReportSummary(reportPayload: ReportPayloadLike | null
       balanceSheetCount: balanceSheet.length,
       incomeStatementCount: incomeStatement.length,
     },
-    revenue: incomeStatementComplete ? mapped.revenue : 0,
-    cogs: incomeStatementComplete ? mapped.cogs : 0,
-    grossProfit: incomeStatementComplete ? mapped.grossProfit : 0,
-    grossProfitSupported: incomeStatementComplete ? mapped.grossProfitSupported : false,
-    expenses: incomeStatementComplete ? mapped.expenses : 0,
-    netIncome: incomeStatementComplete ? mapped.netIncome : 0,
+    // Always surface mapped amounts when present; KPI tiles gate on evidence flags.
+    // Without revenue evidence, keep zeros so stub NI-only statements cannot drive margins.
+    revenue: evidence.hasRevenueEvidence ? mapped.revenue : 0,
+    cogs: evidence.hasRevenueEvidence ? mapped.cogs : 0,
+    grossProfit: evidence.operatingGrossMarginReady ? mapped.grossProfit : 0,
+    grossProfitSupported: evidence.operatingGrossMarginReady,
+    expenses: evidence.hasRevenueEvidence ? mapped.expenses : 0,
+    netIncome: evidence.netProfitMarginReady ? mapped.netIncome : 0,
     assets: mapped.totalAssets,
     liabilities: mapped.totalLiabilities,
     cash: cashPosition.amount,
     cashStatus: cashPosition.status,
-    incomeStatementComplete,
+    incomeStatementComplete: evidence.netProfitMarginReady,
+    netProfitMarginEvidenceReady: evidence.netProfitMarginReady,
+    operatingGrossMarginEvidenceReady: evidence.operatingGrossMarginReady,
+    netIncomeEvidencePath: evidence.netIncomeEvidencePath,
+    hasRevenueEvidence: evidence.hasRevenueEvidence,
   };
 }
