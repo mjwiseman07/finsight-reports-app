@@ -15,12 +15,13 @@ export default function LeadIdActivationHandler() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const leadId = searchParams?.get("leadId");
+    if (!searchParams) return;
+    const leadId = searchParams.get("leadId");
     if (!leadId) return;
 
     bootstrapLeadSessionFromSearchParams(searchParams);
 
-    const next = new URLSearchParams(searchParams?.toString() || "");
+    const next = new URLSearchParams(searchParams.toString());
     next.delete("leadId");
     next.delete("step");
     const qs = next.toString();
