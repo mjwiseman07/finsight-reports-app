@@ -61,6 +61,8 @@ export type CanonicalStatementFacts = {
   netIncome: number | null;
 };
 
+export type NativeStatementSide = "asset" | "liability" | "equity" | "unknown";
+
 export type FlatNativeRow = {
   label: string;
   /** Raw vendor label before humanization (for diagnostics). */
@@ -68,6 +70,12 @@ export type FlatNativeRow = {
   amount: number | null;
   hasAmount: boolean;
   role: NativeRowRole;
+  /** Structural section at this node (humanized). */
+  section: string;
+  /** Full hierarchy path from report root to this node (humanized). */
+  hierarchyPath: string[];
+  /** Balance-sheet side inferred from hierarchy/section; fail-closed when unknown. */
+  side: NativeStatementSide;
 };
 
 function colValue(col: unknown): string {
@@ -91,28 +99,57 @@ function readAmountFromCols(cols: unknown[]): { amount: number | null; hasAmount
   return { amount: null, hasAmount: false };
 }
 
+const LIABILITY_PATH =
+  /\bliabilit|\bpayable\b|\bcredit cards?\b|\boverdraft\b|\bloans?\b|\bequity\b/i;
+const ASSET_PATH =
+  /\bassets?\b|\bcurrent assets?\b|\bother current assets?\b|\bfixed assets?\b|\bcash and cash equivalents?\b|\bbank accounts?\b|\bcash at bank\b/i;
+
+/** Infer BS side from hierarchy path + section. Unknown → fail closed for leaf cash fallback. */
+export function inferNativeStatementSide(hierarchyPath: string[], section = ""): NativeStatementSide {
+  const hints = [...hierarchyPath, section].map((part) => String(part || "").trim()).filter(Boolean);
+  if (!hints.length) return "unknown";
+  const joined = hints.join(" | ");
+  if (LIABILITY_PATH.test(joined)) {
+    if (/\bequity\b/i.test(joined) && !/\bliabilit|\bpayable\b|\bcredit cards?\b|\boverdraft\b/i.test(joined)) {
+      return "equity";
+    }
+    return "liability";
+  }
+  if (ASSET_PATH.test(joined)) return "asset";
+  return "unknown";
+}
+
 function pushRow(
   out: FlatNativeRow[],
   label: string,
   cols: unknown[],
   role: NativeRowRole,
+  hierarchyPath: string[],
+  section: string,
 ) {
   const trimmed = String(label || "").trim();
   if (!trimmed) return;
   const { amount, hasAmount } = readAmountFromCols(cols);
+  const human = humanizeQuickBooksReportToken(trimmed);
   out.push({
     rawLabel: trimmed,
-    label: humanizeQuickBooksReportToken(trimmed),
+    label: human,
     amount,
     hasAmount,
     role,
+    section,
+    hierarchyPath,
+    side: inferNativeStatementSide(hierarchyPath, section),
   });
 }
 
-/** Walk raw QBO report Rows tree into role-tagged label/amount pairs. */
+/**
+ * Walk raw QBO report Rows tree into role-tagged rows with hierarchy path
+ * propagated from section headers (Assets → Bank Accounts → Chequing).
+ */
 export function flattenQuickBooksRawReportRows(rows: unknown[] = []): FlatNativeRow[] {
   const out: FlatNativeRow[] = [];
-  const walk = (nodes: unknown[]) => {
+  const walk = (nodes: unknown[], inheritedPath: string[] = [], inheritedSection = "") => {
     for (const node of asRowArray(nodes)) {
       const record = node as Record<string, unknown>;
       const header = record.Header as Record<string, unknown> | undefined;
@@ -121,11 +158,50 @@ export function flattenQuickBooksRawReportRows(rows: unknown[] = []): FlatNative
       const headerCols = Array.isArray(header?.ColData) ? (header.ColData as unknown[]) : [];
       const summaryCols = Array.isArray(summary?.ColData) ? (summary.ColData as unknown[]) : [];
       const nested = (record.Rows as Record<string, unknown> | undefined)?.Row;
+      const groupToken = humanizeQuickBooksReportToken(
+        String(record.group || record.Group || colValue(headerCols[0]) || ""),
+      );
+      const sectionPath =
+        groupToken && inheritedPath[inheritedPath.length - 1] !== groupToken
+          ? [...inheritedPath, groupToken]
+          : inheritedPath;
+      const section = groupToken || inheritedSection;
 
-      if (colData.length) pushRow(out, colValue(colData[0]), colData, "data");
-      if (headerCols.length) pushRow(out, colValue(headerCols[0]), headerCols, "header");
-      if (nested != null) walk(asRowArray(nested));
-      if (summaryCols.length) pushRow(out, colValue(summaryCols[0]), summaryCols, "summary");
+      if (headerCols.length) {
+        const headerLabel = colValue(headerCols[0]);
+        const headerHuman = humanizeQuickBooksReportToken(headerLabel);
+        const headerPath =
+          headerHuman && sectionPath[sectionPath.length - 1] !== headerHuman
+            ? [...sectionPath, headerHuman]
+            : sectionPath.length
+              ? sectionPath
+              : headerHuman
+                ? [headerHuman]
+                : inheritedPath;
+        pushRow(out, headerLabel, headerCols, "header", headerPath, inheritedSection || section);
+      }
+
+      if (colData.length) {
+        const leafLabel = colValue(colData[0]);
+        const leafHuman = humanizeQuickBooksReportToken(leafLabel);
+        const leafPath =
+          leafHuman && sectionPath[sectionPath.length - 1] !== leafHuman
+            ? [...sectionPath, leafHuman]
+            : sectionPath;
+        pushRow(out, leafLabel, colData, "data", leafPath, section || inheritedSection);
+      }
+
+      if (nested != null) walk(asRowArray(nested), sectionPath, section || inheritedSection);
+
+      if (summaryCols.length) {
+        const summaryLabel = colValue(summaryCols[0]);
+        const summaryHuman = humanizeQuickBooksReportToken(summaryLabel);
+        const summaryPath =
+          summaryHuman && sectionPath[sectionPath.length - 1] !== summaryHuman
+            ? [...sectionPath, summaryHuman]
+            : sectionPath;
+        pushRow(out, summaryLabel, summaryCols, "summary", summaryPath, section || inheritedSection);
+      }
     }
   };
   walk(rows);
@@ -170,18 +246,43 @@ const BANK_LEAF_PATTERNS = [
 
 /**
  * Cash precedence (QBO CA / US):
- * 1. Explicit Total* summary with amount (Total Cash and Cash Equivalent / Total Bank Accounts)
- * 2. Else sum bank/cash data leaves (Chequing, Checking, …) under cash/bank sections when possible
- * 3. Never treat empty section headers ("Cash and Cash Equivalent") as cash = 0
+ * 1. Explicit Total* summary with amount on the asset side (or with no liability/equity path)
+ * 2. Else sum bank/cash data leaves that are explicitly asset-side via hierarchy
+ * 3. Never treat empty section headers as cash = 0
+ * 4. Never count liability/overdraft bank-looking leaves; ambiguous side → null
  */
 export function extractNativeCashTotal(rows: FlatNativeRow[]): number | null {
-  const total = findAmount(rows, CASH_TOTAL_PATTERNS, { preferRoles: ["summary", "data"] });
-  if (total != null) return total;
+  const totalHit = rows.find(
+    (row) =>
+      row.role === "summary" &&
+      row.hasAmount &&
+      row.amount != null &&
+      Number.isFinite(row.amount) &&
+      matches(row, CASH_TOTAL_PATTERNS) &&
+      row.side !== "liability" &&
+      row.side !== "equity",
+  );
+  if (totalHit) return totalHit.amount;
+
+  // Data-role explicit totals are rare but keep asset-side guard.
+  const dataTotal = rows.find(
+    (row) =>
+      row.role === "data" &&
+      row.hasAmount &&
+      row.amount != null &&
+      Number.isFinite(row.amount) &&
+      matches(row, CASH_TOTAL_PATTERNS) &&
+      row.side !== "liability" &&
+      row.side !== "equity",
+  );
+  if (dataTotal) return dataTotal.amount;
 
   const leaves = rows.filter((row) => {
     if (row.role !== "data" || !row.hasAmount || row.amount == null) return false;
     if (/^total\b/i.test(row.label) || /^total\b/i.test(row.rawLabel)) return false;
     if (matches(row, CASH_SECTION_PATTERNS)) return false;
+    // Asset-side hierarchy required — liability/unknown bank-looking labels excluded.
+    if (row.side !== "asset") return false;
     return matches(row, BANK_LEAF_PATTERNS) || matches(row, [/cash/i]);
   });
   if (!leaves.length) return null;
@@ -286,22 +387,43 @@ export function extractNativeTotalsFromXeroFlattenedRows(input: {
   endDate?: string | null;
 }): NativeStatementTotals {
   const flat: FlatNativeRow[] = [
-    ...input.balanceSheetRows.map((row) => ({
-      rawLabel: String(row.label || ""),
-      label: String(row.label || ""),
-      amount: Number.isFinite(Number(row.amount)) ? Number(row.amount) : null,
-      hasAmount: Number.isFinite(Number(row.amount)),
-      role: /^total\b/i.test(String(row.label || "")) ? ("summary" as const) : ("data" as const),
-    })),
-    ...input.profitAndLossRows.map((row) => ({
-      rawLabel: String(row.label || ""),
-      label: String(row.label || ""),
-      amount: Number.isFinite(Number(row.amount)) ? Number(row.amount) : null,
-      hasAmount: Number.isFinite(Number(row.amount)),
-      role: /^total\b/i.test(String(row.label || "")) || /gross profit|net (income|profit)/i.test(String(row.label || ""))
-        ? ("summary" as const)
-        : ("data" as const),
-    })),
+    ...input.balanceSheetRows.map((row) => {
+      const label = String(row.label || "");
+      const section = String((row as { section?: string }).section || "");
+      const hierarchyPath = Array.isArray((row as { hierarchyPath?: string[] }).hierarchyPath)
+        ? ((row as { hierarchyPath?: string[] }).hierarchyPath as string[])
+        : [section, label].filter(Boolean);
+      return {
+        rawLabel: label,
+        label,
+        amount: Number.isFinite(Number(row.amount)) ? Number(row.amount) : null,
+        hasAmount: Number.isFinite(Number(row.amount)),
+        role: /^total\b/i.test(label) ? ("summary" as const) : ("data" as const),
+        section,
+        hierarchyPath,
+        side: inferNativeStatementSide(hierarchyPath, section),
+      };
+    }),
+    ...input.profitAndLossRows.map((row) => {
+      const label = String(row.label || "");
+      const section = String((row as { section?: string }).section || "");
+      const hierarchyPath = Array.isArray((row as { hierarchyPath?: string[] }).hierarchyPath)
+        ? ((row as { hierarchyPath?: string[] }).hierarchyPath as string[])
+        : [section, label].filter(Boolean);
+      return {
+        rawLabel: label,
+        label,
+        amount: Number.isFinite(Number(row.amount)) ? Number(row.amount) : null,
+        hasAmount: Number.isFinite(Number(row.amount)),
+        role:
+          /^total\b/i.test(label) || /gross profit|net (income|profit)/i.test(label)
+            ? ("summary" as const)
+            : ("data" as const),
+        section,
+        hierarchyPath,
+        side: "unknown" as const,
+      };
+    }),
   ];
   const totals = pickTotals(flat);
   return {

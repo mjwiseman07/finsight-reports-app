@@ -86,13 +86,154 @@ describe("QBO CA native cash acceptance repair", () => {
     expect(extractNativeCashTotal(flat)).toBe(21095.57);
   });
 
-  it("cash precedence: leaf sum used when only Chequing present", () => {
+  it("cash precedence: leaf sum used when only asset-side Chequing present", () => {
     const flat = flattenQuickBooksRawReportRows([
       {
         type: "Section",
+        group: "BankAccounts",
         Header: { ColData: [{ value: "BankAccounts" }, { value: "" }] },
         Rows: {
           Row: [{ type: "Data", ColData: [{ value: "Chequing" }, { value: "21095.57" }] }],
+        },
+      },
+    ]);
+    const leaf = flat.find((row) => row.role === "data" && /chequing/i.test(row.label));
+    expect(leaf?.hierarchyPath.join(" > ")).toMatch(/Bank Accounts/i);
+    expect(leaf?.side).toBe("asset");
+    expect(extractNativeCashTotal(flat)).toBe(21095.57);
+  });
+
+  it("propagates hierarchyPath/section/side on FlatNativeRow", () => {
+    const flat = flattenQuickBooksRawReportRows([
+      {
+        type: "Section",
+        group: "Assets",
+        Header: { ColData: [{ value: "Assets" }, { value: "" }] },
+        Rows: {
+          Row: [
+            {
+              type: "Section",
+              group: "BankAccounts",
+              Header: { ColData: [{ value: "BankAccounts" }, { value: "" }] },
+              Rows: {
+                Row: [{ type: "Data", ColData: [{ value: "Chequing" }, { value: "21095.57" }] }],
+              },
+              Summary: { ColData: [{ value: "Total Bank Accounts" }, { value: "21095.57" }] },
+            },
+          ],
+        },
+      },
+    ]);
+    const leaf = flat.find((row) => row.role === "data" && /chequing/i.test(row.label));
+    expect(leaf).toMatchObject({
+      role: "data",
+      side: "asset",
+      section: "Bank Accounts",
+    });
+    expect(leaf?.hierarchyPath).toEqual(
+      expect.arrayContaining(["Assets", "Bank Accounts", "Chequing"]),
+    );
+  });
+
+  it("liability Checking-only is excluded from cash fallback → null", () => {
+    const flat = flattenQuickBooksRawReportRows([
+      {
+        type: "Section",
+        group: "Liabilities",
+        Header: { ColData: [{ value: "Liabilities" }, { value: "" }] },
+        Rows: {
+          Row: [
+            {
+              type: "Section",
+              group: "CreditCards",
+              Header: { ColData: [{ value: "CreditCards" }, { value: "" }] },
+              Rows: {
+                Row: [{ type: "Data", ColData: [{ value: "Checking" }, { value: "500.00" }] }],
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    const leaf = flat.find((row) => row.role === "data" && /checking/i.test(row.label));
+    expect(leaf?.side).toBe("liability");
+    expect(extractNativeCashTotal(flat)).toBeNull();
+  });
+
+  it("mixed asset/liability: only asset Chequing counted", () => {
+    const flat = flattenQuickBooksRawReportRows([
+      {
+        type: "Section",
+        group: "Assets",
+        Header: { ColData: [{ value: "Assets" }, { value: "" }] },
+        Rows: {
+          Row: [
+            {
+              type: "Section",
+              group: "BankAccounts",
+              Header: { ColData: [{ value: "BankAccounts" }, { value: "" }] },
+              Rows: {
+                Row: [{ type: "Data", ColData: [{ value: "Chequing" }, { value: "21095.57" }] }],
+              },
+            },
+          ],
+        },
+      },
+      {
+        type: "Section",
+        group: "Liabilities",
+        Header: { ColData: [{ value: "Liabilities" }, { value: "" }] },
+        Rows: {
+          Row: [
+            {
+              type: "Section",
+              group: "CreditCards",
+              Header: { ColData: [{ value: "CreditCards" }, { value: "" }] },
+              Rows: {
+                Row: [{ type: "Data", ColData: [{ value: "Checking" }, { value: "900.00" }] }],
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    expect(extractNativeCashTotal(flat)).toBe(21095.57);
+  });
+
+  it("ambiguous bank leaf without asset-side path → native cash null", () => {
+    const flat = flattenQuickBooksRawReportRows([
+      { type: "Data", ColData: [{ value: "Checking" }, { value: "100.00" }] },
+    ]);
+    const leaf = flat.find((row) => /checking/i.test(row.label));
+    expect(leaf?.side).toBe("unknown");
+    expect(extractNativeCashTotal(flat)).toBeNull();
+  });
+
+  it("explicit summary remains authoritative even if liability bank leaves exist", () => {
+    const flat = flattenQuickBooksRawReportRows([
+      {
+        type: "Section",
+        group: "Assets",
+        Header: { ColData: [{ value: "Assets" }, { value: "" }] },
+        Rows: {
+          Row: [
+            {
+              type: "Section",
+              Header: { ColData: [{ value: "Cash and Cash Equivalent" }, { value: "" }] },
+              Rows: {
+                Row: [{ type: "Data", ColData: [{ value: "Chequing" }, { value: "1.00" }] }],
+              },
+              Summary: { ColData: [{ value: "Total Cash and Cash Equivalent" }, { value: "21095.57" }] },
+            },
+          ],
+        },
+      },
+      {
+        type: "Section",
+        group: "Liabilities",
+        Header: { ColData: [{ value: "Liabilities" }, { value: "" }] },
+        Rows: {
+          Row: [{ type: "Data", ColData: [{ value: "Checking Overdraft" }, { value: "9999.00" }] }],
         },
       },
     ]);
