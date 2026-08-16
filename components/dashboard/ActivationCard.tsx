@@ -4,14 +4,19 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { focusRing, headingFont, primaryCtaClass } from "../site-ui";
 import { qbErrorCopy } from "@/lib/onboarding/qb-error-messages";
+import { activationDismissStorageKey } from "@/lib/activation/lead-session";
 
 type ActivationFacts = {
   hasConnectedBooks: boolean;
   companyName: string | null;
   provider: string | null;
   industryType: string | null;
+  /** True only for a real Advisacor auth session (Bearer user). */
   isAuthenticated: boolean;
+  /** True for free-review lead_free_review dashboard mode. */
   isLeadSession: boolean;
+  companyId?: string | null;
+  leadId?: string | null;
 };
 
 type Props = {
@@ -23,11 +28,10 @@ type Props = {
   connecting?: boolean;
 };
 
-const DISMISS_KEY = "advisacor_dashboard_activation_dismissed_v1";
-
 /**
  * Progressive activation OS on /dashboard.
- * Asks only for what Advisacor cannot yet infer; completed actions disappear.
+ * Blocking: connect books, identity when connected, OAuth errors.
+ * Optional: industry enrichment (never blocks completion; still renderable).
  */
 export default function ActivationCard({
   facts,
@@ -40,32 +44,48 @@ export default function ActivationCard({
   const router = useRouter();
   const [dismissed, setDismissed] = useState(false);
   const errorCopy = qbErrorCode ? qbErrorCopy(qbErrorCode) : null;
+  const dismissKey = activationDismissStorageKey({
+    companyId: facts.companyId,
+    leadId: facts.leadId,
+  });
+
+  const canConnect = facts.isAuthenticated || facts.isLeadSession;
 
   useEffect(() => {
-    // Never auto-dismiss while an OAuth error or checkout handoff is present.
     if (qbErrorCode || checkoutSuccess) {
       setDismissed(false);
       return;
     }
-    setDismissed(window.localStorage.getItem(DISMISS_KEY) === "true");
-  }, [qbErrorCode, checkoutSuccess]);
+    setDismissed(window.localStorage.getItem(dismissKey) === "true");
+  }, [qbErrorCode, checkoutSuccess, dismissKey]);
 
   const needsConnect = !facts.hasConnectedBooks;
   const needsIdentityConfirm =
     facts.hasConnectedBooks && !String(facts.companyName || "").trim();
   const needsIndustry =
-    facts.hasConnectedBooks && !String(facts.industryType || "").trim();
+    facts.hasConnectedBooks &&
+    Boolean(String(facts.companyName || "").trim()) &&
+    !String(facts.industryType || "").trim();
 
-  const isComplete = !needsConnect && !needsIdentityConfirm && !errorCopy;
+  /** Blocking checklist complete (industry is optional enrichment). */
+  const blockingComplete = !needsConnect && !needsIdentityConfirm && !errorCopy;
+  /** Show optional industry prompt when blocking work is done. */
+  const showOptionalIndustry = blockingComplete && needsIndustry && !dismissed;
 
   const headline = useMemo(() => {
-    if (checkoutSuccess) return "Welcome — your plan is active";
+    if (checkoutSuccess && needsConnect) return "Welcome — your plan is active";
     if (errorCopy) return errorCopy.title;
     if (needsConnect) return "Connect your books to activate Advisacor";
     if (needsIdentityConfirm) return "Confirm your company identity";
-    if (needsIndustry) return "One more detail for better intelligence";
+    if (showOptionalIndustry) return "One more detail for better intelligence";
     return "You're ready";
-  }, [checkoutSuccess, errorCopy, needsConnect, needsIdentityConfirm, needsIndustry]);
+  }, [
+    checkoutSuccess,
+    errorCopy,
+    needsConnect,
+    needsIdentityConfirm,
+    showOptionalIndustry,
+  ]);
 
   const body = useMemo(() => {
     if (errorCopy) return errorCopy.body;
@@ -80,16 +100,23 @@ export default function ActivationCard({
     if (needsIdentityConfirm) {
       return "We connected your books but still need a company name to label your workspace.";
     }
-    if (needsIndustry) {
+    if (showOptionalIndustry) {
       return "Industry helps Advisacor choose the right KPIs and disclosures. You can set this later in company settings if you prefer.";
     }
     return "Your activation checklist is clear. Intelligence will deepen as more data syncs.";
-  }, [errorCopy, checkoutSuccess, needsConnect, needsIdentityConfirm, needsIndustry, facts.isLeadSession]);
+  }, [
+    errorCopy,
+    checkoutSuccess,
+    needsConnect,
+    needsIdentityConfirm,
+    showOptionalIndustry,
+    facts.isLeadSession,
+  ]);
 
   const dismiss = useCallback(() => {
-    window.localStorage.setItem(DISMISS_KEY, "true");
+    window.localStorage.setItem(dismissKey, "true");
     setDismissed(true);
-  }, []);
+  }, [dismissKey]);
 
   const clearQbErrorFromUrl = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -100,10 +127,28 @@ export default function ActivationCard({
     router.replace(`${url.pathname}${url.search}${url.hash}`, { scroll: false });
   }, [router]);
 
-  // Fully complete + no error + user previously dismissed → hide
-  if (isComplete && dismissed && !checkoutSuccess) return null;
-  // Nothing to ask and no banners
-  if (isComplete && !checkoutSuccess && !errorCopy) return null;
+  // Hide when blocking work is done, optional industry dismissed or absent,
+  // and there is no checkout banner / error.
+  const shouldHide =
+    blockingComplete &&
+    !showOptionalIndustry &&
+    !checkoutSuccess &&
+    !errorCopy &&
+    (dismissed || !needsIndustry);
+
+  if (shouldHide) return null;
+
+  // Nothing meaningful to show
+  if (
+    blockingComplete &&
+    !showOptionalIndustry &&
+    !checkoutSuccess &&
+    !errorCopy &&
+    !needsConnect &&
+    !needsIdentityConfirm
+  ) {
+    return null;
+  }
 
   return (
     <section className="relative rounded-2xl border border-[#C9A961]/30 bg-[#1A1A1C]/50 p-6 text-[#ECEBE7]">
@@ -140,7 +185,7 @@ export default function ActivationCard({
           <>
             <button
               type="button"
-              disabled={connecting || !facts.isAuthenticated}
+              disabled={connecting || !canConnect}
               onClick={() => {
                 clearQbErrorFromUrl();
                 void onConnectQuickBooks();
@@ -151,7 +196,7 @@ export default function ActivationCard({
             </button>
             <button
               type="button"
-              disabled={connecting || !facts.isAuthenticated}
+              disabled={connecting || !canConnect}
               onClick={() => {
                 clearQbErrorFromUrl();
                 void onConnectXero();
@@ -162,7 +207,7 @@ export default function ActivationCard({
             >
               Connect Xero
             </button>
-            {!facts.isAuthenticated && (
+            {!canConnect && (
               <a
                 href="/signin?next=/dashboard"
                 className={focusRing(
@@ -174,7 +219,7 @@ export default function ActivationCard({
             )}
           </>
         )}
-        {needsIndustry && !needsConnect && !errorCopy && (
+        {showOptionalIndustry && (
           <a
             href="/dashboard/account"
             className={focusRing(
@@ -184,7 +229,7 @@ export default function ActivationCard({
             Add industry later
           </a>
         )}
-        {!needsConnect && !errorCopy && (
+        {(showOptionalIndustry || (!needsConnect && !errorCopy && !needsIdentityConfirm)) && (
           <button
             type="button"
             onClick={dismiss}

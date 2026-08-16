@@ -12,6 +12,10 @@ import StartingPointDeepLinkHandler from "../../components/dashboard/StartingPoi
 import ActivationCard from "../../components/dashboard/ActivationCard";
 import LeadIdActivationHandler from "../../components/dashboard/LeadIdActivationHandler";
 import PendingApprovalsCard from "../../components/dashboard/PendingApprovalsCard";
+import {
+  bootstrapLeadSessionFromSearchParams,
+  readLeadSessionFromStorage,
+} from "../../lib/activation/lead-session";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
 import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
@@ -988,31 +992,31 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const loadAccess = async () => {
+      const dashboardSearch = new URLSearchParams(window.location.search);
+      // Architecture B: bootstrap lead session from ?leadId= BEFORE the access
+      // gate so existing lead_free_review authorization can see it. localStorage
+      // alone never authorizes the authenticated product path (/api/check-trial).
+      bootstrapLeadSessionFromSearchParams(dashboardSearch);
+
       const devBypass =
         process.env.NODE_ENV === "development" &&
-        new URLSearchParams(window.location.search).get("x-dev-bypass") === "true";
+        dashboardSearch.get("x-dev-bypass") === "true";
       const superAdminJourney =
         process.env.NODE_ENV === "development" &&
-        new URLSearchParams(window.location.search).get("superAdmin") === "true";
+        dashboardSearch.get("superAdmin") === "true";
       const storedToken = await getAuthToken();
-      const leadDashboardSession = (() => {
-        try {
-          return JSON.parse(window.localStorage.getItem("advisacor_lead_dashboard_session") || "null");
-        } catch {
-          return null;
-        }
-      })();
+      const leadDashboardSession = readLeadSessionFromStorage();
       const leadSessionMode =
         Boolean(leadDashboardSession?.leadId) ||
-        (dashboardParams.get("leadSession") === "true" && Boolean(dashboardParams.get("leadId")));
+        (dashboardSearch.get("leadSession") === "true" && Boolean(dashboardSearch.get("leadId")));
 
       if (!storedToken && leadSessionMode) {
         const leadAccess = {
           allowed: true,
           reason: "lead_free_review",
           email: window.localStorage.getItem("advisacor_free_review_lead_email") || "Lead captured",
-          business_name: leadDashboardSession?.companyName || dashboardParams.get("companyName") || "Free Review Company",
-          subscription_plan: leadDashboardSession?.packageLevel || dashboardParams.get("packageLevel") || "pulse_starter",
+          business_name: leadDashboardSession?.companyName || dashboardSearch.get("companyName") || "Free Review Company",
+          subscription_plan: leadDashboardSession?.packageLevel || dashboardSearch.get("packageLevel") || "pulse_starter",
           subscription_status: "free_review",
         };
         setAccess(leadAccess);
@@ -1737,14 +1741,18 @@ export default function DashboardPage() {
     setError("");
     try {
       const authToken = await getAuthToken();
-      if (!authToken) {
+      const leadSession = readLeadSessionFromStorage();
+      if (!authToken && !leadSession?.leadId) {
         setError("Sign in first, then connect QuickBooks.");
         return;
       }
 
       const response = await fetch("/api/integrations/quickbooks/connect?returnTo=/dashboard", {
         method: "POST",
-        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: "include",
+        headers: {
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.url) {
@@ -1761,15 +1769,17 @@ export default function DashboardPage() {
     setError("");
     try {
       const authToken = await getAuthToken();
-      if (!authToken) {
+      const leadSession = readLeadSessionFromStorage();
+      if (!authToken && !leadSession?.leadId) {
         setError("Sign in first, then connect Xero.");
         return;
       }
 
       const response = await fetch("/api/integrations/xero/connect?returnTo=/dashboard", {
         method: "POST",
+        credentials: "include",
         headers: {
-          Authorization: `Bearer ${authToken}`,
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
           Accept: "application/json",
         },
       });
@@ -2310,6 +2320,10 @@ export default function DashboardPage() {
             </div>
           )}
 
+          <Suspense fallback={null}>
+            <LeadIdActivationHandler />
+          </Suspense>
+
           {error && (
             <div
               role="alert"
@@ -2325,7 +2339,6 @@ export default function DashboardPage() {
           {!isLoading && access?.allowed === true && (
             <div className="grid gap-8">
               <Suspense fallback={null}>
-                <LeadIdActivationHandler />
                 <StartingPointDeepLinkHandler
                   onExecutivePackage={() => handleExploreCardClick("Executive Package")}
                   onFinancialHealthScore={() => handleExploreCardClick("Financial Health Score")}
@@ -2356,8 +2369,11 @@ export default function DashboardPage() {
                     onboardingIndustryType && onboardingIndustryType !== "Industry Intelligence"
                       ? onboardingIndustryType
                       : null,
-                  isAuthenticated: Boolean(access?.user_id || access?.allowed),
-                  isLeadSession: Boolean(leadDashboardSession?.leadId),
+                  isAuthenticated: Boolean(access?.user_id),
+                  isLeadSession:
+                    access?.reason === "lead_free_review" || Boolean(leadDashboardSession?.leadId),
+                  companyId: dashboardCompanyId || null,
+                  leadId: leadDashboardSession?.leadId || null,
                 }}
                 qbErrorCode={dashboardParams.get("qbError")}
                 checkoutSuccess={dashboardParams.get("checkout") === "success"}
