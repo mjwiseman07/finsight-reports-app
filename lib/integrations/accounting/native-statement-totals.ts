@@ -270,12 +270,15 @@ const BANK_LEAF_PATTERNS = [
 
 /**
  * Provider-neutral Cash Position policy (native statement control):
- * 1. Explicit Total* summary with amount and provable asset-side ancestry
- * 2. Else sum bank/cash data leaves that are explicitly asset-side via hierarchy
- * 3. Never treat empty section headers as cash = 0
- * 4. Never count liability/equity/unknown summaries or leaves — ambiguous → null
- * 5. Negative asset-side bank/cash balances are overdrafts, not Cash Position —
- *    clamp to 0 so native ties canonical after bank-overdraft reclassification
+ * 1. Prefer asset-side bank/cash LEAVES when present — preserves overdraft separation
+ *    (positive/zero included; negative overdraft leaves contribute 0)
+ * 2. Use explicit Total Cash/Bank summary ONLY when no leaf evidence exists
+ * 3. Negative summary with no leaves → Cash Position 0 (overdraft-only)
+ * 4. Never treat empty section headers as cash = 0
+ * 5. Never count liability/equity/unknown summaries or leaves — ambiguous → null
+ *
+ * Leaf-first is required so the same economics cannot yield different Cash Position
+ * depending on whether the provider also prints a net Total that mixes overdrafts.
  */
 const CASH_OVERDRAFT_EPS = 0.005;
 
@@ -295,25 +298,33 @@ function isAssetSideCashTotal(row: FlatNativeRow): boolean {
   );
 }
 
-export function extractNativeCashTotal(rows: FlatNativeRow[]): number | null {
-  const totalHit = rows.find((row) => row.role === "summary" && isAssetSideCashTotal(row));
-  if (totalHit) return cashPositionAmountFromNative(Number(totalHit.amount));
-
-  // Data-role explicit totals are rare but require the same asset-side proof.
-  const dataTotal = rows.find((row) => row.role === "data" && isAssetSideCashTotal(row));
-  if (dataTotal) return cashPositionAmountFromNative(Number(dataTotal.amount));
-
-  const leaves = rows.filter((row) => {
+function assetSideBankCashLeaves(rows: FlatNativeRow[]): FlatNativeRow[] {
+  return rows.filter((row) => {
     if (row.role !== "data" || !row.hasAmount || row.amount == null) return false;
     if (/^total\b/i.test(row.label) || /^total\b/i.test(row.rawLabel)) return false;
     if (matches(row, CASH_SECTION_PATTERNS)) return false;
+    if (matches(row, CASH_TOTAL_PATTERNS)) return false;
     // Asset-side hierarchy required — liability/unknown bank-looking labels excluded.
     if (row.side !== "asset") return false;
     return matches(row, BANK_LEAF_PATTERNS) || matches(row, [/cash/i]);
   });
-  if (!leaves.length) return null;
-  // Overdrafts excluded from Cash Position; remaining positive/zero cash summed.
-  return leaves.reduce((sum, row) => sum + cashPositionAmountFromNative(Number(row.amount || 0)), 0);
+}
+
+export function extractNativeCashTotal(rows: FlatNativeRow[]): number | null {
+  const leaves = assetSideBankCashLeaves(rows);
+  if (leaves.length) {
+    // Leaf-first: same economics whether or not a net Total* row is also present.
+    return leaves.reduce((sum, row) => sum + cashPositionAmountFromNative(Number(row.amount || 0)), 0);
+  }
+
+  const totalHit = rows.find((row) => row.role === "summary" && isAssetSideCashTotal(row));
+  if (totalHit) return cashPositionAmountFromNative(Number(totalHit.amount));
+
+  // Data-role explicit totals are rare; only used when leaves are absent.
+  const dataTotal = rows.find((row) => row.role === "data" && isAssetSideCashTotal(row));
+  if (dataTotal) return cashPositionAmountFromNative(Number(dataTotal.amount));
+
+  return null;
 }
 
 /**

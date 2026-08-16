@@ -176,7 +176,7 @@ describe("Xero native cash overdraft / Cash Position alignment", () => {
     expect(native.cash).toBeNull();
   });
 
-  it("mixed positive cash + asset overdraft → positive cash only", () => {
+  it("mixed +1000 / -4520.08 / total -3520.08 → leaves win at 1000", () => {
     const native = extractNativeTotalsFromXeroFlattenedRows({
       balanceSheetRows: [
         {
@@ -211,8 +211,110 @@ describe("Xero native cash overdraft / Cash Position alignment", () => {
       ],
       profitAndLossRows: [],
     });
-    // Explicit total is negative → Cash Position clamps to 0 (summary wins over leaf sum).
-    expect(native.cash).toBe(0);
+    expect(native.cash).toBe(1000);
+    expect(native.cash).not.toBe(0);
+    expect(native.cash).not.toBe(-3520.08);
+  });
+
+  it("mixed +10000 / -4520.08 / total +5479.92 → leaves win at 10000", () => {
+    const native = extractNativeTotalsFromXeroFlattenedRows({
+      balanceSheetRows: [
+        {
+          label: "Savings",
+          amount: 10000,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            __advisacorHierarchyPath: ["Assets", "Cash and Cash Equivalents", "Savings"],
+          },
+        },
+        {
+          label: "Checking Account",
+          amount: -4520.08,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            __advisacorHierarchyPath: ["Assets", "Cash and Cash Equivalents", "Checking Account"],
+          },
+        },
+        {
+          label: "Total Cash and Cash Equivalents",
+          amount: 5479.92,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            RowType: "SummaryRow",
+            __advisacorHierarchyPath: [
+              "Assets",
+              "Cash and Cash Equivalents",
+              "Total Cash and Cash Equivalents",
+            ],
+          },
+        },
+      ],
+      profitAndLossRows: [],
+    });
+    expect(native.cash).toBe(10000);
+    expect(native.cash).not.toBe(5479.92);
+  });
+
+  it("mixed leaves + canonical overdraft reclass → native equals canonical positive cash", () => {
+    const native = extractNativeTotalsFromXeroFlattenedRows({
+      balanceSheetRows: [
+        {
+          label: "Savings",
+          amount: 1000,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            __advisacorHierarchyPath: ["Assets", "Cash and Cash Equivalents", "Savings"],
+          },
+        },
+        {
+          label: "Checking Account",
+          amount: -4520.08,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            __advisacorHierarchyPath: ["Assets", "Cash and Cash Equivalents", "Checking Account"],
+          },
+        },
+        {
+          label: "Total Cash and Cash Equivalents",
+          amount: -3520.08,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            RowType: "SummaryRow",
+            __advisacorHierarchyPath: [
+              "Assets",
+              "Cash and Cash Equivalents",
+              "Total Cash and Cash Equivalents",
+            ],
+          },
+        },
+      ],
+      profitAndLossRows: [],
+    });
+    const before = [
+      bs("Savings", 1000, "Cash and Cash Equivalents", ["Assets", "Cash and Cash Equivalents", "Savings"]),
+      bs("Checking Account", -4520.08, "Cash and Cash Equivalents", [
+        "Assets",
+        "Cash and Cash Equivalents",
+        "Checking Account",
+      ]),
+      bs("Total Cash and Cash Equivalents", -3520.08, "Cash and Cash Equivalents", [
+        "Assets",
+        "Cash and Cash Equivalents",
+        "Total Cash and Cash Equivalents",
+      ]),
+    ];
+    const canonicalRows = applyCanonicalBankOverdraftClassification(before);
+    const control = buildStatementControl({
+      native,
+      canonical: buildCanonicalStatementFactsFromNormalized({
+        balanceSheet: canonicalRows,
+        incomeStatement: [],
+      }),
+    });
+    expect(native.cash).toBe(1000);
+    expect(getStatementControlLine(control, "cash")?.canonicalAmount).toBe(1000);
+    expect(getStatementControlLine(control, "cash")?.nativeAmount).toBe(1000);
+    expect(control.cashControlPasses).toBe(true);
   });
 
   it("mixed without explicit total: positive Savings counted; overdraft leaf excluded", () => {
@@ -238,6 +340,50 @@ describe("Xero native cash overdraft / Cash Position alignment", () => {
       profitAndLossRows: [],
     });
     expect(native.cash).toBe(1000);
+  });
+
+  it("no leaves, positive asset-side Total Cash → 1000", () => {
+    const native = extractNativeTotalsFromXeroFlattenedRows({
+      balanceSheetRows: [
+        {
+          label: "Total Cash and Cash Equivalents",
+          amount: 1000,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            RowType: "SummaryRow",
+            __advisacorHierarchyPath: [
+              "Assets",
+              "Cash and Cash Equivalents",
+              "Total Cash and Cash Equivalents",
+            ],
+          },
+        },
+      ],
+      profitAndLossRows: [],
+    });
+    expect(native.cash).toBe(1000);
+  });
+
+  it("no leaves, negative asset-side Total Cash → 0", () => {
+    const native = extractNativeTotalsFromXeroFlattenedRows({
+      balanceSheetRows: [
+        {
+          label: "Total Cash and Cash Equivalents",
+          amount: -4520.08,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            RowType: "SummaryRow",
+            __advisacorHierarchyPath: [
+              "Assets",
+              "Cash and Cash Equivalents",
+              "Total Cash and Cash Equivalents",
+            ],
+          },
+        },
+      ],
+      profitAndLossRows: [],
+    });
+    expect(native.cash).toBe(0);
   });
 
   it("ambiguous bank leaf without asset ancestry → null", () => {
