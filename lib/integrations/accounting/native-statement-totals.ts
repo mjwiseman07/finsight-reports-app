@@ -269,12 +269,22 @@ const BANK_LEAF_PATTERNS = [
 ];
 
 /**
- * Cash precedence (QBO CA / US):
+ * Provider-neutral Cash Position policy (native statement control):
  * 1. Explicit Total* summary with amount and provable asset-side ancestry
  * 2. Else sum bank/cash data leaves that are explicitly asset-side via hierarchy
  * 3. Never treat empty section headers as cash = 0
  * 4. Never count liability/equity/unknown summaries or leaves — ambiguous → null
+ * 5. Negative asset-side bank/cash balances are overdrafts, not Cash Position —
+ *    clamp to 0 so native ties canonical after bank-overdraft reclassification
  */
+const CASH_OVERDRAFT_EPS = 0.005;
+
+/** Cash Position amount: overdraft (negative asset bank) contributes 0, not a negative cash balance. */
+export function cashPositionAmountFromNative(amount: number): number {
+  if (!Number.isFinite(amount)) return 0;
+  return amount < -CASH_OVERDRAFT_EPS ? 0 : amount;
+}
+
 function isAssetSideCashTotal(row: FlatNativeRow): boolean {
   return (
     row.hasAmount &&
@@ -287,11 +297,11 @@ function isAssetSideCashTotal(row: FlatNativeRow): boolean {
 
 export function extractNativeCashTotal(rows: FlatNativeRow[]): number | null {
   const totalHit = rows.find((row) => row.role === "summary" && isAssetSideCashTotal(row));
-  if (totalHit) return totalHit.amount;
+  if (totalHit) return cashPositionAmountFromNative(Number(totalHit.amount));
 
   // Data-role explicit totals are rare but require the same asset-side proof.
   const dataTotal = rows.find((row) => row.role === "data" && isAssetSideCashTotal(row));
-  if (dataTotal) return dataTotal.amount;
+  if (dataTotal) return cashPositionAmountFromNative(Number(dataTotal.amount));
 
   const leaves = rows.filter((row) => {
     if (row.role !== "data" || !row.hasAmount || row.amount == null) return false;
@@ -302,7 +312,8 @@ export function extractNativeCashTotal(rows: FlatNativeRow[]): number | null {
     return matches(row, BANK_LEAF_PATTERNS) || matches(row, [/cash/i]);
   });
   if (!leaves.length) return null;
-  return leaves.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  // Overdrafts excluded from Cash Position; remaining positive/zero cash summed.
+  return leaves.reduce((sum, row) => sum + cashPositionAmountFromNative(Number(row.amount || 0)), 0);
 }
 
 /**
@@ -395,46 +406,76 @@ export function extractNativeTotalsFromQuickBooksRaw(raw: unknown): NativeStatem
 
 /**
  * Extract native totals from Xero flattened report rows (pre-canonical normalize).
+ * Hierarchy/side come from flattenXeroReportRows ancestry — Total* labels do not
+ * self-classify as asset. Overdraft negatives are handled in extractNativeCashTotal.
  */
+function hierarchyFromXeroRow(row: {
+  label?: string;
+  section?: string;
+  hierarchyPath?: string[];
+  raw?: unknown;
+}): { hierarchyPath: string[]; sidePath: string[]; section: string; role: NativeRowRole } {
+  const label = String(row.label || "");
+  const section = String(row.section || "");
+  const raw = row.raw && typeof row.raw === "object" ? (row.raw as Record<string, unknown>) : {};
+  const fromRaw = Array.isArray(raw.__advisacorHierarchyPath)
+    ? (raw.__advisacorHierarchyPath as unknown[]).map((part) => String(part || "").trim()).filter(Boolean)
+    : [];
+  const hierarchyPath = Array.isArray(row.hierarchyPath)
+    ? row.hierarchyPath.map((part) => String(part || "").trim()).filter(Boolean)
+    : fromRaw.length
+      ? fromRaw
+      : [section, label].filter(Boolean);
+  const sourceSection = String(raw.__advisacorSourceSection || section || "");
+  const rowType = String(raw.RowType || raw.rowType || "").toLowerCase();
+  const role: NativeRowRole =
+    rowType === "summaryrow" || rowType === "summary" || /^total\b/i.test(label)
+      ? "summary"
+      : "data";
+  // Side from structural ancestry only — drop the row's own label / Total* leaf.
+  const sidePath =
+    hierarchyPath.length &&
+    (hierarchyPath[hierarchyPath.length - 1] === label || /^total\b/i.test(hierarchyPath[hierarchyPath.length - 1]))
+      ? hierarchyPath.slice(0, -1)
+      : hierarchyPath;
+  return { hierarchyPath, sidePath, section: sourceSection || section, role };
+}
+
 export function extractNativeTotalsFromXeroFlattenedRows(input: {
-  balanceSheetRows: Array<{ label: string; amount: number }>;
-  profitAndLossRows: Array<{ label: string; amount: number }>;
+  balanceSheetRows: Array<{ label: string; amount: number; section?: string; hierarchyPath?: string[]; raw?: unknown; rowType?: string }>;
+  profitAndLossRows: Array<{ label: string; amount: number; section?: string; hierarchyPath?: string[]; raw?: unknown }>;
   startDate?: string | null;
   endDate?: string | null;
 }): NativeStatementTotals {
   const flat: FlatNativeRow[] = [
     ...input.balanceSheetRows.map((row) => {
       const label = String(row.label || "");
-      const section = String((row as { section?: string }).section || "");
-      const hierarchyPath = Array.isArray((row as { hierarchyPath?: string[] }).hierarchyPath)
-        ? ((row as { hierarchyPath?: string[] }).hierarchyPath as string[])
-        : [section, label].filter(Boolean);
+      const { hierarchyPath, sidePath, section, role } = hierarchyFromXeroRow(row);
       return {
         rawLabel: label,
         label,
         amount: Number.isFinite(Number(row.amount)) ? Number(row.amount) : null,
         hasAmount: Number.isFinite(Number(row.amount)),
-        role: /^total\b/i.test(label) ? ("summary" as const) : ("data" as const),
+        role,
         section,
         hierarchyPath,
-        side: inferNativeStatementSide(hierarchyPath, section),
+        side: inferNativeStatementSide(sidePath, section),
       };
     }),
     ...input.profitAndLossRows.map((row) => {
       const label = String(row.label || "");
-      const section = String((row as { section?: string }).section || "");
-      const hierarchyPath = Array.isArray((row as { hierarchyPath?: string[] }).hierarchyPath)
-        ? ((row as { hierarchyPath?: string[] }).hierarchyPath as string[])
-        : [section, label].filter(Boolean);
+      const { hierarchyPath, section, role } = hierarchyFromXeroRow({
+        ...row,
+        // P&L role also treats GP / NI as summary.
+      });
+      const pnlRole: NativeRowRole =
+        role === "summary" || /gross profit|net (income|profit)/i.test(label) ? "summary" : "data";
       return {
         rawLabel: label,
         label,
         amount: Number.isFinite(Number(row.amount)) ? Number(row.amount) : null,
         hasAmount: Number.isFinite(Number(row.amount)),
-        role:
-          /^total\b/i.test(label) || /gross profit|net (income|profit)/i.test(label)
-            ? ("summary" as const)
-            : ("data" as const),
+        role: pnlRole,
         section,
         hierarchyPath,
         side: "unknown" as const,

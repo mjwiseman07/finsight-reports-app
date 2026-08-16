@@ -601,11 +601,53 @@ describe("statement control — provider regressions + missing control", () => {
   it("11. Xero independent tie from flattened raw rows", () => {
     const native = extractNativeTotalsFromXeroFlattenedRows({
       balanceSheetRows: [
-        { label: "Business Bank Account", amount: 4540.98 },
-        { label: "Total Cash and Cash Equivalents", amount: 4540.98 },
-        { label: "Total Assets", amount: 4540.98 },
-        { label: "Total Liabilities", amount: 0 },
-        { label: "Total Equity", amount: 4540.98 },
+        {
+          label: "Business Bank Account",
+          amount: 4540.98,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            __advisacorHierarchyPath: [
+              "Assets",
+              "Current Assets",
+              "Cash and Cash Equivalents",
+              "Business Bank Account",
+            ],
+            __advisacorSourceSection: "Cash and Cash Equivalents",
+          },
+        },
+        {
+          label: "Total Cash and Cash Equivalents",
+          amount: 4540.98,
+          section: "Cash and Cash Equivalents",
+          raw: {
+            RowType: "SummaryRow",
+            __advisacorHierarchyPath: [
+              "Assets",
+              "Current Assets",
+              "Cash and Cash Equivalents",
+              "Total Cash and Cash Equivalents",
+            ],
+            __advisacorSourceSection: "Cash and Cash Equivalents",
+          },
+        },
+        {
+          label: "Total Assets",
+          amount: 4540.98,
+          section: "Assets",
+          raw: { RowType: "SummaryRow", __advisacorHierarchyPath: ["Assets", "Total Assets"] },
+        },
+        {
+          label: "Total Liabilities",
+          amount: 0,
+          section: "Liabilities",
+          raw: { RowType: "SummaryRow", __advisacorHierarchyPath: ["Liabilities", "Total Liabilities"] },
+        },
+        {
+          label: "Total Equity",
+          amount: 4540.98,
+          section: "Equity",
+          raw: { RowType: "SummaryRow", __advisacorHierarchyPath: ["Equity", "Total Equity"] },
+        },
       ],
       profitAndLossRows: [
         { label: "Total Income", amount: 100000 },
@@ -618,6 +660,7 @@ describe("statement control — provider regressions + missing control", () => {
       endDate: "2026-07-31",
     });
     expect(native.source).toBe(NATIVE_STATEMENT_SOURCE_XERO);
+    expect(native.cash).toBe(4540.98);
     const rows = [
       bs(
         "Business Bank Account",
