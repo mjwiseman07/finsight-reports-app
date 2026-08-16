@@ -66,6 +66,9 @@ export type StatementControlResult = {
   computedAt: string;
   /** Dollar tolerance for native ↔ canonical ties (matches existing $1 footing). */
   toleranceDollar: number;
+  /** True when native and canonical periods were compared and matched (or not both provided). */
+  periodAligned: boolean;
+  periodMismatchReason: string | null;
   balanceSheet: {
     lines: StatementControlLine[];
     passes: boolean;
@@ -279,6 +282,9 @@ function linePassesOrUnavailable(line: StatementControlLine | undefined): boolea
 /**
  * Compare native statement totals (from already-normalized provider rows)
  * to canonical Advisacor facts. No provider API calls.
+ *
+ * When both nativePeriod and canonicalPeriod are provided and differ,
+ * fail closed — all KPI control gates become false.
  */
 export function buildStatementControl(input: {
   balanceSheet?: CanonicalBalanceSheetRow[];
@@ -286,12 +292,29 @@ export function buildStatementControl(input: {
   cashPosition?: CashPositionResolution;
   computedAt?: string;
   toleranceDollar?: number;
+  /** Provider-reported statement period (as-of / P&L window). */
+  nativePeriod?: { startDate?: string | null; endDate?: string | null } | null;
+  /** Canonical sync report period Advisacor stamped for this snapshot. */
+  canonicalPeriod?: { startDate?: string | null; endDate?: string | null } | null;
 }): StatementControlResult {
   const toleranceDollar = input.toleranceDollar ?? STATEMENT_CONTROL_TOLERANCE_DOLLAR;
   const balanceSheet = input.balanceSheet || [];
   const incomeStatement = input.incomeStatement || [];
   const mapped = buildMappedFinancialSummary(balanceSheet, incomeStatement);
   const cashPosition = input.cashPosition ?? resolveCashPositionFromBalanceSheet(balanceSheet);
+
+  const nativeStart = String(input.nativePeriod?.startDate || "").trim();
+  const nativeEnd = String(input.nativePeriod?.endDate || "").trim();
+  const canonicalStart = String(input.canonicalPeriod?.startDate || "").trim();
+  const canonicalEnd = String(input.canonicalPeriod?.endDate || "").trim();
+  const bothPeriodsProvided =
+    Boolean(nativeStart || nativeEnd) && Boolean(canonicalStart || canonicalEnd);
+  const periodAligned =
+    !bothPeriodsProvided ||
+    (nativeStart === canonicalStart && nativeEnd === canonicalEnd);
+  const periodMismatchReason = periodAligned
+    ? null
+    : `Same-sync period mismatch — native ${nativeStart || "?"}→${nativeEnd || "?"} vs canonical ${canonicalStart || "?"}→${canonicalEnd || "?"}`;
 
   const cashCanonicalLeaves = sumCanonicalCashLeaves(balanceSheet);
   const cashNative = extractNativeCashTotal(balanceSheet);
@@ -443,32 +466,38 @@ export function buildStatementControl(input: {
   // - Cash requires cash line pass when cash is present
   // - NPM requires revenue + NI control pass
   // - OGM requires revenue + (COGS or explicit GP) control pass
+  // - Period mismatch fail-closed blocks every dependent KPI gate
   const cashControlPasses =
-    cashPosition.status === "SOURCE_MISSING"
-      ? true
-      : cashLine.passes;
-  const arControlPasses = arLine.status === "unavailable" ? true : arLine.passes;
-  const netProfitMarginControlPasses = revenueLine.passes && niLine.passes;
+    periodAligned &&
+    (cashPosition.status === "SOURCE_MISSING" ? true : cashLine.passes);
+  const arControlPasses =
+    periodAligned && (arLine.status === "unavailable" ? true : arLine.passes);
+  const netProfitMarginControlPasses =
+    periodAligned && revenueLine.passes && niLine.passes;
   const operatingGrossMarginControlPasses =
-    revenueLine.passes && (cogsLine.passes || (gpLine.status !== "unavailable" && gpLine.passes));
+    periodAligned &&
+    revenueLine.passes &&
+    (cogsLine.passes || (gpLine.status !== "unavailable" && gpLine.passes));
 
   return {
     computedAt: input.computedAt || new Date().toISOString(),
     toleranceDollar,
+    periodAligned,
+    periodMismatchReason,
     balanceSheet: {
       lines: bsLines,
-      passes: balanceSheetPasses,
-      equationPasses,
+      passes: periodAligned && balanceSheetPasses,
+      equationPasses: periodAligned && equationPasses,
     },
     incomeStatement: {
       lines: plLines,
-      passes: incomeStatementPasses,
+      passes: periodAligned && incomeStatementPasses,
     },
     cashControlPasses,
     arControlPasses,
     netProfitMarginControlPasses,
     operatingGrossMarginControlPasses,
-    overallPasses: balanceSheetPasses && incomeStatementPasses,
+    overallPasses: periodAligned && balanceSheetPasses && incomeStatementPasses,
   };
 }
 

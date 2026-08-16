@@ -437,4 +437,19 @@ describe("statement control — provider regressions", () => {
     buildActiveReportSummary(payload);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it("15. same-sync native/canonical period mismatch → fail closed", () => {
+    const control = buildStatementControl({
+      balanceSheet: demoBBs(),
+      incomeStatement: demoBPnl(),
+      nativePeriod: { startDate: "2026-07-01", endDate: "2026-07-31" },
+      canonicalPeriod: { startDate: "2026-01-01", endDate: "2026-07-31" },
+    });
+    expect(control.periodAligned).toBe(false);
+    expect(control.periodMismatchReason).toMatch(/period mismatch/i);
+    expect(control.cashControlPasses).toBe(false);
+    expect(control.netProfitMarginControlPasses).toBe(false);
+    expect(control.operatingGrossMarginControlPasses).toBe(false);
+    expect(control.overallPasses).toBe(false);
+  });
 });

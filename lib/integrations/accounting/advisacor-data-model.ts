@@ -211,6 +211,10 @@ export function buildAdvisacorNormalizedFinancialData({
         balanceSheet: normalizedData.normalizedBalanceSheet,
         incomeStatement: normalizedData.normalizedIncomeStatement,
         computedAt: mappedAt,
+        // Same-sync: native provider window and canonical sync period must align.
+        // Bundle dateRange is the period used for the already-fetched reports.
+        nativePeriod: bundle.dateRange,
+        canonicalPeriod: reportPeriod,
       });
 
   const validation = validateAdvisacorNormalizedFinancialData({
