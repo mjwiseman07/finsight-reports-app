@@ -24,6 +24,7 @@ const {
 const { buildScheduleDiagnostics, fixedAssetSchedule, inventoryAnalysis, payrollFteAnalysis } = require("../lib/accounting/supporting-schedules/scheduleDiagnostics.ts");
 const { validateReportPreflight } = require("../lib/reporting/report-preflight-validation.ts");
 const { buildFinancialPackagePdfBlob } = require("../lib/financial-package-pdf.ts");
+const dashboardSource = fs.readFileSync("app/dashboard/page.jsx", "utf8");
 const onboardingSource = fs.readFileSync("app/onboarding/page.tsx", "utf8");
 const accountingServiceSource = fs.readFileSync("lib/integrations/accounting/service.ts", "utf8");
 const quickBooksAdapterSource = fs.readFileSync("lib/erp-adapters/quickbooks-adapter.js", "utf8");
@@ -164,12 +165,22 @@ if (missingCashResult.passed && !missingCashResult.warnings.some((issue) => issu
 else fail("Cash support mismatch was not skipped when support schedule is unavailable");
 
 if (
-  onboardingSource.includes("response.status === 404 && provider !== \"xero\" && connectionId") &&
+  (dashboardSource.includes("decideSupersededClientRecovery") ||
+    dashboardSource.includes("successorConnectionId")) &&
   accountingServiceSource.includes("if (!connection && connectionId && sourceSystem)")
 ) {
-  pass("QuickBooks onboarding active context retries latest provider connection when stale connection id is used");
+  pass("Dashboard/accounting stale connection recovery path present");
 } else {
-  fail("QuickBooks onboarding active context stale connection retry is missing");
+  fail("Dashboard/accounting stale connection recovery path is missing");
+}
+
+if (
+  onboardingSource.includes("buildDashboardCompatibilityHref") ||
+  onboardingSource.includes("redirect(")
+) {
+  pass("legacy /onboarding remains compatibility redirect");
+} else {
+  fail("legacy /onboarding is not a compatibility redirect");
 }
 
 if (

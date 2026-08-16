@@ -35,7 +35,9 @@ async function handleConnect(request) {
     const requestUrl = new URL(request.url);
     const authorization = request.headers.get("authorization") || "";
     const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
-    const requestedLeadId = requestUrl.searchParams.get("leadId") || request.cookies.get("free_review_lead_id")?.value || "";
+    // Lead authority matches dashboard session: HttpOnly free_review_lead_id + DB row only.
+    // Query ?leadId= is navigation/UX and must not authorize OAuth lead mode.
+    const cookieLeadId = String(request.cookies.get("free_review_lead_id")?.value || "").trim();
     let connectContext = null;
 
     if (token) {
@@ -54,11 +56,11 @@ async function handleConnect(request) {
         userId: authData.user.id,
         token,
       };
-    } else if (requestedLeadId) {
+    } else if (cookieLeadId) {
       const { data: lead, error: leadError } = await supabaseAdmin
         .from("free_review_leads")
         .select("id, email, business_name")
-        .eq("id", requestedLeadId)
+        .eq("id", cookieLeadId)
         .maybeSingle();
 
       if (leadError?.code === "42P01") {
@@ -81,8 +83,16 @@ async function handleConnect(request) {
     const adapter = getERPAdapter("quickbooks", connectContext.userId || null);
     const { url, config: quickBooksConfig } = adapter.connect({ state });
     const parsedUrl = new URL(url);
-    const returnTo = requestUrl.searchParams.get("returnTo") || "";
-    const safeReturnTo = returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "";
+    const rawReturnTo = requestUrl.searchParams.get("returnTo") || "/dashboard";
+    // Stale /onboarding returnTo from legacy cookies/links must not win.
+    const normalizedReturnTo =
+      rawReturnTo === "/onboarding" || rawReturnTo.startsWith("/onboarding?")
+        ? "/dashboard"
+        : rawReturnTo;
+    const safeReturnTo =
+      normalizedReturnTo.startsWith("/") && !normalizedReturnTo.startsWith("//")
+        ? normalizedReturnTo
+        : "/dashboard";
 
     console.log("[quickbooks/connect] authorization URL generated", {
       mode: connectContext.mode,
@@ -108,7 +118,7 @@ async function handleConnect(request) {
     response.cookies.set("qb_oauth_mode", connectContext.mode, cookieOptions);
     if (connectContext.token) response.cookies.set("qb_oauth_token", connectContext.token, cookieOptions);
     if (connectContext.leadId) response.cookies.set("qb_oauth_lead_id", connectContext.leadId, cookieOptions);
-    if (safeReturnTo) response.cookies.set("qb_oauth_return_to", safeReturnTo, cookieOptions);
+    response.cookies.set("qb_oauth_return_to", safeReturnTo, cookieOptions);
 
     return response;
   } catch (error) {

@@ -278,7 +278,7 @@ try {
 
 for (const [file, markers] of Object.entries({
   "app/dashboard/page.jsx": ["assertReportPreflight", "validateReportPreflight", "Validation Status"],
-  "app/onboarding/page.tsx": ["assertReportPreflight", "preflightIssueText"],
+  "app/onboarding/page.tsx": ["buildDashboardCompatibilityHref", "redirect"],
   "app/api/accounting/fetch-reports/route.js": ["preflight", "status: 422"],
   "app/api/pulse/ask/route.js": ["assertReportPreflight", "status: 422"],
   "lib/financial-package-pdf.ts": ["assertReportPreflight", "Flux analysis", "Financial package"],

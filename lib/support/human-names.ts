@@ -4,6 +4,7 @@ export function humanContext(path: string | null): string {
   if (path.startsWith("/dashboard/reviewer") || path.startsWith("/reviewer")) return "running a review";
   if (path.startsWith("/dashboard")) return "on your dashboard";
   if (path.startsWith("/onboarding")) return "setting up Advisacor";
+  if (path.startsWith("/dashboard")) return "your Advisacor dashboard";
   if (path.startsWith("/pulse")) return "chatting with Ask Pulse";
   if (path.startsWith("/support")) return "in the support area";
   return "using Advisacor";

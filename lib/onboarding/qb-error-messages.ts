@@ -1,8 +1,8 @@
 // lib/onboarding/qb-error-messages.ts
 //
-// Phase TCP1 W3 — QuickBooks OAuth error codes surfaced to /onboarding as
-// ?qbError=<code>. Keep codes short + stable — they appear in URLs and
-// analytics. Copy is user-facing.
+// Phase TCP1 W3 — QuickBooks OAuth error codes surfaced on /dashboard as
+// ?qbError=<code> (legacy /onboarding redirects there). Keep codes short +
+// stable — they appear in URLs and analytics. Copy is user-facing.
 
 export type QbErrorCode =
   | "intuit_denied"
@@ -31,16 +31,16 @@ export function qbErrorCopy(code: string | null | undefined): QbErrorCopy {
           "You cancelled the QuickBooks authorization prompt or Intuit reported an error. " +
           "You can start the connection again — nothing was saved.",
         actionLabel: "Try connecting again",
-        actionHref: "/onboarding?step=connect-accounting&provider=quickbooks",
+        actionHref: "/dashboard?provider=quickbooks",
       };
     case "state_mismatch":
       return {
         title: "Your QuickBooks connection session expired",
         body:
           "For security, the QuickBooks connection has a 10-minute window. " +
-          "Please start the connection again from your onboarding.",
+          "Please start the connection again from your dashboard.",
         actionLabel: "Start connection again",
-        actionHref: "/onboarding?step=connect-accounting&provider=quickbooks",
+        actionHref: "/dashboard?provider=quickbooks",
       };
     case "missing_callback_values":
       return {
@@ -49,7 +49,7 @@ export function qbErrorCopy(code: string | null | undefined): QbErrorCopy {
           "Intuit's response was missing required values. This is usually temporary — " +
           "please try connecting again.",
         actionLabel: "Try again",
-        actionHref: "/onboarding?step=connect-accounting&provider=quickbooks",
+        actionHref: "/dashboard?provider=quickbooks",
       };
     case "missing_admin_client":
       return {
@@ -64,9 +64,9 @@ export function qbErrorCopy(code: string | null | undefined): QbErrorCopy {
       return {
         title: "Your Advisacor session expired during QuickBooks connect",
         body:
-          "Please sign in again and restart the QuickBooks connection from onboarding.",
+          "Please sign in again and restart the QuickBooks connection from your dashboard.",
         actionLabel: "Sign in",
-        actionHref: "/signin?returnTo=/onboarding",
+        actionHref: "/signin?next=/dashboard",
       };
     case "token_exchange_failed":
       return {
@@ -76,7 +76,7 @@ export function qbErrorCopy(code: string | null | undefined): QbErrorCopy {
           "cancelled, expired, or the QuickBooks environment is misconfigured. " +
           "Please try connecting again.",
         actionLabel: "Try again",
-        actionHref: "/onboarding?step=connect-accounting&provider=quickbooks",
+        actionHref: "/dashboard?provider=quickbooks",
       };
     case "connection_save_failed":
       return {
@@ -94,7 +94,7 @@ export function qbErrorCopy(code: string | null | undefined): QbErrorCopy {
           "Something went wrong connecting QuickBooks. Please try again, and if the " +
           "problem persists contact support.",
         actionLabel: "Try again",
-        actionHref: "/onboarding?step=connect-accounting&provider=quickbooks",
+        actionHref: "/dashboard?provider=quickbooks",
       };
   }
 }

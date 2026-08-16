@@ -13,7 +13,7 @@ export default async function BudgetsPage() {
     redirect("/login");
   }
   const firmId = auth.firmIds[0];
-  if (!firmId) redirect("/onboarding");
+  if (!firmId) redirect("/dashboard");
   const supabase = createServiceClient();
   const { data: rows } = await supabase
     .from("gl_account_budgets")

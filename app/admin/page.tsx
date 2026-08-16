@@ -279,7 +279,7 @@ export default function AdminPage() {
       companyTemplate: selectedCompany?.id || "",
       accountType,
     });
-    window.location.assign(`/onboarding?${params.toString()}`);
+    window.location.assign(`/dashboard?${params.toString()}`);
   };
 
   const launchCompanyDashboard = async () => {

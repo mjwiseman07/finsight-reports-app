@@ -432,17 +432,24 @@ buildFinancialPackagePdfBlob({ normalizedData, reportPeriod: "May 31, 2026" });
 pass("Xero PDF pre-render totals validation passes");
 
 if (
-  onboardingSource.includes("forceRefresh: sourceSystem === \"xero\"") &&
   dashboardSource.includes("forceRefresh: true") &&
   dashboardSource.includes("loadFreshXeroReportPayloadForPdf") &&
   dashboardSource.includes("throw new Error(result.error || \"Unable to refresh Xero report context before PDF generation.\")") &&
-  onboardingSource.includes("throw new Error(result.error || \"Unable to refresh Xero report context before PDF generation.\")") &&
   activeContextRouteSource.includes("forceRefresh") &&
   accountingServiceSource.includes("forceRefresh && resolvedSourceSystem === \"xero\"")
 ) {
-  pass("Xero onboarding and dashboard PDF generation force a fresh active context without stale fallback");
+  pass("Xero dashboard PDF generation force a fresh active context without stale fallback");
 } else {
   fail("Xero PDF generation can still fall back to stale context");
+}
+
+if (
+  onboardingSource.includes("buildDashboardCompatibilityHref") ||
+  onboardingSource.includes("redirect(")
+) {
+  pass("legacy /onboarding remains compatibility redirect");
+} else {
+  fail("legacy /onboarding is not a compatibility redirect");
 }
 
 if (process.exitCode) {

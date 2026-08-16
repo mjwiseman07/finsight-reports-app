@@ -86,20 +86,34 @@ export async function PATCH(request) {
   const leadId = normalizeText(body.lead_id, 80);
   if (!leadId) return NextResponse.json({ error: "Lead id is required." }, { status: 400 });
 
+  const cookieLeadId = String(request.cookies.get("free_review_lead_id")?.value || "").trim();
+  if (!cookieLeadId || cookieLeadId !== leadId) {
+    return NextResponse.json(
+      { error: "Free Review lead session cookie is required to update this lead." },
+      { status: 401 },
+    );
+  }
+
+  const nextBusinessName = normalizeText(body.business_name || body.legal_company_name, 180);
+  const updatePayload = {
+    industry: normalizeText(body.industry, 120),
+    revenue_range: normalizeText(body.revenue_range, 120),
+    fiscal_year: normalizeText(body.fiscal_year, 120),
+    additional_business_information:
+      body.additional_business_information && typeof body.additional_business_information === "object"
+        ? body.additional_business_information
+        : {},
+    status: normalizeText(body.status || "onboarding_started", 80),
+    updated_at: new Date().toISOString(),
+  };
+  if (nextBusinessName) {
+    updatePayload.legal_company_name = nextBusinessName;
+    updatePayload.business_name = nextBusinessName;
+  }
+
   const { data, error } = await supabaseAdmin
     .from("free_review_leads")
-    .update({
-      legal_company_name: normalizeText(body.legal_company_name || body.business_name, 180),
-      industry: normalizeText(body.industry, 120),
-      revenue_range: normalizeText(body.revenue_range, 120),
-      fiscal_year: normalizeText(body.fiscal_year, 120),
-      additional_business_information:
-        body.additional_business_information && typeof body.additional_business_information === "object"
-          ? body.additional_business_information
-          : {},
-      status: normalizeText(body.status || "onboarding_started", 80),
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", leadId)
     .select("*")
     .maybeSingle();

@@ -78,7 +78,7 @@ export function PaidUserWelcome({ tierKey, email, businessName }: PaidUserWelcom
                 type="button"
                 onClick={() =>
                   router.push(
-                    "/onboarding?step=connect-accounting&provider=quickbooks&paid=1",
+                    "/dashboard?provider=quickbooks&paid=1",
                   )
                 }
                 className={`inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-base ${primaryCtaClass} ${focusRing()}`}
@@ -114,7 +114,7 @@ export function PaidUserWelcome({ tierKey, email, businessName }: PaidUserWelcom
               <button
                 type="button"
                 onClick={() =>
-                  router.push("/onboarding?step=manual-upload&paid=1")
+                  router.push("/dashboard?checkout=success&paid=1")
                 }
                 className={`inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-transparent px-8 py-4 text-base font-semibold text-white transition-colors hover:bg-white/5 ${focusRing()}`}
               >
