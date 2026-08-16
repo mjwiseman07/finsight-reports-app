@@ -83,6 +83,30 @@ describe("ActivationCard identity + industry model", () => {
   });
 });
 
+describe("provider OAuth lead authority alignment", () => {
+  it("QBO connect uses free_review_lead_id cookie only (query leadId does not authorize)", () => {
+    const source = readFileSync(join(root, "app/api/quickbooks/connect/route.js"), "utf8");
+    expect(source).toContain('cookies.get("free_review_lead_id")');
+    expect(source).toContain("cookieLeadId");
+    expect(source).toContain('mode: "user"');
+    expect(source).toContain('mode: "lead"');
+    // Query leadId must not win over / authorize lead mode
+    expect(source).not.toMatch(/searchParams\.get\(["']leadId["']\).*free_review_lead_id/);
+    expect(source).not.toContain('searchParams.get("leadId") || request.cookies.get("free_review_lead_id")');
+    // OAuth transaction cookie still set after cookie+DB validation
+    expect(source).toContain('cookies.set("qb_oauth_lead_id"');
+  });
+
+  it("Xero connect uses free_review_lead_id; legacy advisacor_oauth_lead_id does not authorize", () => {
+    const source = readFileSync(join(root, "app/api/integrations/xero/connect/route.js"), "utf8");
+    expect(source).toContain('cookies.get("free_review_lead_id")');
+    expect(source).toContain('cookies.set("xero_oauth_lead_id"');
+    // Legacy cookie cleared, never read for authority
+    expect(source).toContain('cookies.set("advisacor_oauth_lead_id", "", { path: "/", maxAge: 0 })');
+    expect(source).not.toMatch(/cookies\.get\(["']advisacor_oauth_lead_id["']\)/);
+  });
+});
+
 describe("free-review handoff regressions", () => {
   it("routes free-review capture to dashboard?leadId=", () => {
     const source = readFileSync(join(root, "app/free-review/page.tsx"), "utf8");

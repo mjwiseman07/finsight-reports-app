@@ -13,9 +13,11 @@ async function handleConnect(request) {
     const returnTo = url.searchParams.get("returnTo") || (cookieReturnTo ? decodeURIComponent(cookieReturnTo) : "") || "/dashboard";
     const authorization = request.headers.get("authorization") || "";
     const cookieToken = request.cookies.get("advisacor_oauth_token")?.value || "";
-    const cookieLeadId = request.cookies.get("advisacor_oauth_lead_id")?.value || "";
+    // Lead authority matches dashboard + QBO: HttpOnly free_review_lead_id only.
+    // Legacy advisacor_oauth_lead_id is cleared below and never authorizes connect.
+    const cookieLeadId = String(request.cookies.get("free_review_lead_id")?.value || "").trim();
     const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : (cookieToken ? decodeURIComponent(cookieToken) : "");
-    const leadId = cookieLeadId ? decodeURIComponent(cookieLeadId) : "";
+    const leadId = cookieLeadId;
     console.log("XERO CONNECT ROUTE HIT");
     console.log("[integrations/xero/connect] reached", {
       method: request.method,
@@ -60,6 +62,7 @@ async function handleConnect(request) {
             : "/dashboard",
           cookieOptions,
         );
+        // Clear legacy lead cookie — authority is free_review_lead_id only.
         response.cookies.set("advisacor_oauth_lead_id", "", { path: "/", maxAge: 0 });
         response.cookies.set("advisacor_oauth_return_to", "", { path: "/", maxAge: 0 });
         return response;

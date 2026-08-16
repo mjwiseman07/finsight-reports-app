@@ -35,7 +35,9 @@ async function handleConnect(request) {
     const requestUrl = new URL(request.url);
     const authorization = request.headers.get("authorization") || "";
     const token = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
-    const requestedLeadId = requestUrl.searchParams.get("leadId") || request.cookies.get("free_review_lead_id")?.value || "";
+    // Lead authority matches dashboard session: HttpOnly free_review_lead_id + DB row only.
+    // Query ?leadId= is navigation/UX and must not authorize OAuth lead mode.
+    const cookieLeadId = String(request.cookies.get("free_review_lead_id")?.value || "").trim();
     let connectContext = null;
 
     if (token) {
@@ -54,11 +56,11 @@ async function handleConnect(request) {
         userId: authData.user.id,
         token,
       };
-    } else if (requestedLeadId) {
+    } else if (cookieLeadId) {
       const { data: lead, error: leadError } = await supabaseAdmin
         .from("free_review_leads")
         .select("id, email, business_name")
-        .eq("id", requestedLeadId)
+        .eq("id", cookieLeadId)
         .maybeSingle();
 
       if (leadError?.code === "42P01") {
