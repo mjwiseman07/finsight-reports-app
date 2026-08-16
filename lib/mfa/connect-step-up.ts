@@ -6,6 +6,8 @@
 
 export const MFA_CHALLENGE_PATH = "/signin/mfa-challenge";
 export const RESUME_CONNECT_PARAM = "resumeConnect";
+/** Explicit reconnect / add-company start (works even when already connected). */
+export const CONNECT_ACCOUNTING_PARAM = "connectAccounting";
 
 export type ResumeConnectProvider = "quickbooks" | "xero";
 
@@ -28,10 +30,22 @@ export function buildDashboardResumeConnectHref(provider: ResumeConnectProvider)
   return `/dashboard?${RESUME_CONNECT_PARAM}=${encodeURIComponent(provider)}`;
 }
 
+export function buildDashboardForceConnectHref(provider: ResumeConnectProvider): string {
+  return `/dashboard?${CONNECT_ACCOUNTING_PARAM}=${encodeURIComponent(provider)}`;
+}
+
 export function readResumeConnectProvider(
   search: URLSearchParams | { get: (key: string) => string | null },
 ): ResumeConnectProvider | null {
   const raw = String(search.get(RESUME_CONNECT_PARAM) || "").trim().toLowerCase();
+  if (raw === "quickbooks" || raw === "xero") return raw;
+  return null;
+}
+
+export function readForceConnectProvider(
+  search: URLSearchParams | { get: (key: string) => string | null },
+): ResumeConnectProvider | null {
+  const raw = String(search.get(CONNECT_ACCOUNTING_PARAM) || "").trim().toLowerCase();
   if (raw === "quickbooks" || raw === "xero") return raw;
   return null;
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  buildDashboardForceConnectHref,
   buildDashboardResumeConnectHref,
   buildMfaChallengeHref,
   clearConnectResumePending,
@@ -51,6 +52,9 @@ describe("connect-step-up AAL2 helpers", () => {
       "/signin/mfa-challenge?returnTo=%2Fdashboard%3FresumeConnect%3Dquickbooks",
     );
     expect(buildDashboardResumeConnectHref("xero")).toBe("/dashboard?resumeConnect=xero");
+    expect(buildDashboardForceConnectHref("quickbooks")).toBe(
+      "/dashboard?connectAccounting=quickbooks",
+    );
     expect(readResumeConnectProvider(new URLSearchParams("resumeConnect=quickbooks"))).toBe(
       "quickbooks",
     );

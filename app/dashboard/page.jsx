@@ -22,6 +22,7 @@ import {
   clearConnectResumePending,
   consumeConnectResumePending,
   isAal2RequiredApiError,
+  readForceConnectProvider,
   readResumeConnectProvider,
   redirectToMfaForAccountingConnect,
 } from "../../lib/mfa/connect-step-up";
@@ -1888,6 +1889,8 @@ export default function DashboardPage() {
   };
 
   // After MFA step-up, auto-resume the accounting connect the user started.
+  // Also supports ?connectAccounting=quickbooks|xero to start OAuth when already connected
+  // (e.g. add/switch sandbox company for Demo B).
   const resumeConnectStartedRef = useRef(false);
   useEffect(() => {
     if (isLoading || !access?.allowed) return;
@@ -1896,16 +1899,20 @@ export default function DashboardPage() {
     if (typeof window === "undefined") return;
 
     const params = new URLSearchParams(window.location.search);
-    const provider = readResumeConnectProvider(params);
+    const resumeProvider = readResumeConnectProvider(params);
+    const forceProvider = readForceConnectProvider(params);
+    const provider = resumeProvider || forceProvider;
     if (!provider) return;
 
     resumeConnectStartedRef.current = true;
-    const hadPending = consumeConnectResumePending(provider);
+    const hadPending = resumeProvider ? consumeConnectResumePending(provider) : true;
+
     params.delete("resumeConnect");
+    params.delete("connectAccounting");
     const qs = params.toString();
     window.history.replaceState({}, "", qs ? `/dashboard?${qs}` : "/dashboard");
 
-    if (!hadPending) return;
+    if (resumeProvider && !hadPending) return;
 
     void (provider === "quickbooks" ? handleConnectQuickBooks() : handleConnectXero());
   }, [isLoading, access?.allowed, access?.reason]);
