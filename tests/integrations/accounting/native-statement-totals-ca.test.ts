@@ -209,7 +209,7 @@ describe("QBO CA native cash acceptance repair", () => {
     expect(extractNativeCashTotal(flat)).toBeNull();
   });
 
-  it("explicit summary remains authoritative even if liability bank leaves exist", () => {
+  it("asset Chequing leaf wins; liability bank leaves do not affect Cash Position", () => {
     const flat = flattenQuickBooksRawReportRows([
       {
         type: "Section",
@@ -221,9 +221,9 @@ describe("QBO CA native cash acceptance repair", () => {
               type: "Section",
               Header: { ColData: [{ value: "Cash and Cash Equivalent" }, { value: "" }] },
               Rows: {
-                Row: [{ type: "Data", ColData: [{ value: "Chequing" }, { value: "1.00" }] }],
+                Row: [{ type: "Data", ColData: [{ value: "Chequing" }, { value: "21095.57" }] }],
               },
-              Summary: { ColData: [{ value: "Total Cash and Cash Equivalent" }, { value: "21095.57" }] },
+              Summary: { ColData: [{ value: "Total Cash and Cash Equivalent" }, { value: "99999.00" }] },
             },
           ],
         },
@@ -237,6 +237,7 @@ describe("QBO CA native cash acceptance repair", () => {
         },
       },
     ]);
+    // Leaf-first: misleading Total is ignored when Chequing leaf exists.
     expect(extractNativeCashTotal(flat)).toBe(21095.57);
   });
 
