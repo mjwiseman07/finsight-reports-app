@@ -240,6 +240,67 @@ describe("QBO CA native cash acceptance repair", () => {
     expect(extractNativeCashTotal(flat)).toBe(21095.57);
   });
 
+  it("unknown/orphan Total Bank Accounts summary is rejected → null", () => {
+    const flat = flattenQuickBooksRawReportRows([
+      { type: "Data", ColData: [{ value: "Total Bank Accounts" }, { value: "100.00" }] },
+    ]);
+    const row = flat.find((r) => /total bank accounts/i.test(r.label));
+    expect(row?.side).toBe("unknown");
+    expect(extractNativeCashTotal(flat)).toBeNull();
+  });
+
+  it("unknown/orphan Total Cash summary is rejected → null", () => {
+    const flat = flattenQuickBooksRawReportRows([
+      {
+        type: "Section",
+        Summary: { ColData: [{ value: "Total Cash" }, { value: "100.00" }] },
+      },
+    ]);
+    const row = flat.find((r) => r.role === "summary" && /^total cash$/i.test(r.label));
+    expect(row?.side).toBe("unknown");
+    expect(extractNativeCashTotal(flat)).toBeNull();
+  });
+
+  it("equity-side Total Cash summary is rejected → null", () => {
+    const flat = flattenQuickBooksRawReportRows([
+      {
+        type: "Section",
+        group: "Equity",
+        Header: { ColData: [{ value: "Equity" }, { value: "" }] },
+        Rows: {
+          Row: [],
+        },
+        Summary: { ColData: [{ value: "Total Cash" }, { value: "100.00" }] },
+      },
+    ]);
+    const row = flat.find((r) => r.role === "summary" && /^total cash$/i.test(r.label));
+    expect(row?.side).toBe("equity");
+    expect(extractNativeCashTotal(flat)).toBeNull();
+  });
+
+  it("liability-side Total Bank Accounts summary is rejected → null", () => {
+    const flat = flattenQuickBooksRawReportRows([
+      {
+        type: "Section",
+        group: "Liabilities",
+        Header: { ColData: [{ value: "Liabilities" }, { value: "" }] },
+        Rows: {
+          Row: [
+            {
+              type: "Section",
+              group: "BankAccounts",
+              Header: { ColData: [{ value: "BankAccounts" }, { value: "" }] },
+              Summary: { ColData: [{ value: "Total Bank Accounts" }, { value: "100.00" }] },
+            },
+          ],
+        },
+      },
+    ]);
+    const row = flat.find((r) => r.role === "summary" && /total bank accounts/i.test(r.label));
+    expect(row?.side).toBe("liability");
+    expect(extractNativeCashTotal(flat)).toBeNull();
+  });
+
   it("corrupted canonical cash fails while native remains 21095.57", () => {
     const native = extractNativeTotalsFromQuickBooksRaw(demoBEnvelope())!;
     const balanceSheet = [

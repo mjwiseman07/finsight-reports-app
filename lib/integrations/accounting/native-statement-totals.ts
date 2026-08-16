@@ -126,6 +126,11 @@ function pushRow(
   role: NativeRowRole,
   hierarchyPath: string[],
   section: string,
+  /**
+   * Ancestry used for side inference. Must NOT include the row's own Total*
+   * label — otherwise orphan "Total Bank Accounts" would self-classify as asset.
+   */
+  sidePath: string[] = hierarchyPath,
 ) {
   const trimmed = String(label || "").trim();
   if (!trimmed) return;
@@ -139,7 +144,7 @@ function pushRow(
     role,
     section,
     hierarchyPath,
-    side: inferNativeStatementSide(hierarchyPath, section),
+    side: inferNativeStatementSide(sidePath, section),
   });
 }
 
@@ -178,7 +183,16 @@ export function flattenQuickBooksRawReportRows(rows: unknown[] = []): FlatNative
               : headerHuman
                 ? [headerHuman]
                 : inheritedPath;
-        pushRow(out, headerLabel, headerCols, "header", headerPath, inheritedSection || section);
+        // Section headers define ancestry (Cash and Cash Equivalent → asset).
+        pushRow(
+          out,
+          headerLabel,
+          headerCols,
+          "header",
+          headerPath,
+          inheritedSection || section,
+          headerPath,
+        );
       }
 
       if (colData.length) {
@@ -188,7 +202,8 @@ export function flattenQuickBooksRawReportRows(rows: unknown[] = []): FlatNative
           leafHuman && sectionPath[sectionPath.length - 1] !== leafHuman
             ? [...sectionPath, leafHuman]
             : sectionPath;
-        pushRow(out, leafLabel, colData, "data", leafPath, section || inheritedSection);
+        // Side from section ancestry only — not the leaf/total label itself.
+        pushRow(out, leafLabel, colData, "data", leafPath, section || inheritedSection, sectionPath);
       }
 
       if (nested != null) walk(asRowArray(nested), sectionPath, section || inheritedSection);
@@ -200,7 +215,16 @@ export function flattenQuickBooksRawReportRows(rows: unknown[] = []): FlatNative
           summaryHuman && sectionPath[sectionPath.length - 1] !== summaryHuman
             ? [...sectionPath, summaryHuman]
             : sectionPath;
-        pushRow(out, summaryLabel, summaryCols, "summary", summaryPath, section || inheritedSection);
+        // Side from section ancestry only — orphan Total* stays unknown.
+        pushRow(
+          out,
+          summaryLabel,
+          summaryCols,
+          "summary",
+          summaryPath,
+          section || inheritedSection,
+          sectionPath,
+        );
       }
     }
   };
@@ -246,35 +270,27 @@ const BANK_LEAF_PATTERNS = [
 
 /**
  * Cash precedence (QBO CA / US):
- * 1. Explicit Total* summary with amount on the asset side (or with no liability/equity path)
+ * 1. Explicit Total* summary with amount and provable asset-side ancestry
  * 2. Else sum bank/cash data leaves that are explicitly asset-side via hierarchy
  * 3. Never treat empty section headers as cash = 0
- * 4. Never count liability/overdraft bank-looking leaves; ambiguous side → null
+ * 4. Never count liability/equity/unknown summaries or leaves — ambiguous → null
  */
-export function extractNativeCashTotal(rows: FlatNativeRow[]): number | null {
-  const totalHit = rows.find(
-    (row) =>
-      row.role === "summary" &&
-      row.hasAmount &&
-      row.amount != null &&
-      Number.isFinite(row.amount) &&
-      matches(row, CASH_TOTAL_PATTERNS) &&
-      row.side !== "liability" &&
-      row.side !== "equity",
+function isAssetSideCashTotal(row: FlatNativeRow): boolean {
+  return (
+    row.hasAmount &&
+    row.amount != null &&
+    Number.isFinite(row.amount) &&
+    matches(row, CASH_TOTAL_PATTERNS) &&
+    row.side === "asset"
   );
+}
+
+export function extractNativeCashTotal(rows: FlatNativeRow[]): number | null {
+  const totalHit = rows.find((row) => row.role === "summary" && isAssetSideCashTotal(row));
   if (totalHit) return totalHit.amount;
 
-  // Data-role explicit totals are rare but keep asset-side guard.
-  const dataTotal = rows.find(
-    (row) =>
-      row.role === "data" &&
-      row.hasAmount &&
-      row.amount != null &&
-      Number.isFinite(row.amount) &&
-      matches(row, CASH_TOTAL_PATTERNS) &&
-      row.side !== "liability" &&
-      row.side !== "equity",
-  );
+  // Data-role explicit totals are rare but require the same asset-side proof.
+  const dataTotal = rows.find((row) => row.role === "data" && isAssetSideCashTotal(row));
   if (dataTotal) return dataTotal.amount;
 
   const leaves = rows.filter((row) => {
