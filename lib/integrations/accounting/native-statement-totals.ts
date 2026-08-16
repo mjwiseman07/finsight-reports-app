@@ -6,9 +6,14 @@
  *   pre-canonical flattened report cells (Xero), NEVER from Advisacor
  *   normalized Balance Sheet / P&L rows.
  * - Canonical facts are computed separately from normalized rows.
+ *
+ * QBO CA cash bug class (live Demo B):
+ *   Header "Cash and Cash Equivalent" (empty amount) must NOT win over
+ *   Summary "Total Cash and Cash Equivalent" (21095.57) or bank leaves.
  */
 
 import { parseAmountOrZero } from "@/lib/parse/amount";
+import { humanizeQuickBooksReportToken } from "./normalizers/qbo-report-tokens";
 
 export const NATIVE_STATEMENT_SOURCE_QBO = "quickbooks_raw_report" as const;
 export const NATIVE_STATEMENT_SOURCE_XERO = "xero_raw_report_rows" as const;
@@ -17,12 +22,16 @@ export type NativeStatementSource =
   | typeof NATIVE_STATEMENT_SOURCE_QBO
   | typeof NATIVE_STATEMENT_SOURCE_XERO;
 
+export type NativeRowRole = "header" | "data" | "summary";
+
 export type NativeStatementTotals = {
   source: NativeStatementSource;
   /** Provenance: which raw objects were read. */
   balanceSheetReportRef: string;
   profitAndLossReportRef: string;
   period: { startDate: string | null; endDate: string | null };
+  /** True when period P&L is a known empty stub (e.g. CA NetIncome/PROFIT only). */
+  profitAndLossStub?: boolean;
   cash: number | null;
   ar: number | null;
   inventory: number | null;
@@ -52,7 +61,22 @@ export type CanonicalStatementFacts = {
   netIncome: number | null;
 };
 
-type FlatNativeRow = { label: string; amount: number };
+export type NativeStatementSide = "asset" | "liability" | "equity" | "unknown";
+
+export type FlatNativeRow = {
+  label: string;
+  /** Raw vendor label before humanization (for diagnostics). */
+  rawLabel: string;
+  amount: number | null;
+  hasAmount: boolean;
+  role: NativeRowRole;
+  /** Structural section at this node (humanized). */
+  section: string;
+  /** Full hierarchy path from report root to this node (humanized). */
+  hierarchyPath: string[];
+  /** Balance-sheet side inferred from hierarchy/section; fail-closed when unknown. */
+  side: NativeStatementSide;
+};
 
 function colValue(col: unknown): string {
   const record = col as Record<string, unknown> | undefined;
@@ -65,21 +89,72 @@ function asRowArray(row: unknown): unknown[] {
   return [];
 }
 
-function readAmountFromCols(cols: unknown[]): number {
-  if (cols.length <= 1) return 0;
-  const atOne = colValue(cols[1]).trim();
-  if (atOne !== "") return parseAmountOrZero(atOne);
+/** Read amount from ColData; empty / missing → null (never invent 0). */
+function readAmountFromCols(cols: unknown[]): { amount: number | null; hasAmount: boolean } {
+  if (cols.length <= 1) return { amount: null, hasAmount: false };
   for (let i = cols.length - 1; i >= 1; i -= 1) {
     const value = colValue(cols[i]).trim();
-    if (value !== "") return parseAmountOrZero(value);
+    if (value !== "") return { amount: parseAmountOrZero(value), hasAmount: true };
   }
-  return 0;
+  return { amount: null, hasAmount: false };
 }
 
-/** Walk raw QBO report Rows tree into label/amount pairs (independent of Advisacor normalize). */
+const LIABILITY_PATH =
+  /\bliabilit|\bpayable\b|\bcredit cards?\b|\boverdraft\b|\bloans?\b|\bequity\b/i;
+const ASSET_PATH =
+  /\bassets?\b|\bcurrent assets?\b|\bother current assets?\b|\bfixed assets?\b|\bcash and cash equivalents?\b|\bbank accounts?\b|\bcash at bank\b/i;
+
+/** Infer BS side from hierarchy path + section. Unknown → fail closed for leaf cash fallback. */
+export function inferNativeStatementSide(hierarchyPath: string[], section = ""): NativeStatementSide {
+  const hints = [...hierarchyPath, section].map((part) => String(part || "").trim()).filter(Boolean);
+  if (!hints.length) return "unknown";
+  const joined = hints.join(" | ");
+  if (LIABILITY_PATH.test(joined)) {
+    if (/\bequity\b/i.test(joined) && !/\bliabilit|\bpayable\b|\bcredit cards?\b|\boverdraft\b/i.test(joined)) {
+      return "equity";
+    }
+    return "liability";
+  }
+  if (ASSET_PATH.test(joined)) return "asset";
+  return "unknown";
+}
+
+function pushRow(
+  out: FlatNativeRow[],
+  label: string,
+  cols: unknown[],
+  role: NativeRowRole,
+  hierarchyPath: string[],
+  section: string,
+  /**
+   * Ancestry used for side inference. Must NOT include the row's own Total*
+   * label — otherwise orphan "Total Bank Accounts" would self-classify as asset.
+   */
+  sidePath: string[] = hierarchyPath,
+) {
+  const trimmed = String(label || "").trim();
+  if (!trimmed) return;
+  const { amount, hasAmount } = readAmountFromCols(cols);
+  const human = humanizeQuickBooksReportToken(trimmed);
+  out.push({
+    rawLabel: trimmed,
+    label: human,
+    amount,
+    hasAmount,
+    role,
+    section,
+    hierarchyPath,
+    side: inferNativeStatementSide(sidePath, section),
+  });
+}
+
+/**
+ * Walk raw QBO report Rows tree into role-tagged rows with hierarchy path
+ * propagated from section headers (Assets → Bank Accounts → Chequing).
+ */
 export function flattenQuickBooksRawReportRows(rows: unknown[] = []): FlatNativeRow[] {
   const out: FlatNativeRow[] = [];
-  const walk = (nodes: unknown[]) => {
+  const walk = (nodes: unknown[], inheritedPath: string[] = [], inheritedSection = "") => {
     for (const node of asRowArray(nodes)) {
       const record = node as Record<string, unknown>;
       const header = record.Header as Record<string, unknown> | undefined;
@@ -88,43 +163,171 @@ export function flattenQuickBooksRawReportRows(rows: unknown[] = []): FlatNative
       const headerCols = Array.isArray(header?.ColData) ? (header.ColData as unknown[]) : [];
       const summaryCols = Array.isArray(summary?.ColData) ? (summary.ColData as unknown[]) : [];
       const nested = (record.Rows as Record<string, unknown> | undefined)?.Row;
+      const groupToken = humanizeQuickBooksReportToken(
+        String(record.group || record.Group || colValue(headerCols[0]) || ""),
+      );
+      const sectionPath =
+        groupToken && inheritedPath[inheritedPath.length - 1] !== groupToken
+          ? [...inheritedPath, groupToken]
+          : inheritedPath;
+      const section = groupToken || inheritedSection;
 
-      const leafLabel = colValue(colData[0]).trim();
-      if (leafLabel) out.push({ label: leafLabel, amount: readAmountFromCols(colData) });
-
-      const headerLabel = colValue(headerCols[0]).trim();
-      if (headerLabel && headerCols.length > 1) {
-        out.push({ label: headerLabel, amount: readAmountFromCols(headerCols) });
+      if (headerCols.length) {
+        const headerLabel = colValue(headerCols[0]);
+        const headerHuman = humanizeQuickBooksReportToken(headerLabel);
+        const headerPath =
+          headerHuman && sectionPath[sectionPath.length - 1] !== headerHuman
+            ? [...sectionPath, headerHuman]
+            : sectionPath.length
+              ? sectionPath
+              : headerHuman
+                ? [headerHuman]
+                : inheritedPath;
+        // Section headers define ancestry (Cash and Cash Equivalent → asset).
+        pushRow(
+          out,
+          headerLabel,
+          headerCols,
+          "header",
+          headerPath,
+          inheritedSection || section,
+          headerPath,
+        );
       }
 
-      if (nested != null) walk(asRowArray(nested));
+      if (colData.length) {
+        const leafLabel = colValue(colData[0]);
+        const leafHuman = humanizeQuickBooksReportToken(leafLabel);
+        const leafPath =
+          leafHuman && sectionPath[sectionPath.length - 1] !== leafHuman
+            ? [...sectionPath, leafHuman]
+            : sectionPath;
+        // Side from section ancestry only — not the leaf/total label itself.
+        pushRow(out, leafLabel, colData, "data", leafPath, section || inheritedSection, sectionPath);
+      }
 
-      const summaryLabel = colValue(summaryCols[0]).trim();
-      if (summaryLabel) out.push({ label: summaryLabel, amount: readAmountFromCols(summaryCols) });
+      if (nested != null) walk(asRowArray(nested), sectionPath, section || inheritedSection);
+
+      if (summaryCols.length) {
+        const summaryLabel = colValue(summaryCols[0]);
+        const summaryHuman = humanizeQuickBooksReportToken(summaryLabel);
+        const summaryPath =
+          summaryHuman && sectionPath[sectionPath.length - 1] !== summaryHuman
+            ? [...sectionPath, summaryHuman]
+            : sectionPath;
+        // Side from section ancestry only — orphan Total* stays unknown.
+        pushRow(
+          out,
+          summaryLabel,
+          summaryCols,
+          "summary",
+          summaryPath,
+          section || inheritedSection,
+          sectionPath,
+        );
+      }
     }
   };
   walk(rows);
   return out;
 }
 
-function findAmount(rows: FlatNativeRow[], patterns: RegExp[]): number | null {
-  for (const pattern of patterns) {
-    const hit = rows.find((row) => pattern.test(row.label));
-    if (hit && Number.isFinite(hit.amount)) return hit.amount;
+function matches(row: FlatNativeRow, patterns: RegExp[]): boolean {
+  return patterns.some((pattern) => pattern.test(row.label) || pattern.test(row.rawLabel));
+}
+
+/**
+ * Prefer summary totals with an explicit amount, then data rows with amount.
+ * Never accept header-only / empty-amount matches as numeric totals.
+ */
+function findAmount(
+  rows: FlatNativeRow[],
+  patterns: RegExp[],
+  options: { preferRoles?: NativeRowRole[] } = {},
+): number | null {
+  const preferRoles = options.preferRoles || ["summary", "data"];
+  for (const role of preferRoles) {
+    const hit = rows.find((row) => row.role === role && row.hasAmount && matches(row, patterns));
+    if (hit && hit.amount != null && Number.isFinite(hit.amount)) return hit.amount;
   }
   return null;
 }
 
+const CASH_TOTAL_PATTERNS = [
+  /^total\s+cash and cash equivalents?$/i,
+  /^total\s+bank accounts?$/i,
+  /^total\s+cash$/i,
+];
+
+const CASH_SECTION_PATTERNS = [
+  /^cash and cash equivalents?$/i,
+  /^bank accounts?$/i,
+];
+
+const BANK_LEAF_PATTERNS = [
+  /chequ(?:e|ing)|checking|savings|cash on hand|undeposited funds|petty cash|money market/i,
+];
+
+/**
+ * Cash precedence (QBO CA / US):
+ * 1. Explicit Total* summary with amount and provable asset-side ancestry
+ * 2. Else sum bank/cash data leaves that are explicitly asset-side via hierarchy
+ * 3. Never treat empty section headers as cash = 0
+ * 4. Never count liability/equity/unknown summaries or leaves — ambiguous → null
+ */
+function isAssetSideCashTotal(row: FlatNativeRow): boolean {
+  return (
+    row.hasAmount &&
+    row.amount != null &&
+    Number.isFinite(row.amount) &&
+    matches(row, CASH_TOTAL_PATTERNS) &&
+    row.side === "asset"
+  );
+}
+
+export function extractNativeCashTotal(rows: FlatNativeRow[]): number | null {
+  const totalHit = rows.find((row) => row.role === "summary" && isAssetSideCashTotal(row));
+  if (totalHit) return totalHit.amount;
+
+  // Data-role explicit totals are rare but require the same asset-side proof.
+  const dataTotal = rows.find((row) => row.role === "data" && isAssetSideCashTotal(row));
+  if (dataTotal) return dataTotal.amount;
+
+  const leaves = rows.filter((row) => {
+    if (row.role !== "data" || !row.hasAmount || row.amount == null) return false;
+    if (/^total\b/i.test(row.label) || /^total\b/i.test(row.rawLabel)) return false;
+    if (matches(row, CASH_SECTION_PATTERNS)) return false;
+    // Asset-side hierarchy required — liability/unknown bank-looking labels excluded.
+    if (row.side !== "asset") return false;
+    return matches(row, BANK_LEAF_PATTERNS) || matches(row, [/cash/i]);
+  });
+  if (!leaves.length) return null;
+  return leaves.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+}
+
+/**
+ * QBO CA period P&L stub: a lone NetIncome/PROFIT node with no amount / no Income section.
+ * Must not be interpreted as Net Income = $0 for Scorecard authorization.
+ */
+export function isQuickBooksProfitAndLossStub(rows: FlatNativeRow[]): boolean {
+  if (!rows.length) return true;
+  const withAmount = rows.filter((row) => row.hasAmount);
+  const hasIncomeEvidence = rows.some((row) =>
+    matches(row, [/^total (income|revenue|sales)$/i, /^income$/i, /^revenue$/i]),
+  );
+  const onlyProfitStub =
+    rows.length <= 2 &&
+    rows.every((row) => matches(row, [/^net (income|profit)$/i, /^profit$/i])) &&
+    !hasIncomeEvidence;
+  return onlyProfitStub || (!hasIncomeEvidence && withAmount.length === 0);
+}
+
 function pickTotals(rows: FlatNativeRow[]): Omit<
   NativeStatementTotals,
-  "source" | "balanceSheetReportRef" | "profitAndLossReportRef" | "period"
+  "source" | "balanceSheetReportRef" | "profitAndLossReportRef" | "period" | "profitAndLossStub"
 > {
   return {
-    cash: findAmount(rows, [
-      /^(total\s+)?cash and cash equivalents?$/i,
-      /^total\s+bank accounts?$/i,
-      /^total\s+cash$/i,
-    ]),
+    cash: extractNativeCashTotal(rows),
     ar: findAmount(rows, [/^total accounts? receivable$/i, /^accounts? receivable$/i]),
     inventory: findAmount(rows, [/^total inventory$/i, /^inventory$/i]),
     netFixedAssets: findAmount(rows, [
@@ -160,11 +363,12 @@ export function extractNativeTotalsFromQuickBooksRaw(raw: unknown): NativeStatem
   const pnlRows = ((pnlReport?.data as Record<string, unknown> | undefined)?.Rows as Record<string, unknown> | undefined)?.Row;
   if (!bsRows && !pnlRows) return null;
 
-  const flat = [
-    ...flattenQuickBooksRawReportRows(asRowArray(bsRows)),
-    ...flattenQuickBooksRawReportRows(asRowArray(pnlRows)),
-  ];
-  const totals = pickTotals(flat);
+  const bsFlat = flattenQuickBooksRawReportRows(asRowArray(bsRows));
+  const pnlFlat = flattenQuickBooksRawReportRows(asRowArray(pnlRows));
+  const pnlStub = isQuickBooksProfitAndLossStub(pnlFlat);
+  const bsTotals = pickTotals(bsFlat);
+  const pnlTotals = pickTotals(pnlFlat);
+
   return {
     source: NATIVE_STATEMENT_SOURCE_QBO,
     balanceSheetReportRef: "sourceMetadata.raw.reports.balanceSheet.data.Rows.Row",
@@ -173,14 +377,24 @@ export function extractNativeTotalsFromQuickBooksRaw(raw: unknown): NativeStatem
       startDate: envelope.start_date ? String(envelope.start_date) : null,
       endDate: envelope.end_date ? String(envelope.end_date) : null,
     },
-    ...totals,
+    profitAndLossStub: pnlStub,
+    cash: bsTotals.cash,
+    ar: bsTotals.ar,
+    inventory: bsTotals.inventory,
+    netFixedAssets: bsTotals.netFixedAssets,
+    ap: bsTotals.ap,
+    totalAssets: bsTotals.totalAssets,
+    totalLiabilities: bsTotals.totalLiabilities,
+    totalEquity: bsTotals.totalEquity,
+    revenue: pnlStub ? null : pnlTotals.revenue,
+    cogs: pnlStub ? null : pnlTotals.cogs,
+    grossProfit: pnlStub ? null : pnlTotals.grossProfit,
+    netIncome: pnlStub ? null : pnlTotals.netIncome,
   };
 }
 
 /**
  * Extract native totals from Xero flattened report rows (pre-canonical normalize).
- * These are report cell amounts from `Reports[0].Rows` after flattenXeroReportRows,
- * NOT Advisacor classified/normalized rows.
  */
 export function extractNativeTotalsFromXeroFlattenedRows(input: {
   balanceSheetRows: Array<{ label: string; amount: number }>;
@@ -189,9 +403,45 @@ export function extractNativeTotalsFromXeroFlattenedRows(input: {
   endDate?: string | null;
 }): NativeStatementTotals {
   const flat: FlatNativeRow[] = [
-    ...input.balanceSheetRows.map((row) => ({ label: String(row.label || ""), amount: Number(row.amount || 0) })),
-    ...input.profitAndLossRows.map((row) => ({ label: String(row.label || ""), amount: Number(row.amount || 0) })),
+    ...input.balanceSheetRows.map((row) => {
+      const label = String(row.label || "");
+      const section = String((row as { section?: string }).section || "");
+      const hierarchyPath = Array.isArray((row as { hierarchyPath?: string[] }).hierarchyPath)
+        ? ((row as { hierarchyPath?: string[] }).hierarchyPath as string[])
+        : [section, label].filter(Boolean);
+      return {
+        rawLabel: label,
+        label,
+        amount: Number.isFinite(Number(row.amount)) ? Number(row.amount) : null,
+        hasAmount: Number.isFinite(Number(row.amount)),
+        role: /^total\b/i.test(label) ? ("summary" as const) : ("data" as const),
+        section,
+        hierarchyPath,
+        side: inferNativeStatementSide(hierarchyPath, section),
+      };
+    }),
+    ...input.profitAndLossRows.map((row) => {
+      const label = String(row.label || "");
+      const section = String((row as { section?: string }).section || "");
+      const hierarchyPath = Array.isArray((row as { hierarchyPath?: string[] }).hierarchyPath)
+        ? ((row as { hierarchyPath?: string[] }).hierarchyPath as string[])
+        : [section, label].filter(Boolean);
+      return {
+        rawLabel: label,
+        label,
+        amount: Number.isFinite(Number(row.amount)) ? Number(row.amount) : null,
+        hasAmount: Number.isFinite(Number(row.amount)),
+        role:
+          /^total\b/i.test(label) || /gross profit|net (income|profit)/i.test(label)
+            ? ("summary" as const)
+            : ("data" as const),
+        section,
+        hierarchyPath,
+        side: "unknown" as const,
+      };
+    }),
   ];
+  const totals = pickTotals(flat);
   return {
     source: NATIVE_STATEMENT_SOURCE_XERO,
     balanceSheetReportRef: "Reports/BalanceSheet → flattenXeroReportRows (pre-normalize)",
@@ -200,7 +450,8 @@ export function extractNativeTotalsFromXeroFlattenedRows(input: {
       startDate: input.startDate ? String(input.startDate) : null,
       endDate: input.endDate ? String(input.endDate) : null,
     },
-    ...pickTotals(flat),
+    profitAndLossStub: false,
+    ...totals,
   };
 }
 
@@ -211,6 +462,5 @@ export function readNativeStatementTotalsFromBundleRaw(raw: unknown): NativeStat
   if (stamped && typeof stamped === "object" && (stamped as NativeStatementTotals).source) {
     return stamped as NativeStatementTotals;
   }
-  // QBO: extract live from raw reports if not pre-stamped
   return extractNativeTotalsFromQuickBooksRaw(raw);
 }
