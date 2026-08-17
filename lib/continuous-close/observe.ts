@@ -1,12 +1,10 @@
 /**
- * Continuous Close OBSERVE runner (CC-1 corrected).
- *
- * Pure orchestration only. No provider API calls, ERP writes, JE posts,
- * DB migrations, or Memory writes.
+ * Continuous Close OBSERVE runner — final fail-closed hardening.
  */
 
 import {
   DEFAULT_OBSERVE_POLICY,
+  assertContinuousCloseRunIdentity,
   assertContinuousCloseSyncIdentity,
   capabilityForMode,
   isExecutableContinuousCloseMode,
@@ -27,6 +25,7 @@ import {
 import type {
   ContinuousCloseCapability,
   ContinuousCloseCapabilitySnapshot,
+  ContinuousCloseCapabilityStatus,
   ContinuousCloseFreshness,
   ContinuousCloseObserveInput,
   ContinuousCloseObserveReceipt,
@@ -51,47 +50,109 @@ export type ContinuousCloseObserveResult = {
   memoryWriteAttempted: false;
 };
 
-function evaluateFreshness(
+export function evaluateContinuousCloseFreshness(
   sync: ContinuousCloseObserveInput["sync"],
   maxAgeHours: number | null,
 ): ContinuousCloseFreshness {
   const syncedAt = sync.syncedAt ?? null;
-  if (maxAgeHours == null || !syncedAt) {
+  if (maxAgeHours == null) {
     return {
       accountingSyncId: sync.accountingSyncId,
       syncedAt,
       maxAgeHours,
+      status: "not_gated",
+      isStale: false,
+    };
+  }
+  if (!syncedAt) {
+    return {
+      accountingSyncId: sync.accountingSyncId,
+      syncedAt: null,
+      maxAgeHours,
+      status: "unknown",
       isStale: false,
     };
   }
   const ageMs = Date.now() - new Date(syncedAt).getTime();
-  const isStale = !Number.isFinite(ageMs) || ageMs > maxAgeHours * 3600_000;
+  if (!Number.isFinite(ageMs) || ageMs > maxAgeHours * 3600_000) {
+    return {
+      accountingSyncId: sync.accountingSyncId,
+      syncedAt,
+      maxAgeHours,
+      status: "stale",
+      isStale: true,
+    };
+  }
   return {
     accountingSyncId: sync.accountingSyncId,
     syncedAt,
     maxAgeHours,
-    isStale,
+    status: "current",
+    isStale: false,
   };
 }
 
-function buildCapabilityStatus(input: {
-  statementControlPresent: boolean;
-  assertionPresent: boolean;
-  urmCount: number;
-  priorMemoryPresent: boolean;
-  freshnessStale: boolean;
+function statementControlCapability(
+  control: ContinuousCloseObserveInput["statementControl"],
+  requiredKeys: readonly string[],
+): ContinuousCloseCapabilityStatus {
+  if (!control) return "SUPPORTED_AND_UNAVAILABLE";
+  if (requiredKeys.length === 0) {
+    return control.overallPasses ? "SUPPORTED_AND_PASSED" : "SUPPORTED_AND_FAILED";
+  }
+  const lines = [...control.balanceSheet.lines, ...control.incomeStatement.lines];
+  const requiredFailed = requiredKeys.some((key) => {
+    const line = lines.find((l) => l.key === key);
+    return !line || !line.passes;
+  });
+  return requiredFailed ? "SUPPORTED_AND_FAILED" : "SUPPORTED_AND_PASSED";
+}
+
+function assertionCapability(
+  assertion: ContinuousCloseObserveInput["assertion"],
+): ContinuousCloseCapabilityStatus {
+  if (!assertion) return "NOT_SUPPORTED";
+  return assertion.summary.gap > 0 ? "SUPPORTED_AND_FAILED" : "SUPPORTED_AND_PASSED";
+}
+
+function urmCapability(
+  urmInputs: ContinuousCloseObserveInput["urmInputs"],
+  requiredKinds: readonly string[],
+): ContinuousCloseCapabilityStatus {
+  if (requiredKinds.length === 0 && urmInputs.length === 0) return "NOT_SUPPORTED";
+  if (urmInputs.length === 0) return "SUPPORTED_AND_UNAVAILABLE";
+  const blocked = urmInputs.some(
+    (u) =>
+      u.outcome === "open_material" ||
+      u.outcome === "failed" ||
+      u.outcome === "provider_action_required",
+  );
+  return blocked ? "SUPPORTED_AND_FAILED" : "SUPPORTED_AND_PASSED";
+}
+
+function memoryCapability(
+  prior: ContinuousCloseObserveInput["priorMemoryContext"],
+): ContinuousCloseCapabilityStatus {
+  if (!prior || prior.recordCount <= 0) return "NOT_SUPPORTED";
+  return "SUPPORTED_AND_PASSED";
+}
+
+export function buildCapabilityStatus(input: {
+  statementControl: ContinuousCloseObserveInput["statementControl"];
+  statementControlRequiredKeys: readonly string[];
+  assertion: ContinuousCloseObserveInput["assertion"];
+  urmInputs: ContinuousCloseObserveInput["urmInputs"];
+  requiredReconKinds: readonly string[];
+  priorMemoryContext: ContinuousCloseObserveInput["priorMemoryContext"];
 }): ContinuousCloseCapabilitySnapshot {
   return {
-    statementControl: input.statementControlPresent
-      ? "available"
-      : "unavailable",
-    assertions: input.assertionPresent ? "available" : "not_applicable",
-    urm: input.urmCount > 0 ? "available" : "not_applicable",
-    memoryContext: input.priorMemoryPresent
-      ? input.freshnessStale
-        ? "degraded"
-        : "available"
-      : "not_applicable",
+    statementControl: statementControlCapability(
+      input.statementControl,
+      input.statementControlRequiredKeys,
+    ),
+    assertions: assertionCapability(input.assertion),
+    urm: urmCapability(input.urmInputs, input.requiredReconKinds),
+    memoryContext: memoryCapability(input.priorMemoryContext),
   };
 }
 
@@ -105,98 +166,51 @@ export function runObserveContinuousClose(
 
   stagesCompleted.push("ingest_sync");
   const identityCheck = assertContinuousCloseSyncIdentity(input.sync);
-  const freshness = evaluateFreshness(input.sync, policy.freshnessMaxAgeHours);
+  const runCheck = assertContinuousCloseRunIdentity(input.run);
+  const freshness = evaluateContinuousCloseFreshness(
+    input.sync,
+    policy.freshnessMaxAgeHours,
+  );
 
-  const emptySummary = (): ContinuousCloseMemoryReadyAccountingSummary =>
-    buildContinuousCloseMemoryReadyAccountingSummary({
-      run: input.run,
-      sync: input.sync,
-      readiness: { state: "BLOCKED", blockerCodes: [], reviewCodes: [] },
-      exceptions: [],
-      urmInputs: input.urmInputs,
-      assertion: input.assertion,
-      capability: buildCapabilityStatus({
-        statementControlPresent: Boolean(input.statementControl),
-        assertionPresent: Boolean(input.assertion),
-        urmCount: input.urmInputs.length,
-        priorMemoryPresent: Boolean(input.priorMemoryContext?.recordCount),
-        freshnessStale: freshness.isStale,
-      }),
-      freshness,
-      priorMemoryContext: input.priorMemoryContext,
-    });
+  const capabilityStatus = buildCapabilityStatus({
+    statementControl: input.statementControl,
+    statementControlRequiredKeys: policy.statementControlRequiredKeys,
+    assertion: input.assertion,
+    urmInputs: input.urmInputs,
+    requiredReconKinds: policy.requiredReconKinds,
+    priorMemoryContext: input.priorMemoryContext,
+  });
 
-  if (!executable || !capability.mayEvaluateControls) {
-    const exceptions = classifyContinuousCloseExceptions({
+  const classify = (modeExecutable: boolean) =>
+    classifyContinuousCloseExceptions({
       policy,
+      observeAccountingSyncId: input.sync.accountingSyncId,
       statementControl: input.statementControl,
       statementControlContractVersion: input.statementControlContractVersion,
       assertion: input.assertion,
       urmInputs: input.urmInputs,
       syncIdentityOk: identityCheck.ok,
       syncIdentityReason: identityCheck.ok ? undefined : identityCheck.reason,
-      modeExecutable: false,
-      freshnessStale: freshness.isStale,
+      runIdentityOk: runCheck.ok,
+      runIdentityReason: runCheck.ok ? undefined : runCheck.reason,
+      modeExecutable,
+      freshnessStatus: freshness.status,
     });
+
+  if (!executable || !capability.mayEvaluateControls) {
+    const exceptions = classify(false);
     const readiness = composeContinuousCloseReadiness(exceptions);
     return {
       ok: false,
       mode: input.mode,
       executable: false,
       capability,
-      capabilityStatus: buildCapabilityStatus({
-        statementControlPresent: Boolean(input.statementControl),
-        assertionPresent: Boolean(input.assertion),
-        urmCount: input.urmInputs.length,
-        priorMemoryPresent: Boolean(input.priorMemoryContext?.recordCount),
-        freshnessStale: freshness.isStale,
-      }),
+      capabilityStatus,
       freshness,
       stagesCompleted,
       exceptions,
       readiness,
-      memoryReadyAccountingSummary: {
-        ...emptySummary(),
-        readiness: readiness.state,
-        blockers: readiness.blockerCodes,
-        reviewItems: readiness.reviewCodes,
-      },
-      receipt: null,
-      providerWriteAttempted: false,
-      journalEntryPostAttempted: false,
-      memoryWriteAttempted: false,
-    };
-  }
-
-  stagesCompleted.push("evaluate_controls");
-  stagesCompleted.push("classify_exceptions");
-
-  const exceptions = classifyContinuousCloseExceptions({
-    policy,
-    statementControl: input.statementControl,
-    statementControlContractVersion: input.statementControlContractVersion,
-    assertion: input.assertion,
-    urmInputs: input.urmInputs,
-    syncIdentityOk: identityCheck.ok,
-    syncIdentityReason: identityCheck.ok ? undefined : identityCheck.reason,
-    modeExecutable: true,
-    freshnessStale: freshness.isStale,
-  });
-
-  stagesCompleted.push("compose_readiness");
-  const readiness = composeContinuousCloseReadiness(exceptions);
-
-  const capabilityStatus = buildCapabilityStatus({
-    statementControlPresent: Boolean(input.statementControl),
-    assertionPresent: Boolean(input.assertion),
-    urmCount: input.urmInputs.length,
-    priorMemoryPresent: Boolean(input.priorMemoryContext?.recordCount),
-    freshnessStale: freshness.isStale,
-  });
-
-  stagesCompleted.push("summarize_memory");
-  const memoryReadyAccountingSummary = capability.maySummarizeMemory
-    ? buildContinuousCloseMemoryReadyAccountingSummary({
+      memoryReadyAccountingSummary: buildContinuousCloseMemoryReadyAccountingSummary({
         run: input.run,
         sync: input.sync,
         readiness,
@@ -206,8 +220,33 @@ export function runObserveContinuousClose(
         capability: capabilityStatus,
         freshness,
         priorMemoryContext: input.priorMemoryContext,
-      })
-    : emptySummary();
+      }),
+      receipt: null,
+      providerWriteAttempted: false,
+      journalEntryPostAttempted: false,
+      memoryWriteAttempted: false,
+    };
+  }
+
+  stagesCompleted.push("evaluate_controls");
+  stagesCompleted.push("classify_exceptions");
+  const exceptions = classify(true);
+
+  stagesCompleted.push("compose_readiness");
+  const readiness = composeContinuousCloseReadiness(exceptions);
+
+  stagesCompleted.push("summarize_memory");
+  const memoryReadyAccountingSummary = buildContinuousCloseMemoryReadyAccountingSummary({
+    run: input.run,
+    sync: input.sync,
+    readiness,
+    exceptions,
+    urmInputs: input.urmInputs,
+    assertion: input.assertion,
+    capability: capabilityStatus,
+    freshness,
+    priorMemoryContext: input.priorMemoryContext,
+  });
 
   stagesCompleted.push("emit_observe_receipt");
   const receipt: ContinuousCloseObserveReceipt | null = capability.mayEmitObserveReceipt
@@ -218,12 +257,17 @@ export function runObserveContinuousClose(
         mode: "OBSERVE",
         runId: input.run.runId,
         closePeriodId: input.run.closePeriodId,
+        firmClientId: input.run.firmClientId,
+        observedAt: input.run.observedAt,
         readinessState: readiness.state,
         provider: input.sync.provider,
+        tenantOrRealmId: input.sync.tenantOrRealmId,
+        accountingConnectionId: input.sync.accountingConnectionId,
         accountingSyncId: input.sync.accountingSyncId,
         companyId: input.sync.companyId,
         blockerCount: readiness.blockerCodes.length,
         reviewCount: readiness.reviewCodes.length,
+        freshnessStatus: freshness.status,
         stagesCompleted: [...CONTINUOUS_CLOSE_RUN_STAGES],
       }
     : null;

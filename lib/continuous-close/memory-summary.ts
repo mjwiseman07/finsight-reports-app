@@ -1,9 +1,5 @@
 /**
- * Continuous Close memory-ready accounting summary (OBSERVE).
- *
- * Primary output is the close accounting summary (period/provider/sync/
- * readiness/blockers/recon/assertion). Prior Memory records are optional
- * context only — never the primary payload. No Memory writes.
+ * Continuous Close memory-ready accounting summary — includes full URM projection.
  */
 
 import type { ContinuousCloseException } from "./exceptions";
@@ -20,6 +16,21 @@ import type {
   ContinuousCloseUrmNormalizedInput,
 } from "./types";
 
+export type ContinuousCloseMemoryReadyReconProjection = {
+  workpaperId: string;
+  workpaperKind: string;
+  required: boolean;
+  outcome: ContinuousCloseUrmNormalizedInput["outcome"];
+  unidentifiedResidualCents: number | null;
+  materialityThresholdCents: number | null;
+  grossVarianceCents: number | null;
+  identifiedTotalCents: number | null;
+  evidenceCount: number;
+  sourceAccountingSyncId: string;
+  asOfDate: string | null;
+  urmRunId: string | null;
+};
+
 export type ContinuousCloseMemoryReadyAccountingSummary = {
   period: {
     closePeriodId: string | null;
@@ -27,6 +38,7 @@ export type ContinuousCloseMemoryReadyAccountingSummary = {
     periodEnd: string | null;
     runId: string;
     observedAt: string;
+    firmClientId: string | null;
   };
   provider: AccountingProviderKind;
   sync: {
@@ -38,12 +50,7 @@ export type ContinuousCloseMemoryReadyAccountingSummary = {
   readiness: ContinuousCloseReadinessState;
   blockers: string[];
   reviewItems: string[];
-  reconOutcomes: Array<{
-    workpaperId: string;
-    workpaperKind: string;
-    required: boolean;
-    outcome: ContinuousCloseUrmNormalizedInput["outcome"];
-  }>;
+  reconProjections: ContinuousCloseMemoryReadyReconProjection[];
   assertionState: {
     gap: number;
     gapRate: number;
@@ -52,7 +59,6 @@ export type ContinuousCloseMemoryReadyAccountingSummary = {
   } | null;
   capability: ContinuousCloseCapabilitySnapshot;
   freshness: ContinuousCloseFreshness;
-  /** Optional prior Memory context — secondary to the accounting summary. */
   priorMemoryContext: ContinuousClosePriorMemoryContext | null;
 };
 
@@ -74,12 +80,20 @@ export function buildContinuousCloseMemoryReadyAccountingSummary(input: {
     .filter((e) => e.disposition === "review")
     .map((e) => e.code);
 
-  const reconOutcomes = [...input.urmInputs]
+  const reconProjections: ContinuousCloseMemoryReadyReconProjection[] = [...input.urmInputs]
     .map((u) => ({
       workpaperId: u.workpaperId,
       workpaperKind: u.workpaperKind,
       required: u.required,
       outcome: u.outcome,
+      unidentifiedResidualCents: u.unidentifiedResidualCents,
+      materialityThresholdCents: u.materialityThresholdCents,
+      grossVarianceCents: u.grossVarianceCents,
+      identifiedTotalCents: u.identifiedTotalCents,
+      evidenceCount: u.evidenceCount,
+      sourceAccountingSyncId: u.sourceAccountingSyncId,
+      asOfDate: u.asOfDate,
+      urmRunId: u.urmRunId,
     }))
     .sort((a, b) => a.workpaperId.localeCompare(b.workpaperId));
 
@@ -90,6 +104,7 @@ export function buildContinuousCloseMemoryReadyAccountingSummary(input: {
       periodEnd: input.run.periodEnd ?? null,
       runId: input.run.runId,
       observedAt: input.run.observedAt,
+      firmClientId: input.run.firmClientId,
     },
     provider: input.sync.provider,
     sync: {
@@ -101,7 +116,7 @@ export function buildContinuousCloseMemoryReadyAccountingSummary(input: {
     readiness: input.readiness.state,
     blockers,
     reviewItems,
-    reconOutcomes,
+    reconProjections,
     assertionState: input.assertion
       ? {
           gap: input.assertion.summary.gap,

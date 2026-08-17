@@ -1,8 +1,8 @@
 /**
- * Continuous Close (CC-1) — domain contracts (corrected).
+ * Continuous Close (CC-1) — final hardened domain contracts.
  *
- * Product readiness is READY | READY_WITH_REVIEW | BLOCKED.
- * Only OBSERVE is executable. No ERP writes / JE posts / DB persistence.
+ * Product readiness: READY | READY_WITH_REVIEW | BLOCKED.
+ * OBSERVE only executable. No ERP writes / JE posts / DB / Memory writes.
  */
 
 import type { ReconOutcome } from "@/lib/audit-ready/tie-out/recon-model";
@@ -10,7 +10,6 @@ import type { CoverageSummary } from "@/lib/assertions/coverage-projection";
 import type { StatementControlLineKey } from "@/lib/integrations/accounting/statement-control";
 import type { StatementControlResult } from "@/lib/integrations/accounting/statement-control";
 
-/** Product mode spine. Only OBSERVE is executable in CC-1. */
 export type ContinuousCloseMode =
   | "OBSERVE"
   | "PROPOSE"
@@ -44,14 +43,17 @@ export const CONTINUOUS_CLOSE_RUN_STAGES = [
   "emit_observe_receipt",
 ] as const satisfies readonly ContinuousCloseRunStage[];
 
-/** Product-level readiness contract for RA Pro / Continuous Close. */
 export type ContinuousCloseReadinessState = "READY" | "READY_WITH_REVIEW" | "BLOCKED";
 
+/**
+ * Normalized accounting-source capability semantics.
+ * Distinguishes supported-and-passed from supported-and-failed.
+ */
 export type ContinuousCloseCapabilityStatus =
-  | "available"
-  | "degraded"
-  | "unavailable"
-  | "not_applicable";
+  | "SUPPORTED_AND_PASSED"
+  | "SUPPORTED_AND_FAILED"
+  | "SUPPORTED_AND_UNAVAILABLE"
+  | "NOT_SUPPORTED";
 
 export type ContinuousCloseCapabilitySnapshot = {
   statementControl: ContinuousCloseCapabilityStatus;
@@ -60,10 +62,6 @@ export type ContinuousCloseCapabilitySnapshot = {
   memoryContext: ContinuousCloseCapabilityStatus;
 };
 
-/**
- * Mode capability flags. OBSERVE is read/evaluate/classify/emit only.
- * Write / post / auto-govern stay false until later blocks.
- */
 export type ContinuousCloseCapability = {
   mayReadSyncSnapshot: boolean;
   mayEvaluateControls: boolean;
@@ -79,10 +77,6 @@ export type ContinuousCloseCapability = {
 
 export type AccountingProviderKind = "quickbooks" | "xero";
 
-/**
- * Sync identity — separate from run/period identity.
- * Company must already be resolved by accounting sync persistence.
- */
 export type ContinuousCloseSyncIdentity = {
   provider: AccountingProviderKind;
   tenantOrRealmId: string;
@@ -92,9 +86,11 @@ export type ContinuousCloseSyncIdentity = {
   syncedAt?: string | null;
 };
 
-/** Run / period identity for an OBSERVE evaluation. */
+/**
+ * Run identity contract: non-empty `runId` is mandatory custody key for OBSERVE.
+ * Separate from sync identity.
+ */
 export type ContinuousCloseRunIdentity = {
-  /** Deterministic when caller omits: hash of period+sync+mode+observedAt day. */
   runId: string;
   closePeriodId: string | null;
   firmClientId: string | null;
@@ -103,16 +99,20 @@ export type ContinuousCloseRunIdentity = {
   observedAt: string;
 };
 
+export type ContinuousCloseFreshnessStatus = "current" | "stale" | "unknown" | "not_gated";
+
 export type ContinuousCloseFreshness = {
   accountingSyncId: string;
   syncedAt: string | null;
   maxAgeHours: number | null;
+  status: ContinuousCloseFreshnessStatus;
+  /** True only when status === "stale". Unknown is NOT stale — it blocks separately. */
   isStale: boolean;
 };
 
 /**
- * Normalized URM input — outcomes supplied by URM; CC never invents residuals.
- * `required` marks engagement-required recon vs optional.
+ * Authoritative URM measurement/provenance projection.
+ * Values are supplied by URM — Continuous Close never recomputes them.
  */
 export type ContinuousCloseUrmNormalizedInput = {
   workpaperId: string;
@@ -120,8 +120,18 @@ export type ContinuousCloseUrmNormalizedInput = {
   required: boolean;
   outcome: ReconOutcome;
   unidentifiedResidualCents: number | null;
-  /** When set with residual, abs(residual) > threshold ⇒ material block. */
   materialityThresholdCents: number | null;
+  /** Authoritative gross variance from URM measurement layer (cents). */
+  grossVarianceCents: number | null;
+  /** Sum of identified reconciling items (cents). */
+  identifiedTotalCents: number | null;
+  evidenceCount: number;
+  /** Sync that produced this workpaper measurement. */
+  sourceAccountingSyncId: string;
+  /** As-of / workpaper date (ISO date or datetime). */
+  asOfDate: string | null;
+  /** URM run / workpaper run identity. */
+  urmRunId: string | null;
 };
 
 export type ContinuousCloseAssertionSignal = {
@@ -141,10 +151,10 @@ export type ContinuousCloseObserveInput = {
   statementControlContractVersion: number | null;
   assertion: ContinuousCloseAssertionSignal | null;
   urmInputs: ContinuousCloseUrmNormalizedInput[];
-  /** Optional prior Memory context — never the primary accounting summary. */
   priorMemoryContext?: ContinuousClosePriorMemoryContext | null;
 };
 
+/** Receipt custody fields for later persistence / event publish. */
 export type ContinuousCloseObserveReceipt = {
   eventCategory: "close";
   eventType: "continuous_close.observe.completed";
@@ -152,12 +162,17 @@ export type ContinuousCloseObserveReceipt = {
   mode: "OBSERVE";
   runId: string;
   closePeriodId: string | null;
+  firmClientId: string | null;
+  observedAt: string;
   readinessState: ContinuousCloseReadinessState;
   provider: AccountingProviderKind;
+  tenantOrRealmId: string;
+  accountingConnectionId: string;
   accountingSyncId: string;
   companyId: string;
   blockerCount: number;
   reviewCount: number;
+  freshnessStatus: ContinuousCloseFreshnessStatus;
   stagesCompleted: ContinuousCloseRunStage[];
 };
 

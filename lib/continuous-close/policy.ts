@@ -1,9 +1,8 @@
 /**
- * Continuous Close OBSERVE policy (corrected).
+ * Continuous Close OBSERVE policy — final fail-closed hardening.
  *
- * Default policy does NOT hardcode universal statement-control lines or an
- * arbitrary assertion-gap percentage. Engagement/caller supplies required keys.
- * Material open residuals and required control failures fail closed → BLOCKED.
+ * Locked rule: no required statement controls AND no required recon kinds
+ * configured → policy invalid → BLOCKED (never silent READY).
  */
 
 import type {
@@ -16,53 +15,55 @@ import { EXECUTABLE_CONTINUOUS_CLOSE_MODES } from "./types";
 import type { ReconOutcome } from "@/lib/audit-ready/tie-out/recon-model";
 
 export type ContinuousCloseAssertionPolicy = {
-  /** Gaps create READY_WITH_REVIEW when true. */
   gapsRequireReview: boolean;
-  /**
-   * Optional explicit block threshold (0–1). Null = no universal % gate.
-   * Only applied when the caller opts in via policy — never a silent default.
-   */
+  /** Null = no universal % gate. */
   blockGapRate: number | null;
 };
 
 export type ContinuousCloseUrmPolicy = {
-  /** Outcomes that BLOCK when the workpaper is required. */
   requiredBlockOutcomes: readonly ReconOutcome[];
-  /** Outcomes that require review when the workpaper is required. */
   requiredReviewOutcomes: readonly ReconOutcome[];
-  /**
-   * Outcomes that BLOCK even for optional workpapers.
-   * Material open variance never becomes soft-open.
-   */
   optionalBlockOutcomes: readonly ReconOutcome[];
-  /** Outcomes that require review for optional workpapers. */
   optionalReviewOutcomes: readonly ReconOutcome[];
+};
+
+export type ContinuousCloseEvidencePolicy = {
+  /**
+   * When true, reconciled* outcomes with evidenceCount < minEvidenceCount
+   * require review (do not invent evidence).
+   */
+  requireEvidenceForReconciled: boolean;
+  minEvidenceCountForReconciled: number;
 };
 
 export type ContinuousCloseObservePolicy = {
   mode: ExecutableContinuousCloseMode;
-  /** Fail closed when contract version >= 1 but statementControl snapshot is missing. */
   requireStatementControlSnapshotWhenContracted: boolean;
-  /** Engagement-required statement-control lines (empty by default — not universal). */
   statementControlRequiredKeys: readonly StatementControlPolicyKey[];
-  /** Optional lines: failure → review, not block. */
   statementControlOptionalKeys: readonly StatementControlPolicyKey[];
+  /** Engagement-required recon kinds (e.g. bank, ar, ap). */
+  requiredReconKinds: readonly string[];
+  /** Optional recon kinds. */
+  optionalReconKinds: readonly string[];
   assertion: ContinuousCloseAssertionPolicy;
   urm: ContinuousCloseUrmPolicy;
-  /** Null disables freshness gating. */
+  evidence: ContinuousCloseEvidencePolicy;
+  /**
+   * Cross-sync: URM sourceAccountingSyncId must equal OBSERVE sync id.
+   * Mismatch → BLOCKED.
+   */
+  requireUrmSourceSyncMatch: boolean;
+  /** Null disables freshness gating. When set, missing syncedAt → unknown → BLOCK. */
   freshnessMaxAgeHours: number | null;
 };
 
-/**
- * Starter OBSERVE policy: fail-closed on missing contracted control snapshot and
- * material/failed/provider-required URM outcomes — without inventing a universal
- * KPI line list or assertion % tolerance.
- */
 export const DEFAULT_OBSERVE_POLICY: ContinuousCloseObservePolicy = {
   mode: "OBSERVE",
   requireStatementControlSnapshotWhenContracted: true,
   statementControlRequiredKeys: [],
   statementControlOptionalKeys: [],
+  requiredReconKinds: [],
+  optionalReconKinds: [],
   assertion: {
     gapsRequireReview: true,
     blockGapRate: null,
@@ -73,8 +74,28 @@ export const DEFAULT_OBSERVE_POLICY: ContinuousCloseObservePolicy = {
     optionalBlockOutcomes: ["open_material", "failed"],
     optionalReviewOutcomes: ["open_review", "provider_action_required"],
   },
+  evidence: {
+    requireEvidenceForReconciled: true,
+    minEvidenceCountForReconciled: 1,
+  },
+  requireUrmSourceSyncMatch: true,
   freshnessMaxAgeHours: null,
 };
+
+/**
+ * Policy validation — fail closed when no required controls are configured.
+ * At least one of statementControlRequiredKeys or requiredReconKinds must be set.
+ */
+export function validateObservePolicy(
+  policy: ContinuousCloseObservePolicy,
+): { ok: true } | { ok: false; reason: string } {
+  const hasRequiredStatement = policy.statementControlRequiredKeys.length > 0;
+  const hasRequiredRecon = policy.requiredReconKinds.length > 0;
+  if (!hasRequiredStatement && !hasRequiredRecon) {
+    return { ok: false, reason: "no_required_controls_configured" };
+  }
+  return { ok: true };
+}
 
 export function isExecutableContinuousCloseMode(
   mode: ContinuousCloseMode,
@@ -139,12 +160,6 @@ export function capabilityForMode(mode: ContinuousCloseMode): ContinuousCloseCap
   };
 }
 
-/**
- * Sync identity rule (locked — separate from run/period identity):
- * 1. Provider tenant/realm binds the connection.
- * 2. companyId must already be resolved by sync persistence.
- * 3. Refuse OBSERVE when tenant/realm, companyId, connectionId, or syncId is missing.
- */
 export function assertContinuousCloseSyncIdentity(identity: {
   tenantOrRealmId?: string | null;
   companyId?: string | null;
@@ -166,7 +181,19 @@ export function assertContinuousCloseSyncIdentity(identity: {
   return { ok: true };
 }
 
-/** Material residual blocking: uses supplied residual + threshold only (no URM math). */
+export function assertContinuousCloseRunIdentity(run: {
+  runId?: string | null;
+  observedAt?: string | null;
+}): { ok: true } | { ok: false; reason: string } {
+  if (!String(run.runId || "").trim()) {
+    return { ok: false, reason: "missing_run_id" };
+  }
+  if (!String(run.observedAt || "").trim()) {
+    return { ok: false, reason: "missing_observed_at" };
+  }
+  return { ok: true };
+}
+
 export function isMaterialResidualBlocked(input: {
   outcome: ReconOutcome;
   unidentifiedResidualCents: number | null;
@@ -181,4 +208,12 @@ export function isMaterialResidualBlocked(input: {
     return true;
   }
   return false;
+}
+
+export function isReconciledOutcome(outcome: ReconOutcome): boolean {
+  return (
+    outcome === "reconciled_exact" ||
+    outcome === "reconciled_with_timing" ||
+    outcome === "reconciled_immaterial_residual"
+  );
 }
