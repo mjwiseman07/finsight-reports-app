@@ -1,5 +1,6 @@
 /**
- * Continuous Close readiness composition (OBSERVE).
+ * Continuous Close readiness — product contract:
+ * READY | READY_WITH_REVIEW | BLOCKED
  */
 
 import type { ContinuousCloseException } from "./exceptions";
@@ -7,60 +8,35 @@ import type { ContinuousCloseReadinessState } from "./types";
 
 export type ContinuousCloseReadinessResult = {
   state: ContinuousCloseReadinessState;
-  blockingExceptionCodes: string[];
-  openExceptionCodes: string[];
+  blockerCodes: string[];
+  reviewCodes: string[];
 };
 
 export function composeContinuousCloseReadiness(
   exceptions: readonly ContinuousCloseException[],
 ): ContinuousCloseReadinessResult {
-  const blocking = exceptions.filter((e) => e.severity === "block");
-  const open = exceptions.filter((e) => e.severity === "open");
+  const blockers = exceptions.filter((e) => e.disposition === "block");
+  const reviews = exceptions.filter((e) => e.disposition === "review");
 
-  if (blocking.some((e) => e.exceptionClass === "sync_identity_invalid" || e.exceptionClass === "mode_not_executable")) {
+  if (blockers.length > 0) {
     return {
-      state: "blocked",
-      blockingExceptionCodes: blocking.map((e) => e.code),
-      openExceptionCodes: open.map((e) => e.code),
+      state: "BLOCKED",
+      blockerCodes: blockers.map((e) => e.code),
+      reviewCodes: reviews.map((e) => e.code),
     };
   }
 
-  if (blocking.length > 0) {
+  if (reviews.length > 0) {
     return {
-      state: "blocked",
-      blockingExceptionCodes: blocking.map((e) => e.code),
-      openExceptionCodes: open.map((e) => e.code),
+      state: "READY_WITH_REVIEW",
+      blockerCodes: [],
+      reviewCodes: reviews.map((e) => e.code),
     };
   }
 
-  if (open.some((e) => e.exceptionClass === "statement_control_fail" || e.exceptionClass === "statement_control_missing")) {
-    return {
-      state: "controls_incomplete",
-      blockingExceptionCodes: [],
-      openExceptionCodes: open.map((e) => e.code),
-    };
-  }
-
-  if (open.length > 0) {
-    return {
-      state: "exceptions_open",
-      blockingExceptionCodes: [],
-      openExceptionCodes: open.map((e) => e.code),
-    };
-  }
-
-  if (exceptions.length === 0) {
-    return {
-      state: "observe_ready",
-      blockingExceptionCodes: [],
-      openExceptionCodes: [],
-    };
-  }
-
-  // Only info-severity exceptions remain.
   return {
-    state: "observe_ready",
-    blockingExceptionCodes: [],
-    openExceptionCodes: [],
+    state: "READY",
+    blockerCodes: [],
+    reviewCodes: [],
   };
 }

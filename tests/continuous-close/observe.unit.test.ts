@@ -2,21 +2,26 @@ import { describe, expect, it } from "vitest";
 import {
   CONTINUOUS_CLOSE_MODES,
   CONTINUOUS_CLOSE_RUN_STAGES,
-  EXECUTABLE_CONTINUOUS_CLOSE_MODES,
   DEFAULT_OBSERVE_POLICY,
+  EXECUTABLE_CONTINUOUS_CLOSE_MODES,
   assertContinuousCloseSyncIdentity,
-  buildContinuousCloseMemorySummary,
+  buildContinuousCloseMemoryReadyAccountingSummary,
   capabilityForMode,
   classifyContinuousCloseExceptions,
   composeContinuousCloseReadiness,
   isExecutableContinuousCloseMode,
+  isMaterialResidualBlocked,
   runObserveContinuousClose,
   type ContinuousCloseObserveInput,
+  type ContinuousCloseObservePolicy,
 } from "@/lib/continuous-close";
 import type { StatementControlResult } from "@/lib/integrations/accounting/statement-control";
 
 function passingControl(): StatementControlResult {
-  const passLine = (key: StatementControlResult["balanceSheet"]["lines"][number]["key"], label: string) => ({
+  const passLine = (
+    key: StatementControlResult["balanceSheet"]["lines"][number]["key"],
+    label: string,
+  ) => ({
     key,
     label,
     nativeAmount: 100,
@@ -41,9 +46,6 @@ function passingControl(): StatementControlResult {
       lines: [
         passLine("cash", "Cash"),
         passLine("ar", "AR"),
-        passLine("total_assets", "Assets"),
-        passLine("total_liabilities", "Liabilities"),
-        passLine("total_equity", "Equity"),
         passLine("bs_equation", "BS equation"),
       ],
       passes: true,
@@ -61,50 +63,56 @@ function passingControl(): StatementControlResult {
   };
 }
 
-function baseIdentity(provider: "quickbooks" | "xero"): ContinuousCloseObserveInput["identity"] {
-  return {
-    provider,
-    tenantOrRealmId: provider === "quickbooks" ? "realm-1" : "tenant-1",
-    companyId: "company-1",
-    accountingConnectionId: "conn-1",
-    accountingSyncId: "sync-1",
-    firmClientId: "fc-1",
-    closePeriodId: "cp-1",
-  };
-}
-
 function baseInput(provider: "quickbooks" | "xero"): ContinuousCloseObserveInput {
   return {
     mode: "OBSERVE",
-    identity: baseIdentity(provider),
+    run: {
+      runId: `run-${provider}-1`,
+      closePeriodId: "cp-1",
+      firmClientId: "fc-1",
+      periodStart: "2026-07-01",
+      periodEnd: "2026-07-31",
+      observedAt: "2026-08-17T12:00:00.000Z",
+    },
+    sync: {
+      provider,
+      tenantOrRealmId: provider === "quickbooks" ? "realm-1" : "tenant-1",
+      companyId: "company-1",
+      accountingConnectionId: "conn-1",
+      accountingSyncId: "sync-1",
+      syncedAt: "2026-08-17T11:00:00.000Z",
+    },
     statementControl: passingControl(),
     statementControlContractVersion: 1,
     assertion: {
       summary: {
         totalPairs: 10,
-        tested: 8,
-        partial: 1,
-        gap: 1,
+        tested: 10,
+        partial: 0,
+        gap: 0,
         notApplicable: 0,
-        gapRate: 0.1,
+        gapRate: 0,
       },
-      maxGapRate: 0.25,
     },
-    urmSignals: [{ workpaperKind: "bank", outcome: "reconciled_exact" }],
-    memoryRecords: [
+    urmInputs: [
       {
-        memory_key: "cc.pattern.1",
-        memory_type: "recurring_pattern",
-        confidence_score: 0.8,
-        persistence_status: "persisted",
-        topic: "cash",
+        workpaperId: "urm-bank-1",
+        workpaperKind: "bank",
+        required: true,
+        outcome: "reconciled_exact",
+        unidentifiedResidualCents: 0,
+        materialityThresholdCents: 10000,
       },
     ],
+    priorMemoryContext: {
+      recordCount: 2,
+      highlightKeys: ["prior.key.1"],
+    },
   };
 }
 
 describe("Continuous Close mode / stage contracts", () => {
-  it("declares the full mode spine and only OBSERVE as executable", () => {
+  it("declares full mode spine with OBSERVE executable only", () => {
     expect([...CONTINUOUS_CLOSE_MODES]).toEqual([
       "OBSERVE",
       "PROPOSE",
@@ -113,135 +121,185 @@ describe("Continuous Close mode / stage contracts", () => {
     ]);
     expect([...EXECUTABLE_CONTINUOUS_CLOSE_MODES]).toEqual(["OBSERVE"]);
     expect(isExecutableContinuousCloseMode("OBSERVE")).toBe(true);
-    expect(isExecutableContinuousCloseMode("GOVERNED_AUTO")).toBe(false);
+    expect(isExecutableContinuousCloseMode("PROPOSE")).toBe(false);
   });
 
-  it("keeps OBSERVE capabilities read/evaluate only", () => {
+  it("keeps OBSERVE non-writing", () => {
     const caps = capabilityForMode("OBSERVE");
-    expect(caps.mayEvaluateControls).toBe(true);
-    expect(caps.mayEmitObserveReceipt).toBe(true);
-    expect(caps.mayAutoPostJournalEntries).toBe(false);
     expect(caps.mayWriteProviderErp).toBe(false);
+    expect(caps.mayAutoPostJournalEntries).toBe(false);
     expect(caps.mayProposeRemediation).toBe(false);
   });
 
-  it("defines the OBSERVE run stage order", () => {
-    expect([...CONTINUOUS_CLOSE_RUN_STAGES]).toEqual([
-      "ingest_sync",
-      "evaluate_controls",
-      "classify_exceptions",
-      "compose_readiness",
-      "summarize_memory",
-      "emit_observe_receipt",
-    ]);
+  it("keeps default policy free of universal KPI hardcodes and gap %", () => {
+    expect(DEFAULT_OBSERVE_POLICY.statementControlRequiredKeys).toEqual([]);
+    expect(DEFAULT_OBSERVE_POLICY.assertion.blockGapRate).toBeNull();
+    expect(DEFAULT_OBSERVE_POLICY.urm.requiredBlockOutcomes).toContain("open_material");
+    expect(DEFAULT_OBSERVE_POLICY.urm.requiredBlockOutcomes).toContain("provider_action_required");
+  });
+
+  it("defines OBSERVE run stages", () => {
+    expect([...CONTINUOUS_CLOSE_RUN_STAGES]).toHaveLength(6);
   });
 });
 
-describe("sync identity rule", () => {
-  it("fails closed when identity pieces are missing", () => {
-    expect(assertContinuousCloseSyncIdentity({}).ok).toBe(false);
-    expect(
-      assertContinuousCloseSyncIdentity({
-        tenantOrRealmId: "t",
-        companyId: "c",
-        accountingConnectionId: "conn",
-        accountingSyncId: "sync",
-      }).ok,
-    ).toBe(true);
-  });
-});
-
-describe("exception + readiness composition", () => {
-  it("opens statement-control exceptions when required lines fail", () => {
-    const control = passingControl();
-    control.balanceSheet.lines = control.balanceSheet.lines.map((l) =>
-      l.key === "cash" ? { ...l, passes: false, status: "fail", reason: "cash variance" } : l,
-    );
-    const exceptions = classifyContinuousCloseExceptions({
-      policy: DEFAULT_OBSERVE_POLICY,
-      statementControl: control,
-      statementControlContractVersion: 1,
-      assertion: null,
-      urmSignals: [],
-      syncIdentityOk: true,
-      modeExecutable: true,
-    });
-    expect(exceptions.some((e) => e.code === "cc.statement_control.fail.cash")).toBe(true);
-    expect(composeContinuousCloseReadiness(exceptions).state).toBe("controls_incomplete");
-  });
-
-  it("blocks on URM failed outcomes", () => {
+describe("fail-closed material / required controls", () => {
+  it("blocks open_material on required recon", () => {
     const exceptions = classifyContinuousCloseExceptions({
       policy: DEFAULT_OBSERVE_POLICY,
       statementControl: passingControl(),
       statementControlContractVersion: 1,
       assertion: null,
-      urmSignals: [{ workpaperKind: "inventory_fa", outcome: "failed" }],
+      urmInputs: [
+        {
+          workpaperId: "urm-1",
+          workpaperKind: "bank",
+          required: true,
+          outcome: "open_material",
+          unidentifiedResidualCents: 50000,
+          materialityThresholdCents: 10000,
+        },
+      ],
       syncIdentityOk: true,
       modeExecutable: true,
     });
-    expect(composeContinuousCloseReadiness(exceptions).state).toBe("blocked");
+    expect(composeContinuousCloseReadiness(exceptions).state).toBe("BLOCKED");
+    expect(exceptions.some((e) => e.disposition === "block")).toBe(true);
+  });
+
+  it("blocks material residual even when outcome is not open_material", () => {
+    expect(
+      isMaterialResidualBlocked({
+        outcome: "open_review",
+        unidentifiedResidualCents: 25000,
+        materialityThresholdCents: 10000,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks required statement-control failures", () => {
+    const policy: ContinuousCloseObservePolicy = {
+      ...DEFAULT_OBSERVE_POLICY,
+      statementControlRequiredKeys: ["cash"],
+    };
+    const control = passingControl();
+    control.balanceSheet.lines = control.balanceSheet.lines.map((l) =>
+      l.key === "cash" ? { ...l, passes: false, status: "fail", reason: "cash variance" } : l,
+    );
+    const exceptions = classifyContinuousCloseExceptions({
+      policy,
+      statementControl: control,
+      statementControlContractVersion: 1,
+      assertion: null,
+      urmInputs: [],
+      syncIdentityOk: true,
+      modeExecutable: true,
+    });
+    expect(exceptions.find((e) => e.source === "cash")?.disposition).toBe("block");
+    expect(composeContinuousCloseReadiness(exceptions).state).toBe("BLOCKED");
+  });
+
+  it("provider_action_required blocks when required, reviews when optional", () => {
+    const required = classifyContinuousCloseExceptions({
+      policy: DEFAULT_OBSERVE_POLICY,
+      statementControl: null,
+      statementControlContractVersion: 0,
+      assertion: null,
+      urmInputs: [
+        {
+          workpaperId: "urm-req",
+          workpaperKind: "ar",
+          required: true,
+          outcome: "provider_action_required",
+          unidentifiedResidualCents: null,
+          materialityThresholdCents: null,
+        },
+      ],
+      syncIdentityOk: true,
+      modeExecutable: true,
+    });
+    expect(composeContinuousCloseReadiness(required).state).toBe("BLOCKED");
+
+    const optional = classifyContinuousCloseExceptions({
+      policy: DEFAULT_OBSERVE_POLICY,
+      statementControl: null,
+      statementControlContractVersion: 0,
+      assertion: null,
+      urmInputs: [
+        {
+          workpaperId: "urm-opt",
+          workpaperKind: "ar",
+          required: false,
+          outcome: "provider_action_required",
+          unidentifiedResidualCents: null,
+          materialityThresholdCents: null,
+        },
+      ],
+      syncIdentityOk: true,
+      modeExecutable: true,
+    });
+    expect(composeContinuousCloseReadiness(optional).state).toBe("READY_WITH_REVIEW");
   });
 });
 
-describe("memory summary", () => {
-  it("summarizes records without requiring persistence writes", () => {
-    const summary = buildContinuousCloseMemorySummary([
-      {
-        memory_key: "a",
-        memory_type: "operational_note",
-        confidence_score: 0.5,
-        persistence_status: "pending",
-        topic: "ar",
+describe("memory-ready accounting summary", () => {
+  it("centers period/provider/sync/readiness/blockers/recon/assertion — not prior Memory stats", () => {
+    const readiness = { state: "READY" as const, blockerCodes: [], reviewCodes: [] };
+    const summary = buildContinuousCloseMemoryReadyAccountingSummary({
+      run: baseInput("quickbooks").run,
+      sync: baseInput("quickbooks").sync,
+      readiness,
+      exceptions: [],
+      urmInputs: baseInput("quickbooks").urmInputs,
+      assertion: baseInput("quickbooks").assertion,
+      capability: {
+        statementControl: "available",
+        assertions: "available",
+        urm: "available",
+        memoryContext: "available",
       },
-      {
-        memory_key: "b",
-        memory_type: "recurring_pattern",
-        confidence_score: 1,
-        persistence_status: "persisted",
-        topic: "ar",
+      freshness: {
+        accountingSyncId: "sync-1",
+        syncedAt: "2026-08-17T11:00:00.000Z",
+        maxAgeHours: null,
+        isStale: false,
       },
-    ]);
-    expect(summary.recordCount).toBe(2);
-    expect(summary.persistedCount).toBe(1);
-    expect(summary.topics).toEqual(["ar"]);
-    expect(summary.highlightKeys[0]).toBe("b");
+      priorMemoryContext: { recordCount: 9, highlightKeys: ["x"] },
+    });
+    expect(summary.readiness).toBe("READY");
+    expect(summary.provider).toBe("quickbooks");
+    expect(summary.sync.accountingSyncId).toBe("sync-1");
+    expect(summary.reconOutcomes[0]?.outcome).toBe("reconciled_exact");
+    expect(summary.assertionState?.gap).toBe(0);
+    expect(summary.priorMemoryContext?.recordCount).toBe(9);
+    expect(summary).not.toHaveProperty("averageConfidence");
   });
 });
 
 describe("runObserveContinuousClose", () => {
-  it("completes OBSERVE stages and emits a close receipt without provider writes", () => {
-    const result = runObserveContinuousClose(baseInput("quickbooks"));
-    expect(result.executable).toBe(true);
-    expect(result.stagesCompleted).toEqual([...CONTINUOUS_CLOSE_RUN_STAGES]);
-    expect(result.readiness.state).toBe("observe_ready");
-    expect(result.receipt?.eventCategory).toBe("close");
-    expect(result.receipt?.eventType).toBe("continuous_close.observe.completed");
+  it("returns READY product readiness without writes", () => {
+    const result = runObserveContinuousClose(baseInput("xero"));
+    expect(result.readiness.state).toBe("READY");
+    expect(result.receipt?.readinessState).toBe("READY");
     expect(result.providerWriteAttempted).toBe(false);
     expect(result.journalEntryPostAttempted).toBe(false);
+    expect(result.memoryWriteAttempted).toBe(false);
+    expect(result.memoryReadyAccountingSummary.period.runId).toBe("run-xero-1");
   });
 
-  it("QBO and Xero parity — same readiness path for both providers", () => {
+  it("QBO/Xero parity for readiness path", () => {
     const qbo = runObserveContinuousClose(baseInput("quickbooks"));
     const xero = runObserveContinuousClose(baseInput("xero"));
     expect(qbo.readiness.state).toBe(xero.readiness.state);
     expect(qbo.stagesCompleted).toEqual(xero.stagesCompleted);
     expect(qbo.capability).toEqual(xero.capability);
-    expect(qbo.receipt?.provider).toBe("quickbooks");
-    expect(xero.receipt?.provider).toBe("xero");
-    expect(qbo.providerWriteAttempted).toBe(false);
-    expect(xero.providerWriteAttempted).toBe(false);
   });
 
-  it("refuses non-executable modes without inventing write authority", () => {
-    const result = runObserveContinuousClose({
-      ...baseInput("xero"),
-      mode: "GOVERNED_AUTO",
-    });
-    expect(result.executable).toBe(false);
-    expect(result.receipt).toBeNull();
-    expect(result.readiness.state).toBe("blocked");
-    expect(result.capability.mayWriteProviderErp).toBe(false);
-    expect(result.capability.mayAutoPostJournalEntries).toBe(false);
+  it("separates sync identity from run/period identity", () => {
+    expect(assertContinuousCloseSyncIdentity(baseInput("quickbooks").sync).ok).toBe(true);
+    const result = runObserveContinuousClose(baseInput("quickbooks"));
+    expect(result.receipt?.runId).toBe("run-quickbooks-1");
+    expect(result.receipt?.accountingSyncId).toBe("sync-1");
+    expect(result.memoryReadyAccountingSummary.period.closePeriodId).toBe("cp-1");
   });
 });

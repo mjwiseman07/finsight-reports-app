@@ -1,57 +1,79 @@
 /**
- * Continuous Close policy — OBSERVE required-control design.
+ * Continuous Close OBSERVE policy (corrected).
  *
- * Policy is a pure snapshot: it declares which controls must pass for
- * observe_ready, and which capabilities each mode holds. It never posts JEs
- * or calls providers.
+ * Default policy does NOT hardcode universal statement-control lines or an
+ * arbitrary assertion-gap percentage. Engagement/caller supplies required keys.
+ * Material open residuals and required control failures fail closed → BLOCKED.
  */
 
 import type {
   ContinuousCloseCapability,
   ContinuousCloseMode,
   ExecutableContinuousCloseMode,
+  StatementControlPolicyKey,
 } from "./types";
 import { EXECUTABLE_CONTINUOUS_CLOSE_MODES } from "./types";
-import type { StatementControlLineKey } from "@/lib/integrations/accounting/statement-control";
+import type { ReconOutcome } from "@/lib/audit-ready/tie-out/recon-model";
 
-/** Statement-control lines that must pass for OBSERVE readiness. */
-export type RequiredStatementControlKey = Extract<
-  StatementControlLineKey,
-  "cash" | "ar" | "total_assets" | "total_liabilities" | "total_equity" | "bs_equation" | "net_income"
->;
+export type ContinuousCloseAssertionPolicy = {
+  /** Gaps create READY_WITH_REVIEW when true. */
+  gapsRequireReview: boolean;
+  /**
+   * Optional explicit block threshold (0–1). Null = no universal % gate.
+   * Only applied when the caller opts in via policy — never a silent default.
+   */
+  blockGapRate: number | null;
+};
+
+export type ContinuousCloseUrmPolicy = {
+  /** Outcomes that BLOCK when the workpaper is required. */
+  requiredBlockOutcomes: readonly ReconOutcome[];
+  /** Outcomes that require review when the workpaper is required. */
+  requiredReviewOutcomes: readonly ReconOutcome[];
+  /**
+   * Outcomes that BLOCK even for optional workpapers.
+   * Material open variance never becomes soft-open.
+   */
+  optionalBlockOutcomes: readonly ReconOutcome[];
+  /** Outcomes that require review for optional workpapers. */
+  optionalReviewOutcomes: readonly ReconOutcome[];
+};
 
 export type ContinuousCloseObservePolicy = {
   mode: ExecutableContinuousCloseMode;
-  /** Fail closed when contract version is present but statementControl is missing. */
-  requireStatementControlWhenContracted: boolean;
-  requiredStatementControlKeys: readonly RequiredStatementControlKey[];
-  /** Assertion gap rate above this blocks observe_ready. */
-  maxAssertionGapRate: number;
-  /** URM outcomes that open exceptions (do not invent residuals). */
-  urmOpenOutcomes: readonly string[];
-  /** URM outcomes treated as hard blocks. */
-  urmBlockOutcomes: readonly string[];
+  /** Fail closed when contract version >= 1 but statementControl snapshot is missing. */
+  requireStatementControlSnapshotWhenContracted: boolean;
+  /** Engagement-required statement-control lines (empty by default — not universal). */
+  statementControlRequiredKeys: readonly StatementControlPolicyKey[];
+  /** Optional lines: failure → review, not block. */
+  statementControlOptionalKeys: readonly StatementControlPolicyKey[];
+  assertion: ContinuousCloseAssertionPolicy;
+  urm: ContinuousCloseUrmPolicy;
+  /** Null disables freshness gating. */
+  freshnessMaxAgeHours: number | null;
 };
 
+/**
+ * Starter OBSERVE policy: fail-closed on missing contracted control snapshot and
+ * material/failed/provider-required URM outcomes — without inventing a universal
+ * KPI line list or assertion % tolerance.
+ */
 export const DEFAULT_OBSERVE_POLICY: ContinuousCloseObservePolicy = {
   mode: "OBSERVE",
-  requireStatementControlWhenContracted: true,
-  requiredStatementControlKeys: [
-    "cash",
-    "ar",
-    "total_assets",
-    "total_liabilities",
-    "total_equity",
-    "bs_equation",
-    "net_income",
-  ],
-  maxAssertionGapRate: 0.25,
-  urmOpenOutcomes: [
-    "open_review",
-    "open_material",
-    "provider_action_required",
-  ],
-  urmBlockOutcomes: ["failed"],
+  requireStatementControlSnapshotWhenContracted: true,
+  statementControlRequiredKeys: [],
+  statementControlOptionalKeys: [],
+  assertion: {
+    gapsRequireReview: true,
+    blockGapRate: null,
+  },
+  urm: {
+    requiredBlockOutcomes: ["open_material", "failed", "provider_action_required"],
+    requiredReviewOutcomes: ["open_review"],
+    optionalBlockOutcomes: ["open_material", "failed"],
+    optionalReviewOutcomes: ["open_review", "provider_action_required"],
+  },
+  freshnessMaxAgeHours: null,
 };
 
 export function isExecutableContinuousCloseMode(
@@ -75,8 +97,6 @@ export function capabilityForMode(mode: ContinuousCloseMode): ContinuousCloseCap
       mayWriteProviderErp: false,
     };
   }
-
-  // Declared future modes — not executable in CC-1; capabilities stay non-writing.
   if (mode === "PROPOSE") {
     return {
       mayReadSyncSnapshot: true,
@@ -91,7 +111,6 @@ export function capabilityForMode(mode: ContinuousCloseMode): ContinuousCloseCap
       mayWriteProviderErp: false,
     };
   }
-
   if (mode === "REVIEW_REQUIRED") {
     return {
       mayReadSyncSnapshot: true,
@@ -106,8 +125,6 @@ export function capabilityForMode(mode: ContinuousCloseMode): ContinuousCloseCap
       mayWriteProviderErp: false,
     };
   }
-
-  // GOVERNED_AUTO — still no ERP write in this module; future block owns posting.
   return {
     mayReadSyncSnapshot: true,
     mayEvaluateControls: true,
@@ -123,12 +140,10 @@ export function capabilityForMode(mode: ContinuousCloseMode): ContinuousCloseCap
 }
 
 /**
- * Sync identity rule (locked — do not invent companies):
- * 1. Provider tenant/realm is authoritative for connection binding.
- * 2. companyId must already be resolved by accounting sync persistence
- *    (`resolveCompanyIdForSyncPersist` precedence).
- * 3. Continuous Close refuses to run when tenant/realm, companyId,
- *    connectionId, or syncId is missing.
+ * Sync identity rule (locked — separate from run/period identity):
+ * 1. Provider tenant/realm binds the connection.
+ * 2. companyId must already be resolved by sync persistence.
+ * 3. Refuse OBSERVE when tenant/realm, companyId, connectionId, or syncId is missing.
  */
 export function assertContinuousCloseSyncIdentity(identity: {
   tenantOrRealmId?: string | null;
@@ -149,4 +164,21 @@ export function assertContinuousCloseSyncIdentity(identity: {
     return { ok: false, reason: "missing_accounting_sync_id" };
   }
   return { ok: true };
+}
+
+/** Material residual blocking: uses supplied residual + threshold only (no URM math). */
+export function isMaterialResidualBlocked(input: {
+  outcome: ReconOutcome;
+  unidentifiedResidualCents: number | null;
+  materialityThresholdCents: number | null;
+}): boolean {
+  if (input.outcome === "open_material") return true;
+  if (
+    input.unidentifiedResidualCents != null &&
+    input.materialityThresholdCents != null &&
+    Math.abs(input.unidentifiedResidualCents) > Math.abs(input.materialityThresholdCents)
+  ) {
+    return true;
+  }
+  return false;
 }

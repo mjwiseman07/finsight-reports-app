@@ -1,12 +1,13 @@
 /**
- * Continuous Close (CC-1) — domain contracts.
+ * Continuous Close (CC-1) — domain contracts (corrected).
  *
- * OBSERVE-only foundation. Future modes (PROPOSE / REVIEW_REQUIRED / GOVERNED_AUTO)
- * are declared for the state spine but are not executable in this block.
+ * Product readiness is READY | READY_WITH_REVIEW | BLOCKED.
+ * Only OBSERVE is executable. No ERP writes / JE posts / DB persistence.
  */
 
 import type { ReconOutcome } from "@/lib/audit-ready/tie-out/recon-model";
 import type { CoverageSummary } from "@/lib/assertions/coverage-projection";
+import type { StatementControlLineKey } from "@/lib/integrations/accounting/statement-control";
 import type { StatementControlResult } from "@/lib/integrations/accounting/statement-control";
 
 /** Product mode spine. Only OBSERVE is executable in CC-1. */
@@ -23,12 +24,9 @@ export const CONTINUOUS_CLOSE_MODES = [
   "GOVERNED_AUTO",
 ] as const satisfies readonly ContinuousCloseMode[];
 
-/** Modes the runtime may execute today. */
 export const EXECUTABLE_CONTINUOUS_CLOSE_MODES = ["OBSERVE"] as const;
-
 export type ExecutableContinuousCloseMode = (typeof EXECUTABLE_CONTINUOUS_CLOSE_MODES)[number];
 
-/** Ordered stages inside a single OBSERVE run. */
 export type ContinuousCloseRunStage =
   | "ingest_sync"
   | "evaluate_controls"
@@ -46,17 +44,25 @@ export const CONTINUOUS_CLOSE_RUN_STAGES = [
   "emit_observe_receipt",
 ] as const satisfies readonly ContinuousCloseRunStage[];
 
-/** Derived readiness projection for OBSERVE (no write authority). */
-export type ContinuousCloseReadinessState =
-  | "not_ready"
-  | "controls_incomplete"
-  | "exceptions_open"
-  | "observe_ready"
-  | "blocked";
+/** Product-level readiness contract for RA Pro / Continuous Close. */
+export type ContinuousCloseReadinessState = "READY" | "READY_WITH_REVIEW" | "BLOCKED";
+
+export type ContinuousCloseCapabilityStatus =
+  | "available"
+  | "degraded"
+  | "unavailable"
+  | "not_applicable";
+
+export type ContinuousCloseCapabilitySnapshot = {
+  statementControl: ContinuousCloseCapabilityStatus;
+  assertions: ContinuousCloseCapabilityStatus;
+  urm: ContinuousCloseCapabilityStatus;
+  memoryContext: ContinuousCloseCapabilityStatus;
+};
 
 /**
- * Capability flags for a mode. OBSERVE is read/evaluate/classify/emit only.
- * Write / post / auto-govern flags stay false until later blocks.
+ * Mode capability flags. OBSERVE is read/evaluate/classify/emit only.
+ * Write / post / auto-govern stay false until later blocks.
  */
 export type ContinuousCloseCapability = {
   mayReadSyncSnapshot: boolean;
@@ -74,50 +80,69 @@ export type ContinuousCloseCapability = {
 export type AccountingProviderKind = "quickbooks" | "xero";
 
 /**
- * Sync identity inputs for Continuous Close.
- * Company resolution must follow the existing accounting sync precedence —
- * never invent a company from display names alone.
+ * Sync identity — separate from run/period identity.
+ * Company must already be resolved by accounting sync persistence.
  */
 export type ContinuousCloseSyncIdentity = {
   provider: AccountingProviderKind;
-  /** Provider tenant: QBO realmId or Xero tenantId. */
   tenantOrRealmId: string;
   companyId: string;
   accountingConnectionId: string;
   accountingSyncId: string;
-  firmClientId?: string | null;
-  closePeriodId?: string | null;
+  syncedAt?: string | null;
 };
 
-export type ContinuousCloseUrmSignal = {
+/** Run / period identity for an OBSERVE evaluation. */
+export type ContinuousCloseRunIdentity = {
+  /** Deterministic when caller omits: hash of period+sync+mode+observedAt day. */
+  runId: string;
+  closePeriodId: string | null;
+  firmClientId: string | null;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  observedAt: string;
+};
+
+export type ContinuousCloseFreshness = {
+  accountingSyncId: string;
+  syncedAt: string | null;
+  maxAgeHours: number | null;
+  isStale: boolean;
+};
+
+/**
+ * Normalized URM input — outcomes supplied by URM; CC never invents residuals.
+ * `required` marks engagement-required recon vs optional.
+ */
+export type ContinuousCloseUrmNormalizedInput = {
+  workpaperId: string;
   workpaperKind: string;
+  required: boolean;
   outcome: ReconOutcome;
-  /** Optional cents residual for materiality messaging (never invents URM math). */
-  unidentifiedResidualCents?: number | null;
+  unidentifiedResidualCents: number | null;
+  /** When set with residual, abs(residual) > threshold ⇒ material block. */
+  materialityThresholdCents: number | null;
 };
 
 export type ContinuousCloseAssertionSignal = {
   summary: CoverageSummary;
-  /** Max allowed gap rate under OBSERVE policy (0–1). */
-  maxGapRate: number;
+};
+
+export type ContinuousClosePriorMemoryContext = {
+  recordCount: number;
+  highlightKeys: string[];
 };
 
 export type ContinuousCloseObserveInput = {
   mode: ContinuousCloseMode;
-  identity: ContinuousCloseSyncIdentity;
+  run: ContinuousCloseRunIdentity;
+  sync: ContinuousCloseSyncIdentity;
   statementControl: StatementControlResult | null;
   statementControlContractVersion: number | null;
   assertion: ContinuousCloseAssertionSignal | null;
-  urmSignals: ContinuousCloseUrmSignal[];
-  /** Opaque memory records already loaded by caller (queryMemory). */
-  memoryRecords?: ReadonlyArray<{
-    memory_key: string;
-    memory_type: string;
-    confidence_score: number | null;
-    persistence_status: string;
-    topic?: string | null;
-  }>;
-  observedAt?: string;
+  urmInputs: ContinuousCloseUrmNormalizedInput[];
+  /** Optional prior Memory context — never the primary accounting summary. */
+  priorMemoryContext?: ContinuousClosePriorMemoryContext | null;
 };
 
 export type ContinuousCloseObserveReceipt = {
@@ -125,10 +150,15 @@ export type ContinuousCloseObserveReceipt = {
   eventType: "continuous_close.observe.completed";
   aggregateType: "continuous_close_run";
   mode: "OBSERVE";
+  runId: string;
+  closePeriodId: string | null;
   readinessState: ContinuousCloseReadinessState;
   provider: AccountingProviderKind;
   accountingSyncId: string;
   companyId: string;
-  exceptionCount: number;
+  blockerCount: number;
+  reviewCount: number;
   stagesCompleted: ContinuousCloseRunStage[];
 };
+
+export type StatementControlPolicyKey = StatementControlLineKey;
