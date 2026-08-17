@@ -247,7 +247,7 @@ export default function ActivationCard({
                 clearQbErrorFromUrl();
                 void onConnectQuickBooks();
               }}
-              className={focusRing(primaryCtaClass)}
+              className={focusRing(`${primaryCtaClass} rounded-full px-5 py-2.5`)}
             >
               {connecting ? "Starting…" : "Connect QuickBooks"}
             </button>

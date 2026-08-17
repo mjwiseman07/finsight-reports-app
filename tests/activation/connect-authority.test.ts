@@ -103,4 +103,17 @@ describe("dashboard Activation wiring", () => {
     expect(source).toContain("disabled={connecting || !canConnect}");
     expect(source).toContain("Sign in to connect");
   });
+
+  it("Activation QuickBooks button is locally pill-shaped without changing global CTA", () => {
+    const activation = readFileSync(
+      join(process.cwd(), "components/dashboard/ActivationCard.tsx"),
+      "utf8",
+    );
+    expect(activation).toMatch(/primaryCtaClass\} rounded-full px-5 py-2\.5/);
+    expect(activation).toContain(
+      'rounded-full border border-[#C9A961]/30 bg-transparent px-5 py-2.5 text-sm font-semibold text-[#ECEBE7]',
+    );
+    const siteUi = readFileSync(join(process.cwd(), "components/site-ui.ts"), "utf8");
+    expect(siteUi).not.toMatch(/primaryCtaClass[\s\S]*rounded-full/);
+  });
 });
