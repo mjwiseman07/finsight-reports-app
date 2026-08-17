@@ -18,6 +18,14 @@ import {
   readLeadSessionFromStorage,
   rememberValidatedLeadSession,
 } from "../../lib/activation/lead-session";
+import {
+  clearConnectResumePending,
+  consumeConnectResumePending,
+  isAal2RequiredApiError,
+  readForceConnectProvider,
+  readResumeConnectProvider,
+  redirectToMfaForAccountingConnect,
+} from "../../lib/mfa/connect-step-up";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
 import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
@@ -1827,10 +1835,15 @@ export default function DashboardPage() {
         },
       });
       const result = await response.json().catch(() => ({}));
+      if (isAal2RequiredApiError(response, result)) {
+        redirectToMfaForAccountingConnect("quickbooks");
+        return;
+      }
       if (!response.ok || !result.url) {
         setError(result.error || "Unable to start QuickBooks connection.");
         return;
       }
+      clearConnectResumePending("quickbooks");
       window.location.assign(result.url);
     } catch {
       setError("Unable to start QuickBooks connection.");
@@ -1856,15 +1869,49 @@ export default function DashboardPage() {
         },
       });
       const result = await response.json().catch(() => ({}));
+      if (isAal2RequiredApiError(response, result)) {
+        redirectToMfaForAccountingConnect("xero");
+        return;
+      }
       if (!response.ok || !result.url) {
         setError(result.error || "Unable to start Xero connection.");
         return;
       }
+      clearConnectResumePending("xero");
       window.location.assign(result.url);
     } catch {
       setError("Unable to start Xero connection.");
     }
   };
+
+  // After MFA step-up, auto-resume the accounting connect the user started.
+  // Also supports ?connectAccounting=quickbooks|xero to start OAuth when already connected
+  // (e.g. add/switch sandbox company for Demo B).
+  const resumeConnectStartedRef = useRef(false);
+  useEffect(() => {
+    if (isLoading || !access?.allowed) return;
+    if (access.reason === "lead_free_review") return;
+    if (resumeConnectStartedRef.current) return;
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const resumeProvider = readResumeConnectProvider(params);
+    const forceProvider = readForceConnectProvider(params);
+    const provider = resumeProvider || forceProvider;
+    if (!provider) return;
+
+    resumeConnectStartedRef.current = true;
+    const hadPending = resumeProvider ? consumeConnectResumePending(provider) : true;
+
+    params.delete("resumeConnect");
+    params.delete("connectAccounting");
+    const qs = params.toString();
+    window.history.replaceState({}, "", qs ? `/dashboard?${qs}` : "/dashboard");
+
+    if (resumeProvider && !hadPending) return;
+
+    void (provider === "quickbooks" ? handleConnectQuickBooks() : handleConnectXero());
+  }, [isLoading, access?.allowed, access?.reason]);
 
   const handleDetectQuickBooksCapabilities = async () => {
     setError("");
