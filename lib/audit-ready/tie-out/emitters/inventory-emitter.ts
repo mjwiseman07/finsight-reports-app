@@ -10,6 +10,12 @@ import {
   sourceDataFromPayload,
 } from "./_shared/load-run";
 import { mapTotalsToTieStatus } from "./_shared/format";
+import { loadReconBridgeForRun } from "@/lib/audit-ready/tie-out/reconciling-items-persistence";
+import {
+  applyUrmBridgeToFace,
+  buildReconcilingItemsBackupTab,
+  countEvidenceByReconcilingItemIds,
+} from "@/lib/audit-ready/tie-out/inventory-fa-urm";
 
 type InvItem = {
   item_ref: string | null;
@@ -81,8 +87,16 @@ export async function buildInventoryPayload(
     },
   };
 
-  return {
-    face: {
+  // Fail closed: real DB/schema read errors must fail emit — never silently
+  // fall back to legacy TIES when URM persisted open_material.
+  // Pre-URM runs load successfully with reconOutcome = null.
+  const bridge = await loadReconBridgeForRun(runId);
+  const evidenceCounts = await countEvidenceByReconcilingItemIds(
+    bridge.items.map((item) => item.id),
+  );
+
+  const face = applyUrmBridgeToFace(
+    {
       mode: "two_sided",
       leftLabel: "Inventory Valuation",
       leftAmountCents,
@@ -97,6 +111,15 @@ export async function buildInventoryPayload(
           amountCents: leftAmountCents,
           backupTabName: "Item Detail",
         },
+        ...(bridge.reconOutcome
+          ? [
+              {
+                label: "Reconciling Items",
+                amountCents: bridge.identifiedItemsTotalCents ?? 0,
+                backupTabName: "Reconciling Items",
+              },
+            ]
+          : []),
       ],
       engagementName: ctx.engagementName,
       engagementId: ctx.engagementId,
@@ -107,7 +130,17 @@ export async function buildInventoryPayload(
       regeneratedFromRunId: ctx.regeneratedFromRunId,
       regeneratedAt: ctx.regeneratedAt,
     },
-    backupTabs: [detail],
+    bridge,
+  );
+
+  const backupTabs: BackupTabSpec[] = [detail];
+  if (bridge.reconOutcome) {
+    backupTabs.push(buildReconcilingItemsBackupTab(bridge, evidenceCounts));
+  }
+
+  return {
+    face,
+    backupTabs,
     sourceData: sourceDataFromPayload(raw),
   };
 }

@@ -2,7 +2,9 @@
  * URM-2 — Persist universal reconciliation outcomes.
  *
  * Does not change reconciliation math (uses URM-1 deriveReconBridge).
- * AR/AP resolvers opt in via ar-ap-urm helpers (URM-4). Other kinds remain deferred.
+ * AR/AP resolvers opt in via ar-ap-urm helpers (URM-4).
+ * Inventory / Fixed Asset resolvers opt in via inventory-fa-urm helpers (URM-5).
+ * Remaining kinds (bank, GRNI, BS summary, etc.) remain deferred.
  *
  * Gross variance authority: audit_ready_tie_out_runs.totals_variance_cents.
  * Run identity authority: engagement_id / pbc_request_id always derived from the run

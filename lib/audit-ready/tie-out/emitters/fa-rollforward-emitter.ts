@@ -17,6 +17,12 @@ import {
   type VarianceRow,
 } from "./_shared/load-run";
 import { mapTotalsToTieStatus } from "./_shared/format";
+import { loadReconBridgeForRun } from "@/lib/audit-ready/tie-out/reconciling-items-persistence";
+import {
+  applyUrmBridgeToFace,
+  buildReconcilingItemsBackupTab,
+  countEvidenceByReconcilingItemIds,
+} from "@/lib/audit-ready/tie-out/inventory-fa-urm";
 
 type ArtifactRow = {
   cost_beginning_cents: number;
@@ -100,6 +106,46 @@ function linesToTab(tabName: string, lines: LineRow[]): BackupTabSpec {
       credit_cents: null,
       signed_cents: signedSum,
     },
+  };
+}
+
+async function overlayUrmBridge(
+  runId: string,
+  payload: WorkpaperPayload,
+): Promise<WorkpaperPayload> {
+  // Fail closed: real DB/schema read errors must fail emit — never silently
+  // fall back to legacy TIES when URM persisted open_material.
+  // Pre-URM runs load successfully with reconOutcome = null.
+  const bridge = await loadReconBridgeForRun(runId);
+  const evidenceCounts = await countEvidenceByReconcilingItemIds(
+    bridge.items.map((item) => item.id),
+  );
+  const face = applyUrmBridgeToFace(
+    {
+      ...payload.face,
+      sections: [
+        ...(payload.face.sections ?? []),
+        ...(bridge.reconOutcome
+          ? [
+              {
+                label: "Reconciling Items",
+                amountCents: bridge.identifiedItemsTotalCents ?? 0,
+                backupTabName: "Reconciling Items",
+              },
+            ]
+          : []),
+      ],
+    },
+    bridge,
+  );
+  const backupTabs = [...payload.backupTabs];
+  if (bridge.reconOutcome) {
+    backupTabs.push(buildReconcilingItemsBackupTab(bridge, evidenceCounts));
+  }
+  return {
+    ...payload,
+    face,
+    backupTabs,
   };
 }
 
@@ -363,7 +409,7 @@ export async function buildFaRollforwardPayload(
     ctx.glTotalCents == null ||
     ctx.totalsVarianceCents == null
   ) {
-    return readLegacyFaRollforwardArtifact(runId);
+    return overlayUrmBridge(runId, await readLegacyFaRollforwardArtifact(runId));
   }
 
   const variances = await loadVariances(runId);
@@ -371,14 +417,14 @@ export async function buildFaRollforwardPayload(
   const backupTabs = assembleFaBackupFromPayload(payloadLines);
   // PBC-TIEOUT-4.1.3.b removes this fallback
   if (!face || !backupTabs) {
-    return readLegacyFaRollforwardArtifact(runId);
+    return overlayUrmBridge(runId, await readLegacyFaRollforwardArtifact(runId));
   }
 
-  return {
+  return overlayUrmBridge(runId, {
     face,
     backupTabs,
     sourceData: sourceDataFromPayload(raw),
-  };
+  });
 }
 
 export const faRollforwardEmitter: WorkpaperEmitter = {

@@ -55,6 +55,24 @@ vi.mock("@/lib/supabase-admin.js", () => ({
   }),
 }));
 
+vi.mock("@/lib/audit-ready/tie-out/reconciling-items-persistence", () => ({
+  loadReconBridgeForRun: vi.fn(async () => ({
+    runId: "run-inv-1",
+    engagementId: "eng-1",
+    pbcRequestId: "pbc-1",
+    grossVarianceCents: 0,
+    identifiedItemsTotalCents: 0,
+    unidentifiedResidualCents: 0,
+    reconcilingItemCount: 0,
+    unresolvedMaterialCount: 0,
+    reconOutcome: null,
+    allowsTimingReconciled: false,
+    baselineSyncId: null,
+    urmBridgePersistedAt: null,
+    items: [],
+  })),
+}));
+
 import { inventoryEmitter, buildInventoryPayload } from "../inventory-emitter";
 
 beforeEach(() => {

@@ -17,6 +17,7 @@ import {
 } from "./fiscal-year";
 import { faRollforwardEmitter } from "./emitters/fa-rollforward-emitter";
 import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
+import { persistFaUrmBridge } from "./inventory-fa-urm";
 
 export type RunFaRollforwardResolverInput = {
   engagementId: string;
@@ -434,6 +435,17 @@ export async function runFaRollforwardResolver(
         },
       })
       .eq("id", runId);
+
+    // URM-5: persist universal bridge after measurement gross is authoritative,
+    // before workpaper emit (emitter reads bridge for face + Reconciling Items tab).
+    const totalsVarianceCents =
+      costEnd - accumEnd - (costGlEnd - accumGlEnd);
+    await persistFaUrmBridge({
+      runId,
+      totalsVarianceCents,
+      costVarianceCents: costVariance,
+      accumVarianceCents: accumVariance,
+    });
 
     await dualWriteWorkpaper({
       emitter: faRollforwardEmitter,
