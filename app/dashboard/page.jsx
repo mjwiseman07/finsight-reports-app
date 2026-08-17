@@ -19,8 +19,8 @@ import {
   rememberValidatedLeadSession,
 } from "../../lib/activation/lead-session";
 import {
-  clearConnectResumePending,
-  consumeConnectResumePending,
+  beginAuthorizedConnectResume,
+  clearConnectResumeState,
   isAal2RequiredApiError,
   readForceConnectProvider,
   readResumeConnectProvider,
@@ -1840,12 +1840,14 @@ export default function DashboardPage() {
         return;
       }
       if (!response.ok || !result.url) {
+        clearConnectResumeState("quickbooks");
         setError(result.error || "Unable to start QuickBooks connection.");
         return;
       }
-      clearConnectResumePending("quickbooks");
+      clearConnectResumeState("quickbooks");
       window.location.assign(result.url);
     } catch {
+      clearConnectResumeState("quickbooks");
       setError("Unable to start QuickBooks connection.");
     }
   };
@@ -1874,12 +1876,14 @@ export default function DashboardPage() {
         return;
       }
       if (!response.ok || !result.url) {
+        clearConnectResumeState("xero");
         setError(result.error || "Unable to start Xero connection.");
         return;
       }
-      clearConnectResumePending("xero");
+      clearConnectResumeState("xero");
       window.location.assign(result.url);
     } catch {
+      clearConnectResumeState("xero");
       setError("Unable to start Xero connection.");
     }
   };
@@ -1887,6 +1891,7 @@ export default function DashboardPage() {
   // After MFA step-up, auto-resume the accounting connect the user started.
   // Also supports ?connectAccounting=quickbooks|xero to start OAuth when already connected
   // (e.g. add/switch sandbox company for Demo B).
+  // Query params are never authority: resumeConnect requires matching sessionStorage pending.
   const resumeConnectStartedRef = useRef(false);
   useEffect(() => {
     if (isLoading || !access?.allowed) return;
@@ -1901,14 +1906,16 @@ export default function DashboardPage() {
     if (!provider) return;
 
     resumeConnectStartedRef.current = true;
-    const hadPending = resumeProvider ? consumeConnectResumePending(provider) : true;
 
     params.delete("resumeConnect");
     params.delete("connectAccounting");
     const qs = params.toString();
     window.history.replaceState({}, "", qs ? `/dashboard?${qs}` : "/dashboard");
 
-    if (resumeProvider && !hadPending) return;
+    if (resumeProvider) {
+      // Consume pending → mark in-flight attempt before connect (loop-protects second AAL2).
+      if (!beginAuthorizedConnectResume(resumeProvider)) return;
+    }
 
     void (provider === "quickbooks" ? handleConnectQuickBooks() : handleConnectXero());
   }, [isLoading, access?.allowed, access?.reason]);

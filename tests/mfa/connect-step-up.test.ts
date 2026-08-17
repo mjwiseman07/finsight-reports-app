@@ -2,12 +2,15 @@ import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  beginAuthorizedConnectResume,
   buildDashboardForceConnectHref,
   buildDashboardResumeConnectHref,
   buildMfaChallengeHref,
-  clearConnectResumePending,
+  clearConnectResumeState,
   consumeConnectResumePending,
+  hasConnectResumeAttempt,
   isAal2RequiredApiError,
+  markConnectResumeAttempt,
   markConnectResumePending,
   readForceConnectProvider,
   readResumeConnectProvider,
@@ -77,26 +80,70 @@ describe("connect-step-up AAL2 helpers", () => {
     );
   });
 
-  it("redirects to MFA with resume intent on first AAL2", () => {
+  it("first AAL2 arms pending and MFA resume returnTo", () => {
     redirectToMfaForAccountingConnect("quickbooks");
     expect(assign).toHaveBeenCalledWith(
       "/signin/mfa-challenge?returnTo=%2Fdashboard%3FresumeConnect%3Dquickbooks",
     );
     expect(storage.get("advisacor_aal2_connect_resume_pending:quickbooks")).toBe("1");
+    expect(hasConnectResumeAttempt("quickbooks")).toBe(false);
   });
 
-  it("loop-protects a second AAL2 while resume is pending", () => {
+  it("MFA-return consumes pending and arms in-flight attempt", () => {
     markConnectResumePending("quickbooks");
+    expect(beginAuthorizedConnectResume("quickbooks")).toBe(true);
+    expect(consumeConnectResumePending("quickbooks")).toBe(false);
+    expect(hasConnectResumeAttempt("quickbooks")).toBe(true);
+  });
+
+  it("forged resumeConnect without pending does not resume", () => {
+    expect(beginAuthorizedConnectResume("quickbooks")).toBe(false);
+    expect(hasConnectResumeAttempt("quickbooks")).toBe(false);
+  });
+
+  it("mismatched provider pending does not authorize resume", () => {
+    markConnectResumePending("xero");
+    expect(beginAuthorizedConnectResume("quickbooks")).toBe(false);
+    expect(storage.get("advisacor_aal2_connect_resume_pending:xero")).toBe("1");
+    expect(hasConnectResumeAttempt("quickbooks")).toBe(false);
+  });
+
+  it("second AAL2 during in-flight attempt does not re-arm auto-resume", () => {
+    // Real dashboard sequence after MFA return:
+    markConnectResumePending("quickbooks");
+    expect(beginAuthorizedConnectResume("quickbooks")).toBe(true);
+    window.location.search = ""; // URL resumeConnect already stripped
+
     redirectToMfaForAccountingConnect("quickbooks");
     expect(assign).toHaveBeenCalledWith("/signin/mfa-challenge?returnTo=%2Fdashboard");
-    expect(consumeConnectResumePending("quickbooks")).toBe(false);
+    expect(storage.get("advisacor_aal2_connect_resume_pending:quickbooks")).toBeUndefined();
+    expect(hasConnectResumeAttempt("quickbooks")).toBe(false);
   });
 
-  it("consumes pending resume exactly once", () => {
-    markConnectResumePending("xero");
-    expect(consumeConnectResumePending("xero")).toBe(true);
+  it("second AAL2 while resumeConnect still in URL also clears without re-arm", () => {
+    markConnectResumeAttempt("xero");
+    window.location.search = "?resumeConnect=xero";
+    redirectToMfaForAccountingConnect("xero");
+    expect(assign).toHaveBeenCalledWith("/signin/mfa-challenge?returnTo=%2Fdashboard");
+    expect(hasConnectResumeAttempt("xero")).toBe(false);
     expect(consumeConnectResumePending("xero")).toBe(false);
-    clearConnectResumePending("xero");
+  });
+
+  it("resume success clears pending and attempt", () => {
+    markConnectResumePending("xero");
+    markConnectResumeAttempt("xero");
+    clearConnectResumeState("xero");
+    expect(consumeConnectResumePending("xero")).toBe(false);
+    expect(hasConnectResumeAttempt("xero")).toBe(false);
+  });
+
+  it("abandoned MFA leftover pending can re-arm on a fresh first AAL2", () => {
+    markConnectResumePending("quickbooks");
+    redirectToMfaForAccountingConnect("quickbooks");
+    expect(assign).toHaveBeenCalledWith(
+      "/signin/mfa-challenge?returnTo=%2Fdashboard%3FresumeConnect%3Dquickbooks",
+    );
+    expect(storage.get("advisacor_aal2_connect_resume_pending:quickbooks")).toBe("1");
   });
 });
 
@@ -109,14 +156,22 @@ describe("MFA sensitive connect paths", () => {
 });
 
 describe("dashboard connect wiring", () => {
-  it("handles AAL2 for QuickBooks and Xero connect", () => {
+  it("handles AAL2 for QuickBooks and Xero connect with attempt arming", () => {
     const source = readFileSync(join(process.cwd(), "app/dashboard/page.jsx"), "utf8");
     expect(source).toContain("isAal2RequiredApiError");
     expect(source).toContain('redirectToMfaForAccountingConnect("quickbooks")');
     expect(source).toContain('redirectToMfaForAccountingConnect("xero")');
-    expect(source).toContain("consumeConnectResumePending");
+    expect(source).toContain("beginAuthorizedConnectResume");
+    expect(source).toContain("clearConnectResumeState");
     expect(source).toContain("readResumeConnectProvider");
     expect(source).toContain("lead_free_review");
     expect(source).not.toContain("consumeAuthHashFromUrl");
+  });
+
+  it("blocks lead_free_review auto-resume in dashboard effect", () => {
+    const source = readFileSync(join(process.cwd(), "app/dashboard/page.jsx"), "utf8");
+    expect(source).toMatch(
+      /if \(access\.reason === ["']lead_free_review["']\) return;/,
+    );
   });
 });
