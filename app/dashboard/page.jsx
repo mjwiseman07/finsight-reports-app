@@ -18,6 +18,7 @@ import {
   readLeadSessionFromStorage,
   rememberValidatedLeadSession,
 } from "../../lib/activation/lead-session";
+import { resolveActivationConnectAuthority } from "../../lib/activation/connect-authority";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
 import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
@@ -2446,9 +2447,19 @@ export default function DashboardPage() {
                     onboardingIndustryType && onboardingIndustryType !== "Industry Intelligence"
                       ? onboardingIndustryType
                       : null,
-                  isAuthenticated: Boolean(access?.user_id),
-                  isLeadSession:
-                    access?.reason === "lead_free_review" || Boolean(leadDashboardSession?.leadId),
+                  ...(() => {
+                    const authority = resolveActivationConnectAuthority({
+                      access,
+                      hasAuthToken: Boolean(token),
+                      hasValidatedLeadSession:
+                        access?.reason === "lead_free_review" ||
+                        Boolean(leadDashboardSession?.serverValidated && leadDashboardSession?.leadId),
+                    });
+                    return {
+                      isAuthenticated: authority.isAuthenticated,
+                      isLeadSession: authority.isLeadSession,
+                    };
+                  })(),
                   companyId: dashboardCompanyId || null,
                   leadId: access?.lead_id || leadDashboardSession?.leadId || null,
                 }}
