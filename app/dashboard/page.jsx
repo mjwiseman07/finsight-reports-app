@@ -19,6 +19,7 @@ import {
   rememberValidatedLeadSession,
 } from "../../lib/activation/lead-session";
 import { resolveActivationConnectAuthority } from "../../lib/activation/connect-authority";
+import { consumeAuthHashFromUrl } from "../../lib/auth/consume-auth-hash";
 import {
   beginAuthorizedConnectResume,
   clearConnectResumeState,
@@ -1006,6 +1007,10 @@ export default function DashboardPage() {
       const dashboardSearch = new URLSearchParams(window.location.search);
       // UX hint only — never grants access.allowed by itself.
       bootstrapLeadSessionFromSearchParams(dashboardSearch);
+
+      // Magic-link / implicit OAuth can land as #access_token=… — persist before any API calls.
+      // Strips hash first; preserves ?resumeConnect=… for AAL2 connect step-up (#275).
+      await consumeAuthHashFromUrl(supabase);
 
       const devBypass =
         process.env.NODE_ENV === "development" &&

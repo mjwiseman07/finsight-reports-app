@@ -165,7 +165,14 @@ describe("dashboard connect wiring", () => {
     expect(source).toContain("clearConnectResumeState");
     expect(source).toContain("readResumeConnectProvider");
     expect(source).toContain("lead_free_review");
-    expect(source).not.toContain("consumeAuthHashFromUrl");
+    // #280 magic-link hash handoff coexists on the same page; must not remove AAL2 wiring.
+    expect(source).toContain("consumeAuthHashFromUrl");
+    const hashCallIdx = source.indexOf("await consumeAuthHashFromUrl(supabase)");
+    const getAuthCallIdx = source.indexOf("const storedToken = await getAuthToken()");
+    const resumeEffectIdx = source.indexOf("beginAuthorizedConnectResume(resumeProvider)");
+    expect(hashCallIdx).toBeGreaterThan(-1);
+    expect(getAuthCallIdx).toBeGreaterThan(hashCallIdx);
+    expect(resumeEffectIdx).toBeGreaterThan(-1);
   });
 
   it("blocks lead_free_review auto-resume in dashboard effect", () => {
