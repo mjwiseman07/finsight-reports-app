@@ -10,6 +10,7 @@ import type {
 } from "./types";
 import {
   isMaterialResidualBlocked,
+  isPolicyRequiredReconKind,
   isReconciledOutcome,
   validateObservePolicy,
   type ContinuousCloseObservePolicy,
@@ -26,6 +27,7 @@ export type ContinuousCloseExceptionClass =
   | "urm_missing_required"
   | "urm_cross_sync"
   | "urm_evidence_insufficient"
+  | "urm_requiredness_contradiction"
   | "sync_identity_invalid"
   | "mode_not_executable"
   | "freshness_stale"
@@ -162,7 +164,7 @@ export function classifyContinuousCloseExceptions(input: {
       code: "cc.freshness.unknown",
       disposition: "block",
       message:
-        "Freshness gate is configured but syncedAt is missing — unknown freshness fails closed.",
+        "Freshness gate is configured but syncedAt is missing or invalid — unknown freshness fails closed.",
       source: "freshness",
       accountingSyncId: input.observeAccountingSyncId,
     });
@@ -287,6 +289,21 @@ export function classifyContinuousCloseExceptions(input: {
       evidenceCount: signal.evidenceCount,
     };
 
+    // Policy is sole requiredness authority — signal.required cannot upgrade or downgrade.
+    const treatAsRequired = isPolicyRequiredReconKind(input.policy, signal.workpaperKind);
+    if (signal.required !== treatAsRequired) {
+      pushException(out, {
+        exceptionClass: "urm_requiredness_contradiction",
+        code: `cc.urm.requiredness_contradiction.${signal.workpaperKind}`,
+        disposition: "info",
+        message: treatAsRequired
+          ? `Signal required=false ignored — policy requires recon kind '${signal.workpaperKind}'.`
+          : `Signal required=true ignored — recon kind '${signal.workpaperKind}' is not policy-required.`,
+        source: signal.workpaperId,
+        ...structured,
+      });
+    }
+
     if (
       input.policy.requireUrmSourceSyncMatch &&
       signal.sourceAccountingSyncId !== input.observeAccountingSyncId
@@ -328,14 +345,18 @@ export function classifyContinuousCloseExceptions(input: {
       pushException(out, {
         exceptionClass: "urm_evidence_insufficient",
         code: `cc.urm.evidence.${signal.workpaperKind}`,
-        disposition: "review",
-        message: `Reconciled URM workpaper '${signal.workpaperKind}' lacks required evidence count.`,
+        disposition: treatAsRequired ? "block" : "review",
+        message: treatAsRequired
+          ? `Required reconciled URM workpaper '${signal.workpaperKind}' lacks required evidence count (fail closed).`
+          : `Optional reconciled URM workpaper '${signal.workpaperKind}' lacks required evidence count.`,
         source: signal.workpaperId,
         ...structured,
       });
+      // Required missing evidence is terminal for this signal's outcome path.
+      if (treatAsRequired) continue;
     }
 
-    if (signal.required) {
+    if (treatAsRequired) {
       if (input.policy.urm.requiredBlockOutcomes.includes(signal.outcome)) {
         pushException(out, {
           exceptionClass: "urm_blocked",

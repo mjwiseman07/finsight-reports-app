@@ -4,6 +4,7 @@
 
 import type { ContinuousCloseException } from "./exceptions";
 import type { ContinuousCloseReadinessResult } from "./readiness";
+import { isPolicyRequiredReconKind, type ContinuousCloseObservePolicy } from "./policy";
 import type {
   AccountingProviderKind,
   ContinuousCloseAssertionSignal,
@@ -71,6 +72,7 @@ export function buildContinuousCloseMemoryReadyAccountingSummary(input: {
   assertion: ContinuousCloseAssertionSignal | null;
   capability: ContinuousCloseCapabilitySnapshot;
   freshness: ContinuousCloseFreshness;
+  policy: ContinuousCloseObservePolicy;
   priorMemoryContext?: ContinuousClosePriorMemoryContext | null;
 }): ContinuousCloseMemoryReadyAccountingSummary {
   const blockers = input.exceptions
@@ -84,7 +86,8 @@ export function buildContinuousCloseMemoryReadyAccountingSummary(input: {
     .map((u) => ({
       workpaperId: u.workpaperId,
       workpaperKind: u.workpaperKind,
-      required: u.required,
+      // Policy authority — not signal.required
+      required: isPolicyRequiredReconKind(input.policy, u.workpaperKind),
       outcome: u.outcome,
       unidentifiedResidualCents: u.unidentifiedResidualCents,
       materialityThresholdCents: u.materialityThresholdCents,

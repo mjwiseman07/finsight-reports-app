@@ -30,7 +30,8 @@ export type ContinuousCloseUrmPolicy = {
 export type ContinuousCloseEvidencePolicy = {
   /**
    * When true, reconciled* outcomes with evidenceCount < minEvidenceCount
-   * require review (do not invent evidence).
+   * are gated. Policy-required recons → BLOCK; optional → review.
+   * Do not invent evidence.
    */
   requireEvidenceForReconciled: boolean;
   minEvidenceCountForReconciled: number;
@@ -216,4 +217,16 @@ export function isReconciledOutcome(outcome: ReconOutcome): boolean {
     outcome === "reconciled_with_timing" ||
     outcome === "reconciled_immaterial_residual"
   );
+}
+
+/**
+ * Policy is sole requiredness authority.
+ * - Kind in requiredReconKinds → required (signal cannot downgrade).
+ * - Otherwise → not policy-required (signal.required=true cannot create authority).
+ */
+export function isPolicyRequiredReconKind(
+  policy: ContinuousCloseObservePolicy,
+  workpaperKind: string,
+): boolean {
+  return policy.requiredReconKinds.includes(workpaperKind);
 }

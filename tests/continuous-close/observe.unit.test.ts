@@ -145,7 +145,39 @@ describe("freshness unknown fail-closed", () => {
     expect(freshness.isStale).toBe(false);
   });
 
-  it("BLOCKS on unknown freshness", () => {
+  it("invalid syncedAt → unknown (not stale)", () => {
+    const freshness = evaluateContinuousCloseFreshness(
+      {
+        provider: "quickbooks",
+        tenantOrRealmId: "r",
+        companyId: "c",
+        accountingConnectionId: "conn",
+        accountingSyncId: "sync-1",
+        syncedAt: "not-a-date",
+      },
+      24,
+    );
+    expect(freshness.status).toBe("unknown");
+    expect(freshness.isStale).toBe(false);
+  });
+
+  it("valid old syncedAt → stale", () => {
+    const freshness = evaluateContinuousCloseFreshness(
+      {
+        provider: "xero",
+        tenantOrRealmId: "t",
+        companyId: "c",
+        accountingConnectionId: "conn",
+        accountingSyncId: "sync-1",
+        syncedAt: "2020-01-01T00:00:00.000Z",
+      },
+      24,
+    );
+    expect(freshness.status).toBe("stale");
+    expect(freshness.isStale).toBe(true);
+  });
+
+  it("BLOCKS on unknown freshness (missing syncedAt)", () => {
     const input = baseInput("quickbooks");
     input.sync.syncedAt = null;
     const result = runObserveContinuousClose(input, {
@@ -155,6 +187,126 @@ describe("freshness unknown fail-closed", () => {
     expect(result.freshness.status).toBe("unknown");
     expect(result.readiness.state).toBe("BLOCKED");
     expect(result.exceptions.some((e) => e.code === "cc.freshness.unknown")).toBe(true);
+  });
+
+  it("BLOCKS on unknown freshness (invalid syncedAt)", () => {
+    const input = baseInput("xero");
+    input.sync.syncedAt = "totally-invalid";
+    const result = runObserveContinuousClose(input, {
+      ...engagedPolicy(),
+      freshnessMaxAgeHours: 24,
+    });
+    expect(result.freshness.status).toBe("unknown");
+    expect(result.readiness.state).toBe("BLOCKED");
+    expect(result.exceptions.some((e) => e.code === "cc.freshness.unknown")).toBe(true);
+    expect(result.exceptions.some((e) => e.code === "cc.freshness.stale")).toBe(false);
+  });
+});
+
+describe("policy requiredness authority", () => {
+  it("policy-required signal cannot be downgraded by required=false", () => {
+    const input = baseInput("quickbooks");
+    input.urmInputs = [urmBank({ required: false, evidenceCount: 0 })];
+    const result = runObserveContinuousClose(input, engagedPolicy());
+    // bank is policy-required → missing evidence is BLOCK, not optional review
+    expect(result.readiness.state).toBe("BLOCKED");
+    expect(
+      result.exceptions.some(
+        (e) =>
+          e.exceptionClass === "urm_evidence_insufficient" && e.disposition === "block",
+      ),
+    ).toBe(true);
+    expect(
+      result.exceptions.some((e) => e.exceptionClass === "urm_requiredness_contradiction"),
+    ).toBe(true);
+    expect(result.memoryReadyAccountingSummary.reconProjections[0]?.required).toBe(true);
+  });
+
+  it("undeclared signal required flag cannot create policy authority", () => {
+    const input = baseInput("xero");
+    // Keep policy-required bank with evidence; add undeclared "payroll" claiming required:true
+    // with reconciled + no evidence — must be review (optional), not block.
+    input.urmInputs = [
+      urmBank(),
+      urmBank({
+        workpaperId: "urm-payroll-1",
+        workpaperKind: "payroll",
+        required: true,
+        evidenceCount: 0,
+      }),
+    ];
+    const policy: ContinuousCloseObservePolicy = {
+      ...engagedPolicy(),
+      optionalReconKinds: ["payroll"],
+    };
+    const result = runObserveContinuousClose(input, policy);
+    expect(result.readiness.state).toBe("READY_WITH_REVIEW");
+    const payrollEv = result.exceptions.find(
+      (e) =>
+        e.exceptionClass === "urm_evidence_insufficient" && e.workpaperKind === "payroll",
+    );
+    expect(payrollEv?.disposition).toBe("review");
+    expect(
+      result.exceptions.some(
+        (e) =>
+          e.exceptionClass === "urm_requiredness_contradiction" &&
+          e.workpaperKind === "payroll",
+      ),
+    ).toBe(true);
+    const payrollProj = result.memoryReadyAccountingSummary.reconProjections.find(
+      (p) => p.workpaperKind === "payroll",
+    );
+    expect(payrollProj?.required).toBe(false);
+  });
+});
+
+describe("reconciled evidence disposition", () => {
+  it("required recon missing evidence → BLOCKED", () => {
+    const result = runObserveContinuousClose(
+      {
+        ...baseInput("quickbooks"),
+        urmInputs: [urmBank({ evidenceCount: 0 })],
+      },
+      engagedPolicy(),
+    );
+    expect(result.readiness.state).toBe("BLOCKED");
+    expect(
+      result.exceptions.some(
+        (e) =>
+          e.exceptionClass === "urm_evidence_insufficient" && e.disposition === "block",
+      ),
+    ).toBe(true);
+  });
+
+  it("optional recon missing evidence → READY_WITH_REVIEW", () => {
+    const input = baseInput("xero");
+    input.urmInputs = [
+      urmBank(),
+      urmBank({
+        workpaperId: "urm-ar-1",
+        workpaperKind: "ar",
+        required: false,
+        evidenceCount: 0,
+      }),
+    ];
+    const policy: ContinuousCloseObservePolicy = {
+      ...engagedPolicy(),
+      optionalReconKinds: ["ar"],
+    };
+    const result = runObserveContinuousClose(input, policy);
+    expect(result.readiness.state).toBe("READY_WITH_REVIEW");
+    const arEv = result.exceptions.find(
+      (e) => e.exceptionClass === "urm_evidence_insufficient" && e.workpaperKind === "ar",
+    );
+    expect(arEv?.disposition).toBe("review");
+  });
+
+  it("required recon with evidence → eligible normally", () => {
+    const result = runObserveContinuousClose(baseInput("quickbooks"), engagedPolicy());
+    expect(result.readiness.state).toBe("READY");
+    expect(result.exceptions.some((e) => e.exceptionClass === "urm_evidence_insufficient")).toBe(
+      false,
+    );
   });
 });
 

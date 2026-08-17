@@ -73,8 +73,19 @@ export function evaluateContinuousCloseFreshness(
       isStale: false,
     };
   }
-  const ageMs = Date.now() - new Date(syncedAt).getTime();
-  if (!Number.isFinite(ageMs) || ageMs > maxAgeHours * 3600_000) {
+  const parsedMs = Date.parse(syncedAt);
+  // Missing authority vs known-old: invalid/unparsable timestamps are unknown, not stale.
+  if (!Number.isFinite(parsedMs)) {
+    return {
+      accountingSyncId: sync.accountingSyncId,
+      syncedAt,
+      maxAgeHours,
+      status: "unknown",
+      isStale: false,
+    };
+  }
+  const ageMs = Date.now() - parsedMs;
+  if (ageMs > maxAgeHours * 3600_000) {
     return {
       accountingSyncId: sync.accountingSyncId,
       syncedAt,
@@ -219,6 +230,7 @@ export function runObserveContinuousClose(
         assertion: input.assertion,
         capability: capabilityStatus,
         freshness,
+        policy,
         priorMemoryContext: input.priorMemoryContext,
       }),
       receipt: null,
@@ -245,6 +257,7 @@ export function runObserveContinuousClose(
     assertion: input.assertion,
     capability: capabilityStatus,
     freshness,
+    policy,
     priorMemoryContext: input.priorMemoryContext,
   });
 
