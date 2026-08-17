@@ -9,6 +9,7 @@ export const MFA_SENSITIVE_PREFIXES = [
   "/dashboard/settings/firm",
   "/api/quickbooks/connect",
   "/api/integrations/quickbooks/connect",
+  "/api/integrations/xero/connect",
   "/api/billing",
   "/api/admin",
   "/api/user/delete",

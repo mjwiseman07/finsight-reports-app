@@ -19,6 +19,14 @@ import {
   rememberValidatedLeadSession,
 } from "../../lib/activation/lead-session";
 import { resolveActivationConnectAuthority } from "../../lib/activation/connect-authority";
+import {
+  beginAuthorizedConnectResume,
+  clearConnectResumeState,
+  isAal2RequiredApiError,
+  readForceConnectProvider,
+  readResumeConnectProvider,
+  redirectToMfaForAccountingConnect,
+} from "../../lib/mfa/connect-step-up";
 import PostedJesCard from "../../components/dashboard/PostedJesCard";
 import Scorecard from "../../components/dashboard/Scorecard";
 import { buildActiveReportSummary } from "../../lib/integrations/accounting/active-report-summary";
@@ -1828,12 +1836,19 @@ export default function DashboardPage() {
         },
       });
       const result = await response.json().catch(() => ({}));
+      if (isAal2RequiredApiError(response, result)) {
+        redirectToMfaForAccountingConnect("quickbooks");
+        return;
+      }
       if (!response.ok || !result.url) {
+        clearConnectResumeState("quickbooks");
         setError(result.error || "Unable to start QuickBooks connection.");
         return;
       }
+      clearConnectResumeState("quickbooks");
       window.location.assign(result.url);
     } catch {
+      clearConnectResumeState("quickbooks");
       setError("Unable to start QuickBooks connection.");
     }
   };
@@ -1857,15 +1872,54 @@ export default function DashboardPage() {
         },
       });
       const result = await response.json().catch(() => ({}));
+      if (isAal2RequiredApiError(response, result)) {
+        redirectToMfaForAccountingConnect("xero");
+        return;
+      }
       if (!response.ok || !result.url) {
+        clearConnectResumeState("xero");
         setError(result.error || "Unable to start Xero connection.");
         return;
       }
+      clearConnectResumeState("xero");
       window.location.assign(result.url);
     } catch {
+      clearConnectResumeState("xero");
       setError("Unable to start Xero connection.");
     }
   };
+
+  // After MFA step-up, auto-resume the accounting connect the user started.
+  // Also supports ?connectAccounting=quickbooks|xero to start OAuth when already connected
+  // (e.g. add/switch sandbox company for Demo B).
+  // Query params are never authority: resumeConnect requires matching sessionStorage pending.
+  const resumeConnectStartedRef = useRef(false);
+  useEffect(() => {
+    if (isLoading || !access?.allowed) return;
+    if (access.reason === "lead_free_review") return;
+    if (resumeConnectStartedRef.current) return;
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const resumeProvider = readResumeConnectProvider(params);
+    const forceProvider = readForceConnectProvider(params);
+    const provider = resumeProvider || forceProvider;
+    if (!provider) return;
+
+    resumeConnectStartedRef.current = true;
+
+    params.delete("resumeConnect");
+    params.delete("connectAccounting");
+    const qs = params.toString();
+    window.history.replaceState({}, "", qs ? `/dashboard?${qs}` : "/dashboard");
+
+    if (resumeProvider) {
+      // Consume pending → mark in-flight attempt before connect (loop-protects second AAL2).
+      if (!beginAuthorizedConnectResume(resumeProvider)) return;
+    }
+
+    void (provider === "quickbooks" ? handleConnectQuickBooks() : handleConnectXero());
+  }, [isLoading, access?.allowed, access?.reason]);
 
   const handleDetectQuickBooksCapabilities = async () => {
     setError("");
