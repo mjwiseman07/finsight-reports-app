@@ -13,12 +13,32 @@ interface PendingItem {
   requires_mfa_step_up: boolean;
 }
 
+function readStoredAuthToken(): string {
+  return typeof window !== "undefined"
+    ? window.localStorage.getItem("supabase_access_token") || ""
+    : "";
+}
+
 function authHeaders(): HeadersInit {
-  const token =
-    typeof window !== "undefined"
-      ? window.localStorage.getItem("supabase_access_token") || ""
-      : "";
+  const token = readStoredAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/** Brief wait for magic-link hash → localStorage persistence on dashboard load. */
+export async function waitForSettlingAuthToken(options?: {
+  attempts?: number;
+  delayMs?: number;
+  isCancelled?: () => boolean;
+}): Promise<string> {
+  const attempts = options?.attempts ?? 8;
+  const delayMs = options?.delayMs ?? 150;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (options?.isCancelled?.()) return "";
+    const token = readStoredAuthToken();
+    if (token) return token;
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return readStoredAuthToken();
 }
 
 export default function PendingApprovalsCard({
@@ -32,11 +52,28 @@ export default function PendingApprovalsCard({
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Wait briefly for magic-link hash → session persistence on dashboard load.
+      const settledToken = await waitForSettlingAuthToken({
+        isCancelled: () => cancelled,
+      });
+      if (cancelled) return;
+
       try {
         const url = engagementId
           ? `/api/reviewer/pending?engagement_id=${encodeURIComponent(engagementId)}`
           : "/api/reviewer/pending/default";
         const res = await fetch(url, { cache: "no-store", headers: authHeaders() });
+        if (res.status === 401) {
+          if (cancelled) return;
+          if (settledToken) {
+            // Established token but server rejected — surface the failure.
+            setErr("http_401");
+            return;
+          }
+          // No durable session after settle (lead / anonymous) — stay quiet, no hard flash.
+          setItems([]);
+          return;
+        }
         if (!res.ok) throw new Error(`http_${res.status}`);
         const data = await res.json();
         if (!cancelled) setItems(data.items ?? []);
