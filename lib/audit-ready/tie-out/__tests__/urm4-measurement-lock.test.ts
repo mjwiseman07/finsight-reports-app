@@ -19,10 +19,12 @@ describe("URM-4 measurement formulas locked", () => {
   });
 
   it("AP measurement remains subledger − |GL|", () => {
+    const math = read("lib/audit-ready/tie-out/ap-measure.ts");
     const src = read("lib/audit-ready/tie-out/ap-resolver.ts");
-    expect(src).toContain("const glNetCents = glLine ? glLine.net_cents : 0;");
-    expect(src).toContain("const glTotalCents = Math.abs(glNetCents);");
-    expect(src).toContain("const totalsVariance = subTotalCents - glTotalCents;");
+    expect(math).toContain("const glNetCents = glLine ? glLine.net_cents : 0;");
+    expect(math).toContain("const glTotalCents = Math.abs(glNetCents);");
+    expect(math).toContain("const totalsVariance = subTotalCents - glTotalCents;");
+    expect(src).toContain("measureApTieOut");
     expect(src).toContain("persistApUrmBridge");
     expect(src).toMatch(
       /totals_variance_cents:\s*totalsVariance[\s\S]*persistApUrmBridge[\s\S]*dualWriteWorkpaper/,
@@ -31,7 +33,7 @@ describe("URM-4 measurement formulas locked", () => {
 
   it("credit/debit balance reviews stay measurement flags (variance_cents: 0)", () => {
     const ar = read("lib/audit-ready/tie-out/ar-measure.ts");
-    const ap = read("lib/audit-ready/tie-out/ap-resolver.ts");
+    const ap = read("lib/audit-ready/tie-out/ap-measure.ts");
     expect(ar).toContain("credit-balance customer on AR aging");
     expect(ap).toContain("vendor_debit_balance_review");
     // Bridge helpers must not invent identified amounts from those flags.

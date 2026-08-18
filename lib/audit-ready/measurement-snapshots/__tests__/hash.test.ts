@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { hashMeasurementSnapshotBody } from "../hash";
 import {
+  AP_AGING_SNAPSHOT_KIND,
   AR_AGING_SNAPSHOT_KIND,
   TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION,
+  type ApAgingMeasurementPayload,
   type ArAgingMeasurementPayload,
 } from "../types";
 
@@ -75,3 +77,77 @@ describe("AR measurement snapshot hash", () => {
     expect(body({ payload: reordered })).toBe(body());
   });
 });
+
+const apPayloadA: ApAgingMeasurementPayload = {
+  currency: "USD",
+  vendors: [
+    { entityRef: "9", displayName: "Vendor A", totalCents: 8_000 },
+    { entityRef: "8", displayName: "Debit Co", totalCents: -300 },
+  ],
+  subledgerTotalCents: 7_700,
+  trialBalance: [
+    {
+      accountRef: "33",
+      accountName: "Accounts Payable",
+      debitCents: 0,
+      creditCents: 7_700,
+      netCents: -7_700,
+    },
+  ],
+};
+
+function apBody(over: Partial<Parameters<typeof hashMeasurementSnapshotBody>[0]> = {}) {
+  return hashMeasurementSnapshotBody({
+    schemaVersion: TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION,
+    snapshotKind: AP_AGING_SNAPSHOT_KIND,
+    asOfDate: "2026-07-31",
+    payload: apPayloadA,
+    ...over,
+  });
+}
+
+describe("AP measurement snapshot hash", () => {
+  it("16. same AP payload produces an identical SHA-256 hex", () => {
+    expect(apBody()).toBe(apBody());
+    expect(apBody()).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("17. a different AP amount produces a different hash", () => {
+    const changed: ApAgingMeasurementPayload = {
+      ...apPayloadA,
+      vendors: apPayloadA.vendors.map((row, index) =>
+        index === 0 ? { ...row, totalCents: 8_001 } : row,
+      ),
+      subledgerTotalCents: 7_701,
+    };
+    expect(apBody({ payload: changed })).not.toBe(apBody());
+  });
+
+  it("18. capturedAt is not part of the AP hash body", () => {
+    const hash = apBody();
+    const again = hashMeasurementSnapshotBody({
+      schemaVersion: TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION,
+      snapshotKind: AP_AGING_SNAPSHOT_KIND,
+      asOfDate: "2026-07-31",
+      payload: apPayloadA,
+    });
+    expect(again).toBe(hash);
+  });
+
+  it("19. snapshot kind distinguishes AP from AR even with similar amounts", () => {
+    const arLike: ArAgingMeasurementPayload = {
+      currency: apPayloadA.currency,
+      customers: apPayloadA.vendors,
+      subledgerTotalCents: apPayloadA.subledgerTotalCents,
+      trialBalance: apPayloadA.trialBalance,
+    };
+    const arHash = hashMeasurementSnapshotBody({
+      schemaVersion: 1,
+      snapshotKind: AR_AGING_SNAPSHOT_KIND,
+      asOfDate: "2026-07-31",
+      payload: arLike,
+    });
+    expect(apBody()).not.toBe(arHash);
+  });
+});
+

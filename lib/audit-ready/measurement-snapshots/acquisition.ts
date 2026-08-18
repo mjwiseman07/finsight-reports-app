@@ -24,19 +24,32 @@ import type {
   AccountingDateRange,
   ProviderRawReports,
 } from "@/lib/integrations/accounting/types";
-import type { QboArAgingResult, QboTrialBalanceResult } from "@/lib/audit-ready/tie-out/qbo-reports";
+import {
+  fetchQboArAgingDetail,
+  fetchQboTrialBalance,
+  type QboApAgingResult,
+  type QboArAgingResult,
+  type QboTrialBalanceResult,
+} from "@/lib/audit-ready/tie-out/qbo-reports";
 import {
   buildArMeasurementSnapshotFromUrmReports,
   fetchQboUrmArReports,
   type QboArCaptureFetchers,
 } from "./qbo-ar-adapter";
 import {
+  buildApMeasurementSnapshotFromUrmReports,
+  fetchQboUrmApAging,
+} from "./qbo-ap-adapter";
+import {
   assertAsOfMatchesReportPeriodEnd,
+  persistApMeasurementSnapshot,
   persistArMeasurementSnapshot,
 } from "./repository";
 import {
+  CombinedAcquisitionPartialError,
   MEASUREMENT_SNAPSHOT_ERROR,
   MeasurementSnapshotError,
+  type TieOutApMeasurementSnapshot,
   type TieOutArMeasurementSnapshot,
 } from "./types";
 import { asIsoDate } from "./validate";
@@ -374,3 +387,313 @@ export async function acquireAndPersistAccountingStateWithArSnapshot(
     acquisitionId: acquired.bundle.acquisitionId,
   };
 }
+
+function freezeSharedTrialBalance(trial: QboTrialBalanceResult): QboTrialBalanceResult {
+  const lines: QboTrialBalanceResult["lines"] = trial.lines.map((line) => ({ ...line }));
+  Object.freeze(lines);
+  for (const line of lines) Object.freeze(line);
+  const frozen: QboTrialBalanceResult = {
+    as_of_date: trial.as_of_date,
+    currency: trial.currency,
+    lines,
+    raw_report_url: trial.raw_report_url,
+    intuit_tid: trial.intuit_tid,
+  };
+  return Object.freeze(frozen) as QboTrialBalanceResult;
+}
+
+export type ArApAccountingAcquisitionBundle = {
+  acquisitionId: string;
+  capturedAt: string;
+  asOfDate: string;
+  reportPeriod: AccountingDateRange;
+  connectionId: string;
+  provider: string;
+  tenantOrRealmId: string;
+  scorecardRawReports: ProviderRawReports;
+  urmArAging: QboArAgingResult;
+  urmApAging: QboApAgingResult;
+  /** One frozen URM TB capture shared by AR and AP snapshot builders. */
+  urmTrialBalance: QboTrialBalanceResult;
+};
+
+export type AcquireAndPersistArApAccountingStateInput = {
+  connection: ArAcquisitionConnection;
+  userId: string;
+  asOfDate: string;
+  reportPeriod: AccountingDateRange;
+  fetchers?: QboArCaptureFetchers;
+  /** Rejected if present. Pre-existing sync ids are not capture authority. */
+  accountingSyncId?: never;
+};
+
+export type ArApAcquisitionDeps = {
+  ensureConnection: ArAcquisitionDeps["ensureConnection"];
+  fetchScorecardRawReports: ArAcquisitionDeps["fetchScorecardRawReports"];
+  fetchUrmArAging: (args: {
+    realmId: string;
+    accessToken: string;
+    asOfDate: string;
+  }) => Promise<QboArAgingResult>;
+  fetchUrmApAging: (args: {
+    realmId: string;
+    accessToken: string;
+    asOfDate: string;
+  }) => Promise<QboApAgingResult>;
+  fetchUrmTrialBalance: (args: {
+    realmId: string;
+    accessToken: string;
+    asOfDate: string;
+  }) => Promise<QboTrialBalanceResult>;
+  normalizeScorecard: ArAcquisitionDeps["normalizeScorecard"];
+  persistSync: ArAcquisitionDeps["persistSync"];
+  persistArSnapshot: typeof persistArMeasurementSnapshot;
+  persistApSnapshot: typeof persistApMeasurementSnapshot;
+  generateSyncId?: () => string;
+};
+
+export async function createDefaultArApAcquisitionDeps(
+  fetchers?: QboArCaptureFetchers,
+): Promise<ArApAcquisitionDeps> {
+  const arDefaults = await createDefaultArAcquisitionDeps(fetchers);
+  return {
+    ensureConnection: arDefaults.ensureConnection,
+    fetchScorecardRawReports: arDefaults.fetchScorecardRawReports,
+    async fetchUrmArAging(args) {
+      const fetchAging = fetchers?.fetchAging ?? fetchQboArAgingDetail;
+      return fetchAging({
+        realmId: args.realmId,
+        accessToken: args.accessToken,
+        asOfDate: args.asOfDate,
+      });
+    },
+    async fetchUrmApAging(args) {
+      return fetchQboUrmApAging(args);
+    },
+    async fetchUrmTrialBalance(args) {
+      const fetchTrialBalance = fetchers?.fetchTrialBalance ?? fetchQboTrialBalance;
+      return fetchTrialBalance({
+        realmId: args.realmId,
+        accessToken: args.accessToken,
+        asOfDate: args.asOfDate,
+      });
+    },
+    normalizeScorecard: arDefaults.normalizeScorecard,
+    persistSync: arDefaults.persistSync,
+    persistArSnapshot: persistArMeasurementSnapshot,
+    persistApSnapshot: persistApMeasurementSnapshot,
+  };
+}
+
+/**
+ * Combined AR+AP provider reads. One URM Trial Balance. No persist.
+ * Does not call fetchQboUrmArReports (that would fetch a second TB).
+ */
+export async function acquireAccountingStateForArAp(
+  input: AcquireAndPersistArApAccountingStateInput,
+  deps: ArApAcquisitionDeps,
+): Promise<{ bundle: ArApAccountingAcquisitionBundle; connection: ArAcquisitionConnection }> {
+  const preexisting = String(
+    (input as { accountingSyncId?: unknown }).accountingSyncId || "",
+  ).trim();
+  if (preexisting) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.PREEXISTING_SYNC_NOT_AUTHORITY,
+      "Fresh combined AR+AP capture cannot use a pre-existing accountingSyncId.",
+    );
+  }
+  if (String(input.connection.provider) !== "quickbooks") {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.PROVIDER_UNSUPPORTED,
+      "Combined AR+AP measurement acquisition currently supports QuickBooks only.",
+    );
+  }
+  const asOfDate = asIsoDate(input.asOfDate);
+  const reportPeriod: AccountingDateRange = {
+    startDate: asIsoDate(input.reportPeriod.startDate || monthStartFromAsOf(asOfDate)),
+    endDate: asIsoDate(input.reportPeriod.endDate),
+  };
+  assertAsOfMatchesReportPeriodEnd(asOfDate, reportPeriod.endDate);
+
+  const connection = await deps.ensureConnection(input.connection);
+  const realmId = String(connection.tenant_or_realm_id || connection.external_entity_id || "").trim();
+  const accessToken = String(connection.access_token || "").trim();
+  if (!realmId || !accessToken) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH,
+      "Combined AR+AP acquisition requires a realm and access token on the connection.",
+    );
+  }
+
+  const capturedAt = new Date().toISOString();
+  const acquisitionId = randomUUID();
+  const urmArgs = { realmId, accessToken, asOfDate };
+  const [scorecardRawReports, urmArAging, urmApAging, urmTrialBalanceRaw] = await Promise.all([
+    deps.fetchScorecardRawReports(connection, reportPeriod),
+    deps.fetchUrmArAging(urmArgs),
+    deps.fetchUrmApAging(urmArgs),
+    deps.fetchUrmTrialBalance(urmArgs),
+  ]);
+  const urmTrialBalance = freezeSharedTrialBalance(urmTrialBalanceRaw);
+
+  return {
+    bundle: {
+      acquisitionId,
+      capturedAt,
+      asOfDate,
+      reportPeriod,
+      connectionId: connection.id,
+      provider: String(connection.provider),
+      tenantOrRealmId: realmId,
+      scorecardRawReports,
+      urmArAging,
+      urmApAging,
+      urmTrialBalance,
+    },
+    connection,
+  };
+}
+
+export async function persistAcquiredAccountingStateWithArApSnapshots(args: {
+  bundle: ArApAccountingAcquisitionBundle;
+  connection: ArAcquisitionConnection;
+  userId: string;
+  deps: ArApAcquisitionDeps;
+}): Promise<{
+  accountingSync: PersistedAccountingSyncIdentity;
+  arMeasurementSnapshot: TieOutArMeasurementSnapshot;
+  apMeasurementSnapshot: TieOutApMeasurementSnapshot;
+  reusedArSnapshot: boolean;
+  reusedApSnapshot: boolean;
+}> {
+  const { bundle, connection, userId, deps } = args;
+  assertAsOfMatchesReportPeriodEnd(bundle.asOfDate, bundle.reportPeriod.endDate);
+  const tenantId = bundle.tenantOrRealmId;
+  const tenantName = String(
+    connection.external_entity_name || connection.metadata_json?.tenant_name || "QuickBooks Company",
+  );
+  const syncId = deps.generateSyncId ? deps.generateSyncId() : randomUUID();
+  const normalizedData = await deps.normalizeScorecard({
+    rawReports: bundle.scorecardRawReports,
+    connection,
+    reportPeriod: bundle.reportPeriod,
+    syncId,
+    tenantId,
+    tenantName,
+  });
+  if (!hasCoreStatements(normalizedData)) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.CORE_STATEMENTS_MISSING,
+      "Combined AR+AP acquisition will not persist an accounting_syncs row without core financial statements.",
+    );
+  }
+
+  const accountingSync = await deps.persistSync({
+    connection,
+    userId,
+    syncId,
+    reportPeriod: bundle.reportPeriod,
+    normalizedData,
+    tenantId,
+    tenantName,
+  });
+  assertAsOfMatchesReportPeriodEnd(bundle.asOfDate, accountingSync.reportPeriodEnd);
+  if (accountingSync.syncId !== syncId) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH,
+      "Persisted accounting_syncs.id must be the id assigned in this acquisition.",
+    );
+  }
+  if (!accountingSync.companyId) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.SYNC_COMPANY_MISSING,
+      "AR/AP measurement snapshots require accounting_syncs.company_id.",
+    );
+  }
+
+  const sharedTrialBalance = bundle.urmTrialBalance;
+  const arSnapshot = buildArMeasurementSnapshotFromUrmReports({
+    accountingSyncId: accountingSync.syncId,
+    accountingConnectionId: accountingSync.connectionId,
+    companyId: accountingSync.companyId,
+    provider: bundle.provider,
+    tenantOrRealmId: bundle.tenantOrRealmId,
+    asOfDate: bundle.asOfDate,
+    capturedAt: bundle.capturedAt,
+    aging: bundle.urmArAging,
+    trial: sharedTrialBalance,
+  });
+  const apSnapshot = buildApMeasurementSnapshotFromUrmReports({
+    accountingSyncId: accountingSync.syncId,
+    accountingConnectionId: accountingSync.connectionId,
+    companyId: accountingSync.companyId,
+    provider: bundle.provider,
+    tenantOrRealmId: bundle.tenantOrRealmId,
+    asOfDate: bundle.asOfDate,
+    capturedAt: bundle.capturedAt,
+    aging: bundle.urmApAging,
+    trial: sharedTrialBalance,
+  });
+
+  let persistedAr: { snapshot: TieOutArMeasurementSnapshot; reused: boolean };
+  try {
+    persistedAr = await deps.persistArSnapshot(arSnapshot);
+  } catch (error) {
+    throw new CombinedAcquisitionPartialError({
+      code: MEASUREMENT_SNAPSHOT_ERROR.COMBINED_AR_SNAPSHOT_PERSIST_FAILED,
+      message: `accounting_syncs ${accountingSync.syncId} persisted but AR snapshot did not; combined observation is incomplete and AP was not persisted. ${
+        error instanceof Error ? error.message : "unknown"
+      }`,
+      accountingSyncId: accountingSync.syncId,
+      arMeasurementSnapshot: null,
+      apMeasurementSnapshot: null,
+    });
+  }
+
+  try {
+    const persistedAp = await deps.persistApSnapshot(apSnapshot);
+    return {
+      accountingSync,
+      arMeasurementSnapshot: persistedAr.snapshot,
+      apMeasurementSnapshot: persistedAp.snapshot,
+      reusedArSnapshot: persistedAr.reused,
+      reusedApSnapshot: persistedAp.reused,
+    };
+  } catch (error) {
+    throw new CombinedAcquisitionPartialError({
+      code: MEASUREMENT_SNAPSHOT_ERROR.COMBINED_AP_SNAPSHOT_PERSIST_FAILED,
+      message: `accounting_syncs ${accountingSync.syncId} and AR snapshot persisted but AP snapshot did not; AP is not CC-authoritative on this sync. Do not attach a later AP provider fetch to this sync. ${
+        error instanceof Error ? error.message : "unknown"
+      }`,
+      accountingSyncId: accountingSync.syncId,
+      arMeasurementSnapshot: persistedAr.snapshot,
+      apMeasurementSnapshot: null,
+    });
+  }
+}
+
+export async function acquireAndPersistAccountingStateWithArApSnapshots(
+  input: AcquireAndPersistArApAccountingStateInput,
+  deps?: Partial<ArApAcquisitionDeps>,
+): Promise<{
+  accountingSync: PersistedAccountingSyncIdentity;
+  arMeasurementSnapshot: TieOutArMeasurementSnapshot;
+  apMeasurementSnapshot: TieOutApMeasurementSnapshot;
+  reusedArSnapshot: boolean;
+  reusedApSnapshot: boolean;
+  acquisitionId: string;
+}> {
+  const resolved = { ...(await createDefaultArApAcquisitionDeps(input.fetchers)), ...deps };
+  const acquired = await acquireAccountingStateForArAp(input, resolved);
+  const persisted = await persistAcquiredAccountingStateWithArApSnapshots({
+    bundle: acquired.bundle,
+    connection: acquired.connection,
+    userId: input.userId,
+    deps: resolved,
+  });
+  return {
+    ...persisted,
+    acquisitionId: acquired.bundle.acquisitionId,
+  };
+}
+
