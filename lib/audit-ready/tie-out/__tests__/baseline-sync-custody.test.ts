@@ -88,7 +88,7 @@ function deps(overrides: Partial<AccountingSyncCustodyDeps> = {}): AccountingSyn
 }
 
 describe("CC-2A Option B: live measurement must not claim baseline_sync_id", () => {
-  it("every shipped kind is live_provider today", () => {
+  it("every shipped kind defaults to live_provider (AR snapshot is opt-in)", () => {
     for (const kind of SYNC_BACKED_TIE_OUT_KINDS) {
       expect(SHIPPED_TIE_OUT_MEASUREMENT_SOURCE[kind]).toBe("live_provider");
       expect(mayStampBaselineSyncId(SHIPPED_TIE_OUT_MEASUREMENT_SOURCE[kind])).toBe(
@@ -120,17 +120,24 @@ describe("CC-2A Option B: live measurement must not claim baseline_sync_id", () 
     expect(baselineSyncCustodyInsertFields(SYNC_A).baseline_sync_id).toBe(SYNC_A);
   });
 
-  it("no shipped resolver stamps baseline_sync_id or requires a sync before live fetch", () => {
+  it("non-AR shipped resolvers do not stamp; AR stamps only via snapshot helper", () => {
     for (const [kind, rel] of Object.entries(RESOLVER_FILES)) {
       const src = read(rel);
-      expect(src, kind).not.toContain("baselineSyncCustodyInsertFields");
-      expect(src, kind).not.toContain("baselineSyncInsertForMeasurement");
-      expect(src, kind).not.toContain("requireAuthoritativeBaselineSyncId");
-      expect(src, kind).not.toMatch(/baseline_sync_id/);
       expect(src, kind).not.toContain("resolvePersistedAuthoritativeAccountingSyncId");
       for (const fn of LIVE_FETCH[kind as keyof typeof LIVE_FETCH]) {
         expect(src, `${kind} ${fn}`).toContain(fn);
       }
+      if (kind === "ar_aging") {
+        expect(src).toContain("baselineSyncInsertForMeasurement");
+        expect(src).toContain("persisted_sync_snapshot");
+        expect(src).toContain('mode === "persisted_snapshot"');
+        expect(src).not.toContain("baselineSyncCustodyInsertFields");
+        continue;
+      }
+      expect(src, kind).not.toContain("baselineSyncCustodyInsertFields");
+      expect(src, kind).not.toContain("baselineSyncInsertForMeasurement");
+      expect(src, kind).not.toContain("requireAuthoritativeBaselineSyncId");
+      expect(src, kind).not.toMatch(/baseline_sync_id/);
     }
   });
 
