@@ -143,11 +143,17 @@ describe("AR measurement snapshot persistence", () => {
     });
   });
 
-  it("5. snapshot row references the exact accounting_sync_id", async () => {
+  it("5. snapshot row references the exact accounting_sync_id and does not persist duplicate custody columns", async () => {
     const result = await persistArMeasurementSnapshot(snapshot());
     expect(result.reused).toBe(false);
     expect(inserts[0]?.accounting_sync_id).toBe(SYNC);
+    expect(inserts[0]).not.toHaveProperty("company_id");
+    expect(inserts[0]).not.toHaveProperty("accounting_connection_id");
+    expect(inserts[0]).not.toHaveProperty("provider");
+    expect(inserts[0]).not.toHaveProperty("tenant_or_realm_id");
     expect(result.snapshot.accountingSyncId).toBe(SYNC);
+    expect(result.snapshot.companyId).toBe(COMPANY);
+    expect(result.snapshot.accountingConnectionId).toBe(CONN);
   });
 
   it("6. same sync/kind/as-of + same hash reuses the existing row", async () => {
@@ -196,5 +202,35 @@ describe("AR measurement snapshot persistence", () => {
       );
     }
     expect(() => assertAsOfMatchesReportPeriodEnd("2026-07-31", "2026-07-31")).not.toThrow();
+  });
+
+  it("1. parent Company A + child Company B is rejected and not inserted", async () => {
+    await expect(
+      persistArMeasurementSnapshot(snapshot({ companyId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc" })),
+    ).rejects.toMatchObject({ code: MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH });
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("2. parent connection A + child connection B is rejected", async () => {
+    await expect(
+      persistArMeasurementSnapshot(
+        snapshot({ accountingConnectionId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" }),
+      ),
+    ).rejects.toMatchObject({ code: MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH });
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("3. provider mismatch is rejected", async () => {
+    await expect(
+      persistArMeasurementSnapshot(snapshot({ provider: "xero" })),
+    ).rejects.toMatchObject({ code: MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH });
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("4. tenant/realm mismatch is rejected", async () => {
+    await expect(
+      persistArMeasurementSnapshot(snapshot({ tenantOrRealmId: "other-realm" })),
+    ).rejects.toMatchObject({ code: MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH });
+    expect(inserts).toHaveLength(0);
   });
 });

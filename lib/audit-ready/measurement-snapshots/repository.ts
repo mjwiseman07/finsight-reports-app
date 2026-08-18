@@ -24,13 +24,9 @@ export function assertAsOfMatchesReportPeriodEnd(
 
 const TABLE = "accounting_measurement_snapshots";
 
-type SnapshotRow = {
+type SnapshotMeasurementRow = {
   id: string;
   accounting_sync_id: string;
-  company_id: string;
-  accounting_connection_id: string;
-  provider: string;
-  tenant_or_realm_id: string;
   snapshot_kind: string;
   as_of_date: string;
   schema_version: number;
@@ -41,14 +37,53 @@ type SnapshotRow = {
   created_at: string;
 };
 
-function rowToSnapshot(row: SnapshotRow): TieOutArMeasurementSnapshot {
+const MEASUREMENT_COLUMNS =
+  "id, accounting_sync_id, snapshot_kind, as_of_date, schema_version, payload, payload_hash, source_request_ids, captured_at, created_at";
+
+export function assertSnapshotMatchesParentSync(
+  snapshot: Pick<
+    TieOutArMeasurementSnapshot,
+    "companyId" | "accountingConnectionId" | "provider" | "tenantOrRealmId" | "asOfDate"
+  >,
+  parent: AccountingSyncForArSnapshot,
+): void {
+  if (!parent.company_id) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.SYNC_COMPANY_MISSING,
+      "AR measurement snapshots require accounting_syncs.company_id.",
+    );
+  }
+  assertAsOfMatchesReportPeriodEnd(snapshot.asOfDate, parent.report_period_end);
+  if (
+    snapshot.companyId !== parent.company_id ||
+    snapshot.accountingConnectionId !== parent.connection_id ||
+    snapshot.provider !== parent.source_system ||
+    snapshot.tenantOrRealmId !== parent.tenant_id
+  ) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH,
+      "Snapshot company/connection/provider/realm must match the parent accounting_syncs row.",
+    );
+  }
+}
+
+function hydrateSnapshot(
+  row: SnapshotMeasurementRow,
+  parent: AccountingSyncForArSnapshot,
+): TieOutArMeasurementSnapshot {
+  if (!parent.company_id) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.SYNC_COMPANY_MISSING,
+      "AR measurement snapshots require accounting_syncs.company_id.",
+    );
+  }
   return {
     schemaVersion: TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION,
     accountingSyncId: row.accounting_sync_id,
-    accountingConnectionId: row.accounting_connection_id,
-    companyId: row.company_id,
-    provider: row.provider,
-    tenantOrRealmId: row.tenant_or_realm_id,
+    accountingConnectionId: parent.connection_id,
+    companyId: parent.company_id,
+    provider: parent.source_system,
+    tenantOrRealmId: parent.tenant_id,
     snapshotKind: AR_AGING_SNAPSHOT_KIND,
     asOfDate: asIsoDate(row.as_of_date),
     capturedAt: row.captured_at,
@@ -87,7 +122,7 @@ export async function loadAccountingSyncForArSnapshot(
     company_id: data.company_id == null ? "" : String(data.company_id),
     connection_id: String(data.connection_id || ""),
     source_system: String(data.source_system || ""),
-    tenant_id: String(data.tenant_id || ""),
+    tenant_id: data.tenant_id == null ? "" : String(data.tenant_id),
     report_period_end: asIsoDate(data.report_period_end),
     validation_status: String(data.validation_status || ""),
   };
@@ -97,6 +132,9 @@ export async function loadAccountingSyncForArSnapshot(
  * Period equality is a validation condition, not capture authority.
  * Do not use an existing period-matched accounting_syncs row as the parent
  * of a later AR/TB provider fetch.
+ *
+ * Loaded snapshots derive company/connection/provider/tenant from the parent
+ * accounting_syncs row. That parent is identity authority.
  */
 
 export async function loadArMeasurementSnapshot(args: {
@@ -106,9 +144,7 @@ export async function loadArMeasurementSnapshot(args: {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from(TABLE)
-    .select(
-      "id, accounting_sync_id, company_id, accounting_connection_id, provider, tenant_or_realm_id, snapshot_kind, as_of_date, schema_version, payload, payload_hash, source_request_ids, captured_at, created_at",
-    )
+    .select(MEASUREMENT_COLUMNS)
     .eq("accounting_sync_id", args.accountingSyncId)
     .eq("snapshot_kind", AR_AGING_SNAPSHOT_KIND)
     .eq("as_of_date", asIsoDate(args.asOfDate))
@@ -120,12 +156,14 @@ export async function loadArMeasurementSnapshot(args: {
     );
   }
   if (!data) return null;
-  return rowToSnapshot(data as SnapshotRow);
+  const parent = await loadAccountingSyncForArSnapshot(String(data.accounting_sync_id));
+  return hydrateSnapshot(data as SnapshotMeasurementRow, parent);
 }
 
 /**
  * Insert-only. Same unique coordinates + same hash → reuse.
  * Same unique coordinates + different hash → fail closed. Never UPDATE.
+ * Duplicated custody columns are not stored; parent accounting_syncs is authority.
  */
 export async function persistArMeasurementSnapshot(
   snapshot: TieOutArMeasurementSnapshot,
@@ -138,6 +176,8 @@ export async function persistArMeasurementSnapshot(
     tenantOrRealmId: snapshot.tenantOrRealmId,
     accountingSyncId: snapshot.accountingSyncId,
   });
+  const parent = await loadAccountingSyncForArSnapshot(validated.accountingSyncId);
+  assertSnapshotMatchesParentSync(validated, parent);
   const existing = await loadArMeasurementSnapshot({
     accountingSyncId: validated.accountingSyncId,
     asOfDate: validated.asOfDate,
@@ -156,10 +196,6 @@ export async function persistArMeasurementSnapshot(
     .from(TABLE)
     .insert({
       accounting_sync_id: validated.accountingSyncId,
-      company_id: validated.companyId,
-      accounting_connection_id: validated.accountingConnectionId,
-      provider: validated.provider,
-      tenant_or_realm_id: validated.tenantOrRealmId,
       snapshot_kind: validated.snapshotKind,
       as_of_date: validated.asOfDate,
       schema_version: validated.schemaVersion,
@@ -168,9 +204,7 @@ export async function persistArMeasurementSnapshot(
       source_request_ids: validated.sourceRequestIds,
       captured_at: validated.capturedAt,
     })
-    .select(
-      "id, accounting_sync_id, company_id, accounting_connection_id, provider, tenant_or_realm_id, snapshot_kind, as_of_date, schema_version, payload, payload_hash, source_request_ids, captured_at, created_at",
-    )
+    .select(MEASUREMENT_COLUMNS)
     .single();
   if (error) {
     const conflict =
@@ -194,5 +228,8 @@ export async function persistArMeasurementSnapshot(
       error.message,
     );
   }
-  return { snapshot: rowToSnapshot(data as SnapshotRow), reused: false };
+  return {
+    snapshot: hydrateSnapshot(data as SnapshotMeasurementRow, parent),
+    reused: false,
+  };
 }

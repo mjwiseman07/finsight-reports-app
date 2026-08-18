@@ -1,16 +1,14 @@
 -- CC-2A1 — AR measurement-input custody.
 -- Sibling of accounting_syncs. Do NOT expand accounting_syncs.normalized_payload.
 -- Immutable evidence input: no payload/hash/sync/as-of mutation; no historical backfill.
+-- Custody authority is the parent accounting_syncs row. Do not duplicate
+-- company/connection/provider/tenant columns that can contradict the parent.
 
 CREATE TABLE IF NOT EXISTS public.accounting_measurement_snapshots (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   accounting_sync_id uuid NOT NULL
     REFERENCES public.accounting_syncs(id)
     ON DELETE CASCADE,
-  company_id uuid NOT NULL,
-  accounting_connection_id uuid NOT NULL,
-  provider text NOT NULL,
-  tenant_or_realm_id text NOT NULL,
   snapshot_kind text NOT NULL,
   as_of_date date NOT NULL,
   schema_version integer NOT NULL,
@@ -29,11 +27,11 @@ CREATE TABLE IF NOT EXISTS public.accounting_measurement_snapshots (
     CHECK (payload_hash ~ '^[a-f0-9]{64}$')
 );
 
-CREATE INDEX IF NOT EXISTS accounting_measurement_snapshots_company_idx
-  ON public.accounting_measurement_snapshots (company_id, snapshot_kind, as_of_date);
+CREATE INDEX IF NOT EXISTS accounting_measurement_snapshots_kind_asof_idx
+  ON public.accounting_measurement_snapshots (snapshot_kind, as_of_date);
 
 COMMENT ON TABLE public.accounting_measurement_snapshots IS
-  'Immutable URM measurement-input custody tied to an existing accounting_syncs.id. Not Scorecard memory.';
+  'Immutable URM measurement-input custody. Identity authority is accounting_syncs(id); company/connection/provider/tenant are not duplicated.';
 
 CREATE OR REPLACE FUNCTION public.accounting_measurement_snapshots_deny_update()
 RETURNS trigger
@@ -70,8 +68,11 @@ CREATE POLICY accounting_measurement_snapshots_select
   TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM public.company_users cu
-      WHERE cu.company_id = accounting_measurement_snapshots.company_id
+      SELECT 1
+      FROM public.accounting_syncs s
+      JOIN public.company_users cu
+        ON cu.company_id = s.company_id
+      WHERE s.id = accounting_measurement_snapshots.accounting_sync_id
         AND cu.user_id = (SELECT auth.uid())
         AND cu.status = 'active'
     )
