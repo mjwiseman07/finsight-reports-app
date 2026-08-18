@@ -13,6 +13,8 @@ import {
   mayStampBaselineSyncId,
   requireAuthoritativeBaselineSyncId,
   resolvePersistedAuthoritativeAccountingSyncIdWithDeps,
+  selectLatestCompletedTieOutRunForSync,
+  selectLatestCompletedTieOutRunForSyncFromCandidates,
   selectLatestCompletedTieOutRunFromCandidates,
   type AccountingSyncCustodyDeps,
   type CompletedTieOutRunCandidate,
@@ -259,21 +261,28 @@ describe("CC-2A Option B: live measurement must not claim baseline_sync_id", () 
 });
 
 describe("selectLatestCompletedTieOutRun semantics (source lock)", () => {
-  it("general selector: completed only, completed_at DESC", () => {
+  it("general selector: completed only, completed_at DESC, no sync argument", () => {
     const src = read("lib/audit-ready/tie-out/baseline-sync-custody.ts");
+    const generalFn = src.match(
+      /export async function selectLatestCompletedTieOutRun\([\s\S]*?\): Promise/,
+    )?.[0];
+    expect(generalFn).toBeTruthy();
+    expect(generalFn).not.toContain("baselineSyncId");
     expect(src).toContain('eq("status", "completed")');
     expect(src).toContain('.order("completed_at", { ascending: false })');
-    expect(src).not.toMatch(/selectLatestCompletedTieOutRun[\s\S]*updated_at/);
   });
 
-  it("CC selector with sync-A requires baseline_sync_id = sync-A", () => {
+  it("CC selector requires requireAuthoritativeBaselineSyncId then exact baseline_sync_id", () => {
     const src = read("lib/audit-ready/tie-out/baseline-sync-custody.ts");
-    expect(src).toContain("if (requiredSync)");
-    expect(src).toContain('query.eq("baseline_sync_id", requiredSync)');
+    expect(src).toContain("export async function selectLatestCompletedTieOutRunForSync(");
+    expect(src).toContain(
+      "const baselineSyncId = requireAuthoritativeBaselineSyncId(args.baselineSyncId);",
+    );
+    expect(src).toContain('query.eq("baseline_sync_id", args.baselineSyncId)');
   });
 });
 
-describe("selectLatestCompletedTieOutRunFromCandidates (CC within custody)", () => {
+describe("selectLatestCompletedTieOutRunFromCandidates (legacy/general)", () => {
   const run = (
     id: string,
     completedAt: string,
@@ -286,8 +295,31 @@ describe("selectLatestCompletedTieOutRunFromCandidates (CC within custody)", () 
     baselineSyncId,
   });
 
-  it("newest null-custody run does not hide older sync-A authoritative run", () => {
-    const selected = selectLatestCompletedTieOutRunFromCandidates(
+  it("omitted baselineSyncId uses legacy completed/latest behavior", () => {
+    const selected = selectLatestCompletedTieOutRunFromCandidates([
+      run("run-3", "2026-08-17T12:00:00.000Z", null),
+      run("run-2", "2026-08-17T11:00:00.000Z", SYNC_A),
+      run("run-failed", "2026-08-17T13:00:00.000Z", SYNC_A, "failed"),
+    ]);
+    expect(selected?.id).toBe("run-3");
+  });
+});
+
+describe("selectLatestCompletedTieOutRunForSyncFromCandidates (CC fail-closed)", () => {
+  const run = (
+    id: string,
+    completedAt: string,
+    baselineSyncId: string | null,
+    status = "completed",
+  ): CompletedTieOutRunCandidate => ({
+    id,
+    status,
+    completedAt,
+    baselineSyncId,
+  });
+
+  it("CC selector sync-A uses exact sync-A selection", () => {
+    const selected = selectLatestCompletedTieOutRunForSyncFromCandidates(
       [
         run("run-3", "2026-08-17T12:00:00.000Z", null),
         run("run-2", "2026-08-17T11:00:00.000Z", SYNC_A),
@@ -298,8 +330,43 @@ describe("selectLatestCompletedTieOutRunFromCandidates (CC within custody)", () 
     expect(selected?.baselineSyncId).toBe(SYNC_A);
   });
 
-  it("newest sync-B run does not hide older sync-A authoritative run", () => {
-    const selected = selectLatestCompletedTieOutRunFromCandidates(
+  it("CC selector baselineSyncId=\"\" fails closed", () => {
+    expect(() =>
+      selectLatestCompletedTieOutRunForSyncFromCandidates([], {
+        baselineSyncId: "",
+      }),
+    ).toThrow(BaselineSyncCustodyError);
+  });
+
+  it("CC selector whitespace fails closed", () => {
+    expect(() =>
+      selectLatestCompletedTieOutRunForSyncFromCandidates([], {
+        baselineSyncId: "   ",
+      }),
+    ).toThrow(BaselineSyncCustodyError);
+  });
+
+  it("CC selector null explicitly supplied fails closed", () => {
+    expect(() =>
+      selectLatestCompletedTieOutRunForSyncFromCandidates([], {
+        baselineSyncId: null as unknown as string,
+      }),
+    ).toThrow(BaselineSyncCustodyError);
+  });
+
+  it("newest null-custody run cannot be selected by CC sync-A", () => {
+    const selected = selectLatestCompletedTieOutRunForSyncFromCandidates(
+      [
+        run("run-3", "2026-08-17T12:00:00.000Z", null),
+        run("run-2", "2026-08-17T11:00:00.000Z", SYNC_A),
+      ],
+      { baselineSyncId: SYNC_A },
+    );
+    expect(selected?.id).toBe("run-2");
+  });
+
+  it("newest sync-B cannot hide older sync-A", () => {
+    const selected = selectLatestCompletedTieOutRunForSyncFromCandidates(
       [
         run("run-3", "2026-08-17T12:00:00.000Z", SYNC_B),
         run("run-2", "2026-08-17T11:00:00.000Z", SYNC_A),
@@ -309,8 +376,8 @@ describe("selectLatestCompletedTieOutRunFromCandidates (CC within custody)", () 
     expect(selected?.id).toBe("run-2");
   });
 
-  it("no matching sync-A run returns null", () => {
-    const selected = selectLatestCompletedTieOutRunFromCandidates(
+  it("no sync-A candidate returns null", () => {
+    const selected = selectLatestCompletedTieOutRunForSyncFromCandidates(
       [
         run("run-3", "2026-08-17T12:00:00.000Z", null),
         run("run-2", "2026-08-17T11:00:00.000Z", SYNC_B),
@@ -320,21 +387,23 @@ describe("selectLatestCompletedTieOutRunFromCandidates (CC within custody)", () 
     expect(selected).toBeNull();
   });
 
-  it("NULL baseline is never CC-authoritative", () => {
-    expect(isCcAuthoritativeUrmCustody(null)).toBe(false);
-    const selected = selectLatestCompletedTieOutRunFromCandidates(
-      [run("run-null", "2026-08-17T12:00:00.000Z", null)],
-      { baselineSyncId: SYNC_A },
-    );
-    expect(selected).toBeNull();
-  });
-
-  it("general selector still returns latest completed including null custody", () => {
-    const selected = selectLatestCompletedTieOutRunFromCandidates([
-      run("run-3", "2026-08-17T12:00:00.000Z", null),
-      run("run-2", "2026-08-17T11:00:00.000Z", SYNC_A),
-      run("run-failed", "2026-08-17T13:00:00.000Z", SYNC_A, "failed"),
-    ]);
-    expect(selected?.id).toBe("run-3");
+  it("async CC selector fails closed before query for empty/whitespace/null", async () => {
+    const base = {
+      engagementId: "eng-1",
+      periodEnd: "2026-07-31",
+      tieOutKind: "ar_aging",
+    };
+    await expect(
+      selectLatestCompletedTieOutRunForSync({ ...base, baselineSyncId: "" }),
+    ).rejects.toThrow(BaselineSyncCustodyError);
+    await expect(
+      selectLatestCompletedTieOutRunForSync({ ...base, baselineSyncId: "  " }),
+    ).rejects.toThrow(BaselineSyncCustodyError);
+    await expect(
+      selectLatestCompletedTieOutRunForSync({
+        ...base,
+        baselineSyncId: null as unknown as string,
+      }),
+    ).rejects.toThrow(BaselineSyncCustodyError);
   });
 });

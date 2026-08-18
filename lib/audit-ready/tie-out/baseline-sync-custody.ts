@@ -15,9 +15,10 @@
  *
  * Stamp only when measurementSource === "persisted_sync_snapshot".
  *
- * selectLatestCompletedTieOutRun: without baselineSyncId, latest completed;
- * with baselineSyncId, latest completed whose baseline_sync_id equals that
- * exact accounting_syncs.id (null custody is never a CC match).
+ * selectLatestCompletedTieOutRun: legacy/general — completed + completed_at DESC.
+ * selectLatestCompletedTieOutRunForSync: CC-authoritative — requires a valid
+ * non-empty accounting_syncs.id and exact baseline_sync_id match. Empty/null/
+ * whitespace MUST fail closed; they never fall back to the general selector.
  *
  * Does NOT: change URM math; backfill historical nulls; replace a supplied
  * sync id with "latest"; write to QBO/Xero.
@@ -417,40 +418,51 @@ export type CompletedTieOutRunCandidate = {
   baselineSyncId: string | null;
 };
 
-/**
- * Latest completed URM/tie-out run for engagement/period/kind.
- *
- * Without baselineSyncId: legacy selector — completed + completed_at DESC.
- * With baselineSyncId: CC-authoritative — also require exact baseline_sync_id.
- * Null/empty custody is never a match for the CC path.
- */
-export function selectLatestCompletedTieOutRunFromCandidates(
+function completedRunsNewestFirst(
   rows: CompletedTieOutRunCandidate[],
-  args: { baselineSyncId?: string | null } = {},
-): CompletedTieOutRunCandidate | null {
-  const requiredSync = String(args.baselineSyncId || "").trim();
-  const matched = rows.filter((row) => {
-    if (row.status !== "completed") return false;
-    if (!row.completedAt) return false;
-    if (requiredSync) {
-      if (row.baselineSyncId == null || row.baselineSyncId === "") return false;
-      if (String(row.baselineSyncId) !== requiredSync) return false;
-    }
-    return true;
-  });
-  matched.sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
-  return matched[0] ?? null;
+): CompletedTieOutRunCandidate[] {
+  return rows
+    .filter((row) => row.status === "completed" && Boolean(row.completedAt))
+    .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
 }
 
-export async function selectLatestCompletedTieOutRun(args: {
+/** Legacy/general: latest completed. Null-custody runs are eligible. */
+export function selectLatestCompletedTieOutRunFromCandidates(
+  rows: CompletedTieOutRunCandidate[],
+): CompletedTieOutRunCandidate | null {
+  return completedRunsNewestFirst(rows)[0] ?? null;
+}
+
+/**
+ * CC-authoritative candidate pick.
+ * baselineSyncId must be a valid non-empty accounting_syncs.id.
+ * Empty / whitespace / null fail closed — never general selection.
+ */
+export function selectLatestCompletedTieOutRunForSyncFromCandidates(
+  rows: CompletedTieOutRunCandidate[],
+  args: { baselineSyncId: string },
+): CompletedTieOutRunCandidate | null {
+  const requiredSync = requireAuthoritativeBaselineSyncId(args.baselineSyncId);
+  return (
+    completedRunsNewestFirst(rows).find(
+      (row) => String(row.baselineSyncId) === requiredSync,
+    ) ?? null
+  );
+}
+
+type LatestCompletedTieOutRunRow = {
+  id: string;
+  baselineSyncId: string | null;
+  completedAt: string;
+};
+
+async function loadLatestCompletedTieOutRun(args: {
   engagementId: string;
   periodEnd: string;
   tieOutKind: TieOutKind | string;
-  /** Exact accounting_syncs.id. When set, select within that custody. */
-  baselineSyncId?: string | null;
-}): Promise<{ id: string; baselineSyncId: string | null; completedAt: string } | null> {
+  baselineSyncId?: string;
+}): Promise<LatestCompletedTieOutRunRow | null> {
   const supabase = getSupabaseAdmin();
-  const requiredSync = String(args.baselineSyncId || "").trim();
   let query = supabase
     .from("audit_ready_tie_out_runs")
     .select("id, baseline_sync_id, completed_at")
@@ -458,8 +470,8 @@ export async function selectLatestCompletedTieOutRun(args: {
     .eq("period_end", args.periodEnd)
     .eq("tie_out_kind", args.tieOutKind)
     .eq("status", "completed");
-  if (requiredSync) {
-    query = query.eq("baseline_sync_id", requiredSync);
+  if (args.baselineSyncId) {
+    query = query.eq("baseline_sync_id", args.baselineSyncId);
   }
   const { data, error } = await query
     .order("completed_at", { ascending: false })
@@ -467,21 +479,36 @@ export async function selectLatestCompletedTieOutRun(args: {
     .maybeSingle();
   if (error) throw error;
   if (!data?.id || !data.completed_at) return null;
-  const selected = selectLatestCompletedTieOutRunFromCandidates(
-    [
-      {
-        id: String(data.id),
-        status: "completed",
-        completedAt: String(data.completed_at),
-        baselineSyncId: data.baseline_sync_id == null ? null : String(data.baseline_sync_id),
-      },
-    ],
-    { baselineSyncId: requiredSync || null },
-  );
-  if (!selected?.completedAt) return null;
   return {
-    id: selected.id,
-    baselineSyncId: selected.baselineSyncId,
-    completedAt: selected.completedAt,
+    id: String(data.id),
+    baselineSyncId: data.baseline_sync_id == null ? null : String(data.baseline_sync_id),
+    completedAt: String(data.completed_at),
   };
+}
+
+/** Legacy/general selector. Does not accept a sync id. */
+export async function selectLatestCompletedTieOutRun(args: {
+  engagementId: string;
+  periodEnd: string;
+  tieOutKind: TieOutKind | string;
+}): Promise<LatestCompletedTieOutRunRow | null> {
+  return loadLatestCompletedTieOutRun(args);
+}
+
+/**
+ * CC-authoritative selector for an observed accounting_syncs.id.
+ * Throws BaselineSyncCustodyError if baselineSyncId is empty, whitespace, null,
+ * or a metadata: pointer. Never falls back to general selection.
+ */
+export async function selectLatestCompletedTieOutRunForSync(args: {
+  engagementId: string;
+  periodEnd: string;
+  tieOutKind: TieOutKind | string;
+  baselineSyncId: string;
+}): Promise<LatestCompletedTieOutRunRow | null> {
+  const baselineSyncId = requireAuthoritativeBaselineSyncId(args.baselineSyncId);
+  const row = await loadLatestCompletedTieOutRun({ ...args, baselineSyncId });
+  if (!row) return null;
+  if (row.baselineSyncId !== baselineSyncId) return null;
+  return row;
 }
