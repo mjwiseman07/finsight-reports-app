@@ -18,6 +18,12 @@ import { renderBsSummaryPdf, type BsSummaryPdfLine } from "./bs-summary-pdf";
 import { createHash } from "node:crypto";
 import { bsSummaryEmitter } from "./emitters/bs-summary-emitter";
 import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
+import {
+  BaselineSyncCustodyError,
+  assertRunIdDistinctFromBaselineSyncId,
+  baselineSyncCustodyInsertFields,
+  requireAuthoritativeBaselineSyncId,
+} from "./baseline-sync-custody";
 
 export type RunBsSummaryResolverInput = {
   engagementId: string;
@@ -29,6 +35,8 @@ export type RunBsSummaryResolverInput = {
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
   regeneratedFromRunId?: string | null;
   triggerKind?: "initial" | "regenerated" | "cron";
+  /** Authoritative accounting_syncs.id — required for sync-backed URM custody. */
+  baselineSyncId: string;
   /**
    * Optional scope. When omitted or empty, every non-computed line from
    * the QBO BalanceSheet report is included. When provided, only lines
@@ -165,6 +173,17 @@ async function ensureBsSummaryPbcAnchor(
 export async function runBsSummaryResolver(
   input: RunBsSummaryResolverInput,
 ): Promise<RunBsSummaryResolverResult> {
+  let baselineSyncId: string;
+  try {
+    baselineSyncId = requireAuthoritativeBaselineSyncId(input.baselineSyncId);
+  } catch (e) {
+    const err = e instanceof BaselineSyncCustodyError ? e : null;
+    return {
+      status: "failed",
+      errorCode: err?.code ?? "missing_baseline_sync_id",
+      errorMessage: err?.message ?? "missing_baseline_sync_id",
+    };
+  }
   const supabase = getSupabaseAdmin();
 
   let pbcRequestId: string;
@@ -206,6 +225,7 @@ export async function runBsSummaryResolver(
       regenerated_from_run_id: input.regeneratedFromRunId ?? null,
       trigger_kind: input.triggerKind ?? "initial",
       period_end: input.asOfDate,
+      ...baselineSyncCustodyInsertFields(baselineSyncId),
     })
     .select("id")
     .single();
@@ -217,6 +237,17 @@ export async function runBsSummaryResolver(
     };
   }
   const runId = runRow.id as string;
+  try {
+    assertRunIdDistinctFromBaselineSyncId(runId, baselineSyncId);
+  } catch (e) {
+    const err = e instanceof BaselineSyncCustodyError ? e : null;
+    return {
+      status: "failed",
+      errorCode: err?.code ?? "baseline_sync_collides_with_run_id",
+      errorMessage: err?.message ?? "runId must not equal baseline_sync_id",
+      runId,
+    };
+  }
   const runStartedAtMs = Date.now();
   try {
     // 3. Load QBO BalanceSheet report as source of truth. QBO's rollup
@@ -279,6 +310,7 @@ export async function runBsSummaryResolver(
           triggerReason: args.triggerReason,
           asOfDate: args.asOfDate,
           activityStartDate: args.activityStartDate,
+          baselineSyncId,
         });
       });
 

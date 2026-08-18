@@ -98,6 +98,15 @@ vi.mock("../bs-summary-resolver", () => ({
 vi.mock("../qbo-reports", () => ({
   fetchQboAccountList: (...a: unknown[]) => mockFetchAccounts(...a),
 }));
+vi.mock("../baseline-sync-custody", () => ({
+  resolvePersistedAuthoritativeAccountingSyncId: async () => ({
+    ok: true,
+    accountingSyncId: "sync-regenerate-1",
+    connectionId: "conn-1",
+    lastSyncedAt: "2026-08-17T11:00:00.000Z",
+    source: "pointer",
+  }),
+}));
 
 import { regenerateRun } from "../regenerate-run";
 

@@ -13,6 +13,7 @@ import { runBsAccountResolver } from "@/lib/audit-ready/tie-out/bs-account-resol
 import { regenerateRun } from "@/lib/audit-ready/tie-out/regenerate-run";
 import { runTieOut } from "@/lib/audit-ready/tie-out/worker";
 import type { BsClassification } from "@/lib/audit-ready/tie-out/sign-normalize";
+import { resolvePersistedAuthoritativeAccountingSyncId } from "@/lib/audit-ready/tie-out/baseline-sync-custody";
 
 const ENG = "724546e9-6deb-4f7f-b8ad-88e5ee65353d";
 const USER = "a4ebf834-a698-4f79-a945-8498f2e6c45d";
@@ -61,6 +62,13 @@ async function main() {
   if (!classification) throw new Error("classification_unavailable");
 
   console.log("=== 1. Fresh BS account run (trigger_kind=initial) ===");
+  const syncCustody = await resolvePersistedAuthoritativeAccountingSyncId({
+    userId: USER,
+    companyId: eng.company_id as string | null,
+    tenantOrRealmId: token.realmId,
+    sourceSystem: "quickbooks",
+  });
+  if (!syncCustody.ok) throw new Error(syncCustody.code);
   const bs = await runBsAccountResolver({
     engagementId: ENG,
     pbcRequestId: BS_PBC,
@@ -75,6 +83,7 @@ async function main() {
     policy: policy as any,
     triggeredByUserId: USER,
     triggerReason: "manual",
+    baselineSyncId: syncCustody.accountingSyncId,
   });
   console.log(JSON.stringify(bs));
   if (bs.status !== "completed") throw new Error("bs_run_failed");

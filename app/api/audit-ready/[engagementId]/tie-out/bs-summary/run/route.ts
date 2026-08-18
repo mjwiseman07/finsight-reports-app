@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
 import { runBsSummaryResolver } from "@/lib/audit-ready/tie-out/bs-summary-resolver";
 import type { PolicySnapshot } from "@/lib/audit-ready/tie-out/policy";
+import { resolvePersistedAuthoritativeAccountingSyncId } from "@/lib/audit-ready/tie-out/baseline-sync-custody";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -90,6 +91,18 @@ export async function POST(
       { status: 502 },
     );
   }
+  const syncCustody = await resolvePersistedAuthoritativeAccountingSyncId({
+    userId: actor.userId,
+    companyId: eng.company_id as string | null,
+    tenantOrRealmId: token.realmId,
+    sourceSystem: "quickbooks",
+  });
+  if (!syncCustody.ok) {
+    return NextResponse.json(
+      { error: syncCustody.reason, code: syncCustody.code },
+      { status: 409 },
+    );
+  }
   const result = await runBsSummaryResolver({
     engagementId,
     realmId: token.realmId,
@@ -99,6 +112,7 @@ export async function POST(
     triggeredByUserId: actor.userId,
     triggerReason: "manual",
     bsAccountIds: body.bs_account_ids,
+    baselineSyncId: syncCustody.accountingSyncId,
   });
   if (result.status === "completed") {
     return NextResponse.json({
