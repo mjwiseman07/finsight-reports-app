@@ -8,11 +8,27 @@ import {
 import { inventoryEmitter } from "./emitters/inventory-emitter";
 import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
 import { persistInventoryUrmBridge } from "./inventory-fa-urm";
+import type { PolicySnapshot, VarianceClassification } from "./policy";
+import { measureInventoryTieOut } from "./inventory-measure";
 import {
-  classifyVariance,
-  type PolicySnapshot,
-  type VarianceClassification,
-} from "./policy";
+  assertRunIdDistinctFromBaselineSyncId,
+  baselineSyncInsertForMeasurement,
+  type TieOutMeasurementSource,
+} from "./baseline-sync-custody";
+import {
+  MEASUREMENT_SNAPSHOT_ERROR,
+  MeasurementSnapshotError,
+  type TieOutInventoryMeasurementSnapshot,
+} from "@/lib/audit-ready/measurement-snapshots/types";
+import { validateInventoryMeasurementSnapshot } from "@/lib/audit-ready/measurement-snapshots/validate";
+import { inventoryReportsFromSnapshot } from "@/lib/audit-ready/measurement-snapshots/qbo-inventory-adapter";
+
+export type InventoryLiveMeasurement = { mode: "live" };
+
+export type InventoryPersistedSnapshotMeasurement = {
+  mode: "persisted_snapshot";
+  snapshot: TieOutInventoryMeasurementSnapshot;
+};
 
 export type InventoryResolverInput = {
   engagementId: string;
@@ -26,6 +42,11 @@ export type InventoryResolverInput = {
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
   regeneratedFromRunId?: string | null;
   triggerKind?: "initial" | "regenerated" | "cron";
+  /** Default omitted = live_provider. Worker/regenerate stay on this path. */
+  measurement?: InventoryLiveMeasurement | InventoryPersistedSnapshotMeasurement;
+  companyId?: string | null;
+  accountingConnectionId?: string | null;
+  provider?: string | null;
 };
 
 export type InventoryResolverOutput = {
@@ -42,6 +63,8 @@ export type InventoryResolverOutput = {
   durationMs: number;
   errorCode?: string;
   errorMessage?: string;
+  measurementSource: TieOutMeasurementSource;
+  baselineSyncId: string | null;
 };
 
 type VarianceInsert = {
@@ -59,11 +82,103 @@ type VarianceInsert = {
   classification_reason: string | null;
 };
 
+function failedPreInsert(args: {
+  code: string;
+  msg: string;
+  durationMs: number;
+}): InventoryResolverOutput {
+  return {
+    runId: "",
+    status: "failed",
+    totalsStatus: "kickout",
+    subledgerTotalCents: 0,
+    glTotalCents: 0,
+    totalsVarianceCents: 0,
+    itemCount: 0,
+    autoReconcileCount: 0,
+    reviewCount: 0,
+    kickoutCount: 0,
+    durationMs: args.durationMs,
+    errorCode: args.code,
+    errorMessage: args.msg,
+    measurementSource: "live_provider",
+    baselineSyncId: null,
+  };
+}
+
+function snapshotReportsOrThrow(input: InventoryResolverInput): {
+  valuation: QboInventoryValuationResult;
+  trial: QboTrialBalanceResult;
+  baselineSyncId: string;
+} {
+  if (input.measurement?.mode !== "persisted_snapshot") {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.AUTHORITATIVE_REQUIRED,
+      "Persisted Inventory snapshot measurement was not supplied.",
+    );
+  }
+  const companyId = String(input.companyId || "").trim();
+  const accountingConnectionId = String(input.accountingConnectionId || "").trim();
+  const provider = String(input.provider || "").trim();
+  if (!companyId || !accountingConnectionId || !provider) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH,
+      "Persisted Inventory snapshot measurement requires company, connection, and provider custody.",
+    );
+  }
+  const snapshot = validateInventoryMeasurementSnapshot(input.measurement.snapshot, {
+    asOfDate: input.asOfDate,
+    companyId,
+    accountingConnectionId,
+    provider,
+    tenantOrRealmId: input.realmId,
+    accountingSyncId: input.measurement.snapshot.accountingSyncId,
+  });
+  const reports = inventoryReportsFromSnapshot(snapshot);
+  return {
+    valuation: reports.valuation,
+    trial: reports.trial,
+    baselineSyncId: snapshot.accountingSyncId,
+  };
+}
+
 export async function runInventoryResolver(
   input: InventoryResolverInput,
 ): Promise<InventoryResolverOutput> {
   const supabase = getSupabaseAdmin();
   const start = Date.now();
+  const snapshotMode = input.measurement?.mode === "persisted_snapshot";
+  let measurementSource: TieOutMeasurementSource = snapshotMode
+    ? "persisted_sync_snapshot"
+    : "live_provider";
+  let baselineSyncId: string | null = null;
+  let subledger: QboInventoryValuationResult | null = null;
+  let trial: QboTrialBalanceResult | null = null;
+
+  if (snapshotMode) {
+    try {
+      const resolved = snapshotReportsOrThrow(input);
+      subledger = resolved.valuation;
+      trial = resolved.trial;
+      baselineSyncId = resolved.baselineSyncId;
+      measurementSource = "persisted_sync_snapshot";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      const code =
+        e instanceof MeasurementSnapshotError
+          ? e.code
+          : MEASUREMENT_SNAPSHOT_ERROR.AUTHORITATIVE_REQUIRED;
+      return failedPreInsert({ code, msg, durationMs: Date.now() - start });
+    }
+  }
+
+  const stamp = snapshotMode
+    ? baselineSyncInsertForMeasurement({
+        measurementSource: "persisted_sync_snapshot",
+        accountingSyncId: baselineSyncId,
+      })
+    : {};
+
   const { data: runRow, error: runErr } = await supabase
     .from("audit_ready_tie_out_runs")
     .insert({
@@ -82,11 +197,15 @@ export async function runInventoryResolver(
       trigger_reason: input.triggerReason,
       regenerated_from_run_id: input.regeneratedFromRunId ?? null,
       trigger_kind: input.triggerKind ?? "initial",
+      ...stamp,
     })
     .select("id")
     .single();
   if (runErr || !runRow) throw new Error(`insert run failed: ${runErr?.message}`);
   const runId = runRow.id as string;
+  if (baselineSyncId) {
+    assertRunIdDistinctFromBaselineSyncId(runId, baselineSyncId);
+  }
   const failRun = async (code: string, msg: string) => {
     await supabase
       .from("audit_ready_tie_out_runs")
@@ -107,82 +226,74 @@ export async function runInventoryResolver(
       })
       .eq("id", input.pbcRequestId);
   };
-  let subledger: QboInventoryValuationResult;
-  let trial: QboTrialBalanceResult;
-  try {
-    [subledger, trial] = await Promise.all([
-      fetchQboInventoryValuationDetail({
-        realmId: input.realmId,
-        accessToken: input.accessToken,
-        asOfDate: input.asOfDate,
-      }),
-      fetchQboTrialBalance({
-        realmId: input.realmId,
-        accessToken: input.accessToken,
-        asOfDate: input.asOfDate,
-      }),
-    ]);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "unknown";
-    await failRun("qbo_fetch_failed", msg);
-    return {
-      runId,
-      status: "failed",
-      totalsStatus: "kickout",
-      subledgerTotalCents: 0,
-      glTotalCents: 0,
-      totalsVarianceCents: 0,
-      itemCount: 0,
-      autoReconcileCount: 0,
-      reviewCount: 0,
-      kickoutCount: 0,
-      durationMs: Date.now() - start,
-      errorCode: "qbo_fetch_failed",
-      errorMessage: msg,
-    };
+
+  if (!snapshotMode) {
+    try {
+      [subledger, trial] = await Promise.all([
+        fetchQboInventoryValuationDetail({
+          realmId: input.realmId,
+          accessToken: input.accessToken,
+          asOfDate: input.asOfDate,
+        }),
+        fetchQboTrialBalance({
+          realmId: input.realmId,
+          accessToken: input.accessToken,
+          asOfDate: input.asOfDate,
+        }),
+      ]);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      await failRun("qbo_fetch_failed", msg);
+      return {
+        runId,
+        status: "failed",
+        totalsStatus: "kickout",
+        subledgerTotalCents: 0,
+        glTotalCents: 0,
+        totalsVarianceCents: 0,
+        itemCount: 0,
+        autoReconcileCount: 0,
+        reviewCount: 0,
+        kickoutCount: 0,
+        durationMs: Date.now() - start,
+        errorCode: "qbo_fetch_failed",
+        errorMessage: msg,
+        measurementSource: "live_provider",
+        baselineSyncId: null,
+      };
+    }
   }
-  const glLine = trial.lines.find(
-    (l) => l.account_ref === input.inventoryAccountId,
-  );
-  const glTotalCents = glLine ? glLine.net_cents : 0; // Inventory is debit-normal
-  const subTotalCents = subledger.total_cents;
-  const totalsVariance = subTotalCents - glTotalCents;
-  const totalsClass = classifyVariance(
-    totalsVariance,
-    glTotalCents !== 0 ? glTotalCents : subTotalCents,
-    input.policy,
-  );
-  const totalsStatus: InventoryResolverOutput["totalsStatus"] =
-    totalsClass.status === "auto_cleared"
-      ? "auto_reconcile"
-      : totalsClass.status === "tie"
-        ? "tie"
-        : totalsClass.status === "review"
-          ? "review"
-          : "kickout";
-  const variances: VarianceInsert[] = subledger.items.map((item) => {
-    const isNegativeOnHand = item.qty_on_hand < 0;
-    const isNegativeAssetValue = item.asset_value_cents < 0;
-    const flagReview = isNegativeOnHand || isNegativeAssetValue;
-    return {
-      run_id: runId,
-      engagement_id: input.engagementId,
-      pbc_request_id: input.pbcRequestId,
-      entity_kind: "item",
-      entity_qbo_id: item.item_ref,
-      entity_display_name: item.item_display_name,
-      subledger_amount_cents: item.asset_value_cents,
-      gl_amount_cents: null,
-      variance_cents: 0,
-      variance_percent: null,
-      status: (flagReview ? "review" : "tie") as VarianceClassification,
-      classification_reason: isNegativeOnHand
-        ? "item_negative_qty_on_hand"
-        : isNegativeAssetValue
-          ? "item_negative_asset_value"
-          : "item detail row (informational)",
-    };
+
+  const measured = measureInventoryTieOut({
+    valuation: subledger as QboInventoryValuationResult,
+    trialBalance: trial as QboTrialBalanceResult,
+    inventoryAccountId: input.inventoryAccountId,
+    policy: input.policy,
   });
+  const {
+    glLine,
+    glTotalCents,
+    subTotalCents,
+    totalsVariance,
+    totalsClass,
+    totalsStatus,
+    itemRows,
+  } = measured;
+
+  const variances: VarianceInsert[] = itemRows.map((item) => ({
+    run_id: runId,
+    engagement_id: input.engagementId,
+    pbc_request_id: input.pbcRequestId,
+    entity_kind: "item",
+    entity_qbo_id: item.entity_qbo_id,
+    entity_display_name: item.entity_display_name,
+    subledger_amount_cents: item.subledger_amount_cents,
+    gl_amount_cents: item.gl_amount_cents,
+    variance_cents: item.variance_cents,
+    variance_percent: item.variance_percent,
+    status: item.status,
+    classification_reason: item.classification_reason,
+  }));
   variances.push({
     run_id: runId,
     engagement_id: input.engagementId,
@@ -219,6 +330,8 @@ export async function runInventoryResolver(
           durationMs: Date.now() - start,
           errorCode: "variance_insert_failed",
           errorMessage: varErr.message,
+          measurementSource,
+          baselineSyncId,
         };
       }
     }
@@ -247,24 +360,23 @@ export async function runInventoryResolver(
       item_auto_reconcile_count: autoCount,
       item_review_count: reviewCount,
       item_kickout_count: kickoutCount,
-      subledger_source_url: subledger.raw_report_url,
-      gl_source_url: trial.raw_report_url,
-      intuit_tid_subledger: subledger.intuit_tid,
-      intuit_tid_gl: trial.intuit_tid,
+      subledger_source_url: (subledger as QboInventoryValuationResult).raw_report_url,
+      gl_source_url: (trial as QboTrialBalanceResult).raw_report_url,
+      intuit_tid_subledger: (subledger as QboInventoryValuationResult).intuit_tid,
+      intuit_tid_gl: (trial as QboTrialBalanceResult).intuit_tid,
       raw_qbo_payload_jsonb: {
         version: 1,
         kind: "inventory",
         fetched_at: fetchedAt,
         qbo_realm_id: input.realmId,
-        qbo_connection_id: "",
+        qbo_connection_id: input.accountingConnectionId ?? "",
+        measurement_source: measurementSource,
         inventory_valuation: subledger,
         trial_balance: trial,
       },
     })
     .eq("id", runId);
 
-  // URM-5: persist universal bridge after measurement gross is authoritative,
-  // before workpaper emit (emitter reads bridge for face + Reconciling Items tab).
   try {
     await persistInventoryUrmBridge({
       runId,
@@ -296,10 +408,11 @@ export async function runInventoryResolver(
       durationMs: Date.now() - start,
       errorCode: "urm_bridge_persist_failed",
       errorMessage: msg,
+      measurementSource,
+      baselineSyncId,
     };
   }
 
-  // Block E: primary WorkpaperEmitter write (hard-fail — marks run failed, no swallow).
   try {
     await dualWriteWorkpaper({
       emitter: inventoryEmitter,
@@ -324,6 +437,8 @@ export async function runInventoryResolver(
       durationMs: Date.now() - start,
       errorCode: "emit_failed",
       errorMessage: msg,
+      measurementSource,
+      baselineSyncId,
     };
   }
 
@@ -356,5 +471,7 @@ export async function runInventoryResolver(
     reviewCount,
     kickoutCount,
     durationMs: Date.now() - start,
+    measurementSource,
+    baselineSyncId,
   };
 }

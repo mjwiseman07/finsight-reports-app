@@ -120,14 +120,14 @@ describe("CC-2A Option B: live measurement must not claim baseline_sync_id", () 
     expect(baselineSyncCustodyInsertFields(SYNC_A).baseline_sync_id).toBe(SYNC_A);
   });
 
-  it("non-AR/AP shipped resolvers do not stamp; AR/AP stamp only via snapshot helper", () => {
+  it("non-AR/AP/Inventory shipped resolvers do not stamp; snapshot kinds stamp only via helper", () => {
     for (const [kind, rel] of Object.entries(RESOLVER_FILES)) {
       const src = read(rel);
       expect(src, kind).not.toContain("resolvePersistedAuthoritativeAccountingSyncId");
       for (const fn of LIVE_FETCH[kind as keyof typeof LIVE_FETCH]) {
         expect(src, `${kind} ${fn}`).toContain(fn);
       }
-      if (kind === "ar_aging" || kind === "ap_aging") {
+      if (kind === "ar_aging" || kind === "ap_aging" || kind === "inventory") {
         expect(src).toContain("baselineSyncInsertForMeasurement");
         expect(src).toContain("persisted_sync_snapshot");
         expect(src).toContain('mode === "persisted_snapshot"');

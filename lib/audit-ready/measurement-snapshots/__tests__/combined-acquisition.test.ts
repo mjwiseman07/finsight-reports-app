@@ -176,8 +176,12 @@ describe("combined AR+AP acquisition", () => {
       join(process.cwd(), "lib/audit-ready/measurement-snapshots/acquisition.ts"),
       "utf8",
     );
-    expect(src).toContain("const sharedTrialBalance = bundle.urmTrialBalance");
-    expect(src.match(/trial:\s*sharedTrialBalance/g)?.length).toBe(2);
+    const persistArAp = src.slice(
+      src.indexOf("export async function persistAcquiredAccountingStateWithArApSnapshots("),
+      src.indexOf("export async function acquireAndPersistAccountingStateWithArApSnapshots("),
+    );
+    expect(persistArAp).toContain("const sharedTrialBalance = bundle.urmTrialBalance");
+    expect(persistArAp.match(/trial:\s*sharedTrialBalance/g)?.length).toBe(2);
   });
 
   it("2. no provider fetch after sync persistence", async () => {
@@ -368,5 +372,17 @@ describe("combined AR+AP acquisition", () => {
     );
     expect(persistArOnly).not.toContain("buildApMeasurementSnapshotFromUrmReports");
     expect(persistArOnly).not.toContain("persistApSnapshot");
+    const arApAcquire = src.slice(
+      src.indexOf("export async function acquireAccountingStateForArAp("),
+      src.indexOf("export async function persistAcquiredAccountingStateWithArApSnapshots("),
+    );
+    expect(arApAcquire).not.toContain("fetchUrmInventoryValuation");
+    expect(arApAcquire).not.toContain("InventoryValuation");
+    const persistArAp = src.slice(
+      src.indexOf("export async function persistAcquiredAccountingStateWithArApSnapshots("),
+      src.indexOf("export async function acquireAndPersistAccountingStateWithArApSnapshots("),
+    );
+    expect(persistArAp).not.toContain("buildInventoryMeasurementSnapshotFromUrmReports");
+    expect(persistArAp).not.toContain("persistInventorySnapshot");
   });
 });

@@ -16,16 +16,21 @@ import {
 export {
   acquireAndPersistAccountingStateWithArSnapshot,
   acquireAndPersistAccountingStateWithArApSnapshots,
+  acquireAndPersistAccountingStateWithArApInventorySnapshots,
   acquireAccountingStateForAr,
   acquireAccountingStateForArAp,
+  acquireAccountingStateForArApInventory,
   persistAcquiredAccountingStateWithArSnapshot,
   persistAcquiredAccountingStateWithArApSnapshots,
+  persistAcquiredAccountingStateWithArApInventorySnapshots,
 } from "./acquisition";
 export type {
   ArAccountingAcquisitionBundle,
   ArApAccountingAcquisitionBundle,
+  ArApInventoryAccountingAcquisitionBundle,
   AcquireAndPersistArAccountingStateInput,
   AcquireAndPersistArApAccountingStateInput,
+  AcquireAndPersistArApInventoryAccountingStateInput,
 } from "./acquisition";
 
 /**

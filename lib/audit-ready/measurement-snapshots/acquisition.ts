@@ -29,6 +29,7 @@ import {
   fetchQboTrialBalance,
   type QboApAgingResult,
   type QboArAgingResult,
+  type QboInventoryValuationResult,
   type QboTrialBalanceResult,
 } from "@/lib/audit-ready/tie-out/qbo-reports";
 import {
@@ -41,9 +42,14 @@ import {
   fetchQboUrmApAging,
 } from "./qbo-ap-adapter";
 import {
+  buildInventoryMeasurementSnapshotFromUrmReports,
+  fetchQboUrmInventoryValuation,
+} from "./qbo-inventory-adapter";
+import {
   assertAsOfMatchesReportPeriodEnd,
   persistApMeasurementSnapshot,
   persistArMeasurementSnapshot,
+  persistInventoryMeasurementSnapshot,
 } from "./repository";
 import {
   CombinedAcquisitionPartialError,
@@ -51,6 +57,7 @@ import {
   MeasurementSnapshotError,
   type TieOutApMeasurementSnapshot,
   type TieOutArMeasurementSnapshot,
+  type TieOutInventoryMeasurementSnapshot,
 } from "./types";
 import { asIsoDate } from "./validate";
 
@@ -686,6 +693,296 @@ export async function acquireAndPersistAccountingStateWithArApSnapshots(
   const resolved = { ...(await createDefaultArApAcquisitionDeps(input.fetchers)), ...deps };
   const acquired = await acquireAccountingStateForArAp(input, resolved);
   const persisted = await persistAcquiredAccountingStateWithArApSnapshots({
+    bundle: acquired.bundle,
+    connection: acquired.connection,
+    userId: input.userId,
+    deps: resolved,
+  });
+  return {
+    ...persisted,
+    acquisitionId: acquired.bundle.acquisitionId,
+  };
+}
+
+export type ArApInventoryAccountingAcquisitionBundle = ArApAccountingAcquisitionBundle & {
+  urmInventoryValuation: QboInventoryValuationResult;
+};
+
+export type AcquireAndPersistArApInventoryAccountingStateInput =
+  AcquireAndPersistArApAccountingStateInput;
+
+export type ArApInventoryAcquisitionDeps = ArApAcquisitionDeps & {
+  fetchUrmInventoryValuation: (args: {
+    realmId: string;
+    accessToken: string;
+    asOfDate: string;
+  }) => Promise<QboInventoryValuationResult>;
+  persistInventorySnapshot: typeof persistInventoryMeasurementSnapshot;
+};
+
+export async function createDefaultArApInventoryAcquisitionDeps(
+  fetchers?: QboArCaptureFetchers,
+): Promise<ArApInventoryAcquisitionDeps> {
+  const arAp = await createDefaultArApAcquisitionDeps(fetchers);
+  return {
+    ...arAp,
+    async fetchUrmInventoryValuation(args) {
+      return fetchQboUrmInventoryValuation(args);
+    },
+    persistInventorySnapshot: persistInventoryMeasurementSnapshot,
+  };
+}
+
+/**
+ * Combined AR+AP+Inventory provider reads. One URM Trial Balance. No persist.
+ * Does not call fetchQboUrmArReports (that would fetch a second TB).
+ */
+export async function acquireAccountingStateForArApInventory(
+  input: AcquireAndPersistArApInventoryAccountingStateInput,
+  deps: ArApInventoryAcquisitionDeps,
+): Promise<{
+  bundle: ArApInventoryAccountingAcquisitionBundle;
+  connection: ArAcquisitionConnection;
+}> {
+  const preexisting = String(
+    (input as { accountingSyncId?: unknown }).accountingSyncId || "",
+  ).trim();
+  if (preexisting) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.PREEXISTING_SYNC_NOT_AUTHORITY,
+      "Fresh combined AR+AP+Inventory capture cannot use a pre-existing accountingSyncId.",
+    );
+  }
+  if (String(input.connection.provider) !== "quickbooks") {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.PROVIDER_UNSUPPORTED,
+      "Combined AR+AP+Inventory measurement acquisition currently supports QuickBooks only.",
+    );
+  }
+  const asOfDate = asIsoDate(input.asOfDate);
+  const reportPeriod: AccountingDateRange = {
+    startDate: asIsoDate(input.reportPeriod.startDate || monthStartFromAsOf(asOfDate)),
+    endDate: asIsoDate(input.reportPeriod.endDate),
+  };
+  assertAsOfMatchesReportPeriodEnd(asOfDate, reportPeriod.endDate);
+
+  const connection = await deps.ensureConnection(input.connection);
+  const realmId = String(connection.tenant_or_realm_id || connection.external_entity_id || "").trim();
+  const accessToken = String(connection.access_token || "").trim();
+  if (!realmId || !accessToken) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH,
+      "Combined AR+AP+Inventory acquisition requires a realm and access token on the connection.",
+    );
+  }
+
+  const capturedAt = new Date().toISOString();
+  const acquisitionId = randomUUID();
+  const urmArgs = { realmId, accessToken, asOfDate };
+  const [
+    scorecardRawReports,
+    urmArAging,
+    urmApAging,
+    urmInventoryValuation,
+    urmTrialBalanceRaw,
+  ] = await Promise.all([
+    deps.fetchScorecardRawReports(connection, reportPeriod),
+    deps.fetchUrmArAging(urmArgs),
+    deps.fetchUrmApAging(urmArgs),
+    deps.fetchUrmInventoryValuation(urmArgs),
+    deps.fetchUrmTrialBalance(urmArgs),
+  ]);
+  const urmTrialBalance = freezeSharedTrialBalance(urmTrialBalanceRaw);
+
+  return {
+    bundle: {
+      acquisitionId,
+      capturedAt,
+      asOfDate,
+      reportPeriod,
+      connectionId: connection.id,
+      provider: String(connection.provider),
+      tenantOrRealmId: realmId,
+      scorecardRawReports,
+      urmArAging,
+      urmApAging,
+      urmInventoryValuation,
+      urmTrialBalance,
+    },
+    connection,
+  };
+}
+
+export async function persistAcquiredAccountingStateWithArApInventorySnapshots(args: {
+  bundle: ArApInventoryAccountingAcquisitionBundle;
+  connection: ArAcquisitionConnection;
+  userId: string;
+  deps: ArApInventoryAcquisitionDeps;
+}): Promise<{
+  accountingSync: PersistedAccountingSyncIdentity;
+  arMeasurementSnapshot: TieOutArMeasurementSnapshot;
+  apMeasurementSnapshot: TieOutApMeasurementSnapshot;
+  inventoryMeasurementSnapshot: TieOutInventoryMeasurementSnapshot;
+  reusedArSnapshot: boolean;
+  reusedApSnapshot: boolean;
+  reusedInventorySnapshot: boolean;
+}> {
+  const { bundle, connection, userId, deps } = args;
+  assertAsOfMatchesReportPeriodEnd(bundle.asOfDate, bundle.reportPeriod.endDate);
+  const tenantId = bundle.tenantOrRealmId;
+  const tenantName = String(
+    connection.external_entity_name || connection.metadata_json?.tenant_name || "QuickBooks Company",
+  );
+  const syncId = deps.generateSyncId ? deps.generateSyncId() : randomUUID();
+  const normalizedData = await deps.normalizeScorecard({
+    rawReports: bundle.scorecardRawReports,
+    connection,
+    reportPeriod: bundle.reportPeriod,
+    syncId,
+    tenantId,
+    tenantName,
+  });
+  if (!hasCoreStatements(normalizedData)) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.CORE_STATEMENTS_MISSING,
+      "Combined AR+AP+Inventory acquisition will not persist an accounting_syncs row without core financial statements.",
+    );
+  }
+
+  const accountingSync = await deps.persistSync({
+    connection,
+    userId,
+    syncId,
+    reportPeriod: bundle.reportPeriod,
+    normalizedData,
+    tenantId,
+    tenantName,
+  });
+  assertAsOfMatchesReportPeriodEnd(bundle.asOfDate, accountingSync.reportPeriodEnd);
+  if (accountingSync.syncId !== syncId) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH,
+      "Persisted accounting_syncs.id must be the id assigned in this acquisition.",
+    );
+  }
+  if (!accountingSync.companyId) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.SYNC_COMPANY_MISSING,
+      "AR/AP/Inventory measurement snapshots require accounting_syncs.company_id.",
+    );
+  }
+
+  const sharedTrialBalance = bundle.urmTrialBalance;
+  const arSnapshot = buildArMeasurementSnapshotFromUrmReports({
+    accountingSyncId: accountingSync.syncId,
+    accountingConnectionId: accountingSync.connectionId,
+    companyId: accountingSync.companyId,
+    provider: bundle.provider,
+    tenantOrRealmId: bundle.tenantOrRealmId,
+    asOfDate: bundle.asOfDate,
+    capturedAt: bundle.capturedAt,
+    aging: bundle.urmArAging,
+    trial: sharedTrialBalance,
+  });
+  const apSnapshot = buildApMeasurementSnapshotFromUrmReports({
+    accountingSyncId: accountingSync.syncId,
+    accountingConnectionId: accountingSync.connectionId,
+    companyId: accountingSync.companyId,
+    provider: bundle.provider,
+    tenantOrRealmId: bundle.tenantOrRealmId,
+    asOfDate: bundle.asOfDate,
+    capturedAt: bundle.capturedAt,
+    aging: bundle.urmApAging,
+    trial: sharedTrialBalance,
+  });
+  const inventorySnapshot = buildInventoryMeasurementSnapshotFromUrmReports({
+    accountingSyncId: accountingSync.syncId,
+    accountingConnectionId: accountingSync.connectionId,
+    companyId: accountingSync.companyId,
+    provider: bundle.provider,
+    tenantOrRealmId: bundle.tenantOrRealmId,
+    asOfDate: bundle.asOfDate,
+    capturedAt: bundle.capturedAt,
+    valuation: bundle.urmInventoryValuation,
+    trial: sharedTrialBalance,
+  });
+
+  let persistedAr: { snapshot: TieOutArMeasurementSnapshot; reused: boolean };
+  try {
+    persistedAr = await deps.persistArSnapshot(arSnapshot);
+  } catch (error) {
+    throw new CombinedAcquisitionPartialError({
+      code: MEASUREMENT_SNAPSHOT_ERROR.COMBINED_AR_SNAPSHOT_PERSIST_FAILED,
+      message: `accounting_syncs ${accountingSync.syncId} persisted but AR snapshot did not; AP and Inventory were not persisted. ${
+        error instanceof Error ? error.message : "unknown"
+      }`,
+      accountingSyncId: accountingSync.syncId,
+      arMeasurementSnapshot: null,
+      apMeasurementSnapshot: null,
+      inventoryMeasurementSnapshot: null,
+    });
+  }
+
+  let persistedAp: { snapshot: TieOutApMeasurementSnapshot; reused: boolean };
+  try {
+    persistedAp = await deps.persistApSnapshot(apSnapshot);
+  } catch (error) {
+    throw new CombinedAcquisitionPartialError({
+      code: MEASUREMENT_SNAPSHOT_ERROR.COMBINED_AP_SNAPSHOT_PERSIST_FAILED,
+      message: `accounting_syncs ${accountingSync.syncId} and AR snapshot persisted but AP snapshot did not; Inventory was not persisted. AP is not CC-authoritative on this sync. ${
+        error instanceof Error ? error.message : "unknown"
+      }`,
+      accountingSyncId: accountingSync.syncId,
+      arMeasurementSnapshot: persistedAr.snapshot,
+      apMeasurementSnapshot: null,
+      inventoryMeasurementSnapshot: null,
+    });
+  }
+
+  try {
+    const persistedInventory = await deps.persistInventorySnapshot(inventorySnapshot);
+    return {
+      accountingSync,
+      arMeasurementSnapshot: persistedAr.snapshot,
+      apMeasurementSnapshot: persistedAp.snapshot,
+      inventoryMeasurementSnapshot: persistedInventory.snapshot,
+      reusedArSnapshot: persistedAr.reused,
+      reusedApSnapshot: persistedAp.reused,
+      reusedInventorySnapshot: persistedInventory.reused,
+    };
+  } catch (error) {
+    throw new CombinedAcquisitionPartialError({
+      code: MEASUREMENT_SNAPSHOT_ERROR.COMBINED_INVENTORY_SNAPSHOT_PERSIST_FAILED,
+      message: `accounting_syncs ${accountingSync.syncId} and AR+AP snapshots persisted but Inventory snapshot did not; Inventory is not CC-authoritative on this sync. Do not attach a later Inventory provider fetch to this sync. ${
+        error instanceof Error ? error.message : "unknown"
+      }`,
+      accountingSyncId: accountingSync.syncId,
+      arMeasurementSnapshot: persistedAr.snapshot,
+      apMeasurementSnapshot: persistedAp.snapshot,
+      inventoryMeasurementSnapshot: null,
+    });
+  }
+}
+
+export async function acquireAndPersistAccountingStateWithArApInventorySnapshots(
+  input: AcquireAndPersistArApInventoryAccountingStateInput,
+  deps?: Partial<ArApInventoryAcquisitionDeps>,
+): Promise<{
+  accountingSync: PersistedAccountingSyncIdentity;
+  arMeasurementSnapshot: TieOutArMeasurementSnapshot;
+  apMeasurementSnapshot: TieOutApMeasurementSnapshot;
+  inventoryMeasurementSnapshot: TieOutInventoryMeasurementSnapshot;
+  reusedArSnapshot: boolean;
+  reusedApSnapshot: boolean;
+  reusedInventorySnapshot: boolean;
+  acquisitionId: string;
+}> {
+  const resolved = {
+    ...(await createDefaultArApInventoryAcquisitionDeps(input.fetchers)),
+    ...deps,
+  };
+  const acquired = await acquireAccountingStateForArApInventory(input, resolved);
+  const persisted = await persistAcquiredAccountingStateWithArApInventorySnapshots({
     bundle: acquired.bundle,
     connection: acquired.connection,
     userId: input.userId,

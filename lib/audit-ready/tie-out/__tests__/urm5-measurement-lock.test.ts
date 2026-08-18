@@ -7,12 +7,15 @@ const read = (rel: string) =>
 
 describe("URM-5 measurement formulas locked", () => {
   it("Inventory measurement remains subledger − GL (debit-normal, no abs)", () => {
+    const math = read("lib/audit-ready/tie-out/inventory-measure.ts");
     const src = read("lib/audit-ready/tie-out/inventory-resolver.ts");
-    expect(src).toContain(
+    expect(math).toContain(
       "const glTotalCents = glLine ? glLine.net_cents : 0; // Inventory is debit-normal",
     );
-    expect(src).toContain("const subTotalCents = subledger.total_cents;");
-    expect(src).toContain("const totalsVariance = subTotalCents - glTotalCents;");
+    expect(math).toContain("const subTotalCents = subledger.total_cents;");
+    expect(math).toContain("const totalsVariance = subTotalCents - glTotalCents;");
+    expect(math).not.toMatch(/Math\.abs\(/);
+    expect(src).toContain("measureInventoryTieOut");
     expect(src).toContain("persistInventoryUrmBridge");
     expect(src).toMatch(
       /totals_variance_cents:\s*totalsVariance[\s\S]*persistInventoryUrmBridge[\s\S]*dualWriteWorkpaper/,
@@ -33,7 +36,7 @@ describe("URM-5 measurement formulas locked", () => {
   });
 
   it("negative inventory qty/value reviews stay measurement flags (variance_cents: 0)", () => {
-    const inv = read("lib/audit-ready/tie-out/inventory-resolver.ts");
+    const inv = read("lib/audit-ready/tie-out/inventory-measure.ts");
     expect(inv).toContain("item_negative_qty_on_hand");
     expect(inv).toContain("item_negative_asset_value");
     expect(inv).toContain("variance_cents: 0");

@@ -3,13 +3,18 @@ import { hashMeasurementSnapshotBody } from "./hash";
 import {
   AP_AGING_SNAPSHOT_KIND,
   AR_AGING_SNAPSHOT_KIND,
+  INVENTORY_SNAPSHOT_KIND,
   MEASUREMENT_SNAPSHOT_ERROR,
   MeasurementSnapshotError,
   TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION,
   type ApAgingMeasurementPayload,
   type ArAgingMeasurementPayload,
+  type InventoryMeasurementPayload,
+  type MeasurementSnapshotKind,
+  type MeasurementSnapshotPayload,
   type TieOutApMeasurementSnapshot,
   type TieOutArMeasurementSnapshot,
+  type TieOutInventoryMeasurementSnapshot,
 } from "./types";
 
 const SECRET_KEY = /token|secret|authorization|password|cookie|apikey|api_key|refresh/i;
@@ -187,6 +192,70 @@ export function assertApAgingPayload(
   assertTrialBalancePayload(raw, "AP snapshot");
 }
 
+export function assertInventoryPayload(
+  payload: unknown,
+): asserts payload is InventoryMeasurementPayload {
+  if (!payload || typeof payload !== "object") {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.PAYLOAD_INVALID,
+      "Inventory snapshot payload must be an object.",
+    );
+  }
+  const raw = payload as Record<string, unknown>;
+  if (raw.currency != null && typeof raw.currency !== "string") {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.PAYLOAD_INVALID,
+      "Inventory snapshot currency must be a string or null.",
+    );
+  }
+  if (!isFiniteNumber(raw.subledgerTotalCents)) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.PAYLOAD_INVALID,
+      "Inventory snapshot subledgerTotalCents must be a finite number.",
+    );
+  }
+  if (!Array.isArray(raw.items)) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.PAYLOAD_INVALID,
+      "Inventory snapshot items must be an array.",
+    );
+  }
+  for (const item of raw.items) {
+    if (!item || typeof item !== "object") {
+      throw new MeasurementSnapshotError(
+        MEASUREMENT_SNAPSHOT_ERROR.PAYLOAD_INVALID,
+        "Inventory snapshot item rows must be objects.",
+      );
+    }
+    const row = item as Record<string, unknown>;
+    if (typeof row.entityRef !== "string") {
+      throw new MeasurementSnapshotError(
+        MEASUREMENT_SNAPSHOT_ERROR.PAYLOAD_INVALID,
+        "Inventory snapshot item entityRef must be a string.",
+      );
+    }
+    if (row.displayName != null && typeof row.displayName !== "string") {
+      throw new MeasurementSnapshotError(
+        MEASUREMENT_SNAPSHOT_ERROR.PAYLOAD_INVALID,
+        "Inventory snapshot item displayName must be a string or null.",
+      );
+    }
+    if (row.quantityOnHand != null && !isFiniteNumber(row.quantityOnHand)) {
+      throw new MeasurementSnapshotError(
+        MEASUREMENT_SNAPSHOT_ERROR.PAYLOAD_INVALID,
+        "Inventory snapshot item quantityOnHand must be a finite number or null.",
+      );
+    }
+    if (!isFiniteNumber(row.assetValueCents)) {
+      throw new MeasurementSnapshotError(
+        MEASUREMENT_SNAPSHOT_ERROR.PAYLOAD_INVALID,
+        "Inventory snapshot item assetValueCents must be a finite number.",
+      );
+    }
+  }
+  assertTrialBalancePayload(raw, "Inventory snapshot");
+}
+
 export type ArSnapshotExpectedCustody = {
   asOfDate: string;
   companyId: string;
@@ -197,6 +266,7 @@ export type ArSnapshotExpectedCustody = {
 };
 
 export type ApSnapshotExpectedCustody = ArSnapshotExpectedCustody;
+export type InventorySnapshotExpectedCustody = ArSnapshotExpectedCustody;
 
 function assertSnapshotEnvelopeCustody(args: {
   snapshotKind: string;
@@ -265,9 +335,9 @@ function assertSnapshotEnvelopeCustody(args: {
   assertNoSecrets(args.sourceRequestIds);
   const expectedHash = hashMeasurementSnapshotBody({
     schemaVersion: args.schemaVersion,
-    snapshotKind: args.expectedKind as typeof AR_AGING_SNAPSHOT_KIND | typeof AP_AGING_SNAPSHOT_KIND,
+    snapshotKind: args.expectedKind as MeasurementSnapshotKind,
     asOfDate: asIsoDate(args.asOfDate),
-    payload: args.payload as ArAgingMeasurementPayload | ApAgingMeasurementPayload,
+    payload: args.payload as MeasurementSnapshotPayload,
   });
   if (args.payloadHash !== expectedHash) {
     throw new MeasurementSnapshotError(
@@ -334,6 +404,36 @@ export function validateApMeasurementSnapshot(
     sourceRequestIds: snapshot.sourceRequestIds,
     expected,
     label: "AP",
+  });
+  return snapshot;
+}
+
+export function validateInventoryMeasurementSnapshot(
+  snapshot: TieOutInventoryMeasurementSnapshot,
+  expected: InventorySnapshotExpectedCustody,
+): TieOutInventoryMeasurementSnapshot {
+  if (snapshot.snapshotKind !== INVENTORY_SNAPSHOT_KIND) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.KIND_INVALID,
+      `snapshotKind must be ${INVENTORY_SNAPSHOT_KIND}.`,
+    );
+  }
+  assertInventoryPayload(snapshot.payload);
+  assertSnapshotEnvelopeCustody({
+    snapshotKind: snapshot.snapshotKind,
+    expectedKind: INVENTORY_SNAPSHOT_KIND,
+    schemaVersion: snapshot.schemaVersion,
+    accountingSyncId: snapshot.accountingSyncId,
+    asOfDate: snapshot.asOfDate,
+    companyId: snapshot.companyId,
+    accountingConnectionId: snapshot.accountingConnectionId,
+    provider: snapshot.provider,
+    tenantOrRealmId: snapshot.tenantOrRealmId,
+    payload: snapshot.payload,
+    payloadHash: snapshot.payloadHash,
+    sourceRequestIds: snapshot.sourceRequestIds,
+    expected,
+    label: "Inventory",
   });
   return snapshot;
 }

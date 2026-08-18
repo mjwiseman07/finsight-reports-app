@@ -13,9 +13,9 @@
  * stamp baseline_sync_id. Do not stamp baseline_sync_id on live-provider runs.
  * A completed live run remains custody_unknown for CC.
  *
- * CC-2A1 AR / CC-2A2 AP may stamp only when the resolver is given an explicit
- * persisted_snapshot measurement whose asOfDate matches that accounting_syncs
- * report_period_end. Default worker/regenerate stays live_provider.
+ * CC-2A1 AR / CC-2A2 AP / CC-2A3 Inventory may stamp only when the resolver is
+ * given an explicit persisted_snapshot measurement whose asOfDate matches that
+ * accounting_syncs report_period_end. Default worker/regenerate stays live_provider.
  *
  * Stamp only when measurementSource === "persisted_sync_snapshot".
  *
@@ -155,8 +155,8 @@ export type TieOutAccountingSnapshotContext = {
 
 /**
  * Default shipped measurement source (worker/regenerate/API).
- * AR also supports an explicit persisted_snapshot path; CC-2A2 AP does too.
- * Those paths are opt-in and are the only AR/AP paths that may stamp baseline_sync_id.
+ * AR/AP/Inventory also support an explicit persisted_snapshot path.
+ * Those paths are opt-in and are the only paths that may stamp baseline_sync_id.
  */
 export const SHIPPED_TIE_OUT_MEASUREMENT_SOURCE: Record<
   (typeof SYNC_BACKED_TIE_OUT_KINDS)[number],

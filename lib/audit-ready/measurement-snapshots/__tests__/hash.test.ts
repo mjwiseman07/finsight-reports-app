@@ -3,9 +3,11 @@ import { hashMeasurementSnapshotBody } from "../hash";
 import {
   AP_AGING_SNAPSHOT_KIND,
   AR_AGING_SNAPSHOT_KIND,
+  INVENTORY_SNAPSHOT_KIND,
   TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION,
   type ApAgingMeasurementPayload,
   type ArAgingMeasurementPayload,
+  type InventoryMeasurementPayload,
 } from "../types";
 
 const payloadA: ArAgingMeasurementPayload = {
@@ -148,6 +150,68 @@ describe("AP measurement snapshot hash", () => {
       payload: arLike,
     });
     expect(apBody()).not.toBe(arHash);
+  });
+});
+
+const invPayloadA: InventoryMeasurementPayload = {
+  currency: "USD",
+  items: [
+    { entityRef: "5", displayName: "Widget", quantityOnHand: 10, assetValueCents: 4_000 },
+    { entityRef: "6", displayName: "Neg", quantityOnHand: -1, assetValueCents: -50 },
+  ],
+  subledgerTotalCents: 3_950,
+  trialBalance: [
+    {
+      accountRef: "81",
+      accountName: "Inventory",
+      debitCents: 3_950,
+      creditCents: 0,
+      netCents: 3_950,
+    },
+  ],
+};
+
+function invBody(over: Partial<Parameters<typeof hashMeasurementSnapshotBody>[0]> = {}) {
+  return hashMeasurementSnapshotBody({
+    schemaVersion: TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION,
+    snapshotKind: INVENTORY_SNAPSHOT_KIND,
+    asOfDate: "2026-07-31",
+    payload: invPayloadA,
+    ...over,
+  });
+}
+
+describe("Inventory measurement snapshot hash", () => {
+  it("1. same Inventory payload produces an identical SHA-256 hex", () => {
+    expect(invBody()).toBe(invBody());
+    expect(invBody()).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("2. a different Inventory amount produces a different hash", () => {
+    const changed: InventoryMeasurementPayload = {
+      ...invPayloadA,
+      items: invPayloadA.items.map((row, index) =>
+        index === 0 ? { ...row, assetValueCents: 4_001 } : row,
+      ),
+      subledgerTotalCents: 3_951,
+    };
+    expect(invBody({ payload: changed })).not.toBe(invBody());
+  });
+
+  it("3. capturedAt is not part of the Inventory hash body", () => {
+    expect(
+      hashMeasurementSnapshotBody({
+        schemaVersion: TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION,
+        snapshotKind: INVENTORY_SNAPSHOT_KIND,
+        asOfDate: "2026-07-31",
+        payload: invPayloadA,
+      }),
+    ).toBe(invBody());
+  });
+
+  it("4. inventory kind differs from AR/AP hashes", () => {
+    expect(invBody()).not.toBe(apBody());
+    expect(invBody()).not.toBe(body());
   });
 });
 

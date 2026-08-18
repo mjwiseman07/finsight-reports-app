@@ -140,8 +140,8 @@ export async function runTieOut(
     };
   }
   // 3. Dispatch by kind. Live resolvers measure from provider reports and
-  // must not stamp baseline_sync_id (custody_unknown). AR/AP snapshot coupling
-  // is opt-in on the resolvers; this worker path stays live/legacy.
+  // must not stamp baseline_sync_id (custody_unknown). AR/AP/Inventory snapshot
+  // coupling is opt-in on the resolvers; this worker path stays live/legacy.
   switch (pbc.tie_out_kind) {
     case "ar_aging": {
       const arAccountId =
