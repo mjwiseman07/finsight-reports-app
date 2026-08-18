@@ -5,11 +5,13 @@
 
 export const AR_AGING_SNAPSHOT_KIND = "ar_aging" as const;
 export const AP_AGING_SNAPSHOT_KIND = "ap_aging" as const;
+export const INVENTORY_SNAPSHOT_KIND = "inventory" as const;
 export const TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION = 1 as const;
 
 export type MeasurementSnapshotKind =
   | typeof AR_AGING_SNAPSHOT_KIND
-  | typeof AP_AGING_SNAPSHOT_KIND;
+  | typeof AP_AGING_SNAPSHOT_KIND
+  | typeof INVENTORY_SNAPSHOT_KIND;
 
 export type MeasurementEntityPayload = {
   entityRef: string;
@@ -46,9 +48,24 @@ export type ApAgingMeasurementPayload = {
   trialBalance: MeasurementTrialBalanceLinePayload[];
 };
 
+export type InventoryItemPayload = {
+  entityRef: string;
+  displayName: string | null;
+  quantityOnHand: number | null;
+  assetValueCents: number;
+};
+
+export type InventoryMeasurementPayload = {
+  currency: string | null;
+  items: InventoryItemPayload[];
+  subledgerTotalCents: number;
+  trialBalance: MeasurementTrialBalanceLinePayload[];
+};
+
 export type MeasurementSnapshotPayload =
   | ArAgingMeasurementPayload
-  | ApAgingMeasurementPayload;
+  | ApAgingMeasurementPayload
+  | InventoryMeasurementPayload;
 
 export type MeasurementSourceRequestIds = {
   agingIntuitTid?: string | null;
@@ -83,6 +100,11 @@ export type TieOutArMeasurementSnapshot = TieOutMeasurementSnapshotV1<
 export type TieOutApMeasurementSnapshot = TieOutMeasurementSnapshotV1<
   typeof AP_AGING_SNAPSHOT_KIND,
   ApAgingMeasurementPayload
+>;
+
+export type TieOutInventoryMeasurementSnapshot = TieOutMeasurementSnapshotV1<
+  typeof INVENTORY_SNAPSHOT_KIND,
+  InventoryMeasurementPayload
 >;
 
 export type MeasurementSnapshotHashBody = {
@@ -125,6 +147,8 @@ export const MEASUREMENT_SNAPSHOT_ERROR = {
     "measurement_snapshot_combined_ar_persist_failed",
   COMBINED_AP_SNAPSHOT_PERSIST_FAILED:
     "measurement_snapshot_combined_ap_persist_failed",
+  COMBINED_INVENTORY_SNAPSHOT_PERSIST_FAILED:
+    "measurement_snapshot_combined_inventory_persist_failed",
 } as const;
 
 export class MeasurementSnapshotError extends Error {
@@ -138,13 +162,14 @@ export class MeasurementSnapshotError extends Error {
 }
 
 /**
- * Combined AR+AP acquisition did not complete both snapshots.
- * AP is never CC-authoritative when this is thrown.
+ * Combined acquisition did not complete every requested snapshot.
+ * A later kind is never CC-authoritative when this is thrown.
  */
 export class CombinedAcquisitionPartialError extends MeasurementSnapshotError {
   accountingSyncId: string;
   arMeasurementSnapshot: TieOutArMeasurementSnapshot | null;
   apMeasurementSnapshot: TieOutApMeasurementSnapshot | null;
+  inventoryMeasurementSnapshot: TieOutInventoryMeasurementSnapshot | null;
 
   constructor(args: {
     code: string;
@@ -152,11 +177,13 @@ export class CombinedAcquisitionPartialError extends MeasurementSnapshotError {
     accountingSyncId: string;
     arMeasurementSnapshot?: TieOutArMeasurementSnapshot | null;
     apMeasurementSnapshot?: TieOutApMeasurementSnapshot | null;
+    inventoryMeasurementSnapshot?: TieOutInventoryMeasurementSnapshot | null;
   }) {
     super(args.code, args.message);
     this.name = "CombinedAcquisitionPartialError";
     this.accountingSyncId = args.accountingSyncId;
     this.arMeasurementSnapshot = args.arMeasurementSnapshot ?? null;
     this.apMeasurementSnapshot = args.apMeasurementSnapshot ?? null;
+    this.inventoryMeasurementSnapshot = args.inventoryMeasurementSnapshot ?? null;
   }
 }

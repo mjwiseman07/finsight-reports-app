@@ -1,7 +1,7 @@
 /**
  * URM-5 — Inventory + Fixed Assets migration onto the universal reconciliation model.
  *
- * Measurement math stays in inventory-resolver / fa-rollforward-resolver (unchanged).
+ * Measurement math stays in inventory-measure / fa-rollforward-resolver (unchanged).
  * This module only:
  * - derives identified items where defensible (v1: none)
  * - maps the explicit URM outcome policy used for Inventory/FA persist
