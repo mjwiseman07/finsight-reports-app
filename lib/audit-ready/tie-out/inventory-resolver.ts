@@ -13,13 +13,6 @@ import {
   type PolicySnapshot,
   type VarianceClassification,
 } from "./policy";
-import {
-  BaselineSyncCustodyError,
-  assertRunIdDistinctFromBaselineSyncId,
-  baselineSyncCustodyInsertFields,
-  failedSyncBackedRunResult,
-  requireAuthoritativeBaselineSyncId,
-} from "./baseline-sync-custody";
 
 export type InventoryResolverInput = {
   engagementId: string;
@@ -33,8 +26,6 @@ export type InventoryResolverInput = {
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
   regeneratedFromRunId?: string | null;
   triggerKind?: "initial" | "regenerated" | "cron";
-  /** Authoritative accounting_syncs.id — required for sync-backed URM custody. */
-  baselineSyncId: string;
 };
 
 export type InventoryResolverOutput = {
@@ -71,16 +62,6 @@ type VarianceInsert = {
 export async function runInventoryResolver(
   input: InventoryResolverInput,
 ): Promise<InventoryResolverOutput> {
-  let baselineSyncId: string;
-  try {
-    baselineSyncId = requireAuthoritativeBaselineSyncId(input.baselineSyncId);
-  } catch (e) {
-    const err = e instanceof BaselineSyncCustodyError ? e : null;
-    return failedSyncBackedRunResult(
-      err?.code ?? "missing_baseline_sync_id",
-      err?.message ?? "missing_baseline_sync_id",
-    );
-  }
   const supabase = getSupabaseAdmin();
   const start = Date.now();
   const { data: runRow, error: runErr } = await supabase
@@ -101,13 +82,11 @@ export async function runInventoryResolver(
       trigger_reason: input.triggerReason,
       regenerated_from_run_id: input.regeneratedFromRunId ?? null,
       trigger_kind: input.triggerKind ?? "initial",
-      ...baselineSyncCustodyInsertFields(baselineSyncId),
     })
     .select("id")
     .single();
   if (runErr || !runRow) throw new Error(`insert run failed: ${runErr?.message}`);
   const runId = runRow.id as string;
-  assertRunIdDistinctFromBaselineSyncId(runId, baselineSyncId);
   const failRun = async (code: string, msg: string) => {
     await supabase
       .from("audit_ready_tie_out_runs")

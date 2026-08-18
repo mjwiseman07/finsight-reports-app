@@ -10,7 +10,6 @@ import { runFaRollforwardResolver } from "./fa-rollforward-resolver";
 import { runBsSummaryResolver } from "./bs-summary-resolver";
 import { fetchQboAccountList } from "./qbo-reports";
 import type { PolicySnapshot } from "./policy";
-import { resolvePersistedAuthoritativeAccountingSyncId } from "./baseline-sync-custody";
 
 export type RunTieOutInput = {
   engagementId: string;
@@ -24,8 +23,6 @@ export type RunTieOutInput = {
   activityStartDate?: string; // PBC-TIEOUT-4B.1
   triggeredByUserId: string;
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
-  /** Optional exact accounting_syncs.id. Never replaced by latest when supplied. */
-  baselineSyncId?: string | null;
 };
 
 export type RunTieOutOutcome =
@@ -142,22 +139,8 @@ export async function runTieOut(
       code: "qbo_token_error",
     };
   }
-  const syncCustody = await resolvePersistedAuthoritativeAccountingSyncId({
-    userId: input.triggeredByUserId,
-    companyId: eng.company_id as string | null,
-    tenantOrRealmId: token.realmId,
-    sourceSystem: "quickbooks",
-    suppliedAccountingSyncId: input.baselineSyncId,
-  });
-  if (!syncCustody.ok) {
-    return {
-      ok: false,
-      reason: syncCustody.reason,
-      code: syncCustody.code,
-    };
-  }
-  const baselineSyncId = syncCustody.accountingSyncId;
-  // 3. Dispatch by kind
+  // 3. Dispatch by kind. Live resolvers measure from provider reports and
+  // must not stamp baseline_sync_id (custody_unknown until Option A).
   switch (pbc.tie_out_kind) {
     case "ar_aging": {
       const arAccountId =
@@ -179,7 +162,6 @@ export async function runTieOut(
         policy: policy as PolicySnapshot & { policy_mode: string },
         triggeredByUserId: input.triggeredByUserId,
         triggerReason: input.triggerReason,
-        baselineSyncId,
       });
       return result.status === "completed"
         ? {
@@ -250,7 +232,6 @@ export async function runTieOut(
         policy: policy as PolicySnapshot & { policy_mode: string },
         triggeredByUserId: input.triggeredByUserId,
         triggerReason: input.triggerReason,
-        baselineSyncId,
       });
       return result.status === "completed"
         ? {
@@ -277,7 +258,6 @@ export async function runTieOut(
         policy: policy as PolicySnapshot & { policy_mode: string },
         triggeredByUserId: input.triggeredByUserId,
         triggerReason: input.triggerReason,
-        baselineSyncId,
       });
       return result.status === "completed"
         ? {
@@ -316,7 +296,6 @@ export async function runTieOut(
         policy: policy as PolicySnapshot & { policy_mode: string },
         triggeredByUserId: input.triggeredByUserId,
         triggerReason: input.triggerReason,
-        baselineSyncId,
       });
       return result.status === "completed"
         ? {
@@ -355,7 +334,6 @@ export async function runTieOut(
         policy: policy as PolicySnapshot & { policy_mode: string },
         triggeredByUserId: input.triggeredByUserId,
         triggerReason: input.triggerReason,
-        baselineSyncId,
       });
       return result.status === "completed"
         ? {
@@ -386,7 +364,6 @@ export async function runTieOut(
         policy: policy as PolicySnapshot & { policy_mode: string },
         triggeredByUserId: input.triggeredByUserId,
         triggerReason: input.triggerReason,
-        baselineSyncId,
       });
       return result.status === "completed"
         ? {
@@ -411,7 +388,6 @@ export async function runTieOut(
         policy: policy as PolicySnapshot & { policy_mode: string },
         triggeredByUserId: input.triggeredByUserId,
         triggerReason: input.triggerReason,
-        baselineSyncId,
       });
       return result.status === "completed"
         ? {

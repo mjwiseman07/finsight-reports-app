@@ -11,7 +11,6 @@ import { runBsSummaryResolver } from "./bs-summary-resolver";
 import { fetchQboAccountList } from "./qbo-reports";
 import type { BsClassification } from "./sign-normalize";
 import type { PolicySnapshot } from "./policy";
-import { resolvePersistedAuthoritativeAccountingSyncId } from "./baseline-sync-custody";
 
 function assertResolverOk(result: {
   status: string;
@@ -75,17 +74,6 @@ export async function regenerateRun(
     realmId: resolved.realmId,
   };
 
-  const syncCustody = await resolvePersistedAuthoritativeAccountingSyncId({
-    userId: actorUserId,
-    companyId: eng.company_id as string | null,
-    tenantOrRealmId: token.realmId,
-    sourceSystem: "quickbooks",
-  });
-  if (!syncCustody.ok) {
-    throw new Error(syncCustody.code);
-  }
-  const baselineSyncId = syncCustody.accountingSyncId;
-
   const { data: policy } = await supabase
     .from("audit_ready_tie_out_policies")
     .select(
@@ -109,7 +97,6 @@ export async function regenerateRun(
     triggerReason: "manual" as const,
     regeneratedFromRunId: original.id as string,
     triggerKind: "regenerated" as const,
-    baselineSyncId,
   };
 
   switch (kind) {

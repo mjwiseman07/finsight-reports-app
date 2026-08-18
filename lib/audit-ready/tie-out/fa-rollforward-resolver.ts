@@ -18,12 +18,6 @@ import {
 import { faRollforwardEmitter } from "./emitters/fa-rollforward-emitter";
 import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
 import { persistFaUrmBridge } from "./inventory-fa-urm";
-import {
-  BaselineSyncCustodyError,
-  assertRunIdDistinctFromBaselineSyncId,
-  baselineSyncCustodyInsertFields,
-  requireAuthoritativeBaselineSyncId,
-} from "./baseline-sync-custody";
 
 export type RunFaRollforwardResolverInput = {
   engagementId: string;
@@ -37,8 +31,6 @@ export type RunFaRollforwardResolverInput = {
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
   regeneratedFromRunId?: string | null;
   triggerKind?: "initial" | "regenerated" | "cron";
-  /** Authoritative accounting_syncs.id — required for sync-backed URM custody. */
-  baselineSyncId: string;
 };
 
 export type RunFaRollforwardResolverResult =
@@ -121,17 +113,6 @@ function classifyActivity(
 export async function runFaRollforwardResolver(
   input: RunFaRollforwardResolverInput,
 ): Promise<RunFaRollforwardResolverResult> {
-  let baselineSyncId: string;
-  try {
-    baselineSyncId = requireAuthoritativeBaselineSyncId(input.baselineSyncId);
-  } catch (e) {
-    const err = e instanceof BaselineSyncCustodyError ? e : null;
-    return {
-      status: "failed",
-      errorCode: err?.code ?? "missing_baseline_sync_id",
-      errorMessage: err?.message ?? "missing_baseline_sync_id",
-    };
-  }
   const supabase = getSupabaseAdmin();
   const { data: runRow, error: runErr } = await supabase
     .from("audit_ready_tie_out_runs")
@@ -151,7 +132,6 @@ export async function runFaRollforwardResolver(
       regenerated_from_run_id: input.regeneratedFromRunId ?? null,
       trigger_kind: input.triggerKind ?? "initial",
       period_end: input.asOfDate,
-      ...baselineSyncCustodyInsertFields(baselineSyncId),
     })
     .select("id")
     .single();
@@ -163,16 +143,6 @@ export async function runFaRollforwardResolver(
     };
   }
   const runId = runRow.id as string;
-  try {
-    assertRunIdDistinctFromBaselineSyncId(runId, baselineSyncId);
-  } catch (e) {
-    const err = e instanceof BaselineSyncCustodyError ? e : null;
-    return {
-      status: "failed",
-      errorCode: err?.code ?? "baseline_sync_collides_with_run_id",
-      errorMessage: err?.message ?? "runId must not equal baseline_sync_id",
-    };
-  }
   try {
     const accounts = await fetchQboAccountList({
       realmId: input.realmId,

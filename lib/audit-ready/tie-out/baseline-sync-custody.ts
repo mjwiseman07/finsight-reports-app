@@ -1,14 +1,22 @@
 /**
  * CC-2A — URM accounting-sync custody.
  *
- * Stamps audit_ready_tie_out_runs.baseline_sync_id from the actual
- * accounting_syncs.id used as canonical accounting state.
+ * Locked meaning of audit_ready_tie_out_runs.baseline_sync_id:
+ *   "The accounting_syncs snapshot whose accounting state was actually used
+ *    to produce this tie-out measurement."
  *
- * Does NOT:
- * - change URM math
- * - invent/backfill historical nulls
- * - replace a supplied sync id with "latest"
- * - fetch QBO/Xero
+ * resolvePersistedAuthoritativeAccountingSyncId finds a candidate SUCCESS
+ * accounting_syncs row (pointer / supplied / latest-success fallback).
+ * It does NOT prove a resolver measured from that row.
+ *
+ * Shipped resolvers today measure from live provider reports
+ * (LIVE_PROVIDER_REQUIRED / PARTIAL_SYNC_COVERAGE). They MUST NOT stamp
+ * baseline_sync_id. A completed live run remains custody_unknown for CC.
+ *
+ * Stamp only when measurementSource === "persisted_sync_snapshot".
+ *
+ * Does NOT: change URM math; backfill historical nulls; replace a supplied
+ * sync id with "latest"; write to QBO/Xero.
  */
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
@@ -104,7 +112,6 @@ export type AccountingSyncCustodyDeps = {
   }) => Promise<AccountingSyncCustodyRow | null>;
 };
 
-/** Sync-backed shipped URM / tie-out kinds that must carry baseline_sync_id. */
 export const SYNC_BACKED_TIE_OUT_KINDS = [
   "ar_aging",
   "ap_aging",
@@ -119,6 +126,69 @@ export function isSyncBackedTieOutKind(kind: string): boolean {
   return (SYNC_BACKED_TIE_OUT_KINDS as readonly string[]).includes(kind);
 }
 
+export type TieOutMeasurementSource = "persisted_sync_snapshot" | "live_provider";
+
+/**
+ * Future Option A: resolver consumes this exact snapshot and may then stamp
+ * accountingSyncId. No shipped kind can populate this from accounting_syncs
+ * normalized_payload today (AR/AP/Inv PARTIAL; FA/GRNI/BS LIVE_REQUIRED).
+ */
+export type TieOutAccountingSnapshotContext = {
+  accountingSyncId: string;
+  accountingConnectionId: string;
+  companyId: string;
+  provider: "quickbooks" | "xero";
+  tenantOrRealmId: string;
+  /** accounting_syncs.last_synced_at — freshness authority, not created_at. */
+  syncedAt: string;
+  payload: Record<string, never>;
+};
+
+/**
+ * How each shipped kind currently obtains measurement facts.
+ * Do not stamp baseline_sync_id unless this is persisted_sync_snapshot.
+ */
+export const SHIPPED_TIE_OUT_MEASUREMENT_SOURCE: Record<
+  (typeof SYNC_BACKED_TIE_OUT_KINDS)[number],
+  TieOutMeasurementSource
+> = {
+  ar_aging: "live_provider",
+  ap_aging: "live_provider",
+  inventory: "live_provider",
+  fixed_asset_rollforward: "live_provider",
+  grni: "live_provider",
+  bs_account_recon: "live_provider",
+  bs_recon_summary: "live_provider",
+};
+
+export function mayStampBaselineSyncId(source: TieOutMeasurementSource): boolean {
+  return source === "persisted_sync_snapshot";
+}
+
+/** CC-2 loader: null/empty baseline_sync_id is not OBSERVE-authoritative. */
+export function isCcAuthoritativeUrmCustody(
+  baselineSyncId: string | null | undefined,
+): boolean {
+  try {
+    requireAuthoritativeBaselineSyncId(baselineSyncId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Insert fragment for baseline_sync_id.
+ * Live-provider measurement returns {} so the column stays null (custody_unknown).
+ */
+export function baselineSyncInsertForMeasurement(args: {
+  measurementSource: TieOutMeasurementSource;
+  accountingSyncId?: string | null;
+}): { baseline_sync_id: string } | Record<string, never> {
+  if (!mayStampBaselineSyncId(args.measurementSource)) return {};
+  return baselineSyncCustodyInsertFields(String(args.accountingSyncId || ""));
+}
+
 export function requireAuthoritativeBaselineSyncId(
   supplied: string | null | undefined,
 ): string {
@@ -126,7 +196,7 @@ export function requireAuthoritativeBaselineSyncId(
   if (!id || id.startsWith("metadata:")) {
     throw new BaselineSyncCustodyError(
       BASELINE_SYNC_CUSTODY_ERROR,
-      "Authoritative accounting_syncs.id is required for sync-backed URM runs.",
+      "A non-empty accounting_syncs.id is required to claim URM baseline_sync_id custody.",
     );
   }
   return id;

@@ -3,7 +3,6 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
 import { runBsSummaryResolver } from "@/lib/audit-ready/tie-out/bs-summary-resolver";
 import type { PolicySnapshot } from "@/lib/audit-ready/tie-out/policy";
-import { resolvePersistedAuthoritativeAccountingSyncId } from "@/lib/audit-ready/tie-out/baseline-sync-custody";
 import {
   sendBsReconTieEmail,
   sendBsReconKickoutEmail,
@@ -279,20 +278,6 @@ export async function POST(req: Request) {
       }
 
       // 6. Run resolver (only now counts as attempted)
-      const syncCustody = await resolvePersistedAuthoritativeAccountingSyncId({
-        userId: triggeredByUserId,
-        tenantOrRealmId: token.realmId,
-        sourceSystem: "quickbooks",
-      });
-      if (!syncCustody.ok) {
-        counters.skipped++;
-        console.log("[bs-recon-cron] skipped", {
-          engagement_id: eng.engagement_id,
-          reason: syncCustody.reason,
-          code: syncCustody.code,
-        });
-        continue;
-      }
       counters.attempted++;
       try {
         const result = await runBsSummaryResolver({
@@ -304,7 +289,6 @@ export async function POST(req: Request) {
           triggeredByUserId,
           triggerReason: "scheduled",
           triggerKind: "cron",
-          baselineSyncId: syncCustody.accountingSyncId,
         });
 
         if (result.status === "failed") {

@@ -133,7 +133,8 @@ function itemsToRpcPayload(
  * - Residual / outcome = deriveReconBridge (URM-1; sole formula authority)
  * - engagement_id / pbc_request_id = derived inside DB from run_id
  *
- * baseline_sync_id is never written here (CC-2A stamps it on run insert).
+ * baseline_sync_id is never written here. Live URM runs leave it null;
+ * a future snapshot-backed resolver may stamp it only on run insert.
  */
 export async function persistReconBridgeForRun(
   input: PersistReconBridgeInput,

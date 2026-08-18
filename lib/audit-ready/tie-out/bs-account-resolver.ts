@@ -17,12 +17,6 @@ import {
 } from "./fiscal-year";
 import { bsAccountEmitter } from "./emitters/bs-account-emitter";
 import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
-import {
-  BaselineSyncCustodyError,
-  assertRunIdDistinctFromBaselineSyncId,
-  baselineSyncCustodyInsertFields,
-  requireAuthoritativeBaselineSyncId,
-} from "./baseline-sync-custody";
 
 export { activityWindowForFiscalYear, resolveFiscalYearStartMonth } from "./fiscal-year";
 
@@ -49,8 +43,6 @@ export type RunBsAccountResolverInput = {
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
   regeneratedFromRunId?: string | null;
   triggerKind?: "initial" | "regenerated" | "cron";
-  /** Authoritative accounting_syncs.id — required for sync-backed URM custody. */
-  baselineSyncId: string;
 };
 
 export type RunBsAccountResolverResult =
@@ -75,17 +67,6 @@ export type RunBsAccountResolverResult =
 export async function runBsAccountResolver(
   input: RunBsAccountResolverInput,
 ): Promise<RunBsAccountResolverResult> {
-  let baselineSyncId: string;
-  try {
-    baselineSyncId = requireAuthoritativeBaselineSyncId(input.baselineSyncId);
-  } catch (e) {
-    const err = e instanceof BaselineSyncCustodyError ? e : null;
-    return {
-      status: "failed",
-      errorCode: err?.code ?? "missing_baseline_sync_id",
-      errorMessage: err?.message ?? "missing_baseline_sync_id",
-    };
-  }
   const supabase = getSupabaseAdmin();
   // 1. Insert running run row
   const { data: runRow, error: runErr } = await supabase
@@ -106,7 +87,6 @@ export async function runBsAccountResolver(
       regenerated_from_run_id: input.regeneratedFromRunId ?? null,
       trigger_kind: input.triggerKind ?? "initial",
       period_end: input.asOfDate,
-      ...baselineSyncCustodyInsertFields(baselineSyncId),
     })
     .select("id")
     .single();
@@ -118,17 +98,6 @@ export async function runBsAccountResolver(
     };
   }
   const runId = runRow.id as string;
-  try {
-    assertRunIdDistinctFromBaselineSyncId(runId, baselineSyncId);
-  } catch (e) {
-    const err = e instanceof BaselineSyncCustodyError ? e : null;
-    return {
-      status: "failed",
-      errorCode: err?.code ?? "baseline_sync_collides_with_run_id",
-      errorMessage: err?.message ?? "runId must not equal baseline_sync_id",
-      runId,
-    };
-  }
   try {
     // 2. Determine activity window
     const fyMonth = await resolveFiscalYearStartMonth({
