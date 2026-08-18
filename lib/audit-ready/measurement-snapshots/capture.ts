@@ -1,52 +1,39 @@
 /**
- * Dedicated AR measurement capture.
+ * AR measurement capture entry.
  *
- * Does not call the Scorecard live accounting-sync persist pipeline.
- * Scorecard report_period (prior completed month) is not automatically the
- * URM asOfDate, and Scorecard AR/TB fetch params are not the URM params.
+ * Fresh capture must go through acquireAndPersistAccountingStateWithArSnapshot:
+ * one provider acquisition batch → persist accounting_syncs → persist AR snapshot
+ * using that same sync id.
  *
- * Requires an existing SUCCESS accounting_syncs row whose report_period_end
- * equals asOfDate. Does not create a fake or empty accounting_syncs row.
+ * A pre-existing period-matched accounting_syncs.id is not capture authority.
  */
 
-import { captureQboArMeasurementSnapshot, type QboArCaptureFetchers } from "./qbo-ar-adapter";
 import {
-  persistArMeasurementSnapshot,
-  requirePeriodMatchedAccountingSyncForAr,
-} from "./repository";
-import type { TieOutArMeasurementSnapshot } from "./types";
+  MEASUREMENT_SNAPSHOT_ERROR,
+  MeasurementSnapshotError,
+} from "./types";
 
-export type CaptureAndPersistArMeasurementSnapshotInput = {
-  accountingSyncId: string;
-  asOfDate: string;
-  companyId: string;
-  accountingConnectionId: string;
-  provider: string;
-  tenantOrRealmId: string;
-  accessToken: string;
-  fetchers?: QboArCaptureFetchers;
-};
+export {
+  acquireAndPersistAccountingStateWithArSnapshot,
+  acquireAccountingStateForAr,
+  persistAcquiredAccountingStateWithArSnapshot,
+} from "./acquisition";
+export type {
+  ArAccountingAcquisitionBundle,
+  AcquireAndPersistArAccountingStateInput,
+} from "./acquisition";
 
-export async function captureAndPersistArMeasurementSnapshot(
-  input: CaptureAndPersistArMeasurementSnapshotInput,
-): Promise<{ snapshot: TieOutArMeasurementSnapshot; reused: boolean }> {
-  const sync = await requirePeriodMatchedAccountingSyncForAr({
-    accountingSyncId: input.accountingSyncId,
-    asOfDate: input.asOfDate,
-    companyId: input.companyId,
-    accountingConnectionId: input.accountingConnectionId,
-    provider: input.provider,
-    tenantOrRealmId: input.tenantOrRealmId,
-  });
-  const snapshot = await captureQboArMeasurementSnapshot({
-    accountingSyncId: sync.id,
-    accountingConnectionId: sync.connection_id,
-    companyId: sync.company_id,
-    provider: sync.source_system,
-    tenantOrRealmId: sync.tenant_id,
-    asOfDate: input.asOfDate,
-    accessToken: input.accessToken,
-    fetchers: input.fetchers,
-  });
-  return persistArMeasurementSnapshot(snapshot);
+/**
+ * Removed: attaching a later AR/TB fetch to an existing accountingSyncId.
+ * Period match is not state identity.
+ */
+export async function captureAndPersistArMeasurementSnapshot(_input: {
+  accountingSyncId?: string;
+  accessToken?: string;
+  asOfDate?: string;
+}): Promise<never> {
+  throw new MeasurementSnapshotError(
+    MEASUREMENT_SNAPSHOT_ERROR.PREEXISTING_SYNC_NOT_AUTHORITY,
+    "Fresh AR capture cannot use a pre-existing accountingSyncId plus a later provider fetch. Use acquireAndPersistAccountingStateWithArSnapshot.",
+  );
 }

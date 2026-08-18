@@ -10,6 +10,18 @@ import {
 } from "./types";
 import { asIsoDate, validateArMeasurementSnapshot } from "./validate";
 
+export function assertAsOfMatchesReportPeriodEnd(
+  asOfDate: string,
+  reportPeriodEnd: string,
+): void {
+  if (asIsoDate(asOfDate) !== asIsoDate(reportPeriodEnd)) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.SYNC_PERIOD_MISMATCH,
+      "AR asOfDate must equal accounting_syncs.report_period_end. Period match is validation, not capture authority.",
+    );
+  }
+}
+
 const TABLE = "accounting_measurement_snapshots";
 
 type SnapshotRow = {
@@ -82,49 +94,10 @@ export async function loadAccountingSyncForArSnapshot(
 }
 
 /**
- * Existing SUCCESS accounting_syncs whose report_period_end equals asOfDate.
- * Does not create a sync row. Period mismatch fails closed.
+ * Period equality is a validation condition, not capture authority.
+ * Do not use an existing period-matched accounting_syncs row as the parent
+ * of a later AR/TB provider fetch.
  */
-export async function requirePeriodMatchedAccountingSyncForAr(args: {
-  accountingSyncId: string;
-  asOfDate: string;
-  companyId: string;
-  accountingConnectionId: string;
-  provider: string;
-  tenantOrRealmId: string;
-}): Promise<AccountingSyncForArSnapshot> {
-  const sync = await loadAccountingSyncForArSnapshot(args.accountingSyncId);
-  if (sync.validation_status !== "SUCCESS") {
-    throw new MeasurementSnapshotError(
-      MEASUREMENT_SNAPSHOT_ERROR.SYNC_NOT_SUCCESS,
-      "AR measurement snapshots require a SUCCESS accounting_syncs row.",
-    );
-  }
-  if (!sync.company_id) {
-    throw new MeasurementSnapshotError(
-      MEASUREMENT_SNAPSHOT_ERROR.SYNC_COMPANY_MISSING,
-      "AR measurement snapshots require accounting_syncs.company_id.",
-    );
-  }
-  if (asIsoDate(sync.report_period_end) !== asIsoDate(args.asOfDate)) {
-    throw new MeasurementSnapshotError(
-      MEASUREMENT_SNAPSHOT_ERROR.SYNC_PERIOD_MISMATCH,
-      "accounting_syncs.report_period_end must equal the AR asOfDate. Scorecard month is not inferred.",
-    );
-  }
-  if (
-    sync.company_id !== args.companyId ||
-    sync.connection_id !== args.accountingConnectionId ||
-    sync.source_system !== args.provider ||
-    sync.tenant_id !== args.tenantOrRealmId
-  ) {
-    throw new MeasurementSnapshotError(
-      MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH,
-      "accounting_syncs company/connection/provider/realm does not match AR capture custody.",
-    );
-  }
-  return sync;
-}
 
 export async function loadArMeasurementSnapshot(args: {
   accountingSyncId: string;

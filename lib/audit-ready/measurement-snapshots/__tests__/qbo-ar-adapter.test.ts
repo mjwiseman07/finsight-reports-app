@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   arReportsFromSnapshot,
-  captureQboArMeasurementSnapshot,
+  buildArMeasurementSnapshotFromUrmReports,
+  fetchQboUrmArReports,
   mapQboArReportsToPayload,
 } from "../qbo-ar-adapter";
 import { hashMeasurementSnapshotBody } from "../hash";
@@ -87,30 +88,36 @@ describe("QBO AR capture adapter", () => {
     expect(reports.aging.intuit_tid).toBe("tid-aging");
   });
 
-  it("captureQboArMeasurementSnapshot uses URM fetch params and ignores capturedAt in the hash", async () => {
+  it("URM fetch uses AR resolver params and capturedAt is not in the hash", async () => {
     const fetchAging = vi.fn(async () => agingA);
     const fetchTrialBalance = vi.fn(async () => trialA);
-    const first = await captureQboArMeasurementSnapshot({
-      accountingSyncId: "11111111-1111-4111-8111-111111111111",
-      accountingConnectionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-      companyId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      provider: "quickbooks",
-      tenantOrRealmId: "realm-1",
-      asOfDate: "2026-07-31",
+    const { aging, trial } = await fetchQboUrmArReports({
+      realmId: "realm-1",
       accessToken: "tok",
-      capturedAt: "2026-08-17T16:00:00.000Z",
+      asOfDate: "2026-07-31",
       fetchers: { fetchAging, fetchTrialBalance },
     });
-    const second = await captureQboArMeasurementSnapshot({
+    const first = buildArMeasurementSnapshotFromUrmReports({
       accountingSyncId: "11111111-1111-4111-8111-111111111111",
       accountingConnectionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       companyId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       provider: "quickbooks",
       tenantOrRealmId: "realm-1",
       asOfDate: "2026-07-31",
-      accessToken: "tok",
+      capturedAt: "2026-08-17T16:00:00.000Z",
+      aging,
+      trial,
+    });
+    const second = buildArMeasurementSnapshotFromUrmReports({
+      accountingSyncId: "11111111-1111-4111-8111-111111111111",
+      accountingConnectionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      companyId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      provider: "quickbooks",
+      tenantOrRealmId: "realm-1",
+      asOfDate: "2026-07-31",
       capturedAt: "2026-08-18T00:00:00.000Z",
-      fetchers: { fetchAging, fetchTrialBalance },
+      aging,
+      trial,
     });
     expect(first.payloadHash).toBe(second.payloadHash);
     expect(fetchAging).toHaveBeenCalledWith({
@@ -125,13 +132,13 @@ describe("QBO AR capture adapter", () => {
     });
   });
 
-  it("does not create accounting_syncs rows or expand normalized_payload", () => {
-    const capture = readFileSync(
-      join(process.cwd(), "lib/audit-ready/measurement-snapshots/capture.ts"),
+  it("buildArMeasurementSnapshotFromUrmReports does not fetch QBO", () => {
+    const src = readFileSync(
+      join(process.cwd(), "lib/audit-ready/measurement-snapshots/qbo-ar-adapter.ts"),
       "utf8",
     );
-    expect(capture).not.toContain("normalized_payload");
-    expect(capture).toContain("Does not create a fake or empty accounting_syncs row");
-    expect(capture).toContain("Does not call the Scorecard live accounting-sync persist pipeline");
+    const buildFn = src.slice(src.indexOf("export function buildArMeasurementSnapshotFromUrmReports"));
+    expect(buildFn).not.toContain("fetchQboArAgingDetail");
+    expect(buildFn).not.toContain("fetchQboTrialBalance");
   });
 });

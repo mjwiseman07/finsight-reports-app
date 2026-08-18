@@ -18,7 +18,7 @@ vi.mock("@/lib/supabase-admin.js", () => ({
 
 import {
   persistArMeasurementSnapshot,
-  requirePeriodMatchedAccountingSyncForAr,
+  assertAsOfMatchesReportPeriodEnd,
 } from "../repository";
 
 const SYNC = "11111111-1111-4111-8111-111111111111";
@@ -184,33 +184,17 @@ describe("AR measurement snapshot persistence", () => {
     expect(updateCalls).toBe(0);
   });
 
-  it("period-matched sync is required; Scorecard month is not inferred", async () => {
-    fromMock.mockImplementation((table: string) => {
-      if (table !== "accounting_syncs") throw new Error(table);
-      return syncSelectChain({
-        id: SYNC,
-        company_id: COMPANY,
-        connection_id: CONN,
-        source_system: "quickbooks",
-        tenant_id: "realm-1",
-        report_period_end: "2026-06-30",
-        validation_status: "SUCCESS",
-      });
-    });
+  it("period equality is validation, not capture authority", () => {
+    expect(() =>
+      assertAsOfMatchesReportPeriodEnd("2026-07-31", "2026-06-30"),
+    ).toThrow(MeasurementSnapshotError);
     try {
-      await requirePeriodMatchedAccountingSyncForAr({
-        accountingSyncId: SYNC,
-        asOfDate: "2026-07-31",
-        companyId: COMPANY,
-        accountingConnectionId: CONN,
-        provider: "quickbooks",
-        tenantOrRealmId: "realm-1",
-      });
-      throw new Error("expected throw");
+      assertAsOfMatchesReportPeriodEnd("2026-07-31", "2026-06-30");
     } catch (e) {
       expect((e as MeasurementSnapshotError).code).toBe(
         MEASUREMENT_SNAPSHOT_ERROR.SYNC_PERIOD_MISMATCH,
       );
     }
+    expect(() => assertAsOfMatchesReportPeriodEnd("2026-07-31", "2026-07-31")).not.toThrow();
   });
 });

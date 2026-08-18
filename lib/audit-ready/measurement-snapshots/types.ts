@@ -92,6 +92,9 @@ export const MEASUREMENT_SNAPSHOT_ERROR = {
   SYNC_PERIOD_MISMATCH: "measurement_snapshot_accounting_sync_period_mismatch",
   PERSIST_FAILED: "measurement_snapshot_persist_failed",
   AUTHORITATIVE_REQUIRED: "measurement_snapshot_authoritative_required",
+  PREEXISTING_SYNC_NOT_AUTHORITY: "measurement_snapshot_preexisting_sync_not_authority",
+  CORE_STATEMENTS_MISSING: "measurement_snapshot_core_statements_missing",
+  PROVIDER_UNSUPPORTED: "measurement_snapshot_provider_unsupported",
 } as const;
 
 export class MeasurementSnapshotError extends Error {

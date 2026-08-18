@@ -19,18 +19,6 @@ export type QboArCaptureFetchers = {
   fetchTrialBalance?: typeof fetchQboTrialBalance;
 };
 
-export type CaptureQboArMeasurementSnapshotInput = {
-  accountingSyncId: string;
-  accountingConnectionId: string;
-  companyId: string;
-  provider: string;
-  tenantOrRealmId: string;
-  asOfDate: string;
-  accessToken: string;
-  capturedAt?: string;
-  fetchers?: QboArCaptureFetchers;
-};
-
 export function mapQboArReportsToPayload(
   aging: QboArAgingResult,
   trial: QboTrialBalanceResult,
@@ -97,30 +85,49 @@ export function arReportsFromSnapshot(snapshot: TieOutArMeasurementSnapshot): {
   return { aging, trial };
 }
 
-/**
- * Fetch the same AR aging + Trial Balance reports runArResolver uses,
- * then map to the provider-neutral snapshot. Does not persist.
- */
-export async function captureQboArMeasurementSnapshot(
-  input: CaptureQboArMeasurementSnapshotInput,
-): Promise<TieOutArMeasurementSnapshot> {
-  const asOfDate = asIsoDate(input.asOfDate);
-  const fetchAging = input.fetchers?.fetchAging ?? fetchQboArAgingDetail;
-  const fetchTrialBalance = input.fetchers?.fetchTrialBalance ?? fetchQboTrialBalance;
+/** URM AR + TB reads. No accounting_syncs.id — that id is assigned only after this acquisition batch. */
+export async function fetchQboUrmArReports(params: {
+  realmId: string;
+  accessToken: string;
+  asOfDate: string;
+  fetchers?: QboArCaptureFetchers;
+}): Promise<{ aging: QboArAgingResult; trial: QboTrialBalanceResult }> {
+  const asOfDate = asIsoDate(params.asOfDate);
+  const fetchAging = params.fetchers?.fetchAging ?? fetchQboArAgingDetail;
+  const fetchTrialBalance = params.fetchers?.fetchTrialBalance ?? fetchQboTrialBalance;
   const [aging, trial] = await Promise.all([
     fetchAging({
-      realmId: input.tenantOrRealmId,
-      accessToken: input.accessToken,
+      realmId: params.realmId,
+      accessToken: params.accessToken,
       asOfDate,
     }),
     fetchTrialBalance({
-      realmId: input.tenantOrRealmId,
-      accessToken: input.accessToken,
+      realmId: params.realmId,
+      accessToken: params.accessToken,
       asOfDate,
     }),
   ]);
-  const payload = mapQboArReportsToPayload(aging, trial);
-  const sourceRequestIds = sourceRequestIdsFromQboReports(aging, trial);
+  return { aging, trial };
+}
+
+/**
+ * Map already-fetched URM reports onto a just-persisted accounting_syncs.id.
+ * Does not call QBO.
+ */
+export function buildArMeasurementSnapshotFromUrmReports(args: {
+  accountingSyncId: string;
+  accountingConnectionId: string;
+  companyId: string;
+  provider: string;
+  tenantOrRealmId: string;
+  asOfDate: string;
+  capturedAt: string;
+  aging: QboArAgingResult;
+  trial: QboTrialBalanceResult;
+}): TieOutArMeasurementSnapshot {
+  const asOfDate = asIsoDate(args.asOfDate);
+  const payload = mapQboArReportsToPayload(args.aging, args.trial);
+  const sourceRequestIds = sourceRequestIdsFromQboReports(args.aging, args.trial);
   assertNoSecrets(payload);
   assertNoSecrets(sourceRequestIds);
   const payloadHash = hashMeasurementSnapshotBody({
@@ -131,14 +138,14 @@ export async function captureQboArMeasurementSnapshot(
   });
   return {
     schemaVersion: TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION,
-    accountingSyncId: input.accountingSyncId,
-    accountingConnectionId: input.accountingConnectionId,
-    companyId: input.companyId,
-    provider: input.provider,
-    tenantOrRealmId: input.tenantOrRealmId,
+    accountingSyncId: args.accountingSyncId,
+    accountingConnectionId: args.accountingConnectionId,
+    companyId: args.companyId,
+    provider: args.provider,
+    tenantOrRealmId: args.tenantOrRealmId,
     snapshotKind: AR_AGING_SNAPSHOT_KIND,
     asOfDate,
-    capturedAt: input.capturedAt ?? new Date().toISOString(),
+    capturedAt: args.capturedAt,
     payloadHash,
     sourceRequestIds,
     payload,
