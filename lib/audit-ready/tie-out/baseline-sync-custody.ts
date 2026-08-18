@@ -9,9 +9,13 @@
  * accounting_syncs row (pointer / supplied / latest-success fallback).
  * It does NOT prove a resolver measured from that row.
  *
- * Shipped resolvers today measure from live provider reports
- * (LIVE_PROVIDER_REQUIRED / PARTIAL_SYNC_COVERAGE). They MUST NOT stamp
- * baseline_sync_id. A completed live run remains custody_unknown for CC.
+ * Worker-shipped resolvers measure from live provider reports and MUST NOT
+ * stamp baseline_sync_id. Do not stamp baseline_sync_id on live-provider runs.
+ * A completed live run remains custody_unknown for CC.
+ *
+ * CC-2A1 AR may stamp only when runArResolver is given an explicit
+ * persisted_snapshot measurement whose asOfDate matches that accounting_syncs
+ * report_period_end. Default AR (worker/regenerate) stays live_provider.
  *
  * Stamp only when measurementSource === "persisted_sync_snapshot".
  *
@@ -134,9 +138,9 @@ export function isSyncBackedTieOutKind(kind: string): boolean {
 export type TieOutMeasurementSource = "persisted_sync_snapshot" | "live_provider";
 
 /**
- * Future Option A: resolver consumes this exact snapshot and may then stamp
- * accountingSyncId. No shipped kind can populate this from accounting_syncs
- * normalized_payload today (AR/AP/Inv PARTIAL; FA/GRNI/BS LIVE_REQUIRED).
+ * Worker-shipped Option A context remains empty on this type.
+ * CC-2A1 AR measurement inputs live on accounting_measurement_snapshots,
+ * not accounting_syncs.normalized_payload.
  */
 export type TieOutAccountingSnapshotContext = {
   accountingSyncId: string;
@@ -150,8 +154,9 @@ export type TieOutAccountingSnapshotContext = {
 };
 
 /**
- * How each shipped kind currently obtains measurement facts.
- * Do not stamp baseline_sync_id unless this is persisted_sync_snapshot.
+ * Default shipped measurement source (worker/regenerate/API).
+ * AR also supports an explicit persisted_snapshot path; that path is opt-in
+ * and is the only AR path that may stamp baseline_sync_id.
  */
 export const SHIPPED_TIE_OUT_MEASUREMENT_SOURCE: Record<
   (typeof SYNC_BACKED_TIE_OUT_KINDS)[number],

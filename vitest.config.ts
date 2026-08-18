@@ -27,6 +27,7 @@ export default defineConfig({
       "lib/format/__tests__/**/*.test.ts",
       "lib/parse/__tests__/**/*.test.ts",
       "lib/erp/quickbooks/__tests__/**/*.test.ts",
+      "lib/audit-ready/measurement-snapshots/__tests__/**/*.test.ts",
       "lib/audit-ready/tie-out/__tests__/**/*.test.ts",
       "lib/audit-ready/tie-out/__tests__/**/*.test.tsx",
       "lib/audit-ready/tie-out/emitters/**/*.test.ts",
