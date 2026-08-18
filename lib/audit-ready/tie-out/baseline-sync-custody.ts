@@ -15,6 +15,10 @@
  *
  * Stamp only when measurementSource === "persisted_sync_snapshot".
  *
+ * selectLatestCompletedTieOutRun: without baselineSyncId, latest completed;
+ * with baselineSyncId, latest completed whose baseline_sync_id equals that
+ * exact accounting_syncs.id (null custody is never a CC match).
+ *
  * Does NOT: change URM math; backfill historical nulls; replace a supplied
  * sync id with "latest"; write to QBO/Xero.
  */
@@ -406,31 +410,78 @@ export async function resolvePersistedAuthoritativeAccountingSyncId(
   });
 }
 
+export type CompletedTieOutRunCandidate = {
+  id: string;
+  status: string;
+  completedAt: string | null;
+  baselineSyncId: string | null;
+};
+
 /**
- * CC-2 selector: latest completed URM/tie-out run for engagement/period/kind.
- * Does not change existing rollup consumers.
+ * Latest completed URM/tie-out run for engagement/period/kind.
+ *
+ * Without baselineSyncId: legacy selector — completed + completed_at DESC.
+ * With baselineSyncId: CC-authoritative — also require exact baseline_sync_id.
+ * Null/empty custody is never a match for the CC path.
  */
+export function selectLatestCompletedTieOutRunFromCandidates(
+  rows: CompletedTieOutRunCandidate[],
+  args: { baselineSyncId?: string | null } = {},
+): CompletedTieOutRunCandidate | null {
+  const requiredSync = String(args.baselineSyncId || "").trim();
+  const matched = rows.filter((row) => {
+    if (row.status !== "completed") return false;
+    if (!row.completedAt) return false;
+    if (requiredSync) {
+      if (row.baselineSyncId == null || row.baselineSyncId === "") return false;
+      if (String(row.baselineSyncId) !== requiredSync) return false;
+    }
+    return true;
+  });
+  matched.sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
+  return matched[0] ?? null;
+}
+
 export async function selectLatestCompletedTieOutRun(args: {
   engagementId: string;
   periodEnd: string;
   tieOutKind: TieOutKind | string;
+  /** Exact accounting_syncs.id. When set, select within that custody. */
+  baselineSyncId?: string | null;
 }): Promise<{ id: string; baselineSyncId: string | null; completedAt: string } | null> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
+  const requiredSync = String(args.baselineSyncId || "").trim();
+  let query = supabase
     .from("audit_ready_tie_out_runs")
     .select("id, baseline_sync_id, completed_at")
     .eq("engagement_id", args.engagementId)
     .eq("period_end", args.periodEnd)
     .eq("tie_out_kind", args.tieOutKind)
-    .eq("status", "completed")
+    .eq("status", "completed");
+  if (requiredSync) {
+    query = query.eq("baseline_sync_id", requiredSync);
+  }
+  const { data, error } = await query
     .order("completed_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
   if (!data?.id || !data.completed_at) return null;
+  const selected = selectLatestCompletedTieOutRunFromCandidates(
+    [
+      {
+        id: String(data.id),
+        status: "completed",
+        completedAt: String(data.completed_at),
+        baselineSyncId: data.baseline_sync_id == null ? null : String(data.baseline_sync_id),
+      },
+    ],
+    { baselineSyncId: requiredSync || null },
+  );
+  if (!selected?.completedAt) return null;
   return {
-    id: String(data.id),
-    baselineSyncId: data.baseline_sync_id == null ? null : String(data.baseline_sync_id),
-    completedAt: String(data.completed_at),
+    id: selected.id,
+    baselineSyncId: selected.baselineSyncId,
+    completedAt: selected.completedAt,
   };
 }
