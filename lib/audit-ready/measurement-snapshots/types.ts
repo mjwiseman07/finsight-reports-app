@@ -4,17 +4,24 @@
  */
 
 export const AR_AGING_SNAPSHOT_KIND = "ar_aging" as const;
+export const AP_AGING_SNAPSHOT_KIND = "ap_aging" as const;
 export const TIE_OUT_MEASUREMENT_SNAPSHOT_SCHEMA_VERSION = 1 as const;
 
-export type MeasurementSnapshotKind = typeof AR_AGING_SNAPSHOT_KIND;
+export type MeasurementSnapshotKind =
+  | typeof AR_AGING_SNAPSHOT_KIND
+  | typeof AP_AGING_SNAPSHOT_KIND;
 
-export type ArAgingCustomerPayload = {
+export type MeasurementEntityPayload = {
   entityRef: string;
   displayName: string | null;
   totalCents: number;
 };
 
-export type ArAgingTrialBalanceLinePayload = {
+export type ArAgingCustomerPayload = MeasurementEntityPayload;
+
+export type ApAgingVendorPayload = MeasurementEntityPayload;
+
+export type MeasurementTrialBalanceLinePayload = {
   accountRef: string;
   accountName: string | null;
   debitCents: number | null;
@@ -22,12 +29,26 @@ export type ArAgingTrialBalanceLinePayload = {
   netCents: number;
 };
 
+/** @deprecated Use MeasurementTrialBalanceLinePayload — same shape. */
+export type ArAgingTrialBalanceLinePayload = MeasurementTrialBalanceLinePayload;
+
 export type ArAgingMeasurementPayload = {
   currency: string | null;
   customers: ArAgingCustomerPayload[];
   subledgerTotalCents: number;
-  trialBalance: ArAgingTrialBalanceLinePayload[];
+  trialBalance: MeasurementTrialBalanceLinePayload[];
 };
+
+export type ApAgingMeasurementPayload = {
+  currency: string | null;
+  vendors: ApAgingVendorPayload[];
+  subledgerTotalCents: number;
+  trialBalance: MeasurementTrialBalanceLinePayload[];
+};
+
+export type MeasurementSnapshotPayload =
+  | ArAgingMeasurementPayload
+  | ApAgingMeasurementPayload;
 
 export type MeasurementSourceRequestIds = {
   agingIntuitTid?: string | null;
@@ -59,11 +80,16 @@ export type TieOutArMeasurementSnapshot = TieOutMeasurementSnapshotV1<
   ArAgingMeasurementPayload
 >;
 
+export type TieOutApMeasurementSnapshot = TieOutMeasurementSnapshotV1<
+  typeof AP_AGING_SNAPSHOT_KIND,
+  ApAgingMeasurementPayload
+>;
+
 export type MeasurementSnapshotHashBody = {
   schemaVersion: number;
   snapshotKind: MeasurementSnapshotKind;
   asOfDate: string;
-  payload: ArAgingMeasurementPayload;
+  payload: MeasurementSnapshotPayload;
 };
 
 export type AccountingSyncForArSnapshot = {
@@ -95,6 +121,10 @@ export const MEASUREMENT_SNAPSHOT_ERROR = {
   PREEXISTING_SYNC_NOT_AUTHORITY: "measurement_snapshot_preexisting_sync_not_authority",
   CORE_STATEMENTS_MISSING: "measurement_snapshot_core_statements_missing",
   PROVIDER_UNSUPPORTED: "measurement_snapshot_provider_unsupported",
+  COMBINED_AR_SNAPSHOT_PERSIST_FAILED:
+    "measurement_snapshot_combined_ar_persist_failed",
+  COMBINED_AP_SNAPSHOT_PERSIST_FAILED:
+    "measurement_snapshot_combined_ap_persist_failed",
 } as const;
 
 export class MeasurementSnapshotError extends Error {
@@ -104,5 +134,29 @@ export class MeasurementSnapshotError extends Error {
     super(message);
     this.name = "MeasurementSnapshotError";
     this.code = code;
+  }
+}
+
+/**
+ * Combined AR+AP acquisition did not complete both snapshots.
+ * AP is never CC-authoritative when this is thrown.
+ */
+export class CombinedAcquisitionPartialError extends MeasurementSnapshotError {
+  accountingSyncId: string;
+  arMeasurementSnapshot: TieOutArMeasurementSnapshot | null;
+  apMeasurementSnapshot: TieOutApMeasurementSnapshot | null;
+
+  constructor(args: {
+    code: string;
+    message: string;
+    accountingSyncId: string;
+    arMeasurementSnapshot?: TieOutArMeasurementSnapshot | null;
+    apMeasurementSnapshot?: TieOutApMeasurementSnapshot | null;
+  }) {
+    super(args.code, args.message);
+    this.name = "CombinedAcquisitionPartialError";
+    this.accountingSyncId = args.accountingSyncId;
+    this.arMeasurementSnapshot = args.arMeasurementSnapshot ?? null;
+    this.apMeasurementSnapshot = args.apMeasurementSnapshot ?? null;
   }
 }

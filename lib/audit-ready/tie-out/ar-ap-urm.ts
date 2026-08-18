@@ -1,7 +1,7 @@
 /**
  * URM-4 — AR/AP migration onto the universal reconciliation model.
  *
- * Measurement math stays in ar-measure / ap-resolver (unchanged formulas).
+ * Measurement math stays in ar-measure / ap-measure (unchanged formulas).
  * This module only:
  * - derives identified items where defensible (v1: none)
  * - maps the explicit URM outcome policy used for AR/AP persist

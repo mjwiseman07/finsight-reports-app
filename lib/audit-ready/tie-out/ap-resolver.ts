@@ -8,11 +8,27 @@ import {
 import { apEmitter } from "./emitters/ap-emitter";
 import { dualWriteWorkpaper } from "./emitters/_shared/emit-common";
 import { persistApUrmBridge } from "./ar-ap-urm";
+import type { PolicySnapshot, VarianceClassification } from "./policy";
+import { measureApTieOut } from "./ap-measure";
 import {
-  classifyVariance,
-  type PolicySnapshot,
-  type VarianceClassification,
-} from "./policy";
+  assertRunIdDistinctFromBaselineSyncId,
+  baselineSyncInsertForMeasurement,
+  type TieOutMeasurementSource,
+} from "./baseline-sync-custody";
+import {
+  MEASUREMENT_SNAPSHOT_ERROR,
+  MeasurementSnapshotError,
+  type TieOutApMeasurementSnapshot,
+} from "@/lib/audit-ready/measurement-snapshots/types";
+import { validateApMeasurementSnapshot } from "@/lib/audit-ready/measurement-snapshots/validate";
+import { apReportsFromSnapshot } from "@/lib/audit-ready/measurement-snapshots/qbo-ap-adapter";
+
+export type ApLiveMeasurement = { mode: "live" };
+
+export type ApPersistedSnapshotMeasurement = {
+  mode: "persisted_snapshot";
+  snapshot: TieOutApMeasurementSnapshot;
+};
 
 export type ApResolverInput = {
   engagementId: string;
@@ -26,6 +42,11 @@ export type ApResolverInput = {
   triggerReason: "manual" | "scheduled" | "memory_replay" | "api";
   regeneratedFromRunId?: string | null;
   triggerKind?: "initial" | "regenerated" | "cron";
+  /** Default omitted = live_provider. Worker/regenerate stay on this path. */
+  measurement?: ApLiveMeasurement | ApPersistedSnapshotMeasurement;
+  companyId?: string | null;
+  accountingConnectionId?: string | null;
+  provider?: string | null;
 };
 
 export type ApResolverOutput = {
@@ -42,6 +63,8 @@ export type ApResolverOutput = {
   durationMs: number;
   errorCode?: string;
   errorMessage?: string;
+  measurementSource: TieOutMeasurementSource;
+  baselineSyncId: string | null;
 };
 
 type VarianceInsert = {
@@ -59,11 +82,103 @@ type VarianceInsert = {
   classification_reason: string | null;
 };
 
+function failedPreInsert(args: {
+  code: string;
+  msg: string;
+  durationMs: number;
+}): ApResolverOutput {
+  return {
+    runId: "",
+    status: "failed",
+    totalsStatus: "kickout",
+    subledgerTotalCents: 0,
+    glTotalCents: 0,
+    totalsVarianceCents: 0,
+    itemCount: 0,
+    autoReconcileCount: 0,
+    reviewCount: 0,
+    kickoutCount: 0,
+    durationMs: args.durationMs,
+    errorCode: args.code,
+    errorMessage: args.msg,
+    measurementSource: "live_provider",
+    baselineSyncId: null,
+  };
+}
+
+function snapshotReportsOrThrow(input: ApResolverInput): {
+  aging: QboApAgingResult;
+  trial: QboTrialBalanceResult;
+  baselineSyncId: string;
+} {
+  if (input.measurement?.mode !== "persisted_snapshot") {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.AUTHORITATIVE_REQUIRED,
+      "Persisted AP snapshot measurement was not supplied.",
+    );
+  }
+  const companyId = String(input.companyId || "").trim();
+  const accountingConnectionId = String(input.accountingConnectionId || "").trim();
+  const provider = String(input.provider || "").trim();
+  if (!companyId || !accountingConnectionId || !provider) {
+    throw new MeasurementSnapshotError(
+      MEASUREMENT_SNAPSHOT_ERROR.CUSTODY_MISMATCH,
+      "Persisted AP snapshot measurement requires company, connection, and provider custody.",
+    );
+  }
+  const snapshot = validateApMeasurementSnapshot(input.measurement.snapshot, {
+    asOfDate: input.asOfDate,
+    companyId,
+    accountingConnectionId,
+    provider,
+    tenantOrRealmId: input.realmId,
+    accountingSyncId: input.measurement.snapshot.accountingSyncId,
+  });
+  const reports = apReportsFromSnapshot(snapshot);
+  return {
+    aging: reports.aging,
+    trial: reports.trial,
+    baselineSyncId: snapshot.accountingSyncId,
+  };
+}
+
 export async function runApResolver(
   input: ApResolverInput,
 ): Promise<ApResolverOutput> {
   const supabase = getSupabaseAdmin();
   const start = Date.now();
+  const snapshotMode = input.measurement?.mode === "persisted_snapshot";
+  let measurementSource: TieOutMeasurementSource = snapshotMode
+    ? "persisted_sync_snapshot"
+    : "live_provider";
+  let baselineSyncId: string | null = null;
+  let subledger: QboApAgingResult | null = null;
+  let trial: QboTrialBalanceResult | null = null;
+
+  if (snapshotMode) {
+    try {
+      const resolved = snapshotReportsOrThrow(input);
+      subledger = resolved.aging;
+      trial = resolved.trial;
+      baselineSyncId = resolved.baselineSyncId;
+      measurementSource = "persisted_sync_snapshot";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      const code =
+        e instanceof MeasurementSnapshotError
+          ? e.code
+          : MEASUREMENT_SNAPSHOT_ERROR.AUTHORITATIVE_REQUIRED;
+      return failedPreInsert({ code, msg, durationMs: Date.now() - start });
+    }
+  }
+
+  const stamp = snapshotMode
+    ? baselineSyncInsertForMeasurement({
+        measurementSource: "persisted_sync_snapshot",
+        accountingSyncId: baselineSyncId,
+      })
+    : {};
+
   const { data: runRow, error: runErr } = await supabase
     .from("audit_ready_tie_out_runs")
     .insert({
@@ -82,11 +197,15 @@ export async function runApResolver(
       trigger_reason: input.triggerReason,
       regenerated_from_run_id: input.regeneratedFromRunId ?? null,
       trigger_kind: input.triggerKind ?? "initial",
+      ...stamp,
     })
     .select("id")
     .single();
   if (runErr || !runRow) throw new Error(`insert run failed: ${runErr?.message}`);
   const runId = runRow.id as string;
+  if (baselineSyncId) {
+    assertRunIdDistinctFromBaselineSyncId(runId, baselineSyncId);
+  }
   const failRun = async (code: string, msg: string) => {
     await supabase
       .from("audit_ready_tie_out_runs")
@@ -107,80 +226,74 @@ export async function runApResolver(
       })
       .eq("id", input.pbcRequestId);
   };
-  let subledger: QboApAgingResult;
-  let trial: QboTrialBalanceResult;
-  try {
-    [subledger, trial] = await Promise.all([
-      fetchQboApAgingDetail({
-        realmId: input.realmId,
-        accessToken: input.accessToken,
-        asOfDate: input.asOfDate,
-      }),
-      fetchQboTrialBalance({
-        realmId: input.realmId,
-        accessToken: input.accessToken,
-        asOfDate: input.asOfDate,
-      }),
-    ]);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "unknown";
-    await failRun("qbo_fetch_failed", msg);
-    return {
-      runId,
-      status: "failed",
-      totalsStatus: "kickout",
-      subledgerTotalCents: 0,
-      glTotalCents: 0,
-      totalsVarianceCents: 0,
-      itemCount: 0,
-      autoReconcileCount: 0,
-      reviewCount: 0,
-      kickoutCount: 0,
-      durationMs: Date.now() - start,
-      errorCode: "qbo_fetch_failed",
-      errorMessage: msg,
-    };
+
+  if (!snapshotMode) {
+    try {
+      [subledger, trial] = await Promise.all([
+        fetchQboApAgingDetail({
+          realmId: input.realmId,
+          accessToken: input.accessToken,
+          asOfDate: input.asOfDate,
+        }),
+        fetchQboTrialBalance({
+          realmId: input.realmId,
+          accessToken: input.accessToken,
+          asOfDate: input.asOfDate,
+        }),
+      ]);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      await failRun("qbo_fetch_failed", msg);
+      return {
+        runId,
+        status: "failed",
+        totalsStatus: "kickout",
+        subledgerTotalCents: 0,
+        glTotalCents: 0,
+        totalsVarianceCents: 0,
+        itemCount: 0,
+        autoReconcileCount: 0,
+        reviewCount: 0,
+        kickoutCount: 0,
+        durationMs: Date.now() - start,
+        errorCode: "qbo_fetch_failed",
+        errorMessage: msg,
+        measurementSource: "live_provider",
+        baselineSyncId: null,
+      };
+    }
   }
-  // GL side — AP account is typically a credit-normal account, so its
-  // net_cents will be negative (credit > debit). Use absolute value for the
-  // comparison against the subledger open-balance total (which is positive).
-  const glLine = trial.lines.find((l) => l.account_ref === input.apAccountId);
-  const glNetCents = glLine ? glLine.net_cents : 0;
-  const glTotalCents = Math.abs(glNetCents);
-  const subTotalCents = subledger.total_cents;
-  const totalsVariance = subTotalCents - glTotalCents;
-  const totalsClass = classifyVariance(
-    totalsVariance,
-    glTotalCents !== 0 ? glTotalCents : subTotalCents,
-    input.policy,
-  );
-  const totalsStatus: ApResolverOutput["totalsStatus"] =
-    totalsClass.status === "auto_cleared"
-      ? "auto_reconcile"
-      : totalsClass.status === "tie"
-        ? "tie"
-        : totalsClass.status === "review"
-          ? "review"
-          : "kickout";
-  const variances: VarianceInsert[] = subledger.vendors.map((vendor) => {
-    const isDebitBalance = vendor.total_cents < 0;
-    return {
-      run_id: runId,
-      engagement_id: input.engagementId,
-      pbc_request_id: input.pbcRequestId,
-      entity_kind: "vendor",
-      entity_qbo_id: vendor.vendor_ref,
-      entity_display_name: vendor.vendor_display_name,
-      subledger_amount_cents: vendor.total_cents,
-      gl_amount_cents: null,
-      variance_cents: 0,
-      variance_percent: null,
-      status: (isDebitBalance ? "review" : "tie") as VarianceClassification,
-      classification_reason: isDebitBalance
-        ? "vendor_debit_balance_review"
-        : "vendor detail row (informational)",
-    };
+
+  const measured = measureApTieOut({
+    aging: subledger as QboApAgingResult,
+    trialBalance: trial as QboTrialBalanceResult,
+    apAccountId: input.apAccountId,
+    policy: input.policy,
   });
+  const {
+    glLine,
+    glTotalCents,
+    subTotalCents,
+    totalsVariance,
+    totalsClass,
+    totalsStatus,
+    vendorRows,
+  } = measured;
+
+  const variances: VarianceInsert[] = vendorRows.map((vendor) => ({
+    run_id: runId,
+    engagement_id: input.engagementId,
+    pbc_request_id: input.pbcRequestId,
+    entity_kind: "vendor",
+    entity_qbo_id: vendor.entity_qbo_id,
+    entity_display_name: vendor.entity_display_name,
+    subledger_amount_cents: vendor.subledger_amount_cents,
+    gl_amount_cents: vendor.gl_amount_cents,
+    variance_cents: vendor.variance_cents,
+    variance_percent: vendor.variance_percent,
+    status: vendor.status,
+    classification_reason: vendor.classification_reason,
+  }));
   variances.push({
     run_id: runId,
     engagement_id: input.engagementId,
@@ -217,6 +330,8 @@ export async function runApResolver(
           durationMs: Date.now() - start,
           errorCode: "variance_insert_failed",
           errorMessage: varErr.message,
+          measurementSource,
+          baselineSyncId,
         };
       }
     }
@@ -234,7 +349,6 @@ export async function runApResolver(
           ? "review"
           : "kickout";
   const fetchedAt = new Date().toISOString();
-  // Persist Path Y snapshot first so emitter.build can read it; complete only after emit succeeds.
   await supabase
     .from("audit_ready_tie_out_runs")
     .update({
@@ -246,24 +360,23 @@ export async function runApResolver(
       item_auto_reconcile_count: autoCount,
       item_review_count: reviewCount,
       item_kickout_count: kickoutCount,
-      subledger_source_url: subledger.raw_report_url,
-      gl_source_url: trial.raw_report_url,
-      intuit_tid_subledger: subledger.intuit_tid,
-      intuit_tid_gl: trial.intuit_tid,
+      subledger_source_url: (subledger as QboApAgingResult).raw_report_url,
+      gl_source_url: (trial as QboTrialBalanceResult).raw_report_url,
+      intuit_tid_subledger: (subledger as QboApAgingResult).intuit_tid,
+      intuit_tid_gl: (trial as QboTrialBalanceResult).intuit_tid,
       raw_qbo_payload_jsonb: {
         version: 1,
         kind: "ap_aging",
         fetched_at: fetchedAt,
         qbo_realm_id: input.realmId,
-        qbo_connection_id: "",
+        qbo_connection_id: input.accountingConnectionId ?? "",
+        measurement_source: measurementSource,
         aging_detail: subledger,
         trial_balance: trial,
       },
     })
     .eq("id", runId);
 
-  // URM-4: persist universal bridge after measurement gross is authoritative,
-  // before workpaper emit (emitter reads bridge for face + Reconciling Items tab).
   try {
     await persistApUrmBridge({
       runId,
@@ -295,10 +408,11 @@ export async function runApResolver(
       durationMs: Date.now() - start,
       errorCode: "urm_bridge_persist_failed",
       errorMessage: msg,
+      measurementSource,
+      baselineSyncId,
     };
   }
 
-  // Block E: primary WorkpaperEmitter write (hard-fail — marks run failed, no swallow).
   try {
     await dualWriteWorkpaper({
       emitter: apEmitter,
@@ -323,6 +437,8 @@ export async function runApResolver(
       durationMs: Date.now() - start,
       errorCode: "emit_failed",
       errorMessage: msg,
+      measurementSource,
+      baselineSyncId,
     };
   }
 
@@ -355,5 +471,7 @@ export async function runApResolver(
     reviewCount,
     kickoutCount,
     durationMs: Date.now() - start,
+    measurementSource,
+    baselineSyncId,
   };
 }
