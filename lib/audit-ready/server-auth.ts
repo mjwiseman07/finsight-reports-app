@@ -67,28 +67,35 @@ const FIRM_WRITE_ROLES = new Set([
 ]);
 
 /**
- * Resolve whether the current cookie session may read/write an engagement.
- * Reuses requireAuditReadyUser (no getServerSessionUser in this repo).
- * Super-admin via isAllowedSuperAdminEmail — no super_admins table.
+ * Cookie-free write-authority check. Same membership/role model as
+ * getEngagementActor. Domain services (no request cookies) use this.
  */
-export async function getEngagementActor(
-  engagementId: string,
-): Promise<EngagementActor | null> {
-  const auth = await requireAuditReadyUser();
-  if ('error' in auth) return null;
-  const user = auth.user;
-
+export async function resolveEngagementActorForUser(args: {
+  engagementId: string;
+  userId: string;
+  userEmail?: string | null;
+}): Promise<EngagementActor | null> {
   const supabase = getSupabaseAdmin();
   const { data: eng } = await supabase
     .from('audit_ready_engagements')
     .select('id, company_id, firm_id, firm_client_id')
-    .eq('id', engagementId)
+    .eq('id', args.engagementId)
     .maybeSingle();
   if (!eng) return null;
 
-  if (isAllowedSuperAdminEmail(user.email ?? '')) {
+  let email = args.userEmail ?? null;
+  if (!email) {
+    try {
+      const { data } = await supabase.auth.admin.getUserById(args.userId);
+      email = data.user?.email ?? null;
+    } catch {
+      email = null;
+    }
+  }
+
+  if (isAllowedSuperAdminEmail(email ?? '')) {
     return {
-      userId: user.id,
+      userId: args.userId,
       canRead: true,
       canWrite: true,
       scope: 'super_admin',
@@ -100,12 +107,12 @@ export async function getEngagementActor(
       .from('company_users')
       .select('role, status')
       .eq('company_id', eng.company_id)
-      .eq('user_id', user.id)
+      .eq('user_id', args.userId)
       .eq('status', 'active')
       .maybeSingle();
     if (cu) {
       return {
-        userId: user.id,
+        userId: args.userId,
         canRead: true,
         canWrite: COMPANY_WRITE_ROLES.has(String(cu.role)),
         scope: 'company',
@@ -118,12 +125,12 @@ export async function getEngagementActor(
       .from('firm_memberships')
       .select('role, status')
       .eq('firm_id', eng.firm_id)
-      .eq('user_id', user.id)
+      .eq('user_id', args.userId)
       .eq('status', 'active')
       .maybeSingle();
     if (fm) {
       return {
-        userId: user.id,
+        userId: args.userId,
         canRead: true,
         canWrite: FIRM_WRITE_ROLES.has(String(fm.role)),
         scope: 'firm',
@@ -132,4 +139,21 @@ export async function getEngagementActor(
   }
 
   return null;
+}
+
+/**
+ * Resolve whether the current cookie session may read/write an engagement.
+ * Reuses requireAuditReadyUser (no getServerSessionUser in this repo).
+ * Super-admin via isAllowedSuperAdminEmail — no super_admins table.
+ */
+export async function getEngagementActor(
+  engagementId: string,
+): Promise<EngagementActor | null> {
+  const auth = await requireAuditReadyUser();
+  if ('error' in auth) return null;
+  return resolveEngagementActorForUser({
+    engagementId,
+    userId: auth.user.id,
+    userEmail: auth.user.email ?? null,
+  });
 }
