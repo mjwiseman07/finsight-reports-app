@@ -100,6 +100,10 @@ CREATE POLICY continuous_close_runs_service_role_all
   USING (true)
   WITH CHECK (true);
 
+-- Authenticated SELECT mirrors resolveEngagementActorForVerifiedUser read
+-- semantics (any active company or firm membership on the canonical
+-- engagement). Super-admin remains server/service-role, not an email
+-- allowlist in SQL. Writes stay service_role.
 DROP POLICY IF EXISTS continuous_close_runs_select
   ON public.continuous_close_runs;
 CREATE POLICY continuous_close_runs_select
@@ -109,10 +113,31 @@ CREATE POLICY continuous_close_runs_select
   USING (
     EXISTS (
       SELECT 1
-      FROM public.company_users cu
-      WHERE cu.company_id = continuous_close_runs.company_id
-        AND cu.user_id = (SELECT auth.uid())
-        AND cu.status = 'active'
+      FROM public.audit_ready_engagements e
+      WHERE e.id = continuous_close_runs.engagement_id
+        AND (
+          (
+            e.company_id IS NOT NULL
+            AND EXISTS (
+              SELECT 1
+              FROM public.company_users cu
+              WHERE cu.company_id = e.company_id
+                AND cu.user_id = (SELECT auth.uid())
+                AND cu.status = 'active'
+            )
+          )
+          OR
+          (
+            e.firm_id IS NOT NULL
+            AND EXISTS (
+              SELECT 1
+              FROM public.firm_memberships fm
+              WHERE fm.firm_id = e.firm_id
+                AND fm.user_id = (SELECT auth.uid())
+                AND fm.status = 'active'
+            )
+          )
+        )
     )
   );
 
