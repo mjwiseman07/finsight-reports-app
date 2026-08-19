@@ -67,10 +67,17 @@ const FIRM_WRITE_ROLES = new Set([
 ]);
 
 /**
- * Cookie-free write-authority check. Same membership/role model as
- * getEngagementActor. Domain services (no request cookies) use this.
+ * Lower-level engagement permission resolver for a user id that the CALLER has
+ * already authenticated/verified.
+ *
+ * This is NOT authentication. Knowing or supplying a user id does not prove the
+ * caller is that user. Do not pass observation-input or other untrusted ids here.
+ * Admin getUserById proves the account exists and may load email for super-admin
+ * allowlisting; it does not prove the caller is that account.
+ *
+ * Cookie/request authentication remains getEngagementActor() → requireAuditReadyUser().
  */
-export async function resolveEngagementActorForUser(args: {
+export async function resolveEngagementActorForVerifiedUser(args: {
   engagementId: string;
   userId: string;
   userEmail?: string | null;
@@ -151,7 +158,7 @@ export async function getEngagementActor(
 ): Promise<EngagementActor | null> {
   const auth = await requireAuditReadyUser();
   if ('error' in auth) return null;
-  return resolveEngagementActorForUser({
+  return resolveEngagementActorForVerifiedUser({
     engagementId,
     userId: auth.user.id,
     userEmail: auth.user.email ?? null,

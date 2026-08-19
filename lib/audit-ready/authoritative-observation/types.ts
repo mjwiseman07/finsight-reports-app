@@ -33,10 +33,34 @@ export type AuthoritativePbcRequestIds = {
 
 type AuthoritativeObservationSharedInput = {
   engagementId: string;
-  triggeredByUserId: string;
   triggerReason: AuthoritativeTriggerReason;
   pbcRequestIds?: AuthoritativePbcRequestIds;
   closePeriodEnd?: string;
+  /**
+   * Not authority. If present at runtime, must equal the verified actor.userId.
+   * Prefer omitting it; trigger metadata is derived from the execution principal.
+   */
+  triggeredByUserId?: never;
+};
+
+/**
+ * Verified human principal. The calling boundary must already have authenticated
+ * this actor (e.g. getEngagementActor / requireAuditReadyUser). A raw user id in
+ * observation input is not authentication.
+ */
+export type AuthoritativeVerifiedUserPrincipal = {
+  type: "user";
+  actor: EngagementActor;
+};
+
+/** v1: accepted only as an explicit fail-closed shape. Not executable. */
+export type AuthoritativeSystemPrincipal = {
+  type: "system";
+  service: string;
+};
+
+export type AuthoritativeObservationExecutionContext = {
+  principal: AuthoritativeVerifiedUserPrincipal | AuthoritativeSystemPrincipal;
 };
 
 export type FreshCaptureObservationInput = AuthoritativeObservationSharedInput & {
@@ -111,6 +135,8 @@ export type AuthoritativeObservationContext = {
   engagementId: string;
   companyId: string;
   actor: EngagementActor;
+  /** Derived from the verified actor. Never taken from raw observation input. */
+  triggeredByUserId: string;
   connectionId: string;
   provider: string;
   tenantOrRealmId: string;
@@ -131,6 +157,9 @@ export const AUTHORITATIVE_OBSERVATION_ERROR = {
   FRESH_SYNC_ID_FORBIDDEN: "fresh_accounting_sync_id_forbidden",
   REPLAY_SYNC_ID_REQUIRED: "replay_accounting_sync_id_required",
   WRITE_FORBIDDEN: "write_forbidden",
+  AUTHENTICATED_ACTOR_REQUIRED: "authenticated_actor_required",
+  UNSUPPORTED_PRINCIPAL: "unsupported_principal",
+  TRIGGERED_BY_IMPERSONATION: "triggered_by_impersonation",
   CROSS_COMPANY_FORBIDDEN: "cross_company_forbidden",
   ENGAGEMENT_NOT_FOUND: "engagement_not_found",
   COMPANY_UNRESOLVED: "company_unresolved",

@@ -1,24 +1,26 @@
 /**
  * CC-2A4 context loader.
  *
- * Resolves engagement, write-authority, company, connection identity, period,
- * control-account bindings, tie-out policy, and one classified PBC per
- * AR/AP/Inventory kind. Does not read the provider. Does not refresh tokens.
+ * Resolves engagement, company, connection identity, period, control-account
+ * bindings, tie-out policy, and one classified PBC per AR/AP/Inventory kind.
+ * Write authority comes from a VERIFIED execution principal, not from
+ * observation-input user ids. Does not read the provider. Does not refresh tokens.
  */
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
-import {
-  resolveEngagementActorForUser,
-  type EngagementActor,
-} from "@/lib/audit-ready/server-auth";
 import { selectAccountingConnectionForActiveContext } from "@/lib/integrations/accounting/connection-selection";
 import type { PolicySnapshot } from "@/lib/audit-ready/tie-out/policy";
 import type { ArAcquisitionConnection } from "@/lib/audit-ready/measurement-snapshots/acquisition";
 import { asIsoDate } from "@/lib/audit-ready/measurement-snapshots/validate";
 import {
+  assertNoTriggeredByImpersonation,
+  requireVerifiedUserPrincipal,
+} from "./principal";
+import {
   AUTHORITATIVE_OBSERVATION_ERROR,
   AuthoritativeObservationError,
   type AuthoritativeObservationContext,
+  type AuthoritativeObservationExecutionContext,
   type AuthoritativeObservationInput,
 } from "./types";
 
@@ -40,10 +42,6 @@ export type PbcAuthorityRow = {
 };
 
 export type AuthoritativeContextDeps = {
-  authorize: (args: {
-    engagementId: string;
-    userId: string;
-  }) => Promise<EngagementActor | null>;
   loadEngagement: (engagementId: string) => Promise<EngagementAuthorityRow | null>;
   loadFirmClientCompanyId: (firmClientId: string) => Promise<string | null>;
   loadPolicy: (
@@ -106,9 +104,6 @@ function pickUniquePbc(args: {
 export async function createDefaultAuthoritativeContextDeps(): Promise<AuthoritativeContextDeps> {
   const supabase = getSupabaseAdmin();
   return {
-    async authorize({ engagementId, userId }) {
-      return resolveEngagementActorForUser({ engagementId, userId });
-    },
     async loadEngagement(engagementId) {
       const { data, error } = await supabase
         .from("audit_ready_engagements")
@@ -175,8 +170,7 @@ function isCompleteContextDeps(
   deps?: Partial<AuthoritativeContextDeps>,
 ): deps is AuthoritativeContextDeps {
   return Boolean(
-    deps?.authorize &&
-      deps.loadEngagement &&
+    deps?.loadEngagement &&
       deps.loadFirmClientCompanyId &&
       deps.loadPolicy &&
       deps.loadPbcs &&
@@ -186,8 +180,12 @@ function isCompleteContextDeps(
 
 export async function loadAuthoritativeObservationContext(
   input: AuthoritativeObservationInput,
+  executionContext: AuthoritativeObservationExecutionContext,
   deps?: Partial<AuthoritativeContextDeps>,
 ): Promise<AuthoritativeObservationContext> {
+  const actor = requireVerifiedUserPrincipal(executionContext);
+  assertNoTriggeredByImpersonation(input, actor.userId);
+
   const resolved: AuthoritativeContextDeps = isCompleteContextDeps(deps)
     ? deps
     : {
@@ -200,18 +198,6 @@ export async function loadAuthoritativeObservationContext(
     throw new AuthoritativeObservationError(
       AUTHORITATIVE_OBSERVATION_ERROR.ENGAGEMENT_NOT_FOUND,
       "Engagement was not found.",
-      "context",
-    );
-  }
-
-  const actor = await resolved.authorize({
-    engagementId: input.engagementId,
-    userId: input.triggeredByUserId,
-  });
-  if (!actor || actor.userId !== input.triggeredByUserId || !actor.canWrite) {
-    throw new AuthoritativeObservationError(
-      AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
-      "Caller cannot write to this engagement.",
       "context",
     );
   }
@@ -311,7 +297,7 @@ export async function loadAuthoritativeObservationContext(
   };
 
   const connection = await resolved.selectConnection({
-    userId: input.triggeredByUserId,
+    userId: actor.userId,
     companyId,
   });
   if (!connection?.id) {
@@ -337,6 +323,7 @@ export async function loadAuthoritativeObservationContext(
     engagementId: input.engagementId,
     companyId,
     actor,
+    triggeredByUserId: actor.userId,
     connectionId: connection.id,
     provider: String(connection.provider),
     tenantOrRealmId,

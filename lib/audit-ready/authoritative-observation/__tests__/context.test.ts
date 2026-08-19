@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { EngagementActor } from "@/lib/audit-ready/server-auth";
 import { loadAuthoritativeObservationContext } from "../context";
 import {
   AUTHORITATIVE_OBSERVATION_ERROR,
-  AuthoritativeObservationError,
+  type AuthoritativeObservationExecutionContext,
   type AuthoritativeObservationInput,
 } from "../types";
 import type { AuthoritativeContextDeps } from "../context";
@@ -41,14 +42,24 @@ function pbcs() {
   ];
 }
 
+function verifiedActor(over: Partial<EngagementActor> = {}): EngagementActor {
+  return {
+    userId: "user-1",
+    canRead: true,
+    canWrite: true,
+    scope: "company",
+    ...over,
+  };
+}
+
+function executionContext(
+  over: Partial<EngagementActor> = {},
+): AuthoritativeObservationExecutionContext {
+  return { principal: { type: "user", actor: verifiedActor(over) } };
+}
+
 function deps(over: Partial<AuthoritativeContextDeps> = {}): AuthoritativeContextDeps {
   return {
-    authorize: async () => ({
-      userId: "user-1",
-      canRead: true,
-      canWrite: true,
-      scope: "company",
-    }),
     loadEngagement: async () => engagement(),
     loadFirmClientCompanyId: async () => COMPANY,
     loadPolicy: async () => policy,
@@ -70,7 +81,6 @@ function deps(over: Partial<AuthoritativeContextDeps> = {}): AuthoritativeContex
 const freshInput: AuthoritativeObservationInput = {
   mode: "FRESH_CAPTURE",
   engagementId: "eng-1",
-  triggeredByUserId: "user-1",
   triggerReason: "manual",
 };
 
@@ -79,6 +89,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
+        executionContext(),
         deps({ loadEngagement: async () => engagement({ audit_period_end: null }) }),
       ),
     ).rejects.toMatchObject({
@@ -90,6 +101,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         { ...freshInput, closePeriodEnd: "2026-06-30" },
+        executionContext(),
         deps(),
       ),
     ).rejects.toMatchObject({
@@ -102,6 +114,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
+        executionContext(),
         deps({
           loadEngagement: async () =>
             engagement({ ar_control_qbo_account_id: null }),
@@ -121,6 +134,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
+        executionContext(),
         deps({
           loadEngagement: async () =>
             engagement({ ap_control_qbo_account_id: null }),
@@ -135,6 +149,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
+        executionContext(),
         deps({
           loadEngagement: async () =>
             engagement({ inventory_control_qbo_account_id: null }),
@@ -149,6 +164,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
+        executionContext(),
         deps({ loadPolicy: async () => null }),
       ),
     ).rejects.toMatchObject({
@@ -160,6 +176,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
+        executionContext(),
         deps({
           loadPbcs: async () =>
             pbcs().filter((row) => row.tie_out_kind !== "ar_aging"),
@@ -170,6 +187,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
+        executionContext(),
         deps({
           loadPbcs: async () => [
             ...pbcs(),
@@ -186,6 +204,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
+        executionContext(),
         deps({
           loadPbcs: async () =>
             pbcs().filter((row) => row.tie_out_kind !== "ap_aging"),
@@ -198,6 +217,7 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
+        executionContext(),
         deps({
           loadPbcs: async () => [
             ...pbcs(),
@@ -217,6 +237,7 @@ describe("authoritative observation context loader", () => {
           ...freshInput,
           pbcRequestIds: { ar: "pbc-ap" },
         },
+        executionContext(),
         deps(),
       ),
     ).rejects.toMatchObject({
@@ -224,32 +245,81 @@ describe("authoritative observation context loader", () => {
     });
   });
 
-  it("16. cross-company authorization fails", async () => {
+  it("16. verified read-only member and missing principal fail closed", async () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
-        deps({ authorize: async () => null }),
+        undefined as never,
+        deps(),
       ),
-    ).rejects.toBeInstanceOf(AuthoritativeObservationError);
+    ).rejects.toMatchObject({
+      code: AUTHORITATIVE_OBSERVATION_ERROR.AUTHENTICATED_ACTOR_REQUIRED,
+    });
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
-        deps({
-          authorize: async () => ({
-            userId: "user-other",
-            canRead: true,
-            canWrite: true,
-            scope: "company",
-          }),
-        }),
+        executionContext({ canWrite: false }),
+        deps(),
       ),
     ).rejects.toMatchObject({
       code: AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
     });
+    await expect(
+      loadAuthoritativeObservationContext(
+        freshInput,
+        { principal: { type: "system", service: "cron" } },
+        deps(),
+      ),
+    ).rejects.toMatchObject({
+      code: AUTHORITATIVE_OBSERVATION_ERROR.UNSUPPORTED_PRINCIPAL,
+    });
+    await expect(
+      loadAuthoritativeObservationContext(freshInput, executionContext(), deps()),
+    ).resolves.toMatchObject({ triggeredByUserId: "user-1" });
+  });
+
+  it("selects connection with verified actor.userId, not leftover input ids", async () => {
+    const selected: string[] = [];
+    const ctx = await loadAuthoritativeObservationContext(
+      freshInput,
+      executionContext({ userId: "verified-writer" }),
+      deps({
+        selectConnection: async ({ userId }) => {
+          selected.push(userId);
+          return {
+            id: CONN,
+            user_id: userId,
+            provider: "quickbooks",
+            tenant_or_realm_id: "realm-1",
+            external_entity_id: "realm-1",
+            external_entity_name: "Acme",
+            access_token: "secret-token",
+            metadata_json: {},
+          };
+        },
+      }),
+    );
+    expect(selected).toEqual(["verified-writer"]);
+    expect(ctx.triggeredByUserId).toBe("verified-writer");
+    expect(ctx.actor.userId).toBe("verified-writer");
+
+    await expect(
+      loadAuthoritativeObservationContext(
+        { ...freshInput, triggeredByUserId: "company-owner-id" } as never,
+        executionContext({ userId: "verified-writer" }),
+        deps(),
+      ),
+    ).rejects.toMatchObject({
+      code: AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
+    });
   });
 
   it("resolves canonical period, bindings, PBCs, and connection identity", async () => {
-    const ctx = await loadAuthoritativeObservationContext(freshInput, deps());
+    const ctx = await loadAuthoritativeObservationContext(
+      freshInput,
+      executionContext(),
+      deps(),
+    );
     expect(ctx.periodEnd).toBe("2026-07-31");
     expect(ctx.reportPeriod).toEqual({
       startDate: "2026-07-01",
@@ -265,5 +335,7 @@ describe("authoritative observation context loader", () => {
     });
     expect(ctx.connectionId).toBe(CONN);
     expect(ctx.companyId).toBe(COMPANY);
+    expect(ctx.triggeredByUserId).toBe("user-1");
+    expect(ctx.actor).toEqual(verifiedActor());
   });
 });

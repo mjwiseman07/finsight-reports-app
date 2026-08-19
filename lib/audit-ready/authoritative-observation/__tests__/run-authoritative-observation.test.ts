@@ -14,9 +14,14 @@ import {
 import type { ApResolverInput, ApResolverOutput } from "@/lib/audit-ready/tie-out/ap-resolver";
 import type { ArResolverInput, ArResolverOutput } from "@/lib/audit-ready/tie-out/ar-resolver";
 import type { InventoryResolverInput, InventoryResolverOutput } from "@/lib/audit-ready/tie-out/inventory-resolver";
+import type { EngagementActor } from "@/lib/audit-ready/server-auth";
 import { runAuthoritativeArApInventoryObservation } from "../run-authoritative-ar-ap-inventory-observation";
 import type { AuthoritativeObservationDeps } from "../run-authoritative-ar-ap-inventory-observation";
-import type { AuthoritativeObservationContext } from "../types";
+import type {
+  AuthoritativeObservationContext,
+  AuthoritativeObservationExecutionContext,
+  AuthoritativeObservationInput,
+} from "../types";
 import { AUTHORITATIVE_OBSERVATION_ERROR } from "../types";
 
 const SYNC = "11111111-1111-4111-8111-111111111111";
@@ -140,6 +145,7 @@ function context(): AuthoritativeObservationContext {
       canWrite: true,
       scope: "company",
     },
+    triggeredByUserId: "user-1",
     connectionId: CONN,
     provider: "quickbooks",
     tenantOrRealmId: "realm-1",
@@ -210,6 +216,7 @@ function mockDeps(over: Partial<AuthoritativeObservationDeps> = {}) {
       accountingSyncId?: string;
       asOfDate?: string;
       reportPeriod?: { startDate?: string; endDate?: string };
+      userId?: string;
     }) => ({
       accountingSync: {
         syncId: SYNC,
@@ -298,26 +305,53 @@ function mockDeps(over: Partial<AuthoritativeObservationDeps> = {}) {
   };
 }
 
-const freshInput = {
-  mode: "FRESH_CAPTURE" as const,
+const freshInput: AuthoritativeObservationInput = {
+  mode: "FRESH_CAPTURE",
   engagementId: "eng-1",
-  triggeredByUserId: "user-1",
-  triggerReason: "manual" as const,
+  triggerReason: "manual",
 };
 
-const replayInput = {
-  mode: "REPLAY_EXISTING_SYNC" as const,
+const replayInput: AuthoritativeObservationInput = {
+  mode: "REPLAY_EXISTING_SYNC",
   engagementId: "eng-1",
-  triggeredByUserId: "user-1",
-  triggerReason: "manual" as const,
+  triggerReason: "manual",
   accountingSyncId: SYNC,
 };
+
+function verifiedUser(
+  over: Partial<EngagementActor> = {},
+): AuthoritativeObservationExecutionContext {
+  return {
+    principal: {
+      type: "user",
+      actor: {
+        userId: "user-1",
+        canRead: true,
+        canWrite: true,
+        scope: "company",
+        ...over,
+      },
+    },
+  };
+}
+
+function runObs(
+  input: unknown,
+  deps: Partial<AuthoritativeObservationDeps>,
+  ctx: AuthoritativeObservationExecutionContext | null | undefined = verifiedUser(),
+) {
+  return runAuthoritativeArApInventoryObservation(
+    input as AuthoritativeObservationInput,
+    ctx as AuthoritativeObservationExecutionContext,
+    deps,
+  );
+}
 
 describe("authoritative observation mode contract", () => {
   it("1. mode is required", async () => {
     const { deps } = mockDeps();
-    const result = await runAuthoritativeArApInventoryObservation(
-      { engagementId: "eng-1", triggeredByUserId: "user-1", triggerReason: "manual" } as never,
+    const result = await runObs(
+      { engagementId: "eng-1", triggerReason: "manual" } as never,
       deps,
     );
     expect(result.status).toBe("failed");
@@ -327,7 +361,7 @@ describe("authoritative observation mode contract", () => {
 
   it("2. FRESH + accountingSyncId fails before provider fetch", async () => {
     const { deps, acquireCombined, runAr } = mockDeps();
-    const result = await runAuthoritativeArApInventoryObservation(
+    const result = await runObs(
       { ...freshInput, accountingSyncId: SYNC } as never,
       deps,
     );
@@ -341,7 +375,7 @@ describe("authoritative observation mode contract", () => {
 
   it("3. REPLAY without accountingSyncId fails", async () => {
     const { deps, acquireCombined } = mockDeps();
-    const result = await runAuthoritativeArApInventoryObservation(
+    const result = await runObs(
       { ...replayInput, accountingSyncId: "" } as never,
       deps,
     );
@@ -354,7 +388,7 @@ describe("authoritative observation mode contract", () => {
 
   it("4-5. REPLAY does not call combined acquisition or provider fetch", async () => {
     const { deps, acquireCombined, runAr } = mockDeps();
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.status).toBe("completed");
     expect(acquireCombined).not.toHaveBeenCalled();
     expect(runAr).toHaveBeenCalled();
@@ -375,7 +409,7 @@ describe("authoritative observation FRESH", () => {
     expect(src).not.toContain("ensureFreshTokens");
 
     const { deps, acquireCombined, loadParentSync } = mockDeps();
-    const result = await runAuthoritativeArApInventoryObservation(freshInput, deps);
+    const result = await runObs(freshInput, deps);
     expect(result.status).toBe("completed");
     expect(acquireCombined).toHaveBeenCalledTimes(1);
     expect(loadParentSync).not.toHaveBeenCalled();
@@ -385,6 +419,7 @@ describe("authoritative observation FRESH", () => {
     expect(acquireArg.accountingSyncId).toBeUndefined();
     expect(acquireArg.asOfDate).toBe("2026-07-31");
     expect(acquireArg.reportPeriod?.endDate).toBe("2026-07-31");
+    expect(acquireArg.userId).toBe("user-1");
     expect(result.accountingSyncId).toBe(SYNC);
     expect(result.custody.snapshotsPresent).toEqual([
       "ar_aging",
@@ -409,7 +444,7 @@ describe("authoritative observation FRESH", () => {
         });
       },
     });
-    const result = await runAuthoritativeArApInventoryObservation(freshInput, deps);
+    const result = await runObs(freshInput, deps);
     expect(result.status).toBe("failed");
     expect(result.custody.snapshotsPresent).toEqual(["ar_aging", "ap_aging"]);
     expect(runAr).not.toHaveBeenCalled();
@@ -423,7 +458,7 @@ describe("authoritative observation REPLAY", () => {
   it("23-32. loads exact sync, requires SUCCESS/company/connection/period/trio, zero provider reads", async () => {
     const { deps, acquireCombined, loadParentSync, loadArSnapshot, loadApSnapshot, loadInventorySnapshot, runAr } =
       mockDeps();
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.status).toBe("completed");
     expect(loadParentSync).toHaveBeenCalledWith(SYNC);
     expect(loadArSnapshot).toHaveBeenCalledWith({
@@ -441,7 +476,7 @@ describe("authoritative observation REPLAY", () => {
     const { deps, runAr } = mockDeps({
       loadParentSync: async () => parentSync({ validation_status: "FAILED" }),
     });
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.status).toBe("failed");
     expect(result.failures[0]?.code).toBe(
       AUTHORITATIVE_OBSERVATION_ERROR.REPLAY_PARENT_NOT_SUCCESS,
@@ -454,7 +489,7 @@ describe("authoritative observation REPLAY", () => {
       loadParentSync: async () =>
         parentSync({ company_id: "99999999-9999-4999-8999-999999999999" }),
     });
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.failures[0]?.code).toBe(
       AUTHORITATIVE_OBSERVATION_ERROR.REPLAY_PARENT_COMPANY_MISMATCH,
     );
@@ -465,7 +500,7 @@ describe("authoritative observation REPLAY", () => {
       loadParentSync: async () =>
         parentSync({ connection_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" }),
     });
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.failures[0]?.code).toBe(
       AUTHORITATIVE_OBSERVATION_ERROR.REPLAY_PARENT_CONNECTION_MISMATCH,
     );
@@ -475,7 +510,7 @@ describe("authoritative observation REPLAY", () => {
     const { deps } = mockDeps({
       loadParentSync: async () => parentSync({ report_period_end: "2026-06-30" }),
     });
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.failures[0]?.code).toBe(
       AUTHORITATIVE_OBSERVATION_ERROR.REPLAY_PARENT_PERIOD_MISMATCH,
     );
@@ -491,7 +526,7 @@ describe("authoritative observation REPLAY", () => {
       ],
     ] as const) {
       const { deps, acquireCombined, runAr } = mockDeps(over);
-      const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+      const result = await runObs(replayInput, deps);
       expect(result.status).toBe("failed");
       expect(result.failures[0]?.code).toBe(code);
       expect(acquireCombined).not.toHaveBeenCalled();
@@ -503,7 +538,7 @@ describe("authoritative observation REPLAY", () => {
 describe("authoritative observation resolver execution", () => {
   it("33-36. sequential AR→AP→Inventory persisted_snapshot with parent custody", async () => {
     const { deps, order, runAr, runAp, runInventory } = mockDeps();
-    await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    await runObs(replayInput, deps);
     expect(order).toEqual(["ar", "ap", "inventory"]);
     for (const fn of [runAr, runAp, runInventory]) {
       const input = fn.mock.calls[0]?.[0];
@@ -519,6 +554,7 @@ describe("authoritative observation resolver execution", () => {
       expect(input.provider).toBe("quickbooks");
       expect(input.realmId).toBe("realm-1");
       expect(input.accessToken).toBe("");
+      expect(input.triggeredByUserId).toBe("user-1");
     }
   });
 
@@ -526,7 +562,7 @@ describe("authoritative observation resolver execution", () => {
     const wired = mockDeps();
     wired.runAp.mockResolvedValue(failedOutput("run-ap"));
     const { deps } = wired;
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(wired.runAr).toHaveBeenCalled();
     expect(wired.runAp).toHaveBeenCalled();
     expect(wired.runInventory).toHaveBeenCalled();
@@ -546,7 +582,7 @@ describe("authoritative observation resolver execution", () => {
     const wired = mockDeps();
     wired.runAr.mockResolvedValue(failedOutput());
     const { deps } = wired;
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(wired.runAr).toHaveBeenCalled();
     expect(wired.runAp).toHaveBeenCalled();
     expect(wired.runInventory).toHaveBeenCalled();
@@ -571,7 +607,7 @@ describe("authoritative observation verification", () => {
       baselineSyncId: "00000000-0000-4000-8000-000000000000",
     });
     const { deps } = wired;
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.reconciliations.ar?.authoritative).toBe(false);
     expect(result.failures.some((f) => f.code === AUTHORITATIVE_OBSERVATION_ERROR.BASELINE_SYNC_MISMATCH)).toBe(
       true,
@@ -585,7 +621,7 @@ describe("authoritative observation verification", () => {
       measurementSource: "live_provider",
     });
     const { deps } = wired;
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.reconciliations.ap?.authoritative).toBe(false);
     expect(
       result.failures.some((f) => f.code === AUTHORITATIVE_OBSERVATION_ERROR.MEASUREMENT_SOURCE_INVALID),
@@ -601,7 +637,7 @@ describe("authoritative observation verification", () => {
       );
       return runId === "run-ar" ? { ...row, engagement_id: "eng-other" } : row;
     });
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, wired.deps);
+    const result = await runObs(replayInput, wired.deps);
     expect(result.reconciliations.ar?.authoritative).toBe(false);
     expect(
       result.failures.some((f) => f.code === AUTHORITATIVE_OBSERVATION_ERROR.RUN_ENGAGEMENT_MISMATCH),
@@ -615,7 +651,7 @@ describe("authoritative observation verification", () => {
       const row = runRow(kind, runId);
       return runId === "run-ap" ? { ...row, period_end: "2026-06-30" } : row;
     });
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, wired.deps);
+    const result = await runObs(replayInput, wired.deps);
     expect(result.reconciliations.ap?.authoritative).toBe(false);
     expect(
       result.failures.some((f) => f.code === AUTHORITATIVE_OBSERVATION_ERROR.RUN_PERIOD_MISMATCH),
@@ -628,7 +664,7 @@ describe("authoritative observation verification", () => {
       const kind = runId === "run-inv" ? "ar_aging" : runId === "run-ar" ? "ar_aging" : "ap_aging";
       return runRow(kind, runId);
     });
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, wired.deps);
+    const result = await runObs(replayInput, wired.deps);
     expect(result.reconciliations.inventory?.authoritative).toBe(false);
     expect(
       result.failures.some((f) => f.code === AUTHORITATIVE_OBSERVATION_ERROR.RUN_KIND_MISMATCH),
@@ -644,7 +680,7 @@ describe("authoritative observation verification", () => {
       }
       return { id: "run-inv", baselineSyncId: SYNC, completedAt: "t" };
     });
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, wired.deps);
+    const result = await runObs(replayInput, wired.deps);
     expect(result.reconciliations.ar?.authoritative).toBe(false);
     expect(result.failures.some((f) => f.code === AUTHORITATIVE_OBSERVATION_ERROR.SELECTOR_NULL)).toBe(
       true,
@@ -662,7 +698,7 @@ describe("authoritative observation verification", () => {
       }
       return { id: "run-inv", baselineSyncId: SYNC, completedAt: "t" };
     });
-    const mismatch = await runAuthoritativeArApInventoryObservation(replayInput, wired.deps);
+    const mismatch = await runObs(replayInput, wired.deps);
     expect(mismatch.reconciliations.ar?.authoritative).toBe(false);
     expect(
       mismatch.failures.some((f) => f.code === AUTHORITATIVE_OBSERVATION_ERROR.SELECTOR_RUN_MISMATCH),
@@ -679,7 +715,7 @@ describe("authoritative observation verification", () => {
       }
       return { id: "run-inv", baselineSyncId: SYNC, completedAt: "t" };
     });
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, failedReplay.deps);
+    const result = await runObs(replayInput, failedReplay.deps);
     expect(result.reconciliations.ar?.authoritative).toBe(false);
     expect(result.reconciliations.ar?.runId).not.toBe("old-run-ar");
     expect(result.status).toBe("partial");
@@ -689,7 +725,7 @@ describe("authoritative observation verification", () => {
 describe("authoritative observation status", () => {
   it("49. all three authoritative → completed", async () => {
     const { deps } = mockDeps();
-    const result = await runAuthoritativeArApInventoryObservation(freshInput, deps);
+    const result = await runObs(freshInput, deps);
     expect(result.status).toBe("completed");
     expect(result.reconciliations.ar?.authoritative).toBe(true);
     expect(result.reconciliations.ap?.authoritative).toBe(true);
@@ -701,7 +737,7 @@ describe("authoritative observation status", () => {
     wired.runAp.mockResolvedValue(failedOutput("run-ap"));
     wired.runInventory.mockResolvedValue(failedOutput("run-inv"));
     const { deps } = wired;
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.status).toBe("partial");
   });
 
@@ -709,7 +745,7 @@ describe("authoritative observation status", () => {
     const wired = mockDeps();
     wired.runInventory.mockResolvedValue(failedOutput("run-inv"));
     const { deps } = wired;
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.status).toBe("partial");
   });
 
@@ -719,7 +755,7 @@ describe("authoritative observation status", () => {
     wired.runAp.mockResolvedValue(failedOutput());
     wired.runInventory.mockResolvedValue(failedOutput());
     const { deps } = wired;
-    const result = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const result = await runObs(replayInput, deps);
     expect(result.status).toBe("failed");
   });
 
@@ -733,7 +769,7 @@ describe("authoritative observation status", () => {
         });
       },
     });
-    const result = await runAuthoritativeArApInventoryObservation(freshInput, deps);
+    const result = await runObs(freshInput, deps);
     expect(result.status).toBe("failed");
   });
 });
@@ -741,7 +777,7 @@ describe("authoritative observation status", () => {
 describe("authoritative observation result safety", () => {
   it("54-58. no tokens, observationId distinct, FRESH acquisitionId / REPLAY none", async () => {
     const { deps } = mockDeps();
-    const fresh = await runAuthoritativeArApInventoryObservation(freshInput, deps);
+    const fresh = await runObs(freshInput, deps);
     const json = JSON.stringify(fresh);
     expect(json).not.toMatch(/secret-token/i);
     expect(json).not.toMatch(/access_token/i);
@@ -750,8 +786,188 @@ describe("authoritative observation result safety", () => {
     expect(fresh.observationId).not.toBe(fresh.accountingSyncId);
     expect(fresh.acquisitionId).toBe(ACQ);
 
-    const replay = await runAuthoritativeArApInventoryObservation(replayInput, deps);
+    const replay = await runObs(replayInput, deps);
     expect(replay.acquisitionId).toBeNull();
     expect(JSON.stringify(replay)).not.toMatch(/access_token/i);
+  });
+});
+
+describe("authoritative observation authentic actor", () => {
+  it("rejects leftover triggeredByUserId that is not the verified actor", async () => {
+    const { deps, acquireCombined, runAr } = mockDeps();
+    const result = await runObs(
+      { ...freshInput, triggeredByUserId: "other-user" } as never,
+      deps,
+      verifiedUser({ userId: "user-1" }),
+    );
+    expect(result.status).toBe("failed");
+    expect(result.failures[0]?.code).toBe(
+      AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
+    );
+    expect(acquireCombined).not.toHaveBeenCalled();
+    expect(runAr).not.toHaveBeenCalled();
+  });
+
+  it("cannot execute from a raw user id / missing executionContext", async () => {
+    const { deps, acquireCombined } = mockDeps();
+    const missing = await runAuthoritativeArApInventoryObservation(
+      freshInput,
+      undefined as never,
+      deps,
+    );
+    expect(missing.status).toBe("failed");
+    expect(missing.failures[0]?.code).toBe(
+      AUTHORITATIVE_OBSERVATION_ERROR.AUTHENTICATED_ACTOR_REQUIRED,
+    );
+
+    const rawOwnerOnly = await runAuthoritativeArApInventoryObservation(
+      { ...freshInput, triggeredByUserId: "company-owner-id" } as never,
+      undefined as never,
+      deps,
+    );
+    expect(rawOwnerOnly.status).toBe("failed");
+    expect(rawOwnerOnly.failures[0]?.code).toBe(
+      AUTHORITATIVE_OBSERVATION_ERROR.AUTHENTICATED_ACTOR_REQUIRED,
+    );
+    expect(acquireCombined).not.toHaveBeenCalled();
+  });
+
+  it("verified actor A plus leftover user B fails closed", async () => {
+    const { deps, acquireCombined } = mockDeps();
+    const result = await runObs(
+      { ...freshInput, triggeredByUserId: "user-b" } as never,
+      deps,
+      verifiedUser({ userId: "user-a" }),
+    );
+    expect(result.failures[0]?.code).toBe(
+      AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
+    );
+    expect(acquireCombined).not.toHaveBeenCalled();
+  });
+
+  it("leftover company-owner id does not grant owner authority", async () => {
+    const { deps, acquireCombined } = mockDeps();
+    const result = await runObs(
+      { ...freshInput, triggeredByUserId: "company-owner-id" } as never,
+      deps,
+      verifiedUser({ userId: "attacker-1", canWrite: true, scope: "company" }),
+    );
+    expect(result.failures[0]?.code).toBe(
+      AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
+    );
+    expect(acquireCombined).not.toHaveBeenCalled();
+  });
+
+  it("leftover super-admin id does not grant super-admin authority", async () => {
+    const { deps, acquireCombined } = mockDeps();
+    const result = await runObs(
+      { ...freshInput, triggeredByUserId: "super-admin-id" } as never,
+      deps,
+      verifiedUser({ userId: "attacker-1", canWrite: true, scope: "company" }),
+    );
+    expect(result.failures[0]?.code).toBe(
+      AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
+    );
+    expect(acquireCombined).not.toHaveBeenCalled();
+  });
+
+  it("verified company writer is allowed", async () => {
+    const { deps } = mockDeps();
+    const result = await runObs(
+      freshInput,
+      deps,
+      verifiedUser({ userId: "company-writer", canWrite: true, scope: "company" }),
+    );
+    expect(result.status).toBe("completed");
+  });
+
+  it("verified firm writer is allowed", async () => {
+    const { deps } = mockDeps();
+    const result = await runObs(
+      replayInput,
+      deps,
+      verifiedUser({ userId: "firm-writer", canWrite: true, scope: "firm" }),
+    );
+    expect(result.status).toBe("completed");
+  });
+
+  it("verified read-only member is rejected", async () => {
+    const { deps, acquireCombined } = mockDeps();
+    const result = await runObs(
+      freshInput,
+      deps,
+      verifiedUser({ userId: "reader-1", canRead: true, canWrite: false, scope: "company" }),
+    );
+    expect(result.status).toBe("failed");
+    expect(result.failures[0]?.code).toBe(AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN);
+    expect(acquireCombined).not.toHaveBeenCalled();
+  });
+
+  it("system principal and scheduled metadata cannot impersonate a human", async () => {
+    const { deps, acquireCombined } = mockDeps();
+    const system = await runObs(freshInput, deps, {
+      principal: { type: "system", service: "scheduler" },
+    });
+    expect(system.failures[0]?.code).toBe(
+      AUTHORITATIVE_OBSERVATION_ERROR.UNSUPPORTED_PRINCIPAL,
+    );
+    const scheduled = await runObs(
+      { ...freshInput, triggerReason: "scheduled" },
+      deps,
+      { principal: { type: "system", service: "cron" } },
+    );
+    expect(scheduled.failures[0]?.code).toBe(
+      AUTHORITATIVE_OBSERVATION_ERROR.UNSUPPORTED_PRINCIPAL,
+    );
+    expect(acquireCombined).not.toHaveBeenCalled();
+  });
+
+  it("FRESH acquisition and resolvers use verified actor.userId", async () => {
+    const wired = mockDeps({
+      loadContext: async (_input, executionContext) => {
+        const actor =
+          executionContext.principal.type === "user"
+            ? executionContext.principal.actor
+            : context().actor;
+        return {
+          ...context(),
+          actor,
+          triggeredByUserId: actor.userId,
+        };
+      },
+    });
+    const result = await runObs(
+      freshInput,
+      wired.deps,
+      verifiedUser({ userId: "verified-writer" }),
+    );
+    expect(result.status).toBe("completed");
+    expect(wired.acquireCombined.mock.calls[0]?.[0]?.userId).toBe("verified-writer");
+    expect(wired.runAr.mock.calls[0]?.[0]?.triggeredByUserId).toBe("verified-writer");
+    expect(wired.runAp.mock.calls[0]?.[0]?.triggeredByUserId).toBe("verified-writer");
+    expect(wired.runInventory.mock.calls[0]?.[0]?.triggeredByUserId).toBe(
+      "verified-writer",
+    );
+  });
+
+  it("REPLAY remains zero-provider and does not mint a sync", async () => {
+    const { deps, acquireCombined } = mockDeps();
+    const result = await runObs(replayInput, deps, verifiedUser());
+    expect(result.status).toBe("completed");
+    expect(acquireCombined).not.toHaveBeenCalled();
+    expect(result.acquisitionId).toBeNull();
+    expect(result.mode).toBe("REPLAY_EXISTING_SYNC");
+  });
+
+  it("getEngagementActor still starts from requireAuditReadyUser()", () => {
+    const src = readFileSync(
+      join(process.cwd(), "lib/audit-ready/server-auth.ts"),
+      "utf8",
+    );
+    expect(src).toContain("export async function getEngagementActor");
+    expect(src).toContain("const auth = await requireAuditReadyUser()");
+    expect(src).toContain("resolveEngagementActorForVerifiedUser");
+    expect(src).not.toContain("resolveEngagementActorForUser(");
+    expect(src).toContain("This is NOT authentication");
   });
 });

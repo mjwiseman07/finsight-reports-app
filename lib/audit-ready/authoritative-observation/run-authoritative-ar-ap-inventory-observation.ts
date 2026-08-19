@@ -29,12 +29,17 @@ import { selectLatestCompletedTieOutRunForSync } from "@/lib/audit-ready/tie-out
 import { runInventoryResolver, type InventoryResolverOutput } from "@/lib/audit-ready/tie-out/inventory-resolver";
 import { loadAuthoritativeObservationContext } from "./context";
 import {
+  assertNoTriggeredByImpersonation,
+  requireVerifiedUserPrincipal,
+} from "./principal";
+import {
   AUTHORITATIVE_OBSERVATION_ERROR,
   AUTHORITATIVE_OBSERVATION_MODES,
   AuthoritativeObservationError,
   type AuthoritativeFailure,
   type AuthoritativeFailureRecon,
   type AuthoritativeObservationContext,
+  type AuthoritativeObservationExecutionContext,
   type AuthoritativeObservationInput,
   type AuthoritativeObservationMode,
   type AuthoritativeObservationResult,
@@ -63,6 +68,7 @@ type SnapshotTrio = {
 export type AuthoritativeObservationDeps = {
   loadContext: (
     input: AuthoritativeObservationInput,
+    executionContext: AuthoritativeObservationExecutionContext,
   ) => Promise<AuthoritativeObservationContext>;
   acquireCombined: typeof acquireAndPersistAccountingStateWithArApInventorySnapshots;
   loadParentSync: typeof loadAccountingSyncForArSnapshot;
@@ -421,7 +427,7 @@ async function captureFreshTrio(
 ): Promise<SnapshotTrio> {
   const acquired = await deps.acquireCombined({
     connection: context.acquisitionConnection,
-    userId: input.triggeredByUserId,
+    userId: context.actor.userId,
     asOfDate: context.periodEnd,
     reportPeriod: context.reportPeriod,
   });
@@ -541,7 +547,7 @@ async function runOneResolver(args: {
     accessToken: "",
     asOfDate: args.context.periodEnd,
     policy: args.context.policy,
-    triggeredByUserId: args.input.triggeredByUserId,
+    triggeredByUserId: args.context.triggeredByUserId,
     triggerReason: args.input.triggerReason,
     companyId: args.trio.companyId,
     accountingConnectionId: args.trio.connectionId,
@@ -596,6 +602,7 @@ async function runOneResolver(args: {
 
 export async function runAuthoritativeArApInventoryObservation(
   input: AuthoritativeObservationInput,
+  executionContext: AuthoritativeObservationExecutionContext,
   deps?: Partial<AuthoritativeObservationDeps>,
 ): Promise<AuthoritativeObservationResult> {
   const resolved: AuthoritativeObservationDeps = {
@@ -609,6 +616,8 @@ export async function runAuthoritativeArApInventoryObservation(
 
   try {
     assertModeContract(input);
+    const actor = requireVerifiedUserPrincipal(executionContext);
+    assertNoTriggeredByImpersonation(input, actor.userId);
   } catch (error) {
     return emptyResult({
       observationId,
@@ -621,7 +630,7 @@ export async function runAuthoritativeArApInventoryObservation(
 
   let context: AuthoritativeObservationContext;
   try {
-    context = await resolved.loadContext(input);
+    context = await resolved.loadContext(input, executionContext);
   } catch (error) {
     return emptyResult({
       observationId,
