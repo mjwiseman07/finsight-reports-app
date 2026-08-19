@@ -616,8 +616,8 @@ export async function runAuthoritativeArApInventoryObservation(
 
   try {
     assertModeContract(input);
-    const actor = requireVerifiedUserPrincipal(executionContext);
-    assertNoTriggeredByImpersonation(input, actor.userId);
+    const identity = requireVerifiedUserPrincipal(executionContext);
+    assertNoTriggeredByImpersonation(input, identity.userId);
   } catch (error) {
     return emptyResult({
       observationId,

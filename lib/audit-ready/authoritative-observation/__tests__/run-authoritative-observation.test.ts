@@ -14,7 +14,6 @@ import {
 import type { ApResolverInput, ApResolverOutput } from "@/lib/audit-ready/tie-out/ap-resolver";
 import type { ArResolverInput, ArResolverOutput } from "@/lib/audit-ready/tie-out/ar-resolver";
 import type { InventoryResolverInput, InventoryResolverOutput } from "@/lib/audit-ready/tie-out/inventory-resolver";
-import type { EngagementActor } from "@/lib/audit-ready/server-auth";
 import { runAuthoritativeArApInventoryObservation } from "../run-authoritative-ar-ap-inventory-observation";
 import type { AuthoritativeObservationDeps } from "../run-authoritative-ar-ap-inventory-observation";
 import type {
@@ -23,6 +22,8 @@ import type {
   AuthoritativeObservationInput,
 } from "../types";
 import { AUTHORITATIVE_OBSERVATION_ERROR } from "../types";
+import { loadAuthoritativeObservationContext } from "../context";
+import type { AuthoritativeContextDeps } from "../context";
 
 const SYNC = "11111111-1111-4111-8111-111111111111";
 const COMPANY = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -275,7 +276,17 @@ function mockDeps(over: Partial<AuthoritativeObservationDeps> = {}) {
     },
   );
   const base: AuthoritativeObservationDeps = {
-    loadContext: async () => context(),
+    loadContext: async (_input, executionContext) => {
+      const userId =
+        executionContext.principal.type === "user"
+          ? String(executionContext.principal.userId || "").trim() || "user-1"
+          : "user-1";
+      return {
+        ...context(),
+        actor: { ...context().actor, userId },
+        triggeredByUserId: userId,
+      };
+    },
     acquireCombined: acquireCombined as AuthoritativeObservationDeps["acquireCombined"],
     loadParentSync,
     loadArSnapshot,
@@ -318,21 +329,8 @@ const replayInput: AuthoritativeObservationInput = {
   accountingSyncId: SYNC,
 };
 
-function verifiedUser(
-  over: Partial<EngagementActor> = {},
-): AuthoritativeObservationExecutionContext {
-  return {
-    principal: {
-      type: "user",
-      actor: {
-        userId: "user-1",
-        canRead: true,
-        canWrite: true,
-        scope: "company",
-        ...over,
-      },
-    },
-  };
+function verifiedUser(userId = "user-1"): AuthoritativeObservationExecutionContext {
+  return { principal: { type: "user", userId } };
 }
 
 function runObs(
@@ -798,7 +796,7 @@ describe("authoritative observation authentic actor", () => {
     const result = await runObs(
       { ...freshInput, triggeredByUserId: "other-user" } as never,
       deps,
-      verifiedUser({ userId: "user-1" }),
+      verifiedUser("user-1"),
     );
     expect(result.status).toBe("failed");
     expect(result.failures[0]?.code).toBe(
@@ -837,7 +835,7 @@ describe("authoritative observation authentic actor", () => {
     const result = await runObs(
       { ...freshInput, triggeredByUserId: "user-b" } as never,
       deps,
-      verifiedUser({ userId: "user-a" }),
+      verifiedUser("user-a"),
     );
     expect(result.failures[0]?.code).toBe(
       AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
@@ -850,7 +848,7 @@ describe("authoritative observation authentic actor", () => {
     const result = await runObs(
       { ...freshInput, triggeredByUserId: "company-owner-id" } as never,
       deps,
-      verifiedUser({ userId: "attacker-1", canWrite: true, scope: "company" }),
+      verifiedUser("attacker-1"),
     );
     expect(result.failures[0]?.code).toBe(
       AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
@@ -863,43 +861,11 @@ describe("authoritative observation authentic actor", () => {
     const result = await runObs(
       { ...freshInput, triggeredByUserId: "super-admin-id" } as never,
       deps,
-      verifiedUser({ userId: "attacker-1", canWrite: true, scope: "company" }),
+      verifiedUser("attacker-1"),
     );
     expect(result.failures[0]?.code).toBe(
       AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
     );
-    expect(acquireCombined).not.toHaveBeenCalled();
-  });
-
-  it("verified company writer is allowed", async () => {
-    const { deps } = mockDeps();
-    const result = await runObs(
-      freshInput,
-      deps,
-      verifiedUser({ userId: "company-writer", canWrite: true, scope: "company" }),
-    );
-    expect(result.status).toBe("completed");
-  });
-
-  it("verified firm writer is allowed", async () => {
-    const { deps } = mockDeps();
-    const result = await runObs(
-      replayInput,
-      deps,
-      verifiedUser({ userId: "firm-writer", canWrite: true, scope: "firm" }),
-    );
-    expect(result.status).toBe("completed");
-  });
-
-  it("verified read-only member is rejected", async () => {
-    const { deps, acquireCombined } = mockDeps();
-    const result = await runObs(
-      freshInput,
-      deps,
-      verifiedUser({ userId: "reader-1", canRead: true, canWrite: false, scope: "company" }),
-    );
-    expect(result.status).toBe("failed");
-    expect(result.failures[0]?.code).toBe(AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN);
     expect(acquireCombined).not.toHaveBeenCalled();
   });
 
@@ -922,32 +888,14 @@ describe("authoritative observation authentic actor", () => {
     expect(acquireCombined).not.toHaveBeenCalled();
   });
 
-  it("FRESH acquisition and resolvers use verified actor.userId", async () => {
-    const wired = mockDeps({
-      loadContext: async (_input, executionContext) => {
-        const actor =
-          executionContext.principal.type === "user"
-            ? executionContext.principal.actor
-            : context().actor;
-        return {
-          ...context(),
-          actor,
-          triggeredByUserId: actor.userId,
-        };
-      },
-    });
-    const result = await runObs(
-      freshInput,
-      wired.deps,
-      verifiedUser({ userId: "verified-writer" }),
-    );
+  it("FRESH acquisition and resolvers use engagement-authorized userId", async () => {
+    const { deps, acquireCombined, runAr, runAp, runInventory } = mockDeps();
+    const result = await runObs(freshInput, deps, verifiedUser("verified-writer"));
     expect(result.status).toBe("completed");
-    expect(wired.acquireCombined.mock.calls[0]?.[0]?.userId).toBe("verified-writer");
-    expect(wired.runAr.mock.calls[0]?.[0]?.triggeredByUserId).toBe("verified-writer");
-    expect(wired.runAp.mock.calls[0]?.[0]?.triggeredByUserId).toBe("verified-writer");
-    expect(wired.runInventory.mock.calls[0]?.[0]?.triggeredByUserId).toBe(
-      "verified-writer",
-    );
+    expect(acquireCombined.mock.calls[0]?.[0]?.userId).toBe("verified-writer");
+    expect(runAr.mock.calls[0]?.[0]?.triggeredByUserId).toBe("verified-writer");
+    expect(runAp.mock.calls[0]?.[0]?.triggeredByUserId).toBe("verified-writer");
+    expect(runInventory.mock.calls[0]?.[0]?.triggeredByUserId).toBe("verified-writer");
   });
 
   it("REPLAY remains zero-provider and does not mint a sync", async () => {
@@ -969,5 +917,181 @@ describe("authoritative observation authentic actor", () => {
     expect(src).toContain("resolveEngagementActorForVerifiedUser");
     expect(src).not.toContain("resolveEngagementActorForUser(");
     expect(src).toContain("This is NOT authentication");
+    const contextSrc = readFileSync(
+      join(process.cwd(), "lib/audit-ready/authoritative-observation/context.ts"),
+      "utf8",
+    );
+    expect(contextSrc).toContain("resolveEngagementActorForVerifiedUser");
+    expect(contextSrc).toContain("engagementId: input.engagementId");
+  });
+});
+
+describe("authoritative observation engagement-scoped runner authorization", () => {
+  function scopedContextDeps(
+    over: Partial<AuthoritativeContextDeps> = {},
+  ): AuthoritativeContextDeps {
+    return {
+      loadEngagement: async () => ({
+        id: "eng-1",
+        company_id: COMPANY,
+        firm_id: null,
+        firm_client_id: null,
+        audit_period_end: "2026-07-31",
+        ar_control_qbo_account_id: "84",
+        ap_control_qbo_account_id: "33",
+        inventory_control_qbo_account_id: "81",
+      }),
+      authorize: async ({ userId }) => ({
+        userId,
+        canRead: true,
+        canWrite: true,
+        scope: "company",
+      }),
+      loadFirmClientCompanyId: async () => COMPANY,
+      loadPolicy: async () => policy,
+      loadPbcs: async () => [
+        { id: "pbc-ar", engagement_id: "eng-1", tie_out_kind: "ar_aging" },
+        { id: "pbc-ap", engagement_id: "eng-1", tie_out_kind: "ap_aging" },
+        { id: "pbc-inv", engagement_id: "eng-1", tie_out_kind: "inventory" },
+      ],
+      selectConnection: async ({ userId }) => ({
+        id: CONN,
+        user_id: userId,
+        provider: "quickbooks",
+        tenant_or_realm_id: "realm-1",
+        external_entity_id: "realm-1",
+        external_entity_name: "Acme",
+        access_token: "secret-token-must-not-leak",
+        metadata_json: {},
+      }),
+      ...over,
+    };
+  }
+
+  function scopedLoad(over: Partial<AuthoritativeContextDeps> = {}) {
+    const contextDeps = scopedContextDeps(over);
+    return (
+      input: AuthoritativeObservationInput,
+      executionContext: AuthoritativeObservationExecutionContext,
+    ) => loadAuthoritativeObservationContext(input, executionContext, contextDeps);
+  }
+
+  it("writer for Engagement A cannot run Engagement B", async () => {
+    const { deps, acquireCombined } = mockDeps({
+      loadContext: scopedLoad({
+        loadEngagement: async (id) => ({
+          id,
+          company_id: COMPANY,
+          firm_id: null,
+          firm_client_id: null,
+          audit_period_end: "2026-07-31",
+          ar_control_qbo_account_id: "84",
+          ap_control_qbo_account_id: "33",
+          inventory_control_qbo_account_id: "81",
+        }),
+        authorize: async ({ engagementId, userId }) => {
+          if (engagementId !== "eng-1") return null;
+          return { userId, canRead: true, canWrite: true, scope: "company" };
+        },
+      }),
+    });
+    const result = await runObs(
+      { ...freshInput, engagementId: "eng-b" },
+      deps,
+      verifiedUser("user-a"),
+    );
+    expect(result.status).toBe("failed");
+    expect(result.failures[0]?.code).toBe(AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN);
+    expect(acquireCombined).not.toHaveBeenCalled();
+  });
+
+  it("cached canWrite=true cannot bypass engagement permission lookup", async () => {
+    const { deps, acquireCombined } = mockDeps({
+      loadContext: scopedLoad({
+        authorize: async ({ userId }) => ({
+          userId,
+          canRead: true,
+          canWrite: false,
+          scope: "company",
+        }),
+      }),
+    });
+    const result = await runObs(
+      freshInput,
+      deps,
+      {
+        principal: {
+          type: "user",
+          userId: "ordinary-user",
+          actor: {
+            userId: "super-admin-id",
+            canRead: true,
+            canWrite: true,
+            scope: "super_admin",
+          },
+        },
+      } as never,
+    );
+    expect(result.status).toBe("failed");
+    expect(result.failures[0]?.code).toBe(AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN);
+    expect(acquireCombined).not.toHaveBeenCalled();
+  });
+
+  it("verified company writer for requested engagement succeeds", async () => {
+    const { deps, acquireCombined } = mockDeps({
+      loadContext: scopedLoad({
+        authorize: async ({ userId }) => ({
+          userId,
+          canRead: true,
+          canWrite: true,
+          scope: "company",
+        }),
+      }),
+    });
+    const result = await runObs(freshInput, deps, verifiedUser("company-writer"));
+    expect(result.status).toBe("completed");
+    expect(acquireCombined.mock.calls[0]?.[0]?.userId).toBe("company-writer");
+  });
+
+  it("verified firm writer for requested engagement succeeds", async () => {
+    const { deps } = mockDeps({
+      loadContext: scopedLoad({
+        authorize: async ({ userId }) => ({
+          userId,
+          canRead: true,
+          canWrite: true,
+          scope: "firm",
+        }),
+      }),
+    });
+    const result = await runObs(replayInput, deps, verifiedUser("firm-writer"));
+    expect(result.status).toBe("completed");
+  });
+
+  it("verified read-only user is rejected", async () => {
+    const { deps, acquireCombined } = mockDeps({
+      loadContext: scopedLoad({
+        authorize: async ({ userId }) => ({
+          userId,
+          canRead: true,
+          canWrite: false,
+          scope: "company",
+        }),
+      }),
+    });
+    const result = await runObs(freshInput, deps, verifiedUser("reader-1"));
+    expect(result.status).toBe("failed");
+    expect(result.failures[0]?.code).toBe(AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN);
+    expect(acquireCombined).not.toHaveBeenCalled();
+  });
+
+  it("verified user with no membership is rejected", async () => {
+    const { deps, acquireCombined } = mockDeps({
+      loadContext: scopedLoad({ authorize: async () => null }),
+    });
+    const result = await runObs(freshInput, deps, verifiedUser("stranger"));
+    expect(result.status).toBe("failed");
+    expect(result.failures[0]?.code).toBe(AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN);
+    expect(acquireCombined).not.toHaveBeenCalled();
   });
 });

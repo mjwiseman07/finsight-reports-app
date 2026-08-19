@@ -1,9 +1,12 @@
 /**
- * Trusted execution principal for the authoritative observation runner.
+ * Trusted execution identity vs engagement authorization.
  *
- * A raw user id in observation input is not authentication. The calling
- * boundary must already have verified the actor (cookie session, etc.).
- * v1 executes verified user principals only.
+ * requireVerifiedUserPrincipal establishes WHO the caller is.
+ * requireEngagementWriteActor establishes that this verified user may WRITE
+ * the requested engagement. A cached EngagementActor.canWrite is not enough.
+ *
+ * A raw user id in observation input is not authentication. v1 executes
+ * verified user principals only.
  */
 
 import type { EngagementActor } from "@/lib/audit-ready/server-auth";
@@ -16,7 +19,7 @@ import {
 
 export function requireVerifiedUserPrincipal(
   executionContext: AuthoritativeObservationExecutionContext | null | undefined,
-): EngagementActor {
+): { userId: string } {
   if (!executionContext?.principal) {
     throw new AuthoritativeObservationError(
       AUTHORITATIVE_OBSERVATION_ERROR.AUTHENTICATED_ACTOR_REQUIRED,
@@ -31,28 +34,54 @@ export function requireVerifiedUserPrincipal(
       "context",
     );
   }
-  const actor = executionContext.principal.actor;
-  const userId = String(actor?.userId || "").trim();
+  const principal = executionContext.principal as {
+    userId?: unknown;
+    actor?: { userId?: unknown };
+  };
+  const userId = String(principal.userId || principal.actor?.userId || "").trim();
   if (!userId) {
     throw new AuthoritativeObservationError(
       AUTHORITATIVE_OBSERVATION_ERROR.AUTHENTICATED_ACTOR_REQUIRED,
-      "Verified actor.userId is required.",
+      "Verified principal.userId is required.",
+      "context",
+    );
+  }
+  return { userId };
+}
+
+export function requireEngagementWriteActor(args: {
+  verifiedUserId: string;
+  actor: EngagementActor | null | undefined;
+}): EngagementActor {
+  const actor = args.actor;
+  const actorUserId = String(actor?.userId || "").trim();
+  if (!actor || !actorUserId) {
+    throw new AuthoritativeObservationError(
+      AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
+      "Verified user is not authorized for this engagement.",
+      "context",
+    );
+  }
+  if (actorUserId !== args.verifiedUserId) {
+    throw new AuthoritativeObservationError(
+      AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
+      "Engagement actor does not match the verified principal.",
       "context",
     );
   }
   if (!actor.canWrite) {
     throw new AuthoritativeObservationError(
       AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
-      "Verified actor cannot write to this engagement.",
+      "Verified user cannot write this engagement.",
       "context",
     );
   }
-  return { ...actor, userId };
+  return { ...actor, userId: args.verifiedUserId };
 }
 
 /**
  * If a leftover triggeredByUserId is present on untyped/legacy input, it must
- * equal the verified actor. Prefer omitting the field entirely.
+ * equal the verified principal. Prefer omitting the field entirely.
  */
 export function assertNoTriggeredByImpersonation(
   input: AuthoritativeObservationInput,

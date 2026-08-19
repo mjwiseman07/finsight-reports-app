@@ -76,6 +76,8 @@ const FIRM_WRITE_ROLES = new Set([
  * allowlisting; it does not prove the caller is that account.
  *
  * Cookie/request authentication remains getEngagementActor() → requireAuditReadyUser().
+ * The observation context loader must call this with input.engagementId after the
+ * execution principal's userId has already been verified.
  */
 export async function resolveEngagementActorForVerifiedUser(args: {
   engagementId: string;

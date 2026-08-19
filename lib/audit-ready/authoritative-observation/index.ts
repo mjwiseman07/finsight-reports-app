@@ -5,6 +5,7 @@ export {
 export { loadAuthoritativeObservationContext } from "./context";
 export {
   requireVerifiedUserPrincipal,
+  requireEngagementWriteActor,
   assertNoTriggeredByImpersonation,
 } from "./principal";
 export {

@@ -3,8 +3,9 @@
  *
  * Resolves engagement, company, connection identity, period, control-account
  * bindings, tie-out policy, and one classified PBC per AR/AP/Inventory kind.
- * Write authority comes from a VERIFIED execution principal, not from
- * observation-input user ids. Does not read the provider. Does not refresh tokens.
+ * Write authority is resolved for input.engagementId from a VERIFIED user id.
+ * A cached EngagementActor.canWrite from another engagement is not authority.
+ * Does not read the provider. Does not refresh tokens.
  */
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
@@ -13,7 +14,12 @@ import type { PolicySnapshot } from "@/lib/audit-ready/tie-out/policy";
 import type { ArAcquisitionConnection } from "@/lib/audit-ready/measurement-snapshots/acquisition";
 import { asIsoDate } from "@/lib/audit-ready/measurement-snapshots/validate";
 import {
+  resolveEngagementActorForVerifiedUser,
+  type EngagementActor,
+} from "@/lib/audit-ready/server-auth";
+import {
   assertNoTriggeredByImpersonation,
+  requireEngagementWriteActor,
   requireVerifiedUserPrincipal,
 } from "./principal";
 import {
@@ -43,6 +49,10 @@ export type PbcAuthorityRow = {
 
 export type AuthoritativeContextDeps = {
   loadEngagement: (engagementId: string) => Promise<EngagementAuthorityRow | null>;
+  authorize: (args: {
+    engagementId: string;
+    userId: string;
+  }) => Promise<EngagementActor | null>;
   loadFirmClientCompanyId: (firmClientId: string) => Promise<string | null>;
   loadPolicy: (
     engagementId: string,
@@ -117,6 +127,9 @@ export async function createDefaultAuthoritativeContextDeps(): Promise<Authorita
       if (!data?.id) return null;
       return data as EngagementAuthorityRow;
     },
+    async authorize({ engagementId, userId }) {
+      return resolveEngagementActorForVerifiedUser({ engagementId, userId });
+    },
     async loadFirmClientCompanyId(firmClientId) {
       const { data } = await supabase
         .from("firm_clients")
@@ -171,6 +184,7 @@ function isCompleteContextDeps(
 ): deps is AuthoritativeContextDeps {
   return Boolean(
     deps?.loadEngagement &&
+      deps.authorize &&
       deps.loadFirmClientCompanyId &&
       deps.loadPolicy &&
       deps.loadPbcs &&
@@ -183,8 +197,8 @@ export async function loadAuthoritativeObservationContext(
   executionContext: AuthoritativeObservationExecutionContext,
   deps?: Partial<AuthoritativeContextDeps>,
 ): Promise<AuthoritativeObservationContext> {
-  const actor = requireVerifiedUserPrincipal(executionContext);
-  assertNoTriggeredByImpersonation(input, actor.userId);
+  const identity = requireVerifiedUserPrincipal(executionContext);
+  assertNoTriggeredByImpersonation(input, identity.userId);
 
   const resolved: AuthoritativeContextDeps = isCompleteContextDeps(deps)
     ? deps
@@ -201,6 +215,14 @@ export async function loadAuthoritativeObservationContext(
       "context",
     );
   }
+
+  const actor = requireEngagementWriteActor({
+    verifiedUserId: identity.userId,
+    actor: await resolved.authorize({
+      engagementId: input.engagementId,
+      userId: identity.userId,
+    }),
+  });
 
   let companyId = requireText(engagement.company_id);
   if (!companyId && engagement.firm_client_id) {

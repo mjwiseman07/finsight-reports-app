@@ -34,15 +34,15 @@ function engagement(over: Record<string, unknown> = {}) {
   };
 }
 
-function pbcs() {
+function pbcs(engagementId = "eng-1") {
   return [
-    { id: "pbc-ar", engagement_id: "eng-1", tie_out_kind: "ar_aging" },
-    { id: "pbc-ap", engagement_id: "eng-1", tie_out_kind: "ap_aging" },
-    { id: "pbc-inv", engagement_id: "eng-1", tie_out_kind: "inventory" },
+    { id: "pbc-ar", engagement_id: engagementId, tie_out_kind: "ar_aging" },
+    { id: "pbc-ap", engagement_id: engagementId, tie_out_kind: "ap_aging" },
+    { id: "pbc-inv", engagement_id: engagementId, tie_out_kind: "inventory" },
   ];
 }
 
-function verifiedActor(over: Partial<EngagementActor> = {}): EngagementActor {
+function writer(over: Partial<EngagementActor> = {}): EngagementActor {
   return {
     userId: "user-1",
     canRead: true,
@@ -52,21 +52,20 @@ function verifiedActor(over: Partial<EngagementActor> = {}): EngagementActor {
   };
 }
 
-function executionContext(
-  over: Partial<EngagementActor> = {},
-): AuthoritativeObservationExecutionContext {
-  return { principal: { type: "user", actor: verifiedActor(over) } };
+function executionContext(userId = "user-1"): AuthoritativeObservationExecutionContext {
+  return { principal: { type: "user", userId } };
 }
 
 function deps(over: Partial<AuthoritativeContextDeps> = {}): AuthoritativeContextDeps {
   return {
     loadEngagement: async () => engagement(),
+    authorize: async ({ userId }) => writer({ userId }),
     loadFirmClientCompanyId: async () => COMPANY,
     loadPolicy: async () => policy,
     loadPbcs: async () => pbcs(),
-    selectConnection: async () => ({
+    selectConnection: async ({ userId }) => ({
       id: CONN,
-      user_id: "user-1",
+      user_id: userId,
       provider: "quickbooks",
       tenant_or_realm_id: "realm-1",
       external_entity_id: "realm-1",
@@ -245,7 +244,7 @@ describe("authoritative observation context loader", () => {
     });
   });
 
-  it("16. verified read-only member and missing principal fail closed", async () => {
+  it("16. missing principal and system principal fail closed", async () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
@@ -258,59 +257,11 @@ describe("authoritative observation context loader", () => {
     await expect(
       loadAuthoritativeObservationContext(
         freshInput,
-        executionContext({ canWrite: false }),
-        deps(),
-      ),
-    ).rejects.toMatchObject({
-      code: AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
-    });
-    await expect(
-      loadAuthoritativeObservationContext(
-        freshInput,
         { principal: { type: "system", service: "cron" } },
         deps(),
       ),
     ).rejects.toMatchObject({
       code: AUTHORITATIVE_OBSERVATION_ERROR.UNSUPPORTED_PRINCIPAL,
-    });
-    await expect(
-      loadAuthoritativeObservationContext(freshInput, executionContext(), deps()),
-    ).resolves.toMatchObject({ triggeredByUserId: "user-1" });
-  });
-
-  it("selects connection with verified actor.userId, not leftover input ids", async () => {
-    const selected: string[] = [];
-    const ctx = await loadAuthoritativeObservationContext(
-      freshInput,
-      executionContext({ userId: "verified-writer" }),
-      deps({
-        selectConnection: async ({ userId }) => {
-          selected.push(userId);
-          return {
-            id: CONN,
-            user_id: userId,
-            provider: "quickbooks",
-            tenant_or_realm_id: "realm-1",
-            external_entity_id: "realm-1",
-            external_entity_name: "Acme",
-            access_token: "secret-token",
-            metadata_json: {},
-          };
-        },
-      }),
-    );
-    expect(selected).toEqual(["verified-writer"]);
-    expect(ctx.triggeredByUserId).toBe("verified-writer");
-    expect(ctx.actor.userId).toBe("verified-writer");
-
-    await expect(
-      loadAuthoritativeObservationContext(
-        { ...freshInput, triggeredByUserId: "company-owner-id" } as never,
-        executionContext({ userId: "verified-writer" }),
-        deps(),
-      ),
-    ).rejects.toMatchObject({
-      code: AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
     });
   });
 
@@ -336,6 +287,191 @@ describe("authoritative observation context loader", () => {
     expect(ctx.connectionId).toBe(CONN);
     expect(ctx.companyId).toBe(COMPANY);
     expect(ctx.triggeredByUserId).toBe("user-1");
-    expect(ctx.actor).toEqual(verifiedActor());
+    expect(ctx.actor).toEqual(writer());
+  });
+});
+
+describe("authoritative observation engagement-scoped authorization", () => {
+  it("1. writer for Engagement A cannot execute Engagement B", async () => {
+    const lookedUp: string[] = [];
+    await expect(
+      loadAuthoritativeObservationContext(
+        { ...freshInput, engagementId: "eng-b" },
+        executionContext("user-a"),
+        deps({
+          loadEngagement: async (id) => engagement({ id }),
+          loadPbcs: async (id) => pbcs(id),
+          authorize: async ({ engagementId, userId }) => {
+            lookedUp.push(engagementId);
+            if (engagementId === "eng-1" && userId === "user-a") {
+              return writer({ userId, scope: "company" });
+            }
+            return null;
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
+    });
+    expect(lookedUp).toEqual(["eng-b"]);
+  });
+
+  it("2. verified identity alone is not enough; engagement lookup must run", async () => {
+    let authorized: { engagementId: string; userId: string } | null = null;
+    await loadAuthoritativeObservationContext(
+      freshInput,
+      executionContext("user-1"),
+      deps({
+        authorize: async (args) => {
+          authorized = args;
+          return writer({ userId: args.userId });
+        },
+      }),
+    );
+    expect(authorized).toEqual({ engagementId: "eng-1", userId: "user-1" });
+  });
+
+  it("3. cached actor.canWrite=true cannot bypass engagement permission lookup", async () => {
+    let authorized = false;
+    await expect(
+      loadAuthoritativeObservationContext(
+        freshInput,
+        {
+          principal: {
+            type: "user",
+            userId: "ordinary-user",
+            actor: {
+              userId: "super-admin-id",
+              canRead: true,
+              canWrite: true,
+              scope: "super_admin",
+            },
+          },
+        } as never,
+        deps({
+          authorize: async ({ userId, engagementId }) => {
+            authorized = true;
+            expect(engagementId).toBe("eng-1");
+            expect(userId).toBe("ordinary-user");
+            return writer({ userId, canWrite: false, scope: "company" });
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
+    });
+    expect(authorized).toBe(true);
+  });
+
+  it("4. verified company writer for requested engagement succeeds", async () => {
+    const ctx = await loadAuthoritativeObservationContext(
+      freshInput,
+      executionContext("company-writer"),
+      deps({
+        authorize: async ({ userId }) => writer({ userId, scope: "company" }),
+      }),
+    );
+    expect(ctx.actor).toEqual(writer({ userId: "company-writer", scope: "company" }));
+    expect(ctx.triggeredByUserId).toBe("company-writer");
+  });
+
+  it("5. verified firm writer for requested engagement succeeds", async () => {
+    const ctx = await loadAuthoritativeObservationContext(
+      freshInput,
+      executionContext("firm-writer"),
+      deps({
+        authorize: async ({ userId }) => writer({ userId, scope: "firm" }),
+      }),
+    );
+    expect(ctx.actor.scope).toBe("firm");
+    expect(ctx.actor.userId).toBe("firm-writer");
+    expect(ctx.actor.canWrite).toBe(true);
+  });
+
+  it("6. verified read-only user fails", async () => {
+    await expect(
+      loadAuthoritativeObservationContext(
+        freshInput,
+        executionContext("reader-1"),
+        deps({
+          authorize: async ({ userId }) =>
+            writer({ userId, canWrite: false, scope: "company" }),
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
+    });
+  });
+
+  it("7. verified user with no membership for requested engagement fails", async () => {
+    await expect(
+      loadAuthoritativeObservationContext(
+        freshInput,
+        executionContext("stranger"),
+        deps({ authorize: async () => null }),
+      ),
+    ).rejects.toMatchObject({
+      code: AUTHORITATIVE_OBSERVATION_ERROR.WRITE_FORBIDDEN,
+    });
+  });
+
+  it("8. verified super-admin identity succeeds", async () => {
+    const ctx = await loadAuthoritativeObservationContext(
+      freshInput,
+      executionContext("super-admin-id"),
+      deps({
+        authorize: async ({ userId }) =>
+          writer({ userId, scope: "super_admin" }),
+      }),
+    );
+    expect(ctx.actor.scope).toBe("super_admin");
+    expect(ctx.actor.userId).toBe("super-admin-id");
+    expect(ctx.triggeredByUserId).toBe("super-admin-id");
+  });
+
+  it("9. leftover super-admin triggeredByUserId is still impersonation", async () => {
+    let authorized = false;
+    await expect(
+      loadAuthoritativeObservationContext(
+        { ...freshInput, triggeredByUserId: "super-admin-id" } as never,
+        executionContext("ordinary-user"),
+        deps({
+          authorize: async () => {
+            authorized = true;
+            return writer({ userId: "ordinary-user" });
+          },
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: AUTHORITATIVE_OBSERVATION_ERROR.TRIGGERED_BY_IMPERSONATION,
+    });
+    expect(authorized).toBe(false);
+  });
+
+  it("10. connection selection receives the engagement-authorized verified user id", async () => {
+    const selected: string[] = [];
+    const ctx = await loadAuthoritativeObservationContext(
+      freshInput,
+      executionContext("verified-writer"),
+      deps({
+        authorize: async ({ userId }) => writer({ userId, scope: "company" }),
+        selectConnection: async ({ userId }) => {
+          selected.push(userId);
+          return {
+            id: CONN,
+            user_id: userId,
+            provider: "quickbooks",
+            tenant_or_realm_id: "realm-1",
+            external_entity_id: "realm-1",
+            external_entity_name: "Acme",
+            access_token: "secret-token",
+            metadata_json: {},
+          };
+        },
+      }),
+    );
+    expect(selected).toEqual(["verified-writer"]);
+    expect(ctx.triggeredByUserId).toBe("verified-writer");
+    expect(ctx.actor.userId).toBe("verified-writer");
   });
 });

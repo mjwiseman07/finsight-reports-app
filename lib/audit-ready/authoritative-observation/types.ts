@@ -44,13 +44,13 @@ type AuthoritativeObservationSharedInput = {
 };
 
 /**
- * Verified human principal. The calling boundary must already have authenticated
- * this actor (e.g. getEngagementActor / requireAuditReadyUser). A raw user id in
- * observation input is not authentication.
+ * Verified human identity. The calling boundary must already have authenticated
+ * this userId (e.g. requireAuditReadyUser). This is NOT engagement authorization.
+ * A leftover cached EngagementActor / canWrite flag is not authority.
  */
 export type AuthoritativeVerifiedUserPrincipal = {
   type: "user";
-  actor: EngagementActor;
+  userId: string;
 };
 
 /** v1: accepted only as an explicit fail-closed shape. Not executable. */
@@ -135,7 +135,7 @@ export type AuthoritativeObservationContext = {
   engagementId: string;
   companyId: string;
   actor: EngagementActor;
-  /** Derived from the verified actor. Never taken from raw observation input. */
+  /** Derived from the engagement-scoped authorized actor. Never from raw input. */
   triggeredByUserId: string;
   connectionId: string;
   provider: string;
