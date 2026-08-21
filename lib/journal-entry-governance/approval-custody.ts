@@ -268,6 +268,115 @@ export async function loadEngagementFirmId(
 }
 
 /**
+ * Load period bounds from the EXACT proposal source accounting sync only.
+ * No latest/pointer fallback. Returns null periodStart when unknown.
+ */
+export async function loadExactSourceSyncPeriodBounds(args: {
+  accountingSyncId: string;
+  expectedPeriodEnd: string;
+}): Promise<{ periodStart: string | null; periodEnd: string }> {
+  const syncId = String(args.accountingSyncId || "").trim();
+  if (!syncId) {
+    throw new JeApprovalCustodyError(
+      JE_APPROVAL_ERROR.SOURCE_SYNC_MISSING,
+      "Source accounting sync id is required for close-period resolution.",
+    );
+  }
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("accounting_syncs")
+    .select("id, report_period_start, report_period_end")
+    .eq("id", syncId)
+    .maybeSingle();
+  if (error || !data?.id) {
+    throw new JeApprovalCustodyError(
+      JE_APPROVAL_ERROR.SOURCE_SYNC_MISSING,
+      "Exact source accounting_syncs row was not found.",
+    );
+  }
+  const periodEnd =
+    asIsoDate(data.report_period_end) ||
+    String(data.report_period_end || "").slice(0, 10);
+  if (periodEnd !== args.expectedPeriodEnd) {
+    throw new JeApprovalCustodyError(
+      JE_APPROVAL_ERROR.SOURCE_SYNC_MISSING,
+      "Source accounting sync period_end does not match proposal.period_end.",
+    );
+  }
+  const periodStart = data.report_period_start
+    ? asIsoDate(data.report_period_start) ||
+      String(data.report_period_start).slice(0, 10)
+    : null;
+  return { periodStart, periodEnd };
+}
+
+/**
+ * Exact close_periods.id for Patent #6 — mirrors CC-2B semantics.
+ * firm_client_id + period_start + period_end must identify one row.
+ * Exact row or NULL. Never use period_end as an identity.
+ */
+export async function loadExactClosePeriodIdForApproval(args: {
+  firmClientId: string | null;
+  periodStart: string | null;
+  periodEnd: string;
+}): Promise<string | null> {
+  const firmClientId = String(args.firmClientId || "").trim();
+  const periodStart = String(args.periodStart || "").trim();
+  const periodEnd = String(args.periodEnd || "").trim();
+  if (!firmClientId || !periodStart || !periodEnd) return null;
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("close_periods")
+    .select("id")
+    .eq("firm_client_id", firmClientId)
+    .eq("period_start", periodStart)
+    .eq("period_end", periodEnd)
+    .maybeSingle();
+  if (error) {
+    throw new JeApprovalCustodyError(
+      JE_APPROVAL_ERROR.PERSIST_FAILED,
+      error.message,
+    );
+  }
+  const id = data?.id ? String(data.id) : null;
+  // Never treat an ISO date as a close-period identity.
+  if (id && /^\d{4}-\d{2}-\d{2}$/.test(id)) return null;
+  return id;
+}
+
+/**
+ * Resolve Patent #6 close_period_id for a JE approval.
+ * Exact close_periods row or NULL. Never invent identity from period_end.
+ */
+export async function resolveApprovalClosePeriodId(args: {
+  firmClientId: string | null;
+  periodEnd: string;
+  sourceAccountingSyncId: string;
+  loadSyncBounds?: typeof loadExactSourceSyncPeriodBounds;
+  loadClosePeriodId?: typeof loadExactClosePeriodIdForApproval;
+}): Promise<string | null> {
+  const loadBounds =
+    args.loadSyncBounds || loadExactSourceSyncPeriodBounds;
+  const loadClose = args.loadClosePeriodId || loadExactClosePeriodIdForApproval;
+  const firmClientId = String(args.firmClientId || "").trim();
+  if (!firmClientId) return null;
+  const bounds = await loadBounds({
+    accountingSyncId: args.sourceAccountingSyncId,
+    expectedPeriodEnd: args.periodEnd,
+  });
+  if (!bounds.periodStart) return null;
+  const closePeriodId = await loadClose({
+    firmClientId,
+    periodStart: bounds.periodStart,
+    periodEnd: bounds.periodEnd,
+  });
+  if (closePeriodId && closePeriodId === args.periodEnd) {
+    return null;
+  }
+  return closePeriodId;
+}
+
+/**
  * Production MFA assurance resolver — trusted cookie step-up only.
  * Never accepts a caller-supplied mfaVerified boolean.
  */

@@ -80,6 +80,8 @@ function makeHarness(opts?: {
   syncMissing?: boolean;
   reconMissing?: boolean;
   priorRejected?: boolean;
+  closePeriodId?: string | null;
+  syncPeriodStart?: string | null;
   approver?: {
     userId: string;
     scope: "company" | "firm" | "super_admin";
@@ -92,6 +94,7 @@ function makeHarness(opts?: {
 }) {
   const rows: JournalEntryApprovalRow[] = [];
   const persistCalls: unknown[] = [];
+  const closePeriodLookups: unknown[] = [];
 
   const deps: DecideJeApprovalDeps = {
     async loadProposal(id) {
@@ -178,6 +181,12 @@ function makeHarness(opts?: {
     async loadFirmId() {
       return "firm-1";
     },
+    async resolveClosePeriodId(args) {
+      closePeriodLookups.push(args);
+      // Default: no exact close period (null). Tests override via closePeriodId.
+      if ("closePeriodId" in (opts || {})) return opts!.closePeriodId ?? null;
+      return null;
+    },
     async persist(input) {
       persistCalls.push(input);
       if (opts?.persistImpl) return opts.persistImpl(input);
@@ -194,7 +203,7 @@ function makeHarness(opts?: {
     nowIso: () => "2026-08-21T04:30:00.000Z",
   };
 
-  return { deps, rows, persistCalls };
+  return { deps, rows, persistCalls, closePeriodLookups };
 }
 
 describe("decideJournalEntryProposal", () => {
@@ -518,12 +527,17 @@ describe("decideJournalEntryProposal", () => {
     const call = h.persistCalls[0] as {
       eventType: string;
       eventPayload: Record<string, unknown>;
+      closePeriodId: string | null;
     };
     expect(call.eventType).toBe("journal_entry.approved");
     expect(call.eventPayload.proposal_hash).toBe(HASH_P);
     expect(call.eventPayload.approval_policy_hash).toMatch(/^[a-f0-9]{64}$/);
     expect(call.eventPayload.reviewer_user_id).toBe(REVIEWER);
     expect(call.eventPayload.sod_satisfied).toBe(true);
+    expect(call.eventPayload.period_end).toBe("2026-07-31");
+    expect(call.closePeriodId).toBeNull();
+    expect(call.eventPayload.close_period_id).toBeNull();
+    expect(call.closePeriodId).not.toBe("2026-07-31");
     expect(JSON.stringify(call.eventPayload)).not.toMatch(/token|secret|password/i);
 
     const h2 = makeHarness();
@@ -536,6 +550,59 @@ describe("decideJournalEntryProposal", () => {
     expect((h2.persistCalls[0] as { eventType: string }).eventType).toBe(
       "journal_entry.rejected",
     );
+    expect((h2.persistCalls[0] as { closePeriodId: string | null }).closePeriodId).toBeNull();
+  });
+
+  it("passes exact close_periods.id when resolved; never period_end", async () => {
+    const CLOSE = "cp-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    const h = makeHarness({ closePeriodId: CLOSE });
+    const result = await decideJournalEntryProposal(
+      { proposalId: PROP, decision: "APPROVED" },
+      { principal: { type: "user", userId: REVIEWER } },
+      policy({ mfaRequiredAboveCents: null }),
+      h.deps,
+    );
+    expect(result.ok).toBe(true);
+    const call = h.persistCalls[0] as {
+      closePeriodId: string | null;
+      eventPayload: Record<string, unknown>;
+    };
+    expect(call.closePeriodId).toBe(CLOSE);
+    expect(call.closePeriodId).not.toBe("2026-07-31");
+    expect(call.eventPayload.close_period_id).toBe(CLOSE);
+    expect(call.eventPayload.period_end).toBe("2026-07-31");
+    expect(h.closePeriodLookups[0]).toMatchObject({
+      firmClientId: "fc-1",
+      periodEnd: "2026-07-31",
+      sourceAccountingSyncId: SYNC,
+    });
+  });
+
+  it("succeeds with closePeriodId null when no exact close period", async () => {
+    const h = makeHarness({ closePeriodId: null });
+    const result = await decideJournalEntryProposal(
+      { proposalId: PROP, decision: "APPROVED" },
+      { principal: { type: "user", userId: REVIEWER } },
+      policy({ mfaRequiredAboveCents: null }),
+      h.deps,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(
+      (h.persistCalls[0] as { closePeriodId: string | null }).closePeriodId,
+    ).toBeNull();
+  });
+
+  it("rejects if closePeriodId falsely equals period_end", async () => {
+    const h = makeHarness({ closePeriodId: "2026-07-31" });
+    const result = await decideJournalEntryProposal(
+      { proposalId: PROP, decision: "APPROVED" },
+      { principal: { type: "user", userId: REVIEWER } },
+      policy({ mfaRequiredAboveCents: null }),
+      h.deps,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe(JE_APPROVAL_ERROR.PERSIST_FAILED);
   });
 
   it("ledger failure rolls back (persist error surfaces)", async () => {

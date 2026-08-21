@@ -26,6 +26,7 @@ import {
   loadExactProposalSourceCc,
   loadPriorRejection,
   mfaRequiredForProposal,
+  resolveApprovalClosePeriodId,
   resolveJeAuthenticationAssurance,
 } from "./approval-custody";
 import {
@@ -56,6 +57,7 @@ export type DecideJeApprovalDeps = {
   resolveApprover: typeof resolveJeApproverAuthority;
   resolveAssurance: typeof resolveJeAuthenticationAssurance;
   loadFirmId: typeof loadEngagementFirmId;
+  resolveClosePeriodId: typeof resolveApprovalClosePeriodId;
   persist: typeof persistJournalEntryApproval;
   newId: () => string;
   nowIso: () => string;
@@ -72,6 +74,7 @@ export function createDefaultJeApprovalDeps(): DecideJeApprovalDeps {
     resolveApprover: resolveJeApproverAuthority,
     resolveAssurance: resolveJeAuthenticationAssurance,
     loadFirmId: loadEngagementFirmId,
+    resolveClosePeriodId: resolveApprovalClosePeriodId,
     persist: persistJournalEntryApproval,
     newId: () => randomUUID(),
     nowIso: () => new Date().toISOString(),
@@ -254,6 +257,20 @@ export async function decideJournalEntryProposal(
     };
 
     const firmId = await resolved.loadFirmId(proposal.engagement_id);
+    const closePeriodId = await resolved.resolveClosePeriodId({
+      firmClientId: proposal.firm_client_id,
+      periodEnd: proposal.period_end,
+      sourceAccountingSyncId: proposal.source_accounting_sync_id,
+    });
+    // Custody lock: period_end is a date, never a close_period_id.
+    if (closePeriodId && closePeriodId === proposal.period_end) {
+      return {
+        ok: false,
+        code: JE_APPROVAL_ERROR.PERSIST_FAILED,
+        message:
+          "close_period_id must not equal proposal.period_end; use exact close_periods.id or null.",
+      };
+    }
     const eventType =
       input.decision === "APPROVED"
         ? ("journal_entry.approved" as const)
@@ -266,6 +283,7 @@ export async function decideJournalEntryProposal(
       mfaSatisfied,
       assurance,
       approver,
+      closePeriodId,
     });
 
     const persisted = await resolved.persist({
@@ -275,7 +293,7 @@ export async function decideJournalEntryProposal(
       firmId,
       firmClientId: proposal.firm_client_id,
       engagementId: proposal.engagement_id,
-      closePeriodId: proposal.period_end,
+      closePeriodId,
       actorId: approver.userId,
     });
 
@@ -335,6 +353,7 @@ function buildApprovalEventPayload(args: {
   mfaSatisfied: boolean;
   assurance: JeAuthenticationAssurance;
   approver: JeApproverAuthority;
+  closePeriodId: string | null;
 }): Record<string, unknown> {
   return {
     proposal_id: args.proposal.id,
@@ -352,6 +371,8 @@ function buildApprovalEventPayload(args: {
     mfa_source: args.assurance.source,
     source_continuous_close_run_id: args.proposal.source_continuous_close_run_id,
     source_accounting_sync_id: args.proposal.source_accounting_sync_id,
+    period_end: args.proposal.period_end,
+    close_period_id: args.closePeriodId,
     company_id: args.proposal.company_id,
     engagement_id: args.proposal.engagement_id,
     origin_type: args.proposal.origin_type,
