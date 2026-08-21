@@ -26,3 +26,30 @@ export type {
   JeProposalPolicy,
   JournalEntryProposalRow,
 } from "./types";
+
+export {
+  decideJournalEntryProposal,
+  createDefaultJeApprovalDeps,
+  DEFAULT_JE_APPROVAL_POLICY,
+} from "./approval-service";
+export type { DecideJeApprovalDeps } from "./approval-service";
+export {
+  hashJeApprovalPolicy,
+  hashJeApprovalIdempotencyKey,
+  canonicalizeJeApprovalPolicy,
+} from "./approval-hash";
+export { evaluateApprovalValidity } from "./approval-validity";
+export {
+  JE_APPROVAL_ERROR,
+  JE_APPROVAL_DECISIONS,
+  JE_APPROVAL_MODES,
+} from "./approval-types";
+export type {
+  DecideJeApprovalInput,
+  DecideJeApprovalResult,
+  JeApprovalExecutionContext,
+  JeApprovalPolicy,
+  JeAuthenticationAssurance,
+  JournalEntryApprovalRow,
+  JeApprovalValidity,
+} from "./approval-types";
