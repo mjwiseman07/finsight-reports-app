@@ -29,6 +29,7 @@ export default defineConfig({
       "lib/erp/quickbooks/__tests__/**/*.test.ts",
       "lib/audit-ready/authoritative-observation/__tests__/**/*.test.ts",
       "lib/continuous-close/**/*.test.ts",
+      "lib/journal-entry-governance/**/*.test.ts",
       "lib/audit-ready/measurement-snapshots/__tests__/**/*.test.ts",
       "lib/audit-ready/tie-out/__tests__/**/*.test.ts",
       "lib/audit-ready/tie-out/__tests__/**/*.test.tsx",
