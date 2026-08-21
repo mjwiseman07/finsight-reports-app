@@ -23,6 +23,20 @@ function requireText(value: unknown): string {
   return String(value || "").trim();
 }
 
+export type CcObservationReconSlot = {
+  runId: string | null;
+  authoritative: boolean;
+  baselineSyncId: string | null;
+};
+
+export type CcObservationSummary = {
+  reconciliations: {
+    ar: CcObservationReconSlot | null;
+    ap: CcObservationReconSlot | null;
+    inventory: CcObservationReconSlot | null;
+  };
+};
+
 export type SourceContinuousCloseRun = {
   id: string;
   companyId: string;
@@ -32,6 +46,8 @@ export type SourceContinuousCloseRun = {
   periodEnd: string;
   mode: string;
   status: string;
+  readiness: string | null;
+  observationSummary: CcObservationSummary;
 };
 
 export type SourceAccountingSync = {
@@ -47,11 +63,10 @@ export type SourceReconRun = {
   id: string;
   engagementId: string;
   periodEnd: string | null;
-  tieOutKind: string;
+  tieOutKind: JeSourceReconKind;
   status: string;
   reconOutcome: string | null;
-  baselineSyncId: string | null;
-  measurementSource: string | null;
+  baselineSyncId: string;
 };
 
 export type EngagementCustody = {
@@ -63,6 +78,115 @@ export type EngagementCustody = {
   apControlAccountId: string | null;
   inventoryControlAccountId: string | null;
 };
+
+const SLOT_TO_KIND: Record<"ar" | "ap" | "inventory", JeSourceReconKind> = {
+  ar: "ar_aging",
+  ap: "ap_aging",
+  inventory: "inventory",
+};
+
+function parseObservationSlot(raw: unknown): CcObservationReconSlot | null {
+  if (raw == null) return null;
+  if (!raw || typeof raw !== "object") {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_SUMMARY_MALFORMED,
+      "observation_summary reconciliations slot is malformed.",
+    );
+  }
+  const row = raw as Record<string, unknown>;
+  return {
+    runId: row.runId == null || row.runId === "" ? null : String(row.runId),
+    authoritative: Boolean(row.authoritative),
+    baselineSyncId:
+      row.baselineSyncId == null || row.baselineSyncId === ""
+        ? null
+        : String(row.baselineSyncId),
+  };
+}
+
+export function parseCcObservationSummary(
+  raw: unknown,
+): CcObservationSummary {
+  if (!raw || typeof raw !== "object") {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_SUMMARY_MALFORMED,
+      "continuous_close_runs.observation_summary is missing or malformed.",
+    );
+  }
+  const summary = raw as Record<string, unknown>;
+  const reconciliations = summary.reconciliations;
+  if (!reconciliations || typeof reconciliations !== "object") {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_SUMMARY_MALFORMED,
+      "observation_summary.reconciliations is missing or malformed.",
+    );
+  }
+  const slots = reconciliations as Record<string, unknown>;
+  return {
+    reconciliations: {
+      ar: parseObservationSlot(slots.ar),
+      ap: parseObservationSlot(slots.ap),
+      inventory: parseObservationSlot(slots.inventory),
+    },
+  };
+}
+
+/**
+ * Prove the requested recon run was an authoritative slot on the exact
+ * source Continuous Close observation_summary. Do not invent authority from
+ * a standalone tie-out row.
+ */
+export function resolveAuthoritativeCcReconSlot(args: {
+  observationSummary: CcObservationSummary;
+  requestedRunId: string;
+  sourceAccountingSyncId: string;
+}): { slotName: "ar" | "ap" | "inventory"; expectedKind: JeSourceReconKind } {
+  const requested = requireText(args.requestedRunId);
+  const matches: Array<"ar" | "ap" | "inventory"> = [];
+  for (const slotName of ["ar", "ap", "inventory"] as const) {
+    const slot = args.observationSummary.reconciliations[slotName];
+    if (slot?.runId && slot.runId === requested) matches.push(slotName);
+  }
+  if (matches.length === 0) {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_SLOT_ABSENT,
+      "Requested recon run is not present in the source Continuous Close observation_summary.",
+    );
+  }
+  if (matches.length > 1) {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_SUMMARY_MALFORMED,
+      "Requested recon run maps to multiple Continuous Close observation slots.",
+    );
+  }
+  const slotName = matches[0];
+  const slot = args.observationSummary.reconciliations[slotName];
+  if (!slot || slot.authoritative !== true) {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_NOT_AUTHORITATIVE,
+      "Source Continuous Close recon slot is not authoritative.",
+    );
+  }
+  if (slot.runId !== requested) {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_SLOT_ABSENT,
+      "Source Continuous Close recon slot runId mismatch.",
+    );
+  }
+  if (!slot.baselineSyncId) {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_SLOT_BASELINE_MISMATCH,
+      "Source Continuous Close recon slot baselineSyncId is missing.",
+    );
+  }
+  if (slot.baselineSyncId !== args.sourceAccountingSyncId) {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_SLOT_BASELINE_MISMATCH,
+      "Source Continuous Close recon slot baselineSyncId must equal the CC accounting sync.",
+    );
+  }
+  return { slotName, expectedKind: SLOT_TO_KIND[slotName] };
+}
 
 export async function loadEngagementCustody(
   engagementId: string,
@@ -117,7 +241,8 @@ export async function loadExactContinuousCloseRun(args: {
   const { data, error } = await supabase
     .from("continuous_close_runs")
     .select(
-      "id, company_id, engagement_id, firm_client_id, accounting_sync_id, period_end, mode, status",
+      "id, company_id, engagement_id, firm_client_id, accounting_sync_id, " +
+        "period_end, mode, status, readiness, observation_summary",
     )
     .eq("id", runId)
     .maybeSingle();
@@ -163,6 +288,8 @@ export async function loadExactContinuousCloseRun(args: {
     periodEnd: asIsoDate(data.period_end) || String(data.period_end).slice(0, 10),
     mode: String(data.mode),
     status: String(data.status),
+    readiness: data.readiness ? String(data.readiness) : null,
+    observationSummary: parseCcObservationSummary(data.observation_summary),
   };
 }
 
@@ -217,19 +344,26 @@ export async function loadExactSourceAccountingSync(args: {
   };
 }
 
+/**
+ * Load the exact audit_ready_tie_out_runs row after CC observation_summary
+ * has already proven the run was an authoritative slot.
+ *
+ * Durable run custody is baseline_sync_id. Do NOT invent a second custody
+ * column on the tie-out run table — that is not part of the CC-2A contract.
+ */
 export async function loadExactAuthoritativeReconRun(args: {
   runId: string;
   expectedEngagementId: string;
   expectedPeriodEnd: string;
   expectedBaselineSyncId: string;
+  expectedKind: JeSourceReconKind;
 }): Promise<SourceReconRun> {
   const runId = requireText(args.runId);
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("audit_ready_tie_out_runs")
     .select(
-      "id, engagement_id, period_end, tie_out_kind, status, recon_outcome, " +
-        "baseline_sync_id, measurement_source",
+      "id, engagement_id, period_end, tie_out_kind, status, recon_outcome, baseline_sync_id",
     )
     .eq("id", runId)
     .maybeSingle();
@@ -269,19 +403,13 @@ export async function loadExactAuthoritativeReconRun(args: {
   if (!data.baseline_sync_id) {
     throw new JeProposalCustodyError(
       JE_PROPOSAL_ERROR.RECON_BASELINE_NULL,
-      "live_provider / NULL baseline_sync_id is not an allowed JE-1 source.",
+      "NULL baseline_sync_id is not an allowed JE-1 source.",
     );
   }
   if (String(data.baseline_sync_id) !== args.expectedBaselineSyncId) {
     throw new JeProposalCustodyError(
       JE_PROPOSAL_ERROR.RECON_BASELINE_MISMATCH,
       "Recon baseline_sync_id must equal the CC source accounting sync.",
-    );
-  }
-  if (String(data.measurement_source || "") !== "persisted_sync_snapshot") {
-    throw new JeProposalCustodyError(
-      JE_PROPOSAL_ERROR.RECON_NOT_AUTHORITATIVE,
-      "Recon measurement_source must be persisted_sync_snapshot.",
     );
   }
   const kind = String(data.tie_out_kind || "");
@@ -291,15 +419,20 @@ export async function loadExactAuthoritativeReconRun(args: {
       `Recon kind ${kind} is not a JE-1 authoritative source kind.`,
     );
   }
+  if (kind !== args.expectedKind) {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_KIND_MISMATCH,
+      "Recon tie_out_kind does not match the source Continuous Close observation slot.",
+    );
+  }
   return {
     id: String(data.id),
     engagementId: String(data.engagement_id),
     periodEnd,
-    tieOutKind: kind,
+    tieOutKind: kind as JeSourceReconKind,
     status: String(data.status),
     reconOutcome: data.recon_outcome ? String(data.recon_outcome) : null,
     baselineSyncId: String(data.baseline_sync_id),
-    measurementSource: String(data.measurement_source),
   };
 }
 

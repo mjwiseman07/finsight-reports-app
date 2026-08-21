@@ -20,6 +20,7 @@ import {
   loadExactAuthoritativeReconRun,
   loadExactContinuousCloseRun,
   loadExactSourceAccountingSync,
+  resolveAuthoritativeCcReconSlot,
 } from "./source-custody";
 import {
   DEFAULT_JE_PROPOSAL_POLICY,
@@ -63,6 +64,7 @@ export type CreateJeProposalDeps = {
   loadEngagement: typeof loadEngagementCustody;
   loadCcRun: typeof loadExactContinuousCloseRun;
   loadSync: typeof loadExactSourceAccountingSync;
+  resolveCcReconSlot: typeof resolveAuthoritativeCcReconSlot;
   loadRecon: typeof loadExactAuthoritativeReconRun;
   loadAccounts: typeof loadAccountsFromCoaMirror;
   assertPeriodNotLocked: typeof assertClosePeriodNotLocked;
@@ -77,6 +79,7 @@ export function createDefaultJeProposalDeps(): CreateJeProposalDeps {
     loadEngagement: loadEngagementCustody,
     loadCcRun: loadExactContinuousCloseRun,
     loadSync: loadExactSourceAccountingSync,
+    resolveCcReconSlot: resolveAuthoritativeCcReconSlot,
     loadRecon: loadExactAuthoritativeReconRun,
     loadAccounts: loadAccountsFromCoaMirror,
     assertPeriodNotLocked: assertClosePeriodNotLocked,
@@ -258,11 +261,17 @@ export async function createContinuousCloseJournalEntryProposal(
     }
     const validatedReconIds: string[] = [];
     for (const runId of requestedReconIds) {
+      const slot = resolved.resolveCcReconSlot({
+        observationSummary: ccRun.observationSummary,
+        requestedRunId: runId,
+        sourceAccountingSyncId: sync.id,
+      });
       const recon = await resolved.loadRecon({
         runId,
         expectedEngagementId: engagementId,
         expectedPeriodEnd: ccRun.periodEnd,
         expectedBaselineSyncId: sync.id,
+        expectedKind: slot.expectedKind,
       });
       validatedReconIds.push(recon.id);
     }

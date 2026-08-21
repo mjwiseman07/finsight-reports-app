@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createContinuousCloseJournalEntryProposal } from "../service";
+import { resolveAuthoritativeCcReconSlot } from "../source-custody";
 import {
   DEFAULT_JE_PROPOSAL_POLICY,
   JE_PROPOSAL_ERROR,
@@ -75,6 +76,39 @@ function account(
   return { accountId: id, accountType: type, accountSubtype: subtype, active: true };
 }
 
+function defaultObservationSummary(over?: {
+  ar?: Partial<{ runId: string | null; authoritative: boolean; baselineSyncId: string | null }>;
+  ap?: Partial<{ runId: string | null; authoritative: boolean; baselineSyncId: string | null }>;
+  inventory?: Partial<{
+    runId: string | null;
+    authoritative: boolean;
+    baselineSyncId: string | null;
+  }>;
+}) {
+  return {
+    reconciliations: {
+      ar: {
+        runId: RUN_AR,
+        authoritative: true,
+        baselineSyncId: SYNC,
+        ...(over?.ar || {}),
+      },
+      ap: {
+        runId: RUN_AP,
+        authoritative: true,
+        baselineSyncId: SYNC,
+        ...(over?.ap || {}),
+      },
+      inventory: {
+        runId: RUN_INV,
+        authoritative: true,
+        baselineSyncId: SYNC,
+        ...(over?.inventory || {}),
+      },
+    },
+  };
+}
+
 function makeHarness(opts?: {
   actor?: { userId: string; canWrite: boolean; canRead?: boolean; scope?: string } | null;
   cc?: Partial<{
@@ -86,6 +120,8 @@ function makeHarness(opts?: {
     periodEnd: string;
     mode: string;
     status: string;
+    readiness: string | null;
+    observationSummary: ReturnType<typeof defaultObservationSummary> | null;
   }> | null;
   sync?: Partial<{
     id: string;
@@ -105,7 +141,6 @@ function makeHarness(opts?: {
       status: string;
       reconOutcome: string | null;
       baselineSyncId: string | null;
-      measurementSource: string | null;
     }
   >;
   accounts?: Map<string, JeProposalAccountMeta>;
@@ -156,6 +191,19 @@ function makeHarness(opts?: {
           "missing",
         );
       }
+      const { parseCcObservationSummary } = await import("../source-custody");
+      const ccOver = opts?.cc || {};
+      const summaryRaw =
+        "observationSummary" in ccOver
+          ? ccOver.observationSummary
+          : defaultObservationSummary();
+      if (summaryRaw === null) {
+        const { JeProposalCustodyError } = await import("../source-custody");
+        throw new JeProposalCustodyError(
+          JE_PROPOSAL_ERROR.RECON_SUMMARY_MALFORMED,
+          "missing summary",
+        );
+      }
       return {
         id: CC,
         companyId: CO,
@@ -165,7 +213,9 @@ function makeHarness(opts?: {
         periodEnd: "2026-07-31",
         mode: "OBSERVE",
         status: "completed",
-        ...(opts?.cc || {}),
+        readiness: "READY",
+        ...ccOver,
+        observationSummary: parseCcObservationSummary(summaryRaw),
       };
     },
     async loadSync(args) {
@@ -187,6 +237,7 @@ function makeHarness(opts?: {
         ...(opts?.sync || {}),
       };
     },
+    resolveCcReconSlot: resolveAuthoritativeCcReconSlot,
     async loadRecon(args) {
       const catalog = opts?.reconById ?? {
         [RUN_AR]: {
@@ -197,7 +248,6 @@ function makeHarness(opts?: {
           status: "completed",
           reconOutcome: "open_review",
           baselineSyncId: SYNC,
-          measurementSource: "persisted_sync_snapshot",
         },
         [RUN_AP]: {
           id: RUN_AP,
@@ -207,7 +257,6 @@ function makeHarness(opts?: {
           status: "completed",
           reconOutcome: "open_review",
           baselineSyncId: SYNC,
-          measurementSource: "persisted_sync_snapshot",
         },
         [RUN_INV]: {
           id: RUN_INV,
@@ -217,7 +266,6 @@ function makeHarness(opts?: {
           status: "completed",
           reconOutcome: "open_review",
           baselineSyncId: SYNC,
-          measurementSource: "persisted_sync_snapshot",
         },
       };
       const row = catalog[args.runId];
@@ -267,14 +315,22 @@ function makeHarness(opts?: {
           "no outcome",
         );
       }
-      if (row.measurementSource !== "persisted_sync_snapshot") {
+      if (row.tieOutKind !== args.expectedKind) {
         const { JeProposalCustodyError } = await import("../source-custody");
         throw new JeProposalCustodyError(
-          JE_PROPOSAL_ERROR.RECON_NOT_AUTHORITATIVE,
-          "not authoritative",
+          JE_PROPOSAL_ERROR.RECON_KIND_MISMATCH,
+          "kind mismatch",
         );
       }
-      return row;
+      return {
+        id: row.id,
+        engagementId: row.engagementId,
+        periodEnd: row.periodEnd,
+        tieOutKind: row.tieOutKind as "ar_aging" | "ap_aging" | "inventory",
+        status: row.status,
+        reconOutcome: row.reconOutcome,
+        baselineSyncId: row.baselineSyncId,
+      };
     },
     async loadAccounts({ accountIds }) {
       const map = opts?.accounts ?? defaultAccounts;
@@ -471,7 +527,6 @@ describe("createContinuousCloseJournalEntryProposal", () => {
           status: "completed",
           reconOutcome: "open_review",
           baselineSyncId: null,
-          measurementSource: "live_provider",
         },
       },
     });
@@ -486,7 +541,7 @@ describe("createContinuousCloseJournalEntryProposal", () => {
     expect(result.code).toBe(JE_PROPOSAL_ERROR.RECON_BASELINE_NULL);
   });
 
-  it("rejects wrong baseline sync", async () => {
+  it("rejects wrong baseline sync on run row", async () => {
     const h = makeHarness({
       reconById: {
         [RUN_AR]: {
@@ -497,7 +552,6 @@ describe("createContinuousCloseJournalEntryProposal", () => {
           status: "completed",
           reconOutcome: "open_review",
           baselineSyncId: "other-sync",
-          measurementSource: "persisted_sync_snapshot",
         },
       },
     });
@@ -510,6 +564,194 @@ describe("createContinuousCloseJournalEntryProposal", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.code).toBe(JE_PROPOSAL_ERROR.RECON_BASELINE_MISMATCH);
+  });
+
+  it("rejects non-authoritative CC observation slot", async () => {
+    const h = makeHarness({
+      cc: {
+        observationSummary: defaultObservationSummary({
+          ar: { authoritative: false },
+        }),
+      },
+    });
+    const result = await createContinuousCloseJournalEntryProposal(
+      baseInput({ sourceReconRunIds: [RUN_AR] }),
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe(JE_PROPOSAL_ERROR.RECON_NOT_AUTHORITATIVE);
+  });
+
+  it("rejects recon absent from source CC observation_summary", async () => {
+    const h = makeHarness({
+      cc: {
+        observationSummary: defaultObservationSummary({
+          ar: { runId: "run-other" },
+        }),
+      },
+    });
+    const result = await createContinuousCloseJournalEntryProposal(
+      baseInput({ sourceReconRunIds: [RUN_AR] }),
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe(JE_PROPOSAL_ERROR.RECON_SLOT_ABSENT);
+  });
+
+  it("rejects slot baselineSyncId mismatch", async () => {
+    const h = makeHarness({
+      cc: {
+        observationSummary: defaultObservationSummary({
+          ar: { baselineSyncId: "other-sync" },
+        }),
+      },
+    });
+    const result = await createContinuousCloseJournalEntryProposal(
+      baseInput({ sourceReconRunIds: [RUN_AR] }),
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe(JE_PROPOSAL_ERROR.RECON_SLOT_BASELINE_MISMATCH);
+    }
+  });
+
+  it("rejects malformed observation_summary", async () => {
+    const h = makeHarness({ cc: { observationSummary: null } });
+    const result = await createContinuousCloseJournalEntryProposal(
+      baseInput(),
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe(JE_PROPOSAL_ERROR.RECON_SUMMARY_MALFORMED);
+  });
+
+  it("rejects run kind mismatch vs CC slot", async () => {
+    const h = makeHarness({
+      reconById: {
+        [RUN_AR]: {
+          id: RUN_AR,
+          engagementId: ENG,
+          periodEnd: "2026-07-31",
+          tieOutKind: "inventory",
+          status: "completed",
+          reconOutcome: "open_review",
+          baselineSyncId: SYNC,
+        },
+      },
+    });
+    const result = await createContinuousCloseJournalEntryProposal(
+      baseInput({ sourceReconRunIds: [RUN_AR] }),
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe(JE_PROPOSAL_ERROR.RECON_KIND_MISMATCH);
+  });
+
+  it("rejects incomplete run and missing recon_outcome", async () => {
+    const incomplete = await createContinuousCloseJournalEntryProposal(
+      baseInput({ sourceReconRunIds: [RUN_AR] }),
+      principal(),
+      policy(),
+      makeHarness({
+        reconById: {
+          [RUN_AR]: {
+            id: RUN_AR,
+            engagementId: ENG,
+            periodEnd: "2026-07-31",
+            tieOutKind: "ar_aging",
+            status: "running",
+            reconOutcome: "open_review",
+            baselineSyncId: SYNC,
+          },
+        },
+      }).deps,
+    );
+    expect(incomplete.ok).toBe(false);
+    if (!incomplete.ok) {
+      expect(incomplete.code).toBe(JE_PROPOSAL_ERROR.RECON_NOT_COMPLETED);
+    }
+
+    const noOutcome = await createContinuousCloseJournalEntryProposal(
+      baseInput({ sourceReconRunIds: [RUN_AR] }),
+      principal(),
+      policy(),
+      makeHarness({
+        reconById: {
+          [RUN_AR]: {
+            id: RUN_AR,
+            engagementId: ENG,
+            periodEnd: "2026-07-31",
+            tieOutKind: "ar_aging",
+            status: "completed",
+            reconOutcome: null,
+            baselineSyncId: SYNC,
+          },
+        },
+      }).deps,
+    );
+    expect(noOutcome.ok).toBe(false);
+    if (!noOutcome.ok) {
+      expect(noOutcome.code).toBe(JE_PROPOSAL_ERROR.RECON_OUTCOME_MISSING);
+    }
+  });
+
+  it("allows BLOCKED CC run when requested AR slot is authoritative", async () => {
+    const h = makeHarness({
+      cc: {
+        readiness: "BLOCKED",
+        observationSummary: defaultObservationSummary(),
+      },
+    });
+    const result = await createContinuousCloseJournalEntryProposal(
+      baseInput({ sourceReconRunIds: [RUN_AR] }),
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("BLOCKED CC cannot use a non-authoritative/missing slot as source", async () => {
+    const h = makeHarness({
+      cc: {
+        readiness: "BLOCKED",
+        observationSummary: defaultObservationSummary({
+          ap: { authoritative: false },
+        }),
+      },
+    });
+    const result = await createContinuousCloseJournalEntryProposal(
+      baseInput({ sourceReconRunIds: [RUN_AP] }),
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe(JE_PROPOSAL_ERROR.RECON_NOT_AUTHORITATIVE);
+  });
+
+  it("does not query measurement_source on tie-out runs", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "lib/journal-entry-governance/source-custody.ts"),
+      "utf8",
+    );
+    expect(src).not.toMatch(/select\([\s\S]*measurement_source/i);
+    expect(src).toContain("observation_summary");
+    expect(src).toContain("resolveAuthoritativeCcReconSlot");
+    expect(src).toContain("baseline_sync_id");
   });
 
   it("requires verified writer and rejects system principal", async () => {
