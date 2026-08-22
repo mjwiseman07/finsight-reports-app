@@ -45,6 +45,8 @@ import {
   loadProviderAttemptByExecutionId,
   persistJournalEntryProviderAttempt,
   patchJournalEntryProviderAttempt,
+  applyJournalEntryProviderCommitDiscovered,
+  applyJournalEntryProviderNotFoundConfirmed,
   JeProviderAttemptPersistError,
 } from "./provider-attempt-repository";
 import {
@@ -52,6 +54,7 @@ import {
   mayRecordDiscoveredNotFound,
   type FindJournalEntryByCorrelationResult,
 } from "./provider-qbo-read";
+import { hashNormalizedProviderJe } from "./provider-je-normalize";
 
 export type ProviderAttemptServiceDeps = {
   resolveActor: typeof resolveEngagementActorForVerifiedUser;
@@ -60,6 +63,8 @@ export type ProviderAttemptServiceDeps = {
   revalidateConnection?: typeof revalidateCanonicalExecutionConnection;
   persistAttempt?: typeof persistJournalEntryProviderAttempt;
   patchAttempt?: typeof patchJournalEntryProviderAttempt;
+  applyCommitDiscovered?: typeof applyJournalEntryProviderCommitDiscovered;
+  applyNotFoundConfirmed?: typeof applyJournalEntryProviderNotFoundConfirmed;
   loadAttempt?: typeof loadProviderAttemptByExecutionId;
   loadFirmId?: typeof loadEngagementFirmId;
   resolveToken?: typeof resolveQBOTokenForAccountingConnection;
@@ -141,6 +146,7 @@ export type RecoverUnknownExecutionResult =
       /** Explicit: no provider POST retry. */
       providerPostRetryIssued: false;
       boundProviderJournalId: string | null;
+      ledgerEventId: string | null;
     }
   | { ok: false; code: string; message: string };
 
@@ -418,7 +424,12 @@ export async function recoverUnknownJournalEntryExecution(
   const revalidateConnection =
     deps.revalidateConnection || revalidateCanonicalExecutionConnection;
   const patchAttempt = deps.patchAttempt || patchJournalEntryProviderAttempt;
+  const applyCommitDiscovered =
+    deps.applyCommitDiscovered || applyJournalEntryProviderCommitDiscovered;
+  const applyNotFoundConfirmed =
+    deps.applyNotFoundConfirmed || applyJournalEntryProviderNotFoundConfirmed;
   const loadAttempt = deps.loadAttempt || loadProviderAttemptByExecutionId;
+  const loadFirmId = deps.loadFirmId || loadEngagementFirmId;
   const resolveToken =
     deps.resolveToken || resolveQBOTokenForAccountingConnection;
   const findByMarker = deps.findByMarker || findJournalEntryByCorrelationMarker;
@@ -534,10 +545,11 @@ export async function recoverUnknownJournalEntryExecution(
 
     const attempt = await loadAttempt(execution.id);
     let boundProviderJournalId: string | null = null;
+    let ledgerEventId: string | null = null;
+    const firmId = await loadFirmId(execution.engagement_id);
 
     if (discovery.kind === "INDETERMINATE") {
-      // Observation failure — not an accounting conclusion.
-      // No DISCOVERED_NOT_FOUND, no qbo_je_id, no commit_certainty change.
+      // Observation failure — not an accounting conclusion / no Patent #6 conclusion event.
       if (attempt) {
         await patchAttempt({
           attemptId: attempt.id,
@@ -558,23 +570,44 @@ export async function recoverUnknownJournalEntryExecution(
     } else if (discovery.kind === "EXACT_ONE" && attempt) {
       const match = discovery.matches[0];
       boundProviderJournalId = match.providerJournalId;
-      await patchAttempt({
+      const providerResponseHash = hashNormalizedProviderJe(match);
+      const discoverySummary = {
+        kind: discovery.kind,
+        observation: "successful_exact_one",
+        reason: discovery.reason,
+        candidateCount: discovery.candidateCount,
+        recovered_at: new Date().toISOString(),
+      };
+      const eventPayload = {
+        execution_id: execution.id,
+        provider_attempt_id: attempt.id,
+        proposal_id: execution.proposal_id,
+        approval_id: execution.approval_id,
+        accounting_connection_id: execution.accounting_connection_id,
+        execution_hash: execution.execution_hash,
+        provider_request_hash: execution.provider_request_hash,
+        correlation_marker: execution.correlation_marker,
+        discovery_result: "EXACT_ONE",
+        commit_certainty: "COMMITTED",
+        qbo_je_id: match.providerJournalId,
+        provider_response_hash: providerResponseHash,
+        txn_date: match.txnDate,
+        discovery_summary: discoverySummary,
+      };
+      const applied = await applyCommitDiscovered({
         attemptId: attempt.id,
         expectedStatus: attempt.status,
-        patch: {
-          status: "DISCOVERED_COMMITTED",
-          commit_certainty: "COMMITTED",
-          qbo_je_id: match.providerJournalId,
-          provider_response_hash: undefined,
-          discovery_summary: {
-            kind: discovery.kind,
-            observation: "successful_exact_one",
-            reason: discovery.reason,
-            candidateCount: discovery.candidateCount,
-            recovered_at: new Date().toISOString(),
-          },
-        },
+        qboJeId: match.providerJournalId,
+        providerResponseHash,
+        discoverySummary,
+        eventPayload,
+        firmId,
+        firmClientId: execution.firm_client_id,
+        engagementId: execution.engagement_id,
+        closePeriodId: null,
+        actorId: auth.actor.userId,
       });
+      ledgerEventId = applied.ledgerEventId;
     } else if (discovery.kind === "MULTIPLE" && attempt) {
       await patchAttempt({
         attemptId: attempt.id,
@@ -595,32 +628,57 @@ export async function recoverUnknownJournalEntryExecution(
         discoveryKind: discovery.kind,
         commitCertainty: attempt.commit_certainty,
       });
-      await patchAttempt({
-        attemptId: attempt.id,
-        expectedStatus: attempt.status,
-        patch: {
-          ...(recordNotFound
-            ? { status: "DISCOVERED_NOT_FOUND" }
-            : {}),
-          // POSSIBLY_COMMITTED + NONE stays unresolved — no certainty downgrade.
-          discovery_summary: {
-            kind: discovery.kind,
-            observation: "successful_none",
-            reason: discovery.reason,
-            candidateCount: discovery.candidateCount,
-            discovered_not_found_recorded: recordNotFound,
-            unresolved_possibly_committed:
-              attempt.commit_certainty === "POSSIBLY_COMMITTED",
-            recovered_at: new Date().toISOString(),
-          },
-        },
-      });
+      const discoverySummary = {
+        kind: discovery.kind,
+        observation: "successful_none",
+        reason: discovery.reason,
+        candidateCount: discovery.candidateCount,
+        discovered_not_found_recorded: recordNotFound,
+        unresolved_possibly_committed:
+          attempt.commit_certainty === "POSSIBLY_COMMITTED",
+        recovered_at: new Date().toISOString(),
+      };
+      if (recordNotFound) {
+        const eventPayload = {
+          execution_id: execution.id,
+          provider_attempt_id: attempt.id,
+          proposal_id: execution.proposal_id,
+          approval_id: execution.approval_id,
+          accounting_connection_id: execution.accounting_connection_id,
+          execution_hash: execution.execution_hash,
+          provider_request_hash: execution.provider_request_hash,
+          correlation_marker: execution.correlation_marker,
+          discovery_result: "NONE",
+          commit_certainty: attempt.commit_certainty,
+          status: "DISCOVERED_NOT_FOUND",
+          reason: discovery.reason,
+          discovery_summary: discoverySummary,
+        };
+        const applied = await applyNotFoundConfirmed({
+          attemptId: attempt.id,
+          expectedStatus: attempt.status,
+          discoverySummary,
+          eventPayload,
+          firmId,
+          firmClientId: execution.firm_client_id,
+          engagementId: execution.engagement_id,
+          closePeriodId: null,
+          actorId: auth.actor.userId,
+        });
+        ledgerEventId = applied.ledgerEventId;
+      } else {
+        // POSSIBLY_COMMITTED + NONE: observation metadata only; no not-found receipt.
+        await patchAttempt({
+          attemptId: attempt.id,
+          expectedStatus: attempt.status,
+          patch: { discovery_summary: discoverySummary },
+        });
+      }
     }
 
     const refreshedAttempt = await loadAttempt(execution.id);
 
-    // Execution status is never advanced by indeterminate/failed reads.
-    // UNKNOWN_COMMIT / POSTING remain until a future successful discovery path.
+    // Execution status is never advanced here (no VERIFIED / POSTED_UNVERIFIED).
     return {
       ok: true,
       execution,
@@ -632,6 +690,7 @@ export async function recoverUnknownJournalEntryExecution(
           : retryClass,
       providerPostRetryIssued: false,
       boundProviderJournalId,
+      ledgerEventId,
     };
   } catch (err) {
     if (err instanceof JeProviderAttemptPersistError) {

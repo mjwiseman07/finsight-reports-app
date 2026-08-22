@@ -439,6 +439,7 @@ describe("recoverUnknownJournalEntryExecution authorization", () => {
       revalidateConnection: vi.fn(async () => ({ ok: true as const })),
       patchAttempt,
       loadAttempt: vi.fn(async () => baseAttempt()),
+      loadFirmId: vi.fn(async () => "firm-1"),
       resolveToken: vi.fn(async () => ({
         accessToken: "tok",
         refreshToken: "ref",

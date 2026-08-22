@@ -439,26 +439,77 @@ describe("recovery safety with read certainty", () => {
         args.commitCertainty === "NOT_SENT" ? "RESERVED" : "UNKNOWN_RESULT",
     });
     let storedAttempt = { ...initialAttempt };
+    const ledgerBox: {
+      event: { type: string; payload: Record<string, unknown> } | null;
+    } = { event: null };
     const patchAttempt = vi.fn(async (input: { patch: Record<string, unknown> }) => {
+      // Simulate narrowed patch: refuse conclusion fields
+      if (
+        input.patch.qbo_je_id ||
+        input.patch.commit_certainty === "COMMITTED" ||
+        input.patch.status === "DISCOVERED_COMMITTED" ||
+        input.patch.status === "DISCOVERED_NOT_FOUND"
+      ) {
+        throw new Error("je_provider_attempt_patch_forbidden");
+      }
       storedAttempt = {
         ...storedAttempt,
-        ...(input.patch.status
-          ? { status: input.patch.status as JournalEntryProviderAttemptRow["status"] }
-          : {}),
-        ...(input.patch.commit_certainty
-          ? {
-              commit_certainty:
-                input.patch.commit_certainty as JournalEntryProviderAttemptRow["commit_certainty"],
-            }
-          : {}),
-        ...(input.patch.qbo_je_id !== undefined
-          ? { qbo_je_id: input.patch.qbo_je_id as string | null }
-          : {}),
         discovery_summary:
           (input.patch.discovery_summary as Record<string, unknown>) ||
           storedAttempt.discovery_summary,
       };
       return storedAttempt;
+    });
+
+    const applyCommitDiscovered = vi.fn(async (input: {
+      qboJeId: string;
+      eventPayload: Record<string, unknown>;
+      discoverySummary: Record<string, unknown>;
+      providerResponseHash: string | null;
+    }) => {
+      storedAttempt = {
+        ...storedAttempt,
+        status: "DISCOVERED_COMMITTED",
+        commit_certainty: "COMMITTED",
+        qbo_je_id: input.qboJeId,
+        provider_response_hash: input.providerResponseHash,
+        discovery_summary: input.discoverySummary,
+      };
+      ledgerBox.event = {
+        type: "journal_entry.provider_commit_discovered",
+        payload: input.eventPayload,
+      };
+      return {
+        attempt: storedAttempt,
+        execution: execution(
+          { status: args.execStatus },
+          providerRequestHash,
+        ),
+        ledgerEventId: "evt-commit-discovered",
+      };
+    });
+
+    const applyNotFoundConfirmed = vi.fn(async (input: {
+      eventPayload: Record<string, unknown>;
+      discoverySummary: Record<string, unknown>;
+    }) => {
+      storedAttempt = {
+        ...storedAttempt,
+        status: "DISCOVERED_NOT_FOUND",
+        discovery_summary: input.discoverySummary,
+      };
+      ledgerBox.event = {
+        type: "journal_entry.provider_not_found_confirmed",
+        payload: input.eventPayload,
+      };
+      return {
+        attempt: storedAttempt,
+        execution: execution(
+          { status: args.execStatus },
+          providerRequestHash,
+        ),
+        ledgerEventId: "evt-not-found",
+      };
     });
 
     const findByMarker = vi.fn(async () => {
@@ -559,19 +610,30 @@ describe("recovery safety with read certainty", () => {
           })),
           findByMarker,
           patchAttempt,
+          applyCommitDiscovered,
+          applyNotFoundConfirmed,
+          loadFirmId: vi.fn(async () => "firm-1"),
           loadAttempt: vi.fn(async () => storedAttempt),
         },
       },
     );
-    return { result, storedAttempt, patchAttempt };
+    return {
+      result,
+      storedAttempt,
+      patchAttempt,
+      applyCommitDiscovered,
+      applyNotFoundConfirmed,
+      lastLedgerEvent: ledgerBox.event,
+    };
   }
 
   it("17-20. UNKNOWN_COMMIT + INDETERMINATE → unchanged, no bind, no POST", async () => {
-    const { result, storedAttempt, patchAttempt } = await runRecovery({
-      execStatus: "UNKNOWN_COMMIT",
-      commitCertainty: "POSSIBLY_COMMITTED",
-      discoveryKind: "INDETERMINATE",
-    });
+    const { result, storedAttempt, patchAttempt, applyCommitDiscovered } =
+      await runRecovery({
+        execStatus: "UNKNOWN_COMMIT",
+        commitCertainty: "POSSIBLY_COMMITTED",
+        discoveryKind: "INDETERMINATE",
+      });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.execution.status).toBe("UNKNOWN_COMMIT");
@@ -579,11 +641,13 @@ describe("recovery safety with read certainty", () => {
       expect(result.providerPostRetryIssued).toBe(false);
       expect(result.retryClass).toBe("DISCOVERY_REQUIRED");
       expect(result.discovery.kind).toBe("INDETERMINATE");
+      expect(result.ledgerEventId).toBeNull();
     }
     expect(storedAttempt.commit_certainty).toBe("POSSIBLY_COMMITTED");
     expect(storedAttempt.qbo_je_id).toBeNull();
     expect(storedAttempt.status).toBe("UNKNOWN_RESULT");
     expect(patchAttempt).toHaveBeenCalled();
+    expect(applyCommitDiscovered).not.toHaveBeenCalled();
     const patch = patchAttempt.mock.calls[0][0].patch;
     expect(patch.status).toBeUndefined();
     expect(patch.commit_certainty).toBeUndefined();
@@ -594,7 +658,7 @@ describe("recovery safety with read certainty", () => {
   });
 
   it("21. POSTING + NOT_SENT + indeterminate → NOT DISCOVERED_NOT_FOUND", async () => {
-    const { result, storedAttempt } = await runRecovery({
+    const { result, storedAttempt, applyNotFoundConfirmed } = await runRecovery({
       execStatus: "POSTING",
       commitCertainty: "NOT_SENT",
       discoveryKind: "INDETERMINATE",
@@ -603,31 +667,38 @@ describe("recovery safety with read certainty", () => {
     if (result.ok) expect(result.execution.status).toBe("POSTING");
     expect(storedAttempt.status).toBe("RESERVED");
     expect(storedAttempt.status).not.toBe("DISCOVERED_NOT_FOUND");
+    expect(applyNotFoundConfirmed).not.toHaveBeenCalled();
   });
 
-  it("22. POSTING + NOT_SENT + successful NONE → DISCOVERED_NOT_FOUND allowed", async () => {
+  it("22. POSTING + NOT_SENT + successful NONE → DISCOVERED_NOT_FOUND + receipt", async () => {
     expect(
       mayRecordDiscoveredNotFound({
         discoveryKind: "NONE",
         commitCertainty: "NOT_SENT",
       }),
     ).toBe(true);
-    const { storedAttempt } = await runRecovery({
-      execStatus: "POSTING",
-      commitCertainty: "NOT_SENT",
-      discoveryKind: "NONE",
-    });
+    const { storedAttempt, applyNotFoundConfirmed, lastLedgerEvent, result } =
+      await runRecovery({
+        execStatus: "POSTING",
+        commitCertainty: "NOT_SENT",
+        discoveryKind: "NONE",
+      });
     expect(storedAttempt.status).toBe("DISCOVERED_NOT_FOUND");
+    expect(applyNotFoundConfirmed).toHaveBeenCalled();
+    expect(lastLedgerEvent?.type).toBe(
+      "journal_entry.provider_not_found_confirmed",
+    );
+    expect(result.ok && result.ledgerEventId).toBe("evt-not-found");
   });
 
-  it("23. POSSIBLY_COMMITTED + successful NONE → remains unresolved", async () => {
+  it("23. POSSIBLY_COMMITTED + successful NONE → remains unresolved / no not-found receipt", async () => {
     expect(
       mayRecordDiscoveredNotFound({
         discoveryKind: "NONE",
         commitCertainty: "POSSIBLY_COMMITTED",
       }),
     ).toBe(false);
-    const { storedAttempt } = await runRecovery({
+    const { storedAttempt, applyNotFoundConfirmed } = await runRecovery({
       execStatus: "UNKNOWN_COMMIT",
       commitCertainty: "POSSIBLY_COMMITTED",
       discoveryKind: "NONE",
@@ -635,22 +706,37 @@ describe("recovery safety with read certainty", () => {
     expect(storedAttempt.status).toBe("UNKNOWN_RESULT");
     expect(storedAttempt.commit_certainty).toBe("POSSIBLY_COMMITTED");
     expect(storedAttempt.qbo_je_id).toBeNull();
+    expect(applyNotFoundConfirmed).not.toHaveBeenCalled();
   });
 
-  it("24. POSSIBLY_COMMITTED + EXACT_ONE → bind provider id", async () => {
-    const { result, storedAttempt } = await runRecovery({
+  it("24. POSSIBLY_COMMITTED + EXACT_ONE → bind + provider_commit_discovered", async () => {
+    const {
+      result,
+      storedAttempt,
+      applyCommitDiscovered,
+      lastLedgerEvent,
+    } = await runRecovery({
       execStatus: "UNKNOWN_COMMIT",
       commitCertainty: "POSSIBLY_COMMITTED",
       discoveryKind: "EXACT_ONE",
     });
     expect(result.ok && result.boundProviderJournalId).toBe("qbo-42");
+    expect(result.ok && result.ledgerEventId).toBe("evt-commit-discovered");
     expect(storedAttempt.qbo_je_id).toBe("qbo-42");
     expect(storedAttempt.status).toBe("DISCOVERED_COMMITTED");
     expect(storedAttempt.commit_certainty).toBe("COMMITTED");
+    expect(applyCommitDiscovered).toHaveBeenCalled();
+    expect(lastLedgerEvent?.type).toBe(
+      "journal_entry.provider_commit_discovered",
+    );
+    expect(lastLedgerEvent?.payload.qbo_je_id).toBe("qbo-42");
+    expect(lastLedgerEvent?.payload.commit_certainty).toBe("COMMITTED");
+    expect(lastLedgerEvent?.payload.provider_attempt_id).toBe("att-1");
+    expect(lastLedgerEvent?.payload.execution_id).toBe("exec-1");
   });
 
-  it("25. MULTIPLE → no provider id binding", async () => {
-    const { result, storedAttempt } = await runRecovery({
+  it("25. MULTIPLE → no provider id / no commit receipt", async () => {
+    const { result, storedAttempt, applyCommitDiscovered } = await runRecovery({
       execStatus: "UNKNOWN_COMMIT",
       commitCertainty: "POSSIBLY_COMMITTED",
       discoveryKind: "MULTIPLE",
@@ -658,5 +744,6 @@ describe("recovery safety with read certainty", () => {
     expect(result.ok && result.boundProviderJournalId).toBeNull();
     expect(storedAttempt.qbo_je_id).toBeNull();
     expect(storedAttempt.status).toBe("UNKNOWN_RESULT");
+    expect(applyCommitDiscovered).not.toHaveBeenCalled();
   });
 });

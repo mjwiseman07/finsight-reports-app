@@ -247,6 +247,33 @@ export async function patchJournalEntryProviderAttempt(args: {
   expectedStatus: JeProviderAttemptStatus;
   patch: Record<string, unknown>;
 }): Promise<JournalEntryProviderAttemptRow> {
+  // Defense: refuse conclusion mutations client-side before RPC.
+  if (
+    args.patch.qbo_je_id != null &&
+    String(args.patch.qbo_je_id).trim() !== ""
+  ) {
+    throw new JeProviderAttemptPersistError(
+      JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
+      "je_provider_attempt_patch_forbidden: qbo_je_id requires provider_commit_discovered RPC",
+    );
+  }
+  if (args.patch.commit_certainty === "COMMITTED") {
+    throw new JeProviderAttemptPersistError(
+      JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
+      "je_provider_attempt_patch_forbidden: COMMITTED requires provider_commit_discovered RPC",
+    );
+  }
+  if (
+    args.patch.status === "DISCOVERED_COMMITTED" ||
+    args.patch.status === "DISCOVERED_NOT_FOUND" ||
+    args.patch.status === "VERIFIED_PROVIDER_ID"
+  ) {
+    throw new JeProviderAttemptPersistError(
+      JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
+      `je_provider_attempt_patch_forbidden: status ${String(args.patch.status)} requires receipted discovery RPC`,
+    );
+  }
+
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase.rpc(
     "patch_journal_entry_provider_attempt",
@@ -271,6 +298,136 @@ export async function patchJournalEntryProviderAttempt(args: {
     );
   }
   return coerceAttempt(attempt);
+}
+
+export type ApplyProviderCommitDiscoveredInput = {
+  attemptId: string;
+  expectedStatus: JeProviderAttemptStatus;
+  qboJeId: string;
+  providerResponseHash: string | null;
+  discoverySummary: Record<string, unknown>;
+  eventPayload: Record<string, unknown>;
+  firmId: string | null;
+  firmClientId: string | null;
+  engagementId: string;
+  closePeriodId: string | null;
+  actorId: string;
+};
+
+export type ApplyProviderDiscoveryReceiptResult = {
+  attempt: JournalEntryProviderAttemptRow;
+  execution: JournalEntryExecutionRow;
+  ledgerEventId: string | null;
+};
+
+export async function applyJournalEntryProviderCommitDiscovered(
+  input: ApplyProviderCommitDiscoveredInput,
+): Promise<ApplyProviderDiscoveryReceiptResult> {
+  const supabase = getSupabaseAdmin();
+  const canonical = canonicalPayloadJson(input.eventPayload);
+  const { data, error } = await supabase.rpc(
+    "apply_journal_entry_provider_commit_discovered",
+    {
+      p_attempt_id: input.attemptId,
+      p_expected_status: input.expectedStatus,
+      p_qbo_je_id: input.qboJeId,
+      p_provider_response_hash: input.providerResponseHash,
+      p_discovery_summary: input.discoverySummary,
+      p_event_payload: input.eventPayload,
+      p_event_payload_canonical: canonical,
+      p_firm_id: input.firmId,
+      p_firm_client_id: input.firmClientId,
+      p_engagement_id: input.engagementId,
+      p_close_period_id: input.closePeriodId,
+      p_actor_id: input.actorId,
+    },
+  );
+  if (error) {
+    const message = error.message || "commit discovered failed";
+    const code = /publish_ledger_event|ledger/i.test(message)
+      ? "je_provider_attempt_ledger_failed"
+      : JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT;
+    throw new JeProviderAttemptPersistError(code, message);
+  }
+  const row0 = Array.isArray(data) ? data[0] : data;
+  const payload = row0 as {
+    attempt?: Record<string, unknown>;
+    execution?: Record<string, unknown>;
+    ledger_event_id?: string | null;
+  };
+  if (!payload?.attempt || !payload?.execution) {
+    throw new JeProviderAttemptPersistError(
+      JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
+      "commit discovered returned incomplete payload",
+    );
+  }
+  return {
+    attempt: coerceAttempt(payload.attempt),
+    execution: coerceExecution(payload.execution),
+    ledgerEventId: payload.ledger_event_id
+      ? String(payload.ledger_event_id)
+      : null,
+  };
+}
+
+export type ApplyProviderNotFoundConfirmedInput = {
+  attemptId: string;
+  expectedStatus: JeProviderAttemptStatus;
+  discoverySummary: Record<string, unknown>;
+  eventPayload: Record<string, unknown>;
+  firmId: string | null;
+  firmClientId: string | null;
+  engagementId: string;
+  closePeriodId: string | null;
+  actorId: string;
+};
+
+export async function applyJournalEntryProviderNotFoundConfirmed(
+  input: ApplyProviderNotFoundConfirmedInput,
+): Promise<ApplyProviderDiscoveryReceiptResult> {
+  const supabase = getSupabaseAdmin();
+  const canonical = canonicalPayloadJson(input.eventPayload);
+  const { data, error } = await supabase.rpc(
+    "apply_journal_entry_provider_not_found_confirmed",
+    {
+      p_attempt_id: input.attemptId,
+      p_expected_status: input.expectedStatus,
+      p_discovery_summary: input.discoverySummary,
+      p_event_payload: input.eventPayload,
+      p_event_payload_canonical: canonical,
+      p_firm_id: input.firmId,
+      p_firm_client_id: input.firmClientId,
+      p_engagement_id: input.engagementId,
+      p_close_period_id: input.closePeriodId,
+      p_actor_id: input.actorId,
+    },
+  );
+  if (error) {
+    const message = error.message || "not found confirmed failed";
+    const code = /publish_ledger_event|ledger/i.test(message)
+      ? "je_provider_attempt_ledger_failed"
+      : JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT;
+    throw new JeProviderAttemptPersistError(code, message);
+  }
+  const row0 = Array.isArray(data) ? data[0] : data;
+  const payload = row0 as {
+    attempt?: Record<string, unknown>;
+    execution?: Record<string, unknown>;
+    ledger_event_id?: string | null;
+  };
+  if (!payload?.attempt || !payload?.execution) {
+    throw new JeProviderAttemptPersistError(
+      JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
+      "not found confirmed returned incomplete payload",
+    );
+  }
+  return {
+    attempt: coerceAttempt(payload.attempt),
+    execution: coerceExecution(payload.execution),
+    ledgerEventId: payload.ledger_event_id
+      ? String(payload.ledger_event_id)
+      : null,
+  };
 }
 
 export async function loadProviderAttemptByExecutionId(
