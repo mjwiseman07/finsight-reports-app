@@ -1,21 +1,56 @@
 /**
  * JE-3B2 — Governed QBO JournalEntry create transport.
  * Exactly one POST /journalentry. No internal retry. No legacy poster.
- * No Memory. No connection rebinding. Token is caller-supplied for the
- * exact accounting_connection_id already resolved upstream.
+ * No Memory. No connection rebinding.
+ *
+ * Caller must supply apiBase + fetchFn. This module never defaults to the
+ * production Intuit host or the live qboApiFetch client.
  */
 
-import { qboApiFetch } from "@/lib/qbo/api-fetch.js";
 import { sha256Hex, stableCanonicalJson } from "@/lib/audit-ready/measurement-snapshots/hash";
 import type { JeQboJournalEntryWireBody } from "./provider-qbo-create-wire";
-import { assertJe3b2LivePostNotEnabled, isJe3b2GovernedCreateEnabled } from "./je3b2-feature-gate";
 
-function qboApiBase(): string {
-  return (
-    process.env.QBO_API_BASE ||
-    process.env.QUICKBOOKS_API_BASE ||
-    "https://quickbooks.api.intuit.com"
-  ).replace(/\/$/, "");
+const SANDBOX_HOST = "https://sandbox-quickbooks.api.intuit.com";
+const PRODUCTION_HOST = "https://quickbooks.api.intuit.com";
+
+export type GovernedQboCreateFetchFn = (
+  url: string,
+  init: {
+    accessToken: string;
+    method: string;
+    body: object;
+    throwOnError: boolean;
+    context: { realmId: string };
+  },
+) => Promise<{
+  ok: boolean;
+  status: number;
+  json: unknown;
+  text?: string;
+  intuit_tid?: string | null;
+  url?: string;
+  elapsed_ms?: number;
+}>;
+
+/**
+ * Fail-closed host selection for governed writes.
+ * Honors QB_ENVIRONMENT = sandbox | production only.
+ * Missing or invalid values never fall through to production.
+ */
+export function resolveGovernedQboWriteApiBase(
+  envValue: string | undefined = process.env.QB_ENVIRONMENT,
+): string {
+  const env = typeof envValue === "string" ? envValue.trim() : "";
+  if (env === "production") return PRODUCTION_HOST;
+  if (env === "sandbox") return SANDBOX_HOST;
+  if (!env) {
+    throw new Error(
+      "QB_ENVIRONMENT is required for governed QBO write (sandbox|production).",
+    );
+  }
+  throw new Error(
+    `QB_ENVIRONMENT invalid for governed QBO write: ${env} (expected sandbox|production).`,
+  );
 }
 
 export type GovernedQboCreateTransportResult = {
@@ -32,22 +67,18 @@ export type GovernedQboCreateTransportResult = {
   postAttempts: 1;
 };
 
-export type GovernedQboCreateTransportDeps = {
-  fetchFn?: typeof qboApiFetch;
-  /** Test-only: allow a single POST when feature gate is still off. */
-  allowTransportInTests?: boolean;
-};
-
 /**
  * Perform exactly one governed JournalEntry create POST.
  * Callers must already have committed provider_dispatch_started.
+ * apiBase and fetchFn are required — no silent production defaults.
  */
 export async function postGovernedQboJournalEntryOnce(args: {
   accountingConnectionId: string;
   realmId: string;
   accessToken: string;
   wireBody: JeQboJournalEntryWireBody;
-  deps?: GovernedQboCreateTransportDeps;
+  apiBase: string;
+  fetchFn: GovernedQboCreateFetchFn;
 }): Promise<GovernedQboCreateTransportResult> {
   if (!args.accountingConnectionId) {
     throw new Error("accountingConnectionId is required");
@@ -58,20 +89,18 @@ export async function postGovernedQboJournalEntryOnce(args: {
   if (!args.accessToken) {
     throw new Error("accessToken is required");
   }
-
-  // Production/runtime gate: refuse live POST while JE-3B2 is hard-disabled.
-  // Unit tests may pass allowTransportInTests with a mocked fetchFn only.
-  if (!isJe3b2GovernedCreateEnabled()) {
-    if (!args.deps?.allowTransportInTests || !args.deps.fetchFn) {
-      assertJe3b2LivePostNotEnabled();
-    }
+  if (!args.apiBase) {
+    throw new Error("apiBase is required for governed QBO write");
+  }
+  if (typeof args.fetchFn !== "function") {
+    throw new Error("fetchFn is required for governed QBO write");
   }
 
-  const fetchFn = args.deps?.fetchFn || qboApiFetch;
-  const url = `${qboApiBase()}/v3/company/${encodeURIComponent(args.realmId)}/journalentry?minorversion=73`;
+  const base = args.apiBase.replace(/\/$/, "");
+  const url = `${base}/v3/company/${encodeURIComponent(args.realmId)}/journalentry?minorversion=73`;
 
   try {
-    const { ok, status, json, intuit_tid, text } = await fetchFn(url, {
+    const { ok, status, json, intuit_tid, text } = await args.fetchFn(url, {
       accessToken: args.accessToken,
       method: "POST",
       body: args.wireBody as unknown as object,

@@ -170,6 +170,18 @@ BEGIN
   IF COALESCE(p_event_payload->>'correlation_marker', '') IS DISTINCT FROM v_attempt.correlation_marker THEN
     RAISE EXCEPTION 'je_provider_dispatch payload correlation_marker mismatch';
   END IF;
+  IF COALESCE(p_event_payload->>'accounting_connection_id', '') IS DISTINCT FROM v_attempt.accounting_connection_id::text
+     OR v_attempt.accounting_connection_id IS DISTINCT FROM v_execution.accounting_connection_id THEN
+    RAISE EXCEPTION 'je_provider_dispatch payload accounting_connection_id mismatch';
+  END IF;
+  IF p_event_payload ? 'proposal_id'
+     AND COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
+    RAISE EXCEPTION 'je_provider_dispatch payload proposal_id mismatch';
+  END IF;
+  IF p_event_payload ? 'approval_id'
+     AND COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
+    RAISE EXCEPTION 'je_provider_dispatch payload approval_id mismatch';
+  END IF;
 
   PERFORM set_config('advisacor.je_provider_attempt_mutation', '1', true);
 
@@ -293,6 +305,24 @@ BEGIN
   END IF;
   IF COALESCE(p_event_payload->>'provider_attempt_id', '') IS DISTINCT FROM v_attempt.id::text THEN
     RAISE EXCEPTION 'je_provider_posted payload provider_attempt_id mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'accounting_connection_id', '') IS DISTINCT FROM v_attempt.accounting_connection_id::text
+     OR v_attempt.accounting_connection_id IS DISTINCT FROM v_execution.accounting_connection_id THEN
+    RAISE EXCEPTION 'je_provider_posted payload accounting_connection_id mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'provider_request_hash', '') IS DISTINCT FROM v_attempt.provider_request_hash THEN
+    RAISE EXCEPTION 'je_provider_posted payload provider_request_hash mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'correlation_marker', '') IS DISTINCT FROM v_attempt.correlation_marker THEN
+    RAISE EXCEPTION 'je_provider_posted payload correlation_marker mismatch';
+  END IF;
+  IF p_event_payload ? 'proposal_id'
+     AND COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
+    RAISE EXCEPTION 'je_provider_posted payload proposal_id mismatch';
+  END IF;
+  IF p_event_payload ? 'approval_id'
+     AND COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
+    RAISE EXCEPTION 'je_provider_posted payload approval_id mismatch';
   END IF;
 
   PERFORM set_config('advisacor.je_provider_attempt_mutation', '1', true);
@@ -423,6 +453,24 @@ BEGIN
   IF COALESCE(p_event_payload->>'provider_attempt_id', '') IS DISTINCT FROM v_attempt.id::text THEN
     RAISE EXCEPTION 'je_provider_post_unknown payload provider_attempt_id mismatch';
   END IF;
+  IF COALESCE(p_event_payload->>'accounting_connection_id', '') IS DISTINCT FROM v_attempt.accounting_connection_id::text
+     OR v_attempt.accounting_connection_id IS DISTINCT FROM v_execution.accounting_connection_id THEN
+    RAISE EXCEPTION 'je_provider_post_unknown payload accounting_connection_id mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'provider_request_hash', '') IS DISTINCT FROM v_attempt.provider_request_hash THEN
+    RAISE EXCEPTION 'je_provider_post_unknown payload provider_request_hash mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'correlation_marker', '') IS DISTINCT FROM v_attempt.correlation_marker THEN
+    RAISE EXCEPTION 'je_provider_post_unknown payload correlation_marker mismatch';
+  END IF;
+  IF p_event_payload ? 'proposal_id'
+     AND COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
+    RAISE EXCEPTION 'je_provider_post_unknown payload proposal_id mismatch';
+  END IF;
+  IF p_event_payload ? 'approval_id'
+     AND COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
+    RAISE EXCEPTION 'je_provider_post_unknown payload approval_id mismatch';
+  END IF;
 
   PERFORM set_config('advisacor.je_provider_attempt_mutation', '1', true);
   PERFORM set_config('advisacor.je_execution_transition', '1', true);
@@ -551,6 +599,24 @@ BEGIN
   IF COALESCE(p_event_payload->>'provider_attempt_id', '') IS DISTINCT FROM v_attempt.id::text THEN
     RAISE EXCEPTION 'je_provider_precommit_failed payload provider_attempt_id mismatch';
   END IF;
+  IF COALESCE(p_event_payload->>'accounting_connection_id', '') IS DISTINCT FROM v_attempt.accounting_connection_id::text
+     OR v_attempt.accounting_connection_id IS DISTINCT FROM v_execution.accounting_connection_id THEN
+    RAISE EXCEPTION 'je_provider_precommit_failed payload accounting_connection_id mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'provider_request_hash', '') IS DISTINCT FROM v_attempt.provider_request_hash THEN
+    RAISE EXCEPTION 'je_provider_precommit_failed payload provider_request_hash mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'correlation_marker', '') IS DISTINCT FROM v_attempt.correlation_marker THEN
+    RAISE EXCEPTION 'je_provider_precommit_failed payload correlation_marker mismatch';
+  END IF;
+  IF p_event_payload ? 'proposal_id'
+     AND COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
+    RAISE EXCEPTION 'je_provider_precommit_failed payload proposal_id mismatch';
+  END IF;
+  IF p_event_payload ? 'approval_id'
+     AND COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
+    RAISE EXCEPTION 'je_provider_precommit_failed payload approval_id mismatch';
+  END IF;
 
   PERFORM set_config('advisacor.je_provider_attempt_mutation', '1', true);
   PERFORM set_config('advisacor.je_execution_transition', '1', true);
@@ -627,3 +693,70 @@ COMMENT ON FUNCTION public.apply_journal_entry_provider_precommit_failed(
   uuid, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
 ) IS
   'JE-3B2: proven pre-commit failure only. Speculative 4xx must use post_unknown until Intuit evidence exists.';
+
+-- Privilege lockdown: SECURITY DEFINER mutations are service_role only.
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_dispatch_started(
+  uuid, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_dispatch_started(
+  uuid, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM anon;
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_dispatch_started(
+  uuid, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_journal_entry_provider_dispatch_started(
+  uuid, text, jsonb, text, uuid, uuid, uuid, text, text
+) TO service_role;
+
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_posted(
+  uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_posted(
+  uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM anon;
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_posted(
+  uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_journal_entry_provider_posted(
+  uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) TO service_role;
+
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_post_unknown(
+  uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_post_unknown(
+  uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM anon;
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_post_unknown(
+  uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_journal_entry_provider_post_unknown(
+  uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) TO service_role;
+
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_precommit_failed(
+  uuid, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_precommit_failed(
+  uuid, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM anon;
+REVOKE ALL ON FUNCTION public.apply_journal_entry_provider_precommit_failed(
+  uuid, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_journal_entry_provider_precommit_failed(
+  uuid, text, text, text, jsonb, text, uuid, uuid, uuid, text, text
+) TO service_role;
+
+-- Re-assert patch privileges after CREATE OR REPLACE in this migration.
+REVOKE ALL ON FUNCTION public.patch_journal_entry_provider_attempt(
+  uuid, text, jsonb
+) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.patch_journal_entry_provider_attempt(
+  uuid, text, jsonb
+) FROM anon;
+REVOKE ALL ON FUNCTION public.patch_journal_entry_provider_attempt(
+  uuid, text, jsonb
+) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.patch_journal_entry_provider_attempt(
+  uuid, text, jsonb
+) TO service_role;

@@ -1,7 +1,8 @@
 /**
  * JE-3B2 — Governed create boundary tests.
  * Hard-disabled gate, dispatch receipt, one-shot transport, crash windows,
- * conservative 4xx→UNKNOWN, no Memory, no legacy poster.
+ * conservative 4xx→UNKNOWN, post-dispatch persistence truth, host fail-closed,
+ * no Memory, no legacy poster, no production-reachable bypass.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -20,11 +21,11 @@ import {
   classifyJeProviderCreateOutcome,
   mapCreateOutcomeToJe3b2TerminalAction,
 } from "../provider-attempt-types";
+import { executeGovernedJournalEntryCreate } from "../provider-create-service";
 import {
-  executeGovernedJournalEntryCreate,
-  executeGovernedJournalEntryCreateOrchestration,
-} from "../provider-create-service";
-import { postGovernedQboJournalEntryOnce } from "../provider-qbo-create-transport";
+  postGovernedQboJournalEntryOnce,
+  resolveGovernedQboWriteApiBase,
+} from "../provider-qbo-create-transport";
 import {
   assertWirePrivateNoteContainsMarker,
   toGovernedQboJournalEntryWireBody,
@@ -36,6 +37,9 @@ import type { JournalEntryExecutionRow } from "../execution-types";
 import type { JournalEntryProposalRow } from "../types";
 import type { JournalEntryProviderAttemptRow } from "../provider-attempt-types";
 import { patchJournalEntryProviderAttempt } from "../provider-attempt-repository";
+import type { GovernedJeCreateOrchestrationDeps } from "../provider-create-orchestration";
+import { runJe3b2CreateOrchestrationForTests } from "./helpers/je3b2-create-test-runner";
+import * as packageIndex from "../index";
 
 const MIGRATION = join(
   process.cwd(),
@@ -171,6 +175,59 @@ function attempt(
   };
 }
 
+function tokenOk() {
+  return {
+    accessToken: "tok",
+    realmId: "realm-1",
+  };
+}
+
+function baseDeps(
+  over: Partial<GovernedJeCreateOrchestrationDeps> = {},
+): GovernedJeCreateOrchestrationDeps {
+  return {
+    resolveActor: vi.fn(async () => writeActor()),
+    loadExecution: vi.fn(async () => execution()),
+    loadProposal: vi.fn(async () => proposal()),
+    loadAttempt: vi.fn(async () => attempt()),
+    loadFirmId: vi.fn(async () => "firm-1"),
+    revalidateConnection: vi.fn(async () => ({ ok: true as const })),
+    resolveToken: vi.fn(async () => tokenOk()),
+    applyDispatchStarted: vi.fn(async () => ({
+      attempt: attempt({
+        status: "REQUEST_STARTED",
+        commit_certainty: "POSSIBLY_COMMITTED",
+      }),
+      execution: execution({ status: "POSTING" }),
+      ledgerEventId: "evt-dispatch",
+    })),
+    applyPosted: vi.fn(async () => ({
+      attempt: attempt({
+        status: "RESPONSE_RECEIVED",
+        commit_certainty: "COMMITTED",
+        qbo_je_id: "123",
+      }),
+      execution: execution({
+        status: "POSTED_UNVERIFIED",
+        provider_journal_id: "123",
+      }),
+      ledgerEventId: "evt-posted",
+    })),
+    applyPostUnknown: vi.fn(async () => ({
+      attempt: attempt({
+        status: "UNKNOWN_RESULT",
+        commit_certainty: "POSSIBLY_COMMITTED",
+      }),
+      execution: execution({ status: "UNKNOWN_COMMIT" }),
+      ledgerEventId: "evt-unknown",
+    })),
+    postOnce: vi.fn(async () => {
+      throw new Error("postOnce must be overridden in this test");
+    }),
+    ...over,
+  };
+}
+
 describe("JE-3B2 migration contracts", () => {
   const src = readFileSync(MIGRATION, "utf8");
 
@@ -186,6 +243,51 @@ describe("JE-3B2 migration contracts", () => {
     expect(src).toContain("POSSIBLY_COMMITTED");
     expect(src).toContain("RESPONSE_RECEIVED");
     expect(src).toContain("FAILED_PRECOMMIT");
+  });
+
+  it("locks down all four SECURITY DEFINER RPCs to service_role only", () => {
+    const normalized = src.replace(/\r\n/g, "\n");
+    const fns: Array<{ name: string; sig: string }> = [
+      {
+        name: "apply_journal_entry_provider_dispatch_started",
+        sig: "uuid, text, jsonb, text, uuid, uuid, uuid, text, text",
+      },
+      {
+        name: "apply_journal_entry_provider_posted",
+        sig: "uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text",
+      },
+      {
+        name: "apply_journal_entry_provider_post_unknown",
+        sig: "uuid, text, text, text, text, jsonb, text, uuid, uuid, uuid, text, text",
+      },
+      {
+        name: "apply_journal_entry_provider_precommit_failed",
+        sig: "uuid, text, text, text, jsonb, text, uuid, uuid, uuid, text, text",
+      },
+    ];
+    for (const { name, sig } of fns) {
+      const target = `public.${name}(\n  ${sig}\n)`;
+      expect(normalized).toContain(
+        `REVOKE ALL ON FUNCTION ${target} FROM PUBLIC`,
+      );
+      expect(normalized).toContain(
+        `REVOKE ALL ON FUNCTION ${target} FROM anon`,
+      );
+      expect(normalized).toContain(
+        `REVOKE ALL ON FUNCTION ${target} FROM authenticated`,
+      );
+      expect(normalized).toContain(
+        `GRANT EXECUTE ON FUNCTION ${target} TO service_role`,
+      );
+    }
+  });
+
+  it("validates immutable binding fields including accounting_connection_id", () => {
+    expect(src).toContain("accounting_connection_id mismatch");
+    expect(src).toContain("proposal_id mismatch");
+    expect(src).toContain("approval_id mismatch");
+    expect(src).toContain("provider_request_hash mismatch");
+    expect(src).toContain("correlation_marker mismatch");
   });
 
   it("blocks create-lifecycle statuses via generic patch", () => {
@@ -204,7 +306,7 @@ describe("JE-3B2 migration contracts", () => {
   });
 });
 
-describe("JE-3B2 hard-disable gate", () => {
+describe("JE-3B2 hard-disable gate + public surface", () => {
   it("feature gate constants are all false", () => {
     expect(JE_3B2_FEATURE_GATE.governedCreateEnabled).toBe(false);
     expect(JE_3B2_FEATURE_GATE.allowLiveQboPost).toBe(false);
@@ -230,16 +332,30 @@ describe("JE-3B2 hard-disable gate", () => {
     expect(() => assertJe3b2MemoryWriteNotEnabled()).toThrow(/Memory/i);
   });
 
-  it("orchestration refuses without bypass", async () => {
-    const r = await executeGovernedJournalEntryCreateOrchestration(
-      { executionId: "exec-1" },
-      { principal: { type: "user", userId: USER } },
+  it("package index does not export orchestration, transport, RPCs, or bypasses", () => {
+    const exported = Object.keys(packageIndex);
+    expect(exported).toContain("executeGovernedJournalEntryCreate");
+    expect(exported).not.toContain("executeGovernedJournalEntryCreateOrchestration");
+    expect(exported).not.toContain("runGovernedJournalEntryCreateOrchestration");
+    expect(exported).not.toContain("postGovernedQboJournalEntryOnce");
+    expect(exported).not.toContain("resolveGovernedQboWriteApiBase");
+    expect(exported).not.toContain("applyJournalEntryProviderDispatchStarted");
+    expect(exported).not.toContain("applyJournalEntryProviderPosted");
+    expect(exported).not.toContain("applyJournalEntryProviderPostUnknown");
+    expect(exported).not.toContain("applyJournalEntryProviderPrecommitFailed");
+    expect(exported).not.toContain("bypassGateForTests");
+    expect(exported).not.toContain("allowTransportInTests");
+  });
+
+  it("production create service has no bypass runtime options", () => {
+    const src = readFileSync(
+      join(process.cwd(), "lib/journal-entry-governance/provider-create-service.ts"),
+      "utf8",
     );
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.code).toBe("je_3b2_governed_create_disabled");
-    expect(r.providerPostIssued).toBe(false);
-    expect(r.memoryWritten).toBe(false);
+    expect(src).not.toMatch(/bypassGateForTests/);
+    expect(src).not.toMatch(/allowTransportInTests/);
+    expect(src).not.toMatch(/deps\?/);
+    expect(src).toContain("assertJe3b2GovernedCreateEnabled");
   });
 });
 
@@ -291,8 +407,38 @@ describe("JE-3B2 wire + PrivateNote marker", () => {
   });
 });
 
+describe("JE-3B2 provider host selection", () => {
+  it("sandbox → sandbox Intuit host", () => {
+    expect(resolveGovernedQboWriteApiBase("sandbox")).toBe(
+      "https://sandbox-quickbooks.api.intuit.com",
+    );
+  });
+
+  it("production → production Intuit host", () => {
+    expect(resolveGovernedQboWriteApiBase("production")).toBe(
+      "https://quickbooks.api.intuit.com",
+    );
+  });
+
+  it("missing env fails closed", () => {
+    expect(() => resolveGovernedQboWriteApiBase(undefined)).toThrow(
+      /QB_ENVIRONMENT is required/,
+    );
+    expect(() => resolveGovernedQboWriteApiBase("")).toThrow(
+      /QB_ENVIRONMENT is required/,
+    );
+  });
+
+  it("invalid env fails closed (never production default)", () => {
+    expect(() => resolveGovernedQboWriteApiBase("prod")).toThrow(/invalid/);
+    expect(() => resolveGovernedQboWriteApiBase("Production")).toThrow(
+      /invalid/,
+    );
+  });
+});
+
 describe("JE-3B2 transport single-POST", () => {
-  it("refuses live POST while gate is off without test override", async () => {
+  it("requires apiBase + fetchFn (no silent production defaults)", async () => {
     await expect(
       postGovernedQboJournalEntryOnce({
         accountingConnectionId: "conn-1",
@@ -303,11 +449,13 @@ describe("JE-3B2 transport single-POST", () => {
           PrivateNote: "ADVJE:x",
           Line: [],
         },
+        apiBase: "",
+        fetchFn: vi.fn() as never,
       }),
-    ).rejects.toMatchObject({ code: "je_3b2_live_qbo_post_disabled" });
+    ).rejects.toThrow(/apiBase is required/);
   });
 
-  it("invokes fetch exactly once under test override", async () => {
+  it("invokes fetch exactly once with injected apiBase + fetchFn", async () => {
     const fetchFn = vi.fn(async () => ({
       ok: true,
       status: 200,
@@ -326,9 +474,13 @@ describe("JE-3B2 transport single-POST", () => {
         PrivateNote: "ADVJE:x",
         Line: [],
       },
-      deps: { allowTransportInTests: true, fetchFn: fetchFn as never },
+      apiBase: resolveGovernedQboWriteApiBase("sandbox"),
+      fetchFn: fetchFn as never,
     });
     expect(fetchFn).toHaveBeenCalledTimes(1);
+    const firstCall = fetchFn.mock.calls[0] as unknown as [string] | undefined;
+    const calledUrl = String(firstCall?.[0] || "");
+    expect(calledUrl).toContain("sandbox-quickbooks.api.intuit.com");
     expect(result.postAttempts).toBe(1);
     expect(result.providerId).toBe("55");
     expect(result.intuitTid).toBe("tid-1");
@@ -340,40 +492,24 @@ describe("JE-3B2 orchestration crash windows", () => {
     const postOnce = vi.fn(async () => {
       throw new Error("must not POST");
     });
-    const r = await executeGovernedJournalEntryCreateOrchestration(
+    const r = await runJe3b2CreateOrchestrationForTests(
       { executionId: "exec-1" },
       { principal: { type: "user", userId: USER } },
-      {
-        bypassGateForTests: true,
-        deps: {
-          resolveActor: vi.fn(async () => writeActor()),
-          loadExecution: vi.fn(async () => execution()),
-          loadProposal: vi.fn(async () => proposal()),
-          loadAttempt: vi.fn(async () =>
-            attempt({
-              status: "REQUEST_STARTED",
-              commit_certainty: "POSSIBLY_COMMITTED",
-              request_started_at: "2026-08-15T00:01:00.000Z",
-            }),
-          ),
-          revalidateConnection: vi.fn(async () => ({ ok: true as const })),
-          resolveToken: vi.fn(async () => ({
-            accessToken: "tok",
-            refreshToken: "r",
-            realmId: "realm-1",
-            tokenSource: "accounting_connections" as const,
-            grantedScopes: [],
-            connectionId: "conn-1",
-            ownerUserId: USER,
-            expiresAt: new Date(Date.now() + 60_000).toISOString(),
-          })),
-          postOnce,
-        },
-      },
+      baseDeps({
+        loadAttempt: vi.fn(async () =>
+          attempt({
+            status: "REQUEST_STARTED",
+            commit_certainty: "POSSIBLY_COMMITTED",
+            request_started_at: "2026-08-15T00:01:00.000Z",
+          }),
+        ),
+        postOnce,
+      }),
     );
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.message).toMatch(/No second POST/i);
+    expect(r.providerPostIssued).toBe(false);
     expect(postOnce).not.toHaveBeenCalled();
   });
 
@@ -389,14 +525,6 @@ describe("JE-3B2 orchestration crash windows", () => {
       networkError: false,
       errorMessage: null,
       postAttempts: 1 as const,
-    }));
-    const applyDispatchStarted = vi.fn(async () => ({
-      attempt: attempt({
-        status: "REQUEST_STARTED",
-        commit_certainty: "POSSIBLY_COMMITTED",
-      }),
-      execution: execution({ status: "POSTING" }),
-      ledgerEventId: "evt-dispatch",
     }));
     const applyPosted = vi.fn(async () => ({
       attempt: attempt({
@@ -414,35 +542,24 @@ describe("JE-3B2 orchestration crash windows", () => {
     const applyPostUnknown = vi.fn(async () => {
       throw new Error("should not unknown");
     });
+    const applyDispatchStarted = vi.fn(async () => ({
+      attempt: attempt({
+        status: "REQUEST_STARTED",
+        commit_certainty: "POSSIBLY_COMMITTED",
+      }),
+      execution: execution({ status: "POSTING" }),
+      ledgerEventId: "evt-dispatch",
+    }));
 
-    const r = await executeGovernedJournalEntryCreateOrchestration(
+    const r = await runJe3b2CreateOrchestrationForTests(
       { executionId: "exec-1" },
       { principal: { type: "user", userId: USER } },
-      {
-        bypassGateForTests: true,
-        deps: {
-          resolveActor: vi.fn(async () => writeActor()),
-          loadExecution: vi.fn(async () => execution()),
-          loadProposal: vi.fn(async () => proposal()),
-          loadAttempt: vi.fn(async () => attempt()),
-          loadFirmId: vi.fn(async () => "firm-1"),
-          revalidateConnection: vi.fn(async () => ({ ok: true as const })),
-          resolveToken: vi.fn(async () => ({
-            accessToken: "tok",
-            refreshToken: "r",
-            realmId: "realm-1",
-            tokenSource: "accounting_connections" as const,
-            grantedScopes: [],
-            connectionId: "conn-1",
-            ownerUserId: USER,
-            expiresAt: new Date(Date.now() + 60_000).toISOString(),
-          })),
-          applyDispatchStarted,
-          applyPosted,
-          applyPostUnknown,
-          postOnce,
-        },
-      },
+      baseDeps({
+        applyDispatchStarted,
+        applyPosted,
+        applyPostUnknown,
+        postOnce,
+      }),
     );
 
     expect(r.ok).toBe(true);
@@ -453,7 +570,17 @@ describe("JE-3B2 orchestration crash windows", () => {
     expect(applyPostUnknown).not.toHaveBeenCalled();
     expect(r.memoryWritten).toBe(false);
     expect(r.providerPostIssued).toBe(true);
+    expect(r.discoveryRequired).toBe(false);
     expect(r.execution.status).toBe("POSTED_UNVERIFIED");
+    expect(applyPosted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventPayload: expect.objectContaining({
+          accounting_connection_id: "conn-1",
+          proposal_id: "prop-1",
+          approval_id: "appr-1",
+        }),
+      }),
+    );
   });
 
   it("4xx after dispatch → UNKNOWN_COMMIT path; no Memory; no second POST", async () => {
@@ -478,43 +605,16 @@ describe("JE-3B2 orchestration crash windows", () => {
       ledgerEventId: "evt-unknown",
     }));
 
-    const r = await executeGovernedJournalEntryCreateOrchestration(
+    const r = await runJe3b2CreateOrchestrationForTests(
       { executionId: "exec-1" },
       { principal: { type: "user", userId: USER } },
-      {
-        bypassGateForTests: true,
-        deps: {
-          resolveActor: vi.fn(async () => writeActor()),
-          loadExecution: vi.fn(async () => execution()),
-          loadProposal: vi.fn(async () => proposal()),
-          loadAttempt: vi.fn(async () => attempt()),
-          loadFirmId: vi.fn(async () => "firm-1"),
-          revalidateConnection: vi.fn(async () => ({ ok: true as const })),
-          resolveToken: vi.fn(async () => ({
-            accessToken: "tok",
-            refreshToken: "r",
-            realmId: "realm-1",
-            tokenSource: "accounting_connections" as const,
-            grantedScopes: [],
-            connectionId: "conn-1",
-            ownerUserId: USER,
-            expiresAt: new Date(Date.now() + 60_000).toISOString(),
-          })),
-          applyDispatchStarted: vi.fn(async () => ({
-            attempt: attempt({
-              status: "REQUEST_STARTED",
-              commit_certainty: "POSSIBLY_COMMITTED",
-            }),
-            execution: execution({ status: "POSTING" }),
-            ledgerEventId: "evt-dispatch",
-          })),
-          applyPosted: vi.fn(async () => {
-            throw new Error("no posted");
-          }),
-          applyPostUnknown,
-          postOnce,
-        },
-      },
+      baseDeps({
+        applyPosted: vi.fn(async () => {
+          throw new Error("no posted");
+        }),
+        applyPostUnknown,
+        postOnce,
+      }),
     );
 
     expect(r.ok).toBe(true);
@@ -522,31 +622,121 @@ describe("JE-3B2 orchestration crash windows", () => {
     expect(applyPostUnknown).toHaveBeenCalledTimes(1);
     expect(r.execution.status).toBe("UNKNOWN_COMMIT");
     expect(r.memoryWritten).toBe(false);
+    expect(r.providerPostIssued).toBe(true);
     expect(postOnce).toHaveBeenCalledTimes(1);
+  });
+
+  it("POST succeeds, applyPosted fails → providerPostIssued=true + discovery", async () => {
+    const postOnce = vi.fn(async () => ({
+      requestStarted: true as const,
+      responseReceived: true,
+      httpStatus: 200,
+      intuitTid: "tid-ok",
+      providerId: "123",
+      providerResponseHash: "resp".padEnd(64, "0"),
+      rawJson: { JournalEntry: { Id: "123" } },
+      networkError: false,
+      errorMessage: null,
+      postAttempts: 1 as const,
+    }));
+    const r = await runJe3b2CreateOrchestrationForTests(
+      { executionId: "exec-1" },
+      { principal: { type: "user", userId: USER } },
+      baseDeps({
+        applyPosted: vi.fn(async () => {
+          throw new Error("applyPosted boom");
+        }),
+        postOnce,
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.code).toBe("je_3b2_post_dispatch_persistence_failed");
+    expect(r.providerPostIssued).toBe(true);
+    expect(r.discoveryRequired).toBe(true);
+    expect(r.message).toMatch(/Discovery\/recovery only/i);
+    expect(postOnce).toHaveBeenCalledTimes(1);
+  });
+
+  it("POST uncertain, applyPostUnknown fails → providerPostIssued=true + discovery", async () => {
+    const postOnce = vi.fn(async () => ({
+      requestStarted: true as const,
+      responseReceived: true,
+      httpStatus: 500,
+      intuitTid: "tid-5xx",
+      providerId: null,
+      providerResponseHash: "h".padEnd(64, "2"),
+      rawJson: { Fault: {} },
+      networkError: false,
+      errorMessage: "HTTP 500",
+      postAttempts: 1 as const,
+    }));
+    const r = await runJe3b2CreateOrchestrationForTests(
+      { executionId: "exec-1" },
+      { principal: { type: "user", userId: USER } },
+      baseDeps({
+        applyPostUnknown: vi.fn(async () => {
+          throw new Error("applyPostUnknown boom");
+        }),
+        postOnce,
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.code).toBe("je_3b2_post_dispatch_persistence_failed");
+    expect(r.providerPostIssued).toBe(true);
+    expect(r.discoveryRequired).toBe(true);
+    expect(postOnce).toHaveBeenCalledTimes(1);
+  });
+
+  it("ledger publication failure after POST → providerPostIssued=true + discovery", async () => {
+    const postOnce = vi.fn(async () => ({
+      requestStarted: true as const,
+      responseReceived: true,
+      httpStatus: 200,
+      intuitTid: "tid-ok",
+      providerId: "123",
+      providerResponseHash: "resp".padEnd(64, "0"),
+      rawJson: { JournalEntry: { Id: "123" } },
+      networkError: false,
+      errorMessage: null,
+      postAttempts: 1 as const,
+    }));
+    const r = await runJe3b2CreateOrchestrationForTests(
+      { executionId: "exec-1" },
+      { principal: { type: "user", userId: USER } },
+      baseDeps({
+        applyPosted: vi.fn(async () => {
+          throw new Error("publish_ledger_event failed");
+        }),
+        postOnce,
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.code).toBe("je_3b2_post_dispatch_persistence_failed");
+    expect(r.providerPostIssued).toBe(true);
+    expect(r.discoveryRequired).toBe(true);
+    expect(r.message).toMatch(/no second POST/i);
   });
 
   it("request-hash mismatch before dispatch → no POST", async () => {
     const postOnce = vi.fn(async () => {
       throw new Error("no post");
     });
-    const r = await executeGovernedJournalEntryCreateOrchestration(
+    const r = await runJe3b2CreateOrchestrationForTests(
       { executionId: "exec-1" },
       { principal: { type: "user", userId: USER } },
-      {
-        bypassGateForTests: true,
-        deps: {
-          resolveActor: vi.fn(async () => writeActor()),
-          loadExecution: vi.fn(async () =>
-            execution({ provider_request_hash: "b".repeat(64) }),
-          ),
-          loadProposal: vi.fn(async () => proposal()),
-          loadAttempt: vi.fn(async () => attempt()),
-          revalidateConnection: vi.fn(async () => ({ ok: true as const })),
-          postOnce,
-        },
-      },
+      baseDeps({
+        loadExecution: vi.fn(async () =>
+          execution({ provider_request_hash: "b".repeat(64) }),
+        ),
+        postOnce,
+      }),
     );
     expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.providerPostIssued).toBe(false);
     expect(postOnce).not.toHaveBeenCalled();
   });
 
@@ -557,26 +747,19 @@ describe("JE-3B2 orchestration crash windows", () => {
     const postOnce = vi.fn(async () => {
       throw new Error("must not post");
     });
-    const r = await executeGovernedJournalEntryCreateOrchestration(
+    const r = await runJe3b2CreateOrchestrationForTests(
       { executionId: "exec-1" },
       { principal: { type: "user", userId: USER } },
-      {
-        bypassGateForTests: true,
-        deps: {
-          resolveActor: vi.fn(async () => writeActor()),
-          loadExecution: vi.fn(async () => execution()),
-          loadProposal: vi.fn(async () => proposal()),
-          loadAttempt: vi.fn(async () => attempt()),
-          revalidateConnection: vi.fn(async () => ({ ok: true as const })),
-          resolveToken: vi.fn(async () => null),
-          applyDispatchStarted,
-          postOnce,
-        },
-      },
+      baseDeps({
+        resolveToken: vi.fn(async () => null),
+        applyDispatchStarted,
+        postOnce,
+      }),
     );
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.code).toMatch(/connection_unusable/i);
+    expect(r.providerPostIssued).toBe(false);
     expect(applyDispatchStarted).not.toHaveBeenCalled();
     expect(postOnce).not.toHaveBeenCalled();
   });
@@ -625,6 +808,7 @@ describe("JE-3B2 source gates", () => {
   it("create modules never call legacy poster or Memory recordMemory", () => {
     const files = [
       "lib/journal-entry-governance/provider-create-service.ts",
+      "lib/journal-entry-governance/provider-create-orchestration.ts",
       "lib/journal-entry-governance/provider-qbo-create-transport.ts",
       "lib/journal-entry-governance/provider-dispatch-repository.ts",
       "lib/journal-entry-governance/je3b2-feature-gate.ts",
@@ -635,6 +819,8 @@ describe("JE-3B2 source gates", () => {
       expect(src).not.toMatch(/recordMemory/);
       expect(src).not.toMatch(/je_post_attempts/);
       expect(src).not.toMatch(/GOVERNED_AUTO/);
+      expect(src).not.toMatch(/bypassGateForTests/);
+      expect(src).not.toMatch(/allowTransportInTests/);
     }
   });
 });

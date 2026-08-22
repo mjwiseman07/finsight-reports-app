@@ -150,26 +150,15 @@ export {
   JE_MEMORY_PROJECTION_CONTRACT,
   buildVerifiedJeMemoryProjectionDraft,
 } from "./memory-projection-contract";
-export {
-  executeGovernedJournalEntryCreate,
-  executeGovernedJournalEntryCreateOrchestration,
-} from "./provider-create-service";
+export { executeGovernedJournalEntryCreate } from "./provider-create-service";
 export type {
   ExecuteGovernedJeCreateInput,
   ExecuteGovernedJeCreateResult,
-  GovernedJeCreateDeps,
 } from "./provider-create-service";
-export { postGovernedQboJournalEntryOnce } from "./provider-qbo-create-transport";
 export {
   toGovernedQboJournalEntryWireBody,
   assertWirePrivateNoteContainsMarker,
 } from "./provider-qbo-create-wire";
-export {
-  applyJournalEntryProviderDispatchStarted,
-  applyJournalEntryProviderPosted,
-  applyJournalEntryProviderPostUnknown,
-  applyJournalEntryProviderPrecommitFailed,
-} from "./provider-dispatch-repository";
 export {
   normalizeQboJournalEntry,
   hashNormalizedProviderJe,
