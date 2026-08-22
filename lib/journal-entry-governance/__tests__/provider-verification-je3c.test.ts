@@ -282,6 +282,79 @@ describe("JE-3C migration contracts", () => {
     expect(src).toMatch(/Memory/i);
     expect(src).not.toContain("qboJournalEntryPoster");
   });
+
+  it("binds Patent #6 engagement/firm_client scope to locked execution custody", () => {
+    expect(src).toContain(
+      "je_provider_verified engagement_id scope mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verified firm_client_id scope mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch engagement_id scope mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch firm_client_id scope mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verified payload engagement_id mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verified payload firm_client_id mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch payload engagement_id mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch payload firm_client_id mismatch",
+    );
+    // Publish uses locked execution scope, not unchecked caller params.
+    expect(src).toMatch(
+      /publish_ledger_event\(\s*'journal_entry\.verified'[\s\S]*?v_execution\.firm_client_id,\s*v_execution\.engagement_id/,
+    );
+    expect(src).toMatch(
+      /publish_ledger_event\(\s*'journal_entry\.verification_mismatch'[\s\S]*?v_execution\.firm_client_id,\s*v_execution\.engagement_id/,
+    );
+  });
+
+  it("mismatch requires governed readback hash + provider_journal_id + attempt↔execution bindings", () => {
+    expect(src).toContain(
+      "je_provider_verification_mismatch_readback_hash_required",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch payload provider_readback_hash mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch payload provider_journal_id mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch attempt/execution accounting_connection_id mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch attempt/execution provider_request_hash mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch attempt/execution correlation_marker mismatch",
+    );
+    expect(src).toContain(
+      "je_provider_verification_mismatch attempt/execution provider_journal_id mismatch",
+    );
+    // Strong v1: mismatch hash must be valid lowercase SHA-256 before lock.
+    const mismatchFn = src.slice(
+      src.indexOf(
+        "CREATE OR REPLACE FUNCTION public.apply_journal_entry_verification_mismatch",
+      ),
+      src.indexOf(
+        "COMMENT ON FUNCTION public.apply_journal_entry_verification_mismatch",
+      ),
+    );
+    expect(mismatchFn).toContain("v_hash !~ '^[a-f0-9]{64}$'");
+    expect(
+      mismatchFn.indexOf(
+        "je_provider_verification_mismatch_readback_hash_required",
+      ),
+    ).toBeLessThan(mismatchFn.indexOf("FOR UPDATE"));
+  });
 });
 
 describe("JE-3C hard-disable gate + public surface", () => {
@@ -500,8 +573,13 @@ describe("JE-3C verification orchestration", () => {
       expect.objectContaining({
         eventPayload: expect.objectContaining({
           provider_readback_hash: hashNormalizedProviderJe(normalized),
+          engagement_id: "eng-1",
+          firm_client_id: "fc-1",
+          provider_journal_id: "99",
         }),
         providerReadbackHash: hashNormalizedProviderJe(normalized),
+        engagementId: "eng-1",
+        firmClientId: "fc-1",
       }),
     );
     expect(hashNormalizedProviderJe(normalized)).not.toBe("b".repeat(64));
@@ -711,6 +789,132 @@ describe("JE-3C verification orchestration", () => {
     if (!r.ok || r.conclusion !== "ALREADY_VERIFIED") return;
     expect(readById).not.toHaveBeenCalled();
     expect(r.ledgerEventId).toBe("evt-verified");
+    expect(r.providerReadbackHash).toBe("c".repeat(64));
+  });
+
+  it("ALREADY_VERIFIED fails closed when readback hash missing", async () => {
+    const r = await runJe3cVerificationForTests(
+      { executionId: "exec-1" },
+      { principal: { type: "user", userId: USER } },
+      baseDeps({
+        loadExecution: vi.fn(async () =>
+          execution({
+            status: "VERIFIED",
+            provider_readback_hash: null,
+            verification_ledger_event_id: "evt-verified",
+          }),
+        ),
+        loadAttempt: vi.fn(async () =>
+          attempt({ status: "VERIFIED_PROVIDER_ID" }),
+        ),
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.conclusion).toBe("REJECTED");
+    expect(r.code).toBe("je_verification_already_verified_readback_hash_invalid");
+  });
+
+  it("ALREADY_VERIFIED fails closed when readback hash malformed", async () => {
+    const r = await runJe3cVerificationForTests(
+      { executionId: "exec-1" },
+      { principal: { type: "user", userId: USER } },
+      baseDeps({
+        loadExecution: vi.fn(async () =>
+          execution({
+            status: "VERIFIED",
+            provider_readback_hash: "not-a-sha256",
+            verification_ledger_event_id: "evt-verified",
+          }),
+        ),
+        loadAttempt: vi.fn(async () =>
+          attempt({ status: "VERIFIED_PROVIDER_ID" }),
+        ),
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.conclusion).toBe("REJECTED");
+    expect(r.code).toBe("je_verification_already_verified_readback_hash_invalid");
+  });
+
+  it("ALREADY_VERIFIED fails closed when verification receipt ID missing", async () => {
+    const r = await runJe3cVerificationForTests(
+      { executionId: "exec-1" },
+      { principal: { type: "user", userId: USER } },
+      baseDeps({
+        loadExecution: vi.fn(async () =>
+          execution({
+            status: "VERIFIED",
+            provider_readback_hash: "c".repeat(64),
+            verification_ledger_event_id: null,
+          }),
+        ),
+        loadAttempt: vi.fn(async () =>
+          attempt({ status: "VERIFIED_PROVIDER_ID" }),
+        ),
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.conclusion).toBe("REJECTED");
+    expect(r.code).toBe("je_verification_already_verified_receipt_missing");
+  });
+
+  it("mismatch path includes exact scope + provider_journal_id in receipt payload", async () => {
+    const bad = normalizeQboJournalEntry(
+      matchingQboRaw({
+        Line: [
+          {
+            DetailType: "JournalEntryLineDetail",
+            Amount: 100.5,
+            JournalEntryLineDetail: {
+              PostingType: "Debit",
+              AccountRef: { value: "acct-dr" },
+              ClassRef: { value: "class-OTHER" },
+            },
+          },
+          matchingQboRaw().Line[1],
+        ],
+      }) as Record<string, unknown>,
+    );
+    const applyMismatch = vi.fn(async () => ({
+      attempt: attempt(),
+      execution: execution({ status: "VERIFICATION_MISMATCH" }),
+      ledgerEventId: "evt-mismatch",
+    }));
+    await runJe3cVerificationForTests(
+      { executionId: "exec-1" },
+      { principal: { type: "user", userId: USER } },
+      baseDeps({
+        readById: vi.fn(async () => ({
+          outcome: "FOUND" as const,
+          found: true,
+          normalized: bad,
+          providerResponseHash: hashNormalizedProviderJe(bad),
+          intuitTid: null,
+          httpStatus: 200,
+        })),
+        applyMismatch,
+      }),
+    );
+    expect(applyMismatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        engagementId: "eng-1",
+        firmClientId: "fc-1",
+        providerReadbackHash: hashNormalizedProviderJe(bad),
+        eventPayload: expect.objectContaining({
+          engagement_id: "eng-1",
+          firm_client_id: "fc-1",
+          provider_journal_id: "99",
+          provider_readback_hash: hashNormalizedProviderJe(bad),
+          status: "VERIFICATION_MISMATCH",
+        }),
+        verificationMetadata: expect.objectContaining({
+          observed_provider_id: "99",
+        }),
+      }),
+    );
   });
 
   it("conflicting bindings on already VERIFIED fail closed", async () => {

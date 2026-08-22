@@ -270,6 +270,20 @@ BEGIN
     RAISE EXCEPTION 'je_provider_verified payload approval_id mismatch';
   END IF;
 
+  -- Patent #6 ledger scope must equal locked execution custody.
+  IF p_engagement_id IS DISTINCT FROM v_execution.engagement_id THEN
+    RAISE EXCEPTION 'je_provider_verified engagement_id scope mismatch';
+  END IF;
+  IF p_firm_client_id IS DISTINCT FROM v_execution.firm_client_id THEN
+    RAISE EXCEPTION 'je_provider_verified firm_client_id scope mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'engagement_id', '') IS DISTINCT FROM v_execution.engagement_id::text THEN
+    RAISE EXCEPTION 'je_provider_verified payload engagement_id mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'firm_client_id', '') IS DISTINCT FROM COALESCE(v_execution.firm_client_id::text, '') THEN
+    RAISE EXCEPTION 'je_provider_verified payload firm_client_id mismatch';
+  END IF;
+
   -- Idempotent identical replay: already VERIFIED with same readback hash.
   -- (Handled in application before RPC when status is already VERIFIED.)
 
@@ -312,8 +326,8 @@ BEGIN
       'posting',
       1,
       p_firm_id,
-      p_firm_client_id,
-      p_engagement_id,
+      v_execution.firm_client_id,
+      v_execution.engagement_id,
       NULL,
       p_close_period_id,
       'journal_entry_execution',
@@ -370,7 +384,12 @@ DECLARE
   v_attempt public.journal_entry_provider_attempts%ROWTYPE;
   v_execution public.journal_entry_executions%ROWTYPE;
   v_event_id uuid;
+  v_hash text;
 BEGIN
+  v_hash := NULLIF(btrim(COALESCE(p_provider_readback_hash, '')), '');
+  IF v_hash IS NULL OR v_hash !~ '^[a-f0-9]{64}$' THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch_readback_hash_required';
+  END IF;
   IF COALESCE(p_expected_status, '') IS DISTINCT FROM 'POSTED_UNVERIFIED' THEN
     RAISE EXCEPTION 'je_provider_verification_mismatch_expected_status_must_be_POSTED_UNVERIFIED';
   END IF;
@@ -379,6 +398,9 @@ BEGIN
   END IF;
   IF COALESCE(p_event_payload->>'status', '') IS DISTINCT FROM 'VERIFICATION_MISMATCH' THEN
     RAISE EXCEPTION 'je_provider_verification_mismatch payload status must be VERIFICATION_MISMATCH';
+  END IF;
+  IF COALESCE(p_event_payload->>'provider_readback_hash', '') IS DISTINCT FROM v_hash THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch payload provider_readback_hash mismatch';
   END IF;
 
   SELECT *
@@ -413,14 +435,27 @@ BEGIN
       v_attempt.status, v_attempt.commit_certainty;
   END IF;
 
+  -- Attempt ↔ execution immutable bindings (VERIFIED-strength).
+  IF v_attempt.accounting_connection_id IS DISTINCT FROM v_execution.accounting_connection_id THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch attempt/execution accounting_connection_id mismatch';
+  END IF;
+  IF v_attempt.provider_request_hash IS DISTINCT FROM v_execution.provider_request_hash THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch attempt/execution provider_request_hash mismatch';
+  END IF;
+  IF v_attempt.correlation_marker IS DISTINCT FROM v_execution.correlation_marker THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch attempt/execution correlation_marker mismatch';
+  END IF;
+  IF COALESCE(v_execution.provider_journal_id, '') IS DISTINCT FROM COALESCE(v_attempt.qbo_je_id, '') THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch attempt/execution provider_journal_id mismatch';
+  END IF;
+
   IF COALESCE(p_event_payload->>'execution_id', '') IS DISTINCT FROM v_execution.id::text THEN
     RAISE EXCEPTION 'je_provider_verification_mismatch payload execution_id mismatch';
   END IF;
   IF COALESCE(p_event_payload->>'provider_attempt_id', '') IS DISTINCT FROM v_attempt.id::text THEN
     RAISE EXCEPTION 'je_provider_verification_mismatch payload provider_attempt_id mismatch';
   END IF;
-  IF COALESCE(p_event_payload->>'accounting_connection_id', '') IS DISTINCT FROM v_attempt.accounting_connection_id::text
-     OR v_attempt.accounting_connection_id IS DISTINCT FROM v_execution.accounting_connection_id THEN
+  IF COALESCE(p_event_payload->>'accounting_connection_id', '') IS DISTINCT FROM v_attempt.accounting_connection_id::text THEN
     RAISE EXCEPTION 'je_provider_verification_mismatch payload accounting_connection_id mismatch';
   END IF;
   IF COALESCE(p_event_payload->>'provider_request_hash', '') IS DISTINCT FROM v_attempt.provider_request_hash THEN
@@ -429,11 +464,28 @@ BEGIN
   IF COALESCE(p_event_payload->>'correlation_marker', '') IS DISTINCT FROM v_attempt.correlation_marker THEN
     RAISE EXCEPTION 'je_provider_verification_mismatch payload correlation_marker mismatch';
   END IF;
+  IF COALESCE(p_event_payload->>'provider_journal_id', '') IS DISTINCT FROM COALESCE(v_execution.provider_journal_id, '') THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch payload provider_journal_id mismatch';
+  END IF;
   IF COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
     RAISE EXCEPTION 'je_provider_verification_mismatch payload proposal_id mismatch';
   END IF;
   IF COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
     RAISE EXCEPTION 'je_provider_verification_mismatch payload approval_id mismatch';
+  END IF;
+
+  -- Patent #6 ledger scope must equal locked execution custody.
+  IF p_engagement_id IS DISTINCT FROM v_execution.engagement_id THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch engagement_id scope mismatch';
+  END IF;
+  IF p_firm_client_id IS DISTINCT FROM v_execution.firm_client_id THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch firm_client_id scope mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'engagement_id', '') IS DISTINCT FROM v_execution.engagement_id::text THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch payload engagement_id mismatch';
+  END IF;
+  IF COALESCE(p_event_payload->>'firm_client_id', '') IS DISTINCT FROM COALESCE(v_execution.firm_client_id::text, '') THEN
+    RAISE EXCEPTION 'je_provider_verification_mismatch payload firm_client_id mismatch';
   END IF;
 
   PERFORM set_config('advisacor.je_provider_attempt_mutation', '1', true);
@@ -442,7 +494,7 @@ BEGIN
   -- Attempt remains RESPONSE_RECEIVED + COMMITTED; execution fails closed.
   UPDATE public.journal_entry_executions
      SET status = 'VERIFICATION_MISMATCH',
-         provider_readback_hash = NULLIF(btrim(COALESCE(p_provider_readback_hash, '')), ''),
+         provider_readback_hash = v_hash,
          verification_snapshot = COALESCE(p_verification_snapshot, '{}'::jsonb),
          verification_metadata = COALESCE(p_verification_metadata, '{}'::jsonb),
          last_error_code = COALESCE(NULLIF(p_event_payload->>'error_code', ''), 'je_verification_mismatch'),
@@ -465,8 +517,8 @@ BEGIN
       'posting',
       1,
       p_firm_id,
-      p_firm_client_id,
-      p_engagement_id,
+      v_execution.firm_client_id,
+      v_execution.engagement_id,
       NULL,
       p_close_period_id,
       'journal_entry_execution',

@@ -319,8 +319,9 @@ export async function runGovernedJournalEntryVerification(
       );
     }
 
-    // Idempotent identical replay after VERIFIED.
+    // Idempotent identical replay after VERIFIED — fail closed if custody incomplete.
     if (execution.status === "VERIFIED") {
+      const readback = String(execution.provider_readback_hash ?? "").trim();
       if (
         attempt.status !== "VERIFIED_PROVIDER_ID" ||
         attempt.accounting_connection_id !==
@@ -334,14 +335,26 @@ export async function runGovernedJournalEntryVerification(
           "Already VERIFIED but immutable bindings disagree; fail closed.",
         );
       }
+      if (!/^[a-f0-9]{64}$/.test(readback)) {
+        return reject(
+          "je_verification_already_verified_readback_hash_invalid",
+          "Already VERIFIED but provider_readback_hash missing/malformed; fail closed.",
+        );
+      }
+      if (!execution.verification_ledger_event_id) {
+        return reject(
+          "je_verification_already_verified_receipt_missing",
+          "Already VERIFIED but verification_ledger_event_id missing; fail closed.",
+        );
+      }
       return {
         ok: true,
         gated: false,
         conclusion: "ALREADY_VERIFIED",
         attempt,
         execution,
-        providerReadbackHash: execution.provider_readback_hash || null,
-        ledgerEventId: execution.verification_ledger_event_id || null,
+        providerReadbackHash: readback,
+        ledgerEventId: execution.verification_ledger_event_id,
         memoryWritten: false,
         getIssued: false,
         discoveryUsed: false,
@@ -509,6 +522,8 @@ export async function runGovernedJournalEntryVerification(
       provider_journal_id: persistedProviderId,
       proposal_id: execution.proposal_id,
       approval_id: execution.approval_id,
+      engagement_id: execution.engagement_id,
+      firm_client_id: execution.firm_client_id,
       provider_readback_hash: readbackHash,
     };
 
