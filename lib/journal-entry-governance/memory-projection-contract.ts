@@ -7,20 +7,23 @@
  *   + Patent #6 ledger receipts
  *
  * JE-3B2: NO Memory write.
- * JE-3C+: after exact read-back reaches VERIFIED, an asynchronous projector MAY
- * record Memory that references execution id, provider JE id, response hash,
- * and receipt id. Memory failure must never roll back or reinterpret provider
- * custody. Memory must never authorize POSTED_UNVERIFIED, VERIFIED, retry, or
- * recovery.
+ * JE-3C this PR: NO Memory write (gate allowMemoryWrite=false).
+ * Future projector: after exact read-back reaches VERIFIED, an asynchronous
+ * outbox MAY record Memory referencing execution id, provider JE id,
+ * normalized read-back hash, and journal_entry.verified receipt id.
+ * Memory failure must never roll back or reinterpret provider custody /
+ * verification / retry.
  */
 
 export const JE_MEMORY_PROJECTION_CONTRACT = {
   phaseOwningWrite: "JE-3C" as const,
   je3b2WritesMemory: false as const,
+  je3cWritesMemory: false as const,
   requiredExecutionStatus: "VERIFIED" as const,
   forbiddenAuthorizationUses: [
     "authorize_posted_unverified",
     "authorize_verified",
+    "authorize_verification_mismatch",
     "authorize_retry",
     "authorize_recovery",
     "reinterpret_provider_custody",
@@ -28,17 +31,22 @@ export const JE_MEMORY_PROJECTION_CONTRACT = {
   requiredReferences: [
     "execution_id",
     "provider_journal_id",
-    "provider_response_hash",
+    "provider_readback_hash",
     "ledger_receipt_id",
   ] as const,
+  /** Raw POST response hash must not be used as Memory binding authority. */
+  forbiddenHashAuthority: ["provider_response_hash"] as const,
   failurePolicy:
-    "Memory projector failure must not mutate execution or provider-attempt custody.",
+    "Memory projector failure must not mutate execution, provider-attempt, verification, or retry custody.",
+  idempotency:
+    "Projection key is posted_je_verified_<execution_id>; identical bindings are idempotent.",
 } as const;
 
 export type JeVerifiedMemoryProjectionInput = {
   executionId: string;
   providerJournalId: string;
-  providerResponseHash: string | null;
+  /** Normalized JE-3C read-back hash (not raw POST hash). */
+  providerReadbackHash: string;
   ledgerReceiptId: string;
   firmClientId: string | null;
 };
@@ -65,7 +73,7 @@ export function buildVerifiedJeMemoryProjectionDraft(
     payload: {
       execution_id: input.executionId,
       provider_journal_id: input.providerJournalId,
-      provider_response_hash: input.providerResponseHash,
+      provider_readback_hash: input.providerReadbackHash,
       ledger_receipt_id: input.ledgerReceiptId,
       firm_client_id: input.firmClientId,
       projection_contract: JE_MEMORY_PROJECTION_CONTRACT.phaseOwningWrite,

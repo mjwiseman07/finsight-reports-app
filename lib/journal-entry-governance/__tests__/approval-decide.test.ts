@@ -640,6 +640,7 @@ describe("decideJournalEntryProposal", () => {
   });
 
   it("evaluateApprovalValidity exposes JE-3 contract", () => {
+    const approvedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const row: JournalEntryApprovalRow = {
       id: "ap1",
       proposal_id: PROP,
@@ -652,10 +653,10 @@ describe("decideJournalEntryProposal", () => {
       reviewer_user_id: REVIEWER,
       reviewer_role: "firm_admin",
       mfa_level: "aal2",
-      mfa_verified_at: "2026-08-21T04:00:00.000Z",
+      mfa_verified_at: approvedAt,
       decision_reason: null,
       policy_snapshot: {},
-      approved_at: "2026-08-21T04:30:00.000Z",
+      approved_at: approvedAt,
       idempotency_key: "d".repeat(64),
     };
     const v = evaluateApprovalValidity({

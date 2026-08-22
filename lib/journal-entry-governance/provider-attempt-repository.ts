@@ -101,6 +101,17 @@ export function coerceExecution(raw: Record<string, unknown>): JournalEntryExecu
     provider_response_hash: raw.provider_response_hash
       ? String(raw.provider_response_hash)
       : null,
+    provider_readback_hash: raw.provider_readback_hash
+      ? String(raw.provider_readback_hash)
+      : null,
+    verification_snapshot:
+      (raw.verification_snapshot as Record<string, unknown>) || {},
+    verification_metadata:
+      (raw.verification_metadata as Record<string, unknown>) || {},
+    verified_at: raw.verified_at ? String(raw.verified_at) : null,
+    verification_ledger_event_id: raw.verification_ledger_event_id
+      ? String(raw.verification_ledger_event_id)
+      : null,
     last_error_code: raw.last_error_code ? String(raw.last_error_code) : null,
     last_error_message: raw.last_error_message
       ? String(raw.last_error_message)
@@ -265,6 +276,22 @@ export async function patchJournalEntryProviderAttempt(args: {
     throw new JeProviderAttemptPersistError(
       JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
       "je_provider_attempt_patch_forbidden: commit_certainty is immutable via generic patch",
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(args.patch, "provider_response_hash") ||
+    Object.prototype.hasOwnProperty.call(args.patch, "provider_readback_hash") ||
+    Object.prototype.hasOwnProperty.call(args.patch, "verification_snapshot") ||
+    Object.prototype.hasOwnProperty.call(args.patch, "verification_metadata") ||
+    Object.prototype.hasOwnProperty.call(args.patch, "verified_at") ||
+    Object.prototype.hasOwnProperty.call(
+      args.patch,
+      "verification_ledger_event_id",
+    )
+  ) {
+    throw new JeProviderAttemptPersistError(
+      JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
+      "je_provider_attempt_patch_forbidden: verification fields require dedicated receipted RPC",
     );
   }
   if (

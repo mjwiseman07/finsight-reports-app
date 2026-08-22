@@ -75,10 +75,14 @@ export {
   assertJe3aEventPayloadStatusMatches,
   assertJe3b1DbTransitionEventPair,
   assertJe3b1EventPayloadStatusMatches,
+  assertJe3cDbTransitionEventPair,
+  assertJe3cEventPayloadStatusMatches,
   isJe3aDbTransitionAuthorized,
   isJe3b1DbTransitionAuthorized,
+  isJe3cDbTransitionAuthorized,
   JE_3A_DB_TRANSITION_EVENT_MATRIX,
   JE_3B1_DB_TRANSITION_EVENT_MATRIX,
+  JE_3C_DB_TRANSITION_EVENT_MATRIX,
 } from "./execution-state";
 export {
   extractJeExecutionImmutableBinding,
@@ -147,6 +151,14 @@ export {
   isJe3b2GovernedCreateEnabled,
 } from "./je3b2-feature-gate";
 export {
+  JE_3C_FEATURE_GATE,
+  JE_3C_GATE_ERROR,
+  assertJe3cVerificationEnabled,
+  assertJe3cLiveGetNotEnabled,
+  assertJe3cMemoryWriteNotEnabled,
+  isJe3cVerificationEnabled,
+} from "./je3c-feature-gate";
+export {
   JE_MEMORY_PROJECTION_CONTRACT,
   buildVerifiedJeMemoryProjectionDraft,
 } from "./memory-projection-contract";
@@ -155,6 +167,11 @@ export type {
   ExecuteGovernedJeCreateInput,
   ExecuteGovernedJeCreateResult,
 } from "./provider-create-service";
+export { verifyGovernedJournalEntry } from "./provider-verification-service";
+export type {
+  VerifyGovernedJeInput,
+  VerifyGovernedJeResult,
+} from "./provider-verification-service";
 export {
   toGovernedQboJournalEntryWireBody,
   assertWirePrivateNoteContainsMarker,
@@ -163,9 +180,15 @@ export {
   normalizeQboJournalEntry,
   hashNormalizedProviderJe,
   providerJeMatchesExpectedEconomics,
+  compareProviderJeEconomics,
+  privateNoteContainsExactCorrelationMarker,
   qboAmountToCents,
+  normalizeCurrency,
 } from "./provider-je-normalize";
-export type { NormalizedProviderJe } from "./provider-je-normalize";
+export type {
+  NormalizedProviderJe,
+  JeEconomicMismatchDimension,
+} from "./provider-je-normalize";
 export {
   readJournalEntryById,
   findJournalEntryByCorrelationMarker,

@@ -13,6 +13,7 @@ export const JE_EXECUTION_STATUSES = [
   "POSTED_UNVERIFIED",
   "UNKNOWN_COMMIT",
   "VERIFIED",
+  "VERIFICATION_MISMATCH",
   "FAILED",
   "REVERSAL_REQUIRED",
 ] as const;
@@ -167,7 +168,14 @@ export type JournalEntryExecutionRow = {
   state_version: number;
   provider_journal_id: string | null;
   provider_request_hash: string | null;
+  /** JE-3B2 raw POST-response hash — never compared to provider_readback_hash. */
   provider_response_hash: string | null;
+  /** JE-3C normalized read-back hash used for VERIFIED custody. */
+  provider_readback_hash?: string | null;
+  verification_snapshot?: Record<string, unknown>;
+  verification_metadata?: Record<string, unknown>;
+  verified_at?: string | null;
+  verification_ledger_event_id?: string | null;
   last_error_code: string | null;
   last_error_message: string | null;
   created_at?: string;
@@ -262,4 +270,6 @@ export const JE_GOVERNED_EXECUTION_FEATURE_BOUNDARY = {
   governedAutoAllowed: false as const,
   /** JE-3B2 draft exists but production invocation remains off. */
   je3b2GovernedCreateEnabled: false as const,
+  /** JE-3C draft exists but production verification remains off. */
+  je3cVerificationEnabled: false as const,
 };
