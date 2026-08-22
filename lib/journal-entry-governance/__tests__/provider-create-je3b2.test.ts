@@ -282,12 +282,25 @@ describe("JE-3B2 migration contracts", () => {
     }
   });
 
-  it("validates immutable binding fields including accounting_connection_id", () => {
+  it("validates immutable binding fields including required proposal_id/approval_id", () => {
     expect(src).toContain("accounting_connection_id mismatch");
     expect(src).toContain("proposal_id mismatch");
     expect(src).toContain("approval_id mismatch");
     expect(src).toContain("provider_request_hash mismatch");
     expect(src).toContain("correlation_marker mismatch");
+    // Required exact equality — not conditional on key presence.
+    expect(src).not.toMatch(
+      /p_event_payload \? 'proposal_id'[\s\S]{0,80}proposal_id mismatch/,
+    );
+    expect(src).not.toMatch(
+      /p_event_payload \? 'approval_id'[\s\S]{0,80}approval_id mismatch/,
+    );
+    expect(src).toMatch(
+      /COALESCE\(p_event_payload->>'proposal_id', ''\) IS DISTINCT FROM v_execution\.proposal_id::text/,
+    );
+    expect(src).toMatch(
+      /COALESCE\(p_event_payload->>'approval_id', ''\) IS DISTINCT FROM v_execution\.approval_id::text/,
+    );
   });
 
   it("blocks create-lifecycle statuses via generic patch", () => {
@@ -717,6 +730,49 @@ describe("JE-3B2 orchestration crash windows", () => {
     expect(r.code).toBe("je_3b2_post_dispatch_persistence_failed");
     expect(r.providerPostIssued).toBe(true);
     expect(r.discoveryRequired).toBe(true);
+    expect(r.message).toMatch(/no second POST/i);
+  });
+
+  it("dispatch succeeds, postOnce rejects → providerPostIssued=true + discovery; no retry", async () => {
+    const applyDispatchStarted = vi.fn(async () => ({
+      attempt: attempt({
+        status: "REQUEST_STARTED",
+        commit_certainty: "POSSIBLY_COMMITTED",
+      }),
+      execution: execution({ status: "POSTING" }),
+      ledgerEventId: "evt-dispatch",
+    }));
+    const postOnce = vi.fn(async () => {
+      throw new Error("socket hang up after bytes may have left");
+    });
+    const applyPosted = vi.fn(async () => {
+      throw new Error("must not apply posted");
+    });
+    const applyPostUnknown = vi.fn(async () => {
+      throw new Error("must not apply unknown");
+    });
+
+    const r = await runJe3b2CreateOrchestrationForTests(
+      { executionId: "exec-1" },
+      { principal: { type: "user", userId: USER } },
+      baseDeps({
+        applyDispatchStarted,
+        applyPosted,
+        applyPostUnknown,
+        postOnce,
+      }),
+    );
+
+    expect(applyDispatchStarted).toHaveBeenCalledTimes(1);
+    expect(postOnce).toHaveBeenCalledTimes(1);
+    expect(applyPosted).not.toHaveBeenCalled();
+    expect(applyPostUnknown).not.toHaveBeenCalled();
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.code).toBe("je_3b2_post_dispatch_persistence_failed");
+    expect(r.providerPostIssued).toBe(true);
+    expect(r.discoveryRequired).toBe(true);
+    expect(r.message).toMatch(/Discovery\/recovery only/i);
     expect(r.message).toMatch(/no second POST/i);
   });
 

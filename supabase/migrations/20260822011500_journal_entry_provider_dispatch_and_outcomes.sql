@@ -174,12 +174,10 @@ BEGIN
      OR v_attempt.accounting_connection_id IS DISTINCT FROM v_execution.accounting_connection_id THEN
     RAISE EXCEPTION 'je_provider_dispatch payload accounting_connection_id mismatch';
   END IF;
-  IF p_event_payload ? 'proposal_id'
-     AND COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
+  IF COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
     RAISE EXCEPTION 'je_provider_dispatch payload proposal_id mismatch';
   END IF;
-  IF p_event_payload ? 'approval_id'
-     AND COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
+  IF COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
     RAISE EXCEPTION 'je_provider_dispatch payload approval_id mismatch';
   END IF;
 
@@ -316,12 +314,10 @@ BEGIN
   IF COALESCE(p_event_payload->>'correlation_marker', '') IS DISTINCT FROM v_attempt.correlation_marker THEN
     RAISE EXCEPTION 'je_provider_posted payload correlation_marker mismatch';
   END IF;
-  IF p_event_payload ? 'proposal_id'
-     AND COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
+  IF COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
     RAISE EXCEPTION 'je_provider_posted payload proposal_id mismatch';
   END IF;
-  IF p_event_payload ? 'approval_id'
-     AND COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
+  IF COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
     RAISE EXCEPTION 'je_provider_posted payload approval_id mismatch';
   END IF;
 
@@ -463,12 +459,10 @@ BEGIN
   IF COALESCE(p_event_payload->>'correlation_marker', '') IS DISTINCT FROM v_attempt.correlation_marker THEN
     RAISE EXCEPTION 'je_provider_post_unknown payload correlation_marker mismatch';
   END IF;
-  IF p_event_payload ? 'proposal_id'
-     AND COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
+  IF COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
     RAISE EXCEPTION 'je_provider_post_unknown payload proposal_id mismatch';
   END IF;
-  IF p_event_payload ? 'approval_id'
-     AND COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
+  IF COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
     RAISE EXCEPTION 'je_provider_post_unknown payload approval_id mismatch';
   END IF;
 
@@ -609,12 +603,10 @@ BEGIN
   IF COALESCE(p_event_payload->>'correlation_marker', '') IS DISTINCT FROM v_attempt.correlation_marker THEN
     RAISE EXCEPTION 'je_provider_precommit_failed payload correlation_marker mismatch';
   END IF;
-  IF p_event_payload ? 'proposal_id'
-     AND COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
+  IF COALESCE(p_event_payload->>'proposal_id', '') IS DISTINCT FROM v_execution.proposal_id::text THEN
     RAISE EXCEPTION 'je_provider_precommit_failed payload proposal_id mismatch';
   END IF;
-  IF p_event_payload ? 'approval_id'
-     AND COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
+  IF COALESCE(p_event_payload->>'approval_id', '') IS DISTINCT FROM v_execution.approval_id::text THEN
     RAISE EXCEPTION 'je_provider_precommit_failed payload approval_id mismatch';
   END IF;
 

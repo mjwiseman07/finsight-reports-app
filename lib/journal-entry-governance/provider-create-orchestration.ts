@@ -340,15 +340,18 @@ export async function runGovernedJournalEntryCreateOrchestration(
     void dispatched;
 
     const wireBody = toGovernedQboJournalEntryWireBody(preview);
+    // Once dispatch is receipted, any transport attempt may have left the
+    // process. Mark POST issued before await so a reject mid-flight never
+    // falsely reports providerPostIssued=false.
+    providerPostIssued = true;
+    postIssuedAttemptId = attempt.id;
+    postIssuedExecutionId = execution.id;
     const transport = await deps.postOnce({
       accountingConnectionId: execution.accounting_connection_id,
       realmId: token.realmId,
       accessToken: token.accessToken,
       wireBody,
     });
-    providerPostIssued = true;
-    postIssuedAttemptId = attempt.id;
-    postIssuedExecutionId = execution.id;
 
     if (transport.postAttempts !== 1) {
       return postDispatchPersistenceFailed({
