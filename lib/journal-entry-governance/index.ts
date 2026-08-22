@@ -115,9 +115,12 @@ export {
   reserveGovernedProviderAttempt,
   recoverUnknownJournalEntryExecution,
   assertGovernedProviderPostNotEnabled,
+  assertProviderAttemptWriteAuthority,
   revalidateCanonicalExecutionConnection,
   assertPersistedProviderRequestHashGate,
+  createDefaultProviderAttemptDeps,
 } from "./provider-attempt-service";
+export type { ProviderAttemptServiceDeps } from "./provider-attempt-service";
 export {
   classifyJeProviderCreateOutcome,
   JE_DOCNUMBER_RECOMMENDATION,

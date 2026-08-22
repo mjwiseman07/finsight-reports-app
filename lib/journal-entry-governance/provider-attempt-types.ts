@@ -88,6 +88,8 @@ export const JE_PROVIDER_ATTEMPT_ERROR = {
   EXECUTION_STATUS_INVALID: "je_provider_attempt_execution_status_invalid",
   CONNECTION_UNUSABLE: "je_provider_attempt_connection_unusable",
   RECOVERY_UNAUTHORIZED: "je_provider_attempt_recovery_unauthorized",
+  /** Alias message path; production returns JE_EXECUTION_ERROR.WRITE_FORBIDDEN. */
+  WRITE_FORBIDDEN: "je_provider_attempt_write_forbidden",
   DISCOVERY_MULTIPLE: "je_provider_attempt_discovery_multiple",
   NO_GOVERNED_POST: "je_provider_attempt_no_governed_post",
 } as const;
