@@ -257,10 +257,11 @@ export async function patchJournalEntryProviderAttempt(args: {
       "je_provider_attempt_patch_forbidden: qbo_je_id requires provider_commit_discovered RPC",
     );
   }
-  if (args.patch.commit_certainty === "COMMITTED") {
+  // commit_certainty is governed custody — generic patch never owns the field.
+  if (Object.prototype.hasOwnProperty.call(args.patch, "commit_certainty")) {
     throw new JeProviderAttemptPersistError(
       JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
-      "je_provider_attempt_patch_forbidden: COMMITTED requires provider_commit_discovered RPC",
+      "je_provider_attempt_patch_forbidden: commit_certainty is immutable via generic patch",
     );
   }
   if (

@@ -445,8 +445,8 @@ describe("recovery safety with read certainty", () => {
     const patchAttempt = vi.fn(async (input: { patch: Record<string, unknown> }) => {
       // Simulate narrowed patch: refuse conclusion fields
       if (
+        Object.prototype.hasOwnProperty.call(input.patch, "commit_certainty") ||
         input.patch.qbo_je_id ||
-        input.patch.commit_certainty === "COMMITTED" ||
         input.patch.status === "DISCOVERED_COMMITTED" ||
         input.patch.status === "DISCOVERED_NOT_FOUND"
       ) {
