@@ -47,6 +47,11 @@ import {
   loadEngagementSubscriberIds,
   resolveCanonicalExecutionConnection,
 } from "./execution-custody";
+import {
+  assertExactExecutionBindingMatch,
+  assertProviderRequestHashAligned,
+  extractJeExecutionImmutableBinding,
+} from "./execution-binding";
 import { mapGovernedProposalToQboPayload } from "./execution-payload";
 import {
   JeExecutionPersistError,
@@ -487,6 +492,25 @@ export async function prepareGovernedJournalEntryExecution(
 
     if (reserved.reused) {
       const existing = reserved.row;
+      // Defense in depth: even if RPC reused, refuse mismatched bindings.
+      assertExactExecutionBindingMatch({
+        existing: extractJeExecutionImmutableBinding(existing),
+        requested: extractJeExecutionImmutableBinding(reservedRow),
+      });
+
+      // Persisted correlation_marker is authoritative — never use discarded new id.
+      const reusedPreview = mapGovernedProposalToQboPayload({
+        proposal,
+        correlationMarker: existing.correlation_marker,
+      });
+      const reusedPreviewHash = hashProviderRequestPreview(
+        reusedPreview as unknown as Record<string, unknown>,
+      );
+      assertProviderRequestHashAligned({
+        existingHash: existing.provider_request_hash,
+        reconstructedHash: reusedPreviewHash,
+      });
+
       const existingPreflight = (existing.preflight_result ||
         emptyPreflight()) as JePreflightResult;
       return {
@@ -496,7 +520,7 @@ export async function prepareGovernedJournalEntryExecution(
         ledgerEventIds: { requested: null, transition: null },
         eligibility,
         preflight: existingPreflight,
-        payloadPreview: payloadPreview as unknown as Record<string, unknown>,
+        payloadPreview: reusedPreview as unknown as Record<string, unknown>,
       };
     }
 

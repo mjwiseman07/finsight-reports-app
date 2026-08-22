@@ -112,6 +112,7 @@ export type PersistJeExecutionReservationInput = {
 
 export type PersistJeExecutionReservationResult = {
   reused: boolean;
+  reuseReason: "idempotency_key" | "approval_id" | null;
   row: JournalEntryExecutionRow;
   ledgerEventId: string | null;
 };
@@ -136,6 +137,12 @@ export async function persistJournalEntryExecutionReservation(
   );
   if (error) {
     const message = error.message || "unknown";
+    if (/je_execution_binding_conflict|approval_already_reserved/i.test(message)) {
+      throw new JeExecutionPersistError(
+        JE_EXECUTION_ERROR.BINDING_CONFLICT,
+        message,
+      );
+    }
     const code = /publish_ledger_event|ledger/i.test(message)
       ? JE_EXECUTION_ERROR.LEDGER_PUBLISH_FAILED
       : JE_EXECUTION_ERROR.PERSIST_FAILED;
@@ -150,6 +157,7 @@ export async function persistJournalEntryExecutionReservation(
   }
   const payload = row0 as {
     reused?: boolean;
+    reuse_reason?: string | null;
     execution?: Record<string, unknown>;
     ledger_event_id?: string | null;
   };
@@ -159,8 +167,11 @@ export async function persistJournalEntryExecutionReservation(
       "persist_journal_entry_execution_reservation returned no execution payload.",
     );
   }
+  const reason = payload.reuse_reason;
   return {
     reused: Boolean(payload.reused),
+    reuseReason:
+      reason === "idempotency_key" || reason === "approval_id" ? reason : null,
     row: coerceExecution(payload.execution),
     ledgerEventId: payload.ledger_event_id
       ? String(payload.ledger_event_id)

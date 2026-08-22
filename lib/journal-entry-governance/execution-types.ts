@@ -238,6 +238,10 @@ export const JE_EXECUTION_ERROR = {
   PERSIST_FAILED: "je_execution_persist_failed",
   LEDGER_PUBLISH_FAILED: "je_execution_ledger_publish_failed",
   PRIOR_EXECUTION: "je_execution_prior_execution",
+  /** Same approval already reserved under a different immutable binding. */
+  BINDING_CONFLICT: "je_execution_binding_conflict",
+  /** Alias for approval collision with mismatched binding. */
+  APPROVAL_ALREADY_RESERVED: "je_execution_approval_already_reserved",
 } as const;
 
 export type JeExecutionErrorCode =

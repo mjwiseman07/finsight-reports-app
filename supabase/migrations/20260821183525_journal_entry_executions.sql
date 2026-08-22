@@ -196,7 +196,35 @@ CREATE POLICY journal_entry_executions_select
 GRANT SELECT ON public.journal_entry_executions TO authenticated;
 GRANT ALL ON public.journal_entry_executions TO service_role;
 
+-- Immutable binding equality for reservation reuse (excludes id/marker/status).
+CREATE OR REPLACE FUNCTION public.je_execution_immutable_binding_matches(
+  p_existing public.journal_entry_executions,
+  p_row jsonb
+)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+  RETURN
+    p_existing.proposal_id::text = p_row->>'proposal_id'
+    AND p_existing.approval_id::text = p_row->>'approval_id'
+    AND p_existing.company_id::text = p_row->>'company_id'
+    AND p_existing.engagement_id::text = p_row->>'engagement_id'
+    AND p_existing.source_continuous_close_run_id::text = p_row->>'source_continuous_close_run_id'
+    AND p_existing.source_accounting_sync_id::text = p_row->>'source_accounting_sync_id'
+    AND p_existing.accounting_connection_id::text = p_row->>'accounting_connection_id'
+    AND p_existing.provider = p_row->>'provider'
+    AND p_existing.proposal_hash = p_row->>'proposal_hash'
+    AND p_existing.approval_policy_hash = p_row->>'approval_policy_hash'
+    AND p_existing.execution_policy_hash = p_row->>'execution_policy_hash'
+    AND p_existing.execution_hash = p_row->>'execution_hash'
+    AND p_existing.idempotency_key = p_row->>'idempotency_key';
+END;
+$$;
+
 -- Atomic reservation insert + Patent #6 execution_requested receipt.
+-- Exact logical reuse vs approval_id binding conflict are distinguished.
 CREATE OR REPLACE FUNCTION public.persist_journal_entry_execution_reservation(
   p_row jsonb,
   p_event_payload jsonb,
@@ -209,6 +237,7 @@ CREATE OR REPLACE FUNCTION public.persist_journal_entry_execution_reservation(
 )
 RETURNS TABLE(
   reused boolean,
+  reuse_reason text,
   execution jsonb,
   ledger_event_id uuid
 )
@@ -227,7 +256,12 @@ BEGIN
    WHERE idempotency_key = p_row->>'idempotency_key';
 
   IF FOUND THEN
+    IF NOT public.je_execution_immutable_binding_matches(v_existing, p_row) THEN
+      RAISE EXCEPTION 'je_execution_binding_conflict: idempotency_key match with mismatched immutable binding'
+        USING ERRCODE = 'P0001';
+    END IF;
     reused := true;
+    reuse_reason := 'idempotency_key';
     execution := to_jsonb(v_existing);
     ledger_event_id := NULL;
     RETURN NEXT;
@@ -235,13 +269,19 @@ BEGIN
   END IF;
 
   -- One approval → one execution record (UNIQUE approval_id).
+  -- Exact binding → reuse. Different binding → fail closed (no silent collapse).
   SELECT *
     INTO v_existing
     FROM public.journal_entry_executions
    WHERE approval_id = (p_row->>'approval_id')::uuid
    LIMIT 1;
   IF FOUND THEN
+    IF NOT public.je_execution_immutable_binding_matches(v_existing, p_row) THEN
+      RAISE EXCEPTION 'je_execution_binding_conflict: approval_id already reserved under a different immutable binding'
+        USING ERRCODE = 'P0001';
+    END IF;
     reused := true;
+    reuse_reason := 'approval_id';
     execution := to_jsonb(v_existing);
     ledger_event_id := NULL;
     RETURN NEXT;
@@ -329,6 +369,7 @@ BEGIN
     ) AS pe;
 
   reused := false;
+  reuse_reason := NULL;
   execution := to_jsonb(v_inserted);
   ledger_event_id := v_event_id;
   RETURN NEXT;
@@ -336,24 +377,44 @@ BEGIN
 
 EXCEPTION
   WHEN unique_violation THEN
+    -- Exact same logical race: reuse by idempotency_key when binding matches.
     SELECT *
       INTO v_existing
       FROM public.journal_entry_executions
      WHERE idempotency_key = p_row->>'idempotency_key';
-    IF NOT FOUND THEN
-      SELECT *
-        INTO v_existing
-        FROM public.journal_entry_executions
-       WHERE approval_id = (p_row->>'approval_id')::uuid
-       LIMIT 1;
+    IF FOUND THEN
+      IF NOT public.je_execution_immutable_binding_matches(v_existing, p_row) THEN
+        RAISE EXCEPTION 'je_execution_binding_conflict: race idempotency_key match with mismatched binding'
+          USING ERRCODE = 'P0001';
+      END IF;
+      reused := true;
+      reuse_reason := 'idempotency_key';
+      execution := to_jsonb(v_existing);
+      ledger_event_id := NULL;
+      RETURN NEXT;
+      RETURN;
     END IF;
-    IF NOT FOUND THEN
-      RAISE;
+
+    -- Same approval, possibly different binding (must not silently collapse).
+    SELECT *
+      INTO v_existing
+      FROM public.journal_entry_executions
+     WHERE approval_id = (p_row->>'approval_id')::uuid
+     LIMIT 1;
+    IF FOUND THEN
+      IF NOT public.je_execution_immutable_binding_matches(v_existing, p_row) THEN
+        RAISE EXCEPTION 'je_execution_binding_conflict: race approval_id already reserved under a different immutable binding'
+          USING ERRCODE = 'P0001';
+      END IF;
+      reused := true;
+      reuse_reason := 'approval_id';
+      execution := to_jsonb(v_existing);
+      ledger_event_id := NULL;
+      RETURN NEXT;
+      RETURN;
     END IF;
-    reused := true;
-    execution := to_jsonb(v_existing);
-    ledger_event_id := NULL;
-    RETURN NEXT;
+
+    RAISE;
 END;
 $$;
 

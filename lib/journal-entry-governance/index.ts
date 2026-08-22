@@ -73,6 +73,11 @@ export {
   assertUnknownCommitCannotBlindRetry,
 } from "./execution-state";
 export {
+  extractJeExecutionImmutableBinding,
+  jeExecutionBindingsEqual,
+  assertExactExecutionBindingMatch,
+} from "./execution-binding";
+export {
   buildJeCorrelationMarker,
   composeJePrivateNote,
   parseJeCorrelationMarker,

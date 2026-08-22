@@ -52,6 +52,17 @@ describe("JE-3A execution migration contract", () => {
     expect(src).toContain("advisacor.je_execution_transition");
   });
 
+  it("reservation RPC fails closed on approval_id binding mismatch", () => {
+    expect(src).toContain("je_execution_immutable_binding_matches");
+    expect(src).toContain("je_execution_binding_conflict");
+    expect(src).toContain("reuse_reason");
+    expect(src).toContain("idempotency_key");
+    // Must not silently reuse approval_id without binding check
+    expect(src).toMatch(
+      /approval_id[\s\S]*je_execution_immutable_binding_matches[\s\S]*je_execution_binding_conflict/,
+    );
+  });
+
   it("forbids UNKNOWN_COMMIT → POSTING in transition RPC", () => {
     expect(src).toContain("UNKNOWN_COMMIT → POSTING is intentionally NOT allowed");
     expect(src).not.toMatch(/UNKNOWN_COMMIT['"].*POSTING/);

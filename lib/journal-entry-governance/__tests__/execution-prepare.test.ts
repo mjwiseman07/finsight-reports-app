@@ -185,13 +185,61 @@ function makeDeps(over: Partial<PrepareJeExecutionDeps> = {}): PrepareJeExecutio
     }),
     persistReservation: async (input) => {
       if (reserved && reserved.idempotency_key === input.row.idempotency_key) {
-        return { reused: true, row: reserved, ledgerEventId: null };
+        // Exact logical reuse only when binding matches
+        const same =
+          reserved.approval_id === input.row.approval_id &&
+          reserved.execution_policy_hash === input.row.execution_policy_hash &&
+          reserved.execution_hash === input.row.execution_hash &&
+          reserved.accounting_connection_id ===
+            input.row.accounting_connection_id &&
+          reserved.proposal_hash === input.row.proposal_hash &&
+          reserved.approval_policy_hash === input.row.approval_policy_hash;
+        if (!same) {
+          throw Object.assign(
+            new Error("je_execution_binding_conflict: idempotency mismatch"),
+            { code: JE_EXECUTION_ERROR.BINDING_CONFLICT },
+          );
+        }
+        return {
+          reused: true,
+          reuseReason: "idempotency_key" as const,
+          row: reserved,
+          ledgerEventId: null,
+        };
       }
       if (reserved && reserved.approval_id === input.row.approval_id) {
-        return { reused: true, row: reserved, ledgerEventId: null };
+        const same =
+          reserved.idempotency_key === input.row.idempotency_key &&
+          reserved.execution_policy_hash === input.row.execution_policy_hash &&
+          reserved.execution_hash === input.row.execution_hash &&
+          reserved.accounting_connection_id ===
+            input.row.accounting_connection_id &&
+          reserved.proposal_hash === input.row.proposal_hash &&
+          reserved.approval_policy_hash === input.row.approval_policy_hash &&
+          reserved.provider === input.row.provider &&
+          reserved.company_id === input.row.company_id;
+        if (!same) {
+          throw Object.assign(
+            new Error(
+              "je_execution_binding_conflict: approval_id already reserved under a different immutable binding",
+            ),
+            { code: JE_EXECUTION_ERROR.BINDING_CONFLICT },
+          );
+        }
+        return {
+          reused: true,
+          reuseReason: "approval_id" as const,
+          row: reserved,
+          ledgerEventId: null,
+        };
       }
       reserved = { ...input.row };
-      return { reused: false, row: reserved, ledgerEventId: "evt-requested" };
+      return {
+        reused: false,
+        reuseReason: null,
+        row: reserved,
+        ledgerEventId: "evt-requested",
+      };
     },
     transition: async (input) => {
       const base = reserved || input;
@@ -726,6 +774,294 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
     expect(second.ledgerEventIds.requested).toBeNull();
   });
 
+  describe("reuse semantic integrity (correlation marker + binding)", () => {
+    const EXEC_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+    const EXEC_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+
+    function makeReuseDeps(over: Partial<PrepareJeExecutionDeps> = {}) {
+      let call = 0;
+      return makeDeps({
+        newId: () => {
+          call += 1;
+          return call === 1 ? EXEC_A : EXEC_B;
+        },
+        ...over,
+      });
+    }
+
+    it("1-6. exact duplicate returns EXEC-A marker/preview; not discarded EXEC-B", async () => {
+      const deps = makeReuseDeps();
+      const first = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        deps,
+      );
+      expect(first.ok).toBe(true);
+      if (!first.ok) return;
+      expect(first.execution.id).toBe(EXEC_A);
+      expect(first.execution.correlation_marker).toBe(`ADVJE:${EXEC_A}`);
+      expect(String(first.payloadPreview?.PrivateNote || "")).toContain(
+        `ADVJE:${EXEC_A}`,
+      );
+      expect(String(first.payloadPreview?.PrivateNote || "")).not.toContain(
+        `ADVJE:${EXEC_B}`,
+      );
+
+      const second = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        deps,
+      );
+      expect(second.ok).toBe(true);
+      if (!second.ok) return;
+      expect(second.reused).toBe(true);
+      expect(second.execution.id).toBe(EXEC_A);
+      expect(second.execution.correlation_marker).toBe(`ADVJE:${EXEC_A}`);
+      expect(String(second.payloadPreview?.PrivateNote || "")).toContain(
+        `ADVJE:${EXEC_A}`,
+      );
+      expect(String(second.payloadPreview?.PrivateNote || "")).not.toContain(
+        `ADVJE:${EXEC_B}`,
+      );
+      expect(String(second.payloadPreview?.correlation_marker || "")).toBe(
+        `ADVJE:${EXEC_A}`,
+      );
+      expect(second.execution.provider_request_hash).toBeTruthy();
+      // reconstructed preview hash must match persisted
+      const { hashProviderRequestPreview } = await import("../execution-hash");
+      const reconstructedHash = hashProviderRequestPreview(
+        second.payloadPreview as Record<string, unknown>,
+      );
+      expect(reconstructedHash).toBe(second.execution.provider_request_hash);
+    });
+
+    it("7. same approval + changed execution policy → binding conflict", async () => {
+      const deps = makeReuseDeps();
+      const first = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        deps,
+      );
+      expect(first.ok).toBe(true);
+
+      const changed: JeExecutionPolicy = {
+        ...policy,
+        maxExecutionAmountCents: 999,
+      };
+      const second = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        changed,
+        deps,
+      );
+      expect(second.ok).toBe(false);
+      if (second.ok) return;
+      expect(second.code).toBe(JE_EXECUTION_ERROR.BINDING_CONFLICT);
+    });
+
+    it("8-10. same approval + changed connection → binding conflict", async () => {
+      const shared = makeReuseDeps();
+      const a = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        shared,
+      );
+      expect(a.ok).toBe(true);
+      const b = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        {
+          ...shared,
+          resolveConnection: async () =>
+            connection({ id: "conn-canonical-OTHER" }) as never,
+        },
+      );
+      expect(b.ok).toBe(false);
+      if (!b.ok) expect(b.code).toBe(JE_EXECUTION_ERROR.BINDING_CONFLICT);
+    });
+
+    it("11. same approval cannot create second execution row", async () => {
+      const deps = makeReuseDeps();
+      const first = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        deps,
+      );
+      const second = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        deps,
+      );
+      expect(first.ok && second.ok).toBe(true);
+      if (!first.ok || !second.ok) return;
+      expect(second.execution.id).toBe(first.execution.id);
+    });
+
+    it("12. concurrent exact same logical → one row / reuse existing binding", async () => {
+      const deps = makeReuseDeps();
+      const [r1, r2] = await Promise.all([
+        prepareGovernedJournalEntryExecution(
+          { proposalId: "prop-1", approvalId: "appr-1" },
+          ctx,
+          policy,
+          deps,
+        ),
+        prepareGovernedJournalEntryExecution(
+          { proposalId: "prop-1", approvalId: "appr-1" },
+          ctx,
+          policy,
+          deps,
+        ),
+      ]);
+      expect(r1.ok && r2.ok).toBe(true);
+      if (!r1.ok || !r2.ok) return;
+      expect(r1.execution.id).toBe(r2.execution.id);
+      expect(r1.execution.correlation_marker).toBe(r2.execution.correlation_marker);
+      expect(String(r1.payloadPreview?.PrivateNote)).toContain(
+        r1.execution.correlation_marker,
+      );
+      expect(String(r2.payloadPreview?.PrivateNote)).toContain(
+        r2.execution.correlation_marker,
+      );
+    });
+
+    it("13. concurrent different binding same approval → conflict not silent reuse", async () => {
+      const sharedStore: { reserved: JournalEntryExecutionRow | null } = {
+        reserved: null,
+      };
+      const persist: PrepareJeExecutionDeps["persistReservation"] = async (
+        input,
+      ) => {
+        if (
+          sharedStore.reserved &&
+          sharedStore.reserved.approval_id === input.row.approval_id
+        ) {
+          const same =
+            sharedStore.reserved.idempotency_key === input.row.idempotency_key &&
+            sharedStore.reserved.execution_policy_hash ===
+              input.row.execution_policy_hash &&
+            sharedStore.reserved.accounting_connection_id ===
+              input.row.accounting_connection_id;
+          if (!same) {
+            throw Object.assign(
+              new Error(
+                "je_execution_binding_conflict: race approval_id already reserved under a different immutable binding",
+              ),
+              { code: JE_EXECUTION_ERROR.BINDING_CONFLICT },
+            );
+          }
+          return {
+            reused: true,
+            reuseReason: "approval_id" as const,
+            row: sharedStore.reserved,
+            ledgerEventId: null,
+          };
+        }
+        sharedStore.reserved = { ...input.row };
+        return {
+          reused: false,
+          reuseReason: null,
+          row: sharedStore.reserved,
+          ledgerEventId: "evt-requested",
+        };
+      };
+
+      const depsA = makeReuseDeps({ persistReservation: persist });
+      const depsB = makeReuseDeps({
+        persistReservation: persist,
+        resolveConnection: async () =>
+          connection({ id: "conn-race-other" }) as never,
+      });
+
+      const first = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        depsA,
+      );
+      expect(first.ok).toBe(true);
+      const second = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        depsB,
+      );
+      expect(second.ok).toBe(false);
+      if (!second.ok) {
+        expect(second.code).toBe(JE_EXECUTION_ERROR.BINDING_CONFLICT);
+      }
+    });
+
+    it("14. provider_request_hash mismatch with reconstructed preview → fail closed", async () => {
+      const deps = makeReuseDeps({
+        persistReservation: async (input) => {
+          // Simulate corrupt persisted hash on reuse
+          const row = {
+            ...input.row,
+            id: EXEC_A,
+            correlation_marker: `ADVJE:${EXEC_A}`,
+            provider_request_hash: "f".repeat(64),
+          };
+          return {
+            reused: true,
+            reuseReason: "idempotency_key" as const,
+            row,
+            ledgerEventId: null,
+          };
+        },
+      });
+      // First call also hits the corrupt reuse path — use two-phase store
+      let reserved: JournalEntryExecutionRow | null = null;
+      const deps2 = makeReuseDeps({
+        persistReservation: async (input) => {
+          if (!reserved) {
+            reserved = { ...input.row };
+            return {
+              reused: false,
+              reuseReason: null,
+              row: reserved,
+              ledgerEventId: "evt-requested",
+            };
+          }
+          return {
+            reused: true,
+            reuseReason: "idempotency_key" as const,
+            row: {
+              ...reserved,
+              provider_request_hash: "f".repeat(64),
+            },
+            ledgerEventId: null,
+          };
+        },
+      });
+      const first = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        deps2,
+      );
+      expect(first.ok).toBe(true);
+      const second = await prepareGovernedJournalEntryExecution(
+        { proposalId: "prop-1", approvalId: "appr-1" },
+        ctx,
+        policy,
+        deps2,
+      );
+      expect(second.ok).toBe(false);
+      if (!second.ok) {
+        expect(second.code).toBe(JE_EXECUTION_ERROR.BINDING_CONFLICT);
+      }
+      void deps;
+    });
+  });
+
   // --- PATENT #6 payload shape ---
   it("65-72. event payloads contain hashes/marker and no tokens", async () => {
     const payloads: Record<string, unknown>[] = [];
@@ -734,6 +1070,7 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
         payloads.push(input.eventPayload);
         return {
           reused: false,
+          reuseReason: null,
           row: input.row,
           ledgerEventId: "evt-requested",
         };
@@ -777,7 +1114,12 @@ describe("JE-3A prepareGovernedJournalEntryExecution", () => {
     deps.persistReservation = async (input) => {
       payloads.push(input.eventPayload);
       reservedRow = input.row;
-      return { reused: false, row: input.row, ledgerEventId: "evt-requested" };
+      return {
+        reused: false,
+        reuseReason: null,
+        row: input.row,
+        ledgerEventId: "evt-requested",
+      };
     };
     deps.transition = async (input) => {
       payloads.push(input.eventPayload);
