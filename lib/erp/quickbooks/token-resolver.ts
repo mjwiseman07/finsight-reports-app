@@ -387,6 +387,44 @@ export interface ResolveTokenOptions {
 }
 
 /**
+ * JE-3B1 — Resolve token from an exact accounting_connections.id.
+ * Does not select by firm_client / caller realm / "latest connected".
+ * Returns null if the connection is missing, not quickbooks, or not connected.
+ */
+export async function resolveQBOTokenForAccountingConnection(
+  accountingConnectionId: string,
+  options?: ResolveTokenOptions,
+): Promise<QBOTokenBundle | null> {
+  if (!accountingConnectionId) {
+    throw new Error("accountingConnectionId is required");
+  }
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("accounting_connections")
+    .select(
+      "id, user_id, access_token, refresh_token, tenant_or_realm_id, token_expires_at, scopes, external_entity_id, status, provider",
+    )
+    .eq("id", accountingConnectionId)
+    .maybeSingle();
+  if (error) {
+    if (error.code === "PGRST205" || error.code === "42P01") return null;
+    throw new Error(`accounting_connections lookup failed: ${error.message}`);
+  }
+  if (!data) return null;
+  if (String(data.provider || "") !== "quickbooks") return null;
+  if (String(data.status || "") !== "connected") return null;
+
+  const conn = rowToAccountingConnection(data as Record<string, unknown>);
+  const ownerUserId = String(data.user_id || "");
+  if (!ownerUserId) return null;
+
+  if (options?.forceRefresh || isExpiredOrExpiring(conn.expiresAt)) {
+    return refreshConnectionInPlace(supabase, conn, ownerUserId);
+  }
+  return toBundle(conn, ownerUserId);
+}
+
+/**
  * Returns a valid QBO token bundle for a firm_client, refreshing if the token
  * is expired or expiring within 5 minutes. Company-scoped; prefers
  * accounting_connections for the firm's company realm.
