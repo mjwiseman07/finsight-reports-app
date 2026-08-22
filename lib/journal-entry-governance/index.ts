@@ -146,5 +146,7 @@ export type { NormalizedProviderJe } from "./provider-je-normalize";
 export {
   readJournalEntryById,
   findJournalEntryByCorrelationMarker,
+  queryJournalEntriesByTxnDateWindow,
+  mayRecordDiscoveredNotFound,
   JE_CRASH_RECOVERY_CONTRACT,
 } from "./provider-qbo-read";

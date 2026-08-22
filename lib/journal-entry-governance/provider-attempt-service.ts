@@ -49,6 +49,7 @@ import {
 } from "./provider-attempt-repository";
 import {
   findJournalEntryByCorrelationMarker,
+  mayRecordDiscoveredNotFound,
   type FindJournalEntryByCorrelationResult,
 } from "./provider-qbo-read";
 
@@ -534,7 +535,27 @@ export async function recoverUnknownJournalEntryExecution(
     const attempt = await loadAttempt(execution.id);
     let boundProviderJournalId: string | null = null;
 
-    if (discovery.kind === "EXACT_ONE" && attempt) {
+    if (discovery.kind === "INDETERMINATE") {
+      // Observation failure — not an accounting conclusion.
+      // No DISCOVERED_NOT_FOUND, no qbo_je_id, no commit_certainty change.
+      if (attempt) {
+        await patchAttempt({
+          attemptId: attempt.id,
+          expectedStatus: attempt.status,
+          patch: {
+            discovery_summary: {
+              kind: "INDETERMINATE",
+              observation: "read_failed",
+              reason: discovery.reason,
+              httpStatus: discovery.httpStatus ?? null,
+              errorClass: discovery.errorClass ?? null,
+              candidateCount: discovery.candidateCount,
+              recovered_at: new Date().toISOString(),
+            },
+          },
+        });
+      }
+    } else if (discovery.kind === "EXACT_ONE" && attempt) {
       const match = discovery.matches[0];
       boundProviderJournalId = match.providerJournalId;
       await patchAttempt({
@@ -547,6 +568,7 @@ export async function recoverUnknownJournalEntryExecution(
           provider_response_hash: undefined,
           discovery_summary: {
             kind: discovery.kind,
+            observation: "successful_exact_one",
             reason: discovery.reason,
             candidateCount: discovery.candidateCount,
             recovered_at: new Date().toISOString(),
@@ -560,6 +582,7 @@ export async function recoverUnknownJournalEntryExecution(
         patch: {
           discovery_summary: {
             kind: discovery.kind,
+            observation: "successful_multiple",
             reason: discovery.reason,
             candidateCount: discovery.candidateCount,
             match_ids: discovery.matches.map((m) => m.providerJournalId),
@@ -568,18 +591,26 @@ export async function recoverUnknownJournalEntryExecution(
         },
       });
     } else if (discovery.kind === "NONE" && attempt) {
+      const recordNotFound = mayRecordDiscoveredNotFound({
+        discoveryKind: discovery.kind,
+        commitCertainty: attempt.commit_certainty,
+      });
       await patchAttempt({
         attemptId: attempt.id,
         expectedStatus: attempt.status,
         patch: {
-          status:
-            attempt.commit_certainty === "NOT_SENT"
-              ? "DISCOVERED_NOT_FOUND"
-              : attempt.status,
+          ...(recordNotFound
+            ? { status: "DISCOVERED_NOT_FOUND" }
+            : {}),
+          // POSSIBLY_COMMITTED + NONE stays unresolved — no certainty downgrade.
           discovery_summary: {
             kind: discovery.kind,
+            observation: "successful_none",
             reason: discovery.reason,
             candidateCount: discovery.candidateCount,
+            discovered_not_found_recorded: recordNotFound,
+            unresolved_possibly_committed:
+              attempt.commit_certainty === "POSSIBLY_COMMITTED",
             recovered_at: new Date().toISOString(),
           },
         },
@@ -588,12 +619,17 @@ export async function recoverUnknownJournalEntryExecution(
 
     const refreshedAttempt = await loadAttempt(execution.id);
 
+    // Execution status is never advanced by indeterminate/failed reads.
+    // UNKNOWN_COMMIT / POSTING remain until a future successful discovery path.
     return {
       ok: true,
       execution,
       attempt: refreshedAttempt,
       discovery,
-      retryClass,
+      retryClass:
+        discovery.kind === "INDETERMINATE"
+          ? "DISCOVERY_REQUIRED"
+          : retryClass,
       providerPostRetryIssued: false,
       boundProviderJournalId,
     };

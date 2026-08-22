@@ -274,9 +274,12 @@ describe("JE-3B1 correlation discovery", () => {
       correlationMarker: marker,
       txnDate: "2026-08-15",
       expected,
-      queryCandidates: async () => [
-        qboJe({ id: "1", note: "unrelated memo" }),
-      ],
+      queryCandidates: async () => ({
+        ok: true,
+        rows: [qboJe({ id: "1", note: "unrelated memo" })],
+        httpStatus: 200,
+        intuitTid: null,
+      }),
     });
     expect(none.kind).toBe("NONE");
 
@@ -285,9 +288,12 @@ describe("JE-3B1 correlation discovery", () => {
       correlationMarker: marker,
       txnDate: "2026-08-15",
       expected,
-      queryCandidates: async () => [
-        qboJe({ id: "10", note: `memo | ${marker}` }),
-      ],
+      queryCandidates: async () => ({
+        ok: true,
+        rows: [qboJe({ id: "10", note: `memo | ${marker}` })],
+        httpStatus: 200,
+        intuitTid: null,
+      }),
     });
     expect(one.kind).toBe("EXACT_ONE");
     expect(one.matches[0].providerJournalId).toBe("10");
@@ -297,10 +303,15 @@ describe("JE-3B1 correlation discovery", () => {
       correlationMarker: marker,
       txnDate: "2026-08-15",
       expected,
-      queryCandidates: async () => [
-        qboJe({ id: "10", note: `a | ${marker}` }),
-        qboJe({ id: "11", note: `b | ${marker}` }),
-      ],
+      queryCandidates: async () => ({
+        ok: true,
+        rows: [
+          qboJe({ id: "10", note: `a | ${marker}` }),
+          qboJe({ id: "11", note: `b | ${marker}` }),
+        ],
+        httpStatus: 200,
+        intuitTid: null,
+      }),
     });
     expect(multi.kind).toBe("MULTIPLE");
   });
@@ -311,9 +322,12 @@ describe("JE-3B1 correlation discovery", () => {
       correlationMarker: marker,
       txnDate: "2026-08-15",
       expected,
-      queryCandidates: async () => [
-        qboJe({ id: "10", note: `memo | ${marker}`, amount: 99.0 }),
-      ],
+      queryCandidates: async () => ({
+        ok: true,
+        rows: [qboJe({ id: "10", note: `memo | ${marker}`, amount: 99.0 })],
+        httpStatus: 200,
+        intuitTid: null,
+      }),
     });
     expect(result.kind).toBe("NONE");
     expect(result.reason).toBe("marker_present_but_economic_mismatch");

@@ -39,8 +39,21 @@ export const JE_PROVIDER_ERROR_CLASSES = [
 
 export type JeProviderErrorClass = (typeof JE_PROVIDER_ERROR_CLASSES)[number];
 
-export const JE_DISCOVERY_RESULTS = ["NONE", "EXACT_ONE", "MULTIPLE"] as const;
+export const JE_DISCOVERY_RESULTS = [
+  "NONE",
+  "EXACT_ONE",
+  "MULTIPLE",
+  "INDETERMINATE",
+] as const;
 export type JeDiscoveryResultKind = (typeof JE_DISCOVERY_RESULTS)[number];
+
+/** Per-JE read-by-id outcomes — never conflate failure with NOT_FOUND. */
+export const JE_READ_BY_ID_OUTCOMES = [
+  "FOUND",
+  "NOT_FOUND",
+  "READ_FAILED",
+] as const;
+export type JeReadByIdOutcome = (typeof JE_READ_BY_ID_OUTCOMES)[number];
 
 export type JournalEntryProviderAttemptRow = {
   id: string;
