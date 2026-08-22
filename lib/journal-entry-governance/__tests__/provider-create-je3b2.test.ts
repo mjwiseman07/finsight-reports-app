@@ -830,7 +830,7 @@ describe("JE-3B2 Memory projection contract", () => {
     const draft = buildVerifiedJeMemoryProjectionDraft({
       executionId: "exec-1",
       providerJournalId: "99",
-      providerResponseHash: HASH,
+      providerReadbackHash: HASH,
       ledgerReceiptId: "evt-1",
       firmClientId: "fc-1",
     });

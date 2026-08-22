@@ -6,7 +6,8 @@
  * 2) JE-3A DB mutation authority: RESERVED → READY_TO_POST | PRECHECK_FAILED.
  * 3) JE-3B1 DB mutation authority: JE-3A + provider lifecycle
  *    (POSTING / POSTED_UNVERIFIED / UNKNOWN_COMMIT / FAILED).
- *    Still forbids POSTED_UNVERIFIED → VERIFIED and UNKNOWN_COMMIT → POSTING.
+ * 4) JE-3C DB mutation authority: POSTED_UNVERIFIED → VERIFIED | VERIFICATION_MISMATCH.
+ *    UNKNOWN_COMMIT → POSTING remains forbidden.
  */
 
 import {
@@ -34,9 +35,10 @@ const DOMAIN_ALLOWED: ReadonlyMap<
   ["RESERVED", ["PRECHECK_FAILED", "READY_TO_POST"]],
   ["READY_TO_POST", ["POSTING"]],
   ["POSTING", ["POSTED_UNVERIFIED", "UNKNOWN_COMMIT", "FAILED"]],
-  ["POSTED_UNVERIFIED", ["VERIFIED", "REVERSAL_REQUIRED"]],
+  ["POSTED_UNVERIFIED", ["VERIFIED", "VERIFICATION_MISMATCH", "REVERSAL_REQUIRED"]],
   ["PRECHECK_FAILED", []],
   ["VERIFIED", []],
+  ["VERIFICATION_MISMATCH", []],
   ["FAILED", []],
   ["REVERSAL_REQUIRED", []],
   // UNKNOWN_COMMIT: no direct return to POSTING without future discovery decision.
@@ -62,7 +64,7 @@ export const JE_3A_DB_TRANSITION_EVENT_MATRIX = [
 
 /**
  * JE-3B1 production DB mutation matrix: JE-3A pairs + provider lifecycle.
- * POSTED_UNVERIFIED → VERIFIED remains unauthorized until JE-3C.
+ * POSTED_UNVERIFIED → VERIFIED / VERIFICATION_MISMATCH authorized only via JE-3C RPCs.
  * UNKNOWN_COMMIT → POSTING is never authorized.
  */
 export const JE_3B1_DB_TRANSITION_EVENT_MATRIX = [
@@ -89,11 +91,31 @@ export const JE_3B1_DB_TRANSITION_EVENT_MATRIX = [
   },
 ] as const;
 
+/**
+ * JE-3C production DB mutation matrix: exact read-back conclusions only.
+ * Generic transition_journal_entry_execution must NOT authorize these pairs.
+ */
+export const JE_3C_DB_TRANSITION_EVENT_MATRIX = [
+  {
+    from: "POSTED_UNVERIFIED" as const,
+    to: "VERIFIED" as const,
+    eventType: "journal_entry.verified" as const,
+  },
+  {
+    from: "POSTED_UNVERIFIED" as const,
+    to: "VERIFICATION_MISMATCH" as const,
+    eventType: "journal_entry.verification_mismatch" as const,
+  },
+] as const;
+
 export type Je3aDbTransitionEvent =
   (typeof JE_3A_DB_TRANSITION_EVENT_MATRIX)[number];
 
 export type Je3b1DbTransitionEvent =
   (typeof JE_3B1_DB_TRANSITION_EVENT_MATRIX)[number];
+
+export type Je3cDbTransitionEvent =
+  (typeof JE_3C_DB_TRANSITION_EVENT_MATRIX)[number];
 
 export function isJeExecutionTransitionAllowed(
   from: JeExecutionStatus,
@@ -184,6 +206,32 @@ export const assertJe3b1EventPayloadStatusMatches =
   assertJe3aEventPayloadStatusMatches;
 
 /**
+ * JE-3C DB authority: verified / verification_mismatch pairs only.
+ */
+export function assertJe3cDbTransitionEventPair(args: {
+  from: JeExecutionStatus;
+  to: JeExecutionStatus;
+  eventType: string;
+}): Je3cDbTransitionEvent {
+  const pair = JE_3C_DB_TRANSITION_EVENT_MATRIX.find(
+    (row) =>
+      row.from === args.from &&
+      row.to === args.to &&
+      row.eventType === args.eventType,
+  );
+  if (!pair) {
+    throw new JeExecutionTransitionError(
+      JE_EXECUTION_ERROR.TRANSITION_INVALID,
+      `Invalid JE-3C transition/event pairing: ${args.from} → ${args.to} with ${args.eventType}`,
+    );
+  }
+  return pair;
+}
+
+export const assertJe3cEventPayloadStatusMatches =
+  assertJe3aEventPayloadStatusMatches;
+
+/**
  * True only for transitions the JE-3A prepare-path SQL authority covers.
  */
 export function isJe3aDbTransitionAuthorized(
@@ -197,13 +245,23 @@ export function isJe3aDbTransitionAuthorized(
 
 /**
  * True for transitions the JE-3B1 SQL RPC will execute.
- * Still false for POSTED_UNVERIFIED → VERIFIED and UNKNOWN_COMMIT → *.
+ * False for POSTED_UNVERIFIED → VERIFIED / VERIFICATION_MISMATCH (JE-3C RPCs only)
+ * and UNKNOWN_COMMIT → *.
  */
 export function isJe3b1DbTransitionAuthorized(
   from: JeExecutionStatus,
   to: JeExecutionStatus,
 ): boolean {
   return JE_3B1_DB_TRANSITION_EVENT_MATRIX.some(
+    (row) => row.from === from && row.to === to,
+  );
+}
+
+export function isJe3cDbTransitionAuthorized(
+  from: JeExecutionStatus,
+  to: JeExecutionStatus,
+): boolean {
+  return JE_3C_DB_TRANSITION_EVENT_MATRIX.some(
     (row) => row.from === from && row.to === to,
   );
 }
@@ -227,6 +285,8 @@ export function classifyJeExecutionRetry(
       return "DISCOVERY_REQUIRED";
     case "VERIFIED":
       return "NO_RETRY";
+    case "VERIFICATION_MISMATCH":
+      return "MANUAL_INTERVENTION";
     case "FAILED":
       return "MANUAL_INTERVENTION";
     case "REVERSAL_REQUIRED":
