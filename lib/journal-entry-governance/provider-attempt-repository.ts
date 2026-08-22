@@ -118,8 +118,6 @@ export type PersistProviderAttemptInput = {
     provider: "quickbooks";
     provider_request_hash: string;
     correlation_marker: string;
-    status?: JeProviderAttemptStatus;
-    commit_certainty?: JeCommitCertainty;
   };
   /** When true and execution is READY_TO_POST, atomically → POSTING + posting_started. */
   publishPostingStarted: boolean;
@@ -157,6 +155,7 @@ export async function persistJournalEntryProviderAttempt(
   const supabase = getSupabaseAdmin();
   const eventPayload = input.postingStartedEventPayload || {};
   const canonical = canonicalPayloadJson(eventPayload);
+  // Creation RPC owns RESERVED + NOT_SENT. Do not send caller status/certainty.
   const { data, error } = await supabase.rpc(
     "persist_journal_entry_provider_attempt",
     {
@@ -167,8 +166,6 @@ export async function persistJournalEntryProviderAttempt(
         provider: input.attempt.provider,
         provider_request_hash: input.attempt.provider_request_hash,
         correlation_marker: input.attempt.correlation_marker,
-        status: input.attempt.status || "RESERVED",
-        commit_certainty: input.attempt.commit_certainty || "NOT_SENT",
       },
       p_event_payload: eventPayload,
       p_event_payload_canonical: canonical,
@@ -183,6 +180,12 @@ export async function persistJournalEntryProviderAttempt(
 
   if (error) {
     const message = error.message || "unknown";
+    if (/initial_status_forbidden|initial_certainty_forbidden|initial_qbo_je_id/i.test(message)) {
+      throw new JeProviderAttemptPersistError(
+        JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
+        message,
+      );
+    }
     if (/connection_mismatch/i.test(message)) {
       throw new JeProviderAttemptPersistError(
         JE_PROVIDER_ATTEMPT_ERROR.CONNECTION_MISMATCH,

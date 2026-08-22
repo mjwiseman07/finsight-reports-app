@@ -368,8 +368,6 @@ export async function reserveGovernedProviderAttempt(
         provider: "quickbooks",
         provider_request_hash: String(execution.provider_request_hash),
         correlation_marker: execution.correlation_marker,
-        status: "RESERVED",
-        commit_certainty: "NOT_SENT",
       },
       publishPostingStarted,
       postingStartedEventPayload: eventPayload,
