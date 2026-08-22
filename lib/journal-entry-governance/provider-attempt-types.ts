@@ -108,8 +108,16 @@ export const JE_PROVIDER_ATTEMPT_ERROR = {
 } as const;
 
 /**
- * Classify a future provider create outcome conservatively.
- * Used by recovery/tests; no live POST in JE-3B1.
+ * Classify a governed provider CREATE outcome conservatively (JE-3B2).
+ *
+ * After dispatch has begun (requestStarted), the only certainties allowed without
+ * authoritative Intuit evidence are:
+ *   - COMMITTED (2xx + provider id)
+ *   - POSSIBLY_COMMITTED (everything else uncertain, including 401/429/other 4xx)
+ *
+ * DEFINITELY_NOT_COMMITTED is reserved for PRE_SEND_FAILURE (request never left)
+ * or a future Intuit-documented proven-rejection path. Speculative 4xx must not
+ * mint DEFINITELY_NOT_COMMITTED.
  */
 export function classifyJeProviderCreateOutcome(args: {
   requestStarted: boolean;
@@ -142,16 +150,16 @@ export function classifyJeProviderCreateOutcome(args: {
   const status = Number(args.httpStatus || 0);
 
   if (status === 401) {
-    // Definitive HTTP 401 with a received response: treat as auth rejection.
-    // Blind 401→retry is NOT authorized for governed create; classification only.
+    // Conservatively POSSIBLY_COMMITTED until Intuit semantics are evidenced.
+    // Blind 401→retry remains forbidden regardless of certainty.
     return {
       requestStarted: true,
       responseReceived: true,
       httpStatus: 401,
       errorClass: "AUTH_REJECTED",
-      commitCertainty: "DEFINITELY_NOT_COMMITTED",
+      commitCertainty: "POSSIBLY_COMMITTED",
       errorMessage:
-        "Definitive HTTP 401 received. Governed path must not blind-retry; refresh+retry is a separate explicit policy decision.",
+        "HTTP 401 received after dispatch. No blind retry. Treat as UNKNOWN_COMMIT until Intuit-proven non-commit evidence exists.",
     };
   }
 
@@ -161,9 +169,9 @@ export function classifyJeProviderCreateOutcome(args: {
       responseReceived: true,
       httpStatus: 429,
       errorClass: "RATE_LIMITED",
-      // Explicit rejection response → treat as non-commit unless proven otherwise.
-      commitCertainty: "DEFINITELY_NOT_COMMITTED",
-      errorMessage: "HTTP 429 rate limit with definitive response body.",
+      commitCertainty: "POSSIBLY_COMMITTED",
+      errorMessage:
+        "HTTP 429 received after dispatch. No blind retry. Treat as UNKNOWN_COMMIT pending Intuit evidence.",
     };
   }
 
@@ -173,8 +181,8 @@ export function classifyJeProviderCreateOutcome(args: {
       responseReceived: true,
       httpStatus: status,
       errorClass: "DEFINITE_PROVIDER_REJECTION",
-      commitCertainty: "DEFINITELY_NOT_COMMITTED",
-      errorMessage: `HTTP ${status} client rejection.`,
+      commitCertainty: "POSSIBLY_COMMITTED",
+      errorMessage: `HTTP ${status} after dispatch. Conservatively POSSIBLY_COMMITTED (UNKNOWN_COMMIT) without Intuit non-commit evidence.`,
     };
   }
 
@@ -184,7 +192,6 @@ export function classifyJeProviderCreateOutcome(args: {
       responseReceived: true,
       httpStatus: status,
       errorClass: "SERVER_ERROR",
-      // Fail-safe: 5xx after request left → possibly committed unless docs prove otherwise.
       commitCertainty: "POSSIBLY_COMMITTED",
       errorMessage: `HTTP ${status} server error; commit certainty unknown.`,
     };
@@ -220,6 +227,33 @@ export function classifyJeProviderCreateOutcome(args: {
     commitCertainty: "POSSIBLY_COMMITTED",
     errorMessage: "Unrecognized outcome; treat as possibly committed.",
   };
+}
+
+/** Map classification → JE-3B2 terminal custody action after dispatch. */
+export type Je3b2DispatchTerminalAction =
+  | "PROVIDER_POSTED"
+  | "POST_UNKNOWN"
+  | "PRECOMMIT_FAILED";
+
+export function mapCreateOutcomeToJe3b2TerminalAction(
+  outcome: JeProviderNetworkAttemptResult,
+): Je3b2DispatchTerminalAction {
+  if (
+    outcome.errorClass === "SUCCESS_WITH_ID" &&
+    outcome.commitCertainty === "COMMITTED" &&
+    outcome.providerId
+  ) {
+    return "PROVIDER_POSTED";
+  }
+  // Without Intuit-proven non-commit evidence, never take PRECOMMIT_FAILED
+  // after dispatch has begun.
+  if (
+    !outcome.requestStarted &&
+    outcome.commitCertainty === "DEFINITELY_NOT_COMMITTED"
+  ) {
+    return "PRECOMMIT_FAILED";
+  }
+  return "POST_UNKNOWN";
 }
 
 /**

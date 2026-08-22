@@ -460,8 +460,8 @@ describe("JE-3B1 failure classification + unknown commit", () => {
       httpStatus: 401,
     });
     expect(auth.errorClass).toBe("AUTH_REJECTED");
-    expect(auth.commitCertainty).toBe("DEFINITELY_NOT_COMMITTED");
-    expect(auth.errorMessage).toMatch(/must not blind-retry/i);
+    expect(auth.commitCertainty).toBe("POSSIBLY_COMMITTED");
+    expect(auth.errorMessage).toMatch(/No blind retry/i);
 
     expect(
       classifyJeProviderCreateOutcome({
@@ -469,7 +469,15 @@ describe("JE-3B1 failure classification + unknown commit", () => {
         responseReceived: true,
         httpStatus: 429,
       }).commitCertainty,
-    ).toBe("DEFINITELY_NOT_COMMITTED");
+    ).toBe("POSSIBLY_COMMITTED");
+
+    expect(
+      classifyJeProviderCreateOutcome({
+        requestStarted: true,
+        responseReceived: true,
+        httpStatus: 400,
+      }).commitCertainty,
+    ).toBe("POSSIBLY_COMMITTED");
   });
 });
 
