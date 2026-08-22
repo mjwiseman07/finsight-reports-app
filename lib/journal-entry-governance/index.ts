@@ -53,3 +53,56 @@ export type {
   JournalEntryApprovalRow,
   JeApprovalValidity,
 } from "./approval-types";
+
+export {
+  prepareGovernedJournalEntryExecution,
+  createDefaultJeExecutionDeps,
+  DEFAULT_JE_EXECUTION_POLICY,
+} from "./execution-service";
+export type { PrepareJeExecutionDeps } from "./execution-service";
+export {
+  hashJeExecutionPolicy,
+  hashJeExecution,
+  hashJeExecutionIdempotencyKey,
+  canonicalizeJeExecutionPolicy,
+} from "./execution-hash";
+export {
+  assertJeExecutionTransition,
+  isJeExecutionTransitionAllowed,
+  classifyJeExecutionRetry,
+  assertUnknownCommitCannotBlindRetry,
+  assertJe3aDbTransitionEventPair,
+  assertJe3aEventPayloadStatusMatches,
+  isJe3aDbTransitionAuthorized,
+  JE_3A_DB_TRANSITION_EVENT_MATRIX,
+} from "./execution-state";
+export {
+  extractJeExecutionImmutableBinding,
+  jeExecutionBindingsEqual,
+  assertExactExecutionBindingMatch,
+} from "./execution-binding";
+export {
+  buildJeCorrelationMarker,
+  composeJePrivateNote,
+  parseJeCorrelationMarker,
+  QBO_PRIVATE_NOTE_MAX_CHARS,
+} from "./execution-correlation";
+export { mapGovernedProposalToQboPayload } from "./execution-payload";
+export { evaluateJeExecutionEligibility } from "./execution-eligibility";
+export {
+  JE_EXECUTION_ERROR,
+  JE_EXECUTION_STATUSES,
+  JE_GOVERNED_EXECUTION_FEATURE_BOUNDARY,
+  UNKNOWN_COMMIT_INVARIANT,
+} from "./execution-types";
+export type {
+  JeExecutionContext,
+  JeExecutionEligibility,
+  JeExecutionPolicy,
+  JeExecutionStatus,
+  JePreflightResult,
+  JeRetryClassification,
+  JournalEntryExecutionRow,
+  PrepareJeExecutionInput,
+  PrepareJeExecutionResult,
+} from "./execution-types";
