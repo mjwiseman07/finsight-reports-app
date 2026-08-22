@@ -1,13 +1,12 @@
 /**
- * JE-3A — Pure execution state-machine transition validator.
+ * JE-3A / JE-3B1 — Pure execution state-machine transition validator.
  *
- * Two layers:
- * 1) Domain vocabulary (this module): describes the planned full lifecycle
- *    including future JE-3B provider states (POSTING, UNKNOWN_COMMIT, …).
- * 2) JE-3A DB mutation authority: narrower — only RESERVED → READY_TO_POST |
- *    PRECHECK_FAILED, each paired with its exact Patent #6 event.
- *
- * Defining future vocabulary ≠ authorizing future DB mutation.
+ * Layers:
+ * 1) Domain vocabulary: full planned lifecycle.
+ * 2) JE-3A DB mutation authority: RESERVED → READY_TO_POST | PRECHECK_FAILED.
+ * 3) JE-3B1 DB mutation authority: JE-3A + provider lifecycle
+ *    (POSTING / POSTED_UNVERIFIED / UNKNOWN_COMMIT / FAILED).
+ *    Still forbids POSTED_UNVERIFIED → VERIFIED and UNKNOWN_COMMIT → POSTING.
  */
 
 import {
@@ -27,7 +26,7 @@ export class JeExecutionTransitionError extends Error {
   }
 }
 
-/** Full planned lifecycle vocabulary (planning / domain). JE-3B widens DB later. */
+/** Full planned lifecycle vocabulary (planning / domain). */
 const DOMAIN_ALLOWED: ReadonlyMap<
   JeExecutionStatus,
   readonly JeExecutionStatus[]
@@ -46,7 +45,7 @@ const DOMAIN_ALLOWED: ReadonlyMap<
 
 /**
  * JE-3A production DB mutation matrix: state transition IFF Patent #6 event.
- * Provider lifecycle transitions are intentionally absent until JE-3B.
+ * Preserved for prepare-path callers and regression tests.
  */
 export const JE_3A_DB_TRANSITION_EVENT_MATRIX = [
   {
@@ -61,8 +60,40 @@ export const JE_3A_DB_TRANSITION_EVENT_MATRIX = [
   },
 ] as const;
 
+/**
+ * JE-3B1 production DB mutation matrix: JE-3A pairs + provider lifecycle.
+ * POSTED_UNVERIFIED → VERIFIED remains unauthorized until JE-3C.
+ * UNKNOWN_COMMIT → POSTING is never authorized.
+ */
+export const JE_3B1_DB_TRANSITION_EVENT_MATRIX = [
+  ...JE_3A_DB_TRANSITION_EVENT_MATRIX,
+  {
+    from: "READY_TO_POST" as const,
+    to: "POSTING" as const,
+    eventType: "journal_entry.posting_started" as const,
+  },
+  {
+    from: "POSTING" as const,
+    to: "POSTED_UNVERIFIED" as const,
+    eventType: "journal_entry.provider_posted" as const,
+  },
+  {
+    from: "POSTING" as const,
+    to: "UNKNOWN_COMMIT" as const,
+    eventType: "journal_entry.post_unknown" as const,
+  },
+  {
+    from: "POSTING" as const,
+    to: "FAILED" as const,
+    eventType: "journal_entry.execution_failed" as const,
+  },
+] as const;
+
 export type Je3aDbTransitionEvent =
   (typeof JE_3A_DB_TRANSITION_EVENT_MATRIX)[number];
+
+export type Je3b1DbTransitionEvent =
+  (typeof JE_3B1_DB_TRANSITION_EVENT_MATRIX)[number];
 
 export function isJeExecutionTransitionAllowed(
   from: JeExecutionStatus,
@@ -113,6 +144,29 @@ export function assertJe3aDbTransitionEventPair(args: {
   return pair;
 }
 
+/**
+ * JE-3B1 DB authority: JE-3A + provider lifecycle pairs.
+ */
+export function assertJe3b1DbTransitionEventPair(args: {
+  from: JeExecutionStatus;
+  to: JeExecutionStatus;
+  eventType: string;
+}): Je3b1DbTransitionEvent {
+  const pair = JE_3B1_DB_TRANSITION_EVENT_MATRIX.find(
+    (row) =>
+      row.from === args.from &&
+      row.to === args.to &&
+      row.eventType === args.eventType,
+  );
+  if (!pair) {
+    throw new JeExecutionTransitionError(
+      JE_EXECUTION_ERROR.TRANSITION_INVALID,
+      `Invalid JE-3B1 transition/event pairing: ${args.from} → ${args.to} with ${args.eventType}`,
+    );
+  }
+  return pair;
+}
+
 export function assertJe3aEventPayloadStatusMatches(args: {
   payloadStatus: unknown;
   newStatus: JeExecutionStatus;
@@ -125,15 +179,31 @@ export function assertJe3aEventPayloadStatusMatches(args: {
   }
 }
 
+/** Alias — payload status coupling is identical for JE-3B1. */
+export const assertJe3b1EventPayloadStatusMatches =
+  assertJe3aEventPayloadStatusMatches;
+
 /**
- * True only for transitions the JE-3A SQL RPC will execute.
- * Future domain transitions (e.g. READY_TO_POST → POSTING) return false here.
+ * True only for transitions the JE-3A prepare-path SQL authority covers.
  */
 export function isJe3aDbTransitionAuthorized(
   from: JeExecutionStatus,
   to: JeExecutionStatus,
 ): boolean {
   return JE_3A_DB_TRANSITION_EVENT_MATRIX.some(
+    (row) => row.from === from && row.to === to,
+  );
+}
+
+/**
+ * True for transitions the JE-3B1 SQL RPC will execute.
+ * Still false for POSTED_UNVERIFIED → VERIFIED and UNKNOWN_COMMIT → *.
+ */
+export function isJe3b1DbTransitionAuthorized(
+  from: JeExecutionStatus,
+  to: JeExecutionStatus,
+): boolean {
+  return JE_3B1_DB_TRANSITION_EVENT_MATRIX.some(
     (row) => row.from === from && row.to === to,
   );
 }

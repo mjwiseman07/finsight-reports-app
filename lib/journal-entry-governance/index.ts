@@ -73,8 +73,12 @@ export {
   assertUnknownCommitCannotBlindRetry,
   assertJe3aDbTransitionEventPair,
   assertJe3aEventPayloadStatusMatches,
+  assertJe3b1DbTransitionEventPair,
+  assertJe3b1EventPayloadStatusMatches,
   isJe3aDbTransitionAuthorized,
+  isJe3b1DbTransitionAuthorized,
   JE_3A_DB_TRANSITION_EVENT_MATRIX,
+  JE_3B1_DB_TRANSITION_EVENT_MATRIX,
 } from "./execution-state";
 export {
   extractJeExecutionImmutableBinding,
@@ -106,3 +110,38 @@ export type {
   PrepareJeExecutionInput,
   PrepareJeExecutionResult,
 } from "./execution-types";
+
+export {
+  reserveGovernedProviderAttempt,
+  recoverUnknownJournalEntryExecution,
+  assertGovernedProviderPostNotEnabled,
+  revalidateCanonicalExecutionConnection,
+  assertPersistedProviderRequestHashGate,
+} from "./provider-attempt-service";
+export {
+  classifyJeProviderCreateOutcome,
+  JE_DOCNUMBER_RECOMMENDATION,
+  JE_PROVIDER_ATTEMPT_ERROR,
+  JE_COMMIT_CERTAINTIES,
+  JE_PROVIDER_ATTEMPT_STATUSES,
+  JE_PROVIDER_ERROR_CLASSES,
+} from "./provider-attempt-types";
+export type {
+  JeCommitCertainty,
+  JeProviderAttemptStatus,
+  JeProviderErrorClass,
+  JeProviderNetworkAttemptResult,
+  JournalEntryProviderAttemptRow,
+} from "./provider-attempt-types";
+export {
+  normalizeQboJournalEntry,
+  hashNormalizedProviderJe,
+  providerJeMatchesExpectedEconomics,
+  qboAmountToCents,
+} from "./provider-je-normalize";
+export type { NormalizedProviderJe } from "./provider-je-normalize";
+export {
+  readJournalEntryById,
+  findJournalEntryByCorrelationMarker,
+  JE_CRASH_RECOVERY_CONTRACT,
+} from "./provider-qbo-read";

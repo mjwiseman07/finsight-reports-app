@@ -26,17 +26,17 @@ describe("JE-3A execution state machine", () => {
     );
   });
 
-  it("57. READY_TO_POST → POSTING defined for future (domain only)", () => {
+  it("57. READY_TO_POST → POSTING domain allowed; JE-3A DB still narrow", () => {
     expect(isJeExecutionTransitionAllowed("READY_TO_POST", "POSTING")).toBe(true);
     expect(isJe3aDbTransitionAuthorized("READY_TO_POST", "POSTING")).toBe(false);
   });
 
-  it("58. POSTING → UNKNOWN_COMMIT defined (domain only)", () => {
+  it("58. POSTING → UNKNOWN_COMMIT domain allowed; JE-3A DB still narrow", () => {
     expect(isJeExecutionTransitionAllowed("POSTING", "UNKNOWN_COMMIT")).toBe(true);
     expect(isJe3aDbTransitionAuthorized("POSTING", "UNKNOWN_COMMIT")).toBe(false);
   });
 
-  it("59. POSTING → POSTED_UNVERIFIED defined (domain only)", () => {
+  it("59. POSTING → POSTED_UNVERIFIED domain allowed; JE-3A DB still narrow", () => {
     expect(isJeExecutionTransitionAllowed("POSTING", "POSTED_UNVERIFIED")).toBe(
       true,
     );
@@ -154,7 +154,7 @@ describe("JE-3A DB transition ↔ Patent #6 event coupling", () => {
     ).toThrow(/does not match/);
   });
 
-  it("8-10. future provider DB transitions not authorized in JE-3A", () => {
+  it("8-10. JE-3A matrix remains narrow; JE-3B1 widens separately", () => {
     expect(isJe3aDbTransitionAuthorized("READY_TO_POST", "POSTING")).toBe(false);
     expect(isJe3aDbTransitionAuthorized("POSTING", "UNKNOWN_COMMIT")).toBe(false);
     expect(isJe3aDbTransitionAuthorized("POSTED_UNVERIFIED", "VERIFIED")).toBe(

@@ -12,8 +12,8 @@ import {
   type JournalEntryExecutionRow,
 } from "./execution-types";
 import {
-  assertJe3aDbTransitionEventPair,
-  assertJe3aEventPayloadStatusMatches,
+  assertJe3b1DbTransitionEventPair,
+  assertJe3b1EventPayloadStatusMatches,
 } from "./execution-state";
 
 export class JeExecutionPersistError extends Error {
@@ -187,16 +187,28 @@ export type TransitionJeExecutionInput = {
   executionId: string;
   expectedStatus: JeExecutionStatus;
   expectedStateVersion: number;
-  newStatus: "READY_TO_POST" | "PRECHECK_FAILED";
+  newStatus:
+    | "READY_TO_POST"
+    | "PRECHECK_FAILED"
+    | "POSTING"
+    | "POSTED_UNVERIFIED"
+    | "UNKNOWN_COMMIT"
+    | "FAILED";
   patch: {
     preflight_result: JePreflightResult;
     provider_request_hash?: string | null;
+    provider_journal_id?: string | null;
+    provider_response_hash?: string | null;
     last_error_code?: string | null;
     last_error_message?: string | null;
   };
   eventType:
     | "journal_entry.execution_ready"
-    | "journal_entry.execution_precheck_failed";
+    | "journal_entry.execution_precheck_failed"
+    | "journal_entry.posting_started"
+    | "journal_entry.provider_posted"
+    | "journal_entry.post_unknown"
+    | "journal_entry.execution_failed";
   eventPayload: Record<string, unknown>;
   firmId: string | null;
   firmClientId: string | null;
@@ -213,13 +225,13 @@ export type TransitionJeExecutionResult = {
 export async function transitionJournalEntryExecution(
   input: TransitionJeExecutionInput,
 ): Promise<TransitionJeExecutionResult> {
-  // Defense in depth: couple status transition to Patent #6 event before RPC.
-  assertJe3aDbTransitionEventPair({
+  // Defense in depth: JE-3B1 coupled matrix (includes JE-3A pairs).
+  assertJe3b1DbTransitionEventPair({
     from: input.expectedStatus,
     to: input.newStatus,
     eventType: input.eventType,
   });
-  assertJe3aEventPayloadStatusMatches({
+  assertJe3b1EventPayloadStatusMatches({
     payloadStatus: input.eventPayload?.status,
     newStatus: input.newStatus,
   });
@@ -234,6 +246,8 @@ export async function transitionJournalEntryExecution(
     p_patch: {
       preflight_result: input.patch.preflight_result,
       provider_request_hash: input.patch.provider_request_hash ?? null,
+      provider_journal_id: input.patch.provider_journal_id ?? null,
+      provider_response_hash: input.patch.provider_response_hash ?? null,
       last_error_code: input.patch.last_error_code ?? null,
       last_error_message: input.patch.last_error_message ?? null,
     },
