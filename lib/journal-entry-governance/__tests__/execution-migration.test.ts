@@ -57,15 +57,45 @@ describe("JE-3A execution migration contract", () => {
     expect(src).toContain("je_execution_binding_conflict");
     expect(src).toContain("reuse_reason");
     expect(src).toContain("idempotency_key");
-    // Must not silently reuse approval_id without binding check
     expect(src).toMatch(
       /approval_id[\s\S]*je_execution_immutable_binding_matches[\s\S]*je_execution_binding_conflict/,
     );
   });
 
-  it("forbids UNKNOWN_COMMIT → POSTING in transition RPC", () => {
-    expect(src).toContain("UNKNOWN_COMMIT → POSTING is intentionally NOT allowed");
-    expect(src).not.toMatch(/UNKNOWN_COMMIT['"].*POSTING/);
+  it("JE-3A transition RPC couples state to Patent #6 event and payload status", () => {
+    expect(src).toContain("invalid journal entry execution transition/event pairing");
+    expect(src).toContain("event payload status mismatch");
+    expect(src).toContain("p_event_payload->>'status'");
+    // Exact coupled pairs
+    expect(src).toMatch(
+      /READY_TO_POST[\s\S]*journal_entry\.execution_ready/,
+    );
+    expect(src).toMatch(
+      /PRECHECK_FAILED[\s\S]*journal_entry\.execution_precheck_failed/,
+    );
+  });
+
+  it("JE-3A transition RPC does not authorize provider lifecycle mutations", () => {
+    const start = src.indexOf(
+      "CREATE OR REPLACE FUNCTION public.transition_journal_entry_execution",
+    );
+    const end = src.indexOf(
+      "REVOKE ALL ON FUNCTION public.transition_journal_entry_execution",
+      start,
+    );
+    const rpc = src.slice(start, end);
+    // No provider lifecycle statuses as transition endpoints in JE-3A RPC
+    expect(rpc).not.toMatch(/p_new_status\s*=\s*'POSTING'/);
+    expect(rpc).not.toMatch(/p_expected_status\s*=\s*'POSTING'/);
+    expect(rpc).not.toMatch(/p_new_status\s*=\s*'UNKNOWN_COMMIT'/);
+    expect(rpc).not.toMatch(/p_new_status\s*=\s*'POSTED_UNVERIFIED'/);
+    expect(rpc).not.toMatch(/p_new_status\s*=\s*'VERIFIED'/);
+    expect(rpc).not.toMatch(/p_new_status\s*=\s*'REVERSAL_REQUIRED'/);
+    expect(rpc).not.toMatch(/p_new_status\s*=\s*'FAILED'/);
+    // Exact JE-3A pairs only
+    expect(rpc).toContain("p_new_status = 'READY_TO_POST'");
+    expect(rpc).toContain("p_new_status = 'PRECHECK_FAILED'");
+    expect(rpc).toContain("p_expected_status = 'RESERVED'");
   });
 
   it("does not create je_post_attempts rows or call poster", () => {

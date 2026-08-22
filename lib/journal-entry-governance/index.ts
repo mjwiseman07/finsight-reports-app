@@ -71,6 +71,10 @@ export {
   isJeExecutionTransitionAllowed,
   classifyJeExecutionRetry,
   assertUnknownCommitCannotBlindRetry,
+  assertJe3aDbTransitionEventPair,
+  assertJe3aEventPayloadStatusMatches,
+  isJe3aDbTransitionAuthorized,
+  JE_3A_DB_TRANSITION_EVENT_MATRIX,
 } from "./execution-state";
 export {
   extractJeExecutionImmutableBinding,

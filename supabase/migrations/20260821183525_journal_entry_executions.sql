@@ -432,6 +432,10 @@ GRANT EXECUTE ON FUNCTION public.persist_journal_entry_execution_reservation(
 ) TO service_role;
 
 -- Guarded state transition + Patent #6 receipt (optimistic concurrency).
+-- JE-3A DB mutation authority is intentionally narrower than the domain
+-- status vocabulary: only RESERVED → READY_TO_POST | PRECHECK_FAILED,
+-- each paired with its exact Patent #6 event type. Future provider lifecycle
+-- transitions (POSTING / UNKNOWN_COMMIT / VERIFIED / ...) are authorized in JE-3B.
 CREATE OR REPLACE FUNCTION public.transition_journal_entry_execution(
   p_execution_id uuid,
   p_expected_status text,
@@ -458,36 +462,30 @@ AS $$
 DECLARE
   v_row public.journal_entry_executions%ROWTYPE;
   v_event_id uuid;
-  v_allowed boolean := false;
+  v_pair_ok boolean := false;
 BEGIN
-  IF p_event_type NOT IN (
-    'journal_entry.execution_ready',
-    'journal_entry.execution_precheck_failed'
-  ) THEN
-    -- JE-3A only publishes ready/precheck_failed from this RPC.
-    -- Future statuses may extend the allowlist in JE-3B+.
-    RAISE EXCEPTION 'invalid journal entry execution event type: %', p_event_type;
+  -- Exact JE-3A transition ↔ Patent #6 event coupling (one semantic operation).
+  IF p_expected_status = 'RESERVED'
+     AND p_new_status = 'READY_TO_POST'
+     AND p_event_type = 'journal_entry.execution_ready' THEN
+    v_pair_ok := true;
+  ELSIF p_expected_status = 'RESERVED'
+     AND p_new_status = 'PRECHECK_FAILED'
+     AND p_event_type = 'journal_entry.execution_precheck_failed' THEN
+    v_pair_ok := true;
   END IF;
 
-  -- Explicit transition allowlist (mirrors pure TS validator).
-  IF p_expected_status = 'RESERVED' AND p_new_status IN ('PRECHECK_FAILED', 'READY_TO_POST') THEN
-    v_allowed := true;
-  ELSIF p_expected_status = 'READY_TO_POST' AND p_new_status = 'POSTING' THEN
-    v_allowed := true;
-  ELSIF p_expected_status = 'POSTING' AND p_new_status IN (
-    'POSTED_UNVERIFIED', 'UNKNOWN_COMMIT', 'FAILED'
-  ) THEN
-    v_allowed := true;
-  ELSIF p_expected_status = 'POSTED_UNVERIFIED' AND p_new_status IN (
-    'VERIFIED', 'REVERSAL_REQUIRED'
-  ) THEN
-    v_allowed := true;
+  IF NOT v_pair_ok THEN
+    RAISE EXCEPTION
+      'invalid journal entry execution transition/event pairing: % -> % with %',
+      p_expected_status, p_new_status, p_event_type;
   END IF;
-  -- UNKNOWN_COMMIT → POSTING is intentionally NOT allowed (no blind retry).
 
-  IF NOT v_allowed THEN
-    RAISE EXCEPTION 'invalid journal entry execution transition: % -> %',
-      p_expected_status, p_new_status;
+  -- Patent #6 payload status must agree with the persisted new status.
+  IF COALESCE(p_event_payload->>'status', '') IS DISTINCT FROM p_new_status THEN
+    RAISE EXCEPTION
+      'journal entry execution event payload status mismatch: payload=% expected=%',
+      COALESCE(p_event_payload->>'status', '<null>'), p_new_status;
   END IF;
 
   SELECT *

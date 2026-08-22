@@ -11,6 +11,10 @@ import {
   type JePreflightResult,
   type JournalEntryExecutionRow,
 } from "./execution-types";
+import {
+  assertJe3aDbTransitionEventPair,
+  assertJe3aEventPayloadStatusMatches,
+} from "./execution-state";
 
 export class JeExecutionPersistError extends Error {
   code: string;
@@ -209,6 +213,17 @@ export type TransitionJeExecutionResult = {
 export async function transitionJournalEntryExecution(
   input: TransitionJeExecutionInput,
 ): Promise<TransitionJeExecutionResult> {
+  // Defense in depth: couple status transition to Patent #6 event before RPC.
+  assertJe3aDbTransitionEventPair({
+    from: input.expectedStatus,
+    to: input.newStatus,
+    eventType: input.eventType,
+  });
+  assertJe3aEventPayloadStatusMatches({
+    payloadStatus: input.eventPayload?.status,
+    newStatus: input.newStatus,
+  });
+
   const supabase = getSupabaseAdmin();
   const canonical = canonicalPayloadJson(input.eventPayload);
   const { data, error } = await supabase.rpc("transition_journal_entry_execution", {
@@ -239,7 +254,9 @@ export async function transitionJournalEntryExecution(
         message,
       );
     }
-    if (/invalid.*transition/i.test(message)) {
+    if (
+      /invalid.*transition|event pairing|payload status mismatch/i.test(message)
+    ) {
       throw new JeExecutionPersistError(
         JE_EXECUTION_ERROR.TRANSITION_INVALID,
         message,
