@@ -167,6 +167,41 @@ export type {
   ExecuteGovernedJeCreateInput,
   ExecuteGovernedJeCreateResult,
 } from "./provider-create-service";
+export {
+  JE_3D_ACTIVATION_POLICY,
+  JE_3D_ACTIVATION_ERROR,
+  JE_3D_SANDBOX_QBO_API_BASE,
+  Je3dActivationError,
+  assertJe3dMemoryWriteNotEnabled,
+  isJe3dCreateCapabilityEnabled,
+  isJe3dVerifyCapabilityEnabled,
+} from "./je3d-activation-policy";
+export {
+  classifyQbEnvironment,
+  assertJe3dSandboxQboEnvironment,
+  rejectCallerTransportOverrides,
+} from "./je3d-sandbox-environment";
+export {
+  resolveSandboxActivationAllowlist,
+  buildSandboxAllowlistFromRows,
+  assertExecutionOnAllowlistedSandbox,
+  assertTokenRealmMatchesConnection,
+} from "./je3d-sandbox-company-authority";
+export type {
+  ResolvedSandboxActivationAllowlist,
+  SandboxActivationAuthorityRow,
+} from "./je3d-sandbox-company-authority";
+export {
+  assertJe3dCreateActivationPolicy,
+  assertJe3dVerifyActivationPolicy,
+  assertJe3dSandboxExecutionCustody,
+  assertJe3dSandboxInspectionCustody,
+} from "./je3d-activation-guards";
+export {
+  inspectGovernedJeActivationCustody,
+  buildActivationInspectionFromCustody,
+} from "./je3d-activation-inspection";
+export type { GovernedJeActivationInspection } from "./je3d-activation-inspection";
 export { verifyGovernedJournalEntry } from "./provider-verification-service";
 export type {
   VerifyGovernedJeInput,
