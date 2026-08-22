@@ -27,7 +27,7 @@ export class JeProviderAttemptPersistError extends Error {
   }
 }
 
-function coerceAttempt(
+export function coerceAttempt(
   raw: Record<string, unknown>,
 ): JournalEntryProviderAttemptRow {
   return {
@@ -63,7 +63,7 @@ function coerceAttempt(
   };
 }
 
-function coerceExecution(raw: Record<string, unknown>): JournalEntryExecutionRow {
+export function coerceExecution(raw: Record<string, unknown>): JournalEntryExecutionRow {
   return {
     id: String(raw.id),
     proposal_id: String(raw.proposal_id),
@@ -268,13 +268,17 @@ export async function patchJournalEntryProviderAttempt(args: {
     );
   }
   if (
+    args.patch.status === "REQUEST_STARTED" ||
+    args.patch.status === "RESPONSE_RECEIVED" ||
+    args.patch.status === "UNKNOWN_RESULT" ||
+    args.patch.status === "FAILED_PRECOMMIT" ||
     args.patch.status === "DISCOVERED_COMMITTED" ||
     args.patch.status === "DISCOVERED_NOT_FOUND" ||
     args.patch.status === "VERIFIED_PROVIDER_ID"
   ) {
     throw new JeProviderAttemptPersistError(
       JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
-      `je_provider_attempt_patch_forbidden: status ${String(args.patch.status)} requires receipted discovery RPC`,
+      `je_provider_attempt_patch_forbidden: status ${String(args.patch.status)} requires dedicated receipted RPC`,
     );
   }
 

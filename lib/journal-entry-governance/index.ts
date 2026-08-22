@@ -123,6 +123,7 @@ export {
 export type { ProviderAttemptServiceDeps } from "./provider-attempt-service";
 export {
   classifyJeProviderCreateOutcome,
+  mapCreateOutcomeToJe3b2TerminalAction,
   JE_DOCNUMBER_RECOMMENDATION,
   JE_PROVIDER_ATTEMPT_ERROR,
   JE_COMMIT_CERTAINTIES,
@@ -134,8 +135,30 @@ export type {
   JeProviderAttemptStatus,
   JeProviderErrorClass,
   JeProviderNetworkAttemptResult,
+  Je3b2DispatchTerminalAction,
   JournalEntryProviderAttemptRow,
 } from "./provider-attempt-types";
+export {
+  JE_3B2_FEATURE_GATE,
+  JE_3B2_GATE_ERROR,
+  assertJe3b2GovernedCreateEnabled,
+  assertJe3b2LivePostNotEnabled,
+  assertJe3b2MemoryWriteNotEnabled,
+  isJe3b2GovernedCreateEnabled,
+} from "./je3b2-feature-gate";
+export {
+  JE_MEMORY_PROJECTION_CONTRACT,
+  buildVerifiedJeMemoryProjectionDraft,
+} from "./memory-projection-contract";
+export { executeGovernedJournalEntryCreate } from "./provider-create-service";
+export type {
+  ExecuteGovernedJeCreateInput,
+  ExecuteGovernedJeCreateResult,
+} from "./provider-create-service";
+export {
+  toGovernedQboJournalEntryWireBody,
+  assertWirePrivateNoteContainsMarker,
+} from "./provider-qbo-create-wire";
 export {
   normalizeQboJournalEntry,
   hashNormalizedProviderJe,

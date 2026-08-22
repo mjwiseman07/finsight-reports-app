@@ -260,4 +260,6 @@ export const JE_GOVERNED_EXECUTION_FEATURE_BOUNDARY = {
   ] as const,
   providerWriteAllowed: false as const,
   governedAutoAllowed: false as const,
+  /** JE-3B2 draft exists but production invocation remains off. */
+  je3b2GovernedCreateEnabled: false as const,
 };

@@ -150,7 +150,7 @@ export type RecoverUnknownExecutionResult =
     }
   | { ok: false; code: string; message: string };
 
-async function loadExactExecution(
+export async function loadExactExecution(
   executionId: string,
 ): Promise<JournalEntryExecutionRow | null> {
   const supabase = getSupabaseAdmin();
@@ -703,11 +703,12 @@ export async function recoverUnknownJournalEntryExecution(
 }
 
 /**
- * Hard gate: JE-3B1 does not expose a governed provider POST entry point.
+ * Hard gate: governed provider POST remains disabled at the JE-3B1 surface.
+ * JE-3B2 adds a separate gated entry that is also hard-disabled.
  */
 export function assertGovernedProviderPostNotEnabled(): never {
   throw new JeProviderAttemptPersistError(
     JE_PROVIDER_ATTEMPT_ERROR.NO_GOVERNED_POST,
-    "Governed QBO JournalEntry POST is not enabled in JE-3B1. Discovery/recovery only.",
+    "Governed QBO JournalEntry POST is not enabled. JE-3B2 create remains hard-disabled pending direct review.",
   );
 }
