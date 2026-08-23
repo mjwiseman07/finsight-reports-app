@@ -5,12 +5,12 @@
 
 import {
   JE_3D_ACTIVATION_ERROR,
-  JE_3D_ACTIVATION_POLICY,
   Je3dActivationError,
   isJe3dCreateCapabilityEnabled,
   isJe3dVerifyCapabilityEnabled,
   type Je3dActivationPolicyView,
 } from "./je3d-activation-policy";
+import { resolveJe3dActivationPolicy } from "./je3d-first-controlled-create-activation";
 import {
   assertJe3dSandboxQboEnvironment,
   rejectCallerTransportOverrides,
@@ -32,7 +32,7 @@ export type Je3dActivationGuardDeps = {
 };
 
 function assertKillSwitchOff(
-  policy: Je3dActivationPolicyView = JE_3D_ACTIVATION_POLICY,
+  policy: Je3dActivationPolicyView = resolveJe3dActivationPolicy(),
 ): void {
   if (policy.sandboxDispatchKillSwitch) {
     throw new Je3dActivationError(
@@ -43,7 +43,7 @@ function assertKillSwitchOff(
 }
 
 export function assertJe3dCreateActivationPolicy(
-  policy: Je3dActivationPolicyView = JE_3D_ACTIVATION_POLICY,
+  policy: Je3dActivationPolicyView = resolveJe3dActivationPolicy(),
 ): void {
   if (!isJe3dCreateCapabilityEnabled(policy)) {
     throw new Je3dActivationError(
@@ -56,7 +56,7 @@ export function assertJe3dCreateActivationPolicy(
 }
 
 export function assertJe3dVerifyActivationPolicy(
-  policy: Je3dActivationPolicyView = JE_3D_ACTIVATION_POLICY,
+  policy: Je3dActivationPolicyView = resolveJe3dActivationPolicy(),
 ): void {
   if (!isJe3dVerifyCapabilityEnabled(policy)) {
     throw new Je3dActivationError(
