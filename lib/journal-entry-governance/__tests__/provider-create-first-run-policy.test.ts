@@ -1,0 +1,386 @@
+/**
+ * JE-3D — Public create policy wiring + first-run authority surface tests.
+ */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  JE_3D_ACTIVATION_POLICY,
+  isJe3dCreateCapabilityEnabled,
+  isJe3dVerifyCapabilityEnabled,
+} from "../je3d-activation-policy";
+import {
+  JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
+  resolveJe3dActivationPolicy,
+} from "../je3d-first-controlled-create-activation";
+import {
+  FIRST_RUN_APPROVED_EXECUTION_ID,
+  FIRST_RUN_EXECUTION_AUTHORITY_ERROR,
+  FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED,
+  evaluateFirstRunExecutionIdentityGate,
+} from "../je3d-first-run-execution-authority";
+import { executeGovernedJournalEntryCreate } from "../provider-create-service";
+import type { JournalEntryExecutionRow } from "../execution-types";
+import type { JournalEntryProposalRow } from "../types";
+
+const EXEC_ID = "550e8400-e29b-41d4-a716-446655440000";
+const USER = "user-1";
+
+vi.mock("../provider-attempt-service", () => ({
+  loadExactExecution: vi.fn(),
+}));
+
+vi.mock("../approval-custody", () => ({
+  loadExactJournalEntryProposal: vi.fn(),
+}));
+
+vi.mock("../source-custody", () => ({
+  loadAccountsFromCoaMirror: vi.fn(),
+}));
+
+vi.mock("../je3d-activation-guards", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../je3d-activation-guards")>();
+  return {
+    ...actual,
+    assertJe3dSandboxExecutionCustody: vi.fn(async () => ({
+      allowlistResolution: "resolved",
+      allowedCompanyIds: ["co-1"],
+      demoA: null,
+    })),
+  };
+});
+
+vi.mock("../provider-create-orchestration", () => ({
+  runGovernedJournalEntryCreateOrchestration: vi.fn(),
+}));
+
+vi.mock("../je3d-production-wiring", () => ({
+  buildJe3dProductionCreateDeps: vi.fn(() => ({})),
+}));
+
+import { loadExactExecution } from "../provider-attempt-service";
+import { loadExactJournalEntryProposal } from "../approval-custody";
+import { loadAccountsFromCoaMirror } from "../source-custody";
+import { runGovernedJournalEntryCreateOrchestration } from "../provider-create-orchestration";
+
+function baseExecution(
+  overrides: Partial<JournalEntryExecutionRow> = {},
+): JournalEntryExecutionRow {
+  return {
+    id: EXEC_ID,
+    proposal_id: "prop-1",
+    approval_id: "appr-1",
+    company_id: "co-1",
+    engagement_id: "eng-1",
+    firm_client_id: "fc-1",
+    source_continuous_close_run_id: "cc-1",
+    source_accounting_sync_id: "sync-1",
+    accounting_connection_id: "conn-1",
+    provider: "quickbooks",
+    proposal_hash: "a".repeat(64),
+    approval_policy_hash: "b".repeat(64),
+    execution_policy_hash: "c".repeat(64),
+    execution_hash: "d".repeat(64),
+    idempotency_key: "e".repeat(64),
+    status: "POSTING",
+    correlation_marker: `ADVJE:${EXEC_ID}`,
+    execution_policy_snapshot: {},
+    preflight_result: { eligible: true, checks: [] },
+    requested_by: USER,
+    requested_at: "2026-08-15T00:00:00.000Z",
+    state_version: 1,
+    provider_journal_id: null,
+    provider_request_hash: "f".repeat(64),
+    provider_response_hash: null,
+    provider_readback_hash: null,
+    last_error_code: null,
+    last_error_message: null,
+    ...overrides,
+  };
+}
+
+function baseProposal(
+  overrides: Partial<JournalEntryProposalRow> = {},
+): JournalEntryProposalRow {
+  return {
+    id: "prop-1",
+    company_id: "co-1",
+    engagement_id: "eng-1",
+    firm_client_id: "fc-1",
+    period_end: "2026-08-31",
+    source_continuous_close_run_id: "cc-1",
+    source_accounting_sync_id: "sync-1",
+    source_recon_run_ids: [],
+    origin_type: "ACCRUAL",
+    reason_code: "cutoff_accrual",
+    memo: "first run",
+    currency: "USD",
+    txn_date: "2026-08-31",
+    lines: [
+      {
+        sequence: 1,
+        accountId: "exp-7",
+        debitCents: 100,
+        creditCents: 0,
+      },
+      {
+        sequence: 2,
+        accountId: "liab-33",
+        debitCents: 0,
+        creditCents: 100,
+      },
+    ],
+    total_debits_cents: 100,
+    total_credits_cents: 100,
+    expected_effects: [],
+    policy_snapshot: {},
+    policy_hash: "a".repeat(64),
+    proposal_hash: "b".repeat(64),
+    status: "SUBMITTED",
+    proposed_by: USER,
+    proposed_at: "2026-08-15T00:00:00.000Z",
+    idempotency_key: "c".repeat(64),
+    ...overrides,
+  };
+}
+
+describe("JE-3D public create policy wiring", () => {
+  const prevEnv = process.env.QB_ENVIRONMENT;
+
+  beforeEach(() => {
+    process.env.QB_ENVIRONMENT = "sandbox";
+    vi.mocked(loadExactExecution).mockReset();
+    vi.mocked(loadExactJournalEntryProposal).mockReset();
+    vi.mocked(loadAccountsFromCoaMirror).mockReset();
+    vi.mocked(runGovernedJournalEntryCreateOrchestration).mockReset();
+  });
+
+  afterEach(() => {
+    process.env.QB_ENVIRONMENT = prevEnv;
+  });
+
+  it("1. base JE_3D_ACTIVATION_POLICY remains CREATE=false", () => {
+    expect(isJe3dCreateCapabilityEnabled(JE_3D_ACTIVATION_POLICY)).toBe(false);
+  });
+
+  it("2. first-controlled effective policy has CREATE=true and VERIFY=false", () => {
+    const policy = resolveJe3dActivationPolicy();
+    expect(policy).toEqual(JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY);
+    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
+    expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
+  });
+
+  it("3. public create uses effective policy for capability guard (single snapshot)", () => {
+    const src = readFileSync(
+      join(process.cwd(), "lib/journal-entry-governance/provider-create-service.ts"),
+      "utf8",
+    );
+    expect(src).toContain("const activationPolicy = resolveJe3dActivationPolicy();");
+    expect(src).toContain("assertJe3dCreateActivationPolicy(activationPolicy)");
+    expect(src).toContain("policy: activationPolicy");
+    expect(src).not.toMatch(/assertJe3dCreateActivationPolicy\(\s*\)/);
+    expect((src.match(/resolveJe3dActivationPolicy\(\)/g) || []).length).toBe(1);
+  });
+
+  it("4. effective CREATE=true + approvedExecutionId=null → fails before orchestration", async () => {
+    expect(
+      evaluateFirstRunExecutionIdentityGate(EXEC_ID, {
+        approvedExecutionId: null,
+        executionReviewedAndApproved: true,
+      }),
+    ).toMatchObject({
+      ok: false,
+      code: FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_NOT_SET,
+    });
+
+    vi.mocked(loadExactExecution).mockResolvedValue(baseExecution());
+    vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(baseProposal());
+    vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(
+      new Map([
+        [
+          "exp-7",
+          {
+            accountId: "exp-7",
+            accountType: "Expense",
+            accountSubtype: null,
+            active: true,
+            name: "Advertising",
+          },
+        ],
+        [
+          "liab-33",
+          {
+            accountId: "liab-33",
+            accountType: "Other Current Liability",
+            accountSubtype: null,
+            active: true,
+            name: "Accrued Liabilities",
+          },
+        ],
+      ]),
+    );
+
+    const result = await executeGovernedJournalEntryCreate(
+      { executionId: EXEC_ID },
+      { principal: { type: "user", userId: USER } },
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.providerPostIssued).toBe(false);
+    expect(result.code).toBe(
+      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_REVIEW_REQUIRED,
+    );
+    expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+  });
+
+  it("5. effective CREATE=true + review flag=false → no POST", async () => {
+    expect(
+      evaluateFirstRunExecutionIdentityGate(EXEC_ID, {
+        approvedExecutionId: EXEC_ID,
+        executionReviewedAndApproved: false,
+      }),
+    ).toMatchObject({
+      ok: false,
+      code: FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_REVIEW_REQUIRED,
+    });
+    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(false);
+    expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBeNull();
+
+    vi.mocked(loadExactExecution).mockResolvedValue(baseExecution());
+    vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(baseProposal());
+    vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(new Map());
+
+    const result = await executeGovernedJournalEntryCreate(
+      { executionId: EXEC_ID },
+      { principal: { type: "user", userId: USER } },
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.providerPostIssued).toBe(false);
+    expect(result.code).toBe(
+      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_REVIEW_REQUIRED,
+    );
+    expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+  });
+
+  it("6. effective CREATE=true + wrong execution ID → fails", async () => {
+    expect(
+      evaluateFirstRunExecutionIdentityGate("wrong-exec-id", {
+        approvedExecutionId: EXEC_ID,
+        executionReviewedAndApproved: true,
+      }),
+    ).toMatchObject({
+      ok: false,
+      code: FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_MISMATCH,
+    });
+
+    vi.mocked(loadExactExecution).mockResolvedValue(
+      baseExecution({ id: "wrong-exec-id" }),
+    );
+    vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(baseProposal());
+    vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(new Map());
+
+    const result = await executeGovernedJournalEntryCreate(
+      { executionId: "wrong-exec-id" },
+      { principal: { type: "user", userId: USER } },
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.providerPostIssued).toBe(false);
+    expect(result.code).toBe(
+      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_REVIEW_REQUIRED,
+    );
+    expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+  });
+
+  it("7. effective CREATE=true + invalid economics → fails", async () => {
+    vi.mocked(loadExactExecution).mockResolvedValue(baseExecution());
+    vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(
+      baseProposal({ currency: "CAD" }),
+    );
+    vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(
+      new Map([
+        [
+          "exp-7",
+          {
+            accountId: "exp-7",
+            accountType: "Expense",
+            accountSubtype: null,
+            active: true,
+          },
+        ],
+        [
+          "liab-33",
+          {
+            accountId: "liab-33",
+            accountType: "Other Current Liability",
+            accountSubtype: null,
+            active: true,
+          },
+        ],
+      ]),
+    );
+
+    const result = await executeGovernedJournalEntryCreate(
+      { executionId: EXEC_ID },
+      { principal: { type: "user", userId: USER } },
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.providerPostIssued).toBe(false);
+    expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+  });
+
+  it("8. mocked orchestration receives at most one POST when first-run authority passes", async () => {
+    const authority = await import("../je3d-first-run-execution-authority");
+    const evaluateSpy = vi
+      .spyOn(authority, "evaluateFirstRunCreateAuthority")
+      .mockReturnValue({ ok: true });
+
+    vi.mocked(loadExactExecution).mockResolvedValue(baseExecution());
+    vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(baseProposal());
+    vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(new Map());
+    vi.mocked(runGovernedJournalEntryCreateOrchestration).mockResolvedValue({
+      ok: true,
+      gated: false,
+      providerPostIssued: true,
+      memoryWritten: false,
+      discoveryRequired: false,
+      attempt: {} as never,
+      execution: baseExecution(),
+      outcome: {} as never,
+      transport: { postAttempts: 1 } as never,
+      dispatchLedgerEventId: null,
+      terminalLedgerEventId: null,
+    });
+
+    const result = await executeGovernedJournalEntryCreate(
+      { executionId: EXEC_ID },
+      { principal: { type: "user", userId: USER } },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(runGovernedJournalEntryCreateOrchestration).toHaveBeenCalledTimes(1);
+    evaluateSpy.mockRestore();
+  });
+
+  it("9. VERIFY remains OFF throughout", () => {
+    expect(isJe3dVerifyCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(
+      false,
+    );
+  });
+
+  it("10. no caller can inject an alternative policy into public create", () => {
+    const src = readFileSync(
+      join(process.cwd(), "lib/journal-entry-governance/provider-create-service.ts"),
+      "utf8",
+    );
+    expect(src).not.toMatch(/assertJe3dCreateActivationPolicy\([^)]*input/);
+    expect(src).not.toContain("policy?:");
+    expect(src).not.toContain("activationPolicy?:");
+  });
+});

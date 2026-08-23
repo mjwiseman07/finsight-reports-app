@@ -437,12 +437,19 @@ describe("JE-3B2 provider host selection", () => {
   });
 
   it("missing env fails closed", () => {
-    expect(() => resolveGovernedQboWriteApiBase(undefined)).toThrow(
-      /QB_ENVIRONMENT is required/,
-    );
-    expect(() => resolveGovernedQboWriteApiBase("")).toThrow(
-      /QB_ENVIRONMENT is required/,
-    );
+    const prev = process.env.QB_ENVIRONMENT;
+    delete process.env.QB_ENVIRONMENT;
+    try {
+      expect(() => resolveGovernedQboWriteApiBase()).toThrow(
+        /QB_ENVIRONMENT is required/,
+      );
+      expect(() => resolveGovernedQboWriteApiBase("")).toThrow(
+        /QB_ENVIRONMENT is required/,
+      );
+    } finally {
+      if (prev === undefined) delete process.env.QB_ENVIRONMENT;
+      else process.env.QB_ENVIRONMENT = prev;
+    }
   });
 
   it("invalid env fails closed (never production default)", () => {

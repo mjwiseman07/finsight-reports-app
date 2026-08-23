@@ -92,7 +92,9 @@ export async function executeGovernedJournalEntryCreate(
 ): Promise<ExecuteGovernedJeCreateResult> {
   void JE_MEMORY_PROJECTION_CONTRACT;
   rejectCallerTransportOverrides(input as Record<string, unknown>);
-  assertJe3dCreateActivationPolicy();
+
+  const activationPolicy = resolveJe3dActivationPolicy();
+  assertJe3dCreateActivationPolicy(activationPolicy);
 
   const execution = await loadExactExecution(input.executionId);
   if (!execution) {
@@ -108,7 +110,7 @@ export async function executeGovernedJournalEntryCreate(
 
   await assertJe3dSandboxExecutionCustody({
     execution,
-    policy: resolveJe3dActivationPolicy(),
+    policy: activationPolicy,
   });
 
   const proposal = await loadExactJournalEntryProposal(execution.proposal_id);
