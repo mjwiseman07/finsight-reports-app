@@ -33,8 +33,6 @@ export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPoli
       CREATE_SANDBOX_JE: true,
       VERIFY_SANDBOX_JE: false,
     },
-    governedCreateAllowed: false,
-    verificationAllowed: false,
     productionAllowed: false,
     memoryWriteAllowed: false,
     workerAllowed: false,

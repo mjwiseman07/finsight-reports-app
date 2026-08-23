@@ -26,8 +26,6 @@ export const JE_3D_ACTIVATION_POLICY = {
     CREATE_SANDBOX_JE: false as const,
     VERIFY_SANDBOX_JE: false as const,
   },
-  governedCreateAllowed: false as const,
-  verificationAllowed: false as const,
   /** Default-deny until resolved from database authority. */
   allowedCompanyIds: [] as readonly string[],
   /** Canonical sandbox connection bound after DB resolution (null until resolved). */
@@ -80,8 +78,6 @@ export type Je3dActivationPolicyView = {
     CREATE_SANDBOX_JE: boolean;
     VERIFY_SANDBOX_JE: boolean;
   };
-  governedCreateAllowed: boolean;
-  verificationAllowed: boolean;
   allowedCompanyIds: readonly string[];
   canonicalSandboxConnectionId: string | null;
   maxProviderPostsPerActivation: number;

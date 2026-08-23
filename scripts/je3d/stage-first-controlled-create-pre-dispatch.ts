@@ -2,11 +2,12 @@
 /**
  * JE-3D — First controlled CREATE activation staging (pre-dispatch STOP).
  *
- * - Verifies Demo A identity from database authority only
- * - Audits JE custody prerequisites
- * - When prerequisites exist: proposal → approval → execution → RESERVED attempt
- * - STOPS before provider_dispatch_started and before POST /journalentry
- * - No QBO network calls
+ * Phase A (read-only): COA candidate report — no auto account selection.
+ * Phase B (mutating): proposal → approval → execution → RESERVED attempt
+ *   only when explicit reviewed account IDs pass authority checks.
+ *
+ * STOPS before provider_dispatch_started and before POST /journalentry.
+ * No QBO network calls.
  *
  * Usage:
  *   QB_ENVIRONMENT=sandbox npx tsx scripts/je3d/stage-first-controlled-create-pre-dispatch.ts
@@ -30,6 +31,15 @@ import {
 } from "../../lib/journal-entry-governance/je3d-sandbox-environment";
 import { resolveSandboxActivationAllowlist } from "../../lib/journal-entry-governance/je3d-sandbox-company-authority";
 import {
+  buildFirstRunAccountCandidateReport,
+  FIRST_RUN_ACCOUNT_APPROVAL_RECOMMENDATION,
+  FIRST_RUN_JE_AMOUNT_CENTS,
+  FIRST_RUN_JE_CURRENCY,
+  resolveFirstRunExplicitAccountEvidence,
+  validateExplicitFirstRunAccounts,
+  type CoaMirrorAccountRow,
+} from "../../lib/journal-entry-governance/je3d-first-run-account-authority";
+import {
   createContinuousCloseJournalEntryProposal,
   decideJournalEntryProposal,
   prepareGovernedJournalEntryExecution,
@@ -43,8 +53,6 @@ import type { CreateJeProposalInput } from "../../lib/journal-entry-governance";
 
 /** Controlled first-run evidence — not general product authority. */
 const FIRST_RUN_JE_EVIDENCE = {
-  amountCents: 100,
-  currency: "USD",
   originType: "ACCRUAL" as const,
   reasonCode: "cutoff_accrual",
   memo: "JE-3D first controlled sandbox accrual (immaterial)",
@@ -79,11 +87,61 @@ loadEnv(".env.local");
 
 type StopReason = { code: string; message: string };
 
-async function auditPrerequisites(): Promise<{
+async function loadCoaMirrorRows(
+  firmClientId: string,
+): Promise<CoaMirrorAccountRow[]> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("qbo_coa_mirror")
+    .select(
+      "external_account_id, account_name, account_type, account_subtype, active",
+    )
+    .eq("firm_client_id", firmClientId);
+  if (error) throw error;
+  return (data || []).map((row: {
+    external_account_id: string;
+    account_name: string | null;
+    account_type: string | null;
+    account_subtype: string | null;
+    active: boolean;
+  }) => ({
+    accountId: String(row.external_account_id),
+    accountName: String(row.account_name || ""),
+    accountType: String(row.account_type || ""),
+    accountSubtype: row.account_subtype ? String(row.account_subtype) : null,
+    active: Boolean(row.active),
+  }));
+}
+
+async function resolveOpenTxnDate(
+  firmClientId: string,
+): Promise<string | null> {
+  const supabase = getSupabaseAdmin();
+  const { data: closePeriod } = await supabase
+    .from("close_periods")
+    .select("period_end, status")
+    .eq("firm_client_id", firmClientId)
+    .neq("status", "locked")
+    .order("period_end", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return closePeriod?.period_end
+    ? String(closePeriod.period_end).slice(0, 10)
+    : null;
+}
+
+async function auditPrerequisites(args: {
+  requireCoaMirror: boolean;
+}): Promise<{
   stopReasons: StopReason[];
   engagementId: string | null;
   ccRunId: string | null;
-  sod: { proposerUserId: string | null; approverUserId: string | null; executorUserId: string | null };
+  coaMirrorPresent: boolean;
+  sod: {
+    proposerUserId: string | null;
+    approverUserId: string | null;
+    executorUserId: string | null;
+  };
 }> {
   const supabase = getSupabaseAdmin();
   const stopReasons: StopReason[] = [];
@@ -136,10 +194,11 @@ async function auditPrerequisites(): Promise<{
 
   const { count: coaCount } = await supabase
     .from("qbo_coa_mirror")
-    .select("account_id", { count: "exact", head: true })
+    .select("external_account_id", { count: "exact", head: true })
     .eq("firm_client_id", firmClientId);
 
-  if (!coaCount) {
+  const coaMirrorPresent = Boolean(coaCount && coaCount > 0);
+  if (args.requireCoaMirror && !coaMirrorPresent) {
     stopReasons.push({
       code: "missing_qbo_coa_mirror",
       message: "qbo_coa_mirror has no rows for Demo A firm_client.",
@@ -197,7 +256,8 @@ async function auditPrerequisites(): Promise<{
   if (executorUserId && approverUserId && executorUserId === approverUserId) {
     stopReasons.push({
       code: "sod_executor_equals_approver",
-      message: "Executor must differ from approver under DEFAULT_JE_EXECUTION_POLICY.",
+      message:
+        "Executor must differ from approver under DEFAULT_JE_EXECUTION_POLICY.",
     });
   }
 
@@ -205,83 +265,75 @@ async function auditPrerequisites(): Promise<{
     stopReasons,
     engagementId,
     ccRunId,
+    coaMirrorPresent,
     sod: { proposerUserId, approverUserId, executorUserId },
   };
 }
 
-async function pickAccrualAccounts(firmClientId: string): Promise<{
-  expenseAccountId: string | null;
-  liabilityAccountId: string | null;
-  txnDate: string | null;
-}> {
-  const supabase = getSupabaseAdmin();
-  const { data: accounts } = await supabase
-    .from("qbo_coa_mirror")
-    .select("account_id, account_name, account_type, active")
-    .eq("firm_client_id", firmClientId)
-    .eq("active", true);
-
-  const rows = accounts || [];
-  const expense = rows.find((a: { account_type: string }) =>
-    ["Expense", "Other Expense", "Cost of Goods Sold"].includes(
-      String(a.account_type),
-    ),
-  );
-  const liability = rows.find((a: { account_type: string }) =>
-    ["Other Current Liability", "Long Term Liability"].includes(
-      String(a.account_type),
-    ),
-  );
-
-  const { data: closePeriod } = await supabase
-    .from("close_periods")
-    .select("period_end, status")
-    .eq("firm_client_id", firmClientId)
-    .neq("status", "locked")
-    .order("period_end", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
+function accountDetail(candidate: {
+  accountId: string;
+  accountName: string;
+  accountType: string;
+  accountSubtype: string | null;
+  active: boolean;
+}) {
   return {
-    expenseAccountId: expense?.account_id ? String(expense.account_id) : null,
-    liabilityAccountId: liability?.account_id ? String(liability.account_id) : null,
-    txnDate: closePeriod?.period_end
-      ? String(closePeriod.period_end).slice(0, 10)
-      : null,
+    account_id: candidate.accountId,
+    account_name: candidate.accountName,
+    account_type: candidate.accountType,
+    account_subtype: candidate.accountSubtype,
+    active: candidate.active,
   };
 }
 
 async function main() {
   const policy = resolveJe3dActivationPolicy();
-  const qbEnv = classifyQbEnvironment(process.env.QB_ENVIRONMENT);
+  const accountEvidence = resolveFirstRunExplicitAccountEvidence();
   const output: Record<string, unknown> = {
     base: "4a346b9a1f83d1a3a8e2be4e0f019c086c8c1a46",
     head: null,
+    phase: "A",
     CREATE_SANDBOX_JE: isJe3dCreateCapabilityEnabled(policy),
     VERIFY_SANDBOX_JE: isJe3dVerifyCapabilityEnabled(policy),
     memory: policy.memoryWriteAllowed,
     worker: policy.workerAllowed,
     GOVERNED_AUTO: policy.governedAutoAllowed,
     productionAllowed: policy.productionAllowed,
+    heuristic_first_account_selection: false,
+    explicit_expense_account_id_required: true,
+    explicit_accrued_liability_account_id_required: true,
+    first_run_expense_account_id: accountEvidence.expenseAccountId,
+    first_run_accrued_liability_account_id:
+      accountEvidence.accruedLiabilityAccountId,
+    first_run_accounts_reviewed_and_approved:
+      accountEvidence.accountsReviewedAndApproved,
     company_id: JE_3D_VERIFIED_DEMO_A_IDENTITY.companyId,
     accounting_connection_id: JE_3D_VERIFIED_DEMO_A_IDENTITY.accountingConnectionId,
     realm_id: JE_3D_VERIFIED_DEMO_A_IDENTITY.realmId,
     provider_environment: JE_3D_VERIFIED_DEMO_A_IDENTITY.providerEnvironment,
+    je_amount_cents: FIRST_RUN_JE_AMOUNT_CENTS,
+    currency: FIRST_RUN_JE_CURRENCY,
     qbo_post_made: false,
     dispatch_receipt_exists: false,
+    proposal_created: false,
     qbo_provider_id: null,
     stop_reasons: [] as StopReason[],
+    candidate_report: null,
+    expense_account: null,
+    liability_account: null,
+    transaction_date: null,
     cockpit: null,
-    recommendation: "STOP — DO NOT POST. RETURN CONTROL TO CHATGPT.",
+    recommendation: FIRST_RUN_ACCOUNT_APPROVAL_RECOMMENDATION,
   };
 
-  if (!qbEnv.ok) {
+  if (!classifyQbEnvironment(process.env.QB_ENVIRONMENT).ok) {
     output.stop_reasons = [
       {
         code: "invalid_qb_environment",
         message: "QB_ENVIRONMENT must be exactly sandbox.",
       },
     ];
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
@@ -296,6 +348,7 @@ async function main() {
         message: `Sandbox allowlist resolution: ${allowlist.allowlistResolution}`,
       },
     ];
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
@@ -314,51 +367,102 @@ async function main() {
         message: "Resolved allowlist does not match verified Demo A identity evidence.",
       },
     ];
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
 
-  const prereq = await auditPrerequisites();
+  const firmClientId = JE_3D_VERIFIED_DEMO_A_IDENTITY.firmClientId;
+  const prereqForReport = await auditPrerequisites({ requireCoaMirror: true });
+  if (!prereqForReport.coaMirrorPresent) {
+    output.stop_reasons = prereqForReport.stopReasons.filter(
+      (r) => r.code === "missing_qbo_coa_mirror",
+    );
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
+    console.log(JSON.stringify(output, null, 2));
+    process.exit(2);
+  }
+
+  const mirrorRows = await loadCoaMirrorRows(firmClientId);
+  const candidateReport = buildFirstRunAccountCandidateReport({
+    firmClientId,
+    rows: mirrorRows,
+  });
+  output.candidate_report = candidateReport;
+
+  const accountAuthority = validateExplicitFirstRunAccounts({
+    evidence: accountEvidence,
+    mirrorRows,
+  });
+
+  if (!accountAuthority.ok) {
+    output.stop_reasons = [
+      { code: accountAuthority.code, message: accountAuthority.message },
+      ...prereqForReport.stopReasons,
+    ];
+    if (accountEvidence.expenseAccountId) {
+      const expenseRow = mirrorRows.find(
+        (r) => r.accountId === accountEvidence.expenseAccountId,
+      );
+      if (expenseRow) output.expense_account = accountDetail(expenseRow);
+    }
+    if (accountEvidence.accruedLiabilityAccountId) {
+      const liabilityRow = mirrorRows.find(
+        (r) => r.accountId === accountEvidence.accruedLiabilityAccountId,
+      );
+      if (liabilityRow) output.liability_account = accountDetail(liabilityRow);
+    }
+    output.transaction_date = await resolveOpenTxnDate(firmClientId);
+    output.recommendation = accountAuthority.recommendation;
+    console.log(JSON.stringify(output, null, 2));
+    process.exit(2);
+  }
+
+  output.expense_account = accountDetail(accountAuthority.expenseCandidate);
+  output.liability_account = accountDetail(accountAuthority.liabilityCandidate);
+  output.transaction_date = await resolveOpenTxnDate(firmClientId);
+
+  const prereq = await auditPrerequisites({ requireCoaMirror: true });
   if (prereq.stopReasons.length > 0) {
     output.stop_reasons = prereq.stopReasons;
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
 
-  const accounts = await pickAccrualAccounts(
-    JE_3D_VERIFIED_DEMO_A_IDENTITY.firmClientId,
-  );
-  if (!accounts.expenseAccountId || !accounts.liabilityAccountId || !accounts.txnDate) {
+  if (!output.transaction_date) {
     output.stop_reasons = [
       {
-        code: "accrual_accounts_unresolved",
-        message: "Could not resolve expense + accrued liability accounts from COA mirror / open period.",
+        code: "missing_open_period",
+        message: "No unlocked close period available for txn date.",
       },
     ];
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
 
-  const amount = FIRST_RUN_JE_EVIDENCE.amountCents;
+  output.phase = "B";
+  const amount = FIRST_RUN_JE_AMOUNT_CENTS;
   const proposalInput: CreateJeProposalInput = {
     engagementId: String(prereq.engagementId),
     sourceContinuousCloseRunId: String(prereq.ccRunId),
     originType: FIRST_RUN_JE_EVIDENCE.originType,
     reasonCode: FIRST_RUN_JE_EVIDENCE.reasonCode,
     memo: FIRST_RUN_JE_EVIDENCE.memo,
-    currency: FIRST_RUN_JE_EVIDENCE.currency,
-    txnDate: accounts.txnDate,
+    currency: FIRST_RUN_JE_CURRENCY,
+    txnDate: String(output.transaction_date),
     lines: [
       {
         sequence: 1,
-        accountId: accounts.expenseAccountId,
+        accountId: accountAuthority.expense.accountId,
         debitCents: amount,
         creditCents: 0,
-        description: "Immateral sandbox accrual expense",
+        description: "Immaterial sandbox accrual expense",
       },
       {
         sequence: 2,
-        accountId: accounts.liabilityAccountId,
+        accountId: accountAuthority.liability.accountId,
         debitCents: 0,
         creditCents: amount,
         description: "Accrued liability",
@@ -367,8 +471,8 @@ async function main() {
     expectedEffects: [
       {
         type: "ACCOUNT_RECLASS",
-        fromAccountId: accounts.expenseAccountId,
-        toAccountId: accounts.liabilityAccountId,
+        fromAccountId: accountAuthority.expense.accountId,
+        toAccountId: accountAuthority.liability.accountId,
         amountCents: amount,
       },
     ],
@@ -397,9 +501,11 @@ async function main() {
         message: `${proposalResult.code}: ${proposalResult.message}`,
       },
     ];
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
+  output.proposal_created = true;
 
   const approvalResult = await decideJournalEntryProposal(
     {
@@ -417,6 +523,7 @@ async function main() {
       },
     ];
     output.proposal_id = proposalResult.proposal.id;
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
@@ -438,6 +545,7 @@ async function main() {
     ];
     output.proposal_id = proposalResult.proposal.id;
     output.approval_id = approvalResult.approval.id;
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
@@ -457,25 +565,23 @@ async function main() {
     output.proposal_id = proposalResult.proposal.id;
     output.approval_id = approvalResult.approval.id;
     output.execution_id = executionResult.execution.id;
+    output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
 
+  const stopReasons = output.stop_reasons as StopReason[];
   if (reserveResult.attempt.status !== "RESERVED") {
-    output.stop_reasons = [
-      {
-        code: "attempt_status_unexpected",
-        message: `Expected RESERVED, got ${reserveResult.attempt.status}`,
-      },
-    ];
+    stopReasons.push({
+      code: "attempt_status_unexpected",
+      message: `Expected RESERVED, got ${reserveResult.attempt.status}`,
+    });
   }
   if (reserveResult.attempt.commit_certainty !== "NOT_SENT") {
-    output.stop_reasons = [
-      {
-        code: "commit_certainty_unexpected",
-        message: `Expected NOT_SENT, got ${reserveResult.attempt.commit_certainty}`,
-      },
-    ];
+    stopReasons.push({
+      code: "commit_certainty_unexpected",
+      message: `Expected NOT_SENT, got ${reserveResult.attempt.commit_certainty}`,
+    });
   }
 
   const cockpit = await inspectGovernedJeActivationCustody(
@@ -490,23 +596,21 @@ async function main() {
     provider_attempt_id: cockpit.provider_attempt_id,
     attempt_status: cockpit.attempt_status,
     commit_certainty: cockpit.commit_certainty,
-    je_amount_cents: amount,
-    debit_account_id: accounts.expenseAccountId,
-    credit_account_id: accounts.liabilityAccountId,
-    transaction_date: cockpit.txn_date,
+    debit_account_id: accountAuthority.expense.accountId,
+    credit_account_id: accountAuthority.liability.accountId,
     provider_request_hash: cockpit.provider_request_hash,
     correlation_marker: cockpit.correlation_marker,
     dispatch_receipt_exists: Boolean(cockpit.dispatch_receipt_id),
     qbo_provider_id: cockpit.qbo_je_id,
     cockpit,
     recommendation:
-      (output.stop_reasons as StopReason[]).length === 0
+      stopReasons.length === 0
         ? "READY FOR FIRST SANDBOX POST REVIEW"
-        : "STOP — DO NOT POST. RETURN CONTROL TO CHATGPT.",
+        : "KEEP DRAFT — RETURN CONTROL TO CHATGPT.",
   });
 
   console.log(JSON.stringify(output, null, 2));
-  process.exit((output.stop_reasons as StopReason[]).length === 0 ? 0 : 2);
+  process.exit(stopReasons.length === 0 ? 0 : 2);
 }
 
 main().catch((err) => {

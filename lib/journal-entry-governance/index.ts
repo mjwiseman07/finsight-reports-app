@@ -209,6 +209,27 @@ export {
   resolveJe3dActivationPolicy,
   isVerifiedDemoAIdentityMatch,
 } from "./je3d-first-controlled-create-activation";
+export {
+  FIRST_RUN_EXPENSE_ACCOUNT_ID,
+  FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID,
+  FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED,
+  FIRST_RUN_ACCOUNT_APPROVAL_RECOMMENDATION,
+  FIRST_RUN_JE_AMOUNT_CENTS,
+  FIRST_RUN_JE_CURRENCY,
+  buildFirstRunAccountCandidate,
+  buildFirstRunAccountCandidateReport,
+  classifyFirstRunAccountExclusions,
+  isEligibleAccruedLiabilityAccount,
+  isEligibleOrdinaryExpenseAccount,
+  resolveFirstRunExplicitAccountEvidence,
+  validateExplicitFirstRunAccounts,
+} from "./je3d-first-run-account-authority";
+export type {
+  CoaMirrorAccountRow,
+  FirstRunAccountCandidate,
+  FirstRunAccountCandidateReport,
+  FirstRunAccountExclusion,
+} from "./je3d-first-run-account-authority";
 export type {
   GovernedJeActivationInspection,
   GovernedJeActivationLineInspection,
