@@ -76,6 +76,37 @@ type GrantRow = Pick<AccountingConnectionRecord, "id" | "status" | "metadata_jso
 export const ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX =
   "accounting_connections_one_connected_grant_uidx";
 
+/**
+ * Canonical OAuth custody columns that must never be supplied via extraColumns.
+ * provider_environment for QuickBooks is derived only from deployment QB_ENVIRONMENT.
+ */
+export const RESERVED_CANONICAL_CONNECTION_EXTRA_COLUMNS = [
+  "provider_environment",
+] as const;
+
+export class ReservedCanonicalConnectionExtraColumnError extends Error {
+  readonly column: string;
+
+  constructor(column: string) {
+    super(
+      `Reserved canonical connection column cannot be supplied via extraColumns: ${column}`,
+    );
+    this.name = "ReservedCanonicalConnectionExtraColumnError";
+    this.column = column;
+  }
+}
+
+export function assertNoReservedExtraColumns(
+  extraColumns: Record<string, unknown> | undefined,
+): void {
+  if (!extraColumns) return;
+  for (const key of RESERVED_CANONICAL_CONNECTION_EXTRA_COLUMNS) {
+    if (Object.prototype.hasOwnProperty.call(extraColumns, key)) {
+      throw new ReservedCanonicalConnectionExtraColumnError(key);
+    }
+  }
+}
+
 function asErrorRecord(error: unknown): { code?: string; message?: string } {
   if (!error || typeof error !== "object") return {};
   return error as { code?: string; message?: string };
@@ -195,11 +226,13 @@ async function selectTenantlessGrant(
 }
 
 function buildWritePayload(args: PersistCanonicalConnectionGrantArgs, metadata: Record<string, unknown>) {
+  assertNoReservedExtraColumns(args.extraColumns);
   const nowIso = args.nowIso || new Date().toISOString();
   const providerEnvironment =
     args.provider === "quickbooks"
       ? resolvePersistedQboProviderEnvironment()
       : null;
+  const safeExtraColumns = args.extraColumns || {};
   return {
     user_id: args.userId,
     provider: args.provider,
@@ -215,8 +248,8 @@ function buildWritePayload(args: PersistCanonicalConnectionGrantArgs, metadata: 
     status: args.status,
     metadata_json: metadata,
     updated_at: nowIso,
+    ...safeExtraColumns,
     ...(providerEnvironment ? { provider_environment: providerEnvironment } : {}),
-    ...(args.extraColumns || {}),
   };
 }
 
