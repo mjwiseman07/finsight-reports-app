@@ -12,6 +12,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rejectUserIdShapedCompanyId } from "./resolve-or-create-company";
+import { resolvePersistedQboProviderEnvironment } from "@/lib/erp/quickbooks/persisted-provider-environment";
 import type {
   AccountingConnectionRecord,
   AccountingConnectionStatus,
@@ -195,6 +196,10 @@ async function selectTenantlessGrant(
 
 function buildWritePayload(args: PersistCanonicalConnectionGrantArgs, metadata: Record<string, unknown>) {
   const nowIso = args.nowIso || new Date().toISOString();
+  const providerEnvironment =
+    args.provider === "quickbooks"
+      ? resolvePersistedQboProviderEnvironment()
+      : null;
   return {
     user_id: args.userId,
     provider: args.provider,
@@ -210,6 +215,7 @@ function buildWritePayload(args: PersistCanonicalConnectionGrantArgs, metadata: 
     status: args.status,
     metadata_json: metadata,
     updated_at: nowIso,
+    ...(providerEnvironment ? { provider_environment: providerEnvironment } : {}),
     ...(args.extraColumns || {}),
   };
 }

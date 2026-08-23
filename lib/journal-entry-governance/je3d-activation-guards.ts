@@ -79,12 +79,6 @@ export async function assertJe3dSandboxExecutionCustody(args: {
   const resolveAllowlist =
     args.guardDeps?.resolveAllowlist ?? resolveSandboxActivationAllowlist;
   const allowlist = await resolveAllowlist(args.guardDeps?.allowlistQueryDeps);
-  if (!allowlist.demoA || allowlist.allowedCompanyIds.length === 0) {
-    throw new Je3dActivationError(
-      JE_3D_ACTIVATION_ERROR.ALLOWLIST_UNRESOLVED,
-      "No authoritative sandbox Demo A company/connection could be resolved from database authority.",
-    );
-  }
   assertExecutionOnAllowlistedSandbox({
     executionCompanyId: args.execution.company_id,
     executionConnectionId: args.execution.accounting_connection_id,

@@ -482,6 +482,27 @@ describe("persistCanonicalAccountingConnectionGrant", () => {
     expect(rows.find((r) => r.id === CANONICAL)?.status).toBe("connected");
     expect(rows.filter((r) => r.status === "needs_entity_selection")).toHaveLength(1);
   });
+
+  it("persists durable provider_environment for QuickBooks grants from QB_ENVIRONMENT", async () => {
+    const prev = process.env.QB_ENVIRONMENT;
+    process.env.QB_ENVIRONMENT = "sandbox";
+    try {
+      const { admin, rows } = createStoreAdmin([]);
+      await persistCanonicalAccountingConnectionGrant(
+        baseArgs(admin, {
+          provider: "quickbooks",
+          providerFamily: "intuit",
+          providerProduct: "quickbooks_online",
+          tenantOrRealmId: "9341457151063823",
+          externalEntityId: "qbo:9341457151063823",
+          metadataPatch: { source_system: "quickbooks", company_id: CANONICAL_COMPANY },
+        }),
+      );
+      expect(rows[0]).toMatchObject({ provider_environment: "sandbox" });
+    } finally {
+      process.env.QB_ENVIRONMENT = prev;
+    }
+  });
 });
 
 describe("PR D source wiring (static)", () => {

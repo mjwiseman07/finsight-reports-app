@@ -1,8 +1,13 @@
 /**
  * JE-3D — Authoritative sandbox company / connection resolution.
  *
- * Resolves the general-accounting QBO sandbox (Demo A) from database authority.
- * Never trusts remembered realm/connection IDs from callers or env vars.
+ * Allowlists ONLY when database authority proves ALL of:
+ *   provider = quickbooks, status = connected,
+ *   provider_environment = sandbox (durable connection field),
+ *   je_activation_demo_role = DEMO_A_GENERAL_ACCOUNTING (durable company field),
+ *   canonical company/realm binding exact.
+ *
+ * No company-name heuristics. No scoring. No UNCLASSIFIED/DEMO_B fallback.
  */
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
@@ -11,21 +16,34 @@ import {
   Je3dActivationError,
 } from "./je3d-activation-policy";
 
+export const JE_ACTIVATION_DEMO_ROLE_DEMO_A =
+  "DEMO_A_GENERAL_ACCOUNTING" as const;
+
+export type JeActivationDemoRole =
+  | typeof JE_ACTIVATION_DEMO_ROLE_DEMO_A
+  | "DEMO_B_SPECIALTY";
+
 export type SandboxActivationAuthorityRow = {
   companyId: string;
+  /** Display metadata only — not used for activation authority. */
   companyName: string;
   accountingConnectionId: string;
   realmId: string;
-  provider: string;
-  connectionStatus: string;
-  demoRole: "DEMO_A_GENERAL_ACCOUNTING" | "DEMO_B_SPECIALTY" | "UNCLASSIFIED_SANDBOX";
+  provider: "quickbooks";
+  connectionStatus: "connected";
+  providerEnvironment: "sandbox";
+  demoRole: typeof JE_ACTIVATION_DEMO_ROLE_DEMO_A;
 };
 
+export type SandboxAllowlistResolution =
+  | "resolved"
+  | "unresolved"
+  | "ambiguous";
+
 export type ResolvedSandboxActivationAllowlist = {
-  /** Demo A — preferred first controlled JE sandbox company. */
+  /** Exact sandbox Demo A when resolution is `resolved`; otherwise null. */
   demoA: SandboxActivationAuthorityRow | null;
-  /** All connected sandbox QB companies discovered from DB authority. */
-  sandboxCompanies: SandboxActivationAuthorityRow[];
+  allowlistResolution: SandboxAllowlistResolution;
   allowedCompanyIds: string[];
   canonicalConnectionByCompanyId: Record<string, string>;
 };
@@ -34,6 +52,7 @@ type AccountingConnectionRow = {
   id: string;
   provider: string | null;
   status: string | null;
+  provider_environment: string | null;
   tenant_or_realm_id: string | null;
   external_entity_id: string | null;
   metadata_json: Record<string, unknown> | null;
@@ -43,6 +62,7 @@ type CompanyRow = {
   id: string;
   name: string | null;
   qbo_realm_id: string | null;
+  je_activation_demo_role: string | null;
 };
 
 export type SandboxAllowlistQueryDeps = {
@@ -65,43 +85,21 @@ function companyIdFromConnection(conn: AccountingConnectionRow): string | null {
   return companyId || null;
 }
 
-function classifyDemoRole(args: {
-  companyName: string;
-  metadata: Record<string, unknown>;
-}): SandboxActivationAuthorityRow["demoRole"] {
-  const explicit = String(args.metadata.demo_role || args.metadata.demoRole || "")
-    .trim()
-    .toUpperCase();
-  if (explicit === "DEMO_A" || explicit === "DEMO_A_GENERAL_ACCOUNTING") {
-    return "DEMO_A_GENERAL_ACCOUNTING";
+function isExactSandboxDemoAActivationCandidate(args: {
+  conn: AccountingConnectionRow;
+  company: CompanyRow;
+  realmId: string;
+  companyId: string;
+}): boolean {
+  if (String(args.conn.provider || "") !== "quickbooks") return false;
+  if (String(args.conn.status || "") !== "connected") return false;
+  if (args.conn.provider_environment !== "sandbox") return false;
+  if (args.company.je_activation_demo_role !== JE_ACTIVATION_DEMO_ROLE_DEMO_A) {
+    return false;
   }
-  if (explicit === "DEMO_B" || explicit === "DEMO_B_SPECIALTY") {
-    return "DEMO_B_SPECIALTY";
-  }
-  const name = args.companyName.toLowerCase();
-  if (
-    name.includes("fixed asset") ||
-    name.includes("specialty") ||
-    name.includes("fa ")
-  ) {
-    return "DEMO_B_SPECIALTY";
-  }
-  if (
-    name.includes("demo") &&
-    (name.includes("accounting") ||
-      name.includes("advisory") ||
-      name.includes("group"))
-  ) {
-    return "DEMO_A_GENERAL_ACCOUNTING";
-  }
-  return "UNCLASSIFIED_SANDBOX";
-}
-
-function scoreDemoA(row: SandboxActivationAuthorityRow): number {
-  if (row.demoRole === "DEMO_A_GENERAL_ACCOUNTING") return 100;
-  if (row.demoRole === "UNCLASSIFIED_SANDBOX") return 10;
-  if (row.demoRole === "DEMO_B_SPECIALTY") return -100;
-  return 0;
+  const companyRealm = String(args.company.qbo_realm_id || "").trim();
+  if (companyRealm && companyRealm !== args.realmId) return false;
+  return true;
 }
 
 export function buildSandboxAllowlistFromRows(args: {
@@ -109,52 +107,64 @@ export function buildSandboxAllowlistFromRows(args: {
   companies: CompanyRow[];
 }): ResolvedSandboxActivationAllowlist {
   const companiesById = new Map(args.companies.map((c) => [c.id, c]));
-  const sandboxCompanies: SandboxActivationAuthorityRow[] = [];
+  const exactMatches: SandboxActivationAuthorityRow[] = [];
 
   for (const conn of args.connections) {
-    if (String(conn.provider || "") !== "quickbooks") continue;
-    if (String(conn.status || "") !== "connected") continue;
     const realmId = realmFromConnection(conn);
     if (!realmId) continue;
     const companyId = companyIdFromConnection(conn);
     if (!companyId) continue;
     const company = companiesById.get(companyId);
     if (!company) continue;
-    const companyRealm = String(company.qbo_realm_id || "").trim();
-    if (companyRealm && companyRealm !== realmId) continue;
+    if (
+      !isExactSandboxDemoAActivationCandidate({
+        conn,
+        company,
+        realmId,
+        companyId,
+      })
+    ) {
+      continue;
+    }
 
-    const metadata = (conn.metadata_json || {}) as Record<string, unknown>;
-    const companyName = String(company.name || companyId);
-    sandboxCompanies.push({
+    exactMatches.push({
       companyId,
-      companyName,
+      companyName: String(company.name || companyId),
       accountingConnectionId: conn.id,
       realmId,
       provider: "quickbooks",
       connectionStatus: "connected",
-      demoRole: classifyDemoRole({ companyName, metadata }),
+      providerEnvironment: "sandbox",
+      demoRole: JE_ACTIVATION_DEMO_ROLE_DEMO_A,
     });
   }
 
-  const demoA =
-    [...sandboxCompanies].sort((a, b) => scoreDemoA(b) - scoreDemoA(a))[0] ??
-    null;
-
-  const preferred =
-    demoA?.demoRole === "DEMO_A_GENERAL_ACCOUNTING" ? demoA : demoA;
-
-  const allowedCompanyIds = preferred ? [preferred.companyId] : [];
-  const canonicalConnectionByCompanyId: Record<string, string> = {};
-  if (preferred) {
-    canonicalConnectionByCompanyId[preferred.companyId] =
-      preferred.accountingConnectionId;
+  if (exactMatches.length === 0) {
+    return {
+      demoA: null,
+      allowlistResolution: "unresolved",
+      allowedCompanyIds: [],
+      canonicalConnectionByCompanyId: {},
+    };
   }
 
+  if (exactMatches.length > 1) {
+    return {
+      demoA: null,
+      allowlistResolution: "ambiguous",
+      allowedCompanyIds: [],
+      canonicalConnectionByCompanyId: {},
+    };
+  }
+
+  const demoA = exactMatches[0]!;
   return {
-    demoA: preferred,
-    sandboxCompanies,
-    allowedCompanyIds,
-    canonicalConnectionByCompanyId,
+    demoA,
+    allowlistResolution: "resolved",
+    allowedCompanyIds: [demoA.companyId],
+    canonicalConnectionByCompanyId: {
+      [demoA.companyId]: demoA.accountingConnectionId,
+    },
   };
 }
 
@@ -165,7 +175,7 @@ export function createDefaultSandboxAllowlistQueryDeps(): SandboxAllowlistQueryD
       const { data, error } = await supabase
         .from("accounting_connections")
         .select(
-          "id, provider, status, tenant_or_realm_id, external_entity_id, metadata_json",
+          "id, provider, status, provider_environment, tenant_or_realm_id, external_entity_id, metadata_json",
         )
         .eq("provider", "quickbooks")
         .eq("status", "connected");
@@ -182,7 +192,7 @@ export function createDefaultSandboxAllowlistQueryDeps(): SandboxAllowlistQueryD
       const supabase = getSupabaseAdmin();
       const { data, error } = await supabase
         .from("companies")
-        .select("id, name, qbo_realm_id")
+        .select("id, name, qbo_realm_id, je_activation_demo_role")
         .in("id", companyIds);
       if (error) {
         throw new Je3dActivationError(
@@ -215,6 +225,21 @@ export function assertExecutionOnAllowlistedSandbox(args: {
   executionConnectionId: string;
   allowlist: ResolvedSandboxActivationAllowlist;
 }): void {
+  if (args.allowlist.allowlistResolution === "ambiguous") {
+    throw new Je3dActivationError(
+      JE_3D_ACTIVATION_ERROR.AMBIGUOUS_AUTHORITY,
+      "Multiple exact sandbox Demo A authorities resolved; activation blocked.",
+    );
+  }
+  if (
+    args.allowlist.allowlistResolution !== "resolved" ||
+    !args.allowlist.demoA
+  ) {
+    throw new Je3dActivationError(
+      JE_3D_ACTIVATION_ERROR.ALLOWLIST_UNRESOLVED,
+      "No authoritative sandbox Demo A company/connection could be resolved from database authority.",
+    );
+  }
   if (!args.allowlist.allowedCompanyIds.includes(args.executionCompanyId)) {
     throw new Je3dActivationError(
       JE_3D_ACTIVATION_ERROR.COMPANY_NOT_ALLOWLISTED,

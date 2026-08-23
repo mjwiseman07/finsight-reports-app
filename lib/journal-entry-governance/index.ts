@@ -186,10 +186,12 @@ export {
   buildSandboxAllowlistFromRows,
   assertExecutionOnAllowlistedSandbox,
   assertTokenRealmMatchesConnection,
+  JE_ACTIVATION_DEMO_ROLE_DEMO_A,
 } from "./je3d-sandbox-company-authority";
 export type {
   ResolvedSandboxActivationAllowlist,
   SandboxActivationAuthorityRow,
+  SandboxAllowlistResolution,
 } from "./je3d-sandbox-company-authority";
 export {
   assertJe3dCreateActivationPolicy,

@@ -57,6 +57,7 @@ export const JE_3D_ACTIVATION_ERROR = {
   REALM_MISMATCH: "je_3d_realm_mismatch",
   CALLER_OVERRIDE_FORBIDDEN: "je_3d_caller_override_forbidden",
   ALLOWLIST_UNRESOLVED: "je_3d_allowlist_unresolved",
+  AMBIGUOUS_AUTHORITY: "je_3d_ambiguous_authority",
   MEMORY_WRITE_FORBIDDEN: "je_3d_memory_write_forbidden",
 } as const;
 

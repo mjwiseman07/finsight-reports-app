@@ -21,6 +21,7 @@ import {
   buildSandboxAllowlistFromRows,
   assertExecutionOnAllowlistedSandbox,
   assertTokenRealmMatchesConnection,
+  JE_ACTIVATION_DEMO_ROLE_DEMO_A,
 } from "../je3d-sandbox-company-authority";
 import {
   assertJe3dCreateActivationPolicy,
@@ -101,38 +102,40 @@ function execution(
   };
 }
 
-function demoAAllowlist() {
-  return buildSandboxAllowlistFromRows({
+function exactSandboxDemoARow(over: {
+  connId?: string;
+  companyId?: string;
+  realm?: string;
+  companyName?: string;
+} = {}) {
+  const companyId = over.companyId ?? "co-demo-a";
+  const connId = over.connId ?? "conn-demo-a";
+  const realm = over.realm ?? "9341457151063823";
+  return {
     connections: [
       {
-        id: "conn-demo-a",
+        id: connId,
         provider: "quickbooks",
         status: "connected",
-        tenant_or_realm_id: "9341457151063823",
+        provider_environment: "sandbox",
+        tenant_or_realm_id: realm,
         external_entity_id: null,
-        metadata_json: {
-          company_id: "co-demo-a",
-          demo_role: "DEMO_A",
-        },
-      },
-      {
-        id: "conn-prod",
-        provider: "quickbooks",
-        status: "connected",
-        tenant_or_realm_id: "999999999",
-        external_entity_id: null,
-        metadata_json: { company_id: "co-prod" },
+        metadata_json: { company_id: companyId },
       },
     ],
     companies: [
       {
-        id: "co-demo-a",
-        name: "Demo Accounting Group",
-        qbo_realm_id: "9341457151063823",
+        id: companyId,
+        name: over.companyName ?? "Demo Accounting Group",
+        qbo_realm_id: realm,
+        je_activation_demo_role: JE_ACTIVATION_DEMO_ROLE_DEMO_A,
       },
-      { id: "co-prod", name: "Production Client", qbo_realm_id: "999999999" },
     ],
-  });
+  };
+}
+
+function demoAAllowlist() {
+  return buildSandboxAllowlistFromRows(exactSandboxDemoARow());
 }
 
 describe("JE-3D activation policy defaults", () => {
@@ -210,10 +213,30 @@ describe("JE-3D company allowlist authority", () => {
     ).toThrow(/allowlist/i);
   });
 
-  it("6 production company not selected as Demo A allowlist", () => {
-    const allowlist = demoAAllowlist();
-    expect(allowlist.demoA?.companyId).toBe("co-demo-a");
-    expect(allowlist.allowedCompanyIds).not.toContain("co-prod");
+  it("6 production connected QBO alone does not enter allowlist", () => {
+    const allowlist = buildSandboxAllowlistFromRows({
+      connections: [
+        {
+          id: "conn-prod",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "production",
+          tenant_or_realm_id: "999999999",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-prod" },
+        },
+      ],
+      companies: [
+        {
+          id: "co-prod",
+          name: "Production Client",
+          qbo_realm_id: "999999999",
+          je_activation_demo_role: JE_ACTIVATION_DEMO_ROLE_DEMO_A,
+        },
+      ],
+    });
+    expect(allowlist.allowlistResolution).toBe("unresolved");
+    expect(allowlist.allowedCompanyIds).toEqual([]);
   });
 
   it("7 wrong canonical connection rejected", () => {
@@ -234,6 +257,250 @@ describe("JE-3D company allowlist authority", () => {
         connectionRealmId: "222",
       }),
     ).toThrow(/realm/i);
+  });
+});
+
+describe("JE-3D durable sandbox identity authority (production negatives)", () => {
+  it("A only production connected QBO → no allowlist", () => {
+    const allowlist = buildSandboxAllowlistFromRows({
+      connections: [
+        {
+          id: "conn-prod",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "production",
+          tenant_or_realm_id: "9341454381415870",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-prod" },
+        },
+      ],
+      companies: [
+        {
+          id: "co-prod",
+          name: "Live Client",
+          qbo_realm_id: "9341454381415870",
+          je_activation_demo_role: JE_ACTIVATION_DEMO_ROLE_DEMO_A,
+        },
+      ],
+    });
+    expect(allowlist.allowlistResolution).toBe("unresolved");
+    expect(allowlist.demoA).toBeNull();
+  });
+
+  it("B production company name contains Demo Accounting Group → no allowlist", () => {
+    const allowlist = buildSandboxAllowlistFromRows({
+      connections: [
+        {
+          id: "conn-prod",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "production",
+          tenant_or_realm_id: "111",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-prod" },
+        },
+      ],
+      companies: [
+        {
+          id: "co-prod",
+          name: "Demo Accounting Group",
+          qbo_realm_id: "111",
+          je_activation_demo_role: null,
+        },
+      ],
+    });
+    expect(allowlist.allowlistResolution).toBe("unresolved");
+  });
+
+  it("C production connection with demo role metadata but environment=production → no allowlist", () => {
+    const allowlist = buildSandboxAllowlistFromRows({
+      connections: [
+        {
+          id: "conn-prod",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "production",
+          tenant_or_realm_id: "222",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-prod", demo_role: "DEMO_A" },
+        },
+      ],
+      companies: [
+        {
+          id: "co-prod",
+          name: "Whatever",
+          qbo_realm_id: "222",
+          je_activation_demo_role: JE_ACTIVATION_DEMO_ROLE_DEMO_A,
+        },
+      ],
+    });
+    expect(allowlist.allowlistResolution).toBe("unresolved");
+  });
+
+  it("D sandbox connection UNCLASSIFIED (no demo role) → no allowlist", () => {
+    const allowlist = buildSandboxAllowlistFromRows({
+      connections: [
+        {
+          id: "conn-sb",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "sandbox",
+          tenant_or_realm_id: "333",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-sb" },
+        },
+      ],
+      companies: [
+        {
+          id: "co-sb",
+          name: "Demo Accounting Group",
+          qbo_realm_id: "333",
+          je_activation_demo_role: null,
+        },
+      ],
+    });
+    expect(allowlist.allowlistResolution).toBe("unresolved");
+  });
+
+  it("E sandbox DEMO_B only → no allowlist", () => {
+    const allowlist = buildSandboxAllowlistFromRows({
+      connections: [
+        {
+          id: "conn-b",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "sandbox",
+          tenant_or_realm_id: "444",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-b" },
+        },
+      ],
+      companies: [
+        {
+          id: "co-b",
+          name: "Fixed Asset Specialty",
+          qbo_realm_id: "444",
+          je_activation_demo_role: "DEMO_B_SPECIALTY",
+        },
+      ],
+    });
+    expect(allowlist.allowlistResolution).toBe("unresolved");
+  });
+
+  it("F one exact sandbox DEMO_A + production rows → only sandbox DEMO_A allowed", () => {
+    const allowlist = buildSandboxAllowlistFromRows({
+      connections: [
+        ...exactSandboxDemoARow().connections,
+        {
+          id: "conn-prod",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "production",
+          tenant_or_realm_id: "999",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-prod" },
+        },
+      ],
+      companies: [
+        ...exactSandboxDemoARow().companies,
+        {
+          id: "co-prod",
+          name: "Demo Accounting Group",
+          qbo_realm_id: "999",
+          je_activation_demo_role: JE_ACTIVATION_DEMO_ROLE_DEMO_A,
+        },
+      ],
+    });
+    expect(allowlist.allowlistResolution).toBe("resolved");
+    expect(allowlist.demoA?.companyId).toBe("co-demo-a");
+    expect(allowlist.allowedCompanyIds).toEqual(["co-demo-a"]);
+  });
+
+  it("G two exact sandbox DEMO_A rows → ambiguous; no silent choice", () => {
+    const allowlist = buildSandboxAllowlistFromRows({
+      connections: [
+        {
+          id: "conn-a1",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "sandbox",
+          tenant_or_realm_id: "111",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-a1" },
+        },
+        {
+          id: "conn-a2",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "sandbox",
+          tenant_or_realm_id: "222",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-a2" },
+        },
+      ],
+      companies: [
+        {
+          id: "co-a1",
+          name: "Demo A One",
+          qbo_realm_id: "111",
+          je_activation_demo_role: JE_ACTIVATION_DEMO_ROLE_DEMO_A,
+        },
+        {
+          id: "co-a2",
+          name: "Demo A Two",
+          qbo_realm_id: "222",
+          je_activation_demo_role: JE_ACTIVATION_DEMO_ROLE_DEMO_A,
+        },
+      ],
+    });
+    expect(allowlist.allowlistResolution).toBe("ambiguous");
+    expect(allowlist.demoA).toBeNull();
+    expect(() =>
+      assertExecutionOnAllowlistedSandbox({
+        executionCompanyId: "co-a1",
+        executionConnectionId: "conn-a1",
+        allowlist,
+      }),
+    ).toThrow(/authorities resolved/i);
+  });
+
+  it("zero exact Demo A → unresolved", () => {
+    const allowlist = buildSandboxAllowlistFromRows({ connections: [], companies: [] });
+    expect(allowlist.allowlistResolution).toBe("unresolved");
+    expect(allowlist.allowedCompanyIds).toEqual([]);
+  });
+
+  it("exact one sandbox Demo A → resolved with durable fields", () => {
+    const allowlist = demoAAllowlist();
+    expect(allowlist.allowlistResolution).toBe("resolved");
+    expect(allowlist.demoA?.providerEnvironment).toBe("sandbox");
+    expect(allowlist.demoA?.demoRole).toBe(JE_ACTIVATION_DEMO_ROLE_DEMO_A);
+    expect(allowlist.allowedCompanyIds).toEqual(["co-demo-a"]);
+  });
+
+  it("company name is not activation authority (metadata demo_role ignored)", () => {
+    const allowlist = buildSandboxAllowlistFromRows({
+      connections: [
+        {
+          id: "conn-x",
+          provider: "quickbooks",
+          status: "connected",
+          provider_environment: "sandbox",
+          tenant_or_realm_id: "555",
+          external_entity_id: null,
+          metadata_json: { company_id: "co-x", demo_role: "DEMO_A" },
+        },
+      ],
+      companies: [
+        {
+          id: "co-x",
+          name: "Demo Accounting Group Advisory",
+          qbo_realm_id: "555",
+          je_activation_demo_role: null,
+        },
+      ],
+    });
+    expect(allowlist.allowlistResolution).toBe("unresolved");
   });
 });
 
