@@ -21,6 +21,7 @@ import {
   classifyJeProviderCreateOutcome,
   mapCreateOutcomeToJe3b2TerminalAction,
 } from "../provider-attempt-types";
+import { assertJe3dCreateActivationPolicy } from "../je3d-activation-guards";
 import { executeGovernedJournalEntryCreate } from "../provider-create-service";
 import {
   postGovernedQboJournalEntryOnce,
@@ -334,15 +335,16 @@ describe("JE-3B2 hard-disable gate + public surface", () => {
     );
   });
 
-  it("public entry throws hard-disabled (JE-3D activation capability OFF)", async () => {
-    await expect(
-      executeGovernedJournalEntryCreate(
-        { executionId: "exec-1" },
-        { principal: { type: "user", userId: USER } },
-      ),
-    ).rejects.toMatchObject({ code: "je_3d_create_capability_off" });
-    expect(() => assertJe3b2GovernedCreateEnabled()).toThrow(/hard-disabled/i);
-    expect(() => assertJe3b2MemoryWriteNotEnabled()).toThrow(/Memory/i);
+  it("JE-3B2 compile-time gate still off while JE-3D CREATE capability is ON", () => {
+    const prev = process.env.QB_ENVIRONMENT;
+    process.env.QB_ENVIRONMENT = "sandbox";
+    try {
+      expect(() => assertJe3dCreateActivationPolicy()).not.toThrow();
+      expect(() => assertJe3b2GovernedCreateEnabled()).toThrow(/hard-disabled/i);
+      expect(() => assertJe3b2MemoryWriteNotEnabled()).toThrow(/Memory/i);
+    } finally {
+      process.env.QB_ENVIRONMENT = prev;
+    }
   });
 
   it("package index does not export orchestration, transport, RPCs, or bypasses", () => {

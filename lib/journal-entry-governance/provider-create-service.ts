@@ -10,6 +10,7 @@
 
 import { JE_MEMORY_PROJECTION_CONTRACT } from "./memory-projection-contract";
 import type { JeExecutionContext } from "./execution-types";
+import { resolveJe3dActivationPolicy } from "./je3d-first-controlled-create-activation";
 import {
   assertJe3dCreateActivationPolicy,
   assertJe3dSandboxExecutionCustody,
@@ -63,7 +64,10 @@ export async function executeGovernedJournalEntryCreate(
     };
   }
 
-  await assertJe3dSandboxExecutionCustody({ execution });
+  await assertJe3dSandboxExecutionCustody({
+    execution,
+    policy: resolveJe3dActivationPolicy(),
+  });
 
   return runGovernedJournalEntryCreateOrchestration(
     { executionId: input.executionId },

@@ -203,7 +203,16 @@ export {
   inspectGovernedJeActivationCustody,
   buildActivationInspectionFromCustody,
 } from "./je3d-activation-inspection";
-export type { GovernedJeActivationInspection } from "./je3d-activation-inspection";
+export {
+  JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
+  JE_3D_VERIFIED_DEMO_A_IDENTITY,
+  resolveJe3dActivationPolicy,
+  isVerifiedDemoAIdentityMatch,
+} from "./je3d-first-controlled-create-activation";
+export type {
+  GovernedJeActivationInspection,
+  GovernedJeActivationLineInspection,
+} from "./je3d-activation-inspection";
 export { verifyGovernedJournalEntry } from "./provider-verification-service";
 export type {
   VerifyGovernedJeInput,
