@@ -144,6 +144,12 @@ const approvedIdentity = {
   executionReviewedAndApproved: true,
 };
 
+const approvedAccountEvidence = {
+  expenseAccountId: EXPENSE,
+  accruedLiabilityAccountId: LIABILITY,
+  accountsReviewedAndApproved: true,
+};
+
 describe("JE-3D first-run execution authority", () => {
   it("1. CREATE ON + approved execution ID null → no POST path", () => {
     const result = evaluateFirstRunExecutionIdentityGate(EXEC_ID, {
@@ -212,8 +218,7 @@ describe("JE-3D first-run execution authority", () => {
       }),
       execution: execution(),
       mirrorRows: mirrorRows(),
-      expenseAccountId: EXPENSE,
-      accruedLiabilityAccountId: LIABILITY,
+      accountEvidence: approvedAccountEvidence,
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -227,8 +232,7 @@ describe("JE-3D first-run execution authority", () => {
       proposal: proposal({ total_debits_cents: 200, total_credits_cents: 200 }),
       execution: execution(),
       mirrorRows: mirrorRows(),
-      expenseAccountId: EXPENSE,
-      accruedLiabilityAccountId: LIABILITY,
+      accountEvidence: approvedAccountEvidence,
     });
     expect(result.ok).toBe(false);
   });
@@ -238,8 +242,7 @@ describe("JE-3D first-run execution authority", () => {
       proposal: proposal({ currency: "CAD" }),
       execution: execution(),
       mirrorRows: mirrorRows(),
-      expenseAccountId: EXPENSE,
-      accruedLiabilityAccountId: LIABILITY,
+      accountEvidence: approvedAccountEvidence,
     });
     expect(result.ok).toBe(false);
   });
@@ -251,8 +254,7 @@ describe("JE-3D first-run execution authority", () => {
       mirrorRows: mirrorRows().map((row) =>
         row.accountId === EXPENSE ? { ...row, active: false } : row,
       ),
-      expenseAccountId: EXPENSE,
-      accruedLiabilityAccountId: LIABILITY,
+      accountEvidence: approvedAccountEvidence,
     });
     expect(result.ok).toBe(false);
   });
@@ -286,8 +288,11 @@ describe("JE-3D first-run execution authority", () => {
         },
         mirrorRows()[1]!,
       ],
-      expenseAccountId: "bank-1",
-      accruedLiabilityAccountId: LIABILITY,
+      accountEvidence: {
+        expenseAccountId: "bank-1",
+        accruedLiabilityAccountId: LIABILITY,
+        accountsReviewedAndApproved: true,
+      },
     });
     expect(result.ok).toBe(false);
   });
@@ -297,8 +302,7 @@ describe("JE-3D first-run execution authority", () => {
       proposal: proposal(),
       execution: execution({ provider_request_hash: "f".repeat(64) }),
       mirrorRows: mirrorRows(),
-      expenseAccountId: EXPENSE,
-      accruedLiabilityAccountId: LIABILITY,
+      accountEvidence: approvedAccountEvidence,
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -351,8 +355,7 @@ describe("JE-3D first-run execution authority", () => {
       proposal: proposal(),
       mirrorRows: mirrorRows(),
       identityEvidence: approvedIdentity,
-      expenseAccountId: EXPENSE,
-      accruedLiabilityAccountId: LIABILITY,
+      accountEvidence: approvedAccountEvidence,
     });
     expect(result.ok).toBe(true);
   });
@@ -367,6 +370,148 @@ describe("JE-3D first-run execution authority", () => {
         mirrorRows: mirrorRows(),
       }).ok,
     ).toBe(false);
+  });
+});
+
+describe("JE-3D first-run account approval custody", () => {
+  it("1. both valid account IDs + accountsReviewedAndApproved=false → deny", () => {
+    const result = evaluateFirstRunExecutionEconomicsGate({
+      proposal: proposal(),
+      execution: execution(),
+      mirrorRows: mirrorRows(),
+      accountEvidence: {
+        expenseAccountId: EXPENSE,
+        accruedLiabilityAccountId: LIABILITY,
+        accountsReviewedAndApproved: false,
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe(
+      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.ECONOMICS_ACCOUNT_AUTHORITY_FAILED,
+    );
+    expect(result.message).toContain("FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED");
+  });
+
+  it("2. both valid account IDs + accountsReviewedAndApproved=true → account authority may pass", () => {
+    const result = evaluateFirstRunExecutionEconomicsGate({
+      proposal: proposal(),
+      execution: execution(),
+      mirrorRows: mirrorRows(),
+      accountEvidence: approvedAccountEvidence,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("3. matching execution approval + account review false → full create authority denies", () => {
+    const result = evaluateFirstRunCreateAuthority({
+      executionId: EXEC_ID,
+      execution: execution(),
+      proposal: proposal(),
+      mirrorRows: mirrorRows(),
+      identityEvidence: approvedIdentity,
+      accountEvidence: {
+        expenseAccountId: EXPENSE,
+        accruedLiabilityAccountId: LIABILITY,
+        accountsReviewedAndApproved: false,
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe(
+      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.ECONOMICS_ACCOUNT_AUTHORITY_FAILED,
+    );
+  });
+
+  it("7. test-injected account evidence false cannot be silently overridden", () => {
+    const src = readFileSync(
+      join(
+        process.cwd(),
+        "lib/journal-entry-governance/je3d-first-run-execution-authority.ts",
+      ),
+      "utf8",
+    );
+    expect(src).toContain("resolveFirstRunExplicitAccountEvidence()");
+    expect(src).not.toMatch(/accountsReviewedAndApproved:\s*true/);
+    const result = evaluateFirstRunExecutionEconomicsGate({
+      proposal: proposal(),
+      execution: execution(),
+      mirrorRows: mirrorRows(),
+      accountEvidence: {
+        expenseAccountId: EXPENSE,
+        accruedLiabilityAccountId: LIABILITY,
+        accountsReviewedAndApproved: false,
+      },
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("8. account evidence true still requires mirror rows active/eligible", () => {
+    const result = evaluateFirstRunExecutionEconomicsGate({
+      proposal: proposal(),
+      execution: execution(),
+      mirrorRows: mirrorRows().map((row) =>
+        row.accountId === EXPENSE ? { ...row, active: false } : row,
+      ),
+      accountEvidence: approvedAccountEvidence,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("9. missing account ID still fails", () => {
+    const result = evaluateFirstRunExecutionEconomicsGate({
+      proposal: proposal(),
+      execution: execution(),
+      mirrorRows: mirrorRows(),
+      accountEvidence: {
+        expenseAccountId: null,
+        accruedLiabilityAccountId: LIABILITY,
+        accountsReviewedAndApproved: true,
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe(
+      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.ECONOMICS_ACCOUNT_MISMATCH,
+    );
+  });
+
+  it("10. prohibited/control account still fails regardless of approval=true", () => {
+    const result = evaluateFirstRunExecutionEconomicsGate({
+      proposal: proposal({
+        lines: [
+          {
+            sequence: 1,
+            accountId: "bank-1",
+            debitCents: FIRST_RUN_JE_AMOUNT_CENTS,
+            creditCents: 0,
+          },
+          {
+            sequence: 2,
+            accountId: LIABILITY,
+            debitCents: 0,
+            creditCents: FIRST_RUN_JE_AMOUNT_CENTS,
+          },
+        ],
+      }),
+      execution: execution(),
+      mirrorRows: [
+        {
+          accountId: "bank-1",
+          accountName: "Checking",
+          accountType: "Bank",
+          accountSubtype: null,
+          active: true,
+        },
+        mirrorRows()[1]!,
+      ],
+      accountEvidence: {
+        expenseAccountId: "bank-1",
+        accruedLiabilityAccountId: LIABILITY,
+        accountsReviewedAndApproved: true,
+      },
+    });
+    expect(result.ok).toBe(false);
   });
 });
 

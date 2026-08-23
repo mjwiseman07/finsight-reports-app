@@ -384,3 +384,102 @@ describe("JE-3D public create policy wiring", () => {
     expect(src).not.toContain("activationPolicy?:");
   });
 });
+
+describe("JE-3D public create account approval custody", () => {
+  const prevEnv = process.env.QB_ENVIRONMENT;
+
+  beforeEach(() => {
+    process.env.QB_ENVIRONMENT = "sandbox";
+    vi.mocked(loadExactExecution).mockReset();
+    vi.mocked(loadExactJournalEntryProposal).mockReset();
+    vi.mocked(loadAccountsFromCoaMirror).mockReset();
+    vi.mocked(runGovernedJournalEntryCreateOrchestration).mockReset();
+  });
+
+  afterEach(() => {
+    process.env.QB_ENVIRONMENT = prevEnv;
+  });
+
+  const mirrorMap = () =>
+    new Map([
+      [
+        "exp-7",
+        {
+          accountId: "exp-7",
+          accountType: "Expense",
+          accountSubtype: null,
+          active: true,
+          name: "Advertising",
+        },
+      ],
+      [
+        "liab-33",
+        {
+          accountId: "liab-33",
+          accountType: "Other Current Liability",
+          accountSubtype: null,
+          active: true,
+          name: "Accrued Liabilities",
+        },
+      ],
+    ]);
+
+  async function runCreateWithUnreviewedAccounts() {
+    const authority = await import("../je3d-first-run-execution-authority");
+    const authoritySpy = vi
+      .spyOn(authority, "evaluateFirstRunCreateAuthority")
+      .mockImplementation((args) => {
+        const identity = authority.evaluateFirstRunExecutionIdentityGate(
+          args.executionId,
+          {
+            approvedExecutionId: EXEC_ID,
+            executionReviewedAndApproved: true,
+          },
+        );
+        if (!identity.ok) return identity;
+        return authority.evaluateFirstRunExecutionEconomicsGate({
+          proposal: args.proposal,
+          execution: args.execution,
+          mirrorRows: args.mirrorRows,
+          accountEvidence: {
+            expenseAccountId: "exp-7",
+            accruedLiabilityAccountId: "liab-33",
+            accountsReviewedAndApproved: false,
+          },
+        });
+      });
+
+    vi.mocked(loadExactExecution).mockResolvedValue(baseExecution());
+    vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(baseProposal());
+    vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(mirrorMap());
+
+    const result = await executeGovernedJournalEntryCreate(
+      { executionId: EXEC_ID },
+      { principal: { type: "user", userId: USER } },
+    );
+
+    authoritySpy.mockRestore();
+    return result;
+  }
+
+  it("4. public create blocked when account review false", async () => {
+    const result = await runCreateWithUnreviewedAccounts();
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.providerPostIssued).toBe(false);
+    expect(result.code).toBe(
+      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.ECONOMICS_ACCOUNT_AUTHORITY_FAILED,
+    );
+    expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+  });
+
+  it("5. no dispatch repository path when account review false", async () => {
+    await runCreateWithUnreviewedAccounts();
+    expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+  });
+
+  it("6. no postOnce path when account review false", async () => {
+    await runCreateWithUnreviewedAccounts();
+    expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+  });
+});

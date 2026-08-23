@@ -9,13 +9,13 @@ import { hashProviderRequestPreview } from "./execution-hash";
 import { mapGovernedProposalToQboPayload } from "./execution-payload";
 import type { JournalEntryExecutionRow } from "./execution-types";
 import {
-  FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID,
-  FIRST_RUN_EXPENSE_ACCOUNT_ID,
   FIRST_RUN_JE_AMOUNT_CENTS,
   FIRST_RUN_JE_CURRENCY,
   buildFirstRunAccountCandidate,
+  resolveFirstRunExplicitAccountEvidence,
   validateExplicitFirstRunAccounts,
   type CoaMirrorAccountRow,
+  type FirstRunExplicitAccountEvidence,
 } from "./je3d-first-run-account-authority";
 import type { JournalEntryProposalRow } from "./types";
 
@@ -101,13 +101,21 @@ export function evaluateFirstRunExecutionEconomicsGate(args: {
     "correlation_marker" | "provider_request_hash"
   >;
   mirrorRows: readonly CoaMirrorAccountRow[];
+  accountEvidence?: FirstRunExplicitAccountEvidence;
+  /** @deprecated Inject full accountEvidence instead. */
   expenseAccountId?: string | null;
+  /** @deprecated Inject full accountEvidence instead. */
   accruedLiabilityAccountId?: string | null;
 }): FirstRunExecutionAuthorityResult {
-  const expenseAccountId =
-    args.expenseAccountId ?? FIRST_RUN_EXPENSE_ACCOUNT_ID;
-  const accruedLiabilityAccountId =
-    args.accruedLiabilityAccountId ?? FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID;
+  const baseEvidence =
+    args.accountEvidence ?? resolveFirstRunExplicitAccountEvidence();
+  const accountEvidence: FirstRunExplicitAccountEvidence = {
+    expenseAccountId: args.expenseAccountId ?? baseEvidence.expenseAccountId,
+    accruedLiabilityAccountId:
+      args.accruedLiabilityAccountId ?? baseEvidence.accruedLiabilityAccountId,
+    accountsReviewedAndApproved: baseEvidence.accountsReviewedAndApproved,
+  };
+  const { expenseAccountId, accruedLiabilityAccountId } = accountEvidence;
 
   if (!expenseAccountId || !accruedLiabilityAccountId) {
     return deny(
@@ -187,11 +195,7 @@ export function evaluateFirstRunExecutionEconomicsGate(args: {
   }
 
   const accountAuthority = validateExplicitFirstRunAccounts({
-    evidence: {
-      expenseAccountId,
-      accruedLiabilityAccountId,
-      accountsReviewedAndApproved: true,
-    },
+    evidence: accountEvidence,
     mirrorRows: args.mirrorRows,
   });
   if (!accountAuthority.ok) {
@@ -237,7 +241,10 @@ export function evaluateFirstRunCreateAuthority(args: {
   proposal: JournalEntryProposalRow;
   mirrorRows: readonly CoaMirrorAccountRow[];
   identityEvidence?: FirstRunExecutionIdentityEvidence;
+  accountEvidence?: FirstRunExplicitAccountEvidence;
+  /** @deprecated Inject full accountEvidence instead. */
   expenseAccountId?: string | null;
+  /** @deprecated Inject full accountEvidence instead. */
   accruedLiabilityAccountId?: string | null;
 }): FirstRunExecutionAuthorityResult {
   const identity = evaluateFirstRunExecutionIdentityGate(
@@ -249,6 +256,7 @@ export function evaluateFirstRunCreateAuthority(args: {
     proposal: args.proposal,
     execution: args.execution,
     mirrorRows: args.mirrorRows,
+    accountEvidence: args.accountEvidence,
     expenseAccountId: args.expenseAccountId,
     accruedLiabilityAccountId: args.accruedLiabilityAccountId,
   });
