@@ -2,15 +2,17 @@
  * PR D — reconnect-in-place / canonical OAuth grant persistence.
  * OAuth reconnect refreshes authorization; it does not re-elect accounting truth.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   ACCOUNTING_CONNECTIONS_ONE_CONNECTED_GRANT_UIDX,
+  assertNoReservedExtraColumns,
   isAccountingConnectionsUniqueViolation,
   mergeConnectionGrantMetadata,
   persistCanonicalAccountingConnectionGrant,
   PRESERVED_CONNECTION_METADATA_KEYS,
+  ReservedCanonicalConnectionExtraColumnError,
 } from "@/lib/integrations/accounting/persist-canonical-connection-grant";
 import type { AccountingConnectionRecord } from "@/lib/integrations/accounting/types";
 
@@ -22,7 +24,12 @@ const CANONICAL_SYNC = "95da07be-8e2c-4b84-9dcc-8a98fa841273";
 const DISCONNECTED = "11111111-1111-4111-8111-111111111111";
 const SUPERSEDED = "ce526f9b-5d2c-46fc-b6f3-46617ab375bf";
 
-type StoreRow = AccountingConnectionRecord & { updated_at: string };
+type StoreRow = AccountingConnectionRecord & {
+  updated_at: string;
+  provider_environment?: string | null;
+  home_currency?: string | null;
+  qbo_edition?: string | null;
+};
 
 function makeRow(overrides: Partial<StoreRow> = {}): StoreRow {
   return {
@@ -481,6 +488,119 @@ describe("persistCanonicalAccountingConnectionGrant", () => {
     expect(result.outcome).toBe("inserted");
     expect(rows.find((r) => r.id === CANONICAL)?.status).toBe("connected");
     expect(rows.filter((r) => r.status === "needs_entity_selection")).toHaveLength(1);
+  });
+});
+
+function qboBaseArgs(admin: any, overrides: Record<string, unknown> = {}) {
+  return baseArgs(admin, {
+    provider: "quickbooks",
+    providerFamily: "intuit",
+    providerProduct: "quickbooks_online",
+    tenantOrRealmId: "9341457151063823",
+    externalEntityId: "qbo:9341457151063823",
+    metadataPatch: { source_system: "quickbooks", company_id: CANONICAL_COMPANY },
+    ...overrides,
+  });
+}
+
+describe("provider_environment canonical custody", () => {
+  const prev = process.env.QB_ENVIRONMENT;
+
+  afterEach(() => {
+    process.env.QB_ENVIRONMENT = prev;
+  });
+
+  it("1 QB_ENVIRONMENT=sandbox with no override → persisted sandbox", async () => {
+    process.env.QB_ENVIRONMENT = "sandbox";
+    const { admin, rows } = createStoreAdmin([]);
+    await persistCanonicalAccountingConnectionGrant(qboBaseArgs(admin));
+    expect(rows[0]).toMatchObject({ provider_environment: "sandbox" });
+  });
+
+  it("2 QB_ENVIRONMENT=production with no override → persisted production", async () => {
+    process.env.QB_ENVIRONMENT = "production";
+    const { admin, rows } = createStoreAdmin([]);
+    await persistCanonicalAccountingConnectionGrant(qboBaseArgs(admin));
+    expect(rows[0]).toMatchObject({ provider_environment: "production" });
+  });
+
+  it("3 extraColumns sandbox while derived production → reject", async () => {
+    process.env.QB_ENVIRONMENT = "production";
+    const { admin } = createStoreAdmin([]);
+    await expect(
+      persistCanonicalAccountingConnectionGrant(
+        qboBaseArgs(admin, {
+          extraColumns: { provider_environment: "sandbox" },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ReservedCanonicalConnectionExtraColumnError);
+  });
+
+  it("4 extraColumns production while derived sandbox → reject", async () => {
+    process.env.QB_ENVIRONMENT = "sandbox";
+    const { admin } = createStoreAdmin([]);
+    await expect(
+      persistCanonicalAccountingConnectionGrant(
+        qboBaseArgs(admin, {
+          extraColumns: { provider_environment: "production" },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ReservedCanonicalConnectionExtraColumnError);
+  });
+
+  it("5 extraColumns matching derived value → still reject", async () => {
+    process.env.QB_ENVIRONMENT = "sandbox";
+    const { admin } = createStoreAdmin([]);
+    await expect(
+      persistCanonicalAccountingConnectionGrant(
+        qboBaseArgs(admin, {
+          extraColumns: { provider_environment: "sandbox" },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ReservedCanonicalConnectionExtraColumnError);
+    expect(() =>
+      assertNoReservedExtraColumns({ provider_environment: "sandbox" }),
+    ).toThrow(ReservedCanonicalConnectionExtraColumnError);
+  });
+
+  it("6 reconnect recomputes authoritative provider_environment", async () => {
+    const { admin, rows } = createStoreAdmin([
+      makeRow({
+        provider: "quickbooks",
+        provider_family: "intuit",
+        provider_product: "quickbooks_online",
+        tenant_or_realm_id: "9341457151063823",
+        external_entity_id: "qbo:9341457151063823",
+        provider_environment: "sandbox",
+      }),
+    ]);
+    process.env.QB_ENVIRONMENT = "production";
+    const result = await persistCanonicalAccountingConnectionGrant(qboBaseArgs(admin));
+    expect(result.outcome).toBe("updated_connected");
+    expect(rows[0].provider_environment).toBe("production");
+    expect(rows[0].metadata_json.active_normalized_sync_id).toBe(CANONICAL_SYNC);
+  });
+
+  it("7 non-QBO provider does not persist QBO provider_environment", async () => {
+    process.env.QB_ENVIRONMENT = "sandbox";
+    const { admin, rows } = createStoreAdmin([]);
+    await persistCanonicalAccountingConnectionGrant(baseArgs(admin));
+    expect(rows[0].provider_environment).toBeUndefined();
+  });
+
+  it("8 permitted extraColumns still apply without touching provider_environment", async () => {
+    process.env.QB_ENVIRONMENT = "sandbox";
+    const { admin, rows } = createStoreAdmin([]);
+    await persistCanonicalAccountingConnectionGrant(
+      qboBaseArgs(admin, {
+        extraColumns: { home_currency: "USD", qbo_edition: "plus" },
+      }),
+    );
+    expect(rows[0]).toMatchObject({
+      provider_environment: "sandbox",
+      home_currency: "USD",
+      qbo_edition: "plus",
+    });
   });
 });
 

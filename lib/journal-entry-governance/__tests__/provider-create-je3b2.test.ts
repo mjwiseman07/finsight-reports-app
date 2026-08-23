@@ -334,13 +334,13 @@ describe("JE-3B2 hard-disable gate + public surface", () => {
     );
   });
 
-  it("public entry throws hard-disabled", async () => {
+  it("public entry throws hard-disabled (JE-3D activation capability OFF)", async () => {
     await expect(
       executeGovernedJournalEntryCreate(
         { executionId: "exec-1" },
         { principal: { type: "user", userId: USER } },
       ),
-    ).rejects.toMatchObject({ code: "je_3b2_governed_create_disabled" });
+    ).rejects.toMatchObject({ code: "je_3d_create_capability_off" });
     expect(() => assertJe3b2GovernedCreateEnabled()).toThrow(/hard-disabled/i);
     expect(() => assertJe3b2MemoryWriteNotEnabled()).toThrow(/Memory/i);
   });
@@ -368,7 +368,7 @@ describe("JE-3B2 hard-disable gate + public surface", () => {
     expect(src).not.toMatch(/bypassGateForTests/);
     expect(src).not.toMatch(/allowTransportInTests/);
     expect(src).not.toMatch(/deps\?/);
-    expect(src).toContain("assertJe3b2GovernedCreateEnabled");
+    expect(src).toContain("assertJe3dCreateActivationPolicy");
   });
 });
 

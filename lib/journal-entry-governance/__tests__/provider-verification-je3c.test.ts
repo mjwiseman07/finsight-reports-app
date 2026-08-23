@@ -369,13 +369,13 @@ describe("JE-3C hard-disable gate + public surface", () => {
     );
   });
 
-  it("public entry throws hard-disabled", async () => {
+  it("public entry throws hard-disabled (JE-3D activation capability OFF)", async () => {
     await expect(
       verifyGovernedJournalEntry(
         { executionId: "exec-1" },
         { principal: { type: "user", userId: USER } },
       ),
-    ).rejects.toMatchObject({ code: "je_3c_verification_disabled" });
+    ).rejects.toMatchObject({ code: "je_3d_verify_capability_off" });
     expect(() => assertJe3cVerificationEnabled()).toThrow(/hard-disabled/i);
     expect(() => assertJe3cMemoryWriteNotEnabled()).toThrow(/Memory/i);
   });
