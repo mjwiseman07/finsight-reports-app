@@ -230,6 +230,16 @@ export type {
   FirstRunAccountCandidateReport,
   FirstRunAccountExclusion,
 } from "./je3d-first-run-account-authority";
+export {
+  FIRST_RUN_APPROVED_EXECUTION_ID,
+  FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED,
+  FIRST_RUN_REASON_CODE,
+  FIRST_RUN_EXECUTION_AUTHORITY_ERROR,
+  evaluateFirstRunCreateAuthority,
+  evaluateFirstRunExecutionEconomicsGate,
+  evaluateFirstRunExecutionIdentityGate,
+  resolveFirstRunExecutionIdentityEvidence,
+} from "./je3d-first-run-execution-authority";
 export type {
   GovernedJeActivationInspection,
   GovernedJeActivationLineInspection,

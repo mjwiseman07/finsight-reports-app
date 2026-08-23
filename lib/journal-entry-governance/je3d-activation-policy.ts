@@ -57,6 +57,10 @@ export const JE_3D_ACTIVATION_ERROR = {
   ALLOWLIST_UNRESOLVED: "je_3d_allowlist_unresolved",
   AMBIGUOUS_AUTHORITY: "je_3d_ambiguous_authority",
   MEMORY_WRITE_FORBIDDEN: "je_3d_memory_write_forbidden",
+  FIRST_RUN_EXECUTION_REVIEW_REQUIRED: "je_3d_first_run_execution_review_required",
+  FIRST_RUN_EXECUTION_ID_NOT_SET: "je_3d_first_run_execution_id_not_set",
+  FIRST_RUN_EXECUTION_ID_MISMATCH: "je_3d_first_run_execution_id_mismatch",
+  FIRST_RUN_ECONOMICS_REJECTED: "je_3d_first_run_economics_rejected",
 } as const;
 
 export const JE_3D_SANDBOX_QBO_API_BASE =

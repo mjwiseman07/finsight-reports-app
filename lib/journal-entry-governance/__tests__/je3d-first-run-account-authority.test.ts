@@ -259,6 +259,7 @@ describe("JE-3D first-run account authority", () => {
       "utf8",
     );
     expect(src).not.toContain("executeGovernedJournalEntryCreate");
+    expect(src).not.toContain("decideJournalEntryProposal");
     expect(src).not.toContain("postGovernedQboJournalEntryOnce");
     expect(src).toContain("publishPostingStarted: false");
   });

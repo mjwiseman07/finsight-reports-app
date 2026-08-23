@@ -370,6 +370,7 @@ describe("JE-3B2 hard-disable gate + public surface", () => {
     expect(src).not.toMatch(/bypassGateForTests/);
     expect(src).not.toMatch(/allowTransportInTests/);
     expect(src).not.toMatch(/deps\?/);
+    expect(src).toContain("evaluateFirstRunCreateAuthority");
     expect(src).toContain("assertJe3dCreateActivationPolicy");
   });
 });

@@ -41,20 +41,19 @@ import {
 } from "../../lib/journal-entry-governance/je3d-first-run-account-authority";
 import {
   createContinuousCloseJournalEntryProposal,
-  decideJournalEntryProposal,
   prepareGovernedJournalEntryExecution,
   reserveGovernedProviderAttempt,
   DEFAULT_JE_PROPOSAL_POLICY,
-  DEFAULT_JE_APPROVAL_POLICY,
   DEFAULT_JE_EXECUTION_POLICY,
   inspectGovernedJeActivationCustody,
 } from "../../lib/journal-entry-governance";
 import type { CreateJeProposalInput } from "../../lib/journal-entry-governance";
+import { FIRST_RUN_REASON_CODE } from "../../lib/journal-entry-governance/je3d-first-run-execution-authority";
 
 /** Controlled first-run evidence — not general product authority. */
 const FIRST_RUN_JE_EVIDENCE = {
   originType: "ACCRUAL" as const,
-  reasonCode: "cutoff_accrual",
+  reasonCode: FIRST_RUN_REASON_CODE,
   memo: "JE-3D first controlled sandbox accrual (immaterial)",
 };
 
@@ -286,6 +285,29 @@ function accountDetail(candidate: {
   };
 }
 
+async function loadHumanApprovedApprovalForProposal(proposalId: string): Promise<{
+  id: string;
+  reviewer_user_id: string;
+  mfa_level: string | null;
+} | null> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("journal_entry_approvals")
+    .select("id, reviewer_user_id, mfa_level, decision, proposal_hash")
+    .eq("proposal_id", proposalId)
+    .eq("decision", "APPROVED")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: String(data.id),
+    reviewer_user_id: String(data.reviewer_user_id),
+    mfa_level: data.mfa_level ? String(data.mfa_level) : null,
+  };
+}
+
 async function main() {
   const policy = resolveJe3dActivationPolicy();
   const accountEvidence = resolveFirstRunExplicitAccountEvidence();
@@ -300,6 +322,9 @@ async function main() {
     GOVERNED_AUTO: policy.governedAutoAllowed,
     productionAllowed: policy.productionAllowed,
     heuristic_first_account_selection: false,
+    human_approval_synthesis_forbidden: true,
+    exact_execution_id_required_for_public_create: true,
+    first_run_execution_review_required_for_public_create: true,
     explicit_expense_account_id_required: true,
     explicit_accrued_liability_account_id_required: true,
     first_run_expense_account_id: accountEvidence.expenseAccountId,
@@ -482,12 +507,6 @@ async function main() {
   const proposerCtx = {
     principal: { type: "user" as const, userId: String(prereq.sod.proposerUserId) },
   };
-  const approverCtx = {
-    principal: { type: "user" as const, userId: String(prereq.sod.approverUserId) },
-  };
-  const executorCtx = {
-    principal: { type: "user" as const, userId: String(prereq.sod.executorUserId) },
-  };
 
   const proposalResult = await createContinuousCloseJournalEntryProposal(
     proposalInput,
@@ -506,32 +525,38 @@ async function main() {
     process.exit(2);
   }
   output.proposal_created = true;
+  output.proposal_id = proposalResult.proposal.id;
 
-  const approvalResult = await decideJournalEntryProposal(
-    {
-      proposalId: proposalResult.proposal.id,
-      decision: "APPROVED",
-    },
-    approverCtx,
-    DEFAULT_JE_APPROVAL_POLICY,
+  const humanApproval = await loadHumanApprovedApprovalForProposal(
+    proposalResult.proposal.id,
   );
-  if (!approvalResult.ok) {
+  if (!humanApproval) {
     output.stop_reasons = [
       {
-        code: "approval_failed",
-        message: `${approvalResult.code}: ${approvalResult.message}`,
+        code: "human_approval_required",
+        message:
+          "No APPROVED journal_entry_approvals row exists for this proposal. Staging cannot synthesize human approval/MFA via principal impersonation. Complete JE-2 approval through a verified human session, then re-run staging.",
       },
+      ...((output.stop_reasons as StopReason[]) || []),
     ];
-    output.proposal_id = proposalResult.proposal.id;
+    output.distinct_approver_available = Boolean(prereq.sod.approverUserId);
     output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
 
+  output.approval_id = humanApproval.id;
+  output.human_approval_reviewer_user_id = humanApproval.reviewer_user_id;
+  output.human_approval_mfa_level = humanApproval.mfa_level;
+
+  const executorCtx = {
+    principal: { type: "user" as const, userId: String(prereq.sod.executorUserId) },
+  };
+
   const executionResult = await prepareGovernedJournalEntryExecution(
     {
       proposalId: proposalResult.proposal.id,
-      approvalId: approvalResult.approval.id,
+      approvalId: humanApproval.id,
     },
     executorCtx,
     DEFAULT_JE_EXECUTION_POLICY,
@@ -544,7 +569,7 @@ async function main() {
       },
     ];
     output.proposal_id = proposalResult.proposal.id;
-    output.approval_id = approvalResult.approval.id;
+    output.approval_id = humanApproval.id;
     output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
@@ -563,7 +588,7 @@ async function main() {
       },
     ];
     output.proposal_id = proposalResult.proposal.id;
-    output.approval_id = approvalResult.approval.id;
+    output.approval_id = humanApproval.id;
     output.execution_id = executionResult.execution.id;
     output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
@@ -605,7 +630,7 @@ async function main() {
     cockpit,
     recommendation:
       stopReasons.length === 0
-        ? "READY FOR FIRST SANDBOX POST REVIEW"
+        ? "READY FOR FIRST SANDBOX POST REVIEW — RETURN CONTROL TO CHATGPT."
         : "KEEP DRAFT — RETURN CONTROL TO CHATGPT.",
   });
 
