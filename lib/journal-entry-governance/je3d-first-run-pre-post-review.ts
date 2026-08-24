@@ -22,6 +22,20 @@ import {
 } from "./je3d-first-run-execution-authority";
 import type { GovernedJeActivationInspection } from "./je3d-activation-inspection";
 
+/**
+ * Whether the public create path is no longer stopped by the top-level CREATE
+ * capability and dispatch kill-switch barriers. VERIFY and execution preflight
+ * are intentionally excluded.
+ */
+export function derivePublicCreateCanReachProviderPost(
+  policy: Je3dActivationPolicyView,
+): boolean {
+  return (
+    isJe3dCreateCapabilityEnabled(policy) &&
+    !Boolean(policy.sandboxDispatchKillSwitch)
+  );
+}
+
 export type FirstRunPrePostReview = {
   create_capability_enabled: boolean;
   verify_capability_enabled: boolean;
@@ -36,7 +50,11 @@ export type FirstRunPrePostReview = {
   first_run_execution_reviewed_and_approved: boolean;
   first_run_amount_cents: number;
   first_run_currency: string;
-  public_create_can_reach_provider_post: false;
+  /**
+   * Top-level public create path reachability only: CREATE capability ON and
+   * dispatch kill switch OFF. Does not include execution-specific preflight.
+   */
+  public_create_can_reach_provider_post: boolean;
   kill_switch_blocks_dispatch: boolean;
   custody: GovernedJeActivationInspection | null;
   preflight_blockers: string[];
@@ -113,10 +131,15 @@ export function buildFirstRunPrePostReview(args?: {
   }
 
   const uniqueBlockers = [...new Set(blockers)];
+  const createCapabilityEnabled = isJe3dCreateCapabilityEnabled(policy);
+  const killSwitchBlocksDispatch = Boolean(policy.sandboxDispatchKillSwitch);
+  const publicCreateCanReachProviderPost =
+    derivePublicCreateCanReachProviderPost(policy);
+
   return {
-    create_capability_enabled: isJe3dCreateCapabilityEnabled(policy),
+    create_capability_enabled: createCapabilityEnabled,
     verify_capability_enabled: isJe3dVerifyCapabilityEnabled(policy),
-    sandbox_dispatch_kill_switch: Boolean(policy.sandboxDispatchKillSwitch),
+    sandbox_dispatch_kill_switch: killSwitchBlocksDispatch,
     memory_write_allowed: Boolean(policy.memoryWriteAllowed),
     worker_allowed: Boolean(policy.workerAllowed),
     governed_auto_allowed: Boolean(policy.governedAutoAllowed),
@@ -130,8 +153,8 @@ export function buildFirstRunPrePostReview(args?: {
       FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED,
     first_run_amount_cents: FIRST_RUN_JE_AMOUNT_CENTS,
     first_run_currency: FIRST_RUN_JE_CURRENCY,
-    public_create_can_reach_provider_post: false,
-    kill_switch_blocks_dispatch: Boolean(policy.sandboxDispatchKillSwitch),
+    public_create_can_reach_provider_post: publicCreateCanReachProviderPost,
+    kill_switch_blocks_dispatch: killSwitchBlocksDispatch,
     custody,
     preflight_blockers: uniqueBlockers,
     SAFE_TO_REQUEST_POST_APPROVAL: uniqueBlockers.length === 0,
