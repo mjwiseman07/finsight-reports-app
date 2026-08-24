@@ -25,6 +25,11 @@ export const JE_3D_VERIFIED_DEMO_A_IDENTITY = {
 /**
  * Effective activation policy for first controlled CREATE enablement.
  * VERIFY remains OFF. Memory/worker/GOVERNED_AUTO remain OFF.
+ *
+ * CRITICAL: sandboxDispatchKillSwitch stays true so CREATE capability can be
+ * recognized while every new provider POST dispatch remains physically blocked.
+ * ChatGPT must explicitly authorize turning the kill switch OFF after reviewing
+ * the exact first JE and Patent #6 custody evidence.
  */
 export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPolicyView =
   {
@@ -37,7 +42,7 @@ export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPoli
     memoryWriteAllowed: false,
     workerAllowed: false,
     governedAutoAllowed: false,
-    sandboxDispatchKillSwitch: false,
+    sandboxDispatchKillSwitch: true,
   };
 
 export function resolveJe3dActivationPolicy(): Je3dActivationPolicyView {

@@ -317,6 +317,7 @@ async function main() {
     phase: "A",
     CREATE_SANDBOX_JE: isJe3dCreateCapabilityEnabled(policy),
     VERIFY_SANDBOX_JE: isJe3dVerifyCapabilityEnabled(policy),
+    sandbox_dispatch_kill_switch: policy.sandboxDispatchKillSwitch,
     memory: policy.memoryWriteAllowed,
     worker: policy.workerAllowed,
     GOVERNED_AUTO: policy.governedAutoAllowed,

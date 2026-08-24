@@ -22,6 +22,8 @@ import {
   mapCreateOutcomeToJe3b2TerminalAction,
 } from "../provider-attempt-types";
 import { assertJe3dCreateActivationPolicy } from "../je3d-activation-guards";
+import { isJe3dCreateCapabilityEnabled } from "../je3d-activation-policy";
+import { resolveJe3dActivationPolicy } from "../je3d-first-controlled-create-activation";
 import { executeGovernedJournalEntryCreate } from "../provider-create-service";
 import {
   postGovernedQboJournalEntryOnce,
@@ -339,7 +341,11 @@ describe("JE-3B2 hard-disable gate + public surface", () => {
     const prev = process.env.QB_ENVIRONMENT;
     process.env.QB_ENVIRONMENT = "sandbox";
     try {
-      expect(() => assertJe3dCreateActivationPolicy()).not.toThrow();
+      expect(isJe3dCreateCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(
+        true,
+      );
+      // Kill switch remains the physical write barrier while CREATE is ON.
+      expect(() => assertJe3dCreateActivationPolicy()).toThrow(/kill switch/i);
       expect(() => assertJe3b2GovernedCreateEnabled()).toThrow(/hard-disabled/i);
       expect(() => assertJe3b2MemoryWriteNotEnabled()).toThrow(/Memory/i);
     } finally {
