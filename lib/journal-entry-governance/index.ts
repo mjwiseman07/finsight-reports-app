@@ -240,6 +240,8 @@ export {
   evaluateFirstRunExecutionIdentityGate,
   resolveFirstRunExecutionIdentityEvidence,
 } from "./je3d-first-run-execution-authority";
+export { buildFirstRunPrePostReview, derivePublicCreateCanReachProviderPost } from "./je3d-first-run-pre-post-review";
+export type { FirstRunPrePostReview } from "./je3d-first-run-pre-post-review";
 export type {
   GovernedJeActivationInspection,
   GovernedJeActivationLineInspection,
