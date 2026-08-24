@@ -49,6 +49,7 @@ import {
 } from "../../lib/journal-entry-governance";
 import type { CreateJeProposalInput } from "../../lib/journal-entry-governance";
 import { FIRST_RUN_REASON_CODE } from "../../lib/journal-entry-governance/je3d-first-run-execution-authority";
+import { buildFirstRunPrePostReview } from "../../lib/journal-entry-governance/je3d-first-run-pre-post-review";
 
 /** Controlled first-run evidence — not general product authority. */
 const FIRST_RUN_JE_EVIDENCE = {
@@ -56,6 +57,9 @@ const FIRST_RUN_JE_EVIDENCE = {
   reasonCode: FIRST_RUN_REASON_CODE,
   memo: "JE-3D first controlled sandbox accrual (immaterial)",
 };
+
+/** Base SHA for this Draft PR (current main at branch point). */
+const STAGING_BASE_SHA = "9747828a36b46a12e5fa3461a7a6899e449fa89e";
 
 function loadEnv(path: string) {
   try {
@@ -232,7 +236,10 @@ async function auditPrerequisites(args: {
   const proposerUserId =
     companyUsers?.find((u: { role: string }) => u.role === "owner_executive")
       ?.user_id ?? null;
-  const approverFromFirm = firmApprovers?.[0]?.user_id ?? null;
+  const approverFromFirm =
+    firmApprovers?.find(
+      (u: { user_id: string }) => u.user_id !== proposerUserId,
+    )?.user_id ?? null;
   const approverUserId =
     companyUsers?.find(
       (u: { user_id: string }) => u.user_id !== proposerUserId,
@@ -312,7 +319,7 @@ async function main() {
   const policy = resolveJe3dActivationPolicy();
   const accountEvidence = resolveFirstRunExplicitAccountEvidence();
   const output: Record<string, unknown> = {
-    base: "4a346b9a1f83d1a3a8e2be4e0f019c086c8c1a46",
+    base: STAGING_BASE_SHA,
     head: null,
     phase: "A",
     CREATE_SANDBOX_JE: isJe3dCreateCapabilityEnabled(policy),
@@ -340,16 +347,27 @@ async function main() {
     je_amount_cents: FIRST_RUN_JE_AMOUNT_CENTS,
     currency: FIRST_RUN_JE_CURRENCY,
     qbo_post_made: false,
+    qbo_get_made: false,
     dispatch_receipt_exists: false,
     proposal_created: false,
     qbo_provider_id: null,
     stop_reasons: [] as StopReason[],
     candidate_report: null,
+    candidate_summary: null,
     expense_account: null,
     liability_account: null,
     transaction_date: null,
     cockpit: null,
+    pre_post_review: null,
     recommendation: FIRST_RUN_ACCOUNT_APPROVAL_RECOMMENDATION,
+  };
+
+  const attachPrePostReview = (extraBlockers: string[] = []) => {
+    output.pre_post_review = buildFirstRunPrePostReview({
+      policy,
+      custody: null,
+      extraBlockers,
+    });
   };
 
   if (!classifyQbEnvironment(process.env.QB_ENVIRONMENT).ok) {
@@ -359,6 +377,7 @@ async function main() {
         message: "QB_ENVIRONMENT must be exactly sandbox.",
       },
     ];
+    attachPrePostReview(["QB_ENVIRONMENT must be sandbox"]);
     output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
@@ -367,6 +386,11 @@ async function main() {
   output.qbo_api_base = JE_3D_SANDBOX_QBO_API_BASE;
 
   const allowlist = await resolveSandboxActivationAllowlist();
+  output.allowlist_resolution = allowlist.allowlistResolution;
+  output.runtime_demo_a = allowlist.demoA;
+  output.allowed_company_ids = allowlist.allowedCompanyIds;
+  output.canonical_connection_by_company_id =
+    allowlist.canonicalConnectionByCompanyId;
   if (allowlist.allowlistResolution !== "resolved" || !allowlist.demoA) {
     output.stop_reasons = [
       {
@@ -374,6 +398,7 @@ async function main() {
         message: `Sandbox allowlist resolution: ${allowlist.allowlistResolution}`,
       },
     ];
+    attachPrePostReview([`allowlist ${allowlist.allowlistResolution}`]);
     output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
@@ -393,6 +418,7 @@ async function main() {
         message: "Resolved allowlist does not match verified Demo A identity evidence.",
       },
     ];
+    attachPrePostReview(["Demo A identity mismatch"]);
     output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
@@ -404,6 +430,7 @@ async function main() {
     output.stop_reasons = prereqForReport.stopReasons.filter(
       (r) => r.code === "missing_qbo_coa_mirror",
     );
+    attachPrePostReview(["missing qbo_coa_mirror"]);
     output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
@@ -415,15 +442,48 @@ async function main() {
     rows: mirrorRows,
   });
   output.candidate_report = candidateReport;
+  output.candidate_summary = {
+    eligible_expense_count:
+      candidateReport.eligible_expense_candidates.length,
+    eligible_liability_count:
+      candidateReport.eligible_liability_candidates.length,
+    eligible_expense_candidates:
+      candidateReport.eligible_expense_candidates.map((c) => ({
+        account_id: c.accountId,
+        account_name: c.accountName,
+        account_type: c.accountType,
+        account_subtype: c.accountSubtype,
+      })),
+    eligible_liability_candidates:
+      candidateReport.eligible_liability_candidates.map((c) => ({
+        account_id: c.accountId,
+        account_name: c.accountName,
+        account_type: c.accountType,
+        account_subtype: c.accountSubtype,
+      })),
+    auto_selection_performed: false,
+  };
+
+  const phaseAStopReasons: StopReason[] = [];
+  if (candidateReport.eligible_liability_candidates.length === 0) {
+    phaseAStopReasons.push({
+      code: "no_eligible_accrued_liability_account",
+      message:
+        "COA mirror has zero eligible Other Current Liability accounts after exclusions (tax/loan/payroll/etc.). Cannot propose expense↔accrued-liability JE without inventing accounts.",
+    });
+  }
 
   const accountAuthority = validateExplicitFirstRunAccounts({
     evidence: accountEvidence,
     mirrorRows,
   });
 
-  if (!accountAuthority.ok) {
+  if (!accountAuthority.ok || phaseAStopReasons.length > 0) {
     output.stop_reasons = [
-      { code: accountAuthority.code, message: accountAuthority.message },
+      ...(accountAuthority.ok
+        ? []
+        : [{ code: accountAuthority.code, message: accountAuthority.message }]),
+      ...phaseAStopReasons,
       ...prereqForReport.stopReasons,
     ];
     if (accountEvidence.expenseAccountId) {
@@ -439,7 +499,12 @@ async function main() {
       if (liabilityRow) output.liability_account = accountDetail(liabilityRow);
     }
     output.transaction_date = await resolveOpenTxnDate(firmClientId);
-    output.recommendation = accountAuthority.recommendation;
+    attachPrePostReview(
+      (output.stop_reasons as StopReason[]).map((r) => `${r.code}: ${r.message}`),
+    );
+    output.recommendation = accountAuthority.ok
+      ? "KEEP DRAFT — RETURN CONTROL TO CHATGPT."
+      : accountAuthority.recommendation;
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
   }
@@ -451,6 +516,7 @@ async function main() {
   const prereq = await auditPrerequisites({ requireCoaMirror: true });
   if (prereq.stopReasons.length > 0) {
     output.stop_reasons = prereq.stopReasons;
+    attachPrePostReview(prereq.stopReasons.map((r) => `${r.code}: ${r.message}`));
     output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
@@ -463,6 +529,7 @@ async function main() {
         message: "No unlocked close period available for txn date.",
       },
     ];
+    attachPrePostReview(["missing open period"]);
     output.recommendation = "KEEP DRAFT — RETURN CONTROL TO CHATGPT.";
     console.log(JSON.stringify(output, null, 2));
     process.exit(2);
@@ -629,6 +696,11 @@ async function main() {
     dispatch_receipt_exists: Boolean(cockpit.dispatch_receipt_id),
     qbo_provider_id: cockpit.qbo_je_id,
     cockpit,
+    pre_post_review: buildFirstRunPrePostReview({
+      policy,
+      custody: cockpit,
+      extraBlockers: stopReasons.map((r) => `${r.code}: ${r.message}`),
+    }),
     recommendation:
       stopReasons.length === 0
         ? "READY FOR FIRST SANDBOX POST REVIEW — RETURN CONTROL TO CHATGPT."
