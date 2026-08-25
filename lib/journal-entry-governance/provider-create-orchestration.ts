@@ -94,7 +94,7 @@ export type GovernedJeCreateOrchestrationDeps = {
     proposalId: string,
   ) => Promise<JournalEntryProposalRow>;
   loadAttempt: typeof loadProviderAttemptByExecutionId;
-  loadFirmId: (engagementId: string) => Promise<string>;
+  loadFirmId: (engagementId: string) => Promise<string | null>;
   revalidateConnection: typeof revalidateCanonicalExecutionConnection;
   resolveToken: (
     accountingConnectionId: string,
@@ -107,7 +107,7 @@ export type GovernedJeCreateOrchestrationDeps = {
     attemptId: string;
     expectedStatus: string;
     eventPayload: Record<string, unknown>;
-    firmId: string;
+    firmId: string | null;
     firmClientId: string | null;
     engagementId: string;
     closePeriodId: string | null;
@@ -124,7 +124,7 @@ export type GovernedJeCreateOrchestrationDeps = {
     intuitTid: string | null;
     providerResponseHash: string | null;
     eventPayload: Record<string, unknown>;
-    firmId: string;
+    firmId: string | null;
     firmClientId: string | null;
     engagementId: string;
     closePeriodId: string | null;
@@ -141,7 +141,7 @@ export type GovernedJeCreateOrchestrationDeps = {
     providerErrorCode: string | null;
     providerErrorMessage: string | null;
     eventPayload: Record<string, unknown>;
-    firmId: string;
+    firmId: string | null;
     firmClientId: string | null;
     engagementId: string;
     closePeriodId: string | null;

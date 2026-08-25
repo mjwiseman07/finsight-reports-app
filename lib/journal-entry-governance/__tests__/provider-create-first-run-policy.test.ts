@@ -25,7 +25,7 @@ import { executeGovernedJournalEntryCreate } from "../provider-create-service";
 import type { JournalEntryExecutionRow } from "../execution-types";
 import type { JournalEntryProposalRow } from "../types";
 
-const EXEC_ID = "550e8400-e29b-41d4-a716-446655440000";
+const EXEC_ID = "6d9579ad-0020-42b5-9521-db68a5d0edda";
 const USER = "user-1";
 
 /** Path tests that exercise post-CREATE gates inject CREATE ON + kill OFF. */
@@ -77,6 +77,10 @@ vi.mock("../je3d-activation-guards", async (importOriginal) => {
   };
 });
 
+vi.mock("../provider-create-posting-handoff", () => ({
+  establishGovernedPostingStartedHandoff: vi.fn(),
+}));
+
 vi.mock("../provider-create-orchestration", () => ({
   runGovernedJournalEntryCreateOrchestration: vi.fn(),
 }));
@@ -89,6 +93,7 @@ import { loadExactExecution } from "../provider-attempt-service";
 import { loadExactJournalEntryProposal } from "../approval-custody";
 import { loadAccountsFromCoaMirror } from "../source-custody";
 import { runGovernedJournalEntryCreateOrchestration } from "../provider-create-orchestration";
+import { establishGovernedPostingStartedHandoff } from "../provider-create-posting-handoff";
 
 function baseExecution(
   overrides: Partial<JournalEntryExecutionRow> = {},
@@ -146,13 +151,13 @@ function baseProposal(
     lines: [
       {
         sequence: 1,
-        accountId: "exp-7",
+        accountId: "15",
         debitCents: 100,
         creditCents: 0,
       },
       {
         sequence: 2,
-        accountId: "liab-33",
+        accountId: "1150040002",
         debitCents: 0,
         creditCents: 100,
       },
@@ -199,7 +204,8 @@ describe("JE-3D public create policy wiring", () => {
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(false);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
     expect(policy.sandboxDispatchKillSwitch).toBe(true);
-    expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBeNull();
+    expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBe(EXEC_ID);
+    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
   });
 
   it("2b. CREATE=false → public create blocked before orchestration", async () => {
@@ -240,14 +246,23 @@ describe("JE-3D public create policy wiring", () => {
       code: FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_NOT_SET,
     });
 
+    const authority = await import("../je3d-first-run-execution-authority");
+    const authoritySpy = vi
+      .spyOn(authority, "evaluateFirstRunCreateAuthority")
+      .mockReturnValue({
+        ok: false,
+        code: FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_NOT_SET,
+        message: "not set",
+      });
+
     vi.mocked(loadExactExecution).mockResolvedValue(baseExecution());
     vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(baseProposal());
     vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(
       new Map([
         [
-          "exp-7",
+          "15",
           {
-            accountId: "exp-7",
+            accountId: "15",
             accountType: "Expense",
             accountSubtype: null,
             active: true,
@@ -255,9 +270,9 @@ describe("JE-3D public create policy wiring", () => {
           },
         ],
         [
-          "liab-33",
+          "1150040002",
           {
-            accountId: "liab-33",
+            accountId: "1150040002",
             accountType: "Other Current Liability",
             accountSubtype: null,
             active: true,
@@ -276,9 +291,11 @@ describe("JE-3D public create policy wiring", () => {
     if (result.ok) return;
     expect(result.providerPostIssued).toBe(false);
     expect(result.code).toBe(
-      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_REVIEW_REQUIRED,
+      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_NOT_SET,
     );
     expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+    expect(establishGovernedPostingStartedHandoff).not.toHaveBeenCalled();
+    authoritySpy.mockRestore();
   });
 
   it("5. CREATE=true + review flag=false → no POST", async () => {
@@ -294,8 +311,15 @@ describe("JE-3D public create policy wiring", () => {
       ok: false,
       code: FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_REVIEW_REQUIRED,
     });
-    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(false);
-    expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBeNull();
+
+    const authority = await import("../je3d-first-run-execution-authority");
+    const authoritySpy = vi
+      .spyOn(authority, "evaluateFirstRunCreateAuthority")
+      .mockReturnValue({
+        ok: false,
+        code: FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_REVIEW_REQUIRED,
+        message: "review required",
+      });
 
     vi.mocked(loadExactExecution).mockResolvedValue(baseExecution());
     vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(baseProposal());
@@ -313,6 +337,8 @@ describe("JE-3D public create policy wiring", () => {
       FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_REVIEW_REQUIRED,
     );
     expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+    expect(establishGovernedPostingStartedHandoff).not.toHaveBeenCalled();
+    authoritySpy.mockRestore();
   });
 
   it("6. CREATE=true + wrong execution ID → fails", async () => {
@@ -344,7 +370,7 @@ describe("JE-3D public create policy wiring", () => {
     if (result.ok) return;
     expect(result.providerPostIssued).toBe(false);
     expect(result.code).toBe(
-      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_REVIEW_REQUIRED,
+      FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_MISMATCH,
     );
     expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
   });
@@ -360,18 +386,18 @@ describe("JE-3D public create policy wiring", () => {
     vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(
       new Map([
         [
-          "exp-7",
+          "15",
           {
-            accountId: "exp-7",
+            accountId: "15",
             accountType: "Expense",
             accountSubtype: null,
             active: true,
           },
         ],
         [
-          "liab-33",
+          "1150040002",
           {
-            accountId: "liab-33",
+            accountId: "1150040002",
             accountType: "Other Current Liability",
             accountSubtype: null,
             active: true,
@@ -403,6 +429,31 @@ describe("JE-3D public create policy wiring", () => {
     vi.mocked(loadExactExecution).mockResolvedValue(baseExecution());
     vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(baseProposal());
     vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(new Map());
+    vi.mocked(establishGovernedPostingStartedHandoff).mockResolvedValue({
+      ok: true,
+      execution: baseExecution(),
+      attempt: {
+        id: "attempt-1",
+        execution_id: EXEC_ID,
+        accounting_connection_id: "conn-1",
+        provider: "quickbooks",
+        provider_request_hash: "f".repeat(64),
+        correlation_marker: `ADVJE:${EXEC_ID}`,
+        status: "RESERVED",
+        commit_certainty: "NOT_SENT",
+        qbo_je_id: null,
+        intuit_tid: null,
+        provider_response_hash: null,
+        request_started_at: null,
+        request_completed_at: null,
+        provider_error_code: null,
+        provider_error_message: null,
+        discovery_summary: {},
+        created_at: "2026-08-25T04:00:00.000Z",
+        updated_at: "2026-08-25T04:00:00.000Z",
+      },
+      postingStartedLedgerEventId: "ledger-1",
+    });
     vi.mocked(runGovernedJournalEntryCreateOrchestration).mockResolvedValue({
       ok: true,
       gated: false,
@@ -423,6 +474,7 @@ describe("JE-3D public create policy wiring", () => {
     );
 
     expect(result.ok).toBe(true);
+    expect(establishGovernedPostingStartedHandoff).toHaveBeenCalledTimes(1);
     expect(runGovernedJournalEntryCreateOrchestration).toHaveBeenCalledTimes(1);
     evaluateSpy.mockRestore();
   });
@@ -465,9 +517,9 @@ describe("JE-3D public create account approval custody", () => {
   const mirrorMap = () =>
     new Map([
       [
-        "exp-7",
+        "15",
         {
-          accountId: "exp-7",
+          accountId: "15",
           accountType: "Expense",
           accountSubtype: null,
           active: true,
@@ -475,9 +527,9 @@ describe("JE-3D public create account approval custody", () => {
         },
       ],
       [
-        "liab-33",
+        "1150040002",
         {
-          accountId: "liab-33",
+          accountId: "1150040002",
           accountType: "Other Current Liability",
           accountSubtype: null,
           active: true,
@@ -507,8 +559,8 @@ describe("JE-3D public create account approval custody", () => {
           execution: args.execution,
           mirrorRows: args.mirrorRows,
           accountEvidence: {
-            expenseAccountId: "exp-7",
-            accruedLiabilityAccountId: "liab-33",
+            expenseAccountId: "15",
+            accruedLiabilityAccountId: "1150040002",
             accountsReviewedAndApproved: false,
           },
         });

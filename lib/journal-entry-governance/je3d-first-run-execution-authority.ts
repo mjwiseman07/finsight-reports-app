@@ -19,14 +19,15 @@ import {
 } from "./je3d-first-run-account-authority";
 import type { JournalEntryProposalRow } from "./types";
 
-/** Set only after ChatGPT/human review of staged execution cockpit. */
-export const FIRST_RUN_APPROVED_EXECUTION_ID: string | null = null;
+/** Locked after ChatGPT live pre-flight review of staged execution cockpit. */
+export const FIRST_RUN_APPROVED_EXECUTION_ID: string | null =
+  "6d9579ad-0020-42b5-9521-db68a5d0edda";
 
 /**
  * Must be true before public executeGovernedJournalEntryCreate may dispatch.
  * Separate from account approval and staging proposal creation.
  */
-export const FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED = false;
+export const FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED = true;
 
 export const FIRST_RUN_REASON_CODE = "cutoff_accrual" as const;
 

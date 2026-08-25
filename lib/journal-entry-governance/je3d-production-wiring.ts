@@ -70,13 +70,7 @@ export function buildJe3dProductionCreateDeps(): GovernedJeCreateOrchestrationDe
     loadExecution: loadExactExecution,
     loadProposal: loadExactJournalEntryProposal,
     loadAttempt: loadProviderAttemptByExecutionId,
-    loadFirmId: async (engagementId) => {
-      const firmId = await loadEngagementFirmId(engagementId);
-      if (!firmId) {
-        throw new Error("Engagement firm_id required for governed sandbox create.");
-      }
-      return firmId;
-    },
+    loadFirmId: loadEngagementFirmId,
     revalidateConnection: async (args) => {
       const { revalidateCanonicalExecutionConnection } = await import(
         "./provider-attempt-service"
@@ -134,15 +128,7 @@ export function buildJe3dProductionVerificationDeps(): GovernedJeVerificationDep
     loadExecution: loadExactExecution,
     loadProposal: loadExactJournalEntryProposal,
     loadAttempt: loadProviderAttemptByExecutionId,
-    loadFirmId: async (engagementId) => {
-      const firmId = await loadEngagementFirmId(engagementId);
-      if (!firmId) {
-        throw new Error(
-          "Engagement firm_id required for governed sandbox verification.",
-        );
-      }
-      return firmId;
-    },
+    loadFirmId: loadEngagementFirmId,
     revalidateConnection: async (args) => {
       const { revalidateCanonicalExecutionConnection } = await import(
         "./provider-attempt-service"
