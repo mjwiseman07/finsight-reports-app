@@ -114,7 +114,7 @@ export type GovernedJeVerificationDeps = {
   loadExecution: typeof loadExactExecution;
   loadProposal: (proposalId: string) => Promise<JournalEntryProposalRow>;
   loadAttempt: typeof loadProviderAttemptByExecutionId;
-  loadFirmId: (engagementId: string) => Promise<string>;
+  loadFirmId: (engagementId: string) => Promise<string | null>;
   revalidateConnection: typeof revalidateCanonicalExecutionConnection;
   resolveToken: (
     accountingConnectionId: string,

@@ -19,7 +19,7 @@ import {
 import { resolveJe3dActivationPolicy } from "../je3d-first-controlled-create-activation";
 
 describe("JE_3D_FIRST_RUN_PROPOSED_CANDIDATE", () => {
-  it("documents Office Expenses ↔ Accrued Expenses pair without enabling CREATE", () => {
+  it("documents Office Expenses ↔ Accrued Expenses pair; activation remains OFF", () => {
     expect(JE_3D_FIRST_RUN_PROPOSED_CANDIDATE.debit.qboAccountId).toBe("15");
     expect(JE_3D_FIRST_RUN_PROPOSED_CANDIDATE.credit.qboAccountId).toBe(
       "1150040002",
@@ -31,11 +31,13 @@ describe("JE_3D_FIRST_RUN_PROPOSED_CANDIDATE", () => {
     expect(JE_3D_FIRST_RUN_PROPOSED_CANDIDATE.qboPostMade).toBe(false);
     expect(JE_3D_FIRST_RUN_PROPOSED_CANDIDATE.autoSelectionPerformed).toBe(false);
 
-    expect(FIRST_RUN_EXPENSE_ACCOUNT_ID).toBeNull();
-    expect(FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID).toBeNull();
-    expect(FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED).toBe(false);
-    expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBeNull();
-    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(false);
+    expect(FIRST_RUN_EXPENSE_ACCOUNT_ID).toBe("15");
+    expect(FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID).toBe("1150040002");
+    expect(FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED).toBe(true);
+    expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBe(
+      "6d9579ad-0020-42b5-9521-db68a5d0edda",
+    );
+    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
 
     const policy = resolveJe3dActivationPolicy();
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(false);

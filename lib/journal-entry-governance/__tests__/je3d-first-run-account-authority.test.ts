@@ -250,7 +250,7 @@ describe("JE-3D first-run account authority", () => {
     expect(isJe3dVerifyCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(
       false,
     );
-    expect(resolveFirstRunExplicitAccountEvidence().expenseAccountId).toBeNull();
+    expect(resolveFirstRunExplicitAccountEvidence().expenseAccountId).toBe("15");
   });
 
   it("18. no POST in staging script", () => {

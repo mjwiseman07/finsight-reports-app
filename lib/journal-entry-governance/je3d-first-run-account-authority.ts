@@ -7,15 +7,15 @@
 
 import type { JeProposalAccountMeta } from "./types";
 
-/** Reviewed activation values — set only after ChatGPT/human approval of candidate report. */
-export const FIRST_RUN_EXPENSE_ACCOUNT_ID: string | null = null;
-export const FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID: string | null = null;
+/** Locked after ChatGPT live pre-flight review against qbo_coa_mirror. */
+export const FIRST_RUN_EXPENSE_ACCOUNT_ID: string | null = "15";
+export const FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID: string | null = "1150040002";
 
 /**
  * Must be true before proposal creation is permitted.
  * Prevents candidate discovery and proposal creation in one uncontrolled run.
  */
-export const FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED = false;
+export const FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED = true;
 
 export const FIRST_RUN_JE_AMOUNT_CENTS = 100;
 export const FIRST_RUN_JE_CURRENCY = "USD";

@@ -23,6 +23,7 @@ import { evaluateFirstRunCreateAuthority } from "./je3d-first-run-execution-auth
 import { buildJe3dProductionCreateDeps } from "./je3d-production-wiring";
 import { loadExactJournalEntryProposal } from "./approval-custody";
 import { loadExactExecution } from "./provider-attempt-service";
+import { establishGovernedPostingStartedHandoff } from "./provider-create-posting-handoff";
 import { loadAccountsFromCoaMirror } from "./source-custody";
 import type { CoaMirrorAccountRow } from "./je3d-first-run-account-authority";
 import {
@@ -128,6 +129,14 @@ export async function executeGovernedJournalEntryCreate(
   });
   if (!firstRunAuthority.ok) {
     return firstRunDenied(firstRunAuthority.code, firstRunAuthority.message);
+  }
+
+  const handoff = await establishGovernedPostingStartedHandoff({
+    executionId: input.executionId,
+    ctx,
+  });
+  if (!handoff.ok) {
+    return firstRunDenied(handoff.code, handoff.message);
   }
 
   return runGovernedJournalEntryCreateOrchestration(
