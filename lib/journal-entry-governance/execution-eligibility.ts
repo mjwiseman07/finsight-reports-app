@@ -4,6 +4,7 @@
  */
 
 import type { JeApprovalPolicy, JournalEntryApprovalRow } from "./approval-types";
+import { isHistoricalApprovalMfaSatisfied } from "./approval-custody";
 import { evaluateApprovalValidity } from "./approval-validity";
 import {
   JE_EXECUTION_ERROR,
@@ -92,12 +93,17 @@ export function evaluateJeExecutionEligibility(args: {
   const approvalPolicy = parseStoredApprovalPolicySnapshot(
     args.approval.policy_snapshot || {},
   );
+  const mfaSatisfied = isHistoricalApprovalMfaSatisfied({
+    policy: approvalPolicy,
+    amountCents: args.proposal.total_debits_cents,
+    mfaVerifiedAt: args.approval.mfa_verified_at,
+  });
   const base = evaluateApprovalValidity({
     approval: args.approval,
     proposalHash: args.proposal.proposal_hash,
     approvalPolicyHash: args.approval.policy_hash,
     sodSatisfied: true, // historical SoD already enforced at JE-2; recheck executor SoD separately
-    mfaSatisfied: Boolean(args.approval.mfa_verified_at),
+    mfaSatisfied,
     policy: {
       ...approvalPolicy,
       // For expiration: honor execution policy requireApprovalNotExpired

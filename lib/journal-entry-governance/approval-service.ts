@@ -25,7 +25,8 @@ import {
   loadExactJournalEntryProposal,
   loadExactProposalSourceCc,
   loadPriorRejection,
-  mfaRequiredForProposal,
+  isLiveApprovalMfaSatisfied,
+  isMfaRequiredForApproval,
   resolveApprovalClosePeriodId,
   resolveJeAuthenticationAssurance,
 } from "./approval-custody";
@@ -192,12 +193,16 @@ export async function decideJournalEntryProposal(
       };
     }
 
-    const mfaRequired = mfaRequiredForProposal({
+    const mfaRequired = isMfaRequiredForApproval({
       policy,
-      totalDebitsCents: proposal.total_debits_cents,
+      amountCents: proposal.total_debits_cents,
     });
     const assurance = await resolved.resolveAssurance(approver.userId);
-    const mfaSatisfied = !mfaRequired || assurance.satisfied;
+    const mfaSatisfied = isLiveApprovalMfaSatisfied({
+      policy,
+      amountCents: proposal.total_debits_cents,
+      assuranceSatisfied: assurance.satisfied,
+    });
     if (mfaRequired && !assurance.satisfied) {
       return {
         ok: false,
