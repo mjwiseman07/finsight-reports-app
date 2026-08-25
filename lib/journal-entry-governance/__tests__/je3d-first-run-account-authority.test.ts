@@ -239,9 +239,9 @@ describe("JE-3D first-run account authority", () => {
     );
   });
 
-  it("16. CREATE remains sandbox-only", () => {
+  it("16. CREATE remains OFF in prep (sandbox-only when later enabled)", () => {
     const policy = resolveJe3dActivationPolicy();
-    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
+    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(false);
     expect(policy.productionAllowed).toBe(false);
     expect(JE_3D_ACTIVATION_POLICY.capabilities.CREATE_SANDBOX_JE).toBe(false);
   });
@@ -270,7 +270,7 @@ describe("JE-3D activation policy single source of truth", () => {
     const policy = resolveJe3dActivationPolicy();
     expect("governedCreateAllowed" in policy).toBe(false);
     expect("verificationAllowed" in policy).toBe(false);
-    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
+    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(false);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
   });
 });

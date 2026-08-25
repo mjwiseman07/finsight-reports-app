@@ -209,6 +209,7 @@ export {
   resolveJe3dActivationPolicy,
   isVerifiedDemoAIdentityMatch,
 } from "./je3d-first-controlled-create-activation";
+export { JE_3D_FIRST_RUN_PROPOSED_CANDIDATE } from "./je3d-first-run-proposed-candidate";
 export {
   FIRST_RUN_EXPENSE_ACCOUNT_ID,
   FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID,

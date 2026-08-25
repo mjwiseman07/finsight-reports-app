@@ -6,8 +6,10 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   JE_3D_ACTIVATION_POLICY,
+  JE_3D_ACTIVATION_ERROR,
   isJe3dCreateCapabilityEnabled,
   isJe3dVerifyCapabilityEnabled,
+  type Je3dActivationPolicyView,
 } from "../je3d-activation-policy";
 import {
   JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
@@ -25,6 +27,31 @@ import type { JournalEntryProposalRow } from "../types";
 
 const EXEC_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER = "user-1";
+
+/** Path tests that exercise post-CREATE gates inject CREATE ON + kill OFF. */
+function createEnabledPathPolicy(): Je3dActivationPolicyView {
+  return {
+    ...JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
+    capabilities: {
+      CREATE_SANDBOX_JE: true,
+      VERIFY_SANDBOX_JE: false,
+    },
+    sandboxDispatchKillSwitch: false,
+  };
+}
+
+vi.mock("../je3d-first-controlled-create-activation", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("../je3d-first-controlled-create-activation")
+    >();
+  return {
+    ...actual,
+    resolveJe3dActivationPolicy: vi.fn(() =>
+      actual.JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
+    ),
+  };
+});
 
 vi.mock("../provider-attempt-service", () => ({
   loadExactExecution: vi.fn(),
@@ -149,6 +176,9 @@ describe("JE-3D public create policy wiring", () => {
 
   beforeEach(() => {
     process.env.QB_ENVIRONMENT = "sandbox";
+    vi.mocked(resolveJe3dActivationPolicy).mockImplementation(
+      () => JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
+    );
     vi.mocked(loadExactExecution).mockReset();
     vi.mocked(loadExactJournalEntryProposal).mockReset();
     vi.mocked(loadAccountsFromCoaMirror).mockReset();
@@ -163,11 +193,25 @@ describe("JE-3D public create policy wiring", () => {
     expect(isJe3dCreateCapabilityEnabled(JE_3D_ACTIVATION_POLICY)).toBe(false);
   });
 
-  it("2. first-controlled effective policy has CREATE=true and VERIFY=false", () => {
+  it("2. prep effective policy has CREATE=false, VERIFY=false, kill switch ON", () => {
     const policy = resolveJe3dActivationPolicy();
     expect(policy).toEqual(JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY);
-    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
+    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(false);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
+    expect(policy.sandboxDispatchKillSwitch).toBe(true);
+    expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBeNull();
+  });
+
+  it("2b. CREATE=false → public create blocked before orchestration", async () => {
+    await expect(
+      executeGovernedJournalEntryCreate(
+        { executionId: EXEC_ID },
+        { principal: { type: "user", userId: USER } },
+      ),
+    ).rejects.toMatchObject({
+      code: JE_3D_ACTIVATION_ERROR.CREATE_CAPABILITY_OFF,
+    });
+    expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
   });
 
   it("3. public create uses effective policy for capability guard (single snapshot)", () => {
@@ -182,7 +226,10 @@ describe("JE-3D public create policy wiring", () => {
     expect((src.match(/resolveJe3dActivationPolicy\(\)/g) || []).length).toBe(1);
   });
 
-  it("4. effective CREATE=true + approvedExecutionId=null → fails before orchestration", async () => {
+  it("4. CREATE=true + approvedExecutionId=null → fails before orchestration", async () => {
+    vi.mocked(resolveJe3dActivationPolicy).mockReturnValue(
+      createEnabledPathPolicy(),
+    );
     expect(
       evaluateFirstRunExecutionIdentityGate(EXEC_ID, {
         approvedExecutionId: null,
@@ -234,7 +281,10 @@ describe("JE-3D public create policy wiring", () => {
     expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
   });
 
-  it("5. effective CREATE=true + review flag=false → no POST", async () => {
+  it("5. CREATE=true + review flag=false → no POST", async () => {
+    vi.mocked(resolveJe3dActivationPolicy).mockReturnValue(
+      createEnabledPathPolicy(),
+    );
     expect(
       evaluateFirstRunExecutionIdentityGate(EXEC_ID, {
         approvedExecutionId: EXEC_ID,
@@ -265,7 +315,10 @@ describe("JE-3D public create policy wiring", () => {
     expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
   });
 
-  it("6. effective CREATE=true + wrong execution ID → fails", async () => {
+  it("6. CREATE=true + wrong execution ID → fails", async () => {
+    vi.mocked(resolveJe3dActivationPolicy).mockReturnValue(
+      createEnabledPathPolicy(),
+    );
     expect(
       evaluateFirstRunExecutionIdentityGate("wrong-exec-id", {
         approvedExecutionId: EXEC_ID,
@@ -296,7 +349,10 @@ describe("JE-3D public create policy wiring", () => {
     expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
   });
 
-  it("7. effective CREATE=true + invalid economics → fails", async () => {
+  it("7. CREATE=true + invalid economics → fails", async () => {
+    vi.mocked(resolveJe3dActivationPolicy).mockReturnValue(
+      createEnabledPathPolicy(),
+    );
     vi.mocked(loadExactExecution).mockResolvedValue(baseExecution());
     vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(
       baseProposal({ currency: "CAD" }),
@@ -336,6 +392,9 @@ describe("JE-3D public create policy wiring", () => {
   });
 
   it("8. mocked orchestration receives at most one POST when first-run authority passes", async () => {
+    vi.mocked(resolveJe3dActivationPolicy).mockReturnValue(
+      createEnabledPathPolicy(),
+    );
     const authority = await import("../je3d-first-run-execution-authority");
     const evaluateSpy = vi
       .spyOn(authority, "evaluateFirstRunCreateAuthority")
@@ -390,6 +449,9 @@ describe("JE-3D public create account approval custody", () => {
 
   beforeEach(() => {
     process.env.QB_ENVIRONMENT = "sandbox";
+    vi.mocked(resolveJe3dActivationPolicy).mockImplementation(
+      () => JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
+    );
     vi.mocked(loadExactExecution).mockReset();
     vi.mocked(loadExactJournalEntryProposal).mockReset();
     vi.mocked(loadAccountsFromCoaMirror).mockReset();
@@ -425,6 +487,9 @@ describe("JE-3D public create account approval custody", () => {
     ]);
 
   async function runCreateWithUnreviewedAccounts() {
+    vi.mocked(resolveJe3dActivationPolicy).mockReturnValue(
+      createEnabledPathPolicy(),
+    );
     const authority = await import("../je3d-first-run-execution-authority");
     const authoritySpy = vi
       .spyOn(authority, "evaluateFirstRunCreateAuthority")
