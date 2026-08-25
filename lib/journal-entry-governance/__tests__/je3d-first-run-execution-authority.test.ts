@@ -360,8 +360,8 @@ describe("JE-3D first-run execution authority", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("CREATE capability ON but identity gate still required", () => {
-    expect(isJe3dCreateCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(true);
+  it("CREATE capability OFF in prep; identity gate still required when CREATE later enabled", () => {
+    expect(isJe3dCreateCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(false);
     expect(
       evaluateFirstRunCreateAuthority({
         executionId: EXEC_ID,

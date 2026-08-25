@@ -3,6 +3,14 @@
  *
  * Verified production identity — for controlled first-run staging/evidence only.
  * Not general product authority. Runtime allowlist still resolves from database.
+ *
+ * PREP STATE (this PR):
+ *   CREATE_SANDBOX_JE = false
+ *   VERIFY_SANDBOX_JE = false
+ *   FIRST_RUN_APPROVED_EXECUTION_ID = null (see execution-authority module)
+ *   sandboxDispatchKillSwitch = true (blocks POST even if CREATE is later enabled)
+ *
+ * Exact-execution binding remains mandatory: CREATE alone never authorizes a POST.
  */
 
 import {
@@ -10,7 +18,7 @@ import {
   type Je3dActivationPolicyView,
 } from "./je3d-activation-policy";
 
-/** Independently verified Demo A production identity (2026-08-23). */
+/** Independently verified Demo A production identity (2026-08-23 / reconfirmed). */
 export const JE_3D_VERIFIED_DEMO_A_IDENTITY = {
   companyId: "aaaaaaaa-2222-4222-8222-222222222222",
   accountingConnectionId: "dfef5e96-e717-4e3e-afac-fde0de1b5b23",
@@ -23,21 +31,22 @@ export const JE_3D_VERIFIED_DEMO_A_IDENTITY = {
 } as const;
 
 /**
- * Effective activation policy for first controlled CREATE enablement.
- * VERIFY remains OFF. Memory/worker/GOVERNED_AUTO remain OFF.
+ * Prep-only activation policy for exact-execution mechanism.
+ * CREATE stays OFF until ChatGPT authorizes a later enablement PR.
+ * Kill switch stays ON so a premature CREATE flip cannot reach provider POST.
  */
 export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPolicyView =
   {
     ...JE_3D_ACTIVATION_POLICY,
     capabilities: {
-      CREATE_SANDBOX_JE: true,
+      CREATE_SANDBOX_JE: false,
       VERIFY_SANDBOX_JE: false,
     },
     productionAllowed: false,
     memoryWriteAllowed: false,
     workerAllowed: false,
     governedAutoAllowed: false,
-    sandboxDispatchKillSwitch: false,
+    sandboxDispatchKillSwitch: true,
   };
 
 export function resolveJe3dActivationPolicy(): Je3dActivationPolicyView {
