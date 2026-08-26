@@ -239,10 +239,10 @@ describe("JE-3D first-run account authority", () => {
     );
   });
 
-  it("16. CREATE enabled for first-run; kill switch still ON; production still OFF", () => {
+  it("16. CREATE enabled for first-run; kill switch released; production still OFF", () => {
     const policy = resolveJe3dActivationPolicy();
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
-    expect(policy.sandboxDispatchKillSwitch).toBe(true);
+    expect(policy.sandboxDispatchKillSwitch).toBe(false);
     expect(policy.productionAllowed).toBe(false);
     expect(JE_3D_ACTIVATION_POLICY.capabilities.CREATE_SANDBOX_JE).toBe(false);
   });

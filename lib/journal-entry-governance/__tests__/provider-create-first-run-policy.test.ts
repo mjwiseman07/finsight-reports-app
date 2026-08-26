@@ -198,26 +198,36 @@ describe("JE-3D public create policy wiring", () => {
     expect(isJe3dCreateCapabilityEnabled(JE_3D_ACTIVATION_POLICY)).toBe(false);
   });
 
-  it("2. effective policy has CREATE=true, VERIFY=false, kill switch ON", () => {
+  it("2. effective policy has CREATE=true, VERIFY=false, kill switch OFF", () => {
     const policy = resolveJe3dActivationPolicy();
     expect(policy).toEqual(JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY);
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
-    expect(policy.sandboxDispatchKillSwitch).toBe(true);
+    expect(policy.sandboxDispatchKillSwitch).toBe(false);
     expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBe(EXEC_ID);
     expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
   });
 
-  it("2b. kill switch ON blocks public create before orchestration", async () => {
-    await expect(
-      executeGovernedJournalEntryCreate(
-        { executionId: EXEC_ID },
-        { principal: { type: "user", userId: USER } },
-      ),
-    ).rejects.toMatchObject({
-      code: JE_3D_ACTIVATION_ERROR.KILL_SWITCH_ACTIVE,
-    });
+  it("2b. kill switch OFF does not block create with KILL_SWITCH_ACTIVE", async () => {
+    expect(resolveJe3dActivationPolicy().sandboxDispatchKillSwitch).toBe(false);
+
+    vi.mocked(loadExactExecution).mockResolvedValue(
+      baseExecution({ status: "READY_TO_POST" }),
+    );
+    vi.mocked(loadExactJournalEntryProposal).mockResolvedValue(baseProposal());
+    vi.mocked(loadAccountsFromCoaMirror).mockResolvedValue(new Map());
+
+    const result = await executeGovernedJournalEntryCreate(
+      { executionId: EXEC_ID },
+      { principal: { type: "user", userId: USER } },
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).not.toBe(JE_3D_ACTIVATION_ERROR.KILL_SWITCH_ACTIVE);
+    expect(result.providerPostIssued).toBe(false);
     expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+    expect(establishGovernedPostingStartedHandoff).not.toHaveBeenCalled();
   });
 
   it("3. public create uses effective policy for capability guard (single snapshot)", () => {

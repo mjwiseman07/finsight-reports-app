@@ -147,7 +147,7 @@ function demoAAllowlist() {
 }
 
 describe("JE-3D first controlled CREATE activation", () => {
-  it("resolveJe3dActivationPolicy keeps CREATE ON; VERIFY/Memory/worker/GOVERNED_AUTO remain OFF; kill switch ON", () => {
+  it("resolveJe3dActivationPolicy keeps CREATE ON; VERIFY/Memory/worker/GOVERNED_AUTO remain OFF; kill switch OFF", () => {
     const p = resolveJe3dActivationPolicy();
     expect(p).toEqual(JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY);
     expect(isJe3dCreateCapabilityEnabled(p)).toBe(true);
@@ -156,7 +156,7 @@ describe("JE-3D first controlled CREATE activation", () => {
     expect(p.workerAllowed).toBe(false);
     expect(p.governedAutoAllowed).toBe(false);
     expect(p.productionAllowed).toBe(false);
-    expect(p.sandboxDispatchKillSwitch).toBe(true);
+    expect(p.sandboxDispatchKillSwitch).toBe(false);
   });
 
   it("verified Demo A identity matcher is exact", () => {
@@ -579,10 +579,10 @@ describe("JE-3D capability gates", () => {
     process.env.QB_ENVIRONMENT = prev;
   });
 
-  it("12 create capability ON under activation policy but kill switch blocks dispatch", () => {
-    expect(() => assertJe3dCreateActivationPolicy()).toThrow(/kill switch/i);
+  it("12 create capability ON under activation policy; kill switch released for dispatch", () => {
+    expect(() => assertJe3dCreateActivationPolicy()).not.toThrow();
     expect(isJe3dCreateCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(true);
-    expect(resolveJe3dActivationPolicy().sandboxDispatchKillSwitch).toBe(true);
+    expect(resolveJe3dActivationPolicy().sandboxDispatchKillSwitch).toBe(false);
   });
 
   it("13 verification capability OFF → no GET", async () => {
