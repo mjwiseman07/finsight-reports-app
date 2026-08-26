@@ -221,6 +221,18 @@ export async function persistJournalEntryProviderAttempt(
         message,
       );
     }
+    if (/reuse_posting_started_forbidden|engagement_mismatch|firm_client_mismatch/i.test(message)) {
+      throw new JeProviderAttemptPersistError(
+        JE_PROVIDER_ATTEMPT_ERROR.EXECUTION_STATUS_INVALID,
+        message,
+      );
+    }
+    if (/state_version concurrency conflict during posting_started/i.test(message)) {
+      throw new JeProviderAttemptPersistError(
+        JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
+        message,
+      );
+    }
     throw new JeProviderAttemptPersistError(
       JE_PROVIDER_ATTEMPT_ERROR.BINDING_CONFLICT,
       message,
