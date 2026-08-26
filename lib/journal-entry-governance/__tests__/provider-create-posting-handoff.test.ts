@@ -184,13 +184,13 @@ describe("JE-3D pre-activation locked first-run facts", () => {
     expect(FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID).toBe("1150040002");
   });
 
-  it("3-5. review flags true; CREATE/VERIFY off; kill switch ON", () => {
+  it("3-5. review flags true; CREATE ON / VERIFY OFF; kill switch OFF", () => {
     expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
     expect(FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED).toBe(true);
     const policy = resolveJe3dActivationPolicy();
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
-    expect(policy.sandboxDispatchKillSwitch).toBe(true);
+    expect(policy.sandboxDispatchKillSwitch).toBe(false);
   });
 });
 
