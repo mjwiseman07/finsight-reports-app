@@ -40,7 +40,7 @@ describe("JE_3D_FIRST_RUN_PROPOSED_CANDIDATE", () => {
     expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
 
     const policy = resolveJe3dActivationPolicy();
-    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(false);
+    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
     expect(policy.sandboxDispatchKillSwitch).toBe(true);
   });

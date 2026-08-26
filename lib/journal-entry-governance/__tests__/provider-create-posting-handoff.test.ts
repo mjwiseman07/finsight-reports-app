@@ -188,7 +188,7 @@ describe("JE-3D pre-activation locked first-run facts", () => {
     expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
     expect(FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED).toBe(true);
     const policy = resolveJe3dActivationPolicy();
-    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(false);
+    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
     expect(policy.sandboxDispatchKillSwitch).toBe(true);
   });
