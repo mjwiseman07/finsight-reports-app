@@ -373,3 +373,66 @@ COMMENT ON FUNCTION public.persist_journal_entry_provider_attempt(
   jsonb, jsonb, text, uuid, uuid, uuid, text, text, boolean
 ) IS
   'JE-3B1/3D: create provider attempt as RESERVED+NOT_SENT; exact reuse preserves attempt custody; RESERVED reuse may establish atomic posting_started when execution is READY_TO_POST.';
+
+COMMENT ON FUNCTION public.je_publish_posting_started_from_ready(
+  public.journal_entry_executions,
+  jsonb,
+  text,
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text
+) IS
+  'Internal-only helper for persist_journal_entry_provider_attempt. Not a public mutation API.';
+
+-- Privilege lockdown: helper is implementation detail only (owner-chain callable).
+REVOKE ALL ON FUNCTION public.je_publish_posting_started_from_ready(
+  public.journal_entry_executions,
+  jsonb,
+  text,
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text
+) FROM PUBLIC;
+
+REVOKE ALL ON FUNCTION public.je_publish_posting_started_from_ready(
+  public.journal_entry_executions,
+  jsonb,
+  text,
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text
+) FROM anon;
+
+REVOKE ALL ON FUNCTION public.je_publish_posting_started_from_ready(
+  public.journal_entry_executions,
+  jsonb,
+  text,
+  uuid,
+  uuid,
+  uuid,
+  text,
+  text
+) FROM authenticated;
+
+-- Defense-in-depth: CREATE OR REPLACE must not broaden governed persist RPC authority.
+REVOKE ALL ON FUNCTION public.persist_journal_entry_provider_attempt(
+  jsonb, jsonb, text, uuid, uuid, uuid, text, text, boolean
+) FROM PUBLIC;
+
+REVOKE ALL ON FUNCTION public.persist_journal_entry_provider_attempt(
+  jsonb, jsonb, text, uuid, uuid, uuid, text, text, boolean
+) FROM anon;
+
+REVOKE ALL ON FUNCTION public.persist_journal_entry_provider_attempt(
+  jsonb, jsonb, text, uuid, uuid, uuid, text, text, boolean
+) FROM authenticated;
+
+GRANT EXECUTE ON FUNCTION public.persist_journal_entry_provider_attempt(
+  jsonb, jsonb, text, uuid, uuid, uuid, text, text, boolean
+) TO service_role;

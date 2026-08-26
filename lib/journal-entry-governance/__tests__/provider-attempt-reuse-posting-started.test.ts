@@ -161,6 +161,58 @@ describe("JE-3D reuse posting_started migration", () => {
   });
 });
 
+describe("JE-3D reuse posting_started migration privilege lockdown", () => {
+  const src = readFileSync(REUSE_POSTING_MIGRATION, "utf8");
+
+  it("helper is SECURITY DEFINER and not granted to application roles", () => {
+    expect(src).toContain("CREATE OR REPLACE FUNCTION public.je_publish_posting_started_from_ready");
+    expect(src).toContain("SECURITY DEFINER");
+    expect(src).toMatch(
+      /REVOKE ALL ON FUNCTION public\.je_publish_posting_started_from_ready\([\s\S]*?\) FROM PUBLIC;/,
+    );
+    expect(src).toMatch(
+      /REVOKE ALL ON FUNCTION public\.je_publish_posting_started_from_ready\([\s\S]*?\) FROM anon;/,
+    );
+    expect(src).toMatch(
+      /REVOKE ALL ON FUNCTION public\.je_publish_posting_started_from_ready\([\s\S]*?\) FROM authenticated;/,
+    );
+    expect(src).not.toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.je_publish_posting_started_from_ready/,
+    );
+    expect(src).toContain("Internal-only helper for persist_journal_entry_provider_attempt");
+  });
+
+  it("persist RPC remains service_role-only (defense-in-depth)", () => {
+    expect(src).toMatch(
+      /REVOKE ALL ON FUNCTION public\.persist_journal_entry_provider_attempt\([\s\S]*?\) FROM PUBLIC;/,
+    );
+    expect(src).toMatch(
+      /REVOKE ALL ON FUNCTION public\.persist_journal_entry_provider_attempt\([\s\S]*?\) FROM anon;/,
+    );
+    expect(src).toMatch(
+      /REVOKE ALL ON FUNCTION public\.persist_journal_entry_provider_attempt\([\s\S]*?\) FROM authenticated;/,
+    );
+    expect(src).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.persist_journal_entry_provider_attempt\([\s\S]*?\) TO service_role;/,
+    );
+    expect(src).not.toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.persist_journal_entry_provider_attempt[\s\S]*TO authenticated/,
+    );
+    expect(src).not.toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.persist_journal_entry_provider_attempt[\s\S]*TO anon/,
+    );
+    expect(src).not.toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.persist_journal_entry_provider_attempt[\s\S]*TO PUBLIC/,
+    );
+  });
+
+  it("helper cannot be invoked through authenticated/public grant surface", () => {
+    expect(src).not.toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.je_publish_posting_started_from_ready[\s\S]*TO (PUBLIC|anon|authenticated|service_role)/,
+    );
+  });
+});
+
 describe("persistJournalEntryProviderAttempt reuse posting_started RPC contract", () => {
   let rpcResult: { data: unknown; error: { message: string } | null };
 
