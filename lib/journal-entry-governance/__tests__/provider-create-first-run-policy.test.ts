@@ -198,24 +198,24 @@ describe("JE-3D public create policy wiring", () => {
     expect(isJe3dCreateCapabilityEnabled(JE_3D_ACTIVATION_POLICY)).toBe(false);
   });
 
-  it("2. prep effective policy has CREATE=false, VERIFY=false, kill switch ON", () => {
+  it("2. effective policy has CREATE=true, VERIFY=false, kill switch ON", () => {
     const policy = resolveJe3dActivationPolicy();
     expect(policy).toEqual(JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY);
-    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(false);
+    expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
     expect(policy.sandboxDispatchKillSwitch).toBe(true);
     expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBe(EXEC_ID);
     expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
   });
 
-  it("2b. CREATE=false → public create blocked before orchestration", async () => {
+  it("2b. kill switch ON blocks public create before orchestration", async () => {
     await expect(
       executeGovernedJournalEntryCreate(
         { executionId: EXEC_ID },
         { principal: { type: "user", userId: USER } },
       ),
     ).rejects.toMatchObject({
-      code: JE_3D_ACTIVATION_ERROR.CREATE_CAPABILITY_OFF,
+      code: JE_3D_ACTIVATION_ERROR.KILL_SWITCH_ACTIVE,
     });
     expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
   });

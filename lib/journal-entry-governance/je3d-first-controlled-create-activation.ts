@@ -4,13 +4,12 @@
  * Verified production identity — for controlled first-run staging/evidence only.
  * Not general product authority. Runtime allowlist still resolves from database.
  *
- * PREP STATE (this PR):
- *   CREATE_SANDBOX_JE = false
+ * CREATE-ENABLED / DISPATCH-ARMED STATE (this PR):
+ *   CREATE_SANDBOX_JE = true
  *   VERIFY_SANDBOX_JE = false
- *   FIRST_RUN_APPROVED_EXECUTION_ID = null (see execution-authority module)
- *   sandboxDispatchKillSwitch = true (blocks POST even if CREATE is later enabled)
+ *   sandboxDispatchKillSwitch = true (blocks provider POST until explicit release)
  *
- * Exact-execution binding remains mandatory: CREATE alone never authorizes a POST.
+ * Exact-execution binding remains mandatory: CREATE capability alone never authorizes POST.
  */
 
 import {
@@ -31,15 +30,14 @@ export const JE_3D_VERIFIED_DEMO_A_IDENTITY = {
 } as const;
 
 /**
- * Prep-only activation policy for exact-execution mechanism.
- * CREATE stays OFF until ChatGPT authorizes a later enablement PR.
- * Kill switch stays ON so a premature CREATE flip cannot reach provider POST.
+ * Controlled first-run CREATE capability enabled; dispatch kill switch stays ON
+ * until ChatGPT authorizes explicit first sandbox POST.
  */
 export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPolicyView =
   {
     ...JE_3D_ACTIVATION_POLICY,
     capabilities: {
-      CREATE_SANDBOX_JE: false,
+      CREATE_SANDBOX_JE: true,
       VERIFY_SANDBOX_JE: false,
     },
     productionAllowed: false,
