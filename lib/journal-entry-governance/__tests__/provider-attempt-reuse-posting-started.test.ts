@@ -92,6 +92,9 @@ describe("JE-3D reuse posting_started migration", () => {
 
   it("1. RESERVED reuse with publishPostingStarted establishes POSTING atomically", () => {
     expect(src).toContain("je_publish_posting_started_from_ready");
+    expect(src).toContain("v_posting_result record;");
+    expect(src).toContain("je_provider_attempt_posting_started_helper_returned_no_row");
+    expect(src).not.toMatch(/INTO v_execution, v_event_id/);
     expect(src).toContain("je_provider_attempt_reuse_posting_started_forbidden");
     expect(src).toMatch(
       /IF NOT p_publish_posting_started THEN[\s\S]*reused := true[\s\S]*ledger_event_id := NULL/,
