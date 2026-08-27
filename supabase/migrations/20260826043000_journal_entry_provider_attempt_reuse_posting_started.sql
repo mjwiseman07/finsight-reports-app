@@ -113,6 +113,7 @@ DECLARE
   v_inserted public.journal_entry_provider_attempts%ROWTYPE;
   v_execution public.journal_entry_executions%ROWTYPE;
   v_event_id uuid;
+  v_posting_result record;
 BEGIN
   IF p_row ? 'status'
      AND NULLIF(p_row->>'status', '') IS NOT NULL
@@ -196,8 +197,8 @@ BEGIN
         RAISE EXCEPTION 'je_provider_attempt_reuse_posting_started_forbidden: %', v_existing.status;
       END IF;
 
-      SELECT ps.execution, ps.ledger_event_id
-        INTO v_execution, v_event_id
+      SELECT *
+        INTO v_posting_result
         FROM public.je_publish_posting_started_from_ready(
           v_execution,
           p_event_payload,
@@ -207,7 +208,12 @@ BEGIN
           p_engagement_id,
           p_close_period_id,
           p_actor_id
-        ) AS ps;
+        );
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'je_provider_attempt_posting_started_helper_returned_no_row';
+      END IF;
+      v_execution := v_posting_result.execution;
+      v_event_id := v_posting_result.ledger_event_id;
 
       reused := true;
       attempt := to_jsonb(v_existing);
@@ -269,8 +275,8 @@ BEGIN
   RETURNING * INTO v_inserted;
 
   IF p_publish_posting_started AND v_execution.status = 'READY_TO_POST' THEN
-    SELECT ps.execution, ps.ledger_event_id
-      INTO v_execution, v_event_id
+    SELECT *
+      INTO v_posting_result
       FROM public.je_publish_posting_started_from_ready(
         v_execution,
         p_event_payload,
@@ -280,7 +286,12 @@ BEGIN
         p_engagement_id,
         p_close_period_id,
         p_actor_id
-      ) AS ps;
+      );
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'je_provider_attempt_posting_started_helper_returned_no_row';
+    END IF;
+    v_execution := v_posting_result.execution;
+    v_event_id := v_posting_result.ledger_event_id;
   END IF;
 
   reused := false;
@@ -343,8 +354,8 @@ EXCEPTION
         RAISE EXCEPTION 'je_provider_attempt_reuse_posting_started_forbidden: %', v_existing.status;
       END IF;
 
-      SELECT ps.execution, ps.ledger_event_id
-        INTO v_execution, v_event_id
+      SELECT *
+        INTO v_posting_result
         FROM public.je_publish_posting_started_from_ready(
           v_execution,
           p_event_payload,
@@ -354,7 +365,12 @@ EXCEPTION
           p_engagement_id,
           p_close_period_id,
           p_actor_id
-        ) AS ps;
+        );
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'je_provider_attempt_posting_started_helper_returned_no_row';
+      END IF;
+      v_execution := v_posting_result.execution;
+      v_event_id := v_posting_result.ledger_event_id;
 
       reused := true;
       attempt := to_jsonb(v_existing);
