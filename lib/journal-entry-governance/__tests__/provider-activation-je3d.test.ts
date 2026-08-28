@@ -28,12 +28,20 @@ import {
   assertJe3dVerifyActivationPolicy,
 } from "../je3d-activation-guards";
 import {
+  resolveJe3dActivationPolicy,
+  JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
+  JE_3D_VERIFIED_DEMO_A_IDENTITY,
+  isVerifiedDemoAIdentityMatch,
+} from "../je3d-first-controlled-create-activation";
+import {
   buildActivationInspectionFromCustody,
   inspectGovernedJeActivationCustody,
 } from "../je3d-activation-inspection";
 import { executeGovernedJournalEntryCreate } from "../provider-create-service";
 import { verifyGovernedJournalEntry } from "../provider-verification-service";
 import { postGovernedQboJournalEntryOnce } from "../provider-qbo-create-transport";
+import { hashProviderRequestPreview } from "../execution-hash";
+import { mapGovernedProposalToQboPayload } from "../execution-payload";
 import { JE_3B2_FEATURE_GATE } from "../je3b2-feature-gate";
 import { JE_3C_FEATURE_GATE } from "../je3c-feature-gate";
 import { JE_MEMORY_PROJECTION_CONTRACT } from "../memory-projection-contract";
@@ -137,6 +145,41 @@ function exactSandboxDemoARow(over: {
 function demoAAllowlist() {
   return buildSandboxAllowlistFromRows(exactSandboxDemoARow());
 }
+
+describe("JE-3D first controlled CREATE activation", () => {
+  it("resolveJe3dActivationPolicy keeps CREATE ON; VERIFY/Memory/worker/GOVERNED_AUTO remain OFF; kill switch ON", () => {
+    const p = resolveJe3dActivationPolicy();
+    expect(p).toEqual(JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY);
+    expect(isJe3dCreateCapabilityEnabled(p)).toBe(true);
+    expect(isJe3dVerifyCapabilityEnabled(p)).toBe(false);
+    expect(p.memoryWriteAllowed).toBe(false);
+    expect(p.workerAllowed).toBe(false);
+    expect(p.governedAutoAllowed).toBe(false);
+    expect(p.productionAllowed).toBe(false);
+    expect(p.sandboxDispatchKillSwitch).toBe(true);
+  });
+
+  it("verified Demo A identity matcher is exact", () => {
+    expect(
+      isVerifiedDemoAIdentityMatch({
+        companyId: JE_3D_VERIFIED_DEMO_A_IDENTITY.companyId,
+        accountingConnectionId: JE_3D_VERIFIED_DEMO_A_IDENTITY.accountingConnectionId,
+        realmId: JE_3D_VERIFIED_DEMO_A_IDENTITY.realmId,
+        providerEnvironment: JE_3D_VERIFIED_DEMO_A_IDENTITY.providerEnvironment,
+        demoRole: JE_3D_VERIFIED_DEMO_A_IDENTITY.demoRole,
+      }),
+    ).toBe(true);
+    expect(
+      isVerifiedDemoAIdentityMatch({
+        companyId: "other",
+        accountingConnectionId: JE_3D_VERIFIED_DEMO_A_IDENTITY.accountingConnectionId,
+        realmId: JE_3D_VERIFIED_DEMO_A_IDENTITY.realmId,
+        providerEnvironment: JE_3D_VERIFIED_DEMO_A_IDENTITY.providerEnvironment,
+        demoRole: JE_3D_VERIFIED_DEMO_A_IDENTITY.demoRole,
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("JE-3D activation policy defaults", () => {
   it("two-key capabilities default OFF; compile-time JE gates remain false", () => {
@@ -536,13 +579,10 @@ describe("JE-3D capability gates", () => {
     process.env.QB_ENVIRONMENT = prev;
   });
 
-  it("12 create capability OFF → no orchestration (throws before POST)", async () => {
-    await expect(
-      executeGovernedJournalEntryCreate(
-        { executionId: "exec-1" },
-        { principal: { type: "user", userId: USER } },
-      ),
-    ).rejects.toMatchObject({ code: JE_3D_ACTIVATION_ERROR.CREATE_CAPABILITY_OFF });
+  it("12 create capability ON under activation policy but kill switch blocks dispatch", () => {
+    expect(() => assertJe3dCreateActivationPolicy()).toThrow(/kill switch/i);
+    expect(isJe3dCreateCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(true);
+    expect(resolveJe3dActivationPolicy().sandboxDispatchKillSwitch).toBe(true);
   });
 
   it("13 verification capability OFF → no GET", async () => {
@@ -633,19 +673,76 @@ describe("JE-3D transport invariants", () => {
 
 describe("JE-3D activation inspection", () => {
   it("32 inspection contains complete Patent #6 custody chain fields", () => {
+    const proposal = {
+      id: "prop-1",
+      company_id: "co-demo-a",
+      engagement_id: "eng-1",
+      firm_client_id: "fc-1",
+      source_continuous_close_run_id: "cc-1",
+      source_accounting_sync_id: "sync-1",
+      origin_type: "ACCRUAL" as const,
+      reason_code: "cutoff",
+      memo: "July accrual",
+      currency: "USD",
+      txn_date: "2026-08-15",
+      lines: [
+        {
+          sequence: 1,
+          accountId: "exp-7",
+          debitCents: 2500,
+          creditCents: 0,
+          description: "Advertising",
+        },
+        {
+          sequence: 2,
+          accountId: "liab-1",
+          debitCents: 0,
+          creditCents: 2500,
+          description: "Accrued",
+        },
+      ],
+      total_debits_cents: 2500,
+      total_credits_cents: 2500,
+      period_end: "2026-08-31",
+      policy_snapshot: {},
+      proposal_hash: "c".repeat(64),
+      policy_hash: "d".repeat(64),
+      idempotency_key: "e".repeat(64),
+      proposed_by: USER,
+      proposed_at: "2026-08-15T00:00:00.000Z",
+      status: "SUBMITTED" as const,
+      expected_effects: [],
+      source_recon_run_ids: [],
+    };
+    const alignedProviderHash = hashProviderRequestPreview(
+      mapGovernedProposalToQboPayload({
+        proposal,
+        correlationMarker: "ADVJE:exec-1",
+      }) as unknown as Record<string, unknown>,
+    );
     const view = buildActivationInspectionFromCustody({
       execution: execution({
-        status: "POSTED_UNVERIFIED",
-        provider_journal_id: "99",
-        provider_response_hash: "b".repeat(64),
+        status: "READY_TO_POST",
+        provider_journal_id: null,
+        provider_response_hash: null,
         verification_ledger_event_id: null,
+        proposal_hash: proposal.proposal_hash,
+        approval_policy_hash: "d".repeat(64),
+        execution_hash: "e".repeat(64),
+        provider_request_hash: alignedProviderHash,
       }),
+      proposal,
+      realmId: "9341457151063823",
+      accountNames: new Map([
+        ["exp-7", "Advertising"],
+        ["liab-1", "Accrued Liabilities"],
+      ]),
       attempt: {
         id: "att-1",
         execution_id: "exec-1",
         accounting_connection_id: "conn-demo-a",
         provider: "quickbooks",
-        provider_request_hash: "b".repeat(64),
+        provider_request_hash: alignedProviderHash,
         correlation_marker: "ADVJE:exec-1",
         status: "RESPONSE_RECEIVED",
         commit_certainty: "COMMITTED",
@@ -681,8 +778,17 @@ describe("JE-3D activation inspection", () => {
     expect(view.dispatch_receipt_id).toBe("evt-dispatch");
     expect(view.provider_outcome_receipt_id).toBe("evt-posted");
     expect(view.qbo_je_id).toBe("99");
-    expect(view.provider_request_hash).toBe("b".repeat(64));
+    expect(view.provider_request_hash).toBe(alignedProviderHash);
     expect(view.correlation_marker).toBe("ADVJE:exec-1");
+    expect(view.proposal_hash).toBe("c".repeat(64));
+    expect(view.approval_policy_hash).toBe("d".repeat(64));
+    expect(view.execution_hash).toBe("e".repeat(64));
+    expect(view.realm_id).toBe("9341457151063823");
+    expect(view.je_lines).toHaveLength(2);
+    expect(view.total_debits_cents).toBe(2500);
+    expect(view.qbo_post_made).toBe(false);
+    expect(view.private_note_contains_marker).toBe(true);
+    expect(view.provider_request_hash_reconstructs).toBe(true);
   });
 
   it("25 kill switch still permits inspection (sandbox custody only)", async () => {
@@ -691,6 +797,7 @@ describe("JE-3D activation inspection", () => {
     try {
       const view = await inspectGovernedJeActivationCustody("exec-1", {
         loadExecution: async () => execution({ status: "POSTED_UNVERIFIED" }),
+        loadProposal: async () => null as unknown as import("../types").JournalEntryProposalRow,
         loadAttempt: async () => null,
         loadLedgerEvents: async () => [],
         guardDeps: {

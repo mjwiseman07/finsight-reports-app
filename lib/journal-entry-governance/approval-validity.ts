@@ -46,14 +46,11 @@ export function evaluateApprovalValidity(args: {
   } else if (!args.sodSatisfied) {
     valid = false;
     reason = "sod_unsatisfied";
-  } else if (!args.mfaSatisfied && (args.policy.alwaysRequireMfa ||
-    (args.policy.mfaRequiredAboveCents != null))) {
-    // MFA disposition is historical on the row; validity for JE-3 uses
-    // whether the approval recorded MFA when required.
-    if (!args.approval.mfa_verified_at) {
-      valid = false;
-      reason = "mfa_unsatisfied";
-    }
+  } else if (!args.mfaSatisfied) {
+    // Caller computes whether MFA was required for this proposal amount.
+    // Below-threshold approvals omit mfa_verified_at and must pass mfaSatisfied=true.
+    valid = false;
+    reason = "mfa_unsatisfied";
   } else if (expiresAt && Date.parse(expiresAt) <= now) {
     valid = false;
     reason = "expired";

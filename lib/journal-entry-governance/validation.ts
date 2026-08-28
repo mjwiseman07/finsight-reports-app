@@ -271,6 +271,38 @@ export function validateExpectedEffects(
           amountCents: effect.amountCents,
         });
         break;
+      case "BS_ACCOUNT_GL_DELTA":
+        if (
+          effect.sourceKind !== "bs_account_recon" ||
+          !String(effect.sourceRunId || "").trim() ||
+          !String(effect.qboAccountId || "").trim() ||
+          effect.classification !== "Liability" ||
+          effect.signConvention !== "qbo_natural_sign" ||
+          !Number.isInteger(effect.baselineGlBalanceCents) ||
+          !Number.isInteger(effect.expectedDeltaCents) ||
+          !Number.isInteger(effect.expectedPostGlBalanceCents) ||
+          effect.expectedDeltaCents <= 0 ||
+          effect.expectedPostGlBalanceCents !==
+            effect.baselineGlBalanceCents + effect.expectedDeltaCents
+        ) {
+          throw new JeProposalValidationError(
+            JE_PROPOSAL_ERROR.EFFECTS_INVALID,
+            "BS_ACCOUNT_GL_DELTA requires Liability live-provider GL delta facts " +
+              "(baseline + delta = post; positive delta; qbo_natural_sign).",
+          );
+        }
+        out.push({
+          type: "BS_ACCOUNT_GL_DELTA",
+          sourceKind: "bs_account_recon",
+          sourceRunId: String(effect.sourceRunId).trim(),
+          qboAccountId: String(effect.qboAccountId).trim(),
+          classification: "Liability",
+          baselineGlBalanceCents: effect.baselineGlBalanceCents,
+          expectedDeltaCents: effect.expectedDeltaCents,
+          expectedPostGlBalanceCents: effect.expectedPostGlBalanceCents,
+          signConvention: "qbo_natural_sign",
+        });
+        break;
       default:
         throw new JeProposalValidationError(
           JE_PROPOSAL_ERROR.EFFECTS_INVALID,

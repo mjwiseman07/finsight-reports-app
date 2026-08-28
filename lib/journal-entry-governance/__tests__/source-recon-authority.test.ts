@@ -16,29 +16,38 @@ function summary(over: {
     authoritative: boolean;
     baselineSyncId: string | null;
   }>;
+  bsAccount?: Partial<{
+    runId: string | null;
+    authoritative: boolean;
+    baselineSyncId: null;
+    measurementSource: "live_provider";
+    qboAccountId: string;
+  }> | null;
 } = {}) {
-  return parseCcObservationSummary({
-    reconciliations: {
-      ar: {
-        runId: "run-ar",
-        authoritative: true,
-        baselineSyncId: SYNC,
-        ...(over.ar || {}),
-      },
-      ap: {
-        runId: "run-ap",
-        authoritative: true,
-        baselineSyncId: SYNC,
-        ...(over.ap || {}),
-      },
-      inventory: {
-        runId: "run-inv",
-        authoritative: true,
-        baselineSyncId: SYNC,
-        ...(over.inventory || {}),
-      },
+  const reconciliations: Record<string, unknown> = {
+    ar: {
+      runId: "run-ar",
+      authoritative: true,
+      baselineSyncId: SYNC,
+      ...(over.ar || {}),
     },
-  });
+    ap: {
+      runId: "run-ap",
+      authoritative: true,
+      baselineSyncId: SYNC,
+      ...(over.ap || {}),
+    },
+    inventory: {
+      runId: "run-inv",
+      authoritative: true,
+      baselineSyncId: SYNC,
+      ...(over.inventory || {}),
+    },
+  };
+  if (over.bsAccount !== undefined) {
+    reconciliations.bsAccount = over.bsAccount;
+  }
+  return parseCcObservationSummary({ reconciliations });
 }
 
 describe("CC observation_summary recon slot authority", () => {
@@ -111,5 +120,54 @@ describe("CC observation_summary recon slot authority", () => {
   it("rejects malformed/missing observation_summary", () => {
     expect(() => parseCcObservationSummary(null)).toThrow(/malformed/i);
     expect(() => parseCcObservationSummary({})).toThrow(/reconciliations/i);
+  });
+
+  it("accepts live_provider bsAccount with null baselineSyncId", () => {
+    const slot = resolveAuthoritativeCcReconSlot({
+      observationSummary: summary({
+        bsAccount: {
+          runId: "run-bs",
+          authoritative: true,
+          baselineSyncId: null,
+          measurementSource: "live_provider",
+          qboAccountId: "1150040002",
+        },
+      }),
+      requestedRunId: "run-bs",
+      sourceAccountingSyncId: SYNC,
+    });
+    expect(slot.expectedKind).toBe("bs_account_recon");
+    expect(slot.measurementMode).toBe("live_provider");
+    expect(slot.qboAccountId).toBe("1150040002");
+  });
+
+  it("rejects bsAccount with non-null baselineSyncId (no synthetic sync)", () => {
+    expect(() =>
+      summary({
+        bsAccount: {
+          runId: "run-bs",
+          authoritative: true,
+          baselineSyncId: null,
+          measurementSource: "live_provider",
+          qboAccountId: "1150040002",
+        },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      parseCcObservationSummary({
+        reconciliations: {
+          ar: null,
+          ap: null,
+          inventory: null,
+          bsAccount: {
+            runId: "run-bs",
+            authoritative: true,
+            baselineSyncId: "synthetic-sync",
+            measurementSource: "live_provider",
+            qboAccountId: "1150040002",
+          },
+        },
+      }),
+    ).toThrow(JeProposalCustodyError);
   });
 });

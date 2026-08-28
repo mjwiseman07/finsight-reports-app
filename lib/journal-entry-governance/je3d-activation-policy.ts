@@ -26,8 +26,6 @@ export const JE_3D_ACTIVATION_POLICY = {
     CREATE_SANDBOX_JE: false as const,
     VERIFY_SANDBOX_JE: false as const,
   },
-  governedCreateAllowed: false as const,
-  verificationAllowed: false as const,
   /** Default-deny until resolved from database authority. */
   allowedCompanyIds: [] as readonly string[],
   /** Canonical sandbox connection bound after DB resolution (null until resolved). */
@@ -59,6 +57,10 @@ export const JE_3D_ACTIVATION_ERROR = {
   ALLOWLIST_UNRESOLVED: "je_3d_allowlist_unresolved",
   AMBIGUOUS_AUTHORITY: "je_3d_ambiguous_authority",
   MEMORY_WRITE_FORBIDDEN: "je_3d_memory_write_forbidden",
+  FIRST_RUN_EXECUTION_REVIEW_REQUIRED: "je_3d_first_run_execution_review_required",
+  FIRST_RUN_EXECUTION_ID_NOT_SET: "je_3d_first_run_execution_id_not_set",
+  FIRST_RUN_EXECUTION_ID_MISMATCH: "je_3d_first_run_execution_id_mismatch",
+  FIRST_RUN_ECONOMICS_REJECTED: "je_3d_first_run_economics_rejected",
 } as const;
 
 export const JE_3D_SANDBOX_QBO_API_BASE =
@@ -80,8 +82,6 @@ export type Je3dActivationPolicyView = {
     CREATE_SANDBOX_JE: boolean;
     VERIFY_SANDBOX_JE: boolean;
   };
-  governedCreateAllowed: boolean;
-  verificationAllowed: boolean;
   allowedCompanyIds: readonly string[];
   canonicalSandboxConnectionId: string | null;
   maxProviderPostsPerActivation: number;

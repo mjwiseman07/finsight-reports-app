@@ -14,7 +14,19 @@ import {
   assertJe3dSandboxInspectionCustody,
   type Je3dActivationGuardDeps,
 } from "./je3d-activation-guards";
+import { hashProviderRequestPreview } from "./execution-hash";
+import { mapGovernedProposalToQboPayload } from "./execution-payload";
+import { loadExactJournalEntryProposal } from "./approval-custody";
 import { loadExactExecution } from "./provider-attempt-service";
+import type { JournalEntryProposalRow } from "./types";
+
+export type GovernedJeActivationLineInspection = {
+  account_id: string;
+  account_name: string | null;
+  debit_cents: number;
+  credit_cents: number;
+  class_ref: string | null;
+};
 
 export type GovernedJeActivationInspection = {
   proposal_id: string;
@@ -26,11 +38,22 @@ export type GovernedJeActivationInspection = {
   engagement_id: string;
   firm_client_id: string | null;
   accounting_connection_id: string;
+  realm_id: string | null;
+  proposal_hash: string;
+  approval_policy_hash: string;
+  execution_hash: string;
   provider_request_hash: string | null;
   correlation_marker: string;
   provider_attempt_id: string | null;
   attempt_status: string | null;
   commit_certainty: string | null;
+  txn_date: string | null;
+  currency: string | null;
+  je_lines: GovernedJeActivationLineInspection[];
+  total_debits_cents: number;
+  total_credits_cents: number;
+  private_note_contains_marker: boolean;
+  provider_request_hash_reconstructs: boolean;
   qbo_je_id: string | null;
   intuit_tid: string | null;
   dispatch_receipt_id: string | null;
@@ -40,6 +63,7 @@ export type GovernedJeActivationInspection = {
   provider_readback_hash: string | null;
   sandbox_demo_role: string | null;
   canonical_sandbox_connection_id: string | null;
+  qbo_post_made: false;
 };
 
 type LedgerEventRow = {
@@ -71,10 +95,27 @@ function pickLatestEventId(
   return String(matches[matches.length - 1]!.event_id);
 }
 
+function buildJeLineInspection(args: {
+  proposal: JournalEntryProposalRow | null;
+  accountNames?: ReadonlyMap<string, string>;
+}): GovernedJeActivationLineInspection[] {
+  if (!args.proposal?.lines?.length) return [];
+  return args.proposal.lines.map((line) => ({
+    account_id: String(line.accountId),
+    account_name: args.accountNames?.get(String(line.accountId)) ?? null,
+    debit_cents: Number(line.debitCents) || 0,
+    credit_cents: Number(line.creditCents) || 0,
+    class_ref: line.classId ? String(line.classId) : null,
+  }));
+}
+
 export function buildActivationInspectionFromCustody(args: {
   execution: JournalEntryExecutionRow;
   attempt: JournalEntryProviderAttemptRow | null;
   ledgerEvents: LedgerEventRow[];
+  proposal?: JournalEntryProposalRow | null;
+  realmId?: string | null;
+  accountNames?: ReadonlyMap<string, string>;
   sandboxDemoRole?: string | null;
   canonicalSandboxConnectionId?: string | null;
 }): GovernedJeActivationInspection {
@@ -87,6 +128,20 @@ export function buildActivationInspectionFromCustody(args: {
     pickLatestEventId(args.ledgerEvents, "journal_entry.post_unknown") ||
     pickLatestEventId(args.ledgerEvents, "journal_entry.provider_commit_discovered");
 
+  const proposal = args.proposal ?? null;
+  const payloadPreview = proposal
+    ? mapGovernedProposalToQboPayload({
+        proposal,
+        correlationMarker: args.execution.correlation_marker,
+      })
+    : null;
+  const reconstructedHash = payloadPreview
+    ? hashProviderRequestPreview(
+        payloadPreview as unknown as Record<string, unknown>,
+      )
+    : null;
+  const persistedHash = args.execution.provider_request_hash ?? null;
+
   return {
     proposal_id: args.execution.proposal_id,
     approval_id: args.execution.approval_id,
@@ -97,11 +152,28 @@ export function buildActivationInspectionFromCustody(args: {
     engagement_id: args.execution.engagement_id,
     firm_client_id: args.execution.firm_client_id ?? null,
     accounting_connection_id: args.execution.accounting_connection_id,
-    provider_request_hash: args.execution.provider_request_hash ?? null,
+    realm_id: args.realmId ?? null,
+    proposal_hash: args.execution.proposal_hash,
+    approval_policy_hash: args.execution.approval_policy_hash,
+    execution_hash: args.execution.execution_hash,
+    provider_request_hash: persistedHash,
     correlation_marker: args.execution.correlation_marker,
     provider_attempt_id: args.attempt?.id ?? null,
     attempt_status: args.attempt?.status ?? null,
     commit_certainty: args.attempt?.commit_certainty ?? null,
+    txn_date: proposal ? String(proposal.txn_date).slice(0, 10) : null,
+    currency: proposal ? String(proposal.currency || "USD") : null,
+    je_lines: buildJeLineInspection({
+      proposal,
+      accountNames: args.accountNames,
+    }),
+    total_debits_cents: proposal ? Number(proposal.total_debits_cents) || 0 : 0,
+    total_credits_cents: proposal ? Number(proposal.total_credits_cents) || 0 : 0,
+    private_note_contains_marker: payloadPreview
+      ? String(payloadPreview.PrivateNote).includes(args.execution.correlation_marker)
+      : false,
+    provider_request_hash_reconstructs:
+      Boolean(reconstructedHash && persistedHash && reconstructedHash === persistedHash),
     qbo_je_id: args.attempt?.qbo_je_id ?? args.execution.provider_journal_id ?? null,
     intuit_tid: args.attempt?.intuit_tid ?? null,
     dispatch_receipt_id: dispatchReceiptId,
@@ -112,13 +184,19 @@ export function buildActivationInspectionFromCustody(args: {
     provider_readback_hash: args.execution.provider_readback_hash ?? null,
     sandbox_demo_role: args.sandboxDemoRole ?? null,
     canonical_sandbox_connection_id: args.canonicalSandboxConnectionId ?? null,
+    qbo_post_made: false,
   };
 }
 
 export type ActivationInspectionDeps = {
   loadExecution?: typeof loadExactExecution;
+  loadProposal?: typeof loadExactJournalEntryProposal;
   loadAttempt?: (executionId: string) => Promise<JournalEntryProviderAttemptRow | null>;
   loadLedgerEvents?: typeof loadLedgerEventsForExecution;
+  loadAccountNames?: (
+    firmClientId: string | null,
+    accountIds: string[],
+  ) => Promise<Map<string, string>>;
   guardDeps?: Je3dActivationGuardDeps;
 };
 
@@ -155,12 +233,57 @@ export async function inspectGovernedJeActivationCustody(
     ? await deps.loadLedgerEvents(execution.id)
     : await loadLedgerEventsForExecution(execution.id);
 
+  const coerced = coerceExecution(execution as unknown as Record<string, unknown>);
+
+  let proposal: JournalEntryProposalRow | null = null;
+  if (deps.loadProposal) {
+    proposal = await deps.loadProposal(coerced.proposal_id);
+  } else {
+    proposal = await loadExactJournalEntryProposal(coerced.proposal_id);
+  }
+
+  let accountNames: Map<string, string> | undefined;
+  if (proposal?.lines?.length) {
+    const ids = proposal.lines.map((line) => String(line.accountId));
+    if (deps.loadAccountNames) {
+      accountNames = await deps.loadAccountNames(coerced.firm_client_id ?? null, ids);
+    } else {
+      accountNames = await loadCoaMirrorAccountNames(
+        coerced.firm_client_id ?? null,
+        ids,
+      );
+    }
+  }
+
   return buildActivationInspectionFromCustody({
-    execution: coerceExecution(execution as unknown as Record<string, unknown>),
+    execution: coerced,
     attempt,
     ledgerEvents,
+    proposal,
+    realmId: allowlist.demoA?.realmId ?? null,
+    accountNames,
     sandboxDemoRole: allowlist.demoA?.demoRole ?? null,
     canonicalSandboxConnectionId:
       allowlist.demoA?.accountingConnectionId ?? null,
   });
+}
+
+async function loadCoaMirrorAccountNames(
+  firmClientId: string | null,
+  accountIds: string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!firmClientId || accountIds.length === 0) return out;
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("qbo_coa_mirror")
+    .select("account_id, account_name")
+    .eq("firm_client_id", firmClientId)
+    .in("account_id", accountIds);
+  for (const row of data || []) {
+    const id = String((row as { account_id: string }).account_id);
+    const name = String((row as { account_name: string }).account_name || "");
+    if (name) out.set(id, name);
+  }
+  return out;
 }

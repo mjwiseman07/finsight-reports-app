@@ -406,17 +406,62 @@ export async function resolveJeAuthenticationAssurance(
   };
 }
 
-export function mfaRequiredForProposal(args: {
+/**
+ * Canonical JE-2 / JE-3 MFA requirement gate.
+ * MFA is required iff alwaysRequireMfa OR amountCents >= mfaRequiredAboveCents.
+ * A non-null threshold alone does NOT require MFA for every amount.
+ */
+export function isMfaRequiredForApproval(args: {
   policy: JeApprovalPolicy;
-  totalDebitsCents: number;
+  amountCents: number;
 }): boolean {
   if (args.policy.alwaysRequireMfa) return true;
+  const threshold = args.policy.mfaRequiredAboveCents;
   if (
-    args.policy.mfaRequiredAboveCents != null &&
-    Number.isFinite(args.policy.mfaRequiredAboveCents) &&
-    args.totalDebitsCents >= args.policy.mfaRequiredAboveCents
+    threshold != null &&
+    Number.isFinite(threshold) &&
+    args.amountCents >= threshold
   ) {
     return true;
   }
   return false;
+}
+
+/** JE-2 live approval: fresh assurance when MFA is required. */
+export function isLiveApprovalMfaSatisfied(args: {
+  policy: JeApprovalPolicy;
+  amountCents: number;
+  assuranceSatisfied: boolean;
+}): boolean {
+  return (
+    !isMfaRequiredForApproval({
+      policy: args.policy,
+      amountCents: args.amountCents,
+    }) || args.assuranceSatisfied
+  );
+}
+
+/** JE-3 execution: historical approval row MFA proof when required. */
+export function isHistoricalApprovalMfaSatisfied(args: {
+  policy: JeApprovalPolicy;
+  amountCents: number;
+  mfaVerifiedAt: string | null;
+}): boolean {
+  return (
+    !isMfaRequiredForApproval({
+      policy: args.policy,
+      amountCents: args.amountCents,
+    }) || Boolean(args.mfaVerifiedAt)
+  );
+}
+
+/** @deprecated Prefer isMfaRequiredForApproval — same semantics, proposal naming. */
+export function mfaRequiredForProposal(args: {
+  policy: JeApprovalPolicy;
+  totalDebitsCents: number;
+}): boolean {
+  return isMfaRequiredForApproval({
+    policy: args.policy,
+    amountCents: args.totalDebitsCents,
+  });
 }
