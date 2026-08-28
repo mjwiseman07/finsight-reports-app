@@ -1,8 +1,9 @@
 /**
- * JE-3D — Proposed BS-account source authority + expected-effect contract.
+ * JE-3D — BS-account source authority + expected-effect contract.
  *
- * DESIGN ONLY for ChatGPT review. Does NOT expand JE_SOURCE_RECON_KINDS.
- * Does NOT authorize proposals, dispatch, or Memory.
+ * Source-kind expansion: `bs_account_recon` is now in JE_SOURCE_RECON_KINDS
+ * for live_provider NULL-baseline custody only. Does NOT authorize dispatch,
+ * Memory, or the first JE POST.
  *
  * Locked economics for first-run ACCRUAL cutoff:
  *   DR expense / CR accrued liability
@@ -27,7 +28,7 @@
 
 import type { BsClassification } from "@/lib/audit-ready/tie-out/sign-normalize";
 
-/** Not yet in JE_SOURCE_RECON_KINDS — deliberate future expansion only. */
+/** Canonical JE source kind for live_provider BS account recon. */
 export const PROPOSED_JE_SOURCE_RECON_KIND_BS_ACCOUNT = "bs_account_recon" as const;
 
 export const PROPOSED_BS_ACCOUNT_GL_DELTA_EFFECT_TYPE =
@@ -201,8 +202,8 @@ export function expectedBsAccountTieVarianceCents(args: {
 }
 
 /**
- * Future governance binding: reject incoherent or non-GL baselines.
- * Does not expand JE_SOURCE_RECON_KINDS by itself.
+ * Governance binding: reject incoherent or non-GL baselines.
+ * Kind expansion is gated separately; this validates source facts only.
  *
  * Source-fact coherence (fail-closed, no silent repair):
  *   tieVarianceCents === GL detail ending − TB comparison ending
@@ -329,8 +330,9 @@ export function validateBsAccountSourceRunForGlDelta(
 }
 
 /**
- * Governance checklist for a future PR that may add bs_account_recon to
- * JE_SOURCE_RECON_KINDS. This PR must not flip the union.
+ * Governance checklist retained for Patent #6 / Memory readiness.
+ * Kind is now in JE_SOURCE_RECON_KINDS; remaining gates are dispatch /
+ * kill-switch / Memory — not source-kind expansion.
  */
 export const JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS = [
   "exact source run ID (bs_account_recon)",
@@ -349,7 +351,7 @@ export const JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS = [
   "source run belongs to same company/engagement authority as proposal",
   "first-run candidate: totals_status=tie and tie_variance_cents=0",
   "CC observation slot / custody expansion if required for authoritative binding",
-  "JE_SOURCE_RECON_KINDS expansion only after ChatGPT approval of this contract",
+  "dispatch kill switch remains ON until separate POST authorization",
 ] as const;
 
 export function describeBsAccountLiabilityCreditEffect(): string {

@@ -15,6 +15,8 @@ export {
   JE_PROPOSAL_ERROR,
   JE_PROPOSAL_ORIGINS,
   JE_SOURCE_RECON_KINDS,
+  JE_SYNC_BACKED_SOURCE_RECON_KINDS,
+  JE_LIVE_PROVIDER_SOURCE_RECON_KINDS,
 } from "./types";
 export type {
   CreateJeProposalInput,

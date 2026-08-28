@@ -1,11 +1,15 @@
 /**
- * Contract tests for proposed BS_ACCOUNT_GL_DELTA expected effect.
- * Does not expand JE_SOURCE_RECON_KINDS.
+ * Contract tests for BS_ACCOUNT_GL_DELTA expected effect + source facts.
+ * Kind expansion is covered in bs-account-source-kind-expansion.test.ts.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { JE_SOURCE_RECON_KINDS } from "../types";
+import {
+  JE_LIVE_PROVIDER_SOURCE_RECON_KINDS,
+  JE_SOURCE_RECON_KINDS,
+  JE_SYNC_BACKED_SOURCE_RECON_KINDS,
+} from "../types";
 import {
   buildBsAccountGlDeltaExpectedEffect,
   describeBsAccountLiabilityCreditEffect,
@@ -38,17 +42,21 @@ function baseFacts(
 }
 
 describe("JE-3D BS account source authority contract", () => {
-  it("JE_SOURCE_RECON_KINDS remains unchanged", () => {
+  it("JE_SOURCE_RECON_KINDS includes bs_account_recon as live_provider only", () => {
     expect(JE_SOURCE_RECON_KINDS).toEqual([
       "ar_aging",
       "ap_aging",
       "inventory",
+      "bs_account_recon",
     ]);
-    expect(
-      (JE_SOURCE_RECON_KINDS as readonly string[]).includes(
-        PROPOSED_JE_SOURCE_RECON_KIND_BS_ACCOUNT,
-      ),
-    ).toBe(false);
+    expect([...JE_SYNC_BACKED_SOURCE_RECON_KINDS]).toEqual([
+      "ar_aging",
+      "ap_aging",
+      "inventory",
+    ]);
+    expect([...JE_LIVE_PROVIDER_SOURCE_RECON_KINDS]).toEqual([
+      PROPOSED_JE_SOURCE_RECON_KIND_BS_ACCOUNT,
+    ]);
   });
 
   it("1. GL 500 / TB 700 / variance -200 → arithmetic coherent", () => {
