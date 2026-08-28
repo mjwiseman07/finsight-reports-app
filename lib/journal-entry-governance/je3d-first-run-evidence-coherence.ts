@@ -1,20 +1,32 @@
 /**
  * JE-3D — First-run proposal evidence coherence (Patent #6 / source custody).
  *
- * Ensures cutoff_accrual ACCRUAL proposals do not claim unrelated recon effects
- * (e.g. ar_aging → reconciled_exact when the JE is expense ↔ accrued liability).
+ * Ensures cutoff_accrual ACCRUAL proposals do not claim recon effects that the
+ * expense ↔ accrued-liability JE cannot actually change.
+ *
+ * Locked rule: expected effects must describe what THIS JE will change.
+ * DR expense / CR accrued liability does NOT remediate AR aging or AP aging
+ * control-account tie-outs (and v1 forbids AP-control posting).
  */
 
 import type { JeExpectedEffect } from "./types";
 import { FIRST_RUN_JE_AMOUNT_CENTS } from "./je3d-first-run-account-authority";
 import { FIRST_RUN_REASON_CODE } from "./je3d-first-run-execution-authority";
 
-export const FIRST_RUN_SOURCE_RECON_KIND = "ap_aging" as const;
+/** Aging kinds that a P&L expense ↔ accrued-liability JE cannot remediate. */
+export const FIRST_RUN_INCOHERENT_AGING_RECON_KINDS = [
+  "ar_aging",
+  "ap_aging",
+] as const;
 
 export type FirstRunEvidenceCoherenceResult =
   | { ok: true }
   | { ok: false; code: string; message: string };
 
+/**
+ * Valid first-run expected effects for expense ↔ accrued-liability:
+ * GL movement only (ACCOUNT_RECLASS). Do not claim aging residual reduction.
+ */
 export function buildFirstRunEvidenceCoherentExpectedEffects(args: {
   expenseAccountId: string;
   accruedLiabilityAccountId: string;
@@ -23,17 +35,18 @@ export function buildFirstRunEvidenceCoherentExpectedEffects(args: {
   const amountCents = args.amountCents ?? FIRST_RUN_JE_AMOUNT_CENTS;
   return [
     {
-      type: "RESIDUAL_DELTA",
-      reconKind: FIRST_RUN_SOURCE_RECON_KIND,
-      expectedDeltaCents: -amountCents,
-    },
-    {
       type: "ACCOUNT_RECLASS",
       fromAccountId: args.expenseAccountId,
       toAccountId: args.accruedLiabilityAccountId,
       amountCents,
     },
   ];
+}
+
+function isIncoherentAgingKind(kind: string): boolean {
+  return (FIRST_RUN_INCOHERENT_AGING_RECON_KINDS as readonly string[]).includes(
+    kind,
+  );
 }
 
 export function validateFirstRunEvidenceCoherence(args: {
@@ -53,49 +66,57 @@ export function validateFirstRunEvidenceCoherence(args: {
   for (const effect of args.expectedEffects) {
     if (
       effect.type === "RECON_OUTCOME_TARGET" &&
-      effect.reconKind === "ar_aging"
+      isIncoherentAgingKind(effect.reconKind)
     ) {
       return {
         ok: false,
-        code: "je_3d_first_run_incoherent_ar_aging_effect",
+        code: "je_3d_first_run_incoherent_aging_outcome_effect",
         message:
-          "cutoff_accrual ACCRUAL must not target ar_aging reconciled_exact; " +
-          "expense/accrual JEs do not affect AR aging.",
+          `cutoff_accrual ACCRUAL must not target ${effect.reconKind} outcomes; ` +
+          "expense/accrued-liability JEs do not change AR/AP aging measurements.",
+      };
+    }
+    if (
+      effect.type === "RESIDUAL_DELTA" &&
+      isIncoherentAgingKind(effect.reconKind)
+    ) {
+      return {
+        ok: false,
+        code: "je_3d_first_run_incoherent_aging_residual_delta",
+        message:
+          `cutoff_accrual ACCRUAL must not claim RESIDUAL_DELTA on ${effect.reconKind}; ` +
+          "DR expense / CR accrued liability does not change AP/AR aging " +
+          "subledger-vs-control residuals (and v1 forbids AP-control posting).",
       };
     }
   }
 
-  const hasApResidual = args.expectedEffects.some(
-    (effect) =>
-      effect.type === "RESIDUAL_DELTA" &&
-      effect.reconKind === FIRST_RUN_SOURCE_RECON_KIND &&
-      effect.expectedDeltaCents < 0,
-  );
   const hasAccountReclass = args.expectedEffects.some(
     (effect) =>
       effect.type === "ACCOUNT_RECLASS" && effect.amountCents > 0,
   );
 
-  if (!hasApResidual || !hasAccountReclass) {
+  if (!hasAccountReclass) {
     return {
       ok: false,
-      code: "je_3d_first_run_incoherent_expected_effects",
+      code: "je_3d_first_run_missing_gl_movement_effect",
       message:
-        "First-run cutoff_accrual requires AP aging RESIDUAL_DELTA and " +
-        "ACCOUNT_RECLASS expected effects aligned to expense/accrual economics.",
+        "First-run cutoff_accrual requires ACCOUNT_RECLASS documenting " +
+        "expense → accrued-liability GL movement.",
     };
   }
 
   if (args.sourceReconKindsById && args.sourceReconRunIds.length > 0) {
     for (const reconId of args.sourceReconRunIds) {
       const kind = args.sourceReconKindsById.get(reconId);
-      if (kind === "ar_aging") {
+      if (kind && isIncoherentAgingKind(kind)) {
         return {
           ok: false,
-          code: "je_3d_first_run_incoherent_ar_aging_source",
+          code: "je_3d_first_run_incoherent_aging_source",
           message:
-            "cutoff_accrual ACCRUAL must not cite ar_aging as authoritative source; " +
-            "use AP aging cutoff variance or a coherent liability-side recon.",
+            `cutoff_accrual ACCRUAL must not cite ${kind} as authoritative source; ` +
+            "use expense_cutoff, accrued-liability bs_account_recon, or another " +
+            "authority whose measured balance this JE can actually change.",
         };
       }
     }
@@ -106,8 +127,10 @@ export function validateFirstRunEvidenceCoherence(args: {
 
 export function describeFirstRunEvidenceConnection(): string {
   return (
-    "AP aging tie-out variance (open_review) identifies an immaterial cutoff accrual. " +
-    "The JE debits expense and credits accrued liability; RESIDUAL_DELTA on ap_aging " +
-    "documents expected variance reduction, and ACCOUNT_RECLASS documents the GL movement."
+    "A governed expense ↔ accrued-liability cutoff accrual changes expense and " +
+    "accrued-liability GL balances. Expected effects may document that GL movement " +
+    "(ACCOUNT_RECLASS). They must not claim AR/AP aging residual reduction. " +
+    "Authoritative source recon must measure expense cutoff or the accrued-liability " +
+    "balance this JE actually affects."
   );
 }

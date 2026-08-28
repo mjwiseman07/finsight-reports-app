@@ -217,7 +217,7 @@ export { JE_3D_FIRST_RUN_PROPOSED_CANDIDATE } from "./je3d-first-run-proposed-ca
 export {
   buildFirstRunEvidenceCoherentExpectedEffects,
   describeFirstRunEvidenceConnection,
-  FIRST_RUN_SOURCE_RECON_KIND,
+  FIRST_RUN_INCOHERENT_AGING_RECON_KINDS,
   validateFirstRunEvidenceCoherence,
 } from "./je3d-first-run-evidence-coherence";
 export type { FirstRunEvidenceCoherenceResult } from "./je3d-first-run-evidence-coherence";
