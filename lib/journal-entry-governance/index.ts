@@ -216,6 +216,7 @@ export type { Je3dPreDispatchChecklistReport } from "./je3d-pre-dispatch-checkli
 export {
   buildBsAccountGlDeltaExpectedEffect,
   describeBsAccountLiabilityCreditEffect,
+  expectedBsAccountTieVarianceCents,
   JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS,
   PROPOSED_BS_ACCOUNT_GL_DELTA_EFFECT_TYPE,
   PROPOSED_JE_SOURCE_RECON_KIND_BS_ACCOUNT,

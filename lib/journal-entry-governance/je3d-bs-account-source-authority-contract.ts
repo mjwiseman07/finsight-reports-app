@@ -182,9 +182,30 @@ export type ValidateBsAccountSourceRunResult =
   | { ok: true }
   | { ok: false; code: string; message: string };
 
+function isIntegerCents(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value);
+}
+
+/**
+ * Authoritative BS recon variance arithmetic (matches bs-account-resolver):
+ * tieVariance = provider-backed GL detail ending − TB natural-sign comparison.
+ */
+export function expectedBsAccountTieVarianceCents(args: {
+  providerBackedGlEndingBalanceCents: number;
+  preparedOrTbEndingBalanceCents: number;
+}): number {
+  return (
+    args.providerBackedGlEndingBalanceCents -
+    args.preparedOrTbEndingBalanceCents
+  );
+}
+
 /**
  * Future governance binding: reject incoherent or non-GL baselines.
  * Does not expand JE_SOURCE_RECON_KINDS by itself.
+ *
+ * Source-fact coherence (fail-closed, no silent repair):
+ *   tieVarianceCents === GL detail ending − TB comparison ending
  */
 export function validateBsAccountSourceRunForGlDelta(
   facts: BsAccountSourceRunFacts,
@@ -247,6 +268,47 @@ export function validateBsAccountSourceRunForGlDelta(
       message: "Source account must not be an AP/control account.",
     };
   }
+
+  if (!isIntegerCents(facts.providerBackedGlEndingBalanceCents)) {
+    return {
+      ok: false,
+      code: "je_3d_bs_source_gl_cents_not_integer",
+      message:
+        "providerBackedGlEndingBalanceCents must be an integer cent value.",
+    };
+  }
+  if (!isIntegerCents(facts.preparedOrTbEndingBalanceCents)) {
+    return {
+      ok: false,
+      code: "je_3d_bs_source_tb_cents_not_integer",
+      message: "preparedOrTbEndingBalanceCents must be an integer cent value.",
+    };
+  }
+  if (!isIntegerCents(facts.tieVarianceCents)) {
+    return {
+      ok: false,
+      code: "je_3d_bs_source_variance_cents_not_integer",
+      message: "tieVarianceCents must be an integer cent value.",
+    };
+  }
+
+  const expectedTieVarianceCents = expectedBsAccountTieVarianceCents({
+    providerBackedGlEndingBalanceCents:
+      facts.providerBackedGlEndingBalanceCents,
+    preparedOrTbEndingBalanceCents: facts.preparedOrTbEndingBalanceCents,
+  });
+  if (facts.tieVarianceCents !== expectedTieVarianceCents) {
+    return {
+      ok: false,
+      code: "je_3d_bs_source_variance_arithmetic_mismatch",
+      message:
+        `tieVarianceCents ${facts.tieVarianceCents} does not equal ` +
+        `GL detail ${facts.providerBackedGlEndingBalanceCents} − ` +
+        `TB comparison ${facts.preparedOrTbEndingBalanceCents} ` +
+        `(= ${expectedTieVarianceCents}). Facts are not silently repaired.`,
+    };
+  }
+
   if (facts.requireFirstRunCleanTie !== false) {
     if (facts.totalsStatus !== "tie") {
       return {
@@ -278,6 +340,8 @@ export const JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS = [
   "baseline_sync_id NULL for current live_provider BS resolver semantics",
   "baselineGlBalanceCents = provider-backed GL detail ending (ending_balance_cents / subledger_total_cents)",
   "never use TB/prepared comparison (gl_ending_balance_cents) as BS_ACCOUNT_GL_DELTA baseline",
+  "tieVarianceCents must equal GL detail ending − TB comparison ending (fail-closed; no repair)",
+  "GL / TB / variance monetary facts must be integer cents",
   "exact expected delta cents with documented sign convention",
   "exact expected post-JE natural-sign GL balance cents (= baseline GL + delta)",
   "sign convention = qbo_natural_sign (liability credit balances positive)",

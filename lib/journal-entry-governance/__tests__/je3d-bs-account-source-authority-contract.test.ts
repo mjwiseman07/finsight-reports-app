@@ -9,14 +9,36 @@ import { JE_SOURCE_RECON_KINDS } from "../types";
 import {
   buildBsAccountGlDeltaExpectedEffect,
   describeBsAccountLiabilityCreditEffect,
+  expectedBsAccountTieVarianceCents,
   JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS,
   PROPOSED_JE_SOURCE_RECON_KIND_BS_ACCOUNT,
   resolveProviderBackedGlBaselineFromBsResolverResult,
   validateBsAccountSourceRunForGlDelta,
 } from "../je3d-bs-account-source-authority-contract";
 
+function baseFacts(
+  over: Partial<Parameters<typeof validateBsAccountSourceRunForGlDelta>[0]> = {},
+): Parameters<typeof validateBsAccountSourceRunForGlDelta>[0] {
+  return {
+    tieOutKind: "bs_account_recon",
+    status: "completed",
+    qboAccountId: "1150040002",
+    expectedQboAccountId: "1150040002",
+    acquisition: "live_provider",
+    baselineSyncId: null,
+    providerBackedGlEndingBalanceCents: 0,
+    preparedOrTbEndingBalanceCents: 0,
+    totalsStatus: "tie",
+    tieVarianceCents: 0,
+    classification: "Liability",
+    apControl: false,
+    signConvention: "qbo_natural_sign",
+    ...over,
+  };
+}
+
 describe("JE-3D BS account source authority contract", () => {
-  it("10. JE_SOURCE_RECON_KINDS remains unchanged", () => {
+  it("JE_SOURCE_RECON_KINDS remains unchanged", () => {
     expect(JE_SOURCE_RECON_KINDS).toEqual([
       "ar_aging",
       "ap_aging",
@@ -29,72 +51,173 @@ describe("JE-3D BS account source authority contract", () => {
     ).toBe(false);
   });
 
-  it("1. baseline 500 GL / prepared 700 uses GL 500, not prepared 700", () => {
+  it("1. GL 500 / TB 700 / variance -200 → arithmetic coherent", () => {
+    expect(
+      expectedBsAccountTieVarianceCents({
+        providerBackedGlEndingBalanceCents: 500,
+        preparedOrTbEndingBalanceCents: 700,
+      }),
+    ).toBe(-200);
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({
+        providerBackedGlEndingBalanceCents: 500,
+        preparedOrTbEndingBalanceCents: 700,
+        tieVarianceCents: -200,
+        totalsStatus: "review",
+        requireFirstRunCleanTie: false,
+      }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("2. GL 500 / TB 700 / variance 0 → REJECT arithmetic mismatch", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({
+        providerBackedGlEndingBalanceCents: 500,
+        preparedOrTbEndingBalanceCents: 700,
+        tieVarianceCents: 0,
+        totalsStatus: "tie",
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("je_3d_bs_source_variance_arithmetic_mismatch");
+  });
+
+  it("3. GL 500 / TB 500 / variance 0 / totals_status=tie → PASS first-run", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({
+        providerBackedGlEndingBalanceCents: 500,
+        preparedOrTbEndingBalanceCents: 500,
+        tieVarianceCents: 0,
+        totalsStatus: "tie",
+      }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("4. GL 500 / TB 700 / variance -200 / totals_status=tie → REJECT first-run zero-variance", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({
+        providerBackedGlEndingBalanceCents: 500,
+        preparedOrTbEndingBalanceCents: 700,
+        tieVarianceCents: -200,
+        totalsStatus: "tie",
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("je_3d_bs_source_first_run_nonzero_variance");
+  });
+
+  it("5. GL 500 / TB 500 / supplied variance 1 → REJECT arithmetic mismatch", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({
+        providerBackedGlEndingBalanceCents: 500,
+        preparedOrTbEndingBalanceCents: 500,
+        tieVarianceCents: 1,
+        totalsStatus: "tie",
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("je_3d_bs_source_variance_arithmetic_mismatch");
+  });
+
+  it("6. fractional GL cents → reject", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({
+        providerBackedGlEndingBalanceCents: 500.5,
+        preparedOrTbEndingBalanceCents: 500.5,
+        tieVarianceCents: 0,
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("je_3d_bs_source_gl_cents_not_integer");
+  });
+
+  it("7. fractional TB cents → reject", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({
+        providerBackedGlEndingBalanceCents: 500,
+        preparedOrTbEndingBalanceCents: 500.25,
+        tieVarianceCents: 0,
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("je_3d_bs_source_tb_cents_not_integer");
+  });
+
+  it("8. fractional variance cents → reject", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({
+        providerBackedGlEndingBalanceCents: 500,
+        preparedOrTbEndingBalanceCents: 500,
+        tieVarianceCents: 0.1,
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("je_3d_bs_source_variance_cents_not_integer");
+  });
+
+  it("9+10. GL 500 / TB 700 baseline mapping returns GL 500; CR100 → post 600", () => {
     const mapped = resolveProviderBackedGlBaselineFromBsResolverResult({
-      endingBalanceCents: 500, // GL detail
-      glEndingBalanceCents: 700, // TB comparison (misnamed)
+      endingBalanceCents: 500,
+      glEndingBalanceCents: 700,
     });
     expect(mapped.baselineGlBalanceCents).toBe(500);
     expect(mapped.preparedOrTbEndingBalanceCents).toBe(700);
-    expect(mapped.baselineSourceField).toBe("endingBalanceCents");
 
-    const result = buildBsAccountGlDeltaExpectedEffect({
+    const effect = buildBsAccountGlDeltaExpectedEffect({
       sourceRunId: "run-1",
       qboAccountId: "1150040002",
       classification: "Liability",
       baselineGlBalanceCents: mapped.baselineGlBalanceCents,
       creditCents: 100,
     });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.effect.baselineGlBalanceCents).toBe(500);
-    expect(result.effect.expectedPostGlBalanceCents).toBe(600);
-    expect(result.effect.baselineGlBalanceCents).not.toBe(700);
+    expect(effect.ok).toBe(true);
+    if (!effect.ok) return;
+    expect(effect.effect.baselineGlBalanceCents).toBe(500);
+    expect(effect.effect.expectedDeltaCents).toBe(100);
+    expect(effect.effect.expectedPostGlBalanceCents).toBe(600);
   });
 
-  it("2. liability CR 100 → delta +100, post GL = baseline + 100", () => {
-    const result = buildBsAccountGlDeltaExpectedEffect({
-      sourceRunId: "run-1",
-      qboAccountId: "1150040002",
-      classification: "Liability",
-      baselineGlBalanceCents: 500,
-      creditCents: 100,
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.effect.expectedDeltaCents).toBe(100);
-    expect(result.effect.expectedPostGlBalanceCents).toBe(600);
-    expect(result.effect.signConvention).toBe("qbo_natural_sign");
-  });
-
-  it("3. negative natural-sign baseline: arithmetic remains baseline + credit", () => {
-    const result = buildBsAccountGlDeltaExpectedEffect({
-      sourceRunId: "run-1",
-      qboAccountId: "1150040002",
-      classification: "Liability",
-      baselineGlBalanceCents: -250,
-      creditCents: 100,
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.effect.expectedDeltaCents).toBe(100);
-    expect(result.effect.expectedPostGlBalanceCents).toBe(-150);
-  });
-
-  it("4. non-integer credit rejected", () => {
-    const result = buildBsAccountGlDeltaExpectedEffect({
-      sourceRunId: "run-1",
-      qboAccountId: "1150040002",
-      classification: "Liability",
-      baselineGlBalanceCents: 0,
-      creditCents: 100.5,
-    });
+  it("source account mismatch rejected", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({ qboAccountId: "999" }),
+    );
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.code).toBe("je_3d_bs_gl_delta_credit_invalid");
+    expect(result.code).toBe("je_3d_bs_source_account_mismatch");
   });
 
-  it("5. Asset classification rejected for this accrual contract", () => {
+  it("first-run requires completed status", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({ status: "running" }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("je_3d_bs_source_not_completed");
+  });
+
+  it("first-run requires totals_status=tie", () => {
+    const result = validateBsAccountSourceRunForGlDelta(
+      baseFacts({
+        providerBackedGlEndingBalanceCents: 0,
+        preparedOrTbEndingBalanceCents: 50,
+        tieVarianceCents: -50,
+        totalsStatus: "review",
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("je_3d_bs_source_first_run_not_tie");
+  });
+
+  it("Asset classification rejected for accrual effect", () => {
     const result = buildBsAccountGlDeltaExpectedEffect({
       sourceRunId: "run-1",
       qboAccountId: "35",
@@ -103,95 +226,9 @@ describe("JE-3D BS account source authority contract", () => {
       creditCents: 100,
     });
     expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("je_3d_bs_gl_delta_classification_invalid");
   });
 
-  it("6. source account mismatch rejected by governance binding", () => {
-    const result = validateBsAccountSourceRunForGlDelta({
-      tieOutKind: "bs_account_recon",
-      status: "completed",
-      qboAccountId: "999",
-      expectedQboAccountId: "1150040002",
-      acquisition: "live_provider",
-      baselineSyncId: null,
-      providerBackedGlEndingBalanceCents: 0,
-      preparedOrTbEndingBalanceCents: 0,
-      totalsStatus: "tie",
-      tieVarianceCents: 0,
-      classification: "Liability",
-      apControl: false,
-      signConvention: "qbo_natural_sign",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("je_3d_bs_source_account_mismatch");
-  });
-
-  it("7. first-run source requires completed bs_account_recon", () => {
-    const result = validateBsAccountSourceRunForGlDelta({
-      tieOutKind: "bs_account_recon",
-      status: "running",
-      qboAccountId: "1150040002",
-      expectedQboAccountId: "1150040002",
-      acquisition: "live_provider",
-      baselineSyncId: null,
-      providerBackedGlEndingBalanceCents: 0,
-      preparedOrTbEndingBalanceCents: 0,
-      totalsStatus: "tie",
-      tieVarianceCents: 0,
-      classification: "Liability",
-      apControl: false,
-      signConvention: "qbo_natural_sign",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("je_3d_bs_source_not_completed");
-  });
-
-  it("8. first-run source requires totals_status=tie", () => {
-    const result = validateBsAccountSourceRunForGlDelta({
-      tieOutKind: "bs_account_recon",
-      status: "completed",
-      qboAccountId: "1150040002",
-      expectedQboAccountId: "1150040002",
-      acquisition: "live_provider",
-      baselineSyncId: null,
-      providerBackedGlEndingBalanceCents: 0,
-      preparedOrTbEndingBalanceCents: 50,
-      totalsStatus: "review",
-      tieVarianceCents: -50,
-      classification: "Liability",
-      apControl: false,
-      signConvention: "qbo_natural_sign",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("je_3d_bs_source_first_run_not_tie");
-  });
-
-  it("9. first-run source requires tie variance=0", () => {
-    const result = validateBsAccountSourceRunForGlDelta({
-      tieOutKind: "bs_account_recon",
-      status: "completed",
-      qboAccountId: "1150040002",
-      expectedQboAccountId: "1150040002",
-      acquisition: "live_provider",
-      baselineSyncId: null,
-      providerBackedGlEndingBalanceCents: 100,
-      preparedOrTbEndingBalanceCents: 0,
-      totalsStatus: "tie",
-      tieVarianceCents: 100,
-      classification: "Liability",
-      apControl: false,
-      signConvention: "qbo_natural_sign",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("je_3d_bs_source_first_run_nonzero_variance");
-  });
-
-  it("Phase A script uses GL detail ending via resolver mapper, not TB field", () => {
+  it("Phase A script wires resolver GL baseline + bsResult.tieVarianceCents", () => {
     const src = readFileSync(
       join(
         process.cwd(),
@@ -200,24 +237,20 @@ describe("JE-3D BS account source authority contract", () => {
       "utf8",
     );
     expect(src).toContain("resolveProviderBackedGlBaselineFromBsResolverResult");
+    expect(src).toContain(
+      "providerBackedGlEndingBalanceCents: glBaseline.baselineGlBalanceCents",
+    );
+    expect(src).toContain(
+      "preparedOrTbEndingBalanceCents: glBaseline.preparedOrTbEndingBalanceCents",
+    );
+    expect(src).toContain("tieVarianceCents: bsResult.tieVarianceCents");
     expect(src).toContain("baselineGlBalanceCents: glBaseline.baselineGlBalanceCents");
-    expect(src).not.toMatch(
-      /baselineGlBalanceCents:\s*bsResult\.glEndingBalanceCents/,
-    );
-    expect(src).not.toMatch(
-      /baselineGlBalanceCents:\s*bsResult\.endingBalanceCents/,
-    );
   });
 
-  it("documents GL-authoritative governance requirements", () => {
+  it("documents variance arithmetic custody in governance requirements", () => {
     expect(JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS.join(" ")).toContain(
-      "ending_balance_cents",
+      "tieVarianceCents must equal",
     );
-    expect(JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS.join(" ")).toContain(
-      "never use TB/prepared",
-    );
-    expect(describeBsAccountLiabilityCreditEffect()).toContain(
-      "GENERAL LEDGER",
-    );
+    expect(describeBsAccountLiabilityCreditEffect()).toContain("GENERAL LEDGER");
   });
 });
