@@ -49,6 +49,8 @@ import {
   describeBsAccountLiabilityCreditEffect,
   JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS,
   PROPOSED_JE_SOURCE_RECON_KIND_BS_ACCOUNT,
+  resolveProviderBackedGlBaselineFromBsResolverResult,
+  validateBsAccountSourceRunForGlDelta,
 } from "../../lib/journal-entry-governance/je3d-bs-account-source-authority-contract";
 import { JE_SOURCE_RECON_KINDS } from "../../lib/journal-entry-governance/types";
 import { assertJe3dSandboxQboEnvironment } from "../../lib/journal-entry-governance/je3d-sandbox-environment";
@@ -312,6 +314,8 @@ async function main() {
     liability_credit_balances_positive: true,
   };
   report.baseline_gl_balance_cents = gl.endingBalanceCents;
+  report.baseline_gl_authority =
+    "GeneralLedger detail ending (provider-backed GL). Not TB/prepared comparison.";
 
   // --- Persist authentic bs_account_recon (Tie-Out DB only) ---
   const { data: engagement } = await supabase
@@ -420,11 +424,37 @@ async function main() {
   report.source_sync_note =
     "bs_account_recon uses live_provider GL+TB; baseline_sync_id intentionally unset (not synthetic staging sync).";
 
+  // NAMING TRAP: resolver endingBalanceCents = GL detail; glEndingBalanceCents = TB.
+  const glBaseline = resolveProviderBackedGlBaselineFromBsResolverResult(bsResult);
+  report.baseline_source_field = glBaseline.baselineSourceField;
+  report.comparison_source_field = glBaseline.comparisonSourceField;
+  report.baseline_gl_balance_cents = glBaseline.baselineGlBalanceCents;
+  report.prepared_or_tb_ending_balance_cents =
+    glBaseline.preparedOrTbEndingBalanceCents;
+
+  const sourceBinding = validateBsAccountSourceRunForGlDelta({
+    tieOutKind: "bs_account_recon",
+    status: "completed",
+    qboAccountId: target.id,
+    expectedQboAccountId: target.id,
+    acquisition: "live_provider",
+    baselineSyncId: null,
+    providerBackedGlEndingBalanceCents: glBaseline.baselineGlBalanceCents,
+    preparedOrTbEndingBalanceCents: glBaseline.preparedOrTbEndingBalanceCents,
+    totalsStatus: bsResult.totalsStatus,
+    tieVarianceCents: bsResult.tieVarianceCents,
+    classification: classification!,
+    apControl: false,
+    signConvention: "qbo_natural_sign",
+    requireFirstRunCleanTie: true,
+  });
+  report.first_run_source_binding = sourceBinding;
+
   const effect = buildBsAccountGlDeltaExpectedEffect({
     sourceRunId: bsResult.runId,
     qboAccountId: target.id,
     classification: classification!,
-    baselineGlBalanceCents: bsResult.endingBalanceCents,
+    baselineGlBalanceCents: glBaseline.baselineGlBalanceCents,
     creditCents: CREDIT_CENTS,
   });
   report.proposed_expected_effect = effect.ok ? effect.effect : null;
@@ -439,7 +469,9 @@ async function main() {
   };
 
   report.recommendation =
-    effect.ok && (report.stop_reasons as unknown[]).length === 0
+    effect.ok &&
+    sourceBinding.ok &&
+    (report.stop_reasons as unknown[]).length === 0
       ? "SOURCE AUTHORITY COHERENT — READY FOR DIRECT REVIEW"
       : "NO COHERENT SOURCE AUTHORITY — STOP";
 

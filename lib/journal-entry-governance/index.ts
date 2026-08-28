@@ -219,11 +219,15 @@ export {
   JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS,
   PROPOSED_BS_ACCOUNT_GL_DELTA_EFFECT_TYPE,
   PROPOSED_JE_SOURCE_RECON_KIND_BS_ACCOUNT,
+  resolveProviderBackedGlBaselineFromBsResolverResult,
+  validateBsAccountSourceRunForGlDelta,
 } from "./je3d-bs-account-source-authority-contract";
 export type {
   BsAccountGlDeltaExpectedEffect,
+  BsAccountSourceRunFacts,
   BuildBsAccountGlDeltaEffectInput,
   BuildBsAccountGlDeltaEffectResult,
+  ValidateBsAccountSourceRunResult,
 } from "./je3d-bs-account-source-authority-contract";
 export { JE_3D_FIRST_RUN_PROPOSED_CANDIDATE } from "./je3d-first-run-proposed-candidate";
 export {
