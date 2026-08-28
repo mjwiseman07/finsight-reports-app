@@ -39,6 +39,7 @@ import {
   validateStagedFirstRunAccounts,
   type CoaMirrorAccountRow,
 } from "../../lib/journal-entry-governance/je3d-first-run-account-authority";
+import { buildFirstRunEvidenceCoherentExpectedEffects } from "../../lib/journal-entry-governance/je3d-first-run-evidence-coherence";
 import {
   createContinuousCloseJournalEntryProposal,
   prepareGovernedJournalEntryExecution,
@@ -507,14 +508,11 @@ async function main() {
         description: "Accrued liability",
       },
     ],
-    expectedEffects: [
-      {
-        type: "ACCOUNT_RECLASS",
-        fromAccountId: accountAuthority.expense.accountId,
-        toAccountId: accountAuthority.liability.accountId,
-        amountCents: amount,
-      },
-    ],
+    expectedEffects: buildFirstRunEvidenceCoherentExpectedEffects({
+      expenseAccountId: accountAuthority.expense.accountId,
+      accruedLiabilityAccountId: accountAuthority.liability.accountId,
+      amountCents: amount,
+    }),
     sourceReconRunIds: [],
   };
 

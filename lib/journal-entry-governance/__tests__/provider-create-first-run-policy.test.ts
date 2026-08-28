@@ -25,7 +25,7 @@ import { executeGovernedJournalEntryCreate } from "../provider-create-service";
 import type { JournalEntryExecutionRow } from "../execution-types";
 import type { JournalEntryProposalRow } from "../types";
 
-const EXEC_ID = "6d9579ad-0020-42b5-9521-db68a5d0edda";
+const EXEC_ID = "f08ba852-534a-40f5-b606-867a3b98c879";
 const USER = "user-1";
 
 /** Path tests that exercise post-CREATE gates inject CREATE ON + kill OFF. */

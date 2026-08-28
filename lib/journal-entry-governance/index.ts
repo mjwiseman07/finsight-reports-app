@@ -215,6 +215,13 @@ export {
 export type { Je3dPreDispatchChecklistReport } from "./je3d-pre-dispatch-checklist";
 export { JE_3D_FIRST_RUN_PROPOSED_CANDIDATE } from "./je3d-first-run-proposed-candidate";
 export {
+  buildFirstRunEvidenceCoherentExpectedEffects,
+  describeFirstRunEvidenceConnection,
+  FIRST_RUN_SOURCE_RECON_KIND,
+  validateFirstRunEvidenceCoherence,
+} from "./je3d-first-run-evidence-coherence";
+export type { FirstRunEvidenceCoherenceResult } from "./je3d-first-run-evidence-coherence";
+export {
   FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID,
   FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID,
   FIRST_RUN_EXPENSE_ACCOUNT_ID,

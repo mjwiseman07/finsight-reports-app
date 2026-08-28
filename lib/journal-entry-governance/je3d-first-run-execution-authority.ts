@@ -21,7 +21,7 @@ import type { JournalEntryProposalRow } from "./types";
 
 /** Staged candidate execution — not dispatch-approved until explicit review. */
 export const FIRST_RUN_STAGED_EXECUTION_ID: string | null =
-  "6d9579ad-0020-42b5-9521-db68a5d0edda";
+  "f08ba852-534a-40f5-b606-867a3b98c879";
 
 /**
  * @deprecated Use FIRST_RUN_STAGED_EXECUTION_ID. Staged ID is not approval authority.
