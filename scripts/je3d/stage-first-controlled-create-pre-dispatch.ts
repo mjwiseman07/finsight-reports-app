@@ -36,7 +36,7 @@ import {
   FIRST_RUN_JE_AMOUNT_CENTS,
   FIRST_RUN_JE_CURRENCY,
   resolveFirstRunExplicitAccountEvidence,
-  validateExplicitFirstRunAccounts,
+  validateStagedFirstRunAccounts,
   type CoaMirrorAccountRow,
 } from "../../lib/journal-entry-governance/je3d-first-run-account-authority";
 import {
@@ -48,7 +48,13 @@ import {
   inspectGovernedJeActivationCustody,
 } from "../../lib/journal-entry-governance";
 import type { CreateJeProposalInput } from "../../lib/journal-entry-governance";
-import { FIRST_RUN_REASON_CODE } from "../../lib/journal-entry-governance/je3d-first-run-execution-authority";
+import {
+  FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED,
+  FIRST_RUN_REASON_CODE,
+  FIRST_RUN_STAGED_EXECUTION_ID,
+  isFirstRunDispatchAuthorized,
+  resolveFirstRunExecutionIdentityEvidence,
+} from "../../lib/journal-entry-governance/je3d-first-run-execution-authority";
 
 /** Controlled first-run evidence — not general product authority. */
 const FIRST_RUN_JE_EVIDENCE = {
@@ -332,6 +338,14 @@ async function main() {
       accountEvidence.accruedLiabilityAccountId,
     first_run_accounts_reviewed_and_approved:
       accountEvidence.accountsReviewedAndApproved,
+    first_run_execution_reviewed_and_approved:
+      FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED,
+    candidate_execution_id: FIRST_RUN_STAGED_EXECUTION_ID,
+    dispatch_authorized: isFirstRunDispatchAuthorized({
+      identityEvidence: resolveFirstRunExecutionIdentityEvidence(),
+      accountEvidence,
+      killSwitchActive: policy.sandboxDispatchKillSwitch,
+    }),
     company_id: JE_3D_VERIFIED_DEMO_A_IDENTITY.companyId,
     accounting_connection_id: JE_3D_VERIFIED_DEMO_A_IDENTITY.accountingConnectionId,
     realm_id: JE_3D_VERIFIED_DEMO_A_IDENTITY.realmId,
@@ -415,7 +429,7 @@ async function main() {
   });
   output.candidate_report = candidateReport;
 
-  const accountAuthority = validateExplicitFirstRunAccounts({
+  const accountAuthority = validateStagedFirstRunAccounts({
     evidence: accountEvidence,
     mirrorRows,
   });

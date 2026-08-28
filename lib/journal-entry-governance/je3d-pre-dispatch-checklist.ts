@@ -14,11 +14,29 @@ import {
   JE_3D_VERIFIED_DEMO_A_IDENTITY,
   resolveJe3dActivationPolicy,
 } from "./je3d-first-controlled-create-activation";
+import {
+  FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED,
+  FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID,
+  FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID,
+  resolveFirstRunExplicitAccountEvidence,
+} from "./je3d-first-run-account-authority";
+import {
+  FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED,
+  FIRST_RUN_STAGED_EXECUTION_ID,
+  isFirstRunDispatchAuthorized,
+  resolveFirstRunExecutionIdentityEvidence,
+} from "./je3d-first-run-execution-authority";
 import type { ResolvedSandboxActivationAllowlist } from "./je3d-sandbox-company-authority";
 import { classifyQbEnvironment } from "./je3d-sandbox-environment";
 import type { GovernedJeActivationInspection } from "./je3d-activation-inspection";
 
 export type Je3dPreDispatchChecklistReport = {
+  candidate_execution_id: string | null;
+  candidate_expense_account_id: string | null;
+  candidate_accrued_liability_account_id: string | null;
+  execution_reviewed_and_approved: boolean;
+  accounts_reviewed_and_approved: boolean;
+  dispatch_authorized: boolean;
   demo_a_company_authority_resolved: boolean;
   canonical_connection_exact: boolean;
   realm_exact: boolean;
@@ -53,6 +71,8 @@ export function buildJe3dPreDispatchChecklistReport(args: {
   const qbEnv = args.qbEnvironment ?? process.env.QB_ENVIRONMENT ?? null;
   const demoA = args.allowlist?.demoA ?? null;
   const inspection = args.inspection ?? null;
+  const identityEvidence = resolveFirstRunExecutionIdentityEvidence();
+  const accountEvidence = resolveFirstRunExplicitAccountEvidence();
 
   const authorityResolved =
     args.allowlist?.allowlistResolution === "resolved" &&
@@ -82,6 +102,14 @@ export function buildJe3dPreDispatchChecklistReport(args: {
   const governedAutoOff = !policy.governedAutoAllowed;
   const productionOff = !policy.productionAllowed;
   const killSwitchBlocks = Boolean(policy.sandboxDispatchKillSwitch);
+
+  const executionReviewed = FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED;
+  const accountsReviewed = FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED;
+  const dispatchAuthorized = isFirstRunDispatchAuthorized({
+    identityEvidence,
+    accountEvidence,
+    killSwitchActive: policy.sandboxDispatchKillSwitch,
+  });
 
   let executionReady: boolean | null = null;
   let proposalImmutable: boolean | null = null;
@@ -127,9 +155,17 @@ export function buildJe3dPreDispatchChecklistReport(args: {
     workerOff &&
     governedAutoOff &&
     productionOff &&
-    killSwitchBlocks;
+    killSwitchBlocks &&
+    !dispatchAuthorized;
 
   return {
+    candidate_execution_id: FIRST_RUN_STAGED_EXECUTION_ID,
+    candidate_expense_account_id: FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID,
+    candidate_accrued_liability_account_id:
+      FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID,
+    execution_reviewed_and_approved: executionReviewed,
+    accounts_reviewed_and_approved: accountsReviewed,
+    dispatch_authorized: dispatchAuthorized,
     demo_a_company_authority_resolved: authorityResolved,
     canonical_connection_exact: canonicalConnectionExact,
     realm_exact: realmExact,

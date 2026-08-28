@@ -205,7 +205,7 @@ describe("JE-3D public create policy wiring", () => {
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
     expect(policy.sandboxDispatchKillSwitch).toBe(true);
     expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBe(EXEC_ID);
-    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
+    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(false);
   });
 
   it("2b. kill switch ON blocks public create before orchestration", async () => {
@@ -238,6 +238,7 @@ describe("JE-3D public create policy wiring", () => {
     );
     expect(
       evaluateFirstRunExecutionIdentityGate(EXEC_ID, {
+        stagedExecutionId: null,
         approvedExecutionId: null,
         executionReviewedAndApproved: true,
       }),
@@ -304,6 +305,7 @@ describe("JE-3D public create policy wiring", () => {
     );
     expect(
       evaluateFirstRunExecutionIdentityGate(EXEC_ID, {
+        stagedExecutionId: EXEC_ID,
         approvedExecutionId: EXEC_ID,
         executionReviewedAndApproved: false,
       }),
@@ -347,13 +349,32 @@ describe("JE-3D public create policy wiring", () => {
     );
     expect(
       evaluateFirstRunExecutionIdentityGate("wrong-exec-id", {
-        approvedExecutionId: EXEC_ID,
+        stagedExecutionId: EXEC_ID,
         executionReviewedAndApproved: true,
       }),
     ).toMatchObject({
       ok: false,
       code: FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_MISMATCH,
     });
+
+    const authority = await import("../je3d-first-run-execution-authority");
+    const originalCreateAuthority = authority.evaluateFirstRunCreateAuthority;
+    const authoritySpy = vi
+      .spyOn(authority, "evaluateFirstRunCreateAuthority")
+      .mockImplementation((args) =>
+        originalCreateAuthority({
+          ...args,
+          identityEvidence: {
+            stagedExecutionId: EXEC_ID,
+            executionReviewedAndApproved: true,
+          },
+          accountEvidence: {
+            expenseAccountId: "15",
+            accruedLiabilityAccountId: "1150040002",
+            accountsReviewedAndApproved: true,
+          },
+        }),
+      );
 
     vi.mocked(loadExactExecution).mockResolvedValue(
       baseExecution({ id: "wrong-exec-id" }),
@@ -373,6 +394,7 @@ describe("JE-3D public create policy wiring", () => {
       FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_MISMATCH,
     );
     expect(runGovernedJournalEntryCreateOrchestration).not.toHaveBeenCalled();
+    authoritySpy.mockRestore();
   });
 
   it("7. CREATE=true + invalid economics → fails", async () => {
@@ -549,6 +571,7 @@ describe("JE-3D public create account approval custody", () => {
         const identity = authority.evaluateFirstRunExecutionIdentityGate(
           args.executionId,
           {
+            stagedExecutionId: EXEC_ID,
             approvedExecutionId: EXEC_ID,
             executionReviewedAndApproved: true,
           },

@@ -215,6 +215,8 @@ export {
 export type { Je3dPreDispatchChecklistReport } from "./je3d-pre-dispatch-checklist";
 export { JE_3D_FIRST_RUN_PROPOSED_CANDIDATE } from "./je3d-first-run-proposed-candidate";
 export {
+  FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID,
+  FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID,
   FIRST_RUN_EXPENSE_ACCOUNT_ID,
   FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID,
   FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED,
@@ -227,7 +229,9 @@ export {
   isEligibleAccruedLiabilityAccount,
   isEligibleOrdinaryExpenseAccount,
   resolveFirstRunExplicitAccountEvidence,
+  resolveFirstRunStagedAccountEvidence,
   validateExplicitFirstRunAccounts,
+  validateStagedFirstRunAccounts,
 } from "./je3d-first-run-account-authority";
 export type {
   CoaMirrorAccountRow,
@@ -236,8 +240,10 @@ export type {
   FirstRunAccountExclusion,
 } from "./je3d-first-run-account-authority";
 export {
+  FIRST_RUN_STAGED_EXECUTION_ID,
   FIRST_RUN_APPROVED_EXECUTION_ID,
   FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED,
+  isFirstRunDispatchAuthorized,
   FIRST_RUN_REASON_CODE,
   FIRST_RUN_EXECUTION_AUTHORITY_ERROR,
   evaluateFirstRunCreateAuthority,

@@ -37,6 +37,12 @@ describe("JE-3D pre-dispatch checklist", () => {
     expect(report.create_capability_on).toBe(true);
     expect(report.verify_capability_off).toBe(true);
     expect(report.kill_switch_blocks_dispatch).toBe(true);
+    expect(report.execution_reviewed_and_approved).toBe(false);
+    expect(report.accounts_reviewed_and_approved).toBe(false);
+    expect(report.dispatch_authorized).toBe(false);
+    expect(report.candidate_execution_id).toBeTruthy();
+    expect(report.candidate_expense_account_id).toBeTruthy();
+    expect(report.candidate_accrued_liability_account_id).toBeTruthy();
     expect(report.memory_off).toBe(true);
     expect(report.worker_off).toBe(true);
     expect(report.governed_auto_off).toBe(true);

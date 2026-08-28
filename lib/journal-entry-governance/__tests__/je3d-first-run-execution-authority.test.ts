@@ -140,6 +140,7 @@ function execution(
 }
 
 const approvedIdentity = {
+  stagedExecutionId: EXEC_ID,
   approvedExecutionId: EXEC_ID,
   executionReviewedAndApproved: true,
 };
@@ -153,6 +154,7 @@ const approvedAccountEvidence = {
 describe("JE-3D first-run execution authority", () => {
   it("1. CREATE ON + approved execution ID null → no POST path", () => {
     const result = evaluateFirstRunExecutionIdentityGate(EXEC_ID, {
+      stagedExecutionId: null,
       approvedExecutionId: null,
       executionReviewedAndApproved: true,
     });
@@ -165,6 +167,7 @@ describe("JE-3D first-run execution authority", () => {
 
   it("2. CREATE ON + approval flag false → no POST path", () => {
     const result = evaluateFirstRunExecutionIdentityGate(EXEC_ID, {
+      stagedExecutionId: EXEC_ID,
       approvedExecutionId: EXEC_ID,
       executionReviewedAndApproved: false,
     });
@@ -324,6 +327,7 @@ describe("JE-3D first-run execution authority", () => {
         proposal: proposal(),
         mirrorRows: mirrorRows(),
         identityEvidence: {
+          stagedExecutionId: EXEC_ID,
           approvedExecutionId: EXEC_ID,
           executionReviewedAndApproved: false,
         },

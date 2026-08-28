@@ -6,6 +6,7 @@ import { JE_3D_FIRST_RUN_PROPOSED_CANDIDATE } from "../je3d-first-run-proposed-c
 import {
   FIRST_RUN_APPROVED_EXECUTION_ID,
   FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED,
+  FIRST_RUN_STAGED_EXECUTION_ID,
 } from "../je3d-first-run-execution-authority";
 import {
   FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED,
@@ -33,11 +34,11 @@ describe("JE_3D_FIRST_RUN_PROPOSED_CANDIDATE", () => {
 
     expect(FIRST_RUN_EXPENSE_ACCOUNT_ID).toBe("15");
     expect(FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID).toBe("1150040002");
-    expect(FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED).toBe(true);
-    expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBe(
+    expect(FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED).toBe(false);
+    expect(FIRST_RUN_STAGED_EXECUTION_ID).toBe(
       "6d9579ad-0020-42b5-9521-db68a5d0edda",
     );
-    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
+    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(false);
 
     const policy = resolveJe3dActivationPolicy();
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
