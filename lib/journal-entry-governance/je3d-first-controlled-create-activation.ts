@@ -17,7 +17,7 @@ import {
   type Je3dActivationPolicyView,
 } from "./je3d-activation-policy";
 
-/** Independently verified Demo A production identity (2026-08-23 / reconfirmed). */
+/** Independently verified Demo A production identity (reconfirmed 2026-08-28). */
 export const JE_3D_VERIFIED_DEMO_A_IDENTITY = {
   companyId: "aaaaaaaa-2222-4222-8222-222222222222",
   accountingConnectionId: "dfef5e96-e717-4e3e-afac-fde0de1b5b23",
