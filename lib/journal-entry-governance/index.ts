@@ -213,6 +213,18 @@ export {
   buildJe3dPreDispatchChecklistReport,
 } from "./je3d-pre-dispatch-checklist";
 export type { Je3dPreDispatchChecklistReport } from "./je3d-pre-dispatch-checklist";
+export {
+  buildBsAccountGlDeltaExpectedEffect,
+  describeBsAccountLiabilityCreditEffect,
+  JE_BS_ACCOUNT_SOURCE_KIND_GOVERNANCE_REQUIREMENTS,
+  PROPOSED_BS_ACCOUNT_GL_DELTA_EFFECT_TYPE,
+  PROPOSED_JE_SOURCE_RECON_KIND_BS_ACCOUNT,
+} from "./je3d-bs-account-source-authority-contract";
+export type {
+  BsAccountGlDeltaExpectedEffect,
+  BuildBsAccountGlDeltaEffectInput,
+  BuildBsAccountGlDeltaEffectResult,
+} from "./je3d-bs-account-source-authority-contract";
 export { JE_3D_FIRST_RUN_PROPOSED_CANDIDATE } from "./je3d-first-run-proposed-candidate";
 export {
   buildFirstRunEvidenceCoherentExpectedEffects,
