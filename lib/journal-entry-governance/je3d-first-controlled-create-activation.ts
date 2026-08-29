@@ -4,10 +4,10 @@
  * Verified production identity — for controlled first-run staging/evidence only.
  * Not general product authority. Runtime allowlist still resolves from database.
  *
- * CREATE-ENABLED / DISPATCH-ARMED STATE (this PR):
- *   CREATE_SANDBOX_JE = true
+ * FULL-CYCLE CLOSED / FAIL-CLOSED STATE:
+ *   CREATE_SANDBOX_JE = false
  *   VERIFY_SANDBOX_JE = false
- *   sandboxDispatchKillSwitch = false (dispatch armed; still requires exact-execution gate)
+ *   sandboxDispatchKillSwitch = true (all new provider POST dispatches blocked)
  *
  * Exact-execution binding remains mandatory: CREATE capability alone never authorizes POST.
  */
@@ -30,22 +30,22 @@ export const JE_3D_VERIFIED_DEMO_A_IDENTITY = {
 } as const;
 
 /**
- * Controlled first-run CREATE capability enabled; kill switch released after
- * ChatGPT pre-POST review. POST still requires an explicit execute call for the
- * exact reviewed execution — this policy arm alone does not dispatch.
+ * JE-3D first-cycle activation is closed. Both provider capabilities are
+ * disabled and the dispatch kill switch is active. Reopening either capability
+ * requires a separately reviewed activation change.
  */
 export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPolicyView =
   {
     ...JE_3D_ACTIVATION_POLICY,
     capabilities: {
-      CREATE_SANDBOX_JE: true,
+      CREATE_SANDBOX_JE: false,
       VERIFY_SANDBOX_JE: false,
     },
     productionAllowed: false,
     memoryWriteAllowed: false,
     workerAllowed: false,
     governedAutoAllowed: false,
-    sandboxDispatchKillSwitch: false,
+    sandboxDispatchKillSwitch: true,
   };
 
 export function resolveJe3dActivationPolicy(): Je3dActivationPolicyView {
@@ -69,3 +69,4 @@ export function isVerifiedDemoAIdentityMatch(args: {
     args.demoRole === JE_3D_VERIFIED_DEMO_A_IDENTITY.demoRole
   );
 }
+
