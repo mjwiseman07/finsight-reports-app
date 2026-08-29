@@ -33,8 +33,8 @@ import type { JournalEntryExecutionRow } from "../execution-types";
 import type { JournalEntryProviderAttemptRow } from "../provider-attempt-types";
 import type { JournalEntryProposalRow } from "../types";
 
-const EXEC_ID = "6d9579ad-0020-42b5-9521-db68a5d0edda";
-const ATTEMPT_ID = "2ffffef6-746a-4c85-ad7b-2596be0c0eaf";
+const EXEC_ID = "08bbbd62-8c4e-4463-b96e-2bd8bfdce603";
+const ATTEMPT_ID = "55884e69-c275-498a-b51a-53b9bc82f545";
 const ENGAGEMENT_ID = "74da484f-c065-4b6b-84cc-6822335af2ee";
 const FIRM_CLIENT_ID = "aaaaaaaa-1111-4111-8111-111111111111";
 const USER = "user-executor";
@@ -178,19 +178,19 @@ vi.mock("../approval-custody", async (importOriginal) => {
 const ctx = { principal: { type: "user" as const, userId: USER } };
 
 describe("JE-3D pre-activation locked first-run facts", () => {
-  it("1-2. approved execution and account IDs are exact", () => {
+  it("1-2. staged execution and account IDs are exact", () => {
     expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBe(EXEC_ID);
     expect(FIRST_RUN_EXPENSE_ACCOUNT_ID).toBe("15");
     expect(FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID).toBe("1150040002");
   });
 
-  it("3-5. review flags true; CREATE ON / VERIFY OFF; kill switch OFF", () => {
-    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
+  it("3-5. accounts reviewed; execution review still OFF; CREATE ON / VERIFY OFF; kill switch ON", () => {
+    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(false);
     expect(FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED).toBe(true);
     const policy = resolveJe3dActivationPolicy();
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
-    expect(policy.sandboxDispatchKillSwitch).toBe(false);
+    expect(policy.sandboxDispatchKillSwitch).toBe(true);
   });
 });
 

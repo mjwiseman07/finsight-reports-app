@@ -19,15 +19,21 @@ import {
 } from "./je3d-first-run-account-authority";
 import type { JournalEntryProposalRow } from "./types";
 
-/** Locked after ChatGPT live pre-flight review of staged execution cockpit. */
+/** Staged candidate execution — not dispatch-approved until explicit review. */
+export const FIRST_RUN_STAGED_EXECUTION_ID: string | null =
+  "08bbbd62-8c4e-4463-b96e-2bd8bfdce603";
+
+/**
+ * @deprecated Use FIRST_RUN_STAGED_EXECUTION_ID. Staged ID is not approval authority.
+ */
 export const FIRST_RUN_APPROVED_EXECUTION_ID: string | null =
-  "6d9579ad-0020-42b5-9521-db68a5d0edda";
+  FIRST_RUN_STAGED_EXECUTION_ID;
 
 /**
  * Must be true before public executeGovernedJournalEntryCreate may dispatch.
- * Separate from account approval and staging proposal creation.
+ * Separate from staging candidate identity and account candidate IDs.
  */
-export const FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED = true;
+export const FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED = false;
 
 export const FIRST_RUN_REASON_CODE = "cutoff_accrual" as const;
 
@@ -51,14 +57,18 @@ export type FirstRunExecutionAuthorityFailureCode =
   (typeof FIRST_RUN_EXECUTION_AUTHORITY_ERROR)[keyof typeof FIRST_RUN_EXECUTION_AUTHORITY_ERROR];
 
 export type FirstRunExecutionIdentityEvidence = {
-  approvedExecutionId: string | null;
+  /** Staged candidate execution ID (inspection/staging only until reviewed). */
+  stagedExecutionId: string | null;
   executionReviewedAndApproved: boolean;
+  /** @deprecated Use stagedExecutionId */
+  approvedExecutionId?: string | null;
 };
 
 export function resolveFirstRunExecutionIdentityEvidence(): FirstRunExecutionIdentityEvidence {
   return {
-    approvedExecutionId: FIRST_RUN_APPROVED_EXECUTION_ID,
+    stagedExecutionId: FIRST_RUN_STAGED_EXECUTION_ID,
     executionReviewedAndApproved: FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED,
+    approvedExecutionId: FIRST_RUN_STAGED_EXECUTION_ID,
   };
 }
 
@@ -80,16 +90,18 @@ export function evaluateFirstRunExecutionIdentityGate(
       "FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED is false; exact execution approval is required before dispatch.",
     );
   }
-  if (!evidence.approvedExecutionId) {
+  if (!evidence.approvedExecutionId && !evidence.stagedExecutionId) {
     return deny(
       FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_NOT_SET,
-      "FIRST_RUN_APPROVED_EXECUTION_ID is not set.",
+      "FIRST_RUN_STAGED_EXECUTION_ID is not set.",
     );
   }
-  if (executionId !== evidence.approvedExecutionId) {
+  const stagedId =
+    evidence.stagedExecutionId ?? evidence.approvedExecutionId ?? null;
+  if (executionId !== stagedId) {
     return deny(
       FIRST_RUN_EXECUTION_AUTHORITY_ERROR.EXECUTION_ID_MISMATCH,
-      `Execution ${executionId} is not the approved first-run execution ${evidence.approvedExecutionId}.`,
+      `Execution ${executionId} is not the staged first-run execution ${stagedId}.`,
     );
   }
   return { ok: true };
@@ -261,6 +273,23 @@ export function evaluateFirstRunCreateAuthority(args: {
     expenseAccountId: args.expenseAccountId,
     accruedLiabilityAccountId: args.accruedLiabilityAccountId,
   });
+}
+
+/** True only when both final approval gates pass and dispatch kill switch is released. */
+export function isFirstRunDispatchAuthorized(args?: {
+  identityEvidence?: FirstRunExecutionIdentityEvidence;
+  accountEvidence?: FirstRunExplicitAccountEvidence;
+  /** When true (default), dispatch is never authorized regardless of approval flags. */
+  killSwitchActive?: boolean;
+}): boolean {
+  const identity =
+    args?.identityEvidence ?? resolveFirstRunExecutionIdentityEvidence();
+  const accounts =
+    args?.accountEvidence ?? resolveFirstRunExplicitAccountEvidence();
+  if (args?.killSwitchActive ?? true) return false;
+  return (
+    identity.executionReviewedAndApproved && accounts.accountsReviewedAndApproved
+  );
 }
 
 function deny(

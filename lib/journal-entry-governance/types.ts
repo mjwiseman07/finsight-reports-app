@@ -10,8 +10,25 @@ export type JeProposalOriginType = (typeof JE_PROPOSAL_ORIGINS)[number];
 export const JE_PROPOSAL_STATUS = ["SUBMITTED"] as const;
 export type JeProposalStatus = (typeof JE_PROPOSAL_STATUS)[number];
 
-export const JE_SOURCE_RECON_KINDS = ["ar_aging", "ap_aging", "inventory"] as const;
+export const JE_SOURCE_RECON_KINDS = [
+  "ar_aging",
+  "ap_aging",
+  "inventory",
+  "bs_account_recon",
+] as const;
 export type JeSourceReconKind = (typeof JE_SOURCE_RECON_KINDS)[number];
+
+/** Sync-backed URM kinds (AR/AP/Inventory). Require non-NULL baseline_sync_id. */
+export const JE_SYNC_BACKED_SOURCE_RECON_KINDS = [
+  "ar_aging",
+  "ap_aging",
+  "inventory",
+] as const;
+
+/** Live-provider kinds. Require baseline_sync_id NULL (no synthetic sync). */
+export const JE_LIVE_PROVIDER_SOURCE_RECON_KINDS = [
+  "bs_account_recon",
+] as const;
 
 export type JeProposalLine = {
   sequence: number;
@@ -41,6 +58,17 @@ export type JeExpectedEffect =
       fromAccountId: string;
       toAccountId: string;
       amountCents: number;
+    }
+  | {
+      type: "BS_ACCOUNT_GL_DELTA";
+      sourceKind: "bs_account_recon";
+      sourceRunId: string;
+      qboAccountId: string;
+      classification: "Liability";
+      baselineGlBalanceCents: number;
+      expectedDeltaCents: number;
+      expectedPostGlBalanceCents: number;
+      signConvention: "qbo_natural_sign";
     };
 
 export type JeProposalPolicy = {
@@ -213,6 +241,10 @@ export const JE_PROPOSAL_ERROR = {
   RECON_SUMMARY_MALFORMED: "je_recon_summary_malformed",
   RECON_SLOT_ABSENT: "je_recon_slot_absent",
   RECON_SLOT_BASELINE_MISMATCH: "je_recon_slot_baseline_mismatch",
+  RECON_LIVE_PROVIDER_BASELINE_NOT_NULL: "je_recon_live_provider_baseline_not_null",
+  RECON_LIVE_PROVIDER_SLOT_INVALID: "je_recon_live_provider_slot_invalid",
+  RECON_LIVE_PROVIDER_ACCOUNT_MISMATCH: "je_recon_live_provider_account_mismatch",
+  RECON_BS_SOURCE_FACTS_INVALID: "je_recon_bs_source_facts_invalid",
   LINES_EMPTY: "je_lines_empty",
   LINES_TOO_MANY: "je_lines_too_many",
   LINE_SEQUENCE_INVALID: "je_line_sequence_invalid",

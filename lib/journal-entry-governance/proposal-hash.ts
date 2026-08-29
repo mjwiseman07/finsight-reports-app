@@ -85,6 +85,18 @@ function canonicalizeEffect(effect: JeExpectedEffect): Record<string, unknown> {
         toAccountId: String(effect.toAccountId),
         type: "ACCOUNT_RECLASS",
       };
+    case "BS_ACCOUNT_GL_DELTA":
+      return {
+        baselineGlBalanceCents: effect.baselineGlBalanceCents,
+        classification: effect.classification,
+        expectedDeltaCents: effect.expectedDeltaCents,
+        expectedPostGlBalanceCents: effect.expectedPostGlBalanceCents,
+        qboAccountId: String(effect.qboAccountId),
+        signConvention: effect.signConvention,
+        sourceKind: effect.sourceKind,
+        sourceRunId: String(effect.sourceRunId),
+        type: "BS_ACCOUNT_GL_DELTA",
+      };
     default: {
       const _exhaustive: never = effect;
       return _exhaustive;

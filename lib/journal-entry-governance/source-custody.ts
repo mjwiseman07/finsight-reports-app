@@ -6,7 +6,11 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { asIsoDate } from "@/lib/audit-ready/measurement-snapshots/validate";
-import { JE_PROPOSAL_ERROR, JE_SOURCE_RECON_KINDS } from "./types";
+import {
+  JE_PROPOSAL_ERROR,
+  JE_SOURCE_RECON_KINDS,
+  JE_LIVE_PROVIDER_SOURCE_RECON_KINDS,
+} from "./types";
 import type { JeProposalAccountMeta, JeSourceReconKind } from "./types";
 
 export class JeProposalCustodyError extends Error {
@@ -29,12 +33,33 @@ export type CcObservationReconSlot = {
   baselineSyncId: string | null;
 };
 
+/** Live-provider BS account slot — baselineSyncId must stay null (no synthetic sync). */
+export type CcObservationBsAccountSlot = {
+  runId: string | null;
+  authoritative: boolean;
+  baselineSyncId: null;
+  measurementSource: "live_provider";
+  qboAccountId: string;
+};
+
 export type CcObservationSummary = {
   reconciliations: {
     ar: CcObservationReconSlot | null;
     ap: CcObservationReconSlot | null;
     inventory: CcObservationReconSlot | null;
+    /** Optional governed live-provider BS liability source slot. */
+    bsAccount: CcObservationBsAccountSlot | null;
   };
+};
+
+export type CcReconSlotName = "ar" | "ap" | "inventory" | "bsAccount";
+
+export type ResolvedCcReconSlot = {
+  slotName: CcReconSlotName;
+  expectedKind: JeSourceReconKind;
+  measurementMode: "sync_backed" | "live_provider";
+  /** Exact QBO account for live_provider bs_account_recon. */
+  qboAccountId: string | null;
 };
 
 export type SourceContinuousCloseRun = {
@@ -66,7 +91,14 @@ export type SourceReconRun = {
   tieOutKind: JeSourceReconKind;
   status: string;
   reconOutcome: string | null;
-  baselineSyncId: string;
+  /** NULL for live_provider bs_account_recon; non-null for sync-backed kinds. */
+  baselineSyncId: string | null;
+  measurementMode: "sync_backed" | "live_provider";
+  qboAccountId: string | null;
+  totalsStatus: string | null;
+  providerBackedGlEndingBalanceCents: number | null;
+  preparedOrTbEndingBalanceCents: number | null;
+  tieVarianceCents: number | null;
 };
 
 export type EngagementCustody = {
@@ -104,6 +136,43 @@ function parseObservationSlot(raw: unknown): CcObservationReconSlot | null {
   };
 }
 
+function parseBsAccountSlot(raw: unknown): CcObservationBsAccountSlot | null {
+  if (raw == null) return null;
+  if (!raw || typeof raw !== "object") {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_SUMMARY_MALFORMED,
+      "observation_summary.reconciliations.bsAccount is malformed.",
+    );
+  }
+  const row = raw as Record<string, unknown>;
+  const qboAccountId = requireText(row.qboAccountId);
+  if (!qboAccountId) {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_SLOT_INVALID,
+      "bsAccount slot requires qboAccountId.",
+    );
+  }
+  if (String(row.measurementSource || "") !== "live_provider") {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_SLOT_INVALID,
+      "bsAccount slot measurementSource must be live_provider.",
+    );
+  }
+  if (row.baselineSyncId != null && String(row.baselineSyncId).trim() !== "") {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_SLOT_INVALID,
+      "bsAccount slot baselineSyncId must be null (no synthetic sync).",
+    );
+  }
+  return {
+    runId: row.runId == null || row.runId === "" ? null : String(row.runId),
+    authoritative: Boolean(row.authoritative),
+    baselineSyncId: null,
+    measurementSource: "live_provider",
+    qboAccountId,
+  };
+}
+
 export function parseCcObservationSummary(
   raw: unknown,
 ): CcObservationSummary {
@@ -127,6 +196,8 @@ export function parseCcObservationSummary(
       ar: parseObservationSlot(slots.ar),
       ap: parseObservationSlot(slots.ap),
       inventory: parseObservationSlot(slots.inventory),
+      bsAccount:
+        "bsAccount" in slots ? parseBsAccountSlot(slots.bsAccount) : null,
     },
   };
 }
@@ -135,31 +206,62 @@ export function parseCcObservationSummary(
  * Prove the requested recon run was an authoritative slot on the exact
  * source Continuous Close observation_summary. Do not invent authority from
  * a standalone tie-out row.
+ *
+ * Sync-backed slots (ar/ap/inventory) require baselineSyncId === CC sync.
+ * Live-provider bsAccount requires baselineSyncId NULL + measurementSource.
  */
 export function resolveAuthoritativeCcReconSlot(args: {
   observationSummary: CcObservationSummary;
   requestedRunId: string;
   sourceAccountingSyncId: string;
-}): { slotName: "ar" | "ap" | "inventory"; expectedKind: JeSourceReconKind } {
+}): ResolvedCcReconSlot {
   const requested = requireText(args.requestedRunId);
-  const matches: Array<"ar" | "ap" | "inventory"> = [];
+  const syncBackedMatches: Array<"ar" | "ap" | "inventory"> = [];
   for (const slotName of ["ar", "ap", "inventory"] as const) {
     const slot = args.observationSummary.reconciliations[slotName];
-    if (slot?.runId && slot.runId === requested) matches.push(slotName);
+    if (slot?.runId && slot.runId === requested) syncBackedMatches.push(slotName);
   }
-  if (matches.length === 0) {
+  const bsSlot = args.observationSummary.reconciliations.bsAccount;
+  const bsMatch = Boolean(bsSlot?.runId && bsSlot.runId === requested);
+
+  if (syncBackedMatches.length === 0 && !bsMatch) {
     throw new JeProposalCustodyError(
       JE_PROPOSAL_ERROR.RECON_SLOT_ABSENT,
       "Requested recon run is not present in the source Continuous Close observation_summary.",
     );
   }
-  if (matches.length > 1) {
+  if (syncBackedMatches.length + (bsMatch ? 1 : 0) > 1) {
     throw new JeProposalCustodyError(
       JE_PROPOSAL_ERROR.RECON_SUMMARY_MALFORMED,
       "Requested recon run maps to multiple Continuous Close observation slots.",
     );
   }
-  const slotName = matches[0];
+
+  if (bsMatch && bsSlot) {
+    if (bsSlot.authoritative !== true) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_NOT_AUTHORITATIVE,
+        "Source Continuous Close bsAccount slot is not authoritative.",
+      );
+    }
+    if (bsSlot.measurementSource !== "live_provider" || bsSlot.baselineSyncId != null) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_SLOT_INVALID,
+        "bsAccount slot must be live_provider with null baselineSyncId.",
+      );
+    }
+    // CC still has a real accounting_sync_id for proposal period custody;
+    // BS measurement itself is live_provider and must not borrow that sync.
+    void args.sourceAccountingSyncId;
+    return {
+      slotName: "bsAccount",
+      expectedKind: "bs_account_recon",
+      measurementMode: "live_provider",
+      qboAccountId: bsSlot.qboAccountId,
+    };
+  }
+
+  const slotName = syncBackedMatches[0];
   const slot = args.observationSummary.reconciliations[slotName];
   if (!slot || slot.authoritative !== true) {
     throw new JeProposalCustodyError(
@@ -185,7 +287,12 @@ export function resolveAuthoritativeCcReconSlot(args: {
       "Source Continuous Close recon slot baselineSyncId must equal the CC accounting sync.",
     );
   }
-  return { slotName, expectedKind: SLOT_TO_KIND[slotName] };
+  return {
+    slotName,
+    expectedKind: SLOT_TO_KIND[slotName],
+    measurementMode: "sync_backed",
+    qboAccountId: null,
+  };
 }
 
 export async function loadEngagementCustody(
@@ -348,22 +455,44 @@ export async function loadExactSourceAccountingSync(args: {
  * Load the exact audit_ready_tie_out_runs row after CC observation_summary
  * has already proven the run was an authoritative slot.
  *
- * Durable run custody is baseline_sync_id. Do NOT invent a second custody
- * column on the tie-out run table — that is not part of the CC-2A contract.
+ * Sync-backed kinds (ar/ap/inventory): durable custody is baseline_sync_id
+ * equal to the CC accounting sync. NULL baseline is rejected.
+ *
+ * Live-provider bs_account_recon: baseline_sync_id MUST remain NULL
+ * (no synthetic sync). Account binding comes from artifact + slot.
  */
 export async function loadExactAuthoritativeReconRun(args: {
   runId: string;
   expectedEngagementId: string;
   expectedPeriodEnd: string;
-  expectedBaselineSyncId: string;
+  /** Required for sync_backed; must be null for live_provider. */
+  expectedBaselineSyncId: string | null;
   expectedKind: JeSourceReconKind;
+  measurementMode: "sync_backed" | "live_provider";
+  /** Required for live_provider bs_account_recon. */
+  expectedQboAccountId?: string | null;
 }): Promise<SourceReconRun> {
   const runId = requireText(args.runId);
+  const liveProvider = args.measurementMode === "live_provider";
+  if (
+    liveProvider &&
+    !(JE_LIVE_PROVIDER_SOURCE_RECON_KINDS as readonly string[]).includes(
+      args.expectedKind,
+    )
+  ) {
+    throw new JeProposalCustodyError(
+      JE_PROPOSAL_ERROR.RECON_KIND_UNSUPPORTED,
+      `Kind ${args.expectedKind} is not a live_provider JE source kind.`,
+    );
+  }
+
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("audit_ready_tie_out_runs")
     .select(
-      "id, engagement_id, period_end, tie_out_kind, status, recon_outcome, baseline_sync_id",
+      "id, engagement_id, period_end, tie_out_kind, status, recon_outcome, " +
+        "baseline_sync_id, totals_status, subledger_total_cents, gl_total_cents, " +
+        "totals_variance_cents",
     )
     .eq("id", runId)
     .maybeSingle();
@@ -394,24 +523,7 @@ export async function loadExactAuthoritativeReconRun(args: {
       "Recon run must be completed.",
     );
   }
-  if (!data.recon_outcome) {
-    throw new JeProposalCustodyError(
-      JE_PROPOSAL_ERROR.RECON_OUTCOME_MISSING,
-      "Recon run recon_outcome is required.",
-    );
-  }
-  if (!data.baseline_sync_id) {
-    throw new JeProposalCustodyError(
-      JE_PROPOSAL_ERROR.RECON_BASELINE_NULL,
-      "NULL baseline_sync_id is not an allowed JE-1 source.",
-    );
-  }
-  if (String(data.baseline_sync_id) !== args.expectedBaselineSyncId) {
-    throw new JeProposalCustodyError(
-      JE_PROPOSAL_ERROR.RECON_BASELINE_MISMATCH,
-      "Recon baseline_sync_id must equal the CC source accounting sync.",
-    );
-  }
+
   const kind = String(data.tie_out_kind || "");
   if (!(JE_SOURCE_RECON_KINDS as readonly string[]).includes(kind)) {
     throw new JeProposalCustodyError(
@@ -425,6 +537,94 @@ export async function loadExactAuthoritativeReconRun(args: {
       "Recon tie_out_kind does not match the source Continuous Close observation slot.",
     );
   }
+
+  let qboAccountId: string | null = null;
+  let providerBackedGlEndingBalanceCents: number | null = null;
+  let preparedOrTbEndingBalanceCents: number | null = null;
+  let tieVarianceCents: number | null = null;
+  let totalsStatus: string | null = data.totals_status
+    ? String(data.totals_status)
+    : null;
+
+  if (liveProvider) {
+    if (data.baseline_sync_id) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_BASELINE_NOT_NULL,
+        "live_provider bs_account_recon must keep baseline_sync_id NULL (no synthetic sync).",
+      );
+    }
+    if (args.expectedBaselineSyncId != null) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_SLOT_INVALID,
+        "live_provider load must not expect a baseline sync id.",
+      );
+    }
+    // BS resolver does not stamp recon_outcome; totals_status is the custody signal.
+    if (!totalsStatus) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_OUTCOME_MISSING,
+        "live_provider bs_account_recon requires totals_status.",
+      );
+    }
+    if (
+      data.subledger_total_cents == null ||
+      data.gl_total_cents == null ||
+      data.totals_variance_cents == null
+    ) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_BS_SOURCE_FACTS_INVALID,
+        "live_provider bs_account_recon requires GL/TB/variance cents on the run.",
+      );
+    }
+    providerBackedGlEndingBalanceCents = Number(data.subledger_total_cents);
+    preparedOrTbEndingBalanceCents = Number(data.gl_total_cents);
+    tieVarianceCents = Number(data.totals_variance_cents);
+
+    const { data: artifact, error: artErr } = await supabase
+      .from("audit_ready_bs_recon_artifacts")
+      .select("qbo_account_id")
+      .eq("run_id", runId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (artErr || !artifact?.qbo_account_id) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_ACCOUNT_MISMATCH,
+        "bs_account_recon artifact with qbo_account_id is required.",
+      );
+    }
+    qboAccountId = String(artifact.qbo_account_id);
+    const expectedAccount = requireText(args.expectedQboAccountId);
+    if (!expectedAccount || qboAccountId !== expectedAccount) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_ACCOUNT_MISMATCH,
+        "bs_account_recon account must match the CC bsAccount slot qboAccountId.",
+      );
+    }
+  } else {
+    if (!data.recon_outcome) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_OUTCOME_MISSING,
+        "Recon run recon_outcome is required.",
+      );
+    }
+    if (!data.baseline_sync_id) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_BASELINE_NULL,
+        "NULL baseline_sync_id is not an allowed JE-1 sync-backed source.",
+      );
+    }
+    if (
+      !args.expectedBaselineSyncId ||
+      String(data.baseline_sync_id) !== args.expectedBaselineSyncId
+    ) {
+      throw new JeProposalCustodyError(
+        JE_PROPOSAL_ERROR.RECON_BASELINE_MISMATCH,
+        "Recon baseline_sync_id must equal the CC source accounting sync.",
+      );
+    }
+  }
+
   return {
     id: String(data.id),
     engagementId: String(data.engagement_id),
@@ -432,8 +632,45 @@ export async function loadExactAuthoritativeReconRun(args: {
     tieOutKind: kind as JeSourceReconKind,
     status: String(data.status),
     reconOutcome: data.recon_outcome ? String(data.recon_outcome) : null,
-    baselineSyncId: String(data.baseline_sync_id),
+    baselineSyncId: data.baseline_sync_id
+      ? String(data.baseline_sync_id)
+      : null,
+    measurementMode: liveProvider ? "live_provider" : "sync_backed",
+    qboAccountId,
+    totalsStatus,
+    providerBackedGlEndingBalanceCents,
+    preparedOrTbEndingBalanceCents,
+    tieVarianceCents,
   };
+}
+
+/**
+ * Map COA account type → BS Asset/Liability/Equity for first-run liability path.
+ * Fail-closed: unknown types return null (caller must reject).
+ */
+export function bsClassificationFromCoaAccountType(
+  accountType: string,
+): "Asset" | "Liability" | "Equity" | null {
+  const t = String(accountType || "").trim();
+  if (
+    t === "Other Current Liability" ||
+    t === "Long Term Liability" ||
+    t === "Accounts Payable" ||
+    t === "Credit Card"
+  ) {
+    return "Liability";
+  }
+  if (
+    t === "Bank" ||
+    t === "Other Current Asset" ||
+    t === "Fixed Asset" ||
+    t === "Other Asset" ||
+    t === "Accounts Receivable"
+  ) {
+    return "Asset";
+  }
+  if (t === "Equity") return "Equity";
+  return null;
 }
 
 export async function assertClosePeriodNotLocked(args: {
