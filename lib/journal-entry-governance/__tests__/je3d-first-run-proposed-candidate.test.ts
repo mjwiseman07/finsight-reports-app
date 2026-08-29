@@ -20,7 +20,7 @@ import {
 import { resolveJe3dActivationPolicy } from "../je3d-first-controlled-create-activation";
 
 describe("JE_3D_FIRST_RUN_PROPOSED_CANDIDATE", () => {
-  it("documents Office Expenses ↔ Accrued Expenses pair; CREATE ON / VERIFY OFF / kill ON", () => {
+  it("documents Office Expenses ↔ Accrued Expenses pair; CREATE ON / VERIFY OFF / kill OFF (dispatch armed)", () => {
     expect(JE_3D_FIRST_RUN_PROPOSED_CANDIDATE.debit.qboAccountId).toBe("15");
     expect(JE_3D_FIRST_RUN_PROPOSED_CANDIDATE.credit.qboAccountId).toBe(
       "1150040002",
@@ -38,11 +38,11 @@ describe("JE_3D_FIRST_RUN_PROPOSED_CANDIDATE", () => {
     expect(FIRST_RUN_STAGED_EXECUTION_ID).toBe(
       "08bbbd62-8c4e-4463-b96e-2bd8bfdce603",
     );
-    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(false);
+    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
 
     const policy = resolveJe3dActivationPolicy();
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
-    expect(policy.sandboxDispatchKillSwitch).toBe(true);
+    expect(policy.sandboxDispatchKillSwitch).toBe(false);
   });
 });

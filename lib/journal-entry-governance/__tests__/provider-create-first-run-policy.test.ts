@@ -198,17 +198,21 @@ describe("JE-3D public create policy wiring", () => {
     expect(isJe3dCreateCapabilityEnabled(JE_3D_ACTIVATION_POLICY)).toBe(false);
   });
 
-  it("2. effective policy has CREATE=true, VERIFY=false, kill switch ON", () => {
+  it("2. effective policy has CREATE=true, VERIFY=false, kill switch OFF (dispatch armed)", () => {
     const policy = resolveJe3dActivationPolicy();
     expect(policy).toEqual(JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY);
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
     expect(isJe3dVerifyCapabilityEnabled(policy)).toBe(false);
-    expect(policy.sandboxDispatchKillSwitch).toBe(true);
+    expect(policy.sandboxDispatchKillSwitch).toBe(false);
     expect(FIRST_RUN_APPROVED_EXECUTION_ID).toBe(EXEC_ID);
-    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(false);
+    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
   });
 
-  it("2b. kill switch ON blocks public create before orchestration", async () => {
+  it("2b. kill switch can still block when forced ON", async () => {
+    vi.mocked(resolveJe3dActivationPolicy).mockReturnValueOnce({
+      ...JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
+      sandboxDispatchKillSwitch: true,
+    });
     await expect(
       executeGovernedJournalEntryCreate(
         { executionId: EXEC_ID },

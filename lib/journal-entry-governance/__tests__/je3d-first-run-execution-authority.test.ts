@@ -364,7 +364,7 @@ describe("JE-3D first-run execution authority", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("CREATE capability ON with kill switch; wrong execution still rejected", () => {
+  it("CREATE capability ON with kill switch released; wrong execution still rejected", () => {
     expect(isJe3dCreateCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(true);
     expect(
       evaluateFirstRunCreateAuthority({

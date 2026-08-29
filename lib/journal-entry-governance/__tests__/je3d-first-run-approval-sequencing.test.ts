@@ -45,9 +45,9 @@ const mirrorRows: CoaMirrorAccountRow[] = [
 ];
 
 describe("JE-3D staged vs approved sequencing", () => {
-  it("1. staged execution ID exists while execution approval=false", () => {
+  it("1. staged execution ID exists and execution review is armed", () => {
     expect(FIRST_RUN_STAGED_EXECUTION_ID).toBeTruthy();
-    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(false);
+    expect(FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED).toBe(true);
   });
 
   it("2. staged account IDs exist and accounts are reviewed for create-only staging", () => {
@@ -56,7 +56,7 @@ describe("JE-3D staged vs approved sequencing", () => {
     expect(FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED).toBe(true);
   });
 
-  it("3. staging validation passes while execution approval remains false", () => {
+  it("3. staging validation still passes for staged account IDs", () => {
     const staged = validateStagedFirstRunAccounts({
       evidence: {
         expenseAccountId: FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID,
@@ -67,7 +67,7 @@ describe("JE-3D staged vs approved sequencing", () => {
     expect(staged.ok).toBe(true);
   });
 
-  it("4. preflight reports dispatch_authorized=false", () => {
+  it("4. preflight reports dispatch_authorized=true after release (kill OFF + both reviews)", () => {
     const report = buildJe3dPreDispatchChecklistReport({
       policy: resolveJe3dActivationPolicy(),
       qbEnvironment: "sandbox",
@@ -91,9 +91,10 @@ describe("JE-3D staged vs approved sequencing", () => {
         },
       },
     });
-    expect(report.execution_reviewed_and_approved).toBe(false);
+    expect(report.execution_reviewed_and_approved).toBe(true);
     expect(report.accounts_reviewed_and_approved).toBe(true);
-    expect(report.dispatch_authorized).toBe(false);
+    expect(report.kill_switch_blocks_dispatch).toBe(false);
+    expect(report.dispatch_authorized).toBe(true);
     expect(report.candidate_execution_id).toBe(FIRST_RUN_STAGED_EXECUTION_ID);
   });
 
@@ -177,16 +178,16 @@ describe("JE-3D staged vs approved sequencing", () => {
     ).toBe(true);
   });
 
-  it("9. CREATE ON, VERIFY OFF, kill switch ON in effective policy", () => {
+  it("9. CREATE ON, VERIFY OFF, kill switch OFF in effective policy", () => {
     const policy = JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY;
     expect(policy.capabilities.CREATE_SANDBOX_JE).toBe(true);
     expect(policy.capabilities.VERIFY_SANDBOX_JE).toBe(false);
-    expect(policy.sandboxDispatchKillSwitch).toBe(true);
+    expect(policy.sandboxDispatchKillSwitch).toBe(false);
   });
 
-  it("10. default identity evidence reflects staged-not-approved", () => {
+  it("10. default identity evidence reflects reviewed exact staged execution", () => {
     const identity = resolveFirstRunExecutionIdentityEvidence();
     expect(identity.stagedExecutionId).toBe(FIRST_RUN_STAGED_EXECUTION_ID);
-    expect(identity.executionReviewedAndApproved).toBe(false);
+    expect(identity.executionReviewedAndApproved).toBe(true);
   });
 });

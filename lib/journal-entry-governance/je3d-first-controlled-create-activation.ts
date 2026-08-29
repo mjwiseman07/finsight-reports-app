@@ -7,7 +7,7 @@
  * CREATE-ENABLED / DISPATCH-ARMED STATE (this PR):
  *   CREATE_SANDBOX_JE = true
  *   VERIFY_SANDBOX_JE = false
- *   sandboxDispatchKillSwitch = true (blocks provider POST until explicit release)
+ *   sandboxDispatchKillSwitch = false (dispatch armed; still requires exact-execution gate)
  *
  * Exact-execution binding remains mandatory: CREATE capability alone never authorizes POST.
  */
@@ -30,8 +30,9 @@ export const JE_3D_VERIFIED_DEMO_A_IDENTITY = {
 } as const;
 
 /**
- * Controlled first-run CREATE capability enabled; dispatch kill switch stays ON
- * until ChatGPT authorizes explicit first sandbox POST.
+ * Controlled first-run CREATE capability enabled; kill switch released after
+ * ChatGPT pre-POST review. POST still requires an explicit execute call for the
+ * exact reviewed execution — this policy arm alone does not dispatch.
  */
 export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPolicyView =
   {
@@ -44,7 +45,7 @@ export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPoli
     memoryWriteAllowed: false,
     workerAllowed: false,
     governedAutoAllowed: false,
-    sandboxDispatchKillSwitch: true,
+    sandboxDispatchKillSwitch: false,
   };
 
 export function resolveJe3dActivationPolicy(): Je3dActivationPolicyView {

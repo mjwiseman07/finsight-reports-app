@@ -32,8 +32,10 @@ export const FIRST_RUN_APPROVED_EXECUTION_ID: string | null =
 /**
  * Must be true before public executeGovernedJournalEntryCreate may dispatch.
  * Separate from staging candidate identity and account candidate IDs.
+ * Armed for exact staged execution 08bbbd62-8c4e-4463-b96e-2bd8bfdce603 only
+ * after ChatGPT pre-POST review. Does not itself issue the provider POST.
  */
-export const FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED = false;
+export const FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED = true;
 
 export const FIRST_RUN_REASON_CODE = "cutoff_accrual" as const;
 

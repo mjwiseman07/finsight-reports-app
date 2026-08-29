@@ -280,13 +280,13 @@ describe("bs_account_recon JE_SOURCE_RECON_KINDS expansion", () => {
     expect(typeof cleanFacts).toBe("function");
   });
 
-  it("17. kill switch remains ON", () => {
+  it("17. kill switch released (dispatch armed)", () => {
     expect(
       JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY.sandboxDispatchKillSwitch,
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it("18–19. no QBO POST / Memory in activation overlay", () => {
+  it("18–19. no VERIFY / Memory in activation overlay; kill switch OFF", () => {
     expect(
       JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY.capabilities
         .VERIFY_SANDBOX_JE,
@@ -296,7 +296,7 @@ describe("bs_account_recon JE_SOURCE_RECON_KINDS expansion", () => {
     ).toBe(false);
     expect(
       JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY.sandboxDispatchKillSwitch,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("promotes BS_ACCOUNT_GL_DELTA in validation + hash canonicalization", () => {
