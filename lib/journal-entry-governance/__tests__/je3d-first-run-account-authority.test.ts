@@ -17,6 +17,7 @@ import {
   isEligibleOrdinaryExpenseAccount,
   resolveFirstRunExplicitAccountEvidence,
   validateExplicitFirstRunAccounts,
+  validateStagedFirstRunAccounts,
   type CoaMirrorAccountRow,
 } from "../je3d-first-run-account-authority";
 
@@ -203,7 +204,7 @@ describe("JE-3D first-run account authority", () => {
     expect(src).not.toMatch(/rows\.find\(/);
     expect(src).not.toMatch(/pickAccrualAccounts/);
     expect(src).toContain("buildFirstRunAccountCandidateReport");
-    expect(src).toContain("validateExplicitFirstRunAccounts");
+    expect(src).toContain("validateStagedFirstRunAccounts");
   });
 
   it("14. candidate report is read-only", () => {
@@ -217,8 +218,17 @@ describe("JE-3D first-run account authority", () => {
     expect(report.eligible_liability_candidates).toHaveLength(1);
   });
 
-  it("15. no proposal before explicit account approval", () => {
-    const result = validateExplicitFirstRunAccounts({
+  it("15. staged account validation works before explicit account approval", () => {
+    const staged = validateStagedFirstRunAccounts({
+      evidence: {
+        expenseAccountId: "exp-7",
+        accruedLiabilityAccountId: "liab-33",
+      },
+      mirrorRows: [ordinaryExpense, ordinaryAccrued],
+    });
+    expect(staged.ok).toBe(true);
+
+    const explicit = validateExplicitFirstRunAccounts({
       evidence: {
         expenseAccountId: "exp-7",
         accruedLiabilityAccountId: "liab-33",
@@ -226,20 +236,22 @@ describe("JE-3D first-run account authority", () => {
       },
       mirrorRows: [ordinaryExpense, ordinaryAccrued],
     });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe("first_run_accounts_not_reviewed");
+    expect(explicit.ok).toBe(false);
+    if (explicit.ok) return;
+    expect(explicit.code).toBe("first_run_accounts_not_reviewed");
+
     const src = readFileSync(
       join(process.cwd(), "scripts/je3d/stage-first-controlled-create-pre-dispatch.ts"),
       "utf8",
     );
+    expect(src).toContain("validateStagedFirstRunAccounts");
     expect(src).toContain("output.phase = \"B\"");
     expect(src.indexOf("createContinuousCloseJournalEntryProposal")).toBeGreaterThan(
-      src.indexOf("validateExplicitFirstRunAccounts"),
+      src.indexOf("validateStagedFirstRunAccounts"),
     );
   });
 
-  it("16. CREATE enabled for first-run; kill switch released; production still OFF", () => {
+  it("16. CREATE enabled for first-run; kill switch OFF (dispatch armed); production still OFF", () => {
     const policy = resolveJe3dActivationPolicy();
     expect(isJe3dCreateCapabilityEnabled(policy)).toBe(true);
     expect(policy.sandboxDispatchKillSwitch).toBe(false);

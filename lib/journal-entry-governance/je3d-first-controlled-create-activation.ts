@@ -4,13 +4,12 @@
  * Verified production identity — for controlled first-run staging/evidence only.
  * Not general product authority. Runtime allowlist still resolves from database.
  *
- * CREATE-ENABLED / DISPATCH-RELEASED STATE (this PR):
+ * CREATE-ENABLED / DISPATCH-ARMED STATE (this PR):
  *   CREATE_SANDBOX_JE = true
  *   VERIFY_SANDBOX_JE = false
- *   sandboxDispatchKillSwitch = false (first-run dispatch release only)
+ *   sandboxDispatchKillSwitch = false (dispatch armed; still requires exact-execution gate)
  *
- * Exact-execution binding remains mandatory: kill-switch release alone never
- * authorizes a POST without ChatGPT + user explicit POST approval.
+ * Exact-execution binding remains mandatory: CREATE capability alone never authorizes POST.
  */
 
 import {
@@ -18,7 +17,7 @@ import {
   type Je3dActivationPolicyView,
 } from "./je3d-activation-policy";
 
-/** Independently verified Demo A production identity (2026-08-23 / reconfirmed). */
+/** Independently verified Demo A production identity (reconfirmed 2026-08-28). */
 export const JE_3D_VERIFIED_DEMO_A_IDENTITY = {
   companyId: "aaaaaaaa-2222-4222-8222-222222222222",
   accountingConnectionId: "dfef5e96-e717-4e3e-afac-fde0de1b5b23",
@@ -31,9 +30,9 @@ export const JE_3D_VERIFIED_DEMO_A_IDENTITY = {
 } as const;
 
 /**
- * Controlled first-run CREATE capability enabled; dispatch kill switch released
- * for the hard-bound Demo A first-run execution only. VERIFY remains OFF.
- * Memory / worker / GOVERNED_AUTO / production remain OFF.
+ * Controlled first-run CREATE capability enabled; kill switch released after
+ * ChatGPT pre-POST review. POST still requires an explicit execute call for the
+ * exact reviewed execution — this policy arm alone does not dispatch.
  */
 export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPolicyView =
   {

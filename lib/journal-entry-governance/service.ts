@@ -15,6 +15,7 @@ import {
 import { persistJournalEntryProposal } from "./repository";
 import {
   assertClosePeriodNotLocked,
+  bsClassificationFromCoaAccountType,
   loadAccountsFromCoaMirror,
   loadEngagementCustody,
   loadExactAuthoritativeReconRun,
@@ -43,6 +44,7 @@ import {
 } from "./validation";
 import { JeProposalCustodyError } from "./source-custody";
 import { JeProposalPersistError } from "./repository";
+import { validateBsAccountSourceRunForGlDelta } from "./je3d-bs-account-source-authority-contract";
 
 const SECRET_JSON_RE =
   /access[_-]?token|refresh[_-]?token|"authorization"|authorization:/i;
@@ -260,23 +262,140 @@ export async function createContinuousCloseJournalEntryProposal(
       };
     }
     const validatedReconIds: string[] = [];
+    const liveProviderBsByRunId = new Map<
+      string,
+      {
+        qboAccountId: string;
+        baselineGlBalanceCents: number;
+      }
+    >();
     for (const runId of requestedReconIds) {
       const slot = resolved.resolveCcReconSlot({
         observationSummary: ccRun.observationSummary,
         requestedRunId: runId,
         sourceAccountingSyncId: sync.id,
       });
+      const liveProvider = slot.measurementMode === "live_provider";
       const recon = await resolved.loadRecon({
         runId,
         expectedEngagementId: engagementId,
         expectedPeriodEnd: ccRun.periodEnd,
-        expectedBaselineSyncId: sync.id,
+        expectedBaselineSyncId: liveProvider ? null : sync.id,
         expectedKind: slot.expectedKind,
+        measurementMode: slot.measurementMode,
+        expectedQboAccountId: slot.qboAccountId,
       });
+
+      if (liveProvider) {
+        if (recon.tieOutKind !== "bs_account_recon" || !recon.qboAccountId) {
+          return {
+            ok: false,
+            code: JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_SLOT_INVALID,
+            message: "live_provider source must be bs_account_recon with account id.",
+          };
+        }
+        // Same-company custody is transitive: engagement + CC already bound company.
+        const isControl =
+          recon.qboAccountId === engagement.arControlAccountId ||
+          recon.qboAccountId === engagement.apControlAccountId ||
+          recon.qboAccountId === engagement.inventoryControlAccountId;
+        if (!accounts.has(recon.qboAccountId)) {
+          const extra = await resolved.loadAccounts({
+            firmClientId,
+            accountIds: [recon.qboAccountId],
+          });
+          const loaded = extra.get(recon.qboAccountId);
+          if (!loaded) {
+            return {
+              ok: false,
+              code: JE_PROPOSAL_ERROR.ACCOUNT_NOT_FOUND,
+              message: "bs_account_recon QBO account not found in qbo_coa_mirror.",
+            };
+          }
+          accounts.set(recon.qboAccountId, loaded);
+        }
+        const meta = accounts.get(recon.qboAccountId)!;
+        const classification = bsClassificationFromCoaAccountType(meta.accountType);
+        if (classification == null) {
+          return {
+            ok: false,
+            code: JE_PROPOSAL_ERROR.RECON_BS_SOURCE_FACTS_INVALID,
+            message: "Unable to classify bs_account_recon COA account type.",
+          };
+        }
+        const sourceOk = validateBsAccountSourceRunForGlDelta({
+          tieOutKind: recon.tieOutKind,
+          status: recon.status,
+          qboAccountId: recon.qboAccountId,
+          expectedQboAccountId: recon.qboAccountId,
+          acquisition: "live_provider",
+          baselineSyncId: recon.baselineSyncId,
+          providerBackedGlEndingBalanceCents:
+            recon.providerBackedGlEndingBalanceCents as number,
+          preparedOrTbEndingBalanceCents:
+            recon.preparedOrTbEndingBalanceCents as number,
+          totalsStatus: recon.totalsStatus,
+          tieVarianceCents: recon.tieVarianceCents,
+          classification,
+          apControl: isControl,
+          signConvention: "qbo_natural_sign",
+          requireFirstRunCleanTie: true,
+        });
+        if (!sourceOk.ok) {
+          return {
+            ok: false,
+            code: JE_PROPOSAL_ERROR.RECON_BS_SOURCE_FACTS_INVALID,
+            message: sourceOk.message,
+          };
+        }
+        liveProviderBsByRunId.set(recon.id, {
+          qboAccountId: recon.qboAccountId,
+          baselineGlBalanceCents: recon.providerBackedGlEndingBalanceCents as number,
+        });
+      }
+
       validatedReconIds.push(recon.id);
     }
     validatedReconIds.sort((a, b) => a.localeCompare(b));
 
+    for (const effect of expectedEffects) {
+      if (effect.type !== "BS_ACCOUNT_GL_DELTA") continue;
+      const source = liveProviderBsByRunId.get(effect.sourceRunId);
+      if (!source) {
+        return {
+          ok: false,
+          code: JE_PROPOSAL_ERROR.RECON_BS_SOURCE_FACTS_INVALID,
+          message:
+            "BS_ACCOUNT_GL_DELTA.sourceRunId must be a validated live_provider bs_account_recon.",
+        };
+      }
+      if (effect.qboAccountId !== source.qboAccountId) {
+        return {
+          ok: false,
+          code: JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_ACCOUNT_MISMATCH,
+          message: "BS_ACCOUNT_GL_DELTA.qboAccountId must match the source run account.",
+        };
+      }
+      if (effect.baselineGlBalanceCents !== source.baselineGlBalanceCents) {
+        return {
+          ok: false,
+          code: JE_PROPOSAL_ERROR.RECON_BS_SOURCE_FACTS_INVALID,
+          message:
+            "BS_ACCOUNT_GL_DELTA.baselineGlBalanceCents must equal provider-backed GL detail ending.",
+        };
+      }
+      const creditOnAccount = lineResult.lines
+        .filter((l) => l.accountId === effect.qboAccountId)
+        .reduce((sum, l) => sum + l.creditCents, 0);
+      if (creditOnAccount !== effect.expectedDeltaCents) {
+        return {
+          ok: false,
+          code: JE_PROPOSAL_ERROR.EFFECTS_INVALID,
+          message:
+            "BS_ACCOUNT_GL_DELTA.expectedDeltaCents must equal credit cents on qboAccountId.",
+        };
+      }
+    }
     const policyHash = hashJeProposalPolicy(policy);
     const proposalHash = hashJeProposal({
       companyId: engagement.companyId,

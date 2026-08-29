@@ -579,7 +579,7 @@ describe("JE-3D capability gates", () => {
     process.env.QB_ENVIRONMENT = prev;
   });
 
-  it("12 create capability ON under activation policy; kill switch released for dispatch", () => {
+  it("12 create capability ON under activation policy; kill switch released (dispatch armed)", () => {
     expect(() => assertJe3dCreateActivationPolicy()).not.toThrow();
     expect(isJe3dCreateCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(true);
     expect(resolveJe3dActivationPolicy().sandboxDispatchKillSwitch).toBe(false);

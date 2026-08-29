@@ -84,29 +84,61 @@ function defaultObservationSummary(over?: {
     authoritative: boolean;
     baselineSyncId: string | null;
   }>;
+  bsAccount?: {
+    runId: string | null;
+    authoritative: boolean;
+    baselineSyncId: null;
+    measurementSource: "live_provider";
+    qboAccountId: string;
+  } | null;
 }) {
-  return {
-    reconciliations: {
-      ar: {
-        runId: RUN_AR,
-        authoritative: true,
-        baselineSyncId: SYNC,
-        ...(over?.ar || {}),
-      },
-      ap: {
-        runId: RUN_AP,
-        authoritative: true,
-        baselineSyncId: SYNC,
-        ...(over?.ap || {}),
-      },
-      inventory: {
-        runId: RUN_INV,
-        authoritative: true,
-        baselineSyncId: SYNC,
-        ...(over?.inventory || {}),
-      },
+  const reconciliations: {
+    ar: {
+      runId: string | null;
+      authoritative: boolean;
+      baselineSyncId: string | null;
+    };
+    ap: {
+      runId: string | null;
+      authoritative: boolean;
+      baselineSyncId: string | null;
+    };
+    inventory: {
+      runId: string | null;
+      authoritative: boolean;
+      baselineSyncId: string | null;
+    };
+    bsAccount?: {
+      runId: string | null;
+      authoritative: boolean;
+      baselineSyncId: null;
+      measurementSource: "live_provider";
+      qboAccountId: string;
+    } | null;
+  } = {
+    ar: {
+      runId: RUN_AR,
+      authoritative: true,
+      baselineSyncId: SYNC,
+      ...(over?.ar || {}),
+    },
+    ap: {
+      runId: RUN_AP,
+      authoritative: true,
+      baselineSyncId: SYNC,
+      ...(over?.ap || {}),
+    },
+    inventory: {
+      runId: RUN_INV,
+      authoritative: true,
+      baselineSyncId: SYNC,
+      ...(over?.inventory || {}),
     },
   };
+  if (over && "bsAccount" in over) {
+    reconciliations.bsAccount = over.bsAccount;
+  }
+  return { reconciliations };
 }
 
 function makeHarness(opts?: {
@@ -141,6 +173,11 @@ function makeHarness(opts?: {
       status: string;
       reconOutcome: string | null;
       baselineSyncId: string | null;
+      qboAccountId?: string;
+      totalsStatus?: string;
+      providerBackedGlEndingBalanceCents?: number;
+      preparedOrTbEndingBalanceCents?: number;
+      tieVarianceCents?: number;
     }
   >;
   accounts?: Map<string, JeProposalAccountMeta>;
@@ -273,19 +310,36 @@ function makeHarness(opts?: {
         const { JeProposalCustodyError } = await import("../source-custody");
         throw new JeProposalCustodyError(JE_PROPOSAL_ERROR.RECON_NOT_FOUND, "missing");
       }
-      if (!row.baselineSyncId) {
-        const { JeProposalCustodyError } = await import("../source-custody");
-        throw new JeProposalCustodyError(
-          JE_PROPOSAL_ERROR.RECON_BASELINE_NULL,
-          "null baseline",
-        );
-      }
-      if (row.baselineSyncId !== args.expectedBaselineSyncId) {
-        const { JeProposalCustodyError } = await import("../source-custody");
-        throw new JeProposalCustodyError(
-          JE_PROPOSAL_ERROR.RECON_BASELINE_MISMATCH,
-          "baseline mismatch",
-        );
+      if (args.measurementMode === "live_provider") {
+        if (row.baselineSyncId != null) {
+          const { JeProposalCustodyError } = await import("../source-custody");
+          throw new JeProposalCustodyError(
+            JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_BASELINE_NOT_NULL,
+            "live baseline not null",
+          );
+        }
+        if (args.expectedBaselineSyncId != null) {
+          const { JeProposalCustodyError } = await import("../source-custody");
+          throw new JeProposalCustodyError(
+            JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_SLOT_INVALID,
+            "expected baseline must be null",
+          );
+        }
+      } else {
+        if (!row.baselineSyncId) {
+          const { JeProposalCustodyError } = await import("../source-custody");
+          throw new JeProposalCustodyError(
+            JE_PROPOSAL_ERROR.RECON_BASELINE_NULL,
+            "null baseline",
+          );
+        }
+        if (row.baselineSyncId !== args.expectedBaselineSyncId) {
+          const { JeProposalCustodyError } = await import("../source-custody");
+          throw new JeProposalCustodyError(
+            JE_PROPOSAL_ERROR.RECON_BASELINE_MISMATCH,
+            "baseline mismatch",
+          );
+        }
       }
       if (row.engagementId !== args.expectedEngagementId) {
         const { JeProposalCustodyError } = await import("../source-custody");
@@ -308,7 +362,7 @@ function makeHarness(opts?: {
           "not completed",
         );
       }
-      if (!row.reconOutcome) {
+      if (args.measurementMode !== "live_provider" && !row.reconOutcome) {
         const { JeProposalCustodyError } = await import("../source-custody");
         throw new JeProposalCustodyError(
           JE_PROPOSAL_ERROR.RECON_OUTCOME_MISSING,
@@ -322,14 +376,45 @@ function makeHarness(opts?: {
           "kind mismatch",
         );
       }
+      const live = args.measurementMode === "live_provider";
       return {
         id: row.id,
         engagementId: row.engagementId,
         periodEnd: row.periodEnd,
-        tieOutKind: row.tieOutKind as "ar_aging" | "ap_aging" | "inventory",
+        tieOutKind: row.tieOutKind as
+          | "ar_aging"
+          | "ap_aging"
+          | "inventory"
+          | "bs_account_recon",
         status: row.status,
         reconOutcome: row.reconOutcome,
         baselineSyncId: row.baselineSyncId,
+        measurementMode: live ? ("live_provider" as const) : ("sync_backed" as const),
+        qboAccountId: live
+          ? String(
+              (row as { qboAccountId?: string }).qboAccountId ||
+                args.expectedQboAccountId ||
+                "",
+            )
+          : null,
+        totalsStatus: live
+          ? String((row as { totalsStatus?: string }).totalsStatus || "tie")
+          : null,
+        providerBackedGlEndingBalanceCents: live
+          ? Number(
+              (row as { providerBackedGlEndingBalanceCents?: number })
+                .providerBackedGlEndingBalanceCents ?? 0,
+            )
+          : null,
+        preparedOrTbEndingBalanceCents: live
+          ? Number(
+              (row as { preparedOrTbEndingBalanceCents?: number })
+                .preparedOrTbEndingBalanceCents ?? 0,
+            )
+          : null,
+        tieVarianceCents: live
+          ? Number((row as { tieVarianceCents?: number }).tieVarianceCents ?? 0)
+          : null,
       };
     },
     async loadAccounts({ accountIds }) {
@@ -956,5 +1041,263 @@ describe("createContinuousCloseJournalEntryProposal", () => {
       expect(src, file).not.toContain("qboJournalEntryPoster");
       expect(src, file).not.toContain("ManualJournal");
     }
+  });
+
+  it("accepts live_provider bs_account_recon with BS_ACCOUNT_GL_DELTA (no synthetic sync)", async () => {
+    const RUN_BS = "run-bs-liab";
+    const LIAB = "liab-1";
+    const h = makeHarness({
+      cc: {
+        observationSummary: {
+          reconciliations: {
+            ar: {
+              runId: RUN_AR,
+              authoritative: true,
+              baselineSyncId: SYNC,
+            },
+            ap: {
+              runId: RUN_AP,
+              authoritative: true,
+              baselineSyncId: SYNC,
+            },
+            inventory: {
+              runId: RUN_INV,
+              authoritative: true,
+              baselineSyncId: SYNC,
+            },
+            bsAccount: {
+              runId: RUN_BS,
+              authoritative: true,
+              baselineSyncId: null,
+              measurementSource: "live_provider",
+              qboAccountId: LIAB,
+            },
+          },
+        },
+      },
+      reconById: {
+        [RUN_BS]: {
+          id: RUN_BS,
+          engagementId: ENG,
+          periodEnd: "2026-07-31",
+          tieOutKind: "bs_account_recon",
+          status: "completed",
+          reconOutcome: null,
+          baselineSyncId: null,
+          qboAccountId: LIAB,
+          totalsStatus: "tie",
+          providerBackedGlEndingBalanceCents: 500,
+          preparedOrTbEndingBalanceCents: 500,
+          tieVarianceCents: 0,
+        },
+      },
+    });
+    const result = await createContinuousCloseJournalEntryProposal(
+      {
+        ...baseInput(),
+        sourceReconRunIds: [RUN_BS],
+        expectedEffects: [
+          {
+            type: "BS_ACCOUNT_GL_DELTA",
+            sourceKind: "bs_account_recon",
+            sourceRunId: RUN_BS,
+            qboAccountId: LIAB,
+            classification: "Liability",
+            baselineGlBalanceCents: 500,
+            expectedDeltaCents: 100,
+            expectedPostGlBalanceCents: 600,
+            signConvention: "qbo_natural_sign",
+          },
+        ],
+        lines: [
+          {
+            sequence: 1,
+            accountId: "exp-1",
+            debitCents: 100,
+            creditCents: 0,
+          },
+          {
+            sequence: 2,
+            accountId: LIAB,
+            debitCents: 0,
+            creditCents: 100,
+          },
+        ],
+      },
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.proposal.source_recon_run_ids).toEqual([RUN_BS]);
+    expect(result.proposal.expected_effects[0]?.type).toBe("BS_ACCOUNT_GL_DELTA");
+  });
+
+  it("rejects live_provider bs_account_recon with non-null baseline (no synthetic sync)", async () => {
+    const RUN_BS = "run-bs-bad-baseline";
+    const LIAB = "liab-1";
+    const h = makeHarness({
+      cc: {
+        observationSummary: {
+          reconciliations: {
+            ar: {
+              runId: RUN_AR,
+              authoritative: true,
+              baselineSyncId: SYNC,
+            },
+            ap: {
+              runId: RUN_AP,
+              authoritative: true,
+              baselineSyncId: SYNC,
+            },
+            inventory: {
+              runId: RUN_INV,
+              authoritative: true,
+              baselineSyncId: SYNC,
+            },
+            bsAccount: {
+              runId: RUN_BS,
+              authoritative: true,
+              baselineSyncId: null,
+              measurementSource: "live_provider",
+              qboAccountId: LIAB,
+            },
+          },
+        },
+      },
+      reconById: {
+        [RUN_BS]: {
+          id: RUN_BS,
+          engagementId: ENG,
+          periodEnd: "2026-07-31",
+          tieOutKind: "bs_account_recon",
+          status: "completed",
+          reconOutcome: null,
+          baselineSyncId: "synthetic-sync",
+          qboAccountId: LIAB,
+          totalsStatus: "tie",
+          providerBackedGlEndingBalanceCents: 0,
+          preparedOrTbEndingBalanceCents: 0,
+          tieVarianceCents: 0,
+        },
+      },
+    });
+    const result = await createContinuousCloseJournalEntryProposal(
+      {
+        ...baseInput(),
+        sourceReconRunIds: [RUN_BS],
+        expectedEffects: [
+          {
+            type: "BS_ACCOUNT_GL_DELTA",
+            sourceKind: "bs_account_recon",
+            sourceRunId: RUN_BS,
+            qboAccountId: LIAB,
+            classification: "Liability",
+            baselineGlBalanceCents: 0,
+            expectedDeltaCents: 100,
+            expectedPostGlBalanceCents: 100,
+            signConvention: "qbo_natural_sign",
+          },
+        ],
+      },
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe(
+        JE_PROPOSAL_ERROR.RECON_LIVE_PROVIDER_BASELINE_NOT_NULL,
+      );
+    }
+  });
+
+  it("rejects Asset COA classification for bs_account_recon source", async () => {
+    const RUN_BS = "run-bs-asset";
+    const ASSET = "84";
+    const h = makeHarness({
+      cc: {
+        observationSummary: {
+          reconciliations: {
+            ar: {
+              runId: RUN_AR,
+              authoritative: true,
+              baselineSyncId: SYNC,
+            },
+            ap: {
+              runId: RUN_AP,
+              authoritative: true,
+              baselineSyncId: SYNC,
+            },
+            inventory: {
+              runId: RUN_INV,
+              authoritative: true,
+              baselineSyncId: SYNC,
+            },
+            bsAccount: {
+              runId: RUN_BS,
+              authoritative: true,
+              baselineSyncId: null,
+              measurementSource: "live_provider",
+              qboAccountId: ASSET,
+            },
+          },
+        },
+      },
+      reconById: {
+        [RUN_BS]: {
+          id: RUN_BS,
+          engagementId: ENG,
+          periodEnd: "2026-07-31",
+          tieOutKind: "bs_account_recon",
+          status: "completed",
+          reconOutcome: null,
+          baselineSyncId: null,
+          qboAccountId: ASSET,
+          totalsStatus: "tie",
+          providerBackedGlEndingBalanceCents: 0,
+          preparedOrTbEndingBalanceCents: 0,
+          tieVarianceCents: 0,
+        },
+      },
+    });
+    const result = await createContinuousCloseJournalEntryProposal(
+      {
+        ...baseInput(),
+        sourceReconRunIds: [RUN_BS],
+        expectedEffects: [
+          {
+            type: "BS_ACCOUNT_GL_DELTA",
+            sourceKind: "bs_account_recon",
+            sourceRunId: RUN_BS,
+            qboAccountId: ASSET,
+            classification: "Liability",
+            baselineGlBalanceCents: 0,
+            expectedDeltaCents: 100,
+            expectedPostGlBalanceCents: 100,
+            signConvention: "qbo_natural_sign",
+          },
+        ],
+        lines: [
+          {
+            sequence: 1,
+            accountId: "exp-1",
+            debitCents: 100,
+            creditCents: 0,
+          },
+          {
+            sequence: 2,
+            accountId: "liab-1",
+            debitCents: 0,
+            creditCents: 100,
+          },
+        ],
+      },
+      principal(),
+      policy(),
+      h.deps,
+    );
+    expect(result.ok).toBe(false);
   });
 });

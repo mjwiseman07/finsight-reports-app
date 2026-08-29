@@ -7,13 +7,24 @@
 
 import type { JeProposalAccountMeta } from "./types";
 
-/** Locked after ChatGPT live pre-flight review against qbo_coa_mirror. */
-export const FIRST_RUN_EXPENSE_ACCOUNT_ID: string | null = "15";
-export const FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID: string | null = "1150040002";
+/** Staged candidate account IDs — not dispatch-approved until explicit review. */
+export const FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID: string | null = "15";
+export const FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID: string | null =
+  "1150040002";
+
+/** @deprecated Use FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID */
+export const FIRST_RUN_EXPENSE_ACCOUNT_ID: string | null =
+  FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID;
+
+/** @deprecated Use FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID */
+export const FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID: string | null =
+  FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID;
 
 /**
- * Must be true before proposal creation is permitted.
- * Prevents candidate discovery and proposal creation in one uncontrolled run.
+ * Locked after independent Demo A COA mirror verification:
+ *   15 = Office Expenses (Expense, active)
+ *   1150040002 = Accrued Expenses - Advisacor Test (Other Current Liability, active)
+ * Execution/dispatch still requires separate FIRST_RUN_EXECUTION_REVIEWED_AND_APPROVED.
  */
 export const FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED = true;
 
@@ -21,7 +32,7 @@ export const FIRST_RUN_JE_AMOUNT_CENTS = 100;
 export const FIRST_RUN_JE_CURRENCY = "USD";
 
 export const FIRST_RUN_ACCOUNT_APPROVAL_RECOMMENDATION =
-  "ACCOUNT SELECTION REQUIRES CHATGPT APPROVAL" as const;
+  "ACCOUNTS REVIEWED AND APPROVED — EXECUTION DISPATCH STILL REQUIRES SEPARATE APPROVAL" as const;
 
 export type CoaMirrorAccountRow = {
   accountId: string;
@@ -194,9 +205,20 @@ export type FirstRunExplicitAccountEvidence = {
 
 export function resolveFirstRunExplicitAccountEvidence(): FirstRunExplicitAccountEvidence {
   return {
-    expenseAccountId: FIRST_RUN_EXPENSE_ACCOUNT_ID,
-    accruedLiabilityAccountId: FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID,
+    expenseAccountId: FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID,
+    accruedLiabilityAccountId: FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID,
     accountsReviewedAndApproved: FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED,
+  };
+}
+
+export function resolveFirstRunStagedAccountEvidence(): Omit<
+  FirstRunExplicitAccountEvidence,
+  "accountsReviewedAndApproved"
+> & { accountsReviewedAndApproved: false } {
+  return {
+    expenseAccountId: FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID,
+    accruedLiabilityAccountId: FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID,
+    accountsReviewedAndApproved: false,
   };
 }
 
@@ -226,23 +248,55 @@ export type FirstRunAccountAuthorityResult =
       recommendation: typeof FIRST_RUN_ACCOUNT_APPROVAL_RECOMMENDATION;
     };
 
+export function validateStagedFirstRunAccounts(args: {
+  evidence: Pick<
+    FirstRunExplicitAccountEvidence,
+    "expenseAccountId" | "accruedLiabilityAccountId"
+  >;
+  mirrorRows: readonly CoaMirrorAccountRow[];
+}): FirstRunAccountAuthorityResult {
+  return validateFirstRunAccountsInternal({
+    evidence: {
+      ...args.evidence,
+      accountsReviewedAndApproved: true,
+    },
+    mirrorRows: args.mirrorRows,
+    requireApproval: false,
+  });
+}
+
 export function validateExplicitFirstRunAccounts(args: {
   evidence: FirstRunExplicitAccountEvidence;
   mirrorRows: readonly CoaMirrorAccountRow[];
 }): FirstRunAccountAuthorityResult {
-  const { evidence, mirrorRows } = args;
+  return validateFirstRunAccountsInternal({
+    evidence: args.evidence,
+    mirrorRows: args.mirrorRows,
+    requireApproval: true,
+  });
+}
+
+function validateFirstRunAccountsInternal(args: {
+  evidence: FirstRunExplicitAccountEvidence;
+  mirrorRows: readonly CoaMirrorAccountRow[];
+  requireApproval: boolean;
+}): FirstRunAccountAuthorityResult {
+  const { evidence, mirrorRows, requireApproval } = args;
   const byId = new Map(mirrorRows.map((row) => [row.accountId, row]));
 
   if (!evidence.expenseAccountId) {
-    return fail("first_run_expense_account_id_missing", "FIRST_RUN_EXPENSE_ACCOUNT_ID is not set.");
+    return fail(
+      "first_run_expense_account_id_missing",
+      "FIRST_RUN_STAGED_EXPENSE_ACCOUNT_ID is not set.",
+    );
   }
   if (!evidence.accruedLiabilityAccountId) {
     return fail(
       "first_run_accrued_liability_account_id_missing",
-      "FIRST_RUN_ACCRUED_LIABILITY_ACCOUNT_ID is not set.",
+      "FIRST_RUN_STAGED_ACCRUED_LIABILITY_ACCOUNT_ID is not set.",
     );
   }
-  if (!evidence.accountsReviewedAndApproved) {
+  if (requireApproval && !evidence.accountsReviewedAndApproved) {
     return fail(
       "first_run_accounts_not_reviewed",
       "FIRST_RUN_ACCOUNTS_REVIEWED_AND_APPROVED is false; explicit account IDs require human review before proposal creation.",
