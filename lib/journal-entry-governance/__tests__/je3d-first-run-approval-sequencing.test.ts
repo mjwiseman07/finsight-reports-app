@@ -67,7 +67,7 @@ describe("JE-3D staged vs approved sequencing", () => {
     expect(staged.ok).toBe(true);
   });
 
-  it("4. preflight reports dispatch_authorized=true after release (kill OFF + both reviews)", () => {
+  it("4. preflight reports dispatch blocked after full-cycle closure", () => {
     const report = buildJe3dPreDispatchChecklistReport({
       policy: resolveJe3dActivationPolicy(),
       qbEnvironment: "sandbox",
@@ -93,8 +93,8 @@ describe("JE-3D staged vs approved sequencing", () => {
     });
     expect(report.execution_reviewed_and_approved).toBe(true);
     expect(report.accounts_reviewed_and_approved).toBe(true);
-    expect(report.kill_switch_blocks_dispatch).toBe(false);
-    expect(report.dispatch_authorized).toBe(true);
+    expect(report.kill_switch_blocks_dispatch).toBe(true);
+    expect(report.dispatch_authorized).toBe(false);
     expect(report.candidate_execution_id).toBe(FIRST_RUN_STAGED_EXECUTION_ID);
   });
 
@@ -178,11 +178,11 @@ describe("JE-3D staged vs approved sequencing", () => {
     ).toBe(true);
   });
 
-  it("9. CREATE ON, VERIFY OFF, kill switch OFF in effective policy", () => {
+  it("9. CREATE/VERIFY OFF and kill switch ON in effective policy", () => {
     const policy = JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY;
-    expect(policy.capabilities.CREATE_SANDBOX_JE).toBe(true);
+    expect(policy.capabilities.CREATE_SANDBOX_JE).toBe(false);
     expect(policy.capabilities.VERIFY_SANDBOX_JE).toBe(false);
-    expect(policy.sandboxDispatchKillSwitch).toBe(false);
+    expect(policy.sandboxDispatchKillSwitch).toBe(true);
   });
 
   it("10. default identity evidence reflects reviewed exact staged execution", () => {
@@ -191,3 +191,4 @@ describe("JE-3D staged vs approved sequencing", () => {
     expect(identity.executionReviewedAndApproved).toBe(true);
   });
 });
+
