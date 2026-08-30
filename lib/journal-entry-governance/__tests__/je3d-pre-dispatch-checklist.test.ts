@@ -8,7 +8,7 @@ import { JE_3D_SANDBOX_QBO_API_BASE } from "../je3d-activation-policy";
 import { JE_ACTIVATION_DEMO_ROLE_DEMO_A } from "../je3d-sandbox-company-authority";
 
 describe("JE-3D pre-dispatch checklist", () => {
-  it("dispatch armed with resolved Demo A authority; kill switch OFF; reviews ON", () => {
+  it("dispatch closed with resolved Demo A evidence retained", () => {
     const report = buildJe3dPreDispatchChecklistReport({
       policy: JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
       qbEnvironment: "sandbox",
@@ -34,12 +34,12 @@ describe("JE-3D pre-dispatch checklist", () => {
     });
 
     expect(report.all_activation_gates_pass).toBe(false);
-    expect(report.create_capability_on).toBe(true);
+    expect(report.create_capability_on).toBe(false);
     expect(report.verify_capability_off).toBe(true);
-    expect(report.kill_switch_blocks_dispatch).toBe(false);
+    expect(report.kill_switch_blocks_dispatch).toBe(true);
     expect(report.execution_reviewed_and_approved).toBe(true);
     expect(report.accounts_reviewed_and_approved).toBe(true);
-    expect(report.dispatch_authorized).toBe(true);
+    expect(report.dispatch_authorized).toBe(false);
     expect(report.candidate_execution_id).toBeTruthy();
     expect(report.candidate_expense_account_id).toBeTruthy();
     expect(report.candidate_accrued_liability_account_id).toBeTruthy();
@@ -102,3 +102,4 @@ describe("JE-3D pre-dispatch checklist", () => {
     expect(report.all_activation_gates_pass).toBe(false);
   });
 });
+
