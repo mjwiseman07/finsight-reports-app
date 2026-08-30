@@ -280,13 +280,13 @@ describe("bs_account_recon JE_SOURCE_RECON_KINDS expansion", () => {
     expect(typeof cleanFacts).toBe("function");
   });
 
-  it("17. kill switch released (dispatch armed)", () => {
+  it("17. kill switch active after full-cycle closure", () => {
     expect(
       JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY.sandboxDispatchKillSwitch,
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it("18–19. no VERIFY / Memory in activation overlay; kill switch OFF", () => {
+  it("18–19. no VERIFY / Memory in closed overlay; kill switch ON", () => {
     expect(
       JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY.capabilities
         .VERIFY_SANDBOX_JE,
@@ -296,7 +296,7 @@ describe("bs_account_recon JE_SOURCE_RECON_KINDS expansion", () => {
     ).toBe(false);
     expect(
       JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY.sandboxDispatchKillSwitch,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("promotes BS_ACCOUNT_GL_DELTA in validation + hash canonicalization", () => {
@@ -374,3 +374,4 @@ describe("bs_account_recon JE_SOURCE_RECON_KINDS expansion", () => {
     ).toThrow(/BS_ACCOUNT_GL_DELTA/);
   });
 });
+

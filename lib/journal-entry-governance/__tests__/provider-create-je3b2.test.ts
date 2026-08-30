@@ -335,11 +335,11 @@ describe("JE-3B2 hard-disable gate + public surface", () => {
     );
   });
 
-  it("JE-3B2 compile-time gate still off while JE-3D CREATE ON and kill switch released", () => {
+  it("JE-3B2 and JE-3D CREATE are both off after full-cycle closure", () => {
     const prev = process.env.QB_ENVIRONMENT;
     process.env.QB_ENVIRONMENT = "sandbox";
     try {
-      expect(() => assertJe3dCreateActivationPolicy()).not.toThrow();
+      expect(() => assertJe3dCreateActivationPolicy()).toThrow(/CREATE_SANDBOX_JE/);
       expect(() => assertJe3b2GovernedCreateEnabled()).toThrow(/hard-disabled/i);
       expect(() => assertJe3b2MemoryWriteNotEnabled()).toThrow(/Memory/i);
     } finally {
@@ -890,3 +890,4 @@ describe("JE-3B2 source gates", () => {
     }
   });
 });
+

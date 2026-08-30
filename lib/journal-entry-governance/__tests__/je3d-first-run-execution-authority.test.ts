@@ -364,8 +364,8 @@ describe("JE-3D first-run execution authority", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("CREATE capability ON with kill switch released; wrong execution still rejected", () => {
-    expect(isJe3dCreateCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(true);
+  it("CREATE capability OFF after closure; wrong execution still rejected", () => {
+    expect(isJe3dCreateCapabilityEnabled(resolveJe3dActivationPolicy())).toBe(false);
     expect(
       evaluateFirstRunCreateAuthority({
         executionId: EXEC_ID,
@@ -531,3 +531,4 @@ describe("JE-3D staging human approval regression", () => {
     expect(src).toContain("loadHumanApprovedApprovalForProposal");
   });
 });
+
