@@ -160,7 +160,9 @@ export async function dispatchAutoPostForClient(
     // dispatch
     summary.dispatched += 1;
     try {
-      const postResult = await postFire(fire.fire_id);
+      const postResult = await postFire(fire.fire_id, {
+        productionWorkflow: "RECURRING_AUTO",
+      });
       summary.outcomes.push({
         fire_id: fire.fire_id,
         template_id: fire.template_id,

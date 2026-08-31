@@ -1,18 +1,19 @@
 // D5.3 — impure post orchestrator. Bridges a recurring_fires row to D2's
-// qboJournalEntryPoster.post(). Loads the fire + template + client, composes
+// the legacy compatibility boundary. Loads the fire + template + client, composes
 // the JE via the pure composer, delegates the actual QBO write to D2, then maps
 // D2's result back onto the fire row.
 //
-// Impurity budget: getSupabaseAdmin (DB) and qboJournalEntryPoster (delegates
+// Impurity budget: getSupabaseAdmin (DB) and the legacy posting service (delegates
 // to D2 — never talks to QBO directly). Everything else imported here is pure.
 // Never throws except on the initial fire-load DB error.
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
-import { qboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster";
+import { legacyJournalEntryPostingService } from "@/lib/erp/quickbooks/legacy-je-posting-service";
 import { composeJEPayloadForFire } from "./je-composer";
 import { rowToRecurringScheduleLine, rowToRecurringTemplate } from "./db-mapper";
 import { triggerRunnerForRecurringFire } from "@/lib/rules/hooks/trigger-runner";
 import type { FireStatus, RecurringScheduleLine, RecurringTemplate } from "./types";
+import { assertProductionWorkflowGovernedWhenApplicable } from "@/lib/journal-entry-governance/production-workflow-policy";
 
 export interface PostFireResult {
   fire_id: string;
@@ -29,7 +30,10 @@ type Row = Record<string, unknown>;
  * (firm_client_id, idempotency_key) guard means re-running postFire on the same
  * fire returns the existing posted attempt rather than double-posting.
  */
-export async function postFire(fireId: string): Promise<PostFireResult> {
+export async function postFire(
+  fireId: string,
+  opts?: { productionWorkflow?: "RECURRING_MANUAL" | "RECURRING_AUTO" },
+): Promise<PostFireResult> {
   const supabase = getSupabaseAdmin();
 
   // 1. Load fire — the ONLY step allowed to throw (a DB read failure here is
@@ -123,7 +127,11 @@ export async function postFire(fireId: string): Promise<PostFireResult> {
   }
 
   // 7. Delegate the write to D2. source_type='recurring', posted_by='ai'.
-  const result = await qboJournalEntryPoster.post({
+  assertProductionWorkflowGovernedWhenApplicable({
+    workflow: opts?.productionWorkflow ?? "RECURRING_MANUAL",
+    executionId: null,
+  });
+  const result = await legacyJournalEntryPostingService.post({
     firm_client_id: firmClientId,
     idempotency_key: composed.idempotency_key,
     source_type: "recurring",
