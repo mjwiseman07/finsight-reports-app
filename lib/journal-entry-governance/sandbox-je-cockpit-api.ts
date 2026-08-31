@@ -14,8 +14,6 @@ import {
   isJe3dCreateCapabilityEnabled,
   isJe3dVerifyCapabilityEnabled,
 } from "./je3d-activation-policy";
-
-export { Je3dActivationError };
 import {
   JE_3D_VERIFIED_DEMO_A_IDENTITY,
   isVerifiedDemoAIdentityMatch,
@@ -28,21 +26,36 @@ import {
 } from "./je3d-sandbox-company-authority";
 import {
   inspectGovernedJeActivationCustody,
-  type GovernedJeActivationInspection,
   type ActivationInspectionDeps,
 } from "./je3d-activation-inspection";
 import { buildJe3dPreDispatchChecklistReport } from "./je3d-pre-dispatch-checklist";
 import { loadExactExecution } from "./provider-attempt-service";
+import {
+  SANDBOX_JE_COCKPIT_CANADIAN_REALM_EXCLUDED,
+  SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
+  type Patent6ChainReceiptEvent,
+  type SafeSandboxAllowlistResponse,
+  type SafeSandboxChecklistResponse,
+  type SafeSandboxInspectionResponse,
+  type SandboxCockpitCapabilityState,
+} from "./sandbox-je-cockpit-shared";
 
-export const SANDBOX_JE_COCKPIT_RATE_LIMIT_KEY = "governed-sandbox-je-cockpit";
+export {
+  SANDBOX_JE_COCKPIT_CANADIAN_REALM_EXCLUDED,
+  SANDBOX_JE_COCKPIT_RATE_LIMIT_KEY,
+  SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
+  SANDBOX_JE_COCKPIT_VERIFIED_PROVIDER_JOURNAL_ID,
+} from "./sandbox-je-cockpit-shared";
 
-export const SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID =
-  "08bbbd62-8c4e-4463-b96e-2bd8bfdce603";
+export { Je3dActivationError };
 
-export const SANDBOX_JE_COCKPIT_VERIFIED_PROVIDER_JOURNAL_ID = "223";
-
-/** Explicitly excluded Canadian sandbox realm — never canonical Demo A. */
-export const SANDBOX_JE_COCKPIT_CANADIAN_REALM_EXCLUDED = "9341457539236929";
+export type {
+  Patent6ChainReceiptEvent,
+  SafeSandboxAllowlistResponse,
+  SafeSandboxChecklistResponse,
+  SafeSandboxInspectionResponse,
+  SandboxCockpitCapabilityState,
+} from "./sandbox-je-cockpit-shared";
 
 const FORBIDDEN_QUERY_OVERRIDE_KEYS = [
   "realmId",
@@ -61,68 +74,6 @@ const FORBIDDEN_QUERY_OVERRIDE_KEYS = [
   "providerEnvironment",
   "provider_environment",
 ] as const;
-
-export type Patent6ChainReceiptEvent = {
-  event_id: string;
-  event_type: string;
-  event_hash: string | null;
-  previous_event_hash: string | null;
-  chain_index: number | null;
-  aggregate_type: string | null;
-  aggregate_id: string | null;
-  created_at: string;
-};
-
-export type SandboxCockpitCapabilityState = {
-  create_sandbox_je: boolean;
-  verify_sandbox_je: boolean;
-  memory: boolean;
-  worker: boolean;
-  governed_auto: boolean;
-  kill_switch: boolean;
-  post_disabled: true;
-  verify_disabled: true;
-};
-
-export type SafeSandboxAllowlistResponse = {
-  qb_environment: "sandbox";
-  allowlist_resolution: ResolvedSandboxActivationAllowlist["allowlistResolution"];
-  demo_a: {
-    company_id: string;
-    accounting_connection_id: string;
-    realm_id: string;
-    provider: "quickbooks";
-    provider_environment: "sandbox";
-    demo_role: string;
-    firm_client_id: string;
-  } | null;
-  verified_execution_id: typeof SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID;
-  verified_provider_journal_id: typeof SANDBOX_JE_COCKPIT_VERIFIED_PROVIDER_JOURNAL_ID;
-  capabilities: SandboxCockpitCapabilityState;
-  memory_is_display_context_only: true;
-};
-
-export type SafeSandboxInspectionResponse = {
-  inspection: GovernedJeActivationInspection;
-  canonical_identity: typeof JE_3D_VERIFIED_DEMO_A_IDENTITY;
-  verified_at: string | null;
-  patent6_chain_receipt: {
-    aggregate_type: "journal_entry_execution";
-    aggregate_id: string;
-    events: Patent6ChainReceiptEvent[];
-  };
-  capabilities: SandboxCockpitCapabilityState;
-  memory_is_display_context_only: true;
-};
-
-export type SafeSandboxChecklistResponse = {
-  execution_id: string;
-  checklist: ReturnType<typeof buildJe3dPreDispatchChecklistReport>;
-  capabilities: SandboxCockpitCapabilityState;
-  post_disabled: true;
-  verify_disabled: true;
-  memory_is_display_context_only: true;
-};
 
 export function assertSandboxCockpitQbEnvironment(
   envValue: string | undefined = process.env.QB_ENVIRONMENT,
@@ -162,22 +113,6 @@ export function resolveSandboxCockpitCapabilityState(): SandboxCockpitCapability
 
 export function mapJe3dActivationErrorToHttpStatus(code: string): number {
   if (code === JE_3D_ACTIVATION_ERROR.AMBIGUOUS_AUTHORITY) return 409;
-  if (
-    code === JE_3D_ACTIVATION_ERROR.ALLOWLIST_UNRESOLVED ||
-    code === JE_3D_ACTIVATION_ERROR.COMPANY_NOT_ALLOWLISTED ||
-    code === JE_3D_ACTIVATION_ERROR.CONNECTION_NOT_CANONICAL ||
-    code === JE_3D_ACTIVATION_ERROR.REALM_MISMATCH ||
-    code === JE_3D_ACTIVATION_ERROR.CALLER_OVERRIDE_FORBIDDEN
-  ) {
-    return 403;
-  }
-  if (
-    code === JE_3D_ACTIVATION_ERROR.SANDBOX_ENV_REQUIRED ||
-    code === JE_3D_ACTIVATION_ERROR.PRODUCTION_ENV_FORBIDDEN ||
-    code === JE_3D_ACTIVATION_ERROR.INVALID_QB_ENVIRONMENT
-  ) {
-    return 403;
-  }
   return 403;
 }
 
@@ -228,7 +163,7 @@ export function buildSafeAllowlistResponse(
       firm_client_id: JE_3D_VERIFIED_DEMO_A_IDENTITY.firmClientId,
     },
     verified_execution_id: SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
-    verified_provider_journal_id: SANDBOX_JE_COCKPIT_VERIFIED_PROVIDER_JOURNAL_ID,
+    verified_provider_journal_id: "223",
     capabilities,
     memory_is_display_context_only: true,
   };

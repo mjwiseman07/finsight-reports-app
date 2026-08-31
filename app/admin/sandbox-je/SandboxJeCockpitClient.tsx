@@ -7,14 +7,12 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { headingFont, focusRing } from "@/components/site-ui";
 import {
   JE_3D_VERIFIED_DEMO_A_IDENTITY,
-} from "@/lib/journal-entry-governance/je3d-first-controlled-create-activation";
-import {
   SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
   SANDBOX_JE_COCKPIT_VERIFIED_PROVIDER_JOURNAL_ID,
   type SafeSandboxAllowlistResponse,
   type SafeSandboxChecklistResponse,
   type SafeSandboxInspectionResponse,
-} from "@/lib/journal-entry-governance/sandbox-je-cockpit-api";
+} from "@/lib/journal-entry-governance/sandbox-je-cockpit-shared";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
