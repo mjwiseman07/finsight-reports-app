@@ -97,17 +97,23 @@ export function assertPatent6ChainReceiptCustody(args: {
 
   const chained = args.events
     .filter((event) => event.chain_index != null)
-    .sort((a, b) => (a.chain_index ?? 0) - (b.chain_index ?? 0));
+    .sort((a, b) => {
+      const chainDiff = (a.chain_index ?? 0) - (b.chain_index ?? 0);
+      if (chainDiff !== 0) return chainDiff;
+      return (a.event_sequence ?? 0) - (b.event_sequence ?? 0);
+    });
 
-  let prevHash: string | null = null;
   for (let i = 0; i < chained.length; i += 1) {
     const event = chained[i]!;
-    if ((event.previous_event_hash ?? null) !== prevHash) {
+    if (i === 0) {
+      continue;
+    }
+    const prior = chained[i - 1]!;
+    if ((event.previous_event_hash ?? null) !== prior.event_hash) {
       throw new Error(
         `Patent #6 previous_event_hash adjacency break at chain_index ${event.chain_index}`,
       );
     }
-    prevHash = event.event_hash;
   }
 
   if (args.verificationReceiptId) {

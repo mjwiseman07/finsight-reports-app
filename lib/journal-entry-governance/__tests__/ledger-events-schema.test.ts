@@ -83,6 +83,54 @@ describe("ledger_events schema contract", () => {
     ).not.toThrow();
   });
 
+  it("validates adjacency within an aggregate chain slice (global chain prefix allowed)", () => {
+    const executionId = "08bbbd62-8c4e-4463-b96e-2bd8bfdce603";
+    expect(() =>
+      assertPatent6ChainReceiptCustody({
+        executionId,
+        verificationReceiptId: "995a52f5-767b-4dff-b804-d978fbc47e0a",
+        events: [
+          {
+            event_id: "362c325c-b907-4132-8eec-8ec5325e91e1",
+            event_type: "journal_entry.provider_dispatch_started",
+            event_hash: "5bc37bbd5d5734e143b83f7dc547d4f124d9776ec26db081bc84e894078bfeec",
+            previous_event_hash: "826c69f09c48133b4dcec35c34fb36015396096093e8c4b3dec0d88190b3fc27",
+            chain_index: 37,
+            event_sequence: 69,
+            aggregate_type: "journal_entry_execution",
+            aggregate_id: executionId,
+            occurred_at: "2026-08-29T03:32:47.168854+00:00",
+            recorded_at: "2026-08-29T03:32:47.168854+00:00",
+          },
+          {
+            event_id: "a00f0960-5cde-480c-ba03-d72cb027e9db",
+            event_type: "journal_entry.provider_posted",
+            event_hash: "baead3872fbe4dcbbbe33b58a8a10c11e7412b06fe1af04b94b091a0830c1bb3",
+            previous_event_hash: "5bc37bbd5d5734e143b83f7dc547d4f124d9776ec26db081bc84e894078bfeec",
+            chain_index: 38,
+            event_sequence: 70,
+            aggregate_type: "journal_entry_execution",
+            aggregate_id: executionId,
+            occurred_at: "2026-08-29T03:32:48.538469+00:00",
+            recorded_at: "2026-08-29T03:32:48.538469+00:00",
+          },
+          {
+            event_id: "995a52f5-767b-4dff-b804-d978fbc47e0a",
+            event_type: "journal_entry.verified",
+            event_hash: "9b403c59a3904636a72f3cbb8bcd63c21339ed1a7f58d47a42735e7fe0405aa4",
+            previous_event_hash: "baead3872fbe4dcbbbe33b58a8a10c11e7412b06fe1af04b94b091a0830c1bb3",
+            chain_index: 39,
+            event_sequence: 71,
+            aggregate_type: "journal_entry_execution",
+            aggregate_id: executionId,
+            occurred_at: "2026-08-29T15:14:08.722861+00:00",
+            recorded_at: "2026-08-29T15:14:08.722861+00:00",
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
   it("fails closed on previous_event_hash adjacency breaks", () => {
     expect(() =>
       assertPatent6ChainReceiptCustody({
