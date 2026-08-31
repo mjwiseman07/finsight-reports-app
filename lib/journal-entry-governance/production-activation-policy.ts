@@ -4,6 +4,9 @@
  * This is intentionally separate from JE-3D sandbox activation. The checked-in
  * state is permanently fail-closed until a separately reviewed pilot identity,
  * amount ceiling, capability change, and kill-switch change are committed.
+ *
+ * Public enforcement always uses PRODUCTION_JE_ACTIVATION_POLICY. No runtime
+ * policy override parameter is accepted on exported assert functions.
  */
 
 export type ProductionJeCapability =
@@ -61,10 +64,14 @@ export class ProductionJeActivationError extends Error {
   }
 }
 
+/**
+ * Public enforcement — always uses canonical PRODUCTION_JE_ACTIVATION_POLICY.
+ * No caller-supplied policy override is accepted.
+ */
 export function assertProductionJeActivation(
   input: ProductionActivationCheck,
-  policy: ProductionJeActivationPolicy = PRODUCTION_JE_ACTIVATION_POLICY,
 ): void {
+  const policy = PRODUCTION_JE_ACTIVATION_POLICY;
   if (!policy.capabilities[input.capability]) {
     throw new ProductionJeActivationError(
       "production_capability_off",
@@ -139,10 +146,10 @@ export function assertProductionJeActivation(
 /**
  * Apply production activation only when the process or custody environment is
  * production. Sandbox JE-3D remains under its own activation policy.
+ * Always uses canonical PRODUCTION_JE_ACTIVATION_POLICY.
  */
 export function assertProductionJeActivationWhenApplicable(
   input: ProductionActivationCheck,
-  policy: ProductionJeActivationPolicy = PRODUCTION_JE_ACTIVATION_POLICY,
 ): void {
   if (
     input.qboEnvironment !== "production" &&
@@ -150,5 +157,5 @@ export function assertProductionJeActivationWhenApplicable(
   ) {
     return;
   }
-  assertProductionJeActivation(input, policy);
+  assertProductionJeActivation(input);
 }

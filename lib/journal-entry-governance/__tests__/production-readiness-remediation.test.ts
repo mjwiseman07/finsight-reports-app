@@ -23,11 +23,12 @@ import {
   ProductionJeActivationError,
   assertProductionJeActivation,
   assertProductionJeActivationWhenApplicable,
-  type ProductionJeActivationPolicy,
 } from "../production-activation-policy";
 import {
   VerifiedJeProjectionError,
   projectVerifiedJournalEntryToMemory,
+  projectVerifiedJournalEntryToMemoryForTests,
+  type VerifiedJeProjectionHarness,
 } from "../verified-memory-projection";
 import { getProductionJeExceptionDisposition } from "../production-exception-operations";
 import {
@@ -36,30 +37,9 @@ import {
   assertProductionWorkflowGoverned,
   assertProductionWorkflowGovernedWhenApplicable,
 } from "../production-workflow-policy";
+import type { JournalEntryExecutionRow } from "../execution-types";
 
 const root = process.cwd();
-
-function activePilotPolicy(): ProductionJeActivationPolicy {
-  return {
-    capabilities: {
-      CREATE_PRODUCTION_JE: true,
-      VERIFY_PRODUCTION_JE: false,
-    },
-    productionDispatchKillSwitch: false,
-    memoryProjectionAllowed: false,
-    workerAllowed: false,
-    governedAutoAllowed: false,
-    requireFreshMfa: true,
-    maxExecutionAmountCents: 100,
-    pilotIdentity: {
-      companyId: "company-1",
-      accountingConnectionId: "connection-1",
-      realmId: "realm-1",
-      provider: "quickbooks",
-      providerEnvironment: "production",
-    },
-  };
-}
 
 function validActivationInput() {
   return {
@@ -71,6 +51,96 @@ function validActivationInput() {
     providerEnvironment: "production",
     totalDebitsCents: 100,
     qboEnvironment: "production",
+  };
+}
+
+function verifiedExecution(
+  overrides: Partial<JournalEntryExecutionRow> = {},
+): JournalEntryExecutionRow {
+  return {
+    id: "exec-1",
+    proposal_id: "prop-1",
+    approval_id: "appr-1",
+    company_id: "company-1",
+    engagement_id: "eng-1",
+    firm_client_id: "fc-1",
+    source_continuous_close_run_id: "cc-1",
+    source_accounting_sync_id: "sync-1",
+    accounting_connection_id: "connection-1",
+    provider: "quickbooks",
+    proposal_hash: "a".repeat(64),
+    approval_policy_hash: "b".repeat(64),
+    execution_policy_hash: "c".repeat(64),
+    execution_hash: "d".repeat(64),
+    idempotency_key: "e".repeat(64),
+    status: "VERIFIED",
+    correlation_marker: "ADVJE:exec-1",
+    execution_policy_snapshot: {},
+    preflight_result: { eligible: true, checks: [] },
+    requested_by: "user-1",
+    requested_at: "2026-08-30T00:00:00.000Z",
+    state_version: 3,
+    provider_journal_id: "223",
+    provider_request_hash: "f".repeat(64),
+    provider_response_hash: "g".repeat(64),
+    provider_readback_hash: "readback-hash",
+    verification_snapshot: {
+      txnDate: "2026-08-30",
+      currency: "USD",
+      totalDebitsCents: 100,
+      totalCreditsCents: 100,
+      providerJournalId: "223",
+    },
+    verification_ledger_event_id: "receipt-1",
+    verified_at: "2026-08-30T12:00:00.000Z",
+    last_error_code: null,
+    last_error_message: null,
+    ...overrides,
+  };
+}
+
+function matchingReceipt(overrides: Record<string, unknown> = {}) {
+  return {
+    event_id: "receipt-1",
+    event_type: "journal_entry.verified",
+    event_hash: "event-hash-1",
+    previous_event_hash: "prior-hash-1",
+    chain_index: 2,
+    firm_client_id: "fc-1",
+    engagement_id: "eng-1",
+    aggregate_type: "journal_entry_execution",
+    aggregate_id: "exec-1",
+    event_payload: {
+      execution_id: "exec-1",
+      accounting_connection_id: "connection-1",
+      company_id: "company-1",
+      firm_client_id: "fc-1",
+      engagement_id: "eng-1",
+      provider: "quickbooks",
+      provider_journal_id: "223",
+      provider_readback_hash: "readback-hash",
+      status: "VERIFIED",
+    },
+    ...overrides,
+  };
+}
+
+function harnessFor(
+  overrides: Partial<VerifiedJeProjectionHarness> = {},
+): VerifiedJeProjectionHarness {
+  const record = vi.fn().mockResolvedValue({
+    memory_id: "m-1",
+    persistence_status: "persisted",
+  });
+  return {
+    loadExecution: vi.fn().mockResolvedValue(verifiedExecution()),
+    loadVerificationLedgerEvent: vi.fn().mockResolvedValue(matchingReceipt()),
+    loadLedgerEventByHash: vi.fn().mockResolvedValue({
+      event_id: "prior-1",
+      event_hash: "prior-hash-1",
+    }),
+    record,
+    ...overrides,
   };
 }
 
@@ -142,32 +212,30 @@ describe("production JE remediation controls", () => {
     expect(legacyPost).toHaveBeenCalledOnce();
   });
 
-  it("requires a separately enabled exact production identity and bounded amount", () => {
+  it("keeps production CREATE/VERIFY OFF and rejects injectable activation policy arguments", () => {
     expect(() => assertProductionJeActivation(validActivationInput())).toThrow(
       /CREATE_PRODUCTION_JE is disabled/,
     );
     expect(() =>
-      assertProductionJeActivation(validActivationInput(), activePilotPolicy()),
+      assertProductionJeActivationWhenApplicable({
+        ...validActivationInput(),
+        qboEnvironment: "sandbox",
+        providerEnvironment: "sandbox",
+      }),
     ).not.toThrow();
-
-    const missingLimit = { ...activePilotPolicy(), maxExecutionAmountCents: null };
     expect(() =>
-      assertProductionJeActivation(validActivationInput(), missingLimit),
+      assertProductionJeActivationWhenApplicable(validActivationInput()),
     ).toThrowError(ProductionJeActivationError);
 
-    expect(() =>
-      assertProductionJeActivation(
-        { ...validActivationInput(), accountingConnectionId: "wrong" },
-        activePilotPolicy(),
-      ),
-    ).toThrow(/exact approved production pilot identity/);
-
-    expect(() =>
-      assertProductionJeActivation(
-        { ...validActivationInput(), totalDebitsCents: 101 },
-        activePilotPolicy(),
-      ),
-    ).toThrow(/exceeds the production ceiling/);
+    const src = fs.readFileSync(
+      path.join(root, "lib/journal-entry-governance/production-activation-policy.ts"),
+      "utf8",
+    );
+    expect(src).toContain("const policy = PRODUCTION_JE_ACTIVATION_POLICY");
+    expect(src).not.toMatch(/policy\?:\s*ProductionJeActivationPolicy/);
+    expect(src).not.toMatch(/assertProductionJeActivation\(\s*input\s*,/);
+    expect(src).toContain("production_amount_ceiling_missing");
+    expect(src).toContain("production_pilot_identity_missing");
   });
 
   it("has no application-level direct legacy poster imports outside the compatibility boundary", () => {
@@ -218,28 +286,17 @@ describe("production JE remediation controls", () => {
     expect(getProductionJeExceptionDisposition("VERIFIED")).toBeNull();
   });
 
-  it("keeps every production workflow disabled and requires governed execution custody", () => {
+  it("keeps every production workflow disabled and rejects injectable workflow policy", () => {
     expect(Object.values(PRODUCTION_JE_WORKFLOW_POLICY).every((v) => v === false)).toBe(true);
     expect(() =>
       assertProductionWorkflowGoverned({ workflow: "ERP_API", executionId: "exec-1" }),
     ).toThrow(/disabled/);
     expect(() =>
       assertProductionWorkflowGoverned({
-        workflow: "ERP_API",
-        executionId: null,
-        policy: { ...PRODUCTION_JE_WORKFLOW_POLICY, ERP_API: true },
-      }),
-    ).toThrow(/executionId/);
-    expect(() =>
-      assertProductionWorkflowGoverned({
-        workflow: "RECURRING_AUTO",
+        workflow: "LEARNING_BULK",
         executionId: "exec-1",
-        policy: { ...PRODUCTION_JE_WORKFLOW_POLICY, RECURRING_AUTO: true },
       }),
-    ).toThrow(/later separate phase/);
-  });
-
-  it("applies production workflow asserts only for production QB_ENVIRONMENT", () => {
+    ).toThrow(/disabled/);
     expect(() =>
       assertProductionWorkflowGovernedWhenApplicable({
         workflow: "ERP_API",
@@ -254,19 +311,17 @@ describe("production JE remediation controls", () => {
         qboEnvironment: "production",
       }),
     ).toThrowError(ProductionJeWorkflowError);
-  });
 
-  it("applies production activation asserts only for production context", () => {
-    expect(() =>
-      assertProductionJeActivationWhenApplicable({
-        ...validActivationInput(),
-        qboEnvironment: "sandbox",
-        providerEnvironment: "sandbox",
-      }),
-    ).not.toThrow();
-    expect(() =>
-      assertProductionJeActivationWhenApplicable(validActivationInput()),
-    ).toThrowError(ProductionJeActivationError);
+    const src = fs.readFileSync(
+      path.join(root, "lib/journal-entry-governance/production-workflow-policy.ts"),
+      "utf8",
+    );
+    expect(src).toContain("const policy = PRODUCTION_JE_WORKFLOW_POLICY");
+    expect(src).not.toMatch(/policy\?:\s*ProductionJeWorkflowPolicy/);
+    expect(src).not.toMatch(/assertProductionWorkflowGoverned\(\{[\s\S]*?policy:/);
+    expect(src).toContain("production_workflow_auto_phase_required");
+    expect(src).toContain("LEARNING_BULK");
+    expect(src).toContain("RECURRING_AUTO");
   });
 
   it("wires production fail-closed gates into create, verify, and workflow call sites", () => {
@@ -302,52 +357,203 @@ describe("production JE remediation controls", () => {
     ).toContain('productionWorkflow: "RECURRING_AUTO"');
   });
 
-  it("projects only VERIFIED custody and labels Memory non-authoritative", async () => {
-    const record = vi.fn().mockResolvedValue({
-      memory_id: "m-1",
-      persistence_status: "persisted",
-    });
-    const base = {
-      firmClientId: "fc-1",
-      executionId: "exec-1",
-      executionStatus: "VERIFIED",
-      providerJournalId: "223",
-      providerReadbackHash: "readback-hash",
-      verificationLedgerEventId: "receipt-1",
-      verifiedAt: "2026-08-30T00:00:00Z",
-      transactionDate: "2026-08-30",
-      currency: "USD",
-      totalDebitsCents: 100,
-      totalCreditsCents: 100,
-    };
+  it("keeps Memory projection OFF and rejects public policy or fabricated custody input", async () => {
+    const record = vi.fn();
     await expect(
-      projectVerifiedJournalEntryToMemory(base, { record }),
+      projectVerifiedJournalEntryToMemory({ executionId: "exec-1" }),
     ).rejects.toThrow(/capability is disabled/);
     expect(record).not.toHaveBeenCalled();
 
-    const enabledDeps = {
-      record,
-      policy: { memoryProjectionAllowed: true },
-    };
-    await projectVerifiedJournalEntryToMemory(base, enabledDeps);
-    expect(record).toHaveBeenCalledWith(
-      expect.objectContaining({
-        memoryKey: "verified_je_exec-1",
-        sourceSystem: "patent_6_verified_projection",
-        payload: expect.objectContaining({
-          authority: "NON_AUTHORITATIVE_MEMORY_PROJECTION",
-          verification_ledger_event_id: "receipt-1",
-          provider_success_authority: false,
-        }),
-      }),
+    const publicSrc = fs.readFileSync(
+      path.join(root, "lib/journal-entry-governance/verified-memory-projection.ts"),
+      "utf8",
     );
-    await expect(
-      projectVerifiedJournalEntryToMemory(
-        { ...base, executionStatus: "POSTED_UNVERIFIED" },
-        enabledDeps,
-      ),
-    ).rejects.toThrowError(VerifiedJeProjectionError);
-    expect(record).toHaveBeenCalledTimes(1);
+    expect(publicSrc).toContain("PRODUCTION_JE_ACTIVATION_POLICY.memoryProjectionAllowed");
+    expect(publicSrc).not.toMatch(/policy\?\s*:/);
+    expect(publicSrc).not.toContain("memoryProjectionAllowed: true");
+    expect(publicSrc).toContain("export type ProjectVerifiedJeToMemoryInput");
+    expect(publicSrc).toMatch(
+      /export type ProjectVerifiedJeToMemoryInput = \{\s*executionId: string;\s*\}/,
+    );
+    expect(publicSrc).not.toContain("executionStatus:");
+    expect(publicSrc).not.toMatch(
+      /ProjectVerifiedJeToMemoryInput = \{[^}]*totalDebitsCents/,
+    );
+
+    const barrel = fs.readFileSync(
+      path.join(root, "lib/journal-entry-governance/index.ts"),
+      "utf8",
+    );
+    expect(barrel).toContain("projectVerifiedJournalEntryToMemory");
+    expect(barrel).not.toContain("projectVerifiedJournalEntryToMemoryForTests");
+    expect(barrel).not.toContain("VerifiedJeProjectionDeps");
+  });
+
+  it("projects only after loading exact VERIFIED custody and Patent #6 receipt", async () => {
+    // Force the capability gate open only by temporarily mutating the const-shaped
+    // object is impossible without changing checked-in policy; use Object.defineProperty
+    // on a clone path is also blocked. Instead exercise the harness after swapping
+    // the module-level read via a local spy on PRODUCTION_JE_ACTIVATION_POLICY.
+    const policy = PRODUCTION_JE_ACTIVATION_POLICY as {
+      memoryProjectionAllowed: boolean;
+    };
+    const previous = policy.memoryProjectionAllowed;
+    policy.memoryProjectionAllowed = true;
+    try {
+      const h = harnessFor();
+      await projectVerifiedJournalEntryToMemoryForTests({ executionId: "exec-1" }, h);
+      expect(h.loadExecution).toHaveBeenCalledWith("exec-1");
+      expect(h.loadVerificationLedgerEvent).toHaveBeenCalledWith("receipt-1");
+      expect(h.loadLedgerEventByHash).toHaveBeenCalledWith("prior-hash-1");
+      expect(h.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          memoryKey: "verified_je_exec-1",
+          sourceSystem: "patent_6_verified_projection",
+          payload: expect.objectContaining({
+            authority: "NON_AUTHORITATIVE_MEMORY_PROJECTION",
+            provider_success_authority: false,
+            rebuild_source: "PATENT_6_CHAIN_RECEIPT",
+            verification_ledger_event_id: "receipt-1",
+            provider_journal_id: "223",
+            provider_readback_hash: "readback-hash",
+            total_debits_cents: 100,
+            total_credits_cents: 100,
+            transaction_date: "2026-08-30",
+            currency: "USD",
+          }),
+        }),
+      );
+    } finally {
+      policy.memoryProjectionAllowed = previous;
+    }
+  });
+
+  it("blocks Memory when receipt, identity, readback, or chain linkage mismatches", async () => {
+    const policy = PRODUCTION_JE_ACTIVATION_POLICY as {
+      memoryProjectionAllowed: boolean;
+    };
+    const previous = policy.memoryProjectionAllowed;
+    policy.memoryProjectionAllowed = true;
+    try {
+      const cases: Array<{
+        name: string;
+        harness: VerifiedJeProjectionHarness;
+        code: string;
+      }> = [
+        {
+          name: "not verified",
+          harness: harnessFor({
+            loadExecution: vi
+              .fn()
+              .mockResolvedValue(verifiedExecution({ status: "POSTED_UNVERIFIED" })),
+          }),
+          code: "memory_projection_requires_verified",
+        },
+        {
+          name: "missing lineage",
+          harness: harnessFor({
+            loadExecution: vi.fn().mockResolvedValue(
+              verifiedExecution({ provider_readback_hash: null }),
+            ),
+          }),
+          code: "memory_projection_lineage_incomplete",
+        },
+        {
+          name: "receipt missing",
+          harness: harnessFor({
+            loadVerificationLedgerEvent: vi.fn().mockResolvedValue(null),
+          }),
+          code: "memory_projection_receipt_not_found",
+        },
+        {
+          name: "wrong event type",
+          harness: harnessFor({
+            loadVerificationLedgerEvent: vi.fn().mockResolvedValue(
+              matchingReceipt({ event_type: "journal_entry.posted" }),
+            ),
+          }),
+          code: "memory_projection_receipt_type_invalid",
+        },
+        {
+          name: "connection mismatch",
+          harness: harnessFor({
+            loadVerificationLedgerEvent: vi.fn().mockResolvedValue(
+              matchingReceipt({
+                event_payload: {
+                  ...matchingReceipt().event_payload,
+                  accounting_connection_id: "other-connection",
+                },
+              }),
+            ),
+          }),
+          code: "memory_projection_receipt_connection_mismatch",
+        },
+        {
+          name: "provider id mismatch",
+          harness: harnessFor({
+            loadVerificationLedgerEvent: vi.fn().mockResolvedValue(
+              matchingReceipt({
+                event_payload: {
+                  ...matchingReceipt().event_payload,
+                  provider_journal_id: "999",
+                },
+              }),
+            ),
+          }),
+          code: "memory_projection_receipt_provider_id_mismatch",
+        },
+        {
+          name: "readback mismatch",
+          harness: harnessFor({
+            loadVerificationLedgerEvent: vi.fn().mockResolvedValue(
+              matchingReceipt({
+                event_payload: {
+                  ...matchingReceipt().event_payload,
+                  provider_readback_hash: "other-hash",
+                },
+              }),
+            ),
+          }),
+          code: "memory_projection_receipt_readback_mismatch",
+        },
+        {
+          name: "broken chain link",
+          harness: harnessFor({
+            loadLedgerEventByHash: vi.fn().mockResolvedValue(null),
+          }),
+          code: "memory_projection_chain_link_invalid",
+        },
+        {
+          name: "company mismatch",
+          harness: harnessFor({
+            loadVerificationLedgerEvent: vi.fn().mockResolvedValue(
+              matchingReceipt({
+                event_payload: {
+                  ...matchingReceipt().event_payload,
+                  company_id: "other-company",
+                },
+              }),
+            ),
+          }),
+          code: "memory_projection_receipt_company_mismatch",
+        },
+      ];
+
+      for (const testCase of cases) {
+        await expect(
+          projectVerifiedJournalEntryToMemoryForTests(
+            { executionId: "exec-1" },
+            testCase.harness,
+          ),
+        ).rejects.toMatchObject({
+          name: "VerifiedJeProjectionError",
+          code: testCase.code,
+        });
+        expect(testCase.harness.record).not.toHaveBeenCalled();
+      }
+    } finally {
+      policy.memoryProjectionAllowed = previous;
+    }
   });
 });
 

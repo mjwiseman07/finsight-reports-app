@@ -30,12 +30,15 @@ export class ProductionJeWorkflowError extends Error {
   }
 }
 
+/**
+ * Public enforcement — always uses canonical PRODUCTION_JE_WORKFLOW_POLICY.
+ * No caller-supplied policy override is accepted.
+ */
 export function assertProductionWorkflowGoverned(args: {
   workflow: ProductionJeWorkflow;
   executionId: string | null | undefined;
-  policy?: ProductionJeWorkflowPolicy;
 }): void {
-  const policy = args.policy ?? PRODUCTION_JE_WORKFLOW_POLICY;
+  const policy = PRODUCTION_JE_WORKFLOW_POLICY;
   if (!policy[args.workflow]) {
     throw new ProductionJeWorkflowError(
       "production_workflow_disabled",
@@ -59,12 +62,12 @@ export function assertProductionWorkflowGoverned(args: {
 /**
  * Legacy/non-governed workflows may continue in non-production environments.
  * Production process env must pass the workflow registry before any poster call.
+ * Always uses canonical PRODUCTION_JE_WORKFLOW_POLICY — no injectable override.
  */
 export function assertProductionWorkflowGovernedWhenApplicable(args: {
   workflow: ProductionJeWorkflow;
   executionId: string | null | undefined;
   qboEnvironment?: string | null;
-  policy?: ProductionJeWorkflowPolicy;
 }): void {
   if ((args.qboEnvironment ?? process.env.QB_ENVIRONMENT) !== "production") {
     return;
@@ -72,6 +75,5 @@ export function assertProductionWorkflowGovernedWhenApplicable(args: {
   assertProductionWorkflowGoverned({
     workflow: args.workflow,
     executionId: args.executionId,
-    policy: args.policy,
   });
 }

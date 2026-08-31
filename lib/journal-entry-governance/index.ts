@@ -297,10 +297,7 @@ export {
   VerifiedJeProjectionError,
   projectVerifiedJournalEntryToMemory,
 } from "./verified-memory-projection";
-export type {
-  VerifiedJeProjectionInput,
-  VerifiedJeProjectionDeps,
-} from "./verified-memory-projection";
+export type { ProjectVerifiedJeToMemoryInput } from "./verified-memory-projection";
 export { getProductionJeExceptionDisposition } from "./production-exception-operations";
 export type {
   ProductionJeExceptionAction,
