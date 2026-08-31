@@ -79,9 +79,9 @@ async function loadLedgerEventsForExecution(
   const { data, error } = await supabase
     .from("ledger_events")
     .select("event_id, event_type, created_at")
-    .eq("entity_type", "journal_entry_execution")
-    .eq("entity_id", executionId)
-    .order("created_at", { ascending: true });
+    .eq("aggregate_type", "journal_entry_execution")
+    .eq("aggregate_id", executionId)
+    .order("chain_index", { ascending: true });
   if (error) return [];
   return (data || []) as LedgerEventRow[];
 }
