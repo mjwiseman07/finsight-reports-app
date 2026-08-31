@@ -41,13 +41,11 @@ function IdentityRow({ label, value }: { label: string; value: string }) {
 function CapabilityBadge({
   label,
   enabled,
-  inverted = false,
 }: {
   label: string;
   enabled: boolean;
-  inverted?: boolean;
 }) {
-  const off = inverted ? enabled : !enabled;
+  const off = !enabled;
   return (
     <span
       className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
@@ -57,6 +55,20 @@ function CapabilityBadge({
       }`}
     >
       {label}: {off ? "OFF" : "ON"}
+    </span>
+  );
+}
+
+function DispatchKillSwitchBadge({ engaged }: { engaged: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+        engaged
+          ? "border-[#B85C5C]/40 bg-[#B85C5C]/15 text-[#F0BFBF]"
+          : "border-[#6DAA45]/40 bg-[#6DAA45]/15 text-[#B5E28A]"
+      }`}
+    >
+      Kill switch: {engaged ? "ON (dispatch blocked)" : "OFF (dispatch permitted)"}
     </span>
   );
 }
@@ -190,7 +202,9 @@ export default function SandboxJeCockpitClient({
                 <CapabilityBadge label="Memory" enabled={allowlist.capabilities.memory} />
                 <CapabilityBadge label="worker" enabled={allowlist.capabilities.worker} />
                 <CapabilityBadge label="GOVERNED_AUTO" enabled={allowlist.capabilities.governed_auto} />
-                <CapabilityBadge label="kill switch" enabled={allowlist.capabilities.kill_switch} inverted />
+                <DispatchKillSwitchBadge
+                  engaged={allowlist.capabilities.dispatch_kill_switch_engaged}
+                />
               </div>
               <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold uppercase tracking-wide text-[#F0BFBF]">
                 <span>POST DISABLED</span>

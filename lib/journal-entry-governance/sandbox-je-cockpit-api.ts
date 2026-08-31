@@ -111,7 +111,7 @@ export function resolveSandboxCockpitCapabilityState(): SandboxCockpitCapability
     memory: policy.memoryWriteAllowed,
     worker: policy.workerAllowed,
     governed_auto: policy.governedAutoAllowed,
-    kill_switch: policy.sandboxDispatchKillSwitch,
+    dispatch_kill_switch_engaged: policy.sandboxDispatchKillSwitch,
     post_disabled: true,
     verify_disabled: true,
   };

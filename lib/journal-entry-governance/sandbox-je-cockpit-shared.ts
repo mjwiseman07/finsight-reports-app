@@ -37,10 +37,16 @@ export type SandboxCockpitCapabilityState = {
   memory: boolean;
   worker: boolean;
   governed_auto: boolean;
-  kill_switch: boolean;
+  /** True when sandbox dispatch kill switch is engaged (provider POST blocked). */
+  dispatch_kill_switch_engaged: boolean;
   post_disabled: true;
   verify_disabled: true;
 };
+
+/** Unambiguous cockpit label — engaged means dispatch is blocked. */
+export function formatDispatchKillSwitchLabel(engaged: boolean): string {
+  return engaged ? "ON (dispatch blocked)" : "OFF (dispatch permitted)";
+}
 
 export type SafeSandboxAllowlistResponse = {
   qb_environment: "sandbox";

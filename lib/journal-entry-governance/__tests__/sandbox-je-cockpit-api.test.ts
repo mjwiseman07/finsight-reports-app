@@ -87,6 +87,8 @@ import {
   rejectSandboxCockpitRequestOverrides,
   resolveSandboxCockpitCapabilityState,
 } from "../sandbox-je-cockpit-api";
+import { formatDispatchKillSwitchLabel } from "../sandbox-je-cockpit-shared";
+import { JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY } from "../je3d-first-controlled-create-activation";
 
 function mockPatent6ChainSupabase(rows: Record<string, unknown>[]) {
   const finalOrder = vi.fn().mockResolvedValue({ data: rows, error: null });
@@ -425,7 +427,7 @@ describe("sandbox JE cockpit API", () => {
     expect(payload.capabilities.memory).toBe(false);
     expect(payload.capabilities.worker).toBe(false);
     expect(payload.capabilities.governed_auto).toBe(false);
-    expect(payload.capabilities.kill_switch).toBe(true);
+    expect(payload.capabilities.dispatch_kill_switch_engaged).toBe(true);
     expect(payload.checklist.kill_switch_blocks_dispatch).toBe(true);
     expect(payload.checklist.create_capability_on).toBe(false);
   });
@@ -434,7 +436,35 @@ describe("sandbox JE cockpit API", () => {
     const caps = resolveSandboxCockpitCapabilityState();
     expect(caps.post_disabled).toBe(true);
     expect(caps.verify_disabled).toBe(true);
-    expect(caps.kill_switch).toBe(true);
+    expect(caps.dispatch_kill_switch_engaged).toBe(true);
+  });
+
+  it("dispatch kill switch label is unambiguous (engaged blocks dispatch)", () => {
+    expect(formatDispatchKillSwitchLabel(true)).toBe("ON (dispatch blocked)");
+    expect(formatDispatchKillSwitchLabel(false)).toBe("OFF (dispatch permitted)");
+  });
+
+  it("fail-closed activation policy maps to engaged dispatch kill switch", () => {
+    expect(
+      JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY.sandboxDispatchKillSwitch,
+    ).toBe(true);
+    const caps = resolveSandboxCockpitCapabilityState();
+    expect(caps.dispatch_kill_switch_engaged).toBe(
+      JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY.sandboxDispatchKillSwitch,
+    );
+    expect(formatDispatchKillSwitchLabel(caps.dispatch_kill_switch_engaged)).toBe(
+      "ON (dispatch blocked)",
+    );
+  });
+
+  it("allowlist response exposes engaged kill switch without inverting semantics", () => {
+    const payload = buildSafeAllowlistResponse(canonicalDemoAAllowlist());
+    expect(payload.capabilities.dispatch_kill_switch_engaged).toBe(true);
+    expect(payload.capabilities.post_disabled).toBe(true);
+    expect(payload.capabilities.verify_disabled).toBe(true);
+    expect(formatDispatchKillSwitchLabel(payload.capabilities.dispatch_kill_switch_engaged)).toBe(
+      "ON (dispatch blocked)",
+    );
   });
 
   it("fetchSandboxAllowlistForCockpit fails closed in production env", async () => {
@@ -585,5 +615,18 @@ describe("sandbox JE cockpit static safety scans", () => {
     expect(src).not.toMatch(/method:\s*"PUT"/);
     expect(src).toMatch(/POST DISABLED/);
     expect(src).toMatch(/VERIFY DISABLED/);
+  });
+
+  it("cockpit client renders dispatch kill switch without inverted double-negative", () => {
+    const src = fs.readFileSync(
+      path.join(root, "app/admin/sandbox-je/SandboxJeCockpitClient.tsx"),
+      "utf8",
+    );
+    expect(src).not.toMatch(/\binverted\b/);
+    expect(src).toMatch(/DispatchKillSwitchBadge/);
+    expect(src).toMatch(/dispatch_kill_switch_engaged/);
+    expect(src).toMatch(/ON \(dispatch blocked\)/);
+    expect(src).not.toMatch(/capabilities\.kill_switch/);
+    expect(src).not.toMatch(/label="kill switch"/);
   });
 });
