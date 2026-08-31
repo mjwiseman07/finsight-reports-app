@@ -6,11 +6,12 @@ import { randomUUID } from "node:crypto";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { upsertMemory } from "@/lib/memory/client-memory-service";
 import { wilsonScoreLower } from "@/lib/learning/confidence";
-import { qboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster";
+import { legacyJournalEntryPostingService } from "@/lib/erp/quickbooks/legacy-je-posting-service";
 import type { JEPayload } from "@/lib/erp/types";
 import { findUncategorizedTxns } from "@/lib/learning/uncategorized-detector";
 import { composeProposals } from "@/lib/learning/proposal-composer";
 import { triggerRunnerForProposal } from "@/lib/rules/hooks/trigger-runner";
+import { assertProductionWorkflowGovernedWhenApplicable } from "@/lib/journal-entry-governance/production-workflow-policy";
 import type {
   AcceptProposalInput,
   AcceptProposalResponse,
@@ -250,7 +251,12 @@ export async function acceptProposal(
     proposal.suggested_account_id != null && finalAccountId !== proposal.suggested_account_id;
   const idempotencyKey = `d4_accept_${proposalId}`;
 
-  const postResult = await qboJournalEntryPoster.post({
+  assertProductionWorkflowGovernedWhenApplicable({
+    workflow: "LEARNING_SINGLE",
+    executionId: null,
+  });
+
+  const postResult = await legacyJournalEntryPostingService.post({
     firm_client_id: proposal.firm_client_id,
     idempotency_key: idempotencyKey,
     source_type: "rule",
@@ -453,7 +459,12 @@ export async function bulkAcceptProposals(
     const proposal = proposals[i];
     const idempotencyKey = `d4_bulk_${batchId}_${proposal.proposal_id}`;
 
-    const postResult = await qboJournalEntryPoster.post({
+    assertProductionWorkflowGovernedWhenApplicable({
+      workflow: "LEARNING_BULK",
+      executionId: null,
+    });
+
+    const postResult = await legacyJournalEntryPostingService.post({
       firm_client_id: proposal.firm_client_id,
       idempotency_key: idempotencyKey,
       source_type: "rule",

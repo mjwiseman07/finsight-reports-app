@@ -27,6 +27,10 @@ import { establishGovernedPostingStartedHandoff } from "./provider-create-postin
 import { loadAccountsFromCoaMirror } from "./source-custody";
 import type { CoaMirrorAccountRow } from "./je3d-first-run-account-authority";
 import {
+  ProductionJeActivationError,
+  assertProductionJeActivation,
+} from "./production-activation-policy";
+import {
   runGovernedJournalEntryCreateOrchestration,
   type ExecuteGovernedJeCreateInput,
   type ExecuteGovernedJeCreateResult,
@@ -86,6 +90,8 @@ async function loadCoaMirrorRowsForProposal(args: {
  * Default: fail-closed (CREATE_SANDBOX_JE capability OFF).
  * When capability is ON: sandbox-only wired orchestration for ONE approved
  * first-run execution — still no Memory.
+ *
+ * Production QB_ENVIRONMENT never enters JE-3D sandbox orchestration.
  */
 export async function executeGovernedJournalEntryCreate(
   input: ExecuteGovernedJournalEntryCreateInput,
@@ -93,6 +99,35 @@ export async function executeGovernedJournalEntryCreate(
 ): Promise<ExecuteGovernedJeCreateResult> {
   void JE_MEMORY_PROJECTION_CONTRACT;
   rejectCallerTransportOverrides(input as Record<string, unknown>);
+
+  if (process.env.QB_ENVIRONMENT === "production") {
+    const execution = await loadExactExecution(input.executionId);
+    if (!execution) {
+      return firstRunDenied("je_execution_not_found", "Execution not found.");
+    }
+    const proposal = await loadExactJournalEntryProposal(execution.proposal_id);
+    try {
+      assertProductionJeActivation({
+        capability: "CREATE_PRODUCTION_JE",
+        companyId: execution.company_id,
+        accountingConnectionId: execution.accounting_connection_id,
+        realmId: "",
+        provider: execution.provider,
+        providerEnvironment: "production",
+        totalDebitsCents: proposal.total_debits_cents,
+        qboEnvironment: "production",
+      });
+    } catch (err) {
+      if (err instanceof ProductionJeActivationError) {
+        return firstRunDenied(err.code, err.message);
+      }
+      throw err;
+    }
+    return firstRunDenied(
+      "production_governed_create_path_not_armed",
+      "Production governed create path is not armed.",
+    );
+  }
 
   const activationPolicy = resolveJe3dActivationPolicy();
   assertJe3dCreateActivationPolicy(activationPolicy);

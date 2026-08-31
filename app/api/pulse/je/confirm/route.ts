@@ -10,9 +10,13 @@ import { requirePulseJeEntitlement } from "@/lib/pulse-je/entitlement";
 import { buildJeCompositionFromPreview } from "@/lib/pulse-je/composition-builder";
 import { computePulseJeIdempotencyKey } from "@/lib/pulse-je/idempotency";
 import { validateJeComposition } from "@/lib/je-evidence/contract";
-import { qboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster";
+import { legacyJournalEntryPostingService } from "@/lib/erp/quickbooks/legacy-je-posting-service";
 import type { JePreviewPayload } from "@/lib/pulse-je/types";
 import type { JEPayload, JEPostRequest } from "@/lib/erp/types";
+import {
+  ProductionJeWorkflowError,
+  assertProductionWorkflowGovernedWhenApplicable,
+} from "@/lib/journal-entry-governance/production-workflow-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -223,8 +227,18 @@ export async function POST(request: Request) {
 
   let result;
   try {
-    result = await qboJournalEntryPoster.post(req);
+    assertProductionWorkflowGovernedWhenApplicable({
+      workflow: "PULSE_CONFIRMATION",
+      executionId: null,
+    });
+    result = await legacyJournalEntryPostingService.post(req);
   } catch (err: unknown) {
+    if (err instanceof ProductionJeWorkflowError) {
+      return NextResponse.json(
+        { error: err.code, message: err.message },
+        { status: 403 },
+      );
+    }
     const message = String((err as { message?: string })?.message || err);
     await auditSecurityEvent({
       eventType: "pulse_je_confirm_poster_threw",

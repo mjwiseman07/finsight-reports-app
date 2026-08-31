@@ -169,7 +169,7 @@ async function fireOneTemplate(
   // memory framework records the observation so confidence in "this client is
   // cash basis" grows on repeat.
   //
-  // D2's poster (lib/erp/quickbooks/journal-entry-poster.ts) remains the
+  // The D2 compatibility posting boundary remains the
   // last-line safety net for any code path that bypasses this branch.
   //
   // NOTE (drift, from D5.2): the D5.2 spec step (d) listed `je_payload_snapshot`,

@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { resolveFirmAccess } from "@/lib/firm-security.js";
-import { qboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster";
+import { legacyJournalEntryPostingService } from "@/lib/erp/quickbooks/legacy-je-posting-service";
 import { requireApproval } from "@/lib/pre-close/require-approval";
 import { logGap3Action } from "@/lib/pre-close/gap3-log";
 import { recordQboApiTrace } from "@/lib/qbo/api-trace";
 import { createServiceClient } from "@/lib/supabase/service";
+import {
+  ProductionJeWorkflowError,
+  assertProductionWorkflowGovernedWhenApplicable,
+} from "@/lib/journal-entry-governance/production-workflow-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,8 +66,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: gate.reason }, { status });
   }
 
+  try {
+    assertProductionWorkflowGovernedWhenApplicable({
+      workflow: "ERP_API",
+      executionId: body?.governed_execution_id ?? null,
+    });
+  } catch (err) {
+    if (err instanceof ProductionJeWorkflowError) {
+      return NextResponse.json(
+        { error: err.code, message: err.message },
+        { status: 403 },
+      );
+    }
+    throw err;
+  }
+
   const startedAt = Date.now();
-  const result = await qboJournalEntryPoster.post({
+  const result = await legacyJournalEntryPostingService.post({
     firm_client_id,
     idempotency_key,
     source_type,

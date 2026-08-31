@@ -3,7 +3,7 @@
  */
 import { createServiceClient } from "@/lib/supabase/service";
 import { publishEvent, type ActorType } from "@/lib/events/publisher";
-import { qboJournalEntryPoster } from "@/lib/erp/quickbooks/journal-entry-poster";
+import { legacyJournalEntryPostingService } from "@/lib/erp/quickbooks/legacy-je-posting-service";
 import { runRemediationPipeline } from "@/lib/pre-close/remediation-pipeline";
 import {
   resolvePostingPolicy,
@@ -16,6 +16,7 @@ import { assertEntitlement, EntitlementDenied } from "@/lib/entitlements/gate";
 import { requireApproval } from "@/lib/pre-close/require-approval";
 import { logGap3Action } from "@/lib/pre-close/gap3-log";
 import type { JEDraft } from "@/lib/pre-close/types";
+import { assertProductionWorkflowGovernedWhenApplicable } from "@/lib/journal-entry-governance/production-workflow-policy";
 
 export interface PostApprovedInput {
   reviewItemId: string;
@@ -155,7 +156,11 @@ export async function postApprovedReviewItem(
   }
 
   const idempotencyKey = `pre_close_review_${row.id}`;
-  const post = await qboJournalEntryPoster.post({
+  assertProductionWorkflowGovernedWhenApplicable({
+    workflow: "PRE_CLOSE_REVIEW",
+    executionId: null,
+  });
+  const post = await legacyJournalEntryPostingService.post({
     firm_client_id: row.firmClientId,
     idempotency_key: idempotencyKey,
     source_type: "rule",

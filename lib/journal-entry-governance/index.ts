@@ -282,6 +282,41 @@ export type {
   GovernedJeActivationLineInspection,
 } from "./je3d-activation-inspection";
 export { verifyGovernedJournalEntry } from "./provider-verification-service";
+export {
+  PRODUCTION_JE_ACTIVATION_POLICY,
+  ProductionJeActivationError,
+  assertProductionJeActivation,
+  assertProductionJeActivationWhenApplicable,
+} from "./production-activation-policy";
+export type {
+  ProductionJeActivationPolicy,
+  ProductionJeCapability,
+  ProductionPilotIdentity,
+} from "./production-activation-policy";
+export {
+  VerifiedJeProjectionError,
+  projectVerifiedJournalEntryToMemory,
+} from "./verified-memory-projection";
+export type {
+  VerifiedJeProjectionInput,
+  VerifiedJeProjectionDeps,
+} from "./verified-memory-projection";
+export { getProductionJeExceptionDisposition } from "./production-exception-operations";
+export type {
+  ProductionJeExceptionAction,
+  ProductionJeExceptionDisposition,
+} from "./production-exception-operations";
+export {
+  PRODUCTION_JE_WORKFLOWS,
+  PRODUCTION_JE_WORKFLOW_POLICY,
+  ProductionJeWorkflowError,
+  assertProductionWorkflowGoverned,
+  assertProductionWorkflowGovernedWhenApplicable,
+} from "./production-workflow-policy";
+export type {
+  ProductionJeWorkflow,
+  ProductionJeWorkflowPolicy,
+} from "./production-workflow-policy";
 export type {
   VerifyGovernedJeInput,
   VerifyGovernedJeResult,

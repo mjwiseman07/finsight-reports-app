@@ -5,8 +5,9 @@
  * cash-basis gate, write-enabled + health gate, token resolution, currency
  * resolution (MC-3), payload validation (currency-aware), exchange rate
  * resolution (MC-3), QBO body build with CurrencyRef + ExchangeRate, then
- * posts with one forced-refresh retry on 401. Every attempt writes exactly
- * one row to je_posting_audit; every success records a posted_je memory.
+ * issues at most one provider POST. Every attempt writes exactly one row to
+ * je_posting_audit. Provider-success Memory projection is forbidden here and
+ * belongs downstream of governed exact-ID verification.
  */
 import { getSupabaseAdmin } from "@/lib/supabase-admin.js";
 import { resolveQBOTokenForFirmClient } from "@/lib/erp/quickbooks/token-resolver";
@@ -21,7 +22,6 @@ import type {
   JEPayload,
   DataSourceReliabilityBasis,
 } from "@/lib/erp/types";
-import { recordMemory } from "@/lib/memory/client-memory-service";
 import { persistJeEvidence } from "@/lib/je-evidence/persist";
 import { dispatchBackupPacket } from "@/lib/je-evidence/dispatch-hook";
 import { resolveFireAssertions } from "@/lib/assertions/resolve-rule-assertions";
@@ -294,37 +294,24 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
       }
     }
 
-    // 9. Post with one 401 retry after forced refresh
-    let postResp = await postToQBO(
+    // 9. Exactly one provider POST. Once dispatch begins, no HTTP result may
+    // trigger a second POST. Ambiguous outcomes require governed discovery.
+    const postResp = await postToQBO(
       tokenResult.realmId,
       tokenResult.accessToken,
       qboBody,
       req.posted_by_user_id,
       req.firm_client_id,
     );
-    if (postResp.status === 401) {
-      const refreshed = await resolveQBOTokenForFirmClient(req.firm_client_id, { forceRefresh: true });
-      if (!refreshed) {
-        await finalizeFail(attemptId, req, "token_refresh_failed", undefined, resolvedAssertions, resolvedReliability, currencyCtx);
-        return { status: "failed", attempt_id: attemptId, error: "token_refresh_failed", retryable: true };
-      }
-      postResp = await postToQBO(
-        refreshed.realmId,
-        refreshed.accessToken,
-        qboBody,
-        req.posted_by_user_id,
-        req.firm_client_id,
-      );
-    }
-
     if (!postResp.ok) {
       const errBody = await postResp.json().catch(() => ({}));
-      await finalizeFail(attemptId, req, `qbo_${postResp.status}`, errBody, resolvedAssertions, resolvedReliability, currencyCtx);
+      const errorCode = `qbo_${postResp.status}_post_dispatch_unknown_commit`;
+      await finalizeFail(attemptId, req, errorCode, errBody, resolvedAssertions, resolvedReliability, currencyCtx);
       return {
         status: "failed",
         attempt_id: attemptId,
-        error: `qbo_${postResp.status}`,
-        retryable: postResp.status >= 500,
+        error: errorCode,
+        retryable: false,
       };
     }
 
@@ -335,28 +322,9 @@ export const qboJournalEntryPoster: IJournalEntryPoster = {
       return { status: "failed", attempt_id: attemptId, error: "qbo_response_missing_id", retryable: false };
     }
 
-    // 10. Success — persist + memory
+    // 10. Success — persist provider result only. Memory must wait for a
+    // governed exact-ID verification receipt and is never provider authority.
     await finalizePost(attemptId, req, qboJEId, resolvedAssertions, resolvedReliability, currencyCtx);
-    await recordMemory({
-      firmClientId: req.firm_client_id,
-      memoryType: "posted_je",
-      memoryKey: `posted_je_${qboJEId}`,
-      entityType: "journal_entry",
-      entityId: String(qboJEId),
-      sourceSystem: "je_poster",
-      payload: {
-        qbo_je_id: qboJEId,
-        source_type: req.source_type,
-        source_id: req.source_id,
-        transaction_date: req.payload.transaction_date,
-        dr_total: sumSide(req.payload, "Debit"),
-        cr_total: sumSide(req.payload, "Credit"),
-        line_count: req.payload.lines.length,
-        currency: currencyCtx.currency,
-        exchange_rate: currencyCtx.exchange_rate,
-        home_currency_at_post: currencyCtx.home_currency,
-      },
-    });
 
     if (composition) dispatchBackupPacket(supabase, attemptId, req.firm_client_id);
 
