@@ -31,6 +31,12 @@ import {
 import { buildJe3dPreDispatchChecklistReport } from "./je3d-pre-dispatch-checklist";
 import { loadExactExecution } from "./provider-attempt-service";
 import {
+  assertPatent6ChainReceiptCustody,
+  LEDGER_EVENTS_PATENT6_CHAIN_SELECT,
+  parseLedgerEventPatent6ChainRow,
+  type LedgerEventPatent6ChainRow,
+} from "./ledger-events-schema";
+import {
   SANDBOX_JE_COCKPIT_CANADIAN_REALM_EXCLUDED,
   SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
   type Patent6ChainReceiptEvent,
@@ -171,33 +177,41 @@ export function buildSafeAllowlistResponse(
 
 export async function loadPatent6ChainReceiptEvents(
   executionId: string,
+  verificationReceiptId?: string | null,
 ): Promise<Patent6ChainReceiptEvent[]> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("ledger_events")
-    .select(
-      "event_id, event_type, event_hash, previous_event_hash, chain_index, aggregate_type, aggregate_id, created_at",
-    )
+    .select(LEDGER_EVENTS_PATENT6_CHAIN_SELECT)
     .eq("aggregate_type", "journal_entry_execution")
     .eq("aggregate_id", executionId)
-    .order("chain_index", { ascending: true });
+    .order("chain_index", { ascending: true, nullsFirst: false })
+    .order("event_sequence", { ascending: true });
   if (error) {
     throw new Je3dActivationError(
       JE_3D_ACTIVATION_ERROR.ALLOWLIST_UNRESOLVED,
       `Failed to load Patent #6 chain receipt events: ${error.message}`,
     );
   }
-  return (data || []).map((row: Record<string, unknown>) => ({
-    event_id: String(row.event_id),
-    event_type: String(row.event_type),
-    event_hash: row.event_hash ? String(row.event_hash) : null,
-    previous_event_hash: row.previous_event_hash
-      ? String(row.previous_event_hash)
-      : null,
-    chain_index: row.chain_index == null ? null : Number(row.chain_index),
-    aggregate_type: row.aggregate_type ? String(row.aggregate_type) : null,
-    aggregate_id: row.aggregate_id ? String(row.aggregate_id) : null,
-    created_at: String(row.created_at),
+  const parsed = (data || []).map((row: Record<string, unknown>) =>
+    parseLedgerEventPatent6ChainRow(row),
+  );
+  assertPatent6ChainReceiptCustody({
+    executionId,
+    events: parsed,
+    verificationReceiptId,
+  });
+  return parsed.map((row: LedgerEventPatent6ChainRow) => ({
+    event_id: row.event_id,
+    event_type: row.event_type,
+    event_hash: row.event_hash,
+    previous_event_hash: row.previous_event_hash,
+    chain_index: row.chain_index,
+    event_sequence: row.event_sequence,
+    aggregate_type: row.aggregate_type,
+    aggregate_id: row.aggregate_id,
+    occurred_at: row.occurred_at,
+    recorded_at: row.recorded_at,
   }));
 }
 
@@ -239,12 +253,17 @@ export async function fetchSandboxInspectionForCockpit(
         event_type: event.event_type,
         event_hash: null,
         previous_event_hash: null,
-        chain_index: null,
+        chain_index: event.chain_index ?? null,
+        event_sequence: event.event_sequence ?? null,
         aggregate_type: "journal_entry_execution" as const,
         aggregate_id: executionId,
-        created_at: event.created_at,
+        occurred_at: "",
+        recorded_at: "",
       }))
-    : await loadPatent6ChainReceiptEvents(executionId);
+    : await loadPatent6ChainReceiptEvents(
+        executionId,
+        inspection.verification_receipt_id,
+      );
 
   return {
     inspection,

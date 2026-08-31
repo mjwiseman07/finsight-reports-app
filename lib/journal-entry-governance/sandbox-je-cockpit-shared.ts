@@ -22,9 +22,13 @@ export type Patent6ChainReceiptEvent = {
   event_hash: string | null;
   previous_event_hash: string | null;
   chain_index: number | null;
-  aggregate_type: string | null;
-  aggregate_id: string | null;
-  created_at: string;
+  event_sequence: number | null;
+  aggregate_type: string;
+  aggregate_id: string;
+  /** Business-time stamp from ledger_events.occurred_at — display only, not chain authority. */
+  occurred_at: string;
+  /** Insert-time stamp from ledger_events.recorded_at — display only, not chain authority. */
+  recorded_at: string;
 };
 
 export type SandboxCockpitCapabilityState = {

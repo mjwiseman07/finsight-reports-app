@@ -72,6 +72,9 @@ import {
 } from "../je3d-activation-inspection";
 import type { JournalEntryExecutionRow } from "../execution-types";
 import {
+  LEDGER_EVENTS_PATENT6_CHAIN_SELECT,
+} from "../ledger-events-schema";
+import {
   SANDBOX_JE_COCKPIT_CANADIAN_REALM_EXCLUDED,
   SANDBOX_JE_COCKPIT_RATE_LIMIT_KEY,
   SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
@@ -84,6 +87,59 @@ import {
   rejectSandboxCockpitRequestOverrides,
   resolveSandboxCockpitCapabilityState,
 } from "../sandbox-je-cockpit-api";
+
+function mockPatent6ChainSupabase(rows: Record<string, unknown>[]) {
+  const finalOrder = vi.fn().mockResolvedValue({ data: rows, error: null });
+  const firstOrder = vi.fn().mockReturnValue({ order: finalOrder });
+  const secondEq = vi.fn().mockReturnValue({ order: firstOrder });
+  const firstEq = vi.fn().mockReturnValue({ eq: secondEq });
+  const select = vi.fn().mockReturnValue({ eq: firstEq });
+  getSupabaseAdminMock.mockReturnValue({
+    from: vi.fn().mockReturnValue({ select }),
+  });
+  return { select };
+}
+
+function patent6ChainRows() {
+  return [
+    {
+      event_id: "evt-1",
+      event_type: "journal_entry.provider_dispatch_started",
+      event_hash: "h1",
+      previous_event_hash: null,
+      chain_index: 0,
+      event_sequence: 1,
+      aggregate_type: "journal_entry_execution",
+      aggregate_id: SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
+      occurred_at: "2026-08-28T11:00:00.000Z",
+      recorded_at: "2026-08-28T11:00:00.000Z",
+    },
+    {
+      event_id: "evt-2",
+      event_type: "journal_entry.provider_posted",
+      event_hash: "h2",
+      previous_event_hash: "h1",
+      chain_index: 1,
+      event_sequence: 2,
+      aggregate_type: "journal_entry_execution",
+      aggregate_id: SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
+      occurred_at: "2026-08-28T11:30:00.000Z",
+      recorded_at: "2026-08-28T11:30:00.000Z",
+    },
+    {
+      event_id: "evt-verify",
+      event_type: "journal_entry.verified",
+      event_hash: "h3",
+      previous_event_hash: "h2",
+      chain_index: 2,
+      event_sequence: 3,
+      aggregate_type: "journal_entry_execution",
+      aggregate_id: SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
+      occurred_at: "2026-08-28T12:00:00.000Z",
+      recorded_at: "2026-08-28T12:00:00.000Z",
+    },
+  ];
+}
 
 function canonicalDemoAAllowlist() {
   return buildSandboxAllowlistFromRows({
@@ -192,17 +248,20 @@ function verifiedInspectionView() {
       {
         event_id: "evt-dispatch",
         event_type: "journal_entry.provider_dispatch_started",
-        created_at: "t1",
+        chain_index: 0,
+        event_sequence: 1,
       },
       {
         event_id: "evt-posted",
         event_type: "journal_entry.provider_posted",
-        created_at: "t2",
+        chain_index: 1,
+        event_sequence: 2,
       },
       {
         event_id: "evt-verify",
         event_type: "journal_entry.verified",
-        created_at: "t3",
+        chain_index: 2,
+        event_sequence: 3,
       },
     ],
     proposal: {
@@ -251,41 +310,7 @@ describe("sandbox JE cockpit API", () => {
       id: SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
       verified_at: "2026-08-28T12:00:00.000Z",
     });
-    getSupabaseAdminMock.mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: [
-                  {
-                    event_id: "evt-1",
-                    event_type: "journal_entry.provider_dispatch_started",
-                    event_hash: "h1",
-                    previous_event_hash: null,
-                    chain_index: 0,
-                    aggregate_type: "journal_entry_execution",
-                    aggregate_id: SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
-                    created_at: "t1",
-                  },
-                  {
-                    event_id: "evt-2",
-                    event_type: "journal_entry.provider_posted",
-                    event_hash: "h2",
-                    previous_event_hash: "h1",
-                    chain_index: 1,
-                    aggregate_type: "journal_entry_execution",
-                    aggregate_id: SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
-                    created_at: "t2",
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          }),
-        }),
-      }),
-    });
+    mockPatent6ChainSupabase(patent6ChainRows());
   });
 
   afterEach(() => {
@@ -350,15 +375,28 @@ describe("sandbox JE cockpit API", () => {
     );
   });
 
+  it("selects authoritative ledger_events columns for Patent #6 chain load", async () => {
+    const { select } = mockPatent6ChainSupabase(patent6ChainRows());
+    await fetchSandboxInspectionForCockpit(
+      SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
+    );
+    expect(select).toHaveBeenCalledWith(LEDGER_EVENTS_PATENT6_CHAIN_SELECT);
+    expect(String(select.mock.calls[0]?.[0])).not.toContain("created_at");
+  });
+
   it("returns verified JE 223 inspection with Patent #6 chain fields", async () => {
     const payload = await fetchSandboxInspectionForCockpit(
       SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID,
     );
     expect(payload.inspection.qbo_je_id).toBe("223");
     expect(payload.inspection.execution_status).toBe("VERIFIED");
-    expect(payload.patent6_chain_receipt.events).toHaveLength(2);
+    expect(payload.patent6_chain_receipt.events).toHaveLength(3);
     expect(payload.patent6_chain_receipt.events[1]?.previous_event_hash).toBe(
       "h1",
+    );
+    expect(payload.patent6_chain_receipt.events[2]?.event_id).toBe("evt-verify");
+    expect(payload.patent6_chain_receipt.events[0]?.occurred_at).toBe(
+      "2026-08-28T11:00:00.000Z",
     );
     expect(payload.inspection.provider_attempt_id).toBe("attempt-1");
     expect(payload.memory_is_display_context_only).toBe(true);
@@ -427,7 +465,9 @@ describe("sandbox JE cockpit routes", () => {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              order: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              }),
             }),
           }),
         }),

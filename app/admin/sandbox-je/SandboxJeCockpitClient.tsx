@@ -297,6 +297,14 @@ export default function SandboxJeCockpitClient({
                         <span className="text-[#A29E93]">chain_index: </span>
                         <span>{event.chain_index ?? "—"}</span>
                       </div>
+                      <div>
+                        <span className="text-[#A29E93]">occurred_at: </span>
+                        <span>{event.occurred_at || "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-[#A29E93]">event_sequence: </span>
+                        <span>{event.event_sequence ?? "—"}</span>
+                      </div>
                       <div className="break-all">
                         <span className="text-[#A29E93]">event_hash: </span>
                         <span className="font-mono">{event.event_hash ?? "—"}</span>
