@@ -84,6 +84,7 @@ import {
   fetchSandboxAllowlistForCockpit,
   fetchSandboxChecklistForCockpit,
   fetchSandboxInspectionForCockpit,
+  isSandboxJeCockpitRuntimeEnabled,
   rejectSandboxCockpitRequestOverrides,
   resolveSandboxCockpitCapabilityState,
 } from "../sandbox-je-cockpit-api";
@@ -324,6 +325,13 @@ describe("sandbox JE cockpit API", () => {
     expect(() => assertSandboxCockpitQbEnvironment()).toThrow(Je3dActivationError);
   });
 
+  it("runtime gate is enabled only for QB_ENVIRONMENT=sandbox", () => {
+    process.env.QB_ENVIRONMENT = "sandbox";
+    expect(isSandboxJeCockpitRuntimeEnabled()).toBe(true);
+    process.env.QB_ENVIRONMENT = "production";
+    expect(isSandboxJeCockpitRuntimeEnabled()).toBe(false);
+  });
+
   it("resolves canonical Demo A allowlist only", () => {
     const payload = buildSafeAllowlistResponse(canonicalDemoAAllowlist());
     expect(payload.demo_a?.company_id).toBe(
@@ -545,13 +553,51 @@ describe("sandbox JE cockpit routes", () => {
     expect(body.demo_a.company_id).toBe(JE_3D_VERIFIED_DEMO_A_IDENTITY.companyId);
   });
 
-  it("production environment rejects sandbox endpoints", async () => {
+  it("production environment returns 404 before super-admin auth", async () => {
     process.env.QB_ENVIRONMENT = "production";
     const { GET } = await import(
       "@/app/api/governed/journal-entries/sandbox/allowlist/route"
     );
     const res = await GET(new Request("http://localhost/api/governed/journal-entries/sandbox/allowlist"));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe("");
+    expect(resolveSuperAdminAccessMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(resolveAllowlistMock).not.toHaveBeenCalled();
+  });
+
+  it("production inspection route returns 404 before custody load", async () => {
+    process.env.QB_ENVIRONMENT = "production";
+    const { GET } = await import(
+      "@/app/api/governed/journal-entries/executions/[executionId]/inspection/route"
+    );
+    const res = await GET(
+      new Request(
+        `http://localhost/api/governed/journal-entries/executions/${SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID}/inspection`,
+      ),
+      { params: Promise.resolve({ executionId: SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID }) },
+    );
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe("");
+    expect(inspectMock).not.toHaveBeenCalled();
+    expect(loadExactExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it("production checklist route returns 404 before custody load", async () => {
+    process.env.QB_ENVIRONMENT = "production";
+    const { GET } = await import(
+      "@/app/api/governed/journal-entries/executions/[executionId]/checklist/route"
+    );
+    const res = await GET(
+      new Request(
+        `http://localhost/api/governed/journal-entries/executions/${SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID}/checklist`,
+      ),
+      { params: Promise.resolve({ executionId: SANDBOX_JE_COCKPIT_VERIFIED_EXECUTION_ID }) },
+    );
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe("");
+    expect(inspectMock).not.toHaveBeenCalled();
+    expect(resolveAllowlistMock).not.toHaveBeenCalled();
   });
 
   it("inspection route rejects provider journal override query param", async () => {
@@ -628,5 +674,34 @@ describe("sandbox JE cockpit static safety scans", () => {
     expect(src).toMatch(/ON \(dispatch blocked\)/);
     expect(src).not.toMatch(/capabilities\.kill_switch/);
     expect(src).not.toMatch(/label="kill switch"/);
+  });
+
+  it("admin page returns notFound before super-admin auth when runtime disabled", () => {
+    const src = fs.readFileSync(
+      path.join(root, "app/admin/sandbox-je/page.tsx"),
+      "utf8",
+    );
+    const pageStart = src.indexOf("export default async function SandboxJeAdminPage");
+    const pageBody = src.slice(pageStart);
+    expect(src).toMatch(/isSandboxJeCockpitRuntimeEnabled/);
+    expect(pageBody).toMatch(/notFound\(\)/);
+    expect(pageBody.indexOf("notFound()")).toBeLessThan(
+      pageBody.indexOf("requireSuperAdmin"),
+    );
+    expect(src).toMatch(/robots:\s*\{\s*index:\s*false/);
+  });
+
+  it("route guard checks sandbox runtime before super-admin access", () => {
+    const src = fs.readFileSync(
+      path.join(root, "lib/journal-entry-governance/sandbox-je-cockpit-route.ts"),
+      "utf8",
+    );
+    const guardStart = src.indexOf("export async function guardSandboxJeCockpitRoute");
+    const guardBody = src.slice(guardStart);
+    expect(guardBody).toMatch(/isSandboxJeCockpitRuntimeEnabled/);
+    expect(guardBody.indexOf("isSandboxJeCockpitRuntimeEnabled")).toBeLessThan(
+      guardBody.indexOf("resolveSuperAdminAccess"),
+    );
+    expect(src).toMatch(/status:\s*404/);
   });
 });

@@ -1,12 +1,18 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { ADVISACOR_ACCESS_TOKEN_COOKIE } from "@/lib/reviewer/constants";
 import { isAllowedSuperAdminEmail, SUPER_ADMIN_ROLE } from "@/lib/super-admin";
 import { createClient } from "@supabase/supabase-js";
+import { isSandboxJeCockpitRuntimeEnabled } from "@/lib/journal-entry-governance/sandbox-je-cockpit-api";
 import SandboxJeCockpitClient from "./SandboxJeCockpitClient";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 async function requireSuperAdmin(): Promise<{ email: string } | null> {
   const cookieStore = await cookies();
@@ -31,6 +37,10 @@ async function requireSuperAdmin(): Promise<{ email: string } | null> {
 }
 
 export default async function SandboxJeAdminPage() {
+  if (!isSandboxJeCockpitRuntimeEnabled()) {
+    notFound();
+  }
+
   const superAdmin = await requireSuperAdmin();
   if (!superAdmin) {
     redirect("/signin?next=/admin/sandbox-je");

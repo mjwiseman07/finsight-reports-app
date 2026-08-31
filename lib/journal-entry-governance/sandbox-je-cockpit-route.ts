@@ -11,15 +11,29 @@ import {
   rejectSandboxCockpitRequestOverrides,
   SANDBOX_JE_COCKPIT_RATE_LIMIT_KEY,
   assertSandboxCockpitQbEnvironment,
+  isSandboxJeCockpitRuntimeEnabled,
 } from "./sandbox-je-cockpit-api";
 
 export type SandboxCockpitRouteGuardResult =
   | { ok: true }
   | { ok: false; response: NextResponse };
 
+export function sandboxJeCockpitNotFoundResponse(): NextResponse {
+  return new NextResponse(null, {
+    status: 404,
+    headers: {
+      "Cache-Control": "private, no-store",
+    },
+  });
+}
+
 export async function guardSandboxJeCockpitRoute(
   request: Request,
 ): Promise<SandboxCockpitRouteGuardResult> {
+  if (!isSandboxJeCockpitRuntimeEnabled()) {
+    return { ok: false, response: sandboxJeCockpitNotFoundResponse() };
+  }
+
   const rateLimitResponse = rateLimit(request, {
     key: SANDBOX_JE_COCKPIT_RATE_LIMIT_KEY,
     limit: 60,

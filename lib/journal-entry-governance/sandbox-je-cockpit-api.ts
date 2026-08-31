@@ -81,6 +81,13 @@ const FORBIDDEN_QUERY_OVERRIDE_KEYS = [
   "provider_environment",
 ] as const;
 
+/** Cockpit routes exist only when QB_ENVIRONMENT is exactly sandbox. */
+export function isSandboxJeCockpitRuntimeEnabled(
+  envValue: string | undefined = process.env.QB_ENVIRONMENT,
+): boolean {
+  return envValue?.trim() === "sandbox";
+}
+
 export function assertSandboxCockpitQbEnvironment(
   envValue: string | undefined = process.env.QB_ENVIRONMENT,
 ): void {
