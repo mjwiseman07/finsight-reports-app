@@ -11,17 +11,20 @@ export const PRODUCTION_JE_WORKFLOWS = [
 
 export type ProductionJeWorkflow = (typeof PRODUCTION_JE_WORKFLOWS)[number];
 
-export type ProductionJeWorkflowPolicy = Record<ProductionJeWorkflow, boolean>;
+export type ProductionJeWorkflowPolicy = Readonly<
+  Record<ProductionJeWorkflow, boolean>
+>;
 
-export const PRODUCTION_JE_WORKFLOW_POLICY: ProductionJeWorkflowPolicy = {
-  PRE_CLOSE_REVIEW: false,
-  ERP_API: false,
-  PULSE_CONFIRMATION: false,
-  LEARNING_SINGLE: false,
-  RECURRING_MANUAL: false,
-  LEARNING_BULK: false,
-  RECURRING_AUTO: false,
-};
+export const PRODUCTION_JE_WORKFLOW_POLICY: ProductionJeWorkflowPolicy =
+  Object.freeze({
+    PRE_CLOSE_REVIEW: false,
+    ERP_API: false,
+    PULSE_CONFIRMATION: false,
+    LEARNING_SINGLE: false,
+    RECURRING_MANUAL: false,
+    LEARNING_BULK: false,
+    RECURRING_AUTO: false,
+  });
 
 export class ProductionJeWorkflowError extends Error {
   constructor(public readonly code: string, message: string) {

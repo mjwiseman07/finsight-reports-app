@@ -7,22 +7,23 @@
  *
  * Public enforcement always uses PRODUCTION_JE_ACTIVATION_POLICY. No runtime
  * policy override parameter is accepted on exported assert functions.
+ * The canonical policy object is deeply frozen and mutation-resistant.
  */
 
 export type ProductionJeCapability =
   | "CREATE_PRODUCTION_JE"
   | "VERIFY_PRODUCTION_JE";
 
-export type ProductionPilotIdentity = {
+export type ProductionPilotIdentity = Readonly<{
   companyId: string;
   accountingConnectionId: string;
   realmId: string;
   provider: "quickbooks";
   providerEnvironment: "production";
-};
+}>;
 
-export type ProductionJeActivationPolicy = {
-  capabilities: Record<ProductionJeCapability, boolean>;
+export type ProductionJeActivationPolicy = Readonly<{
+  capabilities: Readonly<Record<ProductionJeCapability, boolean>>;
   productionDispatchKillSwitch: boolean;
   memoryProjectionAllowed: boolean;
   workerAllowed: boolean;
@@ -30,21 +31,32 @@ export type ProductionJeActivationPolicy = {
   requireFreshMfa: true;
   maxExecutionAmountCents: number | null;
   pilotIdentity: ProductionPilotIdentity | null;
-};
+}>;
 
-export const PRODUCTION_JE_ACTIVATION_POLICY: ProductionJeActivationPolicy = {
-  capabilities: {
-    CREATE_PRODUCTION_JE: false,
-    VERIFY_PRODUCTION_JE: false,
-  },
-  productionDispatchKillSwitch: true,
-  memoryProjectionAllowed: false,
-  workerAllowed: false,
-  governedAutoAllowed: false,
-  requireFreshMfa: true,
-  maxExecutionAmountCents: null,
-  pilotIdentity: null,
-};
+function deepFreezeProductionActivationPolicy(
+  policy: ProductionJeActivationPolicy,
+): ProductionJeActivationPolicy {
+  if (policy.pilotIdentity) {
+    Object.freeze(policy.pilotIdentity);
+  }
+  Object.freeze(policy.capabilities);
+  return Object.freeze(policy);
+}
+
+export const PRODUCTION_JE_ACTIVATION_POLICY: ProductionJeActivationPolicy =
+  deepFreezeProductionActivationPolicy({
+    capabilities: {
+      CREATE_PRODUCTION_JE: false,
+      VERIFY_PRODUCTION_JE: false,
+    },
+    productionDispatchKillSwitch: true,
+    memoryProjectionAllowed: false,
+    workerAllowed: false,
+    governedAutoAllowed: false,
+    requireFreshMfa: true,
+    maxExecutionAmountCents: null,
+    pilotIdentity: null,
+  });
 
 export type ProductionActivationCheck = {
   capability: ProductionJeCapability;
