@@ -71,6 +71,8 @@ function matchingReceipt(
       firm_client_id: "fc-1",
       engagement_id: "eng-1",
       provider: "quickbooks",
+      provider_attempt_id: "attempt-1",
+      correlation_marker: "ADVJE:exec-1",
       provider_journal_id: "223",
       provider_readback_hash: "readback-hash",
       status: "VERIFIED",
@@ -79,7 +81,11 @@ function matchingReceipt(
   };
 }
 
-const prior = { event_id: "prior-1", event_hash: "prior-hash-1" };
+const prior = {
+  event_id: "prior-1",
+  event_hash: "prior-hash-1",
+  chain_index: 1,
+};
 
 describe("verified JE Memory projection custody binding", () => {
   it("accepts exact VERIFIED execution bound to Patent #6 receipt and chain", () => {
@@ -92,6 +98,8 @@ describe("verified JE Memory projection custody binding", () => {
       firmClientId: "fc-1",
       providerJournalId: "223",
       providerReadbackHash: "readback-hash",
+      providerAttemptId: "attempt-1",
+      correlationMarker: "ADVJE:exec-1",
       verificationLedgerEventId: "receipt-1",
       verificationEventHash: "event-hash-1",
       transactionDate: "2026-08-30",
@@ -106,7 +114,11 @@ describe("verified JE Memory projection custody binding", () => {
       name: string;
       execution?: JournalEntryExecutionRow;
       receipt?: VerificationLedgerEventCustody;
-      priorEventByPreviousHash?: { event_id: string; event_hash: string } | null;
+      priorEventByPreviousHash?: {
+        event_id: string;
+        event_hash: string;
+        chain_index: number | null;
+      } | null;
       code: string;
     }> = [
       {
@@ -163,6 +175,40 @@ describe("verified JE Memory projection custody binding", () => {
         name: "broken chain link",
         priorEventByPreviousHash: null,
         code: "memory_projection_chain_link_invalid",
+      },
+      {
+        name: "non-adjacent chain index",
+        priorEventByPreviousHash: {
+          event_id: "prior-1",
+          event_hash: "prior-hash-1",
+          chain_index: 0,
+        },
+        code: "memory_projection_chain_index_adjacency_invalid",
+      },
+      {
+        name: "missing provider attempt",
+        receipt: matchingReceipt({
+          event_payload: {
+            ...matchingReceipt().event_payload,
+            provider_attempt_id: undefined,
+          },
+        }),
+        code: "memory_projection_receipt_attempt_missing",
+      },
+      {
+        name: "marker mismatch",
+        receipt: matchingReceipt({
+          event_payload: {
+            ...matchingReceipt().event_payload,
+            correlation_marker: "ADVJE:other",
+          },
+        }),
+        code: "memory_projection_receipt_marker_mismatch",
+      },
+      {
+        name: "invalid aggregate type",
+        receipt: matchingReceipt({ aggregate_type: "other_aggregate" }),
+        code: "memory_projection_receipt_aggregate_type_invalid",
       },
       {
         name: "company mismatch",

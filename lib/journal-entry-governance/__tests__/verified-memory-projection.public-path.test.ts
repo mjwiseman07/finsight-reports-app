@@ -143,6 +143,8 @@ const receiptRow = {
     firm_client_id: "fc-1",
     engagement_id: "eng-1",
     provider: "quickbooks",
+    provider_attempt_id: "attempt-1",
+    correlation_marker: "ADVJE:exec-1",
     provider_journal_id: "223",
     provider_readback_hash: "readback-hash",
     status: "VERIFIED",
@@ -165,7 +167,7 @@ describe("public verified JE Memory projection (mocked enabled policy)", () => {
     loadExactExecutionMock.mockResolvedValue(verifiedExecution());
     ledgerById.mockResolvedValue({ data: receiptRow, error: null });
     ledgerByHash.mockResolvedValue({
-      data: { event_id: "prior-1", event_hash: "prior-hash-1" },
+      data: { event_id: "prior-1", event_hash: "prior-hash-1", chain_index: 1 },
       error: null,
     });
 
@@ -183,6 +185,8 @@ describe("public verified JE Memory projection (mocked enabled policy)", () => {
           provider_success_authority: false,
           rebuild_source: "PATENT_6_CHAIN_RECEIPT",
           verification_ledger_event_id: "receipt-1",
+          provider_attempt_id: "attempt-1",
+          correlation_marker: "ADVJE:exec-1",
           provider_journal_id: "223",
           provider_readback_hash: "readback-hash",
           total_debits_cents: 100,
@@ -207,7 +211,7 @@ describe("public verified JE Memory projection (mocked enabled policy)", () => {
       error: null,
     });
     ledgerByHash.mockResolvedValue({
-      data: { event_id: "prior-1", event_hash: "prior-hash-1" },
+      data: { event_id: "prior-1", event_hash: "prior-hash-1", chain_index: 1 },
       error: null,
     });
 

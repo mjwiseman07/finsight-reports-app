@@ -31,6 +31,8 @@ export type VerifiedJeMemoryProjectionCustody = {
   firmClientId: string;
   providerJournalId: string;
   providerReadbackHash: string;
+  providerAttemptId: string;
+  correlationMarker: string;
   verificationLedgerEventId: string;
   verifiedAt: string;
   verificationEventHash: string;
@@ -38,6 +40,12 @@ export type VerifiedJeMemoryProjectionCustody = {
   currency: string;
   totalDebitsCents: number;
   totalCreditsCents: number;
+};
+
+export type PriorLedgerEventCustody = {
+  event_id: string;
+  event_hash: string;
+  chain_index: number | null;
 };
 
 function payloadString(
@@ -102,7 +110,7 @@ function deriveEconomicsFromVerificationSnapshot(
 export function assertVerifiedJeMemoryProjectionCustody(args: {
   execution: JournalEntryExecutionRow;
   receipt: VerificationLedgerEventCustody;
-  priorEventByPreviousHash: { event_id: string; event_hash: string } | null;
+  priorEventByPreviousHash: PriorLedgerEventCustody | null;
 }): VerifiedJeMemoryProjectionCustody {
   const { execution, receipt } = args;
 
@@ -163,6 +171,24 @@ export function assertVerifiedJeMemoryProjectionCustody(args: {
   const payloadFirmClientId = payloadString(payload, "firm_client_id");
   const payloadEngagementId = payloadString(payload, "engagement_id");
   const payloadProvider = payloadString(payload, "provider");
+  const payloadProviderAttemptId = payloadString(payload, "provider_attempt_id");
+  const payloadCorrelationMarker = payloadString(payload, "correlation_marker");
+
+  if (!payloadProviderAttemptId) {
+    throw new VerifiedJeProjectionError(
+      "memory_projection_receipt_attempt_missing",
+      "Verification receipt provider_attempt_id is required for Patent #6 custody.",
+    );
+  }
+  if (
+    !payloadCorrelationMarker ||
+    payloadCorrelationMarker !== execution.correlation_marker
+  ) {
+    throw new VerifiedJeProjectionError(
+      "memory_projection_receipt_marker_mismatch",
+      "Verification receipt correlation_marker does not match execution custody.",
+    );
+  }
 
   if (payloadExecutionId !== execution.id) {
     throw new VerifiedJeProjectionError(
@@ -235,6 +261,15 @@ export function assertVerifiedJeMemoryProjectionCustody(args: {
       "Verification receipt aggregate_id does not match execution custody.",
     );
   }
+  if (
+    receipt.aggregate_type != null &&
+    String(receipt.aggregate_type) !== "journal_entry_execution"
+  ) {
+    throw new VerifiedJeProjectionError(
+      "memory_projection_receipt_aggregate_type_invalid",
+      "Verification receipt aggregate_type must be journal_entry_execution.",
+    );
+  }
   if (payloadProviderJournalId !== providerJournalId) {
     throw new VerifiedJeProjectionError(
       "memory_projection_receipt_provider_id_mismatch",
@@ -269,6 +304,17 @@ export function assertVerifiedJeMemoryProjectionCustody(args: {
         "Verification receipt previous_event_hash does not resolve to a prior chain event.",
       );
     }
+    // Global Patent #6 ledger chain: prior must be the immediate predecessor index.
+    if (
+      receipt.chain_index != null &&
+      prior.chain_index != null &&
+      Number(prior.chain_index) + 1 !== Number(receipt.chain_index)
+    ) {
+      throw new VerifiedJeProjectionError(
+        "memory_projection_chain_index_adjacency_invalid",
+        "Verification receipt chain_index is not adjacent to the resolved prior event.",
+      );
+    }
   }
 
   const economics = deriveEconomicsFromVerificationSnapshot(
@@ -279,6 +325,8 @@ export function assertVerifiedJeMemoryProjectionCustody(args: {
     firmClientId,
     providerJournalId,
     providerReadbackHash,
+    providerAttemptId: payloadProviderAttemptId,
+    correlationMarker: payloadCorrelationMarker,
     verificationLedgerEventId,
     verifiedAt,
     verificationEventHash: receipt.event_hash,

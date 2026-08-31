@@ -59,17 +59,22 @@ async function loadVerificationLedgerEvent(
 
 async function loadLedgerEventByHash(
   eventHash: string,
-): Promise<{ event_id: string; event_hash: string } | null> {
+): Promise<{
+  event_id: string;
+  event_hash: string;
+  chain_index: number | null;
+} | null> {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("ledger_events")
-    .select("event_id, event_hash")
+    .select("event_id, event_hash, chain_index")
     .eq("event_hash", eventHash)
     .maybeSingle();
   if (error || !data?.event_id || !data?.event_hash) return null;
   return {
     event_id: String(data.event_id),
     event_hash: String(data.event_hash),
+    chain_index: data.chain_index == null ? null : Number(data.chain_index),
   };
 }
 
@@ -127,8 +132,11 @@ export async function projectVerifiedJournalEntryToMemory(
     );
   }
 
-  let priorEventByPreviousHash: { event_id: string; event_hash: string } | null =
-    null;
+  let priorEventByPreviousHash: {
+    event_id: string;
+    event_hash: string;
+    chain_index: number | null;
+  } | null = null;
   if (receipt.previous_event_hash) {
     priorEventByPreviousHash = await loadLedgerEventByHash(
       receipt.previous_event_hash,
@@ -157,6 +165,8 @@ export async function projectVerifiedJournalEntryToMemory(
     payload: {
       authority: "NON_AUTHORITATIVE_MEMORY_PROJECTION",
       execution_id: execution.id,
+      provider_attempt_id: custody.providerAttemptId,
+      correlation_marker: custody.correlationMarker,
       provider_journal_id: custody.providerJournalId,
       provider_readback_hash: custody.providerReadbackHash,
       verification_ledger_event_id: custody.verificationLedgerEventId,
