@@ -15,6 +15,7 @@ import { sinkVendors } from "./sinks/vendors";
 import { sinkPurchaseOrders } from "./sinks/purchase-orders";
 import { sinkBills } from "./sinks/bills";
 import { sinkGoodsReceipts } from "./sinks/goods-receipts";
+import { persistCoaMirrorRows } from "./coa-mirror-persist";
 function adapterFor(source: HarvestSource, actorUserId: string): HarvestSourceAdapter {
   if (source === "qbo") return new QboHarvestAdapter(actorUserId);
   return new CsvHarvestAdapter(actorUserId);
@@ -130,20 +131,11 @@ async function executeHarvest(runId: string, input: BaselineHarvestStartInput): 
     const coa = await adapter.fetchChartOfAccounts({ firmClientId: input.firmClientId });
     counts.chart_of_accounts = coa.length;
     if (coa.length > 0) {
-      const rows = coa.map((c) => ({
-        firm_id: input.firmId,
-        firm_client_id: input.firmClientId,
-        external_account_id: c.externalAccountId,
-        account_number: c.accountNumber ?? null,
-        account_name: c.accountName,
-        account_type: c.accountType ?? null,
-        account_subtype: c.accountSubtype ?? null,
-        active: c.active,
-        baseline_harvest_run_id: runId,
-        last_synced_at: new Date().toISOString(),
-      }));
-      await supabase.from("qbo_coa_mirror").upsert(rows, {
-        onConflict: "firm_client_id,external_account_id",
+      await persistCoaMirrorRows({
+        firmId: input.firmId,
+        firmClientId: input.firmClientId,
+        runId,
+        rows: coa,
       });
     }
   }
