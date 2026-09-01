@@ -128,6 +128,8 @@
     "smoke:d-assertions-part4": "tsx scripts/smoke/d-assertions-part4-verify-live.ts",
     "smoke:d-assertions-part5": "tsx scripts/smoke/d-assertions-part5-verify-live.ts",
     "smoke:d-assertions-part6": "tsx scripts/smoke/d-assertions-part6-verify-live.ts",
+    "smoke:je3a-execution-reservation-postgres": "node scripts/smoke/je3a-execution-reservation-postgres-gate.js",
+    "test:je-execution-reservation-postgres": "vitest run lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
     "test:resolver": "node scripts/run-resolver-tests.js",
     "test:cascade": "npx tsx scripts/cascade-runner.ts",
     "test:integration": "npx tsx scripts/integration-harness.ts",

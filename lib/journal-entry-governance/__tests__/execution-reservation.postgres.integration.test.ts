@@ -29,6 +29,8 @@ const IDS = {
   proposal: "aaaaaaaa-0108-4108-8108-000000000108",
   approval: "aaaaaaaa-0109-4109-8109-000000000109",
   execution: "aaaaaaaa-0110-4110-8110-000000000110",
+  approval2: "aaaaaaaa-0114-4114-8114-000000000114",
+  execution2: "aaaaaaaa-0115-4115-8115-000000000115",
   firm: "aaaaaaaa-0102-4102-8102-000000000102",
   firmClient: "aaaaaaaa-0112-4112-8112-000000000112",
 } as const;
@@ -168,6 +170,13 @@ async function seedFixture(client: pg.Client) {
     ) VALUES (
       $11, $9, $2, $3, $7, $7, 'APPROVED', 'REVIEW_REQUIRED', $1, '{}'::jsonb, now(), $12
     ) ON CONFLICT (id) DO NOTHING;
+
+    INSERT INTO public.journal_entry_approvals (
+      id, proposal_id, company_id, engagement_id, proposal_hash, policy_hash, decision,
+      approval_mode, reviewer_user_id, policy_snapshot, approved_at, idempotency_key
+    ) VALUES (
+      $13, $9, $2, $3, $7, $7, 'APPROVED', 'REVIEW_REQUIRED', $1, '{}'::jsonb, now(), $14
+    ) ON CONFLICT (id) DO NOTHING;
     `,
     [
       IDS.user,
@@ -182,6 +191,8 @@ async function seedFixture(client: pg.Client) {
       `${"e".repeat(64)}`,
       IDS.approval,
       `${"f".repeat(64)}`,
+      IDS.approval2,
+      `${"g".repeat(64)}`,
     ],
   );
 }
@@ -380,6 +391,25 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
     expect(readyReceipts.rows[0]?.c).toBe(1);
   });
 
+  it("E2. Patent #6 chain adjacency for requested → ready receipts", async () => {
+    const { rows } = await client.query(
+      `SELECT event_type, chain_index, event_sequence, event_hash, previous_event_hash
+         FROM public.ledger_events
+        WHERE aggregate_type = 'journal_entry_execution'
+          AND aggregate_id = $1
+        ORDER BY chain_index ASC NULLS LAST, event_sequence ASC`,
+      [IDS.execution],
+    );
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    const requested = rows.find((r) => r.event_type === "journal_entry.execution_requested");
+    const ready = rows.find((r) => r.event_type === "journal_entry.execution_ready");
+    expect(requested?.event_hash).toBeTruthy();
+    expect(ready?.previous_event_hash).toBe(requested?.event_hash);
+    if (requested?.chain_index != null && ready?.chain_index != null) {
+      expect(Number(ready.chain_index)).toBeGreaterThan(Number(requested.chain_index));
+    }
+  });
+
   it("F. state_version conflict on transition → rejected", async () => {
     const payload = reservationEventPayload("READY_TO_POST");
     await expect(
@@ -408,7 +438,90 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
     });
   });
 
-  it("G. zero provider-attempt rows for execution reservation path", async () => {
+  it("G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt", async () => {
+    const row = executionRow({
+      id: IDS.execution2,
+      approval_id: IDS.approval2,
+      idempotency_key: `${"h".repeat(64)}`,
+      correlation_marker: "ADVJE:exec-precheck-failed-test",
+    });
+    const reservedPayload = reservationEventPayload("RESERVED");
+    reservedPayload.execution_id = IDS.execution2;
+    reservedPayload.approval_id = IDS.approval2;
+    reservedPayload.idempotency_key = row.idempotency_key;
+    reservedPayload.correlation_marker = row.correlation_marker;
+    const reserved = await persistReservation(client, row, reservedPayload);
+    expect(reserved.rows[0]?.reused).toBe(false);
+
+    const failedPayload = {
+      ...reservationEventPayload("PRECHECK_FAILED"),
+      execution_id: IDS.execution2,
+      approval_id: IDS.approval2,
+      preflight_eligible: false,
+      preflight_summary: "executor_sod_failed",
+    };
+    const canonical = canonicalPayloadJson(failedPayload);
+    const { rows } = await client.query<{
+      execution: { status: string };
+      ledger_event_id: string | null;
+    }>(
+      `SELECT *
+         FROM public.transition_journal_entry_execution(
+           $1::uuid, 'RESERVED', 1, 'PRECHECK_FAILED',
+           $2::jsonb,
+           'journal_entry.execution_precheck_failed',
+           $3::jsonb,
+           $4::text,
+           $5::uuid, $6::uuid, $7::uuid, NULL, $8
+         )`,
+      [
+        IDS.execution2,
+        JSON.stringify({
+          preflight_result: { eligible: false, checks: [{ status: "FAIL" }] },
+          provider_request_hash: HASH,
+          last_error_code: "executor_sod_failed",
+          last_error_message: "precheck_failed",
+        }),
+        JSON.stringify(failedPayload),
+        canonical,
+        IDS.firm,
+        IDS.firmClient,
+        IDS.engagement,
+        IDS.user,
+      ],
+    );
+    expect(rows[0]?.execution.status).toBe("PRECHECK_FAILED");
+    expect(rows[0]?.ledger_event_id).toBeTruthy();
+  });
+
+  it("H. concurrent approval_id reservation attempts converge to one execution", async () => {
+    const rowA = executionRow({
+      id: "aaaaaaaa-0116-4116-8116-000000000116",
+      approval_id: IDS.approval2,
+      idempotency_key: `${"i".repeat(64)}`,
+    });
+    const rowB = executionRow({
+      id: "aaaaaaaa-0117-4117-8117-000000000117",
+      approval_id: IDS.approval2,
+      idempotency_key: `${"j".repeat(64)}`,
+      proposal_hash: `${"z".repeat(64)}`,
+    });
+    const first = await persistReservation(client, rowA);
+    expect(first.rows[0]?.reused).toBe(true);
+    await expect(persistReservation(client, rowB)).rejects.toMatchObject({
+      message: expect.stringMatching(/je_execution_binding_conflict/i),
+    });
+
+    const { rows } = await client.query(
+      `SELECT count(*)::int AS c
+         FROM public.journal_entry_executions
+        WHERE approval_id = $1`,
+      [IDS.approval2],
+    );
+    expect(rows[0]?.c).toBe(1);
+  });
+
+  it("I. zero provider-attempt rows for execution reservation path", async () => {
     const { rows } = await client.query(
       `SELECT count(*)::int AS c
          FROM public.journal_entry_provider_attempts
@@ -418,7 +531,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
     expect(rows[0]?.c).toBe(0);
   });
 
-  it("H. never touches staged production execution custody id", async () => {
+  it("J. never touches staged production execution custody id", async () => {
     const { rows } = await client.query(
       `SELECT count(*)::int AS c
          FROM public.journal_entry_executions
