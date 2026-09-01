@@ -191,10 +191,10 @@ async function loadApprovalsForProposal(
   const { data, error } = await supabase
     .from("journal_entry_approvals")
     .select(
-      "id, decision, decided_at, reviewer_user_id, reason, mfa_level, proposal_hash",
+      "id, decision, approved_at, reviewer_user_id, decision_reason, mfa_level, proposal_hash",
     )
     .eq("proposal_id", proposalId)
-    .order("decided_at", { ascending: true });
+    .order("approved_at", { ascending: true });
   if (error) {
     throw new SandboxJeProposalApiError(
       "sandbox_je_approvals_load_failed",
@@ -206,17 +206,18 @@ async function loadApprovalsForProposal(
     (row: {
       id: string;
       decision: string;
-      decided_at: string;
+      approved_at: string;
       reviewer_user_id: string;
-      reason: string | null;
+      decision_reason: string | null;
       mfa_level: string | null;
       proposal_hash: string;
     }) => ({
       approval_id: String(row.id),
       decision: String(row.decision) as "APPROVED" | "REJECTED",
-      decided_at: String(row.decided_at),
+      decided_at: String(row.approved_at),
       reviewer_user_id: String(row.reviewer_user_id),
-      reason: row.reason == null ? null : String(row.reason),
+      reason:
+        row.decision_reason == null ? null : String(row.decision_reason),
       mfa_level: row.mfa_level == null ? null : String(row.mfa_level),
       proposal_hash: String(row.proposal_hash),
     }),
