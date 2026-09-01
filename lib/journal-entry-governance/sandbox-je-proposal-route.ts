@@ -19,6 +19,7 @@ import {
   SANDBOX_JE_PROPOSAL_READ_RATE_LIMIT_KEY,
 } from "./sandbox-je-proposal-shared";
 import {
+  assertDesignatedSandboxProposer,
   assertSandboxJeProposalRuntimeEnabled,
   mapSandboxJeProposalError,
   SandboxJeProposalApiError,
@@ -167,6 +168,14 @@ export async function guardSandboxJeProposalMutate(args: {
   if (args.requireSuperAdmin) {
     const access = await resolveSuperAdminAccess(args.request);
     if (access.response) return { ok: false, response: access.response };
+    try {
+      assertDesignatedSandboxProposer({
+        userId: String(access.userId),
+        email: String(access.email),
+      });
+    } catch (err) {
+      return { ok: false, response: toSandboxJeProposalHttpError(err) };
+    }
     return {
       ok: true,
       user: {

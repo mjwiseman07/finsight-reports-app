@@ -30,6 +30,8 @@ import {
   JE_3D_VERIFIED_DEMO_A_IDENTITY,
   SANDBOX_JE_DESIGNATED_APPROVER_EMAIL,
   SANDBOX_JE_DESIGNATED_APPROVER_USER_ID,
+  SANDBOX_JE_DESIGNATED_PROPOSER_EMAIL,
+  SANDBOX_JE_DESIGNATED_PROPOSER_USER_ID,
   SANDBOX_JE_LOCKED_AMOUNT_CENTS,
   SANDBOX_JE_LOCKED_CREDIT_ACCOUNT_ID,
   SANDBOX_JE_LOCKED_CURRENCY,
@@ -40,6 +42,7 @@ import {
   type SafeSandboxDecisionResponse,
   type SafeSandboxProposalResponse,
 } from "./sandbox-je-proposal-shared";
+import { loadEngagementFirmId } from "./approval-custody";
 import {
   resolveLatestUniqueEligibleDemoASourceCustody,
   SandboxJeSourceCustodyError,
@@ -391,13 +394,128 @@ export function assertDesignatedSandboxApprover(args: {
   }
 }
 
+export function assertDesignatedSandboxProposer(args: {
+  userId: string;
+  email: string | null | undefined;
+}): void {
+  if (args.userId !== SANDBOX_JE_DESIGNATED_PROPOSER_USER_ID) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_proposer_denied",
+      "Only the designated Demo A sandbox proposer may create this proposal.",
+      403,
+    );
+  }
+  const email = String(args.email || "").trim().toLowerCase();
+  if (email !== SANDBOX_JE_DESIGNATED_PROPOSER_EMAIL) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_proposer_identity_mismatch",
+      "Authenticated email does not bind to the designated proposer identity.",
+      403,
+    );
+  }
+}
+
+/**
+ * Bind mutation idempotency to authenticated user + clientMutationId while
+ * keeping the public reason class stable as SANDBOX_JE_REASON_CODE.
+ */
+export function buildSandboxJeMutationReasonCode(args: {
+  proposerUserId: string;
+  clientMutationId: string;
+}): string {
+  return `${SANDBOX_JE_REASON_CODE}:${args.proposerUserId}:${args.clientMutationId}`;
+}
+
+export async function assertSandboxApproverDemoAFirmAuthority(
+  userId: string,
+): Promise<void> {
+  if (userId !== SANDBOX_JE_DESIGNATED_APPROVER_USER_ID) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_approver_denied",
+      "Reviewer is not the designated Demo A sandbox approver.",
+      403,
+    );
+  }
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("firm_memberships")
+    .select("id, firm_id, role, status, can_approve")
+    .eq("user_id", userId);
+  if (error) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_approver_membership_query_failed",
+      error.message,
+      500,
+    );
+  }
+  const rows = data || [];
+  if (rows.length !== 1) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_approver_membership_ambiguous",
+      "Designated approver must have exactly one active Demo A firm membership.",
+      403,
+    );
+  }
+  const membership = rows[0]!;
+  if (
+    String(membership.firm_id) !== JE_3D_VERIFIED_DEMO_A_IDENTITY.firmId ||
+    String(membership.role) !== "controller" ||
+    String(membership.status) !== "active" ||
+    membership.can_approve !== true
+  ) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_approver_authority_invalid",
+      "Designated approver Demo A firm authority is not active controller with can_approve.",
+      403,
+    );
+  }
+}
+
+async function loadProposalByMutationReasonCode(
+  reasonCode: string,
+): Promise<{ id: string; memo: string | null; txn_date: string } | null> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("journal_entry_proposals")
+    .select("id, memo, txn_date, reason_code, company_id")
+    .eq("reason_code", reasonCode)
+    .eq("company_id", JE_3D_VERIFIED_DEMO_A_IDENTITY.companyId)
+    .order("proposed_at", { ascending: false })
+    .limit(2);
+  if (error) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_mutation_lookup_failed",
+      error.message,
+      500,
+    );
+  }
+  if (!data || data.length === 0) return null;
+  if (data.length > 1) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_mutation_ambiguous",
+      "Multiple proposals share the same mutation binding; refuse ambiguous replay.",
+      409,
+    );
+  }
+  return {
+    id: String(data[0]!.id),
+    memo: data[0]!.memo == null ? null : String(data[0]!.memo),
+    txn_date: String(data[0]!.txn_date).slice(0, 10),
+  };
+}
+
 export async function createSandboxJeProposal(args: {
   request: Request;
   proposerUserId: string;
+  proposerEmail: string | null | undefined;
   body: unknown;
 }): Promise<SafeSandboxProposalResponse> {
   assertSandboxJeProposalRuntimeEnabled();
   rejectSandboxCockpitRequestOverrides(args.request);
+  assertDesignatedSandboxProposer({
+    userId: args.proposerUserId,
+    email: args.proposerEmail,
+  });
   const ux = parseSandboxJeProposalBody(args.body);
   const source = await resolveLatestUniqueEligibleDemoASourceCustody();
 
@@ -420,13 +538,36 @@ export async function createSandboxJeProposal(args: {
   const memo =
     ux.memo?.trim() ||
     "Sandbox JE cockpit governed accrual (custody only; no provider dispatch)";
+  const mutationReasonCode = buildSandboxJeMutationReasonCode({
+    proposerUserId: args.proposerUserId,
+    clientMutationId: ux.clientMutationId,
+  });
+
+  const prior = await loadProposalByMutationReasonCode(mutationReasonCode);
+  if (prior) {
+    const priorMemo = prior.memo ?? "";
+    const nextMemo = memo;
+    if (prior.txn_date !== txnDate || priorMemo !== nextMemo) {
+      throw new SandboxJeProposalApiError(
+        "sandbox_je_mutation_conflict",
+        "clientMutationId was reused with conflicting memo/txnDate; refuse closed.",
+        409,
+      );
+    }
+    // Exact replay — return existing custody without a second insert attempt.
+    const existing = await getSandboxJeProposal({
+      request: args.request,
+      proposalId: prior.id,
+    });
+    return { ...existing, reused: true, client_mutation_id: ux.clientMutationId };
+  }
 
   const result = await createContinuousCloseJournalEntryProposal(
     {
       engagementId: source.engagementId,
       sourceContinuousCloseRunId: source.continuousCloseRunId,
       originType: SANDBOX_JE_LOCKED_ORIGIN,
-      reasonCode: SANDBOX_JE_REASON_CODE,
+      reasonCode: mutationReasonCode,
       memo,
       currency: SANDBOX_JE_LOCKED_CURRENCY,
       txnDate,
@@ -554,6 +695,7 @@ export async function decideSandboxJeProposal(args: {
     userId: args.reviewerUserId,
     email: args.reviewerEmail,
   });
+  await assertSandboxApproverDemoAFirmAuthority(args.reviewerUserId);
   const parsed = parseSandboxJeDecisionBody(args.body);
 
   // Load proposal first to enforce SoD against proposer and Demo A bind.
@@ -565,6 +707,23 @@ export async function decideSandboxJeProposal(args: {
     throw new SandboxJeProposalApiError(
       "sandbox_je_sod_violation",
       "Designated approver must be distinct from the proposer.",
+      403,
+    );
+  }
+  if (existing.proposed_by !== SANDBOX_JE_DESIGNATED_PROPOSER_USER_ID) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_unexpected_proposer",
+      "Proposal proposer is not the designated sandbox proposer.",
+      403,
+    );
+  }
+
+  // Fail closed if engagement firm resolution is missing/ambiguous or not Demo A.
+  const firmId = await loadEngagementFirmId(existing.engagement_id);
+  if (firmId !== JE_3D_VERIFIED_DEMO_A_IDENTITY.firmId) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_firm_authority_unresolved",
+      "Demo A firm authority could not be resolved uniquely for this proposal.",
       403,
     );
   }
@@ -598,7 +757,7 @@ export async function decideSandboxJeProposal(args: {
     reused: result.reused,
     client_mutation_id: parsed.clientMutationId,
     mfa_required: true,
-    mfa_satisfied: true,
+    mfa_satisfied: Boolean(result.validity.mfaSatisfied),
     patent6_chain_receipt: {
       aggregate_type: "journal_entry_proposal",
       aggregate_id: args.proposalId,

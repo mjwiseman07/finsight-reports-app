@@ -14,31 +14,10 @@ import {
   hasReviewAssistBypassToken,
   hasReviewAssistBypassCookie,
 } from "./lib/tcp1/launch-gates";
+import { isSandboxJeProductionBoundaryPath } from "./lib/journal-entry-governance/sandbox-je-production-boundary";
 
 const MARKETING_HOSTS = new Set(["advisacor.com", "www.advisacor.com"]);
 const APP_HOSTS = new Set(["app.advisacor.com"]);
-
-/**
- * Production 404 boundary for sandbox JE cockpit/APIs — before MFA/auth/DB.
- * Must remain Edge-safe (env read only; no Node crypto).
- */
-function isSandboxJeProductionBoundaryPath(pathname: string): boolean {
-  if (pathname === "/admin/sandbox-je" || pathname.startsWith("/admin/sandbox-je/")) {
-    return true;
-  }
-  if (pathname.startsWith("/api/governed/journal-entries/sandbox")) {
-    return true;
-  }
-  // Existing read-only cockpit companions under executions/*
-  if (
-    /^\/api\/governed\/journal-entries\/executions\/[^/]+\/(inspection|checklist)\/?$/.test(
-      pathname,
-    )
-  ) {
-    return true;
-  }
-  return false;
-}
 
 function sandboxJeProductionNotFound(): NextResponse {
   return new NextResponse(null, {

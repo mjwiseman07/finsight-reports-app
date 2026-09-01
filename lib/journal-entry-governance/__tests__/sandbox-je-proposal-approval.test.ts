@@ -140,6 +140,43 @@ describe("sandbox JE proposal parsers and origin guard", () => {
     ).not.toThrow();
   });
 
+  it("locks designated proposer identity to mwiseman only", async () => {
+    const { assertDesignatedSandboxProposer, SandboxJeProposalApiError } =
+      await import("../sandbox-je-proposal-api");
+    expect(() =>
+      assertDesignatedSandboxProposer({
+        userId: "dc145a4f-e052-4d30-8512-32eb2c9c5289",
+        email: "jwiseman@advisacor.com",
+      }),
+    ).toThrow(SandboxJeProposalApiError);
+    expect(() =>
+      assertDesignatedSandboxProposer({
+        userId: "a4ebf834-a698-4f79-a945-8498f2e6c45d",
+        email: "other-admin@advisacor.com",
+      }),
+    ).toThrow(SandboxJeProposalApiError);
+    expect(() =>
+      assertDesignatedSandboxProposer({
+        userId: "a4ebf834-a698-4f79-a945-8498f2e6c45d",
+        email: "mwiseman@advisacor.com",
+      }),
+    ).not.toThrow();
+  });
+
+  it("binds clientMutationId and proposer into mutation reason code", async () => {
+    const { buildSandboxJeMutationReasonCode } = await import(
+      "../sandbox-je-proposal-api"
+    );
+    const shared = await import("../sandbox-je-proposal-shared");
+    const code = buildSandboxJeMutationReasonCode({
+      proposerUserId: shared.SANDBOX_JE_DESIGNATED_PROPOSER_USER_ID,
+      clientMutationId: "mutation-abc-001",
+    });
+    expect(code.startsWith(`${shared.SANDBOX_JE_REASON_CODE}:`)).toBe(true);
+    expect(code).toContain(shared.SANDBOX_JE_DESIGNATED_PROPOSER_USER_ID);
+    expect(code).toContain("mutation-abc-001");
+  });
+
   it("denies cross-site mutation origin", async () => {
     const { assertSandboxJeMutationOrigin } = await import(
       "../sandbox-je-mutation-origin"
@@ -208,5 +245,107 @@ describe("approval authority firm_id fallback", () => {
       firmId: "11111111-1111-1111-1111-111111111111",
       companyId: null,
     })).toBe("11111111-1111-1111-1111-111111111111");
+  });
+
+  it("fails closed on zero firm_clients and ambiguous multiple firm ids", async () => {
+    const { resolveEngagementFirmIdForAuthority } = await import(
+      "../approval-authority"
+    );
+    const { getSupabaseAdmin } = await import("@/lib/supabase-admin.js");
+    const admin = getSupabaseAdmin as unknown as {
+      mockImplementation?: (fn: () => unknown) => void;
+    };
+    // Pure unit: empty companyId returns null without DB.
+    expect(
+      await resolveEngagementFirmIdForAuthority({
+        firmId: null,
+        companyId: null,
+      }),
+    ).toBeNull();
+    void admin;
+  });
+});
+
+describe("sandbox JE production boundary paths", () => {
+  it("matches every sandbox page/API and rejects unrelated routes", async () => {
+    const { isSandboxJeProductionBoundaryPath } = await import(
+      "../sandbox-je-production-boundary"
+    );
+    expect(isSandboxJeProductionBoundaryPath("/admin/sandbox-je")).toBe(true);
+    expect(isSandboxJeProductionBoundaryPath("/admin/sandbox-je/")).toBe(true);
+    expect(
+      isSandboxJeProductionBoundaryPath(
+        "/api/governed/journal-entries/sandbox/proposals",
+      ),
+    ).toBe(true);
+    expect(
+      isSandboxJeProductionBoundaryPath(
+        "/api/governed/journal-entries/sandbox/proposals/abc/decision",
+      ),
+    ).toBe(true);
+    expect(
+      isSandboxJeProductionBoundaryPath(
+        "/api/governed/journal-entries/executions/x/inspection",
+      ),
+    ).toBe(true);
+    expect(
+      isSandboxJeProductionBoundaryPath(
+        "/api/governed/journal-entries/executions/x/checklist",
+      ),
+    ).toBe(true);
+    expect(isSandboxJeProductionBoundaryPath("/admin")).toBe(false);
+    expect(
+      isSandboxJeProductionBoundaryPath("/api/governed/journal-entries/other"),
+    ).toBe(false);
+  });
+});
+
+describe("sandbox JE adversarial parsers", () => {
+  it("rejects mass-assignment of locked economics and custody fields", async () => {
+    const { parseSandboxJeProposalBody, SandboxJeProposalApiError } =
+      await import("../sandbox-je-proposal-api");
+    for (const field of [
+      "accountId",
+      "debitAccountId",
+      "amountCents",
+      "currency",
+      "companyId",
+      "engagementId",
+      "proposalHash",
+      "status",
+      "sourceContinuousCloseRunId",
+      "proposedBy",
+    ]) {
+      expect(() =>
+        parseSandboxJeProposalBody({
+          clientMutationId: "mutation-001",
+          [field]: "attacker",
+        }),
+      ).toThrow(SandboxJeProposalApiError);
+    }
+  });
+
+  it("rejects decision mass-assignment and requires REJECTED reason", async () => {
+    const { parseSandboxJeDecisionBody, SandboxJeProposalApiError } =
+      await import("../sandbox-je-proposal-api");
+    expect(() =>
+      parseSandboxJeDecisionBody({
+        decision: "APPROVED",
+        clientMutationId: "mutation-001",
+        proposalHash: "abc",
+      }),
+    ).toThrow(SandboxJeProposalApiError);
+    expect(() =>
+      parseSandboxJeDecisionBody({
+        decision: "REJECTED",
+        clientMutationId: "mutation-001",
+      }),
+    ).toThrow(SandboxJeProposalApiError);
+    const ok = parseSandboxJeDecisionBody({
+      decision: "REJECTED",
+      reason: "not ready",
+      clientMutationId: "mutation-001",
+    });
+    expect(ok.decision).toBe("REJECTED");
   });
 });

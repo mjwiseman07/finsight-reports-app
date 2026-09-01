@@ -13,6 +13,13 @@ export const SANDBOX_JE_DESIGNATED_APPROVER_USER_ID =
 export const SANDBOX_JE_DESIGNATED_APPROVER_EMAIL =
   "jwiseman@advisacor.com" as const;
 
+/** Designated sandbox proposer — INITIAL super-admin only; no other allowlisted admin. */
+export const SANDBOX_JE_DESIGNATED_PROPOSER_USER_ID =
+  "a4ebf834-a698-4f79-a945-8498f2e6c45d" as const;
+
+export const SANDBOX_JE_DESIGNATED_PROPOSER_EMAIL =
+  "mwiseman@advisacor.com" as const;
+
 export const SANDBOX_JE_LOCKED_DEBIT_ACCOUNT_ID = "15" as const;
 export const SANDBOX_JE_LOCKED_CREDIT_ACCOUNT_ID = "1150040002" as const;
 export const SANDBOX_JE_LOCKED_AMOUNT_CENTS = 100 as const;

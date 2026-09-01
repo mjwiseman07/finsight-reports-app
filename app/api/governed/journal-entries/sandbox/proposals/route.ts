@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     const payload = await createSandboxJeProposal({
       request,
       proposerUserId: guard.user.userId,
+      proposerEmail: guard.user.email,
       body,
     });
     return NextResponse.json(payload, { status: 201 });
