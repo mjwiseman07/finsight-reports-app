@@ -7,6 +7,7 @@
  * FULL-CYCLE CLOSED / FAIL-CLOSED STATE:
  *   CREATE_SANDBOX_JE = false
  *   VERIFY_SANDBOX_JE = false
+ *   PREPARE_SANDBOX_JE = false
  *   sandboxDispatchKillSwitch = true (all new provider POST dispatches blocked)
  *
  * Exact-execution binding remains mandatory: CREATE capability alone never authorizes POST.
@@ -40,6 +41,7 @@ export const JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY: Je3dActivationPoli
     capabilities: {
       CREATE_SANDBOX_JE: false,
       VERIFY_SANDBOX_JE: false,
+      PREPARE_SANDBOX_JE: false,
     },
     productionAllowed: false,
     memoryWriteAllowed: false,

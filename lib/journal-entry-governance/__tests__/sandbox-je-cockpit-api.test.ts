@@ -653,6 +653,12 @@ describe("sandbox JE cockpit static safety scans", () => {
           "sandbox/proposals/[proposalId]/decision/route.ts",
         ),
       ),
+      path.normalize(
+        path.join(
+          governedRoot,
+          "sandbox/proposals/[proposalId]/prepare/route.ts",
+        ),
+      ),
     ]);
     for (const file of files) {
       const src = fs.readFileSync(file, "utf8");

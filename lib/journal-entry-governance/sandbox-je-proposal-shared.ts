@@ -74,6 +74,7 @@ export type SafeSandboxProposalResponse = {
   capabilities: {
     create_sandbox_je: false;
     verify_sandbox_je: false;
+    prepare_sandbox_je: false;
     memory: false;
     worker: false;
     governed_auto: false;

@@ -71,6 +71,13 @@ import {
 } from "./execution-types";
 import type { JeProposalAccountMeta } from "./types";
 
+export type JeExecutionEventPayloadArgs = {
+  execution: JournalEntryExecutionRow;
+  preflightEligible: boolean | null;
+  preflightSummary?: string;
+  preflight?: JePreflightResult | null;
+};
+
 export type PrepareJeExecutionDeps = {
   loadProposal: typeof loadExactJournalEntryProposal;
   loadApproval: typeof loadExactApprovedApprovalForProposal;
@@ -91,6 +98,13 @@ export type PrepareJeExecutionDeps = {
   resolveAssurance: typeof resolveJeAuthenticationAssurance;
   persistReservation: typeof persistJournalEntryExecutionReservation;
   transition: typeof transitionJournalEntryExecution;
+  canonicalizeExecutionPolicySnapshot?: (
+    policy: JeExecutionPolicy,
+  ) => Record<string, unknown>;
+  hashExecutionPolicy?: (policy: JeExecutionPolicy) => string;
+  buildExecutionEventPayload?: (
+    args: JeExecutionEventPayloadArgs,
+  ) => Record<string, unknown>;
   newId: () => string;
   nowIso: () => string;
 };
@@ -187,6 +201,7 @@ function buildEventPayload(args: {
   execution: JournalEntryExecutionRow;
   preflightEligible: boolean | null;
   preflightSummary?: string;
+  preflight?: JePreflightResult | null;
 }): Record<string, unknown> {
   return {
     execution_id: args.execution.id,
@@ -207,6 +222,16 @@ function buildEventPayload(args: {
     preflight_eligible: args.preflightEligible,
     preflight_summary: args.preflightSummary ?? null,
   };
+}
+
+function resolveExecutionEventPayload(
+  resolved: PrepareJeExecutionDeps,
+  args: JeExecutionEventPayloadArgs,
+): Record<string, unknown> {
+  if (resolved.buildExecutionEventPayload) {
+    return resolved.buildExecutionEventPayload(args);
+  }
+  return buildEventPayload(args);
 }
 
 function emptyPreflight(): JePreflightResult {
@@ -401,7 +426,9 @@ export async function prepareGovernedJournalEntryExecution(
       sourceCurrent: sourceCcCurrent && sourceSyncExists && sourceReconsExist,
     });
 
-    const executionPolicyHash = hashJeExecutionPolicy(policy);
+    const executionPolicyHash = resolved.hashExecutionPolicy
+      ? resolved.hashExecutionPolicy(policy)
+      : hashJeExecutionPolicy(policy);
     const executionHash = hashJeExecution({
       proposalId: proposal.id,
       proposalHash: proposal.proposal_hash,
@@ -454,7 +481,9 @@ export async function prepareGovernedJournalEntryExecution(
       idempotency_key: idempotencyKey,
       status: "RESERVED",
       correlation_marker: correlationMarker,
-      execution_policy_snapshot: canonicalizeJeExecutionPolicy(policy),
+      execution_policy_snapshot: resolved.canonicalizeExecutionPolicySnapshot
+        ? resolved.canonicalizeExecutionPolicySnapshot(policy)
+        : canonicalizeJeExecutionPolicy(policy),
       preflight_result: emptyPreflight(),
       requested_by: userId,
       requested_at: resolved.nowIso(),
@@ -478,7 +507,7 @@ export async function prepareGovernedJournalEntryExecution(
 
     const reserved = await resolved.persistReservation({
       row: reservedRow,
-      eventPayload: buildEventPayload({
+      eventPayload: resolveExecutionEventPayload(resolved, {
         execution: reservedRow,
         preflightEligible: null,
         preflightSummary: "reserved",
@@ -573,7 +602,7 @@ export async function prepareGovernedJournalEntryExecution(
           : failedCheck?.details || "precheck_failed",
       },
       eventType,
-      eventPayload: buildEventPayload({
+      eventPayload: resolveExecutionEventPayload(resolved, {
         execution: {
           ...reserved.row,
           status: nextStatus,
@@ -583,6 +612,7 @@ export async function prepareGovernedJournalEntryExecution(
         preflightSummary: preflight.eligible
           ? "all_checks_pass"
           : failedCheck?.code || "precheck_failed",
+        preflight,
       }),
       firmId,
       firmClientId: reserved.row.firm_client_id,

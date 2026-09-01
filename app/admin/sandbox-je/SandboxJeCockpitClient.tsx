@@ -22,6 +22,9 @@ import {
   isStrictProposalUuid,
   type SafeSandboxProposalResponse,
 } from "@/lib/journal-entry-governance/sandbox-je-proposal-shared";
+import {
+  SANDBOX_JE_ACCEPTED_PROPOSAL_ID,
+} from "@/lib/journal-entry-governance/sandbox-je-execution-prepare-shared";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
@@ -123,6 +126,9 @@ export default function SandboxJeCockpitClient({
   const [decisionBusy, setDecisionBusy] = useState(false);
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [decisionOk, setDecisionOk] = useState<string | null>(null);
+  const [prepareBusy, setPrepareBusy] = useState(false);
+  const [prepareError, setPrepareError] = useState<string | null>(null);
+  const [prepareOk, setPrepareOk] = useState<string | null>(null);
 
   const identity = useMemo(() => JE_3D_VERIFIED_DEMO_A_IDENTITY, []);
 
@@ -275,6 +281,50 @@ export default function SandboxJeCockpitClient({
     proposal.proposed_by !== sessionUserId &&
     proposal.approvals.length === 0;
 
+  const hasApprovedDecision = Boolean(
+    proposal?.approvals.some((a) => a.decision === "APPROVED"),
+  );
+
+  const prepareCapabilityOff = Boolean(
+    proposal?.capabilities.execution_prepare_disabled ??
+      allowlist?.capabilities.execution_prepare_disabled ??
+      true,
+  );
+
+  const canShowPreparePanel =
+    isDesignatedApprover &&
+    proposal?.proposal_id === SANDBOX_JE_ACCEPTED_PROPOSAL_ID &&
+    hasApprovedDecision;
+
+  const submitPrepare = useCallback(async () => {
+    if (!proposal?.proposal_id) return;
+    setPrepareBusy(true);
+    setPrepareError(null);
+    setPrepareOk(null);
+    try {
+      const res = await fetch(
+        `/api/governed/journal-entries/sandbox/proposals/${proposal.proposal_id}/prepare`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.error || `Prepare HTTP ${res.status}`);
+      }
+      setPrepareOk(
+        `Execution custody prepared (${String(body.status)}). No QuickBooks posting.`,
+      );
+    } catch (err) {
+      setPrepareError((err as Error).message);
+    } finally {
+      setPrepareBusy(false);
+    }
+  }, [proposal?.proposal_id]);
+
   return (
     <main className="min-h-screen bg-[#111112] text-[#ECEBE7]">
       <SiteNav />
@@ -341,6 +391,10 @@ export default function SandboxJeCockpitClient({
                 <CapabilityBadge
                   label="VERIFY"
                   enabled={allowlist.capabilities.verify_sandbox_je}
+                />
+                <CapabilityBadge
+                  label="PREPARE"
+                  enabled={allowlist.capabilities.prepare_sandbox_je}
                 />
                 <CapabilityBadge
                   label="Memory"
@@ -621,10 +675,52 @@ export default function SandboxJeCockpitClient({
               </section>
             ) : null}
 
+            {canShowPreparePanel ? (
+              <section className="rounded-xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-6">
+                <h2
+                  className={`text-xl font-semibold text-[#ECEBE7] ${headingFont}`}
+                >
+                  Prepare execution custody
+                </h2>
+                <p className="mt-2 text-sm text-[#A29E93]">
+                  Custody preparation only — no QuickBooks posting. Requires fresh
+                  MFA step-up when PREPARE capability is enabled. All accounting
+                  fields are server-derived from the approved proposal.
+                </p>
+                {prepareError ? (
+                  <p className="mt-4 text-sm text-[#F0BFBF]" role="alert">
+                    {prepareError}
+                  </p>
+                ) : null}
+                {prepareOk ? (
+                  <p className="mt-4 text-sm text-[#B5E28A]" role="status">
+                    {prepareOk}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={prepareBusy || prepareCapabilityOff}
+                  onClick={() => void submitPrepare()}
+                  className={`mt-6 ${primaryCtaClass} disabled:opacity-50`}
+                >
+                  {prepareCapabilityOff
+                    ? "Prepare execution (PREPARE OFF)"
+                    : prepareBusy
+                      ? "Preparing execution custody…"
+                      : "Prepare execution (custody only)"}
+                </button>
+              </section>
+            ) : null}
+
             <section className="rounded-xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-6">
               <h2 className={`text-xl font-semibold text-[#ECEBE7] ${headingFont}`}>
-                Verified execution custody (read-only context)
+                Verified execution custody (historical reference only)
               </h2>
+              <p className="mt-2 text-sm text-[#A29E93]">
+                QBO JE {SANDBOX_JE_COCKPIT_VERIFIED_PROVIDER_JOURNAL_ID} is historical
+                verified context — not linked to the current accepted proposal.
+                Memory is display context only — never authority for provider success.
+              </p>
               <dl className="mt-4">
                 <IdentityRow
                   label="executionId"

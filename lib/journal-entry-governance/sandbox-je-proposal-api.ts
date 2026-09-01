@@ -97,6 +97,7 @@ export const SANDBOX_JE_PROPOSAL_POLICY: JeProposalPolicy = {
 const LOCKED_CAPABILITIES = {
   create_sandbox_je: false,
   verify_sandbox_je: false,
+  prepare_sandbox_je: false,
   memory: false,
   worker: false,
   governed_auto: false,

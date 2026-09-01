@@ -7,6 +7,7 @@ import {
   JE_3D_ACTIVATION_ERROR,
   Je3dActivationError,
   isJe3dCreateCapabilityEnabled,
+  isJe3dPrepareCapabilityEnabled,
   isJe3dVerifyCapabilityEnabled,
   type Je3dActivationPolicyView,
 } from "./je3d-activation-policy";
@@ -62,6 +63,21 @@ export function assertJe3dVerifyActivationPolicy(
     throw new Je3dActivationError(
       JE_3D_ACTIVATION_ERROR.VERIFY_CAPABILITY_OFF,
       "VERIFY_SANDBOX_JE capability is disabled.",
+    );
+  }
+  assertJe3dSandboxQboEnvironment();
+}
+
+/**
+ * Prepare is custody-only (JE-3A). Does not require dispatch kill switch off.
+ */
+export function assertJe3dPrepareActivationPolicy(
+  policy: Je3dActivationPolicyView = resolveJe3dActivationPolicy(),
+): void {
+  if (!isJe3dPrepareCapabilityEnabled(policy)) {
+    throw new Je3dActivationError(
+      JE_3D_ACTIVATION_ERROR.PREPARE_CAPABILITY_OFF,
+      "PREPARE_SANDBOX_JE capability is disabled.",
     );
   }
   assertJe3dSandboxQboEnvironment();
