@@ -490,3 +490,265 @@ describe("sandbox JE prepare enabled-path (module mock only)", () => {
     );
   });
 });
+
+describe("sandbox JE prepare custody override isolation", () => {
+  const root = process.cwd();
+
+  it("no app/ or lib/ production file imports custody override entry except sandbox core", () => {
+    const allowed = new Set([
+      path.normalize("lib/journal-entry-governance/sandbox-two-person-prepare-core.ts"),
+      path.normalize("lib/journal-entry-governance/execution-service.ts"),
+      path.normalize(
+        "lib/journal-entry-governance/__tests__/sandbox-je-execution-prepare.test.ts",
+      ),
+    ]);
+    const scanRoots = [
+      path.join(root, "app"),
+      path.join(root, "lib"),
+    ];
+    const offenders: string[] = [];
+    for (const scanRoot of scanRoots) {
+      const walk = (dir: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (entry.name === "node_modules" || entry.name === "__tests__") continue;
+            walk(full);
+            continue;
+          }
+          if (!/\.(ts|tsx|js|jsx)$/.test(entry.name)) continue;
+          const rel = path.normalize(path.relative(root, full));
+          if (allowed.has(rel)) continue;
+          const src = fs.readFileSync(full, "utf8");
+          if (/prepareGovernedJournalEntryExecutionWithCustodyOverrides/.test(src)) {
+            offenders.push(rel);
+          }
+        }
+      };
+      walk(scanRoot);
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("sandbox JE prepare RPC event payload (mocked, no live DB)", () => {
+  it("custody override path passes enriched Patent #6 fields to reservation and transition", async () => {
+    const {
+      prepareGovernedJournalEntryExecutionWithCustodyOverrides,
+    } = await import("../execution-service");
+    const {
+      buildSandboxTwoPersonPrepareEventPayload,
+      canonicalizeSandboxTwoPersonExecutionPolicySnapshot,
+      hashSandboxTwoPersonExecutionPolicy,
+      SANDBOX_TWO_PERSON_JE_EXECUTION_POLICY,
+    } = await import("../sandbox-two-person-prepare-policy");
+    const HASH = (c: string) => c.repeat(64);
+    const proposal = {
+      id: SANDBOX_JE_ACCEPTED_PROPOSAL_ID,
+      company_id: "aaaaaaaa-2222-4222-8222-222222222222",
+      engagement_id: "eng-1",
+      firm_client_id: "aaaaaaaa-1111-4111-8111-111111111111",
+      period_end: "2026-08-31",
+      source_continuous_close_run_id: "cc-1",
+      source_accounting_sync_id: "sync-1",
+      source_recon_run_ids: ["recon-1"],
+      origin_type: "ACCRUAL" as const,
+      reason_code: "X",
+      memo: "m",
+      currency: "USD",
+      txn_date: "2026-08-31",
+      lines: [
+        { sequence: 1, accountId: "15", debitCents: 100, creditCents: 0 },
+        {
+          sequence: 2,
+          accountId: "1150040002",
+          debitCents: 0,
+          creditCents: 100,
+        },
+      ],
+      total_debits_cents: 100,
+      total_credits_cents: 100,
+      expected_effects: [],
+      policy_snapshot: {},
+      policy_hash: HASH("b"),
+      proposal_hash: HASH("a"),
+      status: "SUBMITTED" as const,
+      proposed_by: SANDBOX_JE_DESIGNATED_PROPOSER_USER_ID,
+      proposed_at: "2026-09-01T00:00:00.000Z",
+      idempotency_key: HASH("x"),
+    };
+    const approval = {
+      id: SANDBOX_JE_ACCEPTED_APPROVAL_ID,
+      proposal_id: SANDBOX_JE_ACCEPTED_PROPOSAL_ID,
+      company_id: "aaaaaaaa-2222-4222-8222-222222222222",
+      engagement_id: "eng-1",
+      proposal_hash: HASH("a"),
+      policy_hash: HASH("b"),
+      decision: "APPROVED" as const,
+      approval_mode: "REVIEW_REQUIRED" as const,
+      reviewer_user_id: SANDBOX_JE_DESIGNATED_APPROVER_USER_ID,
+      reviewer_role: null,
+      mfa_level: "aal2",
+      mfa_verified_at: "2026-09-01T00:00:00.000Z",
+      decision_reason: null,
+      policy_snapshot: {},
+      approved_at: "2026-09-01T00:00:00.000Z",
+      idempotency_key: HASH("y"),
+    };
+    const connection = {
+      id: "dfef5e96-e717-4e3e-afac-fde0de1b5b23",
+      tenant_or_realm_id: "9341457151063823",
+      provider: "quickbooks",
+      provider_environment: "sandbox",
+      status: "connected",
+    };
+    const prepareAssurance = {
+      satisfied: true,
+      level: "aal2" as const,
+      verifiedAt: "2026-09-01T01:00:00.000Z",
+      method: "totp" as const,
+      source: "mfa_step_up_cookie" as const,
+    };
+    const reservationPayloads: Record<string, unknown>[] = [];
+    const transitionPayloads: Record<string, unknown>[] = [];
+    let seq = 0;
+
+    const result = await prepareGovernedJournalEntryExecutionWithCustodyOverrides(
+      {
+        proposalId: SANDBOX_JE_ACCEPTED_PROPOSAL_ID,
+        approvalId: SANDBOX_JE_ACCEPTED_APPROVAL_ID,
+      },
+      {
+        principal: {
+          type: "user",
+          userId: SANDBOX_JE_DESIGNATED_APPROVER_USER_ID,
+        },
+      },
+      SANDBOX_TWO_PERSON_JE_EXECUTION_POLICY,
+      {
+        resolveConnection: async () => connection as never,
+        canonicalizeExecutionPolicySnapshot: () =>
+          canonicalizeSandboxTwoPersonExecutionPolicySnapshot(),
+        hashExecutionPolicy: () => hashSandboxTwoPersonExecutionPolicy(),
+        buildExecutionEventPayload: (payloadArgs) =>
+          buildSandboxTwoPersonPrepareEventPayload({
+            execution: payloadArgs.execution,
+            proposal: proposal as never,
+            approval: approval as never,
+            connection,
+            initiatingUserId: SANDBOX_JE_DESIGNATED_APPROVER_USER_ID,
+            prepareAssurance,
+            preflightEligible: payloadArgs.preflightEligible,
+            preflightSummary: payloadArgs.preflightSummary,
+            preflight: payloadArgs.preflight ?? null,
+            providerRequestHash: payloadArgs.execution.provider_request_hash,
+          }),
+      },
+      {
+        loadProposal: async () => proposal as never,
+        loadApproval: async () => approval as never,
+        resolveActor: async ({ userId }) => ({
+          userId,
+          canRead: true,
+          canWrite: true,
+          scope: "firm" as const,
+        }),
+        loadEngagement: async () => ({
+          id: "eng-1",
+          companyId: "aaaaaaaa-2222-4222-8222-222222222222",
+          firmId: "11111111-1111-1111-1111-111111111111",
+          firmClientId: "aaaaaaaa-1111-4111-8111-111111111111",
+          arControlAccountId: "84",
+          apControlAccountId: "33",
+          inventoryControlAccountId: "81",
+        }),
+        loadSourceCc: async () => ({
+          id: "cc-1",
+          engagementId: "eng-1",
+          companyId: "aaaaaaaa-2222-4222-8222-222222222222",
+          accountingSyncId: "sync-1",
+          periodEnd: "2026-08-31",
+          readiness: "READY",
+          status: "completed",
+          mode: "full",
+        }),
+        assertNotSuperseded: async () => undefined,
+        assertSyncExists: async () => undefined,
+        assertReconsExist: async () => undefined,
+        assertEntitlement: async () => ({
+          ok: true as const,
+          resolvedVia: "firm" as const,
+        }),
+        assertQboWriteEnabled: async () => undefined,
+        loadAccounts: async () =>
+          new Map([
+            ["15", { accountId: "15", accountType: "Expense", active: true }],
+            [
+              "1150040002",
+              {
+                accountId: "1150040002",
+                accountType: "Other Current Liability",
+                active: true,
+              },
+            ],
+          ]),
+        assertPeriodNotLocked: async () => undefined,
+        loadSubscriberIds: async () => ({
+          firmId: "11111111-1111-1111-1111-111111111111",
+          companyId: "aaaaaaaa-2222-4222-8222-222222222222",
+        }),
+        loadFirmId: async () => "11111111-1111-1111-1111-111111111111",
+        resolveClosePeriodId: async () => null,
+        resolveAssurance: async () => prepareAssurance,
+        persistReservation: async (input) => {
+          reservationPayloads.push(input.eventPayload);
+          seq += 1;
+          return {
+            reused: false,
+            reuseReason: null,
+            row: input.row,
+            ledgerEventId: `ev-res-${seq}`,
+          };
+        },
+        transition: async (input) => {
+          transitionPayloads.push(input.eventPayload);
+          seq += 1;
+          return {
+            row: {
+              ...input.patch,
+              id: input.executionId,
+              status: input.newStatus,
+              state_version: 2,
+            } as never,
+            ledgerEventId: `ev-tr-${seq}`,
+          };
+        },
+        newId: () => "exec-rpc-test-1",
+        nowIso: () => "2026-09-01T02:00:00.000Z",
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(reservationPayloads).toHaveLength(1);
+    expect(transitionPayloads).toHaveLength(1);
+    for (const payload of [...reservationPayloads, ...transitionPayloads]) {
+      expect(payload.preparation_authority).toBe(
+        SANDBOX_TWO_PERSON_PREPARE_AUTHORITY_V1,
+      );
+      expect(payload.prepare_mfa_level).toBe("aal2");
+      expect(payload.prepare_mfa_source).toBe("mfa_step_up_cookie");
+      expect(payload.accounting_connection_id).toBe(
+        "dfef5e96-e717-4e3e-afac-fde0de1b5b23",
+      );
+      expect(payload.realm_id).toBe("9341457151063823");
+      expect(payload.provider_environment).toBe("sandbox");
+      expect(payload.total_debits_cents).toBe(100);
+      expect(payload.currency).toBe("USD");
+      expect(payload.txn_date).toBe("2026-08-31");
+      expect(payload.account_ids).toEqual(["15", "1150040002"]);
+      expect(payload.execution_policy_hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(payload.provider_request_hash).toMatch(/^[a-f0-9]{64}$/);
+    }
+    expect(transitionPayloads[0]?.status).toBe("READY_TO_POST");
+  });
+});
