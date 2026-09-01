@@ -171,10 +171,6 @@ export default function SandboxJeCockpitClient({
     }
   }, []);
 
-  useEffect(() => {
-    void loadCockpit();
-  }, [loadCockpit]);
-
   const refreshProposal = useCallback(async (proposalId: string) => {
     const res = await fetch(
       `/api/governed/journal-entries/sandbox/proposals/${proposalId}`,
@@ -186,6 +182,21 @@ export default function SandboxJeCockpitClient({
     }
     setProposal((await res.json()) as SafeSandboxProposalResponse);
   }, []);
+
+  useEffect(() => {
+    void loadCockpit();
+  }, [loadCockpit]);
+
+  useEffect(() => {
+    if (loading) return;
+    const proposalId = new URLSearchParams(window.location.search)
+      .get("proposalId")
+      ?.trim();
+    if (!proposalId) return;
+    void refreshProposal(proposalId).catch((err) => {
+      setProposalError((err as Error).message);
+    });
+  }, [loading, refreshProposal]);
 
   const submitProposal = useCallback(async () => {
     setProposalBusy(true);
