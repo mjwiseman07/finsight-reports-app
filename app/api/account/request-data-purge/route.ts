@@ -9,6 +9,7 @@ import {
   mfaVerifiedCookieName,
   verifyMfaVerifiedCookie,
 } from "@/lib/mfa/trusted-devices";
+import { resolveVerifiedSupabaseSession } from "@/lib/mfa/verified-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,9 +21,16 @@ export async function POST(req: Request): Promise<Response> {
   // Prefer Gap 3 step-up helper; fall back to raw cookie for non-cookie() callers.
   const stepUp = await verifyMfaStepUpForRequest(user.id);
   if (!stepUp.ok) {
+    const session = await resolveVerifiedSupabaseSession(user.id);
+    if (!session) {
+      return NextResponse.json({ error: "mfa_step_up_required" }, { status: 403 });
+    }
     const cookieStore = await cookies();
     const raw = cookieStore.get(mfaVerifiedCookieName())?.value;
-    const ok = await verifyMfaVerifiedCookie(raw, user.id);
+    const ok = await verifyMfaVerifiedCookie(raw, {
+      userId: user.id,
+      sessionId: session.sessionId,
+    });
     if (!ok) {
       return NextResponse.json({ error: "mfa_step_up_required" }, { status: 403 });
     }

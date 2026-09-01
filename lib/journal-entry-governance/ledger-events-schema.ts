@@ -79,8 +79,10 @@ export function assertPatent6ChainReceiptCustody(args: {
   executionId: string;
   events: readonly LedgerEventPatent6ChainRow[];
   verificationReceiptId?: string | null;
+  /** Defaults to journal_entry_execution (historical cockpit bind). */
+  aggregateType?: "journal_entry_execution" | "journal_entry_proposal";
 }): void {
-  const aggregateType = "journal_entry_execution";
+  const aggregateType = args.aggregateType ?? "journal_entry_execution";
 
   for (const event of args.events) {
     if (event.aggregate_type !== aggregateType) {

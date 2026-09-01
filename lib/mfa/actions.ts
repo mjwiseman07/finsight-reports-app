@@ -429,19 +429,50 @@ export async function verifyMfaChallenge(
       return { ok: false, error: "MFA verified but no access token returned" };
     }
 
-    if (options?.trustDevice) {
-      try {
-        const { cookies } = await import("next/headers");
-        const {
-          addTrustedDevice,
-          trustedDeviceCookieName,
-        } = await import("@/lib/mfa/trusted-devices");
+    // Mint session-bound MFA step-up receipt (same format as WebAuthn verify).
+    try {
+      const { cookies } = await import("next/headers");
+      const {
+        addTrustedDevice,
+        mfaVerifiedCookieName,
+        signMfaVerifiedCookie,
+        trustedDeviceCookieName,
+      } = await import("@/lib/mfa/trusted-devices");
+      const { resolveVerifiedSupabaseSession } = await import(
+        "@/lib/mfa/verified-session"
+      );
+      const verifiedSession = await resolveVerifiedSupabaseSession(
+        user.id,
+        accessToken,
+      );
+      if (!verifiedSession) {
+        return {
+          ok: false,
+          error: "MFA verified but session could not be bound for step-up receipt.",
+        };
+      }
+      const jar = await cookies();
+      const verifiedCookie = await signMfaVerifiedCookie({
+        userId: user.id,
+        sessionId: verifiedSession.sessionId,
+        method: "totp",
+      });
+      jar.set({
+        name: mfaVerifiedCookieName(),
+        value: verifiedCookie.cookieValue,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: verifiedCookie.maxAgeSeconds,
+      });
+
+      if (options?.trustDevice) {
         const { cookieValue, maxAgeSeconds } = await addTrustedDevice(
           user.id,
           ctx.userAgent,
           ctx.ipAddress,
         );
-        const jar = await cookies();
         jar.set({
           name: trustedDeviceCookieName(),
           value: cookieValue,
@@ -457,9 +488,9 @@ export async function verifyMfaChallenge(
           metadata: { source: "totp_challenge" },
           ...ctx,
         });
-      } catch (err) {
-        console.error("[mfa] trusted device cookie set failed", err);
       }
+    } catch (err) {
+      console.error("[mfa] mfa-verified / trusted device cookie set failed", err);
     }
 
     return { ok: true, data: { accessToken, expiresIn } };

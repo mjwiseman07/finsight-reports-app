@@ -7,13 +7,14 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteNav } from "@/components/SiteNav";
 import { focusRing, headingFont, primaryCtaClass } from "@/components/site-ui";
 import { consumeRecoveryCode, verifyMfaChallenge } from "@/lib/mfa/actions";
+import { sanitizeMfaReturnTo } from "@/lib/mfa/return-to";
 import { ADVISACOR_ACCESS_TOKEN_COOKIE } from "@/lib/reviewer/constants";
 import { supabase } from "@/lib/supabase";
 
 function MfaChallengeForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnTo = searchParams?.get("returnTo") || "/dashboard";
+  const returnTo = sanitizeMfaReturnTo(searchParams?.get("returnTo"));
   const [mode, setMode] = useState<"totp" | "recovery">("totp");
   const [code, setCode] = useState("");
   const [recovery, setRecovery] = useState("");
@@ -21,6 +22,16 @@ function MfaChallengeForm() {
   const [pending, startTransition] = useTransition();
   const [trustDevice, setTrustDevice] = useState(false);
   const [webauthnAvailable, setWebauthnAvailable] = useState(false);
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) return;
+      const challengeNext = `/signin/mfa-challenge?returnTo=${encodeURIComponent(returnTo)}`;
+      router.replace(
+        `/signin?next=${encodeURIComponent(challengeNext)}`,
+      );
+    });
+  }, [returnTo, router]);
 
   useEffect(() => {
     fetch("/api/mfa/factors/summary", { credentials: "same-origin" })
@@ -43,7 +54,7 @@ function MfaChallengeForm() {
         return;
       }
       persistToken(result.data.accessToken, result.data.expiresIn);
-      router.replace(returnTo.startsWith("/") ? returnTo : "/dashboard");
+      router.replace(returnTo);
     });
   };
 
@@ -87,7 +98,7 @@ function MfaChallengeForm() {
           body: JSON.stringify({ response: authResp, trustDevice }),
         });
         if (verifyRes.ok) {
-          window.location.href = returnTo.startsWith("/") ? returnTo : "/dashboard";
+          window.location.href = returnTo;
         } else {
           setError("Passkey verification failed");
         }

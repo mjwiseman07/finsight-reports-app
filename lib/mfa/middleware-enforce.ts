@@ -136,7 +136,14 @@ export async function enforceMfaForRequest(
       deviceTrusted = await isTrustedDevice(userId, cookieValue);
     }
     const verifiedRaw = request.cookies.get(mfaVerifiedCookieName())?.value;
-    sessionMfaVerified = await verifyMfaVerifiedCookie(verifiedRaw, userId);
+    const jwtSessionId =
+      typeof payload.session_id === "string" ? payload.session_id : null;
+    if (verifiedRaw && jwtSessionId) {
+      sessionMfaVerified = await verifyMfaVerifiedCookie(verifiedRaw, {
+        userId,
+        sessionId: jwtSessionId,
+      });
+    }
   } catch (err) {
     console.error("[mfa-middleware] trusted device check failed", err);
   }

@@ -9,6 +9,7 @@ import {
   type JeApprovalCcReadiness,
   type JeApprovalPolicy,
 } from "./approval-types";
+import { resolveEngagementFirmIdForAuthority } from "./approval-authority";
 import type {
   JeProposalOriginType,
   JournalEntryProposalRow,
@@ -261,10 +262,14 @@ export async function loadEngagementFirmId(
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("audit_ready_engagements")
-    .select("firm_id")
+    .select("firm_id, company_id")
     .eq("id", engagementId)
     .maybeSingle();
-  return data?.firm_id ? String(data.firm_id) : null;
+  if (!data) return null;
+  return resolveEngagementFirmIdForAuthority({
+    firmId: data.firm_id,
+    companyId: data.company_id,
+  });
 }
 
 /**
@@ -377,8 +382,8 @@ export async function resolveApprovalClosePeriodId(args: {
 }
 
 /**
- * Production MFA assurance resolver — trusted cookie step-up only.
- * Never accepts a caller-supplied mfaVerified boolean.
+ * Production MFA assurance resolver — signed step-up receipt only.
+ * Never accepts caller-supplied booleans or unverified JWT decode.
  */
 export async function resolveJeAuthenticationAssurance(
   userId: string,
@@ -397,6 +402,7 @@ export async function resolveJeAuthenticationAssurance(
   } catch {
     // cookies()/request unavailable outside Next request — treat as unsatisfied
   }
+
   return {
     satisfied: false,
     level: "none",

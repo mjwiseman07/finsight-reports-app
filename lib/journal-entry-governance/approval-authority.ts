@@ -28,6 +28,38 @@ export type JeApproverAuthority = {
   firmCanApproveFlag: boolean | null;
 };
 
+/**
+ * Resolve engagement firm_id. Prefer denormalized engagement.firm_id; when null,
+ * require exactly one firm_clients.firm_id for the engagement company (fail closed
+ * on zero/ambiguous). Does not invent firm membership — only completes firm_id
+ * resolution for the existing firm_memberships approval path.
+ */
+export async function resolveEngagementFirmIdForAuthority(args: {
+  firmId: string | null | undefined;
+  companyId: string | null | undefined;
+}): Promise<string | null> {
+  if (args.firmId) return String(args.firmId);
+  const companyId = String(args.companyId || "").trim();
+  if (!companyId) return null;
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("firm_clients")
+    .select("firm_id")
+    .eq("company_id", companyId);
+  if (error || !data) return null;
+  const firmIds = [
+    ...new Set(
+      data
+        .map((row: { firm_id: string | null }) =>
+          row.firm_id ? String(row.firm_id) : "",
+        )
+        .filter(Boolean),
+    ),
+  ];
+  if (firmIds.length !== 1) return null;
+  return firmIds[0] as string;
+}
+
 export async function resolveJeApproverAuthority(args: {
   engagementId: string;
   userId: string;
@@ -90,11 +122,15 @@ export async function resolveJeApproverAuthority(args: {
     }
   }
 
-  if (eng.firm_id) {
+  const firmId = await resolveEngagementFirmIdForAuthority({
+    firmId: eng.firm_id,
+    companyId: eng.company_id,
+  });
+  if (firmId) {
     const { data: fm } = await supabase
       .from("firm_memberships")
       .select("role, status, can_approve")
-      .eq("firm_id", eng.firm_id)
+      .eq("firm_id", firmId)
       .eq("user_id", args.userId)
       .eq("status", "active")
       .maybeSingle();

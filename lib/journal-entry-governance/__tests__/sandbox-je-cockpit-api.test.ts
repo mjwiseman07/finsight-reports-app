@@ -638,29 +638,51 @@ describe("sandbox JE cockpit static safety scans", () => {
     }
   });
 
-  it("does not define mutation HTTP handlers under governed sandbox routes", () => {
+  it("does not define forbidden mutation handlers outside proposal decision routes", () => {
     const files = fs
       .readdirSync(governedRoot, { recursive: true })
       .filter((name): name is string => typeof name === "string" && name.endsWith("route.ts"))
       .map((name) => path.join(governedRoot, name));
+    const allowedPost = new Set([
+      path.normalize(
+        path.join(governedRoot, "sandbox/proposals/route.ts"),
+      ),
+      path.normalize(
+        path.join(
+          governedRoot,
+          "sandbox/proposals/[proposalId]/decision/route.ts",
+        ),
+      ),
+    ]);
     for (const file of files) {
       const src = fs.readFileSync(file, "utf8");
-      expect(src).not.toMatch(/export async function POST/);
-      expect(src).not.toMatch(/export async function PUT/);
-      expect(src).not.toMatch(/export async function PATCH/);
-      expect(src).not.toMatch(/export async function DELETE/);
+      const normalized = path.normalize(file);
+      if (!allowedPost.has(normalized)) {
+        expect(src, normalized).not.toMatch(/export async function POST/);
+      } else {
+        expect(src, normalized).toMatch(/export async function POST/);
+      }
+      expect(src, normalized).not.toMatch(/export async function PUT/);
+      expect(src, normalized).not.toMatch(/export async function PATCH/);
+      expect(src, normalized).not.toMatch(/export async function DELETE/);
+      expect(src, normalized).not.toMatch(/prepareGovernedJournalEntryExecution/);
+      expect(src, normalized).not.toMatch(/executeGovernedJournalEntryCreate/);
+      expect(src, normalized).not.toMatch(/journal-entry-poster/);
     }
   });
 
-  it("cockpit client has no POST/VERIFY controls", () => {
+  it("cockpit client allows proposal/decision POST but not provider/verify controls", () => {
     const src = fs.readFileSync(
       path.join(root, "app/admin/sandbox-je/SandboxJeCockpitClient.tsx"),
       "utf8",
     );
-    expect(src).not.toMatch(/method:\s*"POST"/);
+    expect(src).toMatch(/method:\s*"POST"/);
     expect(src).not.toMatch(/method:\s*"PUT"/);
     expect(src).toMatch(/POST DISABLED/);
     expect(src).toMatch(/VERIFY DISABLED/);
+    expect(src).toMatch(/EXECUTION PREPARE DISABLED/);
+    expect(src).not.toMatch(/Post to QuickBooks/i);
+    expect(src).not.toMatch(/VERIFY_SANDBOX/);
   });
 
   it("cockpit client renders dispatch kill switch without inverted double-negative", () => {
@@ -676,7 +698,7 @@ describe("sandbox JE cockpit static safety scans", () => {
     expect(src).not.toMatch(/label="kill switch"/);
   });
 
-  it("admin page returns notFound before super-admin auth when runtime disabled", () => {
+  it("admin page returns notFound before session auth when runtime disabled", () => {
     const src = fs.readFileSync(
       path.join(root, "app/admin/sandbox-je/page.tsx"),
       "utf8",
@@ -686,7 +708,7 @@ describe("sandbox JE cockpit static safety scans", () => {
     expect(src).toMatch(/isSandboxJeCockpitRuntimeEnabled/);
     expect(pageBody).toMatch(/notFound\(\)/);
     expect(pageBody.indexOf("notFound()")).toBeLessThan(
-      pageBody.indexOf("requireSuperAdmin"),
+      pageBody.indexOf("resolveSandboxJePageAccess"),
     );
     expect(src).toMatch(/robots:\s*\{\s*index:\s*false/);
   });
