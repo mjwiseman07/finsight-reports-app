@@ -65,6 +65,50 @@ describe("sandbox JE proposal/approval static boundary", () => {
     expect(src).toContain("EXECUTION PREPARE DISABLED");
   });
 
+  it("cockpit Approve button posts to decision route with clientMutationId (no console dependency)", () => {
+    const src = fs.readFileSync(cockpitClient, "utf8");
+    expect(src).toContain("submitDecision");
+    expect(src).toContain("Approve (DB custody only)");
+    expect(src).toContain(
+      "/api/governed/journal-entries/sandbox/proposals/${proposal.proposal_id}/decision",
+    );
+    expect(src).toContain('method: "POST"');
+    expect(src).toContain('credentials: "include"');
+    expect(src).toContain("clientMutationId: newClientMutationId()");
+    expect(src).toContain("new URLSearchParams(window.location.search)");
+    expect(src).toContain('.get("proposalId")');
+    expect(src).toContain("refreshProposal(proposalId)");
+    expect(src).toContain("proposal.proposed_by !== sessionUserId");
+    expect(src).toContain("proposal.approvals.length === 0");
+  });
+
+  it("post-8791 fixes: approval columns, TOTP cookie mint, MFA session guard", () => {
+    const proposalApiSrc = fs.readFileSync(proposalApi, "utf8");
+    expect(proposalApiSrc).toContain("approved_at, reviewer_user_id, decision_reason");
+    expect(proposalApiSrc).toContain('.order("approved_at"');
+
+    const mfaActions = fs.readFileSync(
+      path.join(root, "lib/mfa/actions.ts"),
+      "utf8",
+    );
+    expect(mfaActions).toContain("signMfaVerifiedCookie");
+    expect(mfaActions).toContain("mfaVerifiedCookieName()");
+
+    const approvalCustody = fs.readFileSync(
+      path.join(root, "lib/journal-entry-governance/approval-custody.ts"),
+      "utf8",
+    );
+    expect(approvalCustody).toContain("supabase_jwt_aal2");
+    expect(approvalCustody).toContain("MFA_STEP_UP_WINDOW_MS");
+
+    const mfaChallenge = fs.readFileSync(
+      path.join(root, "app/signin/mfa-challenge/page.tsx"),
+      "utf8",
+    );
+    expect(mfaChallenge).toContain("supabase.auth.getUser()");
+    expect(mfaChallenge).toContain("/signin?next=");
+  });
+
   it("middleware returns production 404 before MFA for sandbox JE paths", () => {
     const src = fs.readFileSync(middlewarePath, "utf8");
     expect(src).toContain("isSandboxJeProductionBoundaryPath");
