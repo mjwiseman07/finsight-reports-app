@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserFromRequest, logMfaEvent } from "@/lib/mfa/server";
 import { verifyAuthentication } from "@/lib/mfa/webauthn";
+import { resolveVerifiedSupabaseSession } from "@/lib/mfa/verified-session";
 import {
   addTrustedDevice,
   mfaVerifiedCookieName,
@@ -22,10 +23,18 @@ export async function POST(request: Request) {
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
+  const verifiedSession = await resolveVerifiedSupabaseSession(user.id);
+  if (!verifiedSession) {
+    return NextResponse.json({ error: "session required" }, { status: 401 });
+  }
+
   const response_ = NextResponse.json({ ok: true });
 
-  // Short-lived MFA-verified cookie (WebAuthn cannot mint Supabase aal2 JWTs).
-  const verified = await signMfaVerifiedCookie(user.id);
+  const verified = await signMfaVerifiedCookie({
+    userId: user.id,
+    sessionId: verifiedSession.sessionId,
+    method: "webauthn",
+  });
   response_.cookies.set(mfaVerifiedCookieName(), verified.cookieValue, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

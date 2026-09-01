@@ -82,31 +82,50 @@ describe("sandbox JE proposal/approval static boundary", () => {
     expect(src).toContain("proposal.approvals.length === 0");
   });
 
-  it("post-8791 fixes: approval columns, TOTP cookie mint, MFA session guard", () => {
+  it("post-8791 fixes: approval columns, TOTP cookie mint, unified MFA authority", () => {
     const proposalApiSrc = fs.readFileSync(proposalApi, "utf8");
     expect(proposalApiSrc).toContain("approved_at, reviewer_user_id, decision_reason");
     expect(proposalApiSrc).toContain('.order("approved_at"');
+    expect(proposalApiSrc).toContain("isStrictProposalUuid");
 
     const mfaActions = fs.readFileSync(
       path.join(root, "lib/mfa/actions.ts"),
       "utf8",
     );
     expect(mfaActions).toContain("signMfaVerifiedCookie");
-    expect(mfaActions).toContain("mfaVerifiedCookieName()");
+    expect(mfaActions).toContain("resolveVerifiedSupabaseSession");
+    expect(mfaActions).toContain('method: "totp"');
 
     const approvalCustody = fs.readFileSync(
       path.join(root, "lib/journal-entry-governance/approval-custody.ts"),
       "utf8",
     );
-    expect(approvalCustody).toContain("supabase_jwt_aal2");
-    expect(approvalCustody).toContain("MFA_STEP_UP_WINDOW_MS");
+    expect(approvalCustody).not.toContain("supabase_jwt_aal2");
+    expect(approvalCustody).not.toContain("decodeJwtPayload");
+    expect(approvalCustody).toContain("verifyMfaStepUpForRequest");
+
+    const mfaChallengeLayout = path.join(
+      root,
+      "app/signin/mfa-challenge/layout.tsx",
+    );
+    expect(fs.existsSync(mfaChallengeLayout)).toBe(true);
+    expect(fs.readFileSync(mfaChallengeLayout, "utf8")).toContain(
+      "createMfaUserClient",
+    );
 
     const mfaChallenge = fs.readFileSync(
       path.join(root, "app/signin/mfa-challenge/page.tsx"),
       "utf8",
     );
-    expect(mfaChallenge).toContain("supabase.auth.getUser()");
-    expect(mfaChallenge).toContain("/signin?next=");
+    expect(mfaChallenge).toContain("sanitizeMfaReturnTo");
+  });
+
+  it("cockpit blocks malformed proposalId locally and hides approval controls when decided", () => {
+    const src = fs.readFileSync(cockpitClient, "utf8");
+    expect(src).toContain("isStrictProposalUuid");
+    expect(src).toContain("Invalid proposalId in URL");
+    expect(src).toContain("approvalId:");
+    expect(src).toContain("proposal.approvals.length === 0");
   });
 
   it("middleware returns production 404 before MFA for sandbox JE paths", () => {
@@ -139,6 +158,26 @@ describe("sandbox JE proposal parsers and origin guard", () => {
   });
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it("rejects malformed proposalId before DB lookup", async () => {
+    const { getSandboxJeProposal, SandboxJeProposalApiError } = await import(
+      "../sandbox-je-proposal-api"
+    );
+    await expect(
+      getSandboxJeProposal({
+        request: new Request("http://localhost/api/test"),
+        proposalId: "not-a-valid-uuid",
+      }),
+    ).rejects.toMatchObject({
+      code: "sandbox_je_proposal_id_invalid",
+    });
+    await expect(
+      getSandboxJeProposal({
+        request: new Request("http://localhost/api/test"),
+        proposalId: "",
+      }),
+    ).rejects.toBeInstanceOf(SandboxJeProposalApiError);
   });
 
   it("rejects unknown proposal fields and requires clientMutationId", async () => {

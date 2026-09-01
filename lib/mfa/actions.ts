@@ -429,8 +429,7 @@ export async function verifyMfaChallenge(
       return { ok: false, error: "MFA verified but no access token returned" };
     }
 
-    // Mint the same short-lived MFA-verified cookie WebAuthn sets so JE / Gap-3
-    // step-up gates (verifyMfaStepUpForRequest) accept TOTP challenge success.
+    // Mint session-bound MFA step-up receipt (same format as WebAuthn verify).
     try {
       const { cookies } = await import("next/headers");
       const {
@@ -439,8 +438,25 @@ export async function verifyMfaChallenge(
         signMfaVerifiedCookie,
         trustedDeviceCookieName,
       } = await import("@/lib/mfa/trusted-devices");
+      const { resolveVerifiedSupabaseSession } = await import(
+        "@/lib/mfa/verified-session"
+      );
+      const verifiedSession = await resolveVerifiedSupabaseSession(
+        user.id,
+        accessToken,
+      );
+      if (!verifiedSession) {
+        return {
+          ok: false,
+          error: "MFA verified but session could not be bound for step-up receipt.",
+        };
+      }
       const jar = await cookies();
-      const verifiedCookie = await signMfaVerifiedCookie(user.id);
+      const verifiedCookie = await signMfaVerifiedCookie({
+        userId: user.id,
+        sessionId: verifiedSession.sessionId,
+        method: "totp",
+      });
       jar.set({
         name: mfaVerifiedCookieName(),
         value: verifiedCookie.cookieValue,

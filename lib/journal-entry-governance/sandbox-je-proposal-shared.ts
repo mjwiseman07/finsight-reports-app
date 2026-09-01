@@ -33,6 +33,14 @@ export const SANDBOX_JE_PROPOSAL_MUTATE_RATE_LIMIT_KEY =
 export const SANDBOX_JE_PROPOSAL_READ_RATE_LIMIT_KEY =
   "governed-sandbox-je-proposal-read";
 
+/** RFC 4122 UUID v1–v5 (strict lowercase/uppercase hex). */
+const STRICT_PROPOSAL_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isStrictProposalUuid(value: string): boolean {
+  return STRICT_PROPOSAL_UUID_RE.test(value.trim());
+}
+
 export type SandboxJeProposalUxFields = {
   memo?: string | null;
   txnDate?: string | null;

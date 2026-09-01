@@ -69,21 +69,68 @@ export async function verifyDeviceCookie(raw: string | undefined): Promise<strin
   return deviceId;
 }
 
-export async function signMfaVerifiedCookie(userId: string): Promise<{
+export type MfaStepUpMethod = "totp" | "webauthn";
+
+export type MfaStepUpReceiptMintInput = {
+  userId: string;
+  sessionId: string;
+  method: MfaStepUpMethod;
+  issuedAtMs?: number;
+};
+
+export type ParsedMfaStepUpReceipt = {
+  userId: string;
+  sessionId: string;
+  issuedAtMs: number;
+  expiresAtMs: number;
+  method: MfaStepUpMethod;
+};
+
+export async function signMfaVerifiedCookie(
+  input: MfaStepUpReceiptMintInput,
+): Promise<{
   cookieValue: string;
   maxAgeSeconds: number;
 }> {
-  const exp = Date.now() + MFA_VERIFIED_MAX_AGE * 1000;
-  const payload = `${userId}.${exp}`;
+  const issuedAtMs = input.issuedAtMs ?? Date.now();
+  const expiresAtMs = issuedAtMs + MFA_VERIFIED_MAX_AGE * 1000;
+  const payload = `${input.userId}.${input.sessionId}.${issuedAtMs}.${expiresAtMs}.${input.method}`;
   return {
     cookieValue: `${payload}.${await hmac(payload)}`,
     maxAgeSeconds: MFA_VERIFIED_MAX_AGE,
   };
 }
 
+export function parseMfaStepUpReceiptPayload(raw: string): ParsedMfaStepUpReceipt | null {
+  const lastDot = raw.lastIndexOf(".");
+  if (lastDot < 0) return null;
+  const payload = raw.slice(0, lastDot);
+  const parts = payload.split(".");
+  if (parts.length !== 5) return null;
+  const [userId, sessionId, issuedAtMsRaw, expiresAtMsRaw, methodRaw] = parts;
+  const issuedAtMs = Number(issuedAtMsRaw);
+  const expiresAtMs = Number(expiresAtMsRaw);
+  if (
+    !userId ||
+    !sessionId ||
+    !Number.isFinite(issuedAtMs) ||
+    !Number.isFinite(expiresAtMs)
+  ) {
+    return null;
+  }
+  if (methodRaw !== "totp" && methodRaw !== "webauthn") return null;
+  return {
+    userId,
+    sessionId,
+    issuedAtMs,
+    expiresAtMs,
+    method: methodRaw,
+  };
+}
+
 export async function verifyMfaVerifiedCookie(
   raw: string | undefined,
-  userId: string,
+  expected: { userId: string; sessionId: string },
 ): Promise<boolean> {
   if (!raw) return false;
   const lastDot = raw.lastIndexOf(".");
@@ -91,11 +138,12 @@ export async function verifyMfaVerifiedCookie(
   const payload = raw.slice(0, lastDot);
   const sig = raw.slice(lastDot + 1);
   if (!safeEqual(sig, await hmac(payload))) return false;
-  const sep = payload.lastIndexOf(".");
-  if (sep < 0) return false;
-  const uid = payload.slice(0, sep);
-  const exp = Number(payload.slice(sep + 1));
-  if (uid !== userId || !Number.isFinite(exp) || Date.now() > exp) return false;
+  const parsed = parseMfaStepUpReceiptPayload(raw);
+  if (!parsed) return false;
+  if (parsed.userId !== expected.userId || parsed.sessionId !== expected.sessionId) {
+    return false;
+  }
+  if (Date.now() > parsed.expiresAtMs) return false;
   return true;
 }
 

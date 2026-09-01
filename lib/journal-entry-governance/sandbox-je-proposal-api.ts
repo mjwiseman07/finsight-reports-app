@@ -41,6 +41,7 @@ import {
   type SafeSandboxApprovalSummary,
   type SafeSandboxDecisionResponse,
   type SafeSandboxProposalResponse,
+  isStrictProposalUuid,
 } from "./sandbox-je-proposal-shared";
 import { loadEngagementFirmId } from "./approval-custody";
 import {
@@ -623,6 +624,13 @@ export async function getSandboxJeProposal(args: {
     throw new SandboxJeProposalApiError(
       "sandbox_je_proposal_id_required",
       "proposalId is required.",
+      400,
+    );
+  }
+  if (!isStrictProposalUuid(proposalId)) {
+    throw new SandboxJeProposalApiError(
+      "sandbox_je_proposal_id_invalid",
+      "proposalId must be a valid UUID.",
       400,
     );
   }

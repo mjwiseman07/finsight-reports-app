@@ -19,6 +19,7 @@ import {
   SANDBOX_JE_LOCKED_CURRENCY,
   SANDBOX_JE_LOCKED_DEBIT_ACCOUNT_ID,
   SANDBOX_JE_LOCKED_ORIGIN,
+  isStrictProposalUuid,
   type SafeSandboxProposalResponse,
 } from "@/lib/journal-entry-governance/sandbox-je-proposal-shared";
 
@@ -193,6 +194,10 @@ export default function SandboxJeCockpitClient({
       .get("proposalId")
       ?.trim();
     if (!proposalId) return;
+    if (!isStrictProposalUuid(proposalId)) {
+      setProposalError("Invalid proposalId in URL.");
+      return;
+    }
     void refreshProposal(proposalId).catch((err) => {
       setProposalError((err as Error).message);
     });
@@ -550,6 +555,12 @@ export default function SandboxJeCockpitClient({
                         >
                           <span className="font-semibold">{a.decision}</span> ·{" "}
                           {formatDate(a.decided_at)} · MFA {a.mfa_level || "—"}
+                          <div className="mt-1 font-mono text-xs text-[#A29E93]">
+                            approvalId: {a.approval_id}
+                          </div>
+                          <div className="font-mono text-xs text-[#A29E93]">
+                            reviewer: {a.reviewer_user_id}
+                          </div>
                         </li>
                       ))}
                     </ul>

@@ -55,6 +55,7 @@ export function decodeJwtPayload(token: string): {
   aal?: string;
   exp?: number;
   email?: string;
+  session_id?: string;
 } | null {
   try {
     const part = token.split(".")[1];
@@ -70,6 +71,7 @@ export function decodeJwtPayload(token: string): {
       aal?: string;
       exp?: number;
       email?: string;
+      session_id?: string;
     };
   } catch {
     return null;
