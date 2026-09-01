@@ -71,18 +71,27 @@ describe("sandbox JE two-person execution prepare", () => {
   });
 
   it("public PrepareJeExecutionDeps cannot accept custody payload/policy overrides", () => {
-    const src = fs.readFileSync(
+    const publicSrc = fs.readFileSync(
       path.join(root, "lib/journal-entry-governance/execution-service.ts"),
       "utf8",
     );
-    const depsBlock = src.slice(
-      src.indexOf("export type PrepareJeExecutionDeps"),
-      src.indexOf("export type PrepareJeExecutionCustodyOverrideDeps"),
+    const internalSrc = fs.readFileSync(
+      path.join(root, "lib/journal-entry-governance/execution-prepare-internal.ts"),
+      "utf8",
+    );
+    const depsBlock = publicSrc.slice(
+      publicSrc.indexOf("export type PrepareJeExecutionDeps"),
+      publicSrc.indexOf("export function createDefaultJeExecutionDeps"),
     );
     expect(depsBlock).not.toMatch(/buildExecutionEventPayload/);
     expect(depsBlock).not.toMatch(/canonicalizeExecutionPolicySnapshot/);
     expect(depsBlock).not.toMatch(/hashExecutionPolicy/);
-    expect(src).toContain("prepareGovernedJournalEntryExecutionWithCustodyOverrides");
+    expect(depsBlock).toContain('Omit<');
+    expect(depsBlock).toContain('"resolveConnection"');
+    expect(publicSrc).not.toMatch(/prepareGovernedJournalEntryExecutionWithCustodyOverrides/);
+    expect(internalSrc).toContain("prepareSandboxTwoPersonMechanicalExecution");
+    expect(internalSrc).toContain('mode: "sandbox_two_person"');
+    expect(internalSrc).not.toMatch(/PrepareJeExecutionCustodyOverrideDeps/);
   });
 
   it("prepare route only exports POST", () => {
@@ -98,6 +107,9 @@ describe("sandbox JE two-person execution prepare", () => {
     expect(src).toContain("Custody preparation only — no QuickBooks posting");
     expect(src).toContain("Prepare execution (PREPARE OFF)");
     expect(src).toContain("historical reference only");
+    expect(src).toContain("execution_custody");
+    expect(src).toContain("!hasExecutionCustody");
+    expect(src).toContain("Execution custody prepared");
     const prepareSubmit = src.slice(
       src.indexOf("const submitPrepare"),
       src.indexOf("}, [proposal?.proposal_id]);") + "}, [proposal?.proposal_id]);".length,
@@ -491,20 +503,26 @@ describe("sandbox JE prepare enabled-path (module mock only)", () => {
   });
 });
 
-describe("sandbox JE prepare custody override isolation", () => {
+describe("sandbox JE prepare authority isolation", () => {
   const root = process.cwd();
 
-  it("no app/ or lib/ production file imports custody override entry except sandbox core", () => {
+  it("no app/ or lib/ production file imports sealed internal prepare except sandbox core", () => {
     const allowed = new Set([
       path.normalize("lib/journal-entry-governance/sandbox-two-person-prepare-core.ts"),
+      path.normalize("lib/journal-entry-governance/execution-prepare-internal.ts"),
       path.normalize("lib/journal-entry-governance/execution-service.ts"),
       path.normalize(
         "lib/journal-entry-governance/__tests__/sandbox-je-execution-prepare.test.ts",
       ),
+      path.normalize(
+        "lib/journal-entry-governance/__tests__/execution-prepare.test.ts",
+      ),
+      path.normalize("scripts/je3d/stage-bs-coherent-pre-post.ts"),
     ]);
     const scanRoots = [
       path.join(root, "app"),
       path.join(root, "lib"),
+      path.join(root, "scripts"),
     ];
     const offenders: string[] = [];
     for (const scanRoot of scanRoots) {
@@ -520,7 +538,7 @@ describe("sandbox JE prepare custody override isolation", () => {
           const rel = path.normalize(path.relative(root, full));
           if (allowed.has(rel)) continue;
           const src = fs.readFileSync(full, "utf8");
-          if (/prepareGovernedJournalEntryExecutionWithCustodyOverrides/.test(src)) {
+          if (/from ["'].*execution-prepare-internal/.test(src)) {
             offenders.push(rel);
           }
         }
@@ -532,15 +550,13 @@ describe("sandbox JE prepare custody override isolation", () => {
 });
 
 describe("sandbox JE prepare RPC event payload (mocked, no live DB)", () => {
-  it("custody override path passes enriched Patent #6 fields to reservation and transition", async () => {
+  it("sealed sandbox_two_person authority passes enriched Patent #6 fields to reservation and transition", async () => {
+    const { prepareGovernedJournalEntryExecutionInternal } = await import(
+      "../execution-prepare-internal"
+    );
     const {
-      prepareGovernedJournalEntryExecutionWithCustodyOverrides,
-    } = await import("../execution-service");
-    const {
-      buildSandboxTwoPersonPrepareEventPayload,
-      canonicalizeSandboxTwoPersonExecutionPolicySnapshot,
-      hashSandboxTwoPersonExecutionPolicy,
       SANDBOX_TWO_PERSON_JE_EXECUTION_POLICY,
+      SANDBOX_TWO_PERSON_PREPARE_AUTHORITY_V1,
     } = await import("../sandbox-two-person-prepare-policy");
     const HASH = (c: string) => c.repeat(64);
     const proposal = {
@@ -613,7 +629,7 @@ describe("sandbox JE prepare RPC event payload (mocked, no live DB)", () => {
     const transitionPayloads: Record<string, unknown>[] = [];
     let seq = 0;
 
-    const result = await prepareGovernedJournalEntryExecutionWithCustodyOverrides(
+    const result = await prepareGovernedJournalEntryExecutionInternal(
       {
         proposalId: SANDBOX_JE_ACCEPTED_PROPOSAL_ID,
         approvalId: SANDBOX_JE_ACCEPTED_APPROVAL_ID,
@@ -625,25 +641,6 @@ describe("sandbox JE prepare RPC event payload (mocked, no live DB)", () => {
         },
       },
       SANDBOX_TWO_PERSON_JE_EXECUTION_POLICY,
-      {
-        resolveConnection: async () => connection as never,
-        canonicalizeExecutionPolicySnapshot: () =>
-          canonicalizeSandboxTwoPersonExecutionPolicySnapshot(),
-        hashExecutionPolicy: () => hashSandboxTwoPersonExecutionPolicy(),
-        buildExecutionEventPayload: (payloadArgs) =>
-          buildSandboxTwoPersonPrepareEventPayload({
-            execution: payloadArgs.execution,
-            proposal: proposal as never,
-            approval: approval as never,
-            connection,
-            initiatingUserId: SANDBOX_JE_DESIGNATED_APPROVER_USER_ID,
-            prepareAssurance,
-            preflightEligible: payloadArgs.preflightEligible,
-            preflightSummary: payloadArgs.preflightSummary,
-            preflight: payloadArgs.preflight ?? null,
-            providerRequestHash: payloadArgs.execution.provider_request_hash,
-          }),
-      },
       {
         loadProposal: async () => proposal as never,
         loadApproval: async () => approval as never,
@@ -682,12 +679,21 @@ describe("sandbox JE prepare RPC event payload (mocked, no live DB)", () => {
         assertQboWriteEnabled: async () => undefined,
         loadAccounts: async () =>
           new Map([
-            ["15", { accountId: "15", accountType: "Expense", active: true }],
+            [
+              "15",
+              {
+                accountId: "15",
+                accountType: "Expense",
+                accountSubtype: null,
+                active: true,
+              },
+            ],
             [
               "1150040002",
               {
                 accountId: "1150040002",
                 accountType: "Other Current Liability",
+                accountSubtype: null,
                 active: true,
               },
             ],
@@ -725,6 +731,14 @@ describe("sandbox JE prepare RPC event payload (mocked, no live DB)", () => {
         },
         newId: () => "exec-rpc-test-1",
         nowIso: () => "2026-09-01T02:00:00.000Z",
+      },
+      {
+        mode: "sandbox_two_person",
+        proposal: proposal as never,
+        approval: approval as never,
+        connection: connection as never,
+        prepareAssurance,
+        initiatingUserId: SANDBOX_JE_DESIGNATED_APPROVER_USER_ID,
       },
     );
 

@@ -291,10 +291,15 @@ export default function SandboxJeCockpitClient({
       true,
   );
 
+  const hasExecutionCustody = Boolean(
+    proposal?.execution_custody?.has_execution,
+  );
+
   const canShowPreparePanel =
     isDesignatedApprover &&
     proposal?.proposal_id === SANDBOX_JE_ACCEPTED_PROPOSAL_ID &&
-    hasApprovedDecision;
+    hasApprovedDecision &&
+    !hasExecutionCustody;
 
   const submitPrepare = useCallback(async () => {
     if (!proposal?.proposal_id) return;
@@ -672,6 +677,30 @@ export default function SandboxJeCockpitClient({
                     Reject
                   </button>
                 </div>
+              </section>
+            ) : null}
+
+            {hasExecutionCustody && proposal?.execution_custody ? (
+              <section className="rounded-xl border border-[#C9A961]/20 bg-[#1A1A1C]/50 p-6">
+                <h2
+                  className={`text-xl font-semibold text-[#ECEBE7] ${headingFont}`}
+                >
+                  Execution custody prepared
+                </h2>
+                <p className="mt-2 text-sm text-[#A29E93]">
+                  An execution record already exists for this approved proposal.
+                  Prepare is hidden to prevent duplicate custody reservation.
+                </p>
+                <dl className="mt-4">
+                  <IdentityRow
+                    label="executionId"
+                    value={proposal.execution_custody.execution_id ?? "—"}
+                  />
+                  <IdentityRow
+                    label="executionStatus"
+                    value={proposal.execution_custody.execution_status ?? "—"}
+                  />
+                </dl>
               </section>
             ) : null}
 
