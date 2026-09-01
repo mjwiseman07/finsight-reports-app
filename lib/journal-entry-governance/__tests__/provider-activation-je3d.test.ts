@@ -757,12 +757,14 @@ describe("JE-3D activation inspection", () => {
         {
           event_id: "evt-dispatch",
           event_type: "journal_entry.provider_dispatch_started",
-          created_at: "t1",
+          chain_index: 0,
+          event_sequence: 1,
         },
         {
           event_id: "evt-posted",
           event_type: "journal_entry.provider_posted",
-          created_at: "t2",
+          chain_index: 1,
+          event_sequence: 2,
         },
       ],
       sandboxDemoRole: "DEMO_A_GENERAL_ACCOUNTING",

@@ -66,11 +66,12 @@ export type GovernedJeActivationInspection = {
   qbo_post_made: false;
 };
 
-type LedgerEventRow = {
-  event_id: string;
-  event_type: string;
-  created_at: string;
-};
+import {
+  LEDGER_EVENTS_RECEIPT_ID_SELECT,
+  type LedgerEventReceiptIdRow,
+} from "./ledger-events-schema";
+
+type LedgerEventRow = LedgerEventReceiptIdRow;
 
 async function loadLedgerEventsForExecution(
   executionId: string,
@@ -78,10 +79,11 @@ async function loadLedgerEventsForExecution(
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("ledger_events")
-    .select("event_id, event_type, created_at")
-    .eq("entity_type", "journal_entry_execution")
-    .eq("entity_id", executionId)
-    .order("created_at", { ascending: true });
+    .select(LEDGER_EVENTS_RECEIPT_ID_SELECT)
+    .eq("aggregate_type", "journal_entry_execution")
+    .eq("aggregate_id", executionId)
+    .order("chain_index", { ascending: true, nullsFirst: false })
+    .order("event_sequence", { ascending: true });
   if (error) return [];
   return (data || []) as LedgerEventRow[];
 }
