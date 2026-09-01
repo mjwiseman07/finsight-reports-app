@@ -18,6 +18,35 @@ import {
 const MARKETING_HOSTS = new Set(["advisacor.com", "www.advisacor.com"]);
 const APP_HOSTS = new Set(["app.advisacor.com"]);
 
+/**
+ * Production 404 boundary for sandbox JE cockpit/APIs — before MFA/auth/DB.
+ * Must remain Edge-safe (env read only; no Node crypto).
+ */
+function isSandboxJeProductionBoundaryPath(pathname: string): boolean {
+  if (pathname === "/admin/sandbox-je" || pathname.startsWith("/admin/sandbox-je/")) {
+    return true;
+  }
+  if (pathname.startsWith("/api/governed/journal-entries/sandbox")) {
+    return true;
+  }
+  // Existing read-only cockpit companions under executions/*
+  if (
+    /^\/api\/governed\/journal-entries\/executions\/[^/]+\/(inspection|checklist)\/?$/.test(
+      pathname,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function sandboxJeProductionNotFound(): NextResponse {
+  return new NextResponse(null, {
+    status: 404,
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
 // Phase TCP1 W2.5 — Solo Bookkeeper launch gate.
 // Blocks public reachability to SBK commerce surfaces until Smoke-SBK passes.
 // Reversible with SOLO_BK_LAUNCH_GATED=false (or unset). See runbook.
@@ -152,6 +181,8 @@ function isMarketingAllowed(pathname: string) {
     pathname.startsWith("/api/webhooks/") ||
     // Free Review lead-capture funnel (lives on marketing host).
     pathname.startsWith("/api/free-review/") ||
+    // Sandbox JE cockpit APIs (env gate + auth still enforced in handlers).
+    pathname.startsWith("/api/governed/") ||
     pathname.startsWith("/#")
   );
 }
@@ -164,6 +195,14 @@ export async function middleware(request: NextRequest) {
   // other than Preview. Runs first so no other gate can be reached with it.
   const smokeGate = enforcePreviewSmokeCredential(request);
   if (smokeGate) return smokeGate;
+
+  // Sandbox JE production boundary: empty 404 before MFA/auth/DB/business logic.
+  if (
+    isSandboxJeProductionBoundaryPath(pathname) &&
+    (process.env.QB_ENVIRONMENT || "").trim() !== "sandbox"
+  ) {
+    return sandboxJeProductionNotFound();
+  }
 
   // Phase TCP1 W2.5 Block 10 — MFA / AAL2 enforcement on sensitive routes.
   // Runs before host allowlists so firm_admin without enrollment cannot reach

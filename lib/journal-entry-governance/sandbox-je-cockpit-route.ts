@@ -1,10 +1,12 @@
 /**
- * Shared super-admin + rate-limit guards for read-only sandbox JE cockpit routes.
+ * Shared guards for read-only sandbox JE cockpit routes.
+ * Super-admin or designated Demo A approver may read; mutations use separate guards.
  */
 
 import { NextResponse } from "next/server";
 import { resolveSuperAdminAccess } from "@/lib/super-admin-security";
 import { rateLimit } from "@/lib/rate-limit";
+import { resolveSandboxJeSessionUser } from "./sandbox-je-proposal-route";
 import {
   Je3dActivationError,
   mapJe3dActivationErrorToHttpStatus,
@@ -43,9 +45,20 @@ export async function guardSandboxJeCockpitRoute(
     return { ok: false, response: rateLimitResponse };
   }
 
+  // Prefer super-admin; otherwise allow designated Demo A approver for read-only.
   const access = await resolveSuperAdminAccess(request);
   if (access.response) {
-    return { ok: false, response: access.response };
+    const session = await resolveSandboxJeSessionUser(request);
+    if ("response" in session) {
+      // Prefer session auth error when token missing/invalid; else super-admin deny.
+      if (session.response.status === 401) {
+        return { ok: false, response: session.response };
+      }
+      return { ok: false, response: access.response };
+    }
+    if (!session.isDesignatedApprover) {
+      return { ok: false, response: access.response };
+    }
   }
 
   try {

@@ -9,6 +9,7 @@ import {
   type JeApprovalCcReadiness,
   type JeApprovalPolicy,
 } from "./approval-types";
+import { resolveEngagementFirmIdForAuthority } from "./approval-authority";
 import type {
   JeProposalOriginType,
   JournalEntryProposalRow,
@@ -261,10 +262,14 @@ export async function loadEngagementFirmId(
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("audit_ready_engagements")
-    .select("firm_id")
+    .select("firm_id, company_id")
     .eq("id", engagementId)
     .maybeSingle();
-  return data?.firm_id ? String(data.firm_id) : null;
+  if (!data) return null;
+  return resolveEngagementFirmIdForAuthority({
+    firmId: data.firm_id,
+    companyId: data.company_id,
+  });
 }
 
 /**
