@@ -98,6 +98,16 @@ export type PrepareJeExecutionDeps = {
   resolveAssurance: typeof resolveJeAuthenticationAssurance;
   persistReservation: typeof persistJournalEntryExecutionReservation;
   transition: typeof transitionJournalEntryExecution;
+  newId: () => string;
+  nowIso: () => string;
+};
+
+/**
+ * Custody authority overrides — NOT on the public PrepareJeExecutionDeps export.
+ * Only sandbox-two-person-prepare-core may call prepareGovernedJournalEntryExecutionWithCustodyOverrides.
+ */
+export type PrepareJeExecutionCustodyOverrideDeps = {
+  resolveConnection?: typeof resolveCanonicalExecutionConnection;
   canonicalizeExecutionPolicySnapshot?: (
     policy: JeExecutionPolicy,
   ) => Record<string, unknown>;
@@ -105,8 +115,6 @@ export type PrepareJeExecutionDeps = {
   buildExecutionEventPayload?: (
     args: JeExecutionEventPayloadArgs,
   ) => Record<string, unknown>;
-  newId: () => string;
-  nowIso: () => string;
 };
 
 export function createDefaultJeExecutionDeps(): PrepareJeExecutionDeps {
@@ -225,11 +233,11 @@ function buildEventPayload(args: {
 }
 
 function resolveExecutionEventPayload(
-  resolved: PrepareJeExecutionDeps,
+  custodyOverrides: PrepareJeExecutionCustodyOverrideDeps | undefined,
   args: JeExecutionEventPayloadArgs,
 ): Record<string, unknown> {
-  if (resolved.buildExecutionEventPayload) {
-    return resolved.buildExecutionEventPayload(args);
+  if (custodyOverrides?.buildExecutionEventPayload) {
+    return custodyOverrides.buildExecutionEventPayload(args);
   }
   return buildEventPayload(args);
 }
@@ -240,12 +248,49 @@ function emptyPreflight(): JePreflightResult {
 
 /**
  * Public JE-3A entry point. No provider-write method.
+ * Caller-supplied custody overrides (policy hash, event payload, connection) are rejected.
  */
 export async function prepareGovernedJournalEntryExecution(
   input: PrepareJeExecutionInput,
   executionContext: JeExecutionContext,
   executionPolicy: JeExecutionPolicy,
   deps?: Partial<PrepareJeExecutionDeps>,
+): Promise<PrepareJeExecutionResult> {
+  return prepareGovernedJournalEntryExecutionImpl(
+    input,
+    executionContext,
+    executionPolicy,
+    deps,
+    undefined,
+  );
+}
+
+/**
+ * Internal sandbox two-person prepare entry — not exported from index.ts.
+ * Sealed custody overrides are accepted only from sandbox-two-person-prepare-core.
+ */
+export async function prepareGovernedJournalEntryExecutionWithCustodyOverrides(
+  input: PrepareJeExecutionInput,
+  executionContext: JeExecutionContext,
+  executionPolicy: JeExecutionPolicy,
+  custodyOverrides: PrepareJeExecutionCustodyOverrideDeps,
+  deps?: Partial<PrepareJeExecutionDeps>,
+): Promise<PrepareJeExecutionResult> {
+  return prepareGovernedJournalEntryExecutionImpl(
+    input,
+    executionContext,
+    executionPolicy,
+    deps,
+    custodyOverrides,
+  );
+}
+
+async function prepareGovernedJournalEntryExecutionImpl(
+  input: PrepareJeExecutionInput,
+  executionContext: JeExecutionContext,
+  executionPolicy: JeExecutionPolicy,
+  deps: Partial<PrepareJeExecutionDeps> | undefined,
+  custodyOverrides: PrepareJeExecutionCustodyOverrideDeps | undefined,
 ): Promise<PrepareJeExecutionResult> {
   const resolved: PrepareJeExecutionDeps = {
     ...createDefaultJeExecutionDeps(),
@@ -378,7 +423,9 @@ export async function prepareGovernedJournalEntryExecution(
       sourceReconsExist = false;
     }
 
-    const connection = await resolved.resolveConnection({
+    const resolveConnectionFn =
+      custodyOverrides?.resolveConnection ?? resolved.resolveConnection;
+    const connection = await resolveConnectionFn({
       userId,
       companyId: proposal.company_id,
       policy,
@@ -426,8 +473,8 @@ export async function prepareGovernedJournalEntryExecution(
       sourceCurrent: sourceCcCurrent && sourceSyncExists && sourceReconsExist,
     });
 
-    const executionPolicyHash = resolved.hashExecutionPolicy
-      ? resolved.hashExecutionPolicy(policy)
+    const executionPolicyHash = custodyOverrides?.hashExecutionPolicy
+      ? custodyOverrides.hashExecutionPolicy(policy)
       : hashJeExecutionPolicy(policy);
     const executionHash = hashJeExecution({
       proposalId: proposal.id,
@@ -481,8 +528,8 @@ export async function prepareGovernedJournalEntryExecution(
       idempotency_key: idempotencyKey,
       status: "RESERVED",
       correlation_marker: correlationMarker,
-      execution_policy_snapshot: resolved.canonicalizeExecutionPolicySnapshot
-        ? resolved.canonicalizeExecutionPolicySnapshot(policy)
+      execution_policy_snapshot: custodyOverrides?.canonicalizeExecutionPolicySnapshot
+        ? custodyOverrides.canonicalizeExecutionPolicySnapshot(policy)
         : canonicalizeJeExecutionPolicy(policy),
       preflight_result: emptyPreflight(),
       requested_by: userId,
@@ -507,7 +554,7 @@ export async function prepareGovernedJournalEntryExecution(
 
     const reserved = await resolved.persistReservation({
       row: reservedRow,
-      eventPayload: resolveExecutionEventPayload(resolved, {
+      eventPayload: resolveExecutionEventPayload(custodyOverrides, {
         execution: reservedRow,
         preflightEligible: null,
         preflightSummary: "reserved",
@@ -602,7 +649,7 @@ export async function prepareGovernedJournalEntryExecution(
           : failedCheck?.details || "precheck_failed",
       },
       eventType,
-      eventPayload: resolveExecutionEventPayload(resolved, {
+      eventPayload: resolveExecutionEventPayload(custodyOverrides, {
         execution: {
           ...reserved.row,
           status: nextStatus,

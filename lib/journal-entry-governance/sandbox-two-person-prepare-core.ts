@@ -9,7 +9,7 @@ import {
 } from "./approval-custody";
 import { loadExactApprovedApprovalForProposal } from "./execution-custody";
 import { loadAuthoritativeDemoAConnection } from "./demo-a-authoritative-connection";
-import { prepareGovernedJournalEntryExecution } from "./execution-service";
+import { prepareGovernedJournalEntryExecutionWithCustodyOverrides } from "./execution-service";
 import type {
   JeExecutionContext,
   PrepareJeExecutionResult,
@@ -39,7 +39,7 @@ export async function executeSandboxTwoPersonMechanicalPrepare(args: {
   });
   const connection = await loadAuthoritativeDemoAConnection();
 
-  return prepareGovernedJournalEntryExecution(
+  return prepareGovernedJournalEntryExecutionWithCustodyOverrides(
     {
       proposalId: args.proposalId,
       approvalId: args.approvalId,

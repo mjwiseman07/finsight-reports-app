@@ -66,6 +66,23 @@ describe("sandbox JE two-person execution prepare", () => {
     expect(src).not.toMatch(/sandbox-two-person-prepare-core/);
     expect(src).not.toMatch(/sandbox-je-execution-prepare-api/);
     expect(src).not.toMatch(/demo-a-authoritative-connection/);
+    expect(src).not.toMatch(/prepareGovernedJournalEntryExecutionWithCustodyOverrides/);
+    expect(src).not.toMatch(/PrepareJeExecutionCustodyOverrideDeps/);
+  });
+
+  it("public PrepareJeExecutionDeps cannot accept custody payload/policy overrides", () => {
+    const src = fs.readFileSync(
+      path.join(root, "lib/journal-entry-governance/execution-service.ts"),
+      "utf8",
+    );
+    const depsBlock = src.slice(
+      src.indexOf("export type PrepareJeExecutionDeps"),
+      src.indexOf("export type PrepareJeExecutionCustodyOverrideDeps"),
+    );
+    expect(depsBlock).not.toMatch(/buildExecutionEventPayload/);
+    expect(depsBlock).not.toMatch(/canonicalizeExecutionPolicySnapshot/);
+    expect(depsBlock).not.toMatch(/hashExecutionPolicy/);
+    expect(src).toContain("prepareGovernedJournalEntryExecutionWithCustodyOverrides");
   });
 
   it("prepare route only exports POST", () => {
@@ -356,6 +373,42 @@ describe("sandbox JE prepare capability OFF guards", () => {
     expect(() =>
       assertProposerForbiddenForPrepare(SANDBOX_JE_DESIGNATED_PROPOSER_USER_ID),
     ).toThrow(SandboxJePrepareApiError);
+  });
+
+  it("rejects missing MFA before mechanical prepare is invoked", async () => {
+    vi.stubEnv("QB_ENVIRONMENT", "sandbox");
+    vi.doMock("../je3d-activation-guards", async (importOriginal) => {
+      const orig = await importOriginal<typeof import("../je3d-activation-guards")>();
+      return { ...orig, assertJe3dPrepareActivationPolicy: vi.fn() };
+    });
+    vi.doMock("../approval-custody", async (importOriginal) => {
+      const orig = await importOriginal<typeof import("../approval-custody")>();
+      return {
+        ...orig,
+        resolveJeAuthenticationAssurance: vi.fn(async () => ({
+          satisfied: false,
+          level: "none",
+          verifiedAt: null,
+          method: null,
+          source: "none",
+        })),
+      };
+    });
+    const coreSpy = vi.fn();
+    vi.doMock("../sandbox-two-person-prepare-core", () => ({
+      executeSandboxTwoPersonMechanicalPrepare: coreSpy,
+    }));
+    const { prepareAcceptedDemoATwoPersonExecution, SandboxJePrepareApiError } =
+      await import("../sandbox-je-execution-prepare-api");
+    await expect(
+      prepareAcceptedDemoATwoPersonExecution({
+        proposalId: SANDBOX_JE_ACCEPTED_PROPOSAL_ID,
+        approverUserId: SANDBOX_JE_DESIGNATED_APPROVER_USER_ID,
+        approverEmail: "jwiseman@advisacor.com",
+        body: {},
+      }),
+    ).rejects.toThrow(SandboxJePrepareApiError);
+    expect(coreSpy).not.toHaveBeenCalled();
   });
 });
 
