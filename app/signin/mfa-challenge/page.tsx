@@ -23,6 +23,18 @@ function MfaChallengeForm() {
   const [webauthnAvailable, setWebauthnAvailable] = useState(false);
 
   useEffect(() => {
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) return;
+      const challengeNext = `/signin/mfa-challenge?returnTo=${encodeURIComponent(
+        returnTo.startsWith("/") ? returnTo : "/dashboard",
+      )}`;
+      router.replace(
+        `/signin?next=${encodeURIComponent(challengeNext)}`,
+      );
+    });
+  }, [returnTo, router]);
+
+  useEffect(() => {
     fetch("/api/mfa/factors/summary", { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : { hasWebAuthn: false }))
       .then((data) => setWebauthnAvailable(Boolean(data.hasWebAuthn)))

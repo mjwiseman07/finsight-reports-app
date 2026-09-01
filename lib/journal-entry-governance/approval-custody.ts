@@ -17,6 +17,10 @@ import type {
   JeProposalLine,
 } from "./types";
 import { verifyMfaStepUpForRequest } from "@/lib/pre-close/mfa-step-up-verify";
+import { MFA_STEP_UP_WINDOW_MS } from "@/lib/pre-close/require-approval";
+import { ADVISACOR_ACCESS_TOKEN_COOKIE } from "@/lib/reviewer/constants";
+import { decodeJwtPayload } from "@/lib/mfa/paths";
+import { cookies } from "next/headers";
 import type { JeAuthenticationAssurance } from "./approval-types";
 
 export class JeApprovalCustodyError extends Error {
@@ -382,9 +386,43 @@ export async function resolveApprovalClosePeriodId(args: {
 }
 
 /**
- * Production MFA assurance resolver — trusted cookie step-up only.
+ * Production MFA assurance resolver — trusted step-up cookie or fresh Supabase AAL2 JWT.
  * Never accepts a caller-supplied mfaVerified boolean.
  */
+function resolveAssuranceFromAccessTokenJwt(
+  userId: string,
+  token: string,
+): JeAuthenticationAssurance | null {
+  const payload = decodeJwtPayload(token) as {
+    sub?: string;
+    aal?: string;
+    amr?: Array<{ method?: string; timestamp?: number }>;
+  } | null;
+  if (!payload || payload.sub !== userId || payload.aal !== "aal2") {
+    return null;
+  }
+
+  const secondFactor = (payload.amr ?? []).find(
+    (entry) => entry.method === "totp" || entry.method === "webauthn",
+  );
+  if (!secondFactor?.timestamp) {
+    return null;
+  }
+
+  const verifiedAtMs = secondFactor.timestamp * 1000;
+  if (Date.now() - verifiedAtMs > MFA_STEP_UP_WINDOW_MS) {
+    return null;
+  }
+
+  return {
+    satisfied: true,
+    level: "aal2",
+    verifiedAt: new Date(verifiedAtMs).toISOString(),
+    method: secondFactor.method === "webauthn" ? "webauthn" : "totp",
+    source: "supabase_jwt_aal2",
+  };
+}
+
 export async function resolveJeAuthenticationAssurance(
   userId: string,
 ): Promise<JeAuthenticationAssurance> {
@@ -400,8 +438,28 @@ export async function resolveJeAuthenticationAssurance(
       };
     }
   } catch {
-    // cookies()/request unavailable outside Next request — treat as unsatisfied
+    // cookies()/request unavailable outside Next request — fall through to JWT
   }
+
+  try {
+    const cookieStore = await cookies();
+    const raw = cookieStore.get(ADVISACOR_ACCESS_TOKEN_COOKIE)?.value;
+    if (raw) {
+      let token = raw;
+      try {
+        token = decodeURIComponent(raw);
+      } catch {
+        token = raw;
+      }
+      const fromJwt = resolveAssuranceFromAccessTokenJwt(userId, token);
+      if (fromJwt) {
+        return fromJwt;
+      }
+    }
+  } catch {
+    // cookies() unavailable — treat as unsatisfied
+  }
+
   return {
     satisfied: false,
     level: "none",

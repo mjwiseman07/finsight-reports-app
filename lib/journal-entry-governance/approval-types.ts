@@ -75,7 +75,7 @@ export type JeAuthenticationAssurance = {
   level: "aal2" | "aal1" | "none";
   verifiedAt: string | null;
   method: "totp" | "webauthn" | null;
-  source: "mfa_step_up_cookie" | "none";
+  source: "mfa_step_up_cookie" | "supabase_jwt_aal2" | "none";
 };
 
 export type JeApprovalExecutionPrincipal = {
