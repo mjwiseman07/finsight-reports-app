@@ -55,3 +55,6 @@ tmp/smoke/
 # One-shot fixture capture scripts (not committed)
 scripts/capture-qbo-bs-fixture.ts
 
+
+# Option D ephemeral local stack (this machine only)
+.tmp-option-d-supabase/
