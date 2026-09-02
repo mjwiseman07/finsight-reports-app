@@ -28,8 +28,10 @@ node scripts/migration-remediation/audit-option-d-replay-gate.js
 
 The harness **refuses** to apply if:
 - the DB name is ambiguous (`postgres`) or mismatched;
-- any public application relations exist;
-- `supabase_migrations.schema_migrations` already contains app versions (partial replay).
+- inventory is incomplete / missing sections;
+- any public relations, functions, types, sequences, or triggers exist (bootstrap allowlist is empty);
+- objects exist outside the documented schema allowlist;
+- `schema_migrations` is non-empty (including unknown versions).
 
 It does **not** auto-reset or delete the target.
 
@@ -38,8 +40,8 @@ It does **not** auto-reset or delete the target.
 | Gate | Meaning |
 |------|---------|
 | `candidateReplay` | Fresh-DB precheck + assembled SQL apply |
-| `securityImmutabilityChecks` | Executed final schema/RLS, view `security_invoker`, SI/Memory immutability triggers |
-| `pr312RpcValidation` | Structured Vitest JSON: expected tests executed, zero skip/todo/pending/fail; pinned to PR #312 `f65730b3` |
+| `securityImmutabilityChecks` | Exact trigger bindings (enabled + UPDATE/DELETE) **and** rollback-isolated behavioral probes proving prohibited SI/Memory mutations fail |
+| `pr312RpcValidation` | **Both** process exit 0 **and** structured Vitest JSON (12 expected passed; zero skip/todo/pending/fail; no suite/report errors); pinned to PR #312 `f65730b3` |
 | `productionDashboardReplayParity` | Always `unresolved` (Option A/B; not applicable to Option D PASS) |
 
 Listing check names is not execution — absent security evidence fails closed.

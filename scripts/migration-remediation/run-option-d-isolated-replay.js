@@ -30,7 +30,7 @@ const {
   collectSecurityEvidence,
 } = require("./option-d-security-assertions");
 const {
-  evaluateVitestStructuredResult,
+  evaluateVitestRunGate,
   resolvePr312SuiteProvenance,
   PR312_SUITE_PATH,
   PR312_COMMIT,
@@ -185,10 +185,20 @@ function runPr312Vitest(dbUrl) {
     }
   }
 
-  const structured = evaluateVitestStructuredResult(report);
+  const gate = evaluateVitestRunGate({
+    processExitCode: r.status,
+    error: r.error || null,
+    signal: r.signal || null,
+    timedOut: r.signal === "SIGTERM" && r.status === null,
+    report,
+  });
+
   return {
     processExitCode: r.status,
-    structured,
+    signal: r.signal || null,
+    error: r.error ? String(r.error.message || r.error).slice(0, 300) : null,
+    gate,
+    structured: gate.structured,
     stderr: (r.stderr || "").slice(0, 1000),
   };
 }
@@ -339,7 +349,13 @@ async function main() {
       inventorySummary: {
         databaseName: fresh.inventory.databaseName,
         publicRelationCount: fresh.inventory.publicRelations.length,
+        publicFunctionCount: fresh.inventory.publicFunctions.length,
+        publicTypeCount: fresh.inventory.publicTypes.length,
+        publicSequenceCount: fresh.inventory.publicSequences.length,
+        publicTriggerCount: fresh.inventory.publicTriggers.length,
+        schemaCount: fresh.inventory.schemas.length,
         schemaMigrationVersionCount: fresh.inventory.schemaMigrationVersions.length,
+        objectsOutsideAllowedSchemas: fresh.inventory.objectsOutsideAllowedSchemas.length,
       },
       scopes,
       overallGate: evaluateOverallRuntimePass(scopes),
@@ -416,20 +432,22 @@ async function main() {
   }
 
   const vitestRun = runPr312Vitest(dbUrl);
-  scopes.pr312RpcValidation = vitestRun.structured.ok ? "PASS" : "FAIL";
+  scopes.pr312RpcValidation = vitestRun.gate.ok ? "PASS" : "FAIL";
 
   const overallGate = evaluateOverallRuntimePass(scopes);
   if (!overallGate.ok) {
     writeStatus({
       overall: "BLOCKED",
-      reason: vitestRun.structured.reason || "pr312_structured_vitest_failed",
+      reason: vitestRun.gate.reason || "pr312_vitest_run_gate_failed",
       scopes,
       overallGate,
       applyResult,
       security,
       vitest: {
         processExitCode: vitestRun.processExitCode,
-        structured: vitestRun.structured,
+        signal: vitestRun.signal,
+        error: vitestRun.error,
+        gate: vitestRun.gate,
       },
       pr312Provenance,
       targetRedacted: redactUrl(dbUrl),
@@ -440,14 +458,16 @@ async function main() {
   writeStatus({
     overall: "PASS_RUNTIME",
     note:
-      "Candidate replay, security/immutability, and PR #312 structured Vitest all PASS. Production dashboard replay parity remains unresolved. Not a merge approval.",
+      "Candidate replay, security/immutability (including behavioral probes), and PR #312 Vitest (process+structured) all PASS. Production dashboard replay parity remains unresolved. Not a merge approval.",
     scopes,
     overallGate,
     applyResult,
     security,
     vitest: {
       processExitCode: vitestRun.processExitCode,
-      structured: vitestRun.structured,
+      signal: vitestRun.signal,
+      error: vitestRun.error,
+      gate: vitestRun.gate,
     },
     pr312Provenance,
     targetRedacted: redactUrl(dbUrl),

@@ -219,6 +219,97 @@ function resolvePr312SuiteProvenance(root) {
   };
 }
 
+/**
+ * Combined gate: process completion AND structured results must both PASS.
+ * Nonzero/null exit, spawn errors, signals, timeouts, failed suites, and
+ * report-level errors block PASS even if all assertion titles look passed.
+ *
+ * @param {{
+ *   processExitCode: number|null|undefined,
+ *   error?: Error|null,
+ *   signal?: string|null,
+ *   timedOut?: boolean,
+ *   report: object|null,
+ * }} run
+ */
+function evaluateVitestRunGate(run) {
+  const failures = [];
+  const processExitCode = run?.processExitCode;
+
+  if (run?.error) {
+    failures.push({
+      rule: "vitest_spawn_error",
+      detail: String(run.error.message || run.error).slice(0, 300),
+    });
+  }
+  if (run?.timedOut === true) {
+    failures.push({ rule: "vitest_timeout" });
+  }
+  if (run?.signal) {
+    failures.push({ rule: "vitest_signal", signal: run.signal });
+  }
+  if (processExitCode === null || processExitCode === undefined) {
+    failures.push({ rule: "vitest_exit_status_null" });
+  } else if (processExitCode !== 0) {
+    failures.push({ rule: "vitest_nonzero_exit", processExitCode });
+  }
+
+  const report = run?.report;
+  if (report && typeof report === "object") {
+    // Report-level / suite-level failure signals
+    if (report.success === false) {
+      failures.push({ rule: "vitest_report_success_false" });
+    }
+    if (typeof report.numFailedTestSuites === "number" && report.numFailedTestSuites > 0) {
+      failures.push({
+        rule: "vitest_failed_suites",
+        count: report.numFailedTestSuites,
+      });
+    }
+    if (typeof report.numFailedTests === "number" && report.numFailedTests > 0) {
+      failures.push({
+        rule: "vitest_report_num_failed_tests",
+        count: report.numFailedTests,
+      });
+    }
+    if (Array.isArray(report.testResults)) {
+      for (const tr of report.testResults) {
+        if (tr.status === "failed" || tr.result === "failed") {
+          failures.push({
+            rule: "vitest_suite_status_failed",
+            name: tr.name || tr.message || "(unnamed)",
+          });
+        }
+        if (tr.message && /teardown|hook|uncaught|timeout/i.test(String(tr.message))) {
+          failures.push({
+            rule: "vitest_suite_error_message",
+            detail: String(tr.message).slice(0, 200),
+          });
+        }
+      }
+    }
+  }
+
+  const structured = evaluateVitestStructuredResult(report);
+  if (!structured.ok) {
+    failures.push({
+      rule: "vitest_structured_gate_failed",
+      reason: structured.reason,
+      structuredFailures: structured.failures,
+    });
+  }
+
+  const ok = failures.length === 0 && structured.ok;
+  return {
+    ok,
+    status: ok ? "PASS" : "FAIL",
+    reason: ok ? "vitest_process_and_structured_pass" : failures[0]?.rule || "vitest_run_gate_failed",
+    failures,
+    processExitCode: processExitCode ?? null,
+    structured,
+  };
+}
+
 module.exports = {
   PR312_COMMIT,
   PR312_SUITE_PATH,
@@ -227,5 +318,6 @@ module.exports = {
   BLOCKED_SENTINEL_TITLE,
   flattenVitestJson,
   evaluateVitestStructuredResult,
+  evaluateVitestRunGate,
   resolvePr312SuiteProvenance,
 };
