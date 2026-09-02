@@ -74,6 +74,7 @@ Mark A/B as **destructive/high-risk** requiring DBA + on-call approval.
 ## Current blockers
 
 - [x] G1: Production schema diff (read-only contract manifest; **schema-definition** verdict PASS)
-- [x] G1 ordering: **Invalidated by first G2** — dependency manifest + fail-closed generator remediated locally
-- [ ] G2: Second disposable replay (blocked until ordering remediation reviewed; Docker still required)
-- [ ] G3: Cannot create preview branch until G1+G2 sign-off
+- [x] G1 ordering: **Invalidated by first G2** — dependency manifest remediated at `61642106`
+- [x] G2 second attempt: baseline ordering **PASS**; stopped at `d6_2a_test_client_activation` (fixture FK)
+- [ ] G2 third attempt: blocked until data-dependent migration remediation reviewed + branch authorization
+- [ ] G3: Cannot create preview branch until G2 clean replay passes

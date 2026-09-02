@@ -1,0 +1,3769 @@
+{
+  "generatedAt": "2026-09-02T01:47:41.620Z",
+  "g2SecondReplay": {
+    "status": "FAILED_AT_MIGRATION_25",
+    "migrationsRecorded": 25,
+    "failingProductionVersion": "20260703182655",
+    "failingProductionName": "d6_2a_test_client_activation",
+    "localFilename": "20260703_2000_d6_2a_test_client_activation.sql",
+    "branchId": "c5982210-4114-432e-9339-4cff1decf538",
+    "branchRef": "oczqpxtehgkulqxujfhx",
+    "branchDeleted": true,
+    "productionUntouched": true,
+    "baselineOrderingPass": true,
+    "phase1RlsPass": true,
+    "jeStackReached": false
+  },
+  "summary": {
+    "localMigrationCount": 169,
+    "productionMigrationCount": 185,
+    "classificationCounts": {
+      "schema": 83,
+      "mixed": 69,
+      "reference_seed": 4,
+      "backfill": 12,
+      "operational_data_activation": 1
+    },
+    "cleanReplayPolicyCounts": {
+      "required": 157,
+      "excluded_from_baseline": 1,
+      "blocks_clean_replay_unless_guarded": 5,
+      "skip_on_empty_guarded": 1,
+      "prod_tenant_backfill_noop_on_empty": 1,
+      "prod_only_operational": 1,
+      "required_reference_seed": 3
+    },
+    "blockersCount": 6,
+    "firstCleanReplayBlocker": {
+      "replayOrder": 26,
+      "productionVersion": "20260703182655",
+      "productionName": "d6_2a_test_client_activation",
+      "localFilename": "20260703_2000_d6_2a_test_client_activation.sql",
+      "inGit": true,
+      "classification": "operational_data_activation",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ],
+      "g2Blocker": true,
+      "notes": "Unconditional INSERT into client_active_rules for fixture firm_client_id; FK fails on data-less branch"
+    }
+  },
+  "cleanReplayPolicies": {
+    "required": "Schema DDL; must replay on data-less branches",
+    "required_reference_seed": "Catalog/registry seed rows without tenant FK dependencies",
+    "skip_on_empty_guarded": "Operational DML guarded; no-ops on empty branch",
+    "prod_tenant_backfill_noop_on_empty": "UPDATE targeting prod UUIDs; 0 rows on empty branch",
+    "blocks_clean_replay_unless_guarded": "Unconditional tenant FK DML; blocks until guarded or split",
+    "prod_only_operational": "Requires specific production rows; not for data-less replay",
+    "excluded_from_baseline": "Omitted from foundations baseline",
+    "unknown_requires_recovered_sql": "Production-only migration; SQL not in git",
+    "review_required": "Mixed migration; manual review"
+  },
+  "blockers": [
+    {
+      "replayOrder": 26,
+      "productionVersion": "20260703182655",
+      "productionName": "d6_2a_test_client_activation",
+      "localFilename": "20260703_2000_d6_2a_test_client_activation.sql",
+      "inGit": true,
+      "classification": "operational_data_activation",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ],
+      "g2Blocker": true,
+      "notes": "Unconditional INSERT into client_active_rules for fixture firm_client_id; FK fails on data-less branch"
+    },
+    {
+      "replayOrder": 27,
+      "productionVersion": "20260703184839",
+      "productionName": "d6_2b_mfg_activation",
+      "localFilename": "20260703_2200_d6_2b_mfg_activation.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ],
+      "g2Blocker": false,
+      "notes": "Registry UPDATE is reference; client_active_rules INSERT is operational fixture activation"
+    },
+    {
+      "replayOrder": 28,
+      "productionVersion": "20260703190541",
+      "productionName": "d6_2c_retail_activation",
+      "localFilename": "20260703_2300_d6_2c_retail_activation.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 29,
+      "productionVersion": "20260703192608",
+      "productionName": "d6_2d_ps_activation",
+      "localFilename": "20260703_2400_d6_2d_ps_activation.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 71,
+      "productionVersion": "20260708051526",
+      "productionName": "tcp1_w1_solo_bk_pilot_slots",
+      "localFilename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "00000000-0000-0000-0000-000000000001"
+      ],
+      "g2Blocker": false,
+      "notes": "Schema + pilot_slots INSERT referencing company_id 00000000-... FK"
+    },
+    {
+      "replayOrder": 164,
+      "productionVersion": "20260814023005",
+      "productionName": "accounting_canonical_connected_grant",
+      "localFilename": "20260814221500_accounting_canonical_connected_grant.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "prod_only_operational",
+      "tenantUuids": [
+        "02edb6c6-a4f1-4bae-825d-2680136dad24",
+        "774e6be2-ad1b-41fa-859d-163b0805c3ca",
+        "95da07be-8e2c-4b84-9dcc-8a98fa841273"
+      ],
+      "g2Blocker": false,
+      "notes": "Production canonical tenant rewiring; RAISE EXCEPTION if prod rows missing"
+    }
+  ],
+  "documentedBlockerFiles": [
+    "20260703_2000_d6_2a_test_client_activation.sql",
+    "20260703_2200_d6_2b_mfg_activation.sql",
+    "20260703_2300_d6_2c_retail_activation.sql",
+    "20260703_2400_d6_2d_ps_activation.sql",
+    "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+    "20260814221500_accounting_canonical_connected_grant.sql"
+  ],
+  "local": [
+    {
+      "source": "local",
+      "filename": "20260529_create_audit_logs.sql",
+      "version": "20260529",
+      "name": "create_audit_logs",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260529_create_background_jobs.sql",
+      "version": "20260529",
+      "name": "create_background_jobs",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260530_add_account_type_onboarding.sql",
+      "version": "20260530",
+      "name": "add_account_type_onboarding",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260530_add_industry_intelligence_onboarding.sql",
+      "version": "20260530",
+      "name": "add_industry_intelligence_onboarding",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260530_create_client_briefings.sql",
+      "version": "20260530",
+      "name": "create_client_briefings",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260530_create_company_accounts.sql",
+      "version": "20260530",
+      "name": "create_company_accounts",
+      "classification": "reference_seed",
+      "cleanReplayPolicy": "required",
+      "notes": "company_roles catalog seed only",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260530_create_healthcare_operational_stats.sql",
+      "version": "20260530",
+      "name": "create_healthcare_operational_stats",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260530_create_support_tickets.sql",
+      "version": "20260530",
+      "name": "create_support_tickets",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260530_create_time_to_first_value_events.sql",
+      "version": "20260530",
+      "name": "create_time_to_first_value_events",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260531_alter_pdf_package_customizations_for_package_control.sql",
+      "version": "20260531",
+      "name": "alter_pdf_package_customizations_for_package_control",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260531_backfill_accounting_connections_from_quickbooks.sql",
+      "version": "20260531",
+      "name": "backfill_accounting_connections_from_quickbooks",
+      "classification": "backfill",
+      "cleanReplayPolicy": "excluded_from_baseline",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260531_create_accounting_connections.sql",
+      "version": "20260531",
+      "name": "create_accounting_connections",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260531_create_free_review_leads.sql",
+      "version": "20260531",
+      "name": "create_free_review_leads",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260531_create_pdf_package_customizations.sql",
+      "version": "20260531",
+      "name": "create_pdf_package_customizations",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260531_create_pulse_insight_memory.sql",
+      "version": "20260531",
+      "name": "create_pulse_insight_memory",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260531_create_pulse_memory.sql",
+      "version": "20260531",
+      "name": "create_pulse_memory",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260531_create_pulse_usage_events.sql",
+      "version": "20260531",
+      "name": "create_pulse_usage_events",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260601_security_control_hardening.sql",
+      "version": "20260601",
+      "name": "security_control_hardening",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260602_create_accounting_syncs.sql",
+      "version": "20260602",
+      "name": "create_accounting_syncs",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260602_create_advisory_intelligence.sql",
+      "version": "20260602",
+      "name": "create_advisory_intelligence",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260602_standardize_accounting_sync_status.sql",
+      "version": "20260602",
+      "name": "standardize_accounting_sync_status",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260603_add_si_snapshot_rls_policies.sql",
+      "version": "20260603",
+      "name": "add_si_snapshot_rls_policies",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260603_create_si_historical_snapshots.sql",
+      "version": "20260603",
+      "name": "create_si_historical_snapshots",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260603_create_si_snapshot_audit.sql",
+      "version": "20260603",
+      "name": "create_si_snapshot_audit",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260603_create_si_snapshot_backfill_runs.sql",
+      "version": "20260603",
+      "name": "create_si_snapshot_backfill_runs",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260603_create_si_snapshot_payloads.sql",
+      "version": "20260603",
+      "name": "create_si_snapshot_payloads",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260603_create_si_snapshot_retention_events.sql",
+      "version": "20260603",
+      "name": "create_si_snapshot_retention_events",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260603_create_si_snapshot_retrieval_log.sql",
+      "version": "20260603",
+      "name": "create_si_snapshot_retrieval_log",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260603_harden_si_snapshot_immutability.sql",
+      "version": "20260603",
+      "name": "harden_si_snapshot_immutability",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260605_add_company_memory_persistence_constraints.sql",
+      "version": "20260605",
+      "name": "add_company_memory_persistence_constraints",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260605_add_company_memory_persistence_indexes.sql",
+      "version": "20260605",
+      "name": "add_company_memory_persistence_indexes",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260605_add_company_memory_persistence_rls_policies.sql",
+      "version": "20260605",
+      "name": "add_company_memory_persistence_rls_policies",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260605_create_company_memory_persistence_core_tables.sql",
+      "version": "20260605",
+      "name": "create_company_memory_persistence_core_tables",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260605_harden_company_memory_persistence_immutability.sql",
+      "version": "20260605",
+      "name": "harden_company_memory_persistence_immutability",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260701_refund_requests.sql",
+      "version": "20260701",
+      "name": "refund_requests",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260702_create_mfg_waitlist.sql",
+      "version": "20260702",
+      "name": "create_mfg_waitlist",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260703_00_create_close_ledger.sql",
+      "version": "20260703",
+      "name": "00_create_close_ledger",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260703_01_create_checklist_system.sql",
+      "version": "20260703",
+      "name": "01_create_checklist_system",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "version": "20260703",
+      "name": "d6_0_vertical_rule_foundation",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
+      "version": "20260703",
+      "name": "d6_0_1_rls_curated_rule_fires",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260703_2000_d6_2a_test_client_activation.sql",
+      "version": "20260703",
+      "name": "d6_2a_test_client_activation",
+      "classification": "operational_data_activation",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "g2Blocker": true,
+      "notes": "Unconditional INSERT into client_active_rules for fixture firm_client_id; FK fails on data-less branch",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ]
+    },
+    {
+      "source": "local",
+      "filename": "20260703_2200_d6_2b_mfg_activation.sql",
+      "version": "20260703",
+      "name": "d6_2b_mfg_activation",
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "notes": "Registry UPDATE is reference; client_active_rules INSERT is operational fixture activation",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ]
+    },
+    {
+      "source": "local",
+      "filename": "20260703_2300_d6_2c_retail_activation.sql",
+      "version": "20260703",
+      "name": "d6_2c_retail_activation",
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ]
+    },
+    {
+      "source": "local",
+      "filename": "20260703_2400_d6_2d_ps_activation.sql",
+      "version": "20260703",
+      "name": "d6_2d_ps_activation",
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ]
+    },
+    {
+      "source": "local",
+      "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+      "version": "20260704",
+      "name": "d6_4a_je_evidence_attachments_backup",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "version": "20260705",
+      "name": "d67_p1_ar_cash_app_layer0_layer1",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "version": "20260706120000",
+      "name": "d_platform_event_sourced_foundation",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260706130000_d_entitlements.sql",
+      "version": "20260706130000",
+      "name": "d_entitlements",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260706140000_d_entitlements_followup.sql",
+      "version": "20260706140000",
+      "name": "d_entitlements_followup",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+      "version": "20260706150000",
+      "name": "d6_4c_1_pre_close_review_queue",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "version": "20260706170000",
+      "name": "d6_4c_3_posting_policy_and_remediation",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+      "version": "20260706180000",
+      "name": "d6_4d_reviewer_ui_rls_and_visibility",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260706_d67_p2_layer2_layer4.sql",
+      "version": "20260706",
+      "name": "d67_p2_layer2_layer4",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+      "version": "20260707000000",
+      "name": "d6_5_part1_universal_intake",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "version": "20260707120000",
+      "name": "d_assertions_part_1_schema_and_backfill",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "version": "20260707130000",
+      "name": "d_assertions_part_2_coverage_projection",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "version": "20260707140000",
+      "name": "d_assertions_part_3_coverage_statement",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707150000_d_assertions_part_4_je_propagation.sql",
+      "version": "20260707150000",
+      "name": "d_assertions_part_4_je_propagation",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "version": "20260707160000",
+      "name": "d_assertions_part_5_gap_review_items",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+      "version": "20260707170000",
+      "name": "d_assertions_part_6_manual_test_evidence",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+      "version": "20260707214500",
+      "name": "d65_p2_block7a2_prepilot_security",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707_01_variance_config_unique.sql",
+      "version": "20260707",
+      "name": "01_variance_config_unique",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707_02_section_manual_edit_flag.sql",
+      "version": "20260707",
+      "name": "02_section_manual_edit_flag",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707_03_close_packet_share.sql",
+      "version": "20260707",
+      "name": "03_close_packet_share",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260707_create_close_packet_system.sql",
+      "version": "20260707",
+      "name": "create_close_packet_system",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+      "version": "20260708120000",
+      "name": "tcp1_w1_solo_bk_pilot_slots",
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "notes": "Schema + pilot_slots INSERT referencing company_id 00000000-... FK",
+      "tenantUuids": [
+        "00000000-0000-0000-0000-000000000001"
+      ]
+    },
+    {
+      "source": "local",
+      "filename": "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
+      "version": "20260708140000",
+      "name": "tcp1_w1_pilot_slot_number_nullable",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+      "version": "20260708150000",
+      "name": "tcp1_w1_pilot_slots_firm_id",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260708200000_tcp1_w1_seat_idempotency.sql",
+      "version": "20260708200000",
+      "name": "tcp1_w1_seat_idempotency",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260708_00_d0_identity_and_memory_activation.sql",
+      "version": "20260708",
+      "name": "00_d0_identity_and_memory_activation",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260708_01_d1_qbo_write_readiness.sql",
+      "version": "20260708",
+      "name": "01_d1_qbo_write_readiness",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260708_02_d1_1_owner_user_id_backfill.sql",
+      "version": "20260708",
+      "name": "02_d1_1_owner_user_id_backfill",
+      "classification": "backfill",
+      "cleanReplayPolicy": "skip_on_empty_guarded",
+      "notes": "DO block no-ops when auth.users row absent",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111",
+        "71111111-1111-4111-8111-222222222222",
+        "71111111-1111-4111-8111-333333333333",
+        "71111111-1111-4111-8111-444444444444"
+      ]
+    },
+    {
+      "source": "local",
+      "filename": "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
+      "version": "20260709070000",
+      "name": "tcp1_w2_5_review_assist_tier_key_expand",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260709_00_d2_safe_je_posting.sql",
+      "version": "20260709",
+      "name": "00_d2_safe_je_posting",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260710_00_d3_memory_indexes.sql",
+      "version": "20260710",
+      "name": "00_d3_memory_indexes",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260713_00_d4_uncategorized_proposals.sql",
+      "version": "20260713",
+      "name": "00_d4_uncategorized_proposals",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260714_00_d5_recurring_templates.sql",
+      "version": "20260714",
+      "name": "00_d5_recurring_templates",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260715180000_mfa_enrollment.sql",
+      "version": "20260715180000",
+      "name": "mfa_enrollment",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+      "version": "20260715190000",
+      "name": "mfa_webauthn_and_trusted_devices",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+      "version": "20260715190001",
+      "name": "mfa_webauthn_rls_initplan_and_deny_policy",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260716010000_add_qbo_cdc_tables.sql",
+      "version": "20260716010000",
+      "name": "add_qbo_cdc_tables",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260716_00_d6_5_part1_1_firm_clients_slug.sql",
+      "version": "20260716",
+      "name": "00_d6_5_part1_1_firm_clients_slug",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+      "version": "20260717010000",
+      "name": "d65_p2_block1_visual_fingerprint",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
+      "version": "20260717020000",
+      "name": "d65_p2_block2_vendor_mirror",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+      "version": "20260717030000",
+      "name": "d65_p2_block3_quarantine_l3",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
+      "version": "20260717040000",
+      "name": "d65_p2_block4_duplicate_detection",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+      "version": "20260717050000",
+      "name": "d65_p2_block5_anomaly_score_merkle",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "version": "20260717060000",
+      "name": "d65_p2_block6a_requisitions_harvest_l3",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
+      "version": "20260717070000",
+      "name": "d65_p2_block6a_harden_next_document_number_search_path",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "version": "20260717080000",
+      "name": "d65_p2_block6b_approval_delegation_budget_comments",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+      "version": "20260717090000",
+      "name": "d65_p2_block7a_credits_prepayment",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+      "version": "20260717100000",
+      "name": "d65_p2_block7b_multimodal_inbox",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+      "version": "20260717110000",
+      "name": "d65_p2_block8a_interlock_rails",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "version": "20260717120000",
+      "name": "d65_p2_block8b_presets_selfgov",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+      "version": "20260717130000",
+      "name": "tcp1_w3_erp_connections_disconnected_at",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718000000_intuit_webhook_events.sql",
+      "version": "20260718000000",
+      "name": "intuit_webhook_events",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718010000_mc1_home_currency.sql",
+      "version": "20260718010000",
+      "name": "mc1_home_currency",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718020000_mc3_je_posting_audit_currency.sql",
+      "version": "20260718020000",
+      "name": "mc3_je_posting_audit_currency",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718030000_mc4c_payment_batch_lines_currency.sql",
+      "version": "20260718030000",
+      "name": "mc4c_payment_batch_lines_currency",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718040000_q7_qbo_edition.sql",
+      "version": "20260718040000",
+      "name": "q7_qbo_edition",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718180000_q8a_qbo_view_security_invoker.sql",
+      "version": "20260718180000",
+      "name": "q8a_qbo_view_security_invoker",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718190000_q8b_function_search_path_lockdown.sql",
+      "version": "20260718190000",
+      "name": "q8b_function_search_path_lockdown",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718200000_q8c_security_definer_rpc_revoke.sql",
+      "version": "20260718200000",
+      "name": "q8c_security_definer_rpc_revoke",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718200000_support_ticket_intuit_context.sql",
+      "version": "20260718200000",
+      "name": "support_ticket_intuit_context",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718210000_q8d_vector_schema_move.sql",
+      "version": "20260718210000",
+      "name": "q8d_vector_schema_move",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260718220000_q8e_rls_service_role_policies.sql",
+      "version": "20260718220000",
+      "name": "q8e_rls_service_role_policies",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260719000000_support_auto_file_engine.sql",
+      "version": "20260719000000",
+      "name": "support_auto_file_engine",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260719050000_gap3_je_approval_flow.sql",
+      "version": "20260719050000",
+      "name": "gap3_je_approval_flow",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "version": "20260719060000",
+      "name": "gap2_subscription_lifecycle_purge",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+      "version": "20260720000000",
+      "name": "v1_5_audit_ready_engagement_state",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+      "version": "20260720120000",
+      "name": "ar_week3_pbc_ingest_llm_usage",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260720130000_ar_week3_block3_1_rpc_lockdown.sql",
+      "version": "20260720130000",
+      "name": "ar_week3_block3_1_rpc_lockdown",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+      "version": "20260720140000",
+      "name": "ar_week3_block3_3_rls_recursion_fix",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260720150000_pulse_je_reliability_basis.sql",
+      "version": "20260720150000",
+      "name": "pulse_je_reliability_basis",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+      "version": "20260720160000",
+      "name": "ar_tieout1_policy_and_kind",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+      "version": "20260720170000",
+      "name": "ar_tieout2_runs_and_variances",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260720180000_tieout3_grni_binding.sql",
+      "version": "20260720180000",
+      "name": "tieout3_grni_binding",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260721000000_audit_ready_tie_out_variance_evidence.sql",
+      "version": "20260721000000",
+      "name": "audit_ready_tie_out_variance_evidence",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+      "version": "20260721120000",
+      "name": "ar_tieout4b1_bs_recon_artifacts",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+      "version": "20260721140000",
+      "name": "ar_tieout4b2_fa_rollforward_artifacts",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+      "version": "20260721160000",
+      "name": "ar_tieout4b3_bs_recon_summary",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql",
+      "version": "20260721180000",
+      "name": "ar_tieout4b3_bs_summary_sentinel_unique",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
+      "version": "20260722221611",
+      "name": "bs_recon_summary_basis_and_computed_lines",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
+      "version": "20260722233000",
+      "name": "bs_recon_summary_lines_qbo_account_id_nullable",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260723050000_audit_ready_cron_runs.sql",
+      "version": "20260723050000",
+      "name": "audit_ready_cron_runs",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260724010000_kickout_investigations.sql",
+      "version": "20260724010000",
+      "name": "kickout_investigations",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260724020000_kickout_dedupe_rpcs.sql",
+      "version": "20260724020000",
+      "name": "kickout_dedupe_rpcs",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260724030000_ar_tieout412a_kind_reconcile.sql",
+      "version": "20260724030000",
+      "name": "ar_tieout412a_kind_reconcile",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+      "version": "20260724030100",
+      "name": "ar_tieout412a_run_artifacts",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260724220000_ar_tieout412b_raw_qbo_payload.sql",
+      "version": "20260724220000",
+      "name": "ar_tieout412b_raw_qbo_payload",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260725050000_ar_tieout420a_resolution_code.sql",
+      "version": "20260725050000",
+      "name": "ar_tieout420a_resolution_code",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+      "version": "20260725050100",
+      "name": "ar_tieout420a_similar_kickouts_rpc",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260725060000_ar_tieout42_memory_events.sql",
+      "version": "20260725060000",
+      "name": "ar_tieout42_memory_events",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+      "version": "20260727000100",
+      "name": "users_auth_trigger_single_writer",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260805041500_major_1_rpc_lockdown.sql",
+      "version": "20260805041500",
+      "name": "major_1_rpc_lockdown",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260805054000_schema_drift_issue_policies.sql",
+      "version": "20260805054000",
+      "name": "schema_drift_issue_policies",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260805210000_schema_drift_scanner_issue_kinds.sql",
+      "version": "20260805210000",
+      "name": "schema_drift_scanner_issue_kinds",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260805211000_sp_list_public_columns_jsonb.sql",
+      "version": "20260805211000",
+      "name": "sp_list_public_columns_jsonb",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
+      "version": "20260806031500",
+      "name": "major_2_2_lifecycle_issues_drift_kinds",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260806032000_lifecycle_issues_schema_drift_checks.sql",
+      "version": "20260806032000",
+      "name": "lifecycle_issues_schema_drift_checks",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+      "version": "20260806040000",
+      "name": "major_2_3_block_a_assertion_linkage",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+      "version": "20260806042000",
+      "name": "major_2_3_block_a_1_research_revision",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260809083000_companies_tenant_identity_columns.sql",
+      "version": "20260809083000",
+      "name": "companies_tenant_identity_columns",
+      "classification": "mixed",
+      "cleanReplayPolicy": "prod_tenant_backfill_noop_on_empty",
+      "notes": "UPDATE ... WHERE id = prod UUID; 0 rows affected on data-less branch",
+      "tenantUuids": [
+        "02edb6c6-a4f1-4bae-825d-2680136dad24",
+        "aaaaaaaa-2222-4222-8222-222222222222"
+      ]
+    },
+    {
+      "source": "local",
+      "filename": "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+      "version": "20260810070000",
+      "name": "dash_1c_a_accuracy_contract_cache",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260810070050_dash_1c_a_widen_provenance.sql",
+      "version": "20260810070050",
+      "name": "dash_1c_a_widen_provenance",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
+      "version": "20260810070100",
+      "name": "dash_1c_a_lifecycle_scan_indexes",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260813220000_accounting_connection_supersession.sql",
+      "version": "20260813220000",
+      "name": "accounting_connection_supersession",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260814060000_accounting_superseded_credential_retirement.sql",
+      "version": "20260814060000",
+      "name": "accounting_superseded_credential_retirement",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260814221500_accounting_canonical_connected_grant.sql",
+      "version": "20260814221500",
+      "name": "accounting_canonical_connected_grant",
+      "classification": "mixed",
+      "cleanReplayPolicy": "prod_only_operational",
+      "notes": "Production canonical tenant rewiring; RAISE EXCEPTION if prod rows missing",
+      "tenantUuids": [
+        "02edb6c6-a4f1-4bae-825d-2680136dad24",
+        "774e6be2-ad1b-41fa-859d-163b0805c3ca",
+        "95da07be-8e2c-4b84-9dcc-8a98fa841273"
+      ]
+    },
+    {
+      "source": "local",
+      "filename": "20260815000000_urm2_reconciling_items_persistence.sql",
+      "version": "20260815000000",
+      "name": "urm2_reconciling_items_persistence",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260815120000_urm3_universal_evidence_spine.sql",
+      "version": "20260815120000",
+      "name": "urm3_universal_evidence_spine",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260815130000_urm3_hash_normalization_order.sql",
+      "version": "20260815130000",
+      "name": "urm3_hash_normalization_order",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260815140000_urm3_storage_requires_hash_not_null.sql",
+      "version": "20260815140000",
+      "name": "urm3_storage_requires_hash_not_null",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260818020716_accounting_measurement_snapshots.sql",
+      "version": "20260818020716",
+      "name": "accounting_measurement_snapshots",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql",
+      "version": "20260818040000",
+      "name": "accounting_measurement_snapshots_ap_aging_kind",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
+      "version": "20260818050000",
+      "name": "accounting_measurement_snapshots_inventory_kind",
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260819045253_continuous_close_runs.sql",
+      "version": "20260819045253",
+      "name": "continuous_close_runs",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260820233219_journal_entry_proposals.sql",
+      "version": "20260820233219",
+      "name": "journal_entry_proposals",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260821042800_journal_entry_approvals.sql",
+      "version": "20260821042800",
+      "name": "journal_entry_approvals",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260821183525_journal_entry_executions.sql",
+      "version": "20260821183525",
+      "name": "journal_entry_executions",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260821212020_journal_entry_provider_attempts.sql",
+      "version": "20260821212020",
+      "name": "journal_entry_provider_attempts",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+      "version": "20260821220646",
+      "name": "journal_entry_provider_discovery_receipts",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
+      "version": "20260821221658",
+      "name": "journal_entry_provider_attempt_certainty_immutable",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
+      "version": "20260821222342",
+      "name": "journal_entry_provider_attempt_initial_custody",
+      "classification": "reference_seed",
+      "cleanReplayPolicy": "required_reference_seed",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+      "version": "20260822011500",
+      "name": "journal_entry_provider_dispatch_and_outcomes",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260822050000_journal_entry_verified_readback.sql",
+      "version": "20260822050000",
+      "name": "journal_entry_verified_readback",
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260822200000_je3d_sandbox_activation_identity.sql",
+      "version": "20260822200000",
+      "name": "je3d_sandbox_activation_identity",
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+      "version": "20260826043000",
+      "name": "journal_entry_provider_attempt_reuse_posting_started",
+      "classification": "reference_seed",
+      "cleanReplayPolicy": "required_reference_seed",
+      "tenantUuids": []
+    },
+    {
+      "source": "local",
+      "filename": "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql",
+      "version": "2026_07_20__pilot_slots_add_review_assist_pro_tier_key",
+      "name": "2026_07_20__pilot_slots_add_review_assist_pro_tier_key",
+      "classification": "reference_seed",
+      "cleanReplayPolicy": "required_reference_seed",
+      "tenantUuids": []
+    }
+  ],
+  "production": [
+    {
+      "replayOrder": 1,
+      "productionVersion": "20260701043602",
+      "productionName": "phase1_subscriptions_core",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 2,
+      "productionVersion": "20260701043707",
+      "productionName": "phase1_subscription_seats_and_entitlements",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 3,
+      "productionVersion": "20260701043911",
+      "productionName": "phase1_backward_compat_view",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 4,
+      "productionVersion": "20260701043931",
+      "productionName": "phase1_entitlement_rls_policies",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 5,
+      "productionVersion": "20260702010748",
+      "productionName": "refund_requests",
+      "localFilename": "20260701_refund_requests.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 6,
+      "productionVersion": "20260702041259",
+      "productionName": "add_received_at_to_stripe_webhook_events",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 7,
+      "productionVersion": "20260702200404",
+      "productionName": "create_mfg_waitlist",
+      "localFilename": "20260702_create_mfg_waitlist.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 8,
+      "productionVersion": "20260702214505",
+      "productionName": "create_close_ledger",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 9,
+      "productionVersion": "20260702214536",
+      "productionName": "create_checklist_system",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 10,
+      "productionVersion": "20260702214628",
+      "productionName": "seed_checklist_templates",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "reference_seed",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 11,
+      "productionVersion": "20260702220259",
+      "productionName": "create_close_packet_system",
+      "localFilename": "20260707_create_close_packet_system.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 12,
+      "productionVersion": "20260702221722",
+      "productionName": "variance_config_unique_constraints",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 13,
+      "productionVersion": "20260702223605",
+      "productionName": "section_manual_edit_flag",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 14,
+      "productionVersion": "20260702223632",
+      "productionName": "create_close_packets_bucket",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 15,
+      "productionVersion": "20260702223820",
+      "productionName": "close_packet_c4_prep",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 16,
+      "productionVersion": "20260702230457",
+      "productionName": "increment_share_token_access_rpc",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 17,
+      "productionVersion": "20260703000838",
+      "productionName": "d0_identity_and_memory_activation",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 18,
+      "productionVersion": "20260703002615",
+      "productionName": "d1_qbo_write_readiness",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 19,
+      "productionVersion": "20260703004000",
+      "productionName": "d1_1_owner_user_id_backfill",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 20,
+      "productionVersion": "20260703011140",
+      "productionName": "d2_safe_je_posting",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 21,
+      "productionVersion": "20260703015832",
+      "productionName": "d3_memory_indexes_and_payload_trigger",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 22,
+      "productionVersion": "20260703024420",
+      "productionName": "d4_uncategorized_proposals",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 23,
+      "productionVersion": "20260703042106",
+      "productionName": "20260714_00_d5_recurring_templates",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 24,
+      "productionVersion": "20260703172042",
+      "productionName": "d6_0_vertical_rule_foundation",
+      "localFilename": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 25,
+      "productionVersion": "20260703172508",
+      "productionName": "d6_0_1_rls_curated_rule_fires",
+      "localFilename": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 26,
+      "productionVersion": "20260703182655",
+      "productionName": "d6_2a_test_client_activation",
+      "localFilename": "20260703_2000_d6_2a_test_client_activation.sql",
+      "inGit": true,
+      "classification": "operational_data_activation",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ],
+      "g2Blocker": true,
+      "notes": "Unconditional INSERT into client_active_rules for fixture firm_client_id; FK fails on data-less branch"
+    },
+    {
+      "replayOrder": 27,
+      "productionVersion": "20260703184839",
+      "productionName": "d6_2b_mfg_activation",
+      "localFilename": "20260703_2200_d6_2b_mfg_activation.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ],
+      "g2Blocker": false,
+      "notes": "Registry UPDATE is reference; client_active_rules INSERT is operational fixture activation"
+    },
+    {
+      "replayOrder": 28,
+      "productionVersion": "20260703190541",
+      "productionName": "d6_2c_retail_activation",
+      "localFilename": "20260703_2300_d6_2c_retail_activation.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 29,
+      "productionVersion": "20260703192608",
+      "productionName": "d6_2d_ps_activation",
+      "localFilename": "20260703_2400_d6_2d_ps_activation.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "71111111-1111-4111-8111-111111111111"
+      ],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 30,
+      "productionVersion": "20260703203004",
+      "productionName": "d6_4a_je_evidence_attachments_backup",
+      "localFilename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 31,
+      "productionVersion": "20260704021122",
+      "productionName": "d_platform_event_sourced_foundation",
+      "localFilename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 32,
+      "productionVersion": "20260704024059",
+      "productionName": "d_entitlements_legacy_stripe_rename",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 33,
+      "productionVersion": "20260704024119",
+      "productionName": "d_entitlements",
+      "localFilename": "20260706130000_d_entitlements.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 34,
+      "productionVersion": "20260704025937",
+      "productionName": "d_entitlements_followup",
+      "localFilename": "20260706140000_d_entitlements_followup.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 35,
+      "productionVersion": "20260704033254",
+      "productionName": "d6_4c_1_pre_close_review_queue",
+      "localFilename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+      "inGit": true,
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 36,
+      "productionVersion": "20260704043127",
+      "productionName": "d6_4c_3_posting_policy_and_remediation",
+      "localFilename": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 37,
+      "productionVersion": "20260704050944",
+      "productionName": "d6_4d_reviewer_ui_rls_and_visibility",
+      "localFilename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 38,
+      "productionVersion": "20260704060217",
+      "productionName": "d_assertions_part_1_schema_and_backfill",
+      "localFilename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 39,
+      "productionVersion": "20260704060949",
+      "productionName": "d_assertions_p1_relevance_a",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 40,
+      "productionVersion": "20260704061104",
+      "productionName": "d_assertions_p1_cov_gen",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 41,
+      "productionVersion": "20260704061115",
+      "productionName": "d_assertions_p1_cov_mfg_ps",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 42,
+      "productionVersion": "20260704061119",
+      "productionName": "d_assertions_p1_cov_rtl",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 43,
+      "productionVersion": "20260704061120",
+      "productionName": "d_assertions_p1_constraints",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 44,
+      "productionVersion": "20260704064709",
+      "productionName": "d_assertions_p2_coverage_projection",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 45,
+      "productionVersion": "20260704073042",
+      "productionName": "d_assertions_p3_coverage_statement",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 46,
+      "productionVersion": "20260705023214",
+      "productionName": "d_assertions_part_4_je_propagation",
+      "localFilename": "20260707150000_d_assertions_part_4_je_propagation.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 47,
+      "productionVersion": "20260705030243",
+      "productionName": "d_assertions_part_5_gap_review_items",
+      "localFilename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 48,
+      "productionVersion": "20260705032352",
+      "productionName": "d_assertions_part_6_manual_test_evidence",
+      "localFilename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 49,
+      "productionVersion": "20260706010957",
+      "productionName": "20260705_d67_p1_ar_cash_app_layer0_layer1",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 50,
+      "productionVersion": "20260706011013",
+      "productionName": "d67_p1_ar_cash_app_layer0_layer1",
+      "localFilename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 51,
+      "productionVersion": "20260706011022",
+      "productionName": "d67_p1_ar_cash_app_rls",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 52,
+      "productionVersion": "20260706032617",
+      "productionName": "d67_p2_layer2_layer4",
+      "localFilename": "20260706_d67_p2_layer2_layer4.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 53,
+      "productionVersion": "20260706045703",
+      "productionName": "d6_5_part1_universal_intake",
+      "localFilename": "20260707000000_d6_5_part1_universal_intake.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 54,
+      "productionVersion": "20260706054152",
+      "productionName": "d6_5_part1_1_firm_clients_slug",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 55,
+      "productionVersion": "20260707001636",
+      "productionName": "d65_p2_block1_visual_fingerprint",
+      "localFilename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 56,
+      "productionVersion": "20260707004330",
+      "productionName": "d65_p2_block2_vendor_mirror",
+      "localFilename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 57,
+      "productionVersion": "20260707013954",
+      "productionName": "d65_p2_block3_quarantine_l3",
+      "localFilename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 58,
+      "productionVersion": "20260707030144",
+      "productionName": "d65_p2_block4_duplicate_detection",
+      "localFilename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 59,
+      "productionVersion": "20260707035311",
+      "productionName": "d65_p2_block5_anomaly_score_merkle",
+      "localFilename": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 60,
+      "productionVersion": "20260707223451",
+      "productionName": "d65_p2_block6a_requisitions_harvest_l3",
+      "localFilename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 61,
+      "productionVersion": "20260707223520",
+      "productionName": "d65_p2_block6a_chunks_5_8_po_req_gr",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 62,
+      "productionVersion": "20260707223557",
+      "productionName": "d65_p2_block6a_chunks_7_8_reqs_gr",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 63,
+      "productionVersion": "20260707223708",
+      "productionName": "d65_p2_block6a_chunks_9_12_bill_history_coa_events",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 64,
+      "productionVersion": "20260707224937",
+      "productionName": "d65_p2_block6a_harden_next_document_number_search_path",
+      "localFilename": "20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 65,
+      "productionVersion": "20260707233928",
+      "productionName": "d65_p2_block6b_approval_delegation_budget_comments",
+      "localFilename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 66,
+      "productionVersion": "20260708011413",
+      "productionName": "d65_p2_block7a_credits_prepayment",
+      "localFilename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 67,
+      "productionVersion": "20260708020447",
+      "productionName": "d65_p2_block7a2_prepilot_security",
+      "localFilename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 68,
+      "productionVersion": "20260708024243",
+      "productionName": "d65_p2_block7b_multimodal_inbox",
+      "localFilename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 69,
+      "productionVersion": "20260708033313",
+      "productionName": "d65_p2_block8a_interlock_rails",
+      "localFilename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 70,
+      "productionVersion": "20260708040112",
+      "productionName": "d65_p2_block8b_presets_selfgov",
+      "localFilename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 71,
+      "productionVersion": "20260708051526",
+      "productionName": "tcp1_w1_solo_bk_pilot_slots",
+      "localFilename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "blocks_clean_replay_unless_guarded",
+      "tenantUuids": [
+        "00000000-0000-0000-0000-000000000001"
+      ],
+      "g2Blocker": false,
+      "notes": "Schema + pilot_slots INSERT referencing company_id 00000000-... FK"
+    },
+    {
+      "replayOrder": 72,
+      "productionVersion": "20260708051538",
+      "productionName": "tcp1_w1_pilot_slot_number_nullable",
+      "localFilename": "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 73,
+      "productionVersion": "20260708054349",
+      "productionName": "tcp1_w1_pilot_slots_firm_id",
+      "localFilename": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 74,
+      "productionVersion": "20260708223959",
+      "productionName": "tcp1_w1_seat_idempotency",
+      "localFilename": "20260708200000_tcp1_w1_seat_idempotency.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 75,
+      "productionVersion": "20260709071033",
+      "productionName": "tcp1_w2_5_review_assist_tier_key_expand",
+      "localFilename": "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 76,
+      "productionVersion": "20260715033845",
+      "productionName": "tcp1_w3_erp_connections_disconnected_at",
+      "localFilename": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 77,
+      "productionVersion": "20260715205710",
+      "productionName": "mfa_enrollment",
+      "localFilename": "20260715180000_mfa_enrollment.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 78,
+      "productionVersion": "20260716014354",
+      "productionName": "intuit_webhook_events",
+      "localFilename": "20260718000000_intuit_webhook_events.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 79,
+      "productionVersion": "20260716051832",
+      "productionName": "add_qbo_cdc_tables",
+      "localFilename": "20260716010000_add_qbo_cdc_tables.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 80,
+      "productionVersion": "20260718182009",
+      "productionName": "mc3_je_posting_audit_currency",
+      "localFilename": "20260718020000_mc3_je_posting_audit_currency.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 81,
+      "productionVersion": "20260718203924",
+      "productionName": "q7_qbo_edition",
+      "localFilename": "20260718040000_q7_qbo_edition.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 82,
+      "productionVersion": "20260718212032",
+      "productionName": "q8a_qbo_view_security_invoker",
+      "localFilename": "20260718180000_q8a_qbo_view_security_invoker.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 83,
+      "productionVersion": "20260718213532",
+      "productionName": "q8b_function_search_path_lockdown",
+      "localFilename": "20260718190000_q8b_function_search_path_lockdown.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 84,
+      "productionVersion": "20260718214747",
+      "productionName": "q8c_security_definer_rpc_revoke",
+      "localFilename": "20260718200000_q8c_security_definer_rpc_revoke.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 85,
+      "productionVersion": "20260718215909",
+      "productionName": "q8d_vector_schema_move",
+      "localFilename": "20260718210000_q8d_vector_schema_move.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 86,
+      "productionVersion": "20260718221328",
+      "productionName": "q8e_rls_service_role_policies",
+      "localFilename": "20260718220000_q8e_rls_service_role_policies.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 87,
+      "productionVersion": "20260719005618",
+      "productionName": "support_ticket_intuit_context",
+      "localFilename": "20260718200000_support_ticket_intuit_context.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 88,
+      "productionVersion": "20260719020941",
+      "productionName": "support_auto_file_engine",
+      "localFilename": "20260719000000_support_auto_file_engine.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 89,
+      "productionVersion": "20260719032702",
+      "productionName": "20260715180000_mfa_enrollment",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 90,
+      "productionVersion": "20260719035932",
+      "productionName": "20260715190000_mfa_webauthn_and_trusted_devices",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 91,
+      "productionVersion": "20260719040038",
+      "productionName": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 92,
+      "productionVersion": "20260719050157",
+      "productionName": "20260719050000_gap3_je_approval_flow",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 93,
+      "productionVersion": "20260719053635",
+      "productionName": "gap2_subscription_lifecycle_purge",
+      "localFilename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 94,
+      "productionVersion": "20260719053717",
+      "productionName": "gap2_advisor_cleanup",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 95,
+      "productionVersion": "20260719183145",
+      "productionName": "v1_5_audit_ready_engagement_state",
+      "localFilename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 96,
+      "productionVersion": "20260719222134",
+      "productionName": "ar_week3_pbc_ingest_llm_usage",
+      "localFilename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 97,
+      "productionVersion": "20260719222737",
+      "productionName": "ar_week3_block3_1_rpc_lockdown",
+      "localFilename": "20260720130000_ar_week3_block3_1_rpc_lockdown.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 98,
+      "productionVersion": "20260720023829",
+      "productionName": "ar_week3_block3_3_rls_recursion_fix",
+      "localFilename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 99,
+      "productionVersion": "20260720043939",
+      "productionName": "pilot_slots_add_review_assist_pro_tier_key",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 100,
+      "productionVersion": "20260720212437",
+      "productionName": "tieout3_grni_binding",
+      "localFilename": "20260720180000_tieout3_grni_binding.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 101,
+      "productionVersion": "20260720212506",
+      "productionName": "ar_tieout1_policy_and_kind",
+      "localFilename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 102,
+      "productionVersion": "20260720212538",
+      "productionName": "ar_tieout2_runs_and_variances",
+      "localFilename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 103,
+      "productionVersion": "20260721021022",
+      "productionName": "audit_ready_tie_out_variance_evidence",
+      "localFilename": "20260721000000_audit_ready_tie_out_variance_evidence.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 104,
+      "productionVersion": "20260721033102",
+      "productionName": "ar_tieout4b1_bs_recon_artifacts",
+      "localFilename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 105,
+      "productionVersion": "20260721040626",
+      "productionName": "ar_tieout4b2_fa_rollforward_artifacts",
+      "localFilename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 106,
+      "productionVersion": "20260721054900",
+      "productionName": "ar_tieout4b3_bs_recon_summary",
+      "localFilename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 107,
+      "productionVersion": "20260722030417",
+      "productionName": "ar_tieout4b3_bs_summary_sentinel_unique",
+      "localFilename": "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 108,
+      "productionVersion": "20260723025200",
+      "productionName": "bs_recon_summary_basis_and_computed_lines",
+      "localFilename": "20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
+      "inGit": true,
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 109,
+      "productionVersion": "20260723033313",
+      "productionName": "bs_recon_summary_lines_qbo_account_id_nullable",
+      "localFilename": "20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 110,
+      "productionVersion": "20260723050556",
+      "productionName": "audit_ready_cron_runs",
+      "localFilename": "20260723050000_audit_ready_cron_runs.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 111,
+      "productionVersion": "20260724041921",
+      "productionName": "kickout_investigations",
+      "localFilename": "20260724010000_kickout_investigations.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 112,
+      "productionVersion": "20260724044834",
+      "productionName": "kickout_dedupe_rpcs",
+      "localFilename": "20260724020000_kickout_dedupe_rpcs.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 113,
+      "productionVersion": "20260724045051",
+      "productionName": "kickout_dedupe_rpcs_v2",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 114,
+      "productionVersion": "20260724054110",
+      "productionName": "ar_tieout412a_kind_reconcile",
+      "localFilename": "20260724030000_ar_tieout412a_kind_reconcile.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 115,
+      "productionVersion": "20260724054123",
+      "productionName": "ar_tieout412a_run_artifacts",
+      "localFilename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 116,
+      "productionVersion": "20260725020359",
+      "productionName": "ar_tieout412b_raw_qbo_payload",
+      "localFilename": "20260724220000_ar_tieout412b_raw_qbo_payload.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 117,
+      "productionVersion": "20260725043051",
+      "productionName": "ar_tieout420a_resolution_code",
+      "localFilename": "20260725050000_ar_tieout420a_resolution_code.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 118,
+      "productionVersion": "20260725043101",
+      "productionName": "ar_tieout420a_similar_kickouts_rpc",
+      "localFilename": "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 119,
+      "productionVersion": "20260725050632",
+      "productionName": "ar_tieout42_memory_events",
+      "localFilename": "20260725060000_ar_tieout42_memory_events.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 120,
+      "productionVersion": "20260727030443",
+      "productionName": "users_auth_trigger_single_writer",
+      "localFilename": "20260727000100_users_auth_trigger_single_writer.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 121,
+      "productionVersion": "20260804213003",
+      "productionName": "pilot_lifecycle_events",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 122,
+      "productionVersion": "20260804213819",
+      "productionName": "pilot_lifecycle_events_hash_chain_trigger",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 123,
+      "productionVersion": "20260804213934",
+      "productionName": "pilot_lifecycle_events_hash_digest_bytea_fix",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 124,
+      "productionVersion": "20260804214151",
+      "productionName": "pilot_lifecycle_events_hash_extensions_search_path",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 125,
+      "productionVersion": "20260804220220",
+      "productionName": "pilot_lifecycle_events_chain_seq_hardening",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 126,
+      "productionVersion": "20260804223816",
+      "productionName": "pilot_lifecycle_events_event_kind_widen",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 127,
+      "productionVersion": "20260804225750",
+      "productionName": "sp_write_pilot_slot_and_event",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 128,
+      "productionVersion": "20260804234230",
+      "productionName": "lifecycle_issues",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 129,
+      "productionVersion": "20260804234244",
+      "productionName": "sp_write_pilot_slot_event_only",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 130,
+      "productionVersion": "20260805000533",
+      "productionName": "pilot_lifecycle_coverage_downloads",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 131,
+      "productionVersion": "20260805001827",
+      "productionName": "lifecycle_issues_seo_drift",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 132,
+      "productionVersion": "20260805005320",
+      "productionName": "pilot_lifecycle_anchors",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 133,
+      "productionVersion": "20260805051150",
+      "productionName": "schema_drift_issue_policies",
+      "localFilename": "20260805054000_schema_drift_issue_policies.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 134,
+      "productionVersion": "20260806010521",
+      "productionName": "sp_list_public_columns_jsonb",
+      "localFilename": "20260805211000_sp_list_public_columns_jsonb.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 135,
+      "productionVersion": "20260806010522",
+      "productionName": "schema_drift_scanner_issue_kinds",
+      "localFilename": "20260805210000_schema_drift_scanner_issue_kinds.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 136,
+      "productionVersion": "20260806024752",
+      "productionName": "major_1_rpc_lockdown",
+      "localFilename": "20260805041500_major_1_rpc_lockdown.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 137,
+      "productionVersion": "20260806032456",
+      "productionName": "lifecycle_issues_schema_drift_checks",
+      "localFilename": "20260806032000_lifecycle_issues_schema_drift_checks.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 138,
+      "productionVersion": "20260806033328",
+      "productionName": "major_2_2_lifecycle_issues_drift_kinds",
+      "localFilename": "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 139,
+      "productionVersion": "20260806035156",
+      "productionName": "major_2_3_block_a_assertion_linkage",
+      "localFilename": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+      "inGit": true,
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 140,
+      "productionVersion": "20260806041011",
+      "productionName": "major_2_3_block_a_1_research_revision",
+      "localFilename": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+      "inGit": true,
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 141,
+      "productionVersion": "20260806042702",
+      "productionName": "major_2_3_block_b_1_platform_integrity_view",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 142,
+      "productionVersion": "20260806042857",
+      "productionName": "major_2_3_block_b_1_fix_chain_seq_column",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 143,
+      "productionVersion": "20260807142413",
+      "productionName": "dash_1b_2_widen_pilot_slots_tier_key",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 144,
+      "productionVersion": "20260807142430",
+      "productionName": "dash_1b_2_widen_lifecycle_event_kind",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 145,
+      "productionVersion": "20260807142436",
+      "productionName": "dash_1b_2_widen_lifecycle_actor_via",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 146,
+      "productionVersion": "20260807142446",
+      "productionName": "dash_1b_2_widen_lifecycle_issues_issue_kind",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 147,
+      "productionVersion": "20260807142453",
+      "productionName": "dash_1b_2_apply_accounting_syncs_table_v2",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 148,
+      "productionVersion": "20260807142920",
+      "productionName": "dash_1b_2_backfill_sync_5272037e_v2",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 149,
+      "productionVersion": "20260808025513",
+      "productionName": "dash_1b_3_widen_lifecycle_disconnect_kinds",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 150,
+      "productionVersion": "20260808030214",
+      "productionName": "widen_event_kind_disconnect",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 151,
+      "productionVersion": "20260808043926",
+      "productionName": "accounting_syncs_company_fk_and_backfill",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 152,
+      "productionVersion": "20260808045712",
+      "productionName": "pulse_je_submissions",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 153,
+      "productionVersion": "20260808061420",
+      "productionName": "widen_event_kind_wbp_probe",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 154,
+      "productionVersion": "20260808065206",
+      "productionName": "wbp_w1a_accounts_cache_tables",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 155,
+      "productionVersion": "20260808065213",
+      "productionName": "wbp_w1a_widen_write_event_kinds",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 156,
+      "productionVersion": "20260808145352",
+      "productionName": "add_lifecycle_event_ids_to_je_posting_audit",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 157,
+      "productionVersion": "20260808152932",
+      "productionName": "wbp_w1c4a_add_cache_refreshed_event_kind",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 158,
+      "productionVersion": "20260809043747",
+      "productionName": "w1c4c_1_qbo_smoke_seed",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "reference_seed",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 159,
+      "productionVersion": "20260809054926",
+      "productionName": "companies_tenant_identity_columns",
+      "localFilename": "20260809083000_companies_tenant_identity_columns.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "prod_tenant_backfill_noop_on_empty",
+      "tenantUuids": [
+        "02edb6c6-a4f1-4bae-825d-2680136dad24",
+        "aaaaaaaa-2222-4222-8222-222222222222"
+      ],
+      "g2Blocker": false,
+      "notes": "UPDATE ... WHERE id = prod UUID; 0 rows affected on data-less branch"
+    },
+    {
+      "replayOrder": 160,
+      "productionVersion": "20260810053716",
+      "productionName": "dash_1c_a_widen_provenance",
+      "localFilename": "20260810070050_dash_1c_a_widen_provenance.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 161,
+      "productionVersion": "20260810053718",
+      "productionName": "dash_1c_a_lifecycle_scan_indexes",
+      "localFilename": "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 162,
+      "productionVersion": "20260810053735",
+      "productionName": "dash_1c_a_accuracy_contract_cache",
+      "localFilename": "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 163,
+      "productionVersion": "20260814011547",
+      "productionName": "accounting_connection_supersession",
+      "localFilename": "20260813220000_accounting_connection_supersession.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 164,
+      "productionVersion": "20260814023005",
+      "productionName": "accounting_canonical_connected_grant",
+      "localFilename": "20260814221500_accounting_canonical_connected_grant.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "prod_only_operational",
+      "tenantUuids": [
+        "02edb6c6-a4f1-4bae-825d-2680136dad24",
+        "774e6be2-ad1b-41fa-859d-163b0805c3ca",
+        "95da07be-8e2c-4b84-9dcc-8a98fa841273"
+      ],
+      "g2Blocker": false,
+      "notes": "Production canonical tenant rewiring; RAISE EXCEPTION if prod rows missing"
+    },
+    {
+      "replayOrder": 165,
+      "productionVersion": "20260814055154",
+      "productionName": "accounting_superseded_credential_retirement",
+      "localFilename": "20260814060000_accounting_superseded_credential_retirement.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 166,
+      "productionVersion": "20260815003610",
+      "productionName": "urm2_reconciling_items_persistence",
+      "localFilename": "20260815000000_urm2_reconciling_items_persistence.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 167,
+      "productionVersion": "20260815003627",
+      "productionName": "urm2_reconciling_items_persistence_rpc_and_trigger",
+      "localFilename": null,
+      "inGit": false,
+      "classification": "unknown_prod_only",
+      "cleanReplayPolicy": "unknown_requires_recovered_sql",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 168,
+      "productionVersion": "20260815011732",
+      "productionName": "urm3_universal_evidence_spine",
+      "localFilename": "20260815120000_urm3_universal_evidence_spine.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 169,
+      "productionVersion": "20260815012959",
+      "productionName": "urm3_hash_normalization_order",
+      "localFilename": "20260815130000_urm3_hash_normalization_order.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 170,
+      "productionVersion": "20260815025756",
+      "productionName": "urm3_storage_requires_hash_not_null",
+      "localFilename": "20260815140000_urm3_storage_requires_hash_not_null.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 171,
+      "productionVersion": "20260818030754",
+      "productionName": "accounting_measurement_snapshots",
+      "localFilename": "20260818020716_accounting_measurement_snapshots.sql",
+      "inGit": true,
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 172,
+      "productionVersion": "20260818043310",
+      "productionName": "accounting_measurement_snapshots_ap_aging_kind",
+      "localFilename": "20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 173,
+      "productionVersion": "20260818051007",
+      "productionName": "accounting_measurement_snapshots_inventory_kind",
+      "localFilename": "20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
+      "inGit": true,
+      "classification": "schema",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 174,
+      "productionVersion": "20260819053445",
+      "productionName": "continuous_close_runs",
+      "localFilename": "20260819045253_continuous_close_runs.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 175,
+      "productionVersion": "20260821041950",
+      "productionName": "journal_entry_proposals",
+      "localFilename": "20260820233219_journal_entry_proposals.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 176,
+      "productionVersion": "20260821045908",
+      "productionName": "journal_entry_approvals",
+      "localFilename": "20260821042800_journal_entry_approvals.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 177,
+      "productionVersion": "20260822011350",
+      "productionName": "journal_entry_executions",
+      "localFilename": "20260821183525_journal_entry_executions.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 178,
+      "productionVersion": "20260822025343",
+      "productionName": "journal_entry_provider_attempts",
+      "localFilename": "20260821212020_journal_entry_provider_attempts.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 179,
+      "productionVersion": "20260822025413",
+      "productionName": "journal_entry_provider_discovery_receipts",
+      "localFilename": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 180,
+      "productionVersion": "20260822025428",
+      "productionName": "journal_entry_provider_attempt_certainty_immutable",
+      "localFilename": "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 181,
+      "productionVersion": "20260822025448",
+      "productionName": "journal_entry_provider_attempt_initial_custody",
+      "localFilename": "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
+      "inGit": true,
+      "classification": "reference_seed",
+      "cleanReplayPolicy": "required_reference_seed",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 182,
+      "productionVersion": "20260822040227",
+      "productionName": "journal_entry_provider_dispatch_and_outcomes",
+      "localFilename": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 183,
+      "productionVersion": "20260822052732",
+      "productionName": "journal_entry_verified_readback",
+      "localFilename": "20260822050000_journal_entry_verified_readback.sql",
+      "inGit": true,
+      "classification": "mixed",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 184,
+      "productionVersion": "20260823050147",
+      "productionName": "je3d_sandbox_activation_identity",
+      "localFilename": "20260822200000_je3d_sandbox_activation_identity.sql",
+      "inGit": true,
+      "classification": "backfill",
+      "cleanReplayPolicy": "required",
+      "tenantUuids": [],
+      "g2Blocker": false
+    },
+    {
+      "replayOrder": 185,
+      "productionVersion": "20260827030454",
+      "productionName": "journal_entry_provider_attempt_reuse_posting_started",
+      "localFilename": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+      "inGit": true,
+      "classification": "reference_seed",
+      "cleanReplayPolicy": "required_reference_seed",
+      "tenantUuids": [],
+      "g2Blocker": false
+    }
+  ]
+}
