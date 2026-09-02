@@ -117,4 +117,60 @@ describe("migration remediation review gate", () => {
       stdio: "pipe",
     });
   });
+
+  const MANIFEST = path.join(
+    ROOT,
+    "docs/migration-remediation/evidence/production-schema-contract-manifest.json",
+  );
+  const SCHEMA_DIFF = path.join(ROOT, "docs/migration-remediation/production-schema-diff.json");
+  const EXPECTED_CONTRACT_SHA =
+    "461C94A36E9CB0B9193DE526AED284E3DBBA854FAA7D200F90692CF6D1246577";
+
+  it("G1 production schema contract manifest hash and inventory", () => {
+    expect(fs.existsSync(MANIFEST)).toBe(true);
+    const manifest = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
+    expect(manifest.sha256).toBe(EXPECTED_CONTRACT_SHA);
+    expect(manifest.contains_data_rows).toBe(false);
+    expect(manifest.contains_credentials).toBe(false);
+    expect(manifest.secretScanPassed).toBe(true);
+    expect(manifest.committedToGit).toBe(false);
+    expect(manifest.inventory.tables).toBe(47);
+    expect(manifest.inventory.columns).toBe(737);
+    expect(manifest.inventory.constraints).toBe(171);
+    expect(manifest.inventory.indexes).toBe(232);
+    expect(manifest.inventory.policies).toBe(82);
+    expect(manifest.inventory.triggers).toBe(13);
+    expect(manifest.inventory.trigger_functions).toBe(7);
+    expect(manifest.inventory.views).toBe(1);
+    expect(manifest.sourceProjectRef).toBe("jzmdgwwiestcmmeuhhkr");
+  });
+
+  it("G1 production schema diff classifies all scoped table drift", () => {
+    expect(fs.existsSync(SCHEMA_DIFF)).toBe(true);
+    const diff = JSON.parse(fs.readFileSync(SCHEMA_DIFF, "utf8"));
+    expect(diff.g1Verdict).toBe("PASS");
+    expect(diff.contractManifestSha256).toBe(EXPECTED_CONTRACT_SHA);
+    expect(diff.summary.tablesCompared).toBe(47);
+    expect(diff.summary.allTablesInDraft).toBe(true);
+    expect(diff.summary.viewMatch).toBe(true);
+    expect(diff.summary.unexplainedTableCount).toBe(0);
+    expect(diff.baselineValidation.foundationPrerequisitesInDraft).toBe(true);
+    expect(diff.baselineValidation.backfillExcluded).toBe(true);
+    expect(diff.baselineValidation.companyRolesSeedOnly).toBe(true);
+    const securityErrors = diff.securityFindings.filter(
+      (f: { severity: string }) => f.severity === "error",
+    );
+    expect(securityErrors).toHaveLength(0);
+  });
+
+  it("G1 diff documents unresolved lineage gaps without failing schema review", () => {
+    const diff = JSON.parse(fs.readFileSync(SCHEMA_DIFF, "utf8"));
+    expect(diff.unresolvedGaps.length).toBeGreaterThanOrEqual(3);
+    expect(
+      diff.unresolvedGaps.some(
+        (g: { classification: string }) =>
+          g.classification === "production_only_migration_missing_from_git",
+      ),
+    ).toBe(true);
+  });
 });

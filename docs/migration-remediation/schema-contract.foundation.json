@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-09-01",
   "provenance": "LOCAL_MIGRATION_FILES_PRE_PHASE1",
-  "productionDiffStatus": "BLOCKED_NO_READONLY_DB",
+  "productionDiffStatus": "G1_PASS_SCHEMA_DEFINITION_REVIEW",
   "foundationTables": [
     "firms",
     "firm_memberships",

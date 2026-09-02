@@ -4,7 +4,7 @@
 
 | Gate | Scope | Blocker until |
 |------|-------|---------------|
-| **G1** Baseline + phase1 schema sign-off | Hardened baseline draft + recovered phase1 evidence vs production `information_schema` | Schema diff complete |
+| **G1** Baseline + phase1 schema sign-off | Hardened baseline draft + recovered phase1 evidence vs production schema contract | Complete (schema-definition PASS; G2 replay pending) |
 | **G2** Local clean replay | Docker `supabase start` + apply baseline + phase1 + lineage | Docker unavailable today |
 | **G3** New data-less preview branch | Dashboard or GitHub-integrated replay on empty DB | G1 + G2 |
 | **G4** Production migration recording | Execute/assert baseline on prod OR squash workflow | G3 pass |
@@ -42,7 +42,7 @@ Mark A/B as **destructive/high-risk** requiring DBA + on-call approval.
 
 - [x] Recovered 4 phase1 bodies with MD5 verification
 - [ ] Isolated `migration fetch` full chain (185 rows)
-- [ ] Read-only production schema diff
+- [x] Read-only production schema diff (G1 — contract manifest + minimized diff committed)
 
 ## Phase 2 — Promote to `supabase/migrations/` (after G1)
 
@@ -73,6 +73,6 @@ Mark A/B as **destructive/high-risk** requiring DBA + on-call approval.
 
 ## Current blockers
 
-- [ ] G1: Production schema diff (needs authenticated readonly DB)
+- [x] G1: Production schema diff (read-only contract manifest; verdict PASS for schema-definition review)
 - [ ] G2: Docker local replay
 - [ ] G3: Cannot create preview branch until G1+G2 sign-off

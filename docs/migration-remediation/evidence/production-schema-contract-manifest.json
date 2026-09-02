@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-09-02",
+  "sourceContractPath": "supabase-production-foundation-phase1-schema-contract.json",
+  "sha256": "461C94A36E9CB0B9193DE526AED284E3DBBA854FAA7D200F90692CF6D1246577",
+  "byteSize": 679377,
+  "sourceProjectRef": "jzmdgwwiestcmmeuhhkr",
+  "retrieval": "authenticated_read_only_postgresql_catalog",
+  "scope": "foundation_and_phase1_schema_definitions",
+  "contains_data_rows": false,
+  "contains_credentials": false,
+  "inventory": {
+    "tables": 47,
+    "columns": 737,
+    "constraints": 171,
+    "indexes": 232,
+    "policies": 82,
+    "triggers": 13,
+    "trigger_functions": 7,
+    "views": 1,
+    "extensions": 6,
+    "public_types": 2,
+    "table_grants": 1316
+  },
+  "secretScanPassed": true,
+  "committedToGit": false,
+  "note": "Raw contract retained locally only; this manifest is the committed provenance record"
+}
