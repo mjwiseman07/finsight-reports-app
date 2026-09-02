@@ -1,0 +1,85 @@
+{
+  "bytes": 111608,
+  "lineCount": 2921,
+  "createTableCount": 42,
+  "rlsEnableCount": 36,
+  "tablesMissingRls": [
+    "company_memory_records",
+    "company_memory_record_sources",
+    "company_memory_record_lineage",
+    "company_memory_record_audit",
+    "company_memory_record_versions",
+    "company_memory_record_retention_events"
+  ],
+  "extensionDuplicates": {
+    "pgcrypto": 12
+  },
+  "duplicateCreateTable": [],
+  "disallowedInsertTargets": [
+    "accounting_connections"
+  ],
+  "findingsBySeverity": {
+    "error": [],
+    "warn": [
+      {
+        "severity": "warn",
+        "rule": "nested_begin",
+        "line": 47,
+        "text": "BEGIN;",
+        "message": "nested BEGIN"
+      },
+      {
+        "severity": "warn",
+        "rule": "update_set",
+        "line": 1459,
+        "text": "update public.accounting_syncs",
+        "message": "UPDATE on public table"
+      },
+      {
+        "severity": "warn",
+        "rule": "update_set",
+        "line": 1477,
+        "text": "update public.accounting_syncs",
+        "message": "UPDATE on public table"
+      },
+      {
+        "severity": "warn",
+        "rule": "nested_commit",
+        "line": 2920,
+        "text": "COMMIT;",
+        "message": "nested COMMIT"
+      }
+    ],
+    "info": 58
+  },
+  "findings": [
+    {
+      "severity": "warn",
+      "rule": "nested_begin",
+      "line": 47,
+      "text": "BEGIN;",
+      "message": "nested BEGIN"
+    },
+    {
+      "severity": "warn",
+      "rule": "update_set",
+      "line": 1459,
+      "text": "update public.accounting_syncs",
+      "message": "UPDATE on public table"
+    },
+    {
+      "severity": "warn",
+      "rule": "update_set",
+      "line": 1477,
+      "text": "update public.accounting_syncs",
+      "message": "UPDATE on public table"
+    },
+    {
+      "severity": "warn",
+      "rule": "nested_commit",
+      "line": 2920,
+      "text": "COMMIT;",
+      "message": "nested COMMIT"
+    }
+  ]
+}

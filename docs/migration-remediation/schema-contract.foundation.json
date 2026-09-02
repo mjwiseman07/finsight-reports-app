@@ -1,0 +1,76 @@
+{
+  "generatedAt": "2026-09-01",
+  "provenance": "LOCAL_MIGRATION_FILES_PRE_PHASE1",
+  "productionDiffStatus": "BLOCKED_NO_READONLY_DB",
+  "foundationTables": [
+    "firms",
+    "firm_memberships",
+    "firm_clients",
+    "client_briefing_settings",
+    "client_briefings",
+    "client_briefing_events",
+    "companies",
+    "company_roles",
+    "company_users",
+    "company_invitations",
+    "company_settings",
+    "delivery_settings",
+    "onboarding_progress",
+    "practice_accounts",
+    "accounting_connections",
+    "accounting_syncs",
+    "audit_logs",
+    "background_jobs",
+    "support_tickets",
+    "free_review_leads",
+    "pdf_package_customizations",
+    "pulse_insight_memory",
+    "pulse_historical_snapshots",
+    "pulse_conversation_memory",
+    "pulse_usage_events",
+    "advisory_signals",
+    "advisory_recommendations",
+    "advisory_package_queue",
+    "si_historical_snapshots",
+    "si_snapshot_audit",
+    "si_snapshot_backfill_runs",
+    "si_snapshot_payloads",
+    "si_snapshot_retention_events",
+    "si_snapshot_retrieval_log",
+    "company_memory_records",
+    "company_memory_record_sources",
+    "company_memory_record_lineage",
+    "company_memory_record_audit",
+    "company_memory_record_versions",
+    "company_memory_record_retention_events",
+    "healthcare_operational_stats",
+    "time_to_first_value_events"
+  ],
+  "extensions": ["pgcrypto"],
+  "phase1TablesNotInBaseline": [
+    "subscriptions",
+    "subscription_items",
+    "subscription_seats",
+    "entitlements",
+    "stripe_webhook_events"
+  ],
+  "knownGapsVsProduction": [
+    {
+      "object": "public.users",
+      "classification": "baseline_missing_object",
+      "note": "Referenced by subscription-sync resolveSubscriber; created in later production migration (d0_identity path)"
+    },
+    {
+      "object": "phase1_* migrations",
+      "classification": "production_only_migration",
+      "note": "Not in git; SQL not recovered in this gate"
+    }
+  ],
+  "mismatchClassificationLegend": [
+    "baseline_missing_object",
+    "baseline_extra_object",
+    "incompatible_definition",
+    "environment_specific_expected",
+    "production_drift_requires_decision"
+  ]
+}
