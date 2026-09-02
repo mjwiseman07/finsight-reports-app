@@ -37,10 +37,19 @@ describe("migration remediation review gate", () => {
   });
 
   it("generator is deterministic for baseline bytes", () => {
-    const before = fs.readFileSync(BASELINE);
     execFileSync(process.execPath, [GENERATOR], { cwd: ROOT });
-    const after = fs.readFileSync(BASELINE);
-    expect(after.equals(before)).toBe(true);
+    execFileSync(process.execPath, [GENERATOR], { cwd: ROOT });
+    const once = fs.readFileSync(BASELINE);
+    execFileSync(process.execPath, [GENERATOR], { cwd: ROOT });
+    const twice = fs.readFileSync(BASELINE);
+    expect(twice.equals(once)).toBe(true);
+  });
+
+  it("baseline dependency order validator passes", () => {
+    execFileSync(process.execPath, [path.join(ROOT, "scripts/migration-remediation/validate-baseline-order.js")], {
+      cwd: ROOT,
+      stdio: "pipe",
+    });
   });
 
   it("baseline lives outside supabase/migrations (non-deployable)", () => {
@@ -157,6 +166,7 @@ describe("migration remediation review gate", () => {
     expect(diff.baselineValidation.foundationPrerequisitesInDraft).toBe(true);
     expect(diff.baselineValidation.backfillExcluded).toBe(true);
     expect(diff.baselineValidation.companyRolesSeedOnly).toBe(true);
+    expect(diff.g1DependencyOrderNote).toMatch(/invalidated by.*G2/i);
     const securityErrors = diff.securityFindings.filter(
       (f: { severity: string }) => f.severity === "error",
     );

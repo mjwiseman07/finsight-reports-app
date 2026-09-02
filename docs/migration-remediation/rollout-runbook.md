@@ -4,8 +4,8 @@
 
 | Gate | Scope | Blocker until |
 |------|-------|---------------|
-| **G1** Baseline + phase1 schema sign-off | Hardened baseline draft + recovered phase1 evidence vs production schema contract | Complete (schema-definition PASS; G2 replay pending) |
-| **G2** Local clean replay | Docker `supabase start` + apply baseline + phase1 + lineage | Docker unavailable today |
+| **G1** Baseline + phase1 schema sign-off | Hardened baseline draft + recovered phase1 evidence vs production schema contract | Schema-definition PASS; **dependency order invalidated by first G2, remediated locally** |
+| **G2** Local clean replay | Docker `supabase start` + apply baseline + phase1 + lineage | **First disposable branch failed (42P01); deleted. Second attempt blocked pending review.** |
 | **G3** New data-less preview branch | Dashboard or GitHub-integrated replay on empty DB | G1 + G2 |
 | **G4** Production migration recording | Execute/assert baseline on prod OR squash workflow | G3 pass |
 | **G5** Production post-checks | Advisors, spot schema diff, no drift | G4 complete |
@@ -73,6 +73,7 @@ Mark A/B as **destructive/high-risk** requiring DBA + on-call approval.
 
 ## Current blockers
 
-- [x] G1: Production schema diff (read-only contract manifest; verdict PASS for schema-definition review)
-- [ ] G2: Docker local replay
+- [x] G1: Production schema diff (read-only contract manifest; **schema-definition** verdict PASS)
+- [x] G1 ordering: **Invalidated by first G2** — dependency manifest + fail-closed generator remediated locally
+- [ ] G2: Second disposable replay (blocked until ordering remediation reviewed; Docker still required)
 - [ ] G3: Cannot create preview branch until G1+G2 sign-off

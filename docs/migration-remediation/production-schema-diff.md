@@ -1,5 +1,7 @@
 # Production schema diff (G1)
 **Verdict:** `PASS` — schema-definition review only; clean replay is **G2**.
+
+**Dependency order:** G1 schema-definition PASS; G1 dependency-order claim **invalidated by first G2** (`42P01` on `companies`); remediated via explicit dependency manifest (see `g2-first-replay-failure.md`).
 ## Contract provenance
 | Field | Value |
 |-------|-------|

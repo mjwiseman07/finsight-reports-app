@@ -1,6 +1,14 @@
 {
   "generatedAt": "2026-09-02T01:10:13.293Z",
   "g1Verdict": "PASS",
+  "g1DependencyOrderNote": "G1 schema-definition comparison PASS. G1 dependency-order claim INVALIDATED by first G2 replay (42P01 companies); remediated via dependency manifest in subsequent commit.",
+  "g2FirstReplay": {
+    "status": "FAILED_FIRST_ATTEMPT_REMEDIATED",
+    "sqlstate": "42P01",
+    "failedBlobSha256": "4b955a1d48a0b6d07d2fa6c27e3f6f2dea784f91",
+    "branchDeleted": true,
+    "productionUntouched": true
+  },
   "comparisonModel": "hardened_baseline → recovered_phase1 → remaining_authoritative_migration_lineage → expected_final → production_contract",
   "contractManifestSha256": "461C94A36E9CB0B9193DE526AED284E3DBBA854FAA7D200F90692CF6D1246577",
   "summary": {

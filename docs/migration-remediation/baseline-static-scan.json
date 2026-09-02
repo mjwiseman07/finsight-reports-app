@@ -1,6 +1,6 @@
 {
-  "bytes": 107485,
-  "lineCount": 2770,
+  "bytes": 107661,
+  "lineCount": 2772,
   "createTableCount": 42,
   "rlsEnableCount": 36,
   "tablesMissingRls": [
@@ -22,14 +22,14 @@
       {
         "severity": "warn",
         "rule": "nested_begin",
-        "line": 53,
+        "line": 55,
         "text": "BEGIN;",
         "message": "nested BEGIN"
       },
       {
         "severity": "warn",
         "rule": "nested_commit",
-        "line": 2769,
+        "line": 2771,
         "text": "COMMIT;",
         "message": "nested COMMIT"
       }
@@ -40,14 +40,14 @@
     {
       "severity": "warn",
       "rule": "nested_begin",
-      "line": 53,
+      "line": 55,
       "text": "BEGIN;",
       "message": "nested BEGIN"
     },
     {
       "severity": "warn",
       "rule": "nested_commit",
-      "line": 2769,
+      "line": 2771,
       "text": "COMMIT;",
       "message": "nested COMMIT"
     }
