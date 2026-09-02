@@ -1,0 +1,2594 @@
+{
+  "version": 1,
+  "description": "Explicit deterministic dependency graph for the complete Option D candidate replay set. Assembler MUST apply dependencyOrder (not lexicographic filename sort).",
+  "generatedAt": "2026-09-02T03:47:45.177Z",
+  "orderingPolicy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
+  "testedFailureRegression": {
+    "pr313EvidenceHead": "8ad27be6d8260669d9e800aee11397e4bb545988",
+    "failedAt": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+    "failedOrderFilenameSort": 10,
+    "error": "relation \"recurring_fires\" does not exist",
+    "prerequisite": "20260714_00_d5_recurring_templates.sql"
+  },
+  "optionalExternalTables": [
+    "users",
+    "pg_class",
+    "pg_namespace",
+    "pg_proc",
+    "pg_constraint",
+    "pg_roles",
+    "storage"
+  ],
+  "platformProvidedTables": [
+    "users"
+  ],
+  "explicitDependsOn": {
+    "20260703_1200_d6_0_vertical_rule_foundation.sql": [
+      "20260714_00_d5_recurring_templates.sql"
+    ]
+  },
+  "semanticConstraints": [],
+  "dependencyOrder": [
+    "20260701043599_foundations_baseline.sql",
+    "20260701043602_phase1_subscriptions_core.sql",
+    "20260701043707_phase1_subscription_seats_and_entitlements.sql",
+    "20260701043911_phase1_backward_compat_view.sql",
+    "20260701043931_phase1_entitlement_rls_policies.sql",
+    "20260701_refund_requests.sql",
+    "20260702_create_mfg_waitlist.sql",
+    "20260703_00_create_close_ledger.sql",
+    "20260703_01_create_checklist_system.sql",
+    "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+    "20260706140000_d_entitlements_followup.sql",
+    "20260706_d67_p2_layer2_layer4.sql",
+    "20260707_create_close_packet_system.sql",
+    "20260707140000_d_assertions_part_3_coverage_statement.sql",
+    "20260707_01_variance_config_unique.sql",
+    "20260707_02_section_manual_edit_flag.sql",
+    "20260707_03_close_packet_share.sql",
+    "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+    "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
+    "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+    "20260708200000_tcp1_w1_seat_idempotency.sql",
+    "20260708_00_d0_identity_and_memory_activation.sql",
+    "20260703_2000_d6_2a_test_client_activation.sql",
+    "20260703_2200_d6_2b_mfg_activation.sql",
+    "20260703_2300_d6_2c_retail_activation.sql",
+    "20260703_2400_d6_2d_ps_activation.sql",
+    "20260708_01_d1_qbo_write_readiness.sql",
+    "20260708_02_d1_1_owner_user_id_backfill.sql",
+    "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
+    "20260709_00_d2_safe_je_posting.sql",
+    "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+    "20260706120000_d_platform_event_sourced_foundation.sql",
+    "20260706130000_d_entitlements.sql",
+    "20260707000000_d6_5_part1_universal_intake.sql",
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    "20260707130000_d_assertions_part_2_coverage_projection.sql",
+    "20260707160000_d_assertions_part_5_gap_review_items.sql",
+    "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+    "20260710_00_d3_memory_indexes.sql",
+    "20260713_00_d4_uncategorized_proposals.sql",
+    "20260714_00_d5_recurring_templates.sql",
+    "20260703_1200_d6_0_vertical_rule_foundation.sql",
+    "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
+    "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+    "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+    "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+    "20260707150000_d_assertions_part_4_je_propagation.sql",
+    "20260715180000_mfa_enrollment.sql",
+    "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+    "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+    "20260716010000_add_qbo_cdc_tables.sql",
+    "20260716_00_d6_5_part1_1_firm_clients_slug.sql",
+    "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+    "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+    "20260717020000_d65_p2_block2_vendor_mirror.sql",
+    "20260717030000_d65_p2_block3_quarantine_l3.sql",
+    "20260717040000_d65_p2_block4_duplicate_detection.sql",
+    "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+    "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+    "20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
+    "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+    "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+    "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+    "20260717110000_d65_p2_block8a_interlock_rails.sql",
+    "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+    "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+    "20260718000000_intuit_webhook_events.sql",
+    "20260718010000_mc1_home_currency.sql",
+    "20260718020000_mc3_je_posting_audit_currency.sql",
+    "20260718030000_mc4c_payment_batch_lines_currency.sql",
+    "20260718040000_q7_qbo_edition.sql",
+    "20260718180000_q8a_qbo_view_security_invoker.sql",
+    "20260718190000_q8b_function_search_path_lockdown.sql",
+    "20260718200000_q8c_security_definer_rpc_revoke.sql",
+    "20260718200000_support_ticket_intuit_context.sql",
+    "20260718210000_q8d_vector_schema_move.sql",
+    "20260718220000_q8e_rls_service_role_policies.sql",
+    "20260719000000_support_auto_file_engine.sql",
+    "20260719050000_gap3_je_approval_flow.sql",
+    "20260719060000_gap2_subscription_lifecycle_purge.sql",
+    "20260720000000_v1_5_audit_ready_engagement_state.sql",
+    "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+    "20260720130000_ar_week3_block3_1_rpc_lockdown.sql",
+    "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+    "20260720150000_pulse_je_reliability_basis.sql",
+    "20260720160000_ar_tieout1_policy_and_kind.sql",
+    "20260720170000_ar_tieout2_runs_and_variances.sql",
+    "20260720180000_tieout3_grni_binding.sql",
+    "20260721000000_audit_ready_tie_out_variance_evidence.sql",
+    "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+    "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+    "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+    "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql",
+    "20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
+    "20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
+    "20260723050000_audit_ready_cron_runs.sql",
+    "20260724010000_kickout_investigations.sql",
+    "20260724020000_kickout_dedupe_rpcs.sql",
+    "20260724030000_ar_tieout412a_kind_reconcile.sql",
+    "20260724030100_ar_tieout412a_run_artifacts.sql",
+    "20260724220000_ar_tieout412b_raw_qbo_payload.sql",
+    "20260725050000_ar_tieout420a_resolution_code.sql",
+    "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+    "20260725060000_ar_tieout42_memory_events.sql",
+    "20260727000100_users_auth_trigger_single_writer.sql",
+    "20260805041500_major_1_rpc_lockdown.sql",
+    "20260805054000_schema_drift_issue_policies.sql",
+    "20260805210000_schema_drift_scanner_issue_kinds.sql",
+    "20260805211000_sp_list_public_columns_jsonb.sql",
+    "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
+    "20260806032000_lifecycle_issues_schema_drift_checks.sql",
+    "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+    "20260806042000_major_2_3_block_a_1_research_revision.sql",
+    "20260809083000_companies_tenant_identity_columns.sql",
+    "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+    "20260810070050_dash_1c_a_widen_provenance.sql",
+    "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
+    "20260813220000_accounting_connection_supersession.sql",
+    "20260814060000_accounting_superseded_credential_retirement.sql",
+    "20260814221500_accounting_canonical_connected_grant.sql",
+    "20260815000000_urm2_reconciling_items_persistence.sql",
+    "20260815120000_urm3_universal_evidence_spine.sql",
+    "20260815130000_urm3_hash_normalization_order.sql",
+    "20260815140000_urm3_storage_requires_hash_not_null.sql",
+    "20260818020716_accounting_measurement_snapshots.sql",
+    "20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql",
+    "20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
+    "20260819045253_continuous_close_runs.sql",
+    "20260820233219_journal_entry_proposals.sql",
+    "20260821042800_journal_entry_approvals.sql",
+    "20260821183525_journal_entry_executions.sql",
+    "20260821212020_journal_entry_provider_attempts.sql",
+    "20260821220646_journal_entry_provider_discovery_receipts.sql",
+    "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
+    "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
+    "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+    "20260822050000_journal_entry_verified_readback.sql",
+    "20260822200000_je3d_sandbox_activation_identity.sql",
+    "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+    "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
+  ],
+  "lexicographicOrder": [
+    "20260701043599_foundations_baseline.sql",
+    "20260701043602_phase1_subscriptions_core.sql",
+    "20260701043707_phase1_subscription_seats_and_entitlements.sql",
+    "20260701043911_phase1_backward_compat_view.sql",
+    "20260701043931_phase1_entitlement_rls_policies.sql",
+    "20260701_refund_requests.sql",
+    "20260702_create_mfg_waitlist.sql",
+    "20260703_00_create_close_ledger.sql",
+    "20260703_01_create_checklist_system.sql",
+    "20260703_1200_d6_0_vertical_rule_foundation.sql",
+    "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
+    "20260703_2000_d6_2a_test_client_activation.sql",
+    "20260703_2200_d6_2b_mfg_activation.sql",
+    "20260703_2300_d6_2c_retail_activation.sql",
+    "20260703_2400_d6_2d_ps_activation.sql",
+    "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+    "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+    "20260706120000_d_platform_event_sourced_foundation.sql",
+    "20260706130000_d_entitlements.sql",
+    "20260706140000_d_entitlements_followup.sql",
+    "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+    "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+    "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+    "20260706_d67_p2_layer2_layer4.sql",
+    "20260707000000_d6_5_part1_universal_intake.sql",
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    "20260707130000_d_assertions_part_2_coverage_projection.sql",
+    "20260707140000_d_assertions_part_3_coverage_statement.sql",
+    "20260707150000_d_assertions_part_4_je_propagation.sql",
+    "20260707160000_d_assertions_part_5_gap_review_items.sql",
+    "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+    "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+    "20260707_01_variance_config_unique.sql",
+    "20260707_02_section_manual_edit_flag.sql",
+    "20260707_03_close_packet_share.sql",
+    "20260707_create_close_packet_system.sql",
+    "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+    "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
+    "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+    "20260708200000_tcp1_w1_seat_idempotency.sql",
+    "20260708_00_d0_identity_and_memory_activation.sql",
+    "20260708_01_d1_qbo_write_readiness.sql",
+    "20260708_02_d1_1_owner_user_id_backfill.sql",
+    "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
+    "20260709_00_d2_safe_je_posting.sql",
+    "20260710_00_d3_memory_indexes.sql",
+    "20260713_00_d4_uncategorized_proposals.sql",
+    "20260714_00_d5_recurring_templates.sql",
+    "20260715180000_mfa_enrollment.sql",
+    "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+    "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+    "20260716010000_add_qbo_cdc_tables.sql",
+    "20260716_00_d6_5_part1_1_firm_clients_slug.sql",
+    "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+    "20260717020000_d65_p2_block2_vendor_mirror.sql",
+    "20260717030000_d65_p2_block3_quarantine_l3.sql",
+    "20260717040000_d65_p2_block4_duplicate_detection.sql",
+    "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+    "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+    "20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql",
+    "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+    "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+    "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+    "20260717110000_d65_p2_block8a_interlock_rails.sql",
+    "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+    "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+    "20260718000000_intuit_webhook_events.sql",
+    "20260718010000_mc1_home_currency.sql",
+    "20260718020000_mc3_je_posting_audit_currency.sql",
+    "20260718030000_mc4c_payment_batch_lines_currency.sql",
+    "20260718040000_q7_qbo_edition.sql",
+    "20260718180000_q8a_qbo_view_security_invoker.sql",
+    "20260718190000_q8b_function_search_path_lockdown.sql",
+    "20260718200000_q8c_security_definer_rpc_revoke.sql",
+    "20260718200000_support_ticket_intuit_context.sql",
+    "20260718210000_q8d_vector_schema_move.sql",
+    "20260718220000_q8e_rls_service_role_policies.sql",
+    "20260719000000_support_auto_file_engine.sql",
+    "20260719050000_gap3_je_approval_flow.sql",
+    "20260719060000_gap2_subscription_lifecycle_purge.sql",
+    "20260720000000_v1_5_audit_ready_engagement_state.sql",
+    "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+    "20260720130000_ar_week3_block3_1_rpc_lockdown.sql",
+    "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+    "20260720150000_pulse_je_reliability_basis.sql",
+    "20260720160000_ar_tieout1_policy_and_kind.sql",
+    "20260720170000_ar_tieout2_runs_and_variances.sql",
+    "20260720180000_tieout3_grni_binding.sql",
+    "20260721000000_audit_ready_tie_out_variance_evidence.sql",
+    "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+    "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+    "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+    "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql",
+    "20260722221611_bs_recon_summary_basis_and_computed_lines.sql",
+    "20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql",
+    "20260723050000_audit_ready_cron_runs.sql",
+    "20260724010000_kickout_investigations.sql",
+    "20260724020000_kickout_dedupe_rpcs.sql",
+    "20260724030000_ar_tieout412a_kind_reconcile.sql",
+    "20260724030100_ar_tieout412a_run_artifacts.sql",
+    "20260724220000_ar_tieout412b_raw_qbo_payload.sql",
+    "20260725050000_ar_tieout420a_resolution_code.sql",
+    "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+    "20260725060000_ar_tieout42_memory_events.sql",
+    "20260727000100_users_auth_trigger_single_writer.sql",
+    "20260805041500_major_1_rpc_lockdown.sql",
+    "20260805054000_schema_drift_issue_policies.sql",
+    "20260805210000_schema_drift_scanner_issue_kinds.sql",
+    "20260805211000_sp_list_public_columns_jsonb.sql",
+    "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
+    "20260806032000_lifecycle_issues_schema_drift_checks.sql",
+    "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+    "20260806042000_major_2_3_block_a_1_research_revision.sql",
+    "20260809083000_companies_tenant_identity_columns.sql",
+    "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+    "20260810070050_dash_1c_a_widen_provenance.sql",
+    "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
+    "20260813220000_accounting_connection_supersession.sql",
+    "20260814060000_accounting_superseded_credential_retirement.sql",
+    "20260814221500_accounting_canonical_connected_grant.sql",
+    "20260815000000_urm2_reconciling_items_persistence.sql",
+    "20260815120000_urm3_universal_evidence_spine.sql",
+    "20260815130000_urm3_hash_normalization_order.sql",
+    "20260815140000_urm3_storage_requires_hash_not_null.sql",
+    "20260818020716_accounting_measurement_snapshots.sql",
+    "20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql",
+    "20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
+    "20260819045253_continuous_close_runs.sql",
+    "20260820233219_journal_entry_proposals.sql",
+    "20260821042800_journal_entry_approvals.sql",
+    "20260821183525_journal_entry_executions.sql",
+    "20260821212020_journal_entry_provider_attempts.sql",
+    "20260821220646_journal_entry_provider_discovery_receipts.sql",
+    "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
+    "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
+    "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+    "20260822050000_journal_entry_verified_readback.sql",
+    "20260822200000_je3d_sandbox_activation_identity.sql",
+    "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+    "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
+  ],
+  "sources": {
+    "20260701_refund_requests.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "refund_audit_log",
+        "refund_disputes",
+        "refund_requests"
+      ],
+      "altersTables": [
+        "refund_audit_log",
+        "refund_disputes",
+        "refund_requests",
+        "subscriptions"
+      ],
+      "consumesTables": [
+        "refund_audit_log",
+        "refund_disputes",
+        "refund_requests",
+        "subscriptions"
+      ]
+    },
+    "20260702_create_mfg_waitlist.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "mfg_waitlist"
+      ],
+      "altersTables": [
+        "mfg_waitlist"
+      ],
+      "consumesTables": [
+        "mfg_waitlist"
+      ]
+    },
+    "20260703_00_create_close_ledger.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "close_periods"
+      ],
+      "altersTables": [
+        "close_periods"
+      ],
+      "consumesTables": [
+        "close_periods",
+        "firm_clients"
+      ]
+    },
+    "20260703_01_create_checklist_system.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql"
+      ],
+      "createsTables": [
+        "close_checklist_items",
+        "close_checklist_run_items",
+        "close_checklist_runs",
+        "close_checklist_template_items",
+        "close_checklist_templates",
+        "close_checklists"
+      ],
+      "altersTables": [
+        "close_checklist_items",
+        "close_checklist_run_items",
+        "close_checklist_runs",
+        "close_checklist_template_items",
+        "close_checklist_templates",
+        "close_checklists",
+        "close_periods"
+      ],
+      "consumesTables": [
+        "close_checklist_items",
+        "close_checklist_run_items",
+        "close_checklist_runs",
+        "close_checklist_template_items",
+        "close_checklist_templates",
+        "close_checklists",
+        "close_periods",
+        "firm_clients",
+        "firms"
+      ]
+    },
+    "20260703_1200_d6_0_vertical_rule_foundation.sql": {
+      "dependsOn": [
+        "20260708_00_d0_identity_and_memory_activation.sql",
+        "20260713_00_d4_uncategorized_proposals.sql",
+        "20260714_00_d5_recurring_templates.sql"
+      ],
+      "createsTables": [
+        "curated_rule_fires"
+      ],
+      "altersTables": [
+        "firm_clients",
+        "recurring_fires"
+      ],
+      "consumesTables": [
+        "company_memory_records",
+        "curated_rule_fires",
+        "curated_rules_registry",
+        "firm_clients",
+        "recurring_fires",
+        "uncategorized_proposals"
+      ]
+    },
+    "20260703_1400_d6_0_1_rls_curated_rule_fires.sql": {
+      "dependsOn": [
+        "20260703_1200_d6_0_vertical_rule_foundation.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "curated_rule_fires"
+      ],
+      "consumesTables": [
+        "curated_rule_fires"
+      ]
+    },
+    "20260703_2000_d6_2a_test_client_activation.sql": {
+      "dependsOn": [
+        "20260708_00_d0_identity_and_memory_activation.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "client_active_rules"
+      ]
+    },
+    "20260703_2200_d6_2b_mfg_activation.sql": {
+      "dependsOn": [
+        "20260708_00_d0_identity_and_memory_activation.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "client_active_rules"
+      ]
+    },
+    "20260703_2300_d6_2c_retail_activation.sql": {
+      "dependsOn": [
+        "20260708_00_d0_identity_and_memory_activation.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "client_active_rules"
+      ]
+    },
+    "20260703_2400_d6_2d_ps_activation.sql": {
+      "dependsOn": [
+        "20260708_00_d0_identity_and_memory_activation.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "client_active_rules"
+      ]
+    },
+    "20260704_0100_d6_4a_je_evidence_attachments_backup.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql",
+        "20260709_00_d2_safe_je_posting.sql"
+      ],
+      "createsTables": [
+        "je_backup_packets",
+        "je_line_attachments",
+        "je_line_evidence"
+      ],
+      "altersTables": [
+        "je_backup_packets",
+        "je_line_attachments",
+        "je_line_evidence"
+      ],
+      "consumesTables": [
+        "close_periods",
+        "je_backup_packets",
+        "je_line_attachments",
+        "je_line_evidence",
+        "je_post_attempts",
+        "storage"
+      ]
+    },
+    "20260705_d67_p1_ar_cash_app_layer0_layer1.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "ar_cash_app_config",
+        "ar_cash_app_match_candidates",
+        "ar_cash_app_payments",
+        "ar_cash_app_remittance_lines",
+        "ar_cash_app_remittances",
+        "customers"
+      ],
+      "altersTables": [
+        "ar_cash_app_config",
+        "ar_cash_app_match_candidates",
+        "ar_cash_app_payments",
+        "ar_cash_app_remittance_lines",
+        "ar_cash_app_remittances",
+        "customers"
+      ],
+      "consumesTables": [
+        "ar_cash_app_config",
+        "ar_cash_app_match_candidates",
+        "ar_cash_app_payments",
+        "ar_cash_app_remittance_lines",
+        "ar_cash_app_remittances",
+        "customers",
+        "firms"
+      ]
+    },
+    "20260706120000_d_platform_event_sourced_foundation.sql": {
+      "dependsOn": [
+        "20260709_00_d2_safe_je_posting.sql"
+      ],
+      "createsTables": [
+        "ai_action_log",
+        "engagements",
+        "event_projections",
+        "ledger_events",
+        "platform_metrics",
+        "portcos",
+        "vector_index"
+      ],
+      "altersTables": [
+        "ai_action_log",
+        "engagements",
+        "event_projections",
+        "je_posting_audit",
+        "ledger_events",
+        "platform_metrics",
+        "portcos",
+        "vector_index"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "engagements",
+        "event_projections",
+        "firm_clients",
+        "firm_memberships",
+        "firms",
+        "je_posting_audit",
+        "ledger_events",
+        "platform_metrics",
+        "portcos",
+        "vector_index"
+      ]
+    },
+    "20260706130000_d_entitlements.sql": {
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql"
+      ],
+      "createsTables": [
+        "engagement_addons",
+        "entitlement_check_audit",
+        "stripe_webhook_events"
+      ],
+      "altersTables": [
+        "ai_action_log",
+        "engagement_addons",
+        "entitlement_check_audit",
+        "ledger_events",
+        "stripe_webhook_events"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "engagement_addons",
+        "engagements",
+        "entitlement_check_audit",
+        "firm_clients",
+        "firm_memberships",
+        "ledger_events",
+        "stripe_webhook_events"
+      ]
+    },
+    "20260706140000_d_entitlements_followup.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "stripe_webhook_events"
+      ]
+    },
+    "20260706150000_d6_4c_1_pre_close_review_queue.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql",
+        "20260703_1200_d6_0_vertical_rule_foundation.sql",
+        "20260706120000_d_platform_event_sourced_foundation.sql"
+      ],
+      "createsTables": [
+        "pre_close_review_items"
+      ],
+      "altersTables": [
+        "ai_action_log",
+        "pre_close_review_items"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "close_periods",
+        "curated_rule_fires",
+        "engagements",
+        "firm_clients",
+        "pre_close_review_items"
+      ]
+    },
+    "20260706170000_d6_4c_3_posting_policy_and_remediation.sql": {
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260706150000_d6_4c_1_pre_close_review_queue.sql"
+      ],
+      "createsTables": [
+        "engagement_posting_policy"
+      ],
+      "altersTables": [
+        "ai_action_log",
+        "ledger_events",
+        "pre_close_review_items"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "engagement_posting_policy",
+        "engagements",
+        "ledger_events",
+        "pre_close_review_items"
+      ]
+    },
+    "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql": {
+      "dependsOn": [
+        "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260706150000_d6_4c_1_pre_close_review_queue.sql"
+      ],
+      "createsTables": [
+        "engagement_review_visibility",
+        "firm_client_users",
+        "review_item_packet_exports"
+      ],
+      "altersTables": [
+        "ai_action_log",
+        "engagement_review_visibility",
+        "firm_client_users",
+        "je_backup_packets",
+        "ledger_events",
+        "review_item_packet_exports"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "engagement_review_visibility",
+        "engagements",
+        "firm_client_users",
+        "firm_clients",
+        "firm_memberships",
+        "je_backup_packets",
+        "ledger_events",
+        "pre_close_review_items",
+        "review_item_packet_exports",
+        "storage"
+      ]
+    },
+    "20260706_d67_p2_layer2_layer4.sql": {
+      "dependsOn": [
+        "20260705_d67_p1_ar_cash_app_layer0_layer1.sql"
+      ],
+      "createsTables": [
+        "ar_cash_app_match_scores",
+        "ar_cash_app_review_items",
+        "cash_app_payer_patterns_global",
+        "firm_llm_config"
+      ],
+      "altersTables": [
+        "ar_cash_app_match_scores",
+        "ar_cash_app_review_items",
+        "cash_app_payer_patterns_global",
+        "firm_llm_config"
+      ],
+      "consumesTables": [
+        "ar_cash_app_match_scores",
+        "ar_cash_app_payments",
+        "ar_cash_app_review_items",
+        "cash_app_payer_patterns_global",
+        "firm_llm_config"
+      ]
+    },
+    "20260707000000_d6_5_part1_universal_intake.sql": {
+      "dependsOn": [
+        "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+        "20260706120000_d_platform_event_sourced_foundation.sql"
+      ],
+      "createsTables": [
+        "firm_intake_addresses",
+        "firm_intake_handlers",
+        "firm_intake_settings",
+        "intake_attachments",
+        "intake_dispatch_log",
+        "intake_messages"
+      ],
+      "altersTables": [
+        "ar_cash_app_remittances",
+        "firm_intake_addresses",
+        "firm_intake_handlers",
+        "firm_intake_settings",
+        "intake_attachments",
+        "intake_dispatch_log",
+        "intake_messages",
+        "ledger_events"
+      ],
+      "consumesTables": [
+        "ar_cash_app_remittances",
+        "firm_intake_addresses",
+        "firm_intake_handlers",
+        "firm_intake_settings",
+        "intake_attachments",
+        "intake_dispatch_log",
+        "intake_messages",
+        "ledger_events"
+      ]
+    },
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql": {
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260708_00_d0_identity_and_memory_activation.sql"
+      ],
+      "createsTables": [
+        "assertion_relevance_matrix",
+        "assertions_catalog",
+        "rule_assertion_coverage"
+      ],
+      "altersTables": [
+        "ai_action_log",
+        "assertion_relevance_matrix",
+        "assertions_catalog",
+        "ledger_events",
+        "rule_assertion_coverage"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "assertion_relevance_matrix",
+        "assertions_catalog",
+        "curated_rules_registry",
+        "ledger_events",
+        "rule_assertion_coverage"
+      ]
+    },
+    "20260707130000_d_assertions_part_2_coverage_projection.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql",
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260707120000_d_assertions_part_1_schema_and_backfill.sql"
+      ],
+      "createsTables": [
+        "advisacor_flags",
+        "assertion_gap_root_causes",
+        "close_assertion_coverage",
+        "close_assertion_coverage_events"
+      ],
+      "altersTables": [
+        "advisacor_flags",
+        "assertion_gap_root_causes",
+        "close_assertion_coverage",
+        "close_assertion_coverage_events"
+      ],
+      "consumesTables": [
+        "advisacor_flags",
+        "ai_action_log",
+        "assertion_gap_root_causes",
+        "assertions_catalog",
+        "close_assertion_coverage",
+        "close_assertion_coverage_events",
+        "close_periods",
+        "firm_clients",
+        "firm_memberships"
+      ]
+    },
+    "20260707140000_d_assertions_part_3_coverage_statement.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql",
+        "20260707_create_close_packet_system.sql"
+      ],
+      "createsTables": [
+        "assertion_coverage_statement_downloads",
+        "assertion_coverage_statement_versions"
+      ],
+      "altersTables": [
+        "assertion_coverage_statement_downloads",
+        "assertion_coverage_statement_versions"
+      ],
+      "consumesTables": [
+        "assertion_coverage_statement_downloads",
+        "assertion_coverage_statement_versions",
+        "close_packets",
+        "close_periods",
+        "firm_clients",
+        "firm_memberships"
+      ]
+    },
+    "20260707150000_d_assertions_part_4_je_propagation.sql": {
+      "dependsOn": [
+        "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+        "20260709_00_d2_safe_je_posting.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "je_posting_audit",
+        "pre_close_review_items"
+      ],
+      "consumesTables": [
+        "je_posting_audit",
+        "pre_close_review_items"
+      ]
+    },
+    "20260707160000_d_assertions_part_5_gap_review_items.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql",
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260707120000_d_assertions_part_1_schema_and_backfill.sql"
+      ],
+      "createsTables": [
+        "close_gap_review_items"
+      ],
+      "altersTables": [
+        "close_gap_review_items"
+      ],
+      "consumesTables": [
+        "assertions_catalog",
+        "close_gap_review_items",
+        "close_periods",
+        "engagements",
+        "firm_clients",
+        "firm_memberships"
+      ]
+    },
+    "20260707170000_d_assertions_part_6_manual_test_evidence.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql",
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260707130000_d_assertions_part_2_coverage_projection.sql",
+        "20260707160000_d_assertions_part_5_gap_review_items.sql"
+      ],
+      "createsTables": [
+        "manual_test_attachments",
+        "manual_test_evidence"
+      ],
+      "altersTables": [
+        "close_assertion_coverage",
+        "manual_test_attachments",
+        "manual_test_evidence"
+      ],
+      "consumesTables": [
+        "close_assertion_coverage",
+        "close_gap_review_items",
+        "close_periods",
+        "engagements",
+        "firm_clients",
+        "firm_memberships",
+        "manual_test_attachments",
+        "manual_test_evidence",
+        "storage"
+      ]
+    },
+    "20260707214500_d65_p2_block7a2_prepilot_security.sql": {
+      "dependsOn": [
+        "20260702_create_mfg_waitlist.sql",
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "ap_intake_assertion_registry",
+        "ap_intake_ledger_event_types",
+        "engagement_posting_policy"
+      ],
+      "consumesTables": [
+        "ap_intake_assertion_registry",
+        "ap_intake_ledger_event_types",
+        "engagement_posting_policy",
+        "engagements",
+        "firm_memberships",
+        "free_review_leads",
+        "mfg_waitlist",
+        "support_tickets"
+      ]
+    },
+    "20260707_01_variance_config_unique.sql": {
+      "dependsOn": [
+        "20260707_create_close_packet_system.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "close_packet_variance_config"
+      ]
+    },
+    "20260707_02_section_manual_edit_flag.sql": {
+      "dependsOn": [
+        "20260707_create_close_packet_system.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "close_packet_sections"
+      ],
+      "consumesTables": [
+        "close_packet_sections"
+      ]
+    },
+    "20260707_03_close_packet_share.sql": {
+      "dependsOn": [
+        "20260707_create_close_packet_system.sql"
+      ],
+      "createsTables": [
+        "close_packet_share_tokens"
+      ],
+      "altersTables": [
+        "close_packet_share_tokens",
+        "close_packets"
+      ],
+      "consumesTables": [
+        "close_packet_share_tokens",
+        "close_packets"
+      ]
+    },
+    "20260707_create_close_packet_system.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql"
+      ],
+      "createsTables": [
+        "close_packet_sections",
+        "close_packet_variance_config",
+        "close_packets"
+      ],
+      "altersTables": [
+        "close_packet_sections",
+        "close_packet_variance_config",
+        "close_packets"
+      ],
+      "consumesTables": [
+        "close_packet_sections",
+        "close_packet_variance_config",
+        "close_packets",
+        "close_periods",
+        "firm_clients",
+        "firms"
+      ]
+    },
+    "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "pilot_slots",
+        "sku_launch_waitlist"
+      ],
+      "altersTables": [
+        "pilot_slots",
+        "sku_launch_waitlist"
+      ],
+      "consumesTables": [
+        "companies",
+        "firm_memberships",
+        "pilot_slots",
+        "sku_launch_waitlist"
+      ]
+    },
+    "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql": {
+      "dependsOn": [
+        "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "pilot_slots"
+      ],
+      "consumesTables": [
+        "pilot_slots"
+      ]
+    },
+    "20260708150000_tcp1_w1_pilot_slots_firm_id.sql": {
+      "dependsOn": [
+        "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "firms",
+        "pilot_slots"
+      ],
+      "consumesTables": [
+        "company_users",
+        "firm_memberships",
+        "firms",
+        "pilot_slots"
+      ]
+    },
+    "20260708200000_tcp1_w1_seat_idempotency.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [
+        "subscription_seats"
+      ],
+      "consumesTables": [
+        "subscription_seats"
+      ]
+    },
+    "20260708_00_d0_identity_and_memory_activation.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql"
+      ],
+      "createsTables": [
+        "client_active_rules",
+        "curated_rules_registry",
+        "escalation_audit",
+        "panel_decision_audit"
+      ],
+      "altersTables": [
+        "client_active_rules",
+        "curated_rules_registry",
+        "escalation_audit",
+        "firm_clients",
+        "panel_decision_audit"
+      ],
+      "consumesTables": [
+        "client_active_rules",
+        "close_periods",
+        "curated_rules_registry",
+        "escalation_audit",
+        "firm_clients",
+        "panel_decision_audit"
+      ]
+    },
+    "20260708_01_d1_qbo_write_readiness.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "qbo_health_check_log"
+      ],
+      "altersTables": [
+        "firm_clients",
+        "qbo_health_check_log"
+      ],
+      "consumesTables": [
+        "firm_clients",
+        "qbo_health_check_log"
+      ]
+    },
+    "20260708_02_d1_1_owner_user_id_backfill.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "firm_clients"
+      ]
+    },
+    "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql": {
+      "dependsOn": [
+        "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "pilot_slots"
+      ],
+      "consumesTables": [
+        "pilot_slots"
+      ]
+    },
+    "20260709_00_d2_safe_je_posting.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "je_post_attempts",
+        "je_posting_audit"
+      ],
+      "altersTables": [
+        "je_post_attempts",
+        "je_posting_audit"
+      ],
+      "consumesTables": [
+        "firm_clients",
+        "je_post_attempts",
+        "je_posting_audit"
+      ]
+    },
+    "20260710_00_d3_memory_indexes.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "company_memory_records"
+      ]
+    },
+    "20260713_00_d4_uncategorized_proposals.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "uncategorized_proposals"
+      ],
+      "altersTables": [
+        "uncategorized_proposals"
+      ],
+      "consumesTables": [
+        "firm_clients",
+        "uncategorized_proposals"
+      ]
+    },
+    "20260714_00_d5_recurring_templates.sql": {
+      "dependsOn": [
+        "20260709_00_d2_safe_je_posting.sql"
+      ],
+      "createsTables": [
+        "recurring_fires",
+        "recurring_schedule_lines",
+        "recurring_templates"
+      ],
+      "altersTables": [
+        "firm_clients",
+        "recurring_fires",
+        "recurring_schedule_lines",
+        "recurring_templates"
+      ],
+      "consumesTables": [
+        "firm_clients",
+        "firm_memberships",
+        "je_post_attempts",
+        "je_posting_audit",
+        "recurring_fires",
+        "recurring_schedule_lines",
+        "recurring_templates"
+      ]
+    },
+    "20260715180000_mfa_enrollment.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "mfa_audit_log",
+        "mfa_recovery_codes"
+      ],
+      "altersTables": [
+        "mfa_audit_log",
+        "mfa_recovery_codes"
+      ],
+      "consumesTables": [
+        "mfa_audit_log",
+        "mfa_recovery_codes"
+      ]
+    },
+    "20260715190000_mfa_webauthn_and_trusted_devices.sql": {
+      "dependsOn": [
+        "20260715180000_mfa_enrollment.sql"
+      ],
+      "createsTables": [
+        "mfa_trusted_devices",
+        "mfa_webauthn_challenges",
+        "user_webauthn_credentials"
+      ],
+      "altersTables": [
+        "mfa_audit_log",
+        "mfa_trusted_devices",
+        "mfa_webauthn_challenges",
+        "user_webauthn_credentials"
+      ],
+      "consumesTables": [
+        "mfa_audit_log",
+        "mfa_trusted_devices",
+        "mfa_webauthn_challenges",
+        "user_webauthn_credentials"
+      ]
+    },
+    "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql": {
+      "dependsOn": [
+        "20260715190000_mfa_webauthn_and_trusted_devices.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "mfa_trusted_devices",
+        "mfa_webauthn_challenges",
+        "user_webauthn_credentials"
+      ]
+    },
+    "20260716010000_add_qbo_cdc_tables.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "qbo_cdc_cursors",
+        "qbo_cdc_runs"
+      ],
+      "altersTables": [
+        "qbo_cdc_cursors",
+        "qbo_cdc_runs"
+      ],
+      "consumesTables": [
+        "qbo_cdc_cursors",
+        "qbo_cdc_runs"
+      ]
+    },
+    "20260716_00_d6_5_part1_1_firm_clients_slug.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [
+        "firm_clients"
+      ],
+      "consumesTables": [
+        "firm_clients"
+      ]
+    },
+    "20260717010000_d65_p2_block1_visual_fingerprint.sql": {
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260707000000_d6_5_part1_universal_intake.sql"
+      ],
+      "createsTables": [
+        "ap_intake_assertion_registry",
+        "ap_intake_bills",
+        "ap_intake_ledger_event_types",
+        "vendor_invoice_fingerprints"
+      ],
+      "altersTables": [
+        "ai_action_log",
+        "ap_intake_bills",
+        "vendor_invoice_fingerprints"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "ap_intake_assertion_registry",
+        "ap_intake_bills",
+        "ap_intake_ledger_event_types",
+        "intake_messages",
+        "vendor_invoice_fingerprints"
+      ]
+    },
+    "20260717020000_d65_p2_block2_vendor_mirror.sql": {
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql"
+      ],
+      "createsTables": [
+        "vendor_master_mirror"
+      ],
+      "altersTables": [
+        "ai_action_log",
+        "ap_intake_bills",
+        "vendor_master_mirror"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "ap_intake_assertion_registry",
+        "ap_intake_bills",
+        "ap_intake_ledger_event_types",
+        "vendor_master_mirror"
+      ]
+    },
+    "20260717030000_d65_p2_block3_quarantine_l3.sql": {
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql"
+      ],
+      "createsTables": [
+        "ap_intake_quarantine",
+        "bookkeeper_release_allowlist",
+        "quarantine_release_attempts",
+        "vendor_bank_history"
+      ],
+      "altersTables": [
+        "ap_intake_bills",
+        "ap_intake_quarantine",
+        "bookkeeper_release_allowlist",
+        "quarantine_release_attempts",
+        "vendor_bank_history"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "ap_intake_assertion_registry",
+        "ap_intake_bills",
+        "ap_intake_ledger_event_types",
+        "ap_intake_quarantine",
+        "bookkeeper_release_allowlist",
+        "quarantine_release_attempts",
+        "vendor_bank_history"
+      ]
+    },
+    "20260717040000_d65_p2_block4_duplicate_detection.sql": {
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql"
+      ],
+      "createsTables": [
+        "ap_intake_bill_duplicates"
+      ],
+      "altersTables": [
+        "ap_intake_bill_duplicates",
+        "ap_intake_bills"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "ap_intake_assertion_registry",
+        "ap_intake_bill_duplicates",
+        "ap_intake_bills",
+        "ap_intake_ledger_event_types"
+      ]
+    },
+    "20260717050000_d65_p2_block5_anomaly_score_merkle.sql": {
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql"
+      ],
+      "createsTables": [
+        "bill_history",
+        "fraud_score_signals",
+        "ledger_chain_head"
+      ],
+      "altersTables": [
+        "bill_history",
+        "fraud_score_signals",
+        "ledger_chain_head",
+        "ledger_events"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "ap_intake_bills",
+        "ap_intake_ledger_event_types",
+        "bill_history",
+        "fraud_score_signals",
+        "ledger_chain_head",
+        "ledger_events"
+      ]
+    },
+    "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql": {
+      "dependsOn": [
+        "20260706130000_d_entitlements.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+        "20260717020000_d65_p2_block2_vendor_mirror.sql",
+        "20260717050000_d65_p2_block5_anomaly_score_merkle.sql"
+      ],
+      "createsTables": [
+        "baseline_harvest_runs",
+        "company_document_numbering_config",
+        "goods_receipt_line_items",
+        "goods_receipts",
+        "pilot_feature_allowlist",
+        "purchase_order_line_items",
+        "purchase_orders",
+        "qbo_coa_mirror",
+        "requisition_line_items",
+        "requisitions"
+      ],
+      "altersTables": [
+        "baseline_harvest_runs",
+        "bill_history",
+        "company_document_numbering_config",
+        "engagement_addons",
+        "firm_memberships",
+        "goods_receipt_line_items",
+        "goods_receipts",
+        "pilot_feature_allowlist",
+        "purchase_order_line_items",
+        "purchase_orders",
+        "qbo_coa_mirror",
+        "requisition_line_items",
+        "requisitions",
+        "vendor_master_mirror"
+      ],
+      "consumesTables": [
+        "ap_intake_ledger_event_types",
+        "baseline_harvest_runs",
+        "bill_history",
+        "company_document_numbering_config",
+        "engagement_addons",
+        "firm_clients",
+        "firm_memberships",
+        "firms",
+        "goods_receipt_line_items",
+        "goods_receipts",
+        "pilot_feature_allowlist",
+        "purchase_order_line_items",
+        "purchase_orders",
+        "qbo_coa_mirror",
+        "requisition_line_items",
+        "requisitions",
+        "vendor_master_mirror"
+      ]
+    },
+    "20260717070000_d65_p2_block6a_harden_next_document_number_search_path.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql": {
+      "dependsOn": [
+        "20260706130000_d_entitlements.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+        "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
+      ],
+      "createsTables": [
+        "approval_delegations",
+        "budget_check_results",
+        "gl_account_budgets",
+        "requisition_amendments",
+        "requisition_approval_chains",
+        "requisition_approval_steps",
+        "requisition_comments",
+        "vendor_spend_history"
+      ],
+      "altersTables": [
+        "approval_delegations",
+        "budget_check_results",
+        "engagement_addons",
+        "gl_account_budgets",
+        "pilot_feature_allowlist",
+        "requisition_amendments",
+        "requisition_approval_chains",
+        "requisition_approval_steps",
+        "requisition_comments",
+        "vendor_spend_history"
+      ],
+      "consumesTables": [
+        "ap_intake_ledger_event_types",
+        "approval_delegations",
+        "budget_check_results",
+        "engagement_addons",
+        "firm_clients",
+        "firm_memberships",
+        "gl_account_budgets",
+        "pilot_feature_allowlist",
+        "requisition_amendments",
+        "requisition_approval_chains",
+        "requisition_approval_steps",
+        "requisition_comments",
+        "requisitions",
+        "vendor_spend_history"
+      ]
+    },
+    "20260717090000_d65_p2_block7a_credits_prepayment.sql": {
+      "dependsOn": [
+        "20260706130000_d_entitlements.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+        "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
+      ],
+      "createsTables": [
+        "credit_applications",
+        "prepayment_ledger",
+        "refund_request_drafts",
+        "vendor_credits",
+        "vendor_prepayment_balances"
+      ],
+      "altersTables": [
+        "credit_applications",
+        "engagement_addons",
+        "pilot_feature_allowlist",
+        "prepayment_ledger",
+        "refund_request_drafts",
+        "vendor_credits",
+        "vendor_prepayment_balances"
+      ],
+      "consumesTables": [
+        "ap_intake_bills",
+        "ap_intake_ledger_event_types",
+        "credit_applications",
+        "engagement_addons",
+        "firm_memberships",
+        "pilot_feature_allowlist",
+        "prepayment_ledger",
+        "refund_request_drafts",
+        "vendor_credits",
+        "vendor_prepayment_balances"
+      ]
+    },
+    "20260717100000_d65_p2_block7b_multimodal_inbox.sql": {
+      "dependsOn": [
+        "20260706130000_d_entitlements.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+        "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
+      ],
+      "createsTables": [
+        "ap_inbox_autonomy_config",
+        "ap_inbox_drafted_responses",
+        "ap_inbox_permanent_exclusions_log",
+        "vendor_ap_inbox_messages"
+      ],
+      "altersTables": [
+        "ap_inbox_autonomy_config",
+        "ap_inbox_drafted_responses",
+        "ap_inbox_permanent_exclusions_log",
+        "engagement_addons",
+        "pilot_feature_allowlist",
+        "vendor_ap_inbox_messages"
+      ],
+      "consumesTables": [
+        "ap_inbox_autonomy_config",
+        "ap_inbox_drafted_responses",
+        "ap_inbox_permanent_exclusions_log",
+        "ap_intake_ledger_event_types",
+        "engagement_addons",
+        "firm_memberships",
+        "pilot_feature_allowlist",
+        "vendor_ap_inbox_messages"
+      ]
+    },
+    "20260717110000_d65_p2_block8a_interlock_rails.sql": {
+      "dependsOn": [
+        "20260706130000_d_entitlements.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+        "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
+      ],
+      "createsTables": [
+        "payment_batch_interlock_events",
+        "payment_batch_lines",
+        "payment_batches",
+        "vendor_bank_accounts",
+        "vendor_bank_fanout_events"
+      ],
+      "altersTables": [
+        "engagement_addons",
+        "payment_batch_interlock_events",
+        "payment_batch_lines",
+        "payment_batches",
+        "pilot_feature_allowlist",
+        "vendor_bank_accounts",
+        "vendor_bank_fanout_events"
+      ],
+      "consumesTables": [
+        "ap_intake_ledger_event_types",
+        "engagement_addons",
+        "firm_memberships",
+        "payment_batch_interlock_events",
+        "payment_batch_lines",
+        "payment_batches",
+        "pilot_feature_allowlist",
+        "vendor_bank_accounts",
+        "vendor_bank_fanout_events"
+      ]
+    },
+    "20260717120000_d65_p2_block8b_presets_selfgov.sql": {
+      "dependsOn": [
+        "20260706130000_d_entitlements.sql",
+        "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+        "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql"
+      ],
+      "createsTables": [
+        "customer_pack_selections",
+        "drafted_amendments",
+        "observation_events",
+        "preset_pack_registry"
+      ],
+      "altersTables": [
+        "customer_pack_selections",
+        "drafted_amendments",
+        "engagement_addons",
+        "observation_events",
+        "pilot_feature_allowlist",
+        "preset_pack_registry"
+      ],
+      "consumesTables": [
+        "ap_intake_ledger_event_types",
+        "customer_pack_selections",
+        "drafted_amendments",
+        "engagement_addons",
+        "firm_memberships",
+        "observation_events",
+        "pilot_feature_allowlist",
+        "preset_pack_registry"
+      ]
+    },
+    "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "erp_connections"
+      ]
+    },
+    "20260718000000_intuit_webhook_events.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "qbo_webhook_events"
+      ],
+      "altersTables": [
+        "qbo_webhook_events"
+      ],
+      "consumesTables": [
+        "qbo_webhook_events"
+      ]
+    },
+    "20260718010000_mc1_home_currency.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "accounting_connections"
+      ]
+    },
+    "20260718020000_mc3_je_posting_audit_currency.sql": {
+      "dependsOn": [
+        "20260709_00_d2_safe_je_posting.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "je_posting_audit"
+      ]
+    },
+    "20260718030000_mc4c_payment_batch_lines_currency.sql": {
+      "dependsOn": [
+        "20260717110000_d65_p2_block8a_interlock_rails.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "payment_batch_lines"
+      ]
+    },
+    "20260718040000_q7_qbo_edition.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "accounting_connections"
+      ]
+    },
+    "20260718180000_q8a_qbo_view_security_invoker.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "pg_class_reloptions_view"
+      ],
+      "altersTables": [],
+      "consumesTables": [
+        "pg_class",
+        "pg_namespace"
+      ]
+    },
+    "20260718190000_q8b_function_search_path_lockdown.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "pg_proc_config_view"
+      ],
+      "altersTables": [],
+      "consumesTables": [
+        "pg_proc",
+        "pg_namespace"
+      ]
+    },
+    "20260718200000_q8c_security_definer_rpc_revoke.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "pg_proc_acl_view"
+      ],
+      "altersTables": [],
+      "consumesTables": [
+        "pg_proc",
+        "pg_namespace",
+        "pg_roles"
+      ]
+    },
+    "20260718200000_support_ticket_intuit_context.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "qbo_recent_intuit_tid"
+      ],
+      "altersTables": [
+        "qbo_recent_intuit_tid"
+      ],
+      "consumesTables": [
+        "qbo_recent_intuit_tid",
+        "support_tickets"
+      ]
+    },
+    "20260718210000_q8d_vector_schema_move.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260718220000_q8e_rls_service_role_policies.sql": {
+      "dependsOn": [
+        "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+        "20260709_00_d2_safe_je_posting.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "je_line_attachments",
+        "je_line_evidence",
+        "je_post_attempts",
+        "je_posting_audit",
+        "stripe_webhook_events_legacy"
+      ]
+    },
+    "20260719000000_support_auto_file_engine.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "support_error_circuit"
+      ],
+      "altersTables": [
+        "support_error_circuit"
+      ],
+      "consumesTables": [
+        "support_error_circuit",
+        "support_tickets"
+      ]
+    },
+    "20260719050000_gap3_je_approval_flow.sql": {
+      "dependsOn": [
+        "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+        "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+        "20260709_00_d2_safe_je_posting.sql"
+      ],
+      "createsTables": [
+        "qbo_api_trace",
+        "v_pre_close_approval_bundle",
+        "v_client_posted_je_report"
+      ],
+      "altersTables": [
+        "auth",
+        "pre_close_review_items",
+        "qbo_api_trace"
+      ],
+      "consumesTables": [
+        "ai_action_log",
+        "engagement_posting_policy",
+        "pre_close_review_items",
+        "qbo_api_trace",
+        "je_line_evidence",
+        "je_line_attachments",
+        "je_post_attempts",
+        "je_posting_audit",
+        "je_backup_packets"
+      ]
+    },
+    "20260719060000_gap2_subscription_lifecycle_purge.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "gap2_purge_table_registry",
+        "gap2_purge_tokens",
+        "subscription_purge_audit",
+        "subscription_purge_schedule"
+      ],
+      "altersTables": [
+        "firms",
+        "gap2_purge_tokens",
+        "subscription_purge_audit",
+        "subscription_purge_schedule"
+      ],
+      "consumesTables": [
+        "firm_memberships",
+        "firms",
+        "gap2_purge_table_registry",
+        "gap2_purge_tokens",
+        "subscription_purge_audit",
+        "subscription_purge_schedule"
+      ]
+    },
+    "20260720000000_v1_5_audit_ready_engagement_state.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "audit_ready_auditor_portal_users",
+        "audit_ready_engagements",
+        "audit_ready_pbc_requests"
+      ],
+      "altersTables": [
+        "audit_ready_auditor_portal_users",
+        "audit_ready_engagements",
+        "audit_ready_pbc_requests"
+      ],
+      "consumesTables": [
+        "audit_ready_auditor_portal_users",
+        "audit_ready_engagements",
+        "audit_ready_pbc_requests",
+        "companies",
+        "company_users",
+        "firm_clients",
+        "firm_memberships",
+        "firms"
+      ]
+    },
+    "20260720120000_ar_week3_pbc_ingest_llm_usage.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql"
+      ],
+      "createsTables": [
+        "audit_ready_llm_usage",
+        "audit_ready_pbc_uploads",
+        "audit_ready_pii_redaction_maps"
+      ],
+      "altersTables": [
+        "audit_ready_llm_usage",
+        "audit_ready_pbc_uploads",
+        "audit_ready_pii_redaction_maps"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "audit_ready_llm_usage",
+        "audit_ready_pbc_uploads",
+        "audit_ready_pii_redaction_maps",
+        "company_users",
+        "firm_memberships",
+        "storage"
+      ]
+    },
+    "20260720130000_ar_week3_block3_1_rpc_lockdown.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "audit_ready_auditor_portal_users",
+        "audit_ready_engagements",
+        "audit_ready_pbc_requests",
+        "company_users"
+      ]
+    },
+    "20260720150000_pulse_je_reliability_basis.sql": {
+      "dependsOn": [
+        "20260709_00_d2_safe_je_posting.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "je_posting_audit"
+      ]
+    },
+    "20260720160000_ar_tieout1_policy_and_kind.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720120000_ar_week3_pbc_ingest_llm_usage.sql"
+      ],
+      "createsTables": [
+        "audit_ready_tie_out_policies",
+        "audit_ready_tie_out_summary"
+      ],
+      "altersTables": [
+        "audit_ready_llm_usage",
+        "audit_ready_pbc_requests",
+        "audit_ready_tie_out_policies"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "audit_ready_llm_usage",
+        "audit_ready_pbc_requests",
+        "audit_ready_tie_out_policies",
+        "company_users",
+        "firm_memberships"
+      ]
+    },
+    "20260720170000_ar_tieout2_runs_and_variances.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720160000_ar_tieout1_policy_and_kind.sql"
+      ],
+      "createsTables": [
+        "audit_ready_tie_out_runs",
+        "audit_ready_tie_out_variances",
+        "audit_ready_tie_out_summary"
+      ],
+      "altersTables": [
+        "audit_ready_pbc_requests",
+        "audit_ready_tie_out_runs",
+        "audit_ready_tie_out_variances"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "audit_ready_pbc_requests",
+        "audit_ready_tie_out_runs",
+        "audit_ready_tie_out_variances",
+        "company_users",
+        "firm_memberships",
+        "audit_ready_tie_out_policies"
+      ]
+    },
+    "20260720180000_tieout3_grni_binding.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "audit_ready_engagements"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements"
+      ]
+    },
+    "20260721000000_audit_ready_tie_out_variance_evidence.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720170000_ar_tieout2_runs_and_variances.sql"
+      ],
+      "createsTables": [
+        "audit_ready_tie_out_variance_evidence"
+      ],
+      "altersTables": [
+        "audit_ready_tie_out_variance_evidence"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "audit_ready_tie_out_runs",
+        "audit_ready_tie_out_variance_evidence",
+        "audit_ready_tie_out_variances"
+      ]
+    },
+    "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720170000_ar_tieout2_runs_and_variances.sql"
+      ],
+      "createsTables": [
+        "audit_ready_bs_recon_artifacts",
+        "audit_ready_bs_recon_transactions"
+      ],
+      "altersTables": [
+        "audit_ready_bs_recon_artifacts",
+        "audit_ready_bs_recon_transactions",
+        "audit_ready_engagements"
+      ],
+      "consumesTables": [
+        "audit_ready_bs_recon_artifacts",
+        "audit_ready_bs_recon_transactions",
+        "audit_ready_engagements",
+        "audit_ready_pbc_requests",
+        "audit_ready_tie_out_runs",
+        "audit_ready_tie_out_variances",
+        "company_users",
+        "firm_memberships",
+        "storage"
+      ]
+    },
+    "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720170000_ar_tieout2_runs_and_variances.sql"
+      ],
+      "createsTables": [
+        "audit_ready_fa_rollforward_artifacts",
+        "audit_ready_fa_rollforward_lines"
+      ],
+      "altersTables": [
+        "audit_ready_fa_rollforward_artifacts",
+        "audit_ready_fa_rollforward_lines"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "audit_ready_fa_rollforward_artifacts",
+        "audit_ready_fa_rollforward_lines",
+        "audit_ready_pbc_requests",
+        "audit_ready_tie_out_runs",
+        "audit_ready_tie_out_variances",
+        "company_users",
+        "firm_memberships"
+      ]
+    },
+    "20260721160000_ar_tieout4b3_bs_recon_summary.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720170000_ar_tieout2_runs_and_variances.sql",
+        "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql"
+      ],
+      "createsTables": [
+        "audit_ready_bs_recon_summary_artifacts",
+        "audit_ready_bs_recon_summary_lines"
+      ],
+      "altersTables": [
+        "audit_ready_bs_recon_summary_artifacts",
+        "audit_ready_bs_recon_summary_lines"
+      ],
+      "consumesTables": [
+        "audit_ready_bs_recon_artifacts",
+        "audit_ready_bs_recon_summary_artifacts",
+        "audit_ready_bs_recon_summary_lines",
+        "audit_ready_engagements",
+        "audit_ready_pbc_requests",
+        "audit_ready_tie_out_runs",
+        "company_users",
+        "firm_memberships"
+      ]
+    },
+    "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "audit_ready_pbc_requests"
+      ]
+    },
+    "20260722221611_bs_recon_summary_basis_and_computed_lines.sql": {
+      "dependsOn": [
+        "20260721160000_ar_tieout4b3_bs_recon_summary.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "audit_ready_bs_recon_summary_artifacts",
+        "audit_ready_bs_recon_summary_lines"
+      ],
+      "consumesTables": [
+        "audit_ready_bs_recon_summary_artifacts",
+        "audit_ready_bs_recon_summary_lines"
+      ]
+    },
+    "20260722233000_bs_recon_summary_lines_qbo_account_id_nullable.sql": {
+      "dependsOn": [
+        "20260721160000_ar_tieout4b3_bs_recon_summary.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "audit_ready_bs_recon_summary_lines"
+      ],
+      "consumesTables": [
+        "audit_ready_bs_recon_summary_lines"
+      ]
+    },
+    "20260723050000_audit_ready_cron_runs.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "audit_ready_cron_runs"
+      ],
+      "altersTables": [
+        "audit_ready_cron_runs"
+      ],
+      "consumesTables": [
+        "audit_ready_cron_runs"
+      ]
+    },
+    "20260724010000_kickout_investigations.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql"
+      ],
+      "createsTables": [
+        "audit_ready_kickout_investigations"
+      ],
+      "altersTables": [
+        "audit_ready_kickout_investigations"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "audit_ready_kickout_investigations",
+        "company_users",
+        "firm_memberships"
+      ]
+    },
+    "20260724020000_kickout_dedupe_rpcs.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260724030000_ar_tieout412a_kind_reconcile.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260724030100_ar_tieout412a_run_artifacts.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720170000_ar_tieout2_runs_and_variances.sql"
+      ],
+      "createsTables": [
+        "audit_ready_run_artifacts"
+      ],
+      "altersTables": [
+        "audit_ready_run_artifacts",
+        "audit_ready_tie_out_runs"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "audit_ready_run_artifacts",
+        "audit_ready_tie_out_runs",
+        "company_users",
+        "firm_memberships",
+        "storage"
+      ]
+    },
+    "20260724220000_ar_tieout412b_raw_qbo_payload.sql": {
+      "dependsOn": [
+        "20260720170000_ar_tieout2_runs_and_variances.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "audit_ready_tie_out_runs"
+      ],
+      "consumesTables": [
+        "audit_ready_tie_out_runs"
+      ]
+    },
+    "20260725050000_ar_tieout420a_resolution_code.sql": {
+      "dependsOn": [
+        "20260724010000_kickout_investigations.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "audit_ready_kickout_investigations"
+      ],
+      "consumesTables": [
+        "audit_ready_kickout_investigations"
+      ]
+    },
+    "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260725060000_ar_tieout42_memory_events.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql"
+      ],
+      "createsTables": [
+        "audit_ready_memory_events"
+      ],
+      "altersTables": [
+        "audit_ready_memory_events"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "audit_ready_memory_events",
+        "company_users",
+        "firm_memberships"
+      ]
+    },
+    "20260727000100_users_auth_trigger_single_writer.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "users"
+      ]
+    },
+    "20260805041500_major_1_rpc_lockdown.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260805054000_schema_drift_issue_policies.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "lifecycle_issues"
+      ]
+    },
+    "20260805210000_schema_drift_scanner_issue_kinds.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "lifecycle_issue_kinds_registry"
+      ],
+      "altersTables": [
+        "lifecycle_issue_kinds_registry"
+      ],
+      "consumesTables": [
+        "lifecycle_issue_kinds_registry"
+      ]
+    },
+    "20260805211000_sp_list_public_columns_jsonb.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [
+        "lifecycle_issues"
+      ],
+      "consumesTables": [
+        "lifecycle_issues"
+      ]
+    },
+    "20260806032000_lifecycle_issues_schema_drift_checks.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [
+        "lifecycle_issues"
+      ],
+      "consumesTables": [
+        "lifecycle_issues"
+      ]
+    },
+    "20260806040000_major_2_3_block_a_assertion_linkage.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "lifecycle_issues"
+      ]
+    },
+    "20260806042000_major_2_3_block_a_1_research_revision.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260809083000_companies_tenant_identity_columns.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [
+        "companies"
+      ],
+      "consumesTables": [
+        "companies"
+      ]
+    },
+    "20260810070000_dash_1c_a_accuracy_contract_cache.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "accuracy_contract_cache"
+      ],
+      "altersTables": [
+        "accuracy_contract_cache"
+      ],
+      "consumesTables": [
+        "accounting_syncs",
+        "accuracy_contract_cache",
+        "companies",
+        "company_users"
+      ]
+    },
+    "20260810070050_dash_1c_a_widen_provenance.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [
+        "pilot_lifecycle_events"
+      ],
+      "consumesTables": [
+        "pilot_lifecycle_events"
+      ]
+    },
+    "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "pilot_lifecycle_events"
+      ]
+    },
+    "20260813220000_accounting_connection_supersession.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [
+        "accounting_connections"
+      ],
+      "consumesTables": [
+        "accounting_connections"
+      ]
+    },
+    "20260814060000_accounting_superseded_credential_retirement.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [
+        "accounting_connections"
+      ],
+      "consumesTables": [
+        "accounting_connections"
+      ]
+    },
+    "20260814221500_accounting_canonical_connected_grant.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "accounting_connections"
+      ]
+    },
+    "20260815000000_urm2_reconciling_items_persistence.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720170000_ar_tieout2_runs_and_variances.sql"
+      ],
+      "createsTables": [
+        "audit_ready_reconciling_items"
+      ],
+      "altersTables": [
+        "accounting_syncs",
+        "audit_ready_reconciling_items",
+        "audit_ready_tie_out_runs"
+      ],
+      "consumesTables": [
+        "accounting_syncs",
+        "audit_ready_engagements",
+        "audit_ready_pbc_requests",
+        "audit_ready_reconciling_items",
+        "audit_ready_tie_out_runs",
+        "audit_ready_tie_out_variances",
+        "company_users",
+        "firm_memberships"
+      ]
+    },
+    "20260815120000_urm3_universal_evidence_spine.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260721000000_audit_ready_tie_out_variance_evidence.sql",
+        "20260815000000_urm2_reconciling_items_persistence.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "audit_ready_reconciling_items",
+        "audit_ready_tie_out_variance_evidence"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "audit_ready_reconciling_items",
+        "audit_ready_tie_out_variance_evidence",
+        "company_users",
+        "firm_memberships"
+      ]
+    },
+    "20260815130000_urm3_hash_normalization_order.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260815140000_urm3_storage_requires_hash_not_null.sql": {
+      "dependsOn": [
+        "20260721000000_audit_ready_tie_out_variance_evidence.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "audit_ready_tie_out_variance_evidence"
+      ],
+      "consumesTables": [
+        "audit_ready_tie_out_variance_evidence"
+      ]
+    },
+    "20260818020716_accounting_measurement_snapshots.sql": {
+      "dependsOn": [],
+      "createsTables": [
+        "accounting_measurement_snapshots"
+      ],
+      "altersTables": [
+        "accounting_measurement_snapshots"
+      ],
+      "consumesTables": [
+        "accounting_measurement_snapshots",
+        "accounting_syncs",
+        "company_users"
+      ]
+    },
+    "20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql": {
+      "dependsOn": [
+        "20260818020716_accounting_measurement_snapshots.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "accounting_measurement_snapshots"
+      ],
+      "consumesTables": [
+        "accounting_measurement_snapshots"
+      ]
+    },
+    "20260818050000_accounting_measurement_snapshots_inventory_kind.sql": {
+      "dependsOn": [
+        "20260818020716_accounting_measurement_snapshots.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "accounting_measurement_snapshots"
+      ],
+      "consumesTables": [
+        "accounting_measurement_snapshots"
+      ]
+    },
+    "20260819045253_continuous_close_runs.sql": {
+      "dependsOn": [
+        "20260703_00_create_close_ledger.sql",
+        "20260720000000_v1_5_audit_ready_engagement_state.sql"
+      ],
+      "createsTables": [
+        "continuous_close_runs"
+      ],
+      "altersTables": [
+        "continuous_close_runs"
+      ],
+      "consumesTables": [
+        "accounting_syncs",
+        "audit_ready_engagements",
+        "close_periods",
+        "companies",
+        "company_users",
+        "continuous_close_runs",
+        "firm_clients",
+        "firm_memberships"
+      ]
+    },
+    "20260820233219_journal_entry_proposals.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260819045253_continuous_close_runs.sql"
+      ],
+      "createsTables": [
+        "journal_entry_proposals"
+      ],
+      "altersTables": [
+        "journal_entry_proposals"
+      ],
+      "consumesTables": [
+        "accounting_syncs",
+        "audit_ready_engagements",
+        "companies",
+        "company_users",
+        "continuous_close_runs",
+        "firm_clients",
+        "firm_memberships",
+        "journal_entry_proposals"
+      ]
+    },
+    "20260821042800_journal_entry_approvals.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260820233219_journal_entry_proposals.sql"
+      ],
+      "createsTables": [
+        "journal_entry_approvals"
+      ],
+      "altersTables": [
+        "journal_entry_approvals"
+      ],
+      "consumesTables": [
+        "audit_ready_engagements",
+        "companies",
+        "company_users",
+        "firm_memberships",
+        "journal_entry_approvals",
+        "journal_entry_proposals"
+      ]
+    },
+    "20260821183525_journal_entry_executions.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260820233219_journal_entry_proposals.sql",
+        "20260821042800_journal_entry_approvals.sql"
+      ],
+      "createsTables": [
+        "journal_entry_executions"
+      ],
+      "altersTables": [
+        "journal_entry_executions"
+      ],
+      "consumesTables": [
+        "accounting_connections",
+        "audit_ready_engagements",
+        "companies",
+        "company_users",
+        "firm_memberships",
+        "journal_entry_approvals",
+        "journal_entry_executions",
+        "journal_entry_proposals"
+      ]
+    },
+    "20260821212020_journal_entry_provider_attempts.sql": {
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260821183525_journal_entry_executions.sql"
+      ],
+      "createsTables": [
+        "journal_entry_provider_attempts"
+      ],
+      "altersTables": [
+        "journal_entry_provider_attempts"
+      ],
+      "consumesTables": [
+        "accounting_connections",
+        "audit_ready_engagements",
+        "company_users",
+        "firm_memberships",
+        "journal_entry_executions",
+        "journal_entry_provider_attempts"
+      ]
+    },
+    "20260821220646_journal_entry_provider_discovery_receipts.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260821222342_journal_entry_provider_attempt_initial_custody.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "20260822050000_journal_entry_verified_readback.sql": {
+      "dependsOn": [
+        "20260821183525_journal_entry_executions.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "journal_entry_executions"
+      ],
+      "consumesTables": [
+        "journal_entry_executions"
+      ]
+    },
+    "20260822200000_je3d_sandbox_activation_identity.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": [
+        "accounting_connections",
+        "companies"
+      ]
+    },
+    "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql": {
+      "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [],
+      "consumesTables": []
+    },
+    "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql": {
+      "dependsOn": [
+        "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql"
+      ],
+      "createsTables": [],
+      "altersTables": [
+        "pilot_slots"
+      ],
+      "consumesTables": [
+        "pilot_slots"
+      ]
+    }
+  },
+  "unresolvedDependencies": [
+    {
+      "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+      "missing": "table erp_connections",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    },
+    {
+      "file": "20260718220000_q8e_rls_service_role_policies.sql",
+      "missing": "table stripe_webhook_events_legacy",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    },
+    {
+      "file": "20260805054000_schema_drift_issue_policies.sql",
+      "missing": "table lifecycle_issues",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    },
+    {
+      "file": "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
+      "missing": "table lifecycle_issues",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    },
+    {
+      "file": "20260806032000_lifecycle_issues_schema_drift_checks.sql",
+      "missing": "table lifecycle_issues",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    },
+    {
+      "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+      "missing": "table lifecycle_issues",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    },
+    {
+      "file": "20260810070050_dash_1c_a_widen_provenance.sql",
+      "missing": "table pilot_lifecycle_events",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    },
+    {
+      "file": "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
+      "missing": "table pilot_lifecycle_events",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    }
+  ],
+  "cycles": [],
+  "integrityErrors": [],
+  "ok": true
+}

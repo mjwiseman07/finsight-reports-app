@@ -62,11 +62,18 @@ function splitStatements(sql) {
       continue;
     }
 
-    if (!inSingle && !inDouble && !dollarTag && ch === "$") {
+    if (!inSingle && !inDouble && ch === "$") {
       const m = sql.slice(i).match(/^\$([A-Za-z0-9_]*)\$/);
       if (m) {
-        if (dollarTag === null) dollarTag = m[0];
-        else if (dollarTag === m[0]) dollarTag = null;
+        if (dollarTag === null) {
+          dollarTag = m[0];
+        } else if (dollarTag === m[0]) {
+          dollarTag = null;
+        }
+        // Always emit the tag into the buffer and advance past it.
+        buf += m[0];
+        i += m[0].length - 1;
+        continue;
       }
     }
 

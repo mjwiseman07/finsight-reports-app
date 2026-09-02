@@ -34,7 +34,8 @@
    - Fresh disposable DB precheck (`option-d-fresh-db-guard.js`) before any write  
    - **Executed** post-apply security bundle (`option-d-security-assertions.js`): schema/RLS, view `security_invoker`, SI/Memory immutability  
    - Structured Vitest gate (`option-d-vitest-result-gate.js`): expected PR #312 tests must execute; zero skip/todo/pending/fail; pinned to `f65730b3`  
-   - Separate statuses; `PASS_RUNTIME` only if all applicable gates PASS
+   - Separate statuses; `PASS_RUNTIME` only if all applicable gates PASS  
+   - **Ordering:** post-phase1 assembly uses explicit dependency graph (`option-d-dependency-order.js`), not filename-only sort — see `option-d-dependency-order-remediation.md`
 
 ## Scope distinction (required)
 

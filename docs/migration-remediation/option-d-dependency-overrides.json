@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "description": "Seed overrides for Option D dependency ordering. Regenerated fields (dependencyOrder, sources, unresolved) are written by assemble-option-d-replay.js / option-d-dependency-order.js.",
+  "explicitDependsOn": {
+    "20260703_1200_d6_0_vertical_rule_foundation.sql": [
+      "20260714_00_d5_recurring_templates.sql"
+    ]
+  },
+  "semanticConstraints": [],
+  "optionalExternalTables": ["users", "pg_class", "pg_namespace", "pg_proc", "pg_constraint", "pg_roles", "storage"],
+  "platformProvidedTables": ["users"],
+  "notes": [
+    "explicitDependsOn documents the reviewed recurring_fires edge (also inferred via mutator_chain).",
+    "Do not reorder solely because a table exists; mutator chains preserve CREATE→ALTER; consumers depend on creators only unless an explicit semanticConstraint is added."
+  ]
+}

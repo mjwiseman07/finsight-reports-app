@@ -13,6 +13,12 @@ const {
   loadManifest,
   orderedFilesFromPhases,
 } = require("./baseline-sql-analyzer");
+const {
+  computeOptionDDependencyOrder,
+  writeDependencyArtifacts,
+  simulateCandidateOrder,
+  analyzeMigrationFile,
+} = require("./option-d-dependency-order");
 
 const ROOT = path.join(__dirname, "..", "..");
 const MIGRATIONS_DIR = path.join(ROOT, "supabase", "migrations");
@@ -35,6 +41,10 @@ const ASSEMBLED_DIR = path.join(
 const MANIFEST_OUT = path.join(
   ROOT,
   "docs/migration-remediation/option-d-replay-manifest.json",
+);
+const DEP_OVERRIDES = path.join(
+  ROOT,
+  "docs/migration-remediation/option-d-dependency-overrides.json",
 );
 
 const PHASE1_FILES = [
@@ -162,14 +172,15 @@ function main() {
     );
   }
 
-  // Post-baseline local migrations (filename order), with in-place substitutions
-  const localFiles = fs
+  // Post-baseline local migrations: dependency order (NOT filename-only sort)
+  const localFilesLex = fs
     .readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
     .sort();
 
   const skippedCoveredByBaseline = [];
-  for (const file of localFiles) {
+  const postCandidates = [];
+  for (const file of localFilesLex) {
     if (baselineSources.has(file)) {
       skippedCoveredByBaseline.push(file);
       continue;
@@ -181,43 +192,119 @@ function main() {
     }
 
     const originalPath = path.join(MIGRATIONS_DIR, file);
-    const originalSha = sha256File(originalPath);
     const substMeta = SUBSTITUTIONS[file];
+    const substPath = substMeta ? path.join(SUBST_DIR, file) : null;
+    if (substMeta && !fs.existsSync(substPath)) {
+      console.error(`Missing substitution file: ${substPath}`);
+      process.exit(1);
+    }
+    // Analyze/assemble from the content that will actually be applied (substitution if any)
+    const absPath = substMeta ? substPath : originalPath;
+    postCandidates.push({ filename: file, absPath, originalPath, substMeta, substPath });
+  }
 
+  const depOverrides = fs.existsSync(DEP_OVERRIDES)
+    ? JSON.parse(fs.readFileSync(DEP_OVERRIDES, "utf8"))
+    : {};
+
+  // Tables created by fixed prefix are provided before post-phase1 replay.
+  const knownProvidedTables = new Set();
+  for (const abs of [
+    BASELINE,
+    ...PHASE1_FILES.map((f) => path.join(PHASE1_DIR, f)),
+  ]) {
+    const a = analyzeMigrationFile(abs);
+    for (const t of a.creates.tables || []) knownProvidedTables.add(t);
+  }
+
+  const depResult = computeOptionDDependencyOrder(postCandidates, depOverrides, {
+    knownProvidedTables,
+  });
+  if (depResult.cycles.length) {
+    console.error("FAIL: dependency cycles in Option D post-phase1 set", depResult.cycles);
+    process.exit(1);
+  }
+  if (depResult.integrityErrors.length) {
+    console.error("FAIL: dependency order integrity", depResult.integrityErrors);
+    process.exit(1);
+  }
+
+  // Full-set order = fixed prefix (baseline + phase1) + dependency-ordered post set
+  const prefixFiles = entries.map((e) => e.assembledFilename);
+  const fullDependencyOrder = [...prefixFiles, ...depResult.order];
+  const fullLexOrder = [
+    ...prefixFiles,
+    ...postCandidates.map((c) => c.filename).sort(),
+  ];
+  depResult.order = fullDependencyOrder;
+  depResult.lexOrder = fullLexOrder;
+  depResult.changelog = {
+    ...depResult.changelog,
+    fixedPrefix: prefixFiles,
+    postPhase1DependencyOrder: depResult.changelog.dependencyOrder,
+    postPhase1LexicographicOrder: depResult.changelog.lexicographicOrder,
+    dependencyOrder: fullDependencyOrder,
+    lexicographicOrder: fullLexOrder,
+  };
+  // Recompute recurring regression positions on full order
+  const fullPos = new Map(fullDependencyOrder.map((f, i) => [f, i + 1]));
+  depResult.changelog.recurringFiresRegression = {
+    ...depResult.changelog.recurringFiresRegression,
+    dependencyOrderIndex: {
+      d5: fullPos.get("20260714_00_d5_recurring_templates.sql") || null,
+      d6_0: fullPos.get("20260703_1200_d6_0_vertical_rule_foundation.sql") || null,
+    },
+    dependencyOrderSatisfied:
+      (fullPos.get("20260714_00_d5_recurring_templates.sql") || 0) <
+      (fullPos.get("20260703_1200_d6_0_vertical_rule_foundation.sql") || 0),
+  };
+
+  writeDependencyArtifacts(depResult);
+
+  const byName = new Map(postCandidates.map((c) => [c.filename, c]));
+  for (const file of depResult.changelog.postPhase1DependencyOrder) {
+    const c = byName.get(file);
+    if (!c) {
+      console.error(`FAIL: ordered file missing from candidates: ${file}`);
+      process.exit(1);
+    }
+    const originalSha = sha256File(c.originalPath);
     order += 1;
-    if (substMeta) {
-      const substPath = path.join(SUBST_DIR, file);
-      if (!fs.existsSync(substPath)) {
-        console.error(`Missing substitution file: ${substPath}`);
-        process.exit(1);
-      }
-      const replacement = fs.readFileSync(substPath);
+    if (c.substMeta) {
+      const replacement = fs.readFileSync(c.substPath);
       entries.push(
         writeAssembled(file, replacement, {
           order,
           role: "post_phase1_local",
-          action: substMeta.action,
-          originalSource: path.relative(ROOT, originalPath).replace(/\\/g, "/"),
+          action: c.substMeta.action,
+          originalSource: path.relative(ROOT, c.originalPath).replace(/\\/g, "/"),
           originalSha256: originalSha,
-          replacementSource: path.relative(ROOT, substPath).replace(/\\/g, "/"),
+          replacementSource: path.relative(ROOT, c.substPath).replace(/\\/g, "/"),
           replacementSha256: sha256Text(replacement.toString("utf8")),
-          justification: substMeta.justification,
+          justification: c.substMeta.justification,
         }),
       );
     } else {
-      const content = fs.readFileSync(originalPath);
+      const content = fs.readFileSync(c.originalPath);
       entries.push(
         writeAssembled(file, content, {
           order,
           role: "post_phase1_local",
           action: "include",
-          originalSource: path.relative(ROOT, originalPath).replace(/\\/g, "/"),
+          originalSource: path.relative(ROOT, c.originalPath).replace(/\\/g, "/"),
           originalSha256: originalSha,
           justification: null,
         }),
       );
     }
   }
+
+  // Static object-availability simulation on assembled content paths (fail soft → record)
+  const simCandidates = entries.map((e) => ({
+    filename: e.assembledFilename,
+    absPath: path.join(ASSEMBLED_DIR, e.assembledFilename),
+  }));
+  const replaySim = simulateCandidateOrder(simCandidates, depOverrides);
 
   const requiredPatent6 = [
     "20260821183525_journal_entry_executions.sql",
@@ -242,6 +329,20 @@ function main() {
     productionDashboardReplayParity: "unresolved",
     pr312HeadRequiredUnchanged: "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
     assembledDir: path.relative(ROOT, ASSEMBLED_DIR).replace(/\\/g, "/"),
+    ordering: {
+      policy: depResult.changelog.policy,
+      fixedPrefix: prefixFiles,
+      dependencyOrder: fullDependencyOrder,
+      lexicographicOrderWouldHaveBeen: fullLexOrder,
+      movedCount: depResult.changelog.movedCount,
+      recurringFiresRegression: depResult.changelog.recurringFiresRegression,
+      unresolvedDependencyCount: depResult.unresolved.length,
+      objectAvailabilitySimulationOk: replaySim.ok,
+      objectAvailabilityViolationCount: replaySim.violations.length,
+      dependencyManifest: "docs/migration-remediation/option-d-dependency-manifest.json",
+      orderingChangelog: "docs/migration-remediation/option-d-ordering-changelog.json",
+      overrides: "docs/migration-remediation/option-d-dependency-overrides.json",
+    },
     counts: {
       totalAssembled: entries.length,
       baseline: 1,
@@ -278,6 +379,11 @@ function main() {
     console.error("FAIL: substitution set mismatch", { expectedSubst, actualSubst });
     process.exit(1);
   }
+  // Hard fail the known recurring_fires regression if still present
+  if (!depResult.changelog.recurringFiresRegression.dependencyOrderSatisfied) {
+    console.error("FAIL: recurring_fires creator still after d6_0 consumer");
+    process.exit(1);
+  }
 
   fs.writeFileSync(MANIFEST_OUT, JSON.stringify(manifest, null, 2) + "\n");
   console.log(
@@ -286,6 +392,10 @@ function main() {
         ok: true,
         totalAssembled: entries.length,
         substitutions: substitutionEntries.length,
+        movedCount: depResult.changelog.movedCount,
+        unresolvedDependencies: depResult.unresolved.length,
+        objectAvailabilitySimulationOk: replaySim.ok,
+        recurringFiresOrderOk: depResult.changelog.recurringFiresRegression.dependencyOrderSatisfied,
         manifest: path.relative(ROOT, MANIFEST_OUT).replace(/\\/g, "/"),
         assembledDir: path.relative(ROOT, ASSEMBLED_DIR).replace(/\\/g, "/"),
       },
