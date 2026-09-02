@@ -14,6 +14,8 @@ import {
   evaluateImmutability,
   evaluateImmutabilityTriggers,
   evaluateImmutabilityBehavior,
+  classifyProbeError,
+  PROBE_EXPECTATIONS,
   REQUIRED_BEHAVIORAL_PROBES,
   REQUIRED_IMMUTABILITY_TRIGGERS,
 } from "../../scripts/migration-remediation/option-d-security-assertions.js";
@@ -86,13 +88,21 @@ function emptyFreshInventory(overrides: Record<string, unknown> = {}) {
 }
 
 function passingBehavioralProbes() {
-  return REQUIRED_BEHAVIORAL_PROBES.map((id) => ({
-    id,
-    expectedRejected: true,
-    rejected: true,
-    errorMessage: "immutable",
-    fixtureCleanupConfirmed: true,
-  }));
+  return REQUIRED_BEHAVIORAL_PROBES.map((id) => {
+    const exp = PROBE_EXPECTATIONS[id];
+    return {
+      id,
+      expectedRejected: true,
+      rejected: true,
+      rejectedByImmutabilityRule: true,
+      preconditionMet: true,
+      rowUnchangedAfter: true,
+      fixtureCleanupConfirmed: true,
+      sqlState: exp.sqlState,
+      classifyReason: "immutability_rule_matched",
+      errorMessage: exp.messageIncludes,
+    };
+  });
 }
 
 function passingTriggerBindings() {
@@ -285,10 +295,83 @@ describe("Option D negative gates (false PASS prevention)", () => {
         id,
         expectedRejected: true,
         rejected: false,
+        rejectedByImmutabilityRule: false,
+        preconditionMet: true,
+        rowUnchangedAfter: true,
         fixtureCleanupConfirmed: true,
+        sqlState: null,
+        classifyReason: "mutation_succeeded",
+        errorMessage: null,
       })),
     };
     expect(evaluateImmutability(evidence).ok).toBe(false);
+  });
+
+  it("transaction-aborted 25P02 must not count as immutability PASS", () => {
+    const exp = PROBE_EXPECTATIONS.si_finalized_metadata_update_rejected;
+    const classified = classifyProbeError(
+      { code: "25P02", message: "current transaction is aborted, commands ignored until end of transaction block" },
+      exp,
+    );
+    expect(classified.intendedImmutabilityRejection).toBe(false);
+    expect(classified.reason).toBe("non_immutability_sqlstate");
+
+    const evidence = {
+      triggers: passingTriggerBindings(),
+      behavioralProbes: REQUIRED_BEHAVIORAL_PROBES.map((id) => ({
+        id,
+        expectedRejected: true,
+        rejected: true,
+        rejectedByImmutabilityRule: false,
+        preconditionMet: true,
+        rowUnchangedAfter: true,
+        fixtureCleanupConfirmed: true,
+        sqlState: "25P02",
+        classifyReason: "non_immutability_sqlstate",
+        errorMessage: "current transaction is aborted",
+      })),
+    };
+    const result = evaluateImmutabilityBehavior(evidence);
+    expect(result.ok).toBe(false);
+    expect(
+      result.failures.some((f: { rule: string }) => f.rule === "not_intended_immutability_rejection"),
+    ).toBe(true);
+  });
+
+  it("unrelated errors (undefined table / FK / permission) must not count as PASS", () => {
+    const exp = PROBE_EXPECTATIONS.memory_delete_rejected;
+    for (const code of ["42P01", "23503", "42501", "42601", "08006"]) {
+      const classified = classifyProbeError(
+        { code, message: "unrelated database error" },
+        exp,
+      );
+      expect(classified.intendedImmutabilityRejection).toBe(false);
+    }
+    // Wrong message with correct SQLSTATE also fails
+    expect(
+      classifyProbeError(
+        { code: "P0001", message: "some other raise exception" },
+        exp,
+      ).intendedImmutabilityRejection,
+    ).toBe(false);
+  });
+
+  it("intended P0001 + trigger message classifies as immutability rejection", () => {
+    const exp = PROBE_EXPECTATIONS.si_finalized_metadata_delete_rejected;
+    const classified = classifyProbeError(
+      { code: "P0001", message: exp.messageIncludes },
+      exp,
+    );
+    expect(classified.intendedImmutabilityRejection).toBe(true);
+  });
+
+  it("passing behavioral probes with full classification can PASS evaluator", () => {
+    expect(
+      evaluateImmutability({
+        triggers: passingTriggerBindings(),
+        behavioralProbes: passingBehavioralProbes(),
+      }).ok,
+    ).toBe(true);
   });
 
   it("disabled trigger or missing UPDATE/DELETE event cannot PASS", () => {

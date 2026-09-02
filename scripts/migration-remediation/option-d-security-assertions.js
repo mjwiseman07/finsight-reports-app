@@ -54,11 +54,112 @@ const REQUIRED_BEHAVIORAL_PROBES = [
   "memory_delete_rejected",
 ];
 
+/**
+ * Expectations derived from actual RAISE EXCEPTION text in:
+ *   - 20260603_harden_si_snapshot_immutability.sql
+ *   - 20260605_harden_company_memory_persistence_immutability.sql
+ * Bare RAISE EXCEPTION uses SQLSTATE P0001 (raise_exception).
+ */
+const PROBE_EXPECTATIONS = {
+  si_finalized_metadata_update_rejected: {
+    sqlState: "P0001",
+    messageIncludes:
+      "Finalized SI snapshot metadata only allows transition to superseded with superseded_by_snapshot_id and updated_at",
+  },
+  si_finalized_metadata_delete_rejected: {
+    sqlState: "P0001",
+    messageIncludes: "SI snapshot metadata is immutable once finalized or superseded",
+  },
+  si_locked_payload_update_rejected: {
+    sqlState: "P0001",
+    messageIncludes:
+      "SI snapshot child rows are immutable when parent snapshot is finalized or superseded",
+  },
+  memory_immutable_field_update_rejected: {
+    sqlState: "P0001",
+    messageIncludes: "Company memory immutable record fields cannot be changed after insert",
+  },
+  memory_delete_rejected: {
+    sqlState: "P0001",
+    messageIncludes:
+      "Company memory records cannot be deleted without a future approved compliance workflow",
+  },
+};
+
+/** SQLSTATEs that prove infra/txn failure — never count as immutability PASS. */
+const NON_IMMUTABILITY_SQLSTATES = new Set([
+  "25P02", // in_failed_sql_transaction
+  "25P01", // no_active_sql_transaction
+  "42501", // insufficient_privilege
+  "42P01", // undefined_table
+  "42703", // undefined_column
+  "42601", // syntax_error
+  "23503", // foreign_key_violation
+  "23505", // unique_violation
+  "23502", // not_null_violation
+  "08000", // connection_exception
+  "08003", // connection_does_not_exist
+  "08006", // connection_failure
+  "57P01", // admin_shutdown
+  "57014", // query_canceled
+  "53200", // out_of_memory
+]);
+
 const REQUIRED_FUNCTIONS = [
   "persist_journal_entry_execution_reservation",
   "transition_journal_entry_execution",
 ];
 
+/**
+ * Classify a caught DB error as intended immutability rejection or unrelated failure.
+ * @param {{ code?: string, message?: string }|null|undefined} err
+ * @param {{ sqlState: string, messageIncludes: string }} expectation
+ */
+function classifyProbeError(err, expectation) {
+  const sqlState = err && err.code ? String(err.code) : null;
+  const message = err && err.message ? String(err.message) : "";
+
+  if (!sqlState) {
+    return {
+      intendedImmutabilityRejection: false,
+      reason: "missing_sqlstate",
+      sqlState: null,
+      message: message.slice(0, 300),
+    };
+  }
+  if (NON_IMMUTABILITY_SQLSTATES.has(sqlState)) {
+    return {
+      intendedImmutabilityRejection: false,
+      reason: "non_immutability_sqlstate",
+      sqlState,
+      message: message.slice(0, 300),
+    };
+  }
+  if (sqlState !== expectation.sqlState) {
+    return {
+      intendedImmutabilityRejection: false,
+      reason: "sqlstate_mismatch",
+      sqlState,
+      expectedSqlState: expectation.sqlState,
+      message: message.slice(0, 300),
+    };
+  }
+  if (!message.includes(expectation.messageIncludes)) {
+    return {
+      intendedImmutabilityRejection: false,
+      reason: "message_mismatch",
+      sqlState,
+      message: message.slice(0, 300),
+      expectedMessageIncludes: expectation.messageIncludes,
+    };
+  }
+  return {
+    intendedImmutabilityRejection: true,
+    reason: "immutability_rule_matched",
+    sqlState,
+    message: message.slice(0, 300),
+  };
+}
 function evaluateFinalSchemaRls(evidence) {
   const failures = [];
   const byName = new Map((evidence.tables || []).map((t) => [t.name, t]));
@@ -148,8 +249,8 @@ function evaluateImmutabilityTriggers(evidence) {
 }
 
 /**
- * Behavioral probe results must prove prohibited mutations were rejected.
- * Absent probes cannot PASS.
+ * Behavioral probe results must prove prohibited mutations were rejected by the
+ * intended immutability rule (SQLSTATE + message), not by aborted-txn / unrelated errors.
  */
 function evaluateImmutabilityBehavior(evidence) {
   const failures = [];
@@ -163,6 +264,7 @@ function evaluateImmutabilityBehavior(evidence) {
   const byId = new Map(probes.map((p) => [p.id, p]));
   for (const id of REQUIRED_BEHAVIORAL_PROBES) {
     const probe = byId.get(id);
+    const expectation = PROBE_EXPECTATIONS[id];
     if (!probe) {
       failures.push({
         check: "si_memory_immutability",
@@ -171,10 +273,24 @@ function evaluateImmutabilityBehavior(evidence) {
       });
       continue;
     }
+    if (probe.preconditionMet !== true) {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "fixture_precondition_unmet",
+        id,
+      });
+    }
     if (probe.fixtureCleanupConfirmed !== true) {
       failures.push({
         check: "si_memory_immutability",
         rule: "fixture_cleanup_unconfirmed",
+        id,
+      });
+    }
+    if (probe.rowUnchangedAfter !== true) {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "protected_row_changed_or_unverified",
         id,
       });
     }
@@ -186,12 +302,34 @@ function evaluateImmutabilityBehavior(evidence) {
       });
       continue;
     }
-    if (probe.rejected !== true) {
+    if (probe.rejectedByImmutabilityRule !== true) {
       failures.push({
         check: "si_memory_immutability",
-        rule: "mutation_not_rejected",
+        rule: "not_intended_immutability_rejection",
         id,
+        sqlState: probe.sqlState || null,
+        classifyReason: probe.classifyReason || null,
         detail: probe.errorMessage || null,
+      });
+      continue;
+    }
+    if (probe.sqlState !== expectation.sqlState) {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "sqlstate_mismatch",
+        id,
+        sqlState: probe.sqlState,
+        expected: expectation.sqlState,
+      });
+    }
+    if (
+      !probe.errorMessage ||
+      !String(probe.errorMessage).includes(expectation.messageIncludes)
+    ) {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "message_mismatch",
+        id,
       });
     }
   }
@@ -297,8 +435,11 @@ async function collectTriggerBindings(client) {
 }
 
 /**
- * Rollback-isolated synthetic fixtures. No live Memory product writes —
- * inserts are local test rows rolled back at end.
+ * Rollback-isolated synthetic fixtures with SAVEPOINT per expected-failure probe.
+ * Catching a JS exception does not clear an aborted Postgres transaction —
+ * each probe uses SAVEPOINT / ROLLBACK TO SAVEPOINT / RELEASE.
+ * Rejection counts only when SQLSTATE + message match the intended trigger rule.
+ *
  * @param {import('pg').Client} client
  */
 async function runImmutabilityBehavioralProbes(client) {
@@ -307,8 +448,86 @@ async function runImmutabilityBehavioralProbes(client) {
   const snapshotId = `option_d_probe_${crypto.randomBytes(6).toString("hex")}`;
   const memoryId = `option_d_mem_${crypto.randomBytes(6).toString("hex")}`;
 
+  async function withSavepoint(probeId, fn) {
+    const sp = `sp_${probeId.replace(/[^a-z0-9_]/gi, "_").slice(0, 40)}`;
+    await client.query(`SAVEPOINT ${sp}`);
+    try {
+      return await fn();
+    } finally {
+      try {
+        await client.query(`ROLLBACK TO SAVEPOINT ${sp}`);
+        await client.query(`RELEASE SAVEPOINT ${sp}`);
+      } catch (recoveryErr) {
+        // Outer ROLLBACK will still run; surface recovery failure on probe record later.
+        return {
+          recoveryFailed: true,
+          recoveryError: String(recoveryErr.message || recoveryErr).slice(0, 200),
+        };
+      }
+    }
+  }
+
+  async function runExpectedFailureProbe({ id, mutateSql, mutateParams, assertUnchanged }) {
+    const expectation = PROBE_EXPECTATIONS[id];
+    const result = {
+      id,
+      expectedRejected: true,
+      rejected: false,
+      rejectedByImmutabilityRule: false,
+      preconditionMet: false,
+      rowUnchangedAfter: false,
+      fixtureCleanupConfirmed: false,
+      sqlState: null,
+      classifyReason: null,
+      errorMessage: null,
+    };
+
+    const savepointOutcome = await withSavepoint(id, async () => {
+      try {
+        await client.query(mutateSql, mutateParams);
+        return { threw: false };
+      } catch (err) {
+        const classified = classifyProbeError(err, expectation);
+        return {
+          threw: true,
+          sqlState: classified.sqlState,
+          classifyReason: classified.reason,
+          intended: classified.intendedImmutabilityRejection,
+          errorMessage: classified.message,
+        };
+      }
+    });
+
+    if (savepointOutcome && savepointOutcome.recoveryFailed) {
+      result.classifyReason = "savepoint_recovery_failed";
+      result.errorMessage = savepointOutcome.recoveryError;
+      probes.push(result);
+      return result;
+    }
+
+    if (!savepointOutcome || !savepointOutcome.threw) {
+      result.rejected = false;
+      result.rejectedByImmutabilityRule = false;
+      result.classifyReason = "mutation_succeeded";
+    } else {
+      result.rejected = true;
+      result.sqlState = savepointOutcome.sqlState;
+      result.classifyReason = savepointOutcome.classifyReason;
+      result.errorMessage = savepointOutcome.errorMessage;
+      result.rejectedByImmutabilityRule = savepointOutcome.intended === true;
+    }
+
+    try {
+      result.rowUnchangedAfter = await assertUnchanged();
+    } catch {
+      result.rowUnchangedAfter = false;
+    }
+
+    probes.push(result);
+    return result;
+  }
+
   await client.query("BEGIN");
-  let cleanupConfirmed = false;
   try {
     await client.query(
       `INSERT INTO public.companies (id, name)
@@ -339,88 +558,69 @@ async function runImmutabilityBehavioralProbes(client) {
       [snapshotId, companyId],
     );
 
-    // SI finalized metadata UPDATE must fail
+    const siPre = await client.query(
+      `SELECT snapshot_status, tenant_name
+         FROM public.si_historical_snapshots WHERE snapshot_id = $1`,
+      [snapshotId],
+    );
+    const payloadPre = await client.query(
+      `SELECT payload_hash FROM public.si_snapshot_payloads WHERE snapshot_id = $1`,
+      [snapshotId],
+    );
+    const siReady =
+      siPre.rows[0]?.snapshot_status === "finalized" &&
+      siPre.rows[0]?.tenant_name === "probe" &&
+      payloadPre.rows[0]?.payload_hash === "probe-hash";
+
+    const assertSiUnchanged = async () => {
+      const r = await client.query(
+        `SELECT snapshot_status, tenant_name
+           FROM public.si_historical_snapshots WHERE snapshot_id = $1`,
+        [snapshotId],
+      );
+      return (
+        r.rows.length === 1 &&
+        r.rows[0].snapshot_status === "finalized" &&
+        r.rows[0].tenant_name === "probe"
+      );
+    };
+    const assertPayloadUnchanged = async () => {
+      const r = await client.query(
+        `SELECT payload_hash FROM public.si_snapshot_payloads WHERE snapshot_id = $1`,
+        [snapshotId],
+      );
+      return r.rows.length === 1 && r.rows[0].payload_hash === "probe-hash";
+    };
+
     {
-      const id = "si_finalized_metadata_update_rejected";
-      try {
-        await client.query(
-          `UPDATE public.si_historical_snapshots
-              SET tenant_name = 'mutated'
-            WHERE snapshot_id = $1`,
-          [snapshotId],
-        );
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: false,
-          errorMessage: null,
-          fixtureCleanupConfirmed: false,
-        });
-      } catch (err) {
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: true,
-          errorMessage: String(err.message || err).slice(0, 200),
-          fixtureCleanupConfirmed: false,
-        });
-      }
+      const p = await runExpectedFailureProbe({
+        id: "si_finalized_metadata_update_rejected",
+        mutateSql: `UPDATE public.si_historical_snapshots SET tenant_name = 'mutated' WHERE snapshot_id = $1`,
+        mutateParams: [snapshotId],
+        assertUnchanged: assertSiUnchanged,
+      });
+      p.preconditionMet = siReady;
+    }
+    {
+      const p = await runExpectedFailureProbe({
+        id: "si_finalized_metadata_delete_rejected",
+        mutateSql: `DELETE FROM public.si_historical_snapshots WHERE snapshot_id = $1`,
+        mutateParams: [snapshotId],
+        assertUnchanged: assertSiUnchanged,
+      });
+      p.preconditionMet = siReady;
+    }
+    {
+      const p = await runExpectedFailureProbe({
+        id: "si_locked_payload_update_rejected",
+        mutateSql: `UPDATE public.si_snapshot_payloads SET payload_hash = 'mutated' WHERE snapshot_id = $1`,
+        mutateParams: [snapshotId],
+        assertUnchanged: assertPayloadUnchanged,
+      });
+      p.preconditionMet = siReady;
     }
 
-    // SI finalized metadata DELETE must fail
-    {
-      const id = "si_finalized_metadata_delete_rejected";
-      try {
-        await client.query(
-          `DELETE FROM public.si_historical_snapshots WHERE snapshot_id = $1`,
-          [snapshotId],
-        );
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: false,
-          errorMessage: null,
-          fixtureCleanupConfirmed: false,
-        });
-      } catch (err) {
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: true,
-          errorMessage: String(err.message || err).slice(0, 200),
-          fixtureCleanupConfirmed: false,
-        });
-      }
-    }
-
-    // SI locked payload UPDATE must fail
-    {
-      const id = "si_locked_payload_update_rejected";
-      try {
-        await client.query(
-          `UPDATE public.si_snapshot_payloads
-              SET payload_hash = 'mutated'
-            WHERE snapshot_id = $1`,
-          [snapshotId],
-        );
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: false,
-          errorMessage: null,
-          fixtureCleanupConfirmed: false,
-        });
-      } catch (err) {
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: true,
-          errorMessage: String(err.message || err).slice(0, 200),
-          fixtureCleanupConfirmed: false,
-        });
-      }
-    }
-
+    // Memory fixture inserted after SI probes — transaction must still be usable.
     await client.query(
       `INSERT INTO public.company_memory_records (
          memory_id, memory_group_id, memory_key, record_version,
@@ -432,80 +632,67 @@ async function runImmutabilityBehavioralProbes(client) {
       [memoryId, companyId],
     );
 
-    // Memory immutable field UPDATE must fail
-    {
-      const id = "memory_immutable_field_update_rejected";
-      try {
-        await client.query(
-          `UPDATE public.company_memory_records
-              SET payload = '{"mutated":true}'::jsonb
-            WHERE memory_id = $1`,
-          [memoryId],
-        );
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: false,
-          errorMessage: null,
-          fixtureCleanupConfirmed: false,
-        });
-      } catch (err) {
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: true,
-          errorMessage: String(err.message || err).slice(0, 200),
-          fixtureCleanupConfirmed: false,
-        });
-      }
-    }
+    const memPre = await client.query(
+      `SELECT persistence_status, payload::text AS payload
+         FROM public.company_memory_records WHERE memory_id = $1`,
+      [memoryId],
+    );
+    const memReady =
+      memPre.rows[0]?.persistence_status === "persisted" &&
+      memPre.rows[0]?.payload === "{}";
 
-    // Memory DELETE must fail
+    const assertMemUnchanged = async () => {
+      const r = await client.query(
+        `SELECT persistence_status, payload::text AS payload
+           FROM public.company_memory_records WHERE memory_id = $1`,
+        [memoryId],
+      );
+      return (
+        r.rows.length === 1 &&
+        r.rows[0].persistence_status === "persisted" &&
+        r.rows[0].payload === "{}"
+      );
+    };
+
     {
-      const id = "memory_delete_rejected";
-      try {
-        await client.query(
-          `DELETE FROM public.company_memory_records WHERE memory_id = $1`,
-          [memoryId],
-        );
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: false,
-          errorMessage: null,
-          fixtureCleanupConfirmed: false,
-        });
-      } catch (err) {
-        probes.push({
-          id,
-          expectedRejected: true,
-          rejected: true,
-          errorMessage: String(err.message || err).slice(0, 200),
-          fixtureCleanupConfirmed: false,
-        });
-      }
+      const p = await runExpectedFailureProbe({
+        id: "memory_immutable_field_update_rejected",
+        mutateSql: `UPDATE public.company_memory_records SET payload = '{"mutated":true}'::jsonb WHERE memory_id = $1`,
+        mutateParams: [memoryId],
+        assertUnchanged: assertMemUnchanged,
+      });
+      p.preconditionMet = memReady;
+    }
+    {
+      const p = await runExpectedFailureProbe({
+        id: "memory_delete_rejected",
+        mutateSql: `DELETE FROM public.company_memory_records WHERE memory_id = $1`,
+        mutateParams: [memoryId],
+        assertUnchanged: assertMemUnchanged,
+      });
+      p.preconditionMet = memReady;
     }
   } finally {
     await client.query("ROLLBACK");
-    cleanupConfirmed = true;
-    for (const p of probes) {
-      p.fixtureCleanupConfirmed = cleanupConfirmed;
-    }
   }
 
-  // Confirm fixtures are gone after rollback
+  // Explicit cleanup verification for company, snapshot, payload, and Memory rows
   const left = await client.query(
     `SELECT
-       (SELECT count(*)::int FROM public.si_historical_snapshots WHERE snapshot_id = $1) AS si_left,
-       (SELECT count(*)::int FROM public.company_memory_records WHERE memory_id = $2) AS mem_left`,
-    [snapshotId, memoryId],
+       (SELECT count(*)::int FROM public.companies WHERE id = $1::uuid) AS company_left,
+       (SELECT count(*)::int FROM public.si_historical_snapshots WHERE snapshot_id = $2) AS si_left,
+       (SELECT count(*)::int FROM public.si_snapshot_payloads WHERE snapshot_id = $2) AS payload_left,
+       (SELECT count(*)::int FROM public.company_memory_records WHERE memory_id = $3) AS mem_left`,
+    [companyId, snapshotId, memoryId],
   );
-  const leftovers =
-    (left.rows[0]?.si_left || 0) + (left.rows[0]?.mem_left || 0);
-  if (leftovers > 0) {
-    for (const p of probes) {
-      p.fixtureCleanupConfirmed = false;
-    }
+  const cleanupOk =
+    (left.rows[0]?.company_left || 0) === 0 &&
+    (left.rows[0]?.si_left || 0) === 0 &&
+    (left.rows[0]?.payload_left || 0) === 0 &&
+    (left.rows[0]?.mem_left || 0) === 0;
+
+  for (const p of probes) {
+    p.fixtureCleanupConfirmed = cleanupOk;
   }
 
   return probes;
@@ -582,6 +769,9 @@ module.exports = {
   REQUIRED_IMMUTABILITY_TRIGGERS,
   REQUIRED_BEHAVIORAL_PROBES,
   REQUIRED_FUNCTIONS,
+  PROBE_EXPECTATIONS,
+  NON_IMMUTABILITY_SQLSTATES,
+  classifyProbeError,
   evaluateFinalSchemaRls,
   evaluateViewSecurity,
   evaluateImmutabilityTriggers,
