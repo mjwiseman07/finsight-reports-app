@@ -1,13 +1,34 @@
-import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { describe, expect, it } from "vitest";
 
 const ROOT = path.resolve(__dirname, "../..");
 const BASELINE = path.join(ROOT, "supabase/migrations-draft/20260701043599_foundations_baseline.sql");
 const GENERATOR = path.join(ROOT, "scripts/migration-remediation/generate-foundations-baseline.js");
 const MAPPING = path.join(ROOT, "docs/migration-remediation/migration-mapping.json");
 const PROD = path.join(ROOT, "docs/migration-remediation/evidence/production-migrations.json");
+const PHASE1_MANIFEST = path.join(ROOT, "docs/migration-remediation/evidence/phase1/provenance-manifest.json");
+const PHASE1_DIR = path.join(ROOT, "supabase/migrations-draft/recovered-production-history");
+const DEPS = path.join(ROOT, "docs/migration-remediation/phase1-dependency-analysis.json");
+
+const EXPECTED_PHASE1_MD5: Record<string, string> = {
+  "20260701043602": "5992414bde50c4562925b60361721b44",
+  "20260701043707": "60a5d243a32814c9975bd0e1b90e6cee",
+  "20260701043911": "6d7ed2de4528c1380dcb0221fc14af39",
+  "20260701043931": "d13c0dc54794fe2f0d47dfa43c86ad3e",
+};
+
+function sqlBodyFromRecoveredFile(filePath: string): string {
+  const text = fs.readFileSync(filePath, "utf8");
+  const idx = text.indexOf("\n\n");
+  return idx >= 0 ? text.slice(idx + 2) : text;
+}
+
+function md5Utf8(text: string): string {
+  return createHash("md5").update(text, "utf8").digest("hex");
+}
 
 describe("migration remediation review gate", () => {
   it("baseline draft exists and is non-empty", () => {
@@ -23,8 +44,10 @@ describe("migration remediation review gate", () => {
   });
 
   it("baseline lives outside supabase/migrations (non-deployable)", () => {
-    const deployable = path.join(ROOT, "supabase/migrations/20260701043599_foundations_baseline.sql");
-    expect(fs.existsSync(deployable)).toBe(false);
+    expect(fs.existsSync(path.join(ROOT, "supabase/migrations/20260701043599_foundations_baseline.sql"))).toBe(false);
+    for (const f of fs.readdirSync(PHASE1_DIR)) {
+      expect(fs.existsSync(path.join(ROOT, "supabase/migrations", f))).toBe(false);
+    }
   });
 
   it("migration mapping math is consistent", () => {
@@ -32,21 +55,60 @@ describe("migration remediation review gate", () => {
     expect(mapping.mathCheck.localSum).toBe(mapping.counts.local);
     expect(mapping.mathCheck.prodSum).toBe(mapping.counts.production);
     expect(mapping.counts.exactVersionMatch).toBe(0);
-    expect(mapping.phase1ProdOnly).toHaveLength(4);
+    expect(mapping.phase1Recovered).toHaveLength(4);
   });
 
   it("production history starts at phase1", () => {
     const prod = JSON.parse(fs.readFileSync(PROD, "utf8"));
     expect(prod[0].version).toBe("20260701043602");
-    expect(prod[0].name).toBe("phase1_subscriptions_core");
     expect(prod.length).toBe(185);
   });
 
+  it("recovered phase1 SQL MD5 matches production metadata (UTF-8)", () => {
+    const manifest = JSON.parse(fs.readFileSync(PHASE1_MANIFEST, "utf8"));
+    expect(manifest.migrations).toHaveLength(4);
+    expect(manifest.contains_data_rows).toBe(false);
+    for (const row of manifest.migrations) {
+      const file = path.join(PHASE1_DIR, row.filename);
+      expect(fs.existsSync(file)).toBe(true);
+      const body = sqlBodyFromRecoveredFile(file);
+      expect(md5Utf8(body)).toBe(EXPECTED_PHASE1_MD5[row.version]);
+      expect(row.database_md5_utf8).toBe(EXPECTED_PHASE1_MD5[row.version]);
+      expect(row.statement_count).toBe(1);
+    }
+  });
+
+  it("baseline excludes production backfills and operational UPDATEs", () => {
+    const sql = fs.readFileSync(BASELINE, "utf8");
+    expect(sql).not.toMatch(/^update\s+public\./im);
+    expect(sql).not.toContain("quickbooks_connections");
+    expect(sql).toContain("BASELINE_OMIT");
+    expect(sql).not.toMatch(/>>> SOURCE: 20260531_backfill_accounting_connections/);
+  });
+
+  it("baseline has single outer transaction wrapper", () => {
+    const sql = fs.readFileSync(BASELINE, "utf8");
+    const begins = (sql.match(/^\s*BEGIN\s*;/gim) ?? []).length;
+    const commits = (sql.match(/^\s*COMMIT\s*;/gim) ?? []).length;
+    expect(begins).toBe(1);
+    expect(commits).toBe(1);
+  });
+
+  it("phase1 dependency analysis documents RLS exposure window", () => {
+    const deps = JSON.parse(fs.readFileSync(DEPS, "utf8"));
+    expect(deps.rlsExposureWindow.tablesExposedWithoutRlsBetweenMigrations.after_migration_1).toContain(
+      "subscriptions",
+    );
+    expect(deps.foundationPrerequisites.every((p: { inBaseline: boolean }) => p.inBaseline)).toBe(true);
+    expect(deps.seedAssumptions.phase1_sql_contains_insert).toBe(false);
+  });
+
   it("baseline static scan has no error-severity findings", () => {
-    const scanPath = path.join(ROOT, "docs/migration-remediation/baseline-static-scan.json");
-    expect(fs.existsSync(scanPath)).toBe(true);
-    const scan = JSON.parse(fs.readFileSync(scanPath, "utf8"));
+    const scan = JSON.parse(
+      fs.readFileSync(path.join(ROOT, "docs/migration-remediation/baseline-static-scan.json"), "utf8"),
+    );
     expect(scan.findingsBySeverity.error).toHaveLength(0);
+    expect(scan.disallowedInsertTargets).toEqual([]);
   });
 
   it("remediation package passes secret scan", () => {

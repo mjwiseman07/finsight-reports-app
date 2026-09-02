@@ -66,6 +66,15 @@ function main() {
     productionLast: prod[prod.length - 1],
     duplicateProductionVersions: [...new Set(dupProd)],
     phase1ProdOnly: prodOnly.filter((p) => p.name.startsWith('phase1_')),
+    phase1Recovered: prodOnly
+      .filter((p) => p.name.startsWith('phase1_'))
+      .map((p) => ({
+        version: p.version,
+        name: p.name,
+        provenance: 'FETCHED_PRODUCTION_READ_ONLY',
+        evidenceFile: `supabase/migrations-draft/recovered-production-history/${p.version}_${p.name}.sql`,
+        recovered: true,
+      })),
     localOnlyPrePhase1: localOnly.filter((m) => m.version < '20260701043602').map((m) => m.filename),
     semanticDriftSample: semanticPairs.slice(0, 15),
     mathCheck: {

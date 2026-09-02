@@ -1,64 +1,78 @@
-# Rollout and rollback runbook (DRAFT — do not execute without approval)
+# Fail-closed rollout plan (DRAFT — do not execute)
 
-## Preconditions
+## Approval gates (sequential, independent sign-off each)
 
-- [ ] Independent schema/security sign-off on remediation PR
-- [ ] Phase1 SQL recovered via isolated `migration fetch` (provenance labeled)
-- [ ] Production schema diff: baseline DDL vs `information_schema` (read-only)
-- [ ] Local empty-DB replay passes (Docker required)
-- [ ] GitHub integration configured for preview branches
-- [ ] PR #312 remains separate
+| Gate | Scope | Blocker until |
+|------|-------|---------------|
+| **G1** Baseline + phase1 schema sign-off | Hardened baseline draft + recovered phase1 evidence vs production `information_schema` | Schema diff complete |
+| **G2** Local clean replay | Docker `supabase start` + apply baseline + phase1 + lineage | Docker unavailable today |
+| **G3** New data-less preview branch | Dashboard or GitHub-integrated replay on empty DB | G1 + G2 |
+| **G4** Production migration recording | Execute/assert baseline on prod OR squash workflow | G3 pass |
+| **G5** Production post-checks | Advisors, spot schema diff, no drift | G4 complete |
+| **G6** Rollback/recovery verified | Documented revert path tested | Before G4 |
 
-## Phase 1 — Evidence (read-only)
+**Never copy production data to preview branches.**
 
-```bash
-npx supabase login
-# Isolated fetch — see phase1-provenance.md
-```
+---
 
-## Phase 2 — Promote draft to executable migrations (remediation PR merge)
+## Proven branch-replay facts (from recovered evidence)
 
-1. Harden `migrations-draft/20260701043599_foundations_baseline.sql`.
-2. Add recovered phase1 files to `supabase/migrations/` with **production timestamps**.
-3. Reconcile remaining timestamp drift (separate commits; out of scope for initial gate).
-4. **Do not** place files in `supabase/migrations/` until this review PR merges.
+1. `schema_migrations` has columns: `version`, `name`, **`statements text[]`**
+2. Each recovered phase1 migration = **exactly 1 stored SQL statement**
+3. Dashboard branches replay **stored statements** from production history
+4. `migration repair --status applied` = **tracking only**, no SQL execution
+5. Repair-only baseline **cannot** supply runnable SQL for dashboard replay
 
-## Phase 3 — Production (requires explicit approval; guarded)
+---
 
-> **WARNING:** `migration repair` alone does not execute SQL and may not populate `statements[]`. Dashboard preview branches will not replay repair-only rows.
+## Rollout options (choose at G4 — not now)
 
-**Option 3a — Idempotent apply (preferred if supported):**
+| Option | Production SQL executes? | Records `statements[]`? | Risk |
+|--------|-------------------------|------------------------|------|
+| **A.** Idempotent baseline apply on prod | Yes (must be true no-op) | Yes | Medium — needs diff proof |
+| **B.** Official squash/baseline | Yes (squash) | Yes | High — history surgery |
+| **C.** GitHub-integrated previews only | No (previews use git) | N/A for previews | Low for previews; prod separate |
+| **D.** Supabase Support history repair | Unknown | Must verify | Escalation path |
 
-1. Deploy baseline migration through controlled `db push` / CI with dry-run.
-2. Verify idempotent DDL is no-op on production objects.
-3. Confirm `schema_migrations` row includes `statements` array.
+Mark A/B as **destructive/high-risk** requiring DBA + on-call approval.
 
-**Option 3b — Squash workflow:**
+---
 
-1. Migration freeze window.
-2. `supabase migration squash` per official docs.
-3. Verify production + history parity.
+## Phase 1 — Evidence (COMPLETE for phase1 SQL)
 
-**Do not run without on-call DBA approval.**
+- [x] Recovered 4 phase1 bodies with MD5 verification
+- [ ] Isolated `migration fetch` full chain (185 rows)
+- [ ] Read-only production schema diff
 
-## Phase 4 — Preview verification (after Phase 3)
+## Phase 2 — Promote to `supabase/migrations/` (after G1)
 
-1. Create **new** data-less Supabase preview branch (GitHub-integrated).
-2. Confirm all migrations apply; RLS enabled on public tables.
-3. Run JE-3A Postgres integration gate (PR #312 branch, separate step).
+1. Hardened `20260701043599_foundations_baseline.sql`
+2. Recovered phase1 files (exact production text)
+3. Timestamp reconciliation for remaining 106 drift pairs (separate effort)
+
+## Phase 3 — Production (G4 only)
+
+> **WARNING:** Do not run `migration repair` alone for baseline.
+
+## Phase 4 — Preview verification (G3)
+
+1. Create new data-less branch (`with_data=false`)
+2. Confirm full replay through JE stack
+3. RLS enabled on all public subscription tables
+4. PR #312 Postgres gate (separate PR)
 
 ## Rollback
 
-| Step | Action |
-|------|--------|
-| Git | Revert remediation merge |
-| History | `migration repair <version> --status reverted` only with schema proof |
-| Schema | Production schema unchanged if baseline was true no-op |
-| Previews | Delete failed preview branches |
+| Action | When |
+|--------|------|
+| Revert remediation PR merge | Before G4 |
+| `migration repair --status reverted` | Only with schema proof |
+| Delete failed preview branch | Any time |
 
-## Explicitly forbidden without new approval
+---
 
-- `migration repair` without runnable SQL proof for dashboard branches
-- Manual table creation on previews
-- `db push --include-all` on partial databases
-- Copying production data to previews
+## Current blockers
+
+- [ ] G1: Production schema diff (needs authenticated readonly DB)
+- [ ] G2: Docker local replay
+- [ ] G3: Cannot create preview branch until G1+G2 sign-off

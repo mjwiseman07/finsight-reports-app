@@ -1,6 +1,6 @@
 {
-  "bytes": 111608,
-  "lineCount": 2921,
+  "bytes": 107485,
+  "lineCount": 2770,
   "createTableCount": 42,
   "rlsEnableCount": 36,
   "tablesMissingRls": [
@@ -15,69 +15,39 @@
     "pgcrypto": 12
   },
   "duplicateCreateTable": [],
-  "disallowedInsertTargets": [
-    "accounting_connections"
-  ],
+  "disallowedInsertTargets": [],
   "findingsBySeverity": {
     "error": [],
     "warn": [
       {
         "severity": "warn",
         "rule": "nested_begin",
-        "line": 47,
+        "line": 53,
         "text": "BEGIN;",
         "message": "nested BEGIN"
       },
       {
         "severity": "warn",
-        "rule": "update_set",
-        "line": 1459,
-        "text": "update public.accounting_syncs",
-        "message": "UPDATE on public table"
-      },
-      {
-        "severity": "warn",
-        "rule": "update_set",
-        "line": 1477,
-        "text": "update public.accounting_syncs",
-        "message": "UPDATE on public table"
-      },
-      {
-        "severity": "warn",
         "rule": "nested_commit",
-        "line": 2920,
+        "line": 2769,
         "text": "COMMIT;",
         "message": "nested COMMIT"
       }
     ],
-    "info": 58
+    "info": 55
   },
   "findings": [
     {
       "severity": "warn",
       "rule": "nested_begin",
-      "line": 47,
+      "line": 53,
       "text": "BEGIN;",
       "message": "nested BEGIN"
     },
     {
       "severity": "warn",
-      "rule": "update_set",
-      "line": 1459,
-      "text": "update public.accounting_syncs",
-      "message": "UPDATE on public table"
-    },
-    {
-      "severity": "warn",
-      "rule": "update_set",
-      "line": 1477,
-      "text": "update public.accounting_syncs",
-      "message": "UPDATE on public table"
-    },
-    {
-      "severity": "warn",
       "rule": "nested_commit",
-      "line": 2920,
+      "line": 2769,
       "text": "COMMIT;",
       "message": "nested COMMIT"
     }

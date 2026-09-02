@@ -1,46 +1,41 @@
-# Security and RLS review — foundations baseline draft
+# Security and RLS review — foundations baseline + recovered phase1
 
-**Scope:** `supabase/migrations-draft/20260701043599_foundations_baseline.sql`  
-**Production comparison:** BLOCKED (no authenticated read-only DB URL in this session)
+**Updated:** 2026-09-01
 
-## Static scan summary
-
-See `baseline-static-scan.json`.
+## Baseline draft (hardened)
 
 | Check | Result |
 |-------|--------|
-| DROP TABLE / TRUNCATE / DISABLE RLS | **0** |
-| Nested BEGIN/COMMIT | **Warn** — outer wrapper + source file transactions |
-| Data UPDATE | **Warn** — `accounting_syncs` status normalization (2 statements) |
-| Data INSERT | **Warn** — `accounting_connections` backfill + `company_roles` seed |
-| SECURITY DEFINER | **0** in baseline (good) |
-| `auth.uid()` / JWT metadata in policies | **Expected** — tenant isolation pattern |
-| Storage / Vault refs | **0** |
+| DROP / TRUNCATE / DISABLE RLS | 0 |
+| Production backfills removed | Yes (`accounting_connections` INSERT, `accounting_syncs` UPDATE) |
+| Reference data allowlist | `company_roles` seed only |
+| Single outer BEGIN/COMMIT | Yes |
+| SECURITY DEFINER in baseline | 0 |
 
-## RLS coverage
+## Recovered phase1 RLS model (production-recorded)
 
-- 42 `CREATE TABLE` statements; 36+ `ENABLE ROW LEVEL SECURITY` (including `alter table if exists` for company_memory — scanner undercounts).
-- **Failed preview branch (deleted):** `subscriptions`, `subscription_items`, `stripe_webhook_events` existed **without RLS** after partial replay — confirms migration failure leaves exposed tables until replay completes or branch is deleted.
+| Migration | RLS state |
+|-----------|-----------|
+| `20260701043602` subscriptions_core | Tables created, **RLS off** |
+| `20260701043707` seats_and_entitlements | +2 tables, **RLS off** |
+| `20260701043911` backward_compat_view | View only |
+| `20260701043931` entitlement_rls_policies | **RLS enabled** on 5 tables |
+
+### Exposure window
+
+Between migrations 1–3, subscription domain tables are in `public` **without RLS**. This matches the deleted preview branch failure (migration #1 only → 3 exposed tables).
+
+Policies in migration 4:
+- `subscriptions`, `subscription_items`, `entitlements`: member SELECT via `firm_memberships` / `company_users`
+- `subscription_seats`: firm member OR seated company member
+- `stripe_webhook_events`: RLS on, **no policies** → service_role only (correct for webhook ledger)
+
+No `SECURITY DEFINER` functions in phase1 recovered SQL. `tg_set_updated_at` is `plpgsql` invoker (trigger function).
 
 ## Patent #6
 
-Baseline predates `ledger_events`, `ledger_chain_head`, `publish_ledger_event`, and JE RPC stack. No regression from baseline draft alone.
+Phase1 predates `ledger_events` / JE stack. No regression from recovered evidence.
 
-Post-baseline production migrations must retain:
+## Production diff
 
-- `q8c` execute revokes on `publish_ledger_event`
-- `SECURITY DEFINER` + `SET search_path = public` on JE reservation RPCs
-- Append-only `ledger_events` triggers
-
-## Required hardening before promotion
-
-1. **Remove** `20260531_backfill_accounting_connections_from_quickbooks.sql` body from baseline (production-specific DML).
-2. **Remove or guard** `accounting_syncs` UPDATE normalization for empty-DB replay.
-3. **Flatten** transaction boundaries (single BEGIN/COMMIT).
-4. **Split** reference data (`company_roles` seed) into explicit `REFERENCE_DATA` section or separate seed file excluded from production repair path.
-5. **Prove** RLS on every public table via post-apply advisor scan on local replay.
-
-## Authorization patterns
-
-- Policies use `auth.uid()` and `auth.jwt()` metadata — standard Supabase pattern; not provider-success authority.
-- Super-admin policies use JWT role claims — verify against production policy set during schema diff.
+Still **BLOCKED** — requires authenticated read-only schema comparison.

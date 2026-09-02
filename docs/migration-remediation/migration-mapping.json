@@ -39,6 +39,36 @@
       "name": "phase1_entitlement_rls_policies"
     }
   ],
+  "phase1Recovered": [
+    {
+      "version": "20260701043602",
+      "name": "phase1_subscriptions_core",
+      "provenance": "FETCHED_PRODUCTION_READ_ONLY",
+      "evidenceFile": "supabase/migrations-draft/recovered-production-history/20260701043602_phase1_subscriptions_core.sql",
+      "recovered": true
+    },
+    {
+      "version": "20260701043707",
+      "name": "phase1_subscription_seats_and_entitlements",
+      "provenance": "FETCHED_PRODUCTION_READ_ONLY",
+      "evidenceFile": "supabase/migrations-draft/recovered-production-history/20260701043707_phase1_subscription_seats_and_entitlements.sql",
+      "recovered": true
+    },
+    {
+      "version": "20260701043911",
+      "name": "phase1_backward_compat_view",
+      "provenance": "FETCHED_PRODUCTION_READ_ONLY",
+      "evidenceFile": "supabase/migrations-draft/recovered-production-history/20260701043911_phase1_backward_compat_view.sql",
+      "recovered": true
+    },
+    {
+      "version": "20260701043931",
+      "name": "phase1_entitlement_rls_policies",
+      "provenance": "FETCHED_PRODUCTION_READ_ONLY",
+      "evidenceFile": "supabase/migrations-draft/recovered-production-history/20260701043931_phase1_entitlement_rls_policies.sql",
+      "recovered": true
+    }
+  ],
   "localOnlyPrePhase1": [
     "20260529_create_audit_logs.sql",
     "20260529_create_background_jobs.sql",

@@ -1,53 +1,75 @@
 # Phase1 migration SQL provenance
 
-**Status:** NOT RECOVERED in this review gate.
+**Status:** RECOVERED (read-only `schema_migrations` metadata, 2026-09-01)
 
-| Production version | Name | Git | Fetch | Provenance |
-|------------------:|------|-----|-------|------------|
-| `20260701043602` | `phase1_subscriptions_core` | **Absent** | **Blocked** (CLI auth) | Unknown |
-| `20260701043707` | `phase1_subscription_seats_and_entitlements` | **Absent** | **Blocked** | Unknown |
-| `20260701043911` | `phase1_backward_compat_view` | **Absent** | **Blocked** | Unknown |
-| `20260701043931` | `phase1_entitlement_rls_policies` | **Absent** | **Blocked** | Unknown |
+## Recovered migrations
 
-## Evidence
+| Version | Name | Database MD5 (UTF-8 SQL body) | Statements | Provenance file |
+|---------|------|-------------------------------|------------|-----------------|
+| `20260701043602` | `phase1_subscriptions_core` | `5992414bde50c4562925b60361721b44` | 1 | `supabase/migrations-draft/recovered-production-history/20260701043602_phase1_subscriptions_core.sql` |
+| `20260701043707` | `phase1_subscription_seats_and_entitlements` | `60a5d243a32814c9975bd0e1b90e6cee` | 1 | `.../20260701043707_phase1_subscription_seats_and_entitlements.sql` |
+| `20260701043911` | `phase1_backward_compat_view` | `6d7ed2de4528c1380dcb0221fc14af39` | 1 | `.../20260701043911_phase1_backward_compat_view.sql` |
+| `20260701043931` | `phase1_entitlement_rls_policies` | `d13c0dc54794fe2f0d47dfa43c86ad3e` | 1 | `.../20260701043931_phase1_entitlement_rls_policies.sql` |
 
-- `git log --all -- "**/phase1_*"` → empty (never committed).
-- Track C application code references these migrations by name only.
-- `tests/entitlements/subscription-sync-schema-contract.test.ts` captures **column lists** from production `information_schema` — not DDL.
+Manifest: `docs/migration-remediation/evidence/phase1/provenance-manifest.json`
 
-## Reconstructed schema hints (NOT original SQL)
+**Hash note:** Database MD5s match UTF-8 LF line endings. CRLF normalization produces different hashes (documented in manifest verification tests).
 
-From application contracts — **do not treat as migration bodies**:
+## Source
 
-### `subscriptions` columns
+- Project ref: `jzmdgwwiestcmmeuhhkr`
+- Table: `supabase_migrations.schema_migrations`
+- Mode: read-only metadata query
+- `contains_data_rows`: false
+- `contains_credentials`: false
 
-`id`, `subscriber_type`, `subscriber_id`, `stripe_customer_id`, `stripe_subscription_id`, `status`, `current_period_start`, `current_period_end`, `cancel_at_period_end`, `canceled_at`, `trial_start`, `trial_end`, `metadata`, `created_at`, `updated_at`, `first_paid_charge_at`
+## Phase1 dependency findings (from recovered SQL)
 
-### `subscription_items` columns
+### Migration 1 — `phase1_subscriptions_core`
 
-`id`, `subscription_id`, `stripe_subscription_item_id`, `stripe_price_id`, `tier_key`, `lookup_key`, `track`, `cadence`, `quantity`, `metered`, `is_addon`, `created_at`, `updated_at`
+Creates: `subscriptions`, `subscription_items`, `stripe_webhook_events`  
+External deps: **none** (polymorphic `subscriber_id` uuid, no FK to firms/companies)  
+RLS: **not enabled**
 
-### `entitlements` columns
+### Migration 2 — `phase1_subscription_seats_and_entitlements`
 
-`subscriber_type`, `subscriber_id`, `active_tier_keys`, `primary_tier_key`, `flags`, `seat_limit`, `active_seat_count`, `is_metered_seats`, `status`, `trial_end`, `current_period_end`, `computed_at`
+Creates: `subscription_seats`, `entitlements`, `tg_set_updated_at` + triggers  
+External deps: **`public.firms(id)`**, **`public.companies(id)`** — **requires foundation baseline**  
+RLS: **not enabled**
 
-### `subscription_seats` (from `lib/seat-management.js`)
+### Migration 3 — `phase1_backward_compat_view`
 
-`subscription_item_id`, `firm_id`, `company_id`, `active`, `activated_at`, `billing_period_anchor`, `stripe_usage_event_id`; partial unique `uq_subscription_seats_active_company`.
+Creates: `company_billing_compat` view  
+External deps: `companies` (`practice_id`, `package_level`, `billing_status`), `entitlements`  
+RLS: N/A (view)
 
-## Recovery procedure (post-login, isolated)
+### Migration 4 — `phase1_entitlement_rls_policies`
 
-```bash
-# ISOLATED — do not overwrite repo supabase/migrations/
-mkdir ../supabase-fetch-isolated && cd ../supabase-fetch-isolated
-supabase init
-supabase link --project-ref jzmdgwwiestcmmeuhhkr
-supabase migration fetch --linked
-# Copy fetched 20260701043602_*.sql etc. to docs/migration-remediation/evidence/fetched/
-```
+Enables RLS + SELECT policies on all 5 phase1 tables  
+External deps: `firm_memberships`, `company_users`  
+`stripe_webhook_events`: RLS enabled, **no policies** (= service_role only)
 
-Label fetched files: `PROVENANCE=FETCHED_PRODUCTION_<timestamp>`.
+### RLS exposure window (production-recorded)
 
-## Placeholder evidence files
+| After migration | Tables without RLS |
+|-----------------|-------------------|
+| #1 only | `subscriptions`, `subscription_items`, `stripe_webhook_events` |
+| #2 only | above + `subscription_seats`, `entitlements` |
+| #4 complete | all protected |
 
-See `docs/migration-remediation/evidence/phase1/` — README only until fetch completes.
+Failed replay after migration #1 reproduces the deleted preview branch failure mode.
+
+### Foundation mapping (baseline draft)
+
+| Object | Local source | In hardened baseline |
+|--------|-------------|---------------------|
+| `firms` | `20260530_create_client_briefings.sql` | Yes |
+| `firm_memberships` | same | Yes |
+| `companies` | `20260530_create_company_accounts.sql` | Yes |
+| `company_users` | same | Yes |
+| `company_roles` | same (reference seed allowlisted) | Yes |
+| `practice_accounts` / `companies.practice_id` | `20260530_add_account_type_onboarding.sql` | Yes |
+
+## Not original SQL
+
+Nothing in this document is reconstructed DDL. All four bodies are exact recovered production `statements[1]` text verified by MD5.
