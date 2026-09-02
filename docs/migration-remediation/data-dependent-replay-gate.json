@@ -1,9 +1,37 @@
 {
-  "generatedAt": "2026-09-02T01:47:41.696Z",
-  "ok": true,
+  "generatedAt": "2026-09-02T01:59:33.080Z",
+  "replayTrack": "git_migrations_executable",
+  "ok": false,
+  "mergeReady": false,
   "violationCount": 4,
   "documentedBlockerCount": 4,
   "undocumentedViolations": [],
+  "blockingViolations": [
+    {
+      "filename": "20260703_2000_d6_2a_test_client_activation.sql",
+      "rule": "unconditional_fixture_firm_client_insert",
+      "prefix": "71111111-1111-4111-8111",
+      "snippet": "d, created_at, updated_at) values ('71111111-1111-4111-8111-111111111111', 'gen.subledger_tie_check', true,"
+    },
+    {
+      "filename": "20260703_2200_d6_2b_mfg_activation.sql",
+      "rule": "unconditional_fixture_firm_client_insert",
+      "prefix": "71111111-1111-4111-8111",
+      "snippet": "d, created_at, updated_at) values ('71111111-1111-4111-8111-111111111111', 'mfg.absorption_check', true, now(), now("
+    },
+    {
+      "filename": "20260703_2300_d6_2c_retail_activation.sql",
+      "rule": "unconditional_fixture_firm_client_insert",
+      "prefix": "71111111-1111-4111-8111",
+      "snippet": "d, created_at, updated_at) values ('71111111-1111-4111-8111-111111111111', 'rtl.cogs_recognition_check', true, now()"
+    },
+    {
+      "filename": "20260703_2400_d6_2d_ps_activation.sql",
+      "rule": "unconditional_fixture_firm_client_insert",
+      "prefix": "71111111-1111-4111-8111",
+      "snippet": "d, created_at, updated_at) values ('71111111-1111-4111-8111-111111111111', 'ps.bill_rate_variance_check', true, now("
+    }
+  ],
   "violations": [
     {
       "filename": "20260703_2000_d6_2a_test_client_activation.sql",
@@ -29,5 +57,7 @@
       "prefix": "71111111-1111-4111-8111",
       "snippet": "d, created_at, updated_at) values ('71111111-1111-4111-8111-111111111111', 'ps.bill_rate_variance_check', true, now("
     }
-  ]
+  ],
+  "remediationReference": "docs/migration-remediation/clean-replay-architecture.md",
+  "note": "Documented blockers still fail mergeReady until guarded SQL is promoted to supabase/migrations/ (git track) or production statements[] replaced at same version (dashboard track)."
 }

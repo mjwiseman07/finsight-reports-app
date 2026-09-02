@@ -49,12 +49,19 @@ describe("data-dependent clean replay gate", () => {
     expect(row?.cleanReplayPolicy).toBe("skip_on_empty_guarded");
   });
 
-  it("static replay gate passes with all fixture violations documented", () => {
-    execFileSync(process.execPath, [GATE_SCRIPT], { cwd: ROOT, stdio: "pipe" });
+  it("static replay gate fails merge readiness while executable blockers remain in git", () => {
+    try {
+      execFileSync(process.execPath, [GATE_SCRIPT], { cwd: ROOT, stdio: "pipe" });
+    } catch {
+      // Gate exits non-zero when mergeReady is false — expected until guarded SQL is promoted.
+    }
     const gate = JSON.parse(fs.readFileSync(GATE_JSON, "utf8"));
-    expect(gate.ok).toBe(true);
+    expect(gate.mergeReady).toBe(false);
+    expect(gate.ok).toBe(false);
+    expect(gate.blockingViolations.length).toBeGreaterThanOrEqual(4);
+    expect(gate.documentedBlockerCount).toBeGreaterThanOrEqual(4);
     expect(gate.undocumentedViolations).toHaveLength(0);
-    expect(gate.violationCount).toBeGreaterThanOrEqual(4);
+    expect(gate.remediationReference).toContain("clean-replay-architecture.md");
   });
 
   it("guarded d6_2a proposal uses firm_clients existence join", () => {

@@ -10,11 +10,19 @@ Root cause: unconditional `INSERT INTO client_active_rules` referencing fixture 
 
 **Do not** insert fake `firm_clients` rows to satisfy FKs. That would poison empty-branch replays and violate Patent #6 custody boundaries.
 
+## Critical architecture constraint (independent review P1)
+
+Dashboard branches replay **production-recorded `schema_migrations.statements[]`**, not git files alone. A guarded migration file with a **later filename cannot run before** the failing production statement at version `20260703182655`.
+
+See **`clean-replay-architecture.md`** for per-option evaluation (production statement replacement, squash, GitHub-integrated preview, isolated git replay).
+
+**Prior promotion path ("add guarded replacements under new filenames") is insufficient for dashboard track by itself.**
+
 ## Durable design (production history preserved)
 
-### Principle 1 — Never rewrite applied production `schema_migrations` rows
+### Principle 1 — Do not rewrite applied production rows without G4 approval
 
-Production-recorded SQL remains authoritative for G4 recording. Remediation applies to **future git lineage** and **replay classification**, not in-place history surgery.
+Production-recorded SQL remains authoritative for dashboard replay until an approved G4 workflow replaces `statements[]` **at the same version** or performs an official squash. Remediation applies to **git lineage promotion** and **replay classification** in parallel.
 
 ### Principle 2 — Split schema/reference from operational activation
 
@@ -46,21 +54,22 @@ Apply same pattern to `d6_2b`, `d6_2c`, `d6_2d`.
 
 ### Principle 4 — Replay tracks
 
-| Track | Purpose | Migrations |
-|-------|---------|------------|
-| **Clean schema replay** | CI, disposable branches, PR #312 Postgres gate | Schema + reference seed + guarded operational |
+| Track | Purpose | Mechanism to fix d6_2a |
+|-------|---------|------------------------|
+| **Dashboard production-history** | Disposable Supabase branches | Replace stored statement at `20260703182655` or squash (Option A/B) |
+| **Git clean schema replay** | CI, PR #312 Postgres gate | Promote guarded SQL into `supabase/migrations/` (Option C/D) |
 | **Production parity replay** | Prod recording verification | Full 185 including prod backfills |
 
-## Migrations requiring treatment (immediate blockers)
+## Migrations requiring treatment
 
-| Production version | Local file | Treatment |
-|--------------------|------------|-----------|
-| `20260703182655` | `d6_2a_test_client_activation` | Split + guard client INSERT |
-| `20260703184839` | `d6_2b_mfg_activation` | Registry UPDATE required; guard client INSERT |
-| `20260703190541` | `d6_2c_retail_activation` | Same |
-| `20260703192608` | `d6_2d_ps_activation` | Same |
-| `20260708051526` | `tcp1_w1_solo_bk_pilot_slots` | Guard or remove complimentary `pilot_slots` seed; schema required |
-| `20260814011547` | `accounting_canonical_connected_grant` | Classify prod-only; skip on clean replay |
+| Production version | Local file | Dashboard track | Git track |
+|--------------------|------------|-----------------|-----------|
+| `20260703182655` | `d6_2a_test_client_activation` | Replace stored statement | Promote guarded INSERT |
+| `20260703184839` | `d6_2b_mfg_activation` | Same | Guard client INSERT |
+| `20260703190541` | `d6_2c_retail_activation` | Same | Same |
+| `20260703192608` | `d6_2d_ps_activation` | Same | Same |
+| `20260708051526` | `tcp1_w1_solo_bk_pilot_slots` | Replace or guard seed | Guard/remove complimentary INSERT |
+| `20260814011547` | `accounting_canonical_connected_grant` | Prod-only skip | Classify prod-only |
 
 ## Downstream JE stack
 
@@ -74,11 +83,13 @@ Current stop at migration 25 leaves **160 migrations** including entire JE/Paten
 ## Static gates (implemented)
 
 1. `audit-migration-lineage-classification.js` — full lineage manifest
-2. `audit-data-dependent-replay-gate.js` — fails on **undocumented** unconditional fixture UUID inserts
+2. `audit-data-dependent-replay-gate.js` — **fails merge readiness** while executable blocking violations remain in git `supabase/migrations/` (documentation does not suppress)
 
 ## Promotion path (after review — not this PR)
 
-1. Add guarded replacements to git under new migration filenames (do not rewrite prod versions)
-2. Map production semantic pairs with timestamp reconciliation
-3. Third G2 disposable branch with explicit authorization
-4. Only then unblock PR #312 Postgres gate
+1. Select replay mechanism per `clean-replay-architecture.md`
+2. For git track: promote guarded replacements into `supabase/migrations/` at correct semantic positions
+3. For dashboard track: G4 workflow to record guarded statement at same production version
+4. Static gate must pass (`mergeReady: true`)
+5. Third G2 disposable branch **only with explicit authorization**
+6. Only then unblock PR #312 Postgres gate

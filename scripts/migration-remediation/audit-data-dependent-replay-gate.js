@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 /**
- * Static clean-replay gate: flags unconditional tenant-specific UUID DML
- * unless explicitly classified in migration-lineage-classification.json.
+ * Static clean-replay gate: flags unconditional tenant-specific UUID DML in git
+ * supabase/migrations/ that block data-less replay.
+ *
+ * Merge readiness: FAIL while any blocking violation remains executable in the
+ * selected replay track. "Documented" classification suppresses unknown-warning
+ * only — it does NOT make mergeReady true.
  */
 const fs = require("fs");
 const path = require("path");
@@ -51,6 +55,7 @@ function scanFile(filename, sql) {
 }
 
 function main() {
+  const replayTrack = process.env.REPLAY_TRACK || "git_migrations_executable";
   const classification = JSON.parse(fs.readFileSync(CLASSIFICATION, "utf8"));
   const allViolations = [];
   for (const file of fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql"))) {
@@ -72,18 +77,37 @@ function main() {
   }
 
   const undocumented = allViolations.filter((v) => !documented.has(v.filename));
+  const blockingViolations = allViolations;
+
+  // Merge readiness: zero executable blockers in git track (dashboard track needs
+  // prod statements[] replacement per clean-replay-architecture.md — not covered here).
+  const mergeReady = blockingViolations.length === 0;
+
   const report = {
     generatedAt: new Date().toISOString(),
-    ok: undocumented.length === 0,
-    violationCount: allViolations.length,
-    documentedBlockerCount: allViolations.filter((v) => documented.has(v.filename)).length,
+    replayTrack,
+    ok: mergeReady,
+    mergeReady,
+    violationCount: blockingViolations.length,
+    documentedBlockerCount: blockingViolations.filter((v) => documented.has(v.filename)).length,
     undocumentedViolations: undocumented,
-    violations: allViolations,
+    blockingViolations,
+    violations: blockingViolations,
+    remediationReference: "docs/migration-remediation/clean-replay-architecture.md",
+    note:
+      "Documented blockers still fail mergeReady until guarded SQL is promoted to supabase/migrations/ " +
+      "(git track) or production statements[] replaced at same version (dashboard track).",
   };
 
   const outPath = path.join(ROOT, "docs/migration-remediation/data-dependent-replay-gate.json");
   fs.writeFileSync(outPath, JSON.stringify(report, null, 2) + "\n");
-  console.log(JSON.stringify({ ok: report.ok, violationCount: report.violationCount, outPath }, null, 2));
+  console.log(
+    JSON.stringify(
+      { ok: report.ok, mergeReady: report.mergeReady, violationCount: report.violationCount, outPath },
+      null,
+      2,
+    ),
+  );
   process.exit(report.ok ? 0 : 1);
 }
 
