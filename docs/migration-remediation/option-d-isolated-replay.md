@@ -30,25 +30,32 @@
    - **Option D candidate gate** (`audit-option-d-replay-gate.js`) — must pass (`mergeReady: true`) for the assembled set  
    - **Active migrations gate** (`audit-data-dependent-replay-gate.js`) — remains **failing** until promotion into `supabase/migrations/` (separate)
 
-5. **Runtime harness** — `run-option-d-isolated-replay.js`  
-   - Missing infra / skipped apply / missing PR #312 suite ⇒ **BLOCKED** (never silent PASS)  
-   - Defined tests: clean replay apply, schema/RLS inventory, view security, immutability, PR #312 postgres RPC suite
+5. **Runtime harness** — `run-option-d-isolated-replay.js` (fail-closed)  
+   - Fresh disposable DB precheck (`option-d-fresh-db-guard.js`) before any write  
+   - **Executed** post-apply security bundle (`option-d-security-assertions.js`): schema/RLS, view `security_invoker`, SI/Memory immutability  
+   - Structured Vitest gate (`option-d-vitest-result-gate.js`): expected PR #312 tests must execute; zero skip/todo/pending/fail; pinned to `f65730b3`  
+   - Separate statuses; `PASS_RUNTIME` only if all applicable gates PASS
 
 ## Scope distinction (required)
 
 | Scope | State after this PR step |
 |-------|--------------------------|
-| Isolated candidate-lineage validation | Static assemble + gate (PASS when substitutions correct) |
-| PR #312 RPC validation | **BLOCKED** until local DB apply + suite run |
-| Production dashboard replay parity | **Unresolved** (Option A/B) |
+| `candidateReplay` | Static PASS; runtime PASS only after fresh-DB apply |
+| `securityImmutabilityChecks` | **BLOCKED** until executed post-apply assertions PASS |
+| `pr312RpcValidation` | **BLOCKED** until structured Vitest PASS on pinned suite |
+| `productionDashboardReplayParity` | **Unresolved** (Option A/B; not applicable to Option D PASS) |
 
 ## Infrastructure required for runtime PASS
 
-1. Local Docker + Supabase Postgres on `127.0.0.1:54322` (or allowlisted localhost URL)  
-2. `OPTION_D_DATABASE_URL` set (never production)  
-3. `OPTION_D_APPLY=1` to apply assembled SQL in order  
-4. PR #312 test file present (or checked out) for `npm run test:je-execution-reservation-postgres`  
-5. Independent review approval before any remote execution
+1. Create a **fresh empty** local DB named `option_d_*` (not `postgres`)
+2. `OPTION_D_DISPOSABLE_DB_NAME` matching that name
+3. `OPTION_D_DATABASE_URL` on allowlisted localhost only
+4. `OPTION_D_APPLY=1`
+5. PR #312 suite file present and **byte-matching** commit `f65730b3` (`execution-reservation.postgres.integration.test.ts`)
+6. Structured Vitest JSON must show all 12 expected tests **passed**, with **zero** skipped/todo/pending/failed
+7. Post-apply security assertions must **execute and PASS** (RLS, view security_invoker, SI/Memory immutability triggers)
+
+Missing any of the above ⇒ **BLOCKED** / **FAIL** — never silent PASS.
 
 ## Commands
 

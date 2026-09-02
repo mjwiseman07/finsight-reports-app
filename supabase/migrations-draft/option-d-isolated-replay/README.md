@@ -19,17 +19,27 @@ node scripts/migration-remediation/assemble-option-d-replay.js
 node scripts/migration-remediation/audit-option-d-replay-gate.js
 ```
 
-## Runtime (local-only; stop for review before remote)
+## Fresh disposable database (required before APPLY)
 
-```bash
-node scripts/migration-remediation/run-option-d-isolated-replay.js
-```
+1. Create an **empty** local database named `option_d_*` (example: `option_d_clean_replay`).
+2. Set `OPTION_D_DISPOSABLE_DB_NAME` to that exact name.
+3. Set `OPTION_D_DATABASE_URL` to that database on an allowlisted localhost host.
+4. Set `OPTION_D_APPLY=1`.
 
-Missing Docker/local Postgres ⇒ **BLOCKED** (not PASS).  
-Apply requires `OPTION_D_DATABASE_URL` (localhost allowlist only) + `OPTION_D_APPLY=1`.
+The harness **refuses** to apply if:
+- the DB name is ambiguous (`postgres`) or mismatched;
+- any public application relations exist;
+- `supabase_migrations.schema_migrations` already contains app versions (partial replay).
 
-## Scope distinction
+It does **not** auto-reset or delete the target.
 
-1. **Isolated candidate-lineage** — this directory + manifest + Option D gate  
-2. **PR #312 RPC validation** — `test:je-execution-reservation-postgres` after clean apply  
-3. **Production dashboard replay parity** — unresolved
+## Runtime gates (all required for PASS_RUNTIME)
+
+| Gate | Meaning |
+|------|---------|
+| `candidateReplay` | Fresh-DB precheck + assembled SQL apply |
+| `securityImmutabilityChecks` | Executed final schema/RLS, view `security_invoker`, SI/Memory immutability triggers |
+| `pr312RpcValidation` | Structured Vitest JSON: expected tests executed, zero skip/todo/pending/fail; pinned to PR #312 `f65730b3` |
+| `productionDashboardReplayParity` | Always `unresolved` (Option A/B; not applicable to Option D PASS) |
+
+Listing check names is not execution — absent security evidence fails closed.

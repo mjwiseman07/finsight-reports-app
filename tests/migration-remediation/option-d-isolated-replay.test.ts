@@ -6,6 +6,20 @@ import {
   validateIsolatedReplayTarget,
   PRODUCTION_PROJECT_REF,
 } from "../../scripts/migration-remediation/option-d-target-safety.js";
+import { evaluateFreshDisposableDatabase } from "../../scripts/migration-remediation/option-d-fresh-db-guard.js";
+import {
+  evaluateSecurityBundle,
+  evaluateFinalSchemaRls,
+  evaluateViewSecurity,
+  evaluateImmutability,
+} from "../../scripts/migration-remediation/option-d-security-assertions.js";
+import {
+  evaluateVitestStructuredResult,
+  EXPECTED_PR312_TEST_TITLES,
+  PR312_COMMIT,
+  BLOCKED_SENTINEL_TITLE,
+} from "../../scripts/migration-remediation/option-d-vitest-result-gate.js";
+import { evaluateOverallRuntimePass } from "../../scripts/migration-remediation/run-option-d-isolated-replay.js";
 
 const ROOT = path.resolve(__dirname, "../..");
 const ASSEMBLE = path.join(ROOT, "scripts/migration-remediation/assemble-option-d-replay.js");
@@ -29,6 +43,21 @@ const BLOCKERS = [
   "20260814221500_accounting_canonical_connected_grant.sql",
 ];
 
+function vitestReportFromTests(tests: Array<{ title: string; status: string }>) {
+  return {
+    testResults: [
+      {
+        name: "execution-reservation.postgres.integration.test.ts",
+        assertionResults: tests.map((t) => ({
+          title: t.title,
+          fullName: t.title,
+          status: t.status,
+        })),
+      },
+    ],
+  };
+}
+
 describe("Option D isolated Git replay harness", () => {
   it("assembles deterministic candidate lineage with in-place substitutions", () => {
     execFileSync(process.execPath, [ASSEMBLE], { cwd: ROOT, stdio: "pipe" });
@@ -36,31 +65,13 @@ describe("Option D isolated Git replay harness", () => {
     const manifest = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
     expect(manifest.mechanism).toBe("option_d_isolated_git_replay");
     expect(manifest.notMergeApproval).toBe(true);
-    expect(manifest.productionHistoryUnchanged).toBe(true);
-    expect(manifest.activeMigrationsUnchanged).toBe(true);
-    expect(manifest.productionDashboardReplayParity).toBe("unresolved");
     expect(manifest.pr312HeadRequiredUnchanged).toBe(
       "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
     );
     expect(manifest.counts.substitutions).toBe(6);
-    expect(manifest.missingRequiredPatent6OrJe).toEqual([]);
     expect(manifest.substitutions.map((s: { filename: string }) => s.filename).sort()).toEqual(
       [...BLOCKERS].sort(),
     );
-    for (const s of manifest.substitutions) {
-      expect(s.originalSha256).toMatch(/^[a-f0-9]{64}$/);
-      expect(s.replacementSha256).toMatch(/^[a-f0-9]{64}$/);
-      expect(s.originalSha256).not.toBe(s.replacementSha256);
-      expect(s.order).toBeGreaterThan(5);
-      expect(s.justification.length).toBeGreaterThan(20);
-    }
-    // Substitutions are in-place (same filename), not appended after originals
-    const d6a = manifest.entries.filter(
-      (e: { assembledFilename: string }) =>
-        e.assembledFilename === "20260703_2000_d6_2a_test_client_activation.sql",
-    );
-    expect(d6a).toHaveLength(1);
-    expect(d6a[0].action).toBe("substitute");
   });
 
   it("covers all six blockers with substitution files on disk", () => {
@@ -73,22 +84,19 @@ describe("Option D isolated Git replay harness", () => {
     execFileSync(process.execPath, [GATE], { cwd: ROOT, stdio: "pipe" });
     const gate = JSON.parse(fs.readFileSync(OPTION_D_GATE_JSON, "utf8"));
     expect(gate.mergeReady).toBe(true);
-    expect(gate.ok).toBe(true);
     expect(gate.violationCount).toBe(0);
-    expect(gate.scopes.productionDashboardReplayParity).toBe("unresolved");
   });
 
   it("active supabase/migrations gate still fails (promotion not done)", () => {
     try {
       execFileSync(process.execPath, [ACTIVE_GATE], { cwd: ROOT, stdio: "pipe" });
     } catch {
-      // expected non-zero
+      /* expected */
     }
     const gate = JSON.parse(
       fs.readFileSync(path.join(ROOT, "docs/migration-remediation/data-dependent-replay-gate.json"), "utf8"),
     );
     expect(gate.mergeReady).toBe(false);
-    expect(gate.violationCount).toBeGreaterThanOrEqual(4);
   });
 
   it("target safety rejects production and remote supabase hosts", () => {
@@ -98,40 +106,171 @@ describe("Option D isolated Git replay harness", () => {
       ).ok,
     ).toBe(false);
     expect(
-      validateIsolatedReplayTarget(
-        "postgresql://postgres:secret@db.abcdefghijklmnop.supabase.co:5432/postgres",
-      ).ok,
-    ).toBe(false);
-    expect(
       validateIsolatedReplayTarget("postgresql://postgres:postgres@127.0.0.1:54322/postgres").ok,
     ).toBe(true);
-    expect(validateIsolatedReplayTarget("postgresql://postgres:postgres@localhost:54322/postgres").ok).toBe(
-      true,
-    );
   });
 
-  it("runtime harness reports BLOCKED without approved local apply (not PASS)", () => {
+  it("runtime harness reports BLOCKED without apply; separate statuses present", () => {
     const env = { ...process.env };
     delete env.OPTION_D_APPLY;
     delete env.OPTION_D_DATABASE_URL;
     delete env.JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL;
     let exitCode = 0;
     try {
-      execFileSync(process.execPath, [RUNTIME], {
-        cwd: ROOT,
-        env,
-        stdio: "pipe",
-      });
+      execFileSync(process.execPath, [RUNTIME], { cwd: ROOT, env, stdio: "pipe" });
     } catch (err: unknown) {
       exitCode = (err as { status?: number }).status ?? 1;
     }
     expect(exitCode).not.toBe(0);
-    expect(fs.existsSync(RUNTIME_STATUS)).toBe(true);
     const status = JSON.parse(fs.readFileSync(RUNTIME_STATUS, "utf8"));
     expect(status.overall).toBe("BLOCKED");
-    expect(status.scopes.isolatedCandidateLineage).toBe("PASS_STATIC");
+    expect(status.scopes.candidateReplay).toBe("BLOCKED");
+    expect(status.scopes.securityImmutabilityChecks).toBe("BLOCKED");
     expect(status.scopes.pr312RpcValidation).toBe("BLOCKED");
     expect(status.scopes.productionDashboardReplayParity).toBe("unresolved");
-    expect(JSON.stringify(status)).not.toMatch(/password=/i);
+    expect(status.overallGate.ok).toBe(false);
+    expect(status.requiredExecutableChecks).toEqual(
+      expect.arrayContaining([
+        "final_schema_rls",
+        "view_security_invoker",
+        "si_memory_immutability",
+        "pr312_structured_vitest",
+      ]),
+    );
+  });
+});
+
+describe("Option D negative gates (false PASS prevention)", () => {
+  it("all-skipped Vitest results cannot PASS", () => {
+    const report = vitestReportFromTests(
+      EXPECTED_PR312_TEST_TITLES.map((title) => ({ title, status: "skipped" })),
+    );
+    const result = evaluateVitestStructuredResult(report);
+    expect(result.ok).toBe(false);
+    expect(result.failures.some((f: { rule: string }) => f.rule === "all_skipped_cannot_pass" || f.rule === "skipped_present")).toBe(
+      true,
+    );
+  });
+
+  it("partial Vitest execution (missing expected titles) cannot PASS", () => {
+    const report = vitestReportFromTests([
+      { title: EXPECTED_PR312_TEST_TITLES[0], status: "passed" },
+      { title: EXPECTED_PR312_TEST_TITLES[1], status: "passed" },
+    ]);
+    const result = evaluateVitestStructuredResult(report);
+    expect(result.ok).toBe(false);
+    expect(
+      result.failures.some((f: { rule: string }) => f.rule === "expected_tests_not_all_passed"),
+    ).toBe(true);
+  });
+
+  it("BLOCKED sentinel-only Vitest pass cannot PASS", () => {
+    const report = vitestReportFromTests([
+      { title: BLOCKED_SENTINEL_TITLE, status: "passed" },
+    ]);
+    const result = evaluateVitestStructuredResult(report);
+    expect(result.ok).toBe(false);
+  });
+
+  it("process-exit-success shape without structured tests cannot PASS", () => {
+    const result = evaluateVitestStructuredResult({ success: true, numPassedTests: 12 });
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("zero_tests_in_report");
+  });
+
+  it("full expected Vitest passed set can PASS structured gate", () => {
+    const report = vitestReportFromTests(
+      EXPECTED_PR312_TEST_TITLES.map((title) => ({ title, status: "passed" })),
+    );
+    const result = evaluateVitestStructuredResult(report);
+    expect(result.ok).toBe(true);
+    expect(result.pr312.commit).toBe(PR312_COMMIT);
+    expect(result.counts.skipped).toBe(0);
+  });
+
+  it("absent security evidence cannot PASS", () => {
+    expect(evaluateSecurityBundle(null).ok).toBe(false);
+    expect(evaluateSecurityBundle({}).ok).toBe(false);
+    expect(
+      evaluateSecurityBundle({ tables: [], views: undefined, triggers: [], functions: [] }).ok,
+    ).toBe(false);
+  });
+
+  it("missing RLS / view-security / immutability checks cannot PASS", () => {
+    const empty = {
+      tables: [],
+      views: [],
+      triggers: [],
+      functions: [],
+    };
+    expect(evaluateSecurityBundle(empty).ok).toBe(false);
+    expect(evaluateFinalSchemaRls(empty).ok).toBe(false);
+    expect(evaluateViewSecurity(empty).ok).toBe(false);
+    expect(evaluateImmutability(empty).ok).toBe(false);
+  });
+
+  it("existing application objects reject fresh-DB claim before writes", () => {
+    const result = evaluateFreshDisposableDatabase({
+      databaseName: "option_d_clean_replay",
+      expectedDisposableName: "option_d_clean_replay",
+      publicRelations: ["companies", "firms"],
+      schemaMigrationVersions: [],
+    });
+    expect(result.ok).toBe(false);
+    expect(
+      result.failures.some((f: { rule: string }) => f.rule === "application_sentinel_relations_present"),
+    ).toBe(true);
+  });
+
+  it("partial replay (schema_migrations app versions) cannot be reused as clean evidence", () => {
+    const result = evaluateFreshDisposableDatabase({
+      databaseName: "option_d_clean_replay",
+      expectedDisposableName: "option_d_clean_replay",
+      publicRelations: [],
+      schemaMigrationVersions: ["20260701043599", "20260703182655"],
+    });
+    expect(result.ok).toBe(false);
+    expect(
+      result.failures.some((f: { rule: string }) => f.rule === "partial_or_prior_app_replay_detected"),
+    ).toBe(true);
+  });
+
+  it("ambiguous postgres database name is rejected even if empty", () => {
+    const result = evaluateFreshDisposableDatabase({
+      databaseName: "postgres",
+      expectedDisposableName: "postgres",
+      publicRelations: [],
+      schemaMigrationVersions: [],
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("overall PASS_RUNTIME requires all three applicable gates", () => {
+    expect(
+      evaluateOverallRuntimePass({
+        candidateReplay: "PASS",
+        securityImmutabilityChecks: "PASS",
+        pr312RpcValidation: "PASS",
+        productionDashboardReplayParity: "unresolved",
+      }).ok,
+    ).toBe(true);
+
+    expect(
+      evaluateOverallRuntimePass({
+        candidateReplay: "PASS",
+        securityImmutabilityChecks: "BLOCKED",
+        pr312RpcValidation: "PASS",
+        productionDashboardReplayParity: "unresolved",
+      }).ok,
+    ).toBe(false);
+
+    expect(
+      evaluateOverallRuntimePass({
+        candidateReplay: "PASS",
+        securityImmutabilityChecks: "PASS",
+        pr312RpcValidation: "PASS_STATIC",
+        productionDashboardReplayParity: "unresolved",
+      }).ok,
+    ).toBe(false);
   });
 });

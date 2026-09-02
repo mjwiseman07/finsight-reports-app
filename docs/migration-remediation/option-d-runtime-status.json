@@ -1,10 +1,21 @@
 {
   "overall": "BLOCKED",
-  "reason": "missing_local_postgres_infrastructure",
-  "note": "Option D runtime requires local Docker/Supabase Postgres or an allowlisted localhost URL. Missing infra is BLOCKED, not PASS.",
+  "reason": "runtime_apply_not_requested",
+  "note": "Static Option D lineage gate passed. Runtime gates not executed. Missing runtime is BLOCKED, not PASS.",
   "scopes": {
-    "isolatedCandidateLineage": "PASS_STATIC",
+    "candidateReplay": "BLOCKED",
+    "securityImmutabilityChecks": "BLOCKED",
     "pr312RpcValidation": "BLOCKED",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "overallGate": {
+    "ok": false,
+    "overall": "BLOCKED",
+    "applicable": {
+      "candidateReplay": "BLOCKED",
+      "securityImmutabilityChecks": "BLOCKED",
+      "pr312RpcValidation": "BLOCKED"
+    },
     "productionDashboardReplayParity": "unresolved"
   },
   "infrastructure": {
@@ -12,11 +23,22 @@
     "localPostgres54322": false
   },
   "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
-  "requiredToRun": [
-    "Docker Desktop (or equivalent) with local Supabase DB on 127.0.0.1:54322",
-    "OR OPTION_D_DATABASE_URL pointing at allowlisted localhost host only",
-    "OPTION_D_APPLY=1 to apply assembled SQL",
-    "Then re-run this harness; PR #312 suite: npm run test:je-execution-reservation-postgres"
+  "pr312Provenance": {
+    "present": false,
+    "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+    "sourceCommit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
+    "pinnedBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+    "contentSha256": null,
+    "pinnedContentSha256": null,
+    "matchesPinnedCommitContent": false
+  },
+  "requiredExecutableChecks": [
+    "fresh_disposable_db_precheck",
+    "clean_replay_apply_assembled_sql",
+    "final_schema_rls",
+    "view_security_invoker",
+    "si_memory_immutability",
+    "pr312_structured_vitest"
   ],
-  "writtenAt": "2026-09-02T02:26:56.828Z"
+  "writtenAt": "2026-09-02T02:40:35.249Z"
 }
