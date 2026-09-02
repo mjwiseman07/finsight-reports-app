@@ -95,8 +95,9 @@ function main() {
     violations: blockingViolations,
     remediationReference: "docs/migration-remediation/clean-replay-architecture.md",
     note:
-      "Documented blockers still fail mergeReady until guarded SQL is promoted to supabase/migrations/ " +
-      "(git track) or production statements[] replaced at same version (dashboard track).",
+      "Active supabase/migrations/ track: documented blockers still fail mergeReady until guarded SQL is " +
+      "promoted here. Option D assembled candidate is gated separately by audit-option-d-replay-gate.js. " +
+      "Production dashboard statements[] repair remains Option A/B.",
   };
 
   const outPath = path.join(ROOT, "docs/migration-remediation/data-dependent-replay-gate.json");

@@ -1,0 +1,22 @@
+{
+  "overall": "BLOCKED",
+  "reason": "missing_local_postgres_infrastructure",
+  "note": "Option D runtime requires local Docker/Supabase Postgres or an allowlisted localhost URL. Missing infra is BLOCKED, not PASS.",
+  "scopes": {
+    "isolatedCandidateLineage": "PASS_STATIC",
+    "pr312RpcValidation": "BLOCKED",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "infrastructure": {
+    "dockerOk": false,
+    "localPostgres54322": false
+  },
+  "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
+  "requiredToRun": [
+    "Docker Desktop (or equivalent) with local Supabase DB on 127.0.0.1:54322",
+    "OR OPTION_D_DATABASE_URL pointing at allowlisted localhost host only",
+    "OPTION_D_APPLY=1 to apply assembled SQL",
+    "Then re-run this harness; PR #312 suite: npm run test:je-execution-reservation-postgres"
+  ],
+  "writtenAt": "2026-09-02T02:26:56.828Z"
+}

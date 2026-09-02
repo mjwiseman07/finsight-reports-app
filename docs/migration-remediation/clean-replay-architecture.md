@@ -124,14 +124,15 @@ Later git-only guarded files **do not appear in this sequence** unless the mecha
 
 ## Recommendation for next independent review
 
-**Primary path for PR #312 Postgres gate:** **Option C or D** (git-authoritative replay) with guarded migrations promoted to `supabase/migrations/` after review.
+**Selected for PR #312 Postgres gate path:** **Option D** (isolated Git replay harness) — see `option-d-isolated-replay.md`.  
+Production migration-history repair remains **separate** (Option A/B). This selection is a **mechanism recommendation**, not merge approval or runtime confirmation.
 
 **Production parity / dashboard branches:** **Option A or B** (G4) — must change what executes at version `20260703182655`, not add a later file.
 
 **Do not authorize a third paid dashboard branch** until:
-1. Mechanism selected and documented per migration above
-2. Static gate passes (zero executable blocking violations)
-3. Explicit authorization for that mechanism
+1. Option D local runtime clean apply + PR #312 RPC suite PASS on allowlisted localhost
+2. Explicit authorization for any remote/paid resource
+3. Production history repair (if still needed for dashboard parity) reviewed separately
 
 ---
 

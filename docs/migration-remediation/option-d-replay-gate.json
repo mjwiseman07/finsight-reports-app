@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-09-02T02:26:56.776Z",
+  "replayTrack": "option_d_isolated_candidate",
+  "ok": true,
+  "mergeReady": true,
+  "violationCount": 0,
+  "blockingViolations": [],
+  "assembledCount": 140,
+  "substitutions": 6,
+  "scopes": {
+    "isolatedCandidateLineage": "PASS_STATIC",
+    "pr312RpcValidation": "NOT_RUN_BY_THIS_GATE",
+    "productionDashboardReplayParity": "unresolved",
+    "activeSupabaseMigrationsPromotion": "still_blocked_see_data-dependent-replay-gate"
+  },
+  "note": "This gate covers Option D assembled candidate only. Active supabase/migrations/ and production dashboard replay remain separate and unresolved for promotion/parity."
+}
