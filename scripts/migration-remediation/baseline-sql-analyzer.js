@@ -33,6 +33,62 @@ const BUILTIN_OBJECTS = new Set([
   "null",
 ]);
 
+/** SQL keywords / schema names that must never be treated as application tables. */
+const NOT_A_TABLE = new Set([
+  ...SYSTEM_SCHEMAS,
+  ...BUILTIN_OBJECTS,
+  "public",
+  "on",
+  "to",
+  "from",
+  "join",
+  "function",
+  "procedure",
+  "table",
+  "schema",
+  "database",
+  "sequence",
+  "type",
+  "view",
+  "index",
+  "policy",
+  "trigger",
+  "column",
+  "constraint",
+  "select",
+  "lateral",
+  "only",
+  "if",
+  "exists",
+  "into",
+  "as",
+  "and",
+  "or",
+  "not",
+  "all",
+  "grant",
+  "revoke",
+  "pg_extension",
+]);
+
+/**
+ * Consume schema-qualified public.<ident> relation refs that are not function calls.
+ * Word-boundary + not-followed-by-( avoids matching a prefix of foo_bar_baz(.
+ */
+function consumePublicRelations(stmt, result) {
+  for (const ref of stmt.matchAll(
+    /\b(?:from|join)\s+public\.([A-Za-z_][\w]*)\b(?!\s*\()/gi,
+  )) {
+    pushTableConsume(result, ref[1]);
+  }
+}
+
+function pushTableConsume(result, name) {
+  const t = normalizeIdent(name);
+  if (!t || NOT_A_TABLE.has(t)) return;
+  result.consumes.tables.push(t);
+}
+
 function loadManifest() {
   return JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
 }
@@ -136,6 +192,17 @@ function analyzeStatement(stmt) {
     return result;
   }
 
+  if (/^alter\s+table\b/i.test(stmt) && /\brename\s+to\b/i.test(stmt)) {
+    result.kind = "rename_table";
+    const from = stmt.match(
+      /alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:public\.)?("?\w+"?)/i,
+    );
+    const to = stmt.match(/\brename\s+to\s+(?:public\.)?("?\w+"?)/i);
+    if (from) result.consumes.tables.push(normalizeIdent(from[1]));
+    if (to) result.creates.tables.push(normalizeIdent(to[1]));
+    return result;
+  }
+
   if (/^alter\s+table\b/i.test(stmt)) {
     result.kind = "alter_table";
     const m = stmt.match(
@@ -159,9 +226,8 @@ function analyzeStatement(stmt) {
     result.kind = "create_policy";
     const m = stmt.match(/\bon\s+(?:public\.)?("?\w+"?)/i);
     if (m) result.consumes.tables.push(normalizeIdent(m[1]));
-    for (const ref of stmt.matchAll(/(?:from|join)\s+(?:public\.)?("?\w+"?)/gi)) {
-      const t = normalizeIdent(ref[1]);
-      if (!BUILTIN_OBJECTS.has(t)) result.consumes.tables.push(t);
+    for (const ref of stmt.matchAll(/\b(?:from|join)\s+public\.([A-Za-z_][\w]*)\b(?!\s*\()/gi)) {
+      pushTableConsume(result, ref[1]);
     }
     return result;
   }
@@ -192,7 +258,35 @@ function analyzeStatement(stmt) {
   if (/^insert\s+into\b/i.test(stmt)) {
     result.kind = "insert";
     const m = stmt.match(/insert\s+into\s+(?:public\.)?("?\w+"?)/i);
-    if (m) result.consumes.tables.push(normalizeIdent(m[1]));
+    if (m) pushTableConsume(result, m[1]);
+    consumePublicRelations(stmt, result);
+    return result;
+  }
+
+  if (/^update\s+/i.test(stmt)) {
+    result.kind = "update";
+    const m = stmt.match(/update\s+(?:only\s+)?(?:public\.)?("?\w+"?)/i);
+    if (m) pushTableConsume(result, m[1]);
+    consumePublicRelations(stmt, result);
+    return result;
+  }
+
+  if (/^comment\s+on\s+table\b/i.test(stmt)) {
+    result.kind = "comment_table";
+    const m = stmt.match(
+      /^comment\s+on\s+table\s+(?:if\s+exists\s+)?(?:public\.)?("?\w+"?)/i,
+    );
+    if (m) pushTableConsume(result, m[1]);
+    return result;
+  }
+
+  if (/^revoke\b/i.test(stmt)) {
+    result.kind = "revoke";
+    if (/\bon\s+(?:function|procedure|schema|database|language|sequence|type)\b/i.test(stmt)) {
+      return result;
+    }
+    const m = stmt.match(/\bon\s+(?:table\s+)?(?:public\.)?("?\w+"?)/i);
+    if (m) pushTableConsume(result, m[1]);
     return result;
   }
 
@@ -201,13 +295,22 @@ function analyzeStatement(stmt) {
     for (const ref of stmt.matchAll(
       /alter\s+table\s+(?:if\s+(?:not\s+)?exists\s+)?(?:only\s+)?(?:public\.)?("?\w+"?)/gi,
     )) {
-      const t = normalizeIdent(ref[1]);
-      if (t !== "if") result.consumes.tables.push(t);
+      pushTableConsume(result, ref[1]);
     }
     for (const ref of stmt.matchAll(/references\s+(?:public\.)?("?\w+"?)/gi)) {
-      const t = normalizeIdent(ref[1]);
-      if (!SYSTEM_SCHEMAS.has(t)) result.consumes.tables.push(t);
+      pushTableConsume(result, ref[1]);
     }
+    for (const ref of stmt.matchAll(
+      /update\s+(?:only\s+)?public\.([A-Za-z_][\w]*)/gi,
+    )) {
+      pushTableConsume(result, ref[1]);
+    }
+    for (const ref of stmt.matchAll(
+      /\bcreate\s+(?:unique\s+)?index(?:\s+if\s+not\s+exists)?\s+(?:public\.)?[A-Za-z_][\w]*\s+on\s+(?:only\s+)?(?:public\.)?([A-Za-z_][\w]*)/gi,
+    )) {
+      pushTableConsume(result, ref[1]);
+    }
+    consumePublicRelations(stmt, result);
     return result;
   }
 
@@ -229,7 +332,7 @@ function analyzeSql(sql) {
     for (const k of ["extensions", "tables", "functions", "types"]) {
       for (const v of a.creates[k]) agg.creates[k].add(v);
       for (const v of a.consumes[k]) {
-        if (!BUILTIN_OBJECTS.has(v)) agg.consumes[k].add(v);
+        if (!BUILTIN_OBJECTS.has(v) && !NOT_A_TABLE.has(v)) agg.consumes[k].add(v);
       }
     }
   }
@@ -388,6 +491,9 @@ function simulateReplay(sections, { failOnMissing = true, optionalTables = [] } 
       for (const tbl of a.creates.tables) available.tables.add(tbl);
       for (const fn of a.creates.functions) available.functions.add(fn);
       for (const ty of a.creates.types) available.types.add(ty);
+      if (a.kind === "rename_table") {
+        for (const oldName of a.consumes.tables) available.tables.delete(oldName);
+      }
     }
   }
 

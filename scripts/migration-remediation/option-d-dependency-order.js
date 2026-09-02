@@ -44,6 +44,8 @@ const PLATFORM_OR_BUILTIN_TABLES = new Set([
   "pg_policies",
   "pg_trigger",
   "pg_roles",
+  "information_schema",
+  "pg_catalog",
   "storage", // schema name often mis-parsed as table from storage.objects
 ]);
 
@@ -393,6 +395,7 @@ function computeOptionDDependencyOrder(
     sources,
     changelog,
     depManifest,
+    graph,
   };
 }
 
@@ -411,7 +414,10 @@ function simulateCandidateOrder(orderedCandidates, depManifest) {
   });
 }
 
-function writeDependencyArtifacts(result, { writeChangelog = true } = {}) {
+function writeDependencyArtifacts(result, { writeChangelog = true, classification = null } = {}) {
+  const required = (classification?.classifications || []).filter(
+    (c) => c.classification === "required_missing_create",
+  );
   const depManifest = {
     version: 1,
     description:
@@ -433,9 +439,12 @@ function writeDependencyArtifacts(result, { writeChangelog = true } = {}) {
     lexicographicOrder: result.lexOrder,
     sources: result.sources,
     unresolvedDependencies: result.unresolved,
+    unresolvedClassification: classification,
+    requiredUnresolvedCount: required.length,
+    requiredDependenciesResolved: required.length === 0,
     cycles: result.cycles,
     integrityErrors: result.integrityErrors,
-    ok: result.ok,
+    ok: result.ok && required.length === 0,
   };
 
   fs.mkdirSync(path.dirname(DEPENDENCY_MANIFEST_PATH), { recursive: true });

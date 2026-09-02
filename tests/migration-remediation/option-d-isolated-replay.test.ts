@@ -132,10 +132,24 @@ describe("Option D isolated Git replay harness", () => {
     }
   });
 
-  it("Option D candidate gate passes (zero executable blockers in assembled set)", () => {
-    execFileSync(process.execPath, [GATE], { cwd: ROOT, stdio: "pipe" });
+  it("Option D candidate gate fails while REQUIRED missing CREATE remains; fixture scan stays distinct", () => {
+    let gateExit = 0;
+    try {
+      execFileSync(process.execPath, [GATE], { cwd: ROOT, stdio: "pipe" });
+    } catch (err: unknown) {
+      gateExit = (err as { status?: number }).status ?? 1;
+    }
+    expect(gateExit).not.toBe(0);
     const gate = JSON.parse(fs.readFileSync(OPTION_D_GATE_JSON, "utf8"));
-    expect(gate.mergeReady).toBe(true);
+    expect(gate.fixtureScanOk).toBe(true);
+    expect(gate.requiredDependenciesResolved).toBe(false);
+    expect(gate.candidateReplayStaticReady).toBe(false);
+    expect(gate.mergeReady).toBe(false);
+    expect(gate.mergeReadyMeaning).toMatch(/candidateReplayStaticReady only/);
+    expect(gate.prMergeReady).toBe(false);
+    expect(gate.runtimeReady).toBe(false);
+    expect(gate.requiredUnresolvedCount).toBe(9);
+    expect(gate.ok).toBe(false);
   });
 
   it("active supabase/migrations gate still fails (promotion not done)", () => {
@@ -172,7 +186,7 @@ describe("Option D isolated Git replay harness", () => {
     expect(exitCode).not.toBe(0);
     const status = JSON.parse(fs.readFileSync(RUNTIME_STATUS, "utf8"));
     expect(status.overall).toBe("BLOCKED");
-    expect(status.scopes.candidateReplay).toBe("BLOCKED");
+    expect(status.scopes.candidateReplay).toBe("FAIL");
     expect(status.scopes.securityImmutabilityChecks).toBe("BLOCKED");
     expect(status.scopes.pr312RpcValidation).toBe("BLOCKED");
     expect(status.scopes.productionDashboardReplayParity).toBe("unresolved");

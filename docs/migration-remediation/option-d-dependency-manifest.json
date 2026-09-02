@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Explicit deterministic dependency graph for the complete Option D candidate replay set. Assembler MUST apply dependencyOrder (not lexicographic filename sort).",
-  "generatedAt": "2026-09-02T03:47:45.177Z",
+  "generatedAt": "2026-09-02T23:55:17.909Z",
   "orderingPolicy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "testedFailureRegression": {
     "pr313EvidenceHead": "8ad27be6d8260669d9e800aee11397e4bb545988",
@@ -39,7 +39,6 @@
     "20260703_00_create_close_ledger.sql",
     "20260703_01_create_checklist_system.sql",
     "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
-    "20260706140000_d_entitlements_followup.sql",
     "20260706_d67_p2_layer2_layer4.sql",
     "20260707_create_close_packet_system.sql",
     "20260707140000_d_assertions_part_3_coverage_statement.sql",
@@ -62,6 +61,7 @@
     "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
     "20260706120000_d_platform_event_sourced_foundation.sql",
     "20260706130000_d_entitlements.sql",
+    "20260706140000_d_entitlements_followup.sql",
     "20260707000000_d6_5_part1_universal_intake.sql",
     "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
     "20260707130000_d_assertions_part_2_coverage_projection.sql",
@@ -432,7 +432,9 @@
       "createsTables": [],
       "altersTables": [],
       "consumesTables": [
-        "client_active_rules"
+        "client_active_rules",
+        "curated_rules_registry",
+        "firm_clients"
       ]
     },
     "20260703_2200_d6_2b_mfg_activation.sql": {
@@ -442,7 +444,9 @@
       "createsTables": [],
       "altersTables": [],
       "consumesTables": [
-        "client_active_rules"
+        "client_active_rules",
+        "curated_rules_registry",
+        "firm_clients"
       ]
     },
     "20260703_2300_d6_2c_retail_activation.sql": {
@@ -452,7 +456,9 @@
       "createsTables": [],
       "altersTables": [],
       "consumesTables": [
-        "client_active_rules"
+        "client_active_rules",
+        "curated_rules_registry",
+        "firm_clients"
       ]
     },
     "20260703_2400_d6_2d_ps_activation.sql": {
@@ -462,7 +468,9 @@
       "createsTables": [],
       "altersTables": [],
       "consumesTables": [
-        "client_active_rules"
+        "client_active_rules",
+        "curated_rules_registry",
+        "firm_clients"
       ]
     },
     "20260704_0100_d6_4a_je_evidence_attachments_backup.sql": {
@@ -514,6 +522,7 @@
         "ar_cash_app_remittance_lines",
         "ar_cash_app_remittances",
         "customers",
+        "firm_clients",
         "firms"
       ]
     },
@@ -582,11 +591,15 @@
       ]
     },
     "20260706140000_d_entitlements_followup.sql": {
-      "dependsOn": [],
+      "dependsOn": [
+        "20260706130000_d_entitlements.sql"
+      ],
       "createsTables": [],
       "altersTables": [],
       "consumesTables": [
-        "stripe_webhook_events"
+        "entitlement_check_audit",
+        "stripe_webhook_events",
+        "stripe_webhook_events_legacy"
       ]
     },
     "20260706150000_d6_4c_1_pre_close_review_queue.sql": {
@@ -686,6 +699,7 @@
         "ar_cash_app_payments",
         "ar_cash_app_review_items",
         "cash_app_payer_patterns_global",
+        "firm_clients",
         "firm_llm_config"
       ]
     },
@@ -714,9 +728,11 @@
       ],
       "consumesTables": [
         "ar_cash_app_remittances",
+        "firm_clients",
         "firm_intake_addresses",
         "firm_intake_handlers",
         "firm_intake_settings",
+        "firm_memberships",
         "intake_attachments",
         "intake_dispatch_log",
         "intake_messages",
@@ -833,8 +849,7 @@
         "close_gap_review_items",
         "close_periods",
         "engagements",
-        "firm_clients",
-        "firm_memberships"
+        "firm_clients"
       ]
     },
     "20260707170000_d_assertions_part_6_manual_test_evidence.sql": {
@@ -859,7 +874,6 @@
         "close_periods",
         "engagements",
         "firm_clients",
-        "firm_memberships",
         "manual_test_attachments",
         "manual_test_evidence",
         "storage"
@@ -1118,6 +1132,7 @@
         "recurring_templates"
       ],
       "consumesTables": [
+        "client_briefing_settings",
         "firm_clients",
         "firm_memberships",
         "je_post_attempts",
@@ -1222,6 +1237,7 @@
         "ap_intake_assertion_registry",
         "ap_intake_bills",
         "ap_intake_ledger_event_types",
+        "firm_memberships",
         "intake_messages",
         "vendor_invoice_fingerprints"
       ]
@@ -1244,6 +1260,7 @@
         "ap_intake_assertion_registry",
         "ap_intake_bills",
         "ap_intake_ledger_event_types",
+        "firm_memberships",
         "vendor_master_mirror"
       ]
     },
@@ -1272,6 +1289,7 @@
         "ap_intake_ledger_event_types",
         "ap_intake_quarantine",
         "bookkeeper_release_allowlist",
+        "firm_memberships",
         "quarantine_release_attempts",
         "vendor_bank_history"
       ]
@@ -1293,7 +1311,8 @@
         "ap_intake_assertion_registry",
         "ap_intake_bill_duplicates",
         "ap_intake_bills",
-        "ap_intake_ledger_event_types"
+        "ap_intake_ledger_event_types",
+        "firm_memberships"
       ]
     },
     "20260717050000_d65_p2_block5_anomaly_score_merkle.sql": {
@@ -1622,6 +1641,7 @@
       ],
       "altersTables": [],
       "consumesTables": [
+        "pg_class_reloptions_view",
         "pg_class",
         "pg_namespace"
       ]
@@ -1633,6 +1653,7 @@
       ],
       "altersTables": [],
       "consumesTables": [
+        "pg_proc_config_view",
         "pg_proc",
         "pg_namespace"
       ]
@@ -1644,6 +1665,7 @@
       ],
       "altersTables": [],
       "consumesTables": [
+        "pg_proc_acl_view",
         "pg_proc",
         "pg_namespace",
         "pg_roles"
@@ -1663,10 +1685,14 @@
       ]
     },
     "20260718210000_q8d_vector_schema_move.sql": {
-      "dependsOn": [],
+      "dependsOn": [
+        "20260706120000_d_platform_event_sourced_foundation.sql"
+      ],
       "createsTables": [],
       "altersTables": [],
-      "consumesTables": []
+      "consumesTables": [
+        "vector_index"
+      ]
     },
     "20260718220000_q8e_rls_service_role_policies.sql": {
       "dependsOn": [
@@ -2050,10 +2076,16 @@
       "consumesTables": []
     },
     "20260724030000_ar_tieout412a_kind_reconcile.sql": {
-      "dependsOn": [],
+      "dependsOn": [
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720170000_ar_tieout2_runs_and_variances.sql"
+      ],
       "createsTables": [],
       "altersTables": [],
-      "consumesTables": []
+      "consumesTables": [
+        "audit_ready_pbc_requests",
+        "audit_ready_tie_out_runs"
+      ]
     },
     "20260724030100_ar_tieout412a_run_artifacts.sql": {
       "dependsOn": [
@@ -2164,12 +2196,15 @@
       "consumesTables": []
     },
     "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql": {
-      "dependsOn": [],
+      "dependsOn": [
+        "20260805210000_schema_drift_scanner_issue_kinds.sql"
+      ],
       "createsTables": [],
       "altersTables": [
         "lifecycle_issues"
       ],
       "consumesTables": [
+        "lifecycle_issue_kinds_registry",
         "lifecycle_issues"
       ]
     },
@@ -2195,7 +2230,9 @@
       "dependsOn": [],
       "createsTables": [],
       "altersTables": [],
-      "consumesTables": []
+      "consumesTables": [
+        "lifecycle_issues"
+      ]
     },
     "20260809083000_companies_tenant_identity_columns.sql": {
       "dependsOn": [],
@@ -2534,11 +2571,18 @@
         "pilot_slots"
       ],
       "consumesTables": [
+        "firms",
         "pilot_slots"
       ]
     }
   },
   "unresolvedDependencies": [
+    {
+      "file": "20260706140000_d_entitlements_followup.sql",
+      "missing": "table stripe_webhook_events_legacy",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    },
     {
       "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
       "missing": "table erp_connections",
@@ -2576,6 +2620,12 @@
       "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
     },
     {
+      "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+      "missing": "table lifecycle_issues",
+      "status": "unresolved_requires_review",
+      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
+    },
+    {
       "file": "20260810070050_dash_1c_a_widen_provenance.sql",
       "missing": "table pilot_lifecycle_events",
       "status": "unresolved_requires_review",
@@ -2588,7 +2638,339 @@
       "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
     }
   ],
+  "unresolvedClassification": {
+    "generatedAt": "2026-09-02T23:55:17.908Z",
+    "occurrenceCount": 10,
+    "requiredCount": 9,
+    "requiredDependenciesResolved": false,
+    "classifications": [
+      {
+        "file": "20260706140000_d_entitlements_followup.sql",
+        "missing": "table stripe_webhook_events_legacy",
+        "table": "stripe_webhook_events_legacy",
+        "classification": "required_missing_create",
+        "prerequisiteSource": "none_in_git_candidate_set",
+        "justifiedExclusion": false,
+        "absentObjectGenuinelySafe": false,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "unconditional_on_apply",
+          "unconditional_on_apply",
+          "unconditional_on_apply"
+        ],
+        "statements": [
+          {
+            "kind": "insert",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "INSERT INTO public.stripe_webhook_events ( stripe_event_id, event_type, received_at, processed_at, processing_status, processing_error, raw_payload, livemode ) SELECT l.stripe_event_id, l.event_type, l.received_at, l.pro"
+          },
+          {
+            "kind": "do_block",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "DO $$ DECLARE legacy_count INT; backfilled_count INT; BEGIN SELECT COUNT(*) INTO legacy_count FROM public.stripe_webhook_events_legacy; SELECT COUNT(*) INTO backfilled_count FROM public.stripe_webhook_events WHERE raw_pa"
+          },
+          {
+            "kind": "comment_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "COMMENT ON TABLE public.stripe_webhook_events_legacy IS 'DEPRECATED — legacy Stripe webhook idempotency table. Rows backfilled into stripe_webhook_events on 2026-07-06 via D-Entitlements-Followup. Scheduled for DROP in a"
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
+      },
+      {
+        "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+        "missing": "table erp_connections",
+        "table": "erp_connections",
+        "classification": "safe_conditional",
+        "prerequisiteSource": "none_in_candidate_set",
+        "justifiedExclusion": true,
+        "absentObjectGenuinelySafe": true,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "only_if_to_regclass_not_null",
+          "only_if_to_regclass_not_null"
+        ],
+        "statements": [
+          {
+            "kind": "do_block",
+            "executesWhen": "only_if_to_regclass_not_null",
+            "snippet": "DO $$ BEGIN IF to_regclass('public.erp_connections') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_connections' AND column_name = 'disconnec"
+          },
+          {
+            "kind": "do_block",
+            "executesWhen": "only_if_to_regclass_not_null",
+            "snippet": "DO $$ BEGIN IF to_regclass('public.erp_connections') IS NOT NULL THEN CREATE INDEX IF NOT EXISTS erp_connections_disconnected_at_idx ON public.erp_connections (disconnected_at) WHERE disconnected_at IS NOT NULL; END IF; "
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Every analyzed consume executes only inside IF to_regclass(public.<table>) IS NOT NULL (or ALTER IF EXISTS). Absent table is a no-op, not 42P01."
+      },
+      {
+        "file": "20260718220000_q8e_rls_service_role_policies.sql",
+        "missing": "table stripe_webhook_events_legacy",
+        "table": "stripe_webhook_events_legacy",
+        "classification": "required_missing_create",
+        "prerequisiteSource": "none_in_git_candidate_set",
+        "justifiedExclusion": false,
+        "absentObjectGenuinelySafe": false,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "unconditional_on_apply",
+          "unconditional_on_apply",
+          "unconditional_on_apply"
+        ],
+        "statements": [
+          {
+            "kind": "revoke",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "REVOKE ALL ON public.stripe_webhook_events_legacy FROM anon, authenticated"
+          },
+          {
+            "kind": "drop_policy",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "DROP POLICY IF EXISTS \"stripe_webhook_events_legacy_service_role_all\" ON public.stripe_webhook_events_legacy"
+          },
+          {
+            "kind": "create_policy",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "CREATE POLICY \"stripe_webhook_events_legacy_service_role_all\" ON public.stripe_webhook_events_legacy FOR ALL TO service_role USING (true) WITH CHECK (true)"
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
+      },
+      {
+        "file": "20260805054000_schema_drift_issue_policies.sql",
+        "missing": "table lifecycle_issues",
+        "table": "lifecycle_issues",
+        "classification": "required_missing_create",
+        "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null",
+        "justifiedExclusion": false,
+        "absentObjectGenuinelySafe": false,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "unconditional_on_apply"
+        ],
+        "statements": [
+          {
+            "kind": "create_policy",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "CREATE POLICY lifecycle_issues_org_wide_super_admin_read ON public.lifecycle_issues FOR SELECT TO authenticated USING ( company_id IS NULL AND firm_id IS NULL AND ( (auth.jwt() -> 'app_metadata' ->> 'role') = 'super_admi"
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
+      },
+      {
+        "file": "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
+        "missing": "table lifecycle_issues",
+        "table": "lifecycle_issues",
+        "classification": "required_missing_create",
+        "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null",
+        "justifiedExclusion": false,
+        "absentObjectGenuinelySafe": false,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "unconditional_on_apply",
+          "unconditional_on_apply",
+          "unconditional_on_apply",
+          "unconditional_on_apply"
+        ],
+        "statements": [
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "ALTER TABLE public.lifecycle_issues DROP CONSTRAINT IF EXISTS lifecycle_issues_issue_kind_chk"
+          },
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "ALTER TABLE public.lifecycle_issues ADD CONSTRAINT lifecycle_issues_issue_kind_chk CHECK (issue_kind = ANY (ARRAY[ 'pilot.lifecycle.drift.detected'::text, 'pilot.lifecycle.transition.rejected'::text, 'pilot.lifecycle.cha"
+          },
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "ALTER TABLE public.lifecycle_issues DROP CONSTRAINT IF EXISTS lifecycle_issues_partition_chk"
+          },
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "ALTER TABLE public.lifecycle_issues ADD CONSTRAINT lifecycle_issues_partition_chk CHECK ( company_id IS NOT NULL OR firm_id IS NOT NULL OR issue_kind = ANY (ARRAY[ 'marketing.seo.drift'::text, 'pilot.lifecycle.chain.anch"
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
+      },
+      {
+        "file": "20260806032000_lifecycle_issues_schema_drift_checks.sql",
+        "missing": "table lifecycle_issues",
+        "table": "lifecycle_issues",
+        "classification": "required_missing_create",
+        "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null",
+        "justifiedExclusion": false,
+        "absentObjectGenuinelySafe": false,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "unconditional_on_apply",
+          "unconditional_on_apply",
+          "unconditional_on_apply",
+          "unconditional_on_apply"
+        ],
+        "statements": [
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "ALTER TABLE public.lifecycle_issues DROP CONSTRAINT IF EXISTS lifecycle_issues_issue_kind_chk"
+          },
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "ALTER TABLE public.lifecycle_issues ADD CONSTRAINT lifecycle_issues_issue_kind_chk CHECK (issue_kind = ANY (ARRAY[ 'pilot.lifecycle.drift.detected'::text, 'pilot.lifecycle.transition.rejected'::text, 'pilot.lifecycle.cha"
+          },
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "ALTER TABLE public.lifecycle_issues DROP CONSTRAINT IF EXISTS lifecycle_issues_partition_chk"
+          },
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "ALTER TABLE public.lifecycle_issues ADD CONSTRAINT lifecycle_issues_partition_chk CHECK ( (company_id IS NOT NULL) OR (firm_id IS NOT NULL) OR (issue_kind = ANY (ARRAY[ 'marketing.seo.drift'::text, 'pilot.lifecycle.chain"
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
+      },
+      {
+        "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+        "missing": "table lifecycle_issues",
+        "table": "lifecycle_issues",
+        "classification": "required_missing_create",
+        "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null",
+        "justifiedExclusion": false,
+        "absentObjectGenuinelySafe": false,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "unconditional_on_apply",
+          "unconditional_on_apply",
+          "unconditional_on_apply"
+        ],
+        "statements": [
+          {
+            "kind": "drop_trigger",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "DROP TRIGGER IF EXISTS lifecycle_issues_assertion_impact_trg ON public.lifecycle_issues"
+          },
+          {
+            "kind": "create_trigger",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "CREATE TRIGGER lifecycle_issues_assertion_impact_trg BEFORE INSERT ON public.lifecycle_issues FOR EACH ROW EXECUTE FUNCTION public.trg_lifecycle_issues_assertion_impact()"
+          },
+          {
+            "kind": "do_block",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "DO $$ DECLARE v_missing integer; BEGIN SELECT COUNT(*) INTO v_missing FROM public.lifecycle_issues WHERE issue_kind LIKE 'schema_drift%' AND ( extra IS NULL OR extra->'assertion_impact' IS NULL OR jsonb_typeof(extra->'as"
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
+      },
+      {
+        "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+        "missing": "table lifecycle_issues",
+        "table": "lifecycle_issues",
+        "classification": "required_missing_create",
+        "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null",
+        "justifiedExclusion": false,
+        "absentObjectGenuinelySafe": false,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "unconditional_on_apply"
+        ],
+        "statements": [
+          {
+            "kind": "do_block",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "DO $$ DECLARE v_missing_field integer; v_still_all_eight integer; BEGIN -- Every drift row must have all 4 fields populated SELECT COUNT(*) INTO v_missing_field FROM public.lifecycle_issues WHERE issue_kind LIKE 'schema_"
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
+      },
+      {
+        "file": "20260810070050_dash_1c_a_widen_provenance.sql",
+        "missing": "table pilot_lifecycle_events",
+        "table": "pilot_lifecycle_events",
+        "classification": "required_missing_create",
+        "prerequisiteSource": "production_only:pilot_lifecycle_events@20260804213003 localFilename=null",
+        "justifiedExclusion": false,
+        "absentObjectGenuinelySafe": false,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "unconditional_on_apply",
+          "unconditional_on_apply",
+          "unconditional_on_apply",
+          "unconditional_on_apply"
+        ],
+        "statements": [
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "alter table public.pilot_lifecycle_events drop constraint if exists pilot_lifecycle_events_event_kind_chk"
+          },
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "alter table public.pilot_lifecycle_events add constraint pilot_lifecycle_events_event_kind_chk check (event_kind = any (array[ 'pilot.lifecycle.transition'::text, 'pilot.lifecycle.drift-detected'::text, 'pilot.lifecycle."
+          },
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "alter table public.pilot_lifecycle_events drop constraint if exists pilot_lifecycle_events_actor_via_chk"
+          },
+          {
+            "kind": "alter_table",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "alter table public.pilot_lifecycle_events add constraint pilot_lifecycle_events_actor_via_chk check (actor_via = any (array[ 'panel-consumer'::text, 'role-adapter'::text, 'org-edge'::text, 'direct-api'::text, 'admin-scri"
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
+      },
+      {
+        "file": "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
+        "missing": "table pilot_lifecycle_events",
+        "table": "pilot_lifecycle_events",
+        "classification": "required_missing_create",
+        "prerequisiteSource": "production_only:pilot_lifecycle_events@20260804213003 localFilename=null",
+        "justifiedExclusion": false,
+        "absentObjectGenuinelySafe": false,
+        "dependencyEdge": null,
+        "executesWhen": [
+          "unconditional_on_apply",
+          "unconditional_on_apply"
+        ],
+        "statements": [
+          {
+            "kind": "create_index",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "CREATE INDEX IF NOT EXISTS idx_pilot_lifecycle_company_chain_seq_desc ON public.pilot_lifecycle_events (company_id, chain_seq DESC)"
+          },
+          {
+            "kind": "create_index",
+            "executesWhen": "unconditional_on_apply",
+            "snippet": "CREATE INDEX IF NOT EXISTS idx_pilot_lifecycle_company_kind_syncid ON public.pilot_lifecycle_events (company_id, event_kind, ((payload->>'accounting_syncs_id')::text)) WHERE payload ? 'accounting_syncs_id'"
+          }
+        ],
+        "renameCreatorsInSet": [],
+        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
+      }
+    ]
+  },
+  "requiredUnresolvedCount": 9,
+  "requiredDependenciesResolved": false,
   "cycles": [],
   "integrityErrors": [],
-  "ok": true
+  "ok": false
 }

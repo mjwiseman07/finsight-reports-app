@@ -2,8 +2,16 @@
 /**
  * Option D candidate-lineage gate.
  * Scans the assembled isolated replay set (NOT active supabase/migrations/).
- * mergeReady=true only when zero unresolved executable blockers remain in the
- * selected Option D replay set.
+ *
+ * Distinct statuses:
+ *   fixtureScanOk              — no unguarded fixture inserts / prod-only RAISE
+ *   requiredDependenciesResolved — no REQUIRED missing CREATE/RENAME
+ *   candidateReplayStaticReady — both of the above (this gate's "ok")
+ *   runtimeReady               — never set here (harness only)
+ *   prMergeReady               — always false from this gate (draft PR, runtime untested)
+ *
+ * `mergeReady` is candidateReplayStaticReady only (NOT overall PR merge).
+ * Gate fails (exit 1) while any REQUIRED dependency remains unresolved.
  */
 const fs = require("fs");
 const path = require("path");
@@ -14,6 +22,10 @@ const ASSEMBLED_DIR = path.join(
   "supabase/migrations-draft/option-d-isolated-replay/assembled",
 );
 const MANIFEST = path.join(ROOT, "docs/migration-remediation/option-d-replay-manifest.json");
+const CLASS_JSON = path.join(
+  ROOT,
+  "docs/migration-remediation/option-d-unresolved-classification.json",
+);
 const OUT_JSON = path.join(ROOT, "docs/migration-remediation/option-d-replay-gate.json");
 
 const FIXTURE_PREFIXES = [
@@ -53,7 +65,6 @@ function scanFile(filename, sql) {
     }
   }
 
-  // Prod-only Demo Xero RAISE body must not appear in assembled candidate
   if (
     filename.includes("accounting_canonical_connected_grant") &&
     /raise\s+exception/i.test(sql) &&
@@ -75,6 +86,11 @@ function main() {
       replayTrack: "option_d_isolated_candidate",
       ok: false,
       mergeReady: false,
+      candidateReplayStaticReady: false,
+      fixtureScanOk: false,
+      requiredDependenciesResolved: false,
+      runtimeReady: false,
+      prMergeReady: false,
       status: "ASSEMBLED_DIR_MISSING",
       note: "Run assemble-option-d-replay.js first",
     };
@@ -93,31 +109,80 @@ function main() {
     ? JSON.parse(fs.readFileSync(MANIFEST, "utf8"))
     : null;
 
-  const mergeReady = violations.length === 0;
+  if (!fs.existsSync(CLASS_JSON)) {
+    const report = {
+      generatedAt: new Date().toISOString(),
+      replayTrack: "option_d_isolated_candidate",
+      ok: false,
+      mergeReady: false,
+      candidateReplayStaticReady: false,
+      fixtureScanOk: violations.length === 0,
+      requiredDependenciesResolved: false,
+      runtimeReady: false,
+      prMergeReady: false,
+      status: "UNRESOLVED_CLASSIFICATION_MISSING",
+      note: "Fail closed: required-dependency classification artifact missing. Re-run assemble-option-d-replay.js.",
+      blockingViolations: violations,
+    };
+    fs.writeFileSync(OUT_JSON, JSON.stringify(report, null, 2) + "\n");
+    console.log(JSON.stringify({ ok: false, mergeReady: false, reason: report.status }, null, 2));
+    process.exit(1);
+  }
+
+  const classification = JSON.parse(fs.readFileSync(CLASS_JSON, "utf8"));
+  const required = (classification.classifications || []).filter(
+    (c) => c.classification === "required_missing_create",
+  );
+  const fixtureScanOk = violations.length === 0;
+  const requiredDependenciesResolved = required.length === 0;
+  const candidateReplayStaticReady = fixtureScanOk && requiredDependenciesResolved;
+
   const report = {
     generatedAt: new Date().toISOString(),
     replayTrack: "option_d_isolated_candidate",
-    ok: mergeReady,
-    mergeReady,
+    ok: candidateReplayStaticReady,
+    mergeReady: candidateReplayStaticReady,
+    mergeReadyMeaning:
+      "candidateReplayStaticReady only — not runtime PASS and not overall PR merge approval",
+    candidateReplayStaticReady,
+    fixtureScanOk,
+    requiredDependenciesResolved,
+    requiredUnresolvedCount: required.length,
+    requiredUnresolved: required.map((c) => ({
+      file: c.file,
+      table: c.table,
+      prerequisiteSource: c.prerequisiteSource,
+    })),
+    runtimeReady: false,
+    prMergeReady: false,
     violationCount: violations.length,
     blockingViolations: violations,
     assembledCount: manifest?.counts?.totalAssembled ?? null,
     substitutions: manifest?.counts?.substitutions ?? null,
     scopes: {
-      isolatedCandidateLineage: mergeReady ? "PASS_STATIC" : "FAIL",
+      isolatedCandidateLineage: candidateReplayStaticReady ? "PASS_STATIC" : "FAIL",
       pr312RpcValidation: "NOT_RUN_BY_THIS_GATE",
       productionDashboardReplayParity: "unresolved",
       activeSupabaseMigrationsPromotion: "still_blocked_see_data-dependent-replay-gate",
+      runtime: "NOT_RUN",
+      prMerge: "NOT_READY",
     },
     note:
-      "This gate covers Option D assembled candidate only. Active supabase/migrations/ " +
-      "and production dashboard replay remain separate and unresolved for promotion/parity.",
+      "Fails while any REQUIRED missing CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false.",
   };
 
   fs.writeFileSync(OUT_JSON, JSON.stringify(report, null, 2) + "\n");
   console.log(
     JSON.stringify(
-      { ok: report.ok, mergeReady: report.mergeReady, violationCount: report.violationCount },
+      {
+        ok: report.ok,
+        mergeReady: report.mergeReady,
+        fixtureScanOk: report.fixtureScanOk,
+        requiredDependenciesResolved: report.requiredDependenciesResolved,
+        requiredUnresolvedCount: report.requiredUnresolvedCount,
+        prMergeReady: report.prMergeReady,
+        runtimeReady: report.runtimeReady,
+      },
       null,
       2,
     ),

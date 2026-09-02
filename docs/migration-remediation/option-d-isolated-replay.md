@@ -27,7 +27,7 @@
 3. **Target safety** — `option-d-target-safety.js` rejects production project ref `jzmdgwwiestcmmeuhhkr` and `*.supabase.co` remotes; allowlist localhost / 127.0.0.1 / ::1 only. URLs redacted in status files.
 
 4. **Gates**
-   - **Option D candidate gate** (`audit-option-d-replay-gate.js`) — must pass (`mergeReady: true`) for the assembled set  
+   - **Option D candidate gate** (`audit-option-d-replay-gate.js`) — `mergeReady` means `candidateReplayStaticReady` only (fixture scan **and** required CREATE/RENAME dependencies resolved). It is **not** overall PR merge and **not** runtime PASS. The gate **fails** while any `required_missing_create` remains. `prMergeReady` / `runtimeReady` stay false.
    - **Active migrations gate** (`audit-data-dependent-replay-gate.js`) — remains **failing** until promotion into `supabase/migrations/` (separate)
 
 5. **Runtime harness** — `run-option-d-isolated-replay.js` (fail-closed)  
@@ -41,7 +41,7 @@
 
 | Scope | State after this PR step |
 |-------|--------------------------|
-| `candidateReplay` | Static PASS; runtime PASS only after fresh-DB apply |
+| `candidateReplay` | Static FAIL while required unresolved refs remain; runtime PASS only after a later fresh-DB apply |
 | `securityImmutabilityChecks` | **BLOCKED** until executed post-apply assertions PASS |
 | `pr312RpcValidation` | **BLOCKED** until structured Vitest PASS on pinned suite |
 | `productionDashboardReplayParity` | **Unresolved** (Option A/B; not applicable to Option D PASS) |

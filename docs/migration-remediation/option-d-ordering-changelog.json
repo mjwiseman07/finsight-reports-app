@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T03:47:45.176Z",
+  "generatedAt": "2026-09-02T23:55:17.901Z",
   "policy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "candidateCount": 135,
   "lexicographicOrder": [
@@ -155,7 +155,6 @@
     "20260703_00_create_close_ledger.sql",
     "20260703_01_create_checklist_system.sql",
     "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
-    "20260706140000_d_entitlements_followup.sql",
     "20260706_d67_p2_layer2_layer4.sql",
     "20260707_create_close_packet_system.sql",
     "20260707140000_d_assertions_part_3_coverage_statement.sql",
@@ -178,6 +177,7 @@
     "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
     "20260706120000_d_platform_event_sourced_foundation.sql",
     "20260706130000_d_entitlements.sql",
+    "20260706140000_d_entitlements_followup.sql",
     "20260707000000_d6_5_part1_universal_intake.sql",
     "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
     "20260707130000_d_assertions_part_2_coverage_projection.sql",
@@ -303,8 +303,8 @@
     {
       "filename": "20260707_create_close_packet_system.sql",
       "lexicographicOrder": 31,
-      "dependencyOrder": 8,
-      "delta": -23
+      "dependencyOrder": 7,
+      "delta": -24
     },
     {
       "filename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
@@ -333,50 +333,50 @@
     {
       "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
       "lexicographicOrder": 32,
-      "dependencyOrder": 13,
-      "delta": -19
+      "dependencyOrder": 12,
+      "delta": -20
     },
     {
       "filename": "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
       "lexicographicOrder": 33,
-      "dependencyOrder": 14,
-      "delta": -19
+      "dependencyOrder": 13,
+      "delta": -20
     },
     {
       "filename": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
       "lexicographicOrder": 34,
-      "dependencyOrder": 15,
-      "delta": -19
+      "dependencyOrder": 14,
+      "delta": -20
     },
     {
       "filename": "20260708200000_tcp1_w1_seat_idempotency.sql",
       "lexicographicOrder": 35,
-      "dependencyOrder": 16,
-      "delta": -19
+      "dependencyOrder": 15,
+      "delta": -20
     },
     {
       "filename": "20260708_00_d0_identity_and_memory_activation.sql",
       "lexicographicOrder": 36,
-      "dependencyOrder": 17,
-      "delta": -19
+      "dependencyOrder": 16,
+      "delta": -20
     },
     {
       "filename": "20260707_01_variance_config_unique.sql",
       "lexicographicOrder": 28,
-      "dependencyOrder": 10,
-      "delta": -18
+      "dependencyOrder": 9,
+      "delta": -19
     },
     {
       "filename": "20260707_02_section_manual_edit_flag.sql",
       "lexicographicOrder": 29,
-      "dependencyOrder": 11,
-      "delta": -18
+      "dependencyOrder": 10,
+      "delta": -19
     },
     {
       "filename": "20260707_03_close_packet_share.sql",
       "lexicographicOrder": 30,
-      "dependencyOrder": 12,
-      "delta": -18
+      "dependencyOrder": 11,
+      "delta": -19
     },
     {
       "filename": "20260707150000_d_assertions_part_4_je_propagation.sql",
@@ -387,86 +387,86 @@
     {
       "filename": "20260708_01_d1_qbo_write_readiness.sql",
       "lexicographicOrder": 37,
-      "dependencyOrder": 22,
-      "delta": -15
+      "dependencyOrder": 21,
+      "delta": -16
     },
     {
       "filename": "20260708_02_d1_1_owner_user_id_backfill.sql",
       "lexicographicOrder": 38,
-      "dependencyOrder": 23,
-      "delta": -15
+      "dependencyOrder": 22,
+      "delta": -16
     },
     {
       "filename": "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
       "lexicographicOrder": 39,
-      "dependencyOrder": 24,
-      "delta": -15
+      "dependencyOrder": 23,
+      "delta": -16
     },
     {
       "filename": "20260709_00_d2_safe_je_posting.sql",
       "lexicographicOrder": 40,
-      "dependencyOrder": 25,
+      "dependencyOrder": 24,
+      "delta": -16
+    },
+    {
+      "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "lexicographicOrder": 23,
+      "dependencyOrder": 8,
       "delta": -15
     },
     {
       "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
       "lexicographicOrder": 11,
-      "dependencyOrder": 26,
-      "delta": 15
-    },
-    {
-      "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
-      "lexicographicOrder": 23,
-      "dependencyOrder": 9,
-      "delta": -14
-    },
-    {
-      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
-      "lexicographicOrder": 13,
-      "dependencyOrder": 27,
-      "delta": 14
-    },
-    {
-      "filename": "20260706130000_d_entitlements.sql",
-      "lexicographicOrder": 14,
-      "dependencyOrder": 28,
+      "dependencyOrder": 25,
       "delta": 14
     },
     {
       "filename": "20260706_d67_p2_layer2_layer4.sql",
       "lexicographicOrder": 19,
-      "dependencyOrder": 7,
-      "delta": -12
+      "dependencyOrder": 6,
+      "delta": -13
     },
     {
-      "filename": "20260703_2000_d6_2a_test_client_activation.sql",
-      "lexicographicOrder": 7,
-      "dependencyOrder": 18,
-      "delta": 11
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "lexicographicOrder": 13,
+      "dependencyOrder": 26,
+      "delta": 13
     },
     {
-      "filename": "20260703_2200_d6_2b_mfg_activation.sql",
-      "lexicographicOrder": 8,
-      "dependencyOrder": 19,
-      "delta": 11
-    },
-    {
-      "filename": "20260703_2300_d6_2c_retail_activation.sql",
-      "lexicographicOrder": 9,
-      "dependencyOrder": 20,
-      "delta": 11
-    },
-    {
-      "filename": "20260703_2400_d6_2d_ps_activation.sql",
-      "lexicographicOrder": 10,
-      "dependencyOrder": 21,
-      "delta": 11
+      "filename": "20260706130000_d_entitlements.sql",
+      "lexicographicOrder": 14,
+      "dependencyOrder": 27,
+      "delta": 13
     },
     {
       "filename": "20260706140000_d_entitlements_followup.sql",
       "lexicographicOrder": 15,
-      "dependencyOrder": 6,
-      "delta": -9
+      "dependencyOrder": 28,
+      "delta": 13
+    },
+    {
+      "filename": "20260703_2000_d6_2a_test_client_activation.sql",
+      "lexicographicOrder": 7,
+      "dependencyOrder": 17,
+      "delta": 10
+    },
+    {
+      "filename": "20260703_2200_d6_2b_mfg_activation.sql",
+      "lexicographicOrder": 8,
+      "dependencyOrder": 18,
+      "delta": 10
+    },
+    {
+      "filename": "20260703_2300_d6_2c_retail_activation.sql",
+      "lexicographicOrder": 9,
+      "dependencyOrder": 19,
+      "delta": 10
+    },
+    {
+      "filename": "20260703_2400_d6_2d_ps_activation.sql",
+      "lexicographicOrder": 10,
+      "dependencyOrder": 20,
+      "delta": 10
     },
     {
       "filename": "20260707000000_d6_5_part1_universal_intake.sql",
@@ -570,7 +570,7 @@
       "d6_0": 42
     }
   },
-  "edgeCount": 249,
+  "edgeCount": 258,
   "sampleEdges": [
     {
       "from": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
@@ -608,7 +608,7 @@
       "reason": "explicitDependsOn"
     }
   ],
-  "unresolvedCount": 8,
+  "unresolvedCount": 10,
   "fixedPrefix": [
     "20260701043599_foundations_baseline.sql",
     "20260701043602_phase1_subscriptions_core.sql",
@@ -622,7 +622,6 @@
     "20260703_00_create_close_ledger.sql",
     "20260703_01_create_checklist_system.sql",
     "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
-    "20260706140000_d_entitlements_followup.sql",
     "20260706_d67_p2_layer2_layer4.sql",
     "20260707_create_close_packet_system.sql",
     "20260707140000_d_assertions_part_3_coverage_statement.sql",
@@ -645,6 +644,7 @@
     "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
     "20260706120000_d_platform_event_sourced_foundation.sql",
     "20260706130000_d_entitlements.sql",
+    "20260706140000_d_entitlements_followup.sql",
     "20260707000000_d6_5_part1_universal_intake.sql",
     "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
     "20260707130000_d_assertions_part_2_coverage_projection.sql",

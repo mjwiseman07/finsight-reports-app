@@ -35,7 +35,7 @@ Replaced post-phase1 **filename-only `.sort()`** with an explicit deterministic 
 2. Consumers (FK / policy / trigger / index / insert references) depend on CREATE — **not** on every later ALTER.
 3. Explicit `explicitDependsOn` / `semanticConstraints` for reviewed edges.
 4. Among unconstrained files: **stable lexicographic** Kahn tie-break.
-5. Unresolved consumed tables with no CREATE in-set (and not platform/prefix-provided) are **flagged for review**, not silently dropped.
+5. Unresolved consumed tables with no CREATE/RENAME in-set (and not platform/prefix-provided) are **flagged and classified**, not silently dropped. `required_missing_create` fails the candidate gate; `safe_conditional` / prefix remain listed as justified exclusions. See `option-d-unresolved-classification.md`.
 
 Also fixed `splitStatements` dollar-quote closing so `DO $$ … $$` no longer swallows trailing `CREATE TABLE` (required to see `recurring_fires` creation).
 

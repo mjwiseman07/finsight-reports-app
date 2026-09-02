@@ -9,6 +9,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const os = require("os");
 const {
   loadManifest,
   orderedFilesFromPhases,
@@ -19,6 +20,10 @@ const {
   simulateCandidateOrder,
   analyzeMigrationFile,
 } = require("./option-d-dependency-order");
+const {
+  classifyUnresolvedOccurrences,
+  loadLineageHints,
+} = require("./option-d-unresolved-classifier");
 
 const ROOT = path.join(__dirname, "..", "..");
 const MIGRATIONS_DIR = path.join(ROOT, "supabase", "migrations");
@@ -45,6 +50,10 @@ const MANIFEST_OUT = path.join(
 const DEP_OVERRIDES = path.join(
   ROOT,
   "docs/migration-remediation/option-d-dependency-overrides.json",
+);
+const CLASS_OUT = path.join(
+  ROOT,
+  "docs/migration-remediation/option-d-unresolved-classification.json",
 );
 
 const PHASE1_FILES = [
@@ -96,12 +105,43 @@ function sha256Text(text) {
   return crypto.createHash("sha256").update(text, "utf8").digest("hex");
 }
 
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function withAssembleLock(fn) {
+  const lockPath = path.join(os.tmpdir(), "finsight-option-d-assemble.lock");
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    try {
+      fs.writeFileSync(lockPath, `${process.pid}\n`, { flag: "wx" });
+      try {
+        return fn();
+      } finally {
+        try {
+          fs.unlinkSync(lockPath);
+        } catch (err) {
+          if (err && err.code !== "ENOENT") throw err;
+        }
+      }
+    } catch (err) {
+      if (!err || err.code !== "EEXIST") throw err;
+      sleepMs(50);
+    }
+  }
+  throw new Error("timeout waiting for Option D assemble lock");
+}
+
 function ensureCleanAssembledDir() {
   fs.mkdirSync(path.dirname(ASSEMBLED_DIR), { recursive: true });
   if (fs.existsSync(ASSEMBLED_DIR)) {
     for (const f of fs.readdirSync(ASSEMBLED_DIR)) {
       if (f === "README.md" || f === ".gitignore") continue;
-      fs.unlinkSync(path.join(ASSEMBLED_DIR, f));
+      try {
+        fs.unlinkSync(path.join(ASSEMBLED_DIR, f));
+      } catch (err) {
+        if (err && err.code !== "ENOENT") throw err;
+      }
     }
   } else {
     fs.mkdirSync(ASSEMBLED_DIR, { recursive: true });
@@ -259,7 +299,16 @@ function main() {
       (fullPos.get("20260703_1200_d6_0_vertical_rule_foundation.sql") || 0),
   };
 
-  writeDependencyArtifacts(depResult);
+  const classification = classifyUnresolvedOccurrences({
+    unresolved: depResult.unresolved,
+    candidates: postCandidates,
+    graph: depResult.graph,
+    knownProvidedTables,
+    lineageHints: loadLineageHints(ROOT),
+  });
+  fs.writeFileSync(CLASS_OUT, JSON.stringify(classification, null, 2) + "\n");
+
+  writeDependencyArtifacts(depResult, { classification });
 
   const byName = new Map(postCandidates.map((c) => [c.filename, c]));
   for (const file of depResult.changelog.postPhase1DependencyOrder) {
@@ -304,7 +353,16 @@ function main() {
     filename: e.assembledFilename,
     absPath: path.join(ASSEMBLED_DIR, e.assembledFilename),
   }));
-  const replaySim = simulateCandidateOrder(simCandidates, depOverrides);
+  const simOptional = [
+    ...(depOverrides.optionalExternalTables || []),
+    ...classification.classifications
+      .filter((c) => c.justifiedExclusion)
+      .map((c) => c.table),
+  ];
+  const replaySim = simulateCandidateOrder(simCandidates, {
+    ...depOverrides,
+    optionalExternalTables: simOptional,
+  });
 
   const requiredPatent6 = [
     "20260821183525_journal_entry_executions.sql",
@@ -337,11 +395,14 @@ function main() {
       movedCount: depResult.changelog.movedCount,
       recurringFiresRegression: depResult.changelog.recurringFiresRegression,
       unresolvedDependencyCount: depResult.unresolved.length,
+      requiredUnresolvedCount: classification.requiredCount,
+      requiredDependenciesResolved: classification.requiredDependenciesResolved,
       objectAvailabilitySimulationOk: replaySim.ok,
       objectAvailabilityViolationCount: replaySim.violations.length,
       dependencyManifest: "docs/migration-remediation/option-d-dependency-manifest.json",
       orderingChangelog: "docs/migration-remediation/option-d-ordering-changelog.json",
       overrides: "docs/migration-remediation/option-d-dependency-overrides.json",
+      unresolvedClassification: "docs/migration-remediation/option-d-unresolved-classification.json",
     },
     counts: {
       totalAssembled: entries.length,
@@ -394,6 +455,8 @@ function main() {
         substitutions: substitutionEntries.length,
         movedCount: depResult.changelog.movedCount,
         unresolvedDependencies: depResult.unresolved.length,
+        requiredUnresolved: classification.requiredCount,
+        requiredDependenciesResolved: classification.requiredDependenciesResolved,
         objectAvailabilitySimulationOk: replaySim.ok,
         recurringFiresOrderOk: depResult.changelog.recurringFiresRegression.dependencyOrderSatisfied,
         manifest: path.relative(ROOT, MANIFEST_OUT).replace(/\\/g, "/"),
@@ -405,4 +468,4 @@ function main() {
   );
 }
 
-main();
+withAssembleLock(main);
