@@ -27,7 +27,8 @@ Replaced post-phase1 **filename-only `.sort()`** with an explicit deterministic 
 | `scripts/migration-remediation/option-d-dependency-order.js` | Infer CREATE→ALTER / consume→CREATE; stable lex tie-break; cycle/omit/dup checks |
 
 **Fixed prefix (unchanged):** foundations baseline + phase1 recovered files.  
-**Reordered:** post-phase1 candidate set only, then concatenated after the prefix.
+**Post-prefix additions:** recovered required originals (`20260704024059` rename, `20260804213003` / `20260804234230` CREATEs) plus local `supabase/migrations/` files.  
+**Reordered:** post-prefix candidate set, then concatenated after the prefix.
 
 ### Ordering rules (not blind table-existence reshuffles)
 

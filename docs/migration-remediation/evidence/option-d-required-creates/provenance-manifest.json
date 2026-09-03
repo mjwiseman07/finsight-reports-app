@@ -1,0 +1,63 @@
+{
+  "warning": "These files are recovered production migration originals for Option D draft replay — NOT approved active supabase/migrations/ files.",
+  "source_project_ref": "jzmdgwwiestcmmeuhhkr",
+  "source_table": "supabase_migrations.schema_migrations",
+  "retrieval_mode": "read-only",
+  "retrieval_date": "2026-09-03",
+  "contains_data_rows": false,
+  "contains_credentials": false,
+  "statement_storage": "Each production row stores statements[] (here: exactly one SQL string in statements[1]). Files preserve that element bytes-for-bytes after the provenance header.",
+  "migrations": [
+    {
+      "version": "20260704024059",
+      "name": "d_entitlements_legacy_stripe_rename",
+      "filename": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+      "database_md5_utf8": "76b4171c8bad53b1ef0965ebf2436366",
+      "sql_body_md5_utf8": "76b4171c8bad53b1ef0965ebf2436366",
+      "sql_body_sha256_utf8": "1a60e563cfa2b1bbfb47d7ce45d9ebb91d515bbe660d6e8e402e3c7de5e0255e",
+      "local_file_sha256_utf8": "dd1d230b43a7d71c01c7407da9f9189c2268154c2a21aaff9db367653e14c923",
+      "statement_count": 1,
+      "statement_byte_lengths": [
+        105
+      ],
+      "byte_length": 105,
+      "contains_data_rows": false,
+      "contains_credentials": false,
+      "substitution": null
+    },
+    {
+      "version": "20260804213003",
+      "name": "pilot_lifecycle_events",
+      "filename": "20260804213003_pilot_lifecycle_events.sql",
+      "database_md5_utf8": "34ca62d02d68fac9fc81bf485ba1a02c",
+      "sql_body_md5_utf8": "34ca62d02d68fac9fc81bf485ba1a02c",
+      "sql_body_sha256_utf8": "15ad200e32d435e65de9ae1d031b79a89005542cabe586fb243dfccbca15862c",
+      "local_file_sha256_utf8": "16b05d18d0592d42c672a189e562a3c10d8689b5d28760039b83408ae5f9358a",
+      "statement_count": 1,
+      "statement_byte_lengths": [
+        5454
+      ],
+      "byte_length": 5454,
+      "contains_data_rows": false,
+      "contains_credentials": false,
+      "substitution": null
+    },
+    {
+      "version": "20260804234230",
+      "name": "lifecycle_issues",
+      "filename": "20260804234230_lifecycle_issues.sql",
+      "database_md5_utf8": "0b75c1945dea894acbe0427a847d13c5",
+      "sql_body_md5_utf8": "0b75c1945dea894acbe0427a847d13c5",
+      "sql_body_sha256_utf8": "afaeb3970bd80d752a5a4bfb10251e88c942ee4853ee08cdaf89bbc257c85a4f",
+      "local_file_sha256_utf8": "925299e3be1dafe4b1001bf3b162d3769b2b851fa1d52609feff128d6a4feb63",
+      "statement_count": 1,
+      "statement_byte_lengths": [
+        3274
+      ],
+      "byte_length": 3274,
+      "contains_data_rows": false,
+      "contains_credentials": false,
+      "substitution": null
+    }
+  ]
+}

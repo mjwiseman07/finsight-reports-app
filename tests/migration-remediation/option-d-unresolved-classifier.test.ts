@@ -25,93 +25,55 @@ const CLASS_JSON = path.join(
   "docs/migration-remediation/option-d-unresolved-classification.json",
 );
 
-const EIGHT = [
-  {
-    file: "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
-    table: "erp_connections",
-    classification: "safe_conditional",
-  },
-  {
-    file: "20260805054000_schema_drift_issue_policies.sql",
-    table: "lifecycle_issues",
-    classification: "required_missing_create",
-  },
-  {
-    file: "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
-    table: "lifecycle_issues",
-    classification: "required_missing_create",
-  },
-  {
-    file: "20260806032000_lifecycle_issues_schema_drift_checks.sql",
-    table: "lifecycle_issues",
-    classification: "required_missing_create",
-  },
-  {
-    file: "20260806040000_major_2_3_block_a_assertion_linkage.sql",
-    table: "lifecycle_issues",
-    classification: "required_missing_create",
-  },
-  {
-    file: "20260810070050_dash_1c_a_widen_provenance.sql",
-    table: "pilot_lifecycle_events",
-    classification: "required_missing_create",
-  },
-  {
-    file: "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
-    table: "pilot_lifecycle_events",
-    classification: "required_missing_create",
-  },
-  {
-    file: "20260718220000_q8e_rls_service_role_policies.sql",
-    table: "stripe_webhook_events_legacy",
-    classification: "required_missing_create",
-  },
+const ERP_ONLY = {
+  file: "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+  table: "erp_connections",
+  classification: "safe_conditional",
+};
+
+const FORMERLY_REQUIRED = [
+  { file: "20260805054000_schema_drift_issue_policies.sql", table: "lifecycle_issues" },
+  { file: "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql", table: "lifecycle_issues" },
+  { file: "20260806032000_lifecycle_issues_schema_drift_checks.sql", table: "lifecycle_issues" },
+  { file: "20260806040000_major_2_3_block_a_assertion_linkage.sql", table: "lifecycle_issues" },
+  { file: "20260806042000_major_2_3_block_a_1_research_revision.sql", table: "lifecycle_issues" },
+  { file: "20260810070050_dash_1c_a_widen_provenance.sql", table: "pilot_lifecycle_events" },
+  { file: "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql", table: "pilot_lifecycle_events" },
+  { file: "20260718220000_q8e_rls_service_role_policies.sql", table: "stripe_webhook_events_legacy" },
+  { file: "20260706140000_d_entitlements_followup.sql", table: "stripe_webhook_events_legacy" },
 ];
 
 describe("Option D unresolved classification", () => {
-  it("classifies all eight occurrences with evidence (no suppression)", () => {
+  it("erp remains the only unresolved consume; recovered CREATE/RENAME resolve the nine required rows", () => {
     execFileSync(process.execPath, [ASSEMBLE], { cwd: ROOT, stdio: "pipe" });
     expect(fs.existsSync(CLASS_JSON)).toBe(true);
     const doc = JSON.parse(fs.readFileSync(CLASS_JSON, "utf8"));
-    expect(doc.occurrenceCount).toBeGreaterThanOrEqual(8);
-    for (const want of EIGHT) {
+    const erp = doc.classifications.find(
+      (c: { file: string; table: string }) =>
+        c.file === ERP_ONLY.file && c.table === ERP_ONLY.table,
+    );
+    expect(erp, "erp_connections still listed").toBeDefined();
+    expect(erp.classification).toBe("safe_conditional");
+    expect(erp.justifiedExclusion).toBe(true);
+    expect(erp.absentObjectGenuinelySafe).toBe(true);
+    expect(erp.executesWhen.every((w: string) => w !== "unconditional_on_apply")).toBe(true);
+    expect(erp.dependencyEdge).toBeNull();
+
+    for (const want of FORMERLY_REQUIRED) {
       const hit = doc.classifications.find(
         (c: { file: string; table: string }) => c.file === want.file && c.table === want.table,
       );
-      expect(hit, `${want.file} ${want.table}`).toBeDefined();
-      expect(hit.classification).toBe(want.classification);
-      expect(hit.statements.length).toBeGreaterThan(0);
-      if (want.classification === "safe_conditional") {
-        expect(hit.justifiedExclusion).toBe(true);
-        expect(hit.absentObjectGenuinelySafe).toBe(true);
-        expect(hit.executesWhen.every((w: string) => w !== "unconditional_on_apply")).toBe(true);
-        expect(hit.dependencyEdge).toBeNull();
-      } else {
-        expect(hit.justifiedExclusion).toBe(false);
-        expect(hit.absentObjectGenuinelySafe).toBe(false);
-        expect(hit.executesWhen).toContain("unconditional_on_apply");
-      }
+      expect(hit, `${want.file} ${want.table} must not stay unresolved`).toBeUndefined();
     }
-    const followup = doc.classifications.find(
-      (c: { file: string; table: string }) =>
-        c.file === "20260706140000_d_entitlements_followup.sql" &&
-        c.table === "stripe_webhook_events_legacy",
-    );
-    expect(followup, "followup INSERT/COMMENT on stripe_webhook_events_legacy").toBeDefined();
-    expect(followup.classification).toBe("required_missing_create");
-    expect(followup.justifiedExclusion).toBe(false);
 
-    const revision = doc.classifications.find(
-      (c: { file: string; table: string }) =>
-        c.file === "20260806042000_major_2_3_block_a_1_research_revision.sql" &&
-        c.table === "lifecycle_issues",
-    );
-    expect(revision, "major_2_3_block_a_1 SELECT FROM lifecycle_issues").toBeDefined();
-    expect(revision.classification).toBe("required_missing_create");
-
-    expect(doc.requiredCount).toBe(9);
-    expect(doc.occurrenceCount).toBe(10);
-    expect(doc.requiredDependenciesResolved).toBe(false);
+    expect(doc.requiredCount).toBe(0);
+    expect(doc.occurrenceCount).toBe(1);
+    expect(doc.requiredDependenciesResolved).toBe(true);
+    expect(
+      doc.classifications.filter(
+        (c: { classification: string }) => c.classification === "required_missing_create",
+      ),
+    ).toHaveLength(0);
   });
 
   it("erp_connections SQL is to_regclass-gated; lifecycle_issues ALTER is not", () => {

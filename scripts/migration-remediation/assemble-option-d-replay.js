@@ -63,6 +63,13 @@ const PHASE1_FILES = [
   "20260701043931_phase1_entitlement_rls_policies.sql",
 ];
 
+/** Recovered production originals required by Option D (not in git migrations/). */
+const RECOVERED_REQUIRED_ORIGINALS = [
+  "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+  "20260804213003_pilot_lifecycle_events.sql",
+  "20260804234230_lifecycle_issues.sql",
+];
+
 const SUBSTITUTIONS = {
   "20260703_2000_d6_2a_test_client_activation.sql": {
     action: "substitute",
@@ -240,7 +247,27 @@ function main() {
     }
     // Analyze/assemble from the content that will actually be applied (substitution if any)
     const absPath = substMeta ? substPath : originalPath;
-    postCandidates.push({ filename: file, absPath, originalPath, substMeta, substPath });
+    postCandidates.push({ filename: file, absPath, originalPath, substMeta, substPath, role: "post_phase1_local" });
+  }
+
+  for (const file of RECOVERED_REQUIRED_ORIGINALS) {
+    if (postCandidates.some((c) => c.filename === file)) {
+      console.error(`FAIL: recovered original collides with local candidate filename: ${file}`);
+      process.exit(1);
+    }
+    const src = path.join(PHASE1_DIR, file);
+    if (!fs.existsSync(src)) {
+      console.error(`Missing recovered original: ${src}`);
+      process.exit(1);
+    }
+    postCandidates.push({
+      filename: file,
+      absPath: src,
+      originalPath: src,
+      substMeta: null,
+      substPath: null,
+      role: "recovered_production_original",
+    });
   }
 
   const depOverrides = fs.existsSync(DEP_OVERRIDES)
@@ -338,11 +365,14 @@ function main() {
       entries.push(
         writeAssembled(file, content, {
           order,
-          role: "post_phase1_local",
+          role: c.role || "post_phase1_local",
           action: "include",
           originalSource: path.relative(ROOT, c.originalPath).replace(/\\/g, "/"),
           originalSha256: originalSha,
-          justification: null,
+          justification:
+            c.role === "recovered_production_original"
+              ? "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
+              : null,
         }),
       );
     }
@@ -408,10 +438,21 @@ function main() {
       totalAssembled: entries.length,
       baseline: 1,
       phase1: PHASE1_FILES.length,
+      recoveredRequiredOriginals: RECOVERED_REQUIRED_ORIGINALS.length,
       postPhase1: entries.length - 1 - PHASE1_FILES.length,
       substitutions: substitutionEntries.length,
       skippedCoveredByBaseline: skippedCoveredByBaseline.length,
     },
+    recoveredRequiredOriginals: RECOVERED_REQUIRED_ORIGINALS.map((filename) => {
+      const entry = entries.find((e) => e.assembledFilename === filename);
+      return {
+        filename,
+        originalSource: entry?.originalSource || null,
+        originalSha256: entry?.originalSha256 || null,
+        order: entry?.order || null,
+        substitution: null,
+      };
+    }),
     substitutions: expectedSubst.map((filename) => {
       const entry = entries.find((e) => e.assembledFilename === filename);
       return {
@@ -443,6 +484,21 @@ function main() {
   // Hard fail the known recurring_fires regression if still present
   if (!depResult.changelog.recurringFiresRegression.dependencyOrderSatisfied) {
     console.error("FAIL: recurring_fires creator still after d6_0 consumer");
+    process.exit(1);
+  }
+  const renameFile = "20260704024059_d_entitlements_legacy_stripe_rename.sql";
+  const entitlementsFile = "20260706130000_d_entitlements.sql";
+  if (
+    (fullPos.get(renameFile) || 0) === 0 ||
+    (fullPos.get(entitlementsFile) || 0) === 0 ||
+    (fullPos.get(renameFile) || 0) >= (fullPos.get(entitlementsFile) || 0)
+  ) {
+    console.error("FAIL: stripe_webhook_events rename must precede d_entitlements CREATE");
+    process.exit(1);
+  }
+  const missingRecovered = RECOVERED_REQUIRED_ORIGINALS.filter((f) => !assembledNames.has(f));
+  if (missingRecovered.length) {
+    console.error("FAIL: recovered originals missing from assembled set", missingRecovered);
     process.exit(1);
   }
 

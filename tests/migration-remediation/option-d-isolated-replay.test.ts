@@ -132,24 +132,18 @@ describe("Option D isolated Git replay harness", () => {
     }
   });
 
-  it("Option D candidate gate fails while REQUIRED missing CREATE remains; fixture scan stays distinct", () => {
-    let gateExit = 0;
-    try {
-      execFileSync(process.execPath, [GATE], { cwd: ROOT, stdio: "pipe" });
-    } catch (err: unknown) {
-      gateExit = (err as { status?: number }).status ?? 1;
-    }
-    expect(gateExit).not.toBe(0);
+  it("Option D candidate gate is static PASS once required CREATE/RENAME are in-set; prMerge/runtime stay false", () => {
+    execFileSync(process.execPath, [GATE], { cwd: ROOT, stdio: "pipe" });
     const gate = JSON.parse(fs.readFileSync(OPTION_D_GATE_JSON, "utf8"));
     expect(gate.fixtureScanOk).toBe(true);
-    expect(gate.requiredDependenciesResolved).toBe(false);
-    expect(gate.candidateReplayStaticReady).toBe(false);
-    expect(gate.mergeReady).toBe(false);
+    expect(gate.requiredDependenciesResolved).toBe(true);
+    expect(gate.candidateReplayStaticReady).toBe(true);
+    expect(gate.mergeReady).toBe(true);
     expect(gate.mergeReadyMeaning).toMatch(/candidateReplayStaticReady only/);
     expect(gate.prMergeReady).toBe(false);
     expect(gate.runtimeReady).toBe(false);
-    expect(gate.requiredUnresolvedCount).toBe(9);
-    expect(gate.ok).toBe(false);
+    expect(gate.requiredUnresolvedCount).toBe(0);
+    expect(gate.ok).toBe(true);
   });
 
   it("active supabase/migrations gate still fails (promotion not done)", () => {
@@ -186,7 +180,8 @@ describe("Option D isolated Git replay harness", () => {
     expect(exitCode).not.toBe(0);
     const status = JSON.parse(fs.readFileSync(RUNTIME_STATUS, "utf8"));
     expect(status.overall).toBe("BLOCKED");
-    expect(status.scopes.candidateReplay).toBe("FAIL");
+    expect(status.reason).toBe("runtime_apply_not_requested");
+    expect(status.scopes.candidateReplay).toBe("BLOCKED");
     expect(status.scopes.securityImmutabilityChecks).toBe("BLOCKED");
     expect(status.scopes.pr312RpcValidation).toBe("BLOCKED");
     expect(status.scopes.productionDashboardReplayParity).toBe("unresolved");

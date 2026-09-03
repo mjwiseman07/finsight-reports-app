@@ -1,68 +1,22 @@
 {
-  "generatedAt": "2026-09-02T23:55:18.320Z",
+  "generatedAt": "2026-09-03T00:23:35.757Z",
   "replayTrack": "option_d_isolated_candidate",
-  "ok": false,
-  "mergeReady": false,
+  "ok": true,
+  "mergeReady": true,
   "mergeReadyMeaning": "candidateReplayStaticReady only — not runtime PASS and not overall PR merge approval",
-  "candidateReplayStaticReady": false,
+  "candidateReplayStaticReady": true,
   "fixtureScanOk": true,
-  "requiredDependenciesResolved": false,
-  "requiredUnresolvedCount": 9,
-  "requiredUnresolved": [
-    {
-      "file": "20260706140000_d_entitlements_followup.sql",
-      "table": "stripe_webhook_events_legacy",
-      "prerequisiteSource": "none_in_git_candidate_set"
-    },
-    {
-      "file": "20260718220000_q8e_rls_service_role_policies.sql",
-      "table": "stripe_webhook_events_legacy",
-      "prerequisiteSource": "none_in_git_candidate_set"
-    },
-    {
-      "file": "20260805054000_schema_drift_issue_policies.sql",
-      "table": "lifecycle_issues",
-      "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null"
-    },
-    {
-      "file": "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
-      "table": "lifecycle_issues",
-      "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null"
-    },
-    {
-      "file": "20260806032000_lifecycle_issues_schema_drift_checks.sql",
-      "table": "lifecycle_issues",
-      "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null"
-    },
-    {
-      "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
-      "table": "lifecycle_issues",
-      "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null"
-    },
-    {
-      "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
-      "table": "lifecycle_issues",
-      "prerequisiteSource": "production_only:lifecycle_issues@20260804234230 localFilename=null"
-    },
-    {
-      "file": "20260810070050_dash_1c_a_widen_provenance.sql",
-      "table": "pilot_lifecycle_events",
-      "prerequisiteSource": "production_only:pilot_lifecycle_events@20260804213003 localFilename=null"
-    },
-    {
-      "file": "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
-      "table": "pilot_lifecycle_events",
-      "prerequisiteSource": "production_only:pilot_lifecycle_events@20260804213003 localFilename=null"
-    }
-  ],
+  "requiredDependenciesResolved": true,
+  "requiredUnresolvedCount": 0,
+  "requiredUnresolved": [],
   "runtimeReady": false,
   "prMergeReady": false,
   "violationCount": 0,
   "blockingViolations": [],
-  "assembledCount": 140,
+  "assembledCount": 143,
   "substitutions": 6,
   "scopes": {
-    "isolatedCandidateLineage": "FAIL",
+    "isolatedCandidateLineage": "PASS_STATIC",
     "pr312RpcValidation": "NOT_RUN_BY_THIS_GATE",
     "productionDashboardReplayParity": "unresolved",
     "activeSupabaseMigrationsPromotion": "still_blocked_see_data-dependent-replay-gate",

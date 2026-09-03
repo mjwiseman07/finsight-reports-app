@@ -51,11 +51,44 @@ describe("Option D dependency ordering", () => {
     expect(changelog.recurringFiresRegression.dependencyOrderSatisfied).toBe(true);
     expect(manifest.ordering.recurringFiresRegression.dependencyOrderSatisfied).toBe(true);
 
-    // Complete set: no omit/duplicate
-    expect(manifest.counts.totalAssembled).toBe(140);
-    expect(manifest.entries).toHaveLength(140);
+    expect(manifest.counts.totalAssembled).toBe(143);
+    expect(manifest.counts.recoveredRequiredOriginals).toBe(3);
+    expect(manifest.entries).toHaveLength(143);
     const names = manifest.entries.map((e: { assembledFilename: string }) => e.assembledFilename);
-    expect(new Set(names).size).toBe(140);
+    expect(new Set(names).size).toBe(143);
+
+    const recovered = [
+      "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+      "20260804213003_pilot_lifecycle_events.sql",
+      "20260804234230_lifecycle_issues.sql",
+    ];
+    for (const file of recovered) {
+      const entry = manifest.entries.find(
+        (e: { assembledFilename: string }) => e.assembledFilename === file,
+      );
+      expect(entry, file).toBeDefined();
+      expect(entry.role).toBe("recovered_production_original");
+      expect(entry.action).toBe("include");
+      expect(entry.replacementSource ?? null).toBeFalsy();
+    }
+    const renameOrder = manifest.entries.find(
+      (e: { assembledFilename: string }) =>
+        e.assembledFilename === "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+    )?.order;
+    const entitlementsOrder = manifest.entries.find(
+      (e: { assembledFilename: string }) =>
+        e.assembledFilename === "20260706130000_d_entitlements.sql",
+    )?.order;
+    const pilotOrder = manifest.entries.find(
+      (e: { assembledFilename: string }) =>
+        e.assembledFilename === "20260804213003_pilot_lifecycle_events.sql",
+    )?.order;
+    const lifecycleOrder = manifest.entries.find(
+      (e: { assembledFilename: string }) =>
+        e.assembledFilename === "20260804234230_lifecycle_issues.sql",
+    )?.order;
+    expect(renameOrder).toBeLessThan(entitlementsOrder);
+    expect(pilotOrder).toBeLessThan(lifecycleOrder);
 
     // Source hashes preserved on entries
     for (const e of manifest.entries) {
@@ -66,8 +99,14 @@ describe("Option D dependency ordering", () => {
     // Explicit override documented
     const overrides = JSON.parse(fs.readFileSync(OVERRIDES, "utf8"));
     expect(overrides.explicitDependsOn[D6_0]).toContain(D5);
+    expect(overrides.explicitDependsOn["20260706130000_d_entitlements.sql"]).toContain(
+      "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+    );
     expect(dep.explicitDependsOn[D6_0]).toContain(D5);
     expect(dep.dependencyOrder.indexOf(D5)).toBeLessThan(dep.dependencyOrder.indexOf(D6_0));
+    expect(
+      dep.dependencyOrder.indexOf("20260704024059_d_entitlements_legacy_stripe_rename.sql"),
+    ).toBeLessThan(dep.dependencyOrder.indexOf("20260706130000_d_entitlements.sql"));
   });
 
   it("detects cycles, duplicates, and omissions", () => {

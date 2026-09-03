@@ -15,9 +15,10 @@
 ## What was built
 
 1. **Deterministic assembler** — `scripts/migration-remediation/assemble-option-d-replay.js`  
-   - Foundations baseline + phase1 recovered + post-phase1 local files  
+   - Foundations baseline + phase1 recovered + **three recovered required originals** (post-prefix) + post-phase1 local files  
    - In-place substitutions (same filename slot — **not** appended after failing originals)  
-   - Manifest with original/replacement SHA-256, order, justification
+   - Manifest with original/replacement SHA-256, order, justification  
+   - Recovered required CREATE/RENAME bodies are **originals** (no substitution) — see `evidence/option-d-required-creates/`
 
 2. **Substitutions** (under `supabase/migrations-draft/option-d-isolated-replay/substitutions/`):
    - `d6_2a`–`d6_2d` — registry UPDATE + guarded `firm_clients` INSERT  
@@ -27,7 +28,7 @@
 3. **Target safety** — `option-d-target-safety.js` rejects production project ref `jzmdgwwiestcmmeuhhkr` and `*.supabase.co` remotes; allowlist localhost / 127.0.0.1 / ::1 only. URLs redacted in status files.
 
 4. **Gates**
-   - **Option D candidate gate** (`audit-option-d-replay-gate.js`) — `mergeReady` means `candidateReplayStaticReady` only (fixture scan **and** required CREATE/RENAME dependencies resolved). It is **not** overall PR merge and **not** runtime PASS. The gate **fails** while any `required_missing_create` remains. `prMergeReady` / `runtimeReady` stay false.
+   - **Option D candidate gate** (`audit-option-d-replay-gate.js`) — `mergeReady` means `candidateReplayStaticReady` only (fixture scan **and** required CREATE/RENAME dependencies resolved). It is **not** overall PR merge and **not** runtime PASS. `prMergeReady` / `runtimeReady` stay false. Static PASS is not a local replay.
    - **Active migrations gate** (`audit-data-dependent-replay-gate.js`) — remains **failing** until promotion into `supabase/migrations/` (separate)
 
 5. **Runtime harness** — `run-option-d-isolated-replay.js` (fail-closed)  
@@ -41,7 +42,7 @@
 
 | Scope | State after this PR step |
 |-------|--------------------------|
-| `candidateReplay` | Static FAIL while required unresolved refs remain; runtime PASS only after a later fresh-DB apply |
+| `candidateReplay` | Static PASS once required CREATE/RENAME are in-set; runtime PASS only after a later fresh-DB apply |
 | `securityImmutabilityChecks` | **BLOCKED** until executed post-apply assertions PASS |
 | `pr312RpcValidation` | **BLOCKED** until structured Vitest PASS on pinned suite |
 | `productionDashboardReplayParity` | **Unresolved** (Option A/B; not applicable to Option D PASS) |

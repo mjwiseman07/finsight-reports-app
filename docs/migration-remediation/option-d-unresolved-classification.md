@@ -1,46 +1,44 @@
 # Option D unresolved-reference classification (review)
 
-**HEAD this step builds on:** `69323c96`  
+**HEAD this step builds on:** `28eaeb77`  
 **No database replay.** Active `supabase/migrations/` and PR #312 unchanged.
 
-`mergeReady` on the Option D **candidate gate** now means `candidateReplayStaticReady` only (fixture scan **and** required dependencies resolved). It is **not** overall PR merge and **not** runtime PASS. `prMergeReady` and `runtimeReady` stay false. The gate **fails** while any `required_missing_create` remains.
+Recovered production originals for the three missing relations are now in the Option D **draft** candidate set (`supabase/migrations-draft/recovered-production-history/`). SQL treatment is **original** (no substitution). See `docs/migration-remediation/evidence/option-d-required-creates/`.
+
+`mergeReady` on the Option D **candidate gate** means `candidateReplayStaticReady` only (fixture scan **and** required dependencies resolved). It is **not** overall PR merge and **not** runtime PASS. `prMergeReady` and `runtimeReady` stay false.
 
 No placeholder tables were added. Unresolved rows are kept even when classified as a justified exclusion.
 
-There is **no** `ALTER TABLE … RENAME TO` in the Option D candidate SQL set.
-
-## The eight requested occurrences
+## Remaining unresolved (1) — justified exclusion
 
 | # | Table | File | SQL that executes | When | Prerequisite | Safe if absent? | Edge / exclusion |
 |---|--------|------|-------------------|------|--------------|-----------------|------------------|
-| 1 | `erp_connections` | `20260717130000_tcp1_w3_erp_connections_disconnected_at.sql` | `DO $$` `ALTER TABLE public.erp_connections ADD COLUMN disconnected_at`; `DO $$` `CREATE INDEX … ON public.erp_connections`; third `DO $$` rewrites `qbo_connections_unified` | Only `IF to_regclass('public.erp_connections') IS NOT NULL`. ELSE rebuilds the view from `accounting_connections` only (in foundations). | **None in candidate/baseline CREATE/RENAME.** Optional leftover table (`optionalExternalTables` in the foundations baseline manifest). Canonical table is `accounting_connections`. | **Yes** — missing table is a no-op, not 42P01 | **Justified exclusion** `safe_conditional` — **no** required edge |
-| 2 | `lifecycle_issues` | `20260805054000_schema_drift_issue_policies.sql` | `CREATE POLICY lifecycle_issues_org_wide_super_admin_read ON public.lifecycle_issues` | Unconditional on apply | Production `lifecycle_issues` @ `20260804234230` (`localFilename: null`, `unknown_prod_only`) | **No** — 42P01 | **Required missing CREATE** |
-| 3 | `lifecycle_issues` | `20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql` | `ALTER TABLE public.lifecycle_issues DROP/ADD CONSTRAINT` (issue_kind + partition CHECKs) | Unconditional | Same prod-only CREATE | **No** | **Required missing CREATE** |
-| 4 | `lifecycle_issues` | `20260806032000_lifecycle_issues_schema_drift_checks.sql` | Same unconditional `ALTER TABLE` CHECK widen | Unconditional | Same | **No** | **Required missing CREATE** |
-| 5 | `lifecycle_issues` | `20260806040000_major_2_3_block_a_assertion_linkage.sql` | `DROP/CREATE TRIGGER … ON public.lifecycle_issues`; `DO $$` `SELECT … FROM public.lifecycle_issues` | Unconditional | Same | **No** | **Required missing CREATE** |
-| 6 | `pilot_lifecycle_events` | `20260810070050_dash_1c_a_widen_provenance.sql` | `ALTER TABLE public.pilot_lifecycle_events` drop/add CHECKs | Unconditional | Production `pilot_lifecycle_events` @ `20260804213003` (not in git) | **No** | **Required missing CREATE** |
-| 7 | `pilot_lifecycle_events` | `20260810070100_dash_1c_a_lifecycle_scan_indexes.sql` | `CREATE INDEX … ON public.pilot_lifecycle_events` | Unconditional. `IF NOT EXISTS` does **not** skip a missing relation. | Same | **No** | **Required missing CREATE** |
-| 8 | `stripe_webhook_events_legacy` | `20260718220000_q8e_rls_service_role_policies.sql` | `REVOKE ALL ON public.stripe_webhook_events_legacy`; `DROP POLICY IF EXISTS … ON public.stripe_webhook_events_legacy`; `CREATE POLICY … ON public.stripe_webhook_events_legacy` | Unconditional. `DROP POLICY IF EXISTS` still requires the table. | **No RENAME/CREATE in git.** New `stripe_webhook_events` is created by `20260706130000_d_entitlements.sql`. | **No** | **Required missing CREATE** (not a rename in this candidate set) |
+| 1 | `erp_connections` | `20260717130000_tcp1_w3_erp_connections_disconnected_at.sql` | `DO $$` `ALTER TABLE public.erp_connections ADD COLUMN disconnected_at`; `DO $$` `CREATE INDEX … ON public.erp_connections`; third `DO $$` rewrites `qbo_connections_unified` | Only `IF to_regclass('public.erp_connections') IS NOT NULL`. ELSE rebuilds the view from `accounting_connections` only (in foundations). | **None in candidate/baseline CREATE/RENAME.** Optional leftover table. Canonical table is `accounting_connections`. | **Yes** — missing table is a no-op, not 42P01 | **Justified exclusion** `safe_conditional` — **no** required edge |
 
-## Additional occurrences found by the same rules (not suppressed)
+`requiredCount` / `requiredUnresolvedCount` = **0**. `requiredDependenciesResolved` = true. Candidate static gate may PASS; runtime/PR merge stay false.
 
-Extending consume analysis to `INSERT … FROM public.<ident>`, `COMMENT ON TABLE`, and `FROM public.<ident>` inside `DO $$` (excluding function calls) surfaced two more **required** rows. They are kept.
+## Previously required — now supplied in-set
 
-| # | Table | File | SQL that executes | When | Prerequisite | Safe if absent? | Edge / exclusion |
-|---|--------|------|-------------------|------|--------------|-----------------|------------------|
-| 9 | `stripe_webhook_events_legacy` | `20260706140000_d_entitlements_followup.sql` | `INSERT INTO public.stripe_webhook_events … FROM public.stripe_webhook_events_legacy`; `DO $$` `SELECT COUNT(*) FROM public.stripe_webhook_events_legacy`; `COMMENT ON TABLE public.stripe_webhook_events_legacy` | Unconditional | Same as #8 — follow-up **reads** `_legacy` and never creates/renames it | **No** | **Required missing CREATE**. Graph edge added: follow-up **does** depend on `20260706130000_d_entitlements.sql` for `stripe_webhook_events` |
-| 10 | `lifecycle_issues` | `20260806042000_major_2_3_block_a_1_research_revision.sql` | `DO $$` `SELECT COUNT(*) FROM public.lifecycle_issues` (self-verify) | Unconditional | Same prod-only CREATE as #2–#5 | **No** | **Required missing CREATE** |
+| Table | Recovered source | Kind | Option D treatment |
+|-------|------------------|------|-------------------|
+| `stripe_webhook_events_legacy` | prod `20260704024059` `d_entitlements_legacy_stripe_rename` | `ALTER TABLE IF EXISTS public.stripe_webhook_events RENAME TO stripe_webhook_events_legacy` | original |
+| `pilot_lifecycle_events` | prod `20260804213003` | `CREATE TABLE IF NOT EXISTS` | original |
+| `lifecycle_issues` | prod `20260804234230` | ALTER `pilot_lifecycle_events` CHECKs, then `CREATE TABLE IF NOT EXISTS` | original |
 
-## Graph / analyzer changes
+Consumers (`schema_drift_issue_policies`, dash_1c ALTERs/indexes, `d_entitlements_followup`, `q8e_rls_service_role_policies`, etc.) now have a CREATE/RENAME in the candidate graph. They are **not** unresolved.
 
-- `ALTER TABLE … RENAME TO` is `rename_table`: consumes the old name and **creates** the new name. Consumers of the new name depend on the rename file. Replay simulation removes the old name after rename. **No such statement exists** in this candidate set, so no live rename edge; coverage is in unit tests.
+Rename source table `stripe_webhook_events` is created in the phase1 prefix. Git `20260706130000_d_entitlements.sql` creates the **replacement** `stripe_webhook_events` after the rename (`explicitDependsOn` + `semanticConstraint`). Later consumers of `_legacy` use the renamed name.
+
+No second CREATE of these three names exists in `supabase/migrations/`. Production `d_entitlements_followup` @ `20260704025937` was **not** imported (git already has a followup).
+
+## Graph / analyzer
+
+- `ALTER TABLE … RENAME TO` is `rename_table`: consumes the old name and **creates** the new name. Replay simulation removes the old name after rename.
+- Recovered rename is in the candidate set; consumers of `_legacy` depend on `20260704024059_d_entitlements_legacy_stripe_rename.sql`.
 - `to_regclass` / top-level `ALTER TABLE IF EXISTS` → `safe_conditional` (still **listed**). `DROP POLICY IF EXISTS` / `CREATE INDEX IF NOT EXISTS` on a missing table are **not** safe.
-- `INSERT`/`DO` consume `FROM public.<table>` only when the ident is not a function call (`foo(`).
-- `REVOKE ON FUNCTION` is ignored; only table REVOKEs consume.
-- Candidate gate **fails** while `required_missing_create` count > 0 (`requiredUnresolvedCount` = 9). `fixtureScanOk` stays independent.
-- Dependency-manifest `ok` is false until required unresolved is 0. Recurring_fires order is unchanged (d5 before d6_0). Follow-up now has `dependsOn: [20260706130000_d_entitlements.sql]`.
+- Recurring_fires order is unchanged (d5 before d6_0).
 - No placeholder tables added.
 
-## Remaining required (9)
+## Not claimed by this static PASS
 
-Recovered SQL for `lifecycle_issues`, `pilot_lifecycle_events`, and `stripe_webhook_events_legacy` (or a real `RENAME TO` in-set) is still needed before a fresh local replay can be expected to pass these files.
+Git `20260805041500_major_1_rpc_lockdown.sql` REVOKEs MEM-LIFECYCLE functions that live in **later** production versions (not in these three recovered bodies). That is outside the nine required **table** CREATEs. Static PASS ≠ runtime PASS.

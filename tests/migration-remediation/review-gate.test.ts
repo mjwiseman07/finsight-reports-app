@@ -20,6 +20,17 @@ const EXPECTED_PHASE1_MD5: Record<string, string> = {
   "20260701043931": "d13c0dc54794fe2f0d47dfa43c86ad3e",
 };
 
+const REQUIRED_CREATES_MANIFEST = path.join(
+  ROOT,
+  "docs/migration-remediation/evidence/option-d-required-creates/provenance-manifest.json",
+);
+
+const EXPECTED_REQUIRED_MD5: Record<string, { md5: string; len: number; start: string }> = {
+  "20260704024059": { md5: "76b4171c8bad53b1ef0965ebf2436366", len: 105, start: "BEGIN;" },
+  "20260804213003": { md5: "34ca62d02d68fac9fc81bf485ba1a02c", len: 5454, start: "-- Phase MEM-LIFECYCLE" },
+  "20260804234230": { md5: "0b75c1945dea894acbe0427a847d13c5", len: 3274, start: "-- Phase MEM_LIFECYCLE" },
+};
+
 function sqlBodyFromRecoveredFile(filePath: string): string {
   const text = fs.readFileSync(filePath, "utf8");
   const idx = text.indexOf("\n\n");
@@ -84,6 +95,32 @@ describe("migration remediation review gate", () => {
       expect(md5Utf8(body)).toBe(EXPECTED_PHASE1_MD5[row.version]);
       expect(row.database_md5_utf8).toBe(EXPECTED_PHASE1_MD5[row.version]);
       expect(row.statement_count).toBe(1);
+    }
+  });
+
+  it("recovered Option D required originals match production statements[1] bytes and hashes", () => {
+    const manifest = JSON.parse(fs.readFileSync(REQUIRED_CREATES_MANIFEST, "utf8"));
+    expect(manifest.source_project_ref).toBe("jzmdgwwiestcmmeuhhkr");
+    expect(manifest.contains_data_rows).toBe(false);
+    expect(manifest.contains_credentials).toBe(false);
+    expect(manifest.migrations).toHaveLength(3);
+    for (const row of manifest.migrations) {
+      const expectRow = EXPECTED_REQUIRED_MD5[row.version];
+      expect(expectRow, row.version).toBeDefined();
+      const file = path.join(PHASE1_DIR, row.filename);
+      const text = fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n");
+      const i = text.indexOf(expectRow.start);
+      expect(i).toBeGreaterThanOrEqual(0);
+      const body = text.slice(i);
+      expect(body.length).toBe(expectRow.len);
+      expect(md5Utf8(body)).toBe(expectRow.md5);
+      expect(row.database_md5_utf8).toBe(expectRow.md5);
+      expect(row.sql_body_md5_utf8).toBe(expectRow.md5);
+      expect(row.statement_count).toBe(1);
+      expect(row.substitution).toBeNull();
+      expect(text).not.toMatch(/postgres(ql)?:\/\//i);
+      expect(text).not.toMatch(/eyJ[A-Za-z0-9_-]{20,}\./);
+      expect(text).not.toMatch(/INSERT\s+INTO/i);
     }
   });
 

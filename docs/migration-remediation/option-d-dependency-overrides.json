@@ -4,13 +4,23 @@
   "explicitDependsOn": {
     "20260703_1200_d6_0_vertical_rule_foundation.sql": [
       "20260714_00_d5_recurring_templates.sql"
+    ],
+    "20260706130000_d_entitlements.sql": [
+      "20260704024059_d_entitlements_legacy_stripe_rename.sql"
     ]
   },
-  "semanticConstraints": [],
+  "semanticConstraints": [
+    {
+      "before": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+      "after": "20260706130000_d_entitlements.sql",
+      "reason": "Rename existing stripe_webhook_events to _legacy before CREATE of the replacement table."
+    }
+  ],
   "optionalExternalTables": ["users", "pg_class", "pg_namespace", "pg_proc", "pg_constraint", "pg_roles", "storage"],
   "platformProvidedTables": ["users"],
   "notes": [
     "explicitDependsOn documents the reviewed recurring_fires edge (also inferred via mutator_chain).",
-    "Do not reorder solely because a table exists; mutator chains preserve CREATE→ALTER; consumers depend on creators only unless an explicit semanticConstraint is added."
+    "Do not reorder solely because a table exists; mutator chains preserve CREATE→ALTER; consumers depend on creators only unless an explicit semanticConstraint is added.",
+    "Recovered 20260704024059 must precede git 20260706130000_d_entitlements.sql so the old stripe_webhook_events table is renamed to _legacy before the replacement CREATE."
   ]
 }
