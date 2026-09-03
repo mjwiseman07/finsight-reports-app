@@ -67,7 +67,12 @@ const PHASE1_FILES = [
 const RECOVERED_REQUIRED_ORIGINALS = [
   "20260704024059_d_entitlements_legacy_stripe_rename.sql",
   "20260804213003_pilot_lifecycle_events.sql",
+  "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+  "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+  "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+  "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
   "20260804234230_lifecycle_issues.sql",
+  "20260805005320_pilot_lifecycle_anchors.sql",
 ];
 
 const SUBSTITUTIONS = {
@@ -274,18 +279,21 @@ function main() {
     ? JSON.parse(fs.readFileSync(DEP_OVERRIDES, "utf8"))
     : {};
 
-  // Tables created by fixed prefix are provided before post-phase1 replay.
+  // Objects created by fixed prefix are provided before post-phase1 replay.
   const knownProvidedTables = new Set();
+  const knownProvidedFunctions = new Set();
   for (const abs of [
     BASELINE,
     ...PHASE1_FILES.map((f) => path.join(PHASE1_DIR, f)),
   ]) {
     const a = analyzeMigrationFile(abs);
     for (const t of a.creates.tables || []) knownProvidedTables.add(t);
+    for (const id of a.creates.functionIdentities || []) knownProvidedFunctions.add(id);
   }
 
   const depResult = computeOptionDDependencyOrder(postCandidates, depOverrides, {
     knownProvidedTables,
+    knownProvidedFunctions,
   });
   if (depResult.cycles.length) {
     console.error("FAIL: dependency cycles in Option D post-phase1 set", depResult.cycles);
@@ -331,6 +339,7 @@ function main() {
     candidates: postCandidates,
     graph: depResult.graph,
     knownProvidedTables,
+    knownProvidedFunctions,
     lineageHints: loadLineageHints(ROOT),
   });
   fs.writeFileSync(CLASS_OUT, JSON.stringify(classification, null, 2) + "\n");
@@ -386,12 +395,18 @@ function main() {
   const simOptional = [
     ...(depOverrides.optionalExternalTables || []),
     ...classification.classifications
-      .filter((c) => c.justifiedExclusion)
-      .map((c) => c.table),
+      .filter((c) => c.justifiedExclusion && c.kind !== "function")
+      .map((c) => c.table)
+      .filter(Boolean),
   ];
+  const simOptionalFunctions = classification.classifications
+    .filter((c) => c.justifiedExclusion && c.kind === "function")
+    .map((c) => c.identity)
+    .filter(Boolean);
   const replaySim = simulateCandidateOrder(simCandidates, {
     ...depOverrides,
     optionalExternalTables: simOptional,
+    optionalFunctions: simOptionalFunctions,
   });
 
   const requiredPatent6 = [
@@ -494,6 +509,19 @@ function main() {
     (fullPos.get(renameFile) || 0) >= (fullPos.get(entitlementsFile) || 0)
   ) {
     console.error("FAIL: stripe_webhook_events rename must precede d_entitlements CREATE");
+    process.exit(1);
+  }
+  const hashChainFile = "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql";
+  const anchorsFile = "20260805005320_pilot_lifecycle_anchors.sql";
+  const major1File = "20260805041500_major_1_rpc_lockdown.sql";
+  if (
+    (fullPos.get(hashChainFile) || 0) === 0 ||
+    (fullPos.get(anchorsFile) || 0) === 0 ||
+    (fullPos.get(major1File) || 0) === 0 ||
+    fullPos.get(hashChainFile) >= fullPos.get(major1File) ||
+    fullPos.get(anchorsFile) >= fullPos.get(major1File)
+  ) {
+    console.error("FAIL: recovered function creators must precede major_1_rpc_lockdown");
     process.exit(1);
   }
   const missingRecovered = RECOVERED_REQUIRED_ORIGINALS.filter((f) => !assembledNames.has(f));

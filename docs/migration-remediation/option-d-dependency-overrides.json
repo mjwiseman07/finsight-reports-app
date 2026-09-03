@@ -7,6 +7,19 @@
     ],
     "20260706130000_d_entitlements.sql": [
       "20260704024059_d_entitlements_legacy_stripe_rename.sql"
+    ],
+    "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql": [
+      "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql"
+    ],
+    "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql": [
+      "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql"
+    ],
+    "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql": [
+      "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql"
+    ],
+    "20260805005320_pilot_lifecycle_anchors.sql": [
+      "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "20260804234230_lifecycle_issues.sql"
     ]
   },
   "semanticConstraints": [
@@ -14,6 +27,16 @@
       "before": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
       "after": "20260706130000_d_entitlements.sql",
       "reason": "Rename existing stripe_webhook_events to _legacy before CREATE of the replacement table."
+    },
+    {
+      "before": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "after": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "reason": "First CREATE of hash-chain functions before OR REPLACE digest fix."
+    },
+    {
+      "before": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "after": "20260805005320_pilot_lifecycle_anchors.sql",
+      "reason": "chain_seq column/function replacements before anchor batch RPC that consumes the hardened events table."
     }
   ],
   "optionalExternalTables": ["users", "pg_class", "pg_namespace", "pg_proc", "pg_constraint", "pg_roles", "storage"],
@@ -21,6 +44,7 @@
   "notes": [
     "explicitDependsOn documents the reviewed recurring_fires edge (also inferred via mutator_chain).",
     "Do not reorder solely because a table exists; mutator chains preserve CREATE→ALTER; consumers depend on creators only unless an explicit semanticConstraint is added.",
-    "Recovered 20260704024059 must precede git 20260706130000_d_entitlements.sql so the old stripe_webhook_events table is renamed to _legacy before the replacement CREATE."
+    "Recovered 20260704024059 must precede git 20260706130000_d_entitlements.sql so the old stripe_webhook_events table is renamed to _legacy before the replacement CREATE.",
+    "Recovered hash-chain function originals must stay in production statement order before major_1_rpc_lockdown. Do not drop REVOKE/ALTER FUNCTION lockdown statements to pass replay."
   ]
 }

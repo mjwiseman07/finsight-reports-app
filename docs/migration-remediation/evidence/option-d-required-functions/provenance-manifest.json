@@ -1,0 +1,98 @@
+{
+  "warning": "Recovered production migration originals for Option D draft replay — NOT approved active supabase/migrations/ files.",
+  "source_project_ref": "jzmdgwwiestcmmeuhhkr",
+  "source_table": "supabase_migrations.schema_migrations",
+  "retrieval_mode": "read-only",
+  "retrieval_date": "2026-09-03",
+  "contains_data_rows": false,
+  "contains_credentials": false,
+  "statement_storage": "Each production row stores statements[] (here: exactly one SQL string in statements[1]). Files preserve that element bytes-for-bytes after the provenance header.",
+  "note": "chain_seq includes a DO backfill UPDATE of chain_seq on existing rows; on an empty table it is a no-op. anchors INSERT is inside sp_write_anchor_batch (caller-supplied params), not a seed of customer rows.",
+  "migrations": [
+    {
+      "version": "20260804213819",
+      "name": "pilot_lifecycle_events_hash_chain_trigger",
+      "filename": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "database_md5_utf8": "5ede7d6c22fe4b9ba15e9b038e5379dc",
+      "sql_body_md5_utf8": "5ede7d6c22fe4b9ba15e9b038e5379dc",
+      "sql_body_sha256_utf8": "e770cf5ef287e2ceb40df13bd7fbfe38694a00a7e263f430f7a1e9ccea910770",
+      "local_file_sha256_utf8": "009933a8089b5de1f36b7911f742fc314738653eff60a89bca6914396cb51f2e",
+      "statement_count": 1,
+      "statement_byte_lengths": [
+        7738
+      ],
+      "byte_length": 7738,
+      "contains_data_rows": false,
+      "contains_credentials": false,
+      "substitution": null
+    },
+    {
+      "version": "20260804213934",
+      "name": "pilot_lifecycle_events_hash_digest_bytea_fix",
+      "filename": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "database_md5_utf8": "804e70213d39474337ad6a0526df4120",
+      "sql_body_md5_utf8": "804e70213d39474337ad6a0526df4120",
+      "sql_body_sha256_utf8": "39180c22c7cae0c2a2fbd6c2473258c0f593737054654b8e133f15815d74a59e",
+      "local_file_sha256_utf8": "a5b9ae8ac157fd87749bdb6e6fcb2205cd7b6b1e47218c81c3a256a1e4944c47",
+      "statement_count": 1,
+      "statement_byte_lengths": [
+        3968
+      ],
+      "byte_length": 3968,
+      "contains_data_rows": false,
+      "contains_credentials": false,
+      "substitution": null
+    },
+    {
+      "version": "20260804214151",
+      "name": "pilot_lifecycle_events_hash_extensions_search_path",
+      "filename": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "database_md5_utf8": "7a5489dd8dd316cf26eb02a413339f71",
+      "sql_body_md5_utf8": "7a5489dd8dd316cf26eb02a413339f71",
+      "sql_body_sha256_utf8": "a7ee1db9cfc79edf2ac9cd55a9d470d234a1d3aad0a3bc3705b86a5642c23988",
+      "local_file_sha256_utf8": "f2c2de7e507ad632f5d2ff15c65fe97d609569db9946ddecdfa6d27aba4139a5",
+      "statement_count": 1,
+      "statement_byte_lengths": [
+        4004
+      ],
+      "byte_length": 4004,
+      "contains_data_rows": false,
+      "contains_credentials": false,
+      "substitution": null
+    },
+    {
+      "version": "20260804220220",
+      "name": "pilot_lifecycle_events_chain_seq_hardening",
+      "filename": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "database_md5_utf8": "0dfe89813e31c0cf5341d8fd65ab4c18",
+      "sql_body_md5_utf8": "0dfe89813e31c0cf5341d8fd65ab4c18",
+      "sql_body_sha256_utf8": "241fceb68a2c61e0ed809f5d3611d40a2b88fdcb25c940a96f88728ab4baf0b7",
+      "local_file_sha256_utf8": "03d3b6f9dbab92225c458ffc140e4ab4e09544d7fa86b61a084c888751bdf391",
+      "statement_count": 1,
+      "statement_byte_lengths": [
+        17126
+      ],
+      "byte_length": 17126,
+      "contains_data_rows": false,
+      "contains_credentials": false,
+      "substitution": null
+    },
+    {
+      "version": "20260805005320",
+      "name": "pilot_lifecycle_anchors",
+      "filename": "20260805005320_pilot_lifecycle_anchors.sql",
+      "database_md5_utf8": "74f838e87f887acae7cfee3bc65a00cc",
+      "sql_body_md5_utf8": "74f838e87f887acae7cfee3bc65a00cc",
+      "sql_body_sha256_utf8": "c46e6e747ee6ad26923808271f8275320c075fb758ebae498e608bfce97c9d40",
+      "local_file_sha256_utf8": "71efb943b4f58f34d70624acc7ca7da7bd951861becc862bd903735e0172285f",
+      "statement_count": 1,
+      "statement_byte_lengths": [
+        5905
+      ],
+      "byte_length": 5905,
+      "contains_data_rows": false,
+      "contains_credentials": false,
+      "substitution": null
+    }
+  ]
+}

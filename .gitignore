@@ -58,3 +58,6 @@ scripts/capture-qbo-bs-fixture.ts
 
 # Option D ephemeral local stack (this machine only)
 .tmp-option-d-supabase/
+
+# Recovered function-source working copies (draft SQL with provenance is committed)
+docs/migration-remediation/evidence/option-d-required-functions/raw/

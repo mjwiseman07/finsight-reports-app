@@ -51,16 +51,21 @@ describe("Option D dependency ordering", () => {
     expect(changelog.recurringFiresRegression.dependencyOrderSatisfied).toBe(true);
     expect(manifest.ordering.recurringFiresRegression.dependencyOrderSatisfied).toBe(true);
 
-    expect(manifest.counts.totalAssembled).toBe(143);
-    expect(manifest.counts.recoveredRequiredOriginals).toBe(3);
-    expect(manifest.entries).toHaveLength(143);
+    expect(manifest.counts.totalAssembled).toBe(148);
+    expect(manifest.counts.recoveredRequiredOriginals).toBe(8);
+    expect(manifest.entries).toHaveLength(148);
     const names = manifest.entries.map((e: { assembledFilename: string }) => e.assembledFilename);
-    expect(new Set(names).size).toBe(143);
+    expect(new Set(names).size).toBe(148);
 
     const recovered = [
       "20260704024059_d_entitlements_legacy_stripe_rename.sql",
       "20260804213003_pilot_lifecycle_events.sql",
+      "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
       "20260804234230_lifecycle_issues.sql",
+      "20260805005320_pilot_lifecycle_anchors.sql",
     ];
     for (const file of recovered) {
       const entry = manifest.entries.find(

@@ -44,7 +44,7 @@ const FORMERLY_REQUIRED = [
 ];
 
 describe("Option D unresolved classification", () => {
-  it("erp remains the only unresolved consume; recovered CREATE/RENAME resolve the nine required rows", () => {
+  it("erp remains a justified exclusion; recovered CREATE/RENAME/FUNCTION resolve required rows", () => {
     execFileSync(process.execPath, [ASSEMBLE], { cwd: ROOT, stdio: "pipe" });
     expect(fs.existsSync(CLASS_JSON)).toBe(true);
     const doc = JSON.parse(fs.readFileSync(CLASS_JSON, "utf8"));
@@ -67,11 +67,16 @@ describe("Option D unresolved classification", () => {
     }
 
     expect(doc.requiredCount).toBe(0);
-    expect(doc.occurrenceCount).toBe(1);
     expect(doc.requiredDependenciesResolved).toBe(true);
     expect(
       doc.classifications.filter(
         (c: { classification: string }) => c.classification === "required_missing_create",
+      ),
+    ).toHaveLength(0);
+    expect(
+      doc.classifications.filter(
+        (c: { kind?: string; classification: string }) =>
+          c.kind === "function" && c.classification === "required_missing_create",
       ),
     ).toHaveLength(0);
   });

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T00:23:35.615Z",
+  "generatedAt": "2026-09-03T01:07:26.017Z",
   "mechanism": "option_d_isolated_git_replay",
   "status": "CANDIDATE_LINEAGE_ASSEMBLED",
   "notMergeApproval": true,
@@ -125,7 +125,12 @@
       "20260725060000_ar_tieout42_memory_events.sql",
       "20260727000100_users_auth_trigger_single_writer.sql",
       "20260804213003_pilot_lifecycle_events.sql",
+      "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
       "20260804234230_lifecycle_issues.sql",
+      "20260805005320_pilot_lifecycle_anchors.sql",
       "20260805041500_major_1_rpc_lockdown.sql",
       "20260805054000_schema_drift_issue_policies.sql",
       "20260805210000_schema_drift_scanner_issue_kinds.sql",
@@ -270,7 +275,12 @@
       "20260725060000_ar_tieout42_memory_events.sql",
       "20260727000100_users_auth_trigger_single_writer.sql",
       "20260804213003_pilot_lifecycle_events.sql",
+      "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
       "20260804234230_lifecycle_issues.sql",
+      "20260805005320_pilot_lifecycle_anchors.sql",
       "20260805041500_major_1_rpc_lockdown.sql",
       "20260805054000_schema_drift_issue_policies.sql",
       "20260805210000_schema_drift_scanner_issue_kinds.sql",
@@ -330,11 +340,11 @@
     "unresolvedClassification": "docs/migration-remediation/option-d-unresolved-classification.json"
   },
   "counts": {
-    "totalAssembled": 143,
+    "totalAssembled": 148,
     "baseline": 1,
     "phase1": 4,
-    "recoveredRequiredOriginals": 3,
-    "postPhase1": 138,
+    "recoveredRequiredOriginals": 8,
+    "postPhase1": 143,
     "substitutions": 6,
     "skippedCoveredByBaseline": 34
   },
@@ -354,10 +364,45 @@
       "substitution": null
     },
     {
+      "filename": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "originalSha256": "009933a8089b5de1f36b7911f742fc314738653eff60a89bca6914396cb51f2e",
+      "order": 108,
+      "substitution": null
+    },
+    {
+      "filename": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "originalSha256": "a5b9ae8ac157fd87749bdb6e6fcb2205cd7b6b1e47218c81c3a256a1e4944c47",
+      "order": 109,
+      "substitution": null
+    },
+    {
+      "filename": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "originalSha256": "f2c2de7e507ad632f5d2ff15c65fe97d609569db9946ddecdfa6d27aba4139a5",
+      "order": 110,
+      "substitution": null
+    },
+    {
+      "filename": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "originalSha256": "03d3b6f9dbab92225c458ffc140e4ab4e09544d7fa86b61a084c888751bdf391",
+      "order": 111,
+      "substitution": null
+    },
+    {
       "filename": "20260804234230_lifecycle_issues.sql",
       "originalSource": "supabase/migrations-draft/recovered-production-history/20260804234230_lifecycle_issues.sql",
       "originalSha256": "925299e3be1dafe4b1001bf3b162d3769b2b851fa1d52609feff128d6a4feb63",
-      "order": 108,
+      "order": 112,
+      "substitution": null
+    },
+    {
+      "filename": "20260805005320_pilot_lifecycle_anchors.sql",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260805005320_pilot_lifecycle_anchors.sql",
+      "originalSha256": "71efb943b4f58f34d70624acc7ca7da7bd951861becc862bd903735e0172285f",
+      "order": 113,
       "substitution": null
     }
   ],
@@ -408,7 +453,7 @@
       "justification": "Prod Demo Xero RAISE/UPDATE body omitted for data-less replay; partial UNIQUE connected-grant index retained.",
       "originalSha256": "b70541437fb676e2aef339f1d3243a2ca3bec2190998180ed2b418645ce42e6e",
       "replacementSha256": "65fe255829602dd790ca0aeece52b9acf6a551e3a12c54bcbc3686b80e68c5fa",
-      "order": 123
+      "order": 128
     }
   ],
   "skippedCoveredByBaseline": [
@@ -1735,6 +1780,54 @@
     },
     {
       "order": 108,
+      "assembledFilename": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "role": "recovered_production_original",
+      "action": "include",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "originalSha256": "009933a8089b5de1f36b7911f742fc314738653eff60a89bca6914396cb51f2e",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "009933a8089b5de1f36b7911f742fc314738653eff60a89bca6914396cb51f2e",
+      "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
+    },
+    {
+      "order": 109,
+      "assembledFilename": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "role": "recovered_production_original",
+      "action": "include",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+      "originalSha256": "a5b9ae8ac157fd87749bdb6e6fcb2205cd7b6b1e47218c81c3a256a1e4944c47",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "a5b9ae8ac157fd87749bdb6e6fcb2205cd7b6b1e47218c81c3a256a1e4944c47",
+      "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
+    },
+    {
+      "order": 110,
+      "assembledFilename": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "role": "recovered_production_original",
+      "action": "include",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+      "originalSha256": "f2c2de7e507ad632f5d2ff15c65fe97d609569db9946ddecdfa6d27aba4139a5",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "f2c2de7e507ad632f5d2ff15c65fe97d609569db9946ddecdfa6d27aba4139a5",
+      "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
+    },
+    {
+      "order": 111,
+      "assembledFilename": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "role": "recovered_production_original",
+      "action": "include",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "originalSha256": "03d3b6f9dbab92225c458ffc140e4ab4e09544d7fa86b61a084c888751bdf391",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "03d3b6f9dbab92225c458ffc140e4ab4e09544d7fa86b61a084c888751bdf391",
+      "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
+    },
+    {
+      "order": 112,
       "assembledFilename": "20260804234230_lifecycle_issues.sql",
       "role": "recovered_production_original",
       "action": "include",
@@ -1746,7 +1839,19 @@
       "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
     },
     {
-      "order": 109,
+      "order": 113,
+      "assembledFilename": "20260805005320_pilot_lifecycle_anchors.sql",
+      "role": "recovered_production_original",
+      "action": "include",
+      "originalSource": "supabase/migrations-draft/recovered-production-history/20260805005320_pilot_lifecycle_anchors.sql",
+      "originalSha256": "71efb943b4f58f34d70624acc7ca7da7bd951861becc862bd903735e0172285f",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "71efb943b4f58f34d70624acc7ca7da7bd951861becc862bd903735e0172285f",
+      "justification": "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
+    },
+    {
+      "order": 114,
       "assembledFilename": "20260805041500_major_1_rpc_lockdown.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1758,7 +1863,7 @@
       "justification": null
     },
     {
-      "order": 110,
+      "order": 115,
       "assembledFilename": "20260805054000_schema_drift_issue_policies.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1770,7 +1875,7 @@
       "justification": null
     },
     {
-      "order": 111,
+      "order": 116,
       "assembledFilename": "20260805210000_schema_drift_scanner_issue_kinds.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1782,7 +1887,7 @@
       "justification": null
     },
     {
-      "order": 112,
+      "order": 117,
       "assembledFilename": "20260805211000_sp_list_public_columns_jsonb.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1794,7 +1899,7 @@
       "justification": null
     },
     {
-      "order": 113,
+      "order": 118,
       "assembledFilename": "20260806031500_major_2_2_lifecycle_issues_drift_kinds.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1806,7 +1911,7 @@
       "justification": null
     },
     {
-      "order": 114,
+      "order": 119,
       "assembledFilename": "20260806032000_lifecycle_issues_schema_drift_checks.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1818,7 +1923,7 @@
       "justification": null
     },
     {
-      "order": 115,
+      "order": 120,
       "assembledFilename": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1830,7 +1935,7 @@
       "justification": null
     },
     {
-      "order": 116,
+      "order": 121,
       "assembledFilename": "20260806042000_major_2_3_block_a_1_research_revision.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1842,7 +1947,7 @@
       "justification": null
     },
     {
-      "order": 117,
+      "order": 122,
       "assembledFilename": "20260809083000_companies_tenant_identity_columns.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1854,7 +1959,7 @@
       "justification": null
     },
     {
-      "order": 118,
+      "order": 123,
       "assembledFilename": "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1866,7 +1971,7 @@
       "justification": null
     },
     {
-      "order": 119,
+      "order": 124,
       "assembledFilename": "20260810070050_dash_1c_a_widen_provenance.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1878,7 +1983,7 @@
       "justification": null
     },
     {
-      "order": 120,
+      "order": 125,
       "assembledFilename": "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1890,7 +1995,7 @@
       "justification": null
     },
     {
-      "order": 121,
+      "order": 126,
       "assembledFilename": "20260813220000_accounting_connection_supersession.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1902,7 +2007,7 @@
       "justification": null
     },
     {
-      "order": 122,
+      "order": 127,
       "assembledFilename": "20260814060000_accounting_superseded_credential_retirement.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1914,7 +2019,7 @@
       "justification": null
     },
     {
-      "order": 123,
+      "order": 128,
       "assembledFilename": "20260814221500_accounting_canonical_connected_grant.sql",
       "role": "post_phase1_local",
       "action": "substitute_schema_only",
@@ -1926,7 +2031,7 @@
       "justification": "Prod Demo Xero RAISE/UPDATE body omitted for data-less replay; partial UNIQUE connected-grant index retained."
     },
     {
-      "order": 124,
+      "order": 129,
       "assembledFilename": "20260815000000_urm2_reconciling_items_persistence.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1938,7 +2043,7 @@
       "justification": null
     },
     {
-      "order": 125,
+      "order": 130,
       "assembledFilename": "20260815120000_urm3_universal_evidence_spine.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1950,7 +2055,7 @@
       "justification": null
     },
     {
-      "order": 126,
+      "order": 131,
       "assembledFilename": "20260815130000_urm3_hash_normalization_order.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1962,7 +2067,7 @@
       "justification": null
     },
     {
-      "order": 127,
+      "order": 132,
       "assembledFilename": "20260815140000_urm3_storage_requires_hash_not_null.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1974,7 +2079,7 @@
       "justification": null
     },
     {
-      "order": 128,
+      "order": 133,
       "assembledFilename": "20260818020716_accounting_measurement_snapshots.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1986,7 +2091,7 @@
       "justification": null
     },
     {
-      "order": 129,
+      "order": 134,
       "assembledFilename": "20260818040000_accounting_measurement_snapshots_ap_aging_kind.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1998,7 +2103,7 @@
       "justification": null
     },
     {
-      "order": 130,
+      "order": 135,
       "assembledFilename": "20260818050000_accounting_measurement_snapshots_inventory_kind.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2010,7 +2115,7 @@
       "justification": null
     },
     {
-      "order": 131,
+      "order": 136,
       "assembledFilename": "20260819045253_continuous_close_runs.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2022,7 +2127,7 @@
       "justification": null
     },
     {
-      "order": 132,
+      "order": 137,
       "assembledFilename": "20260820233219_journal_entry_proposals.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2034,7 +2139,7 @@
       "justification": null
     },
     {
-      "order": 133,
+      "order": 138,
       "assembledFilename": "20260821042800_journal_entry_approvals.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2046,7 +2151,7 @@
       "justification": null
     },
     {
-      "order": 134,
+      "order": 139,
       "assembledFilename": "20260821183525_journal_entry_executions.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2058,7 +2163,7 @@
       "justification": null
     },
     {
-      "order": 135,
+      "order": 140,
       "assembledFilename": "20260821212020_journal_entry_provider_attempts.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2070,7 +2175,7 @@
       "justification": null
     },
     {
-      "order": 136,
+      "order": 141,
       "assembledFilename": "20260821220646_journal_entry_provider_discovery_receipts.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2082,7 +2187,7 @@
       "justification": null
     },
     {
-      "order": 137,
+      "order": 142,
       "assembledFilename": "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2094,7 +2199,7 @@
       "justification": null
     },
     {
-      "order": 138,
+      "order": 143,
       "assembledFilename": "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2106,7 +2211,7 @@
       "justification": null
     },
     {
-      "order": 139,
+      "order": 144,
       "assembledFilename": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2118,7 +2223,7 @@
       "justification": null
     },
     {
-      "order": 140,
+      "order": 145,
       "assembledFilename": "20260822050000_journal_entry_verified_readback.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2130,7 +2235,7 @@
       "justification": null
     },
     {
-      "order": 141,
+      "order": 146,
       "assembledFilename": "20260822200000_je3d_sandbox_activation_identity.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2142,7 +2247,7 @@
       "justification": null
     },
     {
-      "order": 142,
+      "order": 147,
       "assembledFilename": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -2154,7 +2259,7 @@
       "justification": null
     },
     {
-      "order": 143,
+      "order": 148,
       "assembledFilename": "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql",
       "role": "post_phase1_local",
       "action": "include",

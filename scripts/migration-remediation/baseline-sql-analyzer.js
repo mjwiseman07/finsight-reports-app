@@ -4,6 +4,10 @@
  */
 const fs = require("fs");
 const path = require("path");
+const {
+  functionRefsDeep,
+  isSafeConditionalFunctionRef,
+} = require("./option-d-function-identity");
 
 const MANIFEST_PATH = path.join(
   __dirname,
@@ -151,7 +155,7 @@ function splitStatements(sql) {
   return stmts;
 }
 
-function analyzeStatement(stmt) {
+function analyzeStatementCore(stmt) {
   const lower = stmt.toLowerCase();
   const result = {
     creates: { extensions: [], tables: [], functions: [], types: [] },
@@ -317,12 +321,61 @@ function analyzeStatement(stmt) {
   return result;
 }
 
+function attachFunctionIdentities(stmt, result) {
+  result.creates.functionIdentities = result.creates.functionIdentities || [];
+  result.consumes.functionIdentities = result.consumes.functionIdentities || [];
+  result.consumes.conditionalFunctionIdentities =
+    result.consumes.conditionalFunctionIdentities || [];
+  for (const ref of functionRefsDeep(stmt)) {
+    if (ref.kind === "create_function") {
+      if (!result.creates.functions.includes(ref.name)) result.creates.functions.push(ref.name);
+      if (!result.creates.functionIdentities.includes(ref.identity)) {
+        result.creates.functionIdentities.push(ref.identity);
+      }
+      continue;
+    }
+    if (!result.consumes.functions.includes(ref.name)) result.consumes.functions.push(ref.name);
+    if (!result.consumes.functionIdentities.includes(ref.identity)) {
+      result.consumes.functionIdentities.push(ref.identity);
+    }
+    if (ref.ifExists || isSafeConditionalFunctionRef(stmt, ref)) {
+      if (!result.consumes.conditionalFunctionIdentities.includes(ref.identity)) {
+        result.consumes.conditionalFunctionIdentities.push(ref.identity);
+      }
+    }
+    if (result.kind === "other" || result.kind === "revoke") {
+      if (ref.kind === "alter_function") result.kind = "alter_function";
+      else if (ref.kind === "grant_function" || ref.kind === "revoke_function") result.kind = ref.kind;
+      else if (ref.kind === "drop_function") result.kind = "drop_function";
+    }
+  }
+}
+
+function analyzeStatement(stmt) {
+  const result = analyzeStatementCore(stmt);
+  attachFunctionIdentities(stmt, result);
+  return result;
+}
+
 function analyzeSql(sql) {
   const stmts = splitStatements(sql);
   const agg = {
     statements: stmts.length,
-    creates: { extensions: new Set(), tables: new Set(), functions: new Set(), types: new Set() },
-    consumes: { extensions: new Set(), tables: new Set(), functions: new Set(), types: new Set() },
+    creates: {
+      extensions: new Set(),
+      tables: new Set(),
+      functions: new Set(),
+      types: new Set(),
+      functionIdentities: new Set(),
+    },
+    consumes: {
+      extensions: new Set(),
+      tables: new Set(),
+      functions: new Set(),
+      types: new Set(),
+      functionIdentities: new Set(),
+      conditionalFunctionIdentities: new Set(),
+    },
     byKind: {},
   };
 
@@ -330,10 +383,15 @@ function analyzeSql(sql) {
     const a = analyzeStatement(stmt);
     agg.byKind[a.kind] = (agg.byKind[a.kind] || 0) + 1;
     for (const k of ["extensions", "tables", "functions", "types"]) {
-      for (const v of a.creates[k]) agg.creates[k].add(v);
-      for (const v of a.consumes[k]) {
+      for (const v of a.creates[k] || []) agg.creates[k].add(v);
+      for (const v of a.consumes[k] || []) {
         if (!BUILTIN_OBJECTS.has(v) && !NOT_A_TABLE.has(v)) agg.consumes[k].add(v);
       }
+    }
+    for (const id of a.creates.functionIdentities || []) agg.creates.functionIdentities.add(id);
+    for (const id of a.consumes.functionIdentities || []) agg.consumes.functionIdentities.add(id);
+    for (const id of a.consumes.conditionalFunctionIdentities || []) {
+      agg.consumes.conditionalFunctionIdentities.add(id);
     }
   }
 
@@ -434,13 +492,18 @@ function validateManifestGraph(manifest) {
   return { ok: errors.length === 0, errors, topologicalOrder: order, phaseOrder };
 }
 
-function simulateReplay(sections, { failOnMissing = true, optionalTables = [] } = {}) {
+function simulateReplay(
+  sections,
+  { failOnMissing = true, optionalTables = [], optionalFunctions = [] } = {},
+) {
   const optional = new Set(optionalTables.map(normalizeIdent));
+  const optionalFn = new Set(optionalFunctions);
   const available = {
     extensions: new Set(),
     tables: new Set(),
     functions: new Set(),
     types: new Set(),
+    functionIdentities: new Set(),
   };
   const violations = [];
 
@@ -473,15 +536,32 @@ function simulateReplay(sections, { failOnMissing = true, optionalTables = [] } 
           });
         }
       }
-      for (const fn of a.consumes.functions) {
-        if (!available.functions.has(fn)) {
-          violations.push({
-            file: section.file,
-            statementIndex: i + 1,
-            kind: a.kind,
-            missing: `function ${fn}`,
-            snippet: stmt.slice(0, 120),
-          });
+      const identities = a.consumes.functionIdentities || [];
+      const conditionalIds = new Set(a.consumes.conditionalFunctionIdentities || []);
+      if (identities.length) {
+        for (const id of identities) {
+          if (conditionalIds.has(id) || optionalFn.has(id)) continue;
+          if (!available.functionIdentities.has(id)) {
+            violations.push({
+              file: section.file,
+              statementIndex: i + 1,
+              kind: a.kind,
+              missing: `function ${id}`,
+              snippet: stmt.slice(0, 120),
+            });
+          }
+        }
+      } else {
+        for (const fn of a.consumes.functions) {
+          if (!available.functions.has(fn)) {
+            violations.push({
+              file: section.file,
+              statementIndex: i + 1,
+              kind: a.kind,
+              missing: `function ${fn}`,
+              snippet: stmt.slice(0, 120),
+            });
+          }
         }
       }
 
@@ -490,6 +570,7 @@ function simulateReplay(sections, { failOnMissing = true, optionalTables = [] } 
       for (const ext of a.creates.extensions) available.extensions.add(ext);
       for (const tbl of a.creates.tables) available.tables.add(tbl);
       for (const fn of a.creates.functions) available.functions.add(fn);
+      for (const id of a.creates.functionIdentities || []) available.functionIdentities.add(id);
       for (const ty of a.creates.types) available.types.add(ty);
       if (a.kind === "rename_table") {
         for (const oldName of a.consumes.tables) available.tables.delete(oldName);

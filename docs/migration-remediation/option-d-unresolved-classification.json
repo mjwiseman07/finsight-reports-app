@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T00:23:35.241Z",
+  "generatedAt": "2026-09-03T01:07:25.713Z",
   "occurrenceCount": 1,
   "requiredCount": 0,
   "requiredDependenciesResolved": true,
@@ -7,6 +7,8 @@
     {
       "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
       "missing": "table erp_connections",
+      "kind": "table",
+      "identity": null,
       "table": "erp_connections",
       "classification": "safe_conditional",
       "prerequisiteSource": "none_in_candidate_set",

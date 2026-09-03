@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-03T00:23:35.757Z",
+  "generatedAt": "2026-09-03T01:07:25.574Z",
   "replayTrack": "option_d_isolated_candidate",
   "ok": true,
   "mergeReady": true,
@@ -13,7 +13,7 @@
   "prMergeReady": false,
   "violationCount": 0,
   "blockingViolations": [],
-  "assembledCount": 143,
+  "assembledCount": 148,
   "substitutions": 6,
   "scopes": {
     "isolatedCandidateLineage": "PASS_STATIC",
@@ -23,5 +23,5 @@
     "runtime": "NOT_RUN",
     "prMerge": "NOT_READY"
   },
-  "note": "Fails while any REQUIRED missing CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false."
+  "note": "Fails while any REQUIRED missing table or function CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false."
 }

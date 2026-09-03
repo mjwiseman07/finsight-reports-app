@@ -135,9 +135,11 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
   const knownProvidedTables = new Set(
     [...(options.knownProvidedTables || [])].map(normalizeIdent),
   );
+  const knownProvidedFunctions = new Set([...(options.knownProvidedFunctions || [])]);
   const byFile = new Map();
   const creators = new Map(); // table -> [files]
   const mutators = new Map(); // table -> [files] create+alter
+  const functionCreators = new Map(); // identity -> [files]
 
   for (const c of candidates) {
     const analysis = analyzeMigrationFile(c.absPath);
@@ -151,6 +153,10 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
     for (const t of analysis.alters || []) {
       if (!mutators.has(t)) mutators.set(t, []);
       if (!mutators.get(t).includes(c.filename)) mutators.get(t).push(c.filename);
+    }
+    for (const id of analysis.creates.functionIdentities || []) {
+      if (!functionCreators.has(id)) functionCreators.set(id, []);
+      functionCreators.get(id).push(c.filename);
     }
   }
 
@@ -190,6 +196,14 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
         addEdge(c.filename, creator, `consume_table:${t}`);
       }
     }
+    for (const id of analysis.consumes.functionIdentities || []) {
+      if (knownProvidedFunctions.has(id)) continue;
+      const creates = functionCreators.get(id) || [];
+      if (creates.length === 0) continue;
+      const earliest = [...creates].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0];
+      if (earliest === c.filename) continue;
+      addEdge(c.filename, earliest, `consume_function:${id}`);
+    }
   }
 
   // 3) Explicit dependsOn overrides
@@ -205,7 +219,7 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
     addEdge(sc.after, sc.before, `semanticConstraint:${sc.reason || "reviewed"}`);
   }
 
-  // Unresolved: consumed tables with no creator in set and not external
+  // Unresolved: consumed tables/functions with no creator in set and not external
   const unresolved = [];
   for (const c of candidates) {
     const analysis = byFile.get(c.filename).analysis;
@@ -216,8 +230,23 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
         unresolved.push({
           file: c.filename,
           missing: `table ${t}`,
+          kind: "table",
           status: "unresolved_requires_review",
           note: "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite.",
+        });
+      }
+    }
+    for (const id of analysis.consumes.functionIdentities || []) {
+      if (knownProvidedFunctions.has(id)) continue;
+      const creates = functionCreators.get(id) || [];
+      if (creates.length === 0) {
+        unresolved.push({
+          file: c.filename,
+          missing: `function ${id}`,
+          kind: "function",
+          identity: id,
+          status: "unresolved_requires_review",
+          note: "No CREATE FUNCTION for this exact identity in the Option D candidate set; analyzer cannot prove prerequisite.",
         });
       }
     }
@@ -237,6 +266,7 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
     byFile,
     creators,
     mutators,
+    functionCreators,
     dependsOn,
     edgeReasons,
     unresolved: unresolvedUnique,
@@ -381,6 +411,8 @@ function computeOptionDDependencyOrder(
       createsTables: analysis.creates.tables || [],
       altersTables: analysis.alters || [],
       consumesTables: analysis.consumes.tables || [],
+      createsFunctionIdentities: analysis.creates.functionIdentities || [],
+      consumesFunctionIdentities: analysis.consumes.functionIdentities || [],
     };
   }
 
@@ -404,6 +436,7 @@ function computeOptionDDependencyOrder(
  */
 function simulateCandidateOrder(orderedCandidates, depManifest) {
   const sections = orderedCandidates.map((c) => ({
+    filename: c.filename,
     file: c.filename,
     sql: fs.readFileSync(c.absPath, "utf8"),
   }));
@@ -411,6 +444,7 @@ function simulateCandidateOrder(orderedCandidates, depManifest) {
     optionalTables: (depManifest.optionalExternalTables || []).concat(
       depManifest.platformProvidedTables || [],
     ),
+    optionalFunctions: depManifest.optionalFunctions || [],
   });
 }
 

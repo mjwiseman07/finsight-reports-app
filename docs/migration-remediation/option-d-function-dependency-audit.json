@@ -1,0 +1,1438 @@
+{
+  "consumeCount": 215,
+  "createIdentityCount": 95,
+  "requiredMissingCount": 0,
+  "uniqueRequiredMissingIdentities": [],
+  "misorderedCount": 0,
+  "requiredDependenciesResolved": true,
+  "major1Consumes": [
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.handle_new_auth_user()",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260727000100_users_auth_trigger_single_writer.sql@106"
+      ],
+      "firstCreator": "20260727000100_users_auth_trigger_single_writer.sql@106",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.has_active_company_role(uuid,text[])",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+      ],
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.has_active_firm_role(uuid,text[])",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+      ],
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.is_active_company_member(uuid)",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+      ],
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.is_active_firm_member(uuid)",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+      ],
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.is_company_admin(uuid)",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+      ],
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.pilot_lifecycle_events_before_insert()",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+        "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql@109",
+        "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql@110",
+        "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql@111"
+      ],
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.pilot_lifecycle_events_verify_chain(uuid,uuid)",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+        "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql@109",
+        "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql@110",
+        "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql@111"
+      ],
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "alter_function",
+      "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108"
+      ],
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108"
+      ],
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "alter_function",
+      "identity": "public.pilot_lifecycle_events_reject_mutations()",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108"
+      ],
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.pilot_lifecycle_events_reject_mutations()",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108"
+      ],
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "revoke_function",
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260805005320_pilot_lifecycle_anchors.sql@113"
+      ],
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "file": "20260805041500_major_1_rpc_lockdown.sql",
+      "order": 114,
+      "kind": "grant_function",
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "conditional": false,
+      "nestedInDo": false,
+      "createdBy": [
+        "20260805005320_pilot_lifecycle_anchors.sql@113"
+      ],
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "classification": "creator_in_set_ordered"
+    }
+  ],
+  "functionDependencyTable": [
+    {
+      "identity": "public.pilot_lifecycle_events_before_insert()",
+      "consumer": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "consumerOrder": 108,
+      "kind": "trigger_execute_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_reject_mutations()",
+      "consumer": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "consumerOrder": 108,
+      "kind": "trigger_execute_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_verify_chain(uuid,uuid)",
+      "consumer": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+      "consumerOrder": 108,
+      "kind": "revoke_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_before_insert()",
+      "consumer": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "consumerOrder": 111,
+      "kind": "trigger_execute_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_reject_mutations()",
+      "consumer": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "consumerOrder": 111,
+      "kind": "trigger_execute_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_before_insert()",
+      "consumer": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "consumerOrder": 111,
+      "kind": "revoke_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_reject_mutations()",
+      "consumer": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+      "consumerOrder": 111,
+      "kind": "revoke_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "consumer": "20260805005320_pilot_lifecycle_anchors.sql",
+      "consumerOrder": 113,
+      "kind": "revoke_function",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "consumer": "20260805005320_pilot_lifecycle_anchors.sql",
+      "consumerOrder": 113,
+      "kind": "grant_function",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.handle_new_auth_user()",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260727000100_users_auth_trigger_single_writer.sql@106",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.has_active_company_role(uuid,text[])",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.has_active_firm_role(uuid,text[])",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.is_active_company_member(uuid)",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.is_active_firm_member(uuid)",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.is_company_admin(uuid)",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_before_insert()",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_verify_chain(uuid,uuid)",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "alter_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_reject_mutations()",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "alter_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_reject_mutations()",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "revoke_function",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "classification": "creator_in_set_ordered"
+    },
+    {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "consumer": "20260805041500_major_1_rpc_lockdown.sql",
+      "consumerOrder": 114,
+      "kind": "grant_function",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "classification": "creator_in_set_ordered"
+    }
+  ],
+  "required": [],
+  "misordered": [],
+  "creates": [
+    {
+      "identity": "public.prevent_si_snapshot_metadata_mutation()",
+      "files": [
+        {
+          "file": "20260701043599_foundations_baseline.sql",
+          "role": "foundations_baseline",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "identity": "public.prevent_si_snapshot_child_mutation_when_parent_locked()",
+      "files": [
+        {
+          "file": "20260701043599_foundations_baseline.sql",
+          "role": "foundations_baseline",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "identity": "public.prevent_company_memory_record_unsafe_mutation()",
+      "files": [
+        {
+          "file": "20260701043599_foundations_baseline.sql",
+          "role": "foundations_baseline",
+          "order": 1
+        },
+        {
+          "file": "20260710_00_d3_memory_indexes.sql",
+          "role": "post_phase1_local",
+          "order": 40
+        }
+      ]
+    },
+    {
+      "identity": "public.prevent_company_memory_append_only_mutation()",
+      "files": [
+        {
+          "file": "20260701043599_foundations_baseline.sql",
+          "role": "foundations_baseline",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "identity": "public.prevent_company_memory_version_unsafe_mutation()",
+      "files": [
+        {
+          "file": "20260701043599_foundations_baseline.sql",
+          "role": "foundations_baseline",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "identity": "public.tg_set_updated_at()",
+      "files": [
+        {
+          "file": "20260701043707_phase1_subscription_seats_and_entitlements.sql",
+          "role": "phase1_recovered",
+          "order": 3
+        }
+      ]
+    },
+    {
+      "identity": "public.set_updated_at()",
+      "files": [
+        {
+          "file": "20260701_refund_requests.sql",
+          "role": "post_phase1_local",
+          "order": 6
+        }
+      ]
+    },
+    {
+      "identity": "public.increment_share_token_access(uuid)",
+      "files": [
+        {
+          "file": "20260707_03_close_packet_share.sql",
+          "role": "post_phase1_local",
+          "order": 17
+        }
+      ]
+    },
+    {
+      "identity": "public.set_pilot_slots_updated_at()",
+      "files": [
+        {
+          "file": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+          "role": "post_phase1_local",
+          "order": 18
+        }
+      ]
+    },
+    {
+      "identity": "public.public_pilot_slot_count(text)",
+      "files": [
+        {
+          "file": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+          "role": "post_phase1_local",
+          "order": 18
+        }
+      ]
+    },
+    {
+      "identity": "public.prevent_je_audit_update()",
+      "files": [
+        {
+          "file": "20260709_00_d2_safe_je_posting.sql",
+          "role": "post_phase1_local",
+          "order": 30
+        }
+      ]
+    },
+    {
+      "identity": "public.touch_je_post_attempts()",
+      "files": [
+        {
+          "file": "20260709_00_d2_safe_je_posting.sql",
+          "role": "post_phase1_local",
+          "order": 30
+        }
+      ]
+    },
+    {
+      "identity": "public.ledger_events_prevent_mutation()",
+      "files": [
+        {
+          "file": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "role": "post_phase1_local",
+          "order": 32
+        }
+      ]
+    },
+    {
+      "identity": "public.ledger_events_notify()",
+      "files": [
+        {
+          "file": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "role": "post_phase1_local",
+          "order": 32
+        }
+      ]
+    },
+    {
+      "identity": "public.engagement_addons_set_updated_at()",
+      "files": [
+        {
+          "file": "20260706130000_d_entitlements.sql",
+          "role": "post_phase1_local",
+          "order": 33
+        }
+      ]
+    },
+    {
+      "identity": "public.entitlement_check_audit_no_mutation()",
+      "files": [
+        {
+          "file": "20260706130000_d_entitlements.sql",
+          "role": "post_phase1_local",
+          "order": 33
+        }
+      ]
+    },
+    {
+      "identity": "public._intake_touch_updated_at()",
+      "files": [
+        {
+          "file": "20260707000000_d6_5_part1_universal_intake.sql",
+          "role": "post_phase1_local",
+          "order": 35
+        }
+      ]
+    },
+    {
+      "identity": "public.close_gap_review_items_touch_updated_at()",
+      "files": [
+        {
+          "file": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+          "role": "post_phase1_local",
+          "order": 38
+        }
+      ]
+    },
+    {
+      "identity": "public.prevent_memory_payload_update()",
+      "files": [
+        {
+          "file": "20260710_00_d3_memory_indexes.sql",
+          "role": "post_phase1_local",
+          "order": 40
+        }
+      ]
+    },
+    {
+      "identity": "public.touch_uncategorized_proposals_updated_at()",
+      "files": [
+        {
+          "file": "20260713_00_d4_uncategorized_proposals.sql",
+          "role": "post_phase1_local",
+          "order": 41
+        }
+      ]
+    },
+    {
+      "identity": "public.prevent_proposal_decision_mutation()",
+      "files": [
+        {
+          "file": "20260713_00_d4_uncategorized_proposals.sql",
+          "role": "post_phase1_local",
+          "order": 41
+        }
+      ]
+    },
+    {
+      "identity": "public.touch_recurring_templates_updated_at()",
+      "files": [
+        {
+          "file": "20260714_00_d5_recurring_templates.sql",
+          "role": "post_phase1_local",
+          "order": 42
+        }
+      ]
+    },
+    {
+      "identity": "public.touch_recurring_fires_updated_at()",
+      "files": [
+        {
+          "file": "20260714_00_d5_recurring_templates.sql",
+          "role": "post_phase1_local",
+          "order": 42
+        }
+      ]
+    },
+    {
+      "identity": "public.guard_recurring_fire_immutability()",
+      "files": [
+        {
+          "file": "20260714_00_d5_recurring_templates.sql",
+          "role": "post_phase1_local",
+          "order": 42
+        }
+      ]
+    },
+    {
+      "identity": "public.curated_rule_fires_immutable()",
+      "files": [
+        {
+          "file": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+          "role": "post_phase1_local",
+          "order": 43
+        }
+      ]
+    },
+    {
+      "identity": "public.pre_close_review_items_je_draft_check()",
+      "files": [
+        {
+          "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+          "role": "post_phase1_local",
+          "order": 45
+        }
+      ]
+    },
+    {
+      "identity": "public.pre_close_review_items_immutable()",
+      "files": [
+        {
+          "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+          "role": "post_phase1_local",
+          "order": 45
+        },
+        {
+          "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+          "role": "post_phase1_local",
+          "order": 46
+        }
+      ]
+    },
+    {
+      "identity": "public.engagement_posting_policy_preset_consistency()",
+      "files": [
+        {
+          "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+          "role": "post_phase1_local",
+          "order": 46
+        }
+      ]
+    },
+    {
+      "identity": "public.validate_assertions_array(text[])",
+      "files": [
+        {
+          "file": "20260707150000_d_assertions_part_4_je_propagation.sql",
+          "role": "post_phase1_local",
+          "order": 48
+        }
+      ]
+    },
+    {
+      "identity": "public.mfa_audit_log_prevent_mutation()",
+      "files": [
+        {
+          "file": "20260715180000_mfa_enrollment.sql",
+          "role": "post_phase1_local",
+          "order": 49
+        }
+      ]
+    },
+    {
+      "identity": "public.user_webauthn_credentials_prevent_column_mutation()",
+      "files": [
+        {
+          "file": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "role": "post_phase1_local",
+          "order": 50
+        }
+      ]
+    },
+    {
+      "identity": "public._d651_slugify_name(text)",
+      "files": [
+        {
+          "file": "20260716_00_d6_5_part1_1_firm_clients_slug.sql",
+          "role": "post_phase1_local",
+          "order": 53
+        }
+      ]
+    },
+    {
+      "identity": "public.publish_ledger_event(text,text,int4,uuid,uuid,uuid,uuid,text,text,text,text,text,jsonb,jsonb,uuid,text)",
+      "files": [
+        {
+          "file": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+          "role": "post_phase1_local",
+          "order": 59
+        }
+      ]
+    },
+    {
+      "identity": "public.next_document_number(uuid,text)",
+      "files": [
+        {
+          "file": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "role": "post_phase1_local",
+          "order": 60
+        }
+      ]
+    },
+    {
+      "identity": "public.preset_pack_registry_immutable()",
+      "files": [
+        {
+          "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+          "role": "post_phase1_local",
+          "order": 66
+        }
+      ]
+    },
+    {
+      "identity": "public.observation_events_immutable()",
+      "files": [
+        {
+          "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+          "role": "post_phase1_local",
+          "order": 66
+        }
+      ]
+    },
+    {
+      "identity": "public.drafted_amendments_terminal_immutable()",
+      "files": [
+        {
+          "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+          "role": "post_phase1_local",
+          "order": 66
+        }
+      ]
+    },
+    {
+      "identity": "public.qbo_webhook_events_enforce_append_only()",
+      "files": [
+        {
+          "file": "20260718000000_intuit_webhook_events.sql",
+          "role": "post_phase1_local",
+          "order": 68
+        }
+      ]
+    },
+    {
+      "identity": "public.qbo_webhook_events_block_delete()",
+      "files": [
+        {
+          "file": "20260718000000_intuit_webhook_events.sql",
+          "role": "post_phase1_local",
+          "order": 68
+        }
+      ]
+    },
+    {
+      "identity": "public.gap3_materiality_bucket(int8,uuid)",
+      "files": [
+        {
+          "file": "20260719050000_gap3_je_approval_flow.sql",
+          "role": "post_phase1_local",
+          "order": 80
+        }
+      ]
+    },
+    {
+      "identity": "public.gap3_pre_close_ri_materiality_before_insert()",
+      "files": [
+        {
+          "file": "20260719050000_gap3_je_approval_flow.sql",
+          "role": "post_phase1_local",
+          "order": 80
+        }
+      ]
+    },
+    {
+      "identity": "public.gap3_pre_close_ri_sod_before_update()",
+      "files": [
+        {
+          "file": "20260719050000_gap3_je_approval_flow.sql",
+          "role": "post_phase1_local",
+          "order": 80
+        }
+      ]
+    },
+    {
+      "identity": "public.gap2_audit_append_only()",
+      "files": [
+        {
+          "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+          "role": "post_phase1_local",
+          "order": 81
+        }
+      ]
+    },
+    {
+      "identity": "public.gap2_schedule_purge(uuid,uuid,text,text,text,uuid,text,int4)",
+      "files": [
+        {
+          "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+          "role": "post_phase1_local",
+          "order": 81
+        }
+      ]
+    },
+    {
+      "identity": "public.gap2_cancel_purge(uuid,text,uuid)",
+      "files": [
+        {
+          "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+          "role": "post_phase1_local",
+          "order": 81
+        }
+      ]
+    },
+    {
+      "identity": "public.increment_pbc_request_count(uuid,int4)",
+      "files": [
+        {
+          "file": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "role": "post_phase1_local",
+          "order": 83
+        }
+      ]
+    },
+    {
+      "identity": "public.is_active_company_member(uuid)",
+      "files": [
+        {
+          "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "role": "post_phase1_local",
+          "order": 85
+        }
+      ]
+    },
+    {
+      "identity": "public.has_active_company_role(uuid,text[])",
+      "files": [
+        {
+          "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "role": "post_phase1_local",
+          "order": 85
+        }
+      ]
+    },
+    {
+      "identity": "public.is_company_admin(uuid)",
+      "files": [
+        {
+          "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "role": "post_phase1_local",
+          "order": 85
+        }
+      ]
+    },
+    {
+      "identity": "public.is_active_firm_member(uuid)",
+      "files": [
+        {
+          "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "role": "post_phase1_local",
+          "order": 85
+        }
+      ]
+    },
+    {
+      "identity": "public.has_active_firm_role(uuid,text[])",
+      "files": [
+        {
+          "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "role": "post_phase1_local",
+          "order": 85
+        }
+      ]
+    },
+    {
+      "identity": "public.audit_ready_latest_bs_kickout_lines(uuid[])",
+      "files": [
+        {
+          "file": "20260724020000_kickout_dedupe_rpcs.sql",
+          "role": "post_phase1_local",
+          "order": 99
+        }
+      ]
+    },
+    {
+      "identity": "public.audit_ready_latest_pbc_kickout_runs(uuid[])",
+      "files": [
+        {
+          "file": "20260724020000_kickout_dedupe_rpcs.sql",
+          "role": "post_phase1_local",
+          "order": 99
+        }
+      ]
+    },
+    {
+      "identity": "public.get_similar_kickout_resolutions(uuid,text,jsonb)",
+      "files": [
+        {
+          "file": "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+          "role": "post_phase1_local",
+          "order": 104
+        }
+      ]
+    },
+    {
+      "identity": "public.get_similar_kickout_resolution_counts(uuid[])",
+      "files": [
+        {
+          "file": "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+          "role": "post_phase1_local",
+          "order": 104
+        }
+      ]
+    },
+    {
+      "identity": "public.handle_new_auth_user()",
+      "files": [
+        {
+          "file": "20260727000100_users_auth_trigger_single_writer.sql",
+          "role": "post_phase1_local",
+          "order": 106
+        }
+      ]
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
+      "files": [
+        {
+          "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+          "role": "recovered_production_original",
+          "order": 108
+        }
+      ]
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_before_insert()",
+      "files": [
+        {
+          "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+          "role": "recovered_production_original",
+          "order": 108
+        },
+        {
+          "file": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+          "role": "recovered_production_original",
+          "order": 109
+        },
+        {
+          "file": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+          "role": "recovered_production_original",
+          "order": 110
+        },
+        {
+          "file": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+          "role": "recovered_production_original",
+          "order": 111
+        }
+      ]
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_reject_mutations()",
+      "files": [
+        {
+          "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+          "role": "recovered_production_original",
+          "order": 108
+        }
+      ]
+    },
+    {
+      "identity": "public.pilot_lifecycle_events_verify_chain(uuid,uuid)",
+      "files": [
+        {
+          "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+          "role": "recovered_production_original",
+          "order": 108
+        },
+        {
+          "file": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
+          "role": "recovered_production_original",
+          "order": 109
+        },
+        {
+          "file": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
+          "role": "recovered_production_original",
+          "order": 110
+        },
+        {
+          "file": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
+          "role": "recovered_production_original",
+          "order": 111
+        }
+      ]
+    },
+    {
+      "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
+      "files": [
+        {
+          "file": "20260805005320_pilot_lifecycle_anchors.sql",
+          "role": "recovered_production_original",
+          "order": 113
+        }
+      ]
+    },
+    {
+      "identity": "public.sp_list_public_columns()",
+      "files": [
+        {
+          "file": "20260805054000_schema_drift_issue_policies.sql",
+          "role": "post_phase1_local",
+          "order": 115
+        },
+        {
+          "file": "20260805211000_sp_list_public_columns_jsonb.sql",
+          "role": "post_phase1_local",
+          "order": 117
+        }
+      ]
+    },
+    {
+      "identity": "public.resolve_assertion_impact_by_table(text)",
+      "files": [
+        {
+          "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+          "role": "post_phase1_local",
+          "order": 120
+        },
+        {
+          "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+          "role": "post_phase1_local",
+          "order": 121
+        }
+      ]
+    },
+    {
+      "identity": "public.backfill_schema_drift_assertion_impact(bool)",
+      "files": [
+        {
+          "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+          "role": "post_phase1_local",
+          "order": 120
+        },
+        {
+          "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+          "role": "post_phase1_local",
+          "order": 121
+        }
+      ]
+    },
+    {
+      "identity": "public.trg_lifecycle_issues_assertion_impact()",
+      "files": [
+        {
+          "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+          "role": "post_phase1_local",
+          "order": 120
+        },
+        {
+          "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+          "role": "post_phase1_local",
+          "order": 121
+        }
+      ]
+    },
+    {
+      "identity": "public.resolve_assertion_confidence_by_table(text)",
+      "files": [
+        {
+          "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+          "role": "post_phase1_local",
+          "order": 121
+        }
+      ]
+    },
+    {
+      "identity": "public.resolve_fr_relevance_by_table(text)",
+      "files": [
+        {
+          "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+          "role": "post_phase1_local",
+          "order": 121
+        }
+      ]
+    },
+    {
+      "identity": "public.resolve_mapping_source_by_table(text)",
+      "files": [
+        {
+          "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+          "role": "post_phase1_local",
+          "order": 121
+        }
+      ]
+    },
+    {
+      "identity": "public.trg_ar_reconciling_items_stamp_run_identity()",
+      "files": [
+        {
+          "file": "20260815000000_urm2_reconciling_items_persistence.sql",
+          "role": "post_phase1_local",
+          "order": 129
+        }
+      ]
+    },
+    {
+      "identity": "public.persist_audit_ready_recon_bridge(uuid,jsonb,int8,int8,int4,int4,text,bool,timestamptz)",
+      "files": [
+        {
+          "file": "20260815000000_urm2_reconciling_items_persistence.sql",
+          "role": "post_phase1_local",
+          "order": 129
+        }
+      ]
+    },
+    {
+      "identity": "public.clear_audit_ready_recon_bridge(uuid)",
+      "files": [
+        {
+          "file": "20260815000000_urm2_reconciling_items_persistence.sql",
+          "role": "post_phase1_local",
+          "order": 129
+        }
+      ]
+    },
+    {
+      "identity": "public.trg_arte_stamp_run_identity()",
+      "files": [
+        {
+          "file": "20260815120000_urm3_universal_evidence_spine.sql",
+          "role": "post_phase1_local",
+          "order": 130
+        },
+        {
+          "file": "20260815130000_urm3_hash_normalization_order.sql",
+          "role": "post_phase1_local",
+          "order": 131
+        }
+      ]
+    },
+    {
+      "identity": "public.accounting_measurement_snapshots_deny_update()",
+      "files": [
+        {
+          "file": "20260818020716_accounting_measurement_snapshots.sql",
+          "role": "post_phase1_local",
+          "order": 133
+        }
+      ]
+    },
+    {
+      "identity": "public.continuous_close_runs_deny_mutation()",
+      "files": [
+        {
+          "file": "20260819045253_continuous_close_runs.sql",
+          "role": "post_phase1_local",
+          "order": 136
+        }
+      ]
+    },
+    {
+      "identity": "public.persist_continuous_close_observe_run(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260819045253_continuous_close_runs.sql",
+          "role": "post_phase1_local",
+          "order": 136
+        }
+      ]
+    },
+    {
+      "identity": "public.journal_entry_proposals_deny_mutation()",
+      "files": [
+        {
+          "file": "20260820233219_journal_entry_proposals.sql",
+          "role": "post_phase1_local",
+          "order": 137
+        }
+      ]
+    },
+    {
+      "identity": "public.persist_journal_entry_proposal(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260820233219_journal_entry_proposals.sql",
+          "role": "post_phase1_local",
+          "order": 137
+        }
+      ]
+    },
+    {
+      "identity": "public.journal_entry_approvals_deny_mutation()",
+      "files": [
+        {
+          "file": "20260821042800_journal_entry_approvals.sql",
+          "role": "post_phase1_local",
+          "order": 138
+        }
+      ]
+    },
+    {
+      "identity": "public.persist_journal_entry_approval(jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260821042800_journal_entry_approvals.sql",
+          "role": "post_phase1_local",
+          "order": 138
+        }
+      ]
+    },
+    {
+      "identity": "public.journal_entry_executions_guard_mutation()",
+      "files": [
+        {
+          "file": "20260821183525_journal_entry_executions.sql",
+          "role": "post_phase1_local",
+          "order": 139
+        }
+      ]
+    },
+    {
+      "identity": "public.je_execution_immutable_binding_matches(public.journal_entry_executions,jsonb)",
+      "files": [
+        {
+          "file": "20260821183525_journal_entry_executions.sql",
+          "role": "post_phase1_local",
+          "order": 139
+        }
+      ]
+    },
+    {
+      "identity": "public.persist_journal_entry_execution_reservation(jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260821183525_journal_entry_executions.sql",
+          "role": "post_phase1_local",
+          "order": 139
+        }
+      ]
+    },
+    {
+      "identity": "public.transition_journal_entry_execution(uuid,text,int4,text,jsonb,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260821183525_journal_entry_executions.sql",
+          "role": "post_phase1_local",
+          "order": 139
+        },
+        {
+          "file": "20260821212020_journal_entry_provider_attempts.sql",
+          "role": "post_phase1_local",
+          "order": 140
+        }
+      ]
+    },
+    {
+      "identity": "public.journal_entry_provider_attempts_guard_mutation()",
+      "files": [
+        {
+          "file": "20260821212020_journal_entry_provider_attempts.sql",
+          "role": "post_phase1_local",
+          "order": 140
+        }
+      ]
+    },
+    {
+      "identity": "public.persist_journal_entry_provider_attempt(jsonb,jsonb,text,uuid,uuid,uuid,text,text,bool)",
+      "files": [
+        {
+          "file": "20260821212020_journal_entry_provider_attempts.sql",
+          "role": "post_phase1_local",
+          "order": 140
+        },
+        {
+          "file": "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
+          "role": "post_phase1_local",
+          "order": 143
+        },
+        {
+          "file": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+          "role": "post_phase1_local",
+          "order": 147
+        }
+      ]
+    },
+    {
+      "identity": "public.patch_journal_entry_provider_attempt(uuid,text,jsonb)",
+      "files": [
+        {
+          "file": "20260821212020_journal_entry_provider_attempts.sql",
+          "role": "post_phase1_local",
+          "order": 140
+        },
+        {
+          "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+          "role": "post_phase1_local",
+          "order": 141
+        },
+        {
+          "file": "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
+          "role": "post_phase1_local",
+          "order": 142
+        },
+        {
+          "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+          "role": "post_phase1_local",
+          "order": 144
+        },
+        {
+          "file": "20260822050000_journal_entry_verified_readback.sql",
+          "role": "post_phase1_local",
+          "order": 145
+        }
+      ]
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_commit_discovered(uuid,text,text,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+          "role": "post_phase1_local",
+          "order": 141
+        }
+      ]
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_not_found_confirmed(uuid,text,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+          "role": "post_phase1_local",
+          "order": 141
+        }
+      ]
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_dispatch_started(uuid,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+          "role": "post_phase1_local",
+          "order": 144
+        }
+      ]
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_posted(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+          "role": "post_phase1_local",
+          "order": 144
+        }
+      ]
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_post_unknown(uuid,text,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+          "role": "post_phase1_local",
+          "order": 144
+        }
+      ]
+    },
+    {
+      "identity": "public.apply_journal_entry_provider_precommit_failed(uuid,text,text,text,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+          "role": "post_phase1_local",
+          "order": 144
+        }
+      ]
+    },
+    {
+      "identity": "public.apply_journal_entry_verified(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260822050000_journal_entry_verified_readback.sql",
+          "role": "post_phase1_local",
+          "order": 145
+        }
+      ]
+    },
+    {
+      "identity": "public.apply_journal_entry_verification_mismatch(uuid,text,int4,uuid,text,text,jsonb,jsonb,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260822050000_journal_entry_verified_readback.sql",
+          "role": "post_phase1_local",
+          "order": 145
+        }
+      ]
+    },
+    {
+      "identity": "public.je_publish_posting_started_from_ready(public.journal_entry_executions,jsonb,text,uuid,uuid,uuid,text,text)",
+      "files": [
+        {
+          "file": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+          "role": "post_phase1_local",
+          "order": 147
+        }
+      ]
+    }
+  ]
+}

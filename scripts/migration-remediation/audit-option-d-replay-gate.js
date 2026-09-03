@@ -5,7 +5,7 @@
  *
  * Distinct statuses:
  *   fixtureScanOk              — no unguarded fixture inserts / prod-only RAISE
- *   requiredDependenciesResolved — no REQUIRED missing CREATE/RENAME
+ *   requiredDependenciesResolved — no REQUIRED missing table OR function CREATE
  *   candidateReplayStaticReady — both of the above (this gate's "ok")
  *   runtimeReady               — never set here (harness only)
  *   prMergeReady               — always false from this gate (draft PR, runtime untested)
@@ -150,7 +150,9 @@ function main() {
     requiredUnresolvedCount: required.length,
     requiredUnresolved: required.map((c) => ({
       file: c.file,
+      kind: c.kind || "table",
       table: c.table,
+      identity: c.identity || null,
       prerequisiteSource: c.prerequisiteSource,
     })),
     runtimeReady: false,
@@ -168,7 +170,7 @@ function main() {
       prMerge: "NOT_READY",
     },
     note:
-      "Fails while any REQUIRED missing CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false.",
+      "Fails while any REQUIRED missing table or function CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false.",
   };
 
   fs.writeFileSync(OUT_JSON, JSON.stringify(report, null, 2) + "\n");
