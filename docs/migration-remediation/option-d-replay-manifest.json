@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T04:08:26.941Z",
+  "generatedAt": "2026-09-04T04:37:52.813Z",
   "mechanism": "option_d_isolated_git_replay",
   "status": "CANDIDATE_LINEAGE_ASSEMBLED",
   "notMergeApproval": true,
@@ -345,11 +345,11 @@
       },
       "dependencyOrderSatisfied": true
     },
-    "unresolvedDependencyCount": 1,
-    "requiredUnresolvedCount": 0,
-    "requiredDependenciesResolved": true,
-    "objectAvailabilitySimulationOk": true,
-    "objectAvailabilityViolationCount": 0,
+    "unresolvedDependencyCount": 2,
+    "requiredUnresolvedCount": 1,
+    "requiredDependenciesResolved": false,
+    "objectAvailabilitySimulationOk": false,
+    "objectAvailabilityViolationCount": 1,
     "dependencyManifest": "docs/migration-remediation/option-d-dependency-manifest.json",
     "orderingChangelog": "docs/migration-remediation/option-d-ordering-changelog.json",
     "overrides": "docs/migration-remediation/option-d-dependency-overrides.json",

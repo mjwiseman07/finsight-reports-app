@@ -163,8 +163,15 @@ describe("Option D function dependency order", () => {
     expect(lockdown).toMatch(/GRANT EXECUTE ON FUNCTION public\.sp_write_anchor_batch\(/);
 
     const classified = JSON.parse(fs.readFileSync(CLASS_JSON, "utf8"));
-    expect(classified.requiredCount).toBe(0);
-    expect(classified.requiredDependenciesResolved).toBe(true);
+    // public.users is the sole expected required_missing_create until baseline recovery.
+    expect(classified.requiredCount).toBe(1);
+    expect(classified.requiredDependenciesResolved).toBe(false);
+    expect(
+      classified.classifications.filter(
+        (c: { table?: string; classification: string }) =>
+          c.table === "users" && c.classification === "required_missing_create",
+      ),
+    ).toHaveLength(1);
     expect(
       classified.classifications.filter(
         (c: { kind?: string; classification: string }) =>

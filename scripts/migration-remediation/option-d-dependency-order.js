@@ -35,10 +35,13 @@ const ORDERING_CHANGELOG_PATH = path.join(
   "docs/migration-remediation/option-d-ordering-changelog.json",
 );
 
-/** Objects provided by Supabase platform bootstrap / builtins — not required from candidate SQL. */
+/**
+ * Objects provided by Supabase platform bootstrap / builtins — not required from candidate SQL.
+ * NEVER list bare `users` here: that conflates application `public.users` with platform `auth.users`.
+ * Platform Auth identities are only `auth.users` (see PLATFORM_QUALIFIED).
+ */
 const PLATFORM_OR_BUILTIN_TABLES = new Set([
   "auth",
-  "users", // auth.users often referenced without schema in policies via auth.uid only; FK to auth.users still needs platform
   // Catalog / false-positive FROM parses (not application tables)
   "pg_class",
   "pg_namespace",
@@ -75,8 +78,8 @@ function loadDependencyManifest() {
       version: 1,
       explicitDependsOn: {},
       semanticConstraints: [],
-      optionalExternalTables: ["users"],
-      platformProvidedTables: ["users"],
+      optionalExternalTables: [],
+      platformProvidedTables: [],
       notes: [],
     };
   }
@@ -610,8 +613,8 @@ function writeDependencyArtifacts(result, { writeChangelog = true, classificatio
         prerequisite: "20260714_00_d5_recurring_templates.sql",
       },
     },
-    optionalExternalTables: result.depManifest.optionalExternalTables || ["users"],
-    platformProvidedTables: result.depManifest.platformProvidedTables || ["users"],
+    optionalExternalTables: result.depManifest.optionalExternalTables || [],
+    platformProvidedTables: result.depManifest.platformProvidedTables || [],
     explicitDependsOn: result.depManifest.explicitDependsOn || {},
     semanticConstraints: result.depManifest.semanticConstraints || [],
     dependencyOrder: result.order,

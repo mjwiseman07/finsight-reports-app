@@ -92,6 +92,40 @@ function consumePublicRelations(stmt, result) {
   }
 }
 
+/**
+ * Extract application relation consumes from procedural / function / policy bodies.
+ * Only matches explicit DML targets and public.<table> FROM/JOIN, plus REFERENCES
+ * via pushQualifiedRelationConsume (skips auth/storage).
+ * Avoids false positives from plpgsql `IS DISTINCT FROM old.col` / NEW/OLD records.
+ */
+function consumeProceduralTableRefs(stmt, result) {
+  for (const ref of stmt.matchAll(
+    /\binsert\s+into\s+(?:public\.)?([A-Za-z_][\w]*)\b/gi,
+  )) {
+    pushTableConsume(result, ref[1]);
+  }
+  for (const ref of stmt.matchAll(
+    /\bupdate\s+(?:only\s+)?public\.([A-Za-z_][\w]*)\b/gi,
+  )) {
+    pushTableConsume(result, ref[1]);
+  }
+  for (const ref of stmt.matchAll(
+    /\bdelete\s+from\s+(?:only\s+)?public\.([A-Za-z_][\w]*)\b/gi,
+  )) {
+    pushTableConsume(result, ref[1]);
+  }
+  for (const ref of stmt.matchAll(
+    /\b(?:from|join)\s+(?:only\s+)?public\.([A-Za-z_][\w]*)\b(?!\s*\()/gi,
+  )) {
+    pushTableConsume(result, ref[1]);
+  }
+  for (const ref of stmt.matchAll(
+    new RegExp(`references\\s+${QUALIFIED_RELATION_SRC}`, "gi"),
+  )) {
+    pushQualifiedRelationConsume(result, ref[1], ref[2]);
+  }
+}
+
 function pushTableConsume(result, name) {
   const t = normalizeIdent(name);
   if (!t || NOT_A_TABLE.has(t)) return;
@@ -227,6 +261,8 @@ function analyzeStatementCore(stmt) {
       /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?("?\w+"?)/i,
     );
     if (m) result.creates.functions.push(normalizeIdent(m[1]));
+    // Function bodies may INSERT/UPDATE/SELECT application tables (e.g. public.users).
+    consumeProceduralTableRefs(stmt, result);
     return result;
   }
 
@@ -273,9 +309,7 @@ function analyzeStatementCore(stmt) {
     result.kind = "create_policy";
     const m = stmt.match(/\bon\s+(?:public\.)?("?\w+"?)/i);
     if (m) result.consumes.tables.push(normalizeIdent(m[1]));
-    for (const ref of stmt.matchAll(/\b(?:from|join)\s+public\.([A-Za-z_][\w]*)\b(?!\s*\()/gi)) {
-      pushTableConsume(result, ref[1]);
-    }
+    consumeProceduralTableRefs(stmt, result);
     return result;
   }
 
@@ -345,21 +379,21 @@ function analyzeStatementCore(stmt) {
       pushTableConsume(result, ref[1]);
     }
     for (const ref of stmt.matchAll(
-      new RegExp(`references\\s+${QUALIFIED_RELATION_SRC}`, "gi"),
-    )) {
-      pushQualifiedRelationConsume(result, ref[1], ref[2]);
-    }
-    for (const ref of stmt.matchAll(
-      /update\s+(?:only\s+)?public\.([A-Za-z_][\w]*)/gi,
-    )) {
-      pushTableConsume(result, ref[1]);
-    }
-    for (const ref of stmt.matchAll(
       /\bcreate\s+(?:unique\s+)?index(?:\s+if\s+not\s+exists)?\s+(?:public\.)?[A-Za-z_][\w]*\s+on\s+(?:only\s+)?(?:public\.)?([A-Za-z_][\w]*)/gi,
     )) {
       pushTableConsume(result, ref[1]);
     }
-    consumePublicRelations(stmt, result);
+    consumeProceduralTableRefs(stmt, result);
+    return result;
+  }
+
+  if (/^grant\b/i.test(stmt)) {
+    result.kind = "grant";
+    if (/\bon\s+(?:function|procedure|schema|database|language|sequence|type)\b/i.test(stmt)) {
+      return result;
+    }
+    const m = stmt.match(/\bon\s+(?:table\s+)?(?:public\.)?("?\w+"?)/i);
+    if (m) pushTableConsume(result, m[1]);
     return result;
   }
 
@@ -716,9 +750,11 @@ function lexicographicSourceOrder(manifest, srcDir) {
 
 module.exports = {
   loadManifest,
+  normalizeIdent,
   splitStatements,
   analyzeStatement,
   analyzeSql,
+  consumeProceduralTableRefs,
   parseBaselineSections,
   topologicalOrder,
   orderedFilesFromPhases,

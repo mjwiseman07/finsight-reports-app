@@ -58,7 +58,7 @@
     {
       "object": "public.users",
       "classification": "baseline_missing_object",
-      "note": "Referenced by subscription-sync resolveSubscriber; created in later production migration (d0_identity path)"
+      "note": "Application table pre-dates first tracked schema_migrations version (20260701043602). Absent from foundations baseline, git CREATE history, and all production statements[] CREATEs. Distinct from platform auth.users. Order-107 clean replay fails 42P01 until separately authorized schema-only baseline recovery."
     },
     {
       "object": "phase1_* migrations",

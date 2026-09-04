@@ -99,13 +99,14 @@
       "reason": "chain_seq column/function replacements before anchor batch RPC that consumes the hardened events table."
     }
   ],
-  "optionalExternalTables": ["users", "pg_class", "pg_namespace", "pg_proc", "pg_constraint", "pg_roles", "storage"],
-  "platformProvidedTables": ["users"],
+  "optionalExternalTables": ["pg_class", "pg_namespace", "pg_proc", "pg_constraint", "pg_roles", "storage"],
+  "platformProvidedTables": [],
   "notes": [
     "explicitDependsOn documents the reviewed recurring_fires edge (also inferred via mutator_chain).",
     "Do not reorder solely because a table exists; mutator chains preserve CREATE→ALTER; consumers depend on creators only unless an explicit semanticConstraint is added.",
     "Recovered 20260704024059 must precede git 20260706130000_d_entitlements.sql so the old stripe_webhook_events table is renamed to _legacy before the replacement CREATE.",
     "Recovered hash-chain function originals must stay in production statement order before major_1_rpc_lockdown. Do not drop REVOKE/ALTER FUNCTION lockdown statements to pass replay.",
-    "D0 + d6_0 vertical foundation curated_rules_registry INSERTs are immutable reference seed required for clean replay. They must precede D-Assertions Part 1 rule_assertion_coverage backfill (FK rule_assertion_coverage_rule_id_fkey). Do not invent placeholder rules, disable the FK, or admit d6_2a–d operational activations as reference seed."
+    "D0 + d6_0 vertical foundation curated_rules_registry INSERTs are immutable reference seed required for clean replay. They must precede D-Assertions Part 1 rule_assertion_coverage backfill (FK rule_assertion_coverage_rule_id_fkey). Do not invent placeholder rules, disable the FK, or admit d6_2a–d operational activations as reference seed.",
+    "Never treat bare `users` as platform-provided. Platform Auth is only auth.users; application public.users requires an in-set CREATE (foundations/baseline or recovered original). Order-107 42P01 proved the prior conflation."
   ]
 }

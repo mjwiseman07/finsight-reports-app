@@ -1,21 +1,43 @@
 {
-  "generatedAt": "2026-09-04T04:08:27.895Z",
+  "generatedAt": "2026-09-04T04:37:38.850Z",
   "replayTrack": "option_d_isolated_candidate",
-  "ok": true,
-  "mergeReady": true,
+  "ok": false,
+  "mergeReady": false,
   "mergeReadyMeaning": "candidateReplayStaticReady only — not runtime PASS and not overall PR merge approval",
-  "candidateReplayStaticReady": true,
+  "candidateReplayStaticReady": false,
   "fixtureScanOk": true,
-  "requiredDependenciesResolved": true,
+  "requiredDependenciesResolved": false,
   "ruleSeedDependenciesResolved": true,
   "viewSignaturesResolved": true,
+  "appRelationDependenciesResolved": false,
+  "publicUsersMissingCreator": true,
   "ruleSeedFailureCount": 0,
   "ruleSeedFailures": [],
   "viewSignatureFailureCount": 0,
   "viewSignatureFailures": [],
+  "appRelationFailureCount": 1,
+  "appRelationFailures": [
+    {
+      "rule": "missing_application_relation_creator",
+      "table": "users",
+      "qualified": "public.users",
+      "consumer": "20260727000100_users_auth_trigger_single_writer.sql",
+      "consumerOrder": 107,
+      "classificationHint": "historical_preexisting_or_baseline_excluded",
+      "order107Regression": true
+    }
+  ],
   "requiredRuleIdCount": 32,
-  "requiredUnresolvedCount": 0,
-  "requiredUnresolved": [],
+  "requiredUnresolvedCount": 1,
+  "requiredUnresolved": [
+    {
+      "file": "20260727000100_users_auth_trigger_single_writer.sql",
+      "kind": "table",
+      "table": "users",
+      "identity": null,
+      "prerequisiteSource": "none_in_git_candidate_set"
+    }
+  ],
   "runtimeReady": false,
   "prMergeReady": false,
   "violationCount": 0,
@@ -23,12 +45,12 @@
   "assembledCount": 149,
   "substitutions": 7,
   "scopes": {
-    "isolatedCandidateLineage": "PASS_STATIC",
+    "isolatedCandidateLineage": "FAIL",
     "pr312RpcValidation": "NOT_RUN_BY_THIS_GATE",
     "productionDashboardReplayParity": "unresolved",
     "activeSupabaseMigrationsPromotion": "still_blocked_see_data-dependent-replay-gate",
     "runtime": "NOT_RUN",
     "prMerge": "NOT_READY"
   },
-  "note": "Fails while any REQUIRED missing table, function, column, or curated rule-seed CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false."
+  "note": "Fails while any REQUIRED missing table, function, column, curated rule-seed, view-signature, or application-relation CREATE remains. public.users must not be conflated with auth.users. Justified exclusions stay documented. Runtime and overall PR merge stay false."
 }

@@ -20,6 +20,7 @@ const {
   loadOrderedEntriesFromReplayManifest,
 } = require("./audit-option-d-rule-seed-deps");
 const { evaluateViewSignatureOrdering } = require("./audit-option-d-view-signatures");
+const { evaluateAppRelationOrdering } = require("./audit-option-d-app-relation-deps");
 
 const ROOT = path.join(__dirname, "..", "..");
 const ASSEMBLED_DIR = path.join(
@@ -34,6 +35,10 @@ const CLASS_JSON = path.join(
 const RULE_SEED_JSON = path.join(
   ROOT,
   "docs/migration-remediation/option-d-rule-seed-dependency-inventory.json",
+);
+const APP_REL_JSON = path.join(
+  ROOT,
+  "docs/migration-remediation/option-d-app-relation-dependency-gate.json",
 );
 const OUT_JSON = path.join(ROOT, "docs/migration-remediation/option-d-replay-gate.json");
 
@@ -149,6 +154,12 @@ function main() {
   const ruleSeedDependenciesResolved = seedEval.ok;
   const viewEval = evaluateViewSignatureOrdering(loadOrderedEntriesFromReplayManifest());
   const viewSignaturesResolved = viewEval.ok;
+  const appRelEval = evaluateAppRelationOrdering(loadOrderedEntriesFromReplayManifest());
+  const usersRequiredMissing = required.some((c) => c.table === "users");
+  const publicUsersMissingCreator =
+    appRelEval.publicUsersMissingCreator === true || usersRequiredMissing;
+  const appRelationDependenciesResolved =
+    appRelEval.ok && !publicUsersMissingCreator;
   if (fs.existsSync(RULE_SEED_JSON)) {
     // Prefer freshly written inventory when present; still recompute live for fail-closed.
     const inv = JSON.parse(fs.readFileSync(RULE_SEED_JSON, "utf8"));
@@ -156,12 +167,18 @@ function main() {
       // Inventory stale vs live — live wins; rewrite is assemble's job.
     }
   }
+  fs.writeFileSync(APP_REL_JSON, JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    gate: "option_d_app_relation_deps",
+    ...appRelEval,
+  }, null, 2) + "\n");
 
   const candidateReplayStaticReady =
     fixtureScanOk &&
     requiredDependenciesResolved &&
     ruleSeedDependenciesResolved &&
-    viewSignaturesResolved;
+    viewSignaturesResolved &&
+    appRelationDependenciesResolved;
 
   const report = {
     generatedAt: new Date().toISOString(),
@@ -175,10 +192,14 @@ function main() {
     requiredDependenciesResolved,
     ruleSeedDependenciesResolved,
     viewSignaturesResolved,
+    appRelationDependenciesResolved,
+    publicUsersMissingCreator,
     ruleSeedFailureCount: seedEval.failures.length,
     ruleSeedFailures: seedEval.failures.slice(0, 20),
     viewSignatureFailureCount: viewEval.failures.length,
     viewSignatureFailures: viewEval.failures.slice(0, 20),
+    appRelationFailureCount: appRelEval.failures.length,
+    appRelationFailures: appRelEval.failures.slice(0, 20),
     requiredRuleIdCount: seedEval.requiredRuleIds.length,
     requiredUnresolvedCount: required.length,
     requiredUnresolved: required.map((c) => ({
@@ -203,7 +224,7 @@ function main() {
       prMerge: "NOT_READY",
     },
     note:
-      "Fails while any REQUIRED missing table, function, column, or curated rule-seed CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false.",
+      "Fails while any REQUIRED missing table, function, column, curated rule-seed, view-signature, or application-relation CREATE remains. public.users must not be conflated with auth.users. Justified exclusions stay documented. Runtime and overall PR merge stay false.",
   };
 
   fs.writeFileSync(OUT_JSON, JSON.stringify(report, null, 2) + "\n");
@@ -216,9 +237,12 @@ function main() {
         requiredDependenciesResolved: report.requiredDependenciesResolved,
         ruleSeedDependenciesResolved: report.ruleSeedDependenciesResolved,
         viewSignaturesResolved: report.viewSignaturesResolved,
+        appRelationDependenciesResolved: report.appRelationDependenciesResolved,
+        publicUsersMissingCreator: report.publicUsersMissingCreator,
         requiredUnresolvedCount: report.requiredUnresolvedCount,
         ruleSeedFailureCount: report.ruleSeedFailureCount,
         viewSignatureFailureCount: report.viewSignatureFailureCount,
+        appRelationFailureCount: report.appRelationFailureCount,
         prMergeReady: report.prMergeReady,
         runtimeReady: report.runtimeReady,
       },

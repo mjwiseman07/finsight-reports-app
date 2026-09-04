@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T04:08:26.556Z",
+  "generatedAt": "2026-09-04T04:37:52.493Z",
   "policy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "candidateCount": 144,
   "lexicographicOrder": [
@@ -588,7 +588,7 @@
       "d6_0": 39
     }
   },
-  "edgeCount": 404,
+  "edgeCount": 426,
   "sampleEdges": [
     {
       "from": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
@@ -631,7 +631,7 @@
       "reason": "semanticConstraint:D0 creates curated_rules_registry + base gen rule seeds before d6_0 vertical expansion seeds."
     }
   ],
-  "unresolvedCount": 1,
+  "unresolvedCount": 2,
   "fixedPrefix": [
     "20260701043599_foundations_baseline.sql",
     "20260701043602_phase1_subscriptions_core.sql",

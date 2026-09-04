@@ -133,18 +133,23 @@ describe("Option D isolated Git replay harness", () => {
     }
   });
 
-  it("Option D candidate gate is static PASS once required CREATE/RENAME are in-set; prMerge/runtime stay false", () => {
-    execFileSync(process.execPath, [GATE], { cwd: ROOT, stdio: "pipe" });
+  it("Option D candidate gate fails closed on missing public.users (order-107); prMerge/runtime stay false", () => {
+    let gateExit = 0;
+    try {
+      execFileSync(process.execPath, [GATE], { cwd: ROOT, stdio: "pipe" });
+    } catch (e: unknown) {
+      gateExit = (e as { status?: number }).status ?? 1;
+    }
+    expect(gateExit).not.toBe(0);
     const gate = JSON.parse(fs.readFileSync(OPTION_D_GATE_JSON, "utf8"));
     expect(gate.fixtureScanOk).toBe(true);
-    expect(gate.requiredDependenciesResolved).toBe(true);
-    expect(gate.candidateReplayStaticReady).toBe(true);
-    expect(gate.mergeReady).toBe(true);
-    expect(gate.mergeReadyMeaning).toMatch(/candidateReplayStaticReady only/);
+    expect(gate.ok).toBe(false);
+    expect(gate.candidateReplayStaticReady).toBe(false);
+    expect(gate.mergeReady).toBe(false);
+    expect(gate.publicUsersMissingCreator).toBe(true);
+    expect(gate.appRelationDependenciesResolved).toBe(false);
     expect(gate.prMergeReady).toBe(false);
     expect(gate.runtimeReady).toBe(false);
-    expect(gate.requiredUnresolvedCount).toBe(0);
-    expect(gate.ok).toBe(true);
   });
 
   it("active supabase/migrations gate still fails (promotion not done)", () => {
@@ -167,7 +172,7 @@ describe("Option D isolated Git replay harness", () => {
     ).toBe(false);
   });
 
-  it("runtime harness reports BLOCKED without apply; separate statuses present", () => {
+  it("runtime harness reports BLOCKED when static gate fails on public.users; separate statuses present", () => {
     const env = { ...process.env };
     delete env.OPTION_D_APPLY;
     delete env.OPTION_D_DATABASE_URL;
@@ -185,8 +190,9 @@ describe("Option D isolated Git replay harness", () => {
       expect(exitCode).not.toBe(0);
       const status = JSON.parse(fs.readFileSync(RUNTIME_STATUS, "utf8"));
       expect(status.overall).toBe("BLOCKED");
-      expect(status.reason).toBe("runtime_apply_not_requested");
-      expect(status.scopes.candidateReplay).toBe("BLOCKED");
+      // Static readiness now fails closed on missing public.users before apply gating.
+      expect(status.reason).toBe("option_d_static_gate_failed");
+      expect(status.scopes.candidateReplay).toBe("FAIL");
       expect(status.scopes.securityImmutabilityChecks).toBe("BLOCKED");
       expect(status.scopes.pr312RpcValidation).toBe("BLOCKED");
       expect(status.scopes.productionDashboardReplayParity).toBe("unresolved");

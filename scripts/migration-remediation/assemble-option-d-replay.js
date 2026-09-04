@@ -29,6 +29,7 @@ const {
   loadOrderedEntriesFromReplayManifest,
 } = require("./audit-option-d-rule-seed-deps");
 const { evaluateViewSignatureOrdering } = require("./audit-option-d-view-signatures");
+const { evaluateAppRelationOrdering } = require("./audit-option-d-app-relation-deps");
 const { spawnSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..", "..");
@@ -561,6 +562,10 @@ function main() {
     console.error("FAIL: view-signature compatibility", viewEval.failures.slice(0, 10));
     process.exit(1);
   }
+  // App-relation gate records missing creators (e.g. public.users) but does not abort
+  // assemble artifact generation — candidateReplayStaticReady is enforced by
+  // audit-option-d-replay-gate.js / audit-option-d-app-relation-deps.js.
+  const appRelEval = evaluateAppRelationOrdering(loadOrderedEntriesFromReplayManifest());
   const inventoryRun = spawnSync(
     process.execPath,
     [path.join(__dirname, "audit-option-d-rule-seed-deps.js")],
@@ -583,11 +588,16 @@ function main() {
     console.error("FAIL: audit-option-d-view-signatures.js");
     process.exit(viewGateRun.status || 1);
   }
+  // Always refresh app-relation gate artifact (exit code ignored here; replay gate enforces).
+  spawnSync(process.execPath, [path.join(__dirname, "audit-option-d-app-relation-deps.js")], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
 
   console.log(
     JSON.stringify(
       {
-        ok: true,
+        ok: classification.requiredDependenciesResolved && appRelEval.ok,
         totalAssembled: entries.length,
         substitutions: substitutionEntries.length,
         movedCount: depResult.changelog.movedCount,
@@ -599,6 +609,8 @@ function main() {
         ruleSeedOrderOk: depResult.changelog.ruleSeedRegression.dependencyOrderSatisfied,
         ruleSeedCompletenessOk: seedEval.ok,
         viewSignatureOk: viewEval.ok,
+        appRelationDepsOk: appRelEval.ok,
+        publicUsersMissingCreator: appRelEval.publicUsersMissingCreator,
         requiredRuleIds: seedEval.requiredRuleIds.length,
         manifest: path.relative(ROOT, MANIFEST_OUT).replace(/\\/g, "/"),
         assembledDir: path.relative(ROOT, ASSEMBLED_DIR).replace(/\\/g, "/"),
