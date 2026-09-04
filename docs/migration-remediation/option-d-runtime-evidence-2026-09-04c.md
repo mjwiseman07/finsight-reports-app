@@ -19,7 +19,7 @@
 
 - Workdir: `C:\Users\mattj\tmp-option-d-platform-only-07a356e5` (outside repo)
 - `supabase init`; migration SQL count = 0; no Advisacor migrations copied
-- `supabase start` OK; DB URL `postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+- `supabase start` OK; DB URL redacted (`127.0.0.1:54322` / local postgres)
 - TCP `127.0.0.1:54322` open before harness
 
 ## Harness verdict

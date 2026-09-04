@@ -34,6 +34,7 @@ const {
   resolvePr312SuiteProvenance,
   PR312_SUITE_PATH,
   PR312_COMMIT,
+  PR312_SUITE_BLOB,
 } = require("./option-d-vitest-result-gate");
 const {
   evaluateManifestAuthorization,
@@ -44,27 +45,39 @@ const {
   readAuthorizedCommitFromEnv,
   resolveGitHead,
 } = require("./option-d-manifest-authorization");
+const {
+  materializeAuthorizedSqlFromGit,
+  cleanupMaterialization,
+  materializePr312SuiteFromGit,
+  sha256Buffer,
+} = require("./option-d-git-blob-authority");
 const { fingerprintPlatformWorkdir } = require("./option-d-platform-bootstrap");
 
 const ROOT = path.join(__dirname, "..", "..");
 const STATUS_OUT = path.join(ROOT, "docs/migration-remediation/option-d-runtime-status.json");
 const ASSEMBLE = path.join(__dirname, "assemble-option-d-replay.js");
 const GATE = path.join(__dirname, "audit-option-d-replay-gate.js");
-const ASSEMBLED_DIR = path.join(
-  ROOT,
-  "supabase/migrations-draft/option-d-isolated-replay/assembled",
-);
 const MANIFEST = path.join(ROOT, "docs/migration-remediation/option-d-replay-manifest.json");
 
 /** Mutable counter for tests — proves mismatch yields zero SQL application attempts. */
 const applyMetrics = {
   sqlApplicationAttempts: 0,
   lastAuthorization: null,
+  lastMaterialization: null,
+  lastPr312Materialization: null,
 };
 
 function resetApplyMetrics() {
+  if (applyMetrics.lastMaterialization?.tempDir) {
+    cleanupMaterialization(applyMetrics.lastMaterialization.tempDir);
+  }
+  if (applyMetrics.lastPr312Materialization?.tempDir) {
+    cleanupMaterialization(applyMetrics.lastPr312Materialization.tempDir);
+  }
   applyMetrics.sqlApplicationAttempts = 0;
   applyMetrics.lastAuthorization = null;
+  applyMetrics.lastMaterialization = null;
+  applyMetrics.lastPr312Materialization = null;
 }
 
 function emptyScopes() {
@@ -161,21 +174,50 @@ async function verifyFreshBeforeWrite(dbUrl, expectedDisposableName) {
   });
 }
 
-async function applyAssembled(dbUrl) {
-  const manifest = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
-  const ordered = [...manifest.entries].sort((a, b) => a.order - b.order);
+/**
+ * Apply SQL exclusively from a prior Git-blob materialization ledger.
+ * Never reads working-tree assembled/ files as authority.
+ */
+async function applyAssembled(dbUrl, materialization) {
+  if (!materialization || materialization.ok !== true || !Array.isArray(materialization.artifacts)) {
+    return {
+      applied: false,
+      failedAt: null,
+      order: null,
+      completedCount: 0,
+      sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
+      error: "Git-blob SQL materialization required before apply",
+      sqlState: null,
+    };
+  }
+  const ordered = [...materialization.artifacts].sort((a, b) => a.order - b.order);
   return withClient(dbUrl, async (client) => {
-    for (const entry of ordered) {
-      const sql = fs.readFileSync(path.join(ASSEMBLED_DIR, entry.assembledFilename), "utf8");
+    for (const artifact of ordered) {
+      const bytes = fs.readFileSync(artifact.temporaryFile);
+      const liveSha = sha256Buffer(bytes);
+      if (liveSha !== artifact.sha256 || liveSha !== artifact.temporaryFileSha256) {
+        return {
+          applied: false,
+          failedAt: artifact.assembledFilename,
+          order: artifact.order,
+          completedCount: artifact.order - 1,
+          sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
+          error: "Temporary materialization bytes drifted before SQL execute",
+          sqlState: null,
+          detail: `expected=${artifact.sha256} live=${liveSha}`,
+        };
+      }
+      // Pass exact committed bytes to Postgres (binary Buffer — no text re-encode).
+      const sql = bytes;
       applyMetrics.sqlApplicationAttempts += 1;
       try {
-        await client.query(sql);
+        await client.query(sql.toString("utf8"));
       } catch (err) {
         return {
           applied: false,
-          failedAt: entry.assembledFilename,
-          order: entry.order,
-          completedCount: entry.order - 1,
+          failedAt: artifact.assembledFilename,
+          order: artifact.order,
+          completedCount: artifact.order - 1,
           sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
           error: String(err.message || err).slice(0, 500),
           sqlState: err.code || null,
@@ -190,6 +232,12 @@ async function applyAssembled(dbUrl) {
           position: err.position || null,
           internalPosition: err.internalPosition || null,
           where: err.where ? String(err.where).slice(0, 500) : null,
+          appliedArtifact: {
+            path: artifact.path,
+            gitBlobId: artifact.gitBlobId,
+            sha256: artifact.sha256,
+            byteLength: artifact.byteLength,
+          },
         };
       }
     }
@@ -197,6 +245,8 @@ async function applyAssembled(dbUrl) {
       applied: true,
       migrationsApplied: ordered.length,
       sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
+      authority: "git_cat_file_blob",
+      materializationArtifactCount: ordered.length,
     };
   });
 }
@@ -204,16 +254,20 @@ async function applyAssembled(dbUrl) {
 /**
  * Authorization gate used before assemble/apply.
  * On failure, sqlApplicationAttempts remains unchanged (tests assert zero).
+ * Manifest bytes come only from git cat-file blob at OPTION_D_AUTHORIZED_COMMIT.
  */
 function authorizeManifestOrBlock(env = process.env) {
   const expected = readExpectedManifestSha256FromEnv(env);
   const authorizedCommit = readAuthorizedCommitFromEnv(env);
+  const expectedByteLength = env.OPTION_D_EXPECTED_MANIFEST_BYTES
+    ? Number(env.OPTION_D_EXPECTED_MANIFEST_BYTES)
+    : undefined;
   const result = evaluateManifestAuthorization({
     expectedSha256: expected,
     authorizedCommit,
     currentHead: resolveGitHead(ROOT),
-    manifestPath: MANIFEST,
     requireCommitBinding: true,
+    expectedByteLength,
   });
   applyMetrics.lastAuthorization = result;
   return result;
@@ -236,11 +290,33 @@ async function runSecurityChecks(dbUrl) {
 }
 
 function runPr312Vitest(dbUrl) {
+  const suiteMat = materializePr312SuiteFromGit({
+    commit: PR312_COMMIT,
+    suitePath: PR312_SUITE_PATH,
+    expectedBlobId: PR312_SUITE_BLOB,
+  });
+  applyMetrics.lastPr312Materialization = suiteMat;
+  if (!suiteMat.ok) {
+    return {
+      processExitCode: null,
+      signal: null,
+      error: "pr312_git_blob_materialization_failed",
+      gate: {
+        ok: false,
+        reason: "pr312_git_blob_materialization_failed",
+        failures: suiteMat.failures,
+      },
+      structured: null,
+      stderr: "",
+      suiteMaterialization: suiteMat,
+    };
+  }
+
   const outFile = path.join(os.tmpdir(), `option-d-vitest-${Date.now()}.json`);
   const npx = process.platform === "win32" ? "npx.cmd" : "npx";
   const r = spawnSync(
     npx,
-    ["vitest", "run", PR312_SUITE_PATH, "--reporter=json", `--outputFile=${outFile}`],
+    ["vitest", "run", suiteMat.tempFile, "--reporter=json", `--outputFile=${outFile}`],
     {
       cwd: ROOT,
       encoding: "utf8",
@@ -274,6 +350,11 @@ function runPr312Vitest(dbUrl) {
     report,
   });
 
+  if (suiteMat.tempDir) {
+    cleanupMaterialization(suiteMat.tempDir);
+    applyMetrics.lastPr312Materialization = null;
+  }
+
   return {
     processExitCode: r.status,
     signal: r.signal || null,
@@ -281,6 +362,13 @@ function runPr312Vitest(dbUrl) {
     gate,
     structured: gate.structured,
     stderr: (r.stderr || "").slice(0, 1000),
+    suiteMaterialization: {
+      ok: true,
+      gitBlobId: suiteMat.gitBlobId,
+      sha256: suiteMat.sha256,
+      byteLength: suiteMat.byteLength,
+      authority: suiteMat.authority,
+    },
   };
 }
 
@@ -331,6 +419,39 @@ async function main() {
         overallGate: evaluateOverallRuntimePass(scopes),
       });
       process.exit(2);
+    }
+
+    // Materialize SQL from Git blobs before any DB inventory / SQL apply.
+    if (applyRequested) {
+      const materialization = materializeAuthorizedSqlFromGit({
+        authorizedCommit: authz.authorizedCommit,
+        manifest: authz.manifest,
+      });
+      applyMetrics.lastMaterialization = materialization;
+      if (!materialization.ok) {
+        scopes.candidateReplay = "FAIL";
+        scopes.securityImmutabilityChecks = "BLOCKED";
+        scopes.pr312RpcValidation = "BLOCKED";
+        writeStatus({
+          overall: "BLOCKED",
+          reason: "git_blob_sql_materialization_failed",
+          note:
+            "Authorized SQL must materialize from git cat-file blob at OPTION_D_AUTHORIZED_COMMIT with exact manifest assembledSha256 match. Working-tree / CRLF smudge bytes are not authority. sqlApplicationAttempts remain 0.",
+          materialization: {
+            ok: false,
+            failureCount: materialization.failures.length,
+            failures: materialization.failures.slice(0, 30),
+            tempDir: materialization.tempDir || null,
+          },
+          prewriteAuthorizationEvidence: prewrite,
+          sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
+          scopes,
+          overallGate: evaluateOverallRuntimePass(scopes),
+        });
+        if (materialization.tempDir) cleanupMaterialization(materialization.tempDir);
+        applyMetrics.lastMaterialization = null;
+        process.exit(2);
+      }
     }
   }
 
@@ -518,8 +639,8 @@ async function main() {
     process.exit(2);
   }
 
-  // Apply migrations
-  const applyResult = await applyAssembled(dbUrl);
+  // Apply migrations from Git-blob materialization only
+  const applyResult = await applyAssembled(dbUrl, applyMetrics.lastMaterialization);
   if (!applyResult.applied) {
     scopes.candidateReplay = "FAIL";
     scopes.securityImmutabilityChecks = "BLOCKED";
@@ -532,9 +653,17 @@ async function main() {
       overallGate: evaluateOverallRuntimePass(scopes),
       targetRedacted: redactUrl(dbUrl),
     });
+    if (applyMetrics.lastMaterialization?.tempDir) {
+      cleanupMaterialization(applyMetrics.lastMaterialization.tempDir);
+      applyMetrics.lastMaterialization = null;
+    }
     process.exit(2);
   }
   scopes.candidateReplay = "PASS";
+  if (applyMetrics.lastMaterialization?.tempDir) {
+    cleanupMaterialization(applyMetrics.lastMaterialization.tempDir);
+    applyMetrics.lastMaterialization = null;
+  }
 
   // Security / RLS / view / immutability — must execute
   const security = await runSecurityChecks(dbUrl);

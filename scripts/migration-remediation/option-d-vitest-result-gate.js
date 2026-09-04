@@ -184,28 +184,27 @@ function evaluateVitestStructuredResult(report, opts = {}) {
 }
 
 /**
- * Verify on-disk suite matches pinned PR #312 commit content when present.
+ * Verify PR #312 suite provenance from the pinned commit Git blob (not worktree).
  */
 function resolvePr312SuiteProvenance(root) {
-  const suitePath = path.join(root, PR312_SUITE_PATH);
-  const present = fs.existsSync(suitePath);
+  const { readGitBlobAtCommit } = require("./option-d-git-blob-authority");
   let contentSha256 = null;
   let pinnedContentSha256 = null;
   let matchesPinnedCommitContent = false;
+  let present = false;
+  let gitBlobId = null;
 
-  if (present) {
-    contentSha256 = sha256Text(fs.readFileSync(suitePath, "utf8"));
-    try {
-      const pinnedContent = execFileSync(
-        "git",
-        ["show", `${PR312_COMMIT}:${PR312_SUITE_PATH}`],
-        { cwd: root, encoding: "utf8", maxBuffer: 5_000_000 },
-      );
-      pinnedContentSha256 = sha256Text(pinnedContent);
-      matchesPinnedCommitContent = pinnedContentSha256 === contentSha256;
-    } catch {
-      matchesPinnedCommitContent = false;
+  try {
+    const pinned = readGitBlobAtCommit(PR312_COMMIT, PR312_SUITE_PATH, { cwd: root });
+    if (pinned.ok) {
+      present = true;
+      gitBlobId = pinned.gitBlobId;
+      pinnedContentSha256 = pinned.sha256;
+      contentSha256 = pinned.sha256;
+      matchesPinnedCommitContent = pinned.gitBlobId === PR312_SUITE_BLOB;
     }
+  } catch {
+    matchesPinnedCommitContent = false;
   }
 
   return {
@@ -213,9 +212,11 @@ function resolvePr312SuiteProvenance(root) {
     suitePath: PR312_SUITE_PATH,
     sourceCommit: PR312_COMMIT,
     pinnedBlob: PR312_SUITE_BLOB,
+    gitBlobId,
     contentSha256,
     pinnedContentSha256,
     matchesPinnedCommitContent,
+    authority: "git_cat_file_blob",
   };
 }
 

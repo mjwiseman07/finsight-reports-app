@@ -11,6 +11,7 @@ import {
 import {
   evaluateManifestAuthorization,
   evaluateManifestUnchangedSinceAuthorization,
+  resolveGitHead,
   sha256Buffer,
 } from "../../scripts/migration-remediation/option-d-manifest-authorization.js";
 
@@ -220,13 +221,12 @@ describe("Option D view signature — assemble + auth", () => {
   });
 
   it("manifest regeneration / changed bytes requires new runtime authorization", () => {
-    const bytes = fs.readFileSync(MANIFEST);
-    const hash = sha256Buffer(bytes);
+    const head = resolveGitHead(ROOT)!;
+    const hash = sha256Buffer(fs.readFileSync(MANIFEST));
     const auth = evaluateManifestAuthorization({
       expectedSha256: "0".repeat(64),
-      authorizedCommit: "a".repeat(40),
-      currentHead: "a".repeat(40),
-      manifestPath: MANIFEST,
+      authorizedCommit: head,
+      currentHead: head,
       requireCommitBinding: true,
     });
     expect(auth.ok).toBe(false);

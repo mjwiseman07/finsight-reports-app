@@ -12,6 +12,7 @@ import {
 } from "../../scripts/migration-remediation/audit-option-d-app-relation-deps.js";
 import {
   evaluateManifestAuthorization,
+  resolveGitHead,
   sha256Buffer,
 } from "../../scripts/migration-remediation/option-d-manifest-authorization.js";
 
@@ -243,14 +244,11 @@ describe("Option D application-relation static gate", () => {
   });
 
   it("changed manifest bytes require new runtime authorization", () => {
-    const bytes = fs.readFileSync(MANIFEST);
-    const hash = sha256Buffer(bytes);
-    expect(hash).toMatch(/^[a-f0-9]{64}$/);
+    const head = resolveGitHead(ROOT)!;
     const auth = evaluateManifestAuthorization({
       expectedSha256: "0".repeat(64),
-      authorizedCommit: "a".repeat(40),
-      currentHead: "a".repeat(40),
-      manifestPath: MANIFEST,
+      authorizedCommit: head,
+      currentHead: head,
       requireCommitBinding: true,
     });
     expect(auth.ok).toBe(false);

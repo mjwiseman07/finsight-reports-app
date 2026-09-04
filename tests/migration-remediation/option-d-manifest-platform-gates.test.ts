@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -133,40 +133,61 @@ describe("Option D manifest authorization integrity", () => {
     resetApplyMetrics();
   });
 
+  function gitManifestBytes(): Buffer {
+    const head = resolveGitHead(ROOT)!;
+    const r = spawnSync(
+      "git",
+      ["cat-file", "blob", `${head}:docs/migration-remediation/option-d-replay-manifest.json`],
+      { cwd: ROOT, encoding: null, maxBuffer: 50 * 1024 * 1024 },
+    );
+    expect(r.status).toBe(0);
+    return r.stdout as Buffer;
+  }
+
   it("requires explicit expected hash and authorized commit", () => {
     const result = evaluateManifestAuthorization({
       expectedSha256: null,
       authorizedCommit: null,
       currentHead: "a".repeat(40),
-      manifestPath: MANIFEST,
     });
     expect(result.ok).toBe(false);
-    expect(result.failures.some((f) => f.rule === "missing_OPTION_D_EXPECTED_MANIFEST_SHA256")).toBe(
-      true,
-    );
-    expect(result.failures.some((f) => f.rule === "missing_OPTION_D_AUTHORIZED_COMMIT")).toBe(true);
+    expect(
+      result.failures.some(
+        (f) =>
+          f.rule === "missing_or_invalid_OPTION_D_EXPECTED_MANIFEST_SHA256" ||
+          f.rule === "missing_OPTION_D_EXPECTED_MANIFEST_SHA256",
+      ),
+    ).toBe(true);
+    expect(
+      result.failures.some(
+        (f) =>
+          f.rule === "missing_or_invalid_OPTION_D_AUTHORIZED_COMMIT" ||
+          f.rule === "missing_OPTION_D_AUTHORIZED_COMMIT",
+      ),
+    ).toBe(true);
   });
 
-  it("passes when expected equals exact on-disk bytes and commit matches HEAD", () => {
-    const head = resolveGitHead(ROOT);
-    const observed = sha256Buffer(fs.readFileSync(MANIFEST));
+  it("passes when expected equals exact Git-blob bytes even if worktree differs", () => {
+    const head = resolveGitHead(ROOT)!;
+    const bytes = gitManifestBytes();
+    const observed = sha256Buffer(bytes);
     const result = evaluateManifestAuthorization({
       expectedSha256: observed,
       authorizedCommit: head,
       currentHead: head,
-      manifestPath: MANIFEST,
+      expectedByteLength: bytes.length,
     });
     expect(result.ok).toBe(true);
+    expect(result.authority).toBe("git_cat_file_blob");
     expect(result.observedManifestSha256).toBe(observed);
   });
 
   it("commit mismatch fails closed with zero SQL attempts", () => {
-    const observed = sha256Buffer(fs.readFileSync(MANIFEST));
+    const observed = sha256Buffer(gitManifestBytes());
     const result = evaluateManifestAuthorization({
       expectedSha256: observed,
       authorizedCommit: "b".repeat(40),
       currentHead: "a".repeat(40),
-      manifestPath: MANIFEST,
     });
     expect(result.ok).toBe(false);
     expect(result.failures.some((f) => f.rule === "authorized_commit_mismatch")).toBe(true);
@@ -185,13 +206,12 @@ describe("Option D manifest authorization integrity", () => {
   });
 
   it("writes immutable pre-write evidence with zero SQL attempts", () => {
-    const head = resolveGitHead(ROOT);
-    const observed = sha256Buffer(fs.readFileSync(MANIFEST));
+    const head = resolveGitHead(ROOT)!;
+    const observed = sha256Buffer(gitManifestBytes());
     const authz = evaluateManifestAuthorization({
       expectedSha256: observed,
       authorizedCommit: head,
       currentHead: head,
-      manifestPath: MANIFEST,
     });
     const evidence = buildPrewriteAuthorizationEvidence({
       ...authz,
@@ -200,6 +220,7 @@ describe("Option D manifest authorization integrity", () => {
     expect(evidence.sqlApplicationAttempts).toBe(0);
     expect(evidence.expectedManifestSha256).toBe(observed);
     expect(evidence.actualManifestSha256).toBe(observed);
+    expect(evidence.authority).toBe("git_cat_file_blob");
     const tmp = path.join(os.tmpdir(), `option-d-prewrite-${Date.now()}.json`);
     writePrewriteAuthorizationEvidence(evidence, tmp);
     const roundTrip = JSON.parse(fs.readFileSync(tmp, "utf8"));
@@ -221,13 +242,15 @@ describe("Option D manifest authorization integrity", () => {
   it("harness APPLY without SKIP_ASSEMBLE aborts before SQL when authorized", () => {
     const priorStatus = fs.existsSync(RUNTIME_STATUS) ? fs.readFileSync(RUNTIME_STATUS) : null;
     const priorPrewrite = fs.existsSync(PREWRITE) ? fs.readFileSync(PREWRITE) : null;
-    const head = resolveGitHead(ROOT);
-    const observed = sha256Buffer(fs.readFileSync(MANIFEST));
+    const head = resolveGitHead(ROOT)!;
+    const bytes = gitManifestBytes();
+    const observed = sha256Buffer(bytes);
     const env = {
       ...process.env,
       OPTION_D_APPLY: "1",
       OPTION_D_EXPECTED_MANIFEST_SHA256: observed,
       OPTION_D_AUTHORIZED_COMMIT: head || "",
+      OPTION_D_EXPECTED_MANIFEST_BYTES: String(bytes.length),
       OPTION_D_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
       OPTION_D_DISPOSABLE_DB_NAME: "postgres",
       OPTION_D_PLATFORM_ONLY_TARGET: "1",
@@ -242,8 +265,8 @@ describe("Option D manifest authorization integrity", () => {
     try {
       expect(exitCode).not.toBe(0);
       const status = JSON.parse(fs.readFileSync(RUNTIME_STATUS, "utf8"));
-      expect(status.reason).toBe("apply_requires_skip_assemble_to_preserve_authorized_manifest");
       expect(status.sqlApplicationAttempts).toBe(0);
+      expect(status.reason).toBe("apply_requires_skip_assemble_to_preserve_authorized_manifest");
     } finally {
       if (priorStatus) fs.writeFileSync(RUNTIME_STATUS, priorStatus);
       else if (fs.existsSync(RUNTIME_STATUS)) fs.unlinkSync(RUNTIME_STATUS);
