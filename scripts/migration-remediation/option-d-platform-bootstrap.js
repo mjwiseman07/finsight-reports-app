@@ -7,6 +7,7 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { normalizePgArrayColumns, parsePostgresTextArray } = require("./option-d-pg-array");
 
 const ROOT = path.join(__dirname, "..", "..");
 const CONTRACT_PATH = path.join(
@@ -28,11 +29,29 @@ const REQUIRED_STORAGE_OBJECT_COLUMNS = [
   { name: "name", dataType: "text" },
 ];
 
-const REQUIRED_SCHEMAS = ["public", "auth", "storage", "extensions", "supabase_migrations"];
+/** Always-required schemas for genuine Supabase local platform (CLI 2.116.0 empty workdir). */
+const REQUIRED_SCHEMAS = ["public", "auth", "storage", "extensions"];
 const REQUIRED_ROLES = ["anon", "authenticated", "service_role"];
 const REQUIRED_EXTENSIONS = [{ name: "pgcrypto", schema: "extensions" }];
 const REQUIRED_AUTH_FUNCTIONS = ["uid"];
 const APP_MIGRATION_VERSION_RE = /^(202605|202606|202607|202608|202609)/;
+
+/**
+ * Observed: Supabase CLI 2.116.0 empty-workdir `supabase start` does not create
+ * schema `supabase_migrations` / relation `schema_migrations`. Absence is acceptable
+ * ONLY for bound CLI versions under verified platform-only provenance.
+ * Newer/unknown CLI versions fail closed if the relation is missing (version drift).
+ */
+const SCHEMA_MIGRATIONS_ABSENCE_POLICY = {
+  mode: "optional_absent_on_bound_platform_only_cli",
+  relation: "supabase_migrations.schema_migrations",
+  allowedAbsentCliVersions: ["2.116.0"],
+  requirePlatformOnlyTarget: true,
+  requireEmptyWorkdirFingerprint: true,
+  requireAuthStorageCatalogs: true,
+  documentation:
+    "CLI 2.116.0 genuine empty-workdir platform startup omits supabase_migrations.schema_migrations. Do not fabricate the table. Absence accepted only when CLI version is exactly allowlisted and platform-only provenance/target-safety/Auth-Storage checks all pass. If the relation exists, it must contain zero Advisacor application migration versions. Unknown CLI versions with absence fail closed (version drift).",
+};
 
 function normalizeColumnSpec(col) {
   if (typeof col === "string") return { name: col, dataType: null };
@@ -41,7 +60,7 @@ function normalizeColumnSpec(col) {
 
 function defaultPlatformContract() {
   return {
-    version: "option_d_platform_prerequisites_v2",
+    version: "option_d_platform_prerequisites_v3",
     failClosedOnUnknownPlatformState: true,
     dumpRestoreRejected: true,
     initializationMode: "supabase_cli_platform_only_temp_workdir",
@@ -68,15 +87,11 @@ function defaultPlatformContract() {
         requireRlsProbe: true,
         requiredConstraints: [{ type: "FOREIGN KEY", columns: ["bucket_id"] }],
       },
-      {
-        schema: "supabase_migrations",
-        name: "schema_migrations",
-        kind: "table",
-        requiredColumns: [{ name: "version", dataType: "text" }],
-        allowEmpty: true,
-      },
     ],
-    requiredFunctions: [{ schema: "auth", name: "uid", argTypes: [], requireSignature: true }],
+    schemaMigrationsPolicy: SCHEMA_MIGRATIONS_ABSENCE_POLICY,
+    requiredFunctions: [
+      { schema: "auth", name: "uid", argTypes: [], requireSignature: true, enforceArgTypes: true },
+    ],
     platformManagedSchemas: [
       "auth",
       "storage",
@@ -141,6 +156,127 @@ function dataTypeMatches(expected, actual) {
   if (e === "text") return a === "text" || a === "varchar" || a === "character varying";
   if (e === "uuid") return a === "uuid";
   return a === e || a.includes(e);
+}
+
+function hasAuthStorageCatalogs(relations) {
+  const hasBuckets = relations.some(
+    (r) => String(r.schema).toLowerCase() === "storage" && String(r.name).toLowerCase() === "buckets",
+  );
+  const hasObjects = relations.some(
+    (r) => String(r.schema).toLowerCase() === "storage" && String(r.name).toLowerCase() === "objects",
+  );
+  const hasUsers = relations.some(
+    (r) => String(r.schema).toLowerCase() === "auth" && String(r.name).toLowerCase() === "users",
+  );
+  return hasBuckets && hasObjects && hasUsers;
+}
+
+/**
+ * schema_migrations presence/absence policy (no fabrication).
+ */
+function evaluateSchemaMigrationsPolicy(inventory, contract, relations, schemas) {
+  const failures = [];
+  const policy = contract.schemaMigrationsPolicy || SCHEMA_MIGRATIONS_ABSENCE_POLICY;
+  const present = relations.some(
+    (r) =>
+      String(r.schema).toLowerCase() === "supabase_migrations" &&
+      String(r.name).toLowerCase() === "schema_migrations",
+  );
+  const migrationVersions = Array.isArray(inventory.schemaMigrationVersions)
+    ? inventory.schemaMigrationVersions.map(String)
+    : inventory.schemaMigrationVersions == null
+      ? []
+      : null;
+
+  if (migrationVersions === null) {
+    failures.push({
+      rule: "missing_schema_migration_version_inventory",
+      detail: "schemaMigrationVersions must be an array (empty if relation absent)",
+    });
+    return failures;
+  }
+
+  const appVersions = migrationVersions.filter((v) => APP_MIGRATION_VERSION_RE.test(v));
+  if (appVersions.length) {
+    failures.push({
+      rule: "app_migrations_applied_during_platform_startup",
+      detail:
+        "Advisacor-shaped migration versions present — platform startup applied application migrations or target is not platform-only",
+      sample: appVersions.slice(0, 10),
+    });
+  }
+
+  if (present) {
+    if (migrationVersions.length > 0 && appVersions.length === 0) {
+      failures.push({
+        rule: "unknown_or_nonempty_migration_history",
+        detail:
+          "schema_migrations exists with non-empty non-Advisacor versions; refuse as clean platform-only evidence",
+        sample: migrationVersions.slice(0, 10),
+      });
+    }
+    return failures;
+  }
+
+  // Absent relation
+  const cli = String(inventory.supabaseCliVersion || "").trim();
+  const allowlisted = (policy.allowedAbsentCliVersions || []).includes(cli);
+  const platformOnly = inventory.platformOnlyTarget === true;
+  const fp = inventory.platformWorkdirFingerprint;
+  const fpOk =
+    fp &&
+    fp.migrationsSqlCount === 0 &&
+    fp.containsAdvisacorPath !== true;
+  const catalogsOk = hasAuthStorageCatalogs(relations);
+
+  if (!platformOnly) {
+    failures.push({
+      rule: "unsafe_schema_migrations_absence",
+      detail:
+        "supabase_migrations.schema_migrations absent without OPTION_D_PLATFORM_ONLY_TARGET provenance",
+    });
+    return failures;
+  }
+  if (!allowlisted) {
+    failures.push({
+      rule: "schema_migrations_absence_cli_version_mismatch",
+      detail:
+        "schema_migrations absent but Supabase CLI version is not in the allowlisted absence set — fail closed on version drift",
+      observedCliVersion: cli || null,
+      allowedAbsentCliVersions: policy.allowedAbsentCliVersions,
+    });
+    return failures;
+  }
+  if (policy.requireEmptyWorkdirFingerprint && !fpOk) {
+    failures.push({
+      rule: "unsafe_schema_migrations_absence",
+      detail:
+        "schema_migrations absent but empty-workdir fingerprint is missing or failed — cannot treat as legitimate platform-only omission",
+      platformWorkdirFingerprint: fp || null,
+    });
+    return failures;
+  }
+  if (policy.requireAuthStorageCatalogs && !catalogsOk) {
+    failures.push({
+      rule: "unsafe_schema_migrations_absence",
+      detail:
+        "schema_migrations absent but Auth/Storage catalogs incomplete — unsafe/ambiguous target",
+    });
+    return failures;
+  }
+  if (!inventory.platformVersion || inventory.platformStateKnown === false) {
+    failures.push({
+      rule: "unsafe_schema_migrations_absence",
+      detail: "schema_migrations absent but platform version/state evidence incomplete",
+    });
+    return failures;
+  }
+  // Legitimate absence accepted — no failure pushed.
+  inventory.schemaMigrationsAbsentAccepted = true;
+  inventory.schemaMigrationsAbsencePolicy = policy.mode;
+  // schemas may omit supabase_migrations — that is expected under this acceptance path
+  void schemas;
+  return failures;
 }
 
 /**
@@ -212,19 +348,6 @@ function evaluatePlatformBootstrap(inventory, contract = loadPlatformContract())
         detail: "Platform-only stack must not use the Advisacor repository supabase/ directory",
       });
     }
-  }
-
-  const migrationVersions = Array.isArray(inventory.schemaMigrationVersions)
-    ? inventory.schemaMigrationVersions.map(String)
-    : [];
-  const appVersions = migrationVersions.filter((v) => APP_MIGRATION_VERSION_RE.test(v));
-  if (appVersions.length) {
-    failures.push({
-      rule: "app_migrations_applied_during_platform_startup",
-      detail:
-        "Advisacor-shaped migration versions present — platform startup applied application migrations or target is not platform-only",
-      sample: appVersions.slice(0, 10),
-    });
   }
 
   const schemas = new Set((inventory.schemas || []).map((s) => String(s).toLowerCase()));
@@ -385,16 +508,37 @@ function evaluatePlatformBootstrap(inventory, contract = loadPlatformContract())
         });
         continue;
       }
-      const ok = list.some((c) => {
+      let matched = false;
+      let parseFailed = false;
+      for (const c of list) {
         const typeOk =
           String(c.type || c.constraintType || "").toUpperCase() ===
           String(need.type).toUpperCase();
-        if (!typeOk) return false;
-        if (!need.columns?.length) return true;
-        const colsLower = (c.columns || []).map((x) => String(x).toLowerCase());
-        return need.columns.every((col) => colsLower.includes(String(col).toLowerCase()));
-      });
-      if (!ok) {
+        if (!typeOk) continue;
+        if (!need.columns?.length) {
+          matched = true;
+          break;
+        }
+        const normalized = normalizePgArrayColumns(c.columns);
+        if (!normalized.ok) {
+          parseFailed = true;
+          failures.push({
+            rule: "pg_array_parse_failed",
+            relation: `${rel.schema}.${rel.name}`,
+            requiredConstraint: need,
+            parseRule: normalized.rule,
+            detail: normalized.detail,
+            rawColumns: c.columns,
+          });
+          continue;
+        }
+        const colsLower = normalized.columns.map((x) => String(x).toLowerCase());
+        if (need.columns.every((col) => colsLower.includes(String(col).toLowerCase()))) {
+          matched = true;
+          break;
+        }
+      }
+      if (!matched && !parseFailed) {
         failures.push({
           rule: "required_constraint_missing",
           relation: `${rel.schema}.${rel.name}`,
@@ -403,6 +547,10 @@ function evaluatePlatformBootstrap(inventory, contract = loadPlatformContract())
       }
     }
   }
+
+  // schema_migrations: present → inspect (no Advisacor versions); absent → bound policy only
+  const schemaMigFailures = evaluateSchemaMigrationsPolicy(inventory, contract, relations, schemas);
+  failures.push(...schemaMigFailures);
 
   const functions = Array.isArray(inventory.functions) ? inventory.functions : [];
   for (const fn of contract.requiredFunctions || []) {
@@ -577,9 +725,13 @@ async function collectPlatformInventory(client, opts = {}) {
   for (const row of conRes.rows) {
     const key = `${row.schema}.${row.name}`.toLowerCase();
     if (!relationConstraints[key]) relationConstraints[key] = [];
+    const normalized = normalizePgArrayColumns(row.columns, { allowNullElements: false });
     relationConstraints[key].push({
       type: row.type,
-      columns: row.columns || [],
+      columns: normalized.ok ? normalized.columns : row.columns,
+      columnsParse: normalized.ok
+        ? { ok: true }
+        : { ok: false, rule: normalized.rule, detail: normalized.detail },
     });
   }
 
@@ -661,11 +813,15 @@ module.exports = {
   REQUIRED_EXTENSIONS,
   REQUIRED_AUTH_FUNCTIONS,
   APP_MIGRATION_VERSION_RE,
+  SCHEMA_MIGRATIONS_ABSENCE_POLICY,
   defaultPlatformContract,
   loadPlatformContract,
   evaluatePlatformBootstrap,
+  evaluateSchemaMigrationsPolicy,
   collectPlatformInventory,
   fingerprintPlatformWorkdir,
   normalizeColumnSpec,
   dataTypeMatches,
+  parsePostgresTextArray,
+  normalizePgArrayColumns,
 };

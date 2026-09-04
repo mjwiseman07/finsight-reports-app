@@ -199,14 +199,8 @@ function buildContract(refs) {
     });
   }
   if (!relations.has("supabase_migrations.schema_migrations")) {
-    relations.set("supabase_migrations.schema_migrations", {
-      schema: "supabase_migrations",
-      name: "schema_migrations",
-      kind: "table",
-      requiredColumns: [{ name: "version", dataType: "text" }],
-      allowEmpty: true,
-      referencedByOrders: [],
-    });
+    // Do not fabricate / hard-require schema_migrations — CLI 2.116.0 empty-workdir
+    // platform startup may omit it. Policy lives on contract.schemaMigrationsPolicy.
   } else {
     const mig = relations.get("supabase_migrations.schema_migrations");
     mig.requiredColumns = [{ name: "version", dataType: "text" }];
@@ -251,16 +245,17 @@ function buildContract(refs) {
 
   return {
     ...base,
-    version: "option_d_platform_prerequisites_v2",
+    version: "option_d_platform_prerequisites_v3",
     dumpRestoreRejected: true,
     initializationMode: "supabase_cli_platform_only_temp_workdir",
+    schemaMigrationsPolicy: base.schemaMigrationsPolicy,
     generatedFromManifest: path.relative(ROOT, MANIFEST).replace(/\\/g, "/"),
     generatedAt: new Date().toISOString(),
     requiredRoles: [...roles].sort(),
     requiredExtensions: extensions,
-    requiredRelations: [...relations.values()].sort((a, b) =>
-      `${a.schema}.${a.name}`.localeCompare(`${b.schema}.${b.name}`),
-    ),
+    requiredRelations: [...relations.values()]
+      .filter((r) => !(r.schema === "supabase_migrations" && r.name === "schema_migrations"))
+      .sort((a, b) => `${a.schema}.${a.name}`.localeCompare(`${b.schema}.${b.name}`)),
     requiredFunctions: [...functions.values()].sort((a, b) =>
       `${a.schema}.${a.name}`.localeCompare(`${b.schema}.${b.name}`),
     ),

@@ -1,5 +1,5 @@
 {
-  "version": "option_d_platform_prerequisites_v2",
+  "version": "option_d_platform_prerequisites_v3",
   "failClosedOnUnknownPlatformState": true,
   "dumpRestoreRejected": true,
   "initializationMode": "supabase_cli_platform_only_temp_workdir",
@@ -7,8 +7,7 @@
     "public",
     "auth",
     "storage",
-    "extensions",
-    "supabase_migrations"
+    "extensions"
   ],
   "requiredRoles": [
     "anon",
@@ -151,21 +150,19 @@
           ]
         }
       ]
-    },
-    {
-      "schema": "supabase_migrations",
-      "name": "schema_migrations",
-      "kind": "table",
-      "requiredColumns": [
-        {
-          "name": "version",
-          "dataType": "text"
-        }
-      ],
-      "allowEmpty": true,
-      "referencedByOrders": []
     }
   ],
+  "schemaMigrationsPolicy": {
+    "mode": "optional_absent_on_bound_platform_only_cli",
+    "relation": "supabase_migrations.schema_migrations",
+    "allowedAbsentCliVersions": [
+      "2.116.0"
+    ],
+    "requirePlatformOnlyTarget": true,
+    "requireEmptyWorkdirFingerprint": true,
+    "requireAuthStorageCatalogs": true,
+    "documentation": "CLI 2.116.0 genuine empty-workdir platform startup omits supabase_migrations.schema_migrations. Do not fabricate the table. Absence accepted only when CLI version is exactly allowlisted and platform-only provenance/target-safety/Auth-Storage checks all pass. If the relation exists, it must contain zero Advisacor application migration versions. Unknown CLI versions with absence fail closed (version drift)."
+  },
   "requiredFunctions": [
     {
       "schema": "auth",
@@ -223,5 +220,5 @@
     "requirePlatformWorkdirFingerprint": true
   },
   "generatedFromManifest": "docs/migration-remediation/option-d-replay-manifest.json",
-  "generatedAt": "2026-09-04T01:57:51.762Z"
+  "generatedAt": "2026-09-04T02:29:55.556Z"
 }

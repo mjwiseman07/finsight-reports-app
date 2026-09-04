@@ -1,36 +1,17 @@
 {
   "overall": "BLOCKED",
-  "reason": "apply_failed",
-  "authorizationIntegrity": {
-    "testedHead": "6e24a5aa3558298a926e23344215bf3eeea2729b",
-    "expectedManifestSha256": "ff4c5ff1656b5d253b61397e63bb3d8dad946821d8cf9d23df0638089dd8fecb",
-    "observedCommittedManifestSha256": "dad4032ecefbb79a9d1a61ba8e843f7e7ea10c8fbe721b9de3ffadbb9b61fc29",
-    "matched": false,
-    "executionContinuedDespiteMismatch": true,
-    "sqlApplicationAttemptsDespiteMismatch": 31,
-    "invalidOverrideUsed": "zero_entry_assembledSha256_failures"
+  "reason": "platform_preflight_tooling_crash",
+  "note": "evaluatePlatformBootstrap crashed on constraint columns shape from live platform DB (pg array_agg returned as string). Per authorization, no code remediation during this run. Zero SQL application attempts. Also observed: supabase_migrations.schema_migrations absent on CLI 2.116.0 platform-only start.",
+  "authorization": {
+    "commit": "53ff435ff6a596cc6d3ef409c18e48825c4a8205",
+    "expectedManifestSha256": "dad4032ecefbb79a9d1a61ba8e843f7e7ea10c8fbe721b9de3ffadbb9b61fc29",
+    "manifestByteLength": 113084,
+    "skipAssemble": true,
+    "entries": 149
   },
-  "applyResult": {
-    "applied": false,
-    "failedAt": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
-    "order": 31,
-    "completedCount": 30,
-    "error": "relation \"storage.buckets\" does not exist",
-    "sqlState": "42P01",
-    "detail": null,
-    "hint": null,
-    "schema": null,
-    "table": null,
-    "column": null,
-    "constraint": null,
-    "dataType": null,
-    "routine": "parserOpenTable",
-    "position": "5520",
-    "internalPosition": null,
-    "where": null
-  },
+  "sqlApplicationAttempts": 0,
   "scopes": {
-    "candidateReplay": "FAIL",
+    "candidateReplay": "BLOCKED",
     "securityImmutabilityChecks": "BLOCKED",
     "pr312RpcValidation": "BLOCKED",
     "productionDashboardReplayParity": "unresolved"
@@ -39,13 +20,22 @@
     "ok": false,
     "overall": "BLOCKED",
     "applicable": {
-      "candidateReplay": "FAIL",
+      "candidateReplay": "BLOCKED",
       "securityImmutabilityChecks": "BLOCKED",
       "pr312RpcValidation": "BLOCKED"
     },
     "productionDashboardReplayParity": "unresolved"
   },
-  "targetRedacted": "host=127.0.0.1;port=54322;db=option_d_clean_replay",
-  "writtenAt": "2026-09-04T01:26:58.434Z",
-  "evidenceAmendedAt": "2026-09-04T01:40:00.000Z"
+  "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
+  "platformStack": {
+    "workdir": "C:/Users/mattj/tmp-option-d-platform-only-53ff435f",
+    "cli": "2.116.0",
+    "docker": "29.7.2",
+    "postgres": "17.6",
+    "migrationsSqlCount": 0,
+    "storageBuckets": true,
+    "storageObjects": true,
+    "supabaseMigrationsSchema": false
+  },
+  "writtenAt": "2026-09-04T02:15:00.000Z"
 }

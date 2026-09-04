@@ -93,3 +93,14 @@ Before assemble or SQL writes:
 ## Contract artifact
 
 `docs/migration-remediation/option-d-platform-prerequisite-contract.json` — generated from all 149 Option D candidate migrations by `audit-option-d-platform-deps.js`, with expanded verification fields consumed by `option-d-platform-bootstrap.js`.
+
+### `schema_migrations` absence (CLI 2.116.0)
+
+Observed on a genuine empty-workdir `supabase start` with CLI **2.116.0**: schemas `auth` / `storage` / `extensions` / `public` are present and Storage/Auth catalogs exist, but **`supabase_migrations.schema_migrations` is absent**.
+
+Policy (`schemaMigrationsPolicy`):
+
+- **Do not fabricate** the relation.
+- **If present:** require zero Advisacor application migration versions; nonempty unknown history fails closed.
+- **If absent:** accept only when `OPTION_D_PLATFORM_ONLY_TARGET` provenance is verified, CLI version is exactly allowlisted (`2.116.0`), empty-workdir fingerprint passes, Auth/Storage catalogs pass, and platform version evidence is present.
+- **Version drift:** any other CLI version with absence → fail closed.

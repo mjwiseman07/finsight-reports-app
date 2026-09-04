@@ -442,11 +442,13 @@ describe("Option D platform bootstrap + freshness reconciliation", () => {
     const contract = JSON.parse(fs.readFileSync(CONTRACT, "utf8"));
     expect(contract.dumpRestoreRejected).toBe(true);
     expect(contract.initializationMode).toBe("supabase_cli_platform_only_temp_workdir");
+    expect(contract.schemaMigrationsPolicy?.allowedAbsentCliVersions).toContain("2.116.0");
     const names = contract.requiredRelations.map(
       (r: { schema: string; name: string }) => `${r.schema}.${r.name}`,
     );
     expect(names).toContain("storage.buckets");
     expect(names).toContain("storage.objects");
+    expect(names).not.toContain("supabase_migrations.schema_migrations");
     expect(contract.requiredFunctions.some((f: { name: string }) => f.name === "uid")).toBe(true);
   });
 });
