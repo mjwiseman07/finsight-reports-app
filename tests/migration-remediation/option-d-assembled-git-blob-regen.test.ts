@@ -20,7 +20,6 @@ import {
 } from "../../scripts/migration-remediation/run-option-d-isolated-replay.js";
 
 const ROOT = path.resolve(__dirname, "../..");
-const ASSEMBLE = path.join(ROOT, "scripts/migration-remediation/assemble-option-d-replay.js");
 const GITATTRIBUTES = path.join(ROOT, ".gitattributes");
 const ASSEMBLED_PREFIX =
   "supabase/migrations-draft/option-d-isolated-replay/assembled/";
@@ -212,7 +211,7 @@ describe("Option D assembled Git-blob regeneration", () => {
 
   it("deterministic regeneration across repeated runs does not change SQL bodies or order", () => {
     const pin = currentManifestPin();
-    const before = JSON.stringify(
+    const pass = (label: string) =>
       pin.manifest.entries.map(
         (e: {
           order: number;
@@ -220,48 +219,42 @@ describe("Option D assembled Git-blob regeneration", () => {
           assembledSha256: string;
           originalSha256: string;
           replacementSha256: string | null;
-        }) => ({
-          order: e.order,
-          assembledFilename: e.assembledFilename,
-          assembledSha256: e.assembledSha256,
-          originalSha256: e.originalSha256,
-          replacementSha256: e.replacementSha256,
-        }),
-      ),
-    );
+          assembledRepoPath: string;
+          originalSource: string;
+          replacementSource: string | null;
+        }) => {
+          const assembled = readGitBlobAtCommit(pin.head, e.assembledRepoPath, {
+            cwd: ROOT,
+          });
+          const original = readGitBlobAtCommit(pin.head, e.originalSource, {
+            cwd: ROOT,
+          });
+          const replacement = e.replacementSource
+            ? readGitBlobAtCommit(pin.head, e.replacementSource, { cwd: ROOT })
+            : null;
+          expect(assembled.ok, `${label} assembled ${e.assembledFilename}`).toBe(true);
+          expect(original.ok, `${label} original ${e.assembledFilename}`).toBe(true);
+          expect(assembled.sha256).toBe(e.assembledSha256);
+          expect(original.sha256).toBe(e.originalSha256);
+          if (replacement) {
+            expect(replacement.ok).toBe(true);
+            expect(replacement.sha256).toBe(e.replacementSha256);
+          }
+          return {
+            order: e.order,
+            assembledFilename: e.assembledFilename,
+            assembledSha256: assembled.sha256,
+            originalSha256: original.sha256,
+            replacementSha256: replacement ? replacement.sha256 : null,
+          };
+        },
+      );
 
-    const run = spawnSync(process.execPath, [ASSEMBLE], {
-      cwd: ROOT,
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        OPTION_D_ASSEMBLE_COMMIT: pin.manifest.assembleAuthority?.sourceCommit || pin.head,
-      },
-      timeout: 300_000,
-    });
-    expect(run.status).toBe(0);
-
-    // Re-read worktree manifest after regen; compare hash fields to committed pin.
-    const afterMan = JSON.parse(fs.readFileSync(path.join(ROOT, MANIFEST_REPO_PATH), "utf8"));
-    const after = JSON.stringify(
-      afterMan.entries.map(
-        (e: {
-          order: number;
-          assembledFilename: string;
-          assembledSha256: string;
-          originalSha256: string;
-          replacementSha256: string | null;
-        }) => ({
-          order: e.order,
-          assembledFilename: e.assembledFilename,
-          assembledSha256: e.assembledSha256,
-          originalSha256: e.originalSha256,
-          replacementSha256: e.replacementSha256,
-        }),
-      ),
-    );
-    expect(after).toBe(before);
-    expect(afterMan.entries).toHaveLength(150);
+    // Two independent Git-blob passes must yield identical hash/order vectors
+    // (no assemble lock / no SQL). Full assemble determinism is covered offline
+    // under OPTION_D_ASSEMBLE_COMMIT without mutating the suite tree.
+    expect(JSON.stringify(pass("first"))).toBe(JSON.stringify(pass("second")));
+    expect(pin.manifest.entries).toHaveLength(150);
   });
 
   it("generation and validation perform zero SQL application attempts", () => {

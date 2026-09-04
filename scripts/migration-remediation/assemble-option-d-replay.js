@@ -203,19 +203,27 @@ function stageRepoBlob(commit, repoPath, stageRoot) {
   };
 }
 
-function ensureCleanAssembledDir() {
-  fs.mkdirSync(path.dirname(ASSEMBLED_DIR), { recursive: true });
-  if (fs.existsSync(ASSEMBLED_DIR)) {
-    for (const f of fs.readdirSync(ASSEMBLED_DIR)) {
-      if (f === "README.md" || f === ".gitignore" || f === ".gitattributes") continue;
-      try {
-        fs.unlinkSync(path.join(ASSEMBLED_DIR, f));
-      } catch (err) {
-        if (err && err.code !== "ENOENT") throw err;
-      }
+function ensureAssembledDir() {
+  fs.mkdirSync(ASSEMBLED_DIR, { recursive: true });
+}
+
+/**
+ * Overwrite assembled SQL in place (do not wipe the directory first).
+ * Committed artifacts remain readable by concurrent readers until each
+ * filename is replaced. Remove only orphan *.sql names after a successful set.
+ */
+function removeOrphanAssembledSql(keepFilenames) {
+  const keep = new Set(keepFilenames);
+  if (!fs.existsSync(ASSEMBLED_DIR)) return;
+  for (const f of fs.readdirSync(ASSEMBLED_DIR)) {
+    if (f === "README.md" || f === ".gitignore" || f === ".gitattributes") continue;
+    if (!f.endsWith(".sql")) continue;
+    if (keep.has(f)) continue;
+    try {
+      fs.unlinkSync(path.join(ASSEMBLED_DIR, f));
+    } catch (err) {
+      if (err && err.code !== "ENOENT") throw err;
     }
-  } else {
-    fs.mkdirSync(ASSEMBLED_DIR, { recursive: true });
   }
 }
 
@@ -254,7 +262,7 @@ function main() {
     }
   }
 
-  ensureCleanAssembledDir();
+  ensureAssembledDir();
   const entries = [];
   let order = 0;
 
@@ -557,6 +565,7 @@ function main() {
     "20260821212020_journal_entry_provider_attempts.sql",
   ];
   const assembledNames = new Set(entries.map((e) => e.assembledFilename));
+  removeOrphanAssembledSql(assembledNames);
   const missingRequired = requiredPatent6.filter((f) => !assembledNames.has(f));
 
   const substitutionEntries = entries.filter((e) =>

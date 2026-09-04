@@ -23,7 +23,7 @@ function pidAlive(pid) {
 
 function withAssembleLock(fn) {
   const lockPath = path.join(os.tmpdir(), "finsight-option-d-assemble.lock");
-  const deadline = Date.now() + 120000;
+  const deadline = Date.now() + 600000; // allow queued vitest assemblers after git-blob assemble
   while (Date.now() < deadline) {
     try {
       fs.writeFileSync(lockPath, `${process.pid}\n`, { flag: "wx" });
