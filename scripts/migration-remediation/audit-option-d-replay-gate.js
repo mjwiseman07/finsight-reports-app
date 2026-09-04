@@ -19,6 +19,7 @@ const {
   evaluateRuleSeedOrdering,
   loadOrderedEntriesFromReplayManifest,
 } = require("./audit-option-d-rule-seed-deps");
+const { evaluateViewSignatureOrdering } = require("./audit-option-d-view-signatures");
 
 const ROOT = path.join(__dirname, "..", "..");
 const ASSEMBLED_DIR = path.join(
@@ -146,6 +147,8 @@ function main() {
 
   const seedEval = evaluateRuleSeedOrdering(loadOrderedEntriesFromReplayManifest());
   const ruleSeedDependenciesResolved = seedEval.ok;
+  const viewEval = evaluateViewSignatureOrdering(loadOrderedEntriesFromReplayManifest());
+  const viewSignaturesResolved = viewEval.ok;
   if (fs.existsSync(RULE_SEED_JSON)) {
     // Prefer freshly written inventory when present; still recompute live for fail-closed.
     const inv = JSON.parse(fs.readFileSync(RULE_SEED_JSON, "utf8"));
@@ -155,7 +158,10 @@ function main() {
   }
 
   const candidateReplayStaticReady =
-    fixtureScanOk && requiredDependenciesResolved && ruleSeedDependenciesResolved;
+    fixtureScanOk &&
+    requiredDependenciesResolved &&
+    ruleSeedDependenciesResolved &&
+    viewSignaturesResolved;
 
   const report = {
     generatedAt: new Date().toISOString(),
@@ -168,8 +174,11 @@ function main() {
     fixtureScanOk,
     requiredDependenciesResolved,
     ruleSeedDependenciesResolved,
+    viewSignaturesResolved,
     ruleSeedFailureCount: seedEval.failures.length,
     ruleSeedFailures: seedEval.failures.slice(0, 20),
+    viewSignatureFailureCount: viewEval.failures.length,
+    viewSignatureFailures: viewEval.failures.slice(0, 20),
     requiredRuleIdCount: seedEval.requiredRuleIds.length,
     requiredUnresolvedCount: required.length,
     requiredUnresolved: required.map((c) => ({
@@ -206,8 +215,10 @@ function main() {
         fixtureScanOk: report.fixtureScanOk,
         requiredDependenciesResolved: report.requiredDependenciesResolved,
         ruleSeedDependenciesResolved: report.ruleSeedDependenciesResolved,
+        viewSignaturesResolved: report.viewSignaturesResolved,
         requiredUnresolvedCount: report.requiredUnresolvedCount,
         ruleSeedFailureCount: report.ruleSeedFailureCount,
+        viewSignatureFailureCount: report.viewSignatureFailureCount,
         prMergeReady: report.prMergeReady,
         runtimeReady: report.runtimeReady,
       },

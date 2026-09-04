@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T03:27:48.410Z",
+  "generatedAt": "2026-09-04T04:08:26.941Z",
   "mechanism": "option_d_isolated_git_replay",
   "status": "CANDIDATE_LINEAGE_ASSEMBLED",
   "notMergeApproval": true,
@@ -361,7 +361,7 @@
     "phase1": 4,
     "recoveredRequiredOriginals": 9,
     "postPhase1": 144,
-    "substitutions": 6,
+    "substitutions": 7,
     "skippedCoveredByBaseline": 34
   },
   "recoveredRequiredOriginals": [
@@ -469,6 +469,14 @@
       "originalSha256": "26c836dd0ce5ba6e1df8fedfd99e4d7cbfffd8c666201a603044cfae67756c42",
       "replacementSha256": "794b6916ebd1ec937b0263f8abc8ff18360df14067a053cb976463b376ba1cc4",
       "order": 16
+    },
+    {
+      "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+      "action": "substitute_production_statements",
+      "justification": "Git CREATE OR REPLACE VIEW inserts columns before tie_out_state (42P16). Exact production schema_migrations 20260720212538 statements[1] uses DROP VIEW IF EXISTS (no CASCADE) + CREATE VIEW + security_invoker=true.",
+      "originalSha256": "a230b10c8ae67b727189784d7160208d40e8f1b433b197f0e4badd3f9ad385bd",
+      "replacementSha256": "1a17fa2e86d5b08e85132d8d22ca3dc83e9dd6d04938fc1b4a93df228d8c35af",
+      "order": 89
     },
     {
       "filename": "20260814221500_accounting_canonical_connected_grant.sql",
@@ -1577,13 +1585,13 @@
       "order": 89,
       "assembledFilename": "20260720170000_ar_tieout2_runs_and_variances.sql",
       "role": "post_phase1_local",
-      "action": "include",
+      "action": "substitute_production_statements",
       "originalSource": "supabase/migrations/20260720170000_ar_tieout2_runs_and_variances.sql",
       "originalSha256": "a230b10c8ae67b727189784d7160208d40e8f1b433b197f0e4badd3f9ad385bd",
-      "replacementSource": null,
-      "replacementSha256": null,
-      "assembledSha256": "a230b10c8ae67b727189784d7160208d40e8f1b433b197f0e4badd3f9ad385bd",
-      "justification": null
+      "replacementSource": "supabase/migrations-draft/option-d-isolated-replay/substitutions/20260720170000_ar_tieout2_runs_and_variances.sql",
+      "replacementSha256": "1a17fa2e86d5b08e85132d8d22ca3dc83e9dd6d04938fc1b4a93df228d8c35af",
+      "assembledSha256": "1a17fa2e86d5b08e85132d8d22ca3dc83e9dd6d04938fc1b4a93df228d8c35af",
+      "justification": "Git CREATE OR REPLACE VIEW inserts columns before tie_out_state (42P16). Exact production schema_migrations 20260720212538 statements[1] uses DROP VIEW IF EXISTS (no CASCADE) + CREATE VIEW + security_invoker=true."
     },
     {
       "order": 90,

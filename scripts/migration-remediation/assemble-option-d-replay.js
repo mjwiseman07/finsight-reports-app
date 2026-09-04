@@ -28,6 +28,7 @@ const {
   evaluateRuleSeedOrdering,
   loadOrderedEntriesFromReplayManifest,
 } = require("./audit-option-d-rule-seed-deps");
+const { evaluateViewSignatureOrdering } = require("./audit-option-d-view-signatures");
 const { spawnSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..", "..");
@@ -111,6 +112,11 @@ const SUBSTITUTIONS = {
     action: "substitute_schema_only",
     justification:
       "Prod Demo Xero RAISE/UPDATE body omitted for data-less replay; partial UNIQUE connected-grant index retained.",
+  },
+  "20260720170000_ar_tieout2_runs_and_variances.sql": {
+    action: "substitute_production_statements",
+    justification:
+      "Git CREATE OR REPLACE VIEW inserts columns before tie_out_state (42P16). Exact production schema_migrations 20260720212538 statements[1] uses DROP VIEW IF EXISTS (no CASCADE) + CREATE VIEW + security_invoker=true.",
   },
 };
 
@@ -550,6 +556,11 @@ function main() {
     console.error("FAIL: rule-seed dependency completeness", seedEval.failures.slice(0, 10));
     process.exit(1);
   }
+  const viewEval = evaluateViewSignatureOrdering(loadOrderedEntriesFromReplayManifest());
+  if (!viewEval.ok) {
+    console.error("FAIL: view-signature compatibility", viewEval.failures.slice(0, 10));
+    process.exit(1);
+  }
   const inventoryRun = spawnSync(
     process.execPath,
     [path.join(__dirname, "audit-option-d-rule-seed-deps.js")],
@@ -560,6 +571,17 @@ function main() {
     console.error(inventoryRun.stderr || "");
     console.error("FAIL: audit-option-d-rule-seed-deps.js");
     process.exit(inventoryRun.status || 1);
+  }
+  const viewGateRun = spawnSync(
+    process.execPath,
+    [path.join(__dirname, "audit-option-d-view-signatures.js")],
+    { cwd: ROOT, encoding: "utf8" },
+  );
+  if (viewGateRun.status !== 0) {
+    console.error(viewGateRun.stdout || "");
+    console.error(viewGateRun.stderr || "");
+    console.error("FAIL: audit-option-d-view-signatures.js");
+    process.exit(viewGateRun.status || 1);
   }
 
   console.log(
@@ -576,6 +598,7 @@ function main() {
         recurringFiresOrderOk: depResult.changelog.recurringFiresRegression.dependencyOrderSatisfied,
         ruleSeedOrderOk: depResult.changelog.ruleSeedRegression.dependencyOrderSatisfied,
         ruleSeedCompletenessOk: seedEval.ok,
+        viewSignatureOk: viewEval.ok,
         requiredRuleIds: seedEval.requiredRuleIds.length,
         manifest: path.relative(ROOT, MANIFEST_OUT).replace(/\\/g, "/"),
         assembledDir: path.relative(ROOT, ASSEMBLED_DIR).replace(/\\/g, "/"),

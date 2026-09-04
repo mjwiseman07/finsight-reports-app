@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T03:27:49.189Z",
+  "generatedAt": "2026-09-04T04:08:27.895Z",
   "replayTrack": "option_d_isolated_candidate",
   "ok": true,
   "mergeReady": true,
@@ -8,8 +8,11 @@
   "fixtureScanOk": true,
   "requiredDependenciesResolved": true,
   "ruleSeedDependenciesResolved": true,
+  "viewSignaturesResolved": true,
   "ruleSeedFailureCount": 0,
   "ruleSeedFailures": [],
+  "viewSignatureFailureCount": 0,
+  "viewSignatureFailures": [],
   "requiredRuleIdCount": 32,
   "requiredUnresolvedCount": 0,
   "requiredUnresolved": [],
@@ -18,7 +21,7 @@
   "violationCount": 0,
   "blockingViolations": [],
   "assembledCount": 149,
-  "substitutions": 6,
+  "substitutions": 7,
   "scopes": {
     "isolatedCandidateLineage": "PASS_STATIC",
     "pr312RpcValidation": "NOT_RUN_BY_THIS_GATE",

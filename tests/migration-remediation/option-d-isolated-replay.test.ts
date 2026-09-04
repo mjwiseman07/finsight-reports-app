@@ -47,6 +47,7 @@ const BLOCKERS = [
   "20260703_2300_d6_2c_retail_activation.sql",
   "20260703_2400_d6_2d_ps_activation.sql",
   "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+  "20260720170000_ar_tieout2_runs_and_variances.sql",
   "20260814221500_accounting_canonical_connected_grant.sql",
 ];
 
@@ -120,13 +121,13 @@ describe("Option D isolated Git replay harness", () => {
     expect(fs.existsSync(MANIFEST)).toBe(true);
     const manifest = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
     expect(manifest.mechanism).toBe("option_d_isolated_git_replay");
-    expect(manifest.counts.substitutions).toBe(6);
+    expect(manifest.counts.substitutions).toBe(7);
     expect(manifest.substitutions.map((s: { filename: string }) => s.filename).sort()).toEqual(
       [...BLOCKERS].sort(),
     );
   });
 
-  it("covers all six blockers with substitution files on disk", () => {
+  it("covers all seven blockers with substitution files on disk", () => {
     for (const file of BLOCKERS) {
       expect(fs.existsSync(path.join(SUBST_DIR, file))).toBe(true);
     }

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Explicit deterministic dependency graph for the complete Option D candidate replay set. Assembler MUST apply dependencyOrder (not lexicographic filename sort).",
-  "generatedAt": "2026-09-04T03:27:48.079Z",
+  "generatedAt": "2026-09-04T04:08:26.561Z",
   "orderingPolicy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "testedFailureRegression": {
     "pr313EvidenceHead": "de535f63335e4e73066903bb5d77489c9f8aad99",
@@ -3469,7 +3469,7 @@
     }
   ],
   "unresolvedClassification": {
-    "generatedAt": "2026-09-04T03:27:48.078Z",
+    "generatedAt": "2026-09-04T04:08:26.561Z",
     "occurrenceCount": 1,
     "requiredCount": 0,
     "requiredDependenciesResolved": true,
