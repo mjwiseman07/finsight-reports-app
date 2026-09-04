@@ -1,0 +1,683 @@
+{
+  "generatedAt": "2026-09-04T03:27:48.839Z",
+  "mechanism": "option_d_rule_seed_dependency_inventory",
+  "testedFailure": {
+    "pr313EvidenceHead": "de535f63335e4e73066903bb5d77489c9f8aad99",
+    "failedAt": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    "order": 36,
+    "sqlState": "23503",
+    "missingKey": "gen.accrual_reversal_check",
+    "authoritativeCreator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+    "classification": "later_creator_currently_misordered"
+  },
+  "ok": true,
+  "failures": [],
+  "requiredRuleIds": [
+    "gen.accrual_reversal_check",
+    "gen.ap_missed_vendor_check",
+    "gen.cash_negative_check",
+    "gen.depreciation_scheduled_check",
+    "gen.duplicate_vendor_bill_check",
+    "gen.gl_mapping_variance_check",
+    "gen.je_balance_check",
+    "gen.je_period_check",
+    "gen.prepaid_amortization_check",
+    "gen.revenue_cutoff_check",
+    "gen.reversing_entry_period_check",
+    "gen.subledger_tie_check",
+    "mfg.absorption_check",
+    "mfg.cogs_variance_check",
+    "mfg.freight_capitalization_check",
+    "mfg.inventory_reconciliation_check",
+    "mfg.scrap_variance_check",
+    "mfg.standard_cost_capitalization_check",
+    "mfg.warranty_accrual_check",
+    "mfg.wip_cutoff_check",
+    "ps.bill_rate_variance_check",
+    "ps.contract_asset_reclass_check",
+    "ps.project_margin_flag_check",
+    "ps.revenue_percent_complete_check",
+    "ps.unbilled_receivables_check",
+    "ps.wip_billable_hours_check",
+    "rtl.cogs_recognition_check",
+    "rtl.gift_card_liability_check",
+    "rtl.inventory_shrink_check",
+    "rtl.loyalty_reward_liability_check",
+    "rtl.sales_returns_reserve_check",
+    "rtl.seasonal_markdown_check"
+  ],
+  "referenceSeedFiles": [
+    "20260708_00_d0_identity_and_memory_activation.sql",
+    "20260703_1200_d6_0_vertical_rule_foundation.sql"
+  ],
+  "operationalActivationFiles": [
+    "20260703_2000_d6_2a_test_client_activation.sql",
+    "20260703_2200_d6_2b_mfg_activation.sql",
+    "20260703_2300_d6_2c_retail_activation.sql",
+    "20260703_2400_d6_2d_ps_activation.sql"
+  ],
+  "creators": {
+    "gen.je_balance_check": {
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.je_period_check": {
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.cash_negative_check": {
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.ap_missed_vendor_check": {
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.revenue_cutoff_check": {
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.depreciation_scheduled_check": {
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.prepaid_amortization_check": {
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.duplicate_vendor_bill_check": {
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.accrual_reversal_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.gl_mapping_variance_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.subledger_tie_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "gen.reversing_entry_period_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "mfg.wip_cutoff_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "mfg.cogs_variance_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "mfg.inventory_reconciliation_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "mfg.standard_cost_capitalization_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "mfg.freight_capitalization_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "mfg.warranty_accrual_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "mfg.scrap_variance_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "mfg.absorption_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "rtl.inventory_shrink_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "rtl.cogs_recognition_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "rtl.gift_card_liability_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "rtl.sales_returns_reserve_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "rtl.loyalty_reward_liability_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "rtl.seasonal_markdown_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "ps.wip_billable_hours_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "ps.revenue_percent_complete_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "ps.unbilled_receivables_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "ps.contract_asset_reclass_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "ps.project_margin_flag_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    },
+    "ps.bill_rate_variance_check": {
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "classification": "immutable_reference_seed"
+    }
+  },
+  "inventory": [
+    {
+      "ruleId": "gen.accrual_reversal_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.ap_missed_vendor_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "creatorOrder": 20,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.cash_negative_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "creatorOrder": 20,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.depreciation_scheduled_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "creatorOrder": 20,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.duplicate_vendor_bill_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "creatorOrder": 20,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.gl_mapping_variance_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.je_balance_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "creatorOrder": 20,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.je_period_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "creatorOrder": 20,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.prepaid_amortization_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "creatorOrder": 20,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.revenue_cutoff_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260708_00_d0_identity_and_memory_activation.sql",
+      "creatorOrder": 20,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.reversing_entry_period_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "gen.subledger_tie_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "mfg.absorption_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "mfg.cogs_variance_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "mfg.freight_capitalization_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "mfg.inventory_reconciliation_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "mfg.scrap_variance_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "mfg.standard_cost_capitalization_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "mfg.warranty_accrual_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "mfg.wip_cutoff_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "ps.bill_rate_variance_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "ps.contract_asset_reclass_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "ps.project_margin_flag_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "ps.revenue_percent_complete_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "ps.unbilled_receivables_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "ps.wip_billable_hours_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "rtl.cogs_recognition_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "rtl.gift_card_liability_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "rtl.inventory_shrink_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "rtl.loyalty_reward_liability_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "rtl.sales_returns_reserve_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    },
+    {
+      "ruleId": "rtl.seasonal_markdown_check",
+      "consumer": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "consumerOrder": 44,
+      "creator": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "creatorOrder": 39,
+      "classification": "immutable_reference_seed",
+      "ok": true
+    }
+  ],
+  "suggestedDependsOnEdges": [
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:gen.accrual_reversal_check",
+      "ruleId": "gen.accrual_reversal_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "rule_seed_fk:gen.ap_missed_vendor_check",
+      "ruleId": "gen.ap_missed_vendor_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "rule_seed_fk:gen.cash_negative_check",
+      "ruleId": "gen.cash_negative_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "rule_seed_fk:gen.depreciation_scheduled_check",
+      "ruleId": "gen.depreciation_scheduled_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "rule_seed_fk:gen.duplicate_vendor_bill_check",
+      "ruleId": "gen.duplicate_vendor_bill_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:gen.gl_mapping_variance_check",
+      "ruleId": "gen.gl_mapping_variance_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "rule_seed_fk:gen.je_balance_check",
+      "ruleId": "gen.je_balance_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "rule_seed_fk:gen.je_period_check",
+      "ruleId": "gen.je_period_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "rule_seed_fk:gen.prepaid_amortization_check",
+      "ruleId": "gen.prepaid_amortization_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "rule_seed_fk:gen.revenue_cutoff_check",
+      "ruleId": "gen.revenue_cutoff_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:gen.reversing_entry_period_check",
+      "ruleId": "gen.reversing_entry_period_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:gen.subledger_tie_check",
+      "ruleId": "gen.subledger_tie_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:mfg.absorption_check",
+      "ruleId": "mfg.absorption_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:mfg.cogs_variance_check",
+      "ruleId": "mfg.cogs_variance_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:mfg.freight_capitalization_check",
+      "ruleId": "mfg.freight_capitalization_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:mfg.inventory_reconciliation_check",
+      "ruleId": "mfg.inventory_reconciliation_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:mfg.scrap_variance_check",
+      "ruleId": "mfg.scrap_variance_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:mfg.standard_cost_capitalization_check",
+      "ruleId": "mfg.standard_cost_capitalization_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:mfg.warranty_accrual_check",
+      "ruleId": "mfg.warranty_accrual_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:mfg.wip_cutoff_check",
+      "ruleId": "mfg.wip_cutoff_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:ps.bill_rate_variance_check",
+      "ruleId": "ps.bill_rate_variance_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:ps.contract_asset_reclass_check",
+      "ruleId": "ps.contract_asset_reclass_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:ps.project_margin_flag_check",
+      "ruleId": "ps.project_margin_flag_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:ps.revenue_percent_complete_check",
+      "ruleId": "ps.revenue_percent_complete_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:ps.unbilled_receivables_check",
+      "ruleId": "ps.unbilled_receivables_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:ps.wip_billable_hours_check",
+      "ruleId": "ps.wip_billable_hours_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:rtl.cogs_recognition_check",
+      "ruleId": "rtl.cogs_recognition_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:rtl.gift_card_liability_check",
+      "ruleId": "rtl.gift_card_liability_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:rtl.inventory_shrink_check",
+      "ruleId": "rtl.inventory_shrink_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:rtl.loyalty_reward_liability_check",
+      "ruleId": "rtl.loyalty_reward_liability_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:rtl.sales_returns_reserve_check",
+      "ruleId": "rtl.sales_returns_reserve_check"
+    },
+    {
+      "from": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "to": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "rule_seed_fk:rtl.seasonal_markdown_check",
+      "ruleId": "rtl.seasonal_markdown_check"
+    }
+  ],
+  "policy": {
+    "admit": "immutable_reference_seed only",
+    "reject": [
+      "placeholder_rows",
+      "tenant_operational_client_active_rules",
+      "fk_disable",
+      "session_replication_role",
+      "silent_skip_missing_rule"
+    ]
+  }
+}

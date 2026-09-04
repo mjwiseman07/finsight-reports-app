@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T01:17:33.868Z",
+  "generatedAt": "2026-09-04T03:27:48.410Z",
   "mechanism": "option_d_isolated_git_replay",
   "status": "CANDIDATE_LINEAGE_ASSEMBLED",
   "notMergeApproval": true,
@@ -53,9 +53,6 @@
       "20260706130000_d_entitlements.sql",
       "20260706140000_d_entitlements_followup.sql",
       "20260707000000_d6_5_part1_universal_intake.sql",
-      "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
-      "20260707130000_d_assertions_part_2_coverage_projection.sql",
-      "20260707140000_d_assertions_part_3_coverage_statement.sql",
       "20260710_00_d3_memory_indexes.sql",
       "20260713_00_d4_uncategorized_proposals.sql",
       "20260714_00_d5_recurring_templates.sql",
@@ -64,6 +61,9 @@
       "20260706150000_d6_4c_1_pre_close_review_queue.sql",
       "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
       "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+      "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "20260707140000_d_assertions_part_3_coverage_statement.sql",
       "20260707150000_d_assertions_part_4_je_propagation.sql",
       "20260707160000_d_assertions_part_5_gap_review_items.sql",
       "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
@@ -327,9 +327,23 @@
       "regression": "Filename order places d6_0 before d5; ALTER/FK on recurring_fires fails with 42P01.",
       "dependencyOrderSatisfied": true,
       "dependencyOrderIndex": {
-        "d5": 41,
-        "d6_0": 42
+        "d5": 38,
+        "d6_0": 39
       }
+    },
+    "ruleSeedRegression": {
+      "failedAt": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "failedOrder": 36,
+      "sqlState": "23503",
+      "missingKey": "gen.accrual_reversal_check",
+      "prerequisite": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "d0": "20260708_00_d0_identity_and_memory_activation.sql",
+      "dependencyOrderIndex": {
+        "d0": 20,
+        "d6_0": 39,
+        "part1": 44
+      },
+      "dependencyOrderSatisfied": true
     },
     "unresolvedDependencyCount": 1,
     "requiredUnresolvedCount": 0,
@@ -925,42 +939,6 @@
     },
     {
       "order": 36,
-      "assembledFilename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
-      "role": "post_phase1_local",
-      "action": "include",
-      "originalSource": "supabase/migrations/20260707120000_d_assertions_part_1_schema_and_backfill.sql",
-      "originalSha256": "1f37a4fbd98116ec798b4ee82a38a4c334b11bdae02d976e564b3f024c0103ec",
-      "replacementSource": null,
-      "replacementSha256": null,
-      "assembledSha256": "1f37a4fbd98116ec798b4ee82a38a4c334b11bdae02d976e564b3f024c0103ec",
-      "justification": null
-    },
-    {
-      "order": 37,
-      "assembledFilename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
-      "role": "post_phase1_local",
-      "action": "include",
-      "originalSource": "supabase/migrations/20260707130000_d_assertions_part_2_coverage_projection.sql",
-      "originalSha256": "2a493d39ef5df11c884834e876993f868324fe1bfa35ba054f050f3f0112fcdf",
-      "replacementSource": null,
-      "replacementSha256": null,
-      "assembledSha256": "2a493d39ef5df11c884834e876993f868324fe1bfa35ba054f050f3f0112fcdf",
-      "justification": null
-    },
-    {
-      "order": 38,
-      "assembledFilename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
-      "role": "post_phase1_local",
-      "action": "include",
-      "originalSource": "supabase/migrations/20260707140000_d_assertions_part_3_coverage_statement.sql",
-      "originalSha256": "0a3b3cb96a4c59f76e87af464d8d343d1839c639f0cd6c3af77583c3b188d115",
-      "replacementSource": null,
-      "replacementSha256": null,
-      "assembledSha256": "0a3b3cb96a4c59f76e87af464d8d343d1839c639f0cd6c3af77583c3b188d115",
-      "justification": null
-    },
-    {
-      "order": 39,
       "assembledFilename": "20260710_00_d3_memory_indexes.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -972,7 +950,7 @@
       "justification": null
     },
     {
-      "order": 40,
+      "order": 37,
       "assembledFilename": "20260713_00_d4_uncategorized_proposals.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -984,7 +962,7 @@
       "justification": null
     },
     {
-      "order": 41,
+      "order": 38,
       "assembledFilename": "20260714_00_d5_recurring_templates.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -996,7 +974,7 @@
       "justification": null
     },
     {
-      "order": 42,
+      "order": 39,
       "assembledFilename": "20260703_1200_d6_0_vertical_rule_foundation.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1008,7 +986,7 @@
       "justification": null
     },
     {
-      "order": 43,
+      "order": 40,
       "assembledFilename": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1020,7 +998,7 @@
       "justification": null
     },
     {
-      "order": 44,
+      "order": 41,
       "assembledFilename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1032,7 +1010,7 @@
       "justification": null
     },
     {
-      "order": 45,
+      "order": 42,
       "assembledFilename": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1044,7 +1022,7 @@
       "justification": null
     },
     {
-      "order": 46,
+      "order": 43,
       "assembledFilename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1053,6 +1031,42 @@
       "replacementSource": null,
       "replacementSha256": null,
       "assembledSha256": "9b3ee7e72987f8fc9f292a66d17b8e87f80c0874334cfcd4db5b39d5959204eb",
+      "justification": null
+    },
+    {
+      "order": 44,
+      "assembledFilename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "role": "post_phase1_local",
+      "action": "include",
+      "originalSource": "supabase/migrations/20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "originalSha256": "1f37a4fbd98116ec798b4ee82a38a4c334b11bdae02d976e564b3f024c0103ec",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "1f37a4fbd98116ec798b4ee82a38a4c334b11bdae02d976e564b3f024c0103ec",
+      "justification": null
+    },
+    {
+      "order": 45,
+      "assembledFilename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "role": "post_phase1_local",
+      "action": "include",
+      "originalSource": "supabase/migrations/20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "originalSha256": "2a493d39ef5df11c884834e876993f868324fe1bfa35ba054f050f3f0112fcdf",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "2a493d39ef5df11c884834e876993f868324fe1bfa35ba054f050f3f0112fcdf",
+      "justification": null
+    },
+    {
+      "order": 46,
+      "assembledFilename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "role": "post_phase1_local",
+      "action": "include",
+      "originalSource": "supabase/migrations/20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "originalSha256": "0a3b3cb96a4c59f76e87af464d8d343d1839c639f0cd6c3af77583c3b188d115",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "0a3b3cb96a4c59f76e87af464d8d343d1839c639f0cd6c3af77583c3b188d115",
       "justification": null
     },
     {

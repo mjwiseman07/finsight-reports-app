@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T01:17:33.557Z",
+  "generatedAt": "2026-09-04T03:27:48.074Z",
   "policy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "candidateCount": 144,
   "lexicographicOrder": [
@@ -189,9 +189,6 @@
     "20260706130000_d_entitlements.sql",
     "20260706140000_d_entitlements_followup.sql",
     "20260707000000_d6_5_part1_universal_intake.sql",
-    "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
-    "20260707130000_d_assertions_part_2_coverage_projection.sql",
-    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260710_00_d3_memory_indexes.sql",
     "20260713_00_d4_uncategorized_proposals.sql",
     "20260714_00_d5_recurring_templates.sql",
@@ -200,6 +197,9 @@
     "20260706150000_d6_4c_1_pre_close_review_queue.sql",
     "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
     "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    "20260707130000_d_assertions_part_2_coverage_projection.sql",
+    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260707150000_d_assertions_part_4_je_propagation.sql",
     "20260707160000_d_assertions_part_5_gap_review_items.sql",
     "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
@@ -309,14 +309,14 @@
     {
       "filename": "20260703_1200_d6_0_vertical_rule_foundation.sql",
       "lexicographicOrder": 6,
-      "dependencyOrder": 37,
-      "delta": 31
+      "dependencyOrder": 34,
+      "delta": 28
     },
     {
       "filename": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
       "lexicographicOrder": 7,
-      "dependencyOrder": 38,
-      "delta": 31
+      "dependencyOrder": 35,
+      "delta": 28
     },
     {
       "filename": "20260707_create_close_packet_system.sql",
@@ -381,20 +381,20 @@
     {
       "filename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
       "lexicographicOrder": 18,
-      "dependencyOrder": 39,
-      "delta": 21
+      "dependencyOrder": 36,
+      "delta": 18
     },
     {
       "filename": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
       "lexicographicOrder": 19,
-      "dependencyOrder": 40,
-      "delta": 21
+      "dependencyOrder": 37,
+      "delta": 18
     },
     {
       "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
       "lexicographicOrder": 20,
-      "dependencyOrder": 41,
-      "delta": 21
+      "dependencyOrder": 38,
+      "delta": 18
     },
     {
       "filename": "20260708_01_d1_qbo_write_readiness.sql",
@@ -419,6 +419,24 @@
       "lexicographicOrder": 42,
       "dependencyOrder": 25,
       "delta": -17
+    },
+    {
+      "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "lexicographicOrder": 23,
+      "dependencyOrder": 39,
+      "delta": 16
+    },
+    {
+      "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "lexicographicOrder": 24,
+      "dependencyOrder": 40,
+      "delta": 16
+    },
+    {
+      "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "lexicographicOrder": 25,
+      "dependencyOrder": 41,
+      "delta": 16
     },
     {
       "filename": "20260707150000_d_assertions_part_4_je_propagation.sql",
@@ -465,20 +483,20 @@
     {
       "filename": "20260710_00_d3_memory_indexes.sql",
       "lexicographicOrder": 43,
-      "dependencyOrder": 34,
-      "delta": -9
+      "dependencyOrder": 31,
+      "delta": -12
     },
     {
       "filename": "20260713_00_d4_uncategorized_proposals.sql",
       "lexicographicOrder": 44,
-      "dependencyOrder": 35,
-      "delta": -9
+      "dependencyOrder": 32,
+      "delta": -12
     },
     {
       "filename": "20260714_00_d5_recurring_templates.sql",
       "lexicographicOrder": 45,
-      "dependencyOrder": 36,
-      "delta": -9
+      "dependencyOrder": 33,
+      "delta": -12
     },
     {
       "filename": "20260703_2000_d6_2a_test_client_activation.sql",
@@ -508,24 +526,6 @@
       "filename": "20260707000000_d6_5_part1_universal_intake.sql",
       "lexicographicOrder": 22,
       "dependencyOrder": 30,
-      "delta": 8
-    },
-    {
-      "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
-      "lexicographicOrder": 23,
-      "dependencyOrder": 31,
-      "delta": 8
-    },
-    {
-      "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
-      "lexicographicOrder": 24,
-      "dependencyOrder": 32,
-      "delta": 8
-    },
-    {
-      "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
-      "lexicographicOrder": 25,
-      "dependencyOrder": 33,
       "delta": 8
     },
     {
@@ -584,11 +584,11 @@
     "regression": "Filename order places d6_0 before d5; ALTER/FK on recurring_fires fails with 42P01.",
     "dependencyOrderSatisfied": true,
     "dependencyOrderIndex": {
-      "d5": 41,
-      "d6_0": 42
+      "d5": 38,
+      "d6_0": 39
     }
   },
-  "edgeCount": 367,
+  "edgeCount": 404,
   "sampleEdges": [
     {
       "from": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
@@ -619,6 +619,16 @@
       "from": "20260703_1200_d6_0_vertical_rule_foundation.sql",
       "to": "20260714_00_d5_recurring_templates.sql",
       "reason": "explicitDependsOn"
+    },
+    {
+      "from": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "explicitDependsOn"
+    },
+    {
+      "from": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "to": "20260708_00_d0_identity_and_memory_activation.sql",
+      "reason": "semanticConstraint:D0 creates curated_rules_registry + base gen rule seeds before d6_0 vertical expansion seeds."
     }
   ],
   "unresolvedCount": 1,
@@ -660,9 +670,6 @@
     "20260706130000_d_entitlements.sql",
     "20260706140000_d_entitlements_followup.sql",
     "20260707000000_d6_5_part1_universal_intake.sql",
-    "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
-    "20260707130000_d_assertions_part_2_coverage_projection.sql",
-    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260710_00_d3_memory_indexes.sql",
     "20260713_00_d4_uncategorized_proposals.sql",
     "20260714_00_d5_recurring_templates.sql",
@@ -671,6 +678,9 @@
     "20260706150000_d6_4c_1_pre_close_review_queue.sql",
     "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
     "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    "20260707130000_d_assertions_part_2_coverage_projection.sql",
+    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260707150000_d_assertions_part_4_je_propagation.sql",
     "20260707160000_d_assertions_part_5_gap_review_items.sql",
     "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
@@ -920,5 +930,19 @@
     "20260822200000_je3d_sandbox_activation_identity.sql",
     "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
-  ]
+  ],
+  "ruleSeedRegression": {
+    "failedAt": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    "failedOrder": 36,
+    "sqlState": "23503",
+    "missingKey": "gen.accrual_reversal_check",
+    "prerequisite": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+    "d0": "20260708_00_d0_identity_and_memory_activation.sql",
+    "dependencyOrderIndex": {
+      "d0": 20,
+      "d6_0": 39,
+      "part1": 44
+    },
+    "dependencyOrderSatisfied": true
+  }
 }

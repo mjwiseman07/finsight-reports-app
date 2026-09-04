@@ -15,6 +15,10 @@
  */
 const fs = require("fs");
 const path = require("path");
+const {
+  evaluateRuleSeedOrdering,
+  loadOrderedEntriesFromReplayManifest,
+} = require("./audit-option-d-rule-seed-deps");
 
 const ROOT = path.join(__dirname, "..", "..");
 const ASSEMBLED_DIR = path.join(
@@ -25,6 +29,10 @@ const MANIFEST = path.join(ROOT, "docs/migration-remediation/option-d-replay-man
 const CLASS_JSON = path.join(
   ROOT,
   "docs/migration-remediation/option-d-unresolved-classification.json",
+);
+const RULE_SEED_JSON = path.join(
+  ROOT,
+  "docs/migration-remediation/option-d-rule-seed-dependency-inventory.json",
 );
 const OUT_JSON = path.join(ROOT, "docs/migration-remediation/option-d-replay-gate.json");
 
@@ -135,7 +143,19 @@ function main() {
   );
   const fixtureScanOk = violations.length === 0;
   const requiredDependenciesResolved = required.length === 0;
-  const candidateReplayStaticReady = fixtureScanOk && requiredDependenciesResolved;
+
+  const seedEval = evaluateRuleSeedOrdering(loadOrderedEntriesFromReplayManifest());
+  const ruleSeedDependenciesResolved = seedEval.ok;
+  if (fs.existsSync(RULE_SEED_JSON)) {
+    // Prefer freshly written inventory when present; still recompute live for fail-closed.
+    const inv = JSON.parse(fs.readFileSync(RULE_SEED_JSON, "utf8"));
+    if (inv.ok === false && seedEval.ok) {
+      // Inventory stale vs live — live wins; rewrite is assemble's job.
+    }
+  }
+
+  const candidateReplayStaticReady =
+    fixtureScanOk && requiredDependenciesResolved && ruleSeedDependenciesResolved;
 
   const report = {
     generatedAt: new Date().toISOString(),
@@ -147,6 +167,10 @@ function main() {
     candidateReplayStaticReady,
     fixtureScanOk,
     requiredDependenciesResolved,
+    ruleSeedDependenciesResolved,
+    ruleSeedFailureCount: seedEval.failures.length,
+    ruleSeedFailures: seedEval.failures.slice(0, 20),
+    requiredRuleIdCount: seedEval.requiredRuleIds.length,
     requiredUnresolvedCount: required.length,
     requiredUnresolved: required.map((c) => ({
       file: c.file,
@@ -170,7 +194,7 @@ function main() {
       prMerge: "NOT_READY",
     },
     note:
-      "Fails while any REQUIRED missing table, function, or column CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false.",
+      "Fails while any REQUIRED missing table, function, column, or curated rule-seed CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false.",
   };
 
   fs.writeFileSync(OUT_JSON, JSON.stringify(report, null, 2) + "\n");
@@ -181,7 +205,9 @@ function main() {
         mergeReady: report.mergeReady,
         fixtureScanOk: report.fixtureScanOk,
         requiredDependenciesResolved: report.requiredDependenciesResolved,
+        ruleSeedDependenciesResolved: report.ruleSeedDependenciesResolved,
         requiredUnresolvedCount: report.requiredUnresolvedCount,
+        ruleSeedFailureCount: report.ruleSeedFailureCount,
         prMergeReady: report.prMergeReady,
         runtimeReady: report.runtimeReady,
       },

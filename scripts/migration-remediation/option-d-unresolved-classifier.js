@@ -151,6 +151,27 @@ function classifyUnresolvedOccurrences({
   const classifications = [];
 
   for (const u of unresolved) {
+    if (u.kind === "rule_seed") {
+      classifications.push({
+        file: u.file,
+        missing: `rule_seed ${u.identity}`,
+        kind: "rule_seed",
+        identity: u.identity,
+        table: "curated_rules_registry",
+        classification: "required_missing_create",
+        prerequisiteSource: "none_in_git_candidate_set",
+        justifiedExclusion: false,
+        absentObjectGenuinelySafe: false,
+        dependencyEdge: null,
+        executesWhen: ["unconditional_on_apply"],
+        statements: [],
+        renameCreatorsInSet: [],
+        rationale:
+          u.reason ||
+          "rule_assertion_coverage INSERT requires an immutable curated_rules_registry reference seed before apply; no authoritative creator in the Option D set.",
+      });
+      continue;
+    }
     const isFunction =
       u.kind === "function" || /^function\s+/i.test(String(u.missing || ""));
     const isColumn =

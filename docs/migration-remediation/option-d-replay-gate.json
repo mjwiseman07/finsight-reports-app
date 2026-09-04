@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T01:17:30.593Z",
+  "generatedAt": "2026-09-04T03:27:49.189Z",
   "replayTrack": "option_d_isolated_candidate",
   "ok": true,
   "mergeReady": true,
@@ -7,6 +7,10 @@
   "candidateReplayStaticReady": true,
   "fixtureScanOk": true,
   "requiredDependenciesResolved": true,
+  "ruleSeedDependenciesResolved": true,
+  "ruleSeedFailureCount": 0,
+  "ruleSeedFailures": [],
+  "requiredRuleIdCount": 32,
   "requiredUnresolvedCount": 0,
   "requiredUnresolved": [],
   "runtimeReady": false,
@@ -23,5 +27,5 @@
     "runtime": "NOT_RUN",
     "prMerge": "NOT_READY"
   },
-  "note": "Fails while any REQUIRED missing table, function, or column CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false."
+  "note": "Fails while any REQUIRED missing table, function, column, or curated rule-seed CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false."
 }

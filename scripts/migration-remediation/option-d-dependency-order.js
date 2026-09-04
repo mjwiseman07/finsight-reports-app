@@ -18,6 +18,12 @@ const {
   splitStatements,
   simulateReplay,
 } = require("./baseline-sql-analyzer");
+const {
+  ruleSeedDependsOnEdges,
+  extractRegistrySeedRuleIds,
+  extractCoverageConsumerRuleIds,
+  KNOWN_REFERENCE_SEED_FILES,
+} = require("./audit-option-d-rule-seed-deps");
 
 const ROOT = path.join(__dirname, "..", "..");
 const DEPENDENCY_MANIFEST_PATH = path.join(
@@ -287,8 +293,42 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
     addEdge(sc.after, sc.before, `semanticConstraint:${sc.reason || "reviewed"}`);
   }
 
+  // 5) Curated rule-seed FK edges: coverage INSERT rule_ids require reference seed creators
+  const seedEntries = candidates.map((c) => ({
+    filename: c.filename,
+    order: 0,
+    sql: fs.readFileSync(c.absPath, "utf8"),
+  }));
+  for (const edge of ruleSeedDependsOnEdges(seedEntries)) {
+    if (!dependsOn.has(edge.from) || !dependsOn.has(edge.to)) continue;
+    addEdge(edge.from, edge.to, edge.reason);
+  }
+
   // Unresolved: consumed tables/functions with no creator in set and not external
   const unresolved = [];
+  // Also surface missing rule-seed creators as unresolved required deps
+  const creatorMap = new Map();
+  for (const c of candidates) {
+    const sql = fs.readFileSync(c.absPath, "utf8");
+    for (const id of extractRegistrySeedRuleIds(sql)) {
+      if (!creatorMap.has(id) && KNOWN_REFERENCE_SEED_FILES.includes(c.filename)) {
+        creatorMap.set(id, c.filename);
+      }
+    }
+  }
+  for (const c of candidates) {
+    const sql = fs.readFileSync(c.absPath, "utf8");
+    for (const id of extractCoverageConsumerRuleIds(sql)) {
+      if (!creatorMap.has(id)) {
+        unresolved.push({
+          file: c.filename,
+          kind: "rule_seed",
+          identity: id,
+          reason: "missing_required_rule_seed_creator",
+        });
+      }
+    }
+  }
   for (const c of candidates) {
     const analysis = byFile.get(c.filename).analysis;
     for (const t of analysis.consumes.tables || []) {
@@ -556,11 +596,19 @@ function writeDependencyArtifacts(result, { writeChangelog = true, classificatio
     generatedAt: new Date().toISOString(),
     orderingPolicy: result.changelog.policy,
     testedFailureRegression: {
-      pr313EvidenceHead: "8ad27be6d8260669d9e800aee11397e4bb545988",
-      failedAt: "20260703_1200_d6_0_vertical_rule_foundation.sql",
-      failedOrderFilenameSort: 10,
-      error: 'relation "recurring_fires" does not exist',
-      prerequisite: "20260714_00_d5_recurring_templates.sql",
+      pr313EvidenceHead: "de535f63335e4e73066903bb5d77489c9f8aad99",
+      failedAt: "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      failedOrder: 36,
+      sqlState: "23503",
+      error:
+        'insert or update on table "rule_assertion_coverage" violates foreign key constraint "rule_assertion_coverage_rule_id_fkey"',
+      missingKey: "gen.accrual_reversal_check",
+      prerequisite: "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      priorRecurringRegression: {
+        pr313EvidenceHead: "8ad27be6d8260669d9e800aee11397e4bb545988",
+        failedAt: "20260703_1200_d6_0_vertical_rule_foundation.sql",
+        prerequisite: "20260714_00_d5_recurring_templates.sql",
+      },
     },
     optionalExternalTables: result.depManifest.optionalExternalTables || ["users"],
     platformProvidedTables: result.depManifest.platformProvidedTables || ["users"],

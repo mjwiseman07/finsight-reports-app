@@ -415,7 +415,7 @@
         {
           "file": "20260710_00_d3_memory_indexes.sql",
           "role": "post_phase1_local",
-          "order": 39
+          "order": 36
         }
       ]
     },
@@ -565,7 +565,7 @@
         {
           "file": "20260710_00_d3_memory_indexes.sql",
           "role": "post_phase1_local",
-          "order": 39
+          "order": 36
         }
       ]
     },
@@ -575,7 +575,7 @@
         {
           "file": "20260713_00_d4_uncategorized_proposals.sql",
           "role": "post_phase1_local",
-          "order": 40
+          "order": 37
         }
       ]
     },
@@ -585,7 +585,7 @@
         {
           "file": "20260713_00_d4_uncategorized_proposals.sql",
           "role": "post_phase1_local",
-          "order": 40
+          "order": 37
         }
       ]
     },
@@ -595,7 +595,7 @@
         {
           "file": "20260714_00_d5_recurring_templates.sql",
           "role": "post_phase1_local",
-          "order": 41
+          "order": 38
         }
       ]
     },
@@ -605,7 +605,7 @@
         {
           "file": "20260714_00_d5_recurring_templates.sql",
           "role": "post_phase1_local",
-          "order": 41
+          "order": 38
         }
       ]
     },
@@ -615,7 +615,7 @@
         {
           "file": "20260714_00_d5_recurring_templates.sql",
           "role": "post_phase1_local",
-          "order": 41
+          "order": 38
         }
       ]
     },
@@ -625,7 +625,7 @@
         {
           "file": "20260703_1200_d6_0_vertical_rule_foundation.sql",
           "role": "post_phase1_local",
-          "order": 42
+          "order": 39
         }
       ]
     },
@@ -635,7 +635,7 @@
         {
           "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
           "role": "post_phase1_local",
-          "order": 44
+          "order": 41
         }
       ]
     },
@@ -645,12 +645,12 @@
         {
           "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
           "role": "post_phase1_local",
-          "order": 44
+          "order": 41
         },
         {
           "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
           "role": "post_phase1_local",
-          "order": 45
+          "order": 42
         }
       ]
     },
@@ -660,7 +660,7 @@
         {
           "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
           "role": "post_phase1_local",
-          "order": 45
+          "order": 42
         }
       ]
     },

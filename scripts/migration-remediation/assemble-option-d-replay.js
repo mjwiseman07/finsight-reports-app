@@ -24,6 +24,11 @@ const {
   loadLineageHints,
 } = require("./option-d-unresolved-classifier");
 const { withAssembleLock } = require("./option-d-assemble-lock");
+const {
+  evaluateRuleSeedOrdering,
+  loadOrderedEntriesFromReplayManifest,
+} = require("./audit-option-d-rule-seed-deps");
+const { spawnSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..", "..");
 const MIGRATIONS_DIR = path.join(ROOT, "supabase", "migrations");
@@ -310,6 +315,27 @@ function main() {
       (fullPos.get("20260714_00_d5_recurring_templates.sql") || 0) <
       (fullPos.get("20260703_1200_d6_0_vertical_rule_foundation.sql") || 0),
   };
+  depResult.changelog.ruleSeedRegression = {
+    failedAt: "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    failedOrder: 36,
+    sqlState: "23503",
+    missingKey: "gen.accrual_reversal_check",
+    prerequisite: "20260703_1200_d6_0_vertical_rule_foundation.sql",
+    d0: "20260708_00_d0_identity_and_memory_activation.sql",
+    dependencyOrderIndex: {
+      d0: fullPos.get("20260708_00_d0_identity_and_memory_activation.sql") || null,
+      d6_0: fullPos.get("20260703_1200_d6_0_vertical_rule_foundation.sql") || null,
+      part1: fullPos.get("20260707120000_d_assertions_part_1_schema_and_backfill.sql") || null,
+    },
+    dependencyOrderSatisfied:
+      (fullPos.get("20260708_00_d0_identity_and_memory_activation.sql") || 0) > 0 &&
+      (fullPos.get("20260703_1200_d6_0_vertical_rule_foundation.sql") || 0) > 0 &&
+      (fullPos.get("20260707120000_d_assertions_part_1_schema_and_backfill.sql") || 0) > 0 &&
+      (fullPos.get("20260708_00_d0_identity_and_memory_activation.sql") || 0) <
+        (fullPos.get("20260703_1200_d6_0_vertical_rule_foundation.sql") || 0) &&
+      (fullPos.get("20260703_1200_d6_0_vertical_rule_foundation.sql") || 0) <
+        (fullPos.get("20260707120000_d_assertions_part_1_schema_and_backfill.sql") || 0),
+  };
 
   const classification = classifyUnresolvedOccurrences({
     unresolved: depResult.unresolved,
@@ -417,6 +443,7 @@ function main() {
       lexicographicOrderWouldHaveBeen: fullLexOrder,
       movedCount: depResult.changelog.movedCount,
       recurringFiresRegression: depResult.changelog.recurringFiresRegression,
+      ruleSeedRegression: depResult.changelog.ruleSeedRegression,
       unresolvedDependencyCount: depResult.unresolved.length,
       requiredUnresolvedCount: classification.requiredCount,
       requiredDependenciesResolved: classification.requiredDependenciesResolved,
@@ -479,6 +506,13 @@ function main() {
     console.error("FAIL: recurring_fires creator still after d6_0 consumer");
     process.exit(1);
   }
+  if (!depResult.changelog.ruleSeedRegression.dependencyOrderSatisfied) {
+    console.error(
+      "FAIL: curated rule-seed creators (D0 / d6_0) must precede D-Assertions Part 1 coverage backfill",
+      depResult.changelog.ruleSeedRegression.dependencyOrderIndex,
+    );
+    process.exit(1);
+  }
   const renameFile = "20260704024059_d_entitlements_legacy_stripe_rename.sql";
   const entitlementsFile = "20260706130000_d_entitlements.sql";
   if (
@@ -509,6 +543,25 @@ function main() {
   }
 
   fs.writeFileSync(MANIFEST_OUT, JSON.stringify(manifest, null, 2) + "\n");
+
+  // Row-level rule-seed completeness gate (every coverage FK rule_id has ordered reference seed)
+  const seedEval = evaluateRuleSeedOrdering(loadOrderedEntriesFromReplayManifest());
+  if (!seedEval.ok) {
+    console.error("FAIL: rule-seed dependency completeness", seedEval.failures.slice(0, 10));
+    process.exit(1);
+  }
+  const inventoryRun = spawnSync(
+    process.execPath,
+    [path.join(__dirname, "audit-option-d-rule-seed-deps.js")],
+    { cwd: ROOT, encoding: "utf8" },
+  );
+  if (inventoryRun.status !== 0) {
+    console.error(inventoryRun.stdout || "");
+    console.error(inventoryRun.stderr || "");
+    console.error("FAIL: audit-option-d-rule-seed-deps.js");
+    process.exit(inventoryRun.status || 1);
+  }
+
   console.log(
     JSON.stringify(
       {
@@ -521,6 +574,9 @@ function main() {
         requiredDependenciesResolved: classification.requiredDependenciesResolved,
         objectAvailabilitySimulationOk: replaySim.ok,
         recurringFiresOrderOk: depResult.changelog.recurringFiresRegression.dependencyOrderSatisfied,
+        ruleSeedOrderOk: depResult.changelog.ruleSeedRegression.dependencyOrderSatisfied,
+        ruleSeedCompletenessOk: seedEval.ok,
+        requiredRuleIds: seedEval.requiredRuleIds.length,
         manifest: path.relative(ROOT, MANIFEST_OUT).replace(/\\/g, "/"),
         assembledDir: path.relative(ROOT, ASSEMBLED_DIR).replace(/\\/g, "/"),
       },

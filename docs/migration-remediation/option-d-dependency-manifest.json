@@ -1,14 +1,21 @@
 {
   "version": 1,
   "description": "Explicit deterministic dependency graph for the complete Option D candidate replay set. Assembler MUST apply dependencyOrder (not lexicographic filename sort).",
-  "generatedAt": "2026-09-04T01:17:33.561Z",
+  "generatedAt": "2026-09-04T03:27:48.079Z",
   "orderingPolicy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "testedFailureRegression": {
-    "pr313EvidenceHead": "8ad27be6d8260669d9e800aee11397e4bb545988",
-    "failedAt": "20260703_1200_d6_0_vertical_rule_foundation.sql",
-    "failedOrderFilenameSort": 10,
-    "error": "relation \"recurring_fires\" does not exist",
-    "prerequisite": "20260714_00_d5_recurring_templates.sql"
+    "pr313EvidenceHead": "de535f63335e4e73066903bb5d77489c9f8aad99",
+    "failedAt": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    "failedOrder": 36,
+    "sqlState": "23503",
+    "error": "insert or update on table \"rule_assertion_coverage\" violates foreign key constraint \"rule_assertion_coverage_rule_id_fkey\"",
+    "missingKey": "gen.accrual_reversal_check",
+    "prerequisite": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+    "priorRecurringRegression": {
+      "pr313EvidenceHead": "8ad27be6d8260669d9e800aee11397e4bb545988",
+      "failedAt": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "prerequisite": "20260714_00_d5_recurring_templates.sql"
+    }
   },
   "optionalExternalTables": [
     "users",
@@ -24,10 +31,15 @@
   ],
   "explicitDependsOn": {
     "20260703_1200_d6_0_vertical_rule_foundation.sql": [
-      "20260714_00_d5_recurring_templates.sql"
+      "20260714_00_d5_recurring_templates.sql",
+      "20260708_00_d0_identity_and_memory_activation.sql"
     ],
     "20260706130000_d_entitlements.sql": [
       "20260704024059_d_entitlements_legacy_stripe_rename.sql"
+    ],
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql": [
+      "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "20260708_00_d0_identity_and_memory_activation.sql"
     ],
     "20260707130000_d_assertions_part_2_coverage_projection.sql": [
       "20260707120000_d_assertions_part_1_schema_and_backfill.sql"
@@ -68,6 +80,16 @@
       "before": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
       "after": "20260706130000_d_entitlements.sql",
       "reason": "Rename existing stripe_webhook_events to _legacy before CREATE of the replacement table."
+    },
+    {
+      "before": "20260708_00_d0_identity_and_memory_activation.sql",
+      "after": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "D0 creates curated_rules_registry + base gen rule seeds before d6_0 vertical expansion seeds."
+    },
+    {
+      "before": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "after": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "reason": "Runtime 23503 at order 36: rule_assertion_coverage FK requires vertical foundation reference seeds (e.g. gen.accrual_reversal_check) before Part 1 backfill."
     },
     {
       "before": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
@@ -141,9 +163,6 @@
     "20260706130000_d_entitlements.sql",
     "20260706140000_d_entitlements_followup.sql",
     "20260707000000_d6_5_part1_universal_intake.sql",
-    "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
-    "20260707130000_d_assertions_part_2_coverage_projection.sql",
-    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260710_00_d3_memory_indexes.sql",
     "20260713_00_d4_uncategorized_proposals.sql",
     "20260714_00_d5_recurring_templates.sql",
@@ -152,6 +171,9 @@
     "20260706150000_d6_4c_1_pre_close_review_queue.sql",
     "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
     "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    "20260707130000_d_assertions_part_2_coverage_projection.sql",
+    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260707150000_d_assertions_part_4_je_propagation.sql",
     "20260707160000_d_assertions_part_5_gap_review_items.sql",
     "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
@@ -916,6 +938,7 @@
     },
     "20260707120000_d_assertions_part_1_schema_and_backfill.sql": {
       "dependsOn": [
+        "20260703_1200_d6_0_vertical_rule_foundation.sql",
         "20260706120000_d_platform_event_sourced_foundation.sql",
         "20260708_00_d0_identity_and_memory_activation.sql"
       ],
@@ -3446,7 +3469,7 @@
     }
   ],
   "unresolvedClassification": {
-    "generatedAt": "2026-09-04T01:17:33.561Z",
+    "generatedAt": "2026-09-04T03:27:48.078Z",
     "occurrenceCount": 1,
     "requiredCount": 0,
     "requiredDependenciesResolved": true,

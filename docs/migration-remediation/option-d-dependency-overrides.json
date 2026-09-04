@@ -3,10 +3,15 @@
   "description": "Seed overrides for Option D dependency ordering. Regenerated fields (dependencyOrder, sources, unresolved) are written by assemble-option-d-replay.js / option-d-dependency-order.js.",
   "explicitDependsOn": {
     "20260703_1200_d6_0_vertical_rule_foundation.sql": [
-      "20260714_00_d5_recurring_templates.sql"
+      "20260714_00_d5_recurring_templates.sql",
+      "20260708_00_d0_identity_and_memory_activation.sql"
     ],
     "20260706130000_d_entitlements.sql": [
       "20260704024059_d_entitlements_legacy_stripe_rename.sql"
+    ],
+    "20260707120000_d_assertions_part_1_schema_and_backfill.sql": [
+      "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "20260708_00_d0_identity_and_memory_activation.sql"
     ],
     "20260707130000_d_assertions_part_2_coverage_projection.sql": [
       "20260707120000_d_assertions_part_1_schema_and_backfill.sql"
@@ -47,6 +52,16 @@
       "before": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
       "after": "20260706130000_d_entitlements.sql",
       "reason": "Rename existing stripe_webhook_events to _legacy before CREATE of the replacement table."
+    },
+    {
+      "before": "20260708_00_d0_identity_and_memory_activation.sql",
+      "after": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "reason": "D0 creates curated_rules_registry + base gen rule seeds before d6_0 vertical expansion seeds."
+    },
+    {
+      "before": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "after": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "reason": "Runtime 23503 at order 36: rule_assertion_coverage FK requires vertical foundation reference seeds (e.g. gen.accrual_reversal_check) before Part 1 backfill."
     },
     {
       "before": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
@@ -90,6 +105,7 @@
     "explicitDependsOn documents the reviewed recurring_fires edge (also inferred via mutator_chain).",
     "Do not reorder solely because a table exists; mutator chains preserve CREATE→ALTER; consumers depend on creators only unless an explicit semanticConstraint is added.",
     "Recovered 20260704024059 must precede git 20260706130000_d_entitlements.sql so the old stripe_webhook_events table is renamed to _legacy before the replacement CREATE.",
-    "Recovered hash-chain function originals must stay in production statement order before major_1_rpc_lockdown. Do not drop REVOKE/ALTER FUNCTION lockdown statements to pass replay."
+    "Recovered hash-chain function originals must stay in production statement order before major_1_rpc_lockdown. Do not drop REVOKE/ALTER FUNCTION lockdown statements to pass replay.",
+    "D0 + d6_0 vertical foundation curated_rules_registry INSERTs are immutable reference seed required for clean replay. They must precede D-Assertions Part 1 rule_assertion_coverage backfill (FK rule_assertion_coverage_rule_id_fkey). Do not invent placeholder rules, disable the FK, or admit d6_2a–d operational activations as reference seed."
   ]
 }
