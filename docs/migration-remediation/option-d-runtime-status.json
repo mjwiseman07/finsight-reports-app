@@ -1,13 +1,22 @@
 {
   "overall": "BLOCKED",
   "reason": "apply_failed",
+  "authorizationIntegrity": {
+    "testedHead": "6e24a5aa3558298a926e23344215bf3eeea2729b",
+    "expectedManifestSha256": "ff4c5ff1656b5d253b61397e63bb3d8dad946821d8cf9d23df0638089dd8fecb",
+    "observedCommittedManifestSha256": "dad4032ecefbb79a9d1a61ba8e843f7e7ea10c8fbe721b9de3ffadbb9b61fc29",
+    "matched": false,
+    "executionContinuedDespiteMismatch": true,
+    "sqlApplicationAttemptsDespiteMismatch": 31,
+    "invalidOverrideUsed": "zero_entry_assembledSha256_failures"
+  },
   "applyResult": {
     "applied": false,
-    "failedAt": "20260707140000_d_assertions_part_3_coverage_statement.sql",
-    "order": 13,
-    "completedCount": 12,
-    "error": "D-Assertions Part 2 close_assertion_coverage missing — Part 3 requires Part 2 applied first",
-    "sqlState": "P0001",
+    "failedAt": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+    "order": 31,
+    "completedCount": 30,
+    "error": "relation \"storage.buckets\" does not exist",
+    "sqlState": "42P01",
     "detail": null,
     "hint": null,
     "schema": null,
@@ -15,10 +24,10 @@
     "column": null,
     "constraint": null,
     "dataType": null,
-    "routine": "exec_stmt_raise",
-    "position": null,
+    "routine": "parserOpenTable",
+    "position": "5520",
     "internalPosition": null,
-    "where": "PL/pgSQL function inline_code_block line 4 at RAISE"
+    "where": null
   },
   "scopes": {
     "candidateReplay": "FAIL",
@@ -37,5 +46,6 @@
     "productionDashboardReplayParity": "unresolved"
   },
   "targetRedacted": "host=127.0.0.1;port=54322;db=option_d_clean_replay",
-  "writtenAt": "2026-09-04T01:06:32.757Z"
+  "writtenAt": "2026-09-04T01:26:58.434Z",
+  "evidenceAmendedAt": "2026-09-04T01:40:00.000Z"
 }
