@@ -8,190 +8,190 @@
   "major1Consumes": [
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.handle_new_auth_user()",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260727000100_users_auth_trigger_single_writer.sql@106"
+        "20260727000100_users_auth_trigger_single_writer.sql@107"
       ],
-      "firstCreator": "20260727000100_users_auth_trigger_single_writer.sql@106",
+      "firstCreator": "20260727000100_users_auth_trigger_single_writer.sql@107",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.has_active_company_role(uuid,text[])",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86"
       ],
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.has_active_firm_role(uuid,text[])",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86"
       ],
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.is_active_company_member(uuid)",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86"
       ],
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.is_active_firm_member(uuid)",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86"
       ],
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.is_company_admin(uuid)",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85"
+        "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86"
       ],
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.pilot_lifecycle_events_before_insert()",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
-        "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql@109",
-        "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql@110",
-        "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql@111"
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
+        "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql@110",
+        "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql@111",
+        "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql@112"
       ],
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.pilot_lifecycle_events_verify_chain(uuid,uuid)",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
-        "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql@109",
-        "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql@110",
-        "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql@111"
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
+        "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql@110",
+        "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql@111",
+        "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql@112"
       ],
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "alter_function",
       "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108"
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109"
       ],
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108"
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109"
       ],
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "alter_function",
       "identity": "public.pilot_lifecycle_events_reject_mutations()",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108"
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109"
       ],
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.pilot_lifecycle_events_reject_mutations()",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108"
+        "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109"
       ],
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "revoke_function",
       "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260805005320_pilot_lifecycle_anchors.sql@113"
+        "20260805005320_pilot_lifecycle_anchors.sql@114"
       ],
-      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@114",
       "classification": "creator_in_set_ordered"
     },
     {
       "file": "20260805041500_major_1_rpc_lockdown.sql",
-      "order": 114,
+      "order": 115,
       "kind": "grant_function",
       "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
       "conditional": false,
       "nestedInDo": false,
       "createdBy": [
-        "20260805005320_pilot_lifecycle_anchors.sql@113"
+        "20260805005320_pilot_lifecycle_anchors.sql@114"
       ],
-      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@114",
       "classification": "creator_in_set_ordered"
     }
   ],
@@ -199,185 +199,185 @@
     {
       "identity": "public.pilot_lifecycle_events_before_insert()",
       "consumer": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
-      "consumerOrder": 108,
+      "consumerOrder": 109,
       "kind": "trigger_execute_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_reject_mutations()",
       "consumer": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
-      "consumerOrder": 108,
+      "consumerOrder": 109,
       "kind": "trigger_execute_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_verify_chain(uuid,uuid)",
       "consumer": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
-      "consumerOrder": 108,
+      "consumerOrder": 109,
       "kind": "revoke_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_before_insert()",
       "consumer": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
-      "consumerOrder": 111,
+      "consumerOrder": 112,
       "kind": "trigger_execute_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_reject_mutations()",
       "consumer": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
-      "consumerOrder": 111,
+      "consumerOrder": 112,
       "kind": "trigger_execute_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_before_insert()",
       "consumer": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
-      "consumerOrder": 111,
+      "consumerOrder": 112,
       "kind": "revoke_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_reject_mutations()",
       "consumer": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
-      "consumerOrder": 111,
+      "consumerOrder": 112,
       "kind": "revoke_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
       "consumer": "20260805005320_pilot_lifecycle_anchors.sql",
-      "consumerOrder": 113,
+      "consumerOrder": 114,
       "kind": "revoke_function",
-      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@114",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
       "consumer": "20260805005320_pilot_lifecycle_anchors.sql",
-      "consumerOrder": 113,
+      "consumerOrder": 114,
       "kind": "grant_function",
-      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@114",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.handle_new_auth_user()",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260727000100_users_auth_trigger_single_writer.sql@106",
+      "firstCreator": "20260727000100_users_auth_trigger_single_writer.sql@107",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.has_active_company_role(uuid,text[])",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.has_active_firm_role(uuid,text[])",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.is_active_company_member(uuid)",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.is_active_firm_member(uuid)",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.is_company_admin(uuid)",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@85",
+      "firstCreator": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql@86",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_before_insert()",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_verify_chain(uuid,uuid)",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "alter_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_canonical_payload(text,timestamptz,text,uuid,text,text,text,uuid,uuid,text,uuid,text,text[],jsonb,text,text,jsonb)",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_reject_mutations()",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "alter_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.pilot_lifecycle_events_reject_mutations()",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@108",
+      "firstCreator": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql@109",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "revoke_function",
-      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@114",
       "classification": "creator_in_set_ordered"
     },
     {
       "identity": "public.sp_write_anchor_batch(int8,int8,int4,text,jsonb,jsonb)",
       "consumer": "20260805041500_major_1_rpc_lockdown.sql",
-      "consumerOrder": 114,
+      "consumerOrder": 115,
       "kind": "grant_function",
-      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@113",
+      "firstCreator": "20260805005320_pilot_lifecycle_anchors.sql@114",
       "classification": "creator_in_set_ordered"
     }
   ],
@@ -415,7 +415,7 @@
         {
           "file": "20260710_00_d3_memory_indexes.sql",
           "role": "post_phase1_local",
-          "order": 40
+          "order": 41
         }
       ]
     },
@@ -465,7 +465,7 @@
         {
           "file": "20260707_03_close_packet_share.sql",
           "role": "post_phase1_local",
-          "order": 17
+          "order": 16
         }
       ]
     },
@@ -475,7 +475,7 @@
         {
           "file": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
           "role": "post_phase1_local",
-          "order": 18
+          "order": 17
         }
       ]
     },
@@ -485,7 +485,7 @@
         {
           "file": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
           "role": "post_phase1_local",
-          "order": 18
+          "order": 17
         }
       ]
     },
@@ -495,7 +495,7 @@
         {
           "file": "20260709_00_d2_safe_je_posting.sql",
           "role": "post_phase1_local",
-          "order": 30
+          "order": 31
         }
       ]
     },
@@ -505,7 +505,7 @@
         {
           "file": "20260709_00_d2_safe_je_posting.sql",
           "role": "post_phase1_local",
-          "order": 30
+          "order": 31
         }
       ]
     },
@@ -515,7 +515,7 @@
         {
           "file": "20260706120000_d_platform_event_sourced_foundation.sql",
           "role": "post_phase1_local",
-          "order": 32
+          "order": 33
         }
       ]
     },
@@ -525,7 +525,7 @@
         {
           "file": "20260706120000_d_platform_event_sourced_foundation.sql",
           "role": "post_phase1_local",
-          "order": 32
+          "order": 33
         }
       ]
     },
@@ -535,7 +535,7 @@
         {
           "file": "20260706130000_d_entitlements.sql",
           "role": "post_phase1_local",
-          "order": 33
+          "order": 34
         }
       ]
     },
@@ -545,7 +545,7 @@
         {
           "file": "20260706130000_d_entitlements.sql",
           "role": "post_phase1_local",
-          "order": 33
+          "order": 34
         }
       ]
     },
@@ -555,7 +555,7 @@
         {
           "file": "20260707000000_d6_5_part1_universal_intake.sql",
           "role": "post_phase1_local",
-          "order": 35
+          "order": 36
         }
       ]
     },
@@ -565,7 +565,7 @@
         {
           "file": "20260707160000_d_assertions_part_5_gap_review_items.sql",
           "role": "post_phase1_local",
-          "order": 38
+          "order": 39
         }
       ]
     },
@@ -575,7 +575,7 @@
         {
           "file": "20260710_00_d3_memory_indexes.sql",
           "role": "post_phase1_local",
-          "order": 40
+          "order": 41
         }
       ]
     },
@@ -585,7 +585,7 @@
         {
           "file": "20260713_00_d4_uncategorized_proposals.sql",
           "role": "post_phase1_local",
-          "order": 41
+          "order": 42
         }
       ]
     },
@@ -595,7 +595,7 @@
         {
           "file": "20260713_00_d4_uncategorized_proposals.sql",
           "role": "post_phase1_local",
-          "order": 41
+          "order": 42
         }
       ]
     },
@@ -605,7 +605,7 @@
         {
           "file": "20260714_00_d5_recurring_templates.sql",
           "role": "post_phase1_local",
-          "order": 42
+          "order": 43
         }
       ]
     },
@@ -615,7 +615,7 @@
         {
           "file": "20260714_00_d5_recurring_templates.sql",
           "role": "post_phase1_local",
-          "order": 42
+          "order": 43
         }
       ]
     },
@@ -625,7 +625,7 @@
         {
           "file": "20260714_00_d5_recurring_templates.sql",
           "role": "post_phase1_local",
-          "order": 42
+          "order": 43
         }
       ]
     },
@@ -635,7 +635,7 @@
         {
           "file": "20260703_1200_d6_0_vertical_rule_foundation.sql",
           "role": "post_phase1_local",
-          "order": 43
+          "order": 44
         }
       ]
     },
@@ -645,7 +645,7 @@
         {
           "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
           "role": "post_phase1_local",
-          "order": 45
+          "order": 46
         }
       ]
     },
@@ -655,12 +655,12 @@
         {
           "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
           "role": "post_phase1_local",
-          "order": 45
+          "order": 46
         },
         {
           "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
           "role": "post_phase1_local",
-          "order": 46
+          "order": 47
         }
       ]
     },
@@ -670,7 +670,7 @@
         {
           "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
           "role": "post_phase1_local",
-          "order": 46
+          "order": 47
         }
       ]
     },
@@ -680,7 +680,7 @@
         {
           "file": "20260707150000_d_assertions_part_4_je_propagation.sql",
           "role": "post_phase1_local",
-          "order": 48
+          "order": 49
         }
       ]
     },
@@ -690,7 +690,7 @@
         {
           "file": "20260715180000_mfa_enrollment.sql",
           "role": "post_phase1_local",
-          "order": 49
+          "order": 50
         }
       ]
     },
@@ -700,7 +700,7 @@
         {
           "file": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
           "role": "post_phase1_local",
-          "order": 50
+          "order": 51
         }
       ]
     },
@@ -710,7 +710,7 @@
         {
           "file": "20260716_00_d6_5_part1_1_firm_clients_slug.sql",
           "role": "post_phase1_local",
-          "order": 53
+          "order": 54
         }
       ]
     },
@@ -720,7 +720,7 @@
         {
           "file": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
           "role": "post_phase1_local",
-          "order": 59
+          "order": 60
         }
       ]
     },
@@ -730,7 +730,7 @@
         {
           "file": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
           "role": "post_phase1_local",
-          "order": 60
+          "order": 61
         }
       ]
     },
@@ -740,7 +740,7 @@
         {
           "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
           "role": "post_phase1_local",
-          "order": 66
+          "order": 67
         }
       ]
     },
@@ -750,7 +750,7 @@
         {
           "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
           "role": "post_phase1_local",
-          "order": 66
+          "order": 67
         }
       ]
     },
@@ -760,7 +760,7 @@
         {
           "file": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
           "role": "post_phase1_local",
-          "order": 66
+          "order": 67
         }
       ]
     },
@@ -770,7 +770,7 @@
         {
           "file": "20260718000000_intuit_webhook_events.sql",
           "role": "post_phase1_local",
-          "order": 68
+          "order": 69
         }
       ]
     },
@@ -780,7 +780,7 @@
         {
           "file": "20260718000000_intuit_webhook_events.sql",
           "role": "post_phase1_local",
-          "order": 68
+          "order": 69
         }
       ]
     },
@@ -790,7 +790,7 @@
         {
           "file": "20260719050000_gap3_je_approval_flow.sql",
           "role": "post_phase1_local",
-          "order": 80
+          "order": 81
         }
       ]
     },
@@ -800,7 +800,7 @@
         {
           "file": "20260719050000_gap3_je_approval_flow.sql",
           "role": "post_phase1_local",
-          "order": 80
+          "order": 81
         }
       ]
     },
@@ -810,7 +810,7 @@
         {
           "file": "20260719050000_gap3_je_approval_flow.sql",
           "role": "post_phase1_local",
-          "order": 80
+          "order": 81
         }
       ]
     },
@@ -820,7 +820,7 @@
         {
           "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
           "role": "post_phase1_local",
-          "order": 81
+          "order": 82
         }
       ]
     },
@@ -830,7 +830,7 @@
         {
           "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
           "role": "post_phase1_local",
-          "order": 81
+          "order": 82
         }
       ]
     },
@@ -840,7 +840,7 @@
         {
           "file": "20260719060000_gap2_subscription_lifecycle_purge.sql",
           "role": "post_phase1_local",
-          "order": 81
+          "order": 82
         }
       ]
     },
@@ -850,7 +850,7 @@
         {
           "file": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
           "role": "post_phase1_local",
-          "order": 83
+          "order": 84
         }
       ]
     },
@@ -860,7 +860,7 @@
         {
           "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
           "role": "post_phase1_local",
-          "order": 85
+          "order": 86
         }
       ]
     },
@@ -870,7 +870,7 @@
         {
           "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
           "role": "post_phase1_local",
-          "order": 85
+          "order": 86
         }
       ]
     },
@@ -880,7 +880,7 @@
         {
           "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
           "role": "post_phase1_local",
-          "order": 85
+          "order": 86
         }
       ]
     },
@@ -890,7 +890,7 @@
         {
           "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
           "role": "post_phase1_local",
-          "order": 85
+          "order": 86
         }
       ]
     },
@@ -900,7 +900,7 @@
         {
           "file": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
           "role": "post_phase1_local",
-          "order": 85
+          "order": 86
         }
       ]
     },
@@ -910,7 +910,7 @@
         {
           "file": "20260724020000_kickout_dedupe_rpcs.sql",
           "role": "post_phase1_local",
-          "order": 99
+          "order": 100
         }
       ]
     },
@@ -920,7 +920,7 @@
         {
           "file": "20260724020000_kickout_dedupe_rpcs.sql",
           "role": "post_phase1_local",
-          "order": 99
+          "order": 100
         }
       ]
     },
@@ -930,7 +930,7 @@
         {
           "file": "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
           "role": "post_phase1_local",
-          "order": 104
+          "order": 105
         }
       ]
     },
@@ -940,7 +940,7 @@
         {
           "file": "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
           "role": "post_phase1_local",
-          "order": 104
+          "order": 105
         }
       ]
     },
@@ -950,7 +950,7 @@
         {
           "file": "20260727000100_users_auth_trigger_single_writer.sql",
           "role": "post_phase1_local",
-          "order": 106
+          "order": 107
         }
       ]
     },
@@ -960,7 +960,7 @@
         {
           "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
           "role": "recovered_production_original",
-          "order": 108
+          "order": 109
         }
       ]
     },
@@ -970,22 +970,22 @@
         {
           "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
           "role": "recovered_production_original",
-          "order": 108
+          "order": 109
         },
         {
           "file": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
           "role": "recovered_production_original",
-          "order": 109
+          "order": 110
         },
         {
           "file": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
           "role": "recovered_production_original",
-          "order": 110
+          "order": 111
         },
         {
           "file": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
           "role": "recovered_production_original",
-          "order": 111
+          "order": 112
         }
       ]
     },
@@ -995,7 +995,7 @@
         {
           "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
           "role": "recovered_production_original",
-          "order": 108
+          "order": 109
         }
       ]
     },
@@ -1005,22 +1005,22 @@
         {
           "file": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
           "role": "recovered_production_original",
-          "order": 108
+          "order": 109
         },
         {
           "file": "20260804213934_pilot_lifecycle_events_hash_digest_bytea_fix.sql",
           "role": "recovered_production_original",
-          "order": 109
+          "order": 110
         },
         {
           "file": "20260804214151_pilot_lifecycle_events_hash_extensions_search_path.sql",
           "role": "recovered_production_original",
-          "order": 110
+          "order": 111
         },
         {
           "file": "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql",
           "role": "recovered_production_original",
-          "order": 111
+          "order": 112
         }
       ]
     },
@@ -1030,7 +1030,7 @@
         {
           "file": "20260805005320_pilot_lifecycle_anchors.sql",
           "role": "recovered_production_original",
-          "order": 113
+          "order": 114
         }
       ]
     },
@@ -1040,12 +1040,12 @@
         {
           "file": "20260805054000_schema_drift_issue_policies.sql",
           "role": "post_phase1_local",
-          "order": 115
+          "order": 116
         },
         {
           "file": "20260805211000_sp_list_public_columns_jsonb.sql",
           "role": "post_phase1_local",
-          "order": 117
+          "order": 118
         }
       ]
     },
@@ -1055,12 +1055,12 @@
         {
           "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
           "role": "post_phase1_local",
-          "order": 120
+          "order": 121
         },
         {
           "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
           "role": "post_phase1_local",
-          "order": 121
+          "order": 122
         }
       ]
     },
@@ -1070,12 +1070,12 @@
         {
           "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
           "role": "post_phase1_local",
-          "order": 120
+          "order": 121
         },
         {
           "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
           "role": "post_phase1_local",
-          "order": 121
+          "order": 122
         }
       ]
     },
@@ -1085,12 +1085,12 @@
         {
           "file": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
           "role": "post_phase1_local",
-          "order": 120
+          "order": 121
         },
         {
           "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
           "role": "post_phase1_local",
-          "order": 121
+          "order": 122
         }
       ]
     },
@@ -1100,7 +1100,7 @@
         {
           "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
           "role": "post_phase1_local",
-          "order": 121
+          "order": 122
         }
       ]
     },
@@ -1110,7 +1110,7 @@
         {
           "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
           "role": "post_phase1_local",
-          "order": 121
+          "order": 122
         }
       ]
     },
@@ -1120,7 +1120,7 @@
         {
           "file": "20260806042000_major_2_3_block_a_1_research_revision.sql",
           "role": "post_phase1_local",
-          "order": 121
+          "order": 122
         }
       ]
     },
@@ -1130,7 +1130,7 @@
         {
           "file": "20260815000000_urm2_reconciling_items_persistence.sql",
           "role": "post_phase1_local",
-          "order": 129
+          "order": 130
         }
       ]
     },
@@ -1140,7 +1140,7 @@
         {
           "file": "20260815000000_urm2_reconciling_items_persistence.sql",
           "role": "post_phase1_local",
-          "order": 129
+          "order": 130
         }
       ]
     },
@@ -1150,7 +1150,7 @@
         {
           "file": "20260815000000_urm2_reconciling_items_persistence.sql",
           "role": "post_phase1_local",
-          "order": 129
+          "order": 130
         }
       ]
     },
@@ -1160,12 +1160,12 @@
         {
           "file": "20260815120000_urm3_universal_evidence_spine.sql",
           "role": "post_phase1_local",
-          "order": 130
+          "order": 131
         },
         {
           "file": "20260815130000_urm3_hash_normalization_order.sql",
           "role": "post_phase1_local",
-          "order": 131
+          "order": 132
         }
       ]
     },
@@ -1175,7 +1175,7 @@
         {
           "file": "20260818020716_accounting_measurement_snapshots.sql",
           "role": "post_phase1_local",
-          "order": 133
+          "order": 134
         }
       ]
     },
@@ -1185,7 +1185,7 @@
         {
           "file": "20260819045253_continuous_close_runs.sql",
           "role": "post_phase1_local",
-          "order": 136
+          "order": 137
         }
       ]
     },
@@ -1195,7 +1195,7 @@
         {
           "file": "20260819045253_continuous_close_runs.sql",
           "role": "post_phase1_local",
-          "order": 136
+          "order": 137
         }
       ]
     },
@@ -1205,7 +1205,7 @@
         {
           "file": "20260820233219_journal_entry_proposals.sql",
           "role": "post_phase1_local",
-          "order": 137
+          "order": 138
         }
       ]
     },
@@ -1215,7 +1215,7 @@
         {
           "file": "20260820233219_journal_entry_proposals.sql",
           "role": "post_phase1_local",
-          "order": 137
+          "order": 138
         }
       ]
     },
@@ -1225,7 +1225,7 @@
         {
           "file": "20260821042800_journal_entry_approvals.sql",
           "role": "post_phase1_local",
-          "order": 138
+          "order": 139
         }
       ]
     },
@@ -1235,7 +1235,7 @@
         {
           "file": "20260821042800_journal_entry_approvals.sql",
           "role": "post_phase1_local",
-          "order": 138
+          "order": 139
         }
       ]
     },
@@ -1245,7 +1245,7 @@
         {
           "file": "20260821183525_journal_entry_executions.sql",
           "role": "post_phase1_local",
-          "order": 139
+          "order": 140
         }
       ]
     },
@@ -1255,7 +1255,7 @@
         {
           "file": "20260821183525_journal_entry_executions.sql",
           "role": "post_phase1_local",
-          "order": 139
+          "order": 140
         }
       ]
     },
@@ -1265,7 +1265,7 @@
         {
           "file": "20260821183525_journal_entry_executions.sql",
           "role": "post_phase1_local",
-          "order": 139
+          "order": 140
         }
       ]
     },
@@ -1275,12 +1275,12 @@
         {
           "file": "20260821183525_journal_entry_executions.sql",
           "role": "post_phase1_local",
-          "order": 139
+          "order": 140
         },
         {
           "file": "20260821212020_journal_entry_provider_attempts.sql",
           "role": "post_phase1_local",
-          "order": 140
+          "order": 141
         }
       ]
     },
@@ -1290,7 +1290,7 @@
         {
           "file": "20260821212020_journal_entry_provider_attempts.sql",
           "role": "post_phase1_local",
-          "order": 140
+          "order": 141
         }
       ]
     },
@@ -1300,17 +1300,17 @@
         {
           "file": "20260821212020_journal_entry_provider_attempts.sql",
           "role": "post_phase1_local",
-          "order": 140
+          "order": 141
         },
         {
           "file": "20260821222342_journal_entry_provider_attempt_initial_custody.sql",
           "role": "post_phase1_local",
-          "order": 143
+          "order": 144
         },
         {
           "file": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
           "role": "post_phase1_local",
-          "order": 147
+          "order": 148
         }
       ]
     },
@@ -1320,27 +1320,27 @@
         {
           "file": "20260821212020_journal_entry_provider_attempts.sql",
           "role": "post_phase1_local",
-          "order": 140
+          "order": 141
         },
         {
           "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
           "role": "post_phase1_local",
-          "order": 141
+          "order": 142
         },
         {
           "file": "20260821221658_journal_entry_provider_attempt_certainty_immutable.sql",
           "role": "post_phase1_local",
-          "order": 142
+          "order": 143
         },
         {
           "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
           "role": "post_phase1_local",
-          "order": 144
+          "order": 145
         },
         {
           "file": "20260822050000_journal_entry_verified_readback.sql",
           "role": "post_phase1_local",
-          "order": 145
+          "order": 146
         }
       ]
     },
@@ -1350,7 +1350,7 @@
         {
           "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
           "role": "post_phase1_local",
-          "order": 141
+          "order": 142
         }
       ]
     },
@@ -1360,7 +1360,7 @@
         {
           "file": "20260821220646_journal_entry_provider_discovery_receipts.sql",
           "role": "post_phase1_local",
-          "order": 141
+          "order": 142
         }
       ]
     },
@@ -1370,7 +1370,7 @@
         {
           "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
           "role": "post_phase1_local",
-          "order": 144
+          "order": 145
         }
       ]
     },
@@ -1380,7 +1380,7 @@
         {
           "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
           "role": "post_phase1_local",
-          "order": 144
+          "order": 145
         }
       ]
     },
@@ -1390,7 +1390,7 @@
         {
           "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
           "role": "post_phase1_local",
-          "order": 144
+          "order": 145
         }
       ]
     },
@@ -1400,7 +1400,7 @@
         {
           "file": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
           "role": "post_phase1_local",
-          "order": 144
+          "order": 145
         }
       ]
     },
@@ -1410,7 +1410,7 @@
         {
           "file": "20260822050000_journal_entry_verified_readback.sql",
           "role": "post_phase1_local",
-          "order": 145
+          "order": 146
         }
       ]
     },
@@ -1420,7 +1420,7 @@
         {
           "file": "20260822050000_journal_entry_verified_readback.sql",
           "role": "post_phase1_local",
-          "order": 145
+          "order": 146
         }
       ]
     },
@@ -1430,7 +1430,7 @@
         {
           "file": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
           "role": "post_phase1_local",
-          "order": 147
+          "order": 148
         }
       ]
     }

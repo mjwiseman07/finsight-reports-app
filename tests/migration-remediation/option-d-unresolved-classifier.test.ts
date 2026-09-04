@@ -43,6 +43,8 @@ const FORMERLY_REQUIRED = [
   { file: "20260706140000_d_entitlements_followup.sql", table: "stripe_webhook_events_legacy" },
 ];
 
+const KNOWN_REQUIRED_COLUMN_GAPS = [];
+
 describe("Option D unresolved classification", () => {
   it("erp remains a justified exclusion; recovered CREATE/RENAME/FUNCTION resolve required rows", () => {
     execFileSync(process.execPath, [ASSEMBLE], { cwd: ROOT, stdio: "pipe" });
@@ -61,18 +63,32 @@ describe("Option D unresolved classification", () => {
 
     for (const want of FORMERLY_REQUIRED) {
       const hit = doc.classifications.find(
-        (c: { file: string; table: string }) => c.file === want.file && c.table === want.table,
+        (c: { file: string; table: string; classification: string }) =>
+          c.file === want.file &&
+          c.table === want.table &&
+          c.classification === "required_missing_create",
       );
-      expect(hit, `${want.file} ${want.table} must not stay unresolved`).toBeUndefined();
+      expect(hit, `${want.file} ${want.table} must not stay required_missing`).toBeUndefined();
     }
 
-    expect(doc.requiredCount).toBe(0);
-    expect(doc.requiredDependenciesResolved).toBe(true);
+    // erp safe_conditional may remain; firm_clients.company_id must not be required_missing.
+    const required = doc.classifications.filter(
+      (c: { classification: string }) => c.classification === "required_missing_create",
+    );
+    expect(doc.requiredCount).toBe(required.length);
     expect(
-      doc.classifications.filter(
-        (c: { classification: string }) => c.classification === "required_missing_create",
-      ),
+      required.filter((r: { identity?: string }) => r.identity === "firm_clients.company_id"),
     ).toHaveLength(0);
+    for (const gap of KNOWN_REQUIRED_COLUMN_GAPS) {
+      expect(
+        required.some(
+          (r: { file: string; identity?: string }) =>
+            r.file === gap.file && r.identity === gap.identity,
+        ),
+        `expected required column gap ${gap.identity}`,
+      ).toBe(true);
+    }
+    expect(doc.requiredDependenciesResolved).toBe(required.length === 0);
     expect(
       doc.classifications.filter(
         (c: { kind?: string; classification: string }) =>

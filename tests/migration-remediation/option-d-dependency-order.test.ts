@@ -51,13 +51,14 @@ describe("Option D dependency ordering", () => {
     expect(changelog.recurringFiresRegression.dependencyOrderSatisfied).toBe(true);
     expect(manifest.ordering.recurringFiresRegression.dependencyOrderSatisfied).toBe(true);
 
-    expect(manifest.counts.totalAssembled).toBe(148);
-    expect(manifest.counts.recoveredRequiredOriginals).toBe(8);
-    expect(manifest.entries).toHaveLength(148);
+    expect(manifest.counts.totalAssembled).toBe(149);
+    expect(manifest.counts.recoveredRequiredOriginals).toBe(9);
+    expect(manifest.entries).toHaveLength(149);
     const names = manifest.entries.map((e: { assembledFilename: string }) => e.assembledFilename);
-    expect(new Set(names).size).toBe(148);
+    expect(new Set(names).size).toBe(149);
 
     const recovered = [
+      "20260702041259_add_received_at_to_stripe_webhook_events.sql",
       "20260704024059_d_entitlements_legacy_stripe_rename.sql",
       "20260804213003_pilot_lifecycle_events.sql",
       "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",

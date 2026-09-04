@@ -141,16 +141,101 @@ function classifyUnresolvedOccurrences({
   graph,
   knownProvidedTables = new Set(),
   knownProvidedFunctions = new Set(),
+  knownProvidedColumns = new Set(),
   lineageHints = {},
 }) {
   const provided = new Set([...knownProvidedTables].map(normalizeIdent));
   const providedFns = new Set([...knownProvidedFunctions]);
+  const providedCols = new Set([...knownProvidedColumns]);
   const byName = new Map(candidates.map((c) => [c.filename, c]));
   const classifications = [];
 
   for (const u of unresolved) {
     const isFunction =
       u.kind === "function" || /^function\s+/i.test(String(u.missing || ""));
+    const isColumn =
+      u.kind === "column" || /^column\s+/i.test(String(u.missing || ""));
+    if (isColumn) {
+      const identity = u.identity || String(u.missing || "").replace(/^column\s+/i, "").trim();
+      const cand = byName.get(u.file);
+      const sql = cand ? fs.readFileSync(cand.absPath, "utf8") : "";
+      const creators = [...(graph.columnCreators?.get(identity) || [])];
+      const statements = [];
+      if (sql) {
+        for (const stmt of splitStatements(sql)) {
+          const a = analyzeStatement(stmt);
+          if (!(a.consumes.columnIdentities || []).includes(identity)) continue;
+          statements.push({
+            kind: a.kind,
+            executesWhen: (a.consumes.conditionalColumnIdentities || []).includes(identity)
+              ? "only_if_column_exists_guard"
+              : "unconditional_on_apply",
+            snippet: snippet(stmt),
+          });
+          if (statements.length >= 4) break;
+        }
+      }
+
+      let classification = "required_missing_create";
+      let prerequisiteSource = null;
+      let justifiedExclusion = false;
+      let dependencyEdge = null;
+      let absentObjectGenuinelySafe = false;
+      let rationale = "";
+
+      if (providedCols.has(identity)) {
+        classification = "prefix_or_baseline";
+        prerequisiteSource = "foundations_baseline_or_phase1_prefix";
+        justifiedExclusion = true;
+        absentObjectGenuinelySafe = true;
+        rationale = "Column identity is created in the fixed Option D prefix (baseline/phase1).";
+      } else if (creators.length) {
+        classification = "rename_or_create_in_set";
+        prerequisiteSource = creators.join(", ");
+        dependencyEdge = {
+          from: u.file,
+          to: creators[0],
+          reason: `consume_column:${identity}`,
+        };
+        rationale =
+          "A CREATE TABLE column list or ALTER ADD COLUMN in the candidate set supplies this identity; consumer must be ordered after that creator.";
+      } else if (
+        statements.length &&
+        statements.every((s) => s.executesWhen === "only_if_column_exists_guard")
+      ) {
+        classification = "safe_conditional";
+        prerequisiteSource = "none_in_candidate_set";
+        justifiedExclusion = true;
+        absentObjectGenuinelySafe = true;
+        rationale =
+          "Every analyzed column consume is guarded by information_schema column existence checks.";
+      } else {
+        classification = "required_missing_create";
+        prerequisiteSource = "none_in_git_candidate_set";
+        justifiedExclusion = false;
+        absentObjectGenuinelySafe = false;
+        rationale =
+          "Unconditional index/DML/comment against a column identity with no CREATE/ADD COLUMN in the Option D candidate set. Clean replay will fail with undefined_column.";
+      }
+
+      classifications.push({
+        file: u.file,
+        missing: u.missing,
+        kind: "column",
+        identity,
+        table: identity.split(".")[0] || null,
+        classification,
+        prerequisiteSource,
+        justifiedExclusion,
+        absentObjectGenuinelySafe,
+        dependencyEdge,
+        executesWhen: statements.map((s) => s.executesWhen),
+        statements,
+        renameCreatorsInSet: [],
+        rationale,
+      });
+      continue;
+    }
     if (isFunction) {
       const identity = u.identity || String(u.missing || "").replace(/^function\s+/i, "").trim();
       const cand = byName.get(u.file);

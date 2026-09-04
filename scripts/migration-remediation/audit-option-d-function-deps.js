@@ -11,6 +11,7 @@ const {
   functionRefsDeep,
   isSafeConditionalFunctionRef,
 } = require("./option-d-function-identity");
+const { withAssembleLock } = require("./option-d-assemble-lock");
 
 const ROOT = path.join(__dirname, "..", "..");
 const ASSEMBLED = path.join(
@@ -144,4 +145,4 @@ function main() {
   process.exit(required.length === 0 && misordered.length === 0 ? 0 : 1);
 }
 
-main();
+if (require.main === module) withAssembleLock(main);

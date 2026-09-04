@@ -8,6 +8,10 @@ const {
   functionRefsDeep,
   isSafeConditionalFunctionRef,
 } = require("./option-d-function-identity");
+const {
+  attachColumnIdentities,
+  isSafeConditionalColumnRef,
+} = require("./option-d-column-identity");
 
 const MANIFEST_PATH = path.join(
   __dirname,
@@ -93,6 +97,31 @@ function pushTableConsume(result, name) {
   result.consumes.tables.push(t);
 }
 
+/** Platform schemas whose relations are not Option D candidates. */
+const PLATFORM_SCHEMAS = new Set([
+  "auth",
+  "storage",
+  "extensions",
+  "graphql",
+  "graphql_public",
+  "realtime",
+  "vault",
+]);
+
+/**
+ * Capture optional schema + relation after REFERENCES/ON/…
+ * Groups: 1=schema?, 2=table
+ */
+const QUALIFIED_RELATION_SRC =
+  '(?:("?[A-Za-z_]\\w*"?)\\.)?("?[A-Za-z_]\\w*"?)';
+
+function pushQualifiedRelationConsume(result, schema, table) {
+  const s = normalizeIdent(schema);
+  // Skip auth/storage/… platform schemas only — public.<table> must still count.
+  if (s && PLATFORM_SCHEMAS.has(s)) return;
+  pushTableConsume(result, table);
+}
+
 function loadManifest() {
   return JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
 }
@@ -170,12 +199,23 @@ function analyzeStatementCore(stmt) {
     return result;
   }
 
+  if (/^create\s+(?:or\s+replace\s+)?(?:temp(?:orary)?\s+)?view\b/i.test(stmt)) {
+    result.kind = "create_view";
+    const m = stmt.match(
+      /create\s+(?:or\s+replace\s+)?(?:temp(?:orary)?\s+)?view\s+(?:if\s+not\s+exists\s+)?(?:public\.)?("?\w+"?)/i,
+    );
+    if (m) result.creates.tables.push(normalizeIdent(m[1]));
+    return result;
+  }
+
   if (/^create\s+table\b/i.test(stmt)) {
     result.kind = "create_table";
     const m = stmt.match(/create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?("?\w+"?)/i);
     if (m) result.creates.tables.push(normalizeIdent(m[1]));
-    for (const ref of stmt.matchAll(/references\s+(?:public\.)?("?\w+"?)/gi)) {
-      result.consumes.tables.push(normalizeIdent(ref[1]));
+    for (const ref of stmt.matchAll(
+      new RegExp(`references\\s+${QUALIFIED_RELATION_SRC}`, "gi"),
+    )) {
+      pushQualifiedRelationConsume(result, ref[1], ref[2]);
     }
     return result;
   }
@@ -213,8 +253,10 @@ function analyzeStatementCore(stmt) {
       /alter\s+table\s+(?:if\s+(?:not\s+)?exists\s+)?(?:only\s+)?(?:public\.)?("?\w+"?)/i,
     );
     if (m) result.consumes.tables.push(normalizeIdent(m[1]));
-    for (const ref of stmt.matchAll(/references\s+(?:public\.)?("?\w+"?)/gi)) {
-      result.consumes.tables.push(normalizeIdent(ref[1]));
+    for (const ref of stmt.matchAll(
+      new RegExp(`references\\s+${QUALIFIED_RELATION_SRC}`, "gi"),
+    )) {
+      pushQualifiedRelationConsume(result, ref[1], ref[2]);
     }
     return result;
   }
@@ -238,8 +280,8 @@ function analyzeStatementCore(stmt) {
 
   if (/^create\s+trigger\b/i.test(stmt)) {
     result.kind = "create_trigger";
-    const m = stmt.match(/\bon\s+(?:public\.)?("?\w+"?)/i);
-    if (m) result.consumes.tables.push(normalizeIdent(m[1]));
+    const m = stmt.match(new RegExp(`\\bon\\s+${QUALIFIED_RELATION_SRC}`, "i"));
+    if (m) pushQualifiedRelationConsume(result, m[1], m[2]);
     const fn = stmt.match(/execute\s+(?:procedure|function)\s+(?:public\.)?("?\w+"?)/i);
     if (fn) result.consumes.functions.push(normalizeIdent(fn[1]));
     return result;
@@ -247,15 +289,15 @@ function analyzeStatementCore(stmt) {
 
   if (/^drop\s+trigger\b/i.test(stmt)) {
     result.kind = "drop_trigger";
-    const m = stmt.match(/\bon\s+(?:public\.)?("?\w+"?)/i);
-    if (m) result.consumes.tables.push(normalizeIdent(m[1]));
+    const m = stmt.match(new RegExp(`\\bon\\s+${QUALIFIED_RELATION_SRC}`, "i"));
+    if (m) pushQualifiedRelationConsume(result, m[1], m[2]);
     return result;
   }
 
   if (/^drop\s+policy\b/i.test(stmt)) {
     result.kind = "drop_policy";
-    const m = stmt.match(/\bon\s+(?:public\.)?("?\w+"?)/i);
-    if (m) result.consumes.tables.push(normalizeIdent(m[1]));
+    const m = stmt.match(new RegExp(`\\bon\\s+${QUALIFIED_RELATION_SRC}`, "i"));
+    if (m) pushQualifiedRelationConsume(result, m[1], m[2]);
     return result;
   }
 
@@ -301,8 +343,10 @@ function analyzeStatementCore(stmt) {
     )) {
       pushTableConsume(result, ref[1]);
     }
-    for (const ref of stmt.matchAll(/references\s+(?:public\.)?("?\w+"?)/gi)) {
-      pushTableConsume(result, ref[1]);
+    for (const ref of stmt.matchAll(
+      new RegExp(`references\\s+${QUALIFIED_RELATION_SRC}`, "gi"),
+    )) {
+      pushQualifiedRelationConsume(result, ref[1], ref[2]);
     }
     for (const ref of stmt.matchAll(
       /update\s+(?:only\s+)?public\.([A-Za-z_][\w]*)/gi,
@@ -354,6 +398,16 @@ function attachFunctionIdentities(stmt, result) {
 function analyzeStatement(stmt) {
   const result = analyzeStatementCore(stmt);
   attachFunctionIdentities(stmt, result);
+  attachColumnIdentities(stmt, result);
+  for (const id of result.consumes.columnIdentities || []) {
+    if (isSafeConditionalColumnRef(stmt, id)) {
+      result.consumes.conditionalColumnIdentities =
+        result.consumes.conditionalColumnIdentities || [];
+      if (!result.consumes.conditionalColumnIdentities.includes(id)) {
+        result.consumes.conditionalColumnIdentities.push(id);
+      }
+    }
+  }
   return result;
 }
 
@@ -367,6 +421,7 @@ function analyzeSql(sql) {
       functions: new Set(),
       types: new Set(),
       functionIdentities: new Set(),
+      columnIdentities: new Set(),
     },
     consumes: {
       extensions: new Set(),
@@ -375,6 +430,8 @@ function analyzeSql(sql) {
       types: new Set(),
       functionIdentities: new Set(),
       conditionalFunctionIdentities: new Set(),
+      columnIdentities: new Set(),
+      conditionalColumnIdentities: new Set(),
     },
     byKind: {},
   };
@@ -392,6 +449,11 @@ function analyzeSql(sql) {
     for (const id of a.consumes.functionIdentities || []) agg.consumes.functionIdentities.add(id);
     for (const id of a.consumes.conditionalFunctionIdentities || []) {
       agg.consumes.conditionalFunctionIdentities.add(id);
+    }
+    for (const id of a.creates.columnIdentities || []) agg.creates.columnIdentities.add(id);
+    for (const id of a.consumes.columnIdentities || []) agg.consumes.columnIdentities.add(id);
+    for (const id of a.consumes.conditionalColumnIdentities || []) {
+      agg.consumes.conditionalColumnIdentities.add(id);
     }
   }
 
@@ -504,6 +566,7 @@ function simulateReplay(
     functions: new Set(),
     types: new Set(),
     functionIdentities: new Set(),
+    columnIdentities: new Set(),
   };
   const violations = [];
 
@@ -526,6 +589,8 @@ function simulateReplay(
       }
       for (const tbl of a.consumes.tables) {
         if (optional.has(tbl)) continue;
+        // Self-FK on CREATE TABLE is valid in Postgres (relation exists mid-statement).
+        if ((a.creates.tables || []).includes(tbl)) continue;
         if (!available.tables.has(tbl)) {
           violations.push({
             file: section.file,
@@ -564,6 +629,20 @@ function simulateReplay(
           }
         }
       }
+      const colIds = a.consumes.columnIdentities || [];
+      const conditionalCols = new Set(a.consumes.conditionalColumnIdentities || []);
+      for (const id of colIds) {
+        if (conditionalCols.has(id)) continue;
+        if (!available.columnIdentities.has(id)) {
+          violations.push({
+            file: section.file,
+            statementIndex: i + 1,
+            kind: a.kind,
+            missing: `column ${id}`,
+            snippet: stmt.slice(0, 160),
+          });
+        }
+      }
 
       if (failOnMissing && violations.length) return { ok: false, violations, available };
 
@@ -571,9 +650,23 @@ function simulateReplay(
       for (const tbl of a.creates.tables) available.tables.add(tbl);
       for (const fn of a.creates.functions) available.functions.add(fn);
       for (const id of a.creates.functionIdentities || []) available.functionIdentities.add(id);
+      for (const id of a.creates.columnIdentities || []) available.columnIdentities.add(id);
       for (const ty of a.creates.types) available.types.add(ty);
       if (a.kind === "rename_table") {
-        for (const oldName of a.consumes.tables) available.tables.delete(oldName);
+        const fromNames = a.consumes.tables || [];
+        const toNames = a.creates.tables || [];
+        const toName = toNames[0];
+        for (const oldName of fromNames) {
+          available.tables.delete(oldName);
+          if (toName) available.tables.add(toName);
+          for (const id of [...available.columnIdentities]) {
+            if (!id.startsWith(`${oldName}.`)) continue;
+            available.columnIdentities.delete(id);
+            if (toName) {
+              available.columnIdentities.add(`${toName}${id.slice(oldName.length)}`);
+            }
+          }
+        }
       }
     }
   }

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Explicit deterministic dependency graph for the complete Option D candidate replay set. Assembler MUST apply dependencyOrder (not lexicographic filename sort).",
-  "generatedAt": "2026-09-03T01:07:25.713Z",
+  "generatedAt": "2026-09-04T00:53:28.254Z",
   "orderingPolicy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "testedFailureRegression": {
     "pr313EvidenceHead": "8ad27be6d8260669d9e800aee11397e4bb545988",
@@ -67,12 +67,11 @@
     "20260701043911_phase1_backward_compat_view.sql",
     "20260701043931_phase1_entitlement_rls_policies.sql",
     "20260701_refund_requests.sql",
+    "20260702041259_add_received_at_to_stripe_webhook_events.sql",
     "20260702_create_mfg_waitlist.sql",
     "20260703_00_create_close_ledger.sql",
     "20260703_01_create_checklist_system.sql",
     "20260704024059_d_entitlements_legacy_stripe_rename.sql",
-    "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
-    "20260706_d67_p2_layer2_layer4.sql",
     "20260707_create_close_packet_system.sql",
     "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260707_01_variance_config_unique.sql",
@@ -87,6 +86,8 @@
     "20260703_2200_d6_2b_mfg_activation.sql",
     "20260703_2300_d6_2c_retail_activation.sql",
     "20260703_2400_d6_2d_ps_activation.sql",
+    "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+    "20260706_d67_p2_layer2_layer4.sql",
     "20260708_01_d1_qbo_write_readiness.sql",
     "20260708_02_d1_1_owner_user_id_backfill.sql",
     "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
@@ -217,6 +218,7 @@
     "20260701043911_phase1_backward_compat_view.sql",
     "20260701043931_phase1_entitlement_rls_policies.sql",
     "20260701_refund_requests.sql",
+    "20260702041259_add_received_at_to_stripe_webhook_events.sql",
     "20260702_create_mfg_waitlist.sql",
     "20260703_00_create_close_ledger.sql",
     "20260703_01_create_checklist_system.sql",
@@ -576,7 +578,9 @@
       "consumesFunctionIdentities": []
     },
     "20260705_d67_p1_ar_cash_app_layer0_layer1.sql": {
-      "dependsOn": [],
+      "dependsOn": [
+        "20260708_00_d0_identity_and_memory_activation.sql"
+      ],
       "createsTables": [
         "ar_cash_app_config",
         "ar_cash_app_match_candidates",
@@ -653,6 +657,7 @@
     },
     "20260706130000_d_entitlements.sql": {
       "dependsOn": [
+        "20260702041259_add_received_at_to_stripe_webhook_events.sql",
         "20260704024059_d_entitlements_legacy_stripe_rename.sql",
         "20260706120000_d_platform_event_sourced_foundation.sql"
       ],
@@ -797,7 +802,8 @@
     },
     "20260706_d67_p2_layer2_layer4.sql": {
       "dependsOn": [
-        "20260705_d67_p1_ar_cash_app_layer0_layer1.sql"
+        "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+        "20260708_00_d0_identity_and_memory_activation.sql"
       ],
       "createsTables": [
         "ar_cash_app_match_scores",
@@ -825,7 +831,8 @@
     "20260707000000_d6_5_part1_universal_intake.sql": {
       "dependsOn": [
         "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
-        "20260706120000_d_platform_event_sourced_foundation.sql"
+        "20260706120000_d_platform_event_sourced_foundation.sql",
+        "20260708_00_d0_identity_and_memory_activation.sql"
       ],
       "createsTables": [
         "firm_intake_addresses",
@@ -2040,11 +2047,10 @@
       ],
       "createsTables": [
         "qbo_api_trace",
-        "v_pre_close_approval_bundle",
-        "v_client_posted_je_report"
+        "v_client_posted_je_report",
+        "v_pre_close_approval_bundle"
       ],
       "altersTables": [
-        "auth",
         "pre_close_review_items",
         "qbo_api_trace"
       ],
@@ -2240,8 +2246,8 @@
       ],
       "createsTables": [
         "audit_ready_tie_out_runs",
-        "audit_ready_tie_out_variances",
-        "audit_ready_tie_out_summary"
+        "audit_ready_tie_out_summary",
+        "audit_ready_tie_out_variances"
       ],
       "altersTables": [
         "audit_ready_pbc_requests",
@@ -2377,7 +2383,8 @@
     },
     "20260721180000_ar_tieout4b3_bs_summary_sentinel_unique.sql": {
       "dependsOn": [
-        "20260720000000_v1_5_audit_ready_engagement_state.sql"
+        "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720160000_ar_tieout1_policy_and_kind.sql"
       ],
       "createsTables": [],
       "altersTables": [],
@@ -2467,6 +2474,7 @@
     "20260724030000_ar_tieout412a_kind_reconcile.sql": {
       "dependsOn": [
         "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "20260720160000_ar_tieout1_policy_and_kind.sql",
         "20260720170000_ar_tieout2_runs_and_variances.sql"
       ],
       "createsTables": [],
@@ -2761,7 +2769,8 @@
     },
     "20260810070100_dash_1c_a_lifecycle_scan_indexes.sql": {
       "dependsOn": [
-        "20260804213003_pilot_lifecycle_events.sql"
+        "20260804213003_pilot_lifecycle_events.sql",
+        "20260804220220_pilot_lifecycle_events_chain_seq_hardening.sql"
       ],
       "createsTables": [],
       "altersTables": [],
@@ -3211,8 +3220,22 @@
       "createsFunctionIdentities": [],
       "consumesFunctionIdentities": []
     },
-    "20260704024059_d_entitlements_legacy_stripe_rename.sql": {
+    "20260702041259_add_received_at_to_stripe_webhook_events.sql": {
       "dependsOn": [],
+      "createsTables": [],
+      "altersTables": [
+        "stripe_webhook_events"
+      ],
+      "consumesTables": [
+        "stripe_webhook_events"
+      ],
+      "createsFunctionIdentities": [],
+      "consumesFunctionIdentities": []
+    },
+    "20260704024059_d_entitlements_legacy_stripe_rename.sql": {
+      "dependsOn": [
+        "20260702041259_add_received_at_to_stripe_webhook_events.sql"
+      ],
       "createsTables": [
         "stripe_webhook_events_legacy"
       ],
@@ -3368,7 +3391,7 @@
     }
   ],
   "unresolvedClassification": {
-    "generatedAt": "2026-09-03T01:07:25.713Z",
+    "generatedAt": "2026-09-04T00:53:28.253Z",
     "occurrenceCount": 1,
     "requiredCount": 0,
     "requiredDependenciesResolved": true,

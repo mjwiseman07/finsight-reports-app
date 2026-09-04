@@ -9,7 +9,6 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const os = require("os");
 const {
   loadManifest,
   orderedFilesFromPhases,
@@ -24,6 +23,7 @@ const {
   classifyUnresolvedOccurrences,
   loadLineageHints,
 } = require("./option-d-unresolved-classifier");
+const { withAssembleLock } = require("./option-d-assemble-lock");
 
 const ROOT = path.join(__dirname, "..", "..");
 const MIGRATIONS_DIR = path.join(ROOT, "supabase", "migrations");
@@ -65,6 +65,7 @@ const PHASE1_FILES = [
 
 /** Recovered production originals required by Option D (not in git migrations/). */
 const RECOVERED_REQUIRED_ORIGINALS = [
+  "20260702041259_add_received_at_to_stripe_webhook_events.sql",
   "20260704024059_d_entitlements_legacy_stripe_rename.sql",
   "20260804213003_pilot_lifecycle_events.sql",
   "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
@@ -115,33 +116,6 @@ function sha256File(filePath) {
 
 function sha256Text(text) {
   return crypto.createHash("sha256").update(text, "utf8").digest("hex");
-}
-
-function sleepMs(ms) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
-
-function withAssembleLock(fn) {
-  const lockPath = path.join(os.tmpdir(), "finsight-option-d-assemble.lock");
-  const deadline = Date.now() + 120000;
-  while (Date.now() < deadline) {
-    try {
-      fs.writeFileSync(lockPath, `${process.pid}\n`, { flag: "wx" });
-      try {
-        return fn();
-      } finally {
-        try {
-          fs.unlinkSync(lockPath);
-        } catch (err) {
-          if (err && err.code !== "ENOENT") throw err;
-        }
-      }
-    } catch (err) {
-      if (!err || err.code !== "EEXIST") throw err;
-      sleepMs(50);
-    }
-  }
-  throw new Error("timeout waiting for Option D assemble lock");
 }
 
 function ensureCleanAssembledDir() {
@@ -282,6 +256,7 @@ function main() {
   // Objects created by fixed prefix are provided before post-phase1 replay.
   const knownProvidedTables = new Set();
   const knownProvidedFunctions = new Set();
+  const knownProvidedColumns = new Set();
   for (const abs of [
     BASELINE,
     ...PHASE1_FILES.map((f) => path.join(PHASE1_DIR, f)),
@@ -289,11 +264,13 @@ function main() {
     const a = analyzeMigrationFile(abs);
     for (const t of a.creates.tables || []) knownProvidedTables.add(t);
     for (const id of a.creates.functionIdentities || []) knownProvidedFunctions.add(id);
+    for (const id of a.creates.columnIdentities || []) knownProvidedColumns.add(id);
   }
 
   const depResult = computeOptionDDependencyOrder(postCandidates, depOverrides, {
     knownProvidedTables,
     knownProvidedFunctions,
+    knownProvidedColumns,
   });
   if (depResult.cycles.length) {
     console.error("FAIL: dependency cycles in Option D post-phase1 set", depResult.cycles);
@@ -340,6 +317,7 @@ function main() {
     graph: depResult.graph,
     knownProvidedTables,
     knownProvidedFunctions,
+    knownProvidedColumns,
     lineageHints: loadLineageHints(ROOT),
   });
   fs.writeFileSync(CLASS_OUT, JSON.stringify(classification, null, 2) + "\n");

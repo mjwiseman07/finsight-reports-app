@@ -171,20 +171,28 @@ describe("Option D isolated Git replay harness", () => {
     delete env.OPTION_D_APPLY;
     delete env.OPTION_D_DATABASE_URL;
     delete env.JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL;
+    const priorStatus = fs.existsSync(RUNTIME_STATUS)
+      ? fs.readFileSync(RUNTIME_STATUS)
+      : null;
     let exitCode = 0;
     try {
       execFileSync(process.execPath, [RUNTIME], { cwd: ROOT, env, stdio: "pipe" });
     } catch (err: unknown) {
       exitCode = (err as { status?: number }).status ?? 1;
     }
-    expect(exitCode).not.toBe(0);
-    const status = JSON.parse(fs.readFileSync(RUNTIME_STATUS, "utf8"));
-    expect(status.overall).toBe("BLOCKED");
-    expect(status.reason).toBe("runtime_apply_not_requested");
-    expect(status.scopes.candidateReplay).toBe("BLOCKED");
-    expect(status.scopes.securityImmutabilityChecks).toBe("BLOCKED");
-    expect(status.scopes.pr312RpcValidation).toBe("BLOCKED");
-    expect(status.scopes.productionDashboardReplayParity).toBe("unresolved");
+    try {
+      expect(exitCode).not.toBe(0);
+      const status = JSON.parse(fs.readFileSync(RUNTIME_STATUS, "utf8"));
+      expect(status.overall).toBe("BLOCKED");
+      expect(status.reason).toBe("runtime_apply_not_requested");
+      expect(status.scopes.candidateReplay).toBe("BLOCKED");
+      expect(status.scopes.securityImmutabilityChecks).toBe("BLOCKED");
+      expect(status.scopes.pr312RpcValidation).toBe("BLOCKED");
+      expect(status.scopes.productionDashboardReplayParity).toBe("unresolved");
+    } finally {
+      // Preserve authorized runtime evidence status written outside this unit test.
+      if (priorStatus) fs.writeFileSync(RUNTIME_STATUS, priorStatus);
+    }
   });
 });
 

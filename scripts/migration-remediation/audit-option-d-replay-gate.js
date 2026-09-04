@@ -5,7 +5,7 @@
  *
  * Distinct statuses:
  *   fixtureScanOk              — no unguarded fixture inserts / prod-only RAISE
- *   requiredDependenciesResolved — no REQUIRED missing table OR function CREATE
+ *   requiredDependenciesResolved — no REQUIRED missing table, function, OR column CREATE
  *   candidateReplayStaticReady — both of the above (this gate's "ok")
  *   runtimeReady               — never set here (harness only)
  *   prMergeReady               — always false from this gate (draft PR, runtime untested)
@@ -170,7 +170,7 @@ function main() {
       prMerge: "NOT_READY",
     },
     note:
-      "Fails while any REQUIRED missing table or function CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false.",
+      "Fails while any REQUIRED missing table, function, or column CREATE remains. Justified exclusions (safe_conditional / prefix) stay documented and do not pass this gate by omission. Runtime and overall PR merge stay false.",
   };
 
   fs.writeFileSync(OUT_JSON, JSON.stringify(report, null, 2) + "\n");

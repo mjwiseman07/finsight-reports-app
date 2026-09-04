@@ -136,10 +136,12 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
     [...(options.knownProvidedTables || [])].map(normalizeIdent),
   );
   const knownProvidedFunctions = new Set([...(options.knownProvidedFunctions || [])]);
+  const knownProvidedColumns = new Set([...(options.knownProvidedColumns || [])]);
   const byFile = new Map();
   const creators = new Map(); // table -> [files]
   const mutators = new Map(); // table -> [files] create+alter
   const functionCreators = new Map(); // identity -> [files]
+  const columnCreators = new Map(); // table.column -> [files]
 
   for (const c of candidates) {
     const analysis = analyzeMigrationFile(c.absPath);
@@ -158,6 +160,10 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
       if (!functionCreators.has(id)) functionCreators.set(id, []);
       functionCreators.get(id).push(c.filename);
     }
+    for (const id of analysis.creates.columnIdentities || []) {
+      if (!columnCreators.has(id)) columnCreators.set(id, []);
+      columnCreators.get(id).push(c.filename);
+    }
   }
 
   /** @type {Map<string, Set<string>>} file -> dependsOn set */
@@ -171,14 +177,47 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
     edgeReasons.push({ from, to, reason });
   }
 
-  // CREATE → ALTER: each alter depends on creators (do NOT total-order all alters of a
-  // table — that blinds reorders and creates cycles across unrelated feature lines).
+  // RENAME TABLE moves columns: register new-name identities on the rename file
+  // (including columns that only exist on the fixed prefix / knownProvidedColumns).
+  // Do NOT transfer columns whose only creators are files that sort after the rename
+  // (those belong to a later re-CREATE of the original table name).
+  for (const c of candidates) {
+    const sql = fs.readFileSync(c.absPath, "utf8");
+    for (const stmt of splitStatements(sql)) {
+      const a = analyzeStatement(stmt);
+      if (a.kind !== "rename_table") continue;
+      const from = (a.consumes.tables || [])[0];
+      const to = (a.creates.tables || [])[0];
+      if (!from || !to) continue;
+      const sourceIds = new Set([
+        ...[...columnCreators.keys()].filter((id) => id.startsWith(`${from}.`)),
+        ...[...knownProvidedColumns].filter((id) => id.startsWith(`${from}.`)),
+      ]);
+      for (const id of sourceIds) {
+        const priorCreators = (columnCreators.get(id) || []).filter((f) => f < c.filename);
+        const fromPrefix = knownProvidedColumns.has(id);
+        if (!fromPrefix && priorCreators.length === 0) continue;
+        const newId = `${to}${id.slice(from.length)}`;
+        if (!columnCreators.has(newId)) columnCreators.set(newId, []);
+        if (!columnCreators.get(newId).includes(c.filename)) {
+          columnCreators.get(newId).push(c.filename);
+        }
+        for (const prior of priorCreators) {
+          addEdge(c.filename, prior, `rename_column_requires:${id}`);
+        }
+      }
+    }
+  }
+
+  // CREATE → ALTER: each alter depends on creators that exist before this file
+  // (do NOT attach to later re-CREATE of the same table name — that cycles rename/recreate lines).
   for (const [table, files] of mutators) {
     const createSet = new Set(creators.get(table) || []);
     const createFiles = [...createSet];
     for (const f of files) {
       if (createSet.has(f)) continue; // creator itself
       for (const creator of createFiles) {
+        if (creator > f) continue;
         addEdge(f, creator, `alter_requires_create:${table}`);
       }
     }
@@ -203,6 +242,14 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
       const earliest = [...creates].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0];
       if (earliest === c.filename) continue;
       addEdge(c.filename, earliest, `consume_function:${id}`);
+    }
+    for (const id of analysis.consumes.columnIdentities || []) {
+      if (knownProvidedColumns.has(id)) continue;
+      const creates = columnCreators.get(id) || [];
+      if (creates.length === 0) continue;
+      const earliest = [...creates].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0];
+      if (earliest === c.filename) continue;
+      addEdge(c.filename, earliest, `consume_column:${id}`);
     }
   }
 
@@ -250,6 +297,20 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
         });
       }
     }
+    for (const id of analysis.consumes.columnIdentities || []) {
+      if (knownProvidedColumns.has(id)) continue;
+      const creates = columnCreators.get(id) || [];
+      if (creates.length === 0) {
+        unresolved.push({
+          file: c.filename,
+          missing: `column ${id}`,
+          kind: "column",
+          identity: id,
+          status: "unresolved_requires_review",
+          note: "No CREATE TABLE column / ALTER ADD COLUMN for this identity in the Option D candidate set; analyzer cannot prove prerequisite.",
+        });
+      }
+    }
   }
 
   // Dedupe unresolved
@@ -267,6 +328,7 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
     creators,
     mutators,
     functionCreators,
+    columnCreators,
     dependsOn,
     edgeReasons,
     unresolved: unresolvedUnique,
