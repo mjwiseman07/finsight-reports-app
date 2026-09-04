@@ -1,29 +1,74 @@
 {
   "overall": "BLOCKED",
-  "reason": "apply_failed",
+  "reason": "security_immutability_checks_failed",
+  "security": {
+    "ok": false,
+    "status": "FAIL",
+    "schemaRls": {
+      "ok": true,
+      "failures": [],
+      "requiredCount": 10
+    },
+    "views": {
+      "ok": true,
+      "failures": [],
+      "requiredCount": 2
+    },
+    "immutability": {
+      "ok": false,
+      "failures": [
+        {
+          "check": "si_memory_immutability",
+          "rule": "not_intended_immutability_rejection",
+          "id": "memory_immutable_field_update_rejected",
+          "sqlState": "P0001",
+          "classifyReason": "message_mismatch",
+          "detail": "company_memory_records.payload is immutable for memory_type=probe"
+        }
+      ],
+      "triggers": {
+        "ok": true,
+        "failures": [],
+        "requiredCount": 3
+      },
+      "behavior": {
+        "ok": false,
+        "failures": [
+          {
+            "check": "si_memory_immutability",
+            "rule": "not_intended_immutability_rejection",
+            "id": "memory_immutable_field_update_rejected",
+            "sqlState": "P0001",
+            "classifyReason": "message_mismatch",
+            "detail": "company_memory_records.payload is immutable for memory_type=probe"
+          }
+        ]
+      },
+      "requiredCount": 3
+    },
+    "functions": {
+      "ok": true,
+      "failures": []
+    },
+    "failures": [
+      {
+        "check": "si_memory_immutability",
+        "rule": "not_intended_immutability_rejection",
+        "id": "memory_immutable_field_update_rejected",
+        "sqlState": "P0001",
+        "classifyReason": "message_mismatch",
+        "detail": "company_memory_records.payload is immutable for memory_type=probe"
+      }
+    ]
+  },
   "applyResult": {
-    "applied": false,
-    "failedAt": "20260727000100_users_auth_trigger_single_writer.sql",
-    "order": 107,
-    "completedCount": 106,
-    "sqlApplicationAttempts": 107,
-    "error": "relation \"public.users\" does not exist",
-    "sqlState": "42P01",
-    "detail": null,
-    "hint": null,
-    "schema": null,
-    "table": null,
-    "column": null,
-    "constraint": null,
-    "dataType": null,
-    "routine": "parserOpenTable",
-    "position": "1707",
-    "internalPosition": null,
-    "where": null
+    "applied": true,
+    "migrationsApplied": 150,
+    "sqlApplicationAttempts": 150
   },
   "scopes": {
-    "candidateReplay": "FAIL",
-    "securityImmutabilityChecks": "BLOCKED",
+    "candidateReplay": "PASS",
+    "securityImmutabilityChecks": "FAIL",
     "pr312RpcValidation": "BLOCKED",
     "productionDashboardReplayParity": "unresolved"
   },
@@ -31,12 +76,21 @@
     "ok": false,
     "overall": "BLOCKED",
     "applicable": {
-      "candidateReplay": "FAIL",
-      "securityImmutabilityChecks": "BLOCKED",
+      "candidateReplay": "PASS",
+      "securityImmutabilityChecks": "FAIL",
       "pr312RpcValidation": "BLOCKED"
     },
     "productionDashboardReplayParity": "unresolved"
   },
   "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
-  "writtenAt": "2026-09-04T04:14:25.326Z"
+  "pr312Provenance": {
+    "present": true,
+    "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+    "sourceCommit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
+    "pinnedBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+    "contentSha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
+    "pinnedContentSha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
+    "matchesPinnedCommitContent": true
+  },
+  "writtenAt": "2026-09-04T21:40:37.572Z"
 }
