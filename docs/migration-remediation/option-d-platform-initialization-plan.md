@@ -1,72 +1,95 @@
-# Option D — supported local Supabase platform initialization (review plan)
+# Option D — platform-only local initialization (review plan)
 
-**Mode:** Documentation only — not an authorization to run Docker/SQL.  
-**PR #313 context:** platform bootstrap must precede Option D application replay.  
-**Forbidden:** fake `storage.*` DDL invented by hand; production data import; cloud/paid branches.
+**Mode:** Documentation only — not an authorization to start Docker or apply SQL.  
+**CLI observed on this machine:** Supabase CLI `2.116.0` (`C:\Users\mattj\scoop\shims\supabase.exe`).  
+**Sources:** installed `supabase start|init|db reset|stop|status --help`; official CLI reference and local workflow docs (links below).
 
-## Goal
+## Decision: selective dump/restore is REJECTED
 
-Create disposable DB `option_d_*` that:
+Selective `pg_dump` of auth/storage (or similar) into a second database is **not** the supported bootstrap path.
 
-1. Contains **complete** local Supabase platform catalogs required by the Option D contract (`storage.buckets`, `storage.objects`, `auth.uid()`, roles, extensions, …).
-2. Has **empty** application `public` schema and **empty** `supabase_migrations.schema_migrations` version history.
-3. Passes freshness + platform-bootstrap preflight **before** any assembled migration apply.
+It is **not proven** to preserve, without live verification we refuse to claim:
 
-## Supported sequence
+- schema/object ownership  
+- grants / default privileges  
+- extensions and extension ownership  
+- functions and exact signatures  
+- platform migration state  
+- constraints, indexes, triggers, RLS  
+- database-level settings and required roles  
 
-1. **Ephemeral local stack only**  
-   - Use an ephemeral project dir (e.g. `.tmp-option-d-supabase/`, gitignored).  
-   - `supabase init` (if needed) + `supabase start` with the pinned CLI.  
-   - Do not modify tracked `supabase/migrations/` or production.
+**Rejected alternatives (unchanged):** hand-written fake auth/storage DDL; production data import; cloud/paid branches; applying from the Advisacor repo `supabase/migrations/` tree.
 
-2. **Use the stack’s default `postgres` database as the platform source of truth**  
-   - After `supabase start`, DB `postgres` on `127.0.0.1:54322` already contains Storage/Auth platform DDL (`storage.buckets`, `storage.objects`, auth functions, roles, extensions).  
-   - Do **not** hand-create stub Storage tables.
+## Why a separate temp project is required
 
-3. **Create the virgin application database**  
-   ```text
-   CREATE DATABASE option_d_clean_replay;
-   ```
-   (Name must match `/^option_d_[a-z0-9_]+$/`.)
+Official CLI behavior (docs + start response example):
 
-4. **Copy platform catalogs from local `postgres` → `option_d_clean_replay`**  
-   Supported approach (local only):
-   - `pg_dump` from local `postgres` for platform schemas required by the contract (`auth`, `storage`, and other contract schemas/extensions as needed), including **schema DDL** for catalog tables.  
-   - Restore that dump into `option_d_clean_replay`.  
-   - Ensure roles (`anon`, `authenticated`, `service_role`) and required extensions (`extensions.pgcrypto`) exist in the target.  
-   - Ensure `supabase_migrations.schema_migrations` **exists** but contains **zero** versions (truncate if the dump copied platform migration rows that would fail freshness).  
-   - Leave `public` with **no** application relations/functions/types/sequences/triggers.
+- `supabase start` starts the local stack and **applies project migrations**, then may **seed** (`Applying migration …` / `Seeding data supabase/seed.sql…`).  
+  Sources: [CLI `supabase start`](https://supabase.com/docs/reference/cli/supabase-start), [Local development workflow](https://supabase.com/docs/guides/local-development/cli-workflows) (“`supabase start` — Starts the local stack, applies migrations + seed”).
+- `supabase db reset` recreates local Postgres and applies all files under that project’s `supabase/migrations/` (then seed unless `--no-seed`).  
+  Source: installed `supabase db reset --help`; [CLI `supabase db reset`](https://supabase.com/docs/reference/cli/supabase-db-reset).
 
-5. **Preflight (fail closed)**  
-   - Target safety (localhost / disposable name).  
-   - `OPTION_D_EXPECTED_MANIFEST_SHA256` must equal SHA-256 of exact committed `option-d-replay-manifest.json` bytes **before** assemble/apply.  
-   - Freshness: application objects absent; migration history empty.  
-   - Platform bootstrap: exact required relations/columns/functions/roles/extensions present (`option-d-platform-prerequisite-contract.json`).  
-   - Schema-only `CREATE SCHEMA storage` **without** `storage.buckets` / `storage.objects` must **FAIL**.
+Therefore starting from the **Advisacor repo workdir** would apply Advisacor application migrations during platform startup. That is forbidden for platform-only bootstrap.
 
-6. **Only then** run Option D apply (`OPTION_D_APPLY=1`) against `option_d_clean_replay`.
+## Supported commands (exact; from installed `--help`)
 
-## Explicitly unsupported
+Pinned CLI: **2.116.0**. Do not invent flags beyond these.
 
-| Approach | Why rejected |
-|----------|--------------|
-| Empty Postgres with schema names only | Missing Storage/Auth catalogs → order-31 class failures |
-| Hand-written fake `CREATE TABLE storage.buckets (...)` | Not a Supabase platform bootstrap; drifts from real catalogs |
-| Importing production dump / cloud branch data | Out of scope; capability/production risk |
-| `CREATE DATABASE … TEMPLATE postgres` without review | May copy non-empty migration history / extra state; only acceptable if post-checks prove contract + empty app history |
-| Treating per-entry `assembledSha256` as authorization | Whole-file Manifest SHA-256 is mandatory |
+| Step | Command (flags from `--help` only) |
+|------|--------------------------------------|
+| Create neutral project dir | OS mkdir of an ephemeral path **outside** Advisacor migrations (e.g. sibling `.tmp-option-d-platform-only/`, gitignored) |
+| Init | `supabase init --yes` with `--workdir <ephemeral>` (global `--workdir` / `--yes` documented on installed CLI) |
+| Ensure empty app lineage | Confirm `<workdir>/supabase/migrations/` has **zero** `.sql` files; remove/disable any seed paths so start cannot load Advisacor seeds |
+| Start platform stack | `supabase start --workdir <ephemeral>` |
+| Record versions | `supabase --version`; `supabase status -o json --workdir <ephemeral>` (capture DB URL + image/service metadata available in status) |
+| Stop / cleanup | `supabase stop --workdir <ephemeral> --no-backup` (deletes data volumes per `--help`) |
 
-## Reconciliation with freshness guard
+Optional exclude list exists (`start -x …`) but is **not** required for platform-only correctness; default start is preferred so Auth/Storage services match a genuine local stack.
+
+## Apply target (genuine platform DB)
+
+**Preferred:** run Option D application SQL against the **same** local database the CLI initialized — the DB URL reported by `supabase status -o json` for the ephemeral workdir (host `127.0.0.1`, port typically `54322`, database name `postgres`) — after preflight proves:
+
+- platform contract PASS (relations/columns/types, functions/signatures, owners/grants/RLS where contracted, extensions, roles);  
+- **no** Advisacor application migration versions in `supabase_migrations.schema_migrations`;  
+- **no** application sentinel relations in `public`;  
+- workdir evidence: empty migrations directory fingerprint.
+
+Disposable naming:
+
+- With `OPTION_D_PLATFORM_ONLY_TARGET=1`, the freshness gate may accept database name `postgres` **only** when the platform-only fingerprint passes.  
+- Creating a second `option_d_*` via selective catalog copy remains **rejected**.  
+- Full `CREATE DATABASE … TEMPLATE postgres` is **not** adopted in this plan (requires live proof under a future authorization; still not selective dump, but also not needed if applying to the genuine platform DB).
+
+## Freshness reconciliation
 
 | Class | Rule |
 |-------|------|
-| Platform-managed objects | **Allowed** and **positively verified** (buckets/objects/columns/roles/extensions/functions) |
-| Application `public` objects | Must be **absent** |
-| `schema_migrations` versions | Must be **empty** (table may exist) |
-| Unknown / incomplete platform inventory | **Fail closed** |
+| Platform-managed objects | Present on genuine CLI stack; **positively verified** by expanded contract |
+| Application `public` objects | Must be absent before Option D apply |
+| Advisacor-shaped migration versions | Must be absent (detect “app migrations applied during platform startup”) |
+| Unknown / incomplete platform inventory | Fail closed |
+| Selective dump/restore DB | Not a valid target |
+
+## Authorization binding (apply path)
+
+Before assemble or SQL writes:
+
+1. `OPTION_D_AUTHORIZED_COMMIT` must equal current `git rev-parse HEAD`.  
+2. `OPTION_D_EXPECTED_MANIFEST_SHA256` must equal SHA-256 of exact on-disk `docs/migration-remediation/option-d-replay-manifest.json` bytes at that commit.  
+3. Write immutable pre-write evidence (`option-d-prewrite-authorization-evidence.json`) with commit, path, expected hash, actual hash, `sqlApplicationAttempts: 0`.  
+4. `OPTION_D_APPLY=1` requires `OPTION_D_SKIP_ASSEMBLE=1`. Re-running assemble after authorization changes `generatedAt` and **must abort** (require new authorization) rather than accepting regenerated output.
+
+## Cleanup plan (when a future runtime is authorized)
+
+1. `supabase stop --workdir <ephemeral> --no-backup`  
+2. Delete ephemeral project directory  
+3. Confirm no containers/volumes matching the ephemeral project id  
+4. Confirm `:54322` closed  
+5. Remove temporary PR #312 suite materialization if any  
+6. Leave Docker Desktop / WSL / Scoop / Supabase CLI installed; leave unrelated `.tmp-*` untouched  
+7. Do not touch production, PR #312, capabilities, or tracked `supabase/migrations/`
 
 ## Contract artifact
 
-Machine-readable prerequisites:  
-`docs/migration-remediation/option-d-platform-prerequisite-contract.json`  
-(generated by `scripts/migration-remediation/audit-option-d-platform-deps.js` from the 149-candidate set).
+`docs/migration-remediation/option-d-platform-prerequisite-contract.json` — generated from all 149 Option D candidate migrations by `audit-option-d-platform-deps.js`, with expanded verification fields consumed by `option-d-platform-bootstrap.js`.

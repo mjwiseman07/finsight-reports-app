@@ -203,17 +203,59 @@ function buildContract(refs) {
       schema: "supabase_migrations",
       name: "schema_migrations",
       kind: "table",
-      requiredColumns: ["version"],
+      requiredColumns: [{ name: "version", dataType: "text" }],
       allowEmpty: true,
       referencedByOrders: [],
     });
+  } else {
+    const mig = relations.get("supabase_migrations.schema_migrations");
+    mig.requiredColumns = [{ name: "version", dataType: "text" }];
+    mig.allowEmpty = true;
   }
 
-  functions.set("auth.uid", { schema: "auth", name: "uid", argTypes: [] });
+  functions.set("auth.uid", {
+    schema: "auth",
+    name: "uid",
+    argTypes: [],
+    requireSignature: true,
+    enforceArgTypes: true,
+  });
+
+  for (const [key, rel] of relations) {
+    if (key === "storage.buckets" || key === "storage.objects") {
+      rel.requireOwner = true;
+      rel.requireGrants = true;
+      rel.requireRlsProbe = true;
+      if (key === "storage.buckets") {
+        rel.requiredColumns = [...REQUIRED_STORAGE_BUCKET_COLUMNS];
+      }
+      if (key === "storage.objects") {
+        rel.requiredColumns = [...REQUIRED_STORAGE_OBJECT_COLUMNS];
+        rel.requiredConstraints = [{ type: "FOREIGN KEY", columns: ["bucket_id"] }];
+      }
+    }
+    if (key === "auth.users") {
+      rel.requireOwner = true;
+      rel.requireGrants = true;
+      if (!rel.requiredColumns?.length) {
+        rel.requiredColumns = [{ name: "id", dataType: "uuid" }];
+      }
+    }
+  }
+
+  for (const [key, fn] of functions) {
+    fn.requireSignature = true;
+    if (!Array.isArray(fn.argTypes)) fn.argTypes = [];
+    if (key === "auth.uid") fn.enforceArgTypes = true;
+  }
 
   return {
     ...base,
+    version: "option_d_platform_prerequisites_v2",
+    dumpRestoreRejected: true,
+    initializationMode: "supabase_cli_platform_only_temp_workdir",
     generatedFromManifest: path.relative(ROOT, MANIFEST).replace(/\\/g, "/"),
+    generatedAt: new Date().toISOString(),
     requiredRoles: [...roles].sort(),
     requiredExtensions: extensions,
     requiredRelations: [...relations.values()].sort((a, b) =>

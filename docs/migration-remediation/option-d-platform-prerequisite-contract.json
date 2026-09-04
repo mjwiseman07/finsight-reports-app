@@ -1,6 +1,8 @@
 {
-  "version": "option_d_platform_prerequisites_v1",
+  "version": "option_d_platform_prerequisites_v2",
   "failClosedOnUnknownPlatformState": true,
+  "dumpRestoreRejected": true,
+  "initializationMode": "supabase_cli_platform_only_temp_workdir",
   "requiredSchemas": [
     "public",
     "auth",
@@ -24,7 +26,12 @@
       "schema": "auth",
       "name": "users",
       "kind": "table",
-      "requiredColumns": [],
+      "requiredColumns": [
+        {
+          "name": "id",
+          "dataType": "uuid"
+        }
+      ],
       "referencedByOrders": [
         6,
         6,
@@ -59,18 +66,35 @@
         138,
         139,
         140
-      ]
+      ],
+      "requireOwner": true,
+      "requireGrants": true
     },
     {
       "schema": "storage",
       "name": "buckets",
       "kind": "table",
       "requiredColumns": [
-        "id",
-        "name",
-        "public",
-        "file_size_limit",
-        "allowed_mime_types"
+        {
+          "name": "id",
+          "dataType": "text"
+        },
+        {
+          "name": "name",
+          "dataType": "text"
+        },
+        {
+          "name": "public",
+          "dataType": "boolean"
+        },
+        {
+          "name": "file_size_limit",
+          "dataType": "bigint"
+        },
+        {
+          "name": "allowed_mime_types",
+          "dataType": "ARRAY"
+        }
       ],
       "referencedByOrders": [
         31,
@@ -80,16 +104,28 @@
         84,
         92,
         102
-      ]
+      ],
+      "requireOwner": true,
+      "requireGrants": true,
+      "requireRlsProbe": true
     },
     {
       "schema": "storage",
       "name": "objects",
       "kind": "table",
       "requiredColumns": [
-        "id",
-        "bucket_id",
-        "name"
+        {
+          "name": "id",
+          "dataType": "uuid"
+        },
+        {
+          "name": "bucket_id",
+          "dataType": "text"
+        },
+        {
+          "name": "name",
+          "dataType": "text"
+        }
       ],
       "referencedByOrders": [
         31,
@@ -103,6 +139,17 @@
         102,
         102,
         102
+      ],
+      "requireOwner": true,
+      "requireGrants": true,
+      "requireRlsProbe": true,
+      "requiredConstraints": [
+        {
+          "type": "FOREIGN KEY",
+          "columns": [
+            "bucket_id"
+          ]
+        }
       ]
     },
     {
@@ -110,7 +157,10 @@
       "name": "schema_migrations",
       "kind": "table",
       "requiredColumns": [
-        "version"
+        {
+          "name": "version",
+          "dataType": "text"
+        }
       ],
       "allowEmpty": true,
       "referencedByOrders": []
@@ -120,27 +170,33 @@
     {
       "schema": "auth",
       "name": "jwt",
-      "argTypes": []
+      "argTypes": [],
+      "requireSignature": true
     },
     {
       "schema": "auth",
       "name": "role",
-      "argTypes": []
+      "argTypes": [],
+      "requireSignature": true
     },
     {
       "schema": "auth",
       "name": "token_expired",
-      "argTypes": []
+      "argTypes": [],
+      "requireSignature": true
     },
     {
       "schema": "auth",
       "name": "uid",
-      "argTypes": []
+      "argTypes": [],
+      "requireSignature": true,
+      "enforceArgTypes": true
     },
     {
       "schema": "storage",
       "name": "foldername",
-      "argTypes": []
+      "argTypes": [],
+      "requireSignature": true
     }
   ],
   "platformManagedSchemas": [
@@ -161,5 +217,11 @@
     "publicFunctions": true,
     "appMigrationVersions": true
   },
-  "generatedFromManifest": "docs/migration-remediation/option-d-replay-manifest.json"
+  "evidenceBinding": {
+    "requireCliVersion": true,
+    "requirePostgresVersion": true,
+    "requirePlatformWorkdirFingerprint": true
+  },
+  "generatedFromManifest": "docs/migration-remediation/option-d-replay-manifest.json",
+  "generatedAt": "2026-09-04T01:57:51.762Z"
 }

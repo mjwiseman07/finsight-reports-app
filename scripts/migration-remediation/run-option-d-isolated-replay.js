@@ -37,8 +37,14 @@ const {
 } = require("./option-d-vitest-result-gate");
 const {
   evaluateManifestAuthorization,
+  evaluateManifestUnchangedSinceAuthorization,
+  buildPrewriteAuthorizationEvidence,
+  writePrewriteAuthorizationEvidence,
   readExpectedManifestSha256FromEnv,
+  readAuthorizedCommitFromEnv,
+  resolveGitHead,
 } = require("./option-d-manifest-authorization");
+const { fingerprintPlatformWorkdir } = require("./option-d-platform-bootstrap");
 
 const ROOT = path.join(__dirname, "..", "..");
 const STATUS_OUT = path.join(ROOT, "docs/migration-remediation/option-d-runtime-status.json");
@@ -132,12 +138,26 @@ async function withClient(dbUrl, fn) {
 
 async function verifyFreshBeforeWrite(dbUrl, expectedDisposableName) {
   return withClient(dbUrl, async (client) => {
+    const platformOnlyTarget = process.env.OPTION_D_PLATFORM_ONLY_TARGET === "1";
+    const workdir = process.env.OPTION_D_PLATFORM_WORKDIR || "";
+    const platformWorkdirFingerprint = workdir
+      ? fingerprintPlatformWorkdir(workdir, ROOT)
+      : null;
     const inventory = await collectDatabaseInventory(client);
+    // Attach platform-only flags onto inventory for freshness + bootstrap.
+    if (inventory.platform) {
+      inventory.platform.platformOnlyTarget = platformOnlyTarget;
+      inventory.platform.platformWorkdirFingerprint = platformWorkdirFingerprint;
+      inventory.platform.supabaseCliVersion =
+        process.env.OPTION_D_SUPABASE_CLI_VERSION || inventory.platform.supabaseCliVersion || null;
+      inventory.platform.schemaMigrationVersions = inventory.schemaMigrationVersions;
+    }
     const evaluation = evaluateFreshDisposableDatabase({
       ...inventory,
       expectedDisposableName,
+      platformOnlyTarget,
     });
-    return { inventory, evaluation };
+    return { inventory, evaluation, platformOnlyTarget, platformWorkdirFingerprint };
   });
 }
 
@@ -182,17 +202,30 @@ async function applyAssembled(dbUrl) {
 }
 
 /**
- * Authorization gate used before assemble/apply. Pure + side-effect free aside from metrics.
+ * Authorization gate used before assemble/apply.
  * On failure, sqlApplicationAttempts remains unchanged (tests assert zero).
  */
 function authorizeManifestOrBlock(env = process.env) {
   const expected = readExpectedManifestSha256FromEnv(env);
+  const authorizedCommit = readAuthorizedCommitFromEnv(env);
   const result = evaluateManifestAuthorization({
     expectedSha256: expected,
+    authorizedCommit,
+    currentHead: resolveGitHead(ROOT),
     manifestPath: MANIFEST,
+    requireCommitBinding: true,
   });
   applyMetrics.lastAuthorization = result;
   return result;
+}
+
+function writeImmutablePrewriteEvidence(authz) {
+  const evidence = buildPrewriteAuthorizationEvidence({
+    ...authz,
+    sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
+  });
+  writePrewriteAuthorizationEvidence(evidence);
+  return evidence;
 }
 
 async function runSecurityChecks(dbUrl) {
@@ -258,8 +291,8 @@ async function main() {
   const applyRequested = process.env.OPTION_D_APPLY === "1";
 
   // Authorization integrity — required before assemble/apply when runtime apply is requested.
-  // Compares OPTION_D_EXPECTED_MANIFEST_SHA256 to exact on-disk committed manifest bytes.
-  // Must run BEFORE assemble (assemble rewrites generatedAt and would invalidate the pin).
+  // Compares OPTION_D_EXPECTED_MANIFEST_SHA256 to exact on-disk committed manifest bytes,
+  // bound to OPTION_D_AUTHORIZED_COMMIT === HEAD.
   if (applyRequested || process.env.OPTION_D_EXPECTED_MANIFEST_SHA256) {
     const authz = authorizeManifestOrBlock(process.env);
     if (!authz.ok) {
@@ -270,8 +303,29 @@ async function main() {
         overall: "BLOCKED",
         reason: "manifest_authorization_failed",
         note:
-          "Authorized Manifest SHA-256 mismatch or missing. Aborting before assemble/SQL. Entry hashes / Git blob OID / re-assemble hashes are not substitutes.",
+          "Authorized Manifest SHA-256 / commit binding failed. Aborting before assemble/SQL. Entry hashes / Git blob OID / re-assemble hashes are not substitutes.",
         manifestAuthorization: authz,
+        sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
+        scopes,
+        overallGate: evaluateOverallRuntimePass(scopes),
+      });
+      process.exit(2);
+    }
+
+    // Immutable pre-write evidence (zero SQL attempts).
+    const prewrite = writeImmutablePrewriteEvidence(authz);
+
+    // APPLY must not regenerate the authorized manifest.
+    if (applyRequested && process.env.OPTION_D_SKIP_ASSEMBLE !== "1") {
+      scopes.candidateReplay = "FAIL";
+      scopes.securityImmutabilityChecks = "BLOCKED";
+      scopes.pr312RpcValidation = "BLOCKED";
+      writeStatus({
+        overall: "BLOCKED",
+        reason: "apply_requires_skip_assemble_to_preserve_authorized_manifest",
+        note:
+          "OPTION_D_APPLY=1 requires OPTION_D_SKIP_ASSEMBLE=1. Assemble rewrites generatedAt and invalidates the authorized whole-file hash; require new authorization instead of accepting regenerated output.",
+        prewriteAuthorizationEvidence: prewrite,
         sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
         scopes,
         overallGate: evaluateOverallRuntimePass(scopes),
@@ -282,6 +336,7 @@ async function main() {
 
   // 1) Static candidate lineage
   const skipAssemble = process.env.OPTION_D_SKIP_ASSEMBLE === "1";
+  const authorizedSnapshotSha = applyMetrics.lastAuthorization?.observedManifestSha256 || null;
   if (!skipAssemble) {
     const assemble = runNode(ASSEMBLE);
     if (assemble.status !== 0) {
@@ -295,6 +350,28 @@ async function main() {
         overallGate: evaluateOverallRuntimePass(scopes),
       });
       process.exit(2);
+    }
+    if (authorizedSnapshotSha) {
+      const unchanged = evaluateManifestUnchangedSinceAuthorization({
+        authorizedObservedSha256: authorizedSnapshotSha,
+        manifestPath: MANIFEST,
+      });
+      if (!unchanged.ok) {
+        scopes.candidateReplay = "FAIL";
+        scopes.securityImmutabilityChecks = "BLOCKED";
+        scopes.pr312RpcValidation = "BLOCKED";
+        writeStatus({
+          overall: "BLOCKED",
+          reason: "manifest_regenerated_after_authorization",
+          note:
+            "Assemble changed authorized manifest bytes. Abort; require new authorization. Do not accept regenerated output.",
+          manifestUnchangedCheck: unchanged,
+          sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
+          scopes,
+          overallGate: evaluateOverallRuntimePass(scopes),
+        });
+        process.exit(2);
+      }
     }
   }
 
@@ -574,5 +651,6 @@ module.exports = {
   applyMetrics,
   resetApplyMetrics,
   authorizeManifestOrBlock,
+  writeImmutablePrewriteEvidence,
   applyAssembled,
 };

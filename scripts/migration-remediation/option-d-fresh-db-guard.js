@@ -134,31 +134,57 @@ function evaluateFreshDisposableDatabase(inventory) {
 
   const dbName = String(inventory.databaseName || "").trim();
   const expected = String(inventory.expectedDisposableName || "").trim();
+  const platformOnlyTarget = inventory.platformOnlyTarget === true;
 
   if (!expected) {
     failures.push({
       rule: "missing_OPTION_D_DISPOSABLE_DB_NAME",
-      detail: "Set OPTION_D_DISPOSABLE_DB_NAME to the intentional empty local DB name (option_d_*).",
+      detail:
+        "Set OPTION_D_DISPOSABLE_DB_NAME to option_d_* or, for platform-only CLI stacks, postgres with OPTION_D_PLATFORM_ONLY_TARGET=1",
     });
+  } else if (platformOnlyTarget) {
+    if (expected !== "postgres" && !DISPOSABLE_DB_NAME_RE.test(expected)) {
+      failures.push({
+        rule: "disposable_db_name_pattern",
+        detail:
+          "Platform-only target allows database name postgres or option_d_*; got unexpected expectedDisposableName",
+      });
+    }
+    if (expected === "postgres" && dbName && dbName !== "postgres") {
+      failures.push({
+        rule: "database_name_mismatch",
+        detail: `URL database "${dbName}" != expected platform-only name "postgres"`,
+      });
+    }
   } else if (!DISPOSABLE_DB_NAME_RE.test(expected)) {
     failures.push({
       rule: "disposable_db_name_pattern",
-      detail: "OPTION_D_DISPOSABLE_DB_NAME must match /^option_d_[a-z0-9_]+$/",
+      detail: "OPTION_D_DISPOSABLE_DB_NAME must match /^option_d_[a-z0-9_]+$/ (or enable OPTION_D_PLATFORM_ONLY_TARGET=1 for postgres)",
     });
   }
 
-  if (expected && dbName && dbName !== expected) {
+  if (!platformOnlyTarget && expected && dbName && dbName !== expected) {
     failures.push({
       rule: "database_name_mismatch",
       detail: `URL database "${dbName}" != OPTION_D_DISPOSABLE_DB_NAME "${expected}"`,
     });
   }
 
-  if (dbName && !DISPOSABLE_DB_NAME_RE.test(dbName)) {
+  if (!platformOnlyTarget && dbName && !DISPOSABLE_DB_NAME_RE.test(dbName)) {
     failures.push({
       rule: "database_name_not_disposable_pattern",
-      detail: `Refusing ambiguous database name "${dbName}". Create a fresh DB named option_d_* .`,
+      detail: `Refusing ambiguous database name "${dbName}". Use option_d_* or OPTION_D_PLATFORM_ONLY_TARGET=1 with genuine CLI postgres.`,
     });
+  }
+
+  if (platformOnlyTarget && dbName === "postgres") {
+    // Accept only when platform fingerprint/workdir evidence is attached and evaluated.
+    if (!inventory.platform) {
+      failures.push({
+        rule: "platform_only_postgres_requires_platform_inventory",
+        detail: "postgres target under platform-only mode requires platform inventory + workdir fingerprint",
+      });
+    }
   }
 
   const schemas = requireArray(inventory, "schemas", failures).map((s) => String(s).toLowerCase());
