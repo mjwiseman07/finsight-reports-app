@@ -1,47 +1,14 @@
 {
-  "writtenAt": "2026-09-04T03:42:51.751Z",
-  "overall": "BLOCKED",
-  "reason": "authorized_manifest_sha256_is_crlf_smudge_not_git_blob",
+  "kind": "option_d_prewrite_authorization_evidence",
+  "immutable": true,
+  "writtenAt": "2026-09-04T03:50:44.605Z",
+  "authorizedCommit": "bf2092b0ccdfb49daff329775972fd0a4ae1fde9",
+  "currentHead": "bf2092b0ccdfb49daff329775972fd0a4ae1fde9",
+  "manifestPath": "docs/migration-remediation/option-d-replay-manifest.json",
+  "expectedManifestSha256": "6167fe3140cff39a84cadf11025358f50e8d5f83e9d2420de58b4c211c0140c6",
+  "actualManifestSha256": "6167fe3140cff39a84cadf11025358f50e8d5f83e9d2420de58b4c211c0140c6",
+  "byteLength": 113577,
   "sqlApplicationAttempts": 0,
-  "dockerStarted": false,
-  "sqlApplied": false,
-  "preflight": {
-    "head": "e0f0ea9976e339fa6ac1600ec7ae184401f9103e",
-    "headMatch": true,
-    "pr313Draft": true,
-    "pr313Head": "e0f0ea9976e339fa6ac1600ec7ae184401f9103e",
-    "pr312Draft": true,
-    "pr312Head": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
-    "cliVersion": "2.116.0",
-    "cliMatch": true,
-    "suiteBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
-    "suiteBlobType": "blob",
-    "suiteBlobSize": 19389,
-    "assembledEntries": 149,
-    "assembledSqlFiles": 149,
-    "assembledHashFailures": 0
-  },
-  "authorized": {
-    "sha256": "f1e837f6d0dfb96f591724750aa5dfbe560822f5ec9e60a4101f987f41420026",
-    "byteLength": 115891,
-    "entries": 149
-  },
-  "actualGitBlob": {
-    "path": "docs/migration-remediation/option-d-replay-manifest.json",
-    "gitObjectId": "e1fb75455e7628897b1448e94c028187f046b919",
-    "byteLength": 113577,
-    "sha256": "6167fe3140cff39a84cadf11025358f50e8d5f83e9d2420de58b4c211c0140c6"
-  },
-  "diagnosis": "Authorized SHA-256/byteLength match PowerShell CRLF expansion of the true LF git blob (newline count delta 2314). Harness hashes on-disk bytes; LF blob does not match authorization. Stop closed before Docker/SQL.",
-  "scopes": {
-    "candidateReplay": "FAIL",
-    "securityImmutabilityChecks": "BLOCKED",
-    "pr312RpcValidation": "BLOCKED",
-    "productionDashboardReplayParity": "unresolved"
-  },
-  "overallGate": {
-    "ok": false,
-    "overall": "BLOCKED"
-  },
-  "note": "pre-Docker abort; sqlApplicationAttempts remain 0"
+  "authorizationOk": true,
+  "failures": []
 }
