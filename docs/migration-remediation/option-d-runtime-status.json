@@ -3,21 +3,21 @@
   "reason": "apply_failed",
   "applyResult": {
     "applied": false,
-    "failedAt": "20260720170000_ar_tieout2_runs_and_variances.sql",
-    "order": 89,
-    "completedCount": 88,
-    "sqlApplicationAttempts": 89,
-    "error": "cannot change name of view column \"tie_out_state\" to \"last_tie_out_run_id\"",
-    "sqlState": "42P16",
+    "failedAt": "20260727000100_users_auth_trigger_single_writer.sql",
+    "order": 107,
+    "completedCount": 106,
+    "sqlApplicationAttempts": 107,
+    "error": "relation \"public.users\" does not exist",
+    "sqlState": "42P01",
     "detail": null,
-    "hint": "Use ALTER VIEW ... RENAME COLUMN ... to change name of view column instead.",
+    "hint": null,
     "schema": null,
     "table": null,
     "column": null,
     "constraint": null,
     "dataType": null,
-    "routine": "checkViewColumns",
-    "position": null,
+    "routine": "parserOpenTable",
+    "position": "1707",
     "internalPosition": null,
     "where": null
   },
@@ -38,5 +38,5 @@
     "productionDashboardReplayParity": "unresolved"
   },
   "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
-  "writtenAt": "2026-09-04T03:50:46.355Z"
+  "writtenAt": "2026-09-04T04:14:25.326Z"
 }
