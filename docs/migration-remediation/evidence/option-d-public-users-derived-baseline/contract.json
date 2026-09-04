@@ -15,9 +15,9 @@
     "foreignKey": "public.users.id → auth.users(id) NO ACTION"
   },
   "derivedSqlPath": "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql",
-  "derivedSqlSha256": "14f67dd2b70300ab058a7635bd265f75847e6ca7a24d3087358844f102c71850",
-  "derivedSqlMd5": "96cee8cd5944d743059e522a23d21675",
-  "derivedSqlBytes": 1762,
+  "derivedSqlSha256": "961810f4d1a73c96c0d98e69fdb0b90d4f8824029f94edf7cca479786e93c0a7",
+  "derivedSqlMd5": "804a2bee7b73755bd9d79efad67451e0",
+  "derivedSqlBytes": 1715,
   "catalogQueryDefinitions": [
     {
       "id": "relation_meta",
@@ -259,7 +259,7 @@
   "schemaContractHash": {
     "algorithm": "sha256",
     "of": "derivedSqlPath UTF-8 bytes",
-    "value": "14f67dd2b70300ab058a7635bd265f75847e6ca7a24d3087358844f102c71850"
+    "value": "961810f4d1a73c96c0d98e69fdb0b90d4f8824029f94edf7cca479786e93c0a7"
   },
   "freshLocalReplayPrerequisite": "Derived baseline must assemble before order 107; separately authorize Docker/apply after this commit"
 }

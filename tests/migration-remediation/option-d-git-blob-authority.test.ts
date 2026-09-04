@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -31,9 +30,20 @@ import {
 } from "../../scripts/migration-remediation/option-d-vitest-result-gate.js";
 
 const ROOT = path.resolve(__dirname, "../..");
-const AUTHORIZED_MANIFEST_SHA256 =
-  "5a66815352f4879b68a49d2cef3182d9637a20eb2a3a7617ed0bb979406dba0c";
-const AUTHORIZED_MANIFEST_BYTES = 115488;
+
+function currentManifestPin() {
+  const head = resolveGitHead(ROOT)!;
+  const blob = readGitBlobAtCommit(head, MANIFEST_REPO_PATH, { cwd: ROOT });
+  if (!blob.ok) {
+    throw new Error(`manifest blob unreadable: ${JSON.stringify(blob.failures)}`);
+  }
+  return {
+    head,
+    sha256: blob.sha256!,
+    byteLength: blob.byteLength!,
+    bytes: blob.bytes!,
+  };
+}
 
 function gitBlob(commit: string, repoPath: string) {
   return readGitBlobAtCommit(commit, repoPath, { cwd: ROOT });
@@ -49,51 +59,45 @@ describe("Option D Git-blob artifact authority", () => {
   });
 
   it("LF Git blob with CRLF working-tree smudge succeeds using the Git blob", () => {
-    const head = resolveGitHead(ROOT)!;
-    const blob = gitBlob(head, MANIFEST_REPO_PATH);
-    expect(blob.ok).toBe(true);
-    expect(blob.sha256).toBe(AUTHORIZED_MANIFEST_SHA256);
-    expect(blob.byteLength).toBe(AUTHORIZED_MANIFEST_BYTES);
+    const pin = currentManifestPin();
+    expect(pin.bytes.includes(0x0d)).toBe(false);
 
     const disk = fs.readFileSync(path.join(ROOT, MANIFEST_REPO_PATH));
-    // On Windows autocrlf worktrees often differ; either way worktree is not authority.
     const diskSha = sha256Buffer(disk);
     const auth = evaluateManifestAuthorization({
-      expectedSha256: AUTHORIZED_MANIFEST_SHA256,
-      authorizedCommit: head,
-      currentHead: head,
-      expectedByteLength: AUTHORIZED_MANIFEST_BYTES,
+      expectedSha256: pin.sha256,
+      authorizedCommit: pin.head,
+      currentHead: pin.head,
+      expectedByteLength: pin.byteLength,
     });
     expect(auth.ok).toBe(true);
     expect(auth.authority).toBe("git_cat_file_blob");
-    expect(auth.observedManifestSha256).toBe(AUTHORIZED_MANIFEST_SHA256);
-    // Worktree may be CRLF-smudged; Git blob remains the observed authority.
-    if (diskSha !== AUTHORIZED_MANIFEST_SHA256) {
+    expect(auth.observedManifestSha256).toBe(pin.sha256);
+    if (diskSha !== pin.sha256) {
       expect(auth.observedManifestSha256).not.toBe(diskSha);
     }
   });
 
   it("worktree tampering does not affect authorization bytes", () => {
-    const head = resolveGitHead(ROOT)!;
+    const pin = currentManifestPin();
     const before = loadAuthorizedManifestFromGit({
-      expectedSha256: AUTHORIZED_MANIFEST_SHA256,
-      authorizedCommit: head,
-      currentHead: head,
+      expectedSha256: pin.sha256,
+      authorizedCommit: pin.head,
+      currentHead: pin.head,
     });
     expect(before.ok).toBe(true);
-    // Tamper observation only — do not write to repo files in tests.
     const tampered = Buffer.concat([
       before.manifestBytes!,
       Buffer.from("\n/* worktree-tamper */\n"),
     ]);
-    expect(sha256Buffer(tampered)).not.toBe(AUTHORIZED_MANIFEST_SHA256);
+    expect(sha256Buffer(tampered)).not.toBe(pin.sha256);
     const after = loadAuthorizedManifestFromGit({
-      expectedSha256: AUTHORIZED_MANIFEST_SHA256,
-      authorizedCommit: head,
-      currentHead: head,
+      expectedSha256: pin.sha256,
+      authorizedCommit: pin.head,
+      currentHead: pin.head,
     });
     expect(after.ok).toBe(true);
-    expect(after.observedManifestSha256).toBe(AUTHORIZED_MANIFEST_SHA256);
+    expect(after.observedManifestSha256).toBe(pin.sha256);
     expect(after.manifestBytes!.equals(before.manifestBytes!)).toBe(true);
   });
 
@@ -109,8 +113,9 @@ describe("Option D Git-blob artifact authority", () => {
   });
 
   it("authorized commit differing from HEAD fails", () => {
+    const pin = currentManifestPin();
     const result = evaluateManifestAuthorization({
-      expectedSha256: AUTHORIZED_MANIFEST_SHA256,
+      expectedSha256: pin.sha256,
       authorizedCommit: "a".repeat(40),
       currentHead: "b".repeat(40),
     });
@@ -144,11 +149,11 @@ describe("Option D Git-blob artifact authority", () => {
   });
 
   it("temporary materialization hash mismatch fails", () => {
-    const head = resolveGitHead(ROOT)!;
+    const pin = currentManifestPin();
     const loaded = loadAuthorizedManifestFromGit({
-      expectedSha256: AUTHORIZED_MANIFEST_SHA256,
-      authorizedCommit: head,
-      currentHead: head,
+      expectedSha256: pin.sha256,
+      authorizedCommit: pin.head,
+      currentHead: pin.head,
     });
     expect(loaded.ok).toBe(true);
     const entry = loaded.manifest.entries[0];
@@ -162,7 +167,7 @@ describe("Option D Git-blob artifact authority", () => {
       ],
     };
     const mat = materializeAuthorizedSqlFromGit({
-      authorizedCommit: head,
+      authorizedCommit: pin.head,
       manifest: forged,
     });
     if (mat.tempDir) tempDirs.push(mat.tempDir);
@@ -173,8 +178,8 @@ describe("Option D Git-blob artifact authority", () => {
   });
 
   it("PowerShell text conversion cannot become the authority", () => {
-    const head = resolveGitHead(ROOT)!;
-    const blob = gitBlob(head, MANIFEST_REPO_PATH);
+    const pin = currentManifestPin();
+    const blob = gitBlob(pin.head, MANIFEST_REPO_PATH);
     const textConverted = Buffer.from(blob.bytes!.toString("utf8").replace(/\n/g, "\r\n"), "utf8");
     const rejected = rejectTextConvertedAuthority({
       claimedAuthority: "powershell_text",
@@ -188,44 +193,26 @@ describe("Option D Git-blob artifact authority", () => {
   });
 
   it("SQL materialization records commit/path/blob/sha and temp bytes match source blob", () => {
-    const head = resolveGitHead(ROOT)!;
+    const pin = currentManifestPin();
     const loaded = loadAuthorizedManifestFromGit({
-      expectedSha256: AUTHORIZED_MANIFEST_SHA256,
-      authorizedCommit: head,
-      currentHead: head,
+      expectedSha256: pin.sha256,
+      authorizedCommit: pin.head,
+      currentHead: pin.head,
     });
-    // Use a single entry whose git blob matches assembledSha256 if any; otherwise expect fail-closed.
-    const matching = loaded.manifest.entries.filter((e: { assembledSha256: string; originalSource?: string; replacementSource?: string }) => {
-      const src = e.replacementSource || e.originalSource;
-      if (!src) return false;
-      const b = gitBlob(head, src);
-      return b.ok && b.sha256 === e.assembledSha256;
-    });
-    if (matching.length === 0) {
-      const mat = materializeAuthorizedSqlFromGit({
-        authorizedCommit: head,
-        manifest: loaded.manifest,
-      });
-      if (mat.tempDir) tempDirs.push(mat.tempDir);
-      expect(mat.ok).toBe(false);
-      expect(mat.failures.some((f) => f.rule === "committed_blob_sha256_mismatch_vs_manifest")).toBe(
-        true,
-      );
-      return;
-    }
+    expect(loaded.ok).toBe(true);
     const mat = materializeAuthorizedSqlFromGit({
-      authorizedCommit: head,
-      manifest: { ...loaded.manifest, entries: matching.slice(0, 1) },
+      authorizedCommit: pin.head,
+      manifest: { ...loaded.manifest, entries: loaded.manifest.entries.slice(0, 1) },
     });
     if (mat.tempDir) tempDirs.push(mat.tempDir);
     expect(mat.ok).toBe(true);
     const art = mat.artifacts[0];
-    expect(art.commit).toBe(head);
+    expect(art.commit).toBe(pin.head);
     expect(art.gitBlobId).toMatch(/^[a-f0-9]{40}$/);
     expect(art.temporaryFileSha256).toBe(art.sha256);
     const live = fs.readFileSync(art.temporaryFile);
     expect(sha256Buffer(live)).toBe(art.sha256);
-    const source = gitBlob(head, art.path);
+    const source = gitBlob(pin.head, art.path);
     expect(live.equals(source.bytes!)).toBe(true);
   });
 
@@ -259,17 +246,16 @@ describe("Option D Git-blob artifact authority", () => {
 
   it("authorizeManifestOrBlock uses Git blob and ignores worktree CRLF", () => {
     resetApplyMetrics();
-    const head = resolveGitHead(ROOT)!;
+    const pin = currentManifestPin();
     const diskSha = sha256Buffer(fs.readFileSync(path.join(ROOT, MANIFEST_REPO_PATH)));
     const ok = authorizeManifestOrBlock({
-      OPTION_D_EXPECTED_MANIFEST_SHA256: AUTHORIZED_MANIFEST_SHA256,
-      OPTION_D_AUTHORIZED_COMMIT: head,
-      OPTION_D_EXPECTED_MANIFEST_BYTES: String(AUTHORIZED_MANIFEST_BYTES),
+      OPTION_D_EXPECTED_MANIFEST_SHA256: pin.sha256,
+      OPTION_D_AUTHORIZED_COMMIT: pin.head,
+      OPTION_D_EXPECTED_MANIFEST_BYTES: String(pin.byteLength),
     } as NodeJS.ProcessEnv);
     expect(ok.ok).toBe(true);
-    expect(ok.observedManifestSha256).toBe(AUTHORIZED_MANIFEST_SHA256);
-    if (diskSha !== AUTHORIZED_MANIFEST_SHA256) {
-      // Harness would previously FAIL on diskSha; Git authority must PASS.
+    expect(ok.observedManifestSha256).toBe(pin.sha256);
+    if (diskSha !== pin.sha256) {
       expect(ok.observedManifestSha256).not.toBe(diskSha);
     }
     expect(applyMetrics.sqlApplicationAttempts).toBe(0);

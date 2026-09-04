@@ -15,13 +15,16 @@
  */
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
+const { spawnSync } = require("child_process");
+const {
+  readGitBlobAtCommit,
+  sha256Buffer,
+} = require("./option-d-git-blob-authority");
 
 const ROOT = path.join(__dirname, "..", "..");
-const DERIVED_SQL = path.join(
-  ROOT,
-  "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql",
-);
+const DERIVED_SQL_REPO =
+  "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql";
+const DERIVED_SQL = path.join(ROOT, DERIVED_SQL_REPO);
 const CONTRACT = path.join(
   ROOT,
   "docs/migration-remediation/evidence/option-d-public-users-derived-baseline/contract.json",
@@ -38,29 +41,87 @@ const OUT = path.join(
 
 const DERIVED_FILENAME = "20260701043598_public_users_derived_baseline.sql";
 const ORDER_107 = "20260727000100_users_auth_trigger_single_writer.sql";
+const FULL_COMMIT_RE = /^[a-f0-9]{40}$/;
 
-function sha256Buffer(buf) {
-  return crypto.createHash("sha256").update(buf).digest("hex");
+function resolveDerivedAuthorityCommit(opts = {}) {
+  const fromOpt = String(opts.commit || "").trim().toLowerCase();
+  if (FULL_COMMIT_RE.test(fromOpt)) return fromOpt;
+  const fromEnv = String(
+    process.env.OPTION_D_ASSEMBLE_COMMIT ||
+      process.env.OPTION_D_AUTHORIZED_COMMIT ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+  if (FULL_COMMIT_RE.test(fromEnv)) return fromEnv;
+  const head = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: opts.cwd || ROOT,
+    encoding: "utf8",
+  });
+  const h = String(head.stdout || "")
+    .trim()
+    .toLowerCase();
+  return FULL_COMMIT_RE.test(h) ? h : null;
+}
+
+function loadDerivedSqlBytes(opts = {}) {
+  // Explicit temp/override paths (unit tests) remain file-based.
+  if (opts.sqlPath) {
+    if (!fs.existsSync(opts.sqlPath)) {
+      return { ok: false, failures: [{ rule: "derived_sql_missing", path: opts.sqlPath }] };
+    }
+    const bytes = fs.readFileSync(opts.sqlPath);
+    return {
+      ok: true,
+      failures: [],
+      bytes,
+      sha256: sha256Buffer(bytes),
+      authority: "explicit_sql_path",
+      path: opts.sqlPath,
+    };
+  }
+
+  const commit = resolveDerivedAuthorityCommit(opts);
+  if (!commit) {
+    return {
+      ok: false,
+      failures: [{ rule: "derived_sql_authority_commit_unresolved" }],
+    };
+  }
+  const blob = readGitBlobAtCommit(commit, DERIVED_SQL_REPO, { cwd: opts.cwd || ROOT });
+  if (!blob.ok) {
+    return { ok: false, failures: blob.failures };
+  }
+  return {
+    ok: true,
+    failures: [],
+    bytes: blob.bytes,
+    sha256: blob.sha256,
+    gitBlobId: blob.gitBlobId,
+    authority: "git_cat_file_blob",
+    commit,
+    path: DERIVED_SQL_REPO,
+  };
 }
 
 function evaluateDerivedBaseline(opts = {}) {
   const failures = [];
-  const sqlPath = opts.sqlPath || DERIVED_SQL;
   const contractPath = opts.contractPath || CONTRACT;
 
-  if (!fs.existsSync(sqlPath)) {
-    failures.push({ rule: "derived_sql_missing", path: sqlPath });
-    return { ok: false, failures };
-  }
   if (!fs.existsSync(contractPath)) {
     failures.push({ rule: "derived_contract_missing", path: contractPath });
     return { ok: false, failures };
   }
 
-  const sqlBuf = fs.readFileSync(sqlPath);
+  const loaded = loadDerivedSqlBytes(opts);
+  if (!loaded.ok) {
+    return { ok: false, failures: loaded.failures };
+  }
+
+  const sqlBuf = loaded.bytes;
   const sql = sqlBuf.toString("utf8");
   const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
-  const observedSha = sha256Buffer(sqlBuf);
+  const observedSha = loaded.sha256;
 
   if (contract.artifactKind !== "derived_baseline_not_recovered_original_sql") {
     failures.push({ rule: "artifact_kind_incorrect", got: contract.artifactKind });
@@ -205,6 +266,9 @@ function evaluateDerivedBaseline(opts = {}) {
     derivedSqlBytes: sqlBuf.length,
     derivationComplete: contract.derivationComplete === true,
     unresolvedCount: (contract.unresolvedElements || []).length,
+    authority: loaded.authority,
+    gitBlobId: loaded.gitBlobId || null,
+    sourceCommit: loaded.commit || null,
   };
 }
 
@@ -233,10 +297,14 @@ function main() {
 
 module.exports = {
   evaluateDerivedBaseline,
+  loadDerivedSqlBytes,
+  resolveDerivedAuthorityCommit,
   DERIVED_FILENAME,
   DERIVED_SQL,
+  DERIVED_SQL_REPO,
   CONTRACT,
   ORDER_107,
+  OUT,
 };
 
 if (require.main === module) main();

@@ -32,29 +32,29 @@ const { evaluateViewSignatureOrdering } = require("./audit-option-d-view-signatu
 const { evaluateAppRelationOrdering } = require("./audit-option-d-app-relation-deps");
 const { evaluateDerivedBaseline } = require("./audit-option-d-public-users-derived-baseline");
 const { spawnSync } = require("child_process");
+const os = require("os");
+const {
+  readGitBlobAtCommit,
+  sha256Buffer,
+  normalizeRepoPath,
+} = require("./option-d-git-blob-authority");
 
 const ROOT = path.join(__dirname, "..", "..");
 const MIGRATIONS_DIR = path.join(ROOT, "supabase", "migrations");
-const BASELINE = path.join(
-  ROOT,
-  "supabase/migrations-draft/20260701043599_foundations_baseline.sql",
-);
-const PUBLIC_USERS_DERIVED = path.join(
-  ROOT,
-  "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql",
-);
-const PHASE1_DIR = path.join(
-  ROOT,
-  "supabase/migrations-draft/recovered-production-history",
-);
-const SUBST_DIR = path.join(
-  ROOT,
-  "supabase/migrations-draft/option-d-isolated-replay/substitutions",
-);
-const ASSEMBLED_DIR = path.join(
-  ROOT,
-  "supabase/migrations-draft/option-d-isolated-replay/assembled",
-);
+const BASELINE_REPO =
+  "supabase/migrations-draft/20260701043599_foundations_baseline.sql";
+const PUBLIC_USERS_DERIVED_REPO =
+  "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql";
+const PHASE1_REPO_DIR = "supabase/migrations-draft/recovered-production-history";
+const SUBST_REPO_DIR =
+  "supabase/migrations-draft/option-d-isolated-replay/substitutions";
+const ASSEMBLED_REPO_DIR =
+  "supabase/migrations-draft/option-d-isolated-replay/assembled";
+const BASELINE = path.join(ROOT, BASELINE_REPO);
+const PUBLIC_USERS_DERIVED = path.join(ROOT, PUBLIC_USERS_DERIVED_REPO);
+const PHASE1_DIR = path.join(ROOT, PHASE1_REPO_DIR);
+const SUBST_DIR = path.join(ROOT, SUBST_REPO_DIR);
+const ASSEMBLED_DIR = path.join(ROOT, ASSEMBLED_REPO_DIR);
 const MANIFEST_OUT = path.join(
   ROOT,
   "docs/migration-remediation/option-d-replay-manifest.json",
@@ -131,15 +131,83 @@ function sha256File(filePath) {
   return crypto.createHash("sha256").update(buf).digest("hex");
 }
 
-function sha256Text(text) {
-  return crypto.createHash("sha256").update(text, "utf8").digest("hex");
+function resolveAssembleCommit() {
+  if (process.env.OPTION_D_ASSEMBLE_COMMIT) {
+    return String(process.env.OPTION_D_ASSEMBLE_COMMIT).trim().toLowerCase();
+  }
+  const r = spawnSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" });
+  if (r.status !== 0) {
+    throw new Error(`Unable to resolve assemble commit: ${r.stderr || r.stdout}`);
+  }
+  return String(r.stdout || "").trim().toLowerCase();
+}
+
+function committerIsoDate(commit) {
+  const r = spawnSync("git", ["show", "-s", "--format=%cI", commit], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+  if (r.status !== 0) return new Date().toISOString();
+  return String(r.stdout || "").trim() || new Date().toISOString();
+}
+
+function readRepoBlobOrThrow(commit, repoPath) {
+  const normalized = normalizeRepoPath(repoPath);
+  const blob = readGitBlobAtCommit(commit, normalized, { cwd: ROOT });
+  if (!blob.ok) {
+    const detail = blob.failures.map((f) => f.rule).join(",");
+    throw new Error(`Missing git blob ${commit}:${normalized} (${detail})`);
+  }
+  return blob;
+}
+
+function gitBlobExists(commit, repoPath) {
+  const blob = readGitBlobAtCommit(commit, normalizeRepoPath(repoPath), { cwd: ROOT });
+  return blob.ok === true;
+}
+
+function listGitSqlBasenames(commit, repoDir) {
+  const r = spawnSync(
+    "git",
+    ["ls-tree", "-r", "--name-only", commit, "--", repoDir.replace(/\\/g, "/")],
+    { cwd: ROOT, encoding: "utf8", maxBuffer: 20 * 1024 * 1024 },
+  );
+  if (r.status !== 0) {
+    throw new Error(`git ls-tree failed for ${repoDir}: ${r.stderr || r.stdout}`);
+  }
+  const prefix = repoDir.replace(/\\/g, "/").replace(/\/?$/, "/");
+  return String(r.stdout || "")
+    .split(/\r?\n/)
+    .map((l) => l.trim().replace(/\\/g, "/"))
+    .filter((l) => l.startsWith(prefix) && l.endsWith(".sql"))
+    // Only direct children of repoDir (exclude rollback/ and other nested companions).
+    .filter((l) => !l.slice(prefix.length).includes("/"))
+    .filter((l) => !l.endsWith(".down.sql"))
+    .map((l) => path.posix.basename(l))
+    .sort();
+}
+
+function stageRepoBlob(commit, repoPath, stageRoot) {
+  const blob = readRepoBlobOrThrow(commit, repoPath);
+  const rel = normalizeRepoPath(repoPath);
+  const dest = path.join(stageRoot, ...rel.split("/"));
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, blob.bytes);
+  return {
+    absPath: dest,
+    repoPath: rel,
+    bytes: blob.bytes,
+    sha256: blob.sha256,
+    gitBlobId: blob.gitBlobId,
+    byteLength: blob.byteLength,
+  };
 }
 
 function ensureCleanAssembledDir() {
   fs.mkdirSync(path.dirname(ASSEMBLED_DIR), { recursive: true });
   if (fs.existsSync(ASSEMBLED_DIR)) {
     for (const f of fs.readdirSync(ASSEMBLED_DIR)) {
-      if (f === "README.md" || f === ".gitignore") continue;
+      if (f === "README.md" || f === ".gitignore" || f === ".gitattributes") continue;
       try {
         fs.unlinkSync(path.join(ASSEMBLED_DIR, f));
       } catch (err) {
@@ -152,8 +220,10 @@ function ensureCleanAssembledDir() {
 }
 
 function writeAssembled(filename, content, meta) {
+  const buf = Buffer.isBuffer(content) ? content : Buffer.from(content);
   const outPath = path.join(ASSEMBLED_DIR, filename);
-  fs.writeFileSync(outPath, content);
+  fs.writeFileSync(outPath, buf);
+  const assembledSha256 = sha256Buffer(buf);
   return {
     order: meta.order,
     assembledFilename: filename,
@@ -161,14 +231,20 @@ function writeAssembled(filename, content, meta) {
     action: meta.action,
     originalSource: meta.originalSource || null,
     originalSha256: meta.originalSha256 || null,
+    originalGitBlobId: meta.originalGitBlobId || null,
     replacementSource: meta.replacementSource || null,
     replacementSha256: meta.replacementSha256 || null,
-    assembledSha256: sha256File(outPath),
+    replacementGitBlobId: meta.replacementGitBlobId || null,
+    assembledSha256,
+    assembledRepoPath: `${ASSEMBLED_REPO_DIR}/${filename}`,
+    sourceCommit: meta.sourceCommit || null,
     justification: meta.justification || null,
   };
 }
 
 function main() {
+  const assembleCommit = resolveAssembleCommit();
+  const analysisStage = fs.mkdtempSync(path.join(os.tmpdir(), "option-d-assemble-analyze-"));
   const baselineManifest = loadManifest();
   const baselineSources = new Set(orderedFilesFromPhases(baselineManifest));
   for (const ex of baselineManifest.excludeFiles || []) {
@@ -184,19 +260,17 @@ function main() {
 
   // 0a) Derived public.users baseline (schema/security only — not recovered original)
   {
-    if (!fs.existsSync(PUBLIC_USERS_DERIVED)) {
-      console.error("FAIL: missing derived public.users baseline", PUBLIC_USERS_DERIVED);
-      process.exit(1);
-    }
-    const content = fs.readFileSync(PUBLIC_USERS_DERIVED);
+    const staged = stageRepoBlob(assembleCommit, PUBLIC_USERS_DERIVED_REPO, analysisStage);
     order += 1;
     entries.push(
-      writeAssembled("20260701043598_public_users_derived_baseline.sql", content, {
+      writeAssembled("20260701043598_public_users_derived_baseline.sql", staged.bytes, {
         order,
         role: "derived_baseline_public_users",
         action: "include",
-        originalSource: path.relative(ROOT, PUBLIC_USERS_DERIVED).replace(/\\/g, "/"),
-        originalSha256: sha256File(PUBLIC_USERS_DERIVED),
+        originalSource: PUBLIC_USERS_DERIVED_REPO,
+        originalSha256: staged.sha256,
+        originalGitBlobId: staged.gitBlobId,
+        sourceCommit: assembleCommit,
         justification:
           "Schema/security-only derived baseline for public.users; original CREATE unavailable in git/statements[].",
       }),
@@ -205,15 +279,17 @@ function main() {
 
   // 0b) Foundations baseline
   {
-    const content = fs.readFileSync(BASELINE);
+    const staged = stageRepoBlob(assembleCommit, BASELINE_REPO, analysisStage);
     order += 1;
     entries.push(
-      writeAssembled("20260701043599_foundations_baseline.sql", content, {
+      writeAssembled("20260701043599_foundations_baseline.sql", staged.bytes, {
         order,
         role: "foundations_baseline",
         action: "include",
-        originalSource: path.relative(ROOT, BASELINE).replace(/\\/g, "/"),
-        originalSha256: sha256File(BASELINE),
+        originalSource: BASELINE_REPO,
+        originalSha256: staged.sha256,
+        originalGitBlobId: staged.gitBlobId,
+        sourceCommit: assembleCommit,
         justification: "Reviewed hardened baseline covering pre-phase1 foundation DDL.",
       }),
     );
@@ -221,26 +297,25 @@ function main() {
 
   // 1–4) Phase1 recovered production history
   for (const file of PHASE1_FILES) {
-    const src = path.join(PHASE1_DIR, file);
-    const content = fs.readFileSync(src);
+    const repoPath = `${PHASE1_REPO_DIR}/${file}`;
+    const staged = stageRepoBlob(assembleCommit, repoPath, analysisStage);
     order += 1;
     entries.push(
-      writeAssembled(file, content, {
+      writeAssembled(file, staged.bytes, {
         order,
         role: "phase1_recovered",
         action: "include",
-        originalSource: path.relative(ROOT, src).replace(/\\/g, "/"),
-        originalSha256: sha256File(src),
+        originalSource: repoPath,
+        originalSha256: staged.sha256,
+        originalGitBlobId: staged.gitBlobId,
+        sourceCommit: assembleCommit,
         justification: "Recovered production phase1 SQL (subscriptions + RLS).",
       }),
     );
   }
 
   // Post-baseline local migrations: dependency order (NOT filename-only sort)
-  const localFilesLex = fs
-    .readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
+  const localFilesLex = listGitSqlBasenames(assembleCommit, "supabase/migrations");
 
   const skippedCoveredByBaseline = [];
   const postCandidates = [];
@@ -255,16 +330,34 @@ function main() {
       continue;
     }
 
-    const originalPath = path.join(MIGRATIONS_DIR, file);
+    const originalRepo = `supabase/migrations/${file}`;
     const substMeta = SUBSTITUTIONS[file];
-    const substPath = substMeta ? path.join(SUBST_DIR, file) : null;
-    if (substMeta && !fs.existsSync(substPath)) {
-      console.error(`Missing substitution file: ${substPath}`);
+    const substRepo = substMeta ? `${SUBST_REPO_DIR}/${file}` : null;
+    if (substMeta && !gitBlobExists(assembleCommit, substRepo)) {
+      console.error(`Missing substitution git blob: ${assembleCommit}:${substRepo}`);
       process.exit(1);
     }
-    // Analyze/assemble from the content that will actually be applied (substitution if any)
-    const absPath = substMeta ? substPath : originalPath;
-    postCandidates.push({ filename: file, absPath, originalPath, substMeta, substPath, role: "post_phase1_local" });
+    const applyRepo = substMeta ? substRepo : originalRepo;
+    const stagedApply = stageRepoBlob(assembleCommit, applyRepo, analysisStage);
+    const stagedOriginal = substMeta
+      ? stageRepoBlob(assembleCommit, originalRepo, analysisStage)
+      : stagedApply;
+    postCandidates.push({
+      filename: file,
+      absPath: stagedApply.absPath,
+      originalPath: stagedOriginal.absPath,
+      originalRepo,
+      originalSha256: stagedOriginal.sha256,
+      originalGitBlobId: stagedOriginal.gitBlobId,
+      substMeta,
+      substPath: substMeta ? stagedApply.absPath : null,
+      substRepo,
+      replacementBytes: substMeta ? stagedApply.bytes : null,
+      replacementSha256: substMeta ? stagedApply.sha256 : null,
+      replacementGitBlobId: substMeta ? stagedApply.gitBlobId : null,
+      applyBytes: stagedApply.bytes,
+      role: "post_phase1_local",
+    });
   }
 
   for (const file of RECOVERED_REQUIRED_ORIGINALS) {
@@ -272,17 +365,26 @@ function main() {
       console.error(`FAIL: recovered original collides with local candidate filename: ${file}`);
       process.exit(1);
     }
-    const src = path.join(PHASE1_DIR, file);
-    if (!fs.existsSync(src)) {
-      console.error(`Missing recovered original: ${src}`);
+    const repoPath = `${PHASE1_REPO_DIR}/${file}`;
+    if (!gitBlobExists(assembleCommit, repoPath)) {
+      console.error(`Missing recovered original git blob: ${assembleCommit}:${repoPath}`);
       process.exit(1);
     }
+    const staged = stageRepoBlob(assembleCommit, repoPath, analysisStage);
     postCandidates.push({
       filename: file,
-      absPath: src,
-      originalPath: src,
+      absPath: staged.absPath,
+      originalPath: staged.absPath,
+      originalRepo: repoPath,
+      originalSha256: staged.sha256,
+      originalGitBlobId: staged.gitBlobId,
       substMeta: null,
       substPath: null,
+      substRepo: null,
+      replacementBytes: null,
+      replacementSha256: null,
+      replacementGitBlobId: null,
+      applyBytes: staged.bytes,
       role: "recovered_production_original",
     });
   }
@@ -295,12 +397,13 @@ function main() {
   const knownProvidedTables = new Set();
   const knownProvidedFunctions = new Set();
   const knownProvidedColumns = new Set();
-  for (const abs of [
-    PUBLIC_USERS_DERIVED,
-    BASELINE,
-    ...PHASE1_FILES.map((f) => path.join(PHASE1_DIR, f)),
+  for (const repoPath of [
+    PUBLIC_USERS_DERIVED_REPO,
+    BASELINE_REPO,
+    ...PHASE1_FILES.map((f) => `${PHASE1_REPO_DIR}/${f}`),
   ]) {
-    const a = analyzeMigrationFile(abs);
+    const staged = stageRepoBlob(assembleCommit, repoPath, analysisStage);
+    const a = analyzeMigrationFile(staged.absPath);
     for (const t of a.creates.tables || []) knownProvidedTables.add(t);
     for (const id of a.creates.functionIdentities || []) knownProvidedFunctions.add(id);
     for (const id of a.creates.columnIdentities || []) knownProvidedColumns.add(id);
@@ -391,31 +494,33 @@ function main() {
       console.error(`FAIL: ordered file missing from candidates: ${file}`);
       process.exit(1);
     }
-    const originalSha = sha256File(c.originalPath);
     order += 1;
     if (c.substMeta) {
-      const replacement = fs.readFileSync(c.substPath);
       entries.push(
-        writeAssembled(file, replacement, {
+        writeAssembled(file, c.replacementBytes, {
           order,
           role: "post_phase1_local",
           action: c.substMeta.action,
-          originalSource: path.relative(ROOT, c.originalPath).replace(/\\/g, "/"),
-          originalSha256: originalSha,
-          replacementSource: path.relative(ROOT, c.substPath).replace(/\\/g, "/"),
-          replacementSha256: sha256Text(replacement.toString("utf8")),
+          originalSource: c.originalRepo,
+          originalSha256: c.originalSha256,
+          originalGitBlobId: c.originalGitBlobId,
+          replacementSource: c.substRepo,
+          replacementSha256: c.replacementSha256,
+          replacementGitBlobId: c.replacementGitBlobId,
+          sourceCommit: assembleCommit,
           justification: c.substMeta.justification,
         }),
       );
     } else {
-      const content = fs.readFileSync(c.originalPath);
       entries.push(
-        writeAssembled(file, content, {
+        writeAssembled(file, c.applyBytes, {
           order,
           role: c.role || "post_phase1_local",
           action: "include",
-          originalSource: path.relative(ROOT, c.originalPath).replace(/\\/g, "/"),
-          originalSha256: originalSha,
+          originalSource: c.originalRepo,
+          originalSha256: c.originalSha256,
+          originalGitBlobId: c.originalGitBlobId,
+          sourceCommit: assembleCommit,
           justification:
             c.role === "recovered_production_original"
               ? "Recovered production original (statements[] preserved). Not an active supabase/migrations/ file."
@@ -461,7 +566,12 @@ function main() {
   const actualSubst = substitutionEntries.map((e) => e.assembledFilename).sort();
 
   const manifest = {
-    generatedAt: new Date().toISOString(),
+    generatedAt: committerIsoDate(assembleCommit),
+    assembleAuthority: {
+      kind: "git_cat_file_blob",
+      sourceCommit: assembleCommit,
+      note: "Per-entry hashes and assembled SQL bytes are derived exclusively from git cat-file blob at sourceCommit; working-tree smudge is not authority.",
+    },
     mechanism: "option_d_isolated_git_replay",
     status: "CANDIDATE_LINEAGE_ASSEMBLED",
     notMergeApproval: true,
@@ -469,7 +579,7 @@ function main() {
     activeMigrationsUnchanged: true,
     productionDashboardReplayParity: "unresolved",
     pr312HeadRequiredUnchanged: "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
-    assembledDir: path.relative(ROOT, ASSEMBLED_DIR).replace(/\\/g, "/"),
+    assembledDir: ASSEMBLED_REPO_DIR,
     ordering: {
       policy: depResult.changelog.policy,
       fixedPrefix: prefixFiles,
@@ -656,6 +766,7 @@ function main() {
         appRelationDepsOk: appRelEval.ok,
         publicUsersMissingCreator: appRelEval.publicUsersMissingCreator,
         requiredRuleIds: seedEval.requiredRuleIds.length,
+        assembleCommit,
         manifest: path.relative(ROOT, MANIFEST_OUT).replace(/\\/g, "/"),
         assembledDir: path.relative(ROOT, ASSEMBLED_DIR).replace(/\\/g, "/"),
       },
@@ -663,6 +774,12 @@ function main() {
       2,
     ),
   );
+
+  try {
+    fs.rmSync(analysisStage, { recursive: true, force: true });
+  } catch {
+    /* best-effort */
+  }
 }
 
 withAssembleLock(main);

@@ -42,7 +42,7 @@ describe("Option D public.users derived baseline", () => {
     expect(result.derivationComplete).toBe(true);
     expect(result.unresolvedCount).toBe(0);
     expect(result.derivedSqlSha256).toBe(
-      "14f67dd2b70300ab058a7635bd265f75847e6ca7a24d3087358844f102c71850",
+      "961810f4d1a73c96c0d98e69fdb0b90d4f8824029f94edf7cca479786e93c0a7",
     );
   });
 

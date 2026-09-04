@@ -321,6 +321,12 @@ function loadAuthorizedManifestFromGit(opts = {}) {
 }
 
 function resolveEntrySourcePath(entry) {
+  if (entry.assembledRepoPath) return normalizeRepoPath(entry.assembledRepoPath);
+  if (entry.assembledFilename) {
+    return normalizeRepoPath(
+      `supabase/migrations-draft/option-d-isolated-replay/assembled/${entry.assembledFilename}`,
+    );
+  }
   if (entry.replacementSource) return normalizeRepoPath(entry.replacementSource);
   if (entry.originalSource) return normalizeRepoPath(entry.originalSource);
   return null;
@@ -456,6 +462,72 @@ function materializeAuthorizedSqlFromGit(opts = {}) {
         manifestAssembledSha256: expectedSha,
       });
       continue;
+    }
+
+    // Cross-check original / replacement source blobs when recorded.
+    for (const side of [
+      {
+        pathKey: "originalSource",
+        shaKey: "originalSha256",
+        rule: "original_blob_sha256_mismatch_vs_manifest",
+      },
+      {
+        pathKey: "replacementSource",
+        shaKey: "replacementSha256",
+        rule: "replacement_blob_sha256_mismatch_vs_manifest",
+      },
+    ]) {
+      const sidePath = entry[side.pathKey];
+      const sideSha = entry[side.shaKey];
+      if (!sidePath && !sideSha) continue;
+      if (!sidePath || !sideSha) {
+        failures.push({
+          rule: "entry_source_hash_incomplete",
+          order: entry.order,
+          assembledFilename,
+          pathKey: side.pathKey,
+        });
+        continue;
+      }
+      const sideNorm = normalizeRepoPath(sidePath);
+      const sideCheck = assertSafeAuthorizedRepoPath(sideNorm, {
+        requireOnDiskNotSymlink: true,
+        root: opts.cwd || ROOT,
+      });
+      if (!sideCheck.ok) {
+        failures.push(
+          ...sideCheck.failures.map((f) => ({
+            ...f,
+            order: entry.order,
+            assembledFilename,
+          })),
+        );
+        continue;
+      }
+      const sideBlob = readGitBlobAtCommit(authorizedCommit, sideCheck.normalized, {
+        cwd: opts.cwd || ROOT,
+      });
+      if (!sideBlob.ok) {
+        failures.push(
+          ...sideBlob.failures.map((f) => ({
+            ...f,
+            order: entry.order,
+            assembledFilename,
+            pathKey: side.pathKey,
+          })),
+        );
+        continue;
+      }
+      if (sideBlob.sha256 !== String(sideSha).toLowerCase()) {
+        failures.push({
+          rule: side.rule,
+          order: entry.order,
+          assembledFilename,
+          path: sideCheck.normalized,
+          gitBlobSha256: sideBlob.sha256,
+          manifestSha256: String(sideSha).toLowerCase(),
+        });
+      }
     }
 
     const tempFile = path.join(assembledOut, assembledFilename);
