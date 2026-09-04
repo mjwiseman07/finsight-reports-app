@@ -96,6 +96,26 @@ describe("Option D dependency ordering", () => {
     expect(renameOrder).toBeLessThan(entitlementsOrder);
     expect(pilotOrder).toBeLessThan(lifecycleOrder);
 
+    const part1Order = manifest.entries.find(
+      (e: { assembledFilename: string }) =>
+        e.assembledFilename === "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    )?.order;
+    const part2Order = manifest.entries.find(
+      (e: { assembledFilename: string }) =>
+        e.assembledFilename === "20260707130000_d_assertions_part_2_coverage_projection.sql",
+    )?.order;
+    const part3Order = manifest.entries.find(
+      (e: { assembledFilename: string }) =>
+        e.assembledFilename === "20260707140000_d_assertions_part_3_coverage_statement.sql",
+    )?.order;
+    const part6Order = manifest.entries.find(
+      (e: { assembledFilename: string }) =>
+        e.assembledFilename === "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+    )?.order;
+    expect(part1Order).toBeLessThan(part2Order);
+    expect(part2Order).toBeLessThan(part3Order);
+    expect(part3Order).toBeLessThan(part6Order);
+
     // Source hashes preserved on entries
     for (const e of manifest.entries) {
       expect(e.originalSha256 || e.assembledSha256).toBeTruthy();

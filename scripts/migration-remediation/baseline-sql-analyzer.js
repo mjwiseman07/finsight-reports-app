@@ -12,6 +12,7 @@ const {
   attachColumnIdentities,
   isSafeConditionalColumnRef,
 } = require("./option-d-column-identity");
+const { attachProceduralPrerequisites } = require("./option-d-procedural-prerequisites");
 
 const MANIFEST_PATH = path.join(
   __dirname,
@@ -399,6 +400,7 @@ function analyzeStatement(stmt) {
   const result = analyzeStatementCore(stmt);
   attachFunctionIdentities(stmt, result);
   attachColumnIdentities(stmt, result);
+  attachProceduralPrerequisites(stmt, result);
   for (const id of result.consumes.columnIdentities || []) {
     if (isSafeConditionalColumnRef(stmt, id)) {
       result.consumes.conditionalColumnIdentities =
@@ -422,6 +424,7 @@ function analyzeSql(sql) {
       types: new Set(),
       functionIdentities: new Set(),
       columnIdentities: new Set(),
+      constraints: new Set(),
     },
     consumes: {
       extensions: new Set(),
@@ -432,7 +435,10 @@ function analyzeSql(sql) {
       conditionalFunctionIdentities: new Set(),
       columnIdentities: new Set(),
       conditionalColumnIdentities: new Set(),
+      requiredPrerequisiteTables: new Set(),
+      requiredPrerequisiteConstraints: new Set(),
     },
+    proceduralFindings: [],
     byKind: {},
   };
 
@@ -455,6 +461,14 @@ function analyzeSql(sql) {
     for (const id of a.consumes.conditionalColumnIdentities || []) {
       agg.consumes.conditionalColumnIdentities.add(id);
     }
+    for (const id of a.creates.constraints || []) agg.creates.constraints.add(id);
+    for (const id of a.consumes.requiredPrerequisiteTables || []) {
+      agg.consumes.requiredPrerequisiteTables.add(id);
+    }
+    for (const id of a.consumes.requiredPrerequisiteConstraints || []) {
+      agg.consumes.requiredPrerequisiteConstraints.add(id);
+    }
+    for (const f of a.proceduralFindings || []) agg.proceduralFindings.push(f);
   }
 
   return {
@@ -465,6 +479,7 @@ function analyzeSql(sql) {
     consumes: Object.fromEntries(
       Object.entries(agg.consumes).map(([k, s]) => [k, [...s].sort()]),
     ),
+    proceduralFindings: agg.proceduralFindings,
     byKind: agg.byKind,
   };
 }

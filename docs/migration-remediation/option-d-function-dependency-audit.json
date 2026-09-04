@@ -415,7 +415,7 @@
         {
           "file": "20260710_00_d3_memory_indexes.sql",
           "role": "post_phase1_local",
-          "order": 41
+          "order": 39
         }
       ]
     },
@@ -465,7 +465,7 @@
         {
           "file": "20260707_03_close_packet_share.sql",
           "role": "post_phase1_local",
-          "order": 16
+          "order": 15
         }
       ]
     },
@@ -475,7 +475,7 @@
         {
           "file": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
           "role": "post_phase1_local",
-          "order": 17
+          "order": 16
         }
       ]
     },
@@ -485,7 +485,7 @@
         {
           "file": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
           "role": "post_phase1_local",
-          "order": 17
+          "order": 16
         }
       ]
     },
@@ -495,7 +495,7 @@
         {
           "file": "20260709_00_d2_safe_je_posting.sql",
           "role": "post_phase1_local",
-          "order": 31
+          "order": 30
         }
       ]
     },
@@ -505,7 +505,7 @@
         {
           "file": "20260709_00_d2_safe_je_posting.sql",
           "role": "post_phase1_local",
-          "order": 31
+          "order": 30
         }
       ]
     },
@@ -515,7 +515,7 @@
         {
           "file": "20260706120000_d_platform_event_sourced_foundation.sql",
           "role": "post_phase1_local",
-          "order": 33
+          "order": 32
         }
       ]
     },
@@ -525,7 +525,7 @@
         {
           "file": "20260706120000_d_platform_event_sourced_foundation.sql",
           "role": "post_phase1_local",
-          "order": 33
+          "order": 32
         }
       ]
     },
@@ -535,7 +535,7 @@
         {
           "file": "20260706130000_d_entitlements.sql",
           "role": "post_phase1_local",
-          "order": 34
+          "order": 33
         }
       ]
     },
@@ -545,7 +545,7 @@
         {
           "file": "20260706130000_d_entitlements.sql",
           "role": "post_phase1_local",
-          "order": 34
+          "order": 33
         }
       ]
     },
@@ -555,17 +555,7 @@
         {
           "file": "20260707000000_d6_5_part1_universal_intake.sql",
           "role": "post_phase1_local",
-          "order": 36
-        }
-      ]
-    },
-    {
-      "identity": "public.close_gap_review_items_touch_updated_at()",
-      "files": [
-        {
-          "file": "20260707160000_d_assertions_part_5_gap_review_items.sql",
-          "role": "post_phase1_local",
-          "order": 39
+          "order": 35
         }
       ]
     },
@@ -575,7 +565,7 @@
         {
           "file": "20260710_00_d3_memory_indexes.sql",
           "role": "post_phase1_local",
-          "order": 41
+          "order": 39
         }
       ]
     },
@@ -585,7 +575,7 @@
         {
           "file": "20260713_00_d4_uncategorized_proposals.sql",
           "role": "post_phase1_local",
-          "order": 42
+          "order": 40
         }
       ]
     },
@@ -595,7 +585,7 @@
         {
           "file": "20260713_00_d4_uncategorized_proposals.sql",
           "role": "post_phase1_local",
-          "order": 42
+          "order": 40
         }
       ]
     },
@@ -605,7 +595,7 @@
         {
           "file": "20260714_00_d5_recurring_templates.sql",
           "role": "post_phase1_local",
-          "order": 43
+          "order": 41
         }
       ]
     },
@@ -615,7 +605,7 @@
         {
           "file": "20260714_00_d5_recurring_templates.sql",
           "role": "post_phase1_local",
-          "order": 43
+          "order": 41
         }
       ]
     },
@@ -625,7 +615,7 @@
         {
           "file": "20260714_00_d5_recurring_templates.sql",
           "role": "post_phase1_local",
-          "order": 43
+          "order": 41
         }
       ]
     },
@@ -635,7 +625,7 @@
         {
           "file": "20260703_1200_d6_0_vertical_rule_foundation.sql",
           "role": "post_phase1_local",
-          "order": 44
+          "order": 42
         }
       ]
     },
@@ -645,7 +635,7 @@
         {
           "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
           "role": "post_phase1_local",
-          "order": 46
+          "order": 44
         }
       ]
     },
@@ -655,12 +645,12 @@
         {
           "file": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
           "role": "post_phase1_local",
-          "order": 46
+          "order": 44
         },
         {
           "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
           "role": "post_phase1_local",
-          "order": 47
+          "order": 45
         }
       ]
     },
@@ -670,7 +660,7 @@
         {
           "file": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
           "role": "post_phase1_local",
-          "order": 47
+          "order": 45
         }
       ]
     },
@@ -680,7 +670,17 @@
         {
           "file": "20260707150000_d_assertions_part_4_je_propagation.sql",
           "role": "post_phase1_local",
-          "order": 49
+          "order": 47
+        }
+      ]
+    },
+    {
+      "identity": "public.close_gap_review_items_touch_updated_at()",
+      "files": [
+        {
+          "file": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+          "role": "post_phase1_local",
+          "order": 48
         }
       ]
     },

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T00:53:28.559Z",
+  "generatedAt": "2026-09-04T01:17:33.868Z",
   "mechanism": "option_d_isolated_git_replay",
   "status": "CANDIDATE_LINEAGE_ASSEMBLED",
   "notMergeApproval": true,
@@ -30,7 +30,6 @@
       "20260703_01_create_checklist_system.sql",
       "20260704024059_d_entitlements_legacy_stripe_rename.sql",
       "20260707_create_close_packet_system.sql",
-      "20260707140000_d_assertions_part_3_coverage_statement.sql",
       "20260707_01_variance_config_unique.sql",
       "20260707_02_section_manual_edit_flag.sql",
       "20260707_03_close_packet_share.sql",
@@ -56,8 +55,7 @@
       "20260707000000_d6_5_part1_universal_intake.sql",
       "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
       "20260707130000_d_assertions_part_2_coverage_projection.sql",
-      "20260707160000_d_assertions_part_5_gap_review_items.sql",
-      "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+      "20260707140000_d_assertions_part_3_coverage_statement.sql",
       "20260710_00_d3_memory_indexes.sql",
       "20260713_00_d4_uncategorized_proposals.sql",
       "20260714_00_d5_recurring_templates.sql",
@@ -67,6 +65,8 @@
       "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
       "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
       "20260707150000_d_assertions_part_4_je_propagation.sql",
+      "20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
       "20260715180000_mfa_enrollment.sql",
       "20260715190000_mfa_webauthn_and_trusted_devices.sql",
       "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
@@ -319,7 +319,7 @@
       "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
       "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
     ],
-    "movedCount": 46,
+    "movedCount": 45,
     "recurringFiresRegression": {
       "createdBy": "20260714_00_d5_recurring_templates.sql",
       "requiredBy": "20260703_1200_d6_0_vertical_rule_foundation.sql",
@@ -327,8 +327,8 @@
       "regression": "Filename order places d6_0 before d5; ALTER/FK on recurring_fires fails with 42P01.",
       "dependencyOrderSatisfied": true,
       "dependencyOrderIndex": {
-        "d5": 43,
-        "d6_0": 44
+        "d5": 41,
+        "d6_0": 42
       }
     },
     "unresolvedDependencyCount": 1,
@@ -422,7 +422,7 @@
       "justification": "Unconditional client_active_rules VALUES insert fails FK on data-less branch; guarded via firm_clients SELECT.",
       "originalSha256": "5d99bc3ddf1a59eee0416ac9ed358db2766186527b96cf39e2c46aa00fd1e5e5",
       "replacementSha256": "44eaae548c9b046012a02f59eaa447c8e949fd8a6ab3c3d4c6f0832a1558fa72",
-      "order": 22
+      "order": 21
     },
     {
       "filename": "20260703_2200_d6_2b_mfg_activation.sql",
@@ -430,7 +430,7 @@
       "justification": "Registry UPDATE retained; client_active_rules INSERT guarded via firm_clients.",
       "originalSha256": "400196a1802e91ae69ae73e1bdff08eb8558d287d7899d133af5bd10555b9ec5",
       "replacementSha256": "04e00705b7ddcc292912670d3a66f82d50da2175fcb6911894b0950b55ec2c5d",
-      "order": 23
+      "order": 22
     },
     {
       "filename": "20260703_2300_d6_2c_retail_activation.sql",
@@ -438,7 +438,7 @@
       "justification": "Registry UPDATE retained; client_active_rules INSERT guarded via firm_clients.",
       "originalSha256": "b75f703b8e6a7f4bb35035a62ec15f3f6cf21051ee5da4367321748c2731751d",
       "replacementSha256": "7d09182fed063932b3048ba9ea4c57573646f3b56a03a47985eb6e10055a78a4",
-      "order": 24
+      "order": 23
     },
     {
       "filename": "20260703_2400_d6_2d_ps_activation.sql",
@@ -446,7 +446,7 @@
       "justification": "Registry UPDATE retained; client_active_rules INSERT guarded via firm_clients.",
       "originalSha256": "e9d5d88a4191088dffef7745cf0b89098e4a64a66743b29f52f19a2c3c5c76e0",
       "replacementSha256": "928e9ca343292f5e9b8d618648bbdf73cc05401f3752a196b9c60bd01d4e80a1",
-      "order": 25
+      "order": 24
     },
     {
       "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
@@ -454,7 +454,7 @@
       "justification": "Schema/RLS/function retained; complimentary pilot_slots seed guarded via companies existence.",
       "originalSha256": "26c836dd0ce5ba6e1df8fedfd99e4d7cbfffd8c666201a603044cfae67756c42",
       "replacementSha256": "794b6916ebd1ec937b0263f8abc8ff18360df14067a053cb976463b376ba1cc4",
-      "order": 17
+      "order": 16
     },
     {
       "filename": "20260814221500_accounting_canonical_connected_grant.sql",
@@ -649,18 +649,6 @@
     },
     {
       "order": 13,
-      "assembledFilename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
-      "role": "post_phase1_local",
-      "action": "include",
-      "originalSource": "supabase/migrations/20260707140000_d_assertions_part_3_coverage_statement.sql",
-      "originalSha256": "0a3b3cb96a4c59f76e87af464d8d343d1839c639f0cd6c3af77583c3b188d115",
-      "replacementSource": null,
-      "replacementSha256": null,
-      "assembledSha256": "0a3b3cb96a4c59f76e87af464d8d343d1839c639f0cd6c3af77583c3b188d115",
-      "justification": null
-    },
-    {
-      "order": 14,
       "assembledFilename": "20260707_01_variance_config_unique.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -672,7 +660,7 @@
       "justification": null
     },
     {
-      "order": 15,
+      "order": 14,
       "assembledFilename": "20260707_02_section_manual_edit_flag.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -684,7 +672,7 @@
       "justification": null
     },
     {
-      "order": 16,
+      "order": 15,
       "assembledFilename": "20260707_03_close_packet_share.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -696,7 +684,7 @@
       "justification": null
     },
     {
-      "order": 17,
+      "order": 16,
       "assembledFilename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
       "role": "post_phase1_local",
       "action": "substitute",
@@ -708,7 +696,7 @@
       "justification": "Schema/RLS/function retained; complimentary pilot_slots seed guarded via companies existence."
     },
     {
-      "order": 18,
+      "order": 17,
       "assembledFilename": "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -720,7 +708,7 @@
       "justification": null
     },
     {
-      "order": 19,
+      "order": 18,
       "assembledFilename": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -732,7 +720,7 @@
       "justification": null
     },
     {
-      "order": 20,
+      "order": 19,
       "assembledFilename": "20260708200000_tcp1_w1_seat_idempotency.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -744,7 +732,7 @@
       "justification": null
     },
     {
-      "order": 21,
+      "order": 20,
       "assembledFilename": "20260708_00_d0_identity_and_memory_activation.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -756,7 +744,7 @@
       "justification": null
     },
     {
-      "order": 22,
+      "order": 21,
       "assembledFilename": "20260703_2000_d6_2a_test_client_activation.sql",
       "role": "post_phase1_local",
       "action": "substitute",
@@ -768,7 +756,7 @@
       "justification": "Unconditional client_active_rules VALUES insert fails FK on data-less branch; guarded via firm_clients SELECT."
     },
     {
-      "order": 23,
+      "order": 22,
       "assembledFilename": "20260703_2200_d6_2b_mfg_activation.sql",
       "role": "post_phase1_local",
       "action": "substitute",
@@ -780,7 +768,7 @@
       "justification": "Registry UPDATE retained; client_active_rules INSERT guarded via firm_clients."
     },
     {
-      "order": 24,
+      "order": 23,
       "assembledFilename": "20260703_2300_d6_2c_retail_activation.sql",
       "role": "post_phase1_local",
       "action": "substitute",
@@ -792,7 +780,7 @@
       "justification": "Registry UPDATE retained; client_active_rules INSERT guarded via firm_clients."
     },
     {
-      "order": 25,
+      "order": 24,
       "assembledFilename": "20260703_2400_d6_2d_ps_activation.sql",
       "role": "post_phase1_local",
       "action": "substitute",
@@ -804,7 +792,7 @@
       "justification": "Registry UPDATE retained; client_active_rules INSERT guarded via firm_clients."
     },
     {
-      "order": 26,
+      "order": 25,
       "assembledFilename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -816,7 +804,7 @@
       "justification": null
     },
     {
-      "order": 27,
+      "order": 26,
       "assembledFilename": "20260706_d67_p2_layer2_layer4.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -828,7 +816,7 @@
       "justification": null
     },
     {
-      "order": 28,
+      "order": 27,
       "assembledFilename": "20260708_01_d1_qbo_write_readiness.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -840,7 +828,7 @@
       "justification": null
     },
     {
-      "order": 29,
+      "order": 28,
       "assembledFilename": "20260708_02_d1_1_owner_user_id_backfill.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -852,7 +840,7 @@
       "justification": null
     },
     {
-      "order": 30,
+      "order": 29,
       "assembledFilename": "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -864,7 +852,7 @@
       "justification": null
     },
     {
-      "order": 31,
+      "order": 30,
       "assembledFilename": "20260709_00_d2_safe_je_posting.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -876,7 +864,7 @@
       "justification": null
     },
     {
-      "order": 32,
+      "order": 31,
       "assembledFilename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -888,7 +876,7 @@
       "justification": null
     },
     {
-      "order": 33,
+      "order": 32,
       "assembledFilename": "20260706120000_d_platform_event_sourced_foundation.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -900,7 +888,7 @@
       "justification": null
     },
     {
-      "order": 34,
+      "order": 33,
       "assembledFilename": "20260706130000_d_entitlements.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -912,7 +900,7 @@
       "justification": null
     },
     {
-      "order": 35,
+      "order": 34,
       "assembledFilename": "20260706140000_d_entitlements_followup.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -924,7 +912,7 @@
       "justification": null
     },
     {
-      "order": 36,
+      "order": 35,
       "assembledFilename": "20260707000000_d6_5_part1_universal_intake.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -936,7 +924,7 @@
       "justification": null
     },
     {
-      "order": 37,
+      "order": 36,
       "assembledFilename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -948,7 +936,7 @@
       "justification": null
     },
     {
-      "order": 38,
+      "order": 37,
       "assembledFilename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -960,31 +948,19 @@
       "justification": null
     },
     {
+      "order": 38,
+      "assembledFilename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "role": "post_phase1_local",
+      "action": "include",
+      "originalSource": "supabase/migrations/20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "originalSha256": "0a3b3cb96a4c59f76e87af464d8d343d1839c639f0cd6c3af77583c3b188d115",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "0a3b3cb96a4c59f76e87af464d8d343d1839c639f0cd6c3af77583c3b188d115",
+      "justification": null
+    },
+    {
       "order": 39,
-      "assembledFilename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
-      "role": "post_phase1_local",
-      "action": "include",
-      "originalSource": "supabase/migrations/20260707160000_d_assertions_part_5_gap_review_items.sql",
-      "originalSha256": "c557a9185724099d8a8bfcce7377d32ac61968b0f179938a2aefdbd5da2152b5",
-      "replacementSource": null,
-      "replacementSha256": null,
-      "assembledSha256": "c557a9185724099d8a8bfcce7377d32ac61968b0f179938a2aefdbd5da2152b5",
-      "justification": null
-    },
-    {
-      "order": 40,
-      "assembledFilename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
-      "role": "post_phase1_local",
-      "action": "include",
-      "originalSource": "supabase/migrations/20260707170000_d_assertions_part_6_manual_test_evidence.sql",
-      "originalSha256": "d161c4015948a40713a3c757e86319b7dce5e2a01abedf73db4e55f0be429d61",
-      "replacementSource": null,
-      "replacementSha256": null,
-      "assembledSha256": "d161c4015948a40713a3c757e86319b7dce5e2a01abedf73db4e55f0be429d61",
-      "justification": null
-    },
-    {
-      "order": 41,
       "assembledFilename": "20260710_00_d3_memory_indexes.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -996,7 +972,7 @@
       "justification": null
     },
     {
-      "order": 42,
+      "order": 40,
       "assembledFilename": "20260713_00_d4_uncategorized_proposals.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1008,7 +984,7 @@
       "justification": null
     },
     {
-      "order": 43,
+      "order": 41,
       "assembledFilename": "20260714_00_d5_recurring_templates.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1020,7 +996,7 @@
       "justification": null
     },
     {
-      "order": 44,
+      "order": 42,
       "assembledFilename": "20260703_1200_d6_0_vertical_rule_foundation.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1032,7 +1008,7 @@
       "justification": null
     },
     {
-      "order": 45,
+      "order": 43,
       "assembledFilename": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1044,7 +1020,7 @@
       "justification": null
     },
     {
-      "order": 46,
+      "order": 44,
       "assembledFilename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1056,7 +1032,7 @@
       "justification": null
     },
     {
-      "order": 47,
+      "order": 45,
       "assembledFilename": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1068,7 +1044,7 @@
       "justification": null
     },
     {
-      "order": 48,
+      "order": 46,
       "assembledFilename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1080,7 +1056,7 @@
       "justification": null
     },
     {
-      "order": 49,
+      "order": 47,
       "assembledFilename": "20260707150000_d_assertions_part_4_je_propagation.sql",
       "role": "post_phase1_local",
       "action": "include",
@@ -1089,6 +1065,30 @@
       "replacementSource": null,
       "replacementSha256": null,
       "assembledSha256": "2e16e974ec06d6ee0209b0c98c8fed8b1f0e6051f81e3c319f3d0acdc4e76290",
+      "justification": null
+    },
+    {
+      "order": 48,
+      "assembledFilename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "role": "post_phase1_local",
+      "action": "include",
+      "originalSource": "supabase/migrations/20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "originalSha256": "c557a9185724099d8a8bfcce7377d32ac61968b0f179938a2aefdbd5da2152b5",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "c557a9185724099d8a8bfcce7377d32ac61968b0f179938a2aefdbd5da2152b5",
+      "justification": null
+    },
+    {
+      "order": 49,
+      "assembledFilename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+      "role": "post_phase1_local",
+      "action": "include",
+      "originalSource": "supabase/migrations/20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+      "originalSha256": "d161c4015948a40713a3c757e86319b7dce5e2a01abedf73db4e55f0be429d61",
+      "replacementSource": null,
+      "replacementSha256": null,
+      "assembledSha256": "d161c4015948a40713a3c757e86319b7dce5e2a01abedf73db4e55f0be429d61",
       "justification": null
     },
     {

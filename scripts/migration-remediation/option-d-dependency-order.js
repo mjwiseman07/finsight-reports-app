@@ -142,6 +142,7 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
   const mutators = new Map(); // table -> [files] create+alter
   const functionCreators = new Map(); // identity -> [files]
   const columnCreators = new Map(); // table.column -> [files]
+  const constraintCreators = new Map(); // constraint name -> [files]
 
   for (const c of candidates) {
     const analysis = analyzeMigrationFile(c.absPath);
@@ -163,6 +164,10 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
     for (const id of analysis.creates.columnIdentities || []) {
       if (!columnCreators.has(id)) columnCreators.set(id, []);
       columnCreators.get(id).push(c.filename);
+    }
+    for (const id of analysis.creates.constraints || []) {
+      if (!constraintCreators.has(id)) constraintCreators.set(id, []);
+      constraintCreators.get(id).push(c.filename);
     }
   }
 
@@ -251,6 +256,22 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
       if (earliest === c.filename) continue;
       addEdge(c.filename, earliest, `consume_column:${id}`);
     }
+    for (const id of analysis.consumes.requiredPrerequisiteConstraints || []) {
+      const creates = constraintCreators.get(id) || [];
+      if (creates.length === 0) continue;
+      const earliest = [...creates].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0];
+      if (earliest === c.filename) continue;
+      addEdge(c.filename, earliest, `procedural_requires_constraint:${id}`);
+    }
+    for (const id of analysis.consumes.requiredPrerequisiteTables || []) {
+      if (isExternalTable(id, depManifest, knownProvidedTables)) continue;
+      const creates = creators.get(id) || [];
+      if (creates.length === 0) continue;
+      for (const creator of creates) {
+        if (creator === c.filename) continue;
+        addEdge(c.filename, creator, `procedural_requires_table:${id}`);
+      }
+    }
   }
 
   // 3) Explicit dependsOn overrides
@@ -311,6 +332,19 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
         });
       }
     }
+    for (const id of analysis.consumes.requiredPrerequisiteConstraints || []) {
+      const creates = constraintCreators.get(id) || [];
+      if (creates.length === 0) {
+        unresolved.push({
+          file: c.filename,
+          missing: `constraint ${id}`,
+          kind: "constraint",
+          identity: id,
+          status: "unresolved_requires_review",
+          note: "Procedural RAISE requires this constraint; no ADD CONSTRAINT creator in the Option D candidate set.",
+        });
+      }
+    }
   }
 
   // Dedupe unresolved
@@ -329,6 +363,7 @@ function buildDependencyGraph(candidates, depManifest, options = {}) {
     mutators,
     functionCreators,
     columnCreators,
+    constraintCreators,
     dependsOn,
     edgeReasons,
     unresolved: unresolvedUnique,

@@ -155,6 +155,47 @@ function classifyUnresolvedOccurrences({
       u.kind === "function" || /^function\s+/i.test(String(u.missing || ""));
     const isColumn =
       u.kind === "column" || /^column\s+/i.test(String(u.missing || ""));
+    const isConstraint =
+      u.kind === "constraint" || /^constraint\s+/i.test(String(u.missing || ""));
+    if (isConstraint) {
+      const identity =
+        u.identity || String(u.missing || "").replace(/^constraint\s+/i, "").trim();
+      const creators = [...(graph.constraintCreators?.get(identity) || [])];
+      let classification = "required_missing_create";
+      let prerequisiteSource = "none_in_git_candidate_set";
+      let justifiedExclusion = false;
+      let dependencyEdge = null;
+      let rationale =
+        "Procedural RAISE requires this constraint (pg_constraint check); no ADD CONSTRAINT creator in the Option D candidate set.";
+      if (creators.length) {
+        classification = "rename_or_create_in_set";
+        prerequisiteSource = creators.join(", ");
+        dependencyEdge = {
+          from: u.file,
+          to: creators[0],
+          reason: `procedural_requires_constraint:${identity}`,
+        };
+        rationale =
+          "ADD CONSTRAINT in the candidate set supplies this name; procedural consumer must be ordered after that creator.";
+      }
+      classifications.push({
+        file: u.file,
+        missing: u.missing,
+        kind: "constraint",
+        identity,
+        table: null,
+        classification,
+        prerequisiteSource,
+        justifiedExclusion,
+        absentObjectGenuinelySafe: false,
+        dependencyEdge,
+        executesWhen: ["unconditional_on_apply"],
+        statements: [],
+        renameCreatorsInSet: [],
+        rationale,
+      });
+      continue;
+    }
     if (isColumn) {
       const identity = u.identity || String(u.missing || "").replace(/^column\s+/i, "").trim();
       const cand = byName.get(u.file);

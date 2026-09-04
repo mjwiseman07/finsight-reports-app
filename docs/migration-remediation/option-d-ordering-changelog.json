@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-04T00:53:28.249Z",
+  "generatedAt": "2026-09-04T01:17:33.557Z",
   "policy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "candidateCount": 144,
   "lexicographicOrder": [
@@ -166,7 +166,6 @@
     "20260703_01_create_checklist_system.sql",
     "20260704024059_d_entitlements_legacy_stripe_rename.sql",
     "20260707_create_close_packet_system.sql",
-    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260707_01_variance_config_unique.sql",
     "20260707_02_section_manual_edit_flag.sql",
     "20260707_03_close_packet_share.sql",
@@ -192,8 +191,7 @@
     "20260707000000_d6_5_part1_universal_intake.sql",
     "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
     "20260707130000_d_assertions_part_2_coverage_projection.sql",
-    "20260707160000_d_assertions_part_5_gap_review_items.sql",
-    "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260710_00_d3_memory_indexes.sql",
     "20260713_00_d4_uncategorized_proposals.sql",
     "20260714_00_d5_recurring_templates.sql",
@@ -203,6 +201,8 @@
     "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
     "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
     "20260707150000_d_assertions_part_4_je_propagation.sql",
+    "20260707160000_d_assertions_part_5_gap_review_items.sql",
+    "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
     "20260715180000_mfa_enrollment.sql",
     "20260715190000_mfa_webauthn_and_trusted_devices.sql",
     "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
@@ -304,19 +304,19 @@
     "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
   ],
-  "movedCount": 46,
+  "movedCount": 45,
   "moves": [
     {
       "filename": "20260703_1200_d6_0_vertical_rule_foundation.sql",
       "lexicographicOrder": 6,
-      "dependencyOrder": 39,
-      "delta": 33
+      "dependencyOrder": 37,
+      "delta": 31
     },
     {
       "filename": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
       "lexicographicOrder": 7,
-      "dependencyOrder": 40,
-      "delta": 33
+      "dependencyOrder": 38,
+      "delta": 31
     },
     {
       "filename": "20260707_create_close_packet_system.sql",
@@ -325,51 +325,51 @@
       "delta": -26
     },
     {
-      "filename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
-      "lexicographicOrder": 18,
-      "dependencyOrder": 41,
-      "delta": 23
-    },
-    {
-      "filename": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
-      "lexicographicOrder": 19,
-      "dependencyOrder": 42,
-      "delta": 23
-    },
-    {
-      "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
-      "lexicographicOrder": 20,
-      "dependencyOrder": 43,
-      "delta": 23
-    },
-    {
       "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
       "lexicographicOrder": 34,
-      "dependencyOrder": 12,
-      "delta": -22
+      "dependencyOrder": 11,
+      "delta": -23
     },
     {
       "filename": "20260708140000_tcp1_w1_pilot_slot_number_nullable.sql",
       "lexicographicOrder": 35,
-      "dependencyOrder": 13,
-      "delta": -22
+      "dependencyOrder": 12,
+      "delta": -23
     },
     {
       "filename": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
       "lexicographicOrder": 36,
-      "dependencyOrder": 14,
-      "delta": -22
+      "dependencyOrder": 13,
+      "delta": -23
     },
     {
       "filename": "20260708200000_tcp1_w1_seat_idempotency.sql",
       "lexicographicOrder": 37,
-      "dependencyOrder": 15,
-      "delta": -22
+      "dependencyOrder": 14,
+      "delta": -23
     },
     {
       "filename": "20260708_00_d0_identity_and_memory_activation.sql",
       "lexicographicOrder": 38,
-      "dependencyOrder": 16,
+      "dependencyOrder": 15,
+      "delta": -23
+    },
+    {
+      "filename": "20260707_01_variance_config_unique.sql",
+      "lexicographicOrder": 30,
+      "dependencyOrder": 8,
+      "delta": -22
+    },
+    {
+      "filename": "20260707_02_section_manual_edit_flag.sql",
+      "lexicographicOrder": 31,
+      "dependencyOrder": 9,
+      "delta": -22
+    },
+    {
+      "filename": "20260707_03_close_packet_share.sql",
+      "lexicographicOrder": 32,
+      "dependencyOrder": 10,
       "delta": -22
     },
     {
@@ -379,160 +379,154 @@
       "delta": 22
     },
     {
-      "filename": "20260707_01_variance_config_unique.sql",
-      "lexicographicOrder": 30,
-      "dependencyOrder": 9,
-      "delta": -21
+      "filename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+      "lexicographicOrder": 18,
+      "dependencyOrder": 39,
+      "delta": 21
     },
     {
-      "filename": "20260707_02_section_manual_edit_flag.sql",
-      "lexicographicOrder": 31,
-      "dependencyOrder": 10,
-      "delta": -21
+      "filename": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "lexicographicOrder": 19,
+      "dependencyOrder": 40,
+      "delta": 21
     },
     {
-      "filename": "20260707_03_close_packet_share.sql",
-      "lexicographicOrder": 32,
-      "dependencyOrder": 11,
-      "delta": -21
-    },
-    {
-      "filename": "20260707150000_d_assertions_part_4_je_propagation.sql",
-      "lexicographicOrder": 26,
-      "dependencyOrder": 44,
-      "delta": 18
-    },
-    {
-      "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
-      "lexicographicOrder": 25,
-      "dependencyOrder": 8,
-      "delta": -17
+      "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+      "lexicographicOrder": 20,
+      "dependencyOrder": 41,
+      "delta": 21
     },
     {
       "filename": "20260708_01_d1_qbo_write_readiness.sql",
       "lexicographicOrder": 39,
-      "dependencyOrder": 23,
-      "delta": -16
+      "dependencyOrder": 22,
+      "delta": -17
     },
     {
       "filename": "20260708_02_d1_1_owner_user_id_backfill.sql",
       "lexicographicOrder": 40,
-      "dependencyOrder": 24,
-      "delta": -16
+      "dependencyOrder": 23,
+      "delta": -17
     },
     {
       "filename": "20260709070000_tcp1_w2_5_review_assist_tier_key_expand.sql",
       "lexicographicOrder": 41,
-      "dependencyOrder": 25,
-      "delta": -16
+      "dependencyOrder": 24,
+      "delta": -17
     },
     {
       "filename": "20260709_00_d2_safe_je_posting.sql",
       "lexicographicOrder": 42,
-      "dependencyOrder": 26,
-      "delta": -16
+      "dependencyOrder": 25,
+      "delta": -17
     },
     {
-      "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
-      "lexicographicOrder": 13,
-      "dependencyOrder": 27,
-      "delta": 14
-    },
-    {
-      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
-      "lexicographicOrder": 15,
-      "dependencyOrder": 28,
-      "delta": 13
-    },
-    {
-      "filename": "20260706130000_d_entitlements.sql",
-      "lexicographicOrder": 16,
-      "dependencyOrder": 29,
-      "delta": 13
-    },
-    {
-      "filename": "20260706140000_d_entitlements_followup.sql",
-      "lexicographicOrder": 17,
-      "dependencyOrder": 30,
-      "delta": 13
-    },
-    {
-      "filename": "20260703_2000_d6_2a_test_client_activation.sql",
-      "lexicographicOrder": 8,
-      "dependencyOrder": 17,
-      "delta": 9
-    },
-    {
-      "filename": "20260703_2200_d6_2b_mfg_activation.sql",
-      "lexicographicOrder": 9,
-      "dependencyOrder": 18,
-      "delta": 9
-    },
-    {
-      "filename": "20260703_2300_d6_2c_retail_activation.sql",
-      "lexicographicOrder": 10,
-      "dependencyOrder": 19,
-      "delta": 9
-    },
-    {
-      "filename": "20260703_2400_d6_2d_ps_activation.sql",
-      "lexicographicOrder": 11,
-      "dependencyOrder": 20,
-      "delta": 9
-    },
-    {
-      "filename": "20260707000000_d6_5_part1_universal_intake.sql",
-      "lexicographicOrder": 22,
-      "dependencyOrder": 31,
-      "delta": 9
-    },
-    {
-      "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
-      "lexicographicOrder": 23,
-      "dependencyOrder": 32,
-      "delta": 9
-    },
-    {
-      "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
-      "lexicographicOrder": 24,
-      "dependencyOrder": 33,
-      "delta": 9
-    },
-    {
-      "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
-      "lexicographicOrder": 14,
-      "dependencyOrder": 21,
-      "delta": 7
+      "filename": "20260707150000_d_assertions_part_4_je_propagation.sql",
+      "lexicographicOrder": 26,
+      "dependencyOrder": 42,
+      "delta": 16
     },
     {
       "filename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
       "lexicographicOrder": 27,
-      "dependencyOrder": 34,
-      "delta": 7
+      "dependencyOrder": 43,
+      "delta": 16
     },
     {
       "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
       "lexicographicOrder": 28,
-      "dependencyOrder": 35,
-      "delta": 7
+      "dependencyOrder": 44,
+      "delta": 16
+    },
+    {
+      "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+      "lexicographicOrder": 13,
+      "dependencyOrder": 26,
+      "delta": 13
+    },
+    {
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "lexicographicOrder": 15,
+      "dependencyOrder": 27,
+      "delta": 12
+    },
+    {
+      "filename": "20260706130000_d_entitlements.sql",
+      "lexicographicOrder": 16,
+      "dependencyOrder": 28,
+      "delta": 12
+    },
+    {
+      "filename": "20260706140000_d_entitlements_followup.sql",
+      "lexicographicOrder": 17,
+      "dependencyOrder": 29,
+      "delta": 12
     },
     {
       "filename": "20260710_00_d3_memory_indexes.sql",
       "lexicographicOrder": 43,
-      "dependencyOrder": 36,
-      "delta": -7
+      "dependencyOrder": 34,
+      "delta": -9
     },
     {
       "filename": "20260713_00_d4_uncategorized_proposals.sql",
       "lexicographicOrder": 44,
-      "dependencyOrder": 37,
-      "delta": -7
+      "dependencyOrder": 35,
+      "delta": -9
     },
     {
       "filename": "20260714_00_d5_recurring_templates.sql",
       "lexicographicOrder": 45,
-      "dependencyOrder": 38,
-      "delta": -7
+      "dependencyOrder": 36,
+      "delta": -9
+    },
+    {
+      "filename": "20260703_2000_d6_2a_test_client_activation.sql",
+      "lexicographicOrder": 8,
+      "dependencyOrder": 16,
+      "delta": 8
+    },
+    {
+      "filename": "20260703_2200_d6_2b_mfg_activation.sql",
+      "lexicographicOrder": 9,
+      "dependencyOrder": 17,
+      "delta": 8
+    },
+    {
+      "filename": "20260703_2300_d6_2c_retail_activation.sql",
+      "lexicographicOrder": 10,
+      "dependencyOrder": 18,
+      "delta": 8
+    },
+    {
+      "filename": "20260703_2400_d6_2d_ps_activation.sql",
+      "lexicographicOrder": 11,
+      "dependencyOrder": 19,
+      "delta": 8
+    },
+    {
+      "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+      "lexicographicOrder": 22,
+      "dependencyOrder": 30,
+      "delta": 8
+    },
+    {
+      "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "lexicographicOrder": 23,
+      "dependencyOrder": 31,
+      "delta": 8
+    },
+    {
+      "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "lexicographicOrder": 24,
+      "dependencyOrder": 32,
+      "delta": 8
+    },
+    {
+      "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "lexicographicOrder": 25,
+      "dependencyOrder": 33,
+      "delta": 8
     },
     {
       "filename": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
@@ -541,10 +535,10 @@
       "delta": -6
     },
     {
-      "filename": "20260706_d67_p2_layer2_layer4.sql",
-      "lexicographicOrder": 21,
-      "dependencyOrder": 22,
-      "delta": 1
+      "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "lexicographicOrder": 14,
+      "dependencyOrder": 20,
+      "delta": 6
     },
     {
       "filename": "20260715180000_mfa_enrollment.sql",
@@ -590,11 +584,11 @@
     "regression": "Filename order places d6_0 before d5; ALTER/FK on recurring_fires fails with 42P01.",
     "dependencyOrderSatisfied": true,
     "dependencyOrderIndex": {
-      "d5": 43,
-      "d6_0": 44
+      "d5": 41,
+      "d6_0": 42
     }
   },
-  "edgeCount": 344,
+  "edgeCount": 367,
   "sampleEdges": [
     {
       "from": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
@@ -643,7 +637,6 @@
     "20260703_01_create_checklist_system.sql",
     "20260704024059_d_entitlements_legacy_stripe_rename.sql",
     "20260707_create_close_packet_system.sql",
-    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260707_01_variance_config_unique.sql",
     "20260707_02_section_manual_edit_flag.sql",
     "20260707_03_close_packet_share.sql",
@@ -669,8 +662,7 @@
     "20260707000000_d6_5_part1_universal_intake.sql",
     "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
     "20260707130000_d_assertions_part_2_coverage_projection.sql",
-    "20260707160000_d_assertions_part_5_gap_review_items.sql",
-    "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+    "20260707140000_d_assertions_part_3_coverage_statement.sql",
     "20260710_00_d3_memory_indexes.sql",
     "20260713_00_d4_uncategorized_proposals.sql",
     "20260714_00_d5_recurring_templates.sql",
@@ -680,6 +672,8 @@
     "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
     "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
     "20260707150000_d_assertions_part_4_je_propagation.sql",
+    "20260707160000_d_assertions_part_5_gap_review_items.sql",
+    "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
     "20260715180000_mfa_enrollment.sql",
     "20260715190000_mfa_webauthn_and_trusted_devices.sql",
     "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
