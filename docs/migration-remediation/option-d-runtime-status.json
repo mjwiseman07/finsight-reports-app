@@ -3,9 +3,9 @@
   "reason": "apply_failed",
   "applyResult": {
     "applied": false,
-    "failedAt": "20260703_1200_d6_0_vertical_rule_foundation.sql",
-    "order": 10,
-    "error": "relation \"recurring_fires\" does not exist"
+    "failedAt": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+    "order": 11,
+    "error": "column \"company_id\" does not exist"
   },
   "scopes": {
     "candidateReplay": "FAIL",
@@ -24,5 +24,5 @@
     "productionDashboardReplayParity": "unresolved"
   },
   "targetRedacted": "host=127.0.0.1;port=54322;db=option_d_clean_replay",
-  "writtenAt": "2026-09-02T03:31:27.569Z"
+  "writtenAt": "2026-09-03T23:05:30.355Z"
 }
