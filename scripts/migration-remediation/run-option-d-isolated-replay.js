@@ -35,6 +35,10 @@ const {
   PR312_SUITE_PATH,
   PR312_COMMIT,
 } = require("./option-d-vitest-result-gate");
+const {
+  evaluateManifestAuthorization,
+  readExpectedManifestSha256FromEnv,
+} = require("./option-d-manifest-authorization");
 
 const ROOT = path.join(__dirname, "..", "..");
 const STATUS_OUT = path.join(ROOT, "docs/migration-remediation/option-d-runtime-status.json");
@@ -45,6 +49,17 @@ const ASSEMBLED_DIR = path.join(
   "supabase/migrations-draft/option-d-isolated-replay/assembled",
 );
 const MANIFEST = path.join(ROOT, "docs/migration-remediation/option-d-replay-manifest.json");
+
+/** Mutable counter for tests — proves mismatch yields zero SQL application attempts. */
+const applyMetrics = {
+  sqlApplicationAttempts: 0,
+  lastAuthorization: null,
+};
+
+function resetApplyMetrics() {
+  applyMetrics.sqlApplicationAttempts = 0;
+  applyMetrics.lastAuthorization = null;
+}
 
 function emptyScopes() {
   return {
@@ -132,6 +147,7 @@ async function applyAssembled(dbUrl) {
   return withClient(dbUrl, async (client) => {
     for (const entry of ordered) {
       const sql = fs.readFileSync(path.join(ASSEMBLED_DIR, entry.assembledFilename), "utf8");
+      applyMetrics.sqlApplicationAttempts += 1;
       try {
         await client.query(sql);
       } catch (err) {
@@ -140,6 +156,7 @@ async function applyAssembled(dbUrl) {
           failedAt: entry.assembledFilename,
           order: entry.order,
           completedCount: entry.order - 1,
+          sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
           error: String(err.message || err).slice(0, 500),
           sqlState: err.code || null,
           detail: err.detail ? String(err.detail).slice(0, 500) : null,
@@ -156,8 +173,26 @@ async function applyAssembled(dbUrl) {
         };
       }
     }
-    return { applied: true, migrationsApplied: ordered.length };
+    return {
+      applied: true,
+      migrationsApplied: ordered.length,
+      sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
+    };
   });
+}
+
+/**
+ * Authorization gate used before assemble/apply. Pure + side-effect free aside from metrics.
+ * On failure, sqlApplicationAttempts remains unchanged (tests assert zero).
+ */
+function authorizeManifestOrBlock(env = process.env) {
+  const expected = readExpectedManifestSha256FromEnv(env);
+  const result = evaluateManifestAuthorization({
+    expectedSha256: expected,
+    manifestPath: MANIFEST,
+  });
+  applyMetrics.lastAuthorization = result;
+  return result;
 }
 
 async function runSecurityChecks(dbUrl) {
@@ -218,21 +253,49 @@ function runPr312Vitest(dbUrl) {
 
 async function main() {
   const scopes = emptyScopes();
+  resetApplyMetrics();
   const pr312Provenance = resolvePr312SuiteProvenance(ROOT);
+  const applyRequested = process.env.OPTION_D_APPLY === "1";
+
+  // Authorization integrity — required before assemble/apply when runtime apply is requested.
+  // Compares OPTION_D_EXPECTED_MANIFEST_SHA256 to exact on-disk committed manifest bytes.
+  // Must run BEFORE assemble (assemble rewrites generatedAt and would invalidate the pin).
+  if (applyRequested || process.env.OPTION_D_EXPECTED_MANIFEST_SHA256) {
+    const authz = authorizeManifestOrBlock(process.env);
+    if (!authz.ok) {
+      scopes.candidateReplay = "FAIL";
+      scopes.securityImmutabilityChecks = "BLOCKED";
+      scopes.pr312RpcValidation = "BLOCKED";
+      writeStatus({
+        overall: "BLOCKED",
+        reason: "manifest_authorization_failed",
+        note:
+          "Authorized Manifest SHA-256 mismatch or missing. Aborting before assemble/SQL. Entry hashes / Git blob OID / re-assemble hashes are not substitutes.",
+        manifestAuthorization: authz,
+        sqlApplicationAttempts: applyMetrics.sqlApplicationAttempts,
+        scopes,
+        overallGate: evaluateOverallRuntimePass(scopes),
+      });
+      process.exit(2);
+    }
+  }
 
   // 1) Static candidate lineage
-  const assemble = runNode(ASSEMBLE);
-  if (assemble.status !== 0) {
-    scopes.candidateReplay = "BLOCKED";
-    scopes.securityImmutabilityChecks = "BLOCKED";
-    scopes.pr312RpcValidation = "BLOCKED";
-    writeStatus({
-      overall: "BLOCKED",
-      reason: "assemble_failed",
-      scopes,
-      overallGate: evaluateOverallRuntimePass(scopes),
-    });
-    process.exit(2);
+  const skipAssemble = process.env.OPTION_D_SKIP_ASSEMBLE === "1";
+  if (!skipAssemble) {
+    const assemble = runNode(ASSEMBLE);
+    if (assemble.status !== 0) {
+      scopes.candidateReplay = "BLOCKED";
+      scopes.securityImmutabilityChecks = "BLOCKED";
+      scopes.pr312RpcValidation = "BLOCKED";
+      writeStatus({
+        overall: "BLOCKED",
+        reason: "assemble_failed",
+        scopes,
+        overallGate: evaluateOverallRuntimePass(scopes),
+      });
+      process.exit(2);
+    }
   }
 
   const gate = runNode(GATE);
@@ -508,4 +571,8 @@ if (require.main === module) {
 module.exports = {
   evaluateOverallRuntimePass,
   emptyScopes,
+  applyMetrics,
+  resetApplyMetrics,
+  authorizeManifestOrBlock,
+  applyAssembled,
 };

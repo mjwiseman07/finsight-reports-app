@@ -6,7 +6,16 @@
  *
  * Inventory must cover public relations, functions, types, sequences, triggers,
  * and non-allowlisted schemas. Missing inventory sections fail closed.
+ *
+ * Platform-managed objects (auth/storage catalogs, roles, extensions) are allowed
+ * and — when platform inventory is supplied or requirePlatformBootstrap is true —
+ * must be positively verified via option-d-platform-bootstrap. Schema names alone
+ * are insufficient. Unknown platform state fails closed.
  */
+const {
+  evaluatePlatformBootstrap,
+  collectPlatformInventory,
+} = require("./option-d-platform-bootstrap");
 /** Database name must be intentionally disposable (not ambiguous `postgres`). */
 const DISPOSABLE_DB_NAME_RE = /^option_d_[a-z0-9_]+$/;
 
@@ -274,12 +283,36 @@ function evaluateFreshDisposableDatabase(inventory) {
     });
   }
 
+  // Platform bootstrap: positively verify catalogs when required / supplied.
+  const requirePlatform =
+    inventory.requirePlatformBootstrap === true || inventory.platform != null;
+  if (requirePlatform) {
+    if (!inventory.platform || typeof inventory.platform !== "object") {
+      failures.push({
+        rule: "missing_platform_inventory",
+        detail:
+          "Platform bootstrap inventory required; schema allowlist alone cannot prove storage/auth catalogs exist",
+      });
+    } else {
+      const platformEval = evaluatePlatformBootstrap(inventory.platform);
+      if (!platformEval.ok) {
+        for (const f of platformEval.failures) {
+          failures.push({
+            ...f,
+            rule: f.rule.startsWith("platform_") ? f.rule : `platform_${f.rule}`,
+          });
+        }
+      }
+    }
+  }
+
   return {
     ok: failures.length === 0,
     failures,
     publicRelationCount: publicRelations.length,
     appMigrationVersionCount: appVersions.length,
     allowedSchemas: [...ALLOWED_SCHEMAS].sort(),
+    platformBootstrapRequired: requirePlatform,
   };
 }
 
@@ -400,6 +433,8 @@ async function collectDatabaseInventory(client) {
     schemaMigrationVersions = mig.rows.map((r) => String(r.version));
   }
 
+  const platform = await collectPlatformInventory(client);
+
   return {
     databaseName,
     schemas,
@@ -411,6 +446,8 @@ async function collectDatabaseInventory(client) {
     objectsOutsideAllowedSchemas,
     schemaMigrationVersions,
     inventoryComplete: true,
+    requirePlatformBootstrap: true,
+    platform,
   };
 }
 

@@ -1,0 +1,2894 @@
+{
+  "generatedAt": "2026-09-04T01:45:10.832Z",
+  "mechanism": "option_d_platform_dependency_audit",
+  "entryCount": 149,
+  "missingSources": [],
+  "referenceCount": 561,
+  "distinctObjects": [
+    "auth.jwt",
+    "auth.role",
+    "auth.token_expired",
+    "auth.uid",
+    "auth.users",
+    "extensions.pgcrypto",
+    "role:authenticated",
+    "role:service_role",
+    "storage.buckets",
+    "storage.foldername",
+    "storage.objects"
+  ],
+  "byObject": {
+    "auth.uid": {
+      "key": "auth.uid",
+      "kind": "function",
+      "references": [
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 5,
+          "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 5,
+          "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 5,
+          "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 5,
+          "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 5,
+          "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 5,
+          "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 5,
+          "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 5,
+          "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 5,
+          "filename": "20260701043931_phase1_entitlement_rls_policies.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 16,
+          "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 16,
+          "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 18,
+          "filename": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 18,
+          "filename": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 18,
+          "filename": "20260708150000_tcp1_w1_pilot_slots_firm_id.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 32,
+          "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 32,
+          "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 32,
+          "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 32,
+          "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 32,
+          "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 32,
+          "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 33,
+          "filename": "20260706130000_d_entitlements.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 33,
+          "filename": "20260706130000_d_entitlements.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 33,
+          "filename": "20260706130000_d_entitlements.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 35,
+          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 35,
+          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 35,
+          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 35,
+          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 35,
+          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 37,
+          "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 37,
+          "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 37,
+          "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 38,
+          "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 38,
+          "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 38,
+          "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 40,
+          "filename": "20260713_00_d4_uncategorized_proposals.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 40,
+          "filename": "20260713_00_d4_uncategorized_proposals.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 41,
+          "filename": "20260714_00_d5_recurring_templates.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 41,
+          "filename": "20260714_00_d5_recurring_templates.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 41,
+          "filename": "20260714_00_d5_recurring_templates.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 41,
+          "filename": "20260714_00_d5_recurring_templates.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 41,
+          "filename": "20260714_00_d5_recurring_templates.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 48,
+          "filename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 48,
+          "filename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 49,
+          "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 49,
+          "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 49,
+          "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 50,
+          "filename": "20260715180000_mfa_enrollment.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 50,
+          "filename": "20260715180000_mfa_enrollment.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 50,
+          "filename": "20260715180000_mfa_enrollment.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 52,
+          "filename": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 52,
+          "filename": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 52,
+          "filename": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 52,
+          "filename": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 52,
+          "filename": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 52,
+          "filename": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 52,
+          "filename": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 55,
+          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 55,
+          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 55,
+          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 55,
+          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 55,
+          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 57,
+          "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 57,
+          "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 58,
+          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 58,
+          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 58,
+          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 58,
+          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 59,
+          "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 59,
+          "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 64,
+          "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 64,
+          "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 64,
+          "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 64,
+          "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 64,
+          "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 64,
+          "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 65,
+          "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 65,
+          "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 65,
+          "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 65,
+          "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 65,
+          "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 66,
+          "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 66,
+          "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 66,
+          "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 66,
+          "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 66,
+          "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 66,
+          "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 67,
+          "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 67,
+          "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 67,
+          "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 67,
+          "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 82,
+          "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 82,
+          "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 82,
+          "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 86,
+          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 86,
+          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 86,
+          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 86,
+          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 86,
+          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 86,
+          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 86,
+          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 88,
+          "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 88,
+          "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 88,
+          "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 89,
+          "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 89,
+          "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 89,
+          "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 89,
+          "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 89,
+          "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 93,
+          "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 93,
+          "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 93,
+          "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 93,
+          "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 93,
+          "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 94,
+          "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 94,
+          "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 94,
+          "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 94,
+          "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 94,
+          "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 99,
+          "filename": "20260724010000_kickout_investigations.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 99,
+          "filename": "20260724010000_kickout_investigations.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 99,
+          "filename": "20260724010000_kickout_investigations.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 99,
+          "filename": "20260724010000_kickout_investigations.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 99,
+          "filename": "20260724010000_kickout_investigations.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 99,
+          "filename": "20260724010000_kickout_investigations.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 106,
+          "filename": "20260725060000_ar_tieout42_memory_events.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 106,
+          "filename": "20260725060000_ar_tieout42_memory_events.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 106,
+          "filename": "20260725060000_ar_tieout42_memory_events.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 108,
+          "filename": "20260804213003_pilot_lifecycle_events.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 108,
+          "filename": "20260804213003_pilot_lifecycle_events.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 108,
+          "filename": "20260804213003_pilot_lifecycle_events.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 113,
+          "filename": "20260804234230_lifecycle_issues.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 113,
+          "filename": "20260804234230_lifecycle_issues.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 113,
+          "filename": "20260804234230_lifecycle_issues.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 124,
+          "filename": "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 124,
+          "filename": "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 130,
+          "filename": "20260815000000_urm2_reconciling_items_persistence.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 130,
+          "filename": "20260815000000_urm2_reconciling_items_persistence.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 130,
+          "filename": "20260815000000_urm2_reconciling_items_persistence.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 131,
+          "filename": "20260815120000_urm3_universal_evidence_spine.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 131,
+          "filename": "20260815120000_urm3_universal_evidence_spine.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 131,
+          "filename": "20260815120000_urm3_universal_evidence_spine.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 134,
+          "filename": "20260818020716_accounting_measurement_snapshots.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 134,
+          "filename": "20260818020716_accounting_measurement_snapshots.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 137,
+          "filename": "20260819045253_continuous_close_runs.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 137,
+          "filename": "20260819045253_continuous_close_runs.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 137,
+          "filename": "20260819045253_continuous_close_runs.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 138,
+          "filename": "20260820233219_journal_entry_proposals.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 138,
+          "filename": "20260820233219_journal_entry_proposals.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 138,
+          "filename": "20260820233219_journal_entry_proposals.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 139,
+          "filename": "20260821042800_journal_entry_approvals.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 139,
+          "filename": "20260821042800_journal_entry_approvals.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 139,
+          "filename": "20260821042800_journal_entry_approvals.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 140,
+          "filename": "20260821183525_journal_entry_executions.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 140,
+          "filename": "20260821183525_journal_entry_executions.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 140,
+          "filename": "20260821183525_journal_entry_executions.sql",
+          "match": "auth.uid()"
+        },
+        {
+          "order": 141,
+          "filename": "20260821212020_journal_entry_provider_attempts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 141,
+          "filename": "20260821212020_journal_entry_provider_attempts.sql",
+          "match": "auth.uid"
+        },
+        {
+          "order": 141,
+          "filename": "20260821212020_journal_entry_provider_attempts.sql",
+          "match": "auth.uid()"
+        }
+      ]
+    },
+    "auth.jwt": {
+      "key": "auth.jwt",
+      "kind": "function",
+      "references": [
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 8,
+          "filename": "20260702_create_mfg_waitlist.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 8,
+          "filename": "20260702_create_mfg_waitlist.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 8,
+          "filename": "20260702_create_mfg_waitlist.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 8,
+          "filename": "20260702_create_mfg_waitlist.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 9,
+          "filename": "20260703_00_create_close_ledger.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 10,
+          "filename": "20260703_01_create_checklist_system.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 10,
+          "filename": "20260703_01_create_checklist_system.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 10,
+          "filename": "20260703_01_create_checklist_system.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 10,
+          "filename": "20260703_01_create_checklist_system.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 10,
+          "filename": "20260703_01_create_checklist_system.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 10,
+          "filename": "20260703_01_create_checklist_system.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 12,
+          "filename": "20260707_create_close_packet_system.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 12,
+          "filename": "20260707_create_close_packet_system.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 12,
+          "filename": "20260707_create_close_packet_system.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 15,
+          "filename": "20260707_03_close_packet_share.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 16,
+          "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 16,
+          "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 16,
+          "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 20,
+          "filename": "20260708_00_d0_identity_and_memory_activation.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 20,
+          "filename": "20260708_00_d0_identity_and_memory_activation.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 20,
+          "filename": "20260708_00_d0_identity_and_memory_activation.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 20,
+          "filename": "20260708_00_d0_identity_and_memory_activation.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 27,
+          "filename": "20260708_01_d1_qbo_write_readiness.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 43,
+          "filename": "20260703_1400_d6_0_1_rls_curated_rule_fires.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 116,
+          "filename": "20260805054000_schema_drift_issue_policies.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 116,
+          "filename": "20260805054000_schema_drift_issue_policies.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 117,
+          "filename": "20260805210000_schema_drift_scanner_issue_kinds.sql",
+          "match": "auth.jwt"
+        },
+        {
+          "order": 117,
+          "filename": "20260805210000_schema_drift_scanner_issue_kinds.sql",
+          "match": "auth.jwt"
+        }
+      ]
+    },
+    "auth.role": {
+      "key": "auth.role",
+      "kind": "function",
+      "references": [
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.role"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.role"
+        }
+      ]
+    },
+    "role:authenticated": {
+      "key": "role:authenticated",
+      "kind": "role",
+      "references": [
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 16,
+          "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 32,
+          "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 33,
+          "filename": "20260706130000_d_entitlements.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 35,
+          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 36,
+          "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 37,
+          "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 38,
+          "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 41,
+          "filename": "20260714_00_d5_recurring_templates.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 52,
+          "filename": "20260715190001_mfa_webauthn_rls_initplan_and_deny_policy.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 55,
+          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 57,
+          "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 58,
+          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 59,
+          "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 64,
+          "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 65,
+          "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 66,
+          "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 67,
+          "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 81,
+          "filename": "20260719050000_gap3_je_approval_flow.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 82,
+          "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 86,
+          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 88,
+          "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 89,
+          "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 91,
+          "filename": "20260721000000_audit_ready_tie_out_variance_evidence.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 93,
+          "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 99,
+          "filename": "20260724010000_kickout_investigations.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 100,
+          "filename": "20260724020000_kickout_dedupe_rpcs.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 105,
+          "filename": "20260725050100_ar_tieout420a_similar_kickouts_rpc.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 106,
+          "filename": "20260725060000_ar_tieout42_memory_events.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 108,
+          "filename": "20260804213003_pilot_lifecycle_events.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 113,
+          "filename": "20260804234230_lifecycle_issues.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 114,
+          "filename": "20260805005320_pilot_lifecycle_anchors.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 116,
+          "filename": "20260805054000_schema_drift_issue_policies.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 117,
+          "filename": "20260805210000_schema_drift_scanner_issue_kinds.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 124,
+          "filename": "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 130,
+          "filename": "20260815000000_urm2_reconciling_items_persistence.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 131,
+          "filename": "20260815120000_urm3_universal_evidence_spine.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 134,
+          "filename": "20260818020716_accounting_measurement_snapshots.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 137,
+          "filename": "20260819045253_continuous_close_runs.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 138,
+          "filename": "20260820233219_journal_entry_proposals.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 139,
+          "filename": "20260821042800_journal_entry_approvals.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 140,
+          "filename": "20260821183525_journal_entry_executions.sql",
+          "match": "authenticated"
+        },
+        {
+          "order": 141,
+          "filename": "20260821212020_journal_entry_provider_attempts.sql",
+          "match": "authenticated"
+        }
+      ]
+    },
+    "role:service_role": {
+      "key": "role:service_role",
+      "kind": "role",
+      "references": [
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 16,
+          "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 25,
+          "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 26,
+          "filename": "20260706_d67_p2_layer2_layer4.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 31,
+          "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 32,
+          "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 33,
+          "filename": "20260706130000_d_entitlements.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 35,
+          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 36,
+          "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 37,
+          "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 38,
+          "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 40,
+          "filename": "20260713_00_d4_uncategorized_proposals.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 41,
+          "filename": "20260714_00_d5_recurring_templates.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 48,
+          "filename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 49,
+          "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 53,
+          "filename": "20260716010000_add_qbo_cdc_tables.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 55,
+          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 56,
+          "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 57,
+          "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 58,
+          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 59,
+          "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 60,
+          "filename": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 61,
+          "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 63,
+          "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 64,
+          "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 65,
+          "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 66,
+          "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 67,
+          "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 69,
+          "filename": "20260718000000_intuit_webhook_events.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 74,
+          "filename": "20260718180000_q8a_qbo_view_security_invoker.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 75,
+          "filename": "20260718190000_q8b_function_search_path_lockdown.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 76,
+          "filename": "20260718200000_q8c_security_definer_rpc_revoke.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 77,
+          "filename": "20260718200000_support_ticket_intuit_context.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 79,
+          "filename": "20260718220000_q8e_rls_service_role_policies.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 80,
+          "filename": "20260719000000_support_auto_file_engine.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 82,
+          "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 85,
+          "filename": "20260720130000_ar_week3_block3_1_rpc_lockdown.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 88,
+          "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 89,
+          "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 93,
+          "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 94,
+          "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 98,
+          "filename": "20260723050000_audit_ready_cron_runs.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 113,
+          "filename": "20260804234230_lifecycle_issues.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 114,
+          "filename": "20260805005320_pilot_lifecycle_anchors.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 115,
+          "filename": "20260805041500_major_1_rpc_lockdown.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 116,
+          "filename": "20260805054000_schema_drift_issue_policies.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 118,
+          "filename": "20260805211000_sp_list_public_columns_jsonb.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 121,
+          "filename": "20260806040000_major_2_3_block_a_assertion_linkage.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 122,
+          "filename": "20260806042000_major_2_3_block_a_1_research_revision.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 130,
+          "filename": "20260815000000_urm2_reconciling_items_persistence.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 131,
+          "filename": "20260815120000_urm3_universal_evidence_spine.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 134,
+          "filename": "20260818020716_accounting_measurement_snapshots.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 137,
+          "filename": "20260819045253_continuous_close_runs.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 138,
+          "filename": "20260820233219_journal_entry_proposals.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 139,
+          "filename": "20260821042800_journal_entry_approvals.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 140,
+          "filename": "20260821183525_journal_entry_executions.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 141,
+          "filename": "20260821212020_journal_entry_provider_attempts.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 142,
+          "filename": "20260821220646_journal_entry_provider_discovery_receipts.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 145,
+          "filename": "20260822011500_journal_entry_provider_dispatch_and_outcomes.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 146,
+          "filename": "20260822050000_journal_entry_verified_readback.sql",
+          "match": "service_role"
+        },
+        {
+          "order": 148,
+          "filename": "20260826043000_journal_entry_provider_attempt_reuse_posting_started.sql",
+          "match": "service_role"
+        }
+      ]
+    },
+    "extensions.pgcrypto": {
+      "key": "extensions.pgcrypto",
+      "kind": "extension",
+      "references": [
+        {
+          "order": 1,
+          "filename": "20260701043599_foundations_baseline.sql",
+          "match": "pgcrypto"
+        },
+        {
+          "order": 60,
+          "filename": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+          "match": "pgcrypto"
+        },
+        {
+          "order": 109,
+          "filename": "20260804213819_pilot_lifecycle_events_hash_chain_trigger.sql",
+          "match": "pgcrypto"
+        }
+      ]
+    },
+    "auth.users": {
+      "key": "auth.users",
+      "kind": "qualified_relation",
+      "references": [
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 6,
+          "filename": "20260701_refund_requests.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 28,
+          "filename": "20260708_02_d1_1_owner_user_id_backfill.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 30,
+          "filename": "20260709_00_d2_safe_je_posting.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 40,
+          "filename": "20260713_00_d4_uncategorized_proposals.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 42,
+          "filename": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 44,
+          "filename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 50,
+          "filename": "20260715180000_mfa_enrollment.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 50,
+          "filename": "20260715180000_mfa_enrollment.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 51,
+          "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 81,
+          "filename": "20260719050000_gap3_je_approval_flow.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 81,
+          "filename": "20260719050000_gap3_je_approval_flow.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 83,
+          "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 88,
+          "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 88,
+          "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 89,
+          "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 93,
+          "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 94,
+          "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 99,
+          "filename": "20260724010000_kickout_investigations.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 107,
+          "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 107,
+          "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 107,
+          "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 107,
+          "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 137,
+          "filename": "20260819045253_continuous_close_runs.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 138,
+          "filename": "20260820233219_journal_entry_proposals.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 139,
+          "filename": "20260821042800_journal_entry_approvals.sql",
+          "match": "auth.users"
+        },
+        {
+          "order": 140,
+          "filename": "20260821183525_journal_entry_executions.sql",
+          "match": "auth.users"
+        }
+      ]
+    },
+    "storage.buckets": {
+      "key": "storage.buckets",
+      "kind": "qualified_relation",
+      "references": [
+        {
+          "order": 31,
+          "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+          "match": "storage.buckets"
+        },
+        {
+          "order": 31,
+          "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+          "match": "storage.buckets"
+        },
+        {
+          "order": 46,
+          "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+          "match": "storage.buckets"
+        },
+        {
+          "order": 49,
+          "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+          "match": "storage.buckets"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "storage.buckets"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "storage.buckets"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "storage.buckets"
+        }
+      ]
+    },
+    "storage.objects": {
+      "key": "storage.objects",
+      "kind": "qualified_relation",
+      "references": [
+        {
+          "order": 31,
+          "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 31,
+          "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 92,
+          "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "storage.objects"
+        },
+        {
+          "order": 102,
+          "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+          "match": "storage.objects"
+        }
+      ]
+    },
+    "auth.token_expired": {
+      "key": "auth.token_expired",
+      "kind": "function",
+      "references": [
+        {
+          "order": 80,
+          "filename": "20260719000000_support_auto_file_engine.sql",
+          "match": "auth.token_expired"
+        }
+      ]
+    },
+    "storage.foldername": {
+      "key": "storage.foldername",
+      "kind": "function",
+      "references": [
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "storage.foldername"
+        },
+        {
+          "order": 84,
+          "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+          "match": "storage.foldername"
+        }
+      ]
+    }
+  },
+  "contractPath": "docs/migration-remediation/option-d-platform-prerequisite-contract.json"
+}
