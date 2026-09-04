@@ -1,9 +1,9 @@
 {
   "kind": "option_d_prewrite_authorization_evidence",
   "immutable": true,
-  "writtenAt": "2026-09-04T02:45:42.857Z",
-  "authorizedCommit": "d5e44f3ef21078b6d973aac4bf91c4fe3ca26ee8",
-  "currentHead": "d5e44f3ef21078b6d973aac4bf91c4fe3ca26ee8",
+  "writtenAt": "2026-09-04T03:11:40.283Z",
+  "authorizedCommit": "de535f63335e4e73066903bb5d77489c9f8aad99",
+  "currentHead": "de535f63335e4e73066903bb5d77489c9f8aad99",
   "manifestPath": "docs/migration-remediation/option-d-replay-manifest.json",
   "expectedManifestSha256": "dad4032ecefbb79a9d1a61ba8e843f7e7ea10c8fbe721b9de3ffadbb9b61fc29",
   "actualManifestSha256": "dad4032ecefbb79a9d1a61ba8e843f7e7ea10c8fbe721b9de3ffadbb9b61fc29",

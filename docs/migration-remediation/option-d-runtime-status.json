@@ -1,120 +1,59 @@
-﻿{
-    "overall":  "BLOCKED",
-    "reason":  "target_not_fresh_disposable_db",
-    "note":  "Refusing to apply onto existing/partial application schema. Create a new empty option_d_* database. Harness does not reset or delete.",
-    "freshDb":  {
-                    "ok":  false,
-                    "failures":  [
-                                     {
-                                         "rule":  "unknown_or_disallowed_schemas",
-                                         "detail":  "Schemas outside bootstrap allowlist: _realtime",
-                                         "schemas":  [
-                                                         "_realtime"
-                                                     ]
-                                     },
-                                     {
-                                         "rule":  "application_objects_outside_allowed_schemas",
-                                         "detail":  "Objects in non-allowlisted schemas: _realtime.extensions, _realtime.feature_flags, _realtime.schema_migrations, _realtime.tenants",
-                                         "objects":  [
-                                                         {
-                                                             "schema":  "_realtime",
-                                                             "name":  "extensions",
-                                                             "kind":  "r"
-                                                         },
-                                                         {
-                                                             "schema":  "_realtime",
-                                                             "name":  "feature_flags",
-                                                             "kind":  "r"
-                                                         },
-                                                         {
-                                                             "schema":  "_realtime",
-                                                             "name":  "schema_migrations",
-                                                             "kind":  "r"
-                                                         },
-                                                         {
-                                                             "schema":  "_realtime",
-                                                             "name":  "tenants",
-                                                             "kind":  "r"
-                                                         }
-                                                     ]
-                                     },
-                                     {
-                                         "rule":  "platform_missing_required_function",
-                                         "function":  "auth.token_expired"
-                                     }
-                                 ],
-                    "publicRelationCount":  0,
-                    "appMigrationVersionCount":  0,
-                    "allowedSchemas":  [
-                                           "auth",
-                                           "cron",
-                                           "extensions",
-                                           "graphql",
-                                           "graphql_public",
-                                           "information_schema",
-                                           "net",
-                                           "pg_catalog",
-                                           "pg_toast",
-                                           "pgbouncer",
-                                           "pgsodium",
-                                           "pgtle",
-                                           "public",
-                                           "realtime",
-                                           "storage",
-                                           "supabase_functions",
-                                           "supabase_migrations",
-                                           "vault"
-                                       ],
-                    "platformBootstrapRequired":  true
-                },
-    "inventorySummary":  {
-                             "databaseName":  "postgres",
-                             "publicRelationCount":  0,
-                             "publicFunctionCount":  0,
-                             "publicTypeCount":  0,
-                             "publicSequenceCount":  0,
-                             "publicTriggerCount":  0,
-                             "schemaCount":  14,
-                             "schemaMigrationVersionCount":  0,
-                             "objectsOutsideAllowedSchemas":  4
-                         },
-    "scopes":  {
-                   "candidateReplay":  "FAIL",
-                   "securityImmutabilityChecks":  "BLOCKED",
-                   "pr312RpcValidation":  "BLOCKED",
-                   "productionDashboardReplayParity":  "unresolved"
-               },
-    "overallGate":  {
-                        "ok":  false,
-                        "overall":  "BLOCKED",
-                        "applicable":  {
-                                           "candidateReplay":  "FAIL",
-                                           "securityImmutabilityChecks":  "BLOCKED",
-                                           "pr312RpcValidation":  "BLOCKED"
-                                       },
-                        "productionDashboardReplayParity":  "unresolved"
-                    },
-    "targetRedacted":  "host=127.0.0.1;port=54322;db=postgres",
-    "urlDatabaseName":  "postgres",
-    "writtenAt":  "2026-09-04T02:46:28.1776138Z",
-    "sqlApplicationAttempts":  0,
-    "authorization":  {
-                          "commit":  "d5e44f3ef21078b6d973aac4bf91c4fe3ca26ee8",
-                          "skipAssemble":  true,
-                          "entries":  149,
-                          "cli":  "2.116.0",
-                          "manifestByteLength":  113084,
-                          "expectedManifestSha256":  "dad4032ecefbb79a9d1a61ba8e843f7e7ea10c8fbe721b9de3ffadbb9b61fc29"
-                      },
-    "platformStack":  {
-                          "seedMatched":  false,
-                          "preflightFailures":  [
-                                                    "_realtime schema not allowlisted",
-                                                    "auth.token_expired missing"
-                                                ],
-                          "docker":  "29.7.2",
-                          "migrationsSqlCount":  0,
-                          "workdir":  "C:\\Users\\mattj\\tmp-option-d-platform-only-d5e44f3e",
-                          "cli":  "2.116.0"
-                      }
+{
+  "overall": "BLOCKED",
+  "reason": "apply_failed",
+  "applyResult": {
+    "applied": false,
+    "failedAt": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+    "order": 36,
+    "completedCount": 35,
+    "sqlApplicationAttempts": 36,
+    "error": "insert or update on table \"rule_assertion_coverage\" violates foreign key constraint \"rule_assertion_coverage_rule_id_fkey\"",
+    "sqlState": "23503",
+    "detail": "Key (rule_id)=(gen.accrual_reversal_check) is not present in table \"curated_rules_registry\".",
+    "hint": null,
+    "schema": "public",
+    "table": "rule_assertion_coverage",
+    "column": null,
+    "constraint": "rule_assertion_coverage_rule_id_fkey",
+    "dataType": null,
+    "routine": "ri_ReportViolation",
+    "position": null,
+    "internalPosition": null,
+    "where": null
+  },
+  "scopes": {
+    "candidateReplay": "FAIL",
+    "securityImmutabilityChecks": "BLOCKED",
+    "pr312RpcValidation": "BLOCKED",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "overallGate": {
+    "ok": false,
+    "overall": "BLOCKED",
+    "applicable": {
+      "candidateReplay": "FAIL",
+      "securityImmutabilityChecks": "BLOCKED",
+      "pr312RpcValidation": "BLOCKED"
+    },
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
+  "writtenAt": "2026-09-04T03:12:36.228Z",
+  "authorization": {
+    "commit": "de535f63335e4e73066903bb5d77489c9f8aad99",
+    "expectedManifestSha256": "dad4032ecefbb79a9d1a61ba8e843f7e7ea10c8fbe721b9de3ffadbb9b61fc29",
+    "manifestByteLength": 113084,
+    "skipAssemble": true,
+    "entries": 149,
+    "cli": "2.116.0"
+  },
+  "platformStack": {
+    "workdir": "C:/Users/mattj/tmp-option-d-platform-only-de535f63",
+    "cli": "2.116.0",
+    "docker": "29.7.2",
+    "migrationsSqlCount": 0,
+    "seedMatched": false,
+    "preflightPassed": true
+  },
+  "note": "Platform preflight PASS; apply stopped at order 36 D-Assertions Part 1 FK to curated_rules_registry. No remediation this run."
 }
