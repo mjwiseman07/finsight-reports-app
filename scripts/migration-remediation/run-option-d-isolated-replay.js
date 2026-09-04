@@ -139,7 +139,20 @@ async function applyAssembled(dbUrl) {
           applied: false,
           failedAt: entry.assembledFilename,
           order: entry.order,
+          completedCount: entry.order - 1,
           error: String(err.message || err).slice(0, 500),
+          sqlState: err.code || null,
+          detail: err.detail ? String(err.detail).slice(0, 500) : null,
+          hint: err.hint ? String(err.hint).slice(0, 300) : null,
+          schema: err.schema || null,
+          table: err.table || null,
+          column: err.column || null,
+          constraint: err.constraint || null,
+          dataType: err.dataType || null,
+          routine: err.routine || null,
+          position: err.position || null,
+          internalPosition: err.internalPosition || null,
+          where: err.where ? String(err.where).slice(0, 500) : null,
         };
       }
     }

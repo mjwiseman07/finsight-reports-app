@@ -3,9 +3,22 @@
   "reason": "apply_failed",
   "applyResult": {
     "applied": false,
-    "failedAt": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
-    "order": 11,
-    "error": "column \"company_id\" does not exist"
+    "failedAt": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+    "order": 13,
+    "completedCount": 12,
+    "error": "D-Assertions Part 2 close_assertion_coverage missing — Part 3 requires Part 2 applied first",
+    "sqlState": "P0001",
+    "detail": null,
+    "hint": null,
+    "schema": null,
+    "table": null,
+    "column": null,
+    "constraint": null,
+    "dataType": null,
+    "routine": "exec_stmt_raise",
+    "position": null,
+    "internalPosition": null,
+    "where": "PL/pgSQL function inline_code_block line 4 at RAISE"
   },
   "scopes": {
     "candidateReplay": "FAIL",
@@ -24,5 +37,5 @@
     "productionDashboardReplayParity": "unresolved"
   },
   "targetRedacted": "host=127.0.0.1;port=54322;db=option_d_clean_replay",
-  "writtenAt": "2026-09-03T23:05:30.355Z"
+  "writtenAt": "2026-09-04T01:06:32.757Z"
 }
