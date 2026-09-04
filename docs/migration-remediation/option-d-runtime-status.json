@@ -1,74 +1,35 @@
 {
   "overall": "BLOCKED",
-  "reason": "security_immutability_checks_failed",
-  "security": {
+  "reason": "manifest_authorization_failed",
+  "note": "Authorized Manifest SHA-256 / commit binding failed. Aborting before assemble/SQL. Entry hashes / Git blob OID / re-assemble hashes are not substitutes.",
+  "manifestAuthorization": {
     "ok": false,
-    "status": "FAIL",
-    "schemaRls": {
-      "ok": true,
-      "failures": [],
-      "requiredCount": 10
-    },
-    "views": {
-      "ok": true,
-      "failures": [],
-      "requiredCount": 2
-    },
-    "immutability": {
-      "ok": false,
-      "failures": [
-        {
-          "check": "si_memory_immutability",
-          "rule": "not_intended_immutability_rejection",
-          "id": "memory_immutable_field_update_rejected",
-          "sqlState": "P0001",
-          "classifyReason": "message_mismatch",
-          "detail": "company_memory_records.payload is immutable for memory_type=probe"
-        }
-      ],
-      "triggers": {
-        "ok": true,
-        "failures": [],
-        "requiredCount": 3
-      },
-      "behavior": {
-        "ok": false,
-        "failures": [
-          {
-            "check": "si_memory_immutability",
-            "rule": "not_intended_immutability_rejection",
-            "id": "memory_immutable_field_update_rejected",
-            "sqlState": "P0001",
-            "classifyReason": "message_mismatch",
-            "detail": "company_memory_records.payload is immutable for memory_type=probe"
-          }
-        ]
-      },
-      "requiredCount": 3
-    },
-    "functions": {
-      "ok": true,
-      "failures": []
-    },
     "failures": [
       {
-        "check": "si_memory_immutability",
-        "rule": "not_intended_immutability_rejection",
-        "id": "memory_immutable_field_update_rejected",
-        "sqlState": "P0001",
-        "classifyReason": "message_mismatch",
-        "detail": "company_memory_records.payload is immutable for memory_type=probe"
+        "rule": "manifest_sha256_mismatch",
+        "detail": "Authorized Manifest SHA-256 does not match SHA-256 of exact on-disk manifest bytes. Abort before assemble/apply.",
+        "expectedSha256": "5a66815352f4879b68a49d2cef3182d9637a20eb2a3a7617ed0bb979406dba0c",
+        "observedManifestSha256": "1bf72919ada7414b6803978cf950b00096f1f0ad5386dfaf45f0c7e749b650ba",
+        "byteLength": 117826,
+        "manifestPath": "docs/migration-remediation/option-d-replay-manifest.json"
       }
+    ],
+    "expectedSha256": "5a66815352f4879b68a49d2cef3182d9637a20eb2a3a7617ed0bb979406dba0c",
+    "observedManifestSha256": "1bf72919ada7414b6803978cf950b00096f1f0ad5386dfaf45f0c7e749b650ba",
+    "byteLength": 117826,
+    "authorizedCommit": "07a356e5ad51d48324cc3a07b3737ddd0102c119",
+    "currentHead": "07a356e5ad51d48324cc3a07b3737ddd0102c119",
+    "manifestPath": "docs/migration-remediation/option-d-replay-manifest.json",
+    "substitutesNotAccepted": [
+      "git_blob_oid",
+      "reassemble_generatedAt_hash",
+      "per_entry_assembledSha256_counts"
     ]
   },
-  "applyResult": {
-    "applied": true,
-    "migrationsApplied": 150,
-    "sqlApplicationAttempts": 150
-  },
+  "sqlApplicationAttempts": 0,
   "scopes": {
-    "candidateReplay": "PASS",
-    "securityImmutabilityChecks": "FAIL",
+    "candidateReplay": "FAIL",
+    "securityImmutabilityChecks": "BLOCKED",
     "pr312RpcValidation": "BLOCKED",
     "productionDashboardReplayParity": "unresolved"
   },
@@ -76,21 +37,11 @@
     "ok": false,
     "overall": "BLOCKED",
     "applicable": {
-      "candidateReplay": "PASS",
-      "securityImmutabilityChecks": "FAIL",
+      "candidateReplay": "FAIL",
+      "securityImmutabilityChecks": "BLOCKED",
       "pr312RpcValidation": "BLOCKED"
     },
     "productionDashboardReplayParity": "unresolved"
   },
-  "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
-  "pr312Provenance": {
-    "present": true,
-    "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
-    "sourceCommit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
-    "pinnedBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
-    "contentSha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
-    "pinnedContentSha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
-    "matchesPinnedCommitContent": true
-  },
-  "writtenAt": "2026-09-04T21:40:37.572Z"
+  "writtenAt": "2026-09-04T22:09:15.908Z"
 }
