@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Explicit deterministic dependency graph for the complete Option D candidate replay set. Assembler MUST apply dependencyOrder (not lexicographic filename sort).",
-  "generatedAt": "2026-09-04T04:37:52.498Z",
+  "generatedAt": "2026-09-04T20:42:20.052Z",
   "orderingPolicy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "testedFailureRegression": {
     "pr313EvidenceHead": "de535f63335e4e73066903bb5d77489c9f8aad99",
@@ -125,6 +125,7 @@
     }
   ],
   "dependencyOrder": [
+    "20260701043598_public_users_derived_baseline.sql",
     "20260701043599_foundations_baseline.sql",
     "20260701043602_phase1_subscriptions_core.sql",
     "20260701043707_phase1_subscription_seats_and_entitlements.sql",
@@ -276,6 +277,7 @@
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
   ],
   "lexicographicOrder": [
+    "20260701043598_public_users_derived_baseline.sql",
     "20260701043599_foundations_baseline.sql",
     "20260701043602_phase1_subscriptions_core.sql",
     "20260701043707_phase1_subscription_seats_and_entitlements.sql",
@@ -3519,20 +3521,13 @@
       "kind": "table",
       "status": "unresolved_requires_review",
       "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
-    },
-    {
-      "file": "20260727000100_users_auth_trigger_single_writer.sql",
-      "missing": "table users",
-      "kind": "table",
-      "status": "unresolved_requires_review",
-      "note": "No CREATE TABLE for this object in the Option D candidate set; analyzer cannot prove prerequisite."
     }
   ],
   "unresolvedClassification": {
-    "generatedAt": "2026-09-04T04:37:52.498Z",
-    "occurrenceCount": 2,
-    "requiredCount": 1,
-    "requiredDependenciesResolved": false,
+    "generatedAt": "2026-09-04T20:42:20.051Z",
+    "occurrenceCount": 1,
+    "requiredCount": 0,
+    "requiredDependenciesResolved": true,
     "classifications": [
       {
         "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
@@ -3563,42 +3558,12 @@
         ],
         "renameCreatorsInSet": [],
         "rationale": "Every analyzed consume executes only inside IF to_regclass(public.<table>) IS NOT NULL (or ALTER IF EXISTS). Absent table is a no-op, not 42P01."
-      },
-      {
-        "file": "20260727000100_users_auth_trigger_single_writer.sql",
-        "missing": "table users",
-        "kind": "table",
-        "identity": null,
-        "table": "users",
-        "classification": "required_missing_create",
-        "prerequisiteSource": "none_in_git_candidate_set",
-        "justifiedExclusion": false,
-        "absentObjectGenuinelySafe": false,
-        "dependencyEdge": null,
-        "executesWhen": [
-          "unconditional_on_apply",
-          "unconditional_on_apply"
-        ],
-        "statements": [
-          {
-            "kind": "create_function",
-            "executesWhen": "unconditional_on_apply",
-            "snippet": "create or replace function public.handle_new_auth_user() returns trigger language plpgsql security definer set search_path = public, pg_temp as $$ declare meta jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb); begi"
-          },
-          {
-            "kind": "insert",
-            "executesWhen": "unconditional_on_apply",
-            "snippet": "insert into public.users ( id, email, first_name, last_name, business_name, created_at ) select au.id, au.email, nullif(trim((au.raw_user_meta_data->>'first_name')), ''), nullif(trim((au.raw_user_meta_data->>'last_name')"
-          }
-        ],
-        "renameCreatorsInSet": [],
-        "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
       }
     ]
   },
-  "requiredUnresolvedCount": 1,
-  "requiredDependenciesResolved": false,
+  "requiredUnresolvedCount": 0,
+  "requiredDependenciesResolved": true,
   "cycles": [],
   "integrityErrors": [],
-  "ok": false
+  "ok": true
 }

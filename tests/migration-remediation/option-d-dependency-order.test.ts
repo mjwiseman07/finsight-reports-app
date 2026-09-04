@@ -51,11 +51,11 @@ describe("Option D dependency ordering", () => {
     expect(changelog.recurringFiresRegression.dependencyOrderSatisfied).toBe(true);
     expect(manifest.ordering.recurringFiresRegression.dependencyOrderSatisfied).toBe(true);
 
-    expect(manifest.counts.totalAssembled).toBe(149);
+    expect(manifest.counts.totalAssembled).toBe(150);
     expect(manifest.counts.recoveredRequiredOriginals).toBe(9);
-    expect(manifest.entries).toHaveLength(149);
+    expect(manifest.entries).toHaveLength(150);
     const names = manifest.entries.map((e: { assembledFilename: string }) => e.assembledFilename);
-    expect(new Set(names).size).toBe(149);
+    expect(new Set(names).size).toBe(150);
 
     const recovered = [
       "20260702041259_add_received_at_to_stripe_webhook_events.sql",

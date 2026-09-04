@@ -30,6 +30,7 @@ const {
 } = require("./audit-option-d-rule-seed-deps");
 const { evaluateViewSignatureOrdering } = require("./audit-option-d-view-signatures");
 const { evaluateAppRelationOrdering } = require("./audit-option-d-app-relation-deps");
+const { evaluateDerivedBaseline } = require("./audit-option-d-public-users-derived-baseline");
 const { spawnSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..", "..");
@@ -37,6 +38,10 @@ const MIGRATIONS_DIR = path.join(ROOT, "supabase", "migrations");
 const BASELINE = path.join(
   ROOT,
   "supabase/migrations-draft/20260701043599_foundations_baseline.sql",
+);
+const PUBLIC_USERS_DERIVED = path.join(
+  ROOT,
+  "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql",
 );
 const PHASE1_DIR = path.join(
   ROOT,
@@ -177,7 +182,28 @@ function main() {
   const entries = [];
   let order = 0;
 
-  // 0) Foundations baseline
+  // 0a) Derived public.users baseline (schema/security only — not recovered original)
+  {
+    if (!fs.existsSync(PUBLIC_USERS_DERIVED)) {
+      console.error("FAIL: missing derived public.users baseline", PUBLIC_USERS_DERIVED);
+      process.exit(1);
+    }
+    const content = fs.readFileSync(PUBLIC_USERS_DERIVED);
+    order += 1;
+    entries.push(
+      writeAssembled("20260701043598_public_users_derived_baseline.sql", content, {
+        order,
+        role: "derived_baseline_public_users",
+        action: "include",
+        originalSource: path.relative(ROOT, PUBLIC_USERS_DERIVED).replace(/\\/g, "/"),
+        originalSha256: sha256File(PUBLIC_USERS_DERIVED),
+        justification:
+          "Schema/security-only derived baseline for public.users; original CREATE unavailable in git/statements[].",
+      }),
+    );
+  }
+
+  // 0b) Foundations baseline
   {
     const content = fs.readFileSync(BASELINE);
     order += 1;
@@ -270,6 +296,7 @@ function main() {
   const knownProvidedFunctions = new Set();
   const knownProvidedColumns = new Set();
   for (const abs of [
+    PUBLIC_USERS_DERIVED,
     BASELINE,
     ...PHASE1_FILES.map((f) => path.join(PHASE1_DIR, f)),
   ]) {
@@ -464,9 +491,10 @@ function main() {
     counts: {
       totalAssembled: entries.length,
       baseline: 1,
+      derivedPublicUsersBaseline: 1,
       phase1: PHASE1_FILES.length,
       recoveredRequiredOriginals: RECOVERED_REQUIRED_ORIGINALS.length,
-      postPhase1: entries.length - 1 - PHASE1_FILES.length,
+      postPhase1: entries.length - 2 - PHASE1_FILES.length,
       substitutions: substitutionEntries.length,
       skippedCoveredByBaseline: skippedCoveredByBaseline.length,
     },
@@ -562,7 +590,12 @@ function main() {
     console.error("FAIL: view-signature compatibility", viewEval.failures.slice(0, 10));
     process.exit(1);
   }
-  // App-relation gate records missing creators (e.g. public.users) but does not abort
+  const derivedUsersEval = evaluateDerivedBaseline();
+  if (!derivedUsersEval.ok) {
+    console.error("FAIL: public.users derived baseline", derivedUsersEval.failures.slice(0, 10));
+    process.exit(1);
+  }
+  // App-relation gate records missing creators but does not abort
   // assemble artifact generation — candidateReplayStaticReady is enforced by
   // audit-option-d-replay-gate.js / audit-option-d-app-relation-deps.js.
   const appRelEval = evaluateAppRelationOrdering(loadOrderedEntriesFromReplayManifest());
@@ -588,7 +621,17 @@ function main() {
     console.error("FAIL: audit-option-d-view-signatures.js");
     process.exit(viewGateRun.status || 1);
   }
-  // Always refresh app-relation gate artifact (exit code ignored here; replay gate enforces).
+  const derivedUsersGateRun = spawnSync(
+    process.execPath,
+    [path.join(__dirname, "audit-option-d-public-users-derived-baseline.js")],
+    { cwd: ROOT, encoding: "utf8" },
+  );
+  if (derivedUsersGateRun.status !== 0) {
+    console.error(derivedUsersGateRun.stdout || "");
+    console.error(derivedUsersGateRun.stderr || "");
+    console.error("FAIL: audit-option-d-public-users-derived-baseline.js");
+    process.exit(derivedUsersGateRun.status || 1);
+  }
   spawnSync(process.execPath, [path.join(__dirname, "audit-option-d-app-relation-deps.js")], {
     cwd: ROOT,
     encoding: "utf8",
@@ -597,7 +640,7 @@ function main() {
   console.log(
     JSON.stringify(
       {
-        ok: classification.requiredDependenciesResolved && appRelEval.ok,
+        ok: classification.requiredDependenciesResolved && appRelEval.ok && derivedUsersEval.ok,
         totalAssembled: entries.length,
         substitutions: substitutionEntries.length,
         movedCount: depResult.changelog.movedCount,
@@ -609,6 +652,7 @@ function main() {
         ruleSeedOrderOk: depResult.changelog.ruleSeedRegression.dependencyOrderSatisfied,
         ruleSeedCompletenessOk: seedEval.ok,
         viewSignatureOk: viewEval.ok,
+        publicUsersDerivedBaselineOk: derivedUsersEval.ok,
         appRelationDepsOk: appRelEval.ok,
         publicUsersMissingCreator: appRelEval.publicUsersMissingCreator,
         requiredRuleIds: seedEval.requiredRuleIds.length,

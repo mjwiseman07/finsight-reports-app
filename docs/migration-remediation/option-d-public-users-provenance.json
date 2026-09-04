@@ -131,10 +131,15 @@
     "remediation": "Removed bare users from those lists; only auth.users remains platform-qualified. Extended analyzer to consume tables inside function/policy/DO/grant bodies."
   },
   "createRemediation": {
-    "authorized": false,
-    "reason": "No authoritative CREATE SQL in git or production schema_migrations.statements[]. Catalog-derived reconstruction is out of scope for this authorization (recover only from statements[]). Do not fabricate a minimal public.users table.",
-    "blocker": "Await separately authorized baseline recovery of schema/security-only CREATE (no user rows, no auth.users copy)."
+    "authorized": true,
+    "kind": "derived_baseline_schema_security_only",
+    "artifact": "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql",
+    "contract": "docs/migration-remediation/evidence/option-d-public-users-derived-baseline/contract.json",
+    "reason": "Separately authorized schema/security-only catalog derivation; original CREATE unavailable in statements[]. No user rows.",
+    "blocker": null
   },
   "recoveredArtifact": null,
-  "freshLocalReplayReady": false
+  "derivedBaselineArtifact": "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql",
+  "freshLocalReplayReady": false,
+  "freshLocalReplayNote": "Static candidate ready after this commit; Docker/apply still requires separate authorization"
 }

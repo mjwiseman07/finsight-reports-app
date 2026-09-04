@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-09-04T04:37:52.498Z",
-  "occurrenceCount": 2,
-  "requiredCount": 1,
-  "requiredDependenciesResolved": false,
+  "generatedAt": "2026-09-04T20:42:20.051Z",
+  "occurrenceCount": 1,
+  "requiredCount": 0,
+  "requiredDependenciesResolved": true,
   "classifications": [
     {
       "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
@@ -33,36 +33,6 @@
       ],
       "renameCreatorsInSet": [],
       "rationale": "Every analyzed consume executes only inside IF to_regclass(public.<table>) IS NOT NULL (or ALTER IF EXISTS). Absent table is a no-op, not 42P01."
-    },
-    {
-      "file": "20260727000100_users_auth_trigger_single_writer.sql",
-      "missing": "table users",
-      "kind": "table",
-      "identity": null,
-      "table": "users",
-      "classification": "required_missing_create",
-      "prerequisiteSource": "none_in_git_candidate_set",
-      "justifiedExclusion": false,
-      "absentObjectGenuinelySafe": false,
-      "dependencyEdge": null,
-      "executesWhen": [
-        "unconditional_on_apply",
-        "unconditional_on_apply"
-      ],
-      "statements": [
-        {
-          "kind": "create_function",
-          "executesWhen": "unconditional_on_apply",
-          "snippet": "create or replace function public.handle_new_auth_user() returns trigger language plpgsql security definer set search_path = public, pg_temp as $$ declare meta jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb); begi"
-        },
-        {
-          "kind": "insert",
-          "executesWhen": "unconditional_on_apply",
-          "snippet": "insert into public.users ( id, email, first_name, last_name, business_name, created_at ) select au.id, au.email, nullif(trim((au.raw_user_meta_data->>'first_name')), ''), nullif(trim((au.raw_user_meta_data->>'last_name')"
-        }
-      ],
-      "renameCreatorsInSet": [],
-      "rationale": "Unconditional ALTER/POLICY/INDEX/DML against a relation with no CREATE/RENAME in the Option D candidate set (and not prefix-provided). Clean replay will fail."
     }
   ]
 }

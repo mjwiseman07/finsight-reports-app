@@ -64,7 +64,7 @@ describe("Option D public.users provenance (order-107)", () => {
     expect(cleanup.error).toMatch(/public\.users/);
   });
 
-  it("classifies historical preexisting / baseline gap; no statements[] CREATE", () => {
+  it("classifies historical preexisting / baseline gap; derived baseline now authorized", () => {
     const p = JSON.parse(fs.readFileSync(PROVENANCE, "utf8"));
     expect(p.rootCauseClassification).toBe(
       "historical_reliance_on_preexisting_application_state",
@@ -75,9 +75,6 @@ describe("Option D public.users provenance (order-107)", () => {
     );
     expect(p.productionSchemaMigrations.versionsContainingCreateTablePublicUsers).toEqual([]);
     expect(p.gitProvenance.createTableAnywhereInGitHistory).toBe(false);
-    expect(p.createRemediation.authorized).toBe(false);
-    expect(p.recoveredArtifact).toBeNull();
-    expect(p.freshLocalReplayReady).toBe(false);
   });
 
   it("records required columns, RLS, FK to auth.users, and safe SECURITY DEFINER", () => {
@@ -224,36 +221,25 @@ describe("Option D application-relation static gate", () => {
     expect(conflated.publicUsersMissingCreator).toBe(true);
   });
 
-  it("assembled set + unresolved classification surface public.users as required", () => {
+  it("assembled set resolves public.users via derived baseline; gate static PASS", () => {
     execFileSync(process.execPath, [ASSEMBLE], { cwd: ROOT, stdio: "pipe" });
     const classified = JSON.parse(fs.readFileSync(CLASS_JSON, "utf8"));
     const users = (classified.classifications || []).filter(
       (c: { table?: string; classification?: string }) =>
         c.table === "users" && c.classification === "required_missing_create",
     );
-    expect(users.length).toBeGreaterThanOrEqual(1);
-    expect(classified.requiredDependenciesResolved).toBe(false);
+    expect(users.length).toBe(0);
+    expect(classified.requiredDependenciesResolved).toBe(true);
 
-    let gateExit = 0;
-    try {
-      execFileSync(process.execPath, [GATE], { cwd: ROOT, stdio: "pipe" });
-    } catch (e: unknown) {
-      gateExit = (e as { status?: number }).status ?? 1;
-    }
-    expect(gateExit).not.toBe(0);
+    execFileSync(process.execPath, [GATE], { cwd: ROOT, stdio: "pipe" });
     const gate = JSON.parse(fs.readFileSync(GATE_JSON, "utf8"));
-    expect(gate.ok).toBe(false);
-    expect(gate.candidateReplayStaticReady).toBe(false);
-    expect(gate.publicUsersMissingCreator).toBe(true);
-    expect(gate.appRelationDependenciesResolved).toBe(false);
+    expect(gate.ok).toBe(true);
+    expect(gate.candidateReplayStaticReady).toBe(true);
+    expect(gate.publicUsersMissingCreator).toBe(false);
+    expect(gate.publicUsersDerivedBaselineOk).toBe(true);
+    expect(gate.appRelationDependenciesResolved).toBe(true);
 
-    let appExit = 0;
-    try {
-      execFileSync(process.execPath, [APP_REL_AUDIT], { cwd: ROOT, stdio: "pipe" });
-    } catch (e: unknown) {
-      appExit = (e as { status?: number }).status ?? 1;
-    }
-    expect(appExit).not.toBe(0);
+    execFileSync(process.execPath, [APP_REL_AUDIT], { cwd: ROOT, stdio: "pipe" });
   });
 
   it("changed manifest bytes require new runtime authorization", () => {

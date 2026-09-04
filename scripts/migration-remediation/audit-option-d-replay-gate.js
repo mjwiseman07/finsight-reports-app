@@ -21,6 +21,7 @@ const {
 } = require("./audit-option-d-rule-seed-deps");
 const { evaluateViewSignatureOrdering } = require("./audit-option-d-view-signatures");
 const { evaluateAppRelationOrdering } = require("./audit-option-d-app-relation-deps");
+const { evaluateDerivedBaseline } = require("./audit-option-d-public-users-derived-baseline");
 
 const ROOT = path.join(__dirname, "..", "..");
 const ASSEMBLED_DIR = path.join(
@@ -158,6 +159,8 @@ function main() {
   const usersRequiredMissing = required.some((c) => c.table === "users");
   const publicUsersMissingCreator =
     appRelEval.publicUsersMissingCreator === true || usersRequiredMissing;
+  const derivedUsersEval = evaluateDerivedBaseline();
+  const publicUsersDerivedBaselineOk = derivedUsersEval.ok;
   const appRelationDependenciesResolved =
     appRelEval.ok && !publicUsersMissingCreator;
   if (fs.existsSync(RULE_SEED_JSON)) {
@@ -178,7 +181,8 @@ function main() {
     requiredDependenciesResolved &&
     ruleSeedDependenciesResolved &&
     viewSignaturesResolved &&
-    appRelationDependenciesResolved;
+    appRelationDependenciesResolved &&
+    publicUsersDerivedBaselineOk;
 
   const report = {
     generatedAt: new Date().toISOString(),
@@ -194,6 +198,8 @@ function main() {
     viewSignaturesResolved,
     appRelationDependenciesResolved,
     publicUsersMissingCreator,
+    publicUsersDerivedBaselineOk,
+    publicUsersDerivedBaselineFailures: derivedUsersEval.failures.slice(0, 20),
     ruleSeedFailureCount: seedEval.failures.length,
     ruleSeedFailures: seedEval.failures.slice(0, 20),
     viewSignatureFailureCount: viewEval.failures.length,
@@ -239,6 +245,7 @@ function main() {
         viewSignaturesResolved: report.viewSignaturesResolved,
         appRelationDependenciesResolved: report.appRelationDependenciesResolved,
         publicUsersMissingCreator: report.publicUsersMissingCreator,
+        publicUsersDerivedBaselineOk: report.publicUsersDerivedBaselineOk,
         requiredUnresolvedCount: report.requiredUnresolvedCount,
         ruleSeedFailureCount: report.ruleSeedFailureCount,
         viewSignatureFailureCount: report.viewSignatureFailureCount,

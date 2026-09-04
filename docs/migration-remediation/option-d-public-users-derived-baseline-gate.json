@@ -1,0 +1,11 @@
+{
+  "generatedAt": "2026-09-04T20:42:31.287Z",
+  "gate": "option_d_public_users_derived_baseline",
+  "ok": true,
+  "failureCount": 0,
+  "failures": [],
+  "derivedSqlSha256": "14f67dd2b70300ab058a7635bd265f75847e6ca7a24d3087358844f102c71850",
+  "derivedSqlBytes": 1762,
+  "derivationComplete": true,
+  "unresolvedCount": 0
+}

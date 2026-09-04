@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-09-04T04:37:54.372Z",
+  "generatedAt": "2026-09-04T20:42:21.954Z",
   "mechanism": "option_d_view_signature_gate",
   "ok": true,
   "failureCount": 0,
   "failures": [],
   "transitions": [
     {
-      "order": 88,
+      "order": 89,
       "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
       "view": "audit_ready_tie_out_summary",
       "action": "create_or_replace_view",
@@ -31,13 +31,13 @@
       ]
     },
     {
-      "order": 89,
+      "order": 90,
       "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
       "view": "audit_ready_tie_out_summary",
       "action": "drop_if_exists_or_drop"
     },
     {
-      "order": 89,
+      "order": 90,
       "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
       "view": "audit_ready_tie_out_summary",
       "action": "create_view",
@@ -72,13 +72,13 @@
         "firm_id"
       ],
       "filename": "20260701043911_phase1_backward_compat_view.sql",
-      "order": 4,
+      "order": 5,
       "securityInvoker": true
     },
     "qbo_connections_unified": {
       "columns": [],
       "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
-      "order": 56,
+      "order": 57,
       "securityInvoker": true
     },
     "audit_ready_tie_out_summary": {
@@ -105,7 +105,7 @@
         "authoritative_comparison"
       ],
       "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
-      "order": 89,
+      "order": 90,
       "securityInvoker": true
     }
   }

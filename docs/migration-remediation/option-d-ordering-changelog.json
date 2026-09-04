@@ -1,8 +1,9 @@
 {
-  "generatedAt": "2026-09-04T04:37:52.493Z",
+  "generatedAt": "2026-09-04T20:42:20.044Z",
   "policy": "explicit_dependsOn_plus_inferred_mutator_chains_and_creator_edges_stable_lex_tiebreak",
   "candidateCount": 144,
   "lexicographicOrder": [
+    "20260701043598_public_users_derived_baseline.sql",
     "20260701043599_foundations_baseline.sql",
     "20260701043602_phase1_subscriptions_core.sql",
     "20260701043707_phase1_subscription_seats_and_entitlements.sql",
@@ -154,6 +155,7 @@
     "2026_07_20__pilot_slots_add_review_assist_pro_tier_key.sql"
   ],
   "dependencyOrder": [
+    "20260701043598_public_users_derived_baseline.sql",
     "20260701043599_foundations_baseline.sql",
     "20260701043602_phase1_subscriptions_core.sql",
     "20260701043707_phase1_subscription_seats_and_entitlements.sql",
@@ -584,8 +586,8 @@
     "regression": "Filename order places d6_0 before d5; ALTER/FK on recurring_fires fails with 42P01.",
     "dependencyOrderSatisfied": true,
     "dependencyOrderIndex": {
-      "d5": 38,
-      "d6_0": 39
+      "d5": 39,
+      "d6_0": 40
     }
   },
   "edgeCount": 426,
@@ -631,8 +633,9 @@
       "reason": "semanticConstraint:D0 creates curated_rules_registry + base gen rule seeds before d6_0 vertical expansion seeds."
     }
   ],
-  "unresolvedCount": 2,
+  "unresolvedCount": 1,
   "fixedPrefix": [
+    "20260701043598_public_users_derived_baseline.sql",
     "20260701043599_foundations_baseline.sql",
     "20260701043602_phase1_subscriptions_core.sql",
     "20260701043707_phase1_subscription_seats_and_entitlements.sql",
@@ -939,9 +942,9 @@
     "prerequisite": "20260703_1200_d6_0_vertical_rule_foundation.sql",
     "d0": "20260708_00_d0_identity_and_memory_activation.sql",
     "dependencyOrderIndex": {
-      "d0": 20,
-      "d6_0": 39,
-      "part1": 44
+      "d0": 21,
+      "d6_0": 40,
+      "part1": 45
     },
     "dependencyOrderSatisfied": true
   }

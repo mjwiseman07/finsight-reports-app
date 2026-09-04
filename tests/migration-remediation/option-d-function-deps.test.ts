@@ -136,7 +136,7 @@ describe("Option D function dependency order", () => {
     execFileSync(process.execPath, [ASSEMBLE], { cwd: ROOT, stdio: "pipe" });
     execFileSync(process.execPath, [AUDIT], { cwd: ROOT, stdio: "pipe" });
     const manifest = JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
-    expect(manifest.counts.totalAssembled).toBe(149);
+    expect(manifest.counts.totalAssembled).toBe(150);
     expect(manifest.counts.recoveredRequiredOriginals).toBe(9);
 
     const orderOf = (name: string) =>
@@ -163,15 +163,15 @@ describe("Option D function dependency order", () => {
     expect(lockdown).toMatch(/GRANT EXECUTE ON FUNCTION public\.sp_write_anchor_batch\(/);
 
     const classified = JSON.parse(fs.readFileSync(CLASS_JSON, "utf8"));
-    // public.users is the sole expected required_missing_create until baseline recovery.
-    expect(classified.requiredCount).toBe(1);
-    expect(classified.requiredDependenciesResolved).toBe(false);
+    // public.users derived baseline supplies the CREATE; no required_missing_create remains.
+    expect(classified.requiredCount).toBe(0);
+    expect(classified.requiredDependenciesResolved).toBe(true);
     expect(
       classified.classifications.filter(
         (c: { table?: string; classification: string }) =>
           c.table === "users" && c.classification === "required_missing_create",
       ),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
     expect(
       classified.classifications.filter(
         (c: { kind?: string; classification: string }) =>

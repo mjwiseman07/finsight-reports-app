@@ -1,0 +1,265 @@
+{
+  "artifactKind": "derived_baseline_not_recovered_original_sql",
+  "subject": "public.users",
+  "generatedAt": "2026-09-04T20:45:00.000Z",
+  "sourceProjectRef": "jzmdgwwiestcmmeuhhkr",
+  "captureMode": "read_only_pg_catalog_and_information_schema",
+  "contains_data_rows": false,
+  "originalCreatorSqlAvailable": false,
+  "originalCreatorSqlUnavailableReason": "Absent from git history and from all production schema_migrations.statements[] CREATE TABLE rows. First tracked production version is 20260701043602.",
+  "noCredentialsEmailsUserIdsOrRowValues": true,
+  "identitySeparation": {
+    "publicUsers": "application profile table",
+    "authUsers": "Supabase-managed Auth identities",
+    "mustRemainDistinct": true,
+    "foreignKey": "public.users.id → auth.users(id) NO ACTION"
+  },
+  "derivedSqlPath": "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql",
+  "derivedSqlSha256": "14f67dd2b70300ab058a7635bd265f75847e6ca7a24d3087358844f102c71850",
+  "derivedSqlMd5": "96cee8cd5944d743059e522a23d21675",
+  "derivedSqlBytes": 1762,
+  "catalogQueryDefinitions": [
+    {
+      "id": "relation_meta",
+      "sql": "SELECT relname, relkind, pg_get_userbyid(relowner), relrowsecurity, relforcerowsecurity, obj_description(oid) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname='public' AND c.relname='users'"
+    },
+    {
+      "id": "columns",
+      "sql": "SELECT attnum, attname, format_type(atttypid,atttypmod), attnotnull, pg_get_expr(adbin,adrelid), attidentity, attgenerated, col_description(c.oid,attnum) FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid JOIN pg_namespace n ON n.oid=c.relnamespace LEFT JOIN pg_attrdef ad ON ad.adrelid=a.attrelid AND ad.adnum=a.attnum WHERE n.nspname='public' AND c.relname='users' AND attnum>0 AND NOT attisdropped ORDER BY attnum"
+    },
+    {
+      "id": "constraints",
+      "sql": "SELECT conname, contype, pg_get_constraintdef(oid), confdeltype, confupdtype FROM pg_constraint WHERE conrelid='public.users'::regclass"
+    },
+    {
+      "id": "indexes",
+      "sql": "SELECT indexname, indexdef, indisunique, indisprimary FROM pg_indexes i JOIN pg_class c ON c.relname=i.indexname JOIN pg_index ix ON ix.indexrelid=c.oid WHERE schemaname='public' AND tablename='users'"
+    },
+    {
+      "id": "policies",
+      "sql": "SELECT polname, polcmd, polpermissive, polroles, pg_get_expr(polqual,polrelid), pg_get_expr(polwithcheck,polrelid) FROM pg_policy pol JOIN pg_class c ON c.oid=pol.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname='users'"
+    },
+    {
+      "id": "grants",
+      "sql": "SELECT grantee, privilege_type, is_grantable FROM information_schema.role_table_grants WHERE table_schema='public' AND table_name='users'"
+    },
+    {
+      "id": "user_triggers_on_public_users",
+      "sql": "SELECT tgname, pg_get_triggerdef(oid) FROM pg_trigger WHERE tgrelid='public.users'::regclass AND NOT tgisinternal"
+    },
+    {
+      "id": "sequences",
+      "sql": "SELECT seq.relname FROM pg_class seq JOIN pg_depend d ON d.objid=seq.oid AND d.deptype='a' JOIN pg_class tbl ON tbl.oid=d.refobjid JOIN pg_namespace tn ON tn.oid=tbl.relnamespace WHERE seq.relkind='S' AND tn.nspname='public' AND tbl.relname='users'"
+    },
+    {
+      "id": "tracked_alters",
+      "sql": "SELECT version, name FROM supabase_migrations.schema_migrations WHERE EXISTS (SELECT 1 FROM unnest(statements) s WHERE s ~* 'alter\\s+table\\s+(public\\.)?users\\b' OR s ~* 'create\\s+policy[^;]*on\\s+(public\\.)?users\\b' OR s ~* 'add\\s+column' AND s ~* 'public\\.users')"
+    }
+  ],
+  "trackedMigrationInventory": {
+    "altersPublicUsers": [],
+    "addColumnPublicUsers": [],
+    "createPolicyOnPublicUsers": [],
+    "enableRlsOnPublicUsers": [],
+    "consumers": [
+      {
+        "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+        "productionVersion": "20260727030443",
+        "kinds": ["create_function_handle_new_auth_user", "create_trigger_on_auth_users", "backfill_insert"],
+        "createsPublicUsersTable": false,
+        "baselineMustExclude": ["handle_new_auth_user", "on_auth_user_created"]
+      }
+    ],
+    "commentsOnly": [
+      {
+        "filename": "20260701043602_phase1_subscriptions_core.sql",
+        "note": "Comment references users.subscription_status as pre-existing"
+      }
+    ],
+    "laterLockdownOfWriterFunction": [
+      {
+        "filename": "20260805041500_major_1_rpc_lockdown.sql",
+        "note": "REVOKE EXECUTE on handle_new_auth_user — after order 107; not baseline"
+      }
+    ]
+  },
+  "derivationMethod": "Final catalog shape minus objects created by tracked consumers. Zero tracked ALTER/ADD COLUMN/policy/RLS migrations on public.users ⇒ final columns/constraints/RLS/policies/grants are pre-lineage.",
+  "unresolvedElements": [],
+  "derivationComplete": true,
+  "elements": [
+    {
+      "id": "table.public.users",
+      "classification": "directly_observed",
+      "includeInBaseline": true
+    },
+    {
+      "id": "column.id",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "uuid",
+      "notNull": true,
+      "default": null,
+      "identity": "",
+      "generated": ""
+    },
+    {
+      "id": "column.email",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "text",
+      "notNull": true
+    },
+    {
+      "id": "column.first_name",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "text",
+      "notNull": false
+    },
+    {
+      "id": "column.business_name",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "text",
+      "notNull": false
+    },
+    {
+      "id": "column.ip_address_signup",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "text",
+      "notNull": false
+    },
+    {
+      "id": "column.trial_used",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "boolean",
+      "default": "false"
+    },
+    {
+      "id": "column.reports_generated",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "integer",
+      "default": "0"
+    },
+    {
+      "id": "column.subscription_status",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "text",
+      "default": "'trial'::text",
+      "alsoReferencedBy": "phase1_subscriptions_core comment"
+    },
+    {
+      "id": "column.stripe_customer_id",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "text"
+    },
+    {
+      "id": "column.created_at",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "timestamp with time zone",
+      "default": "now()"
+    },
+    {
+      "id": "column.last_name",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "dataType": "text",
+      "requiredByOrder107Insert": true
+    },
+    {
+      "id": "constraint.users_pkey",
+      "classification": "directly_observed",
+      "includeInBaseline": true
+    },
+    {
+      "id": "constraint.users_email_key",
+      "classification": "directly_observed",
+      "includeInBaseline": true
+    },
+    {
+      "id": "constraint.users_id_fkey",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "def": "FOREIGN KEY (id) REFERENCES auth.users(id)",
+      "onDelete": "NO ACTION",
+      "onUpdate": "NO ACTION"
+    },
+    {
+      "id": "index.users_pkey",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "note": "Implied by PRIMARY KEY; not separately emitted"
+    },
+    {
+      "id": "index.users_email_key",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "note": "Implied by UNIQUE; not separately emitted"
+    },
+    {
+      "id": "rls.enabled",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "forced": false
+    },
+    {
+      "id": "policy.Users can read own record",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "command": "SELECT",
+      "roles": "PUBLIC",
+      "using": "(auth.uid() = id)",
+      "withCheck": null
+    },
+    {
+      "id": "policy.Users can update own record",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "command": "UPDATE",
+      "roles": "PUBLIC",
+      "using": "(auth.uid() = id)",
+      "withCheck": null
+    },
+    {
+      "id": "owner.postgres",
+      "classification": "directly_observed",
+      "includeInBaseline": true
+    },
+    {
+      "id": "grants.anon_authenticated_service_role_ALL",
+      "classification": "directly_observed",
+      "includeInBaseline": true,
+      "note": "information_schema lists SELECT/INSERT/UPDATE/DELETE/REFERENCES/TRIGGER/TRUNCATE for anon, authenticated, service_role"
+    },
+    {
+      "id": "sequence",
+      "classification": "directly_observed",
+      "includeInBaseline": false,
+      "note": "none"
+    },
+    {
+      "id": "trigger.on_auth_user_created",
+      "classification": "directly_observed",
+      "includeInBaseline": false,
+      "reason": "Created by tracked consumer 20260727000100; binds on auth.users not public.users"
+    },
+    {
+      "id": "function.handle_new_auth_user",
+      "classification": "directly_observed",
+      "includeInBaseline": false,
+      "reason": "Created by tracked consumer 20260727000100; SECURITY DEFINER with search_path=public, pg_temp retained in that migration"
+    }
+  ],
+  "schemaContractHash": {
+    "algorithm": "sha256",
+    "of": "derivedSqlPath UTF-8 bytes",
+    "value": "14f67dd2b70300ab058a7635bd265f75847e6ca7a24d3087358844f102c71850"
+  },
+  "freshLocalReplayPrerequisite": "Derived baseline must assemble before order 107; separately authorize Docker/apply after this commit"
+}
