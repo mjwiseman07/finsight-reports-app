@@ -18,6 +18,9 @@ import {
   PROBE_EXPECTATIONS,
   REQUIRED_BEHAVIORAL_PROBES,
   REQUIRED_IMMUTABILITY_TRIGGERS,
+  MEMORY_PROBE_FIXTURE_TYPE,
+  memoryPayloadImmutabilityMessage,
+  evaluateProbeAuthoritativeAlignment,
 } from "../../scripts/migration-remediation/option-d-security-assertions.js";
 import {
   evaluateVitestStructuredResult,
@@ -101,7 +104,7 @@ function passingBehavioralProbes() {
       fixtureCleanupConfirmed: true,
       sqlState: exp.sqlState,
       classifyReason: "immutability_rule_matched",
-      errorMessage: exp.messageIncludes,
+      errorMessage: exp.expectedMessage,
     };
   });
 }
@@ -111,7 +114,7 @@ function passingTriggerBindings() {
     table: t.table,
     trigger: t.trigger,
     enabled: true,
-    events: ["UPDATE", "DELETE"],
+    events: t.events,
   }));
 }
 
@@ -377,13 +380,173 @@ describe("Option D negative gates (false PASS prevention)", () => {
     ).toBe(false);
   });
 
-  it("intended P0001 + trigger message classifies as immutability rejection", () => {
+  it("intended P0001 + exact trigger message classifies as immutability rejection", () => {
     const exp = PROBE_EXPECTATIONS.si_finalized_metadata_delete_rejected;
     const classified = classifyProbeError(
-      { code: "P0001", message: exp.messageIncludes },
+      { code: "P0001", message: exp.expectedMessage },
       exp,
     );
     expect(classified.intendedImmutabilityRejection).toBe(true);
+  });
+
+  it("exact dynamic Memory payload message is accepted for fixture memory_type", () => {
+    const exp = PROBE_EXPECTATIONS.memory_immutable_field_update_rejected;
+    expect(exp.expectedMessage).toBe(
+      memoryPayloadImmutabilityMessage(MEMORY_PROBE_FIXTURE_TYPE),
+    );
+    expect(
+      classifyProbeError({ code: "P0001", message: exp.expectedMessage }, exp)
+        .intendedImmutabilityRejection,
+    ).toBe(true);
+  });
+
+  it("wrong memory_type in message is rejected even with P0001", () => {
+    const exp = PROBE_EXPECTATIONS.memory_immutable_field_update_rejected;
+    const wrong = memoryPayloadImmutabilityMessage("advisor_feedback");
+    expect(wrong).not.toBe(exp.expectedMessage);
+    const classified = classifyProbeError({ code: "P0001", message: wrong }, exp);
+    expect(classified.intendedImmutabilityRejection).toBe(false);
+    expect(classified.reason).toBe("message_mismatch");
+  });
+
+  it("correct SQLSTATE with wrong message is rejected", () => {
+    const exp = PROBE_EXPECTATIONS.memory_immutable_field_update_rejected;
+    expect(
+      classifyProbeError(
+        {
+          code: "P0001",
+          message: "Company memory immutable record fields cannot be changed after insert",
+        },
+        exp,
+      ).intendedImmutabilityRejection,
+    ).toBe(false);
+  });
+
+  it("correct message with wrong SQLSTATE is rejected", () => {
+    const exp = PROBE_EXPECTATIONS.memory_immutable_field_update_rejected;
+    expect(
+      classifyProbeError({ code: "23514", message: exp.expectedMessage }, exp)
+        .intendedImmutabilityRejection,
+    ).toBe(false);
+  });
+
+  it("unrelated database error is rejected as immutability PASS", () => {
+    const exp = PROBE_EXPECTATIONS.memory_immutable_field_update_rejected;
+    expect(
+      classifyProbeError({ code: "42P01", message: "relation does not exist" }, exp)
+        .intendedImmutabilityRejection,
+    ).toBe(false);
+  });
+
+  it("mutation unexpectedly succeeding cannot PASS evaluator", () => {
+    const probes = passingBehavioralProbes().map((p) =>
+      p.id === "memory_immutable_field_update_rejected"
+        ? {
+            ...p,
+            rejected: false,
+            rejectedByImmutabilityRule: false,
+            classifyReason: "mutation_succeeded",
+            errorMessage: null,
+            sqlState: null,
+          }
+        : p,
+    );
+    expect(
+      evaluateImmutability({
+        triggers: passingTriggerBindings(),
+        behavioralProbes: probes,
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("row-change or cleanup failure cannot PASS evaluator", () => {
+    for (const field of ["rowUnchangedAfter", "fixtureCleanupConfirmed"] as const) {
+      const probes = passingBehavioralProbes().map((p) => ({ ...p, [field]: false }));
+      expect(
+        evaluateImmutability({
+          triggers: passingTriggerBindings(),
+          behavioralProbes: probes,
+        }).ok,
+      ).toBe(false);
+    }
+  });
+
+  it("authoritative trigger/probe divergence blocks readiness", () => {
+    expect(evaluateProbeAuthoritativeAlignment().ok).toBe(true);
+    const divergent = {
+      ...PROBE_EXPECTATIONS,
+      memory_immutable_field_update_rejected: {
+        ...PROBE_EXPECTATIONS.memory_immutable_field_update_rejected,
+        expectedMessage: "Company memory immutable record fields cannot be changed after insert",
+      },
+    };
+    const result = evaluateProbeAuthoritativeAlignment(divergent);
+    expect(result.ok).toBe(false);
+    expect(
+      result.failures.some(
+        (f: { rule: string }) => f.rule === "authoritative_trigger_probe_divergence",
+      ),
+    ).toBe(true);
+  });
+
+  it("PR #312 cannot overall-pass until every security probe scope passes", () => {
+    expect(
+      evaluateOverallRuntimePass({
+        candidateReplay: "PASS",
+        securityImmutabilityChecks: "FAIL",
+        pr312RpcValidation: "PASS",
+        productionDashboardReplayParity: "unresolved",
+      }).ok,
+    ).toBe(false);
+    expect(
+      evaluateOverallRuntimePass({
+        candidateReplay: "PASS",
+        securityImmutabilityChecks: "PASS",
+        pr312RpcValidation: "BLOCKED",
+        productionDashboardReplayParity: "unresolved",
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("assembled Memory payload raise matches probe expectation and fixture type", () => {
+    const assembled = fs.readFileSync(
+      path.join(
+        ROOT,
+        "supabase/migrations-draft/option-d-isolated-replay/assembled/20260710_00_d3_memory_indexes.sql",
+      ),
+      "utf8",
+    );
+    expect(assembled).toContain(
+      "raise exception 'company_memory_records.payload is immutable for memory_type=%', old.memory_type;",
+    );
+    expect(assembled).toContain("CREATE TRIGGER prevent_memory_payload_update");
+    expect(PROBE_EXPECTATIONS.memory_immutable_field_update_rejected.expectedMessage).toBe(
+      `company_memory_records.payload is immutable for memory_type=${MEMORY_PROBE_FIXTURE_TYPE}`,
+    );
+  });
+
+  it("all SI/Memory probe expectedMessages bind to authoritative migration raise text", () => {
+    const siSql = fs.readFileSync(
+      path.join(ROOT, "supabase/migrations/20260603_harden_si_snapshot_immutability.sql"),
+      "utf8",
+    );
+    const memSql = fs.readFileSync(
+      path.join(ROOT, "supabase/migrations/20260710_00_d3_memory_indexes.sql"),
+      "utf8",
+    );
+    for (const id of REQUIRED_BEHAVIORAL_PROBES) {
+      const exp = PROBE_EXPECTATIONS[id];
+      expect(exp.expectedMessage.length).toBeGreaterThan(10);
+      if (id.startsWith("si_")) {
+        expect(siSql).toContain(`raise exception '${exp.expectedMessage}'`);
+      } else if (id === "memory_delete_rejected") {
+        expect(memSql).toContain(`raise exception '${exp.expectedMessage}'`);
+      } else if (id === "memory_immutable_field_update_rejected") {
+        expect(memSql).toContain(
+          "raise exception 'company_memory_records.payload is immutable for memory_type=%', old.memory_type;",
+        );
+      }
+    }
   });
 
   it("passing behavioral probes with full classification can PASS evaluator", () => {

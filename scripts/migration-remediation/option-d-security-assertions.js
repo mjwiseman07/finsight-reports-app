@@ -27,6 +27,12 @@ const REQUIRED_VIEWS_SECURITY_INVOKER = [
   "qbo_connections_unified",
 ];
 
+/**
+ * Fixture memory_type for company_memory_records payload-immutability probe.
+ * Bound to RAISE '…memory_type=%', old.memory_type in prevent_memory_payload_update.
+ */
+const MEMORY_PROBE_FIXTURE_TYPE = "probe";
+
 /** Exact trigger bindings — no substring matching. */
 const REQUIRED_IMMUTABILITY_TRIGGERS = [
   {
@@ -44,6 +50,11 @@ const REQUIRED_IMMUTABILITY_TRIGGERS = [
     trigger: "prevent_company_memory_record_unsafe_mutation",
     events: ["UPDATE", "DELETE"],
   },
+  {
+    table: "company_memory_records",
+    trigger: "prevent_memory_payload_update",
+    events: ["UPDATE"],
+  },
 ];
 
 const REQUIRED_BEHAVIORAL_PROBES = [
@@ -55,36 +66,143 @@ const REQUIRED_BEHAVIORAL_PROBES = [
 ];
 
 /**
- * Expectations derived from actual RAISE EXCEPTION text in:
- *   - 20260603_harden_si_snapshot_immutability.sql
- *   - 20260605_harden_company_memory_persistence_immutability.sql
- * Bare RAISE EXCEPTION uses SQLSTATE P0001 (raise_exception).
+ * Exact expected RAISE EXCEPTION messages (SQLSTATE P0001) bound to authoritative
+ * migration trigger functions — no substring / regex-anything matching.
+ *
+ * Provenance:
+ *   - SI: 20260603_harden_si_snapshot_immutability.sql
+ *   - Memory umbrella DELETE: 20260710_00_d3_memory_indexes.sql
+ *     (CREATE OR REPLACE of prevent_company_memory_record_unsafe_mutation;
+ *      original create in 20260605_harden_company_memory_persistence_immutability.sql)
+ *   - Memory payload UPDATE: 20260710_00_d3_memory_indexes.sql
+ *     prevent_memory_payload_update — format
+ *     'company_memory_records.payload is immutable for memory_type=%', old.memory_type
  */
 const PROBE_EXPECTATIONS = {
   si_finalized_metadata_update_rejected: {
     sqlState: "P0001",
-    messageIncludes:
+    expectedMessage:
       "Finalized SI snapshot metadata only allows transition to superseded with superseded_by_snapshot_id and updated_at",
+    trigger: "prevent_si_snapshot_metadata_mutation",
+    functionName: "prevent_si_snapshot_metadata_mutation",
+    authoritativeMigration: "20260603_harden_si_snapshot_immutability.sql",
   },
   si_finalized_metadata_delete_rejected: {
     sqlState: "P0001",
-    messageIncludes: "SI snapshot metadata is immutable once finalized or superseded",
+    expectedMessage: "SI snapshot metadata is immutable once finalized or superseded",
+    trigger: "prevent_si_snapshot_metadata_mutation",
+    functionName: "prevent_si_snapshot_metadata_mutation",
+    authoritativeMigration: "20260603_harden_si_snapshot_immutability.sql",
   },
   si_locked_payload_update_rejected: {
     sqlState: "P0001",
-    messageIncludes:
+    expectedMessage:
       "SI snapshot child rows are immutable when parent snapshot is finalized or superseded",
+    trigger: "prevent_si_snapshot_payload_mutation_when_parent_locked",
+    functionName: "prevent_si_snapshot_child_mutation_when_parent_locked",
+    authoritativeMigration: "20260603_harden_si_snapshot_immutability.sql",
   },
   memory_immutable_field_update_rejected: {
     sqlState: "P0001",
-    messageIncludes: "Company memory immutable record fields cannot be changed after insert",
+    expectedMessage: `company_memory_records.payload is immutable for memory_type=${MEMORY_PROBE_FIXTURE_TYPE}`,
+    trigger: "prevent_memory_payload_update",
+    functionName: "prevent_memory_payload_update",
+    authoritativeMigration: "20260710_00_d3_memory_indexes.sql",
+    raiseFormat: "company_memory_records.payload is immutable for memory_type=%",
+    fixtureMemoryType: MEMORY_PROBE_FIXTURE_TYPE,
   },
   memory_delete_rejected: {
     sqlState: "P0001",
-    messageIncludes:
+    expectedMessage:
       "Company memory records cannot be deleted without a future approved compliance workflow",
+    trigger: "prevent_company_memory_record_unsafe_mutation",
+    functionName: "prevent_company_memory_record_unsafe_mutation",
+    authoritativeMigration: "20260710_00_d3_memory_indexes.sql",
   },
 };
+
+/**
+ * Build the exact dynamic Memory payload-immutability message for a memory_type.
+ * @param {string} memoryType
+ */
+function memoryPayloadImmutabilityMessage(memoryType) {
+  return `company_memory_records.payload is immutable for memory_type=${memoryType}`;
+}
+
+/**
+ * Static readiness: every probe expectation must equal the authoritative raise
+ * expression for its fixture inputs. Divergence blocks security readiness.
+ * @param {typeof PROBE_EXPECTATIONS} [expectations]
+ */
+function evaluateProbeAuthoritativeAlignment(expectations = PROBE_EXPECTATIONS) {
+  const failures = [];
+  const mem = expectations.memory_immutable_field_update_rejected;
+  if (!mem) {
+    failures.push({
+      check: "si_memory_immutability",
+      rule: "probe_expectation_missing",
+      id: "memory_immutable_field_update_rejected",
+    });
+  } else {
+    const derived = memoryPayloadImmutabilityMessage(
+      mem.fixtureMemoryType || MEMORY_PROBE_FIXTURE_TYPE,
+    );
+    if (mem.expectedMessage !== derived) {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "authoritative_trigger_probe_divergence",
+        id: "memory_immutable_field_update_rejected",
+        expectedMessage: mem.expectedMessage,
+        authoritativeMessage: derived,
+      });
+    }
+    if (mem.raiseFormat !== "company_memory_records.payload is immutable for memory_type=%") {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "authoritative_raise_format_mismatch",
+        id: "memory_immutable_field_update_rejected",
+      });
+    }
+    if (mem.trigger !== "prevent_memory_payload_update") {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "authoritative_trigger_binding_mismatch",
+        id: "memory_immutable_field_update_rejected",
+        trigger: mem.trigger,
+      });
+    }
+  }
+
+  for (const id of REQUIRED_BEHAVIORAL_PROBES) {
+    const exp = expectations[id];
+    if (!exp || typeof exp.expectedMessage !== "string" || !exp.expectedMessage) {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "probe_expected_message_absent",
+        id,
+      });
+      continue;
+    }
+    if (exp.sqlState !== "P0001") {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "probe_expected_sqlstate_invalid",
+        id,
+        sqlState: exp.sqlState,
+      });
+    }
+    // Reject substring-style legacy fields — exact message only.
+    if (Object.prototype.hasOwnProperty.call(exp, "messageIncludes")) {
+      failures.push({
+        check: "si_memory_immutability",
+        rule: "substring_message_matching_forbidden",
+        id,
+      });
+    }
+  }
+
+  return { ok: failures.length === 0, failures };
+}
 
 /** SQLSTATEs that prove infra/txn failure — never count as immutability PASS. */
 const NON_IMMUTABILITY_SQLSTATES = new Set([
@@ -112,8 +230,9 @@ const REQUIRED_FUNCTIONS = [
 
 /**
  * Classify a caught DB error as intended immutability rejection or unrelated failure.
+ * Requires exact SQLSTATE + exact expectedMessage (no substring / regex).
  * @param {{ code?: string, message?: string }|null|undefined} err
- * @param {{ sqlState: string, messageIncludes: string }} expectation
+ * @param {{ sqlState: string, expectedMessage: string }} expectation
  */
 function classifyProbeError(err, expectation) {
   const sqlState = err && err.code ? String(err.code) : null;
@@ -144,13 +263,13 @@ function classifyProbeError(err, expectation) {
       message: message.slice(0, 300),
     };
   }
-  if (!message.includes(expectation.messageIncludes)) {
+  if (message !== expectation.expectedMessage) {
     return {
       intendedImmutabilityRejection: false,
       reason: "message_mismatch",
       sqlState,
       message: message.slice(0, 300),
-      expectedMessageIncludes: expectation.messageIncludes,
+      expectedMessage: expectation.expectedMessage,
     };
   }
   return {
@@ -324,12 +443,14 @@ function evaluateImmutabilityBehavior(evidence) {
     }
     if (
       !probe.errorMessage ||
-      !String(probe.errorMessage).includes(expectation.messageIncludes)
+      String(probe.errorMessage) !== expectation.expectedMessage
     ) {
       failures.push({
         check: "si_memory_immutability",
         rule: "message_mismatch",
         id,
+        expectedMessage: expectation.expectedMessage,
+        actualMessage: probe.errorMessage || null,
       });
     }
   }
@@ -381,11 +502,13 @@ function evaluateSecurityBundle(evidence) {
     }
   }
 
+  const alignment = evaluateProbeAuthoritativeAlignment();
   const schemaRls = evaluateFinalSchemaRls(evidence);
   const views = evaluateViewSecurity(evidence);
   const immutability = evaluateImmutability(evidence);
   const functions = evaluateRequiredFunctions(evidence);
   const failures = [
+    ...alignment.failures,
     ...schemaRls.failures,
     ...views.failures,
     ...immutability.failures,
@@ -395,6 +518,7 @@ function evaluateSecurityBundle(evidence) {
   return {
     ok,
     status: ok ? "PASS" : "FAIL",
+    alignment,
     schemaRls,
     views,
     immutability,
@@ -627,9 +751,9 @@ async function runImmutabilityBehavioralProbes(client) {
          company_id, memory_type, memory_status, persistence_status, payload
        ) VALUES (
          $1, 'option_d_probe_group', 'option_d_probe_key', 1,
-         $2::uuid, 'probe', 'active', 'persisted', '{}'::jsonb
+         $2::uuid, $3, 'active', 'persisted', '{}'::jsonb
        )`,
-      [memoryId, companyId],
+      [memoryId, companyId, MEMORY_PROBE_FIXTURE_TYPE],
     );
 
     const memPre = await client.query(
@@ -770,7 +894,10 @@ module.exports = {
   REQUIRED_BEHAVIORAL_PROBES,
   REQUIRED_FUNCTIONS,
   PROBE_EXPECTATIONS,
+  MEMORY_PROBE_FIXTURE_TYPE,
   NON_IMMUTABILITY_SQLSTATES,
+  memoryPayloadImmutabilityMessage,
+  evaluateProbeAuthoritativeAlignment,
   classifyProbeError,
   evaluateFinalSchemaRls,
   evaluateViewSecurity,
