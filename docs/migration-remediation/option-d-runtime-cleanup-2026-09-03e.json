@@ -1,0 +1,35 @@
+﻿{
+    "droppedDb":  true,
+    "dropVia":  "supabase_stop_no_backup_removed_ephemeral_postgres",
+    "remainingOptionDDatabases":  [
+
+                                  ],
+    "suiteFileRemoved":  true,
+    "supabaseStopExit":  0,
+    "remainingContainersMatching":  [
+
+                                    ],
+    "remainingVolumesMatching":  [
+
+                                 ],
+    "ephemeralProjectDirRemoved":  true,
+    "ephemeralWorkdir":  "C:\\Users\\mattj\\tmp-option-d-platform-only-d5e44f3e",
+    "localPostgres54322":  "closed_after_stop",
+    "sqlApplicationAttempts":  0,
+    "leftInPlace":  [
+                        "Docker Desktop",
+                        "WSL",
+                        "Scoop",
+                        "Supabase CLI"
+                    ],
+    "notTouched":  [
+                       "production",
+                       "paid branches",
+                       "PR312 remote",
+                       "capabilities",
+                       "unrelated .tmp-*",
+                       "149 migration SQL",
+                       "authorized manifest"
+                   ],
+    "cleanedAt":  "2026-09-04T02:46:28.1984177Z"
+}
