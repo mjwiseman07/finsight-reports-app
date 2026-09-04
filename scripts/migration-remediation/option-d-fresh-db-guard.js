@@ -16,12 +16,17 @@ const {
   evaluatePlatformBootstrap,
   collectPlatformInventory,
 } = require("./option-d-platform-bootstrap");
+const {
+  REALTIME_INTERNAL_SCHEMA,
+  evaluateRealtimeInternalSchema,
+} = require("./option-d-realtime-internal-schema");
 /** Database name must be intentionally disposable (not ambiguous `postgres`). */
 const DISPOSABLE_DB_NAME_RE = /^option_d_[a-z0-9_]+$/;
 
 /**
  * Supabase-managed / system schemas permitted on a virgin local stack.
  * Any other non-empty user schema rejects the fresh claim.
+ * `_realtime` is the Realtime service tenant-registry schema (exact inventory enforced separately).
  */
 const ALLOWED_SCHEMAS = new Set([
   "pg_catalog",
@@ -30,6 +35,7 @@ const ALLOWED_SCHEMAS = new Set([
   "auth",
   "storage",
   "realtime",
+  "_realtime",
   "extensions",
   "graphql",
   "graphql_public",
@@ -309,6 +315,20 @@ function evaluateFreshDisposableDatabase(inventory) {
     });
   }
 
+  // Exact `_realtime` inventory (not a broad allow). Runs for any inventory that
+  // mentions the schema or asserts platform-only CLI provenance.
+  const realtimeEval = evaluateRealtimeInternalSchema({
+    ...inventory,
+    platformOnlyTarget: platformOnlyTarget,
+    supabaseCliVersion:
+      inventory.supabaseCliVersion ||
+      inventory.platform?.supabaseCliVersion ||
+      null,
+  });
+  if (!realtimeEval.ok) {
+    failures.push(...realtimeEval.failures);
+  }
+
   // Platform bootstrap: positively verify catalogs when required / supplied.
   const requirePlatform =
     inventory.requirePlatformBootstrap === true || inventory.platform != null;
@@ -448,6 +468,28 @@ async function collectDatabaseInventory(client) {
     kind: r.kind,
   }));
 
+  let realtimeInternalRelations = [];
+  if (schemas.map((s) => String(s).toLowerCase()).includes(REALTIME_INTERNAL_SCHEMA)) {
+    const rtRes = await client.query(
+      `SELECT c.relname AS name, c.relkind AS kind,
+              pg_get_userbyid(c.relowner) AS owner,
+              c.relrowsecurity AS rls_enabled
+         FROM pg_class c
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = $1
+          AND c.relkind IN ('r','p','v','m','f','S')
+        ORDER BY 1`,
+      [REALTIME_INTERNAL_SCHEMA],
+    );
+    realtimeInternalRelations = rtRes.rows.map((r) => ({
+      schema: REALTIME_INTERNAL_SCHEMA,
+      name: r.name,
+      kind: r.kind,
+      owner: r.owner,
+      rlsEnabled: Boolean(r.rls_enabled),
+    }));
+  }
+
   let schemaMigrationVersions = [];
   const migTable = await client.query(
     `SELECT to_regclass('supabase_migrations.schema_migrations') IS NOT NULL AS exists`,
@@ -470,6 +512,7 @@ async function collectDatabaseInventory(client) {
     publicSequences,
     publicTriggers,
     objectsOutsideAllowedSchemas,
+    realtimeInternalRelations,
     schemaMigrationVersions,
     inventoryComplete: true,
     requirePlatformBootstrap: true,

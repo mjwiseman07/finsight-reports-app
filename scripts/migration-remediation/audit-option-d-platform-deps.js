@@ -11,6 +11,9 @@ const {
   REQUIRED_STORAGE_BUCKET_COLUMNS,
   REQUIRED_STORAGE_OBJECT_COLUMNS,
 } = require("./option-d-platform-bootstrap");
+const {
+  REALTIME_INTERNAL_SCHEMA_POLICY,
+} = require("./option-d-realtime-internal-schema");
 
 const ROOT = path.join(__dirname, "..", "..");
 const MANIFEST = path.join(ROOT, "docs/migration-remediation/option-d-replay-manifest.json");
@@ -42,20 +45,66 @@ function stripSqlComments(sql) {
     .replace(/--[^\n]*/g, " ");
 }
 
+/**
+ * Remove SQL string literals so comment/taxonomy text like
+ * `qbo.auth.token_expired` cannot be promoted to platform function deps.
+ * Handles single quotes with '' escapes and basic dollar-quoting.
+ */
+function stripSqlStringLiterals(sql) {
+  let out = "";
+  let i = 0;
+  while (i < sql.length) {
+    const ch = sql[i];
+    if (ch === "'") {
+      out += " ";
+      i += 1;
+      while (i < sql.length) {
+        if (sql[i] === "'" && sql[i + 1] === "'") {
+          i += 2;
+          continue;
+        }
+        if (sql[i] === "'") {
+          i += 1;
+          break;
+        }
+        i += 1;
+      }
+      continue;
+    }
+    if (ch === "$") {
+      const dollar = sql.slice(i).match(/^\$([A-Za-z_][A-Za-z0-9_]*)?\$/);
+      if (dollar) {
+        const tag = dollar[0];
+        const close = sql.indexOf(tag, i + tag.length);
+        out += " ";
+        i = close === -1 ? sql.length : close + tag.length;
+        continue;
+      }
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
+}
+
 function scanSql(sql, filename, order) {
-  const body = stripSqlComments(sql);
+  const body = stripSqlStringLiterals(stripSqlComments(sql));
   const refs = [];
 
-  const knownFunctions = new Set([
+  // Only treat as platform functions when an executable call site is present.
+  // Names alone (or string taxonomy text) must not become startup prerequisites.
+  const knownCallableFunctions = new Set([
     "uid",
     "role",
     "jwt",
     "email",
-    "token_expired",
     "foldername",
     "extension",
     "filename",
   ]);
+  // token_expired is intentionally absent: Option D only mentions it inside a
+  // COMMENT string (`qbo.auth.token_expired` taxonomy). It is not an auth schema
+  // function call and is not present on CLI 2.116.0 platform startup.
   const knownRelations = new Set([
     "storage.buckets",
     "storage.objects",
@@ -74,17 +123,36 @@ function scanSql(sql, filename, order) {
     const relationContext =
       /\b(into|from|join|update|table|references|on)\s+$/.test(before) ||
       knownRelations.has(key);
+    const callSite = /^\s*\(/.test(after);
     const isFn =
       !relationContext &&
-      (knownFunctions.has(name.toLowerCase()) || /^\s*\(/.test(after));
-    refs.push({
-      kind: isFn ? "function" : "qualified_relation",
-      schema: schema.toLowerCase(),
-      name: name.toLowerCase(),
-      match: m[1],
-      filename,
-      order,
-    });
+      callSite &&
+      (knownCallableFunctions.has(name.toLowerCase()) || callSite);
+    // Only record function refs for known callables with call sites; bare
+    // qualified names without call/relation context are ignored (fail-closed
+    // against over-promotion, not against missing real deps — real deps use ()).
+    if (isFn && knownCallableFunctions.has(name.toLowerCase())) {
+      refs.push({
+        kind: "function",
+        schema: schema.toLowerCase(),
+        name: name.toLowerCase(),
+        match: m[1],
+        filename,
+        order,
+        classification: "executable_call_site",
+      });
+      continue;
+    }
+    if (relationContext || knownRelations.has(key)) {
+      refs.push({
+        kind: "qualified_relation",
+        schema: schema.toLowerCase(),
+        name: name.toLowerCase(),
+        match: m[1],
+        filename,
+        order,
+      });
+    }
   }
 
   if (/\bauth\.uid\s*\(/i.test(body)) {
@@ -95,6 +163,23 @@ function scanSql(sql, filename, order) {
       match: "auth.uid()",
       filename,
       order,
+      classification: "executable_call_site",
+    });
+  }
+
+  // Record non-executing taxonomy/string mentions for audit only (not prerequisites).
+  const rawBody = stripSqlComments(sql);
+  if (/qbo\.auth\.token_expired/i.test(rawBody) && !/\bauth\.token_expired\s*\(/i.test(body)) {
+    refs.push({
+      kind: "non_executing_reference",
+      schema: "auth",
+      name: "token_expired",
+      match: "qbo.auth.token_expired",
+      filename,
+      order,
+      classification: "string_taxonomy_not_startup_prerequisite",
+      detail:
+        "Appears only inside COMMENT/taxonomy text; not an auth.token_expired() call; not present on CLI 2.116.0 platform start",
     });
   }
 
@@ -249,6 +334,7 @@ function buildContract(refs) {
     dumpRestoreRejected: true,
     initializationMode: "supabase_cli_platform_only_temp_workdir",
     schemaMigrationsPolicy: base.schemaMigrationsPolicy,
+    realtimeInternalSchemaPolicy: base.realtimeInternalSchemaPolicy || REALTIME_INTERNAL_SCHEMA_POLICY,
     generatedFromManifest: path.relative(ROOT, MANIFEST).replace(/\\/g, "/"),
     generatedAt: new Date().toISOString(),
     requiredRoles: [...roles].sort(),
@@ -318,4 +404,10 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { scanSql, buildContract, stripSqlComments, resolveSourcePath };
+module.exports = {
+  scanSql,
+  buildContract,
+  stripSqlComments,
+  stripSqlStringLiterals,
+  resolveSourcePath,
+};

@@ -69,7 +69,6 @@ function baseInventory(overrides: Record<string, unknown> = {}) {
     functions: [
       { schema: "auth", name: "jwt", identityArgs: "" },
       { schema: "auth", name: "role", identityArgs: "" },
-      { schema: "auth", name: "token_expired", identityArgs: "" },
       { schema: "auth", name: "uid", identityArgs: "" },
       { schema: "storage", name: "foldername", identityArgs: "text" },
     ],

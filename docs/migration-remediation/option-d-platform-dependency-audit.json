@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-04T02:29:55.570Z",
+  "generatedAt": "2026-09-04T02:59:52.793Z",
   "mechanism": "option_d_platform_dependency_audit",
   "entryCount": 149,
   "missingSources": [],
-  "referenceCount": 561,
+  "referenceCount": 511,
   "distinctObjects": [
     "auth.jwt",
     "auth.role",
@@ -428,31 +428,6 @@
           "match": "auth.uid()"
         },
         {
-          "order": 35,
-          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 35,
-          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 35,
-          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 35,
-          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 35,
-          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
-          "match": "auth.uid()"
-        },
-        {
           "order": 37,
           "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
           "match": "auth.uid"
@@ -688,31 +663,6 @@
           "match": "auth.uid()"
         },
         {
-          "order": 55,
-          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 55,
-          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 55,
-          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 55,
-          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 55,
-          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
-          "match": "auth.uid()"
-        },
-        {
           "order": 56,
           "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
           "match": "auth.uid"
@@ -723,46 +673,6 @@
           "match": "auth.uid()"
         },
         {
-          "order": 57,
-          "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 57,
-          "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
-          "match": "auth.uid()"
-        },
-        {
-          "order": 58,
-          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 58,
-          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 58,
-          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 58,
-          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
-          "match": "auth.uid()"
-        },
-        {
-          "order": 59,
-          "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 59,
-          "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
-          "match": "auth.uid()"
-        },
-        {
           "order": 61,
           "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
           "match": "auth.uid"
@@ -1111,26 +1021,6 @@
           "order": 84,
           "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
           "match": "auth.uid()"
-        },
-        {
-          "order": 86,
-          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 86,
-          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 86,
-          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
-          "match": "auth.uid"
-        },
-        {
-          "order": 86,
-          "filename": "20260720140000_ar_week3_block3_3_rls_recursion_fix.sql",
-          "match": "auth.uid"
         },
         {
           "order": 86,
@@ -1764,66 +1654,6 @@
           "match": "auth.jwt"
         },
         {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "auth.jwt"
-        },
-        {
           "order": 27,
           "filename": "20260708_01_d1_qbo_write_readiness.sql",
           "match": "auth.jwt"
@@ -1981,11 +1811,6 @@
           "match": "authenticated"
         },
         {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "authenticated"
-        },
-        {
           "order": 32,
           "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
           "match": "authenticated"
@@ -1993,11 +1818,6 @@
         {
           "order": 33,
           "filename": "20260706130000_d_entitlements.sql",
-          "match": "authenticated"
-        },
-        {
-          "order": 35,
-          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
           "match": "authenticated"
         },
         {
@@ -2031,28 +1851,8 @@
           "match": "authenticated"
         },
         {
-          "order": 55,
-          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
-          "match": "authenticated"
-        },
-        {
           "order": 56,
           "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
-          "match": "authenticated"
-        },
-        {
-          "order": 57,
-          "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
-          "match": "authenticated"
-        },
-        {
-          "order": 58,
-          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
-          "match": "authenticated"
-        },
-        {
-          "order": 59,
-          "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
           "match": "authenticated"
         },
         {
@@ -2257,11 +2057,6 @@
           "match": "service_role"
         },
         {
-          "order": 26,
-          "filename": "20260706_d67_p2_layer2_layer4.sql",
-          "match": "service_role"
-        },
-        {
           "order": 31,
           "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
           "match": "service_role"
@@ -2274,11 +2069,6 @@
         {
           "order": 33,
           "filename": "20260706130000_d_entitlements.sql",
-          "match": "service_role"
-        },
-        {
-          "order": 35,
-          "filename": "20260707000000_d6_5_part1_universal_intake.sql",
           "match": "service_role"
         },
         {
@@ -2327,33 +2117,8 @@
           "match": "service_role"
         },
         {
-          "order": 55,
-          "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
-          "match": "service_role"
-        },
-        {
           "order": 56,
           "filename": "20260707214500_d65_p2_block7a2_prepilot_security.sql",
-          "match": "service_role"
-        },
-        {
-          "order": 57,
-          "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
-          "match": "service_role"
-        },
-        {
-          "order": 58,
-          "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
-          "match": "service_role"
-        },
-        {
-          "order": 59,
-          "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
-          "match": "service_role"
-        },
-        {
-          "order": 60,
-          "filename": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
           "match": "service_role"
         },
         {
@@ -2604,11 +2369,6 @@
           "match": "auth.users"
         },
         {
-          "order": 28,
-          "filename": "20260708_02_d1_1_owner_user_id_backfill.sql",
-          "match": "auth.users"
-        },
-        {
           "order": 30,
           "filename": "20260709_00_d2_safe_je_posting.sql",
           "match": "auth.users"
@@ -2734,11 +2494,6 @@
           "match": "auth.users"
         },
         {
-          "order": 107,
-          "filename": "20260727000100_users_auth_trigger_single_writer.sql",
-          "match": "auth.users"
-        },
-        {
           "order": 137,
           "filename": "20260819045253_continuous_close_runs.sql",
           "match": "auth.users"
@@ -2764,11 +2519,6 @@
       "key": "storage.buckets",
       "kind": "qualified_relation",
       "references": [
-        {
-          "order": 31,
-          "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
-          "match": "storage.buckets"
-        },
         {
           "order": 31,
           "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
@@ -2864,12 +2614,12 @@
     },
     "auth.token_expired": {
       "key": "auth.token_expired",
-      "kind": "function",
+      "kind": "non_executing_reference",
       "references": [
         {
           "order": 80,
           "filename": "20260719000000_support_auto_file_engine.sql",
-          "match": "auth.token_expired"
+          "match": "qbo.auth.token_expired"
         }
       ]
     },

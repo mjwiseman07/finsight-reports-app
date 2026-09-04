@@ -104,3 +104,26 @@ Policy (`schemaMigrationsPolicy`):
 - **If present:** require zero Advisacor application migration versions; nonempty unknown history fails closed.
 - **If absent:** accept only when `OPTION_D_PLATFORM_ONLY_TARGET` provenance is verified, CLI version is exactly allowlisted (`2.116.0`), empty-workdir fingerprint passes, Auth/Storage catalogs pass, and platform version evidence is present.
 - **Version drift:** any other CLI version with absence → fail closed.
+
+### `_realtime` exact inventory (CLI 2.116.0)
+
+Genuine empty-workdir `supabase start` with CLI **2.116.0** creates schema **`_realtime`** (Realtime service tenant registry — distinct from schema `realtime`). Observed exact relations (kind `r`, owner `supabase_admin`, RLS off):
+
+| Relation | Role |
+|----------|------|
+| `_realtime.extensions` | Tenant extension registry |
+| `_realtime.feature_flags` | Feature-flag registry |
+| `_realtime.schema_migrations` | Ecto migrations for Realtime (not `supabase_migrations`) |
+| `_realtime.tenants` | Multi-tenant registry |
+
+Policy (`realtimeInternalSchemaPolicy` / `option-d-realtime-internal-schema.js`):
+
+- Allow the schema name on the freshness allowlist **only** with this exact inventory.
+- Reject extra, missing, misowned, RLS-enabled, or Advisacor sentinel relations inside `_realtime`.
+- On verified platform-only CLI `2.116.0`, absence of `_realtime` fails closed (incomplete platform).
+- Do **not** broadly allow `_realtime.*`. Inventory drift fails closed.
+
+### `auth.token_expired` classification
+
+Static audit previously promoted `auth.token_expired` from a **COMMENT** string (`qbo.auth.token_expired` taxonomy in `20260719000000_support_auto_file_engine.sql`). That is **not** an executable `auth.token_expired()` call and the function is **not** present on CLI 2.116.0 platform startup. Reclassified as `non_executing_reference` / string taxonomy — **not** a startup prerequisite. Genuine call-site deps (e.g. `auth.uid()`) remain required.
+

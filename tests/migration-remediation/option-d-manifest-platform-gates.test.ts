@@ -122,7 +122,6 @@ function completePlatformInventory(overrides: Record<string, unknown> = {}) {
       { schema: "auth", name: "uid", identityArgs: "" },
       { schema: "auth", name: "role", identityArgs: "" },
       { schema: "auth", name: "jwt", identityArgs: "" },
-      { schema: "auth", name: "token_expired", identityArgs: "" },
       { schema: "storage", name: "foldername", identityArgs: "name text" },
     ],
     ...overrides,
@@ -443,6 +442,8 @@ describe("Option D platform bootstrap + freshness reconciliation", () => {
     expect(contract.dumpRestoreRejected).toBe(true);
     expect(contract.initializationMode).toBe("supabase_cli_platform_only_temp_workdir");
     expect(contract.schemaMigrationsPolicy?.allowedAbsentCliVersions).toContain("2.116.0");
+    expect(contract.realtimeInternalSchemaPolicy?.schema).toBe("_realtime");
+    expect(contract.realtimeInternalSchemaPolicy?.verifiedCliVersions).toContain("2.116.0");
     const names = contract.requiredRelations.map(
       (r: { schema: string; name: string }) => `${r.schema}.${r.name}`,
     );

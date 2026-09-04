@@ -8,6 +8,10 @@
 const fs = require("fs");
 const path = require("path");
 const { normalizePgArrayColumns, parsePostgresTextArray } = require("./option-d-pg-array");
+const {
+  REALTIME_INTERNAL_SCHEMA_POLICY,
+  REALTIME_INTERNAL_SCHEMA,
+} = require("./option-d-realtime-internal-schema");
 
 const ROOT = path.join(__dirname, "..", "..");
 const CONTRACT_PATH = path.join(
@@ -89,6 +93,7 @@ function defaultPlatformContract() {
       },
     ],
     schemaMigrationsPolicy: SCHEMA_MIGRATIONS_ABSENCE_POLICY,
+    realtimeInternalSchemaPolicy: REALTIME_INTERNAL_SCHEMA_POLICY,
     requiredFunctions: [
       { schema: "auth", name: "uid", argTypes: [], requireSignature: true, enforceArgTypes: true },
     ],
@@ -96,6 +101,7 @@ function defaultPlatformContract() {
       "auth",
       "storage",
       "realtime",
+      "_realtime",
       "extensions",
       "graphql",
       "graphql_public",
@@ -655,7 +661,7 @@ async function collectPlatformInventory(client, opts = {}) {
       WHERE n.nspname = ANY($1::text[])
         AND c.relkind IN ('r','p','v','m')
       ORDER BY 1, 2`,
-    [["storage", "auth", "supabase_migrations", "extensions"]],
+    [["storage", "auth", "supabase_migrations", "extensions", REALTIME_INTERNAL_SCHEMA]],
   );
   const relations = relRes.rows.map((r) => ({
     schema: r.schema,
@@ -814,6 +820,7 @@ module.exports = {
   REQUIRED_AUTH_FUNCTIONS,
   APP_MIGRATION_VERSION_RE,
   SCHEMA_MIGRATIONS_ABSENCE_POLICY,
+  REALTIME_INTERNAL_SCHEMA_POLICY,
   defaultPlatformContract,
   loadPlatformContract,
   evaluatePlatformBootstrap,
