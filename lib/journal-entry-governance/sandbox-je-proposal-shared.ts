@@ -74,6 +74,7 @@ export type SafeSandboxProposalResponse = {
   capabilities: {
     create_sandbox_je: false;
     verify_sandbox_je: false;
+    prepare_sandbox_je: false;
     memory: false;
     worker: false;
     governed_auto: false;
@@ -88,6 +89,11 @@ export type SafeSandboxProposalResponse = {
     events: Patent6ChainReceiptEvent[];
   };
   approvals: SafeSandboxApprovalSummary[];
+  execution_custody: {
+    has_execution: boolean;
+    execution_id: string | null;
+    execution_status: string | null;
+  };
 };
 
 export type SafeSandboxApprovalSummary = {

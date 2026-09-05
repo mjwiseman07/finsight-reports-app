@@ -35,6 +35,7 @@ function createEnabledPathPolicy(): Je3dActivationPolicyView {
     capabilities: {
       CREATE_SANDBOX_JE: true,
       VERIFY_SANDBOX_JE: false,
+      PREPARE_SANDBOX_JE: false,
     },
     sandboxDispatchKillSwitch: false,
   };
@@ -211,7 +212,11 @@ describe("JE-3D public create policy wiring", () => {
   it("2b. kill switch can still block when forced ON", async () => {
     vi.mocked(resolveJe3dActivationPolicy).mockReturnValueOnce({
       ...JE_3D_FIRST_CONTROLLED_CREATE_ACTIVATION_POLICY,
-      capabilities: { CREATE_SANDBOX_JE: true, VERIFY_SANDBOX_JE: false },
+      capabilities: {
+        CREATE_SANDBOX_JE: true,
+        VERIFY_SANDBOX_JE: false,
+        PREPARE_SANDBOX_JE: false,
+      },
       sandboxDispatchKillSwitch: true,
     });
     await expect(

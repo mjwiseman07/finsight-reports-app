@@ -23,6 +23,13 @@ describe("sandbox JE proposal/approval static boundary", () => {
     "lib/journal-entry-governance/je3d-first-controlled-create-activation.ts",
   );
 
+  it("proposal API exposes execution_custody read model for approved proposals", () => {
+    const src = fs.readFileSync(proposalApi, "utf8");
+    expect(src).toContain("execution_custody");
+    expect(src).toContain("resolveSandboxJeExecutionCustodyForApproval");
+    expect(src).toContain("resolveExecutionCustodyForApprovals");
+  });
+
   it("proposal API forbids execution/provider/Memory/QBO imports", () => {
     const src = fs.readFileSync(proposalApi, "utf8");
     expect(src).not.toMatch(/prepareGovernedJournalEntryExecution/);

@@ -16,7 +16,6 @@ import { getSupabaseAdmin } from "../../lib/supabase-admin.js";
 import {
   createContinuousCloseJournalEntryProposal,
   decideJournalEntryProposal,
-  prepareGovernedJournalEntryExecution,
   reserveGovernedProviderAttempt,
   inspectGovernedJeActivationCustody,
   DEFAULT_JE_PROPOSAL_POLICY,
@@ -24,6 +23,7 @@ import {
   DEFAULT_JE_EXECUTION_POLICY,
   buildBsAccountGlDeltaExpectedEffect,
 } from "../../lib/journal-entry-governance";
+import { prepareGovernedJournalEntryExecutionInternal } from "../../lib/journal-entry-governance/execution-prepare-internal";
 import { JeExecutionCustodyError } from "../../lib/journal-entry-governance/execution-custody";
 import { JE_EXECUTION_ERROR } from "../../lib/journal-entry-governance/execution-types";
 import type { AccountingConnectionRecord } from "../../lib/integrations/accounting/types";
@@ -539,7 +539,7 @@ async function main() {
     report.approval_mfa_level = approvalResult.approval.mfa_level;
   }
 
-  const executionResult = await prepareGovernedJournalEntryExecution(
+  const executionResult = await prepareGovernedJournalEntryExecutionInternal(
     {
       proposalId,
       approvalId,
