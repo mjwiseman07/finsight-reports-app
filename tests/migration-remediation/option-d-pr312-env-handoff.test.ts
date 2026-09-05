@@ -5,6 +5,7 @@ import {
   validatePr312DisposableUrl,
   buildPr312ChildEnv,
   buildSuiteMirroredConnectionString,
+  buildLoopbackSslmodeDisableHandoffUrl,
   probeChildEnvHandoff,
   authorizePr312VitestLaunch,
   captureSkipDiagnosisFromStructuredCounts,
@@ -15,11 +16,20 @@ import {
 import {
   evaluateVitestStructuredResult,
   EXPECTED_PR312_TEST_TITLES,
+  PR312_COMMIT,
+  PR312_SUITE_BLOB,
 } from "../../scripts/migration-remediation/option-d-vitest-result-gate.js";
 
 const LOCAL_OK = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 describe("Option D PR312 env handoff", () => {
+  it("pins the updated PR #312 commit and suite blob", () => {
+    expect(PR312_COMMIT).toBe("7f387fe0b662e07ad271ee9db7311eeb45eafc25");
+    expect(PR312_SUITE_BLOB).toBe("d4afe0584d089d4ad50d479b81a369ca6dbdd168");
+    expect(PR312_SKIP_CONTRACT.suiteCommit).toBe(PR312_COMMIT);
+    expect(PR312_SKIP_CONTRACT.suiteBlob).toBe(PR312_SUITE_BLOB);
+  });
+
   it("accepts verified loopback disposable URL and fingerprints without credentials", () => {
     const check = validatePr312DisposableUrl(LOCAL_OK);
     expect(check.ok).toBe(true);
@@ -61,7 +71,7 @@ describe("Option D PR312 env handoff", () => {
     );
   });
 
-  it("sets verified JE_REUSE in child env and overrides/rejects inherited value", () => {
+  it("sets verified JE_REUSE with sslmode=disable and overrides/rejects inherited value", () => {
     const inherited =
       "postgresql://postgres:cloudpass@127.0.0.1:54322/postgres";
     const built = buildPr312ChildEnv({
@@ -74,14 +84,18 @@ describe("Option D PR312 env handoff", () => {
       },
     });
     expect(built.ok).toBe(true);
-    expect(built.env[JE_REUSE_ENV]).toBe(LOCAL_OK);
+    expect(built.env[JE_REUSE_ENV]).toMatch(/sslmode=disable/);
+    expect(built.env[JE_REUSE_ENV]).toContain("127.0.0.1:54322/postgres");
+    expect(built.handoff.sslmodeDisableAppended).toBe(true);
     expect(built.env.SECRET_TOKEN).toBeUndefined();
     expect(built.env.OPTION_D_DATABASE_URL).toBeUndefined();
     expect(built.handoff.inheritedWasPresent).toBe(true);
     expect(built.handoff.inheritedValueRejected).toBe(true);
     expect(built.handoff.credentialsIncludedInEvidence).toBe(false);
     expect(built.handoff.redacted).not.toMatch(/postgres:postgres/);
-    expect(probeChildEnvHandoff(built.env).ok).toBe(true);
+    const envProbe = probeChildEnvHandoff(built.env);
+    expect(envProbe.ok).toBe(true);
+    expect(envProbe.sslmodeDisable).toBe(true);
   });
 
   it("blocks missing verified URL before Vitest (would cause describe.skip)", () => {
@@ -92,12 +106,16 @@ describe("Option D PR312 env handoff", () => {
     );
   });
 
-  it("strips sslmode like the pinned suite buildConnectionString", () => {
+  it("historical TLS strip helper still deletes sslmode; handoff appends disable", () => {
     const mirrored = buildSuiteMirroredConnectionString(
       "postgresql://postgres:postgres@127.0.0.1:54322/postgres?sslmode=require",
     );
     expect(mirrored).not.toMatch(/sslmode/);
     expect(mirrored).toContain("127.0.0.1:54322/postgres");
+
+    const handoff = buildLoopbackSslmodeDisableHandoffUrl(LOCAL_OK);
+    expect(handoff.ok).toBe(true);
+    expect(handoff.url).toMatch(/sslmode=disable/);
   });
 
   it("redacts credentials from pg error messages and redactUrl", () => {

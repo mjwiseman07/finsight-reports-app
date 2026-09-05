@@ -1,42 +1,38 @@
 #!/usr/bin/env node
 /**
- * Exact pg@lockfile SSL precedence analysis for PR #312 Option D handoff.
+ * PR #312 Option D SSL / transport contract (post test-infra pin 7f387fe0…).
  *
- * Proven against installed packages (see resolveInstalledPgVersions):
- *   ConnectionParameters merges as:
- *     config = Object.assign({}, config, parse(config.connectionString))
- *   then:
- *     this.ssl = typeof config.ssl === 'undefined' ? PGSSLMODE/defaults : config.ssl
+ * Pinned suite uses resolveJeReusePgClientConfig:
+ * - loopback + explicit sslmode=disable → ssl:false (plaintext)
+ * - otherwise → ssl:{ rejectUnauthorized:false } (no silent downgrade)
+ * - non-loopback / cloud / pooler + sslmode=disable → reject
  *
- * Therefore:
- * - `?sslmode=disable` in the connectionString OVERRIDES an explicit
- *   `ssl: { rejectUnauthorized: false }` when both are passed to Client/ConnectionParameters
- *   (parse result is assigned last).
- * - PGSSLMODE is ignored when `ssl` is explicitly present on the config object.
- * - The pinned PR #312 suite calls buildConnectionString() which deletes sslmode,
- *   then constructs Client({ connectionString: stripped, ssl: { rejectUnauthorized: false } }).
- *   After that strip, effective ssl is the explicit object — URL sslmode cannot help.
- *
- * Safe remediation via JE_REUSE URL alone is therefore impossible without changing
- * the pinned suite. Local Supabase Postgres does not speak TLS; suite requires SSL
- * object → transport incompatibility. PR #312 test-infra pin change required.
+ * Option D disposable handoff therefore sets sslmode=disable only after
+ * loopback disposable URL validation, then probes with the same resolver
+ * Vitest will use.
  */
+"use strict";
+
 const fs = require("fs");
 const path = require("path");
+const {
+  resolvePinnedJeReusePgClientConfig,
+  loadPinnedJeReuseResolver,
+  PR312_COMMIT,
+  PR312_JE_REUSE_RESOLVER_BLOB,
+} = require("./option-d-pr312-je-reuse-resolver");
+const { PR312_SUITE_BLOB } = require("./option-d-vitest-result-gate");
 
 const SUITE_SSL_OBJECT = { rejectUnauthorized: false };
 
 const PR312_SUITE_SSL_CONTRACT = {
-  suiteCommit: "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
-  suiteBlob: "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
-  buildConnectionStringDeletesSslmode: true,
-  clientOptions: {
-    connectionStringFrom: "buildConnectionString(TEST_DB_URL)",
-    ssl: SUITE_SSL_OBJECT,
-  },
-  blockerRule: "pr312_suite_explicit_ssl_requires_tls_or_suite_change",
-  blockerDetail:
-    "Pinned suite strips sslmode then sets ssl:{rejectUnauthorized:false}. Local Supabase Postgres rejects SSL. URL/env cannot override after strip. Harness must not monkey-patch Client or weaken SSL for non-loopback. Requires PR #312 test-infra change + new pin (or separately authorized local Postgres TLS).",
+  suiteCommit: PR312_COMMIT,
+  suiteBlob: PR312_SUITE_BLOB,
+  resolverBlob: PR312_JE_REUSE_RESOLVER_BLOB,
+  usesJeReuseResolver: true,
+  plaintextOnlyWhen: "sslmode=disable AND proven loopback-only",
+  defaultSsl: SUITE_SSL_OBJECT,
+  optionDHandoff: "append sslmode=disable for verified disposable loopback URL",
 };
 
 function resolveInstalledPgVersions(root) {
@@ -68,7 +64,7 @@ function loadPgInternals(root) {
   return { ConnectionParameters, parse, versions };
 }
 
-/** Mirror pinned suite buildConnectionString (delete sslmode query param). */
+/** Historical strip helper (TLS path still deletes sslmode inside resolver). */
 function suiteBuildConnectionString(value) {
   try {
     const parsed = new URL(String(value));
@@ -94,30 +90,199 @@ function resolveEffectiveSsl(config, root) {
 }
 
 /**
- * What the pinned suite will actually pass to pg.Client for a given JE_REUSE URL.
+ * What the pinned PR #312 suite will pass to pg.Client for a given JE_REUSE URL.
+ * Delegates to the exact pinned resolver blob.
  */
-function resolveSuiteEffectiveClientConfig(databaseUrl, root) {
-  const stripped = suiteBuildConnectionString(databaseUrl);
-  const effective = resolveEffectiveSsl(
-    {
-      connectionString: stripped,
-      ssl: { ...SUITE_SSL_OBJECT },
-    },
-    root,
-  );
+async function resolveSuiteEffectiveClientConfig(databaseUrl, root, opts = {}) {
+  const resolved = await resolvePinnedJeReusePgClientConfig(databaseUrl, {
+    root: root || process.cwd(),
+    worktreePath: opts.worktreePath,
+    lookupAll: opts.lookupAll,
+  });
+  if (!resolved.ok) {
+    return {
+      ok: false,
+      failures: resolved.failures,
+      reason: resolved.reason,
+      redacted: resolved.redacted,
+      connectionString: null,
+      ssl: null,
+      sslmodePresentInConnectionString: null,
+    };
+  }
+  const cs = resolved.config.connectionString;
   return {
-    connectionString: stripped,
-    ssl: effective.ssl,
-    host: effective.host,
-    port: effective.port,
-    database: effective.database,
-    sslmodePresentInConnectionString: /[?&]sslmode=/i.test(stripped),
+    ok: true,
+    failures: [],
+    connectionString: cs,
+    ssl: resolved.config.ssl,
+    transport: resolved.config.transport,
+    hostname: resolved.config.hostname,
+    port: resolved.config.port,
+    database: resolved.config.database,
+    sslmode: resolved.config.sslmode,
+    sslmodePresentInConnectionString: /[?&]sslmode=/i.test(cs),
+    redacted: resolved.redacted,
+    credentialsIncludedInEvidence: false,
   };
 }
 
 /**
- * Prove whether a URL sslmode=disable would override explicit suite ssl IF it
- * survived into Client (it does in pg; suite strip prevents this path).
+ * Append/set sslmode=disable for a validated disposable loopback URL.
+ * Does not log credentials. Rejects conflicting non-disable sslmode values.
+ */
+function buildLoopbackSslmodeDisableHandoffUrl(verifiedUrl) {
+  const failures = [];
+  let u;
+  try {
+    u = new URL(String(verifiedUrl));
+  } catch {
+    return {
+      ok: false,
+      failures: [{ rule: "handoff_url_unparseable" }],
+      url: null,
+      redacted: "(unparseable)",
+    };
+  }
+  const existing = u.searchParams.getAll("sslmode").map((m) => String(m).toLowerCase());
+  const unique = [...new Set(existing)];
+  if (unique.length > 1) {
+    failures.push({ rule: "conflicting_sslmode_values", sslmodes: unique });
+  }
+  if (unique.some((m) => m && m !== "disable")) {
+    failures.push({
+      rule: "non_disable_sslmode_on_disposable_handoff_rejected",
+      sslmodes: unique,
+    });
+  }
+  if (
+    u.searchParams.has("sslrootcert") ||
+    u.searchParams.has("sslcert") ||
+    u.searchParams.has("sslkey")
+  ) {
+    failures.push({ rule: "ssl_material_params_rejected_on_handoff" });
+  }
+  if (failures.length) {
+    return { ok: false, failures, url: null, redacted: `host=${u.hostname}` };
+  }
+  u.searchParams.delete("sslmode");
+  u.searchParams.set("sslmode", "disable");
+  return {
+    ok: true,
+    failures: [],
+    url: u.toString(),
+    redacted: `host=${u.hostname};port=${u.port || "(default)"};db=${(u.pathname || "/").replace(/^\//, "") || "(none)"};sslmode=disable`,
+  };
+}
+
+/**
+ * Probe must match suite-effective Client options exactly.
+ */
+function assertProbeMatchesSuiteEffective(probeConfig, suiteEffective) {
+  const failures = [];
+  if (!suiteEffective || suiteEffective.ok === false) {
+    failures.push({ rule: "suite_effective_unavailable" });
+    return { ok: false, failures };
+  }
+  const probeSsl = probeConfig && probeConfig.ssl;
+  const suiteSsl = suiteEffective && suiteEffective.ssl;
+
+  const normalizeSsl = (ssl) => {
+    if (ssl === false) return { kind: "false" };
+    if (ssl === true) return { kind: "true" };
+    if (ssl && typeof ssl === "object") {
+      return {
+        kind: "object",
+        rejectUnauthorized: Boolean(ssl.rejectUnauthorized) === false ? false : true,
+      };
+    }
+    return { kind: "other", value: ssl };
+  };
+
+  const p = normalizeSsl(probeSsl);
+  const s = normalizeSsl(suiteSsl);
+  if (p.kind !== s.kind) {
+    failures.push({
+      rule: "probe_suite_ssl_divergence",
+      probe: p,
+      suite: s,
+    });
+  } else if (p.kind === "object" && p.rejectUnauthorized !== s.rejectUnauthorized) {
+    failures.push({
+      rule: "probe_suite_rejectUnauthorized_divergence",
+      probe: p.rejectUnauthorized,
+      suite: s.rejectUnauthorized,
+    });
+  }
+
+  const probeCs = probeConfig && probeConfig.connectionString;
+  if (
+    probeCs &&
+    suiteEffective &&
+    suiteEffective.connectionString &&
+    String(probeCs) !== String(suiteEffective.connectionString)
+  ) {
+    failures.push({ rule: "probe_suite_connection_string_divergence" });
+  }
+  return { ok: failures.length === 0, failures };
+}
+
+/**
+ * Safe loopback plaintext path is available via pinned resolver + sslmode=disable.
+ */
+async function evaluateSafeLoopbackSslDisablePath(opts = {}) {
+  const loaded = loadPinnedJeReuseResolver({ root: opts.root });
+  if (!loaded.ok) {
+    return {
+      ok: false,
+      safeLoopbackSslDisablePathAvailable: false,
+      requiresPr312SuitePinChange: false,
+      failures: loaded.failures,
+    };
+  }
+  const scheme = "postgresql";
+  const local = `${scheme}://${"u"}:${"p"}@127.0.0.1:54322/postgres?sslmode=disable`;
+  const resolved = await resolvePinnedJeReusePgClientConfig(local, {
+    root: opts.root,
+    lookupAll: opts.lookupAll,
+  });
+  const remote = await resolvePinnedJeReusePgClientConfig(
+    `${scheme}://${"u"}:${"p"}@db.example.supabase.co:5432/postgres?sslmode=disable`,
+    { root: opts.root, lookupAll: opts.lookupAll },
+  );
+  const noDisable = await resolvePinnedJeReusePgClientConfig(
+    `${scheme}://${"u"}:${"p"}@127.0.0.1:54322/postgres`,
+    { root: opts.root, lookupAll: opts.lookupAll },
+  );
+
+  const failures = [];
+  if (!(resolved.ok && resolved.config.ssl === false)) {
+    failures.push({ rule: "loopback_disable_did_not_yield_ssl_false" });
+  }
+  if (remote.ok) {
+    failures.push({ rule: "remote_sslmode_disable_should_reject" });
+  }
+  if (!(noDisable.ok && noDisable.config.ssl && typeof noDisable.config.ssl === "object")) {
+    failures.push({ rule: "loopback_without_disable_must_keep_ssl_object" });
+  }
+
+  return {
+    ok: failures.length === 0,
+    safeLoopbackSslDisablePathAvailable: failures.length === 0,
+    requiresPr312SuitePinChange: false,
+    failures,
+    contract: PR312_SUITE_SSL_CONTRACT,
+    samples: {
+      loopbackDisableTransport: resolved.ok ? resolved.config.transport : null,
+      remoteRejected: !remote.ok,
+      loopbackNoDisableTransport: noDisable.ok ? noDisable.config.transport : null,
+    },
+  };
+}
+
+/**
+ * pg merge still shows URL sslmode=disable overrides explicit ssl object —
+ * retained as lockfile proof; suite no longer strips before Client when disable+loopback.
  */
 function analyzeSslmodeDisableVsExplicitSsl(root) {
   const scheme = "postgresql";
@@ -130,116 +295,23 @@ function analyzeSslmodeDisableVsExplicitSsl(root) {
     },
     root,
   );
-  const afterSuiteStrip = resolveSuiteEffectiveClientConfig(withDisable, root);
-  const pgSslmodeEnvOnly = (() => {
-    const prev = process.env.PGSSLMODE;
-    process.env.PGSSLMODE = "disable";
-    try {
-      return resolveEffectiveSsl(
-        {
-          connectionString: base,
-          ssl: { ...SUITE_SSL_OBJECT },
-        },
-        root,
-      );
-    } finally {
-      if (prev === undefined) delete process.env.PGSSLMODE;
-      else process.env.PGSSLMODE = prev;
-    }
-  })();
-
+  const afterHistoricalStrip = resolveEffectiveSsl(
+    {
+      connectionString: suiteBuildConnectionString(withDisable),
+      ssl: { ...SUITE_SSL_OBJECT },
+    },
+    root,
+  );
   return {
     versions: resolveInstalledPgVersions(root || process.cwd()),
-    urlSslmodeDisableOverridesExplicitSslObject:
-      urlOverridesExplicit.ssl === false,
-    suiteStripThenExplicitSslRemainsObject:
-      afterSuiteStrip.ssl &&
-      typeof afterSuiteStrip.ssl === "object" &&
-      afterSuiteStrip.ssl.rejectUnauthorized === false,
-    pgSslmodeEnvIgnoredWhenExplicitSslPresent:
-      pgSslmodeEnvOnly.ssl &&
-      typeof pgSslmodeEnvOnly.ssl === "object" &&
-      pgSslmodeEnvOnly.ssl.rejectUnauthorized === false,
-    suiteEffectiveIgnoresUrlSslmodeDisable:
-      afterSuiteStrip.sslmodePresentInConnectionString === false,
-    conclusion:
-      "A (JE_REUSE?sslmode=disable) cannot remediate: suite deletes sslmode then sets ssl object. B (URL/env-only harness) insufficient. C (local Supabase Postgres TLS) not a supported ephemeral db.tls enablement. Blocker: PR #312 suite pin change required.",
+    urlSslmodeDisableOverridesExplicitSslObject: urlOverridesExplicit.ssl === false,
+    historicalStripThenExplicitSslRemainsObject:
+      afterHistoricalStrip.ssl &&
+      typeof afterHistoricalStrip.ssl === "object" &&
+      afterHistoricalStrip.ssl.rejectUnauthorized === false,
     contract: PR312_SUITE_SSL_CONTRACT,
-  };
-}
-
-/**
- * Reject probe configs that diverge from suite-effective Client options.
- * Probe must mirror Vitest; ssl:false while suite uses ssl object is rejected.
- */
-function assertProbeMatchesSuiteEffective(probeConfig, suiteEffective) {
-  const failures = [];
-  const probeSsl = probeConfig && probeConfig.ssl;
-  const suiteSsl = suiteEffective && suiteEffective.ssl;
-  const probeRequiresSsl =
-    probeSsl === true || (probeSsl && typeof probeSsl === "object");
-  const suiteRequiresSsl =
-    suiteSsl === true || (suiteSsl && typeof suiteSsl === "object");
-  if (probeRequiresSsl !== suiteRequiresSsl) {
-    failures.push({
-      rule: "probe_suite_ssl_divergence",
-      probeRequiresSsl,
-      suiteRequiresSsl,
-    });
-  }
-  if (
-    probeRequiresSsl &&
-    suiteRequiresSsl &&
-    typeof probeSsl === "object" &&
-    typeof suiteSsl === "object" &&
-    Boolean(probeSsl.rejectUnauthorized) !== Boolean(suiteSsl.rejectUnauthorized)
-  ) {
-    failures.push({
-      rule: "probe_suite_rejectUnauthorized_divergence",
-      probe: probeSsl.rejectUnauthorized,
-      suite: suiteSsl.rejectUnauthorized,
-    });
-  }
-  const probeCs = probeConfig && probeConfig.connectionString;
-  if (
-    probeCs &&
-    suiteEffective &&
-    suiteEffective.connectionString &&
-    String(probeCs) !== String(suiteEffective.connectionString)
-  ) {
-    failures.push({
-      rule: "probe_suite_connection_string_divergence",
-    });
-  }
-  return { ok: failures.length === 0, failures };
-}
-
-/**
- * Classify whether a safe harness-only SSL-disable path exists for this URL.
- * Always false for the pinned suite contract (strip + explicit ssl).
- */
-function evaluateSafeLoopbackSslDisablePath(opts = {}) {
-  const failures = [];
-  const analysis = analyzeSslmodeDisableVsExplicitSsl(opts.root);
-  if (!analysis.urlSslmodeDisableOverridesExplicitSslObject) {
-    failures.push({ rule: "pg_url_sslmode_does_not_override_explicit" });
-  }
-  if (analysis.suiteStripThenExplicitSslRemainsObject) {
-    failures.push({
-      rule: "suite_strip_makes_url_sslmode_ineffective",
-      detail: PR312_SUITE_SSL_CONTRACT.blockerDetail,
-    });
-  }
-  failures.push({
-    rule: PR312_SUITE_SSL_CONTRACT.blockerRule,
-    detail: PR312_SUITE_SSL_CONTRACT.blockerDetail,
-  });
-  return {
-    ok: false,
-    safeLoopbackSslDisablePathAvailable: false,
-    requiresPr312SuitePinChange: true,
-    failures,
-    analysis,
+    conclusion:
+      "Pinned suite (7f387fe0…) uses resolveJeReusePgClientConfig: loopback+sslmode=disable → ssl:false. Option D handoff must set sslmode=disable on verified disposable URLs so probe and Vitest share plaintext_loopback.",
   };
 }
 
@@ -250,7 +322,10 @@ module.exports = {
   suiteBuildConnectionString,
   resolveEffectiveSsl,
   resolveSuiteEffectiveClientConfig,
+  buildLoopbackSslmodeDisableHandoffUrl,
   analyzeSslmodeDisableVsExplicitSsl,
   assertProbeMatchesSuiteEffective,
   evaluateSafeLoopbackSslDisablePath,
+  loadPinnedJeReuseResolver,
+  resolvePinnedJeReusePgClientConfig,
 };

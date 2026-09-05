@@ -8,10 +8,13 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const PR312_COMMIT = "f65730b3d38e9cb3b192e54f62c798c74a07a1c2";
+const PR312_COMMIT = "7f387fe0b662e07ad271ee9db7311eeb45eafc25";
 const PR312_SUITE_PATH =
   "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts";
-const PR312_SUITE_BLOB = "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770";
+const PR312_SUITE_BLOB = "d4afe0584d089d4ad50d479b81a369ca6dbdd168";
+const PR312_JE_REUSE_RESOLVER_PATH =
+  "lib/journal-entry-governance/__tests__/je-reuse-pg-client-config.js";
+const PR312_JE_REUSE_RESOLVER_BLOB = "5178894fc6811d9f9fef84b10fb9294504b4679e";
 
 /** Titles that must execute when DB URL is present (excludes the BLOCKED sentinel). */
 const EXPECTED_PR312_TEST_TITLES = [
@@ -352,6 +355,8 @@ module.exports = {
   PR312_COMMIT,
   PR312_SUITE_PATH,
   PR312_SUITE_BLOB,
+  PR312_JE_REUSE_RESOLVER_PATH,
+  PR312_JE_REUSE_RESOLVER_BLOB,
   EXPECTED_PR312_TEST_TITLES,
   BLOCKED_SENTINEL_TITLE,
   flattenVitestJson,

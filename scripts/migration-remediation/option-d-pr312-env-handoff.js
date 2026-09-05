@@ -2,23 +2,23 @@
 /**
  * Fail-closed JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL handoff for PR #312 Vitest.
  *
- * Pinned suite skip / non-execution contract (f65730b3… / blob 6dfc99e2…):
+ * Pinned suite skip / non-execution contract (7f387fe0… / suite blob d4afe058…):
  *   const TEST_DB_URL = process.env.JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL;
  *   const describeIf = TEST_DB_URL ? describe : describe.skip;
  *   // 12 expected titles under describeIf
  *   // if (!TEST_DB_URL) BLOCKED sentinel describe (passed when URL falsy)
- *   // beforeAll: pg.Client({ connectionString, ssl: { rejectUnauthorized: false } }).connect()
+ *   // beforeAll: resolveJeReusePgClientConfig(TEST_DB_URL) → pg.Client(config)
  *
- * Proven signatures (same Vitest 4.1.9 + exact suite blob + isolated worktree launcher):
- * - URL absent → 13 tests (12 skipped + BLOCKED passed), exit 0, failedSuites=0
- * - URL present + connect fail (e.g. closed port / SSL reject) → 12 skipped, 0 passed,
- *   exit 1, failedSuites=2, ~900ms — exact match for Option D 2026-09-04g
+ * Option D disposable path: after loopback URL validation, hand off URL with
+ * explicit sslmode=disable so resolver yields ssl:false for local Supabase Postgres.
+ * Probe and child Vitest env must share that same effective configuration.
  *
- * Therefore 04g was NOT describe.skip from a missing env var; it was beforeAll
- * connect failure reported by Vitest as skipped children. Harness must fail closed
- * with a suite-mirrored pg probe before spawn, and still hand off an allowlisted
- * env with an explicit verified JE_REUSE URL.
+ * Proven skip signatures (Vitest 4.x + isolated worktree launcher):
+ * - URL absent → 13 tests (12 skipped + BLOCKED passed), exit 0
+ * - URL present + connect fail → 12 skipped, exit 1, failedSuites=2 (~04g class)
  */
+"use strict";
+
 const net = require("net");
 const crypto = require("crypto");
 const { validateIsolatedReplayTarget, redactUrl } = require("./option-d-target-safety");
@@ -29,13 +29,18 @@ const {
   resolveSuiteEffectiveClientConfig,
   assertProbeMatchesSuiteEffective,
   evaluateSafeLoopbackSslDisablePath,
+  buildLoopbackSslmodeDisableHandoffUrl,
 } = require("./option-d-pr312-pg-ssl-precedence");
+const {
+  PR312_COMMIT,
+  PR312_SUITE_BLOB,
+} = require("./option-d-vitest-result-gate");
 
 const JE_REUSE_ENV = "JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL";
 
 const PR312_SKIP_CONTRACT = {
-  suiteCommit: "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
-  suiteBlob: "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+  suiteCommit: PR312_COMMIT,
+  suiteBlob: PR312_SUITE_BLOB,
   envVar: JE_REUSE_ENV,
   mechanismDescribeSkip: "describeIf = TEST_DB_URL ? describe : describe.skip",
   mechanismBeforeAllSkip:
@@ -43,7 +48,9 @@ const PR312_SKIP_CONTRACT = {
   expectedTitlesUnderDescribeIf: 12,
   blockedSentinelWhenUrlFalsy:
     "BLOCKED: JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL unavailable",
-  suiteClientSsl: { rejectUnauthorized: false },
+  suiteClientTransport:
+    "resolveJeReusePgClientConfig → ssl:false only for loopback+sslmode=disable",
+  suiteClientSslDefault: SUITE_SSL_OBJECT,
   signatureUrlAbsent: {
     total: 13,
     skipped: 12,
@@ -134,8 +141,8 @@ function sanitizePgErrorMessage(message) {
 }
 
 /**
- * Mirror pinned suite buildConnectionString (delete sslmode query param).
- * Delegates to precedence module so probe and Vitest stay aligned.
+ * Historical TLS-path strip (delete sslmode). Prefer buildLoopbackSslmodeDisableHandoffUrl
+ * for Option D disposable handoff.
  */
 function buildSuiteMirroredConnectionString(value) {
   return suiteBuildConnectionString(value);
@@ -206,7 +213,8 @@ function validatePr312DisposableUrl(dbUrl, opts = {}) {
 }
 
 /**
- * Build child env: allowlist only + verified JE_REUSE. Inherited JE_REUSE is dropped.
+ * Build child env: allowlist only + verified JE_REUSE handoff URL (sslmode=disable).
+ * Inherited JE_REUSE is dropped.
  */
 function buildPr312ChildEnv(opts = {}) {
   const failures = [];
@@ -225,11 +233,19 @@ function buildPr312ChildEnv(opts = {}) {
     return { ok: false, failures: urlCheck.failures, env: null, handoff: null };
   }
 
+  const handoffUrlBuild =
+    opts.handoffUrl != null
+      ? { ok: true, failures: [], url: String(opts.handoffUrl) }
+      : buildLoopbackSslmodeDisableHandoffUrl(verifiedUrl);
+  if (!handoffUrlBuild.ok) {
+    return { ok: false, failures: handoffUrlBuild.failures, env: null, handoff: null };
+  }
+
   const inherited = parentEnv[JE_REUSE_ENV];
   const inheritedRejected =
     inherited !== undefined &&
     inherited !== null &&
-    String(inherited) !== String(verifiedUrl);
+    String(inherited) !== String(handoffUrlBuild.url);
 
   const env = { FORCE_COLOR: "0", NO_COLOR: "1" };
   for (const key of CHILD_ENV_ALLOWLIST) {
@@ -237,8 +253,7 @@ function buildPr312ChildEnv(opts = {}) {
       env[key] = String(parentEnv[key]);
     }
   }
-  // Never copy inherited JE_REUSE; set only verified value.
-  env[JE_REUSE_ENV] = String(verifiedUrl);
+  env[JE_REUSE_ENV] = String(handoffUrlBuild.url);
 
   if (
     Object.keys(env).some(
@@ -255,6 +270,7 @@ function buildPr312ChildEnv(opts = {}) {
     handoff: {
       envVar: JE_REUSE_ENV,
       setExplicitly: true,
+      sslmodeDisableAppended: /[?&]sslmode=disable\b/i.test(handoffUrlBuild.url),
       inheritedValueRejected: Boolean(inherited) && inheritedRejected,
       inheritedWasPresent:
         inherited !== undefined && inherited !== null && String(inherited).length > 0,
@@ -316,26 +332,39 @@ function probeDisposableDbConnectivity(dbUrl, opts = {}) {
 }
 
 /**
- * Suite-mirrored pg connect (ssl rejectUnauthorized:false + sslmode stripped).
- * Catches the 04g class of failure that TCP-only probes miss when the port is open
- * but Client.connect() still fails (e.g. SSL required by client options).
+ * Suite-mirrored pg connect via pinned resolveJeReusePgClientConfig.
  */
 async function probeSuiteMirroredPgConnect(dbUrl, opts = {}) {
   const timeoutMs = opts.timeoutMs == null ? 8000 : Number(opts.timeoutMs);
   const root = opts.root || process.cwd();
-  const suiteEffective = resolveSuiteEffectiveClientConfig(dbUrl, root);
+  const suiteEffective = await resolveSuiteEffectiveClientConfig(dbUrl, root, {
+    worktreePath: opts.worktreePath,
+    lookupAll: opts.lookupAll,
+  });
+  if (!suiteEffective.ok) {
+    return {
+      ok: false,
+      failures: suiteEffective.failures || [
+        { rule: "suite_effective_resolve_failed", reason: suiteEffective.reason },
+      ],
+      mirroredSuiteResolver: true,
+      redacted: suiteEffective.redacted,
+    };
+  }
+
   const probeConfig = {
     connectionString: suiteEffective.connectionString,
-    ssl: { ...SUITE_SSL_OBJECT },
+    ssl: suiteEffective.ssl,
   };
   const match = assertProbeMatchesSuiteEffective(probeConfig, suiteEffective);
   if (!match.ok) {
     return {
       ok: false,
       failures: match.failures,
-      mirroredSuiteSsl: true,
+      mirroredSuiteResolver: true,
       suiteEffective: {
-        ssl: suiteEffective.ssl,
+        transport: suiteEffective.transport,
+        sslIsFalse: suiteEffective.ssl === false,
         sslmodePresentInConnectionString: suiteEffective.sslmodePresentInConnectionString,
       },
     };
@@ -356,15 +385,17 @@ async function probeSuiteMirroredPgConnect(dbUrl, opts = {}) {
       return {
         ok: false,
         failures: [{ rule: "suite_mirrored_pg_select_failed" }],
-        mirroredSuiteSsl: true,
+        mirroredSuiteResolver: true,
       };
     }
     return {
       ok: true,
       failures: [],
-      mirroredSuiteSsl: true,
+      mirroredSuiteResolver: true,
       selectOk: true,
       probeMatchedSuite: true,
+      transport: suiteEffective.transport,
+      sslIsFalse: suiteEffective.ssl === false,
     };
   } catch (err) {
     try {
@@ -373,31 +404,18 @@ async function probeSuiteMirroredPgConnect(dbUrl, opts = {}) {
       /* ignore */
     }
     const message = sanitizePgErrorMessage(err && err.message);
-    const failures = [
-      {
-        rule: "suite_mirrored_pg_connect_failed",
-        code: err && err.code ? String(err.code) : null,
-        message,
-      },
-    ];
-    if (/does not support SSL/i.test(String(err && err.message))) {
-      const pathEval = evaluateSafeLoopbackSslDisablePath({ root });
-      failures.push({
-        rule: PR312_SUITE_SSL_CONTRACT.blockerRule,
-        detail: PR312_SUITE_SSL_CONTRACT.blockerDetail,
-        requiresPr312SuitePinChange: true,
-        safeLoopbackSslDisablePathAvailable: false,
-        urlSslmodeWouldOverrideIfNotStripped:
-          pathEval.analysis.urlSslmodeDisableOverridesExplicitSslObject === true,
-        suiteStripMakesUrlIneffective:
-          pathEval.analysis.suiteStripThenExplicitSslRemainsObject === true,
-      });
-    }
     return {
       ok: false,
-      failures,
-      mirroredSuiteSsl: true,
+      failures: [
+        {
+          rule: "suite_mirrored_pg_connect_failed",
+          code: err && err.code ? String(err.code) : null,
+          message,
+        },
+      ],
+      mirroredSuiteResolver: true,
       probeMatchedSuite: true,
+      transport: suiteEffective.transport,
     };
   }
 }
@@ -425,6 +443,8 @@ function probeChildEnvHandoff(childEnv) {
     ok: failures.length === 0,
     failures,
     jeReusePresent: Boolean(value && String(value).trim()),
+    sslmodeDisable:
+      typeof value === "string" && /[?&]sslmode=disable\b/i.test(value),
   };
 }
 
@@ -451,41 +471,89 @@ async function authorizePr312VitestLaunch(opts = {}) {
     failures.push(...urlCheck.failures);
   }
 
+  let handoffUrlBuild = { ok: false, failures: [{ rule: "handoff_url_not_attempted" }], url: null };
+  let childEffective = null;
+  let probeEffective = null;
+
+  if (urlCheck.ok) {
+    handoffUrlBuild = buildLoopbackSslmodeDisableHandoffUrl(opts.databaseUrl);
+    if (!handoffUrlBuild.ok) {
+      failures.push(...handoffUrlBuild.failures);
+    } else {
+      childEffective = await resolveSuiteEffectiveClientConfig(
+        handoffUrlBuild.url,
+        opts.root || process.cwd(),
+        { worktreePath: opts.worktreePath, lookupAll: opts.lookupAll },
+      );
+      if (!childEffective.ok) {
+        failures.push(...(childEffective.failures || [{ rule: "child_effective_resolve_failed" }]));
+      } else if (childEffective.ssl !== false || childEffective.transport !== "plaintext_loopback") {
+        failures.push({
+          rule: "handoff_must_resolve_plaintext_loopback",
+          transport: childEffective.transport,
+          sslIsFalse: childEffective.ssl === false,
+        });
+      }
+    }
+  }
+
   let tcp = { ok: false, failures: [{ rule: "tcp_connectivity_not_attempted" }] };
   let pgProbe = { ok: false, failures: [{ rule: "suite_mirrored_pg_not_attempted" }] };
-  if (urlCheck.ok) {
+  if (urlCheck.ok && handoffUrlBuild.ok) {
     tcp = await probeDisposableDbConnectivity(opts.databaseUrl, {
       timeoutMs: opts.connectivityTimeoutMs,
     });
     if (!tcp.ok) failures.push(...tcp.failures);
 
     if (tcp.ok) {
-      pgProbe = await probeSuiteMirroredPgConnect(opts.databaseUrl, {
+      pgProbe = await probeSuiteMirroredPgConnect(handoffUrlBuild.url, {
         timeoutMs: opts.pgProbeTimeoutMs,
+        root: opts.root,
+        worktreePath: opts.worktreePath,
+        lookupAll: opts.lookupAll,
       });
       if (!pgProbe.ok) failures.push(...pgProbe.failures);
+      else {
+        probeEffective = {
+          transport: pgProbe.transport,
+          sslIsFalse: pgProbe.sslIsFalse === true,
+        };
+        if (
+          childEffective &&
+          childEffective.ok &&
+          (probeEffective.sslIsFalse !== true ||
+            probeEffective.transport !== childEffective.transport)
+        ) {
+          failures.push({ rule: "probe_child_effective_divergence" });
+        }
+      }
     }
   }
 
-  const child = urlCheck.ok
-    ? buildPr312ChildEnv({
-        verifiedUrl: opts.databaseUrl,
-        parentEnv: opts.parentEnv,
-        expectedPort: opts.expectedPort,
-        expectedDatabase: opts.expectedDatabase,
-      })
-    : {
-        ok: false,
-        failures: [{ rule: "child_env_skipped_due_to_url_failure" }],
-        env: null,
-        handoff: null,
-      };
+  const child =
+    urlCheck.ok && handoffUrlBuild.ok
+      ? buildPr312ChildEnv({
+          verifiedUrl: opts.databaseUrl,
+          handoffUrl: handoffUrlBuild.url,
+          parentEnv: opts.parentEnv,
+          expectedPort: opts.expectedPort,
+          expectedDatabase: opts.expectedDatabase,
+        })
+      : {
+          ok: false,
+          failures: [{ rule: "child_env_skipped_due_to_url_failure" }],
+          env: null,
+          handoff: null,
+        };
   if (!child.ok) failures.push(...child.failures);
 
   const envProbe = child.env
     ? probeChildEnvHandoff(child.env)
     : { ok: false, failures: [{ rule: "child_env_probe_skipped" }] };
   if (!envProbe.ok) failures.push(...envProbe.failures);
+  if (envProbe.ok && envProbe.sslmodeDisable !== true) {
+    failures.push({ rule: "child_env_missing_sslmode_disable" });
+  }
 
   if (!opts.databaseUrl || !String(opts.databaseUrl).trim()) {
     failures.push({
@@ -498,6 +566,7 @@ async function authorizePr312VitestLaunch(opts = {}) {
     ok: failures.length === 0,
     failures,
     skipContract: PR312_SKIP_CONTRACT,
+    sslContract: PR312_SUITE_SSL_CONTRACT,
     urlCheck: {
       ok: urlCheck.ok,
       failures: urlCheck.failures,
@@ -506,19 +575,30 @@ async function authorizePr312VitestLaunch(opts = {}) {
       hostname: urlCheck.hostname,
       port: urlCheck.port,
       database: urlCheck.database,
-      // omit nested skipContract duplicate on urlCheck for leaner evidence
     },
     connectivity: {
       tcpOk: tcp.ok === true,
       pgOk: pgProbe.ok === true,
       hostname: tcp.hostname || urlCheck.hostname || null,
       port: tcp.port || urlCheck.port || null,
-      suiteMirroredSsl: true,
+      suiteMirroredResolver: true,
+      transport: pgProbe.transport || (childEffective && childEffective.transport) || null,
+      sslIsFalse:
+        pgProbe.sslIsFalse === true ||
+        (childEffective && childEffective.ssl === false) ||
+        false,
     },
-    // Never return credential-bearing env on failure (evidence / JSON safety).
     childEnv: failures.length === 0 ? child.env : null,
     handoff: child.handoff,
-    envProbe: { ok: envProbe.ok, jeReusePresent: envProbe.jeReusePresent === true },
+    envProbe: {
+      ok: envProbe.ok,
+      jeReusePresent: envProbe.jeReusePresent === true,
+      sslmodeDisable: envProbe.sslmodeDisable === true,
+    },
+    probeChildEquality:
+      failures.length === 0
+        ? { ok: true, transport: "plaintext_loopback", ssl: false }
+        : { ok: false },
   };
 }
 
@@ -583,6 +663,7 @@ module.exports = {
   validatePr312DisposableUrl,
   buildPr312ChildEnv,
   buildSuiteMirroredConnectionString,
+  buildLoopbackSslmodeDisableHandoffUrl,
   probeDisposableDbConnectivity,
   probeSuiteMirroredPgConnect,
   probeChildEnvHandoff,
