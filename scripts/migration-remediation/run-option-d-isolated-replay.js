@@ -57,6 +57,12 @@ const {
   cleanupPr312IsolatedContext,
   diagnoseVitestSuiteDiscovery,
 } = require("./option-d-pr312-isolated-context");
+const {
+  authorizePr312VitestLaunch,
+  captureSkipDiagnosisFromStructuredCounts,
+  JE_REUSE_ENV,
+  PR312_SKIP_CONTRACT,
+} = require("./option-d-pr312-env-handoff");
 
 const ROOT = path.join(__dirname, "..", "..");
 const STATUS_OUT = path.join(ROOT, "docs/migration-remediation/option-d-runtime-status.json");
@@ -294,7 +300,7 @@ async function runSecurityChecks(dbUrl) {
   });
 }
 
-function runPr312Vitest(dbUrl) {
+async function runPr312Vitest(dbUrl, runGates = {}) {
   // Prefer isolated detached worktree at the exact PR #312 pin so Vitest include
   // globs discover the canonical suite path. Outside-root temp copies yield
   // zero_tests_in_report (proven 2026-09-04f).
@@ -329,6 +335,7 @@ function runPr312Vitest(dbUrl) {
       stderr: "",
       suiteMaterialization: isolated,
       launcher: null,
+      envHandoff: null,
       discovery: diagnoseVitestSuiteDiscovery({
         projectRoot: ROOT,
         suitePath: path.join(os.tmpdir(), "option-d-outside-root-probe.test.ts"),
@@ -361,6 +368,51 @@ function runPr312Vitest(dbUrl) {
       stderr: "",
       suiteMaterialization: isolated,
       launcher: null,
+      envHandoff: null,
+    };
+  }
+
+  const launchAuth = await authorizePr312VitestLaunch({
+    databaseUrl: dbUrl,
+    expectedPort: 54322,
+    expectedDatabase: "postgres",
+    candidateReplayPassed: runGates.candidateReplayPassed === true,
+    securityImmutabilityPassed: runGates.securityImmutabilityPassed === true,
+    isolatedContextOk: true,
+    parentEnv: process.env,
+  });
+  if (!launchAuth.ok) {
+    cleanupPr312IsolatedContext(isolated);
+    applyMetrics.lastPr312Materialization = null;
+    return {
+      processExitCode: null,
+      signal: null,
+      error: "pr312_env_handoff_or_provenance_failed",
+      gate: {
+        ok: false,
+        reason: "pr312_env_handoff_or_provenance_failed",
+        failures: launchAuth.failures,
+      },
+      structured: null,
+      stderr: "",
+      suiteMaterialization: {
+        ok: true,
+        gitBlobId: isolated.suiteGitBlobId,
+        sha256: isolated.suiteSha256,
+        authority: isolated.authority,
+      },
+      launcher: null,
+      envHandoff: {
+        ok: false,
+        skipContract: PR312_SKIP_CONTRACT,
+        failures: launchAuth.failures,
+        handoff: launchAuth.handoff,
+        connectivity: launchAuth.connectivity,
+        urlCheck: {
+          redacted: launchAuth.urlCheck?.redacted || null,
+          fingerprint: launchAuth.urlCheck?.fingerprint || null,
+        },
+      },
     };
   }
 
@@ -371,14 +423,11 @@ function runPr312Vitest(dbUrl) {
     cwd: isolated.worktreePath,
     vitestRoot: isolated.worktreePath,
     configPath: isolated.configPath,
-    root: ROOT, // resolve vitest entry from donor install
+    root: ROOT,
     canonicalRepoPath: PR312_SUITE_PATH,
     requireInsideProjectRoot: true,
     requireIncludeMatch: true,
-    env: {
-      ...process.env,
-      JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL: dbUrl,
-    },
+    env: launchAuth.childEnv,
     timeoutMs: 600_000,
   });
 
@@ -404,6 +453,20 @@ function runPr312Vitest(dbUrl) {
     report,
   });
 
+  const assertionTitles = report
+    ? (report.testResults || []).flatMap((tr) =>
+        (tr.assertionResults || []).map((a) => ({
+          title: a.title,
+          status: a.status,
+        })),
+      )
+    : [];
+  const skipDiagnosis = captureSkipDiagnosisFromStructuredCounts({
+    counts: gate.structured?.counts || {},
+    numFailedTestSuites: report?.numFailedTestSuites,
+    report,
+    assertionTitles,
+  });
   const suiteByteLength = fs.statSync(isolated.suiteAbsPath).size;
   const cleanup = cleanupPr312IsolatedContext(isolated);
   applyMetrics.lastPr312Materialization = null;
@@ -421,6 +484,15 @@ function runPr312Vitest(dbUrl) {
     stderr: (launched.stderr || "").slice(0, 1000),
     launcher: launched.launcher,
     discovery: isolated.discovery,
+    envHandoff: {
+      ok: true,
+      envVar: JE_REUSE_ENV,
+      skipContract: PR312_SKIP_CONTRACT,
+      handoff: launchAuth.handoff,
+      connectivity: launchAuth.connectivity,
+      envProbe: launchAuth.envProbe,
+      skipDiagnosis,
+    },
     isolatedContext: {
       commit: isolated.commit,
       worktreePath: isolated.worktreePath,
@@ -782,7 +854,10 @@ async function main() {
     process.exit(2);
   }
 
-  const vitestRun = runPr312Vitest(dbUrl);
+  const vitestRun = await runPr312Vitest(dbUrl, {
+    candidateReplayPassed: scopes.candidateReplay === "PASS",
+    securityImmutabilityPassed: scopes.securityImmutabilityChecks === "PASS",
+  });
   scopes.pr312RpcValidation = vitestRun.gate.ok ? "PASS" : "FAIL";
 
   const overallGate = evaluateOverallRuntimePass(scopes);
@@ -801,6 +876,15 @@ async function main() {
         gate: vitestRun.gate,
         launcher: vitestRun.launcher || null,
         suiteMaterialization: vitestRun.suiteMaterialization || null,
+        envHandoff: vitestRun.envHandoff || null,
+        isolatedContext: vitestRun.isolatedContext
+          ? {
+              commit: vitestRun.isolatedContext.commit,
+              authority: vitestRun.isolatedContext.authority,
+              cleaned: vitestRun.isolatedContext.cleaned,
+              nodeModulesLinkType: vitestRun.isolatedContext.nodeModulesLinkType,
+            }
+          : null,
       },
       pr312Provenance,
       targetRedacted: redactUrl(dbUrl),
@@ -823,6 +907,15 @@ async function main() {
       gate: vitestRun.gate,
       launcher: vitestRun.launcher || null,
       suiteMaterialization: vitestRun.suiteMaterialization || null,
+      envHandoff: vitestRun.envHandoff || null,
+      isolatedContext: vitestRun.isolatedContext
+        ? {
+            commit: vitestRun.isolatedContext.commit,
+            authority: vitestRun.isolatedContext.authority,
+            cleaned: vitestRun.isolatedContext.cleaned,
+            nodeModulesLinkType: vitestRun.isolatedContext.nodeModulesLinkType,
+          }
+        : null,
     },
     pr312Provenance,
     targetRedacted: redactUrl(dbUrl),
