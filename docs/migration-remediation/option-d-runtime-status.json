@@ -78,11 +78,20 @@
           "rule": "vitest_report_success_false"
         },
         {
+          "rule": "vitest_failed_suites",
+          "count": 2
+        },
+        {
+          "rule": "vitest_suite_status_failed",
+          "name": "C:/Users/mattj/AppData/Local/Temp/option-d-pr312-worktree-JuLjSo/tree/lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts"
+        },
+        {
           "rule": "vitest_structured_gate_failed",
-          "reason": "zero_tests_in_report",
+          "reason": "skipped_present",
           "structuredFailures": [
             {
-              "rule": "zero_tests_in_report"
+              "rule": "skipped_present",
+              "count": 12
             },
             {
               "rule": "expected_tests_not_all_passed",
@@ -107,6 +116,9 @@
               "rule": "insufficient_passed_count",
               "passed": 0,
               "required": 12
+            },
+            {
+              "rule": "all_skipped_cannot_pass"
             }
           ]
         }
@@ -115,19 +127,20 @@
       "structured": {
         "ok": false,
         "status": "FAIL",
-        "reason": "zero_tests_in_report",
+        "reason": "skipped_present",
         "counts": {
-          "total": 0,
+          "total": 12,
           "passed": 0,
           "failed": 0,
-          "skipped": 0,
+          "skipped": 12,
           "todo": 0,
           "pending": 0,
           "unknown": 0
         },
         "failures": [
           {
-            "rule": "zero_tests_in_report"
+            "rule": "skipped_present",
+            "count": 12
           },
           {
             "rule": "expected_tests_not_all_passed",
@@ -152,6 +165,9 @@
             "rule": "insufficient_passed_count",
             "passed": 0,
             "required": 12
+          },
+          {
+            "rule": "all_skipped_cannot_pass"
           }
         ],
         "pr312": {
@@ -172,27 +188,37 @@
       "shell": false,
       "npxUsed": false,
       "networkResolverUsed": false,
+      "cwd": "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree",
+      "configPath": "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree\\vitest.config.ts",
+      "vitestRoot": "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree",
       "argv": [
         "C:\\Users\\mattj\\finsight-reports\\node_modules\\vitest\\vitest.mjs",
         "run",
-        "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-git-blob-pr312-gcqSZB\\execution-reservation.postgres.integration.test.ts",
+        "lib\\journal-entry-governance\\__tests__\\execution-reservation.postgres.integration.test.ts",
         "--reporter=json",
-        "--outputFile=C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-vitest-1788573583484.json"
+        "--outputFile=C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\option-d-vitest-1788575775362.json",
+        "--config",
+        "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree\\vitest.config.ts",
+        "--root",
+        "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree"
       ],
-      "commandModel": "process.execPath <node_modules/vitest/vitest.mjs> run <tempSuite> --reporter=json --outputFile=<tmpJson>",
+      "commandModel": "process.execPath <node_modules/vitest/vitest.mjs> run <canonicalSuiteRel> --reporter=json --outputFile=<tmpJson> --config <worktree/vitest.config.ts> --root <worktree>",
       "processExitCode": 1,
       "signal": null,
       "timedOut": false,
-      "elapsedMs": 538,
-      "error": null
+      "elapsedMs": 927,
+      "error": null,
+      "stdoutSnippet": "JSON report written to C:/Users/mattj/AppData/Local/Temp/option-d-pr312-worktree-JuLjSo/option-d-vitest-1788575775362.json\n",
+      "stderrSnippet": ""
     },
     "suiteMaterialization": {
       "ok": true,
       "gitBlobId": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
       "sha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
       "byteLength": 19389,
-      "authority": "git_cat_file_blob",
-      "temporaryFileSha256BeforeLaunch": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1"
+      "authority": "git_worktree_detach_pr312_commit",
+      "temporaryFileSha256BeforeLaunch": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
+      "canonicalRepoPath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts"
     }
   },
   "pr312Provenance": {
@@ -207,5 +233,5 @@
     "authority": "git_cat_file_blob"
   },
   "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
-  "writtenAt": "2026-09-05T01:59:44.026Z"
+  "writtenAt": "2026-09-05T02:36:17.431Z"
 }
