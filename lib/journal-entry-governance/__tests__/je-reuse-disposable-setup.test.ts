@@ -116,18 +116,23 @@ describe("JE_REUSE disposable setup (non-database)", () => {
   });
 
   it("seedFixture contract forbids obsolete validation_status=valid", async () => {
-    const src = await import("node:fs").then((fs) =>
-      fs.readFileSync(
-        new URL("./execution-reservation.postgres.integration.test.ts", import.meta.url),
-        "utf8",
-      ),
+    const fs = await import("node:fs");
+    const suiteSrc = fs.readFileSync(
+      new URL("./execution-reservation.postgres.integration.test.ts", import.meta.url),
+      "utf8",
     );
-    expect(src).not.toMatch(/'valid',\s*now\(\)/);
-    expect(src).toMatch(/'SUCCESS',\s*now\(\)/);
-    expect(src).toContain("validation_status");
-    expect(src).toContain("it(SETUP_TEST_TITLE");
-    expect(src).toContain("requireJeReuseSetup");
+    const seedSrc = fs.readFileSync(
+      new URL("./je-reuse-seed-operations.js", import.meta.url),
+      "utf8",
+    );
+    expect(suiteSrc).not.toMatch(/'valid',\s*now\(\)/);
+    expect(seedSrc).not.toMatch(/'valid',\s*now\(\)/);
+    expect(seedSrc).toMatch(/'SUCCESS',\s*now\(\)/);
+    expect(seedSrc).toContain("validation_status");
+    expect(suiteSrc).toContain("runJeReuseSeedOperations");
+    expect(suiteSrc).toContain("it(SETUP_TEST_TITLE");
+    expect(suiteSrc).toContain("requireJeReuseSetup");
     // beforeAll must not throw setup errors (stores result instead)
-    expect(src).toMatch(/setup = await runJeReuseDisposableSetup/);
+    expect(suiteSrc).toMatch(/setup = await runJeReuseDisposableSetup/);
   });
 });

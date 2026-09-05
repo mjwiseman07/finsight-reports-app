@@ -14,6 +14,7 @@ import {
   requireJeReuseSetup,
   runJeReuseDisposableSetup,
 } from "./je-reuse-disposable-setup.js";
+import { runJeReuseSeedOperations } from "./je-reuse-seed-operations.js";
 
 const MIGRATION = join(
   process.cwd(),
@@ -108,91 +109,28 @@ function reservationEventPayload(status = "RESERVED") {
 }
 
 async function seedFixture(client: pg.Client) {
-  await client.query(
-    `
-    INSERT INTO auth.users (id, email, is_sso_user, is_anonymous)
-    VALUES ($1, 'je3a-exec-reservation-test@example.invalid', false, false)
-    ON CONFLICT (id) DO NOTHING;
-
-    INSERT INTO public.companies (id, name, primary_persona, package_level, billing_status, onboarding_status, is_demo, account_type, industry_type)
-    VALUES ($2, 'JE3A Exec Reservation Test Co', 'business-owner', 'essential', 'trial', 'not_started', true, 'my-own-company', 'Other')
-    ON CONFLICT (id) DO NOTHING;
-
-    INSERT INTO public.audit_ready_engagements (
-      id, company_id, audit_ready_tier, billing_mode, status, entity_count,
-      pbc_request_count, auditor_user_count, opened_at, hard_timeout_at
-    ) VALUES (
-      $3, $2, 'small', 'monthly', 'open', 1, 0, 0, now(), now() + interval '30 days'
-    ) ON CONFLICT (id) DO NOTHING;
-
-    INSERT INTO public.accounting_connections (
-      id, user_id, provider, provider_family, provider_product, scopes, status, metadata_json, provider_environment
-    ) VALUES (
-      $4, $1, 'quickbooks', 'intuit', 'qbo', '{}', 'connected', '{}'::jsonb, 'sandbox'
-    ) ON CONFLICT (id) DO NOTHING;
-
-    INSERT INTO public.accounting_syncs (
-      id, company_id, connection_id, source_system, report_period_start, report_period_end,
-      normalized_payload, validation_status, last_synced_at
-    ) VALUES (
-      $5, $2, $4, 'quickbooks', '2026-08-01', '2026-08-31', '{}'::jsonb, 'SUCCESS', now()
-    ) ON CONFLICT (id) DO NOTHING;
-
-    INSERT INTO public.continuous_close_runs (
-      id, company_id, engagement_id, accounting_sync_id, period_end, mode, readiness, status,
-      policy_hash, input_hash, policy_snapshot, observation_summary, result, created_by,
-      started_at, completed_at, idempotency_key
-    ) VALUES (
-      $6, $2, $3, $5, '2026-08-31', 'OBSERVE', 'READY', 'completed',
-      $7, $7, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, $1,
-      now(), now(), $8
-    ) ON CONFLICT (id) DO NOTHING;
-
-    INSERT INTO public.journal_entry_proposals (
-      id, company_id, engagement_id, period_end, source_continuous_close_run_id,
-      source_accounting_sync_id, source_recon_run_ids, origin_type, reason_code, currency,
-      txn_date, lines, total_debits_cents, total_credits_cents, expected_effects,
-      policy_snapshot, policy_hash, proposal_hash, status, proposed_by, proposed_at, idempotency_key
-    ) VALUES (
-      $9, $2, $3, '2026-08-31', $6, $5, '[]'::jsonb, 'ACCRUAL', 'TEST', 'USD',
-      '2026-08-31', '[]'::jsonb, 100, 100, '{}'::jsonb,
-      '{}'::jsonb, $7, $7, 'SUBMITTED', $1, now(), $10
-    ) ON CONFLICT (id) DO NOTHING;
-
-    INSERT INTO public.journal_entry_approvals (
-      id, proposal_id, company_id, engagement_id, proposal_hash, policy_hash, decision,
-      approval_mode, reviewer_user_id, policy_snapshot, approved_at, idempotency_key
-    ) VALUES (
-      $11, $9, $2, $3, $7, $7, 'APPROVED', 'REVIEW_REQUIRED', $1, '{}'::jsonb, now(), $12
-    ) ON CONFLICT (id) DO NOTHING;
-
-    -- Distinct policy_hash so journal_entry_approvals_one_approved_idx allows a
-    -- second APPROVED row for the same proposal (approval2 fixture).
-    INSERT INTO public.journal_entry_approvals (
-      id, proposal_id, company_id, engagement_id, proposal_hash, policy_hash, decision,
-      approval_mode, reviewer_user_id, policy_snapshot, approved_at, idempotency_key
-    ) VALUES (
-      $13, $9, $2, $3, $7, $15, 'APPROVED', 'REVIEW_REQUIRED', $1, '{}'::jsonb, now(), $14
-    ) ON CONFLICT (id) DO NOTHING;
-    `,
-    [
-      IDS.user,
-      IDS.company,
-      IDS.engagement,
-      IDS.connection,
-      IDS.sync,
-      IDS.ccRun,
-      HASH,
-      `${"d".repeat(64)}`,
-      IDS.proposal,
-      `${"e".repeat(64)}`,
-      IDS.approval,
-      `${"f".repeat(64)}`,
-      IDS.approval2,
-      `${"g".repeat(64)}`,
-      HASH_B,
-    ],
-  );
+  // One parameterized statement per client.query (node-pg extended protocol).
+  await runJeReuseSeedOperations(client, {
+    ids: {
+      user: IDS.user,
+      company: IDS.company,
+      engagement: IDS.engagement,
+      connection: IDS.connection,
+      sync: IDS.sync,
+      ccRun: IDS.ccRun,
+      proposal: IDS.proposal,
+      approval: IDS.approval,
+      approval2: IDS.approval2,
+    },
+    hash: HASH,
+    hashB: HASH_B,
+    idempotency: {
+      ccRun: `${"d".repeat(64)}`,
+      proposal: `${"e".repeat(64)}`,
+      approval: `${"f".repeat(64)}`,
+      approval2: `${"g".repeat(64)}`,
+    },
+  });
 }
 
 async function persistReservation(
