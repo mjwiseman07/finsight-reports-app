@@ -8,10 +8,10 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const PR312_COMMIT = "e550a029fa167cff82f9d1636341721a6d5a80ff";
+const PR312_COMMIT = "5e7c2a53c5fd475543c796e8f38e89432d90af58";
 const PR312_SUITE_PATH =
   "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts";
-const PR312_SUITE_BLOB = "c3d5d220ee9c40064ec062848e5a603fff175b70";
+const PR312_SUITE_BLOB = "cec32b34617afe41187a37ad7de65048040a9f45";
 const PR312_JE_REUSE_RESOLVER_PATH =
   "lib/journal-entry-governance/__tests__/je-reuse-pg-client-config.js";
 const PR312_JE_REUSE_RESOLVER_BLOB = "5178894fc6811d9f9fef84b10fb9294504b4679e";

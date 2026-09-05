@@ -587,7 +587,7 @@ function main() {
     productionHistoryUnchanged: true,
     activeMigrationsUnchanged: true,
     productionDashboardReplayParity: "unresolved",
-    pr312HeadRequiredUnchanged: "e550a029fa167cff82f9d1636341721a6d5a80ff",
+    pr312HeadRequiredUnchanged: "5e7c2a53c5fd475543c796e8f38e89432d90af58",
     assembledDir: ASSEMBLED_REPO_DIR,
     ordering: {
       policy: depResult.changelog.policy,
