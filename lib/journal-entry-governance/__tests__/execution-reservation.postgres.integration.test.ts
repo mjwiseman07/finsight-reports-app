@@ -4,13 +4,16 @@
  * Never targets production staged custody IDs.
  */
 // @ts-nocheck
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { canonicalPayloadJson } from "@/lib/ledger/merkle";
-// CJS test-infra helper (not a production barrel).
-import { resolveJeReusePgClientConfig } from "./je-reuse-pg-client-config.js";
+// CJS test-infra helpers (not production barrels).
+import {
+  SETUP_TEST_TITLE,
+  requireJeReuseSetup,
+  runJeReuseDisposableSetup,
+} from "./je-reuse-disposable-setup.js";
 
 const MIGRATION = join(
   process.cwd(),
@@ -132,7 +135,7 @@ async function seedFixture(client: pg.Client) {
       id, company_id, connection_id, source_system, report_period_start, report_period_end,
       normalized_payload, validation_status, last_synced_at
     ) VALUES (
-      $5, $2, $4, 'quickbooks', '2026-08-01', '2026-08-31', '{}'::jsonb, 'valid', now()
+      $5, $2, $4, 'quickbooks', '2026-08-01', '2026-08-31', '{}'::jsonb, 'SUCCESS', now()
     ) ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO public.continuous_close_runs (
@@ -163,11 +166,13 @@ async function seedFixture(client: pg.Client) {
       $11, $9, $2, $3, $7, $7, 'APPROVED', 'REVIEW_REQUIRED', $1, '{}'::jsonb, now(), $12
     ) ON CONFLICT (id) DO NOTHING;
 
+    -- Distinct policy_hash so journal_entry_approvals_one_approved_idx allows a
+    -- second APPROVED row for the same proposal (approval2 fixture).
     INSERT INTO public.journal_entry_approvals (
       id, proposal_id, company_id, engagement_id, proposal_hash, policy_hash, decision,
       approval_mode, reviewer_user_id, policy_snapshot, approved_at, idempotency_key
     ) VALUES (
-      $13, $9, $2, $3, $7, $7, 'APPROVED', 'REVIEW_REQUIRED', $1, '{}'::jsonb, now(), $14
+      $13, $9, $2, $3, $7, $15, 'APPROVED', 'REVIEW_REQUIRED', $1, '{}'::jsonb, now(), $14
     ) ON CONFLICT (id) DO NOTHING;
     `,
     [
@@ -185,6 +190,7 @@ async function seedFixture(client: pg.Client) {
       `${"f".repeat(64)}`,
       IDS.approval2,
       `${"g".repeat(64)}`,
+      HASH_B,
     ],
   );
 }
@@ -227,31 +233,58 @@ async function persistReservation(
 const describeIf = TEST_DB_URL ? describe : describe.skip;
 
 describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
-  // Client is opened in beforeAll via shared test-infra resolver
-  // (loopback+sslmode=disable → ssl:false; otherwise preserved SSL).
-  let client: pg.Client;
+  /**
+   * Model (B): disposable DB with prerequisite app schema present.
+   * Suite re-applies JE-3A migration + seeds inside a transaction, then ROLLBACK.
+   * beforeAll must NOT throw — Vitest converts hook throws into all-skipped.
+   */
+  let setup = {
+    ok: false,
+    client: null,
+    phase: "not_started",
+    sqlstate: null,
+    sanitizedMessage: null,
+    summary: "setup not run",
+    cleanupRegistered: false,
+  };
 
   beforeAll(async () => {
-    const resolved = await resolveJeReusePgClientConfig(TEST_DB_URL!);
-    if (!resolved.ok) {
-      throw new Error(`JE_REUSE pg client config rejected: ${resolved.reason}`);
-    }
-    client = new pg.Client({
-      connectionString: resolved.config.connectionString,
-      ssl: resolved.config.ssl,
+    setup = await runJeReuseDisposableSetup({
+      databaseUrl: TEST_DB_URL,
+      migrationPath: MIGRATION,
+      seedFixture,
+      Client: pg.Client,
     });
-    await client.connect();
-    await client.query("BEGIN");
-    await client.query(readFileSync(MIGRATION, "utf8"));
-    await seedFixture(client);
   }, 120_000);
 
   afterAll(async () => {
-    await client.query("ROLLBACK");
-    await client.end();
+    const client = setup && setup.client;
+    if (!client) return;
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* ignore */
+    }
+    try {
+      await client.end();
+    } catch {
+      /* ignore */
+    }
+  });
+
+  it(SETUP_TEST_TITLE, () => {
+    // Dedicated setup assertion: failures are reported as failed, never skipped.
+    expect(
+      setup.ok,
+      setup.summary ||
+        `setup failed at phase=${setup.phase} sqlstate=${setup.sqlstate}`,
+    ).toBe(true);
+    expect(setup.client).toBeTruthy();
+    expect(setup.cleanupRegistered).toBe(true);
   });
 
   it("migration compile: reservation + transition RPCs exist", async () => {
+    const client = requireJeReuseSetup(setup);
     const { rows } = await client.query<{ proname: string; prosecdef: boolean }>(
       `SELECT proname, prosecdef
          FROM pg_proc
@@ -269,6 +302,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("A. first reservation inserts row + execution_requested receipt", async () => {
+    const client = requireJeReuseSetup(setup);
     const row = executionRow();
     const payload = reservationEventPayload();
     const { rows } = await persistReservation(client, row, payload);
@@ -301,6 +335,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("B. exact idempotency replay → reused, no duplicate receipt", async () => {
+    const client = requireJeReuseSetup(setup);
     const before = await client.query(
       `SELECT count(*)::int AS c
          FROM public.ledger_events
@@ -323,6 +358,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("C. approval_id replay with same binding → reused", async () => {
+    const client = requireJeReuseSetup(setup);
     const row = executionRow({ id: "aaaaaaaa-0111-4111-8111-000000000111" });
     const { rows } = await persistReservation(client, row);
     expect(rows[0]?.reused).toBe(true);
@@ -331,6 +367,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("D. binding mismatch on approval_id → fail closed", async () => {
+    const client = requireJeReuseSetup(setup);
     const row = executionRow({
       id: "aaaaaaaa-0113-4113-8113-000000000113",
       proposal_hash: `${"z".repeat(64)}`,
@@ -341,6 +378,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("E. transition RESERVED → READY_TO_POST + execution_ready receipt", async () => {
+    const client = requireJeReuseSetup(setup);
     const readyPayload = {
       ...reservationEventPayload("READY_TO_POST"),
       preflight_eligible: true,
@@ -391,6 +429,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("E2. Patent #6 chain adjacency for requested → ready receipts", async () => {
+    const client = requireJeReuseSetup(setup);
     const { rows } = await client.query(
       `SELECT event_type, chain_index, event_sequence, event_hash, previous_event_hash
          FROM public.ledger_events
@@ -410,6 +449,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("F. state_version conflict on transition → rejected", async () => {
+    const client = requireJeReuseSetup(setup);
     const payload = reservationEventPayload("READY_TO_POST");
     await expect(
       client.query(
@@ -438,6 +478,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt", async () => {
+    const client = requireJeReuseSetup(setup);
     const row = executionRow({
       id: IDS.execution2,
       approval_id: IDS.approval2,
@@ -494,6 +535,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("H. concurrent approval_id reservation attempts converge to one execution", async () => {
+    const client = requireJeReuseSetup(setup);
     const rowA = executionRow({
       id: "aaaaaaaa-0116-4116-8116-000000000116",
       approval_id: IDS.approval2,
@@ -521,6 +563,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("I. zero provider-attempt rows for execution reservation path", async () => {
+    const client = requireJeReuseSetup(setup);
     const { rows } = await client.query(
       `SELECT count(*)::int AS c
          FROM public.journal_entry_provider_attempts
@@ -531,6 +574,7 @@ describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
   });
 
   it("J. never touches staged production execution custody id", async () => {
+    const client = requireJeReuseSetup(setup);
     const { rows } = await client.query(
       `SELECT count(*)::int AS c
          FROM public.journal_entry_executions
