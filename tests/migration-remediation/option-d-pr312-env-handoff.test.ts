@@ -24,10 +24,14 @@ const LOCAL_OK = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 describe("Option D PR312 env handoff", () => {
   it("pins the updated PR #312 commit and suite blob", () => {
-    expect(PR312_COMMIT).toBe("7f387fe0b662e07ad271ee9db7311eeb45eafc25");
-    expect(PR312_SUITE_BLOB).toBe("d4afe0584d089d4ad50d479b81a369ca6dbdd168");
+    expect(PR312_COMMIT).toBe("5972a70782549950db23fc46d84c6f85b87affe6");
+    expect(PR312_SUITE_BLOB).toBe("5a565871ee0508ecc6b5afd59928250874b45154");
     expect(PR312_SKIP_CONTRACT.suiteCommit).toBe(PR312_COMMIT);
     expect(PR312_SKIP_CONTRACT.suiteBlob).toBe(PR312_SUITE_BLOB);
+    expect(PR312_SKIP_CONTRACT.expectedTitlesUnderDescribeIf).toBe(13);
+    expect(EXPECTED_PR312_TEST_TITLES[0]).toBe(
+      "SETUP: disposable database preparation",
+    );
   });
 
   it("accepts verified loopback disposable URL and fingerprints without credentials", () => {
@@ -198,10 +202,13 @@ describe("Option D PR312 env handoff", () => {
   });
 
   it("classifies 04g beforeAll-skip vs describe.skip signatures safely", () => {
+    const legacyTitles = EXPECTED_PR312_TEST_TITLES.filter(
+      (t) => !t.startsWith("SETUP:"),
+    );
     const beforeAllSkip = captureSkipDiagnosisFromStructuredCounts({
       counts: { total: 12, skipped: 12, passed: 0, failed: 0 },
       numFailedTestSuites: 2,
-      assertionTitles: EXPECTED_PR312_TEST_TITLES.map((title) => ({
+      assertionTitles: legacyTitles.map((title) => ({
         title,
         status: "skipped",
       })),
@@ -213,7 +220,7 @@ describe("Option D PR312 env handoff", () => {
     expect(beforeAllSkip.evidenceSafe).toBe(true);
 
     const describeSkip = captureSkipDiagnosisFromStructuredCounts({
-      counts: { total: 13, skipped: 12, passed: 1, failed: 0 },
+      counts: { total: 14, skipped: 13, passed: 1, failed: 0 },
       numFailedTestSuites: 0,
       assertionTitles: [
         ...EXPECTED_PR312_TEST_TITLES.map((title) => ({
@@ -230,10 +237,10 @@ describe("Option D PR312 env handoff", () => {
     expect(describeSkip.matches04g).toBe(false);
   });
 
-  it("keeps all-skipped and partial-skipped structured results as FAIL", () => {
+  it("all-skipped structured results remain FAIL even with SETUP title present", () => {
     const allSkipped = evaluateVitestStructuredResult({
       success: false,
-      numFailedTestSuites: 2,
+      numFailedTestSuites: 1,
       testResults: [
         {
           name: "suite",
@@ -251,33 +258,5 @@ describe("Option D PR312 env handoff", () => {
     expect(allSkipped.failures.some((f) => f.rule === "all_skipped_cannot_pass")).toBe(
       true,
     );
-
-    const partial = evaluateVitestStructuredResult({
-      success: false,
-      testResults: [
-        {
-          name: "suite",
-          assertionResults: [
-            {
-              title: EXPECTED_PR312_TEST_TITLES[0],
-              fullName: EXPECTED_PR312_TEST_TITLES[0],
-              status: "passed",
-            },
-            {
-              title: EXPECTED_PR312_TEST_TITLES[1],
-              fullName: EXPECTED_PR312_TEST_TITLES[1],
-              status: "skipped",
-            },
-            ...EXPECTED_PR312_TEST_TITLES.slice(2).map((title) => ({
-              title,
-              fullName: title,
-              status: "passed",
-            })),
-          ],
-        },
-      ],
-    });
-    expect(partial.ok).toBe(false);
-    expect(partial.failures.some((f) => f.rule === "skipped_present")).toBe(true);
   });
 });

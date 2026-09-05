@@ -2,20 +2,21 @@
 /**
  * Fail-closed JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL handoff for PR #312 Vitest.
  *
- * Pinned suite skip / non-execution contract (7f387fe0… / suite blob d4afe058…):
+ * Pinned suite contract (5972a707… / suite blob 5a565871…):
  *   const TEST_DB_URL = process.env.JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL;
  *   const describeIf = TEST_DB_URL ? describe : describe.skip;
- *   // 12 expected titles under describeIf
+ *   // SETUP + 12 governed titles under describeIf
+ *   // beforeAll stores setup result without throwing (avoids all-skipped)
+ *   // SETUP it asserts setup.ok; governed tests call requireJeReuseSetup
  *   // if (!TEST_DB_URL) BLOCKED sentinel describe (passed when URL falsy)
- *   // beforeAll: resolveJeReusePgClientConfig(TEST_DB_URL) → pg.Client(config)
  *
  * Option D disposable path: after loopback URL validation, hand off URL with
  * explicit sslmode=disable so resolver yields ssl:false for local Supabase Postgres.
  * Probe and child Vitest env must share that same effective configuration.
  *
- * Proven skip signatures (Vitest 4.x + isolated worktree launcher):
- * - URL absent → 13 tests (12 skipped + BLOCKED passed), exit 0
- * - URL present + connect fail → 12 skipped, exit 1, failedSuites=2 (~04g class)
+ * Historical skip signatures (pre-SETUP fail-closed):
+ * - URL absent → skipped describeIf + BLOCKED passed
+ * - URL present + throwing beforeAll → all skipped (04g/05a class) — remediated
  */
 "use strict";
 
@@ -44,16 +45,17 @@ const PR312_SKIP_CONTRACT = {
   envVar: JE_REUSE_ENV,
   mechanismDescribeSkip: "describeIf = TEST_DB_URL ? describe : describe.skip",
   mechanismBeforeAllSkip:
-    "beforeAll client.connect() failure → Vitest marks suite tests status=skipped (not failed)",
-  expectedTitlesUnderDescribeIf: 12,
+    "legacy: throwing beforeAll → Vitest skipped children; current pin stores setup without throwing",
+  expectedTitlesUnderDescribeIf: 13,
   blockedSentinelWhenUrlFalsy:
     "BLOCKED: JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL unavailable",
   suiteClientTransport:
     "resolveJeReusePgClientConfig → ssl:false only for loopback+sslmode=disable",
   suiteClientSslDefault: SUITE_SSL_OBJECT,
+  suiteDatabaseModel: "B_prereq_schema_plus_transactional_je_migration_seed",
   signatureUrlAbsent: {
-    total: 13,
-    skipped: 12,
+    total: 14,
+    skipped: 13,
     passed: 1,
     blockedPassed: true,
     processExitCode: 0,
@@ -66,9 +68,10 @@ const PR312_SKIP_CONTRACT = {
     blockedPassed: false,
     processExitCode: 1,
     numFailedTestSuites: 2,
+    historical: true,
+    note: "Pre-5972a707 throwing-beforeAll signature; current pin must not reproduce this",
   },
 };
-
 /** Parent env keys safe to forward (no secrets, no inherited JE_REUSE). */
 const CHILD_ENV_ALLOWLIST = [
   "PATH",
@@ -621,6 +624,15 @@ function captureSkipDiagnosisFromStructuredCounts(input = {}) {
       String(t.status || "") === "passed",
   );
 
+  if (skipped === 13 && passed === 1 && total === 14 && blockedPassed) {
+    return {
+      classification: "describe_skip_je_reuse_falsy",
+      likelyCause: PR312_SKIP_CONTRACT.mechanismDescribeSkip,
+      envVar: JE_REUSE_ENV,
+      evidenceSafe: true,
+      matches04g: false,
+    };
+  }
   if (skipped === 12 && passed === 1 && total === 13 && blockedPassed) {
     return {
       classification: "describe_skip_je_reuse_falsy",
@@ -628,6 +640,7 @@ function captureSkipDiagnosisFromStructuredCounts(input = {}) {
       envVar: JE_REUSE_ENV,
       evidenceSafe: true,
       matches04g: false,
+      legacyTitleCount: true,
     };
   }
   if (skipped === 12 && passed === 0 && total === 12 && !blockedPassed) {
@@ -639,7 +652,17 @@ function captureSkipDiagnosisFromStructuredCounts(input = {}) {
       matches04g: true,
       numFailedTestSuites: failedSuites,
       note:
-        "JE_REUSE was truthy (no BLOCKED sentinel). Vitest reported suite tests as skipped after beforeAll connect failure — same signature as 2026-09-04g.",
+        "Historical throwing-beforeAll signature. Current PR #312 pin must surface SETUP/requireJeReuseSetup failures instead.",
+    };
+  }
+  if (skipped === 13 && passed === 0 && total === 13 && !blockedPassed) {
+    return {
+      classification: "beforeAll_or_setup_reported_as_all_skipped",
+      likelyCause: "unexpected all-skipped with SETUP title present",
+      envVar: JE_REUSE_ENV,
+      evidenceSafe: true,
+      matches04g: false,
+      numFailedTestSuites: failedSuites,
     };
   }
   if (skipped > 0) {

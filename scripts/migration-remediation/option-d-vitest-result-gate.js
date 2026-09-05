@@ -8,16 +8,17 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const PR312_COMMIT = "7f387fe0b662e07ad271ee9db7311eeb45eafc25";
+const PR312_COMMIT = "5972a70782549950db23fc46d84c6f85b87affe6";
 const PR312_SUITE_PATH =
   "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts";
-const PR312_SUITE_BLOB = "d4afe0584d089d4ad50d479b81a369ca6dbdd168";
+const PR312_SUITE_BLOB = "5a565871ee0508ecc6b5afd59928250874b45154";
 const PR312_JE_REUSE_RESOLVER_PATH =
   "lib/journal-entry-governance/__tests__/je-reuse-pg-client-config.js";
 const PR312_JE_REUSE_RESOLVER_BLOB = "5178894fc6811d9f9fef84b10fb9294504b4679e";
 
-/** Titles that must execute when DB URL is present (excludes the BLOCKED sentinel). */
+/** Titles that must execute when DB URL is present (SETUP + 12 governed behaviors). */
 const EXPECTED_PR312_TEST_TITLES = [
+  "SETUP: disposable database preparation",
   "migration compile: reservation + transition RPCs exist",
   "A. first reservation inserts row + execution_requested receipt",
   "B. exact idempotency replay → reused, no duplicate receipt",

@@ -31,8 +31,8 @@ const LOCAL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 describe("Option D PR312 pg SSL / resolver pin (7f387fe0…)", () => {
   it("pins exact PR #312 commit, suite blob, and resolver blob", () => {
-    expect(PR312_COMMIT).toBe("7f387fe0b662e07ad271ee9db7311eeb45eafc25");
-    expect(PR312_SUITE_BLOB).toBe("d4afe0584d089d4ad50d479b81a369ca6dbdd168");
+    expect(PR312_COMMIT).toBe("5972a70782549950db23fc46d84c6f85b87affe6");
+    expect(PR312_SUITE_BLOB).toBe("5a565871ee0508ecc6b5afd59928250874b45154");
     expect(PR312_JE_REUSE_RESOLVER_BLOB).toBe(
       "5178894fc6811d9f9fef84b10fb9294504b4679e",
     );
