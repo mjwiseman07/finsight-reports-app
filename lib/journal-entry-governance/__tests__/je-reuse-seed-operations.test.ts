@@ -6,6 +6,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   JE_REUSE_SEED_OPERATIONS,
   JE_REUSE_SEED_PHASE_NAMES,
+  JE_REUSE_IDEMPOTENCY_KEY_RE,
+  JE_REUSE_SEED_IDEMPOTENCY_KEYS,
+  assertJeReuseIdempotencyKey,
   countExecutableSqlStatements,
   countSqlPlaceholders,
   runJeReuseSeedOperations,
@@ -14,6 +17,8 @@ import {
   requireJeReuseSetup,
   runJeReuseDisposableSetup,
 } from "./je-reuse-disposable-setup.js";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const SAMPLE_CTX = {
   ids: {
@@ -29,12 +34,7 @@ const SAMPLE_CTX = {
   },
   hash: "a".repeat(64),
   hashB: "b".repeat(64),
-  idempotency: {
-    ccRun: "d".repeat(64),
-    proposal: "e".repeat(64),
-    approval: "f".repeat(64),
-    approval2: "g".repeat(64),
-  },
+  idempotency: { ...JE_REUSE_SEED_IDEMPOTENCY_KEYS },
 };
 
 describe("JE_REUSE seed operations (non-database)", () => {
@@ -171,5 +171,130 @@ describe("JE_REUSE seed operations (non-database)", () => {
       expect(String(e.message)).not.toMatch(/skipped/i);
       expect(e.code).toBe("23505");
     }
+  });
+
+  it("every seeded idempotency key satisfies ^[a-f0-9]{64}$ and keys are distinct", () => {
+    expect(String(JE_REUSE_IDEMPOTENCY_KEY_RE)).toBe(String(/^[a-f0-9]{64}$/));
+    const keys = Object.values(JE_REUSE_SEED_IDEMPOTENCY_KEYS);
+    for (const key of keys) {
+      expect(assertJeReuseIdempotencyKey(key).ok).toBe(true);
+      expect(key).toMatch(JE_REUSE_IDEMPOTENCY_KEY_RE);
+    }
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(JE_REUSE_SEED_IDEMPOTENCY_KEYS.approval).not.toBe(
+      JE_REUSE_SEED_IDEMPOTENCY_KEYS.approval2,
+    );
+    expect(JE_REUSE_SEED_IDEMPOTENCY_KEYS.approval2).toBe("9".repeat(64));
+    expect(JE_REUSE_SEED_IDEMPOTENCY_KEYS.approval2).not.toMatch(/g/);
+  });
+
+  it("rejects wrong prefix, characters, length for idempotency grammar", () => {
+    expect(assertJeReuseIdempotencyKey("g".repeat(64)).ok).toBe(false);
+    expect(assertJeReuseIdempotencyKey("G".repeat(64)).ok).toBe(false);
+    expect(assertJeReuseIdempotencyKey("a".repeat(63)).ok).toBe(false);
+    expect(assertJeReuseIdempotencyKey("a".repeat(65)).ok).toBe(false);
+    expect(assertJeReuseIdempotencyKey("advje_" + "a".repeat(58)).ok).toBe(false);
+    expect(assertJeReuseIdempotencyKey("").ok).toBe(false);
+  });
+
+  it("secondary approval seed binds approval2 id with distinct policy_hash and valid key", () => {
+    const secondary = JE_REUSE_SEED_OPERATIONS.find(
+      (o) => o.name === "seed_journal_entry_approval_secondary",
+    );
+    const values = secondary.params(SAMPLE_CTX);
+    expect(values[0]).toBe(SAMPLE_CTX.ids.approval2);
+    expect(values[5]).toBe(SAMPLE_CTX.hashB);
+    expect(values[5]).not.toBe(SAMPLE_CTX.hash);
+    expect(values[7]).toBe(JE_REUSE_SEED_IDEMPOTENCY_KEYS.approval2);
+    expect(values[7]).not.toBe(JE_REUSE_SEED_IDEMPOTENCY_KEYS.approval);
+  });
+
+  it("suite seedFixture uses JE_REUSE_SEED_IDEMPOTENCY_KEYS (no g-repeat)", () => {
+    const suiteSrc = readFileSync(
+      join(__dirname, "execution-reservation.postgres.integration.test.ts"),
+      "utf8",
+    );
+    expect(suiteSrc).toContain("JE_REUSE_SEED_IDEMPOTENCY_KEYS");
+    expect(suiteSrc).not.toMatch(/approval2:\s*`\$\{"g"\.repeat\(64\)\}`/);
+    expect(suiteSrc).not.toMatch(/approval2:\s*"g"\.repeat\(64\)/);
+    const mig = readFileSync(
+      join(
+        __dirname,
+        "../../../supabase/migrations/20260821042800_journal_entry_approvals.sql",
+      ),
+      "utf8",
+    );
+    expect(mig).toMatch(
+      /journal_entry_approvals_idempotency_key_check[\s\S]*?\^\[a-f0-9\]\{64\}\$/,
+    );
+    expect(mig).not.toMatch(
+      /DROP CONSTRAINT\s+journal_entry_approvals_idempotency_key_check/i,
+    );
+  });
+
+  it("invalid seeded key fails closed before SQL and remains a SETUP failure with rollback", async () => {
+    const query = vi.fn(async () => ({ rows: [] }));
+    await expect(
+      runJeReuseSeedOperations(
+        {},
+        {
+          ...SAMPLE_CTX,
+          idempotency: {
+            ...JE_REUSE_SEED_IDEMPOTENCY_KEYS,
+            approval2: "g".repeat(64),
+          },
+        },
+        { query },
+      ),
+    ).rejects.toMatchObject({
+      code: "23514",
+      jeReuseSeedPhase: "seed_idempotency_precheck_approval2",
+    });
+    expect(query).not.toHaveBeenCalled();
+
+    const client = {
+      connect: vi.fn(async () => {}),
+      query: vi.fn(async (sql) => {
+        if (String(sql).includes("BEGIN") || String(sql).includes("ROLLBACK")) {
+          return { rows: [] };
+        }
+        return { rows: [] };
+      }),
+      end: vi.fn(async () => {}),
+    };
+    const result = await runJeReuseDisposableSetup({
+      databaseUrl: "postgresql://u:p@127.0.0.1:54322/postgres?sslmode=disable",
+      migrationPath: "/tmp/fake.sql",
+      Client: function FakeClient() {
+        return client;
+      },
+      resolveConfig: async () => ({
+        ok: true,
+        config: {
+          connectionString:
+            "postgresql://u:p@127.0.0.1:54322/postgres?sslmode=disable",
+          ssl: false,
+          transport: "plaintext_loopback",
+        },
+      }),
+      readFileSync: () => "CREATE TABLE IF NOT EXISTS t(id int);",
+      seedFixture: async () =>
+        runJeReuseSeedOperations(
+          {},
+          {
+            ...SAMPLE_CTX,
+            idempotency: {
+              ...JE_REUSE_SEED_IDEMPOTENCY_KEYS,
+              approval2: "g".repeat(64),
+            },
+          },
+          { query: async () => ({ rows: [] }) },
+        ),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.phase).toBe("seed_idempotency_precheck_approval2");
+    expect(result.sqlstate).toBe("23514");
+    expect(result.rolledBackOnFailure).toBe(true);
+    expect(() => requireJeReuseSetup(result)).toThrow(/seed_idempotency_precheck/);
   });
 });

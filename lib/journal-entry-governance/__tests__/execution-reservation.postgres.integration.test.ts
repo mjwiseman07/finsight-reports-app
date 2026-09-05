@@ -14,7 +14,7 @@ import {
   requireJeReuseSetup,
   runJeReuseDisposableSetup,
 } from "./je-reuse-disposable-setup.js";
-import { runJeReuseSeedOperations } from "./je-reuse-seed-operations.js";
+import { runJeReuseSeedOperations, JE_REUSE_SEED_IDEMPOTENCY_KEYS } from "./je-reuse-seed-operations.js";
 
 const MIGRATION = join(
   process.cwd(),
@@ -124,12 +124,7 @@ async function seedFixture(client: pg.Client) {
     },
     hash: HASH,
     hashB: HASH_B,
-    idempotency: {
-      ccRun: `${"d".repeat(64)}`,
-      proposal: `${"e".repeat(64)}`,
-      approval: `${"f".repeat(64)}`,
-      approval2: `${"g".repeat(64)}`,
-    },
+    idempotency: { ...JE_REUSE_SEED_IDEMPOTENCY_KEYS },
   });
 }
 
