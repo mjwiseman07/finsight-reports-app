@@ -35,7 +35,12 @@ const {
   PR312_SUITE_PATH,
   PR312_COMMIT,
   PR312_SUITE_BLOB,
+  PR312_JE_REUSE_RESOLVER_BLOB,
 } = require("./option-d-vitest-result-gate");
+const {
+  captureVitestDiagnosticsBeforeCleanup,
+  applyDiagnosticsFailClosed,
+} = require("./option-d-vitest-failure-diagnostics");
 const {
   evaluateManifestAuthorization,
   evaluateManifestUnchangedSinceAuthorization,
@@ -438,20 +443,36 @@ async function runPr312Vitest(dbUrl, runGates = {}) {
     } catch {
       report = null;
     }
-    try {
-      fs.unlinkSync(outFile);
-    } catch {
-      /* ignore */
-    }
   }
 
-  const gate = evaluateVitestRunGate({
+  // Persist sanitized diagnostics BEFORE deleting the raw report / worktree.
+  const diagnosticsCapture = captureVitestDiagnosticsBeforeCleanup({
+    report,
+    processExitCode: launched.processExitCode,
+    signal: launched.signal || null,
+    timedOut: launched.timedOut === true,
+    stderr: launched.stderr || "",
+    rawReportPath: outFile,
+    repoRoot: ROOT,
+    worktreePath: isolated.worktreePath,
+    provenance: {
+      commit: PR312_COMMIT,
+      suitePath: PR312_SUITE_PATH,
+      suiteBlob: PR312_SUITE_BLOB,
+      resolverBlob: PR312_JE_REUSE_RESOLVER_BLOB,
+      testRoot: "lib/journal-entry-governance/__tests__",
+    },
+    stamp: `runtime-${Date.now()}`,
+  });
+
+  let gate = evaluateVitestRunGate({
     processExitCode: launched.processExitCode,
     error: launched.error || null,
     signal: launched.signal || null,
     timedOut: launched.timedOut === true,
     report,
   });
+  gate = applyDiagnosticsFailClosed(gate, diagnosticsCapture);
 
   const assertionTitles = report
     ? (report.testResults || []).flatMap((tr) =>
@@ -481,6 +502,13 @@ async function runPr312Vitest(dbUrl, runGates = {}) {
         : null,
     gate,
     structured: gate.structured,
+    diagnostics: {
+      complete: diagnosticsCapture.complete === true,
+      reason: diagnosticsCapture.reason,
+      path: diagnosticsCapture.diagnosticsPath,
+      rawReportDeleted: diagnosticsCapture.rawReportDeleted === true,
+      incompleteReasons: diagnosticsCapture.built?.incompleteReasons || [],
+    },
     stderr: (launched.stderr || "").slice(0, 1000),
     launcher: launched.launcher,
     discovery: isolated.discovery,
@@ -874,6 +902,7 @@ async function main() {
         signal: vitestRun.signal,
         error: vitestRun.error,
         gate: vitestRun.gate,
+        diagnostics: vitestRun.diagnostics || null,
         launcher: vitestRun.launcher || null,
         suiteMaterialization: vitestRun.suiteMaterialization || null,
         envHandoff: vitestRun.envHandoff || null,
@@ -905,6 +934,7 @@ async function main() {
       signal: vitestRun.signal,
       error: vitestRun.error,
       gate: vitestRun.gate,
+      diagnostics: vitestRun.diagnostics || null,
       launcher: vitestRun.launcher || null,
       suiteMaterialization: vitestRun.suiteMaterialization || null,
       envHandoff: vitestRun.envHandoff || null,
