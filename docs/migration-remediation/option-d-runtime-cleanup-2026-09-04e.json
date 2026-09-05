@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-09-05T01:14:57.338Z",
+  "pin": "6d98987f-e",
+  "authorizedCommit": "6d98987fec0f80a820e37e75945a760c3eeb92cf",
+  "workdir": "C:\\\\Users\\\\mattj\\\\tmp-option-d-platform-only-6d98987f-e",
+  "workdirRemoved": true,
+  "dburlFileRemoved": true,
+  "tcp54322Open": false,
+  "matchingContainers": [],
+  "matchingVolumes": [],
+  "cleanedTempDirs": [],
+  "supabaseStopExit": 0,
+  "head": "6d98987fec0f80a820e37e75945a760c3eeb92cf",
+  "harnessOverall": "BLOCKED",
+  "harnessReason": "vitest_spawn_error",
+  "applyResult": {
+    "migrationsApplied": 150,
+    "sqlApplicationAttempts": 150,
+    "applied": true
+  },
+  "scopes": {
+    "candidateReplay": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "vitestError": "spawnSync npx.cmd EINVAL",
+  "memoryProbeReached": true,
+  "memoryAndSecurityImmutability": "PASS",
+  "pr312BlockedSolelyBecause": "vitest_process_never_started",
+  "remediationNeeded": true,
+  "remediationNote": "Candidate replay PASS (150/150) and security/SI/Memory PASS. PR #312 blocked solely because vitest process never started (spawnSync npx.cmd EINVAL). Do not remediate SQL/security in that runtime run.",
+  "secretsPresent": false
+}
