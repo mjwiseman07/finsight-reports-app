@@ -1,0 +1,27 @@
+﻿{
+  "droppedDb": true,
+  "dropVia": "supabase_stop_removed_ephemeral_postgres_and_database",
+  "dropDirectSqlExit": "failed_powershell_quoting_then_stack_already_stopped",
+  "remainingOptionDDatabases": [],
+  "suiteFileRemoved": true,
+  "suiteNote": "no separate suite temp path remained; ephemeral project dir held suite materialization",
+  "supabaseStopExit": 0,
+  "remainingContainersMatching": [],
+  "remainingVolumesMatching": [],
+  "ephemeralProjectDirRemoved": true,
+  "localPostgres54322": "closed_after_stop",
+  "leftInPlace": [
+    "Docker Desktop",
+    "WSL",
+    "Scoop",
+    "Supabase CLI"
+  ],
+  "notTouched": [
+    "production",
+    "paid branches",
+    "PR312 remote",
+    "capabilities",
+    "unrelated .tmp-*"
+  ],
+  "cleanedAt": "2026-09-04T01:29:51.834Z"
+}

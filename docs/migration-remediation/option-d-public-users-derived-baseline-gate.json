@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-09-04T22:47:35.958Z",
+  "gate": "option_d_public_users_derived_baseline",
+  "ok": true,
+  "failureCount": 0,
+  "failures": [],
+  "derivedSqlSha256": "961810f4d1a73c96c0d98e69fdb0b90d4f8824029f94edf7cca479786e93c0a7",
+  "derivedSqlBytes": 1715,
+  "derivationComplete": true,
+  "unresolvedCount": 0,
+  "authority": "git_cat_file_blob",
+  "gitBlobId": "a6a0198d054f099d4912235a66b83e4999f9ba8b",
+  "sourceCommit": "68bc6e6d17ce9f80d6f49488e700b3bc41938b3e"
+}

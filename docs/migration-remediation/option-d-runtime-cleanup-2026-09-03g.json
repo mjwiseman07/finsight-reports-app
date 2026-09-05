@@ -1,0 +1,21 @@
+{
+  "cleanupAt": "2026-09-04T03:45:00.000Z",
+  "runId": "2026-09-03g",
+  "reason": "pre_docker_manifest_authorization_mismatch",
+  "sqlApplicationAttempts": 0,
+  "dockerStarted": false,
+  "ephemeralWorkdirCreated": false,
+  "supabaseStartInvoked": false,
+  "suiteFileMaterialized": false,
+  "actions": [
+    "Restored on-disk option-d-replay-manifest.json to exact LF git blob (113577 / 6167fe31…)",
+    "Removed accidental UTF-16 temp _manifest.lf.bin if present"
+  ],
+  "confirmedAbsent": {
+    "optionDContainersThisRun": true,
+    "optionDVolumesThisRun": true,
+    "ephemeralWorkdirThisRun": true,
+    "tempSuiteFileThisRun": true
+  },
+  "note": "No resources were created by this run; nothing to stop or delete beyond restoring the LF manifest bytes."
+}

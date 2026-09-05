@@ -1,0 +1,3 @@
+# Assembled SQL is committed as authoritative Option D replay artifacts.
+# Keep README and attributes; do not ignore *.sql.
+!README.md

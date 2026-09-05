@@ -1,0 +1,163 @@
+{
+  "overall": "BLOCKED",
+  "reason": "pr312_env_handoff_or_provenance_failed",
+  "scopes": {
+    "candidateReplay": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "overallGate": {
+    "ok": false,
+    "overall": "BLOCKED",
+    "applicable": {
+      "candidateReplay": "PASS",
+      "securityImmutabilityChecks": "PASS",
+      "pr312RpcValidation": "FAIL"
+    },
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "applyResult": {
+    "applied": true,
+    "migrationsApplied": 150,
+    "sqlApplicationAttempts": 150,
+    "authority": "git_cat_file_blob",
+    "materializationArtifactCount": 150
+  },
+  "security": {
+    "ok": true,
+    "status": "PASS",
+    "alignment": {
+      "ok": true,
+      "failures": []
+    },
+    "schemaRls": {
+      "ok": true,
+      "failures": [],
+      "requiredCount": 10
+    },
+    "views": {
+      "ok": true,
+      "failures": [],
+      "requiredCount": 2
+    },
+    "immutability": {
+      "ok": true,
+      "failures": [],
+      "triggers": {
+        "ok": true,
+        "failures": [],
+        "requiredCount": 4
+      },
+      "behavior": {
+        "ok": true,
+        "failures": []
+      },
+      "requiredCount": 4
+    },
+    "functions": {
+      "ok": true,
+      "failures": []
+    },
+    "failures": []
+  },
+  "vitest": {
+    "processExitCode": null,
+    "signal": null,
+    "error": "pr312_env_handoff_or_provenance_failed",
+    "gate": {
+      "ok": false,
+      "reason": "pr312_env_handoff_or_provenance_failed",
+      "failures": [
+        {
+          "rule": "suite_mirrored_pg_connect_failed",
+          "code": null,
+          "message": "The server does not support SSL connections"
+        }
+      ]
+    },
+    "launcher": null,
+    "suiteMaterialization": {
+      "ok": true,
+      "gitBlobId": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+      "sha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
+      "authority": "git_worktree_detach_pr312_commit"
+    },
+    "envHandoff": {
+      "ok": false,
+      "skipContract": {
+        "suiteCommit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
+        "suiteBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+        "envVar": "JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL",
+        "mechanismDescribeSkip": "describeIf = TEST_DB_URL ? describe : describe.skip",
+        "mechanismBeforeAllSkip": "beforeAll client.connect() failure → Vitest marks suite tests status=skipped (not failed)",
+        "expectedTitlesUnderDescribeIf": 12,
+        "blockedSentinelWhenUrlFalsy": "BLOCKED: JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL unavailable",
+        "suiteClientSsl": {
+          "rejectUnauthorized": false
+        },
+        "signatureUrlAbsent": {
+          "total": 13,
+          "skipped": 12,
+          "passed": 1,
+          "blockedPassed": true,
+          "processExitCode": 0,
+          "numFailedTestSuites": 0
+        },
+        "signatureBeforeAllConnectFail": {
+          "total": 12,
+          "skipped": 12,
+          "passed": 0,
+          "blockedPassed": false,
+          "processExitCode": 1,
+          "numFailedTestSuites": 2
+        }
+      },
+      "failures": [
+        {
+          "rule": "suite_mirrored_pg_connect_failed",
+          "code": null,
+          "message": "The server does not support SSL connections"
+        }
+      ],
+      "handoff": {
+        "envVar": "JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL",
+        "setExplicitly": true,
+        "inheritedValueRejected": false,
+        "inheritedWasPresent": false,
+        "allowlistKeyCount": 23,
+        "redacted": "host=127.0.0.1;port=54322;db=postgres",
+        "fingerprint": "cf6453a9f9e48b2d",
+        "hostname": "127.0.0.1",
+        "port": 54322,
+        "database": "postgres",
+        "credentialsIncludedInEvidence": false
+      },
+      "connectivity": {
+        "tcpOk": true,
+        "pgOk": false,
+        "hostname": "127.0.0.1",
+        "port": 54322,
+        "suiteMirroredSsl": true
+      },
+      "urlCheck": {
+        "redacted": "host=127.0.0.1;port=54322;db=postgres",
+        "fingerprint": "cf6453a9f9e48b2d"
+      }
+    },
+    "isolatedContext": null
+  },
+  "pr312Provenance": {
+    "present": true,
+    "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+    "sourceCommit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
+    "pinnedBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+    "gitBlobId": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+    "contentSha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
+    "pinnedContentSha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
+    "matchesPinnedCommitContent": true,
+    "authority": "git_cat_file_blob"
+  },
+  "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
+  "writtenAt": "2026-09-05T03:44:32.484Z"
+}

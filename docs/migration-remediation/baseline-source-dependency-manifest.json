@@ -1,0 +1,404 @@
+{
+  "version": 1,
+  "description": "Reviewed dependency graph for 33 pre-phase1 baseline source migrations. Generator MUST topologically sort by dependsOn; parser validates declared and inferred object availability.",
+  "phase1Cutoff": "20260701043602",
+  "excludeFiles": [
+    "20260701_refund_requests.sql",
+    "20260531_backfill_accounting_connections_from_quickbooks.sql"
+  ],
+  "orderingPhases": [
+    {
+      "phase": 1,
+      "label": "Independent roots (tables with no cross-file prerequisites)",
+      "files": [
+        "20260529_create_audit_logs.sql",
+        "20260529_create_background_jobs.sql",
+        "20260530_create_client_briefings.sql",
+        "20260530_create_company_accounts.sql",
+        "20260531_create_accounting_connections.sql",
+        "20260531_create_free_review_leads.sql",
+        "20260531_create_pdf_package_customizations.sql",
+        "20260531_create_pulse_insight_memory.sql",
+        "20260531_create_pulse_memory.sql",
+        "20260531_create_pulse_usage_events.sql",
+        "20260605_create_company_memory_persistence_core_tables.sql"
+      ]
+    },
+    {
+      "phase": 2,
+      "label": "Company-account dependents",
+      "files": [
+        "20260530_add_account_type_onboarding.sql",
+        "20260530_add_industry_intelligence_onboarding.sql",
+        "20260530_create_healthcare_operational_stats.sql",
+        "20260530_create_support_tickets.sql",
+        "20260530_create_time_to_first_value_events.sql"
+      ]
+    },
+    {
+      "phase": 3,
+      "label": "PDF alter chain",
+      "files": ["20260531_alter_pdf_package_customizations_for_package_control.sql"]
+    },
+    {
+      "phase": 4,
+      "label": "Cross-cutting security hardening (requires prior table creators)",
+      "files": ["20260601_security_control_hardening.sql"]
+    },
+    {
+      "phase": 5,
+      "label": "Accounting sync chain",
+      "files": [
+        "20260602_create_accounting_syncs.sql",
+        "20260602_standardize_accounting_sync_status.sql"
+      ]
+    },
+    {
+      "phase": 6,
+      "label": "Advisory intelligence",
+      "files": ["20260602_create_advisory_intelligence.sql"]
+    },
+    {
+      "phase": 7,
+      "label": "SI snapshot core tables",
+      "files": [
+        "20260603_create_si_historical_snapshots.sql",
+        "20260603_create_si_snapshot_backfill_runs.sql",
+        "20260603_create_si_snapshot_retrieval_log.sql",
+        "20260603_create_si_snapshot_audit.sql",
+        "20260603_create_si_snapshot_payloads.sql",
+        "20260603_create_si_snapshot_retention_events.sql"
+      ]
+    },
+    {
+      "phase": 8,
+      "label": "SI RLS and immutability (after all SI tables)",
+      "files": [
+        "20260603_add_si_snapshot_rls_policies.sql",
+        "20260603_harden_si_snapshot_immutability.sql"
+      ]
+    },
+    {
+      "phase": 9,
+      "label": "Company memory constraints, indexes, RLS, immutability (after core tables)",
+      "files": [
+        "20260605_add_company_memory_persistence_constraints.sql",
+        "20260605_add_company_memory_persistence_indexes.sql",
+        "20260605_add_company_memory_persistence_rls_policies.sql",
+        "20260605_harden_company_memory_persistence_immutability.sql"
+      ]
+    }
+  ],
+  "sources": {
+    "20260529_create_audit_logs.sql": {
+      "creates": { "extensions": ["pgcrypto"], "tables": ["audit_logs"] },
+      "dependsOn": []
+    },
+    "20260529_create_background_jobs.sql": {
+      "creates": { "extensions": ["pgcrypto"], "tables": ["background_jobs"] },
+      "dependsOn": []
+    },
+    "20260530_create_client_briefings.sql": {
+      "creates": {
+        "extensions": ["pgcrypto"],
+        "tables": [
+          "firms",
+          "firm_memberships",
+          "firm_clients",
+          "client_briefing_settings",
+          "client_briefings",
+          "client_briefing_events"
+        ]
+      },
+      "dependsOn": []
+    },
+    "20260530_create_company_accounts.sql": {
+      "creates": {
+        "extensions": ["pgcrypto"],
+        "tables": [
+          "companies",
+          "company_roles",
+          "company_users",
+          "company_invitations",
+          "company_settings",
+          "delivery_settings",
+          "onboarding_progress"
+        ]
+      },
+      "dependsOn": []
+    },
+    "20260530_add_account_type_onboarding.sql": {
+      "creates": { "tables": ["practice_accounts"] },
+      "consumes": { "tables": ["companies", "company_settings"] },
+      "dependsOn": ["20260530_create_company_accounts.sql"]
+    },
+    "20260530_add_industry_intelligence_onboarding.sql": {
+      "consumes": { "tables": ["companies", "company_settings"] },
+      "dependsOn": ["20260530_create_company_accounts.sql"]
+    },
+    "20260530_create_healthcare_operational_stats.sql": {
+      "creates": { "tables": ["healthcare_operational_stats"] },
+      "consumes": { "tables": ["companies", "company_users"] },
+      "dependsOn": ["20260530_create_company_accounts.sql"]
+    },
+    "20260530_create_support_tickets.sql": {
+      "creates": { "tables": ["support_tickets"] },
+      "consumes": { "tables": ["companies"] },
+      "dependsOn": ["20260530_create_company_accounts.sql"]
+    },
+    "20260530_create_time_to_first_value_events.sql": {
+      "creates": { "tables": ["time_to_first_value_events"] },
+      "consumes": { "tables": ["companies"] },
+      "dependsOn": ["20260530_create_company_accounts.sql"]
+    },
+    "20260531_create_accounting_connections.sql": {
+      "creates": { "extensions": ["pgcrypto"], "tables": ["accounting_connections"] },
+      "dependsOn": []
+    },
+    "20260531_create_free_review_leads.sql": {
+      "creates": { "tables": ["free_review_leads"] },
+      "dependsOn": []
+    },
+    "20260531_create_pdf_package_customizations.sql": {
+      "creates": { "extensions": ["pgcrypto"], "tables": ["pdf_package_customizations"] },
+      "dependsOn": []
+    },
+    "20260531_alter_pdf_package_customizations_for_package_control.sql": {
+      "consumes": { "tables": ["pdf_package_customizations"] },
+      "dependsOn": ["20260531_create_pdf_package_customizations.sql"]
+    },
+    "20260531_create_pulse_insight_memory.sql": {
+      "creates": { "extensions": ["pgcrypto"], "tables": ["pulse_insight_memory"] },
+      "dependsOn": []
+    },
+    "20260531_create_pulse_memory.sql": {
+      "creates": { "extensions": ["pgcrypto"], "tables": ["pulse_historical_snapshots", "pulse_conversation_memory"] },
+      "dependsOn": []
+    },
+    "20260531_create_pulse_usage_events.sql": {
+      "creates": { "extensions": ["pgcrypto"], "tables": ["pulse_usage_events"] },
+      "dependsOn": []
+    },
+    "20260601_security_control_hardening.sql": {
+      "consumes": {
+        "tables": [
+          "audit_logs",
+          "background_jobs",
+          "accounting_connections",
+          "free_review_leads",
+          "pdf_package_customizations",
+          "pulse_conversation_memory",
+          "pulse_historical_snapshots",
+          "pulse_insight_memory",
+          "pulse_usage_events",
+          "support_tickets",
+          "company_invitations",
+          "company_roles",
+          "company_users"
+        ]
+      },
+      "dependsOn": [
+        "20260529_create_audit_logs.sql",
+        "20260529_create_background_jobs.sql",
+        "20260530_create_company_accounts.sql",
+        "20260530_create_support_tickets.sql",
+        "20260531_create_accounting_connections.sql",
+        "20260531_create_free_review_leads.sql",
+        "20260531_create_pdf_package_customizations.sql",
+        "20260531_create_pulse_insight_memory.sql",
+        "20260531_create_pulse_memory.sql",
+        "20260531_create_pulse_usage_events.sql"
+      ]
+    },
+    "20260602_create_accounting_syncs.sql": {
+      "creates": { "tables": ["accounting_syncs"] },
+      "consumes": { "tables": ["accounting_connections"] },
+      "dependsOn": ["20260531_create_accounting_connections.sql"]
+    },
+    "20260602_create_advisory_intelligence.sql": {
+      "creates": {
+        "tables": ["advisory_signals", "advisory_recommendations", "advisory_package_queue"]
+      },
+      "consumes": { "tables": ["companies", "company_users"] },
+      "dependsOn": ["20260530_create_company_accounts.sql"]
+    },
+    "20260602_standardize_accounting_sync_status.sql": {
+      "consumes": { "tables": ["accounting_syncs"] },
+      "dependsOn": ["20260602_create_accounting_syncs.sql"]
+    },
+    "20260603_create_si_historical_snapshots.sql": {
+      "creates": { "extensions": ["pgcrypto"], "tables": ["si_historical_snapshots"] },
+      "consumes": { "tables": ["companies", "accounting_connections"] },
+      "dependsOn": [
+        "20260530_create_company_accounts.sql",
+        "20260531_create_accounting_connections.sql"
+      ]
+    },
+    "20260603_create_si_snapshot_backfill_runs.sql": {
+      "creates": { "tables": ["si_snapshot_backfill_runs"] },
+      "consumes": { "tables": ["companies", "accounting_connections"] },
+      "dependsOn": [
+        "20260530_create_company_accounts.sql",
+        "20260531_create_accounting_connections.sql"
+      ]
+    },
+    "20260603_create_si_snapshot_retrieval_log.sql": {
+      "creates": { "tables": ["si_snapshot_retrieval_log"] },
+      "consumes": { "tables": ["companies"] },
+      "dependsOn": ["20260530_create_company_accounts.sql"]
+    },
+    "20260603_create_si_snapshot_audit.sql": {
+      "creates": { "tables": ["si_snapshot_audit"] },
+      "consumes": { "tables": ["companies", "si_historical_snapshots"] },
+      "dependsOn": [
+        "20260530_create_company_accounts.sql",
+        "20260603_create_si_historical_snapshots.sql"
+      ]
+    },
+    "20260603_create_si_snapshot_payloads.sql": {
+      "creates": { "tables": ["si_snapshot_payloads"] },
+      "consumes": { "tables": ["companies", "si_historical_snapshots"] },
+      "dependsOn": [
+        "20260530_create_company_accounts.sql",
+        "20260603_create_si_historical_snapshots.sql"
+      ]
+    },
+    "20260603_create_si_snapshot_retention_events.sql": {
+      "creates": { "tables": ["si_snapshot_retention_events"] },
+      "consumes": { "tables": ["companies", "si_historical_snapshots"] },
+      "dependsOn": [
+        "20260530_create_company_accounts.sql",
+        "20260603_create_si_historical_snapshots.sql"
+      ]
+    },
+    "20260603_add_si_snapshot_rls_policies.sql": {
+      "consumes": {
+        "tables": [
+          "si_historical_snapshots",
+          "si_snapshot_audit",
+          "si_snapshot_backfill_runs",
+          "si_snapshot_payloads",
+          "si_snapshot_retention_events",
+          "si_snapshot_retrieval_log",
+          "company_users"
+        ]
+      },
+      "dependsOn": [
+        "20260530_create_company_accounts.sql",
+        "20260603_create_si_historical_snapshots.sql",
+        "20260603_create_si_snapshot_audit.sql",
+        "20260603_create_si_snapshot_backfill_runs.sql",
+        "20260603_create_si_snapshot_payloads.sql",
+        "20260603_create_si_snapshot_retention_events.sql",
+        "20260603_create_si_snapshot_retrieval_log.sql"
+      ]
+    },
+    "20260603_harden_si_snapshot_immutability.sql": {
+      "creates": {
+        "functions": [
+          "prevent_si_snapshot_metadata_mutation",
+          "prevent_si_snapshot_child_mutation_when_parent_locked"
+        ]
+      },
+      "consumes": {
+        "tables": ["si_historical_snapshots", "si_snapshot_audit", "si_snapshot_payloads"]
+      },
+      "dependsOn": [
+        "20260603_create_si_historical_snapshots.sql",
+        "20260603_create_si_snapshot_audit.sql",
+        "20260603_create_si_snapshot_payloads.sql"
+      ]
+    },
+    "20260605_create_company_memory_persistence_core_tables.sql": {
+      "creates": {
+        "tables": [
+          "company_memory_records",
+          "company_memory_record_sources",
+          "company_memory_record_lineage",
+          "company_memory_record_audit",
+          "company_memory_record_versions",
+          "company_memory_record_retention_events"
+        ]
+      },
+      "dependsOn": []
+    },
+    "20260605_add_company_memory_persistence_constraints.sql": {
+      "consumes": {
+        "tables": [
+          "company_memory_records",
+          "company_memory_record_sources",
+          "company_memory_record_lineage",
+          "company_memory_record_audit",
+          "company_memory_record_versions",
+          "company_memory_record_retention_events"
+        ]
+      },
+      "dependsOn": ["20260605_create_company_memory_persistence_core_tables.sql"]
+    },
+    "20260605_add_company_memory_persistence_indexes.sql": {
+      "consumes": {
+        "tables": [
+          "company_memory_records",
+          "company_memory_record_sources",
+          "company_memory_record_lineage",
+          "company_memory_record_audit",
+          "company_memory_record_versions",
+          "company_memory_record_retention_events"
+        ]
+      },
+      "dependsOn": ["20260605_create_company_memory_persistence_core_tables.sql"]
+    },
+    "20260605_add_company_memory_persistence_rls_policies.sql": {
+      "consumes": {
+        "tables": [
+          "company_memory_records",
+          "company_memory_record_sources",
+          "company_memory_record_lineage",
+          "company_memory_record_audit",
+          "company_memory_record_versions",
+          "company_memory_record_retention_events",
+          "company_users"
+        ]
+      },
+      "dependsOn": [
+        "20260530_create_company_accounts.sql",
+        "20260605_create_company_memory_persistence_core_tables.sql"
+      ]
+    },
+    "20260605_harden_company_memory_persistence_immutability.sql": {
+      "creates": {
+        "functions": [
+          "prevent_company_memory_record_unsafe_mutation",
+          "prevent_company_memory_append_only_mutation",
+          "prevent_company_memory_version_unsafe_mutation"
+        ]
+      },
+      "consumes": {
+        "tables": [
+          "company_memory_records",
+          "company_memory_record_sources",
+          "company_memory_record_lineage",
+          "company_memory_record_audit",
+          "company_memory_record_versions",
+          "company_memory_record_retention_events"
+        ]
+      },
+      "dependsOn": ["20260605_create_company_memory_persistence_core_tables.sql"]
+    }
+  },
+  "optionalExternalTables": [
+    "erp_connections",
+    "quickbooks_connections"
+  ],
+  "g2FailureRegression": {
+    "failedBlobSha256": "4b955a1d48a0b6d07d2fa6c27e3f6f2dea784f91",
+    "sqlstate": "42P01",
+    "message": "relation \"public.companies\" does not exist",
+    "failingSource": "20260530_add_account_type_onboarding.sql",
+    "rootCause": "Lexicographic filename sort placed add_account_type_onboarding before create_company_accounts",
+    "failedBranchRef": "ewegbkbknmepmmohdxdw",
+    "failedBranchId": "854c3107-d734-473f-9040-ffb9c20143c9",
+    "branchDeleted": true,
+    "productionUntouched": true
+  }
+}

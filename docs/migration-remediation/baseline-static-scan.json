@@ -1,0 +1,55 @@
+{
+  "bytes": 107661,
+  "lineCount": 2772,
+  "createTableCount": 42,
+  "rlsEnableCount": 36,
+  "tablesMissingRls": [
+    "company_memory_records",
+    "company_memory_record_sources",
+    "company_memory_record_lineage",
+    "company_memory_record_audit",
+    "company_memory_record_versions",
+    "company_memory_record_retention_events"
+  ],
+  "extensionDuplicates": {
+    "pgcrypto": 12
+  },
+  "duplicateCreateTable": [],
+  "disallowedInsertTargets": [],
+  "findingsBySeverity": {
+    "error": [],
+    "warn": [
+      {
+        "severity": "warn",
+        "rule": "nested_begin",
+        "line": 55,
+        "text": "BEGIN;",
+        "message": "nested BEGIN"
+      },
+      {
+        "severity": "warn",
+        "rule": "nested_commit",
+        "line": 2771,
+        "text": "COMMIT;",
+        "message": "nested COMMIT"
+      }
+    ],
+    "info": 55
+  },
+  "findings": [
+    {
+      "severity": "warn",
+      "rule": "nested_begin",
+      "line": 55,
+      "text": "BEGIN;",
+      "message": "nested BEGIN"
+    },
+    {
+      "severity": "warn",
+      "rule": "nested_commit",
+      "line": 2771,
+      "text": "COMMIT;",
+      "message": "nested COMMIT"
+    }
+  ]
+}

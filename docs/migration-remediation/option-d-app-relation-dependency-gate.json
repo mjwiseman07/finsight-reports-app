@@ -1,0 +1,1117 @@
+{
+  "generatedAt": "2026-09-04T22:47:37.247Z",
+  "gate": "option_d_app_relation_deps",
+  "ok": true,
+  "failureCount": 0,
+  "failures": [],
+  "identitySeparation": {
+    "publicUsersConsumers": [
+      {
+        "filename": "20260701043598_public_users_derived_baseline.sql",
+        "order": 1,
+        "via": "public.users"
+      },
+      {
+        "filename": "20260701043598_public_users_derived_baseline.sql",
+        "order": 1,
+        "via": "public.users"
+      },
+      {
+        "filename": "20260701043598_public_users_derived_baseline.sql",
+        "order": 1,
+        "via": "public.users"
+      },
+      {
+        "filename": "20260701043598_public_users_derived_baseline.sql",
+        "order": 1,
+        "via": "public.users"
+      },
+      {
+        "filename": "20260701043598_public_users_derived_baseline.sql",
+        "order": 1,
+        "via": "public.users"
+      },
+      {
+        "filename": "20260701043598_public_users_derived_baseline.sql",
+        "order": 1,
+        "via": "public.users"
+      },
+      {
+        "filename": "20260701043598_public_users_derived_baseline.sql",
+        "order": 1,
+        "via": "public.users"
+      },
+      {
+        "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+        "order": 108,
+        "via": "public.users"
+      },
+      {
+        "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+        "order": 108,
+        "via": "public.users"
+      },
+      {
+        "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+        "order": 108,
+        "via": "public.users"
+      }
+    ],
+    "authUsersConsumers": [
+      {
+        "filename": "20260701043598_public_users_derived_baseline.sql",
+        "order": 1
+      },
+      {
+        "filename": "20260701_refund_requests.sql",
+        "order": 7
+      },
+      {
+        "filename": "20260701_refund_requests.sql",
+        "order": 7
+      },
+      {
+        "filename": "20260708_02_d1_1_owner_user_id_backfill.sql",
+        "order": 29
+      },
+      {
+        "filename": "20260709_00_d2_safe_je_posting.sql",
+        "order": 31
+      },
+      {
+        "filename": "20260713_00_d4_uncategorized_proposals.sql",
+        "order": 38
+      },
+      {
+        "filename": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+        "order": 40
+      },
+      {
+        "filename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+        "order": 42
+      },
+      {
+        "filename": "20260715180000_mfa_enrollment.sql",
+        "order": 51
+      },
+      {
+        "filename": "20260715180000_mfa_enrollment.sql",
+        "order": 51
+      },
+      {
+        "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+        "order": 52
+      },
+      {
+        "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+        "order": 52
+      },
+      {
+        "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+        "order": 52
+      },
+      {
+        "filename": "20260719050000_gap3_je_approval_flow.sql",
+        "order": 82
+      },
+      {
+        "filename": "20260719050000_gap3_je_approval_flow.sql",
+        "order": 82
+      },
+      {
+        "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+        "order": 84
+      },
+      {
+        "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+        "order": 85
+      },
+      {
+        "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+        "order": 85
+      },
+      {
+        "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+        "order": 89
+      },
+      {
+        "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+        "order": 89
+      },
+      {
+        "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+        "order": 90
+      },
+      {
+        "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+        "order": 93
+      },
+      {
+        "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+        "order": 94
+      },
+      {
+        "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+        "order": 95
+      },
+      {
+        "filename": "20260724010000_kickout_investigations.sql",
+        "order": 100
+      },
+      {
+        "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+        "order": 103
+      },
+      {
+        "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+        "order": 108
+      },
+      {
+        "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+        "order": 108
+      },
+      {
+        "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+        "order": 108
+      },
+      {
+        "filename": "20260819045253_continuous_close_runs.sql",
+        "order": 138
+      },
+      {
+        "filename": "20260820233219_journal_entry_proposals.sql",
+        "order": 139
+      },
+      {
+        "filename": "20260821042800_journal_entry_approvals.sql",
+        "order": 140
+      },
+      {
+        "filename": "20260821183525_journal_entry_executions.sql",
+        "order": 141
+      }
+    ],
+    "conflationRisks": [],
+    "separationAsserted": true,
+    "note": "Order-107 migration binds trigger on auth.users and writes public.users; these are distinct relations."
+  },
+  "publicUsersCreatorPresent": true,
+  "publicUsersMissingCreator": false,
+  "creators": {
+    "users": {
+      "filename": "20260701043598_public_users_derived_baseline.sql",
+      "order": 1
+    },
+    "audit_logs": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "background_jobs": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "firms": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "firm_memberships": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "firm_clients": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "client_briefing_settings": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "client_briefings": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "client_briefing_events": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "companies": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_roles": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_users": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_invitations": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_settings": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "delivery_settings": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "onboarding_progress": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "accounting_connections": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "free_review_leads": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "pdf_package_customizations": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "pulse_insight_memory": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "pulse_historical_snapshots": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "pulse_conversation_memory": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "pulse_usage_events": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_memory_records": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_memory_record_sources": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_memory_record_lineage": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_memory_record_audit": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_memory_record_versions": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "company_memory_record_retention_events": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "practice_accounts": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "healthcare_operational_stats": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "support_tickets": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "time_to_first_value_events": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "accounting_syncs": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "advisory_signals": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "advisory_recommendations": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "advisory_package_queue": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "si_historical_snapshots": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "si_snapshot_backfill_runs": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "si_snapshot_retrieval_log": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "si_snapshot_audit": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "si_snapshot_payloads": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "si_snapshot_retention_events": {
+      "filename": "20260701043599_foundations_baseline.sql",
+      "order": 2
+    },
+    "subscriptions": {
+      "filename": "20260701043602_phase1_subscriptions_core.sql",
+      "order": 3
+    },
+    "subscription_items": {
+      "filename": "20260701043602_phase1_subscriptions_core.sql",
+      "order": 3
+    },
+    "stripe_webhook_events": {
+      "filename": "20260701043602_phase1_subscriptions_core.sql",
+      "order": 3
+    },
+    "subscription_seats": {
+      "filename": "20260701043707_phase1_subscription_seats_and_entitlements.sql",
+      "order": 4
+    },
+    "entitlements": {
+      "filename": "20260701043707_phase1_subscription_seats_and_entitlements.sql",
+      "order": 4
+    },
+    "company_billing_compat": {
+      "filename": "20260701043911_phase1_backward_compat_view.sql",
+      "order": 5
+    },
+    "refund_requests": {
+      "filename": "20260701_refund_requests.sql",
+      "order": 7
+    },
+    "refund_audit_log": {
+      "filename": "20260701_refund_requests.sql",
+      "order": 7
+    },
+    "refund_disputes": {
+      "filename": "20260701_refund_requests.sql",
+      "order": 7
+    },
+    "mfg_waitlist": {
+      "filename": "20260702_create_mfg_waitlist.sql",
+      "order": 9
+    },
+    "close_periods": {
+      "filename": "20260703_00_create_close_ledger.sql",
+      "order": 10
+    },
+    "close_checklist_templates": {
+      "filename": "20260703_01_create_checklist_system.sql",
+      "order": 11
+    },
+    "close_checklist_template_items": {
+      "filename": "20260703_01_create_checklist_system.sql",
+      "order": 11
+    },
+    "close_checklists": {
+      "filename": "20260703_01_create_checklist_system.sql",
+      "order": 11
+    },
+    "close_checklist_items": {
+      "filename": "20260703_01_create_checklist_system.sql",
+      "order": 11
+    },
+    "close_checklist_runs": {
+      "filename": "20260703_01_create_checklist_system.sql",
+      "order": 11
+    },
+    "close_checklist_run_items": {
+      "filename": "20260703_01_create_checklist_system.sql",
+      "order": 11
+    },
+    "stripe_webhook_events_legacy": {
+      "filename": "20260704024059_d_entitlements_legacy_stripe_rename.sql",
+      "order": 12
+    },
+    "close_packets": {
+      "filename": "20260707_create_close_packet_system.sql",
+      "order": 13
+    },
+    "close_packet_sections": {
+      "filename": "20260707_create_close_packet_system.sql",
+      "order": 13
+    },
+    "close_packet_variance_config": {
+      "filename": "20260707_create_close_packet_system.sql",
+      "order": 13
+    },
+    "close_packet_share_tokens": {
+      "filename": "20260707_03_close_packet_share.sql",
+      "order": 16
+    },
+    "pilot_slots": {
+      "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+      "order": 17
+    },
+    "sku_launch_waitlist": {
+      "filename": "20260708120000_tcp1_w1_solo_bk_pilot_slots.sql",
+      "order": 17
+    },
+    "curated_rules_registry": {
+      "filename": "20260708_00_d0_identity_and_memory_activation.sql",
+      "order": 21
+    },
+    "client_active_rules": {
+      "filename": "20260708_00_d0_identity_and_memory_activation.sql",
+      "order": 21
+    },
+    "panel_decision_audit": {
+      "filename": "20260708_00_d0_identity_and_memory_activation.sql",
+      "order": 21
+    },
+    "escalation_audit": {
+      "filename": "20260708_00_d0_identity_and_memory_activation.sql",
+      "order": 21
+    },
+    "customers": {
+      "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "order": 26
+    },
+    "ar_cash_app_remittances": {
+      "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "order": 26
+    },
+    "ar_cash_app_remittance_lines": {
+      "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "order": 26
+    },
+    "ar_cash_app_payments": {
+      "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "order": 26
+    },
+    "ar_cash_app_match_candidates": {
+      "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "order": 26
+    },
+    "ar_cash_app_config": {
+      "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+      "order": 26
+    },
+    "firm_llm_config": {
+      "filename": "20260706_d67_p2_layer2_layer4.sql",
+      "order": 27
+    },
+    "ar_cash_app_match_scores": {
+      "filename": "20260706_d67_p2_layer2_layer4.sql",
+      "order": 27
+    },
+    "ar_cash_app_review_items": {
+      "filename": "20260706_d67_p2_layer2_layer4.sql",
+      "order": 27
+    },
+    "cash_app_payer_patterns_global": {
+      "filename": "20260706_d67_p2_layer2_layer4.sql",
+      "order": 27
+    },
+    "qbo_health_check_log": {
+      "filename": "20260708_01_d1_qbo_write_readiness.sql",
+      "order": 28
+    },
+    "je_post_attempts": {
+      "filename": "20260709_00_d2_safe_je_posting.sql",
+      "order": 31
+    },
+    "je_posting_audit": {
+      "filename": "20260709_00_d2_safe_je_posting.sql",
+      "order": 31
+    },
+    "je_line_evidence": {
+      "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+      "order": 32
+    },
+    "je_line_attachments": {
+      "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+      "order": 32
+    },
+    "je_backup_packets": {
+      "filename": "20260704_0100_d6_4a_je_evidence_attachments_backup.sql",
+      "order": 32
+    },
+    "engagements": {
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "order": 33
+    },
+    "portcos": {
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "order": 33
+    },
+    "ledger_events": {
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "order": 33
+    },
+    "event_projections": {
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "order": 33
+    },
+    "ai_action_log": {
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "order": 33
+    },
+    "vector_index": {
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "order": 33
+    },
+    "platform_metrics": {
+      "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+      "order": 33
+    },
+    "engagement_addons": {
+      "filename": "20260706130000_d_entitlements.sql",
+      "order": 34
+    },
+    "entitlement_check_audit": {
+      "filename": "20260706130000_d_entitlements.sql",
+      "order": 34
+    },
+    "intake_messages": {
+      "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+      "order": 36
+    },
+    "intake_attachments": {
+      "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+      "order": 36
+    },
+    "intake_dispatch_log": {
+      "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+      "order": 36
+    },
+    "firm_intake_addresses": {
+      "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+      "order": 36
+    },
+    "firm_intake_handlers": {
+      "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+      "order": 36
+    },
+    "firm_intake_settings": {
+      "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+      "order": 36
+    },
+    "uncategorized_proposals": {
+      "filename": "20260713_00_d4_uncategorized_proposals.sql",
+      "order": 38
+    },
+    "recurring_templates": {
+      "filename": "20260714_00_d5_recurring_templates.sql",
+      "order": 39
+    },
+    "recurring_schedule_lines": {
+      "filename": "20260714_00_d5_recurring_templates.sql",
+      "order": 39
+    },
+    "recurring_fires": {
+      "filename": "20260714_00_d5_recurring_templates.sql",
+      "order": 39
+    },
+    "curated_rule_fires": {
+      "filename": "20260703_1200_d6_0_vertical_rule_foundation.sql",
+      "order": 40
+    },
+    "pre_close_review_items": {
+      "filename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+      "order": 42
+    },
+    "engagement_posting_policy": {
+      "filename": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+      "order": 43
+    },
+    "firm_client_users": {
+      "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+      "order": 44
+    },
+    "engagement_review_visibility": {
+      "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+      "order": 44
+    },
+    "review_item_packet_exports": {
+      "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+      "order": 44
+    },
+    "assertions_catalog": {
+      "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "order": 45
+    },
+    "assertion_relevance_matrix": {
+      "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "order": 45
+    },
+    "rule_assertion_coverage": {
+      "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+      "order": 45
+    },
+    "advisacor_flags": {
+      "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "order": 46
+    },
+    "assertion_gap_root_causes": {
+      "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "order": 46
+    },
+    "close_assertion_coverage": {
+      "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "order": 46
+    },
+    "close_assertion_coverage_events": {
+      "filename": "20260707130000_d_assertions_part_2_coverage_projection.sql",
+      "order": 46
+    },
+    "assertion_coverage_statement_versions": {
+      "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "order": 47
+    },
+    "assertion_coverage_statement_downloads": {
+      "filename": "20260707140000_d_assertions_part_3_coverage_statement.sql",
+      "order": 47
+    },
+    "close_gap_review_items": {
+      "filename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+      "order": 49
+    },
+    "manual_test_evidence": {
+      "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+      "order": 50
+    },
+    "manual_test_attachments": {
+      "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+      "order": 50
+    },
+    "mfa_recovery_codes": {
+      "filename": "20260715180000_mfa_enrollment.sql",
+      "order": 51
+    },
+    "mfa_audit_log": {
+      "filename": "20260715180000_mfa_enrollment.sql",
+      "order": 51
+    },
+    "user_webauthn_credentials": {
+      "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+      "order": 52
+    },
+    "mfa_webauthn_challenges": {
+      "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+      "order": 52
+    },
+    "mfa_trusted_devices": {
+      "filename": "20260715190000_mfa_webauthn_and_trusted_devices.sql",
+      "order": 52
+    },
+    "qbo_cdc_cursors": {
+      "filename": "20260716010000_add_qbo_cdc_tables.sql",
+      "order": 54
+    },
+    "qbo_cdc_runs": {
+      "filename": "20260716010000_add_qbo_cdc_tables.sql",
+      "order": 54
+    },
+    "ap_intake_bills": {
+      "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+      "order": 56
+    },
+    "vendor_invoice_fingerprints": {
+      "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+      "order": 56
+    },
+    "ap_intake_assertion_registry": {
+      "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+      "order": 56
+    },
+    "ap_intake_ledger_event_types": {
+      "filename": "20260717010000_d65_p2_block1_visual_fingerprint.sql",
+      "order": 56
+    },
+    "vendor_master_mirror": {
+      "filename": "20260717020000_d65_p2_block2_vendor_mirror.sql",
+      "order": 58
+    },
+    "ap_intake_quarantine": {
+      "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+      "order": 59
+    },
+    "vendor_bank_history": {
+      "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+      "order": 59
+    },
+    "bookkeeper_release_allowlist": {
+      "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+      "order": 59
+    },
+    "quarantine_release_attempts": {
+      "filename": "20260717030000_d65_p2_block3_quarantine_l3.sql",
+      "order": 59
+    },
+    "ap_intake_bill_duplicates": {
+      "filename": "20260717040000_d65_p2_block4_duplicate_detection.sql",
+      "order": 60
+    },
+    "bill_history": {
+      "filename": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+      "order": 61
+    },
+    "fraud_score_signals": {
+      "filename": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+      "order": 61
+    },
+    "ledger_chain_head": {
+      "filename": "20260717050000_d65_p2_block5_anomaly_score_merkle.sql",
+      "order": 61
+    },
+    "pilot_feature_allowlist": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "company_document_numbering_config": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "baseline_harvest_runs": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "purchase_orders": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "purchase_order_line_items": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "requisitions": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "requisition_line_items": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "goods_receipts": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "goods_receipt_line_items": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "qbo_coa_mirror": {
+      "filename": "20260717060000_d65_p2_block6a_requisitions_harvest_l3.sql",
+      "order": 62
+    },
+    "requisition_approval_chains": {
+      "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "order": 64
+    },
+    "requisition_approval_steps": {
+      "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "order": 64
+    },
+    "approval_delegations": {
+      "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "order": 64
+    },
+    "requisition_comments": {
+      "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "order": 64
+    },
+    "requisition_amendments": {
+      "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "order": 64
+    },
+    "gl_account_budgets": {
+      "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "order": 64
+    },
+    "vendor_spend_history": {
+      "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "order": 64
+    },
+    "budget_check_results": {
+      "filename": "20260717080000_d65_p2_block6b_approval_delegation_budget_comments.sql",
+      "order": 64
+    },
+    "vendor_credits": {
+      "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+      "order": 65
+    },
+    "credit_applications": {
+      "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+      "order": 65
+    },
+    "vendor_prepayment_balances": {
+      "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+      "order": 65
+    },
+    "prepayment_ledger": {
+      "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+      "order": 65
+    },
+    "refund_request_drafts": {
+      "filename": "20260717090000_d65_p2_block7a_credits_prepayment.sql",
+      "order": 65
+    },
+    "vendor_ap_inbox_messages": {
+      "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+      "order": 66
+    },
+    "ap_inbox_drafted_responses": {
+      "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+      "order": 66
+    },
+    "ap_inbox_autonomy_config": {
+      "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+      "order": 66
+    },
+    "ap_inbox_permanent_exclusions_log": {
+      "filename": "20260717100000_d65_p2_block7b_multimodal_inbox.sql",
+      "order": 66
+    },
+    "payment_batches": {
+      "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+      "order": 67
+    },
+    "payment_batch_lines": {
+      "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+      "order": 67
+    },
+    "payment_batch_interlock_events": {
+      "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+      "order": 67
+    },
+    "vendor_bank_accounts": {
+      "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+      "order": 67
+    },
+    "vendor_bank_fanout_events": {
+      "filename": "20260717110000_d65_p2_block8a_interlock_rails.sql",
+      "order": 67
+    },
+    "preset_pack_registry": {
+      "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "order": 68
+    },
+    "customer_pack_selections": {
+      "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "order": 68
+    },
+    "observation_events": {
+      "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "order": 68
+    },
+    "drafted_amendments": {
+      "filename": "20260717120000_d65_p2_block8b_presets_selfgov.sql",
+      "order": 68
+    },
+    "qbo_webhook_events": {
+      "filename": "20260718000000_intuit_webhook_events.sql",
+      "order": 70
+    },
+    "pg_class_reloptions_view": {
+      "filename": "20260718180000_q8a_qbo_view_security_invoker.sql",
+      "order": 75
+    },
+    "pg_proc_config_view": {
+      "filename": "20260718190000_q8b_function_search_path_lockdown.sql",
+      "order": 76
+    },
+    "pg_proc_acl_view": {
+      "filename": "20260718200000_q8c_security_definer_rpc_revoke.sql",
+      "order": 77
+    },
+    "qbo_recent_intuit_tid": {
+      "filename": "20260718200000_support_ticket_intuit_context.sql",
+      "order": 78
+    },
+    "support_error_circuit": {
+      "filename": "20260719000000_support_auto_file_engine.sql",
+      "order": 81
+    },
+    "v_pre_close_approval_bundle": {
+      "filename": "20260719050000_gap3_je_approval_flow.sql",
+      "order": 82
+    },
+    "v_client_posted_je_report": {
+      "filename": "20260719050000_gap3_je_approval_flow.sql",
+      "order": 82
+    },
+    "qbo_api_trace": {
+      "filename": "20260719050000_gap3_je_approval_flow.sql",
+      "order": 82
+    },
+    "subscription_purge_schedule": {
+      "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "order": 83
+    },
+    "subscription_purge_audit": {
+      "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "order": 83
+    },
+    "gap2_purge_tokens": {
+      "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "order": 83
+    },
+    "gap2_purge_table_registry": {
+      "filename": "20260719060000_gap2_subscription_lifecycle_purge.sql",
+      "order": 83
+    },
+    "audit_ready_engagements": {
+      "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+      "order": 84
+    },
+    "audit_ready_pbc_requests": {
+      "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+      "order": 84
+    },
+    "audit_ready_auditor_portal_users": {
+      "filename": "20260720000000_v1_5_audit_ready_engagement_state.sql",
+      "order": 84
+    },
+    "audit_ready_pbc_uploads": {
+      "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+      "order": 85
+    },
+    "audit_ready_llm_usage": {
+      "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+      "order": 85
+    },
+    "audit_ready_pii_redaction_maps": {
+      "filename": "20260720120000_ar_week3_pbc_ingest_llm_usage.sql",
+      "order": 85
+    },
+    "audit_ready_tie_out_policies": {
+      "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+      "order": 89
+    },
+    "audit_ready_tie_out_summary": {
+      "filename": "20260720160000_ar_tieout1_policy_and_kind.sql",
+      "order": 89
+    },
+    "audit_ready_tie_out_runs": {
+      "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+      "order": 90
+    },
+    "audit_ready_tie_out_variances": {
+      "filename": "20260720170000_ar_tieout2_runs_and_variances.sql",
+      "order": 90
+    },
+    "audit_ready_tie_out_variance_evidence": {
+      "filename": "20260721000000_audit_ready_tie_out_variance_evidence.sql",
+      "order": 92
+    },
+    "audit_ready_bs_recon_artifacts": {
+      "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+      "order": 93
+    },
+    "audit_ready_bs_recon_transactions": {
+      "filename": "20260721120000_ar_tieout4b1_bs_recon_artifacts.sql",
+      "order": 93
+    },
+    "audit_ready_fa_rollforward_artifacts": {
+      "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+      "order": 94
+    },
+    "audit_ready_fa_rollforward_lines": {
+      "filename": "20260721140000_ar_tieout4b2_fa_rollforward_artifacts.sql",
+      "order": 94
+    },
+    "audit_ready_bs_recon_summary_artifacts": {
+      "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+      "order": 95
+    },
+    "audit_ready_bs_recon_summary_lines": {
+      "filename": "20260721160000_ar_tieout4b3_bs_recon_summary.sql",
+      "order": 95
+    },
+    "audit_ready_cron_runs": {
+      "filename": "20260723050000_audit_ready_cron_runs.sql",
+      "order": 99
+    },
+    "audit_ready_kickout_investigations": {
+      "filename": "20260724010000_kickout_investigations.sql",
+      "order": 100
+    },
+    "audit_ready_run_artifacts": {
+      "filename": "20260724030100_ar_tieout412a_run_artifacts.sql",
+      "order": 103
+    },
+    "audit_ready_memory_events": {
+      "filename": "20260725060000_ar_tieout42_memory_events.sql",
+      "order": 107
+    },
+    "pilot_lifecycle_events": {
+      "filename": "20260804213003_pilot_lifecycle_events.sql",
+      "order": 109
+    },
+    "lifecycle_issues": {
+      "filename": "20260804234230_lifecycle_issues.sql",
+      "order": 114
+    },
+    "pilot_lifecycle_anchor_batches": {
+      "filename": "20260805005320_pilot_lifecycle_anchors.sql",
+      "order": 115
+    },
+    "pilot_lifecycle_anchor_leaves": {
+      "filename": "20260805005320_pilot_lifecycle_anchors.sql",
+      "order": 115
+    },
+    "pilot_lifecycle_anchor_tsr": {
+      "filename": "20260805005320_pilot_lifecycle_anchors.sql",
+      "order": 115
+    },
+    "lifecycle_issue_kinds_registry": {
+      "filename": "20260805210000_schema_drift_scanner_issue_kinds.sql",
+      "order": 118
+    },
+    "accuracy_contract_cache": {
+      "filename": "20260810070000_dash_1c_a_accuracy_contract_cache.sql",
+      "order": 125
+    },
+    "audit_ready_reconciling_items": {
+      "filename": "20260815000000_urm2_reconciling_items_persistence.sql",
+      "order": 131
+    },
+    "accounting_measurement_snapshots": {
+      "filename": "20260818020716_accounting_measurement_snapshots.sql",
+      "order": 135
+    },
+    "continuous_close_runs": {
+      "filename": "20260819045253_continuous_close_runs.sql",
+      "order": 138
+    },
+    "journal_entry_proposals": {
+      "filename": "20260820233219_journal_entry_proposals.sql",
+      "order": 139
+    },
+    "journal_entry_approvals": {
+      "filename": "20260821042800_journal_entry_approvals.sql",
+      "order": 140
+    },
+    "journal_entry_executions": {
+      "filename": "20260821183525_journal_entry_executions.sql",
+      "order": 141
+    },
+    "journal_entry_provider_attempts": {
+      "filename": "20260821212020_journal_entry_provider_attempts.sql",
+      "order": 142
+    }
+  },
+  "provenancePresent": true,
+  "provenanceClassification": "historical_reliance_on_preexisting_application_state",
+  "note": "All application relation consumes have ordered creators; SECURITY DEFINER search_path checks passed."
+}

@@ -1,0 +1,139 @@
+{
+  "phase1Migrations": [
+    {
+      "file": "20260701043602_phase1_subscriptions_core.sql",
+      "externalReferences": [
+        "lib"
+      ],
+      "prerequisites": [
+        {
+          "object": "lib",
+          "baselineSource": "check baseline"
+        }
+      ],
+      "enablesRls": false
+    },
+    {
+      "file": "20260701043707_phase1_subscription_seats_and_entitlements.sql",
+      "externalReferences": [
+        "firms",
+        "companies",
+        "the"
+      ],
+      "prerequisites": [
+        {
+          "object": "firms",
+          "baselineSource": "20260530_create_client_briefings.sql"
+        },
+        {
+          "object": "companies",
+          "baselineSource": "20260530_create_company_accounts.sql"
+        },
+        {
+          "object": "the",
+          "baselineSource": "check baseline"
+        }
+      ],
+      "enablesRls": false
+    },
+    {
+      "file": "20260701043911_phase1_backward_compat_view.sql",
+      "externalReferences": [
+        "companies"
+      ],
+      "prerequisites": [
+        {
+          "object": "companies",
+          "baselineSource": "20260530_create_company_accounts.sql"
+        }
+      ],
+      "enablesRls": false
+    },
+    {
+      "file": "20260701043931_phase1_entitlement_rls_policies.sql",
+      "externalReferences": [
+        "firm_memberships",
+        "company_users"
+      ],
+      "prerequisites": [
+        {
+          "object": "firm_memberships",
+          "baselineSource": "20260530_create_client_briefings.sql"
+        },
+        {
+          "object": "company_users",
+          "baselineSource": "20260530_create_company_accounts.sql"
+        }
+      ],
+      "enablesRls": true
+    }
+  ],
+  "rlsExposureWindow": {
+    "description": "Recovered production history enables RLS only in migration 4. Migrations 1-3 create subscription tables without RLS.",
+    "tablesExposedWithoutRlsBetweenMigrations": {
+      "after_migration_1": [
+        "subscriptions",
+        "subscription_items",
+        "stripe_webhook_events"
+      ],
+      "after_migration_2": [
+        "subscriptions",
+        "subscription_items",
+        "stripe_webhook_events",
+        "subscription_seats",
+        "entitlements"
+      ],
+      "rls_enabled_in_migration_4": [
+        "subscriptions",
+        "subscription_items",
+        "subscription_seats",
+        "entitlements",
+        "stripe_webhook_events"
+      ]
+    },
+    "failedReplayRisk": "If replay stops after migration 1 (as on deleted preview branch), three public tables exist with RLS disabled."
+  },
+  "foundationPrerequisites": [
+    {
+      "object": "firms",
+      "localMigration": "20260530_create_client_briefings.sql",
+      "inBaseline": true
+    },
+    {
+      "object": "firm_memberships",
+      "localMigration": "20260530_create_client_briefings.sql",
+      "inBaseline": true
+    },
+    {
+      "object": "companies",
+      "localMigration": "20260530_create_company_accounts.sql",
+      "inBaseline": true
+    },
+    {
+      "object": "company_users",
+      "localMigration": "20260530_create_company_accounts.sql",
+      "inBaseline": true
+    },
+    {
+      "object": "company_roles",
+      "localMigration": "20260530_create_company_accounts.sql",
+      "inBaseline": true
+    },
+    {
+      "object": "practice_accounts",
+      "localMigration": "20260530_add_account_type_onboarding.sql",
+      "inBaseline": true
+    }
+  ],
+  "seedAssumptions": {
+    "phase1_sql_contains_insert": false,
+    "baseline_allowlisted_reference": [
+      "company_roles"
+    ],
+    "backward_compat_view_requires": [
+      "companies.practice_id",
+      "companies.package_level",
+      "companies.billing_status"
+    ]
+  }
+}

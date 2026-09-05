@@ -1,0 +1,23 @@
+{
+  "cleanupAt": "2026-09-04T03:51:41.170Z",
+  "runId": "2026-09-03h",
+  "authorizedCommit": "bf2092b0ccdfb49daff329775972fd0a4ae1fde9",
+  "reason": "apply_failed_order_89",
+  "sqlApplicationAttempts": 89,
+  "completedCount": 88,
+  "failedAt": "20260720170000_ar_tieout2_runs_and_variances.sql",
+  "sqlState": "42P16",
+  "actions": [
+    "supabase stop --workdir <ephemeral> --no-backup (status 0)",
+    "Deleted ephemeral workdir C:\\Users\\mattj\\tmp-option-d-platform-only-bf2092b0",
+    "Removed temporary PR #312 suite materialization",
+    "Removed .tmp-option-d-dburl-bf2092b0.txt"
+  ],
+  "confirmed": {
+    "workdirExists": false,
+    "suiteExists": false,
+    "matchingContainerNames": [],
+    "matchingVolumeNames": [],
+    "port54322": "CLOSED"
+  }
+}

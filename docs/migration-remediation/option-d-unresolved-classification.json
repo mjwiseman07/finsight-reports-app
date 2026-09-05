@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-09-04T22:47:34.036Z",
+  "occurrenceCount": 1,
+  "requiredCount": 0,
+  "requiredDependenciesResolved": true,
+  "classifications": [
+    {
+      "file": "20260717130000_tcp1_w3_erp_connections_disconnected_at.sql",
+      "missing": "table erp_connections",
+      "kind": "table",
+      "identity": null,
+      "table": "erp_connections",
+      "classification": "safe_conditional",
+      "prerequisiteSource": "none_in_candidate_set",
+      "justifiedExclusion": true,
+      "absentObjectGenuinelySafe": true,
+      "dependencyEdge": null,
+      "executesWhen": [
+        "only_if_to_regclass_not_null",
+        "only_if_to_regclass_not_null"
+      ],
+      "statements": [
+        {
+          "kind": "do_block",
+          "executesWhen": "only_if_to_regclass_not_null",
+          "snippet": "DO $$ BEGIN IF to_regclass('public.erp_connections') IS NOT NULL THEN IF NOT EXISTS ( SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'erp_connections' AND column_name = 'disconnec"
+        },
+        {
+          "kind": "do_block",
+          "executesWhen": "only_if_to_regclass_not_null",
+          "snippet": "DO $$ BEGIN IF to_regclass('public.erp_connections') IS NOT NULL THEN CREATE INDEX IF NOT EXISTS erp_connections_disconnected_at_idx ON public.erp_connections (disconnected_at) WHERE disconnected_at IS NOT NULL; END IF; "
+        }
+      ],
+      "renameCreatorsInSet": [],
+      "rationale": "Every analyzed consume executes only inside IF to_regclass(public.<table>) IS NOT NULL (or ALTER IF EXISTS). Absent table is a no-op, not 42P01."
+    }
+  ]
+}

@@ -1,3 +1,11 @@
 # B2 — suppress generatedAt-only churn in evidence JSON diffs (G7-C7b)
 evidence/*-d0.json -diff
 wiring-verifier-evidence.json -diff
+
+# Option D isolated replay — path-scoped LF (no repo-wide renormalization)
+docs/migration-remediation/option-d-replay-manifest.json text eol=lf
+supabase/migrations-draft/option-d-isolated-replay/assembled/*.sql text eol=lf
+supabase/migrations-draft/option-d-isolated-replay/substitutions/*.sql text eol=lf
+supabase/migrations-draft/option-d-isolated-replay/derived-baseline/*.sql text eol=lf
+supabase/migrations-draft/20260701043599_foundations_baseline.sql text eol=lf
+supabase/migrations-draft/recovered-production-history/*.sql text eol=lf

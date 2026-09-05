@@ -1,0 +1,294 @@
+{
+  "counts": {
+    "local": 169,
+    "production": 185,
+    "localOnly": 63,
+    "prodOnly": 79,
+    "semanticDrift": 106,
+    "exactVersionMatch": 0,
+    "localPrePhase1": 35
+  },
+  "productionFirst": {
+    "version": "20260701043602",
+    "name": "phase1_subscriptions_core"
+  },
+  "productionSecond": {
+    "version": "20260701043707",
+    "name": "phase1_subscription_seats_and_entitlements"
+  },
+  "productionLast": {
+    "version": "20260827030454",
+    "name": "journal_entry_provider_attempt_reuse_posting_started"
+  },
+  "duplicateProductionVersions": [],
+  "phase1ProdOnly": [
+    {
+      "version": "20260701043602",
+      "name": "phase1_subscriptions_core"
+    },
+    {
+      "version": "20260701043707",
+      "name": "phase1_subscription_seats_and_entitlements"
+    },
+    {
+      "version": "20260701043911",
+      "name": "phase1_backward_compat_view"
+    },
+    {
+      "version": "20260701043931",
+      "name": "phase1_entitlement_rls_policies"
+    }
+  ],
+  "phase1Recovered": [
+    {
+      "version": "20260701043602",
+      "name": "phase1_subscriptions_core",
+      "provenance": "FETCHED_PRODUCTION_READ_ONLY",
+      "evidenceFile": "supabase/migrations-draft/recovered-production-history/20260701043602_phase1_subscriptions_core.sql",
+      "recovered": true
+    },
+    {
+      "version": "20260701043707",
+      "name": "phase1_subscription_seats_and_entitlements",
+      "provenance": "FETCHED_PRODUCTION_READ_ONLY",
+      "evidenceFile": "supabase/migrations-draft/recovered-production-history/20260701043707_phase1_subscription_seats_and_entitlements.sql",
+      "recovered": true
+    },
+    {
+      "version": "20260701043911",
+      "name": "phase1_backward_compat_view",
+      "provenance": "FETCHED_PRODUCTION_READ_ONLY",
+      "evidenceFile": "supabase/migrations-draft/recovered-production-history/20260701043911_phase1_backward_compat_view.sql",
+      "recovered": true
+    },
+    {
+      "version": "20260701043931",
+      "name": "phase1_entitlement_rls_policies",
+      "provenance": "FETCHED_PRODUCTION_READ_ONLY",
+      "evidenceFile": "supabase/migrations-draft/recovered-production-history/20260701043931_phase1_entitlement_rls_policies.sql",
+      "recovered": true
+    }
+  ],
+  "localOnlyPrePhase1": [
+    "20260529_create_audit_logs.sql",
+    "20260529_create_background_jobs.sql",
+    "20260530_add_account_type_onboarding.sql",
+    "20260530_add_industry_intelligence_onboarding.sql",
+    "20260530_create_client_briefings.sql",
+    "20260530_create_company_accounts.sql",
+    "20260530_create_healthcare_operational_stats.sql",
+    "20260530_create_support_tickets.sql",
+    "20260530_create_time_to_first_value_events.sql",
+    "20260531_alter_pdf_package_customizations_for_package_control.sql",
+    "20260531_backfill_accounting_connections_from_quickbooks.sql",
+    "20260531_create_accounting_connections.sql",
+    "20260531_create_free_review_leads.sql",
+    "20260531_create_pdf_package_customizations.sql",
+    "20260531_create_pulse_insight_memory.sql",
+    "20260531_create_pulse_memory.sql",
+    "20260531_create_pulse_usage_events.sql",
+    "20260601_security_control_hardening.sql",
+    "20260602_create_accounting_syncs.sql",
+    "20260602_create_advisory_intelligence.sql",
+    "20260602_standardize_accounting_sync_status.sql",
+    "20260603_add_si_snapshot_rls_policies.sql",
+    "20260603_create_si_historical_snapshots.sql",
+    "20260603_create_si_snapshot_audit.sql",
+    "20260603_create_si_snapshot_backfill_runs.sql",
+    "20260603_create_si_snapshot_payloads.sql",
+    "20260603_create_si_snapshot_retention_events.sql",
+    "20260603_create_si_snapshot_retrieval_log.sql",
+    "20260603_harden_si_snapshot_immutability.sql",
+    "20260605_add_company_memory_persistence_constraints.sql",
+    "20260605_add_company_memory_persistence_indexes.sql",
+    "20260605_add_company_memory_persistence_rls_policies.sql",
+    "20260605_create_company_memory_persistence_core_tables.sql",
+    "20260605_harden_company_memory_persistence_immutability.sql"
+  ],
+  "semanticDriftSample": [
+    {
+      "local": {
+        "version": "20260701",
+        "name": "refund_requests",
+        "filename": "20260701_refund_requests.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260702010748",
+        "name": "refund_requests"
+      }
+    },
+    {
+      "local": {
+        "version": "20260702",
+        "name": "create_mfg_waitlist",
+        "filename": "20260702_create_mfg_waitlist.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260702200404",
+        "name": "create_mfg_waitlist"
+      }
+    },
+    {
+      "local": {
+        "version": "20260705",
+        "name": "d67_p1_ar_cash_app_layer0_layer1",
+        "filename": "20260705_d67_p1_ar_cash_app_layer0_layer1.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260706011013",
+        "name": "d67_p1_ar_cash_app_layer0_layer1"
+      }
+    },
+    {
+      "local": {
+        "version": "20260706120000",
+        "name": "d_platform_event_sourced_foundation",
+        "filename": "20260706120000_d_platform_event_sourced_foundation.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260704021122",
+        "name": "d_platform_event_sourced_foundation"
+      }
+    },
+    {
+      "local": {
+        "version": "20260706130000",
+        "name": "d_entitlements",
+        "filename": "20260706130000_d_entitlements.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260704024119",
+        "name": "d_entitlements"
+      }
+    },
+    {
+      "local": {
+        "version": "20260706140000",
+        "name": "d_entitlements_followup",
+        "filename": "20260706140000_d_entitlements_followup.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260704025937",
+        "name": "d_entitlements_followup"
+      }
+    },
+    {
+      "local": {
+        "version": "20260706150000",
+        "name": "d6_4c_1_pre_close_review_queue",
+        "filename": "20260706150000_d6_4c_1_pre_close_review_queue.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260704033254",
+        "name": "d6_4c_1_pre_close_review_queue"
+      }
+    },
+    {
+      "local": {
+        "version": "20260706170000",
+        "name": "d6_4c_3_posting_policy_and_remediation",
+        "filename": "20260706170000_d6_4c_3_posting_policy_and_remediation.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260704043127",
+        "name": "d6_4c_3_posting_policy_and_remediation"
+      }
+    },
+    {
+      "local": {
+        "version": "20260706180000",
+        "name": "d6_4d_reviewer_ui_rls_and_visibility",
+        "filename": "20260706180000_d6_4d_reviewer_ui_rls_and_visibility.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260704050944",
+        "name": "d6_4d_reviewer_ui_rls_and_visibility"
+      }
+    },
+    {
+      "local": {
+        "version": "20260706",
+        "name": "d67_p2_layer2_layer4",
+        "filename": "20260706_d67_p2_layer2_layer4.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260706032617",
+        "name": "d67_p2_layer2_layer4"
+      }
+    },
+    {
+      "local": {
+        "version": "20260707000000",
+        "name": "d6_5_part1_universal_intake",
+        "filename": "20260707000000_d6_5_part1_universal_intake.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260706045703",
+        "name": "d6_5_part1_universal_intake"
+      }
+    },
+    {
+      "local": {
+        "version": "20260707120000",
+        "name": "d_assertions_part_1_schema_and_backfill",
+        "filename": "20260707120000_d_assertions_part_1_schema_and_backfill.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260704060217",
+        "name": "d_assertions_part_1_schema_and_backfill"
+      }
+    },
+    {
+      "local": {
+        "version": "20260707150000",
+        "name": "d_assertions_part_4_je_propagation",
+        "filename": "20260707150000_d_assertions_part_4_je_propagation.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260705023214",
+        "name": "d_assertions_part_4_je_propagation"
+      }
+    },
+    {
+      "local": {
+        "version": "20260707160000",
+        "name": "d_assertions_part_5_gap_review_items",
+        "filename": "20260707160000_d_assertions_part_5_gap_review_items.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260705030243",
+        "name": "d_assertions_part_5_gap_review_items"
+      }
+    },
+    {
+      "local": {
+        "version": "20260707170000",
+        "name": "d_assertions_part_6_manual_test_evidence",
+        "filename": "20260707170000_d_assertions_part_6_manual_test_evidence.sql",
+        "irregular": false
+      },
+      "prod": {
+        "version": "20260705032352",
+        "name": "d_assertions_part_6_manual_test_evidence"
+      }
+    }
+  ],
+  "mathCheck": {
+    "localSum": 169,
+    "prodSum": 185
+  }
+}

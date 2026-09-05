@@ -1,0 +1,145 @@
+{
+  "generatedAt": "2026-09-04T04:30:00.000Z",
+  "subject": "public.users",
+  "runtimeEvidence": {
+    "retained": true,
+    "evidenceDoc": "docs/migration-remediation/option-d-runtime-evidence-2026-09-04a.md",
+    "cleanupDoc": "docs/migration-remediation/option-d-runtime-cleanup-2026-09-04a.json",
+    "testedHead": "3be1765c0d7bda50913b55421541aa8e55cf9c11",
+    "evidenceOnlyHead": "c85f7501b6b198c7512dd33022bdabba20fb6b55",
+    "failedOrder": 107,
+    "failedMigration": "20260727000100_users_auth_trigger_single_writer.sql",
+    "completedCount": 106,
+    "sqlApplicationAttempts": 107,
+    "sqlState": "42P01",
+    "missingRelation": "public.users"
+  },
+  "identitySeparation": {
+    "publicUsers": "application profile table in schema public",
+    "authUsers": "Supabase-managed Auth identities in schema auth",
+    "mustNotSubstitute": true,
+    "mustNotCopyAuthRowsIntoRecoveredArtifacts": true
+  },
+  "gitProvenance": {
+    "createTableInSupabaseMigrations": false,
+    "createTableInMigrationsDraft": false,
+    "createTableInFoundationsBaseline": false,
+    "createTableAnywhereInGitHistory": false,
+    "consumerMigrationPresent": true,
+    "consumerFilename": "20260727000100_users_auth_trigger_single_writer.sql",
+    "consumerCommit": "bbdab111 (PR #211 FIX-USERS-PKEY)"
+  },
+  "productionSchemaMigrations": {
+    "projectRef": "jzmdgwwiestcmmeuhhkr",
+    "readOnly": true,
+    "earliestTrackedVersion": "20260701043602",
+    "earliestTrackedName": "phase1_subscriptions_core",
+    "versionsContainingCreateTablePublicUsers": [],
+    "versionsMentioningLiteralPublicUsers": [
+      {
+        "version": "20260727030443",
+        "name": "users_auth_trigger_single_writer",
+        "statementCount": 1,
+        "statementsBytes": 1602,
+        "kind": "consumer_only_function_trigger_backfill"
+      }
+    ],
+    "authoritativeCreatorRecoverableFromStatements": false
+  },
+  "productionLiveDefinition": {
+    "source": "read-only pg_catalog / information_schema (schema security only; no user rows)",
+    "relkind": "r",
+    "owner": "postgres",
+    "rlsEnabled": true,
+    "columns": [
+      { "name": "id", "dataType": "uuid", "notNull": true, "default": null },
+      { "name": "email", "dataType": "text", "notNull": true, "default": null },
+      { "name": "first_name", "dataType": "text", "notNull": false, "default": null },
+      { "name": "business_name", "dataType": "text", "notNull": false, "default": null },
+      { "name": "ip_address_signup", "dataType": "text", "notNull": false, "default": null },
+      { "name": "trial_used", "dataType": "boolean", "notNull": false, "default": "false" },
+      { "name": "reports_generated", "dataType": "integer", "notNull": false, "default": "0" },
+      { "name": "subscription_status", "dataType": "text", "notNull": false, "default": "'trial'::text" },
+      { "name": "stripe_customer_id", "dataType": "text", "notNull": false, "default": null },
+      { "name": "created_at", "dataType": "timestamp with time zone", "notNull": false, "default": "now()" },
+      { "name": "last_name", "dataType": "text", "notNull": false, "default": null }
+    ],
+    "constraints": [
+      { "name": "users_pkey", "type": "p", "def": "PRIMARY KEY (id)" },
+      { "name": "users_email_key", "type": "u", "def": "UNIQUE (email)" },
+      { "name": "users_id_fkey", "type": "f", "def": "FOREIGN KEY (id) REFERENCES auth.users(id)" }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)",
+      "CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)"
+    ],
+    "policies": [
+      {
+        "name": "Users can read own record",
+        "cmd": "r",
+        "using": "(auth.uid() = id)",
+        "withCheck": null,
+        "roles": "public (default)"
+      },
+      {
+        "name": "Users can update own record",
+        "cmd": "w",
+        "using": "(auth.uid() = id)",
+        "withCheck": null,
+        "roles": "public (default)"
+      }
+    ],
+    "grantsObserved": {
+      "note": "information_schema.role_table_grants lists anon/authenticated/service_role/postgres privileges; RLS restricts row access. No row data exported.",
+      "owner": "postgres"
+    },
+    "triggers": [
+      {
+        "name": "on_auth_user_created",
+        "on": "auth.users",
+        "def": "AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_auth_user()"
+      }
+    ],
+    "writerFunction": {
+      "name": "public.handle_new_auth_user()",
+      "securityDefiner": true,
+      "searchPath": "public, pg_temp",
+      "executeGrants": ["postgres", "service_role"],
+      "usesRawUserMetaDataFor": ["first_name", "last_name", "business_name"],
+      "authorizationUsesEditableMetadata": false
+    }
+  },
+  "consumersInCandidateSet": [
+    {
+      "filename": "20260727000100_users_auth_trigger_single_writer.sql",
+      "kinds": ["create_function_insert", "create_trigger_on_auth_users", "backfill_insert_select"]
+    }
+  ],
+  "schemaContract": {
+    "path": "docs/migration-remediation/schema-contract.foundation.json",
+    "priorClassification": "baseline_missing_object",
+    "priorNoteIncorrect": "claimed created in later production migration (d0_identity path) — d0 does not CREATE public.users",
+    "correctedNote": "Pre-dates first tracked schema_migrations version; absent from foundations baseline and from all statements[] CREATEs"
+  },
+  "rootCauseClassification": "historical_reliance_on_preexisting_application_state",
+  "secondaryClassifications": [
+    "creator_incorrectly_excluded_from_baseline",
+    "production_only_lineage_gap"
+  ],
+  "staticAnalyzerDefect": {
+    "description": "Bare identifier users was listed in platformProvidedTables/optionalExternalTables and PLATFORM_OR_BUILTIN_TABLES, conflating public.users with auth.users and suppressing required_missing_create.",
+    "remediation": "Removed bare users from those lists; only auth.users remains platform-qualified. Extended analyzer to consume tables inside function/policy/DO/grant bodies."
+  },
+  "createRemediation": {
+    "authorized": true,
+    "kind": "derived_baseline_schema_security_only",
+    "artifact": "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql",
+    "contract": "docs/migration-remediation/evidence/option-d-public-users-derived-baseline/contract.json",
+    "reason": "Separately authorized schema/security-only catalog derivation; original CREATE unavailable in statements[]. No user rows.",
+    "blocker": null
+  },
+  "recoveredArtifact": null,
+  "derivedBaselineArtifact": "supabase/migrations-draft/option-d-isolated-replay/derived-baseline/20260701043598_public_users_derived_baseline.sql",
+  "freshLocalReplayReady": false,
+  "freshLocalReplayNote": "Static candidate ready after this commit; Docker/apply still requires separate authorization"
+}
