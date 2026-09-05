@@ -9,6 +9,8 @@ import { join } from "node:path";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { canonicalPayloadJson } from "@/lib/ledger/merkle";
+// CJS test-infra helper (not a production barrel).
+import { resolveJeReusePgClientConfig } from "./je-reuse-pg-client-config.js";
 
 const MIGRATION = join(
   process.cwd(),
@@ -36,16 +38,6 @@ const IDS = {
 } as const;
 
 const STAGED_EXECUTION = "6d9579ad-0020-42b5-9521-db68a5d0edda";
-
-function buildConnectionString(value: string) {
-  try {
-    const parsed = new URL(value);
-    parsed.searchParams.delete("sslmode");
-    return parsed.toString();
-  } catch {
-    return value;
-  }
-}
 
 function executionRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -235,12 +227,19 @@ async function persistReservation(
 const describeIf = TEST_DB_URL ? describe : describe.skip;
 
 describeIf("JE-3A execution reservation — disposable PostgreSQL", () => {
-  const client = new pg.Client({
-    connectionString: buildConnectionString(TEST_DB_URL!),
-    ssl: { rejectUnauthorized: false },
-  });
+  // Client is opened in beforeAll via shared test-infra resolver
+  // (loopback+sslmode=disable → ssl:false; otherwise preserved SSL).
+  let client: pg.Client;
 
   beforeAll(async () => {
+    const resolved = await resolveJeReusePgClientConfig(TEST_DB_URL!);
+    if (!resolved.ok) {
+      throw new Error(`JE_REUSE pg client config rejected: ${resolved.reason}`);
+    }
+    client = new pg.Client({
+      connectionString: resolved.config.connectionString,
+      ssl: resolved.config.ssl,
+    });
     await client.connect();
     await client.query("BEGIN");
     await client.query(readFileSync(MIGRATION, "utf8"));
