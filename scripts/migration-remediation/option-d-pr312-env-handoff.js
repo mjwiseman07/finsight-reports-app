@@ -2,7 +2,7 @@
 /**
  * Fail-closed JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL handoff for PR #312 Vitest.
  *
- * Pinned suite contract (5972a707… / suite blob 5a565871…):
+ * Pinned suite contract (e550a029… / suite blob c3d5d220…):
  *   const TEST_DB_URL = process.env.JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL;
  *   const describeIf = TEST_DB_URL ? describe : describe.skip;
  *   // SETUP + 12 governed titles under describeIf
@@ -69,7 +69,7 @@ const PR312_SKIP_CONTRACT = {
     processExitCode: 1,
     numFailedTestSuites: 2,
     historical: true,
-    note: "Pre-5972a707 throwing-beforeAll signature; current pin must not reproduce this",
+    note: "Pre-e550a029 throwing-beforeAll signature; current pin must not reproduce this",
   },
 };
 /** Parent env keys safe to forward (no secrets, no inherited JE_REUSE). */

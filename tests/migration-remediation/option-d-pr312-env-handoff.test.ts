@@ -24,8 +24,8 @@ const LOCAL_OK = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 describe("Option D PR312 env handoff", () => {
   it("pins the updated PR #312 commit and suite blob", () => {
-    expect(PR312_COMMIT).toBe("5972a70782549950db23fc46d84c6f85b87affe6");
-    expect(PR312_SUITE_BLOB).toBe("5a565871ee0508ecc6b5afd59928250874b45154");
+    expect(PR312_COMMIT).toBe("e550a029fa167cff82f9d1636341721a6d5a80ff");
+    expect(PR312_SUITE_BLOB).toBe("c3d5d220ee9c40064ec062848e5a603fff175b70");
     expect(PR312_SKIP_CONTRACT.suiteCommit).toBe(PR312_COMMIT);
     expect(PR312_SKIP_CONTRACT.suiteBlob).toBe(PR312_SUITE_BLOB);
     expect(PR312_SKIP_CONTRACT.expectedTitlesUnderDescribeIf).toBe(13);
