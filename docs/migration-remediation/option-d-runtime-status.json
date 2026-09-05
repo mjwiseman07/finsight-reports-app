@@ -1,6 +1,6 @@
 {
   "overall": "BLOCKED",
-  "reason": "vitest_spawn_error",
+  "reason": "vitest_nonzero_exit",
   "scopes": {
     "candidateReplay": "PASS",
     "securityImmutabilityChecks": "PASS",
@@ -62,33 +62,137 @@
     "failures": []
   },
   "vitest": {
-    "processExitCode": null,
+    "processExitCode": 1,
     "signal": null,
-    "error": "spawnSync npx.cmd EINVAL",
+    "error": null,
     "gate": {
       "ok": false,
       "status": "FAIL",
-      "reason": "vitest_spawn_error",
+      "reason": "vitest_nonzero_exit",
       "failures": [
         {
-          "rule": "vitest_spawn_error",
-          "detail": "spawnSync npx.cmd EINVAL"
+          "rule": "vitest_nonzero_exit",
+          "processExitCode": 1
         },
         {
-          "rule": "vitest_exit_status_null"
+          "rule": "vitest_report_success_false"
         },
         {
           "rule": "vitest_structured_gate_failed",
-          "reason": "vitest_report_absent"
+          "reason": "zero_tests_in_report",
+          "structuredFailures": [
+            {
+              "rule": "zero_tests_in_report"
+            },
+            {
+              "rule": "expected_tests_not_all_passed",
+              "missing": [
+                "migration compile: reservation + transition RPCs exist",
+                "A. first reservation inserts row + execution_requested receipt",
+                "B. exact idempotency replay → reused, no duplicate receipt",
+                "C. approval_id replay with same binding → reused",
+                "D. binding mismatch on approval_id → fail closed",
+                "E. transition RESERVED → READY_TO_POST + execution_ready receipt",
+                "E2. Patent #6 chain adjacency for requested → ready receipts",
+                "F. state_version conflict on transition → rejected",
+                "G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt",
+                "H. concurrent approval_id reservation attempts converge to one execution",
+                "I. zero provider-attempt rows for execution reservation path",
+                "J. never touches staged production execution custody id"
+              ],
+              "expectedCount": 12,
+              "passedExpected": 0
+            },
+            {
+              "rule": "insufficient_passed_count",
+              "passed": 0,
+              "required": 12
+            }
+          ]
         }
       ],
-      "processExitCode": null,
+      "processExitCode": 1,
       "structured": {
         "ok": false,
         "status": "FAIL",
-        "reason": "vitest_report_absent",
-        "counts": {}
+        "reason": "zero_tests_in_report",
+        "counts": {
+          "total": 0,
+          "passed": 0,
+          "failed": 0,
+          "skipped": 0,
+          "todo": 0,
+          "pending": 0,
+          "unknown": 0
+        },
+        "failures": [
+          {
+            "rule": "zero_tests_in_report"
+          },
+          {
+            "rule": "expected_tests_not_all_passed",
+            "missing": [
+              "migration compile: reservation + transition RPCs exist",
+              "A. first reservation inserts row + execution_requested receipt",
+              "B. exact idempotency replay → reused, no duplicate receipt",
+              "C. approval_id replay with same binding → reused",
+              "D. binding mismatch on approval_id → fail closed",
+              "E. transition RESERVED → READY_TO_POST + execution_ready receipt",
+              "E2. Patent #6 chain adjacency for requested → ready receipts",
+              "F. state_version conflict on transition → rejected",
+              "G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt",
+              "H. concurrent approval_id reservation attempts converge to one execution",
+              "I. zero provider-attempt rows for execution reservation path",
+              "J. never touches staged production execution custody id"
+            ],
+            "expectedCount": 12,
+            "passedExpected": 0
+          },
+          {
+            "rule": "insufficient_passed_count",
+            "passed": 0,
+            "required": 12
+          }
+        ],
+        "pr312": {
+          "commit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
+          "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
+          "suiteBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+          "expectedTestCount": 12
+        }
       }
+    },
+    "launcher": {
+      "nodeExecPath": "c:\\Program Files\\cursor\\resources\\app\\resources\\helpers\\node.exe",
+      "nodeVersion": "v22.22.0",
+      "vitestPackageVersion": "4.1.9",
+      "vitestEntryPath": "C:\\Users\\mattj\\finsight-reports\\node_modules\\vitest\\vitest.mjs",
+      "vitestEntrySha256": "39db22f579acf5639bbb17a261408debbde03f4692c0c439e77e7f13aeba74d6",
+      "resolver": "node_modules_vitest_package_json_bin",
+      "shell": false,
+      "npxUsed": false,
+      "networkResolverUsed": false,
+      "argv": [
+        "C:\\Users\\mattj\\finsight-reports\\node_modules\\vitest\\vitest.mjs",
+        "run",
+        "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-git-blob-pr312-gcqSZB\\execution-reservation.postgres.integration.test.ts",
+        "--reporter=json",
+        "--outputFile=C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-vitest-1788573583484.json"
+      ],
+      "commandModel": "process.execPath <node_modules/vitest/vitest.mjs> run <tempSuite> --reporter=json --outputFile=<tmpJson>",
+      "processExitCode": 1,
+      "signal": null,
+      "timedOut": false,
+      "elapsedMs": 538,
+      "error": null
+    },
+    "suiteMaterialization": {
+      "ok": true,
+      "gitBlobId": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+      "sha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
+      "byteLength": 19389,
+      "authority": "git_cat_file_blob",
+      "temporaryFileSha256BeforeLaunch": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1"
     }
   },
   "pr312Provenance": {
@@ -103,5 +207,5 @@
     "authority": "git_cat_file_blob"
   },
   "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
-  "writtenAt": "2026-09-05T01:12:48.276Z"
+  "writtenAt": "2026-09-05T01:59:44.026Z"
 }

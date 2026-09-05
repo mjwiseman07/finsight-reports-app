@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-09-05T02:01:40.703Z",
+  "pin": "d2dd5818",
+  "authorizedCommit": "d2dd5818f237f85f8d7c64e7862005991da2a1e6",
+  "workdir": "C:\\\\Users\\\\mattj\\\\tmp-option-d-platform-only-d2dd5818",
+  "workdirRemoved": true,
+  "dburlFileRemoved": true,
+  "tcp54322Open": false,
+  "matchingContainers": [],
+  "matchingVolumes": [],
+  "cleanedTempDirs": [
+    "option-d-assemble-analyze-idDEEC",
+    "option-d-assemble-analyze-tHUV2A",
+    "option-d-col-1GRggp",
+    "option-d-col-XcVUOj"
+  ],
+  "supabaseStopExit": 0,
+  "head": "d2dd5818f237f85f8d7c64e7862005991da2a1e6",
+  "harnessOverall": "BLOCKED",
+  "harnessReason": "vitest_nonzero_exit",
+  "applyResult": {
+    "migrationsApplied": 150,
+    "sqlApplicationAttempts": 150,
+    "applied": true
+  },
+  "scopes": {
+    "candidateReplay": "PASS",
+    "securityImmutabilityChecks": "PASS",
+    "pr312RpcValidation": "FAIL",
+    "productionDashboardReplayParity": "unresolved"
+  },
+  "vitestLauncher": {
+    "npxUsed": false,
+    "commandModel": "process.execPath <node_modules/vitest/vitest.mjs> run <tempSuite> --reporter=json --outputFile=<tmpJson>",
+    "processExitCode": 1,
+    "elapsedMs": 538
+  },
+  "pr312Gate": {
+    "reason": "vitest_nonzero_exit",
+    "structuredReason": "zero_tests_in_report",
+    "passed": 0,
+    "required": 12,
+    "blockedSolelyBecause": "suite_materialized_outside_vitest_project_root_zero_discovery"
+  },
+  "memoryProbeReached": true,
+  "memoryAndSecurityImmutability": "PASS",
+  "pr312BlockedSolelyBecause": "zero_tests_in_report_outside_root_temp_suite",
+  "remediationNeeded": true,
+  "remediationNote": "Candidate replay PASS (150/150) and security/SI/Memory PASS. Launcher used process.execPath + local vitest (npxUsed=false). PR312 blocked solely by vitest_nonzero_exit / zero_tests_in_report (0/12) because the suite was run from an outside-root temp path excluded from vitest.config include globs. Not remediated in that authorized runtime run.",
+  "secretsPresent": false
+}
