@@ -22,6 +22,14 @@
 const net = require("net");
 const crypto = require("crypto");
 const { validateIsolatedReplayTarget, redactUrl } = require("./option-d-target-safety");
+const {
+  SUITE_SSL_OBJECT,
+  PR312_SUITE_SSL_CONTRACT,
+  suiteBuildConnectionString,
+  resolveSuiteEffectiveClientConfig,
+  assertProbeMatchesSuiteEffective,
+  evaluateSafeLoopbackSslDisablePath,
+} = require("./option-d-pr312-pg-ssl-precedence");
 
 const JE_REUSE_ENV = "JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL";
 
@@ -127,15 +135,10 @@ function sanitizePgErrorMessage(message) {
 
 /**
  * Mirror pinned suite buildConnectionString (delete sslmode query param).
+ * Delegates to precedence module so probe and Vitest stay aligned.
  */
 function buildSuiteMirroredConnectionString(value) {
-  try {
-    const parsed = new URL(String(value));
-    parsed.searchParams.delete("sslmode");
-    return parsed.toString();
-  } catch {
-    return String(value);
-  }
+  return suiteBuildConnectionString(value);
 }
 
 /**
@@ -319,11 +322,29 @@ function probeDisposableDbConnectivity(dbUrl, opts = {}) {
  */
 async function probeSuiteMirroredPgConnect(dbUrl, opts = {}) {
   const timeoutMs = opts.timeoutMs == null ? 8000 : Number(opts.timeoutMs);
+  const root = opts.root || process.cwd();
+  const suiteEffective = resolveSuiteEffectiveClientConfig(dbUrl, root);
+  const probeConfig = {
+    connectionString: suiteEffective.connectionString,
+    ssl: { ...SUITE_SSL_OBJECT },
+  };
+  const match = assertProbeMatchesSuiteEffective(probeConfig, suiteEffective);
+  if (!match.ok) {
+    return {
+      ok: false,
+      failures: match.failures,
+      mirroredSuiteSsl: true,
+      suiteEffective: {
+        ssl: suiteEffective.ssl,
+        sslmodePresentInConnectionString: suiteEffective.sslmodePresentInConnectionString,
+      },
+    };
+  }
+
   const { Client } = require("pg");
-  const connectionString = buildSuiteMirroredConnectionString(dbUrl);
   const client = new Client({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
+    connectionString: probeConfig.connectionString,
+    ssl: probeConfig.ssl,
     connectionTimeoutMillis: timeoutMs,
   });
   try {
@@ -343,6 +364,7 @@ async function probeSuiteMirroredPgConnect(dbUrl, opts = {}) {
       failures: [],
       mirroredSuiteSsl: true,
       selectOk: true,
+      probeMatchedSuite: true,
     };
   } catch (err) {
     try {
@@ -350,16 +372,32 @@ async function probeSuiteMirroredPgConnect(dbUrl, opts = {}) {
     } catch {
       /* ignore */
     }
+    const message = sanitizePgErrorMessage(err && err.message);
+    const failures = [
+      {
+        rule: "suite_mirrored_pg_connect_failed",
+        code: err && err.code ? String(err.code) : null,
+        message,
+      },
+    ];
+    if (/does not support SSL/i.test(String(err && err.message))) {
+      const pathEval = evaluateSafeLoopbackSslDisablePath({ root });
+      failures.push({
+        rule: PR312_SUITE_SSL_CONTRACT.blockerRule,
+        detail: PR312_SUITE_SSL_CONTRACT.blockerDetail,
+        requiresPr312SuitePinChange: true,
+        safeLoopbackSslDisablePathAvailable: false,
+        urlSslmodeWouldOverrideIfNotStripped:
+          pathEval.analysis.urlSslmodeDisableOverridesExplicitSslObject === true,
+        suiteStripMakesUrlIneffective:
+          pathEval.analysis.suiteStripThenExplicitSslRemainsObject === true,
+      });
+    }
     return {
       ok: false,
-      failures: [
-        {
-          rule: "suite_mirrored_pg_connect_failed",
-          code: err && err.code ? String(err.code) : null,
-          message: sanitizePgErrorMessage(err && err.message),
-        },
-      ],
+      failures,
       mirroredSuiteSsl: true,
+      probeMatchedSuite: true,
     };
   }
 }
@@ -553,4 +591,7 @@ module.exports = {
   nonReversibleFingerprint,
   sanitizePgErrorMessage,
   redactUrl,
+  evaluateSafeLoopbackSslDisablePath,
+  PR312_SUITE_SSL_CONTRACT,
+  SUITE_SSL_OBJECT,
 };
