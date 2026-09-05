@@ -1,6 +1,6 @@
 {
   "overall": "BLOCKED",
-  "reason": "vitest_nonzero_exit",
+  "reason": "pr312_env_handoff_or_provenance_failed",
   "scopes": {
     "candidateReplay": "PASS",
     "securityImmutabilityChecks": "PASS",
@@ -62,164 +62,90 @@
     "failures": []
   },
   "vitest": {
-    "processExitCode": 1,
+    "processExitCode": null,
     "signal": null,
-    "error": null,
+    "error": "pr312_env_handoff_or_provenance_failed",
     "gate": {
       "ok": false,
-      "status": "FAIL",
-      "reason": "vitest_nonzero_exit",
+      "reason": "pr312_env_handoff_or_provenance_failed",
       "failures": [
         {
-          "rule": "vitest_nonzero_exit",
-          "processExitCode": 1
-        },
-        {
-          "rule": "vitest_report_success_false"
-        },
-        {
-          "rule": "vitest_failed_suites",
-          "count": 2
-        },
-        {
-          "rule": "vitest_suite_status_failed",
-          "name": "C:/Users/mattj/AppData/Local/Temp/option-d-pr312-worktree-JuLjSo/tree/lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts"
-        },
-        {
-          "rule": "vitest_structured_gate_failed",
-          "reason": "skipped_present",
-          "structuredFailures": [
-            {
-              "rule": "skipped_present",
-              "count": 12
-            },
-            {
-              "rule": "expected_tests_not_all_passed",
-              "missing": [
-                "migration compile: reservation + transition RPCs exist",
-                "A. first reservation inserts row + execution_requested receipt",
-                "B. exact idempotency replay → reused, no duplicate receipt",
-                "C. approval_id replay with same binding → reused",
-                "D. binding mismatch on approval_id → fail closed",
-                "E. transition RESERVED → READY_TO_POST + execution_ready receipt",
-                "E2. Patent #6 chain adjacency for requested → ready receipts",
-                "F. state_version conflict on transition → rejected",
-                "G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt",
-                "H. concurrent approval_id reservation attempts converge to one execution",
-                "I. zero provider-attempt rows for execution reservation path",
-                "J. never touches staged production execution custody id"
-              ],
-              "expectedCount": 12,
-              "passedExpected": 0
-            },
-            {
-              "rule": "insufficient_passed_count",
-              "passed": 0,
-              "required": 12
-            },
-            {
-              "rule": "all_skipped_cannot_pass"
-            }
-          ]
+          "rule": "suite_mirrored_pg_connect_failed",
+          "code": null,
+          "message": "The server does not support SSL connections"
         }
-      ],
-      "processExitCode": 1,
-      "structured": {
-        "ok": false,
-        "status": "FAIL",
-        "reason": "skipped_present",
-        "counts": {
-          "total": 12,
-          "passed": 0,
-          "failed": 0,
-          "skipped": 12,
-          "todo": 0,
-          "pending": 0,
-          "unknown": 0
-        },
-        "failures": [
-          {
-            "rule": "skipped_present",
-            "count": 12
-          },
-          {
-            "rule": "expected_tests_not_all_passed",
-            "missing": [
-              "migration compile: reservation + transition RPCs exist",
-              "A. first reservation inserts row + execution_requested receipt",
-              "B. exact idempotency replay → reused, no duplicate receipt",
-              "C. approval_id replay with same binding → reused",
-              "D. binding mismatch on approval_id → fail closed",
-              "E. transition RESERVED → READY_TO_POST + execution_ready receipt",
-              "E2. Patent #6 chain adjacency for requested → ready receipts",
-              "F. state_version conflict on transition → rejected",
-              "G. transition RESERVED → PRECHECK_FAILED + execution_precheck_failed receipt",
-              "H. concurrent approval_id reservation attempts converge to one execution",
-              "I. zero provider-attempt rows for execution reservation path",
-              "J. never touches staged production execution custody id"
-            ],
-            "expectedCount": 12,
-            "passedExpected": 0
-          },
-          {
-            "rule": "insufficient_passed_count",
-            "passed": 0,
-            "required": 12
-          },
-          {
-            "rule": "all_skipped_cannot_pass"
-          }
-        ],
-        "pr312": {
-          "commit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
-          "suitePath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts",
-          "suiteBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
-          "expectedTestCount": 12
-        }
-      }
+      ]
     },
-    "launcher": {
-      "nodeExecPath": "c:\\Program Files\\cursor\\resources\\app\\resources\\helpers\\node.exe",
-      "nodeVersion": "v22.22.0",
-      "vitestPackageVersion": "4.1.9",
-      "vitestEntryPath": "C:\\Users\\mattj\\finsight-reports\\node_modules\\vitest\\vitest.mjs",
-      "vitestEntrySha256": "39db22f579acf5639bbb17a261408debbde03f4692c0c439e77e7f13aeba74d6",
-      "resolver": "node_modules_vitest_package_json_bin",
-      "shell": false,
-      "npxUsed": false,
-      "networkResolverUsed": false,
-      "cwd": "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree",
-      "configPath": "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree\\vitest.config.ts",
-      "vitestRoot": "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree",
-      "argv": [
-        "C:\\Users\\mattj\\finsight-reports\\node_modules\\vitest\\vitest.mjs",
-        "run",
-        "lib\\journal-entry-governance\\__tests__\\execution-reservation.postgres.integration.test.ts",
-        "--reporter=json",
-        "--outputFile=C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\option-d-vitest-1788575775362.json",
-        "--config",
-        "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree\\vitest.config.ts",
-        "--root",
-        "C:\\Users\\mattj\\AppData\\Local\\Temp\\option-d-pr312-worktree-JuLjSo\\tree"
-      ],
-      "commandModel": "process.execPath <node_modules/vitest/vitest.mjs> run <canonicalSuiteRel> --reporter=json --outputFile=<tmpJson> --config <worktree/vitest.config.ts> --root <worktree>",
-      "processExitCode": 1,
-      "signal": null,
-      "timedOut": false,
-      "elapsedMs": 927,
-      "error": null,
-      "stdoutSnippet": "JSON report written to C:/Users/mattj/AppData/Local/Temp/option-d-pr312-worktree-JuLjSo/option-d-vitest-1788575775362.json\n",
-      "stderrSnippet": ""
-    },
+    "launcher": null,
     "suiteMaterialization": {
       "ok": true,
       "gitBlobId": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
       "sha256": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
-      "byteLength": 19389,
-      "authority": "git_worktree_detach_pr312_commit",
-      "temporaryFileSha256BeforeLaunch": "3071253f4f613161713c0570b48cb44596edf7a9dd2d53788936d91716464ff1",
-      "canonicalRepoPath": "lib/journal-entry-governance/__tests__/execution-reservation.postgres.integration.test.ts"
-    }
+      "authority": "git_worktree_detach_pr312_commit"
+    },
+    "envHandoff": {
+      "ok": false,
+      "skipContract": {
+        "suiteCommit": "f65730b3d38e9cb3b192e54f62c798c74a07a1c2",
+        "suiteBlob": "6dfc99e23b8206d3d70b19c8a7d4758d22e0f770",
+        "envVar": "JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL",
+        "mechanismDescribeSkip": "describeIf = TEST_DB_URL ? describe : describe.skip",
+        "mechanismBeforeAllSkip": "beforeAll client.connect() failure → Vitest marks suite tests status=skipped (not failed)",
+        "expectedTitlesUnderDescribeIf": 12,
+        "blockedSentinelWhenUrlFalsy": "BLOCKED: JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL unavailable",
+        "suiteClientSsl": {
+          "rejectUnauthorized": false
+        },
+        "signatureUrlAbsent": {
+          "total": 13,
+          "skipped": 12,
+          "passed": 1,
+          "blockedPassed": true,
+          "processExitCode": 0,
+          "numFailedTestSuites": 0
+        },
+        "signatureBeforeAllConnectFail": {
+          "total": 12,
+          "skipped": 12,
+          "passed": 0,
+          "blockedPassed": false,
+          "processExitCode": 1,
+          "numFailedTestSuites": 2
+        }
+      },
+      "failures": [
+        {
+          "rule": "suite_mirrored_pg_connect_failed",
+          "code": null,
+          "message": "The server does not support SSL connections"
+        }
+      ],
+      "handoff": {
+        "envVar": "JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL",
+        "setExplicitly": true,
+        "inheritedValueRejected": false,
+        "inheritedWasPresent": false,
+        "allowlistKeyCount": 23,
+        "redacted": "host=127.0.0.1;port=54322;db=postgres",
+        "fingerprint": "cf6453a9f9e48b2d",
+        "hostname": "127.0.0.1",
+        "port": 54322,
+        "database": "postgres",
+        "credentialsIncludedInEvidence": false
+      },
+      "connectivity": {
+        "tcpOk": true,
+        "pgOk": false,
+        "hostname": "127.0.0.1",
+        "port": 54322,
+        "suiteMirroredSsl": true
+      },
+      "urlCheck": {
+        "redacted": "host=127.0.0.1;port=54322;db=postgres",
+        "fingerprint": "cf6453a9f9e48b2d"
+      }
+    },
+    "isolatedContext": null
   },
   "pr312Provenance": {
     "present": true,
@@ -233,5 +159,5 @@
     "authority": "git_cat_file_blob"
   },
   "targetRedacted": "host=127.0.0.1;port=54322;db=postgres",
-  "writtenAt": "2026-09-05T02:36:17.431Z"
+  "writtenAt": "2026-09-05T03:44:32.484Z"
 }
