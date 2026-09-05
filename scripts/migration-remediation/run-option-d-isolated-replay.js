@@ -48,11 +48,15 @@ const {
 const {
   materializeAuthorizedSqlFromGit,
   cleanupMaterialization,
-  materializePr312SuiteFromGit,
   sha256Buffer,
 } = require("./option-d-git-blob-authority");
 const { fingerprintPlatformWorkdir } = require("./option-d-platform-bootstrap");
 const { launchLocalVitest } = require("./option-d-vitest-launcher");
+const {
+  preparePr312IsolatedContext,
+  cleanupPr312IsolatedContext,
+  diagnoseVitestSuiteDiscovery,
+} = require("./option-d-pr312-isolated-context");
 
 const ROOT = path.join(__dirname, "..", "..");
 const STATUS_OUT = path.join(ROOT, "docs/migration-remediation/option-d-runtime-status.json");
@@ -291,36 +295,51 @@ async function runSecurityChecks(dbUrl) {
 }
 
 function runPr312Vitest(dbUrl) {
-  const suiteMat = materializePr312SuiteFromGit({
+  // Prefer isolated detached worktree at the exact PR #312 pin so Vitest include
+  // globs discover the canonical suite path. Outside-root temp copies yield
+  // zero_tests_in_report (proven 2026-09-04f).
+  const isolated = preparePr312IsolatedContext({
     commit: PR312_COMMIT,
     suitePath: PR312_SUITE_PATH,
-    expectedBlobId: PR312_SUITE_BLOB,
+    suiteBlob: PR312_SUITE_BLOB,
+    donorRoot: ROOT,
   });
-  applyMetrics.lastPr312Materialization = suiteMat;
-  if (!suiteMat.ok) {
+  applyMetrics.lastPr312Materialization = isolated.ok
+    ? {
+        ok: true,
+        tempDir: isolated.tempRoot,
+        tempFile: isolated.suiteAbsPath,
+        gitBlobId: isolated.suiteGitBlobId,
+        sha256: isolated.suiteSha256,
+        authority: isolated.authority,
+      }
+    : isolated;
+
+  if (!isolated.ok) {
     return {
       processExitCode: null,
       signal: null,
-      error: "pr312_git_blob_materialization_failed",
+      error: "pr312_isolated_context_failed",
       gate: {
         ok: false,
-        reason: "pr312_git_blob_materialization_failed",
-        failures: suiteMat.failures,
+        reason: "pr312_isolated_context_failed",
+        failures: isolated.failures,
       },
       structured: null,
       stderr: "",
-      suiteMaterialization: suiteMat,
+      suiteMaterialization: isolated,
       launcher: null,
+      discovery: diagnoseVitestSuiteDiscovery({
+        projectRoot: ROOT,
+        suitePath: path.join(os.tmpdir(), "option-d-outside-root-probe.test.ts"),
+      }),
     };
   }
 
-  // Re-verify materialized bytes match the pinned Git blob before launch.
-  const liveSha = sha256Buffer(fs.readFileSync(suiteMat.tempFile));
-  if (liveSha !== suiteMat.sha256 || suiteMat.gitBlobId !== PR312_SUITE_BLOB) {
-    if (suiteMat.tempDir) {
-      cleanupMaterialization(suiteMat.tempDir);
-      applyMetrics.lastPr312Materialization = null;
-    }
+  const liveSha = sha256Buffer(fs.readFileSync(isolated.suiteAbsPath));
+  if (liveSha !== isolated.suiteSha256 || isolated.suiteGitBlobId !== PR312_SUITE_BLOB) {
+    cleanupPr312IsolatedContext(isolated);
+    applyMetrics.lastPr312Materialization = null;
     return {
       processExitCode: null,
       signal: null,
@@ -332,24 +351,30 @@ function runPr312Vitest(dbUrl) {
           {
             rule: "exact_suite_blob_mismatch",
             expectedBlobId: PR312_SUITE_BLOB,
-            observedBlobId: suiteMat.gitBlobId,
-            expectedSha256: suiteMat.sha256,
+            observedBlobId: isolated.suiteGitBlobId,
+            expectedSha256: isolated.suiteSha256,
             temporaryFileSha256: liveSha,
           },
         ],
       },
       structured: null,
       stderr: "",
-      suiteMaterialization: suiteMat,
+      suiteMaterialization: isolated,
       launcher: null,
     };
   }
 
-  const outFile = path.join(os.tmpdir(), `option-d-vitest-${Date.now()}.json`);
+  const outFile = path.join(isolated.tempRoot, `option-d-vitest-${Date.now()}.json`);
   const launched = launchLocalVitest({
-    suitePath: suiteMat.tempFile,
+    suitePath: PR312_SUITE_PATH.replace(/\//g, path.sep),
     outputFile: outFile,
-    cwd: ROOT,
+    cwd: isolated.worktreePath,
+    vitestRoot: isolated.worktreePath,
+    configPath: isolated.configPath,
+    root: ROOT, // resolve vitest entry from donor install
+    canonicalRepoPath: PR312_SUITE_PATH,
+    requireInsideProjectRoot: true,
+    requireIncludeMatch: true,
     env: {
       ...process.env,
       JE_REUSE_POSTING_MIGRATION_TEST_DATABASE_URL: dbUrl,
@@ -379,10 +404,9 @@ function runPr312Vitest(dbUrl) {
     report,
   });
 
-  if (suiteMat.tempDir) {
-    cleanupMaterialization(suiteMat.tempDir);
-    applyMetrics.lastPr312Materialization = null;
-  }
+  const suiteByteLength = fs.statSync(isolated.suiteAbsPath).size;
+  const cleanup = cleanupPr312IsolatedContext(isolated);
+  applyMetrics.lastPr312Materialization = null;
 
   return {
     processExitCode: launched.processExitCode,
@@ -396,13 +420,23 @@ function runPr312Vitest(dbUrl) {
     structured: gate.structured,
     stderr: (launched.stderr || "").slice(0, 1000),
     launcher: launched.launcher,
+    discovery: isolated.discovery,
+    isolatedContext: {
+      commit: isolated.commit,
+      worktreePath: isolated.worktreePath,
+      authority: isolated.authority,
+      packageLockOid: isolated.packageLockOid,
+      nodeModulesLinkType: isolated.nodeModulesLink?.type || null,
+      cleaned: cleanup.ok,
+    },
     suiteMaterialization: {
       ok: true,
-      gitBlobId: suiteMat.gitBlobId,
-      sha256: suiteMat.sha256,
-      byteLength: suiteMat.byteLength,
-      authority: suiteMat.authority,
+      gitBlobId: isolated.suiteGitBlobId,
+      sha256: isolated.suiteSha256,
+      byteLength: suiteByteLength,
+      authority: isolated.authority,
       temporaryFileSha256BeforeLaunch: liveSha,
+      canonicalRepoPath: PR312_SUITE_PATH,
     },
   };
 }

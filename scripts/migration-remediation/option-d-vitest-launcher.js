@@ -116,7 +116,7 @@ function resolveLocalVitestEntry(opts = {}) {
 
 /**
  * Build the exact argv for a shell-free Vitest run.
- * @param {{ entryPath: string, suitePath: string, outputFile: string }} opts
+ * @param {{ entryPath: string, suitePath: string, outputFile: string, configPath?: string, vitestRoot?: string }} opts
  */
 function buildVitestArgv(opts) {
   const entryPath = opts.entryPath;
@@ -128,11 +128,18 @@ function buildVitestArgv(opts) {
       failures: [{ rule: "vitest_argv_incomplete" }],
     };
   }
+  const argv = [entryPath, "run", suitePath, "--reporter=json", `--outputFile=${outputFile}`];
+  if (opts.configPath) {
+    argv.push("--config", opts.configPath);
+  }
+  if (opts.vitestRoot) {
+    argv.push("--root", opts.vitestRoot);
+  }
   return {
     ok: true,
     failures: [],
     command: process.execPath,
-    argv: [entryPath, "run", suitePath, "--reporter=json", `--outputFile=${outputFile}`],
+    argv,
     shell: false,
   };
 }
@@ -172,13 +179,42 @@ function assertShellFreeLaunchPlan(plan) {
  *   suitePath: string,
  *   outputFile: string,
  *   cwd?: string,
+ *   configPath?: string,
+ *   vitestRoot?: string,
  *   env?: NodeJS.ProcessEnv,
  *   timeoutMs?: number,
  *   root?: string,
  *   spawnSyncImpl?: typeof spawnSync,
+ *   requireInsideProjectRoot?: boolean,
  * }} opts
  */
 function launchLocalVitest(opts) {
+  const projectRoot = path.resolve(opts.cwd || opts.vitestRoot || opts.root || ROOT);
+  if (opts.requireInsideProjectRoot === true) {
+    const { diagnoseVitestSuiteDiscovery } = require("./option-d-pr312-isolated-context");
+    const discovery = diagnoseVitestSuiteDiscovery({
+      projectRoot,
+      suitePath: opts.suitePath,
+      canonicalRepoPath: opts.canonicalRepoPath,
+      requireIncludeMatch: opts.requireIncludeMatch !== false,
+    });
+    if (!discovery.ok) {
+      return {
+        ok: false,
+        processExitCode: null,
+        signal: null,
+        timedOut: false,
+        error: discovery.failures[0]?.rule || "suite_discovery_rejected",
+        failures: discovery.failures,
+        launcher: null,
+        spawn: null,
+        stdout: "",
+        stderr: "",
+        discovery,
+      };
+    }
+  }
+
   const resolved = resolveLocalVitestEntry({ root: opts.root || ROOT });
   if (!resolved.ok) {
     return {
@@ -199,6 +235,8 @@ function launchLocalVitest(opts) {
     entryPath: resolved.entryPath,
     suitePath: opts.suitePath,
     outputFile: opts.outputFile,
+    configPath: opts.configPath,
+    vitestRoot: opts.vitestRoot || projectRoot,
   });
   if (!argvPlan.ok) {
     return {
@@ -238,7 +276,7 @@ function launchLocalVitest(opts) {
   const timeoutMs = opts.timeoutMs == null ? 600_000 : Number(opts.timeoutMs);
   const startedAt = Date.now();
   const r = spawnImpl(argvPlan.command, argvPlan.argv, {
-    cwd: opts.cwd || ROOT,
+    cwd: projectRoot,
     encoding: "utf8",
     env: opts.env || process.env,
     timeout: timeoutMs,
@@ -261,14 +299,19 @@ function launchLocalVitest(opts) {
     shell: false,
     npxUsed: false,
     networkResolverUsed: false,
+    cwd: projectRoot,
+    configPath: opts.configPath || null,
+    vitestRoot: opts.vitestRoot || projectRoot,
     argv: argvPlan.argv,
     commandModel:
-      "process.execPath <node_modules/vitest/vitest.mjs> run <tempSuite> --reporter=json --outputFile=<tmpJson>",
+      "process.execPath <node_modules/vitest/vitest.mjs> run <canonicalSuiteRel> --reporter=json --outputFile=<tmpJson> --config <worktree/vitest.config.ts> --root <worktree>",
     processExitCode: r.status,
     signal: r.signal || null,
     timedOut: Boolean(timedOut),
     elapsedMs,
     error: r.error ? String(r.error.message || r.error).slice(0, 300) : null,
+    stdoutSnippet: String(r.stdout || "").slice(0, 500),
+    stderrSnippet: String(r.stderr || "").slice(0, 500),
   };
 
   return {
